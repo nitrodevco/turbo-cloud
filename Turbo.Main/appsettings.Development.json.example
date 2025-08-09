@@ -1,0 +1,16 @@
+{
+	"Serilog": {
+		"MinimumLevel": {
+			"Default": "Debug",
+			"Override": {
+				"Microsoft": "Debug"
+			}
+		}
+	},
+	"Turbo": {
+		"DatabaseLoggingEnabled": true,
+		"FloodMessageLimit": 3,
+        "FloodTimeFrameSeconds": 10,
+        "FloodMuteDurationSeconds": 30
+	}
+}

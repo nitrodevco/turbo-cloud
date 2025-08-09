@@ -1,0 +1,8 @@
+{
+	"Turbo": {
+		"DatabaseLoggingEnabled": false,
+        "FloodMessageLimit": 3,
+        "FloodTimeFrameSeconds": 10,
+        "FloodMuteDurationSeconds": 30
+	}
+}
