@@ -30,7 +30,9 @@ public class PlayerGrain : Grain, IPlayerGrain
     /// <summary>
     /// Gets the player ID for this grain.
     /// </summary>
-    private long PlayerId => this.GetPrimaryKeyLong();
+    public long PlayerId => this.GetPrimaryKeyLong();
+
+    public Task<long> GetPlayerId() => Task.FromResult(PlayerId);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PlayerGrain"/> class.
