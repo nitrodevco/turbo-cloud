@@ -78,12 +78,13 @@ internal class Program
                         logging.AddConsole();
                     })
                     .AddMemoryGrainStorage("PubSubStore")
+                    .AddMemoryGrainStorage("PlayerStore")
                     .AddIncomingGrainCallFilter<AutoFlushFilter>();
 
                 var streamTypes = AppDomain.CurrentDomain.GetAssemblies()
                     .SelectMany(a => a.GetTypes())
                     .Where(t => t.IsClass && !t.IsAbstract)
-                    .Select(t => new { Type = t, Attr = t.GetCustomAttribute<StreamProviderAttribute>() })
+                    .Select(t => new { Type = t, Attr = t.GetCustomAttribute<AutoStreamProviderAttribute>() })
                     .Where(x => x.Attr is not null);
 
                 foreach (var x in streamTypes)

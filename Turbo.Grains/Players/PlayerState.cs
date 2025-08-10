@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using Orleans;
 using Orleans.Serialization;
 
@@ -13,24 +15,43 @@ public sealed partial class PlayerState : INotifyPropertyChanged
     [Id(0)] private string _name = string.Empty;
     [Id(1)] private string _motto = string.Empty;
     [Id(2)] private string _figure = string.Empty;
+    [Id(3)] private bool _initialized;
 
     public string Name
     {
         get => _name;
-        set { if (_name != value) { _name = value; OnChanged(nameof(Name)); } }
+        set => SetProperty(ref _name, value);
     }
 
     public string Motto
     {
         get => _motto;
-        set { if (_motto != value) { _motto = value; OnChanged(nameof(Motto)); } }
+        set => SetProperty(ref _motto, value);
     }
 
     public string Figure
     {
         get => _figure;
-        set { if (_figure != value) { _figure = value; OnChanged(nameof(Figure)); } }
+        set => SetProperty(ref _figure, value);
     }
 
-    private void OnChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    public bool Initialized
+    {
+        get => _initialized;
+        set => SetProperty(ref _initialized, value);
+    }
+
+    private void OnPropertyChanged([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+    private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? name = null)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value)) return false;
+
+        field = value;
+
+        OnPropertyChanged(name);
+
+        return true;
+    }
 }

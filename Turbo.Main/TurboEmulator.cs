@@ -1,14 +1,14 @@
 using System;
 using System.Globalization;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Orleans;
-using Turbo.Contracts.Players;
-using Turbo.Contracts.Shared;
 using Turbo.Core;
+using Turbo.Core.Game.Players;
 
 namespace Turbo.Main;
 
@@ -49,13 +49,17 @@ public class TurboEmulator(
         _appLifetime.ApplicationStopping.Register(OnStopping);
         _appLifetime.ApplicationStopped.Register(OnStopped);
 
-        var grainFactory = _serviceProvider.GetRequiredService<IGrainFactory>();
+        var playerManager = _serviceProvider.GetRequiredService<IPlayerManager>();
 
-        var ensure = await grainFactory.GetGrain<IPlayerRegistryGrain>("player-1").EnsureExistsAsync(false);
+        var doesPlayerExist = await playerManager.PlayerExistsAsync(1);
 
-        if (ensure.Status is EnsureStatus.NotFound or EnsureStatus.Failed)
+        if (doesPlayerExist)
         {
-            Console.WriteLine("Failed to ensure player exists: {0}", ensure.Status);
+            var grain = await playerManager.GetPlayerGrain(1);
+
+            Console.WriteLine(JsonSerializer.Serialize(await grain.GetAsync()));
+
+            await grain.SetName("NewName");
         }
     }
 

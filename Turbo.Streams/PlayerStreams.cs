@@ -6,7 +6,7 @@ using Orleans.Streams;
 
 namespace Turbo.Streams;
 
-[StreamProvider(nameof(ProviderName))]
+[AutoStreamProvider("PlayerEvents")]
 public class PlayerStreams
 {
     public const string ProviderName = "PlayerEvents";

@@ -10,6 +10,7 @@
         <PackageReference Include="DotNetty.Transport" Version="0.7.5" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Abstractions" Version="9.0.8" />
         <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.0" />
+        <PackageReference Include="Microsoft.Orleans.Core.Abstractions" Version="9.2.1" />
     </ItemGroup>
 
 </Project>
