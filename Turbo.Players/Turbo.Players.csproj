@@ -11,10 +11,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Turbo.Contracts\Turbo.Contracts.csproj" />
+    <ProjectReference Include="..\Turbo.Core\Turbo.Core.csproj" />
     <ProjectReference Include="..\Turbo.Database\Turbo.Database.csproj" />
-    <ProjectReference Include="..\Turbo.Streams\Turbo.Streams.csproj" />
-    <ProjectReference Include="..\Turbo.Events\Turbo.Events.csproj" />
   </ItemGroup>
 
 </Project>

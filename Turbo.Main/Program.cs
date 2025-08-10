@@ -1,39 +1,38 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Orleans;
 using Orleans.Hosting;
+using Orleans.Streams;
 using Scrutor;
 using Turbo.Core.Configuration;
+using Turbo.Core.Game.Players;
 using Turbo.Database.Context;
 using Turbo.Main.Configuration;
 using Turbo.Main.Extensions;
 using Turbo.Main.Filters;
+using Turbo.Players;
+using Turbo.Streams;
 
 namespace Turbo.Main;
 
 internal class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
-        try
-        {
-            CreateHostBuilder(args).Build().Run();
-        }
-
-        catch (Exception error)
-        {
-            Console.WriteLine(error);
-        }
-    }
-
-    private static IHostBuilder CreateHostBuilder(string[] args)
-    {
-        return Host.CreateDefaultBuilder(args)
+        var builder = Host.CreateDefaultBuilder(args)
+            .ConfigureLogging(logging =>
+            {
+                logging.AddConsole();
+            })
             .ConfigureAppConfiguration((_, config) =>
             {
                 config.AddUserSecrets<Program>();
@@ -60,7 +59,7 @@ internal class Program
                     .EnableDetailedErrors());
 
                 // Emulator
-                services.AddHostedService<TurboEmulator>();
+                services.AddSingleton<TurboEmulator>();
 
                 /* services.Scan(scan => scan
                     .FromApplicationDependencies(a => a.GetName().Name!.StartsWith("Turbo"))
@@ -69,14 +68,50 @@ internal class Program
                     .WithSingletonLifetime());
 
                 services.AddSingleton<CompositeIncomingFilter>(); */
+                services.AddSingleton<IPlayerManager, PlayerManager>();
             })
             .UseOrleans(silo =>
             {
                 silo.UseLocalhostClustering()
-                    .AddMemoryGrainStorageAsDefault()
+                    .ConfigureLogging(logging =>
+                    {
+                        logging.AddConsole();
+                    })
                     .AddMemoryGrainStorage("PubSubStore")
-                    .AddMemoryStreams("SMS")
                     .AddIncomingGrainCallFilter<AutoFlushFilter>();
+
+                var streamTypes = AppDomain.CurrentDomain.GetAssemblies()
+                    .SelectMany(a => a.GetTypes())
+                    .Where(t => t.IsClass && !t.IsAbstract)
+                    .Select(t => new { Type = t, Attr = t.GetCustomAttribute<StreamProviderAttribute>() })
+                    .Where(x => x.Attr is not null);
+
+                foreach (var x in streamTypes)
+                {
+                    var name = x.Attr!.Name;
+                    var queueCount = x.Attr!.QueueCount;
+                    var streamPubSubType = x.Attr!.StreamPubSubType;
+
+                    silo.AddMemoryStreams(name, opts =>
+                    {
+                        if (queueCount is int n && n > 0) opts.ConfigurePartitioning(n);
+
+                        opts.ConfigureStreamPubSub(streamPubSubType);
+                    });
+                }
             });
+
+        var host = builder.Build();
+
+        var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
+        var shutdownToken = lifetime.ApplicationStopping;
+
+        await host.StartAsync(shutdownToken);
+
+        var emulator = host.Services.GetRequiredService<TurboEmulator>();
+
+        await emulator.StartAsync(shutdownToken);
+
+        await host.WaitForShutdownAsync(shutdownToken);
     }
 }

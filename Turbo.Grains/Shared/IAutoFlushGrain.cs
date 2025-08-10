@@ -5,7 +5,7 @@ namespace Turbo.Grains.Shared;
 
 public interface IAutoFlushGrain
 {
-    bool IsDirty { get; }
-    Task FlushExternalAsync(CancellationToken ct);
-    void AcceptChanges();
+    public bool IsDirty { get; }
+    public void AcceptChanges();
+    public Task FlushExternalAsync(CancellationToken ct);
 }

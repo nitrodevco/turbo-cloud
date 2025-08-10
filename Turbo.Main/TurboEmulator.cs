@@ -5,6 +5,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Orleans;
+using Turbo.Contracts.Players;
+using Turbo.Contracts.Shared;
 using Turbo.Core;
 
 namespace Turbo.Main;
@@ -45,6 +48,15 @@ public class TurboEmulator(
         _appLifetime.ApplicationStarted.Register(OnStarted);
         _appLifetime.ApplicationStopping.Register(OnStopping);
         _appLifetime.ApplicationStopped.Register(OnStopped);
+
+        var grainFactory = _serviceProvider.GetRequiredService<IGrainFactory>();
+
+        var ensure = await grainFactory.GetGrain<IPlayerRegistryGrain>("player-1").EnsureExistsAsync(false);
+
+        if (ensure.Status is EnsureStatus.NotFound or EnsureStatus.Failed)
+        {
+            Console.WriteLine("Failed to ensure player exists: {0}", ensure.Status);
+        }
     }
 
     /// <summary>

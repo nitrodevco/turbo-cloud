@@ -22,9 +22,6 @@
         <PackageReference Include="Microsoft.Orleans.Streaming" Version="9.2.1" />
         <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0-rc.1.efcore.9.0.0" />
         <PackageReference Include="Scrutor" Version="6.1.0" />
-        <PackageReference Include="Serilog.Extensions.Hosting" Version="8.0.0" />
-        <PackageReference Include="Serilog.Settings.Configuration" Version="8.0.0" />
-        <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
         <PackageReference Include="System.Collections" Version="4.3.0" />
     </ItemGroup>
 
@@ -42,6 +39,9 @@
         <ProjectReference Include="..\Turbo.Contracts\Turbo.Contracts.csproj" />
         <ProjectReference Include="..\Turbo.Core\Turbo.Core.csproj" />
         <ProjectReference Include="..\Turbo.Database\Turbo.Database.csproj" />
+        <ProjectReference Include="..\Turbo.Events\Turbo.Events.csproj" />
         <ProjectReference Include="..\Turbo.Grains\Turbo.Grains.csproj" />
+        <ProjectReference Include="..\Turbo.Players\Turbo.Players.csproj" />
+        <ProjectReference Include="..\Turbo.Streams\Turbo.Streams.csproj" />
     </ItemGroup>
 </Project>
