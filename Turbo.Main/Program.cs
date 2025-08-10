@@ -18,7 +18,6 @@ using Turbo.Core.Game.Players;
 using Turbo.Database.Context;
 using Turbo.Main.Configuration;
 using Turbo.Main.Extensions;
-using Turbo.Main.Filters;
 using Turbo.Players;
 using Turbo.Streams;
 
@@ -78,8 +77,7 @@ internal class Program
                         logging.AddConsole();
                     })
                     .AddMemoryGrainStorage("PubSubStore")
-                    .AddMemoryGrainStorage("PlayerStore")
-                    .AddIncomingGrainCallFilter<AutoFlushFilter>();
+                    .AddMemoryGrainStorage("PlayerStore");
 
                 var streamTypes = AppDomain.CurrentDomain.GetAssemblies()
                     .SelectMany(a => a.GetTypes())
