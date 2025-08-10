@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -7,9 +6,13 @@ using Orleans.Serialization;
 
 namespace Turbo.Grains.Players;
 
+/// <summary>
+/// Represents the persistent state of a player in the system.
+/// </summary>
 [GenerateSerializer]
 public sealed partial class PlayerState : INotifyPropertyChanged
 {
+    /// <inheritdoc />
     public event PropertyChangedEventHandler? PropertyChanged;
 
     [Id(0)] private string _name = string.Empty;
@@ -17,24 +20,36 @@ public sealed partial class PlayerState : INotifyPropertyChanged
     [Id(2)] private string _figure = string.Empty;
     [Id(3)] private bool _initialized;
 
+    /// <summary>
+    /// Gets or sets the player's display name.
+    /// </summary>
     public string Name
     {
         get => _name;
         set => SetProperty(ref _name, value);
     }
 
+    /// <summary>
+    /// Gets or sets the player's motto or status message.
+    /// </summary>
     public string Motto
     {
         get => _motto;
         set => SetProperty(ref _motto, value);
     }
 
+    /// <summary>
+    /// Gets or sets the player's avatar figure string.
+    /// </summary>
     public string Figure
     {
         get => _figure;
         set => SetProperty(ref _figure, value);
     }
 
+    /// <summary>
+    /// Gets or sets whether the state has been initialized from external sources.
+    /// </summary>
     public bool Initialized
     {
         get => _initialized;

@@ -7,6 +7,9 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Orleans.Runtime;
 
+/// <summary>
+/// Manages a persistent state object and tracks changes automatically via property and collection notifications.
+/// </summary>
 public sealed class AutoDirtyState<T> where T : class
 {
     private readonly IPersistentState<T> _inner;
@@ -15,22 +18,33 @@ public sealed class AutoDirtyState<T> where T : class
     private bool _isLoaded;
     private readonly HashSet<object> _hooked = new(ReferenceEqualityComparer.Instance);
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="AutoDirtyState{T}"/>.
+    /// </summary>
     public AutoDirtyState(IPersistentState<T> inner, Func<T>? factory = null)
     {
         _inner = inner;
         _factory = factory;
     }
 
-    /// <summary>True after InitializeAsync() completes.</summary>
+    /// <summary>
+    /// True after <see cref="InitializeAsync"/> completes.
+    /// </summary>
     public bool IsLoaded => _isLoaded;
 
-    /// <summary>True after any observed change since last accept/write.</summary>
+    /// <summary>
+    /// True after any observed change since last accept/write.
+    /// </summary>
     public bool IsDirty { get; private set; }
 
-    /// <summary>Live state instance (after InitializeAsync).</summary>
+    /// <summary>
+    /// Live state instance (after <see cref="InitializeAsync"/>).
+    /// </summary>
     public T State => _inner.State!;
 
-    /// <summary>Read from storage once; create via factory if null; hook change events.</summary>
+    /// <summary>
+    /// Reads from storage once; creates via factory if null; hooks change events.
+    /// </summary>
     public async Task InitializeAsync()
     {
         if (_isLoaded) return;
@@ -40,8 +54,7 @@ public sealed class AutoDirtyState<T> where T : class
         if (_inner.State is null)
         {
             if (_factory is null)
-                throw new InvalidOperationException(
-                    $"AutoDirtyState<{typeof(T).Name}> needs a factory when storage returns null.");
+                throw new InvalidOperationException($"AutoDirtyState<{typeof(T).Name}> needs a factory when storage returns null.");
             _inner.State = _factory();
         }
 
@@ -50,7 +63,9 @@ public sealed class AutoDirtyState<T> where T : class
         _isLoaded = true;
     }
 
-    /// <summary>Apply a mutation and mark dirty.</summary>
+    /// <summary>
+    /// Applies a mutation and marks dirty.
+    /// </summary>
     public void Mutate(Action<T> change)
     {
         EnsureLoaded();
@@ -58,7 +73,9 @@ public sealed class AutoDirtyState<T> where T : class
         MarkDirty();
     }
 
-    /// <summary>Replace the root object (re-hooks) and mark dirty.</summary>
+    /// <summary>
+    /// Replaces the root object (re-hooks) and marks dirty.
+    /// </summary>
     public void Replace(T newState)
     {
         _inner.State = newState;
@@ -66,7 +83,9 @@ public sealed class AutoDirtyState<T> where T : class
         MarkDirty();
     }
 
-    /// <summary>Persist only if dirty, then clear dirty flag.</summary>
+    /// <summary>
+    /// Persists only if dirty, then clears dirty flag.
+    /// </summary>
     public async Task WriteIfDirtyAsync()
     {
         if (!_isLoaded || !IsDirty) return;
@@ -74,7 +93,9 @@ public sealed class AutoDirtyState<T> where T : class
         AcceptChanges();
     }
 
-    /// <summary>Persist regardless of dirty flag.</summary>
+    /// <summary>
+    /// Persists regardless of dirty flag.
+    /// </summary>
     public async Task WriteAsync()
     {
         EnsureLoaded();
@@ -82,7 +103,9 @@ public sealed class AutoDirtyState<T> where T : class
         AcceptChanges();
     }
 
-    /// <summary>Clear storage and local hooks; next call must re-initialize.</summary>
+    /// <summary>
+    /// Clears storage and local hooks; next call must re-initialize.
+    /// </summary>
     public async Task ClearAsync()
     {
         await _inner.ClearStateAsync();
@@ -92,10 +115,14 @@ public sealed class AutoDirtyState<T> where T : class
         _isLoaded = false;
     }
 
-    /// <summary>Manually accept current snapshot as clean.</summary>
+    /// <summary>
+    /// Manually accepts current snapshot as clean.
+    /// </summary>
     public void AcceptChanges() => IsDirty = false;
 
-    /// <summary>Mark state as dirty (useful from external observers).</summary>
+    /// <summary>
+    /// Marks state as dirty (useful from external observers).
+    /// </summary>
     public void MarkDirty() => IsDirty = true;
 
     // -------------------- Hooking logic --------------------
@@ -165,7 +192,7 @@ public sealed class AutoDirtyState<T> where T : class
     private sealed class ReferenceEqualityComparer : IEqualityComparer<object>
     {
         public static readonly ReferenceEqualityComparer Instance = new();
-        public new bool Equals(object x, object y) => ReferenceEquals(x, y);
+        public bool Equals(object? x, object? y) => ReferenceEquals(x, y);
         public int GetHashCode(object obj) => RuntimeHelpers.GetHashCode(obj);
     }
 }
