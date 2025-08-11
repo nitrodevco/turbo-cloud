@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+    </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Orleans.Core.Abstractions" Version="9.2.1" />
+    <PackageReference Include="Microsoft.Orleans.Sdk" Version="9.2.1" />
+    <PackageReference Include="Microsoft.Orleans.Streaming" Version="9.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Turbo.Core\Turbo.Core.csproj" />
+    <ProjectReference Include="..\Turbo.Streams\Turbo.Streams.csproj" />
+    <ProjectReference Include="..\Turbo.Events\Turbo.Events.csproj" />
+  </ItemGroup>
+
+</Project>

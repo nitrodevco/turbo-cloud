@@ -13,6 +13,10 @@ using Orleans;
 using Orleans.Hosting;
 using Orleans.Streams;
 using Scrutor;
+using Turbo.Authorization;
+using Turbo.Authorization.Players.Contexts;
+using Turbo.Authorization.Players.Requirements;
+using Turbo.Core.Authorization;
 using Turbo.Core.Configuration;
 using Turbo.Core.Game.Players;
 using Turbo.Database.Context;
@@ -60,13 +64,9 @@ internal class Program
                 // Emulator
                 services.AddSingleton<TurboEmulator>();
 
-                /* services.Scan(scan => scan
-                    .FromApplicationDependencies(a => a.GetName().Name!.StartsWith("Turbo"))
-                    .AddClasses(c => c.AssignableTo<IIncomingGrainCallFilter>())
-                    .As<IIncomingGrainCallFilter>()
-                    .WithSingletonLifetime());
+                services.AddSingleton<IAuthorizationManager, AuthorizationManager>();
 
-                services.AddSingleton<CompositeIncomingFilter>(); */
+                services.AddTransient<IRequirementHandler<NotBannedRequirement, PlayerLoginContext>, NotBannedHandler>();
                 services.AddSingleton<IPlayerManager, PlayerManager>();
             })
             .UseOrleans(silo =>

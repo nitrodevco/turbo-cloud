@@ -7,7 +7,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Orleans;
+using Turbo.Authorization.Players.Contexts;
+using Turbo.Authorization.Players.Requirements;
 using Turbo.Core;
+using Turbo.Core.Authorization;
 using Turbo.Core.Game.Players;
 
 namespace Turbo.Main;
@@ -56,10 +59,29 @@ public class TurboEmulator(
         if (doesPlayerExist)
         {
             var grain = await playerManager.GetPlayerGrain(1);
+            var playerId = await grain.GetPlayerId();
 
             Console.WriteLine(JsonSerializer.Serialize(await grain.GetAsync()));
 
             await grain.SetName("NewName");
+
+            var authorizationManager = _serviceProvider.GetRequiredService<IAuthorizationManager>();
+            var ctx = new PlayerLoginContext(playerId, true);
+
+            var res = await authorizationManager.AuthorizeAsync(ctx, [new NotBannedRequirement()], true, cancellationToken);
+
+            if (res.Ok)
+            {
+                Console.WriteLine("Player is not banned, login allowed.");
+            }
+            else
+            {
+                Console.WriteLine("Player is banned, login denied.");
+                foreach (var fail in res.Fails)
+                {
+                    Console.WriteLine($"Failure: {fail.Message}");
+                }
+            }
         }
     }
 
