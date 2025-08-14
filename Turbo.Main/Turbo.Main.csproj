@@ -44,5 +44,6 @@
         <ProjectReference Include="..\Turbo.Players\Turbo.Players.csproj" />
         <ProjectReference Include="..\Turbo.Streams\Turbo.Streams.csproj" />
         <ProjectReference Include="..\Turbo.Authorization\Turbo.Authorization.csproj" />
+        <ProjectReference Include="..\Turbo.Networking\Turbo.Networking.csproj" />
     </ItemGroup>
 </Project>

@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Orleans;
+using Orleans.Configuration;
 using Orleans.Hosting;
 using Orleans.Streams;
 using Scrutor;
@@ -19,9 +20,14 @@ using Turbo.Authorization.Players.Requirements;
 using Turbo.Core.Authorization;
 using Turbo.Core.Configuration;
 using Turbo.Core.Game.Players;
+using Turbo.Core.Networking;
+using Turbo.Core.Networking.Session;
 using Turbo.Database.Context;
 using Turbo.Main.Configuration;
 using Turbo.Main.Extensions;
+using Turbo.Networking;
+using Turbo.Networking.Factories;
+using Turbo.Networking.Session;
 using Turbo.Players;
 using Turbo.Streams;
 
@@ -61,6 +67,13 @@ internal class Program
                     .EnableSensitiveDataLogging(turboConfig.DatabaseLoggingEnabled)
                     .EnableDetailedErrors());
 
+                services.AddSingleton<INetworkEventLoopGroup, NetworkEventLoopGroup>();
+                services.AddSingleton<INetworkServerFactory, NetworkServerFactory>();
+                services.AddSingleton<INetworkManager, NetworkManager>();
+
+                services.AddSingleton<ISessionFactory, SessionFactory>();
+                services.AddSingleton<ISessionManager, SessionManager>();
+
                 // Emulator
                 services.AddSingleton<TurboEmulator>();
 
@@ -71,6 +84,8 @@ internal class Program
             })
             .UseOrleans(silo =>
             {
+                silo.ConfigureEndpoints("127.0.0.1", siloPort: 11111, gatewayPort: 3000, listenOnAnyHostAddress: true);
+
                 silo.UseLocalhostClustering()
                     .ConfigureLogging(logging =>
                     {

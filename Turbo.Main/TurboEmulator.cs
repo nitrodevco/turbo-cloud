@@ -11,7 +11,9 @@ using Turbo.Authorization.Players.Contexts;
 using Turbo.Authorization.Players.Requirements;
 using Turbo.Core;
 using Turbo.Core.Authorization;
+using Turbo.Core.Configuration;
 using Turbo.Core.Game.Players;
+using Turbo.Core.Networking;
 
 namespace Turbo.Main;
 
@@ -51,6 +53,14 @@ public class TurboEmulator(
         _appLifetime.ApplicationStarted.Register(OnStarted);
         _appLifetime.ApplicationStopping.Register(OnStopping);
         _appLifetime.ApplicationStopped.Register(OnStopped);
+
+        var config = _serviceProvider.GetRequiredService<IEmulatorConfig>();
+
+        var networkManager = _serviceProvider.GetRequiredService<INetworkManager>();
+
+        networkManager.SetupServers(config.Network.Hosts);
+
+        await networkManager.StartServersAsync();
 
         var playerManager = _serviceProvider.GetRequiredService<IPlayerManager>();
 
