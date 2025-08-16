@@ -11,6 +11,7 @@ public class GameEncoder : MessageToByteEncoder<IServerPacket>
 {
     protected override void Encode(IChannelHandlerContext context, IServerPacket message, IByteBuffer output)
     {
+        // Write directly from IByteBuffer for zero-allocation
         output.WriteBytes(message.Content);
     }
 }

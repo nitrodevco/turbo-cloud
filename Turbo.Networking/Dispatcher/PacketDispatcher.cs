@@ -91,8 +91,7 @@ public class PacketDispatcher(
             var next = _sequencers.AddOrUpdate(
                 envelope.ChannelId,
                 _ => ProcessOne(envelope, ct),
-                (_, tail) => tail.ContinueWith(_ => ProcessOne(envelope, ct), ct,
-                    TaskContinuationOptions.None, TaskScheduler.Default).Unwrap());
+                (_, tail) => tail.IsCompleted ? ProcessOne(envelope, ct) : tail.ContinueWith(_ => ProcessOne(envelope, ct), ct, TaskContinuationOptions.None, TaskScheduler.Default).Unwrap());
 
             _ = next.ContinueWith(
                 t =>
@@ -123,15 +122,13 @@ public class PacketDispatcher(
                 {
                     if (revision.Parsers.TryGetValue(envelope.Msg.Header, out var parser))
                     {
-                        await parser.HandleAsync(session, envelope.Msg, _messageHub, ct);
+                        await parser.HandleAsync(session, envelope.Msg, _messageHub, ct).ConfigureAwait(false);
                     }
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Handler error {Header} sid={Sid}", envelope.Msg.Header, envelope.ChannelId);
-
-                // await session.SendAsync(Out.Error("server-error"));
             }
         }
         finally

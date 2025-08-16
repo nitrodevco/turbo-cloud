@@ -14,7 +14,8 @@ public class GameDecoder : MessageToMessageDecoder<IByteBuffer>
     protected override void Decode(IChannelHandlerContext context, IByteBuffer message, List<object> output)
     {
         var header = message.ReadShort();
-        IClientPacket packet = new ClientPacket(header, message.ReadBytes(message.ReadableBytes));
+        var content = message.ReadSlice(message.ReadableBytes).Retain() as IByteBuffer;
+        IClientPacket packet = new ClientPacket(header, content);
         output.Add(packet);
     }
 }
