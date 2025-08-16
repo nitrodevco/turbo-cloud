@@ -1,10 +1,11 @@
+namespace Turbo.Networking.Session;
+
 using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
+
 using DotNetty.Transport.Channels;
 using Turbo.Core.Networking.Session;
-
-namespace Turbo.Networking.Session;
 
 public class SessionManager : ISessionManager
 {
@@ -35,11 +36,17 @@ public class SessionManager : ISessionManager
 
     public void PauseReadsOnAll()
     {
-        foreach (var session in _sessions.Values) session.PauseReads();
+        foreach (var session in _sessions.Values)
+        {
+            session.PauseReads();
+        }
     }
 
     public void ResumeReadsOnAll()
     {
-        foreach (var session in _sessions.Values) session.ResumeReads();
+        foreach (var session in _sessions.Values)
+        {
+            session.ResumeReads();
+        }
     }
 }

@@ -1,8 +1,8 @@
-﻿using DotNetty.Buffers;
+namespace Turbo.Networking.Codec;
+
+using DotNetty.Buffers;
 using DotNetty.Codecs;
 using DotNetty.Transport.Channels;
-
-namespace Turbo.Networking.Codec;
 
 public class FrameLengthFieldEncoder : MessageToByteEncoder<IByteBuffer>
 {

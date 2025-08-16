@@ -1,10 +1,11 @@
+namespace Turbo.Networking.Servers.Websocket;
+
 using System.Collections.Generic;
+
 using DotNetty.Buffers;
 using DotNetty.Codecs;
 using DotNetty.Codecs.Http.WebSockets;
 using DotNetty.Transport.Channels;
-
-namespace Turbo.Networking.Servers.Websocket;
 
 public class WebsocketCodec : MessageToMessageCodec<WebSocketFrame, IByteBuffer>
 {

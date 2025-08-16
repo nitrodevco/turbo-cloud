@@ -1,4 +1,4 @@
-﻿namespace Turbo.Core.Game.Rooms.Constants;
+namespace Turbo.Core.Game.Rooms.Constants;
 
 public enum RoomControllerLevel
 {
@@ -7,5 +7,5 @@ public enum RoomControllerLevel
     GroupRights = 2,
     GroupAdmin = 3,
     Owner = 4,
-    Moderator = 5
+    Moderator = 5,
 }

@@ -1,14 +1,16 @@
+namespace Turbo.Database.Entities.Catalog;
+
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Turbo.Database.Attributes;
 
-namespace Turbo.Database.Entities.Catalog;
+using Turbo.Database.Attributes;
 
 [Table("catalog_pages")]
 public class CatalogPageEntity : Entity
 {
-    [Column("parent_id")] public int? ParentEntityId { get; set; }
+    [Column("parent_id")]
+    public int? ParentEntityId { get; set; }
 
     [Column("localization")]
     [Required]
@@ -41,7 +43,8 @@ public class CatalogPageEntity : Entity
     [DefaultValueSql(true)]
     public bool? Visible { get; set; }
 
-    [ForeignKey(nameof(ParentEntityId))] public CatalogPageEntity? ParentEntity { get; set; }
+    [ForeignKey(nameof(ParentEntityId))]
+    public CatalogPageEntity? ParentEntity { get; set; }
 
     public IList<CatalogPageEntity>? Children { get; set; }
 

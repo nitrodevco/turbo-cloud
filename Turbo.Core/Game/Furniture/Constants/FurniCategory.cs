@@ -1,4 +1,4 @@
-﻿namespace Turbo.Core.Game.Furniture.Constants;
+namespace Turbo.Core.Game.Furniture.Constants;
 
 public enum FurniCategory
 {
@@ -24,5 +24,5 @@ public enum FurniCategory
     MonsterplantRevival = 20,
     MonsterplantRebreed = 21,
     MonsterplantFertilize = 22,
-    FigurePurchasableSet = 23
+    FigurePurchasableSet = 23,
 }

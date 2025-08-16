@@ -1,12 +1,14 @@
-﻿using System;
+namespace Turbo.Database.Entities;
+
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Turbo.Database.Entities;
-
 public abstract class Entity
 {
-    [Key][Column("id")] public int Id { get; set; }
+    [Key]
+    [Column("id")]
+    public int Id { get; set; }
 
     [Column("created_at")]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]

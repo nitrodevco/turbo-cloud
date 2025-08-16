@@ -1,9 +1,10 @@
+namespace Turbo.Networking.Dispatcher;
+
 using System;
 using System.Collections.Concurrent;
 
-namespace Turbo.Networking.Dispatcher;
-
-public class TokenBucket<TKey>(int capacity, int refillPerSec) where TKey : class
+public class TokenBucket<TKey>(int capacity, int refillPerSec)
+    where TKey : class
 {
     private readonly int _capacity = capacity;
     private readonly int _refillPerSec = refillPerSec;
@@ -31,7 +32,11 @@ public class TokenBucket<TKey>(int capacity, int refillPerSec) where TKey : clas
             }
 
             var next = new State(tokens - amount, now);
-            if (_s.TryUpdate(key, next, cur)) return true;
+            if (_s.TryUpdate(key, next, cur))
+            {
+                return true;
+            }
+
             // contention? loop
         }
     }

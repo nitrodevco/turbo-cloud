@@ -1,7 +1,7 @@
+namespace Turbo.Core.Packets.Messages;
+
 using DotNetty.Buffers;
 using DotNetty.Common;
-
-namespace Turbo.Core.Packets.Messages;
 
 public interface ITurboPacket : IByteBufferHolder
 {

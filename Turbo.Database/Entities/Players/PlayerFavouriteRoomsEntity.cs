@@ -1,9 +1,10 @@
+namespace Turbo.Database.Entities.Players;
+
 using System;
 using System.ComponentModel.DataAnnotations.Schema;
+
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Room;
-
-namespace Turbo.Database.Entities.Players;
 
 [Table("player_favourite_rooms")]
 [Index(nameof(PlayerId), nameof(RoomId), IsUnique = true)]

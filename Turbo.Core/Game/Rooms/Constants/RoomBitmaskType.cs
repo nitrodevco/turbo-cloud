@@ -1,4 +1,4 @@
-﻿namespace Turbo.Core.Game.Rooms.Constants;
+namespace Turbo.Core.Game.Rooms.Constants;
 
 public enum RoomBitmaskType
 {
@@ -7,5 +7,5 @@ public enum RoomBitmaskType
     RoomAd = 4,
     ShowOwner = 8,
     AllowPets = 16,
-    DisplayRoomAd = 32
+    DisplayRoomAd = 32,
 }

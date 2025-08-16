@@ -1,8 +1,11 @@
+namespace Turbo.Main;
+
 using System;
 using System.Globalization;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -17,12 +20,10 @@ using Turbo.Core.Networking;
 using Turbo.DefaultRevision;
 using Turbo.Packets.Revisions;
 
-namespace Turbo.Main;
-
 public class TurboEmulator(
-    IHostApplicationLifetime _appLifetime,
-    ILogger<TurboEmulator> _logger,
-    IServiceProvider _serviceProvider) : IEmulator
+    IHostApplicationLifetime appLifetime,
+    ILogger<TurboEmulator> logger,
+    IServiceProvider serviceProvider) : IEmulator
 {
     public const int MAJOR = 0;
     public const int MINOR = 0;
@@ -34,7 +35,7 @@ public class TurboEmulator(
     ///     information.
     /// </summary>
     /// <param name="cancellationToken"></param>
-    /// <returns></returns>
+    /// <returns><placeholder>A <see cref="Task"/> representing the asynchronous operation.</placeholder></returns>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         Console.WriteLine(@"
@@ -52,16 +53,16 @@ public class TurboEmulator(
         SetDefaultCulture(CultureInfo.InvariantCulture);
 
         // Register applicaton lifetime events
-        _appLifetime.ApplicationStarted.Register(OnStarted);
-        _appLifetime.ApplicationStopping.Register(OnStopping);
-        _appLifetime.ApplicationStopped.Register(OnStopped);
+        appLifetime.ApplicationStarted.Register(OnStarted);
+        appLifetime.ApplicationStopping.Register(OnStopping);
+        appLifetime.ApplicationStopped.Register(OnStopped);
 
-        var config = _serviceProvider.GetRequiredService<IEmulatorConfig>();
-        var networkManager = _serviceProvider.GetRequiredService<INetworkManager>();
+        var config = serviceProvider.GetRequiredService<IEmulatorConfig>();
+        var networkManager = serviceProvider.GetRequiredService<INetworkManager>();
 
         networkManager.SetupServers(config.Network.Servers);
 
-        var defaultRevision = ActivatorUtilities.CreateInstance<DefaultRevisionPlugin>(_serviceProvider);
+        var defaultRevision = ActivatorUtilities.CreateInstance<DefaultRevisionPlugin>(serviceProvider);
 
         await defaultRevision.InitializeAsync();
 
@@ -75,7 +76,7 @@ public class TurboEmulator(
     /// </summary>
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Shutting down. Disposing services...");
+        logger.LogInformation("Shutting down. Disposing services...");
     }
 
     public string GetVersion()
@@ -84,29 +85,29 @@ public class TurboEmulator(
     }
 
     /// <summary>
-    ///     This method is called by the host application lifetime after the emulator started succesfully
+    ///     This method is called by the host application lifetime after the emulator started succesfully.
     /// </summary>
     private void OnStarted()
     {
-        _logger.LogInformation("Emulator started succesfully!");
+        logger.LogInformation("Emulator started succesfully!");
     }
 
     /// <summary>
     ///     This method is called by the host application lifetime right before the emulator starts stopping
     ///     Perform on-stopping activities here.
-    ///     This function is called before <see cref="StopAsync(CancellationToken)" />
+    ///     This function is called before <see cref="StopAsync(CancellationToken)" />.
     /// </summary>
     private void OnStopping()
     {
-        _logger.LogInformation("OnStopping has been called.");
+        logger.LogInformation("OnStopping has been called.");
     }
 
     /// <summary>
-    ///     This method is called by the host application lifetime after the emulator stopped succesfully
+    ///     This method is called by the host application lifetime after the emulator stopped succesfully.
     /// </summary>
     private void OnStopped()
     {
-        _logger.LogInformation("{Emulator} shut down gracefully.", GetVersion());
+        logger.LogInformation("{Emulator} shut down gracefully.", GetVersion());
     }
 
     private void SetDefaultCulture(CultureInfo culture)

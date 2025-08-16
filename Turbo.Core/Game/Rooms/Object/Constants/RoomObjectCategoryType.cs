@@ -4,5 +4,5 @@ public enum RoomObjectCategoryType
 {
     Floor = 10,
     Wall = 20,
-    Unit = 100
+    Unit = 100,
 }

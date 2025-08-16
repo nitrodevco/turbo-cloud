@@ -1,9 +1,9 @@
-﻿namespace Turbo.Core.Game.Rooms.Constants;
+namespace Turbo.Core.Game.Rooms.Constants;
 
 public enum RoomThicknessType
 {
     Thinnest = -2,
     Thin = -1,
     Normal = 0,
-    Thick = 1
+    Thick = 1,
 }

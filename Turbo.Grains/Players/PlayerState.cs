@@ -1,10 +1,11 @@
+namespace Turbo.Grains.Players;
+
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+
 using Orleans;
 using Orleans.Serialization;
-
-namespace Turbo.Grains.Players;
 
 /// <summary>
 /// Represents the persistent state of a player in the system.
@@ -15,10 +16,14 @@ public sealed partial class PlayerState : INotifyPropertyChanged
     /// <inheritdoc />
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    [Id(0)] private string _name = string.Empty;
-    [Id(1)] private string _motto = string.Empty;
-    [Id(2)] private string _figure = string.Empty;
-    [Id(3)] private bool _initialized;
+    [Id(0)]
+    private string _name = string.Empty;
+    [Id(1)]
+    private string _motto = string.Empty;
+    [Id(2)]
+    private string _figure = string.Empty;
+    [Id(3)]
+    private bool _initialized;
 
     /// <summary>
     /// Gets or sets the player's display name.
@@ -48,7 +53,7 @@ public sealed partial class PlayerState : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Gets or sets whether the state has been initialized from external sources.
+    /// Gets or sets a value indicating whether gets or sets whether the state has been initialized from external sources.
     /// </summary>
     public bool Initialized
     {
@@ -61,7 +66,10 @@ public sealed partial class PlayerState : INotifyPropertyChanged
 
     private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? name = null)
     {
-        if (EqualityComparer<T>.Default.Equals(field, value)) return false;
+        if (EqualityComparer<T>.Default.Equals(field, value))
+        {
+            return false;
+        }
 
         field = value;
 

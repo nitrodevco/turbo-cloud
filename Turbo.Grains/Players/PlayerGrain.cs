@@ -1,7 +1,10 @@
+namespace Turbo.Grains.Players;
+
 using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Orleans;
@@ -12,9 +15,6 @@ using Turbo.Database.Context;
 using Turbo.Events.Players;
 using Turbo.Grains.Shared;
 using Turbo.Streams;
-
-namespace Turbo.Grains.Players;
-
 
 /// <summary>
 /// Orleans grain for managing player state and events.
@@ -86,7 +86,10 @@ public class PlayerGrain : Grain, IPlayerGrain
     /// </summary>
     protected async Task HydrateFromExternalAsync(CancellationToken ct)
     {
-        if (_host.State.Initialized) return;
+        if (_host.State.Initialized)
+        {
+            return;
+        }
 
         await using var db = await _dbContextFactory.CreateDbContextAsync(ct);
 
@@ -105,7 +108,7 @@ public class PlayerGrain : Grain, IPlayerGrain
                 Name = entity.Name ?? string.Empty,
                 Motto = entity.Motto ?? string.Empty,
                 Figure = entity.Figure ?? string.Empty,
-                Initialized = true
+                Initialized = true,
             });
         }
 
@@ -117,7 +120,10 @@ public class PlayerGrain : Grain, IPlayerGrain
     /// </summary>
     protected async Task WriteToDatabaseAsync(CancellationToken ct)
     {
-        if (!_host.IsDirty) return;
+        if (!_host.IsDirty)
+        {
+            return;
+        }
 
         await _host.WriteIfDirtyAsync();
 
@@ -125,7 +131,8 @@ public class PlayerGrain : Grain, IPlayerGrain
 
         await db.Players
             .Where(p => p.Id == PlayerId)
-            .ExecuteUpdateAsync(up => up
+            .ExecuteUpdateAsync(
+                up => up
                 .SetProperty(p => p.Name, _host.State.Name)
                 .SetProperty(p => p.Motto, _host.State.Motto)
                 .SetProperty(p => p.Figure, _host.State.Figure),
@@ -153,7 +160,10 @@ public class PlayerGrain : Grain, IPlayerGrain
     /// </summary>
     protected async Task DeactivateStreamAsync()
     {
-        if (_subHandle is not null) await _subHandle.UnsubscribeAsync();
+        if (_subHandle is not null)
+        {
+            await _subHandle.UnsubscribeAsync();
+        }
     }
 
     /// <inheritdoc />

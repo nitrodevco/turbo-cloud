@@ -1,11 +1,12 @@
+namespace Turbo.Players;
+
 using System.Threading.Tasks;
+
 using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Turbo.Core.Contracts.Players;
 using Turbo.Core.Game.Players;
 using Turbo.Database.Context;
-
-namespace Turbo.Players;
 
 public class PlayerManager(
     IDbContextFactory<TurboDbContext> dbContextFactory,
@@ -16,7 +17,10 @@ public class PlayerManager(
 
     public async Task<IPlayerGrain> GetPlayerGrain(long playerId)
     {
-        if (playerId <= 0) return null;
+        if (playerId <= 0)
+        {
+            return null;
+        }
 
         var grain = _grainFactory.GetGrain<IPlayerGrain>(playerId);
 

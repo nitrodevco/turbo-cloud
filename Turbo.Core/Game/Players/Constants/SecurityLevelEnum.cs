@@ -10,5 +10,5 @@ public enum SecurityLevelEnum
     Moderator = 5,
     PlayerSupport = 6,
     Community = 7,
-    Administrator = 8
+    Administrator = 8,
 }

@@ -7,5 +7,5 @@ public enum RoomObjectHolderType
     Pet = 2,
     Bot = 3,
     RentableBot = 4,
-    Furniture = 5
+    Furniture = 5,
 }

@@ -1,7 +1,10 @@
+namespace Turbo.Networking;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Turbo.Core.Configuration;
@@ -9,8 +12,6 @@ using Turbo.Core.Networking;
 using Turbo.Core.Networking.Servers;
 using Turbo.Networking.Servers.Tcp;
 using Turbo.Networking.Servers.Websocket;
-
-namespace Turbo.Networking;
 
 public class NetworkManager(
     ILogger<NetworkManager> logger,
@@ -21,7 +22,7 @@ public class NetworkManager(
     private readonly INetworkEventLoopGroup _eventLoopGroup = eventLoopGroup;
     private readonly IServiceProvider _provider = provider;
 
-    public List<IServer> Servers { get; } = [];
+    public List<IServer> Servers { get; } =[];
 
     public async Task StartServersAsync()
     {
@@ -37,7 +38,10 @@ public class NetworkManager(
 
     public void SetupServers(IList<INetworkServerConfig> hostConfigs)
     {
-        if (hostConfigs is null || hostConfigs.Count == 0) return;
+        if (hostConfigs is null || hostConfigs.Count == 0)
+        {
+            return;
+        }
 
         foreach (var config in hostConfigs)
         {
@@ -56,8 +60,15 @@ public class NetworkManager(
 
         IServer server = null;
 
-        if (config.Type == NetworkServerType.Tcp) server = ActivatorUtilities.CreateInstance<TcpServer>(_provider, config);
-        if (config.Type == NetworkServerType.Websocket) server = ActivatorUtilities.CreateInstance<WebsocketServer>(_provider, config);
+        if (config.Type == NetworkServerType.Tcp)
+        {
+            server = ActivatorUtilities.CreateInstance<TcpServer>(_provider, config);
+        }
+
+        if (config.Type == NetworkServerType.Websocket)
+        {
+            server = ActivatorUtilities.CreateInstance<WebsocketServer>(_provider, config);
+        }
 
         if (server is null)
         {

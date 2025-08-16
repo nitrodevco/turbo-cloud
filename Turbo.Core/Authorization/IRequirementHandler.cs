@@ -1,7 +1,7 @@
+namespace Turbo.Core.Authorization;
+
 using System.Threading;
 using System.Threading.Tasks;
-
-namespace Turbo.Core.Authorization;
 
 public interface IRequirementHandler<in TReq, in TCtx>
 {

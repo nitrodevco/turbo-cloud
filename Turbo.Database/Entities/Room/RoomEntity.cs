@@ -1,22 +1,28 @@
-﻿using System;
+namespace Turbo.Database.Entities.Room;
+
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+
 using Turbo.Core.Game.Rooms.Constants;
 using Turbo.Database.Attributes;
 using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Players;
 
-namespace Turbo.Database.Entities.Room;
-
 [Table("rooms")]
 public class RoomEntity : Entity
 {
-    [Column("name")][Required] public string Name { get; set; }
+    [Column("name")]
+    [Required]
+    public string Name { get; set; }
 
-    [Column("description")] public string? Description { get; set; }
+    [Column("description")]
+    public string? Description { get; set; }
 
-    [Column("player_id")][Required] public int PlayerEntityId { get; set; }
+    [Column("player_id")]
+    [Required]
+    public int PlayerEntityId { get; set; }
 
     [Column("state")]
     [Required]
@@ -24,11 +30,15 @@ public class RoomEntity : Entity
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public RoomStateType RoomState { get; set; }
 
-    [Column("password")] public string? Password { get; set; }
+    [Column("password")]
+    public string? Password { get; set; }
 
-    [Column("model_id")][Required] public int RoomModelEntityId { get; set; }
+    [Column("model_id")]
+    [Required]
+    public int RoomModelEntityId { get; set; }
 
-    [Column("category_id")] public int? NavigatorCategoryEntityId { get; set; }
+    [Column("category_id")]
+    public int? NavigatorCategoryEntityId { get; set; }
 
     [Column("users_now")]
     [Required]
@@ -154,7 +164,8 @@ public class RoomEntity : Entity
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public DateTime LastActive { get; set; }
 
-    [ForeignKey(nameof(PlayerEntityId))] public PlayerEntity PlayerEntity { get; set; }
+    [ForeignKey(nameof(PlayerEntityId))]
+    public PlayerEntity PlayerEntity { get; set; }
 
     [ForeignKey(nameof(RoomModelEntityId))]
     public RoomModelEntity RoomModelEntity { get; set; }
@@ -162,11 +173,15 @@ public class RoomEntity : Entity
     [ForeignKey(nameof(NavigatorCategoryEntityId))]
     public NavigatorFlatCategoryEntity NavigatorFlatCategoryEntity { get; set; }
 
-    [InverseProperty("RoomEntity")] public List<RoomBanEntity> RoomBans { get; set; }
+    [InverseProperty("RoomEntity")]
+    public List<RoomBanEntity> RoomBans { get; set; }
 
-    [InverseProperty("RoomEntity")] public List<RoomMuteEntity> RoomMutes { get; set; }
+    [InverseProperty("RoomEntity")]
+    public List<RoomMuteEntity> RoomMutes { get; set; }
 
-    [InverseProperty("RoomEntity")] public List<RoomRightEntity> RoomRights { get; set; }
+    [InverseProperty("RoomEntity")]
+    public List<RoomRightEntity> RoomRights { get; set; }
 
-    [InverseProperty("RoomEntity")] public List<RoomChatlogEntity> RoomChats { get; set; }
+    [InverseProperty("RoomEntity")]
+    public List<RoomChatlogEntity> RoomChats { get; set; }
 }

@@ -1,10 +1,10 @@
-﻿using DotNetty.Buffers;
+namespace Turbo.Networking.Codec;
+
+using DotNetty.Buffers;
 using DotNetty.Codecs;
 using DotNetty.Transport.Channels;
 using Turbo.Core.Packets.Messages;
 using Turbo.Packets.Outgoing;
-
-namespace Turbo.Networking.Codec;
 
 public class GameEncoder : MessageToByteEncoder<IServerPacket>
 {

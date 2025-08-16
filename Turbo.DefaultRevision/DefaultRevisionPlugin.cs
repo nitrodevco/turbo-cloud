@@ -1,10 +1,11 @@
+namespace Turbo.DefaultRevision;
+
 using System.Threading.Tasks;
+
 using Turbo.Core.Networking.Session;
 using Turbo.Core.Packets;
 using Turbo.Core.Packets.Revisions;
 using Turbo.Packets.Incoming.Handshake;
-
-namespace Turbo.DefaultRevision;
 
 public class DefaultRevisionPlugin(
     IRevisionManager revisionManager,

@@ -1,8 +1,8 @@
-﻿namespace Turbo.DefaultRevision;
+namespace Turbo.DefaultRevision;
 
 public enum MessageEvent
 {
-    ClientHelloMessageEvent = 4000
+    ClientHelloMessageEvent = 4000,
 }
 
 public static class MessageComposer

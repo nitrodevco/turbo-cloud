@@ -5,12 +5,14 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+
 using Orleans.Runtime;
 
 /// <summary>
 /// Manages a persistent state object and tracks changes automatically via property and collection notifications.
 /// </summary>
-public sealed class AutoDirtyState<T> where T : class
+public sealed class AutoDirtyState<T>
+    where T : class
 {
     private readonly IPersistentState<T> _inner;
     private readonly Func<T>? _factory;
@@ -28,17 +30,17 @@ public sealed class AutoDirtyState<T> where T : class
     }
 
     /// <summary>
-    /// True after <see cref="InitializeAsync"/> completes.
+    /// Gets a value indicating whether true after <see cref="InitializeAsync"/> completes.
     /// </summary>
     public bool IsLoaded => _isLoaded;
 
     /// <summary>
-    /// True after any observed change since last accept/write.
+    /// Gets a value indicating whether true after any observed change since last accept/write.
     /// </summary>
     public bool IsDirty { get; private set; }
 
     /// <summary>
-    /// Live state instance (after <see cref="InitializeAsync"/>).
+    /// Gets live state instance (after <see cref="InitializeAsync"/>).
     /// </summary>
     public T State => _inner.State!;
 
@@ -47,14 +49,20 @@ public sealed class AutoDirtyState<T> where T : class
     /// </summary>
     public async Task InitializeAsync()
     {
-        if (_isLoaded) return;
+        if (_isLoaded)
+        {
+            return;
+        }
 
         await _inner.ReadStateAsync();
 
         if (_inner.State is null)
         {
             if (_factory is null)
+            {
                 throw new InvalidOperationException($"AutoDirtyState<{typeof(T).Name}> needs a factory when storage returns null.");
+            }
+
             _inner.State = _factory();
         }
 
@@ -88,7 +96,11 @@ public sealed class AutoDirtyState<T> where T : class
     /// </summary>
     public async Task WriteIfDirtyAsync()
     {
-        if (!_isLoaded || !IsDirty) return;
+        if (!_isLoaded || !IsDirty)
+        {
+            return;
+        }
+
         await _inner.WriteStateAsync();
         AcceptChanges();
     }
@@ -126,7 +138,6 @@ public sealed class AutoDirtyState<T> where T : class
     public void MarkDirty() => IsDirty = true;
 
     // -------------------- Hooking logic --------------------
-
     private void Rehook()
     {
         _hooked.Clear();
@@ -135,43 +146,84 @@ public sealed class AutoDirtyState<T> where T : class
 
     private void HookObject(object? obj)
     {
-        if (obj is null) return;
-        if (!_hooked.Add(obj)) return; // already hooked
+        if (obj is null)
+        {
+            return;
+        }
+
+        if (!_hooked.Add(obj))
+        {
+            return; // already hooked
+        }
 
         if (obj is INotifyPropertyChanged npc)
+        {
             npc.PropertyChanged += OnAnyPropertyChanged;
+        }
 
         if (obj is INotifyCollectionChanged ncc)
         {
             ncc.CollectionChanged += OnAnyCollectionChanged;
 
             if (obj is IEnumerable seq)
-                foreach (var it in seq) HookObject(it);
+            {
+                foreach (var it in seq)
+                {
+                    HookObject(it);
+                }
+            }
         }
 
         // Walk simple properties to find nested INPC/INCC graphs
         foreach (var p in obj.GetType().GetProperties())
         {
-            if (p.GetIndexParameters().Length > 0) continue;
+            if (p.GetIndexParameters().Length > 0)
+            {
+                continue;
+            }
+
             object? val = null;
-            try { val = p.GetValue(obj); } catch { /* ignore getters with side-effects */ }
-            if (val is null) continue;
+            try
+            {
+                val = p.GetValue(obj);
+            }
+            catch
+            { /* ignore getters with side-effects */
+            }
+
+            if (val is null)
+            {
+                continue;
+            }
 
             if (val is INotifyPropertyChanged || val is INotifyCollectionChanged || val is IEnumerable)
+            {
                 HookObject(val);
+            }
         }
     }
 
     private void UnhookObject(object? obj)
     {
-        if (obj is null) return;
-        if (!_hooked.Remove(obj)) return;
+        if (obj is null)
+        {
+            return;
+        }
+
+        if (!_hooked.Remove(obj))
+        {
+            return;
+        }
 
         if (obj is INotifyPropertyChanged npc)
+        {
             npc.PropertyChanged -= OnAnyPropertyChanged;
+        }
 
         if (obj is INotifyCollectionChanged ncc)
+        {
             ncc.CollectionChanged -= OnAnyCollectionChanged;
+        }
     }
 
     private void OnAnyPropertyChanged(object? sender, PropertyChangedEventArgs e) => MarkDirty();
@@ -180,19 +232,30 @@ public sealed class AutoDirtyState<T> where T : class
     {
         MarkDirty();
         if (e.NewItems is { Count: > 0 })
-            foreach (var it in e.NewItems) HookObject(it);
+        {
+            foreach (var it in e.NewItems)
+            {
+                HookObject(it);
+            }
+        }
+
         // Usually no need to unhook removed items.
     }
 
     private void EnsureLoaded()
     {
-        if (!_isLoaded) throw new InvalidOperationException("Call InitializeAsync() first.");
+        if (!_isLoaded)
+        {
+            throw new InvalidOperationException("Call InitializeAsync() first.");
+        }
     }
 
     private sealed class ReferenceEqualityComparer : IEqualityComparer<object>
     {
         public static readonly ReferenceEqualityComparer Instance = new();
+
         public bool Equals(object? x, object? y) => ReferenceEquals(x, y);
+
         public int GetHashCode(object obj) => RuntimeHelpers.GetHashCode(obj);
     }
 }

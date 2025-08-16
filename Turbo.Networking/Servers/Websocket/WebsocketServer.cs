@@ -1,7 +1,10 @@
+namespace Turbo.Networking.Servers.Websocket;
+
 using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+
 using DotNetty.Buffers;
 using DotNetty.Transport.Bootstrapping;
 using DotNetty.Transport.Channels;
@@ -10,8 +13,6 @@ using Microsoft.Extensions.Logging;
 using Turbo.Core.Configuration;
 using Turbo.Core.Networking;
 using Turbo.Core.Networking.Servers;
-
-namespace Turbo.Networking.Servers.Websocket;
 
 public class WebsocketServer : IServer
 {
@@ -22,7 +23,9 @@ public class WebsocketServer : IServer
     private readonly ServerBootstrap _serverBootstrap;
 
     public string Host { get; }
+
     public int Port { get; }
+
     public IChannel ServerChannel { get; private set; }
 
     public WebsocketServer(

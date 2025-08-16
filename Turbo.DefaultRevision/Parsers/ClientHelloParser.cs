@@ -1,8 +1,8 @@
-﻿using Turbo.Core.Packets.Messages;
+﻿namespace Turbo.DefaultRevision.Parsers;
+
+using Turbo.Core.Packets.Messages;
 using Turbo.Packets.Incoming.Handshake;
 using Turbo.Packets.Parsers;
-
-namespace Turbo.DefaultRevision.Parsers;
 
 public class ClientHelloParser : AbstractParser<ClientHelloMessage>
 {

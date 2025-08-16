@@ -1,11 +1,12 @@
+namespace Turbo.Networking.Dispatcher;
+
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Channels;
+
 using Turbo.Core.Configuration;
 using Turbo.Core.Networking.Dispatcher;
 using Turbo.Core.Packets.Messages;
-
-namespace Turbo.Networking.Dispatcher;
 
 public class BoundedPacketQueue : IPacketQueue
 {
@@ -18,7 +19,7 @@ public class BoundedPacketQueue : IPacketQueue
             {
                 FullMode = BoundedChannelFullMode.Wait,
                 SingleReader = false,
-                SingleWriter = false
+                SingleWriter = false,
             });
     }
 

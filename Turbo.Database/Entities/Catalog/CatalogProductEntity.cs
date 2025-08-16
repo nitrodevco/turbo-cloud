@@ -1,20 +1,27 @@
+namespace Turbo.Database.Entities.Catalog;
+
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+
 using Turbo.Database.Attributes;
 using Turbo.Database.Entities.Furniture;
-
-namespace Turbo.Database.Entities.Catalog;
 
 [Table("catalog_products")]
 public class CatalogProductEntity : Entity
 {
-    [Column("offer_id")][Required] public int CatalogOfferEntityId { get; set; }
+    [Column("offer_id")]
+    [Required]
+    public int CatalogOfferEntityId { get; set; }
 
-    [Column("product_type")][Required] public string ProductType { get; set; }
+    [Column("product_type")]
+    [Required]
+    public string ProductType { get; set; }
 
-    [Column("definition_id")] public int? FurnitureDefinitionEntityId { get; set; }
+    [Column("definition_id")]
+    public int? FurnitureDefinitionEntityId { get; set; }
 
-    [Column("extra_param")] public string? ExtraParam { get; set; }
+    [Column("extra_param")]
+    public string? ExtraParam { get; set; }
 
     [Column("quantity")]
     [Required]

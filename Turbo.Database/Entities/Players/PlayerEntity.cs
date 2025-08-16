@@ -1,6 +1,9 @@
-﻿using System.Collections.Generic;
+namespace Turbo.Database.Entities.Players;
+
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+
 using Microsoft.EntityFrameworkCore;
 using Turbo.Core.Game.Players.Constants;
 using Turbo.Core.Game.Rooms.Object.Constants;
@@ -10,15 +13,16 @@ using Turbo.Database.Entities.Messenger;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Entities.Security;
 
-namespace Turbo.Database.Entities.Players;
-
 [Table("players")]
 [Index(nameof(Name), IsUnique = true)]
 public class PlayerEntity : Entity
 {
-    [Column("name")][Required] public string Name { get; set; }
+    [Column("name")]
+    [Required]
+    public string Name { get; set; }
 
-    [Column("motto")] public string? Motto { get; set; }
+    [Column("motto")]
+    public string? Motto { get; set; }
 
     [Column("figure")]
     [Required]
@@ -44,34 +48,48 @@ public class PlayerEntity : Entity
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public int PlayerPerks { get; set; }
 
-    [Column("room_chat_style_id")] public int? RoomChatStyleId { get; set; }
+    [Column("room_chat_style_id")]
+    public int? RoomChatStyleId { get; set; }
 
-    [InverseProperty("PlayerEntity")] public List<PlayerBadgeEntity> PlayerBadges { get; set; }
+    [InverseProperty("PlayerEntity")]
+    public List<PlayerBadgeEntity> PlayerBadges { get; set; }
 
-    [InverseProperty("PlayerEntity")] public List<PlayerCurrencyEntity> PlayerCurrencies { get; set; }
+    [InverseProperty("PlayerEntity")]
+    public List<PlayerCurrencyEntity> PlayerCurrencies { get; set; }
 
-    [InverseProperty("PlayerEntity")] public List<PlayerChatStyleOwnedEntity> PlayerOwnedChatStyles { get; set; }
+    [InverseProperty("PlayerEntity")]
+    public List<PlayerChatStyleOwnedEntity> PlayerOwnedChatStyles { get; set; }
 
-    [InverseProperty("PlayerEntity")] public List<FurnitureEntity> Furniture { get; set; }
+    [InverseProperty("PlayerEntity")]
+    public List<FurnitureEntity> Furniture { get; set; }
 
-    [InverseProperty("PlayerEntity")] public List<MessengerCategoryEntity> MessengerCategories { get; set; }
+    [InverseProperty("PlayerEntity")]
+    public List<MessengerCategoryEntity> MessengerCategories { get; set; }
 
-    [InverseProperty("PlayerEntity")] public List<MessengerFriendEntity> MessengerFriends { get; set; }
+    [InverseProperty("PlayerEntity")]
+    public List<MessengerFriendEntity> MessengerFriends { get; set; }
 
     [InverseProperty("RequestedPlayerEntity")]
     public List<MessengerRequestEntity> MessengerRequests { get; set; }
 
-    [InverseProperty("PlayerEntity")] public List<MessengerRequestEntity> MessengerRequestsSent { get; set; }
+    [InverseProperty("PlayerEntity")]
+    public List<MessengerRequestEntity> MessengerRequestsSent { get; set; }
 
-    [InverseProperty("PlayerEntity")] public List<SecurityTicketEntity> SecurityTickets { get; set; }
+    [InverseProperty("PlayerEntity")]
+    public List<SecurityTicketEntity> SecurityTickets { get; set; }
 
-    [InverseProperty("PlayerEntity")] public List<RoomEntity> Rooms { get; set; }
+    [InverseProperty("PlayerEntity")]
+    public List<RoomEntity> Rooms { get; set; }
 
-    [InverseProperty("PlayerEntity")] public List<RoomBanEntity> RoomBans { get; set; }
+    [InverseProperty("PlayerEntity")]
+    public List<RoomBanEntity> RoomBans { get; set; }
 
-    [InverseProperty("PlayerEntity")] public List<RoomMuteEntity> RoomMutes { get; set; }
+    [InverseProperty("PlayerEntity")]
+    public List<RoomMuteEntity> RoomMutes { get; set; }
 
-    [InverseProperty("PlayerEntity")] public List<RoomRightEntity> RoomRights { get; set; }
+    [InverseProperty("PlayerEntity")]
+    public List<RoomRightEntity> RoomRights { get; set; }
 
-    [InverseProperty("PlayerEntity")] public List<RoomChatlogEntity> RoomChatlogs { get; set; }
+    [InverseProperty("PlayerEntity")]
+    public List<RoomChatlogEntity> RoomChatlogs { get; set; }
 }

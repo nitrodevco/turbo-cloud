@@ -1,10 +1,11 @@
+namespace Turbo.DefaultRevision;
+
 using System;
 using System.Collections.Generic;
+
 using Turbo.Core.Packets.Messages;
 using Turbo.Core.Packets.Revisions;
 using Turbo.DefaultRevision.Parsers;
-
-namespace Turbo.DefaultRevision;
 
 public class RevisionDefault : IRevision
 {

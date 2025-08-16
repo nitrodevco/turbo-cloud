@@ -1,4 +1,4 @@
-﻿namespace Turbo.Core.Game.Furniture.Constants;
+namespace Turbo.Core.Game.Furniture.Constants;
 
 public class FurniType
 {

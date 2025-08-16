@@ -1,16 +1,24 @@
-using System.Collections.Generic;
-using Turbo.Core.Configuration;
-
 namespace Turbo.Main.Configuration;
+
+using System.Collections.Generic;
+
+using Turbo.Core.Configuration;
 
 public class TurboConfig : IEmulatorConfig
 {
     public const string Turbo = "Turbo";
+
     public IGameConfig Game { get; init; }
+
     public INetworkConfig Network { get; init; }
+
     public bool DatabaseLoggingEnabled { get; init; }
+
     public List<string> PluginOrder { get; init; }
+
     public int FloodMessageLimit { get; init; }
+
     public int FloodTimeFrameSeconds { get; init; }
+
     public int FloodMuteDurationSeconds { get; init; }
 }

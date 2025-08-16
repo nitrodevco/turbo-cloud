@@ -1,14 +1,16 @@
+namespace Turbo.Authorization;
+
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Core.Authorization;
 
-namespace Turbo.Authorization;
+using Turbo.Core.Authorization;
 
 public sealed class AuthorizationManager : IAuthorizationManager
 {
     private readonly IServiceProvider _sp;
+
     public AuthorizationManager(IServiceProvider sp) => _sp = sp;
 
     public async Task<AuthorizationResult> AuthorizeAsync<TContext>(
@@ -24,7 +26,9 @@ public sealed class AuthorizationManager : IAuthorizationManager
             var handlerType = typeof(IRequirementHandler<,>).MakeGenericType(req.GetType(), typeof(TContext));
             var handler = _sp.GetService(handlerType);
             if (handler is null)
+            {
                 throw new InvalidOperationException($"No handler for {req.GetType().Name} + {typeof(TContext).Name}");
+            }
 
             var method = handlerType.GetMethod("HandleAsync")!;
             var task = (Task<AuthorizationResult>)method.Invoke(handler, new object[] { req, context!, ct })!;
@@ -33,10 +37,13 @@ public sealed class AuthorizationManager : IAuthorizationManager
             if (!res.Ok)
             {
                 all.AddRange(res.Fails);
-                if (shortCircuitOnFailure) return new AuthorizationResult(false, all.ToArray());
+                if (shortCircuitOnFailure)
+                {
+                    return new AuthorizationResult(false, all.ToArray());
+                }
             }
         }
 
-        return new AuthorizationResult(true, []);
+        return new AuthorizationResult(true,[]);
     }
 }

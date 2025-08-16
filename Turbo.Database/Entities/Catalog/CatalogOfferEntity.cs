@@ -1,16 +1,21 @@
+namespace Turbo.Database.Entities.Catalog;
+
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Turbo.Database.Attributes;
 
-namespace Turbo.Database.Entities.Catalog;
+using Turbo.Database.Attributes;
 
 [Table("catalog_offers")]
 public class CatalogOfferEntity : Entity
 {
-    [Column("page_id")][Required] public int CatalogPageEntityId { get; set; }
+    [Column("page_id")]
+    [Required]
+    public int CatalogPageEntityId { get; set; }
 
-    [Column("localization_id")][Required] public string LocalizationId { get; set; }
+    [Column("localization_id")]
+    [Required]
+    public string LocalizationId { get; set; }
 
     [Column("cost_credits")]
     [Required]
@@ -22,7 +27,8 @@ public class CatalogOfferEntity : Entity
     [DefaultValueSql(0)]
     public int CostCurrency { get; set; }
 
-    [Column("currency_type")] public int? CurrencyType { get; set; }
+    [Column("currency_type")]
+    public int? CurrencyType { get; set; }
 
     [Column("can_gift")]
     [Required]

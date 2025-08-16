@@ -1,8 +1,9 @@
+namespace Turbo.Packets;
+
 using System.Text;
+
 using DotNetty.Buffers;
 using Turbo.Core.Packets.Messages;
-
-namespace Turbo.Packets;
 
 public class TurboPacket(int header, IByteBuffer body) : DefaultByteBufferHolder(body), ITurboPacket
 {

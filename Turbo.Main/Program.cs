@@ -1,7 +1,10 @@
+namespace Turbo.Main;
+
 using System;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
@@ -22,8 +25,6 @@ using Turbo.Networking.Session;
 using Turbo.Packets.Revisions;
 using Turbo.Players;
 using Turbo.Streams;
-
-namespace Turbo.Main;
 
 internal class Program
 {
@@ -89,7 +90,10 @@ internal class Program
 
                 silo.AddMemoryStreams(name, opts =>
                 {
-                    if (queueCount is int n && n > 0) opts.ConfigurePartitioning(n);
+                    if (queueCount is int n && n > 0)
+                    {
+                        opts.ConfigurePartitioning(n);
+                    }
 
                     opts.ConfigureStreamPubSub(streamPubSubType);
                 });

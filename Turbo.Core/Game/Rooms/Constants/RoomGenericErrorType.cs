@@ -1,4 +1,4 @@
-﻿namespace Turbo.Core.Game.Rooms.Constants;
+namespace Turbo.Core.Game.Rooms.Constants;
 
 public enum RoomGenericErrorType
 {
@@ -7,5 +7,5 @@ public enum RoomGenericErrorType
     HabboClubRequired = 4009,
     InvalidRoomName = 4010,
     BanGroupMember = 4011,
-    RoomMaintenance = 4013
+    RoomMaintenance = 4013,
 }

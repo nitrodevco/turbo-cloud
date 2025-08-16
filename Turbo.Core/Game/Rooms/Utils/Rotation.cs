@@ -1,4 +1,4 @@
-﻿namespace Turbo.Core.Game.Rooms.Utils;
+namespace Turbo.Core.Game.Rooms.Utils;
 
 public enum Rotation
 {
@@ -9,5 +9,5 @@ public enum Rotation
     South = 4,
     SouthWest = 5,
     West = 6,
-    NorthWest = 7
+    NorthWest = 7,
 }

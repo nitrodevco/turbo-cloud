@@ -1,6 +1,6 @@
-using System;
-
 namespace Turbo.Core.Game.Players.Constants;
+
+using System;
 
 public static class PlayerPerkExtensions
 {
@@ -19,7 +19,7 @@ public static class PlayerPerkExtensions
         PlayerPerkEnum.UnityTrade => "UNITY_TRADE",
         PlayerPerkEnum.BuilderAtWork => "BUILDER_AT_WORK",
         PlayerPerkEnum.Camera => "CAMERA",
-        _ => throw new ArgumentOutOfRangeException(nameof(perk), perk, null)
+        _ => throw new ArgumentOutOfRangeException(nameof(perk), perk, null),
     };
 
     public static PlayerPerkEnum? FromLegacyString(string perkString) => perkString switch
@@ -37,6 +37,6 @@ public static class PlayerPerkExtensions
         "UNITY_TRADE" => PlayerPerkEnum.UnityTrade,
         "BUILDER_AT_WORK" => PlayerPerkEnum.BuilderAtWork,
         "CAMERA" => PlayerPerkEnum.Camera,
-        _ => null
+        _ => null,
     };
 }

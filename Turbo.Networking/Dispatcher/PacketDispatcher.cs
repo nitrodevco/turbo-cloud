@@ -1,8 +1,11 @@
+namespace Turbo.Networking.Dispatcher;
+
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+
 using DotNetty.Transport.Channels;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -13,8 +16,6 @@ using Turbo.Core.Networking.Session;
 using Turbo.Core.Packets;
 using Turbo.Core.Packets.Messages;
 using Turbo.Core.Packets.Revisions;
-
-namespace Turbo.Networking.Dispatcher;
 
 public class PacketDispatcher(
     ISessionManager sessionManager,
@@ -45,7 +46,11 @@ public class PacketDispatcher(
         if (!_rateLimiter.TryAcquire(channelId, out var exceededLimit))
         {
             rejectType = PacketRejectType.RateLimited;
-            if (exceededLimit) _ = _sessionManager.KickSessionAsync(channelId, SessionKickType.RateLimited);
+            if (exceededLimit)
+            {
+                _ = _sessionManager.KickSessionAsync(channelId, SessionKickType.RateLimited);
+            }
+
             return false;
         }
 
@@ -81,14 +86,19 @@ public class PacketDispatcher(
     {
         await foreach (var envelope in _queue.ReadAllAsync(ct))
         {
-            var next = _sequencers.AddOrUpdate(envelope.ChannelId,
+            var next = _sequencers.AddOrUpdate(
+                envelope.ChannelId,
                 _ => ProcessOne(envelope, ct),
                 (_, tail) => tail.ContinueWith(_ => ProcessOne(envelope, ct), ct,
                     TaskContinuationOptions.None, TaskScheduler.Default).Unwrap());
 
-            _ = next.ContinueWith(t =>
+            _ = next.ContinueWith(
+                t =>
             {
-                if (t.IsFaulted) _logger.LogError(t.Exception, "Processing chain fault sid={Sid}", envelope.ChannelId);
+                if (t.IsFaulted)
+                {
+                    _logger.LogError(t.Exception, "Processing chain fault sid={Sid}", envelope.ChannelId);
+                }
             }, TaskScheduler.Default);
         }
     }
@@ -118,14 +128,18 @@ public class PacketDispatcher(
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Handler error {Header} sid={Sid}", envelope.Msg.Header, envelope.ChannelId);
-                //await session.SendAsync(Out.Error("server-error"));
+
+                // await session.SendAsync(Out.Error("server-error"));
             }
         }
         finally
         {
             envelope.Msg.Content.Release();
             var left = _pendingCount.AddOrUpdate(envelope.ChannelId, 0, (_, v) => Math.Max(0, v - 1));
-            if (left == 0) _rateLimiter.Reset(envelope.ChannelId);
+            if (left == 0)
+            {
+                _rateLimiter.Reset(envelope.ChannelId);
+            }
         }
     }
 

@@ -1,21 +1,28 @@
-﻿using System.Collections.Generic;
+namespace Turbo.Database.Entities.Furniture;
+
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+
 using Microsoft.EntityFrameworkCore;
 using Turbo.Core.Game.Furniture.Constants;
 using Turbo.Database.Attributes;
-
-namespace Turbo.Database.Entities.Furniture;
 
 [Table("furniture_definitions")]
 [Index(nameof(SpriteId), nameof(Type), IsUnique = true)]
 public class FurnitureDefinitionEntity : Entity
 {
-    [Column("sprite_id")][Required] public int SpriteId { get; set; }
+    [Column("sprite_id")]
+    [Required]
+    public int SpriteId { get; set; }
 
-    [Column("public_name")][Required] public string PublicName { get; set; }
+    [Column("public_name")]
+    [Required]
+    public string PublicName { get; set; }
 
-    [Column("product_name")][Required] public string ProductName { get; set; }
+    [Column("product_name")]
+    [Required]
+    public string ProductName { get; set; }
 
     [Column("type")]
     [Required]
@@ -93,7 +100,8 @@ public class FurnitureDefinitionEntity : Entity
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public FurniUsagePolicy UsagePolicy { get; set; }
 
-    [Column("extra_data")] public string? ExtraData { get; set; }
+    [Column("extra_data")]
+    public string? ExtraData { get; set; }
 
     public List<FurnitureEntity> Furnitures { get; set; }
 }

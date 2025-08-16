@@ -1,6 +1,6 @@
-using System;
-
 namespace Turbo.Core.Game.Players.Constants;
+
+using System;
 
 [Flags]
 public enum PlayerPerkEnum
@@ -18,5 +18,5 @@ public enum PlayerPerkEnum
     NavigatorPhaseTwo2014 = 1 << 9,
     UnityTrade = 1 << 10,
     BuilderAtWork = 1 << 11,
-    Camera = 1 << 12
+    Camera = 1 << 12,
 }

@@ -1,11 +1,12 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Migrations;
-
 #nullable disable
 
 namespace Turbo.Main.Migrations
 {
+    using System;
+
+    using Microsoft.EntityFrameworkCore.Metadata;
+    using Microsoft.EntityFrameworkCore.Migrations;
+
     /// <inheritdoc />
     public partial class InitialCreate : Migration
     {
@@ -39,7 +40,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -87,7 +88,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -109,7 +110,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -139,7 +140,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -162,7 +163,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -190,7 +191,7 @@ namespace Turbo.Main.Migrations
                     garbage_collections = table.Column<int>(type: "int", nullable: false),
                     average_frame_rate = table.Column<int>(type: "int", nullable: false),
                     ip_address = table.Column<string>(type: "varchar(45)", maxLength: 45, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                 },
                 constraints: table =>
                 {
@@ -210,7 +211,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -239,7 +240,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -267,7 +268,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -296,7 +297,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -324,7 +325,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -351,7 +352,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -386,7 +387,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -413,7 +414,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -448,7 +449,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -479,7 +480,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -538,7 +539,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -583,7 +584,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -617,7 +618,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -663,7 +664,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -696,7 +697,7 @@ namespace Turbo.Main.Migrations
                     room_id = table.Column<int>(type: "int", nullable: false),
                     created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                 },
                 constraints: table =>
                 {
@@ -730,7 +731,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -766,7 +767,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -804,7 +805,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -838,7 +839,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -871,7 +872,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {
@@ -904,7 +905,7 @@ namespace Turbo.Main.Migrations
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                 },
                 constraints: table =>
                 {

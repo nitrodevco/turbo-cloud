@@ -1,10 +1,11 @@
+namespace Turbo.Networking.Servers.Tcp;
+
 using System;
+
 using DotNetty.Transport.Channels;
 using Microsoft.Extensions.DependencyInjection;
 using Turbo.Networking.Codec;
 using Turbo.Networking.Servers.Handlers;
-
-namespace Turbo.Networking.Servers.Tcp;
 
 public class TcpChannelInitializer(IServiceProvider provider) : ChannelInitializer<IChannel>
 {

@@ -1,4 +1,6 @@
-﻿using System;
+namespace Turbo.Packets;
+
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -6,12 +8,11 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Microsoft.Extensions.Logging;
 using Turbo.Core.Networking.Session;
 using Turbo.Core.Packets;
 using Turbo.Core.Packets.Messages;
-
-namespace Turbo.Packets;
 
 public class PacketMessageHub(ILogger<PacketMessageHub> logger) : IPacketMessageHub
 {
@@ -41,27 +42,36 @@ public class PacketMessageHub(ILogger<PacketMessageHub> logger) : IPacketMessage
 
         public void Dispose()
         {
-            if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+            if (Interlocked.Exchange(ref _disposed, 1) == 1)
+            {
+                return;
+            }
+
             _hub.RemoveListenerById(_messageType, _id);
         }
     }
 
     // ---------- Publish ----------
-
-    public void Publish<T>(T message, ISessionContext ctx) where T : IMessageEvent
+    public void Publish<T>(T message, ISessionContext ctx)
+        where T : IMessageEvent
         => PublishAsync(message, ctx, CancellationToken.None).GetAwaiter().GetResult();
 
-    public Task PublishAsync<T>(T message, ISessionContext ctx) where T : IMessageEvent
+    public Task PublishAsync<T>(T message, ISessionContext ctx)
+        where T : IMessageEvent
         => PublishAsync(message, ctx, CancellationToken.None);
 
-    public async Task PublishAsync<T>(T message, ISessionContext ctx, CancellationToken ct) where T : IMessageEvent
+    public async Task PublishAsync<T>(T message, ISessionContext ctx, CancellationToken ct)
+        where T : IMessageEvent
     {
         // Filters (short-circuit on veto)
         foreach (var f in SnapshotFilters<T>())
         {
             try
             {
-                if (!f.Call(message, ctx)) return;
+                if (!f.Call(message, ctx))
+                {
+                    return;
+                }
             }
             catch (Exception ex)
             {
@@ -75,7 +85,10 @@ public class PacketMessageHub(ILogger<PacketMessageHub> logger) : IPacketMessage
 
         foreach (var listener in listeners)
         {
-            if (!listener.Sender.IsAlive) continue;
+            if (!listener.Sender.IsAlive)
+            {
+                continue;
+            }
 
             try
             {
@@ -106,11 +119,12 @@ public class PacketMessageHub(ILogger<PacketMessageHub> logger) : IPacketMessage
     }
 
     // ---------- Subscribe (token-only) ----------
-
-    public IDisposable Subscribe<T>(object subscriber, Action<T, ISessionContext> handler) where T : IMessageEvent
+    public IDisposable Subscribe<T>(object subscriber, Action<T, ISessionContext> handler)
+        where T : IMessageEvent
         => AddListener(subscriber, typeof(T), handler);
 
-    public IDisposable Subscribe<T>(object subscriber, Func<T, ISessionContext, Task> handler) where T : IMessageEvent
+    public IDisposable Subscribe<T>(object subscriber, Func<T, ISessionContext, Task> handler)
+        where T : IMessageEvent
         => AddListener(subscriber, typeof(T), handler);
 
     private IDisposable AddListener(object subscriber, Type messageType, Delegate handler)
@@ -120,7 +134,7 @@ public class PacketMessageHub(ILogger<PacketMessageHub> logger) : IPacketMessage
         {
             Id = id,
             Sender = new WeakReference(subscriber),
-            Action = handler
+            Action = handler,
         };
 
         lock (_handlersLock)
@@ -143,15 +157,19 @@ public class PacketMessageHub(ILogger<PacketMessageHub> logger) : IPacketMessage
     {
         lock (_handlersLock)
         {
-            if (!_handlers.TryGetValue(messageType, out var arr)) return;
+            if (!_handlers.TryGetValue(messageType, out var arr))
+            {
+                return;
+            }
+
             var kept = arr.Where(l => l.Id != id && l.Sender.IsAlive).ToImmutableArray();
             _handlers[messageType] = kept;
         }
     }
 
     // ---------- Filters (callables) ----------
-
-    public void RegisterCallable<T>(ICallable<T> callable) where T : IMessageEvent
+    public void RegisterCallable<T>(ICallable<T> callable)
+        where T : IMessageEvent
     {
         var list = _filters.GetOrAdd(typeof(T), _ => new List<object>());
         lock (_filtersLock)
@@ -160,7 +178,8 @@ public class PacketMessageHub(ILogger<PacketMessageHub> logger) : IPacketMessage
         }
     }
 
-    public void UnRegisterCallable<T>(ICallable<T> callable) where T : IMessageEvent
+    public void UnRegisterCallable<T>(ICallable<T> callable)
+        where T : IMessageEvent
     {
         if (_filters.TryGetValue(typeof(T), out var list))
         {
@@ -171,10 +190,13 @@ public class PacketMessageHub(ILogger<PacketMessageHub> logger) : IPacketMessage
         }
     }
 
-    private IReadOnlyList<ICallable<T>> SnapshotFilters<T>() where T : IMessageEvent
+    private IReadOnlyList<ICallable<T>> SnapshotFilters<T>()
+        where T : IMessageEvent
     {
         if (!_filters.TryGetValue(typeof(T), out var list))
+        {
             return Array.Empty<ICallable<T>>();
+        }
 
         lock (_filtersLock)
         {

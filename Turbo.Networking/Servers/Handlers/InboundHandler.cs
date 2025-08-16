@@ -1,4 +1,7 @@
+namespace Turbo.Networking.Servers.Handlers;
+
 using System;
+
 using DotNetty.Common.Utilities;
 using DotNetty.Transport.Channels;
 using Microsoft.Extensions.Logging;
@@ -8,13 +11,10 @@ using Turbo.Core.Networking.Session;
 using Turbo.Core.Packets.Messages;
 using Turbo.Networking.Session;
 
-namespace Turbo.Networking.Servers.Handlers;
-
 public class InboundHandler(
     ISessionManager sessionManager,
     IPacketDispatcher packetDispatcher,
-    ILogger<InboundHandler> logger
-) : ChannelHandlerAdapter
+    ILogger<InboundHandler> logger) : ChannelHandlerAdapter
 {
     private readonly ISessionManager _sessionManager = sessionManager;
     private readonly IPacketDispatcher _packetDispatcher = packetDispatcher;

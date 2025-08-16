@@ -1,13 +1,15 @@
+namespace Turbo.Grains.Shared;
+
 using System;
 using System.Threading.Tasks;
-using Orleans.Runtime;
 
-namespace Turbo.Grains.Shared;
+using Orleans.Runtime;
 
 /// <summary>
 /// Provides a wrapper for managing grain state with automatic dirty tracking and persistence.
 /// </summary>
-public sealed class GrainStateHost<TState>(IPersistentState<TState> inner, Func<TState> factory) where TState : class
+public sealed class GrainStateHost<TState>(IPersistentState<TState> inner, Func<TState> factory)
+    where TState : class
 {
     private readonly AutoDirtyState<TState> _auto = new(inner, factory);
     private readonly Func<TState> _factory = factory;
@@ -18,7 +20,7 @@ public sealed class GrainStateHost<TState>(IPersistentState<TState> inner, Func<
     public TState State => _auto.State;
 
     /// <summary>
-    /// Gets whether the state is dirty (has changes since last write).
+    /// Gets a value indicating whether gets whether the state is dirty (has changes since last write).
     /// </summary>
     public bool IsDirty => _auto.IsDirty;
 

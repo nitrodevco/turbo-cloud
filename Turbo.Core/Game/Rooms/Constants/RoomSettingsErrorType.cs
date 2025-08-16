@@ -1,4 +1,4 @@
-﻿namespace Turbo.Core.Game.Rooms.Constants;
+namespace Turbo.Core.Game.Rooms.Constants;
 
 public enum RoomSettingsErrorType
 {
@@ -15,5 +15,5 @@ public enum RoomSettingsErrorType
     BadDescription = 10,
     InvalidTag = 11,
     BadTag = 12,
-    TagTooLong = 13
+    TagTooLong = 13,
 }

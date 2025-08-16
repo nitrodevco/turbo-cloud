@@ -1,4 +1,4 @@
-﻿namespace Turbo.Core.Game.Rooms.Object.Constants;
+namespace Turbo.Core.Game.Rooms.Object.Constants;
 
 public class RoomObjectAvatarStatus
 {

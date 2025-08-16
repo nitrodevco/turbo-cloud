@@ -1,6 +1,6 @@
-using Orleans;
-
 namespace Turbo.Core.Contracts.Players;
+
+using Orleans;
 
 [GenerateSerializer]
 public record PlayerSummary(

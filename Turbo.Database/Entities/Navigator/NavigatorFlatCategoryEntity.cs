@@ -1,8 +1,8 @@
+namespace Turbo.Database.Entities.Navigator;
+
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-
-namespace Turbo.Database.Entities.Navigator;
 
 [Table("navigator_flatcats")]
 public class NavigatorFlatCategoryEntity : Entity
@@ -33,7 +33,8 @@ public class NavigatorFlatCategoryEntity : Entity
     [Required]
     public bool StaffOnly { get; set; }
 
-    [Column("min_rank"), DefaultValue(1)]
+    [Column("min_rank")]
+    [DefaultValue(1)]
     [Required]
     public int MinRank { get; set; }
 

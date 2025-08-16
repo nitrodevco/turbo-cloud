@@ -1,10 +1,10 @@
-﻿using System;
+namespace Turbo.Database.Attributes;
+
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
 using System.Threading;
-
-namespace Turbo.Database.Attributes;
 
 /// <summary>
 /// Specifies the default value for a property.
@@ -18,7 +18,7 @@ public class DefaultValueSqlAttribute : Attribute
     private object? _value;
 
     // Delegate ad hoc created 'TypeDescriptor.ConvertFromInvariantString' reflection object cache
-    private static object? s_convertFromInvariantString;
+    private static object? convertFromInvariantString;
 
     /// <summary>
     /// Initializes a new instance of the <see cref='DefaultValueSqlAttribute'/>
@@ -34,7 +34,6 @@ public class DefaultValueSqlAttribute : Attribute
     {
         // The null check and try/catch here are because attributes should never throw exceptions.
         // We would fail to load an otherwise normal class.
-
         if (type is null)
         {
             return;
@@ -62,6 +61,7 @@ public class DefaultValueSqlAttribute : Attribute
 
             [RequiresUnreferencedCode(
                 "Generic TypeConverters may require the generic types to be annotated. For example, NullableConverter requires the underlying type to be DynamicallyAccessedMembers All.")]
+
             // Looking for ad hoc created TypeDescriptor.ConvertFromInvariantString(Type, string)
             static bool TryConvertFromInvariantString(
                 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
@@ -72,19 +72,24 @@ public class DefaultValueSqlAttribute : Attribute
                 conversionResult = null;
 
                 // lazy init reflection objects
-                if (s_convertFromInvariantString is null)
+                if (DefaultValueSqlAttribute.convertFromInvariantString is null)
                 {
                     var typeDescriptorType =
-                        Type.GetType("System.ComponentModel.TypeDescriptor, System.ComponentModel.TypeConverter",
+                        Type.GetType(
+                            "System.ComponentModel.TypeDescriptor, System.ComponentModel.TypeConverter",
                             throwOnError: false);
-                    var mi = typeDescriptorType?.GetMethod("ConvertFromInvariantString",
+                    var mi = typeDescriptorType?.GetMethod(
+                        "ConvertFromInvariantString",
                         BindingFlags.NonPublic | BindingFlags.Static);
-                    Volatile.Write(ref s_convertFromInvariantString,
+                    Volatile.Write(
+                        ref DefaultValueSqlAttribute.convertFromInvariantString,
                         mi is null ? new object() : mi.CreateDelegate(typeof(Func<Type, string, object>)));
                 }
 
-                if (!(s_convertFromInvariantString is Func<Type, string?, object> convertFromInvariantString))
+                if (!(convertFromInvariantString is Func<Type, string?, object> convertFromInvariantString))
+                {
                     return false;
+                }
 
                 try
                 {
@@ -218,7 +223,6 @@ public class DefaultValueSqlAttribute : Attribute
             _value = value.ToString();
         }
     }
-
 
     /// <summary>
     /// Initializes a new instance of the <see cref='DefaultValueSqlAttribute'/>
