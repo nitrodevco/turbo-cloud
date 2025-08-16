@@ -9,7 +9,9 @@ public interface ISessionContext
     public IChannel Channel { get; }
     public IChannelId ChannelId { get; }
     public long PlayerId { get; }
+    public string RevisionId { get; }
     public bool IsAuthenticated { get; }
+    public void SetRevision(string revisionId);
     public void AttachPlayer(long playerId);
     public Task DisposeAsync();
     public ValueTask SendAsync(ReadOnlyMemory<byte> payload);

@@ -12,6 +12,7 @@ using Turbo.Core.Networking;
 using Turbo.Core.Networking.Session;
 using Turbo.Core.Packets;
 using Turbo.Core.Packets.Messages;
+using Turbo.Core.Packets.Revisions;
 using Turbo.Utilities;
 
 namespace Turbo.Networking;
@@ -24,16 +25,22 @@ public class PacketDispatcher : BackgroundService, IPacketDispatcher
     private readonly ConcurrentDictionary<IChannelId, int> _rateViolations = new();
 
     private readonly ISessionManager _sessionManager;
+    private readonly IRevisionManager _revisionManager;
+    private readonly IPacketMessageHub _messageHub;
     private readonly TokenBucket<IChannelId> _rate;
     private readonly IDispatcherOptions _options;
     private readonly ILogger<PacketDispatcher> _logger;
 
     public PacketDispatcher(
         ISessionManager sessionManager,
+        IRevisionManager revisionManager,
+        IPacketMessageHub messageHub,
         IDispatcherOptions options,
         ILogger<PacketDispatcher> logger)
     {
         _sessionManager = sessionManager;
+        _revisionManager = revisionManager;
+        _messageHub = messageHub;
         _options = options;
         _logger = logger;
 
@@ -148,23 +155,16 @@ public class PacketDispatcher : BackgroundService, IPacketDispatcher
 
             try
             {
-                _logger.LogWarning("Unknown header {Header} sid={Sid}", envelope.Msg.Header, envelope.ChannelId);
+                var revision = _revisionManager.GetRevision(session.RevisionId);
 
-                /* if (_parsers.TryGet(env.Msg.Header, out var handler))
+                if (revision is not null)
                 {
-                    await handler.HandleAsync(session, env.Msg, ct);
+                    if (revision.Parsers.TryGetValue(envelope.Msg.Header, out var parser))
+                    {
+                        await parser.HandleAsync(session, envelope.Msg, _messageHub, ct);
+                    }
                 }
-                else
-                {
-                    _log.LogWarning("Unknown header {Header} sid={Sid}", env.Msg.Header, env.SessionId);
-                    await session.SendAsync(Out.Error("unknown-op"));
-                } */
             }
-            /* catch (PacketFormatException ex)
-            {
-                _log.LogDebug(ex, "Bad packet {Header} sid={Sid}", env.Msg.Header, env.SessionId);
-                await session.SendAsync(Out.Error("bad-packet"));
-            } */
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Handler error {Header} sid={Sid}", envelope.Msg.Header, envelope.ChannelId);

@@ -13,10 +13,13 @@ using Turbo.Core.Configuration;
 using Turbo.Core.Game.Players;
 using Turbo.Core.Networking;
 using Turbo.Core.Networking.Session;
+using Turbo.Core.Packets.Revisions;
 using Turbo.Database.Context;
 using Turbo.Main.Configuration;
+using Turbo.Main.Extensions;
 using Turbo.Networking;
 using Turbo.Networking.Session;
+using Turbo.Packets.Revisions;
 using Turbo.Players;
 using Turbo.Streams;
 
@@ -56,21 +59,7 @@ internal class Program
                 .EnableSensitiveDataLogging(turboConfig.DatabaseLoggingEnabled)
                 .EnableDetailedErrors());
 
-            services.AddSingleton<INetworkEventLoopGroup, NetworkEventLoopGroup>();
-            services.AddSingleton<INetworkManager, NetworkManager>();
-
-            services.AddSingleton<ISessionManager, SessionManager>();
-            services.AddSingleton<IDispatcherOptions>(sp => new IDispatcherOptions
-            {
-                GlobalQueueCapacity = 65536,
-                Workers = Math.Max(4, Environment.ProcessorCount),
-                MaxPendingPerSession = 1024,
-                RateCapacity = 80,
-                RateRefillPerSec = 40,
-                RateViolationsBeforeKick = 3
-            });
-            services.AddSingleton<IPacketDispatcher, PacketDispatcher>();
-            services.AddHostedService(sp => sp.GetRequiredService<IPacketDispatcher>());
+            services.AddNetworking();
 
             services.AddSingleton<IPlayerManager, PlayerManager>();
 

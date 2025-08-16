@@ -14,6 +14,8 @@ using Turbo.Core.Authorization;
 using Turbo.Core.Configuration;
 using Turbo.Core.Game.Players;
 using Turbo.Core.Networking;
+using Turbo.DefaultRevision;
+using Turbo.Packets.Revisions;
 
 namespace Turbo.Main;
 
@@ -55,10 +57,13 @@ public class TurboEmulator(
         _appLifetime.ApplicationStopped.Register(OnStopped);
 
         var config = _serviceProvider.GetRequiredService<IEmulatorConfig>();
-
         var networkManager = _serviceProvider.GetRequiredService<INetworkManager>();
 
         networkManager.SetupServers(config.Network.Servers);
+
+        var defaultRevision = ActivatorUtilities.CreateInstance<DefaultRevisionPlugin>(_serviceProvider);
+
+        await defaultRevision.InitializeAsync();
 
         await networkManager.StartServersAsync();
     }
