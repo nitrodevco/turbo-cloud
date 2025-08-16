@@ -1,63 +1,73 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
-using DotNetty.Transport.Channels;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Turbo.Core.Configuration;
 using Turbo.Core.Networking;
-using Turbo.Networking.Factories;
-using Turbo.Networking.Hosts.Websocket;
+using Turbo.Core.Networking.Servers;
+using Turbo.Networking.Servers.Tcp;
+using Turbo.Networking.Servers.Websocket;
 
 namespace Turbo.Networking;
 
 public class NetworkManager(
     ILogger<NetworkManager> logger,
-    INetworkServerFactory networkServerFactory) : INetworkManager
+    INetworkEventLoopGroup eventLoopGroup,
+    IServiceProvider provider) : INetworkManager
 {
-    private readonly INetworkServerFactory _networkServerFactory = networkServerFactory;
     private readonly ILogger<NetworkManager> _logger = logger;
+    private readonly INetworkEventLoopGroup _eventLoopGroup = eventLoopGroup;
+    private readonly IServiceProvider _provider = provider;
 
     public List<IServer> Servers { get; } = [];
 
     public async Task StartServersAsync()
     {
-        foreach (var server in Servers)
-        {
-            await server.StartAsync();
-        }
+        await Task.WhenAll(Servers.Select(x => x.StartAsync()));
     }
 
-    public void SetupServers(IList<INetworkHostConfig> hostConfigs)
+    public async Task StopServersAsync()
     {
-        if (hostConfigs is null || hostConfigs.Count == 0)
-        {
-            _logger.LogWarning("No network host configurations provided. Skipping setup.");
+        await Task.WhenAll(Servers.Select(x => x.StopAsync()));
+        await _eventLoopGroup.Worker.ShutdownGracefullyAsync();
+        await _eventLoopGroup.Boss.ShutdownGracefullyAsync();
+    }
 
-            return;
-        }
+    public void SetupServers(IList<INetworkServerConfig> hostConfigs)
+    {
+        if (hostConfigs is null || hostConfigs.Count == 0) return;
 
         foreach (var config in hostConfigs)
         {
-            SetupHost(config);
+            CreateServer(config);
         }
     }
 
-    private void SetupHost(INetworkHostConfig config)
+    private IServer CreateServer(INetworkServerConfig config)
     {
         if (config is null)
         {
             _logger.LogError("Network host configuration cannot be null.");
-            return;
+
+            return null;
         }
 
-        var server = _networkServerFactory.CreateServerFromConfig(config);
+        IServer server = null;
+
+        if (config.Type == NetworkServerType.Tcp) server = ActivatorUtilities.CreateInstance<TcpServer>(_provider, config);
+        if (config.Type == NetworkServerType.Websocket) server = ActivatorUtilities.CreateInstance<WebsocketServer>(_provider, config);
 
         if (server is null)
         {
             _logger.LogError($"Failed to create server for configuration: {config.Type}");
-            return;
+
+            return null;
         }
 
         Servers.Add(server);
+
+        return server;
     }
 }

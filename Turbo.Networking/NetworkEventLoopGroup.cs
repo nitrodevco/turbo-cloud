@@ -6,5 +6,6 @@ namespace Turbo.Networking;
 
 public class NetworkEventLoopGroup(IEmulatorConfig config) : INetworkEventLoopGroup
 {
-    public IEventLoopGroup Group { get; } = new MultithreadEventLoopGroup(config.Network.NetworkWorkerThreads);
+    public IEventLoopGroup Boss { get; } = new MultithreadEventLoopGroup(config.Network.BossEventLoopThreads);
+    public IEventLoopGroup Worker { get; } = new MultithreadEventLoopGroup(config.Network.WorkerEventLoopThreads);
 }

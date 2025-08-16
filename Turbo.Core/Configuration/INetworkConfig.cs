@@ -5,6 +5,7 @@ namespace Turbo.Core.Configuration;
 
 public class INetworkConfig
 {
-    public int NetworkWorkerThreads { get; init; }
-    public List<INetworkHostConfig> Hosts { get; init; }
+    public int BossEventLoopThreads { get; init; }
+    public int WorkerEventLoopThreads { get; init; }
+    public List<INetworkServerConfig> Servers { get; init; }
 }

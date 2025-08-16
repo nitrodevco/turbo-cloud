@@ -14,6 +14,8 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Turbo.Core\Turbo.Core.csproj" />
+      <ProjectReference Include="..\Turbo.Utilities\Turbo.Utilities.csproj" />
+      <ProjectReference Include="..\Turbo.Packets\Turbo.Packets.csproj" />
     </ItemGroup>
 
 </Project>

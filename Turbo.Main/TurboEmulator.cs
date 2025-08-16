@@ -58,41 +58,9 @@ public class TurboEmulator(
 
         var networkManager = _serviceProvider.GetRequiredService<INetworkManager>();
 
-        networkManager.SetupServers(config.Network.Hosts);
+        networkManager.SetupServers(config.Network.Servers);
 
         await networkManager.StartServersAsync();
-
-        var playerManager = _serviceProvider.GetRequiredService<IPlayerManager>();
-
-        var doesPlayerExist = await playerManager.PlayerExistsAsync(1);
-
-        if (doesPlayerExist)
-        {
-            var grain = await playerManager.GetPlayerGrain(1);
-            var playerId = await grain.GetPlayerId();
-
-            Console.WriteLine(JsonSerializer.Serialize(await grain.GetAsync()));
-
-            await grain.SetName("NewName");
-
-            var authorizationManager = _serviceProvider.GetRequiredService<IAuthorizationManager>();
-            var ctx = new PlayerLoginContext(playerId, true);
-
-            var res = await authorizationManager.AuthorizeAsync(ctx, [new NotBannedRequirement()], true, cancellationToken);
-
-            if (res.Ok)
-            {
-                Console.WriteLine("Player is not banned, login allowed.");
-            }
-            else
-            {
-                Console.WriteLine("Player is banned, login denied.");
-                foreach (var fail in res.Fails)
-                {
-                    Console.WriteLine($"Failure: {fail.Message}");
-                }
-            }
-        }
     }
 
     /// <summary>

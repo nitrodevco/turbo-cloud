@@ -4,5 +4,6 @@ namespace Turbo.Core.Networking;
 
 public interface INetworkEventLoopGroup
 {
-    public IEventLoopGroup Group { get; }
+    public IEventLoopGroup Boss { get; }
+    public IEventLoopGroup Worker { get; }
 }

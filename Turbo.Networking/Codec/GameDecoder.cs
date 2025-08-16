@@ -2,8 +2,8 @@
 using DotNetty.Buffers;
 using DotNetty.Codecs;
 using DotNetty.Transport.Channels;
-using Turbo.Core.Networking.Packets;
-using Turbo.Networking.Packets;
+using Turbo.Core.Packets.Messages;
+using Turbo.Packets.Incoming;
 
 namespace Turbo.Networking.Codec;
 

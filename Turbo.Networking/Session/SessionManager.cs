@@ -1,6 +1,5 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
-using System.Threading.Tasks;
 using DotNetty.Transport.Channels;
 using Turbo.Core.Networking.Session;
 
@@ -8,55 +7,28 @@ namespace Turbo.Networking.Session;
 
 public class SessionManager : ISessionManager
 {
-    private readonly ConcurrentDictionary<IChannelId, ISession> _clients = new();
+    private readonly ConcurrentDictionary<IChannelId, ISessionContext> _sessions = new();
 
-    public bool TryGetSession(IChannelId id, out ISession session)
+    public bool TryGetSession(IChannelId channelId, out ISessionContext ctx) => _sessions.TryGetValue(channelId, out ctx!);
+
+    public ISessionContext CreateSession(IChannelHandlerContext ctx)
     {
-        return _clients.TryGetValue(id, out session);
+        var session = new SessionContext(ctx);
+
+        _sessions[session.ChannelId] = session;
+
+        return session;
     }
 
-    public bool TryRegisterSession(IChannelId id, in ISession session)
+    public void RemoveSessionById(IChannelId channelId) => _sessions.TryRemove(channelId, out _);
+
+    public void PauseReadsOnAll()
     {
-        return _clients.TryAdd(id, session);
+        foreach (var session in _sessions.Values) session.PauseReads();
     }
 
-    public async Task DisconnectSession(IChannelId id)
+    public void ResumeReadsOnAll()
     {
-        if (!_clients.TryRemove(id, out var session)) return;
-
-        await session.DisposeAsync();
-    }
-
-    private async Task Process()
-    {
-        var tasks = new ConcurrentBag<Task>();
-
-        foreach (var session in _clients.Values)
-        {
-            if (session is null) continue;
-
-            try
-            {
-                tasks.Add(session.HandleDecodedMessages());
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error creating task for session: {ex}");
-            }
-        }
-
-        await Task.WhenAll(tasks);
-    }
-
-    public async Task Cycle()
-    {
-        try
-        {
-            await Process();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine(ex);
-        }
+        foreach (var session in _sessions.Values) session.ResumeReads();
     }
 }

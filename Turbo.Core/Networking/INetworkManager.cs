@@ -7,6 +7,6 @@ namespace Turbo.Core.Networking;
 
 public interface INetworkManager
 {
-    public void SetupServers(IList<INetworkHostConfig> hostConfigs);
+    public void SetupServers(IList<INetworkServerConfig> hostConfigs);
     public Task StartServersAsync();
 }
