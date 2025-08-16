@@ -21,36 +21,11 @@ public class PacketMessageHub(ILogger<PacketMessageHub> logger) : IPacketMessage
 
     // Immutable per-type listener lists for safe lock-free reads
     private readonly ConcurrentDictionary<Type, ImmutableArray<IPacketListener>> _handlers = new();
-    private readonly object _handlersLock = new();
+    private readonly Lock _handlersLock = new();
 
     // Filters (“callables”) grouped per-type
     private readonly ConcurrentDictionary<Type, List<object>> _filters = new();
-    private readonly object _filtersLock = new();
-
-    private sealed class SubscriptionToken : IDisposable
-    {
-        private readonly PacketMessageHub _hub;
-        private readonly Type _messageType;
-        private readonly Guid _id;
-        private int _disposed;
-
-        public SubscriptionToken(PacketMessageHub hub, Type messageType, Guid id)
-        {
-            _hub = hub;
-            _messageType = messageType;
-            _id = id;
-        }
-
-        public void Dispose()
-        {
-            if (Interlocked.Exchange(ref _disposed, 1) == 1)
-            {
-                return;
-            }
-
-            _hub.RemoveListenerById(_messageType, _id);
-        }
-    }
+    private readonly Lock _filtersLock = new();
 
     // ---------- Publish ----------
     public void Publish<T>(T message, ISessionContext ctx)
@@ -151,10 +126,10 @@ public class PacketMessageHub(ILogger<PacketMessageHub> logger) : IPacketMessage
             _handlers[messageType] = cur.ToImmutableArray();
         }
 
-        return new SubscriptionToken(this, messageType, id);
+        return new PacketSubscriptionToken(this, messageType, id);
     }
 
-    private void RemoveListenerById(Type messageType, Guid id)
+    public void RemoveListenerById(Type messageType, Guid id)
     {
         lock (_handlersLock)
         {

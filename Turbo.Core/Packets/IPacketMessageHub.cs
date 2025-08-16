@@ -26,6 +26,8 @@ public interface IPacketMessageHub
     IDisposable Subscribe<T>(object subscriber, Func<T, ISessionContext, Task> handler)
         where T : IMessageEvent;
 
+    public void RemoveListenerById(Type messageType, Guid id);
+
     // Filters (callables)
     void RegisterCallable<T>(ICallable<T> callable)
         where T : IMessageEvent;
