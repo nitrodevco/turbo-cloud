@@ -13,4 +13,5 @@ public interface IIngressPipeline
     );
     void OnProcessed(IngressToken token);
     void Reset(IChannelId channelId);
+    IngressToken GetOrCreateToken(IChannelId channelId);
 }

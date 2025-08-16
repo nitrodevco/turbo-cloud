@@ -65,15 +65,17 @@ public class PacketDispatcher(
     {
         await foreach (var env in _queue.ReadAllAsync(ct))
         {
+            // Attempt to resolve the session associated with the packet's channel id.
             if (!_sessionManager.TryGetSession(env.ChannelId, out var session))
             {
                 _logger.LogWarning("Dropping packet for unknown session sid={Sid}", env.ChannelId);
                 continue;
             }
 
-            // We need the token used when this env was accepted. Easiest: add it into the envelope at ingress time.
-            // If you don't want to mutate PacketEnvelope, re-resolve it here:
-            var token = new IngressToken(env.ChannelId);
+            // Obtain the cached ingress token for this channel from the ingress pipeline.
+            // The token is reused for all packets on the same channel to avoid
+            // allocating a new IngressToken per packet.
+            var token = _ingress.GetOrCreateToken(env.ChannelId);
 
             var ctx = new PacketContext(session, _logger, token);
             await _processing.ProcessAsync(ctx, env, ct);

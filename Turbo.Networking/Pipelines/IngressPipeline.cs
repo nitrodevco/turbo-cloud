@@ -21,10 +21,14 @@ public class IngressPipeline(
 ) : IIngressPipeline
 {
     private readonly ConcurrentDictionary<IChannelId, int> _pending = new();
+    private readonly ConcurrentDictionary<IChannelId, IngressToken> _tokenCache = new();
 
     public bool TryAccept(PacketEnvelope env, out PacketRejectType reject, out IngressToken token)
     {
-        token = new IngressToken(env.ChannelId);
+        // Obtain a reusable token for this channel. If it does not exist,
+        // GetOrAdd will create a new one. This eliminates the per-packet
+        // allocation that previously occurred here.
+        token = _tokenCache.GetOrAdd(env.ChannelId, static id => new IngressToken(id));
         reject = PacketRejectType.None;
 
         // 1) Rate limit
@@ -69,5 +73,13 @@ public class IngressPipeline(
     {
         limiter.Reset(channelId);
         _pending.TryRemove(channelId, out _);
+        _tokenCache.TryRemove(channelId, out _);
+    }
+
+    public IngressToken GetOrCreateToken(IChannelId channelId)
+    {
+        // Provide the cached token for the dispatcher. If no token exists,
+        // allocate one and store it.
+        return _tokenCache.GetOrAdd(channelId, static id => new IngressToken(id));
     }
 }
