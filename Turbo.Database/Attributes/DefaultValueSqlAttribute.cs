@@ -18,7 +18,7 @@ public class DefaultValueSqlAttribute : Attribute
     private object? _value;
 
     // Delegate ad hoc created 'TypeDescriptor.ConvertFromInvariantString' reflection object cache
-    private static object? convertFromInvariantString;
+    private static object? s_convertFromInvariantString;
 
     /// <summary>
     /// Initializes a new instance of the <see cref='DefaultValueSqlAttribute'/>
@@ -35,6 +35,7 @@ public class DefaultValueSqlAttribute : Attribute
     {
         // The null check and try/catch here are because attributes should never throw exceptions.
         // We would fail to load an otherwise normal class.
+
         if (type is null)
         {
             return;
@@ -77,7 +78,7 @@ public class DefaultValueSqlAttribute : Attribute
                 conversionResult = null;
 
                 // lazy init reflection objects
-                if (DefaultValueSqlAttribute.convertFromInvariantString is null)
+                if (s_convertFromInvariantString is null)
                 {
                     var typeDescriptorType = Type.GetType(
                         "System.ComponentModel.TypeDescriptor, System.ComponentModel.TypeConverter",
@@ -88,7 +89,7 @@ public class DefaultValueSqlAttribute : Attribute
                         BindingFlags.NonPublic | BindingFlags.Static
                     );
                     Volatile.Write(
-                        ref DefaultValueSqlAttribute.convertFromInvariantString,
+                        ref s_convertFromInvariantString,
                         mi is null
                             ? new object()
                             : mi.CreateDelegate(typeof(Func<Type, string, object>))
@@ -97,13 +98,11 @@ public class DefaultValueSqlAttribute : Attribute
 
                 if (
                     !(
-                        convertFromInvariantString
+                        s_convertFromInvariantString
                         is Func<Type, string?, object> convertFromInvariantString
                     )
                 )
-                {
                     return false;
-                }
 
                 try
                 {
