@@ -1,4 +1,4 @@
-﻿namespace Turbo.Core.Packets.Messages;
+namespace Turbo.Core.Packets.Messages;
 
 using System.Threading;
 using System.Threading.Tasks;

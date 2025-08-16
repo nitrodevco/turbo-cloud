@@ -1,4 +1,4 @@
-﻿namespace Turbo.DefaultRevision.Parsers;
+namespace Turbo.DefaultRevision.Parsers;
 
 using Turbo.Core.Packets.Messages;
 using Turbo.Packets.Incoming.Handshake;

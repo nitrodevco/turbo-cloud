@@ -1,4 +1,4 @@
-﻿namespace Turbo.Core.Networking.Encryption;
+namespace Turbo.Core.Networking.Encryption;
 
 public interface IRc4Service
 {

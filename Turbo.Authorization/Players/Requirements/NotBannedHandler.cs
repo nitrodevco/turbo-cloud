@@ -12,6 +12,6 @@ public sealed class NotBannedHandler
 {
     public Task<AuthorizationResult> HandleAsync(NotBannedRequirement requirement, PlayerLoginContext context, CancellationToken ct = default)
         => context.IsBanned
-           ? Task.FromResult(new AuthorizationResult(false,[new Failure("PLAYER_BANNED", "Player is banned.")]))
-           : Task.FromResult(new AuthorizationResult(true,[]));
+           ? Task.FromResult(new AuthorizationResult(false, [new Failure("PLAYER_BANNED", "Player is banned.")]))
+           : Task.FromResult(new AuthorizationResult(true, []));
 }

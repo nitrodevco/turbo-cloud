@@ -1,4 +1,4 @@
-﻿namespace Turbo.Packets.Parsers;
+namespace Turbo.Packets.Parsers;
 
 using System.Threading;
 using System.Threading.Tasks;

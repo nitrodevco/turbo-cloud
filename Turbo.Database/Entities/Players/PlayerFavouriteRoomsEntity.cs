@@ -4,6 +4,7 @@ using System;
 using System.ComponentModel.DataAnnotations.Schema;
 
 using Microsoft.EntityFrameworkCore;
+
 using Turbo.Database.Entities.Room;
 
 [Table("player_favourite_rooms")]

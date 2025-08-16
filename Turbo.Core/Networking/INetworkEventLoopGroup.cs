@@ -1,4 +1,4 @@
-﻿namespace Turbo.Core.Networking;
+namespace Turbo.Core.Networking;
 
 using DotNetty.Transport.Channels;
 

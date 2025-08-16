@@ -1,8 +1,9 @@
-﻿namespace Turbo.Packets.Outgoing;
+namespace Turbo.Packets.Outgoing;
 
 using System.Text;
 
 using DotNetty.Buffers;
+
 using Turbo.Core.Packets.Messages;
 
 public class ServerPacket(int header, IByteBuffer body) : TurboPacket(header, body), IServerPacket

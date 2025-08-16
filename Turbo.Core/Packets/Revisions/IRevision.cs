@@ -1,4 +1,4 @@
-﻿namespace Turbo.Core.Packets.Revisions;
+namespace Turbo.Core.Packets.Revisions;
 
 using System;
 using System.Collections.Generic;

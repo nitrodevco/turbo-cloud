@@ -1,4 +1,4 @@
-﻿namespace Turbo.Core;
+namespace Turbo.Core;
 
 using Microsoft.Extensions.Hosting;
 

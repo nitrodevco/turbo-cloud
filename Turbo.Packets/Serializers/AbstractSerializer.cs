@@ -1,6 +1,7 @@
-﻿namespace Turbo.Packets.Serializers;
+namespace Turbo.Packets.Serializers;
 
 using DotNetty.Buffers;
+
 using Turbo.Core.Packets.Messages;
 using Turbo.Packets.Outgoing;
 

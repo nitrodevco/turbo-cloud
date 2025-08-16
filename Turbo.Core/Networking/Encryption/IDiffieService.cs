@@ -1,4 +1,4 @@
-﻿namespace Turbo.Core.Networking.Encryption;
+namespace Turbo.Core.Networking.Encryption;
 
 using Org.BouncyCastle.Math;
 

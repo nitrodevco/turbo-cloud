@@ -44,6 +44,6 @@ public sealed class AuthorizationManager : IAuthorizationManager
             }
         }
 
-        return new AuthorizationResult(true,[]);
+        return new AuthorizationResult(true, []);
     }
 }

@@ -1,4 +1,4 @@
-﻿namespace Turbo.Core.Packets.Messages;
+namespace Turbo.Core.Packets.Messages;
 
 public interface IServerPacket : ITurboPacket
 {

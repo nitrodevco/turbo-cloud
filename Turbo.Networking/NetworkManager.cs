@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+
 using Turbo.Core.Configuration;
 using Turbo.Core.Networking;
 using Turbo.Core.Networking.Servers;
@@ -22,7 +23,7 @@ public class NetworkManager(
     private readonly INetworkEventLoopGroup _eventLoopGroup = eventLoopGroup;
     private readonly IServiceProvider _provider = provider;
 
-    public List<IServer> Servers { get; } =[];
+    public List<IServer> Servers { get; } = [];
 
     public async Task StartServersAsync()
     {

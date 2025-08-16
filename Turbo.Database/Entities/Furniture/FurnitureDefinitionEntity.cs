@@ -5,6 +5,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 using Microsoft.EntityFrameworkCore;
+
 using Turbo.Core.Game.Furniture.Constants;
 using Turbo.Database.Attributes;
 
