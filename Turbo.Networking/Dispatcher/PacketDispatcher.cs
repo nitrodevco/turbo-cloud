@@ -8,11 +8,15 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Turbo.Core.Configuration;
 using Turbo.Core.Networking;
+using Turbo.Core.Networking.Behaviors;
 using Turbo.Core.Networking.Dispatcher;
+using Turbo.Core.Networking.Pipeline;
 using Turbo.Core.Networking.Session;
 using Turbo.Core.Packets;
 using Turbo.Core.Packets.Messages;
 using Turbo.Core.Packets.Revisions;
+using Turbo.Networking.Behaviors;
+using Turbo.Networking.Pipelines;
 
 namespace Turbo.Networking.Dispatcher;
 
@@ -20,23 +24,26 @@ public class PacketDispatcher(
     ISessionManager sessionManager,
     IRevisionManager revisionManager,
     IPacketMessageHub messageHub,
-    IRateLimiter rateLimiter,
     IPacketQueue queue,
-    IBackpressureManager backpressure,
+    IIngressPipeline ingress,
     IEmulatorConfig config,
     ILogger<PacketDispatcher> logger
 ) : BackgroundService, IPacketDispatcher
 {
-    private readonly IPacketQueue _queue = queue;
-    private readonly IRateLimiter _rateLimiter = rateLimiter;
-    private readonly IBackpressureManager _backpressure = backpressure;
     private readonly ISessionManager _sessionManager = sessionManager;
-    private readonly IRevisionManager _revisionManager = revisionManager;
-    private readonly IPacketMessageHub _messageHub = messageHub;
+    private readonly IPacketQueue _queue = queue;
+    private readonly IIngressPipeline _ingress = ingress;
     private readonly IEmulatorConfig _config = config;
     private readonly ILogger<PacketDispatcher> _logger = logger;
-    private readonly ConcurrentDictionary<IChannelId, Task> _sequencers = new();
-    private readonly ConcurrentDictionary<IChannelId, int> _pendingCount = new();
+
+    private readonly IProcessingPipeline _processing = new ProcessingPipeline(
+        [
+            new SequencingBehavior(logger),
+            new ExceptionHandlingBehavior(logger),
+            new RevisionDispatchBehavior(revisionManager, messageHub, logger),
+            new CleanupBehavior(ingress, logger),
+        ]
+    );
 
     public bool TryEnqueue(
         IChannelId channelId,
@@ -44,138 +51,34 @@ public class PacketDispatcher(
         out PacketRejectType rejectType
     )
     {
-        rejectType = PacketRejectType.None;
-
-        // 1) Rate limit
-        if (!_rateLimiter.TryAcquire(channelId, out var exceededLimit))
-        {
-            rejectType = PacketRejectType.RateLimited;
-            if (exceededLimit)
-            {
-                _ = _sessionManager.KickSessionAsync(channelId, SessionKickType.RateLimited);
-            }
-
-            return false;
-        }
-
-        // 2) Per‑session pending queue
-        var pending = _pendingCount.AddOrUpdate(channelId, 1, (_, v) => v + 1);
-        if (pending > _config.Network.DispatcherOptions.MaxPendingPerSession)
-        {
-            rejectType = PacketRejectType.Busy;
-            _pendingCount.AddOrUpdate(channelId, 0, (_, v) => v - 1);
-            return false;
-        }
-
-        // 3) Global queue
-        if (!_queue.TryEnqueue(new PacketEnvelope(channelId, packet)))
-        {
-            rejectType = PacketRejectType.ServerBusy;
-            _pendingCount.AddOrUpdate(channelId, 0, (_, v) => v - 1);
-            return false;
-        }
-
-        // 4) Backpressure hint
-        _backpressure.UpdateDepth(_queue.ApproxDepth, _sessionManager);
-        return true;
+        var env = new PacketEnvelope(channelId, packet);
+        var ok = _ingress.TryAccept(env, out rejectType, out _);
+        return ok;
     }
 
-    protected override Task ExecuteAsync(CancellationToken ct)
-    {
-        return Task.WhenAll(
+    protected override Task ExecuteAsync(CancellationToken ct) =>
+        Task.WhenAll(
             Enumerable.Range(0, _config.Network.DispatcherOptions.Workers).Select(_ => Worker(ct))
         );
-    }
 
     private async Task Worker(CancellationToken ct)
     {
-        await foreach (var envelope in _queue.ReadAllAsync(ct))
+        await foreach (var env in _queue.ReadAllAsync(ct))
         {
-            var next = _sequencers.AddOrUpdate(
-                envelope.ChannelId,
-                _ => ProcessOne(envelope, ct),
-                (_, tail) =>
-                    tail.IsCompleted
-                        ? ProcessOne(envelope, ct)
-                        : tail.ContinueWith(
-                                _ => ProcessOne(envelope, ct),
-                                ct,
-                                TaskContinuationOptions.None,
-                                TaskScheduler.Default
-                            )
-                            .Unwrap()
-            );
+            if (!_sessionManager.TryGetSession(env.ChannelId, out var session))
+            {
+                _logger.LogWarning("Dropping packet for unknown session sid={Sid}", env.ChannelId);
+                continue;
+            }
 
-            _ = next.ContinueWith(
-                t =>
-                {
-                    if (t.IsFaulted)
-                    {
-                        _logger.LogError(
-                            t.Exception,
-                            "Processing chain fault sid={Sid}",
-                            envelope.ChannelId
-                        );
-                    }
-                },
-                TaskScheduler.Default
-            );
+            // We need the token used when this env was accepted. Easiest: add it into the envelope at ingress time.
+            // If you don't want to mutate PacketEnvelope, re-resolve it here:
+            var token = new IngressToken(env.ChannelId);
+
+            var ctx = new PacketContext(session, _logger, token);
+            await _processing.ProcessAsync(ctx, env, ct);
         }
     }
 
-    private async Task ProcessOne(PacketEnvelope envelope, CancellationToken ct)
-    {
-        try
-        {
-            if (!_sessionManager.TryGetSession(envelope.ChannelId, out var session))
-            {
-                // session gone; drop
-                return;
-            }
-
-            try
-            {
-                var revision = _revisionManager.GetRevision(session.RevisionId);
-
-                if (revision is not null)
-                {
-                    if (revision.Parsers.TryGetValue(envelope.Msg.Header, out var parser))
-                    {
-                        await parser
-                            .HandleAsync(session, envelope.Msg, _messageHub, ct)
-                            .ConfigureAwait(false);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    ex,
-                    "Handler error {Header} sid={Sid}",
-                    envelope.Msg.Header,
-                    envelope.ChannelId
-                );
-            }
-        }
-        finally
-        {
-            envelope.Msg.Content.Release();
-            var left = _pendingCount.AddOrUpdate(
-                envelope.ChannelId,
-                0,
-                (_, v) => Math.Max(0, v - 1)
-            );
-            if (left == 0)
-            {
-                _rateLimiter.Reset(envelope.ChannelId);
-            }
-        }
-    }
-
-    public void ResetForChannelId(IChannelId channelId)
-    {
-        _rateLimiter.Reset(channelId);
-        _pendingCount.TryRemove(channelId, out _);
-        _sequencers.TryRemove(channelId, out _);
-    }
+    public void ResetForChannelId(IChannelId channelId) => _ingress.Reset(channelId);
 }

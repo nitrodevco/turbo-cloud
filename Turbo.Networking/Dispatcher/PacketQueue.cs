@@ -7,11 +7,11 @@ using Turbo.Core.Packets.Messages;
 
 namespace Turbo.Networking.Dispatcher;
 
-public class BoundedPacketQueue : IPacketQueue
+public class PacketQueue : IPacketQueue
 {
     private readonly Channel<PacketEnvelope> _channel;
 
-    public BoundedPacketQueue(IEmulatorConfig config)
+    public PacketQueue(IEmulatorConfig config)
     {
         _channel = Channel.CreateBounded<PacketEnvelope>(
             new BoundedChannelOptions(config.Network.DispatcherOptions.GlobalQueueCapacity)

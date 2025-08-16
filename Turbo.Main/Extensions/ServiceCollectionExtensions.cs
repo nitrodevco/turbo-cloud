@@ -4,11 +4,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Turbo.Core.Configuration;
 using Turbo.Core.Networking;
 using Turbo.Core.Networking.Dispatcher;
+using Turbo.Core.Networking.Pipeline;
 using Turbo.Core.Networking.Session;
 using Turbo.Core.Packets;
 using Turbo.Core.Packets.Revisions;
 using Turbo.Networking;
 using Turbo.Networking.Dispatcher;
+using Turbo.Networking.Pipelines;
 using Turbo.Networking.Session;
 using Turbo.Packets;
 using Turbo.Packets.Revisions;
@@ -27,8 +29,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IRevisionManager, RevisionManager>();
         services.AddSingleton<IPacketDispatcher, PacketDispatcher>();
         services.AddSingleton<IRateLimiter, TokenBucketRateLimiter>();
-        services.AddSingleton<IPacketQueue, BoundedPacketQueue>();
+        services.AddSingleton<IPacketQueue, PacketQueue>();
         services.AddSingleton<IBackpressureManager, BackpressureManager>();
         services.AddHostedService(sp => sp.GetRequiredService<IPacketDispatcher>());
+        services.AddSingleton<IIngressPipeline, IngressPipeline>();
+        services.AddSingleton<IProcessingPipeline, ProcessingPipeline>();
     }
 }

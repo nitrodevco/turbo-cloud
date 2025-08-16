@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Turbo.Core.Networking.Session;
 using Turbo.Core.Packets;
@@ -33,5 +34,7 @@ public class DefaultRevisionPlugin(IRevisionManager revisionManager, IPacketMess
         }
 
         ctx.SetRevision(revision.Revision);
+
+        Console.WriteLine(message.Production);
     }
 }
