@@ -1,10 +1,6 @@
-namespace Turbo.Main.Extensions;
-
 using System;
-
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-
 using Turbo.Core.Configuration;
 using Turbo.Core.Networking;
 using Turbo.Core.Networking.Dispatcher;
@@ -16,6 +12,8 @@ using Turbo.Networking.Dispatcher;
 using Turbo.Networking.Session;
 using Turbo.Packets;
 using Turbo.Packets.Revisions;
+
+namespace Turbo.Main.Extensions;
 
 public static class ServiceCollectionExtensions
 {

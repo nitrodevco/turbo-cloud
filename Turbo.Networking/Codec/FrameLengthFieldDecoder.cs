@@ -1,6 +1,6 @@
-namespace Turbo.Networking.Codec;
-
 using DotNetty.Codecs;
+
+namespace Turbo.Networking.Codec;
 
 public class FrameLengthFieldDecoder : LengthFieldBasedFrameDecoder
 {
@@ -11,8 +11,11 @@ public class FrameLengthFieldDecoder : LengthFieldBasedFrameDecoder
     private static readonly int BYTES_TO_STRIP = 4;
 
     public FrameLengthFieldDecoder()
-        : base(MAX_LENGTH, LENGTH_FIELD_OFFSET, LENGTH_FIELD_LENGTH, LENGTH_ADJUSTMENT,
-        BYTES_TO_STRIP)
-    {
-    }
+        : base(
+            MAX_LENGTH,
+            LENGTH_FIELD_OFFSET,
+            LENGTH_FIELD_LENGTH,
+            LENGTH_ADJUSTMENT,
+            BYTES_TO_STRIP
+        ) { }
 }

@@ -1,15 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
     <PropertyGroup>
         <TargetFramework>net9.0</TargetFramework>
     </PropertyGroup>
-
     <ItemGroup>
         <PackageReference Include="DotNetty.Buffers" Version="0.7.5" />
     </ItemGroup>
-
     <ItemGroup>
-      <ProjectReference Include="..\Turbo.Core\Turbo.Core.csproj" />
+        <ProjectReference Include="..\Turbo.Core\Turbo.Core.csproj" />
     </ItemGroup>
-
 </Project>

@@ -1,11 +1,9 @@
-namespace Turbo.Packets.Incoming;
-
 using System;
 using System.Text;
-
 using DotNetty.Buffers;
-
 using Turbo.Core.Packets.Messages;
+
+namespace Turbo.Packets.Incoming;
 
 public class ClientPacket(int header, IByteBuffer body) : TurboPacket(header, body), IClientPacket
 {

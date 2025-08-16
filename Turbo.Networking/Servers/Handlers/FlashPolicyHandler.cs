@@ -1,19 +1,19 @@
-namespace Turbo.Networking.Servers.Handlers;
-
 using System;
 using System.Text;
-
 using DotNetty.Buffers;
 using DotNetty.Common.Utilities;
 using DotNetty.Transport.Channels;
 
+namespace Turbo.Networking.Servers.Handlers;
+
 internal class FlashPolicyHandler : ChannelHandlerAdapter
 {
-    private static readonly string Policy = "<?xml version=\"1.0\"?>\r\n"
-                                            + "<!DOCTYPE cross-domain-policy SYSTEM \"/xml/dtds/cross-domain-policy.dtd\">\r\n"
-                                            + "<cross-domain-policy>\r\n"
-                                            + "<allow-access-from domain=\"*\" to-ports=\"*\" />\r\n"
-                                            + "</cross-domain-policy>\0)";
+    private static readonly string Policy =
+        "<?xml version=\"1.0\"?>\r\n"
+        + "<!DOCTYPE cross-domain-policy SYSTEM \"/xml/dtds/cross-domain-policy.dtd\">\r\n"
+        + "<cross-domain-policy>\r\n"
+        + "<allow-access-from domain=\"*\" to-ports=\"*\" />\r\n"
+        + "</cross-domain-policy>\0)";
 
     public override void ChannelRead(IChannelHandlerContext context, object message)
     {
@@ -28,7 +28,8 @@ internal class FlashPolicyHandler : ChannelHandlerAdapter
 
             if (buf.GetByte(0) == 0x3C)
             {
-                context.WriteAndFlushAsync(Unpooled.CopiedBuffer(Encoding.Default.GetBytes(Policy)))
+                context
+                    .WriteAndFlushAsync(Unpooled.CopiedBuffer(Encoding.Default.GetBytes(Policy)))
                     .ContinueWith(antecedent => context.CloseAsync());
             }
             else

@@ -1,8 +1,7 @@
-namespace Turbo.Core.Networking.Session;
-
 using System.Threading.Tasks;
-
 using DotNetty.Transport.Channels;
+
+namespace Turbo.Core.Networking.Session;
 
 public interface ISessionManager
 {
@@ -10,7 +9,10 @@ public interface ISessionManager
 
     public ISessionContext CreateSession(IChannelHandlerContext ctx);
 
-    public Task KickSessionAsync(IChannelId channelId, SessionKickType kickType = SessionKickType.Requested);
+    public Task KickSessionAsync(
+        IChannelId channelId,
+        SessionKickType kickType = SessionKickType.Requested
+    );
 
     public bool RemoveSessionById(IChannelId channelId, out ISessionContext session);
 

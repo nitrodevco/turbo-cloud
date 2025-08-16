@@ -1,6 +1,6 @@
-namespace Turbo.Core;
-
 using Microsoft.Extensions.Hosting;
+
+namespace Turbo.Core;
 
 public interface IEmulator : IHostedService
 {

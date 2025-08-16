@@ -1,9 +1,8 @@
-namespace Turbo.Database.Entities.Navigator;
-
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-
 using Microsoft.EntityFrameworkCore;
+
+namespace Turbo.Database.Entities.Navigator;
 
 [Table("navigator_top_level_contexts")]
 [Index(nameof(SearchCode), IsUnique = true)]

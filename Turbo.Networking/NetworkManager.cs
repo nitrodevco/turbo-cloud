@@ -1,23 +1,22 @@
-namespace Turbo.Networking;
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-
 using Turbo.Core.Configuration;
 using Turbo.Core.Networking;
 using Turbo.Core.Networking.Servers;
 using Turbo.Networking.Servers.Tcp;
 using Turbo.Networking.Servers.Websocket;
 
+namespace Turbo.Networking;
+
 public class NetworkManager(
     ILogger<NetworkManager> logger,
     INetworkEventLoopGroup eventLoopGroup,
-    IServiceProvider provider) : INetworkManager
+    IServiceProvider provider
+) : INetworkManager
 {
     private readonly ILogger<NetworkManager> _logger = logger;
     private readonly INetworkEventLoopGroup _eventLoopGroup = eventLoopGroup;

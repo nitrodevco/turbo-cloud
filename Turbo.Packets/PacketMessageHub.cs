@@ -1,5 +1,3 @@
-namespace Turbo.Packets;
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -8,12 +6,12 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-
 using Microsoft.Extensions.Logging;
-
 using Turbo.Core.Networking.Session;
 using Turbo.Core.Packets;
 using Turbo.Core.Packets.Messages;
+
+namespace Turbo.Packets;
 
 public class PacketMessageHub(ILogger<PacketMessageHub> logger) : IPacketMessageHub
 {
@@ -29,12 +27,11 @@ public class PacketMessageHub(ILogger<PacketMessageHub> logger) : IPacketMessage
 
     // ---------- Publish ----------
     public void Publish<T>(T message, ISessionContext ctx)
-        where T : IMessageEvent
-        => PublishAsync(message, ctx, CancellationToken.None).GetAwaiter().GetResult();
+        where T : IMessageEvent =>
+        PublishAsync(message, ctx, CancellationToken.None).GetAwaiter().GetResult();
 
     public Task PublishAsync<T>(T message, ISessionContext ctx)
-        where T : IMessageEvent
-        => PublishAsync(message, ctx, CancellationToken.None);
+        where T : IMessageEvent => PublishAsync(message, ctx, CancellationToken.None);
 
     public async Task PublishAsync<T>(T message, ISessionContext ctx, CancellationToken ct)
         where T : IMessageEvent
@@ -57,7 +54,9 @@ public class PacketMessageHub(ILogger<PacketMessageHub> logger) : IPacketMessage
         }
 
         // Immutable snapshot; arrival order preserved
-        var listeners = _handlers.TryGetValue(typeof(T), out var arr) ? arr : ImmutableArray<IPacketListener>.Empty;
+        var listeners = _handlers.TryGetValue(typeof(T), out var arr)
+            ? arr
+            : ImmutableArray<IPacketListener>.Empty;
 
         foreach (var listener in listeners)
         {
@@ -79,7 +78,10 @@ public class PacketMessageHub(ILogger<PacketMessageHub> logger) : IPacketMessage
                         break;
 
                     default:
-                        _logger.LogWarning("Unsupported delegate type {Type}", listener.Action.GetType().Name);
+                        _logger.LogWarning(
+                            "Unsupported delegate type {Type}",
+                            listener.Action.GetType().Name
+                        );
                         break;
                 }
             }
@@ -96,12 +98,10 @@ public class PacketMessageHub(ILogger<PacketMessageHub> logger) : IPacketMessage
 
     // ---------- Subscribe (token-only) ----------
     public IDisposable Subscribe<T>(object subscriber, Action<T, ISessionContext> handler)
-        where T : IMessageEvent
-        => AddListener(subscriber, typeof(T), handler);
+        where T : IMessageEvent => AddListener(subscriber, typeof(T), handler);
 
     public IDisposable Subscribe<T>(object subscriber, Func<T, ISessionContext, Task> handler)
-        where T : IMessageEvent
-        => AddListener(subscriber, typeof(T), handler);
+        where T : IMessageEvent => AddListener(subscriber, typeof(T), handler);
 
     private IDisposable AddListener(object subscriber, Type messageType, Delegate handler)
     {

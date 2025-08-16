@@ -1,13 +1,9 @@
-namespace Turbo.Database.Context;
-
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-
 using Microsoft.EntityFrameworkCore;
-
 using Turbo.Database.Attributes;
 using Turbo.Database.Entities;
 using Turbo.Database.Entities.Catalog;
@@ -18,7 +14,11 @@ using Turbo.Database.Entities.Room;
 using Turbo.Database.Entities.Security;
 using Turbo.Database.Entities.Tracking;
 
-public class TurboDbContext(DbContextOptions<TurboDbContext> options) : DbContext(options), ITurboDbContext
+namespace Turbo.Database.Context;
+
+public class TurboDbContext(DbContextOptions<TurboDbContext> options)
+    : DbContext(options),
+        ITurboDbContext
 {
     public DbSet<CatalogOfferEntity> CatalogOffers { get; set; }
 
@@ -70,15 +70,16 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options) : DbContex
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<PlayerFavouriteRoomsEntity>()
-            .HasKey(p => new { p.PlayerId, p.RoomId });
+        modelBuilder.Entity<PlayerFavouriteRoomsEntity>().HasKey(p => new { p.PlayerId, p.RoomId });
 
-        modelBuilder.Entity<PlayerFavouriteRoomsEntity>()
+        modelBuilder
+            .Entity<PlayerFavouriteRoomsEntity>()
             .HasOne(p => p.Player)
             .WithMany()
             .HasForeignKey(p => p.PlayerId);
 
-        modelBuilder.Entity<PlayerFavouriteRoomsEntity>()
+        modelBuilder
+            .Entity<PlayerFavouriteRoomsEntity>()
             .HasOne(p => p.Room)
             .WithMany()
             .HasForeignKey(p => p.RoomId);
@@ -87,11 +88,9 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options) : DbContex
 
         modelBuilder.Entity<CatalogPageEntity>(entity =>
         {
-            entity.Property(e => e.ImageData)
-                .HasColumnType("json");
+            entity.Property(e => e.ImageData).HasColumnType("json");
 
-            entity.Property(e => e.TextData)
-                .HasColumnType("json");
+            entity.Property(e => e.TextData).HasColumnType("json");
         });
 
         var entityMethod = typeof(ModelBuilder).GetMethod("Entity", Type.EmptyTypes);
@@ -108,13 +107,13 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options) : DbContex
             // Load assembly
             var assembly = Assembly.LoadFile(Path.Combine(Directory.GetCurrentDirectory(), plugin));
 
-            var entityTypes = assembly.GetTypes()
+            var entityTypes = assembly
+                .GetTypes()
                 .Where(t => t.GetCustomAttributes(typeof(TurboEntity), true).Any());
 
             foreach (var type in entityTypes)
             {
-                entityMethod.MakeGenericMethod(type)
-                    .Invoke(modelBuilder, new object[] { });
+                entityMethod.MakeGenericMethod(type).Invoke(modelBuilder, new object[] { });
             }
         }
     }
@@ -130,7 +129,9 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options) : DbContex
 
         var types = asm.GetTypes().ToList();
 
-        var dbSets = typeof(TurboDbContext).GetProperties().Where(p => p.PropertyType.Name.ToLower().Contains("dbset"))
+        var dbSets = typeof(TurboDbContext)
+            .GetProperties()
+            .Where(p => p.PropertyType.Name.ToLower().Contains("dbset"))
             .ToList();
 
         List<Type> dbSetTypes = new();
@@ -142,7 +143,11 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options) : DbContex
 
         foreach (var t in types)
         {
-            if (!typeof(Entity).IsAssignableFrom(t) || t.Name == nameof(Entity) || !dbSetTypes.Contains(t))
+            if (
+                !typeof(Entity).IsAssignableFrom(t)
+                || t.Name == nameof(Entity)
+                || !dbSetTypes.Contains(t)
+            )
             {
                 continue;
             }
@@ -155,7 +160,10 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options) : DbContex
 
                 if (att is not null)
                 {
-                    modelBuilder.Entity(t).Property(p.Name).HasDefaultValueSql(att.Value?.ToString());
+                    modelBuilder
+                        .Entity(t)
+                        .Property(p.Name)
+                        .HasDefaultValueSql(att.Value?.ToString());
                 }
             }
         }

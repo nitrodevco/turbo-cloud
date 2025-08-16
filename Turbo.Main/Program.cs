@@ -1,19 +1,14 @@
-namespace Turbo.Main;
-
 using System;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-
 using Orleans.Hosting;
-
 using Turbo.Core.Configuration;
 using Turbo.Core.Game.Players;
 using Turbo.Core.Networking;
@@ -28,60 +23,87 @@ using Turbo.Packets.Revisions;
 using Turbo.Players;
 using Turbo.Streams;
 
+namespace Turbo.Main;
+
 internal class Program
 {
     public static async Task Main(string[] args)
     {
         var builder = Host.CreateDefaultBuilder(args);
 
-        builder.ConfigureLogging((ctx, logging) =>
-        {
-            logging.ClearProviders();
-            logging.AddConfiguration(ctx.Configuration.GetSection("Logging"));
-            logging.AddSimpleConsole();
-        });
+        builder.ConfigureLogging(
+            (ctx, logging) =>
+            {
+                logging.ClearProviders();
+                logging.AddConfiguration(ctx.Configuration.GetSection("Logging"));
+                logging.AddSimpleConsole();
+            }
+        );
 
-        builder.ConfigureAppConfiguration((ctx, config) =>
-        {
-            config.AddUserSecrets<Program>();
-        });
+        builder.ConfigureAppConfiguration(
+            (ctx, config) =>
+            {
+                config.AddUserSecrets<Program>();
+            }
+        );
 
-        builder.ConfigureServices((ctx, services) =>
-        {
-            var turboConfig = new TurboConfig();
-            ctx.Configuration.Bind(TurboConfig.Turbo, turboConfig);
-            services.AddSingleton<IEmulatorConfig>(turboConfig);
+        builder.ConfigureServices(
+            (ctx, services) =>
+            {
+                var turboConfig = new TurboConfig();
+                ctx.Configuration.Bind(TurboConfig.Turbo, turboConfig);
+                services.AddSingleton<IEmulatorConfig>(turboConfig);
 
-            var connectionString = ctx.Configuration.GetConnectionString("DefaultConnection");
+                var connectionString = ctx.Configuration.GetConnectionString("DefaultConnection");
 
-            services.AddDbContextFactory<TurboDbContext>(options => options
-                .UseMySql(connectionString, ServerVersion.AutoDetect(connectionString),
-                    options => { options.MigrationsAssembly("Turbo.Main"); })
-                .ConfigureWarnings(warnings => warnings
-                    .Ignore(CoreEventId.RedundantIndexRemoved))
-                .EnableSensitiveDataLogging(turboConfig.DatabaseLoggingEnabled)
-                .EnableDetailedErrors());
+                services.AddDbContextFactory<TurboDbContext>(options =>
+                    options
+                        .UseMySql(
+                            connectionString,
+                            ServerVersion.AutoDetect(connectionString),
+                            options =>
+                            {
+                                options.MigrationsAssembly("Turbo.Main");
+                            }
+                        )
+                        .ConfigureWarnings(warnings =>
+                            warnings.Ignore(CoreEventId.RedundantIndexRemoved)
+                        )
+                        .EnableSensitiveDataLogging(turboConfig.DatabaseLoggingEnabled)
+                        .EnableDetailedErrors()
+                );
 
-            services.AddNetworking();
+                services.AddNetworking();
 
-            services.AddSingleton<IPlayerManager, PlayerManager>();
+                services.AddSingleton<IPlayerManager, PlayerManager>();
 
-            // Emulator
-            services.AddSingleton<TurboEmulator>();
-        });
+                // Emulator
+                services.AddSingleton<TurboEmulator>();
+            }
+        );
 
         builder.UseOrleans(silo =>
         {
-            silo.ConfigureEndpoints("127.0.0.1", siloPort: 11111, gatewayPort: 3000, listenOnAnyHostAddress: true);
+            silo.ConfigureEndpoints(
+                "127.0.0.1",
+                siloPort: 11111,
+                gatewayPort: 3000,
+                listenOnAnyHostAddress: true
+            );
 
             silo.UseLocalhostClustering()
                 .AddMemoryGrainStorage("PubSubStore")
                 .AddMemoryGrainStorage("PlayerStore");
 
-            var streamTypes = AppDomain.CurrentDomain.GetAssemblies()
+            var streamTypes = AppDomain
+                .CurrentDomain.GetAssemblies()
                 .SelectMany(a => a.GetTypes())
                 .Where(t => t.IsClass && !t.IsAbstract)
-                .Select(t => new { Type = t, Attr = t.GetCustomAttribute<AutoStreamProviderAttribute>() })
+                .Select(t => new
+                {
+                    Type = t,
+                    Attr = t.GetCustomAttribute<AutoStreamProviderAttribute>(),
+                })
                 .Where(x => x.Attr is not null);
 
             foreach (var x in streamTypes)
@@ -90,15 +112,18 @@ internal class Program
                 var queueCount = x.Attr!.QueueCount;
                 var streamPubSubType = x.Attr!.StreamPubSubType;
 
-                silo.AddMemoryStreams(name, opts =>
-                {
-                    if (queueCount is int n && n > 0)
+                silo.AddMemoryStreams(
+                    name,
+                    opts =>
                     {
-                        opts.ConfigurePartitioning(n);
-                    }
+                        if (queueCount is int n && n > 0)
+                        {
+                            opts.ConfigurePartitioning(n);
+                        }
 
-                    opts.ConfigureStreamPubSub(streamPubSubType);
-                });
+                        opts.ConfigureStreamPubSub(streamPubSubType);
+                    }
+                );
             }
         });
 

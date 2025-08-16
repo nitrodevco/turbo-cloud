@@ -1,6 +1,6 @@
-namespace Turbo.Core.Packets.Messages;
-
 using DotNetty.Buffers;
+
+namespace Turbo.Core.Packets.Messages;
 
 public interface ISerializer
 {

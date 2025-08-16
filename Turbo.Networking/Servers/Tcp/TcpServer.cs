@@ -1,20 +1,17 @@
-namespace Turbo.Networking.Servers.Tcp;
-
 using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
-
 using DotNetty.Buffers;
 using DotNetty.Transport.Bootstrapping;
 using DotNetty.Transport.Channels;
 using DotNetty.Transport.Channels.Sockets;
-
 using Microsoft.Extensions.Logging;
-
 using Turbo.Core.Configuration;
 using Turbo.Core.Networking;
 using Turbo.Core.Networking.Servers;
+
+namespace Turbo.Networking.Servers.Tcp;
 
 public class TcpServer : IServer
 {
@@ -34,7 +31,8 @@ public class TcpServer : IServer
         INetworkServerConfig config,
         INetworkEventLoopGroup eventLoopGroup,
         ILogger<TcpServer> logger,
-        IServiceProvider provider)
+        IServiceProvider provider
+    )
     {
         _config = config;
         _eventLoopGroup = eventLoopGroup;
@@ -64,11 +62,22 @@ public class TcpServer : IServer
 
             ServerChannel = await _serverBootstrap.BindAsync(IPAddress.Parse(Host), Port);
 
-            _logger.LogInformation("{Context} -> Listening on ws://{Host}:{Port}", nameof(TcpServer), Host, Port);
+            _logger.LogInformation(
+                "{Context} -> Listening on ws://{Host}:{Port}",
+                nameof(TcpServer),
+                Host,
+                Port
+            );
         }
         catch (SocketException ex)
         {
-            _logger.LogError(ex, "{Context} -> Failed to start TCP server on {Host}:{Port}", nameof(TcpServer), Host, Port);
+            _logger.LogError(
+                ex,
+                "{Context} -> Failed to start TCP server on {Host}:{Port}",
+                nameof(TcpServer),
+                Host,
+                Port
+            );
             throw;
         }
     }

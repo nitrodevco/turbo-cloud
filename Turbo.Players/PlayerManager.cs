@@ -1,18 +1,16 @@
-namespace Turbo.Players;
-
 using System.Threading.Tasks;
-
 using Microsoft.EntityFrameworkCore;
-
 using Orleans;
-
 using Turbo.Core.Contracts.Players;
 using Turbo.Core.Game.Players;
 using Turbo.Database.Context;
 
+namespace Turbo.Players;
+
 public class PlayerManager(
     IDbContextFactory<TurboDbContext> dbContextFactory,
-    IGrainFactory grainFactory) : IPlayerManager
+    IGrainFactory grainFactory
+) : IPlayerManager
 {
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
     private readonly IGrainFactory _grainFactory = grainFactory;

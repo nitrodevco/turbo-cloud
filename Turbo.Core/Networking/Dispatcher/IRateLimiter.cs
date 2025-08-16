@@ -1,6 +1,6 @@
-namespace Turbo.Core.Networking.Dispatcher;
-
 using DotNetty.Transport.Channels;
+
+namespace Turbo.Core.Networking.Dispatcher;
 
 public interface IRateLimiter
 {

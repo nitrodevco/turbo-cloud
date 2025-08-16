@@ -1,6 +1,6 @@
-namespace Turbo.Core.Game.Players.Constants;
-
 using System;
+
+namespace Turbo.Core.Game.Players.Constants;
 
 [Flags]
 public enum PlayerPerkEnum

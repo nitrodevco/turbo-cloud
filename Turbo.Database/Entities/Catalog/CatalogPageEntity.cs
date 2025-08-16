@@ -1,10 +1,9 @@
-namespace Turbo.Database.Entities.Catalog;
-
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-
 using Turbo.Database.Attributes;
+
+namespace Turbo.Database.Entities.Catalog;
 
 [Table("catalog_pages")]
 public class CatalogPageEntity : Entity

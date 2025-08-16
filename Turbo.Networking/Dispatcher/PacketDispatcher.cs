@@ -1,16 +1,11 @@
-namespace Turbo.Networking.Dispatcher;
-
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-
 using DotNetty.Transport.Channels;
-
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-
 using Turbo.Core.Configuration;
 using Turbo.Core.Networking;
 using Turbo.Core.Networking.Dispatcher;
@@ -18,6 +13,8 @@ using Turbo.Core.Networking.Session;
 using Turbo.Core.Packets;
 using Turbo.Core.Packets.Messages;
 using Turbo.Core.Packets.Revisions;
+
+namespace Turbo.Networking.Dispatcher;
 
 public class PacketDispatcher(
     ISessionManager sessionManager,
@@ -27,7 +24,8 @@ public class PacketDispatcher(
     IPacketQueue queue,
     IBackpressureManager backpressure,
     IEmulatorConfig config,
-    ILogger<PacketDispatcher> logger) : BackgroundService, IPacketDispatcher
+    ILogger<PacketDispatcher> logger
+) : BackgroundService, IPacketDispatcher
 {
     private readonly IPacketQueue _queue = queue;
     private readonly IRateLimiter _rateLimiter = rateLimiter;
@@ -40,7 +38,11 @@ public class PacketDispatcher(
     private readonly ConcurrentDictionary<IChannelId, Task> _sequencers = new();
     private readonly ConcurrentDictionary<IChannelId, int> _pendingCount = new();
 
-    public bool TryEnqueue(IChannelId channelId, IClientPacket packet, out PacketRejectType rejectType)
+    public bool TryEnqueue(
+        IChannelId channelId,
+        IClientPacket packet,
+        out PacketRejectType rejectType
+    )
     {
         rejectType = PacketRejectType.None;
 
@@ -80,8 +82,9 @@ public class PacketDispatcher(
 
     protected override Task ExecuteAsync(CancellationToken ct)
     {
-        return Task.WhenAll(Enumerable.Range(0, _config.Network.DispatcherOptions.Workers)
-            .Select(_ => Worker(ct)));
+        return Task.WhenAll(
+            Enumerable.Range(0, _config.Network.DispatcherOptions.Workers).Select(_ => Worker(ct))
+        );
     }
 
     private async Task Worker(CancellationToken ct)
@@ -91,16 +94,32 @@ public class PacketDispatcher(
             var next = _sequencers.AddOrUpdate(
                 envelope.ChannelId,
                 _ => ProcessOne(envelope, ct),
-                (_, tail) => tail.IsCompleted ? ProcessOne(envelope, ct) : tail.ContinueWith(_ => ProcessOne(envelope, ct), ct, TaskContinuationOptions.None, TaskScheduler.Default).Unwrap());
+                (_, tail) =>
+                    tail.IsCompleted
+                        ? ProcessOne(envelope, ct)
+                        : tail.ContinueWith(
+                                _ => ProcessOne(envelope, ct),
+                                ct,
+                                TaskContinuationOptions.None,
+                                TaskScheduler.Default
+                            )
+                            .Unwrap()
+            );
 
             _ = next.ContinueWith(
                 t =>
-            {
-                if (t.IsFaulted)
                 {
-                    _logger.LogError(t.Exception, "Processing chain fault sid={Sid}", envelope.ChannelId);
-                }
-            }, TaskScheduler.Default);
+                    if (t.IsFaulted)
+                    {
+                        _logger.LogError(
+                            t.Exception,
+                            "Processing chain fault sid={Sid}",
+                            envelope.ChannelId
+                        );
+                    }
+                },
+                TaskScheduler.Default
+            );
         }
     }
 
@@ -122,19 +141,30 @@ public class PacketDispatcher(
                 {
                     if (revision.Parsers.TryGetValue(envelope.Msg.Header, out var parser))
                     {
-                        await parser.HandleAsync(session, envelope.Msg, _messageHub, ct).ConfigureAwait(false);
+                        await parser
+                            .HandleAsync(session, envelope.Msg, _messageHub, ct)
+                            .ConfigureAwait(false);
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Handler error {Header} sid={Sid}", envelope.Msg.Header, envelope.ChannelId);
+                _logger.LogError(
+                    ex,
+                    "Handler error {Header} sid={Sid}",
+                    envelope.Msg.Header,
+                    envelope.ChannelId
+                );
             }
         }
         finally
         {
             envelope.Msg.Content.Release();
-            var left = _pendingCount.AddOrUpdate(envelope.ChannelId, 0, (_, v) => Math.Max(0, v - 1));
+            var left = _pendingCount.AddOrUpdate(
+                envelope.ChannelId,
+                0,
+                (_, v) => Math.Max(0, v - 1)
+            );
             if (left == 0)
             {
                 _rateLimiter.Reset(envelope.ChannelId);

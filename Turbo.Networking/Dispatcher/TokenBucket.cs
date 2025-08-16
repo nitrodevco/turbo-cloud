@@ -1,7 +1,7 @@
-namespace Turbo.Networking.Dispatcher;
-
 using System;
 using System.Collections.Concurrent;
+
+namespace Turbo.Networking.Dispatcher;
 
 public class TokenBucket<TKey>(int capacity, int refillPerSec)
     where TKey : class

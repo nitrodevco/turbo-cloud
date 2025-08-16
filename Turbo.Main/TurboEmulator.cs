@@ -1,17 +1,12 @@
-namespace Turbo.Main;
-
 using System;
 using System.Globalization;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-
 using Orleans;
-
 using Turbo.Authorization.Players.Contexts;
 using Turbo.Authorization.Players.Requirements;
 using Turbo.Core;
@@ -22,10 +17,13 @@ using Turbo.Core.Networking;
 using Turbo.DefaultRevision;
 using Turbo.Packets.Revisions;
 
+namespace Turbo.Main;
+
 public class TurboEmulator(
     IHostApplicationLifetime appLifetime,
     ILogger<TurboEmulator> logger,
-    IServiceProvider serviceProvider) : IEmulator
+    IServiceProvider serviceProvider
+) : IEmulator
 {
     public const int MAJOR = 0;
     public const int MINOR = 0;
@@ -40,14 +38,16 @@ public class TurboEmulator(
     /// <returns><placeholder>A <see cref="Task"/> representing the asynchronous operation.</placeholder></returns>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        Console.WriteLine(@"
+        Console.WriteLine(
+            @"
                 ████████╗██╗   ██╗██████╗ ██████╗  ██████╗ 
                 ╚══██╔══╝██║   ██║██╔══██╗██╔══██╗██╔═══██╗
                    ██║   ██║   ██║██████╔╝██████╔╝██║   ██║
                    ██║   ██║   ██║██╔══██╗██╔══██╗██║   ██║
                    ██║   ╚██████╔╝██║  ██║██████╔╝╚██████╔╝
                    ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═════╝  ╚═════╝ 
-            ");
+            "
+        );
 
         Console.WriteLine("Running {0}", GetVersion());
         Console.WriteLine();
@@ -64,7 +64,9 @@ public class TurboEmulator(
 
         networkManager.SetupServers(config.Network.Servers);
 
-        var defaultRevision = ActivatorUtilities.CreateInstance<DefaultRevisionPlugin>(serviceProvider);
+        var defaultRevision = ActivatorUtilities.CreateInstance<DefaultRevisionPlugin>(
+            serviceProvider
+        );
 
         await defaultRevision.InitializeAsync();
 
@@ -76,9 +78,10 @@ public class TurboEmulator(
     ///     See https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host?view=aspnetcore-5.0 for more
     ///     information.
     /// </summary>
-    public async Task StopAsync(CancellationToken cancellationToken)
+    public Task StopAsync(CancellationToken cancellationToken)
     {
         logger.LogInformation("Shutting down. Disposing services...");
+        return Task.CompletedTask;
     }
 
     public string GetVersion()

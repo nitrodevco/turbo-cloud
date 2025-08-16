@@ -1,22 +1,19 @@
-namespace Turbo.Grains.Players;
-
 using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-
 using Orleans;
 using Orleans.Runtime;
 using Orleans.Streams;
-
 using Turbo.Core.Contracts.Players;
 using Turbo.Database.Context;
 using Turbo.Events.Players;
 using Turbo.Grains.Shared;
 using Turbo.Streams;
+
+namespace Turbo.Grains.Players;
 
 /// <summary>
 /// Orleans grain for managing player state and events.
@@ -42,7 +39,8 @@ public class PlayerGrain : Grain, IPlayerGrain
     public PlayerGrain(
         [PersistentState(nameof(PlayerState), "PlayerStore")] IPersistentState<PlayerState> inner,
         IDbContextFactory<TurboDbContext> dbContextFactory,
-        ILogger<PlayerGrain> logger)
+        ILogger<PlayerGrain> logger
+    )
     {
         _dbContextFactory = dbContextFactory;
         _host = new GrainStateHost<PlayerState>(inner, factory: () => new PlayerState());
@@ -95,7 +93,9 @@ public class PlayerGrain : Grain, IPlayerGrain
 
         await using var db = await _dbContextFactory.CreateDbContextAsync(ct);
 
-        var entity = await db.Players.AsNoTracking().SingleOrDefaultAsync(e => e.Id == PlayerId, ct);
+        var entity = await db
+            .Players.AsNoTracking()
+            .SingleOrDefaultAsync(e => e.Id == PlayerId, ct);
 
         if (entity is null)
         {
@@ -105,13 +105,15 @@ public class PlayerGrain : Grain, IPlayerGrain
         }
         else
         {
-            _host.Replace(new PlayerState
-            {
-                Name = entity.Name ?? string.Empty,
-                Motto = entity.Motto ?? string.Empty,
-                Figure = entity.Figure ?? string.Empty,
-                Initialized = true,
-            });
+            _host.Replace(
+                new PlayerState
+                {
+                    Name = entity.Name ?? string.Empty,
+                    Motto = entity.Motto ?? string.Empty,
+                    Figure = entity.Figure ?? string.Empty,
+                    Initialized = true,
+                }
+            );
         }
 
         _host.AcceptChanges();
@@ -131,14 +133,15 @@ public class PlayerGrain : Grain, IPlayerGrain
 
         await using var db = await _dbContextFactory.CreateDbContextAsync(ct);
 
-        await db.Players
-            .Where(p => p.Id == PlayerId)
+        await db
+            .Players.Where(p => p.Id == PlayerId)
             .ExecuteUpdateAsync(
-                up => up
-                .SetProperty(p => p.Name, _host.State.Name)
-                .SetProperty(p => p.Motto, _host.State.Motto)
-                .SetProperty(p => p.Figure, _host.State.Figure),
-                ct);
+                up =>
+                    up.SetProperty(p => p.Name, _host.State.Name)
+                        .SetProperty(p => p.Motto, _host.State.Motto)
+                        .SetProperty(p => p.Figure, _host.State.Figure),
+                ct
+            );
     }
 
     /// <summary>
@@ -152,9 +155,10 @@ public class PlayerGrain : Grain, IPlayerGrain
 
         var handles = await _stream.GetAllSubscriptionHandles();
 
-        _subHandle = handles.Count > 0
-            ? await handles[0].ResumeAsync(OnPlayerEvent)
-            : await _stream.SubscribeAsync(OnPlayerEvent);
+        _subHandle =
+            handles.Count > 0
+                ? await handles[0].ResumeAsync(OnPlayerEvent)
+                : await _stream.SubscribeAsync(OnPlayerEvent);
     }
 
     /// <summary>
@@ -187,9 +191,10 @@ public class PlayerGrain : Grain, IPlayerGrain
 
     /// <inheritdoc />
     public Task<PlayerSummary> GetAsync() =>
-        Task.FromResult(new PlayerSummary(PlayerId, _host.State.Name, _host.State.Motto, _host.State.Figure));
+        Task.FromResult(
+            new PlayerSummary(PlayerId, _host.State.Name, _host.State.Motto, _host.State.Figure)
+        );
 
     /// <inheritdoc />
-    public Task PublishAsync(PlayerEventEnvelope evt)
-        => _stream.OnNextAsync(evt);
+    public Task PublishAsync(PlayerEventEnvelope evt) => _stream.OnNextAsync(evt);
 }

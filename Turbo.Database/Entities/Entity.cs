@@ -1,8 +1,8 @@
-namespace Turbo.Database.Entities;
-
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+
+namespace Turbo.Database.Entities;
 
 public abstract class Entity
 {

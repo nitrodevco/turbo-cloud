@@ -5,7 +5,6 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-
 using Orleans.Runtime;
 
 /// <summary>
@@ -60,7 +59,9 @@ public sealed class AutoDirtyState<T>
         {
             if (_factory is null)
             {
-                throw new InvalidOperationException($"AutoDirtyState<{typeof(T).Name}> needs a factory when storage returns null.");
+                throw new InvalidOperationException(
+                    $"AutoDirtyState<{typeof(T).Name}> needs a factory when storage returns null."
+                );
             }
 
             _inner.State = _factory();
@@ -196,7 +197,11 @@ public sealed class AutoDirtyState<T>
                 continue;
             }
 
-            if (val is INotifyPropertyChanged || val is INotifyCollectionChanged || val is IEnumerable)
+            if (
+                val is INotifyPropertyChanged
+                || val is INotifyCollectionChanged
+                || val is IEnumerable
+            )
             {
                 HookObject(val);
             }
@@ -254,7 +259,7 @@ public sealed class AutoDirtyState<T>
     {
         public static readonly ReferenceEqualityComparer Instance = new();
 
-        public bool Equals(object? x, object? y) => ReferenceEquals(x, y);
+        public new bool Equals(object? x, object? y) => ReferenceEquals(x, y);
 
         public int GetHashCode(object obj) => RuntimeHelpers.GetHashCode(obj);
     }

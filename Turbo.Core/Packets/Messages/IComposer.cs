@@ -1,5 +1,3 @@
 namespace Turbo.Core.Packets.Messages;
 
-public interface IComposer
-{
-}
+public interface IComposer { }

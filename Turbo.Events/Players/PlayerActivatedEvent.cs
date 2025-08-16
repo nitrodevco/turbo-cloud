@@ -1,6 +1,6 @@
-namespace Turbo.Events.Players;
-
 using Orleans;
+
+namespace Turbo.Events.Players;
 
 [GenerateSerializer]
 public sealed record PlayerActivatedEvent();

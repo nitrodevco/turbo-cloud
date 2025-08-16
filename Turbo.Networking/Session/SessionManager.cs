@@ -1,18 +1,17 @@
-namespace Turbo.Networking.Session;
-
 using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
-
 using DotNetty.Transport.Channels;
-
 using Turbo.Core.Networking.Session;
+
+namespace Turbo.Networking.Session;
 
 public class SessionManager : ISessionManager
 {
     private readonly ConcurrentDictionary<IChannelId, ISessionContext> _sessions = new();
 
-    public bool TryGetSession(IChannelId channelId, out ISessionContext ctx) => _sessions.TryGetValue(channelId, out ctx!);
+    public bool TryGetSession(IChannelId channelId, out ISessionContext ctx) =>
+        _sessions.TryGetValue(channelId, out ctx!);
 
     public ISessionContext CreateSession(IChannelHandlerContext ctx)
     {
@@ -23,7 +22,10 @@ public class SessionManager : ISessionManager
         return session;
     }
 
-    public async Task KickSessionAsync(IChannelId channelId, SessionKickType kickType = SessionKickType.Requested)
+    public async Task KickSessionAsync(
+        IChannelId channelId,
+        SessionKickType kickType = SessionKickType.Requested
+    )
     {
         if (!TryGetSession(channelId, out var session))
         {
@@ -33,7 +35,8 @@ public class SessionManager : ISessionManager
         await session.DisposeAsync();
     }
 
-    public bool RemoveSessionById(IChannelId channelId, out ISessionContext session) => _sessions.TryRemove(channelId, out session);
+    public bool RemoveSessionById(IChannelId channelId, out ISessionContext session) =>
+        _sessions.TryRemove(channelId, out session);
 
     public void PauseReadsOnAll()
     {

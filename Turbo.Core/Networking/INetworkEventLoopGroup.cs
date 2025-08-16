@@ -1,6 +1,6 @@
-namespace Turbo.Core.Networking;
-
 using DotNetty.Transport.Channels;
+
+namespace Turbo.Core.Networking;
 
 public interface INetworkEventLoopGroup
 {

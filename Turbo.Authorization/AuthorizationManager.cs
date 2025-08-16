@@ -1,11 +1,10 @@
-namespace Turbo.Authorization;
-
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-
 using Turbo.Core.Authorization;
+
+namespace Turbo.Authorization;
 
 public sealed class AuthorizationManager : IAuthorizationManager
 {
@@ -17,21 +16,29 @@ public sealed class AuthorizationManager : IAuthorizationManager
         TContext context,
         IEnumerable<IRequirement> requirements,
         bool shortCircuitOnFailure = true,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var all = new List<Failure>();
 
         foreach (var req in requirements)
         {
-            var handlerType = typeof(IRequirementHandler<,>).MakeGenericType(req.GetType(), typeof(TContext));
+            var handlerType = typeof(IRequirementHandler<,>).MakeGenericType(
+                req.GetType(),
+                typeof(TContext)
+            );
             var handler = _sp.GetService(handlerType);
             if (handler is null)
             {
-                throw new InvalidOperationException($"No handler for {req.GetType().Name} + {typeof(TContext).Name}");
+                throw new InvalidOperationException(
+                    $"No handler for {req.GetType().Name} + {typeof(TContext).Name}"
+                );
             }
 
             var method = handlerType.GetMethod("HandleAsync")!;
-            var task = (Task<AuthorizationResult>)method.Invoke(handler, new object[] { req, context!, ct })!;
+            var task =
+                (Task<AuthorizationResult>)
+                    method.Invoke(handler, new object[] { req, context!, ct })!;
             var res = await task.ConfigureAwait(false);
 
             if (!res.Ok)

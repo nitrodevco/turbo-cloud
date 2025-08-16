@@ -1,11 +1,10 @@
-namespace Turbo.Database.Entities.Furniture;
-
 using System.ComponentModel.DataAnnotations.Schema;
-
 using Turbo.Core.Game.Rooms.Utils;
 using Turbo.Database.Attributes;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
+
+namespace Turbo.Database.Entities.Furniture;
 
 [Table("furniture")]
 public class FurnitureEntity : Entity

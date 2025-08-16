@@ -1,11 +1,7 @@
-namespace Turbo.Database.Entities.Players;
-
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-
 using Microsoft.EntityFrameworkCore;
-
 using Turbo.Core.Game.Players.Constants;
 using Turbo.Core.Game.Rooms.Object.Constants;
 using Turbo.Database.Attributes;
@@ -13,6 +9,8 @@ using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Messenger;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Entities.Security;
+
+namespace Turbo.Database.Entities.Players;
 
 [Table("players")]
 [Index(nameof(Name), IsUnique = true)]

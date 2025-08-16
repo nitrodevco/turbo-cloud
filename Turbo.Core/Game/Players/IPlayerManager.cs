@@ -1,8 +1,7 @@
-namespace Turbo.Core.Game.Players;
-
 using System.Threading.Tasks;
-
 using Turbo.Core.Contracts.Players;
+
+namespace Turbo.Core.Game.Players;
 
 public interface IPlayerManager
 {

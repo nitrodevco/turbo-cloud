@@ -12,28 +12,25 @@ trim_trailing_whitespace = true
 [*.cs]
 dotnet_language_version = latest
 
-# Never qualify with 'this.' (fields, properties, methods, events)
+# Never qualify with `this.`
 dotnet_style_qualification_for_field = false:none
 dotnet_style_qualification_for_property = false:none
 dotnet_style_qualification_for_method = false:none
 dotnet_style_qualification_for_event = false:none
-
-# Disable code fixes that try to add/remove it
-dotnet_diagnostic.IDE0009.severity = none   # Add 'this.'
-dotnet_diagnostic.IDE0003.severity = none   # Remove 'this.'
-
-# StyleCop rule that enforces 'this.'
+dotnet_diagnostic.IDE0009.severity = none
+dotnet_diagnostic.IDE0003.severity = none
 dotnet_diagnostic.SA1101.severity = none
 
-# ---------- Disable file headers ----------
+# Disable file headers + all documentation
 dotnet_diagnostic.SA1633.severity = none
+dotnet_analyzer_diagnostic.category-Documentation.severity = none
 
-# ---------- Allow underscores in names (don't complain) ----------
-dotnet_diagnostic.SA1309.severity = none   # field names should not begin with underscore
-dotnet_diagnostic.SA1310.severity = none   # field names should not contain underscore
+# Usings outside namespace (CSharpier already does this; this keeps IDEs aligned)
+csharp_using_directive_placement = outside_namespace:warning
+dotnet_diagnostic.IDE0065.severity = warning
+dotnet_diagnostic.SA1200.severity = none
 
-# ---------- Enforce ALL_CAPS_WITH_UNDERSCORES ----------
-# const fields
+# Naming: const + static readonly => ALL_CAPS_WITH_UNDERSCORES
 dotnet_naming_rule.constants_all_caps.severity = warning
 dotnet_naming_rule.constants_all_caps.symbols = constants
 dotnet_naming_rule.constants_all_caps.style = all_caps_underscores
@@ -42,14 +39,13 @@ dotnet_naming_symbols.constants.required_modifiers = const
 dotnet_naming_style.all_caps_underscores.capitalization = all_upper
 dotnet_naming_style.all_caps_underscores.word_separator = _
 
-# static readonly fields
 dotnet_naming_rule.static_readonly_all_caps.severity = warning
 dotnet_naming_rule.static_readonly_all_caps.symbols = static_readonly_fields
 dotnet_naming_rule.static_readonly_all_caps.style = all_caps_underscores
 dotnet_naming_symbols.static_readonly_fields.applicable_kinds = field
 dotnet_naming_symbols.static_readonly_fields.required_modifiers = static, readonly
 
-# ---------- Enforce _camelCase for private instance fields ----------
+# Naming: private instance fields => _camelCase
 dotnet_naming_rule.private_fields_underscore.severity = warning
 dotnet_naming_rule.private_fields_underscore.symbols = private_fields
 dotnet_naming_rule.private_fields_underscore.style = underscore_prefix
@@ -58,30 +54,3 @@ dotnet_naming_symbols.private_fields.applicable_accessibilities = private
 dotnet_naming_symbols.private_fields.applicable_modifiers = !static
 dotnet_naming_style.underscore_prefix.required_prefix = _
 dotnet_naming_style.underscore_prefix.capitalization = camel_case
-
-# ---------- Disable all documentation warnings (stop <inheritdoc/> etc.) ----------
-dotnet_analyzer_diagnostic.category-Documentation.severity = none
-# (Belt-and-suspenders: silence the common doc rules explicitly)
-dotnet_diagnostic.SA1600.severity = none
-dotnet_diagnostic.SA1601.severity = none
-dotnet_diagnostic.SA1602.severity = none
-dotnet_diagnostic.SA1611.severity = none
-dotnet_diagnostic.SA1615.severity = none
-dotnet_diagnostic.SA1642.severity = none
-dotnet_diagnostic.SA1643.severity = none
-
-# ---------- Disable "convert to block-scoped namespace" suggestion ----------
-# Prefer file-scoped namespaces and don't nag to convert
-csharp_style_namespace_declarations = file_scoped:none
-dotnet_diagnostic.IDE0160.severity = none   # conversion suggestions (file/block) — safe to disable
-dotnet_diagnostic.IDE0161.severity = none   # conversion suggestions (file/block) — safe to disable
-
-# ---------- Comma spacing: always a space after ----------
-csharp_space_after_comma = true
-csharp_space_before_comma = false
-# (Optional enforcement via StyleCop)
-dotnet_diagnostic.SA1001.severity = warning
-
-# ---------- Keep usings tidy (optional but handy) ----------
-dotnet_sort_system_directives_first = true
-dotnet_separate_import_directive_groups = true

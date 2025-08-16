@@ -1,6 +1,6 @@
-namespace Turbo.Core.Packets.Revisions;
-
 using System.Collections.Generic;
+
+namespace Turbo.Core.Packets.Revisions;
 
 public interface IRevisionManager
 {

@@ -1,14 +1,13 @@
-namespace Turbo.Database.Entities.Room;
-
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-
 using Turbo.Core.Game.Rooms.Constants;
 using Turbo.Database.Attributes;
 using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Players;
+
+namespace Turbo.Database.Entities.Room;
 
 [Table("rooms")]
 public class RoomEntity : Entity

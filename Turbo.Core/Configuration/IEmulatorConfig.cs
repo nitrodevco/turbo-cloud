@@ -1,6 +1,6 @@
-namespace Turbo.Core.Configuration;
-
 using System.Collections.Generic;
+
+namespace Turbo.Core.Configuration;
 
 public interface IEmulatorConfig
 {

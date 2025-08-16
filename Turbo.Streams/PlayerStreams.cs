@@ -1,11 +1,10 @@
-namespace Turbo.Streams;
-
 using System;
 using System.Threading.Tasks;
-
 using Orleans;
 using Orleans.Runtime;
 using Orleans.Streams;
+
+namespace Turbo.Streams;
 
 [AutoStreamProvider("PlayerEvents")]
 public class PlayerStreams

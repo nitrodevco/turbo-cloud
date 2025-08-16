@@ -1,13 +1,11 @@
-namespace Turbo.Database.Entities.Messenger;
-
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-
 using Microsoft.EntityFrameworkCore;
-
 using Turbo.Core.Game.Messenger.Constants;
 using Turbo.Database.Attributes;
 using Turbo.Database.Entities.Players;
+
+namespace Turbo.Database.Entities.Messenger;
 
 [Table("messenger_friends")]
 [Index(nameof(PlayerEntityId), nameof(FriendPlayerEntityId), IsUnique = true)]

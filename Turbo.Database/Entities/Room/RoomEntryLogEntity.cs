@@ -1,9 +1,8 @@
-namespace Turbo.Database.Entities.Room;
-
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-
 using Turbo.Database.Entities.Players;
+
+namespace Turbo.Database.Entities.Room;
 
 [Table("room_entry_logs")]
 public class RoomEntryLogEntity : Entity

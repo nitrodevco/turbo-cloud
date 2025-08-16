@@ -1,9 +1,8 @@
-namespace Turbo.Networking.Encryption;
-
 using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Parameters;
-
 using Turbo.Core.Networking.Encryption;
+
+namespace Turbo.Networking.Encryption;
 
 public class Rc4Service : IRc4Service
 {

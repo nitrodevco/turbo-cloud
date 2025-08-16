@@ -1,6 +1,6 @@
-namespace Turbo.Core.Networking.Encryption;
-
 using Org.BouncyCastle.Math;
+
+namespace Turbo.Core.Networking.Encryption;
 
 public interface IDiffieService
 {

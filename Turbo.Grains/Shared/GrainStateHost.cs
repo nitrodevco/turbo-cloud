@@ -1,9 +1,8 @@
-namespace Turbo.Grains.Shared;
-
 using System;
 using System.Threading.Tasks;
-
 using Orleans.Runtime;
+
+namespace Turbo.Grains.Shared;
 
 /// <summary>
 /// Provides a wrapper for managing grain state with automatic dirty tracking and persistence.

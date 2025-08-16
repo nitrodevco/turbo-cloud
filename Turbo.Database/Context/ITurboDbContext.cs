@@ -1,13 +1,9 @@
-namespace Turbo.Database.Context;
-
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
-
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Navigator;
@@ -15,6 +11,8 @@ using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Entities.Security;
 using Turbo.Database.Entities.Tracking;
+
+namespace Turbo.Database.Context;
 
 public interface ITurboDbContext : IDisposable
 {
@@ -70,7 +68,10 @@ public interface ITurboDbContext : IDisposable
 
     public int SaveChanges();
 
-    public Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default);
+    public Task<int> SaveChangesAsync(
+        bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken = default
+    );
 
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

@@ -1,6 +1,6 @@
-namespace Turbo.Core.Networking.Servers;
-
 using System.Threading.Tasks;
+
+namespace Turbo.Core.Networking.Servers;
 
 public interface IServer
 {

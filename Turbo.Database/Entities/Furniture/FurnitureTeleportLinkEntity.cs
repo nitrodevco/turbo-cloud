@@ -1,8 +1,7 @@
-namespace Turbo.Database.Entities.Furniture;
-
 using System.ComponentModel.DataAnnotations.Schema;
-
 using Microsoft.EntityFrameworkCore;
+
+namespace Turbo.Database.Entities.Furniture;
 
 [Table("furniture_teleport_links")]
 [Index(nameof(FurnitureEntityOneId), IsUnique = true)]

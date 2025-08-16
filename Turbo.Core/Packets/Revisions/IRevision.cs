@@ -1,9 +1,8 @@
-namespace Turbo.Core.Packets.Revisions;
-
 using System;
 using System.Collections.Generic;
-
 using Turbo.Core.Packets.Messages;
+
+namespace Turbo.Core.Packets.Revisions;
 
 public interface IRevision
 {

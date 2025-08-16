@@ -1,12 +1,10 @@
-namespace Turbo.Grains.Session;
-
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-
 using Orleans;
-
 using Turbo.Core.Contracts.Session;
+
+namespace Turbo.Grains.Session;
 
 public sealed class SessionGrain : Grain, ISessionGrain
 {

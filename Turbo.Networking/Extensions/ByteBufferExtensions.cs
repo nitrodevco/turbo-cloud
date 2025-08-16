@@ -1,6 +1,6 @@
-namespace Turbo.Networking.Extensions;
-
 using DotNetty.Buffers;
+
+namespace Turbo.Networking.Extensions;
 
 public static class ByteBufferExtensions
 {

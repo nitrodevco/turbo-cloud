@@ -1,9 +1,8 @@
-namespace Turbo.Core.Networking.Dispatcher;
-
 using System.Collections.Generic;
 using System.Threading;
-
 using Turbo.Core.Packets.Messages;
+
+namespace Turbo.Core.Networking.Dispatcher;
 
 public interface IPacketQueue
 {

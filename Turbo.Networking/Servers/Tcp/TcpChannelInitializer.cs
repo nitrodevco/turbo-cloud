@@ -1,13 +1,10 @@
-namespace Turbo.Networking.Servers.Tcp;
-
 using System;
-
 using DotNetty.Transport.Channels;
-
 using Microsoft.Extensions.DependencyInjection;
-
 using Turbo.Networking.Codec;
 using Turbo.Networking.Servers.Handlers;
+
+namespace Turbo.Networking.Servers.Tcp;
 
 public class TcpChannelInitializer(IServiceProvider provider) : ChannelInitializer<IChannel>
 {
@@ -15,8 +12,8 @@ public class TcpChannelInitializer(IServiceProvider provider) : ChannelInitializ
 
     protected override void InitChannel(IChannel channel)
     {
-        channel.Pipeline
-            .AddLast("flashPolicy", new FlashPolicyHandler())
+        channel
+            .Pipeline.AddLast("flashPolicy", new FlashPolicyHandler())
             .AddLast("frameEncoder", new FrameLengthFieldEncoder())
             .AddLast("frameDecoder", new FrameLengthFieldDecoder())
             .AddLast("gameEncoder", new GameEncoder())

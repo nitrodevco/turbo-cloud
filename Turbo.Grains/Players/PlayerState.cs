@@ -1,11 +1,10 @@
-namespace Turbo.Grains.Players;
-
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-
 using Orleans;
 using Orleans.Serialization;
+
+namespace Turbo.Grains.Players;
 
 /// <summary>
 /// Represents the persistent state of a player in the system.
@@ -18,10 +17,13 @@ public sealed partial class PlayerState : INotifyPropertyChanged
 
     [Id(0)]
     private string _name = string.Empty;
+
     [Id(1)]
     private string _motto = string.Empty;
+
     [Id(2)]
     private string _figure = string.Empty;
+
     [Id(3)]
     private bool _initialized;
 
@@ -61,8 +63,8 @@ public sealed partial class PlayerState : INotifyPropertyChanged
         set => SetProperty(ref _initialized, value);
     }
 
-    private void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    private void OnPropertyChanged([CallerMemberName] string? name = null) =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
     private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? name = null)
     {

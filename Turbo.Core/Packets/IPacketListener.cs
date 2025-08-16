@@ -1,6 +1,6 @@
-namespace Turbo.Core.Packets;
-
 using System;
+
+namespace Turbo.Core.Packets;
 
 public record IPacketListener
 {

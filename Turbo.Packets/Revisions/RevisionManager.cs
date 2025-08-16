@@ -1,13 +1,11 @@
-namespace Turbo.Packets.Revisions;
-
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-
 using Microsoft.Extensions.Logging;
-
 using Turbo.Core.Packets.Revisions;
 using Turbo.Packets.Incoming.Handshake;
+
+namespace Turbo.Packets.Revisions;
 
 public class RevisionManager(ILogger<IRevisionManager> logger) : IRevisionManager
 {

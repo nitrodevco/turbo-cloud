@@ -1,15 +1,12 @@
-namespace Turbo.DefaultRevision;
-
 using System.Threading.Tasks;
-
 using Turbo.Core.Networking.Session;
 using Turbo.Core.Packets;
 using Turbo.Core.Packets.Revisions;
 using Turbo.Packets.Incoming.Handshake;
 
-public class DefaultRevisionPlugin(
-    IRevisionManager revisionManager,
-    IPacketMessageHub messageHub)
+namespace Turbo.DefaultRevision;
+
+public class DefaultRevisionPlugin(IRevisionManager revisionManager, IPacketMessageHub messageHub)
 {
     private readonly IRevisionManager _revisionManager = revisionManager;
     private readonly IPacketMessageHub _messageHub = messageHub;
