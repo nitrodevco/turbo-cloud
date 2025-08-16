@@ -23,17 +23,17 @@ public class DefaultRevisionPlugin(
         return Task.CompletedTask;
     }
 
-    private async void OnClientHelloMessage(ClientHelloMessage message, ISessionContext session)
+    private async void OnClientHelloMessage(ClientHelloMessage message, ISessionContext ctx)
     {
         var revision = _revisionManager.GetRevision(message.Production);
 
         if (revision is null)
         {
-            await session.DisposeAsync();
+            await ctx.DisposeAsync();
 
             return;
         }
 
-        session.SetRevision(revision.Revision);
+        ctx.SetRevision(revision.Revision);
     }
 }

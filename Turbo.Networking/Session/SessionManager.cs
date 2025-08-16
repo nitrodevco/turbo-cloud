@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Threading.Tasks;
 using DotNetty.Transport.Channels;
 using Turbo.Core.Networking.Session;
 
@@ -20,7 +21,17 @@ public class SessionManager : ISessionManager
         return session;
     }
 
-    public void RemoveSessionById(IChannelId channelId) => _sessions.TryRemove(channelId, out _);
+    public async Task KickSessionAsync(IChannelId channelId, SessionKickType kickType = SessionKickType.Requested)
+    {
+        if (!TryGetSession(channelId, out var session))
+        {
+            return;
+        }
+
+        await session.DisposeAsync();
+    }
+
+    public bool RemoveSessionById(IChannelId channelId, out ISessionContext session) => _sessions.TryRemove(channelId, out session);
 
     public void PauseReadsOnAll()
     {

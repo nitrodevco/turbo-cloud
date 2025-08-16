@@ -19,11 +19,11 @@ public class PacketMessageHub(ILogger<PacketMessageHub> logger) : IPacketMessage
 
     internal List<IPacketListener> _listeners = [];
 
-    public void Publish<T>(T message, ISessionContext session) where T : IMessageEvent
+    public void Publish<T>(T message, ISessionContext ctx) where T : IMessageEvent
     {
         var cancelled = false;
         foreach (var callable in GetCallables<T>())
-            if (!callable.Call(message, session))
+            if (!callable.Call(message, ctx))
                 cancelled = true;
 
         if (!cancelled)
@@ -31,19 +31,19 @@ public class PacketMessageHub(ILogger<PacketMessageHub> logger) : IPacketMessage
                 switch (listener.Action)
                 {
                     case Action<T, ISessionContext> action:
-                        action(message, session);
+                        action(message, ctx);
                         break;
                     case Func<T, ISessionContext, Task> func:
-                        func(message, session);
+                        func(message, ctx);
                         break;
                 }
     }
 
-    public async Task PublishAsync<T>(T message, ISessionContext session) where T : IMessageEvent
+    public async Task PublishAsync<T>(T message, ISessionContext ctx) where T : IMessageEvent
     {
         var cancelled = false;
         foreach (var callable in GetCallables<T>())
-            if (!callable.Call(message, session))
+            if (!callable.Call(message, ctx))
                 cancelled = true;
 
         if (!cancelled)
@@ -51,10 +51,10 @@ public class PacketMessageHub(ILogger<PacketMessageHub> logger) : IPacketMessage
                 switch (listener.Action)
                 {
                     case Action<T, ISessionContext> action:
-                        action(message, session);
+                        action(message, ctx);
                         break;
                     case Func<T, ISessionContext, Task> func:
-                        await func(message, session);
+                        await func(message, ctx);
                         break;
                 }
     }

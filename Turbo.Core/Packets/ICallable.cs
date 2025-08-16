@@ -5,5 +5,5 @@ namespace Turbo.Core.Packets;
 
 public interface ICallable<T> where T : IMessageEvent
 {
-    public bool Call(T message, ISessionContext session);
+    public bool Call(T message, ISessionContext ctx);
 }

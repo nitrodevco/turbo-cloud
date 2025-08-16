@@ -3,6 +3,7 @@ using DotNetty.Common.Utilities;
 using DotNetty.Transport.Channels;
 using Microsoft.Extensions.Logging;
 using Turbo.Core.Networking;
+using Turbo.Core.Networking.Dispatcher;
 using Turbo.Core.Networking.Session;
 using Turbo.Core.Packets.Messages;
 using Turbo.Networking.Session;
@@ -28,7 +29,8 @@ public class InboundHandler(
 
     public override void ChannelInactive(IChannelHandlerContext ctx)
     {
-        _sessionManager.RemoveSessionById(ctx.Channel.Id);
+        _packetDispatcher.ResetForChannelId(ctx.Channel.Id);
+        _sessionManager.RemoveSessionById(ctx.Channel.Id, out _);
 
         base.ChannelInactive(ctx);
     }

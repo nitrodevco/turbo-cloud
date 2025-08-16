@@ -8,8 +8,8 @@ namespace Turbo.Core.Packets;
 
 public interface IPacketMessageHub
 {
-    public void Publish<T>(T message, ISessionContext session) where T : IMessageEvent;
-    public Task PublishAsync<T>(T message, ISessionContext session) where T : IMessageEvent;
+    public void Publish<T>(T message, ISessionContext ctx) where T : IMessageEvent;
+    public Task PublishAsync<T>(T message, ISessionContext ctx) where T : IMessageEvent;
     public void Subscribe<T>(object subscriber, Action<T, ISessionContext> handler) where T : IMessageEvent;
     public void Subscribe<T>(object subscriber, Func<T, ISessionContext, Task> handler) where T : IMessageEvent;
     public void RegisterCallable<T>(ICallable<T> callable) where T : IMessageEvent;
