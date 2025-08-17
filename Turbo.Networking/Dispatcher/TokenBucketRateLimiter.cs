@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using DotNetty.Transport.Channels;
 using Turbo.Core.Configuration;
@@ -5,32 +6,27 @@ using Turbo.Core.Networking.Dispatcher;
 
 namespace Turbo.Networking.Dispatcher;
 
-public class TokenBucketRateLimiter(IEmulatorConfig options) : IRateLimiter
+public class TokenBucketRateLimiter : IRateLimiter
 {
-    private readonly TokenBucket<IChannelId> _bucket = new(
-        options.Network.DispatcherOptions.RateCapacity,
-        options.Network.DispatcherOptions.RateRefillPerSec
-    );
-    private readonly ConcurrentDictionary<IChannelId, int> _violations = new();
+    private readonly TokenBucket<IChannelId> _bucket;
 
-    public int MaxViolations { get; } = options.Network.DispatcherOptions.RateViolationsBeforeKick;
-
-    public bool TryAcquire(IChannelId channelId, out bool exceededLimit)
+    // optional: wire your own "hard exceed" policy elsewhere if you want kicks
+    public TokenBucketRateLimiter(IEmulatorConfig config)
     {
-        if (_bucket.TryTake(channelId))
-        {
-            exceededLimit = false;
-            return true;
-        }
-
-        var strikes = _violations.AddOrUpdate(channelId, 1, (_, v) => v + 1);
-        exceededLimit = strikes >= MaxViolations;
-        return false;
+        var stripes = config.Network.RateLimitStripes <= 0 ? 64 : config.Network.RateLimitStripes;
+        _bucket = new TokenBucket<IChannelId>(
+            capacity: config.Network.RateLimitCapacity,
+            refillPerSec: config.Network.RateLimitRefillPerSecond,
+            stripes: stripes
+        );
     }
 
-    public void Reset(IChannelId channelId)
+    public bool TryAcquire(IChannelId channelId, out bool hardExceeded)
     {
-        _bucket.Reset(channelId);
-        _violations.TryRemove(channelId, out _);
+        var ok = _bucket.TryTake(channelId, 1);
+        hardExceeded = false; // keep hard-exceeded decision outside the bucket (ingress counters)
+        return ok;
     }
+
+    public void Reset(IChannelId channelId) => _bucket.Reset(channelId);
 }

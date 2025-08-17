@@ -10,40 +10,26 @@ namespace Turbo.Networking.Behaviors;
 
 public class SequencingBehavior(ILogger logger) : IPacketBehavior
 {
-    private readonly ConcurrentDictionary<IChannelId, Task> _tails = new();
+    private readonly ConcurrentDictionary<IChannelId, SemaphoreSlim> _locks = new();
 
-    public Task InvokeAsync(
+    public async Task InvokeAsync(
         IPacketContext ctx,
         PacketEnvelope env,
         CancellationToken ct,
         PacketDelegate next
     )
     {
-        Task Run() => next(ctx, env, ct);
+        var semaphore = _locks.GetOrAdd(env.ChannelId, static _ => new SemaphoreSlim(1, 1));
 
-        var chained = _tails.AddOrUpdate(
-            env.ChannelId,
-            _ => Run(),
-            (_, tail) =>
-                tail.IsCompleted
-                    ? Run()
-                    : tail.ContinueWith(
-                            _ => Run(),
-                            ct,
-                            TaskContinuationOptions.None,
-                            TaskScheduler.Default
-                        )
-                        .Unwrap()
-        );
+        await semaphore.WaitAsync(ct).ConfigureAwait(false);
 
-        // swallow the scheduler task; return the scheduled chain task to the pipeline
-        return chained.ContinueWith(
-            t =>
-            {
-                if (t.IsFaulted)
-                    throw t.Exception!; // let ExceptionHandlingBehavior see it
-            },
-            TaskScheduler.Default
-        );
+        try
+        {
+            await next(ctx, env, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            semaphore.Release();
+        }
     }
 }

@@ -56,27 +56,24 @@ public class PacketDispatcher(
         return ok;
     }
 
-    protected override Task ExecuteAsync(CancellationToken ct) =>
-        Task.WhenAll(
-            Enumerable.Range(0, _config.Network.DispatcherOptions.Workers).Select(_ => Worker(ct))
-        );
-
-    private async Task Worker(CancellationToken ct)
+    protected override Task ExecuteAsync(CancellationToken ct)
     {
-        await foreach (var env in _queue.ReadAllAsync(ct))
+        return Task.WhenAll(Enumerable.Range(0, _queue.ShardCount).Select(i => Worker(i, ct)));
+    }
+
+    private async Task Worker(int shardIndex, CancellationToken ct)
+    {
+        var sh = _queue;
+
+        await foreach (var env in sh.ReadShardAsync(shardIndex, ct))
         {
-            // Attempt to resolve the session associated with the packet's channel id.
             if (!_sessionManager.TryGetSession(env.ChannelId, out var session))
             {
                 _logger.LogWarning("Dropping packet for unknown session sid={Sid}", env.ChannelId);
                 continue;
             }
 
-            // Obtain the cached ingress token for this channel from the ingress pipeline.
-            // The token is reused for all packets on the same channel to avoid
-            // allocating a new IngressToken per packet.
-            var token = _ingress.GetOrCreateToken(env.ChannelId);
-
+            var token = _ingress.GetOrCreateToken(env.ChannelId); // from earlier change
             var ctx = new PacketContext(session, _logger, token);
             await _processing.ProcessAsync(ctx, env, ct);
         }

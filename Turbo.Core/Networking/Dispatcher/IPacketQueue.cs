@@ -6,9 +6,8 @@ namespace Turbo.Core.Networking.Dispatcher;
 
 public interface IPacketQueue
 {
-    bool TryEnqueue(PacketEnvelope envelope);
-
     int ApproxDepth { get; }
-
-    IAsyncEnumerable<PacketEnvelope> ReadAllAsync(CancellationToken ct);
+    int ShardCount { get; }
+    public bool TryEnqueue(PacketEnvelope envelope);
+    IAsyncEnumerable<PacketEnvelope> ReadShardAsync(int shardIndex, CancellationToken ct);
 }

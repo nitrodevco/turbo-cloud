@@ -17,5 +17,6 @@ public class FrameLengthFieldDecoder : LengthFieldBasedFrameDecoder
             LENGTH_FIELD_LENGTH,
             LENGTH_ADJUSTMENT,
             BYTES_TO_STRIP
-        ) { }
+        )
+    { }
 }
