@@ -10,6 +10,7 @@ public class TurboConfig : IEmulatorConfig
     public IGameConfig Game { get; init; }
 
     public INetworkConfig Network { get; init; }
+    public IEncryptionConfig Encryption { get; init; }
 
     public bool DatabaseLoggingEnabled { get; init; }
 

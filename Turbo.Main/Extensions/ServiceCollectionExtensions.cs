@@ -1,6 +1,8 @@
 using System;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Turbo.Authorization.Encryption;
+using Turbo.Core.Authorization.Encryption;
 using Turbo.Core.Configuration;
 using Turbo.Core.Networking;
 using Turbo.Core.Networking.Dispatcher;
@@ -23,6 +25,9 @@ public static class ServiceCollectionExtensions
     {
         services.AddSingleton<INetworkEventLoopGroup, NetworkEventLoopGroup>();
         services.AddSingleton<INetworkManager, NetworkManager>();
+
+        services.AddSingleton<IRsaService, RsaService>();
+        services.AddSingleton<IDiffieService, DiffieService>();
 
         services.AddSingleton<ISessionManager, SessionManager>();
         services.AddSingleton<IPacketMessageHub, PacketMessageHub>();

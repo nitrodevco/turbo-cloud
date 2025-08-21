@@ -6,6 +6,7 @@
     <PackageReference Include="Microsoft.Orleans.Core.Abstractions" Version="9.2.1" />
     <PackageReference Include="Microsoft.Orleans.Sdk" Version="9.2.1" />
     <PackageReference Include="Microsoft.Orleans.Streaming" Version="9.2.1" />
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.4.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Turbo.Core\Turbo.Core.csproj" />
