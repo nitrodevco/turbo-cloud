@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Turbo.Core.Packets.Messages;
 using Turbo.Core.Packets.Revisions;
 using Turbo.DefaultRevision.Parsers;
+using Turbo.DefaultRevision.Parsers.Handshake;
 
 namespace Turbo.DefaultRevision;
 
@@ -14,6 +15,10 @@ public class RevisionDefault : IRevision
         new Dictionary<int, IParser>
         {
             { (int)MessageEvent.ClientHelloMessageEvent, new ClientHelloParser() },
+            {
+                (int)MessageEvent.InitDiffieHandshakeMessageEvent,
+                new InitDiffieHandshakeMessageParser()
+            },
         };
 
     public IDictionary<Type, ISerializer> Serializers { get; } =
