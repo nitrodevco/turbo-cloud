@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using DotNetty.Transport.Channels;
+using Turbo.Core.Packets.Messages;
 
 namespace Turbo.Core.Networking.Session;
 
@@ -22,7 +25,11 @@ public interface ISessionContext
 
     public Task DisposeAsync();
 
-    public ValueTask SendAsync(ReadOnlyMemory<byte> payload);
+    public ValueTask SendAsync(IComposer composer, CancellationToken ct = default);
+    public ValueTask SendManyAsync(
+        IEnumerable<IComposer> composers,
+        CancellationToken ct = default
+    );
 
     public void PauseReads();
 
