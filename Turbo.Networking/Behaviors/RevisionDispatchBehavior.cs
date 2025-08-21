@@ -23,6 +23,8 @@ public class RevisionDispatchBehavior(
     {
         var revision = revisionManager.GetRevision(ctx.SessionContext.RevisionId);
 
+        logger.LogDebug(env.Msg.Header.ToString());
+
         if (revision is not null)
         {
             if (revision.Parsers.TryGetValue(env.Msg.Header, out var parser))

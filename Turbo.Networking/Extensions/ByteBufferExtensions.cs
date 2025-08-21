@@ -6,6 +6,7 @@ public static class ByteBufferExtensions
 {
     public static bool ReleaseAll(this IByteBuffer buffer)
     {
-        return buffer.ReferenceCount != 0 && buffer.Release(buffer.ReferenceCount);
+        var refCount = buffer.ReferenceCount;
+        return refCount > 0 && buffer.Release(refCount);
     }
 }

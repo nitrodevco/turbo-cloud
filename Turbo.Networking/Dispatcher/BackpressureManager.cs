@@ -6,6 +6,9 @@ namespace Turbo.Networking.Dispatcher;
 
 public class BackpressureManager(IEmulatorConfig config) : IBackpressureManager
 {
+    private bool _readsPaused;
+    private readonly object _stateLock = new();
+
     public int PauseReadsThreshold { get; } =
         config.Network.DispatcherOptions.PauseReadsThresholdGlobal;
 
@@ -14,13 +17,19 @@ public class BackpressureManager(IEmulatorConfig config) : IBackpressureManager
 
     public void UpdateDepth(int depth, ISessionManager sessionManager)
     {
-        if (depth > PauseReadsThreshold)
+        lock (_stateLock)
         {
-            sessionManager.PauseReadsOnAll();
-        }
-        else if (depth < ResumeReadsThreshold)
-        {
-            sessionManager.ResumeReadsOnAll();
+            // Only act when crossing thresholds and state changes are needed
+            if (depth > PauseReadsThreshold && !_readsPaused)
+            {
+                sessionManager.PauseReadsOnAll();
+                _readsPaused = true;
+            }
+            else if (depth < ResumeReadsThreshold && _readsPaused)
+            {
+                sessionManager.ResumeReadsOnAll();
+                _readsPaused = false;
+            }
         }
     }
 }

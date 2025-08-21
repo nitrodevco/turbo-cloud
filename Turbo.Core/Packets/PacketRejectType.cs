@@ -6,4 +6,6 @@ public enum PacketRejectType
     RateLimited,
     Busy,
     ServerBusy,
+    InvalidInput,
+    InternalError,
 }
