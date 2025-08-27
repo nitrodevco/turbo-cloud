@@ -1,10 +1,11 @@
 using System;
 using System.Threading.Tasks;
-using Turbo.Core.Authorization.Encryption;
+using Turbo.Core.Networking.Encryption;
 using Turbo.Core.Networking.Session;
 using Turbo.Core.Packets;
 using Turbo.Core.Packets.Revisions;
 using Turbo.Packets.Incoming.Handshake;
+using Turbo.Packets.Outgoing.Handshake;
 
 namespace Turbo.DefaultRevision;
 
@@ -25,6 +26,10 @@ public class DefaultRevisionPlugin(
 
         _messageHub.Subscribe<ClientHelloMessage>(this, OnClientHelloMessage);
         _messageHub.Subscribe<InitDiffieHandshakeMessage>(this, OnInitDiffieHandshakeMessage);
+        _messageHub.Subscribe<CompleteDiffieHandshakeMessage>(
+            this,
+            OnCompleteDiffieHandshakeMessage
+        );
 
         return Task.CompletedTask;
     }
@@ -40,7 +45,7 @@ public class DefaultRevisionPlugin(
             return;
         }
 
-        //ctx.SetRevision(revision.Revision);
+        ctx.SetRevision(revision);
 
         Console.WriteLine(message.Production);
     }
@@ -53,8 +58,22 @@ public class DefaultRevisionPlugin(
         var prime = _diffieService.GetSignedPrime();
         var generator = _diffieService.GetSignedGenerator();
 
-        Console.WriteLine(
-            $"Received Diffie handshake request from {ctx.ChannelId} with prime {prime} and generator {generator}"
+        await ctx.SendAsync(
+            new InitDiffieHandshakeComposer { Prime = prime, Generator = generator }
+        );
+    }
+
+    private async void OnCompleteDiffieHandshakeMessage(
+        CompleteDiffieHandshakeMessage message,
+        ISessionContext ctx
+    )
+    {
+        var sharedKey = _diffieService.GetSharedKey(message.SharedKey);
+
+        ctx.AddEncryption(sharedKey);
+
+        await ctx.SendAsync(
+            new CompleteDiffieHandshakeComposer { PublicKey = _diffieService.GetPublicKey() }
         );
     }
 }

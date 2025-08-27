@@ -4,6 +4,8 @@ using Turbo.Core.Packets.Messages;
 using Turbo.Core.Packets.Revisions;
 using Turbo.DefaultRevision.Parsers;
 using Turbo.DefaultRevision.Parsers.Handshake;
+using Turbo.DefaultRevision.Serializers.Handshake;
+using Turbo.Packets.Outgoing.Handshake;
 
 namespace Turbo.DefaultRevision;
 
@@ -22,5 +24,9 @@ public class RevisionDefault : IRevision
         };
 
     public IDictionary<Type, ISerializer> Serializers { get; } =
-        new Dictionary<Type, ISerializer> { };
+        new Dictionary<Type, ISerializer>
+        {
+            { typeof(InitDiffieHandshakeComposer), new InitDiffieHandshakeSerializer() },
+            { typeof(CompleteDiffieHandshakeComposer), new CompleteDiffieHandshakeSerializer() }
+        };
 }

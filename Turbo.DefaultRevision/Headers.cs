@@ -6,4 +6,8 @@ public enum MessageEvent
     InitDiffieHandshakeMessageEvent = 586,
 }
 
-public static class MessageComposer { }
+public static class MessageComposer
+{
+    public const int InitDiffieHandshakeComposer = 771;
+    public const int CompleteDiffieHandshakeComposer = 3777;
+}
