@@ -21,7 +21,7 @@ public class RevisionDispatchBehavior(
         PacketDelegate next
     )
     {
-        var revision = revisionManager.GetRevision(ctx.SessionContext.RevisionId);
+        var revision = ctx.SessionContext.Revision;
 
         logger.LogDebug(env.Msg.Header.ToString());
 

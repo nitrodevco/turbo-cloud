@@ -7,6 +7,7 @@ using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Math;
+using Turbo.Core.Configuration;
 using Turbo.Core.Networking.Encryption;
 
 namespace Turbo.Networking.Encryption;
@@ -20,11 +21,11 @@ public class RsaService : IRsaService
     private readonly RsaKeyParameters _privateKey;
     private readonly RsaKeyParameters _publicKey;
 
-    public RsaService(string exponent, string modulus, string privateExponent)
+    public RsaService(IEmulatorConfig config)
     {
-        _exponent = new BigInteger(exponent, 16);
-        _modulus = new BigInteger(modulus, 16);
-        _privateExponent = new BigInteger(privateExponent, 16);
+        _exponent = new BigInteger(config.Encryption.KeySize, 16);
+        _modulus = new BigInteger(config.Encryption.PublicKey, 16);
+        _privateExponent = new BigInteger(config.Encryption.PrivateKey, 16);
 
         _publicKey = new RsaKeyParameters(false, _modulus, _exponent);
         _privateKey = new RsaKeyParameters(true, _modulus, _privateExponent);

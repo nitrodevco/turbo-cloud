@@ -6,12 +6,14 @@ using Turbo.Core.Networking;
 using Turbo.Core.Networking.Dispatcher;
 using Turbo.Core.Networking.Session;
 using Turbo.Core.Packets.Messages;
+using Turbo.Core.Packets.Revisions;
 using Turbo.Networking.Session;
 
 namespace Turbo.Networking.Servers.Handlers;
 
 public class InboundHandler(
     ISessionManager sessionManager,
+    IRevisionManager revisionManager,
     IPacketDispatcher packetDispatcher,
     ILogger<InboundHandler> logger
 ) : ChannelHandlerAdapter
@@ -22,7 +24,9 @@ public class InboundHandler(
 
     public override void ChannelActive(IChannelHandlerContext ctx)
     {
-        _sessionManager.CreateSession(ctx);
+        var session = _sessionManager.CreateSession(ctx);
+
+        session.SetRevision(revisionManager.GetRevision(null));
 
         base.ChannelActive(ctx);
     }

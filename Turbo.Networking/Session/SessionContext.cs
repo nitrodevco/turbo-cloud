@@ -4,11 +4,14 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using DotNetty.Buffers;
+using DotNetty.Common.Utilities;
 using DotNetty.Transport.Channels;
 using Turbo.Core.Networking.Encryption;
 using Turbo.Core.Networking.Session;
 using Turbo.Core.Packets.Messages;
 using Turbo.Core.Packets.Revisions;
+using Turbo.Networking.Codec;
+using Turbo.Networking.Encryption;
 
 namespace Turbo.Networking.Session;
 
@@ -18,12 +21,15 @@ public class SessionContext : ISessionContext
     private readonly Channel<IComposer> _queue;
     private readonly Task _pump;
     private readonly CancellationTokenSource _cts = new();
+    private IRc4Service _rc4Service;
+    private IRevision _revision;
     private const int MAX_BATCH = 64;
     private static readonly TimeSpan MAX_BATCH_DELAY = TimeSpan.FromMilliseconds(5);
 
     public IChannel Channel => _ctx.Channel;
 
     public IChannelId ChannelId => _ctx.Channel.Id;
+    public IRevision Revision => _revision;
 
     public SessionContext(IChannelHandlerContext ctx, int capacity = 2048)
     {
@@ -39,18 +45,29 @@ public class SessionContext : ISessionContext
         _pump = Task.Run(PumpAsync);
     }
 
-    public string RevisionId { get; private set; }
-    public IRevision Revision { get; private set; }
-
     public long PlayerId { get; private set; }
 
     public bool IsAuthenticated => PlayerId != 0;
 
-    public IRc4Service Rc4 { get; set; }
-
-    public void SetRevision(string revisionId)
+    public void SetRevision(IRevision revision)
     {
-        RevisionId = revisionId;
+        _revision = revision;
+    }
+
+    public void AddEncryption(byte[] sharedKey)
+    {
+        _rc4Service = new Rc4Service(sharedKey);
+
+        Channel.Pipeline.AddBefore(
+            "frameDecoder",
+            "encryptionDecoder",
+            new EncryptionDecoder(_rc4Service)
+        );
+        Channel.Pipeline.AddBefore(
+            "encryptionDecoder",
+            "encryptionEncoder",
+            new EncryptionEncoder(_rc4Service)
+        );
     }
 
     public void AttachPlayer(long playerId)
@@ -105,17 +122,31 @@ public class SessionContext : ISessionContext
                 // Encode and write all; flush once
                 foreach (var composer in batch)
                 {
+                    if (_revision is null)
+                        continue;
+
                     IServerPacket payload = null;
 
-                    if (Revision.Serializers.TryGetValue(composer.GetType(), out var serializer))
+                    var buffer = Unpooled.Buffer();
+
+                    if (_revision.Serializers.TryGetValue(composer.GetType(), out var serializer))
                     {
-                        payload = serializer.Serialize(Unpooled.Buffer(), composer);
+                        payload = serializer.Serialize(buffer, composer);
                     }
 
-                    if (payload is not null)
+                    try
                     {
-                        payload.Release();
-                        await _ctx.WriteAsync(payload);
+                        if (payload is not null)
+                        {
+                            await _ctx.WriteAsync(payload);
+
+                            buffer = null;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ReferenceCountUtil.SafeRelease(buffer);
+                        Console.Error.WriteLine($"Failed to write packet: {ex}");
                     }
                 }
 
