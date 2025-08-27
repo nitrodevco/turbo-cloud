@@ -18,7 +18,6 @@ using Turbo.Database.Context;
 using Turbo.Main.Configuration;
 using Turbo.Main.Extensions;
 using Turbo.Networking;
-using Turbo.Networking.Session;
 using Turbo.Packets.Revisions;
 using Turbo.Players;
 using Turbo.Streams;
@@ -36,14 +35,7 @@ internal class Program
             {
                 logging.ClearProviders();
                 logging.AddConfiguration(ctx.Configuration.GetSection("Logging"));
-                logging.AddSimpleConsole();
-            }
-        );
-
-        builder.ConfigureAppConfiguration(
-            (ctx, config) =>
-            {
-                config.AddUserSecrets<Program>();
+                //logging.AddSimpleConsole();
             }
         );
 

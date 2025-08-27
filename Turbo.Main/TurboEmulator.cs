@@ -15,6 +15,7 @@ using Turbo.Core.Configuration;
 using Turbo.Core.Game.Players;
 using Turbo.Core.Networking;
 using Turbo.DefaultRevision;
+using Turbo.Main.Delegates;
 using Turbo.Packets.Revisions;
 
 namespace Turbo.Main;
@@ -22,9 +23,11 @@ namespace Turbo.Main;
 public class TurboEmulator(
     IHostApplicationLifetime appLifetime,
     ILogger<TurboEmulator> logger,
-    IServiceProvider serviceProvider
+    IServiceProvider serviceProvider,
+    TcpSocketHostFactory tcpSocketHostFactory
 ) : IEmulator
 {
+    private IHost _tcpSocketHost;
     public const int MAJOR = 0;
     public const int MINOR = 0;
     public const int PATCH = 0;
@@ -34,9 +37,9 @@ public class TurboEmulator(
     ///     See https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host?view=aspnetcore-5.0 for more
     ///     information.
     /// </summary>
-    /// <param name="cancellationToken"></param>
+    /// <param name="ct"></param>
     /// <returns><placeholder>A <see cref="Task"/> representing the asynchronous operation.</placeholder></returns>
-    public async Task StartAsync(CancellationToken cancellationToken)
+    public async Task StartAsync(CancellationToken ct)
     {
         Console.WriteLine(
             @"
@@ -59,10 +62,9 @@ public class TurboEmulator(
         appLifetime.ApplicationStopping.Register(OnStopping);
         appLifetime.ApplicationStopped.Register(OnStopped);
 
-        var config = serviceProvider.GetRequiredService<IEmulatorConfig>();
-        var networkManager = serviceProvider.GetRequiredService<INetworkManager>();
+        _tcpSocketHost = tcpSocketHostFactory();
 
-        networkManager.SetupServers(config.Network.Servers);
+        var config = serviceProvider.GetRequiredService<IEmulatorConfig>();
 
         var defaultRevision = ActivatorUtilities.CreateInstance<DefaultRevisionPlugin>(
             serviceProvider
@@ -70,7 +72,7 @@ public class TurboEmulator(
 
         await defaultRevision.InitializeAsync();
 
-        await networkManager.StartServersAsync();
+        await _tcpSocketHost.StartAsync(ct);
     }
 
     /// <summary>

@@ -1,56 +1,34 @@
 using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
-using DotNetty.Transport.Channels;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
+using SuperSocket.Connection;
+using SuperSocket.Server;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Session;
+using Turbo.Core.Networking.Protocol;
 using Turbo.Core.Networking.Session;
+using Turbo.Networking.Protocol;
 
 namespace Turbo.Networking.Session;
 
-public class SessionManager : ISessionManager
+public class SessionManager(IServiceProvider serviceProvider, IOptions<ServerOptions> serverOptions)
+    : SuperSocketService<Package>(serviceProvider, serverOptions),
+        ISessionManager
 {
-    private readonly ConcurrentDictionary<IChannelId, ISessionContext> _sessions = new();
+    private readonly ConcurrentDictionary<string, ISessionContext> _sessions = new();
 
-    public bool TryGetSession(IChannelId channelId, out ISessionContext ctx) =>
-        _sessions.TryGetValue(channelId, out ctx!);
-
-    public ISessionContext CreateSession(IChannelHandlerContext ctx)
+    protected override async ValueTask OnSessionConnectedAsync(IAppSession session)
     {
-        var session = new SessionContext(ctx);
-
-        _sessions[session.ChannelId] = session;
-
-        return session;
+        await base.OnSessionConnectedAsync(session);
     }
 
-    public async Task KickSessionAsync(
-        IChannelId channelId,
-        SessionKickType kickType = SessionKickType.Requested
+    protected override async ValueTask OnSessionClosedAsync(
+        IAppSession session,
+        CloseEventArgs reason
     )
     {
-        if (!TryGetSession(channelId, out var session))
-        {
-            return;
-        }
-
-        await session.DisposeAsync();
-    }
-
-    public bool RemoveSessionById(IChannelId channelId, out ISessionContext session) =>
-        _sessions.TryRemove(channelId, out session);
-
-    public void PauseReadsOnAll()
-    {
-        foreach (var session in _sessions.Values)
-        {
-            session.PauseReads();
-        }
-    }
-
-    public void ResumeReadsOnAll()
-    {
-        foreach (var session in _sessions.Values)
-        {
-            session.ResumeReads();
-        }
+        await base.OnSessionClosedAsync(session, reason);
     }
 }

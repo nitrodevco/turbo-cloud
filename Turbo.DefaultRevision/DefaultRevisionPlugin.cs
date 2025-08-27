@@ -40,12 +40,12 @@ public class DefaultRevisionPlugin(
 
         if (revision is null)
         {
-            await ctx.DisposeAsync();
+            //await ctx.DisposeAsync();
 
             return;
         }
 
-        ctx.SetRevision(revision);
+        //ctx.SetRevision(revision);
 
         Console.WriteLine(message.Production);
     }
@@ -58,9 +58,9 @@ public class DefaultRevisionPlugin(
         var prime = _diffieService.GetSignedPrime();
         var generator = _diffieService.GetSignedGenerator();
 
-        await ctx.SendAsync(
-            new InitDiffieHandshakeComposer { Prime = prime, Generator = generator }
-        );
+        //await ctx.SendAsync(
+        //    new InitDiffieHandshakeComposer { Prime = prime, Generator = generator }
+        //);
     }
 
     private async void OnCompleteDiffieHandshakeMessage(
@@ -70,10 +70,10 @@ public class DefaultRevisionPlugin(
     {
         var sharedKey = _diffieService.GetSharedKey(message.SharedKey);
 
-        ctx.AddEncryption(sharedKey);
+        //ctx.AddEncryption(sharedKey);
 
-        await ctx.SendAsync(
-            new CompleteDiffieHandshakeComposer { PublicKey = _diffieService.GetPublicKey() }
-        );
+        //await ctx.SendAsync(
+        //    new CompleteDiffieHandshakeComposer { PublicKey = _diffieService.GetPublicKey() }
+        //);
     }
 }

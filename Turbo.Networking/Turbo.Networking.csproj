@@ -3,12 +3,9 @@
     <TargetFramework>net9.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="DotNetty.Buffers" Version="0.7.5" />
-    <PackageReference Include="DotNetty.Codecs" Version="0.7.5" />
-    <PackageReference Include="DotNetty.Codecs.Http" Version="0.7.5" />
-    <PackageReference Include="DotNetty.Handlers" Version="0.7.5" />
-    <PackageReference Include="DotNetty.Transport" Version="0.7.5" />
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.4.0" />
+    <PackageReference Include="SuperSocket.ProtoBase" Version="2.0.2" />
+    <PackageReference Include="SuperSocket.Server" Version="2.0.2" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Turbo.Core\Turbo.Core.csproj" />
