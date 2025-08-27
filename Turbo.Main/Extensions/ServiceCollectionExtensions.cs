@@ -1,7 +1,9 @@
 using System;
 using System.Net;
+using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SuperSocket.Connection;
 using SuperSocket.Server.Abstractions;
 using SuperSocket.Server.Host;
 using Turbo.Core.Configuration;
@@ -27,22 +29,44 @@ public static class ServiceCollectionExtensions
     {
         services.AddSingleton<SessionManager>();
         services.AddSingleton<ISessionManager>(sp => sp.GetRequiredService<SessionManager>());
-        services.AddSingleton<IPackageHandler, PackageHandler>();
+        services.AddSingleton<IPackageBatchProcessor, PackageBatchProcessor>();
+        services.AddSingleton<SessionContextFactory>();
+        services.AddSingleton<INetworkIncomingQueueConfig>(sp =>
+        {
+            return sp.GetRequiredService<IEmulatorConfig>().Network.IncomingQueue;
+        });
 
         services.AddSingleton<TcpSocketHostFactory>(sp =>
             () =>
             {
-                var config = sp.GetRequiredService<IEmulatorConfig>().Network.TcpServer;
-                var packageHandler = sp.GetRequiredService<IPackageHandler>();
+                var config = sp.GetRequiredService<IEmulatorConfig>();
 
                 var host = SuperSocketHostBuilder
                     .Create<Package, PipelineProcessor>()
-                    .UseSession<SessionContext>()
+                    .UseSessionFactory<SessionContextFactory>()
                     .UseHostedService<SessionManager>()
                     .UsePackageHandler(
-                        async (session, pkg) =>
+                        async (session, package) =>
                         {
-                            await packageHandler.HandlePackageAsync((ISessionContext)session, pkg);
+                            var ctx = (ISessionContext)session;
+
+                            switch (package.Type)
+                            {
+                                case PackageType.Policy:
+                                    const string Policy =
+                                        "<?xml version=\"1.0\"?>\r\n"
+                                        + "<!DOCTYPE cross-domain-policy SYSTEM \"/xml/dtds/cross-domain-policy.dtd\">\r\n"
+                                        + "<cross-domain-policy>\r\n"
+                                        + "<allow-access-from domain=\"*\" to-ports=\"*\" />\r\n"
+                                        + "</cross-domain-policy>\0"; // note the NUL
+
+                                    await ctx.SendAsync(Encoding.Default.GetBytes(Policy));
+                                    await ctx.CloseAsync(CloseReason.ServerShutdown);
+                                    break;
+                                case PackageType.Client:
+                                    await ctx.EnqueueAsync(package, default);
+                                    break;
+                            }
                         }
                     )
                     .ConfigureSuperSocket(o =>
@@ -52,8 +76,8 @@ public static class ServiceCollectionExtensions
                         [
                             new ListenOptions
                             {
-                                Ip = IPAddress.Parse(config.Host).ToString(),
-                                Port = config.Port,
+                                Ip = IPAddress.Parse(config.Network.TcpServer.Host).ToString(),
+                                Port = config.Network.TcpServer.Port,
                             },
                         ];
                     });

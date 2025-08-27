@@ -7,6 +7,7 @@ using SuperSocket.Connection;
 using SuperSocket.Server;
 using SuperSocket.Server.Abstractions;
 using SuperSocket.Server.Abstractions.Session;
+using Turbo.Core.Configuration;
 using Turbo.Core.Networking.Protocol;
 using Turbo.Core.Networking.Session;
 using Turbo.Networking.Protocol;
