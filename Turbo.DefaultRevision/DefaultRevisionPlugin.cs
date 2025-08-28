@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using SuperSocket.Connection;
 using Turbo.Core.Networking.Encryption;
 using Turbo.Core.Networking.Session;
 using Turbo.Core.Packets;
@@ -36,18 +37,15 @@ public class DefaultRevisionPlugin(
 
     private async void OnClientHelloMessage(ClientHelloMessage message, ISessionContext ctx)
     {
-        var revision = _revisionManager.GetRevision(message.Production);
-
-        if (revision is null)
+        if (message.Production is null)
         {
-            //await ctx.DisposeAsync();
+            await ctx.CloseAsync(CloseReason.Rejected);
 
             return;
         }
 
-        //ctx.SetRevision(revision);
-
-        Console.WriteLine(message.Production);
+        ctx.SetRevisionId(message.Production);
+        Console.WriteLine($"Set revision to {message.Production} for session {ctx.SessionID}");
     }
 
     private async void OnInitDiffieHandshakeMessage(
@@ -58,9 +56,9 @@ public class DefaultRevisionPlugin(
         var prime = _diffieService.GetSignedPrime();
         var generator = _diffieService.GetSignedGenerator();
 
-        //await ctx.SendAsync(
-        //    new InitDiffieHandshakeComposer { Prime = prime, Generator = generator }
-        //);
+        await ctx.SendComposerAsync(
+            new InitDiffieHandshakeComposer { Prime = prime, Generator = generator }
+        );
     }
 
     private async void OnCompleteDiffieHandshakeMessage(
@@ -70,10 +68,10 @@ public class DefaultRevisionPlugin(
     {
         var sharedKey = _diffieService.GetSharedKey(message.SharedKey);
 
-        //ctx.AddEncryption(sharedKey);
+        ctx.SetupEncryption(sharedKey);
 
-        //await ctx.SendAsync(
-        //    new CompleteDiffieHandshakeComposer { PublicKey = _diffieService.GetPublicKey() }
-        //);
+        await ctx.SendComposerAsync(
+            new CompleteDiffieHandshakeComposer { PublicKey = _diffieService.GetPublicKey() }
+        );
     }
 }

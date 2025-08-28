@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,6 +8,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Orleans;
+using SuperSocket.Connection;
+using SuperSocket.Server;
+using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Host;
 using Turbo.Authorization.Players.Contexts;
 using Turbo.Authorization.Players.Requirements;
 using Turbo.Core;
@@ -14,6 +19,7 @@ using Turbo.Core.Authorization;
 using Turbo.Core.Configuration;
 using Turbo.Core.Game.Players;
 using Turbo.Core.Networking;
+using Turbo.Core.Networking.Protocol;
 using Turbo.DefaultRevision;
 using Turbo.Main.Delegates;
 using Turbo.Packets.Revisions;
@@ -23,11 +29,9 @@ namespace Turbo.Main;
 public class TurboEmulator(
     IHostApplicationLifetime appLifetime,
     ILogger<TurboEmulator> logger,
-    IServiceProvider serviceProvider,
-    TcpSocketHostFactory tcpSocketHostFactory
+    IServiceProvider serviceProvider
 ) : IEmulator
 {
-    private IHost _tcpSocketHost;
     public const int MAJOR = 0;
     public const int MINOR = 0;
     public const int PATCH = 0;
@@ -62,17 +66,17 @@ public class TurboEmulator(
         appLifetime.ApplicationStopping.Register(OnStopping);
         appLifetime.ApplicationStopped.Register(OnStopped);
 
-        _tcpSocketHost = tcpSocketHostFactory();
-
         var config = serviceProvider.GetRequiredService<IEmulatorConfig>();
+        var socketHostFactory = serviceProvider.GetRequiredService<TcpSocketHostFactory>();
+
+        var socketHost = socketHostFactory();
 
         var defaultRevision = ActivatorUtilities.CreateInstance<DefaultRevisionPlugin>(
             serviceProvider
         );
 
         await defaultRevision.InitializeAsync();
-
-        await _tcpSocketHost.StartAsync(ct);
+        await socketHost.StartAsync(ct);
     }
 
     /// <summary>

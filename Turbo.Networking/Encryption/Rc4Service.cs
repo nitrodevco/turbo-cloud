@@ -18,7 +18,7 @@ public class Rc4Service : IRc4Service
         var outputData = new byte[bytes.Length];
 
         _rc4Engine.ProcessBytes(bytes, 0, bytes.Length, outputData, 0);
-        
+
         return outputData;
     }
 }

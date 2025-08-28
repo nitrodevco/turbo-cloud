@@ -5,7 +5,9 @@ using Turbo.Packets.Serializers;
 namespace Turbo.DefaultRevision.Serializers.Handshake;
 
 public class CompleteDiffieHandshakeSerializer()
-    : AbstractSerializer<CompleteDiffieHandshakeComposer>(MessageComposer.CompleteDiffieHandshakeComposer)
+    : AbstractSerializer<CompleteDiffieHandshakeComposer>(
+        MessageComposer.CompleteDiffieHandshakeComposer
+    )
 {
     protected override void Serialize(IServerPacket packet, CompleteDiffieHandshakeComposer message)
     {

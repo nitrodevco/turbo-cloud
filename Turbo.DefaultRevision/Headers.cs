@@ -4,6 +4,7 @@ public enum MessageEvent
 {
     ClientHelloMessageEvent = 4000,
     InitDiffieHandshakeMessageEvent = 586,
+    CompleteDiffieHandshakeMessageEvent = 2616,
 }
 
 public static class MessageComposer

@@ -2,14 +2,20 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Core.Networking.Protocol;
+using Turbo.Core.Packets.Messages;
 
 namespace Turbo.Core.Networking.Session;
 
-public interface IPackageBatchProcessor
+public interface IPacketProcessor
 {
-    public ValueTask ProcessBatchAsync(
+    public Task ProcessClientPacket(
         ISessionContext ctx,
-        IReadOnlyList<Package> batch,
-        CancellationToken ct
+        IClientPacket clientPacket,
+        CancellationToken ct = default
+    );
+    public Task ProcessComposer(
+        ISessionContext ctx,
+        IComposer composer,
+        CancellationToken ct = default
     );
 }

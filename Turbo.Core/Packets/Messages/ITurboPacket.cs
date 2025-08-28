@@ -1,9 +1,6 @@
-using DotNetty.Buffers;
-using DotNetty.Common;
-
 namespace Turbo.Core.Packets.Messages;
 
-public interface ITurboPacket : IByteBufferHolder
+public interface ITurboPacket
 {
     public int Header { get; }
 }

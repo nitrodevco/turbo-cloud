@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Reflection;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -9,15 +12,22 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Orleans.Hosting;
+using SuperSocket;
+using SuperSocket.Connection;
+using SuperSocket.Server;
+using SuperSocket.Server.Abstractions.Session;
+using SuperSocket.Server.Host;
 using Turbo.Core.Configuration;
 using Turbo.Core.Game.Players;
 using Turbo.Core.Networking;
+using Turbo.Core.Networking.Protocol;
 using Turbo.Core.Networking.Session;
 using Turbo.Core.Packets.Revisions;
 using Turbo.Database.Context;
 using Turbo.Main.Configuration;
 using Turbo.Main.Extensions;
 using Turbo.Networking;
+using Turbo.Networking.Session;
 using Turbo.Packets.Revisions;
 using Turbo.Players;
 using Turbo.Streams;
@@ -35,7 +45,7 @@ internal class Program
             {
                 logging.ClearProviders();
                 logging.AddConfiguration(ctx.Configuration.GetSection("Logging"));
-                //logging.AddSimpleConsole();
+                logging.AddSimpleConsole();
             }
         );
 
@@ -70,7 +80,7 @@ internal class Program
                 services.AddSingleton<IPlayerManager, PlayerManager>();
 
                 // Emulator
-                services.AddSingleton<TurboEmulator>();
+                services.AddHostedService<TurboEmulator>();
             }
         );
 
@@ -124,12 +134,14 @@ internal class Program
         var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
         var shutdownToken = lifetime.ApplicationStopping;
 
-        await host.StartAsync(shutdownToken);
-
-        var emulator = host.Services.GetRequiredService<TurboEmulator>();
-
-        await emulator.StartAsync(shutdownToken);
-
-        await host.WaitForShutdownAsync(shutdownToken);
+        try
+        {
+            await host.StartAsync(shutdownToken);
+            await host.WaitForShutdownAsync(shutdownToken);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+        }
     }
 }

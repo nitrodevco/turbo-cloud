@@ -7,6 +7,8 @@ using SuperSocket.Connection;
 using Turbo.Core.Configuration;
 using Turbo.Core.Networking.Protocol;
 using Turbo.Core.Networking.Session;
+using Turbo.Core.Packets.Messages;
+using Turbo.Packets.Incoming;
 
 namespace Turbo.Networking.Session;
 
@@ -14,28 +16,22 @@ public class IncomingQueue
 {
     private readonly ISessionContext _session;
     private readonly INetworkIncomingQueueConfig _config;
-    private readonly IPackageBatchProcessor _processor;
 
-    private Channel<Package> _channel;
+    private Channel<IClientPacket> _channel;
     private readonly CancellationTokenSource _cts = new();
     private Task? _loop;
 
     public int Count => _channel.Reader.Count;
 
-    public IncomingQueue(
-        ISessionContext ctx,
-        INetworkIncomingQueueConfig config,
-        IPackageBatchProcessor processor
-    )
+    public IncomingQueue(ISessionContext ctx, INetworkIncomingQueueConfig config)
     {
         _session = ctx;
         _config = config;
-        _processor = processor;
 
         _channel = CreateChannel(SessionDropType.Wait);
     }
 
-    private Channel<Package> CreateChannel(SessionDropType policy)
+    private Channel<IClientPacket> CreateChannel(SessionDropType policy)
     {
         var full = policy switch
         {
@@ -44,7 +40,7 @@ public class IncomingQueue
             _ => BoundedChannelFullMode.DropOldest,
         };
 
-        return Channel.CreateBounded<Package>(
+        return Channel.CreateBounded<IClientPacket>(
             new BoundedChannelOptions(_config.MaxQueue)
             {
                 SingleWriter = false,
@@ -65,7 +61,7 @@ public class IncomingQueue
     }
 
     /// Enqueue from UsePackageHandler
-    public async ValueTask EnqueueAsync(Package pkg, CancellationToken ct)
+    public async ValueTask EnqueueAsync(IClientPacket packet, CancellationToken ct)
     {
         // hard abuse guard
         if (Count > _config.HardLimit)
@@ -77,13 +73,13 @@ public class IncomingQueue
         }
 
         // normal mode: await room (natural TCP backpressure)
-        await _channel.Writer.WriteAsync(pkg, ct);
+        await _channel.Writer.WriteAsync(packet, ct);
     }
 
     private async Task ConsumeLoopAsync()
     {
         var reader = _channel.Reader;
-        var batch = new List<Package>(_config.MaxBatch);
+        var batch = new List<IClientPacket>(_config.MaxBatch);
 
         try
         {
@@ -118,7 +114,7 @@ public class IncomingQueue
 
                 latencyCts.Cancel();
 
-                await _processor.ProcessBatchAsync(_session, batch, _cts.Token);
+                await _session.ProcessPacketBatchAsync(batch, _cts.Token);
             }
         }
         catch (OperationCanceledException) { }

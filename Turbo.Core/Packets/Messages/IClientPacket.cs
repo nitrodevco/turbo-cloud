@@ -1,18 +1,17 @@
+using System.Text;
+
 namespace Turbo.Core.Packets.Messages;
 
 public interface IClientPacket : ITurboPacket
 {
-    string PopString();
-
-    int PopInt();
-
-    bool PopBoolean();
-
-    short PopShort();
-
-    double PopDouble();
-
-    long PopLong();
-
-    int RemainingLength();
+    public int Remaining { get; }
+    public bool End { get; }
+    public byte PopByte();
+    public byte[] PopBytes(int count);
+    public bool PopBoolean();
+    public short PopShort();
+    public ushort PopUShort();
+    public int PopInt();
+    public long PopLong();
+    public string PopString(Encoding? encoding = null);
 }

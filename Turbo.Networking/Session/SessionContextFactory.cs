@@ -11,8 +11,5 @@ public class SessionContextFactory(IServiceProvider sp) : ISessionFactory
 {
     public Type SessionType => typeof(SessionContext);
 
-    public IAppSession Create()
-    {
-        return ActivatorUtilities.CreateInstance<SessionContext>(sp);
-    }
+    public IAppSession Create() => ActivatorUtilities.CreateInstance<SessionContext>(sp);
 }

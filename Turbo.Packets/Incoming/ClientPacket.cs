@@ -1,81 +1,87 @@
 using System;
+using System.Buffers.Binary;
 using System.Text;
-using DotNetty.Buffers;
 using Turbo.Core.Packets.Messages;
 
 namespace Turbo.Packets.Incoming;
 
-public class ClientPacket(int header, IByteBuffer body) : TurboPacket(header, body), IClientPacket
+public class ClientPacket(int header, ReadOnlyMemory<byte> payload)
+    : TurboPacket(header),
+        IClientPacket
 {
-    public string PopString()
+    private ReadOnlyMemory<byte> _payload = payload;
+    private int _pos = 0;
+
+    public int Remaining => _payload.Length - _pos;
+    public bool End => _pos >= _payload.Length;
+
+    public byte PopByte()
     {
-        ushort length = Content.ReadUnsignedShort(); // Read the length as an unsigned short
-
-        if (length == 0)
-        {
-            _log.Append("{s:\"\"}");
-            return string.Empty;
-        }
-
-        byte[] data = new byte[length];
-        Content.ReadBytes(data); // Read the exact number of bytes into the array
-        string value = Encoding.UTF8.GetString(data); // Convert bytes to string
-
-        _log.Append($"{{s:\"{value}\"}}");
-        return value;
+        Ensure(1);
+        var b = _payload.Span[_pos++];
+        return b;
     }
 
-    public int PopInt()
+    public byte[] PopBytes(int count)
     {
-        int value = Content.ReadInt();
-        _log.Append($"{{i:{value}}}");
-        return value;
+        Ensure(count);
+        var arr = _payload.Span.Slice(_pos, count).ToArray();
+        _pos += count;
+        return arr;
     }
 
     public bool PopBoolean()
     {
-        bool value = Content.ReadByte() == 1;
-        _log.Append($"{{b:{value.ToString().ToLower()}}}");
-        return value;
-    }
-
-    public int RemainingLength()
-    {
-        return Content.ReadableBytes;
-    }
-
-    public long PopLong()
-    {
-        long value = Content.ReadLong();
-        _log.Append($"{{l:{value}}}");
-        return value;
+        return PopByte() != 0;
     }
 
     public short PopShort()
     {
-        short value = Content.ReadShort();
-        _log.Append($"{{h:{value}}}");
-        return value;
+        Ensure(2);
+        short v = BinaryPrimitives.ReadInt16BigEndian(_payload.Span.Slice(_pos, 2));
+        _pos += 2;
+        return v;
     }
 
     public ushort PopUShort()
     {
-        ushort value = Content.ReadUnsignedShort();
-        _log.Append($"{{h:{value}}}");
-        return value;
+        Ensure(2);
+        ushort v = BinaryPrimitives.ReadUInt16BigEndian(_payload.Span.Slice(_pos, 2));
+        _pos += 2;
+        return v;
     }
 
-    public double PopDouble()
+    public int PopInt()
     {
-        var doubleString = PopString();
-        var parsed = double.TryParse(doubleString, out var result);
+        Ensure(4);
+        int v = BinaryPrimitives.ReadInt32BigEndian(_payload.Span.Slice(_pos, 4));
+        _pos += 4;
+        return v;
+    }
 
-        if (parsed)
-        {
-            _log.Append($"{{d:{result}}}");
-            return result;
-        }
+    public long PopLong()
+    {
+        Ensure(8);
+        long v = BinaryPrimitives.ReadInt64BigEndian(_payload.Span.Slice(_pos, 8));
+        _pos += 8;
+        return v;
+    }
 
-        throw new FormatException($"'{doubleString}' is not a valid double!");
+    public string PopString(Encoding? encoding = null)
+    {
+        var len = PopUShort();
+        Ensure(len);
+        encoding ??= Encoding.UTF8;
+        string s = encoding.GetString(_payload.Span.Slice(_pos, len));
+        _pos += len;
+        return s;
+    }
+
+    private void Ensure(int count)
+    {
+        if (_pos + count > _payload.Length)
+            throw new InvalidOperationException(
+                $"Not enough data: need {count}, remaining {Remaining}"
+            );
     }
 }

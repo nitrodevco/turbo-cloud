@@ -1,20 +1,25 @@
+using System;
+using System.IO;
+
 namespace Turbo.Core.Packets.Messages;
 
 public interface IServerPacket : ITurboPacket
 {
+    public MemoryStream Stream { get; }
+    public BinaryWriter Writer { get; }
+    public int Length { get; }
+
     IServerPacket WriteByte(byte b);
-
-    IServerPacket WriteByte(int b);
-
-    IServerPacket WriteDouble(double d);
-
-    IServerPacket WriteString(string s);
-
-    IServerPacket WriteShort(int s);
-
-    IServerPacket WriteInteger(int i);
 
     IServerPacket WriteBoolean(bool b);
 
+    IServerPacket WriteShort(short s);
+
+    IServerPacket WriteDouble(double d);
+
     IServerPacket WriteLong(long l);
+    IServerPacket WriteInteger(int i);
+
+    IServerPacket WriteString(string s);
+    public byte[] ToArray();
 }

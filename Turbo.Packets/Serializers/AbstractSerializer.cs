@@ -1,4 +1,3 @@
-using DotNetty.Buffers;
 using Turbo.Core.Packets.Messages;
 using Turbo.Packets.Outgoing;
 
@@ -9,11 +8,11 @@ public abstract class AbstractSerializer<T>(int header) : ISerializer
 {
     public int Header { get; } = header;
 
-    public IServerPacket Serialize(IByteBuffer output, IComposer message)
+    public IServerPacket Serialize(IComposer message)
     {
-        IServerPacket packet = new ServerPacket(Header, output);
+        IServerPacket packet = new ServerPacket(Header);
 
-        packet.WriteShort(Header);
+        packet.WriteShort((short)Header);
 
         Serialize(packet, (T)message);
 

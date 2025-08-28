@@ -21,12 +21,16 @@ public class RevisionDefault : IRevision
                 (int)MessageEvent.InitDiffieHandshakeMessageEvent,
                 new InitDiffieHandshakeMessageParser()
             },
+            {
+                (int)MessageEvent.CompleteDiffieHandshakeMessageEvent,
+                new CompleteDiffieHandshakeMessageParser()
+            },
         };
 
     public IDictionary<Type, ISerializer> Serializers { get; } =
         new Dictionary<Type, ISerializer>
         {
             { typeof(InitDiffieHandshakeComposer), new InitDiffieHandshakeSerializer() },
-            { typeof(CompleteDiffieHandshakeComposer), new CompleteDiffieHandshakeSerializer() }
+            { typeof(CompleteDiffieHandshakeComposer), new CompleteDiffieHandshakeSerializer() },
         };
 }

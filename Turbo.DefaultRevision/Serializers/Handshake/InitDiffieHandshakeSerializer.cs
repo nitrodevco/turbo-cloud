@@ -8,7 +8,5 @@ public class InitDiffieHandshakeSerializer()
     : AbstractSerializer<InitDiffieHandshakeComposer>(MessageComposer.InitDiffieHandshakeComposer)
 {
     protected override void Serialize(IServerPacket packet, InitDiffieHandshakeComposer composer) =>
-        packet
-            .WriteString(composer.Prime)
-            .WriteString(composer.Generator);
+        packet.WriteString(composer.Prime).WriteString(composer.Generator);
 }
