@@ -67,11 +67,14 @@ public class PacketProcessor(
         {
             if (revision.Serializers.TryGetValue(composer.GetType(), out var serializer))
             {
-                var payload = serializer.Serialize(composer);
+                var payload = serializer.Serialize(composer).ToArray();
                 var data = new byte[payload.Length + 4];
 
                 BinaryPrimitives.WriteInt32BigEndian(data.AsSpan(0, 4), payload.Length);
-                payload.ToArray().CopyTo(data.AsSpan(4));
+                payload.CopyTo(data.AsSpan(4));
+
+                if (ctx.Rc4Service is not null)
+                    data = ctx.Rc4Service.ProcessBytes(data);
 
                 await ctx.SendAsync(data, ct);
             }
