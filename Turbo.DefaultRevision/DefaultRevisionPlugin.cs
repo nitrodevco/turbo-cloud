@@ -68,10 +68,10 @@ public class DefaultRevisionPlugin(
     {
         var sharedKey = _diffieService.GetSharedKey(message.SharedKey);
 
-        ctx.SetupEncryption(sharedKey);
-
         await ctx.SendComposerAsync(
             new CompleteDiffieHandshakeComposer { PublicKey = _diffieService.GetPublicKey() }
         );
+
+        ctx.SetupEncryption(sharedKey);
     }
 }

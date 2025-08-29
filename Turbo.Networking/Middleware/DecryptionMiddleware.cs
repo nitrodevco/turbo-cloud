@@ -21,15 +21,10 @@ public class DecryptionMiddleware : IFrameMiddleware
             return;
 
         var r = reader;
+        var body = rc4.ProcessBytes(r.UnreadSpan.ToArray());
 
-        var unread = r.UnreadSequence.Slice(0);
+        r.Advance(body.Length);
 
-        r.Advance(unread.Length);
-
-        var plain = unread.ToArray();
-
-        rc4.ProcessBytes(plain);
-
-        reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(plain));
+        reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(body));
     }
 }

@@ -18,10 +18,7 @@ public class LengthFieldMiddleware : IFrameMiddleware
     {
         var r = reader;
 
-        if (r.Length < 6)
-            return;
-
-        if (r.Length < 6 || !r.TryReadBigEndian(out int bodyLength) || r.Remaining < bodyLength)
+        if (r.Length < 4 || !r.TryReadBigEndian(out int bodyLength) || r.Remaining < bodyLength)
             return;
 
         reader = r;

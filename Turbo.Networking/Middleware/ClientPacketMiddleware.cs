@@ -21,14 +21,13 @@ public class ClientPacketMiddleware : IFrameMiddleware
 
         r.TryReadBigEndian(out short header);
 
-        var body = r.UnreadSequence.Slice(0, r.Remaining).ToArray();
+        var body = r.UnreadSpan.ToArray();
 
-        r.Advance(r.Remaining);
+        r.Advance(body.Length);
 
         reader = r;
+        clientPacket = new ClientPacket(header, body);
 
         Console.WriteLine($"[Packet] 0x{header:X4} ({header})");
-
-        clientPacket = new ClientPacket(header, body);
     }
 }
