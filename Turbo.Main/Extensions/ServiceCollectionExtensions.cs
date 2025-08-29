@@ -34,35 +34,6 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPacketProcessor, PacketProcessor>();
         services.AddSingleton<IRsaService, RsaService>();
         services.AddSingleton<IDiffieService, DiffieService>();
-
-        services.AddSingleton<TcpSocketHostFactory>(sp =>
-            () =>
-            {
-                var host = SuperSocketHostBuilder
-                    .Create<IClientPacket>()
-                    .ConfigureServices(
-                        (ctx, services) =>
-                        {
-                            services.AddSingleton(rsp => sp.GetRequiredService<IEmulatorConfig>());
-                            services.AddSingleton(rsp => sp.GetRequiredService<IPacketProcessor>());
-                        }
-                    )
-                    .UseSessionFactory<SessionContextFactory>()
-                    .UsePipelineFilterFactory<PipelineFilterFactory>()
-                    .UsePackageHandler(
-                        async (session, packet) =>
-                        {
-                            if (packet is null)
-                                return;
-
-                            var ctx = (ISessionContext)session;
-
-                            await ctx.EnqueuePacketAsync(packet);
-                        }
-                    );
-
-                return host.Build();
-            }
-        );
+        services.AddSingleton<INetworkManager, NetworkManager>();
     }
 }

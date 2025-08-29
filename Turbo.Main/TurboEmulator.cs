@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -26,23 +27,36 @@ using Turbo.Packets.Revisions;
 
 namespace Turbo.Main;
 
-public class TurboEmulator(
-    IHostApplicationLifetime appLifetime,
-    ILogger<TurboEmulator> logger,
-    IServiceProvider serviceProvider
-) : IEmulator
+public class TurboEmulator : IEmulator
 {
     public const int MAJOR = 0;
     public const int MINOR = 0;
     public const int PATCH = 0;
 
-    /// <summary>
-    ///     This method is called by the .NET Generic Host.
-    ///     See https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host?view=aspnetcore-5.0 for more
-    ///     information.
-    /// </summary>
-    /// <param name="ct"></param>
-    /// <returns><placeholder>A <see cref="Task"/> representing the asynchronous operation.</placeholder></returns>
+    private readonly IHostApplicationLifetime _appLifetime;
+    private readonly ILogger<TurboEmulator> _logger;
+    private readonly IServiceProvider _serviceProvider;
+    private readonly List<IDisposable> _registrations;
+
+    public TurboEmulator(
+        IHostApplicationLifetime appLifetime,
+        ILogger<TurboEmulator> logger,
+        IServiceProvider serviceProvider
+    )
+    {
+        _appLifetime = appLifetime;
+        _logger = logger;
+        _serviceProvider = serviceProvider;
+        _registrations =
+        [
+            _appLifetime.ApplicationStarted.Register(OnStarted),
+            _appLifetime.ApplicationStopping.Register(OnStopping),
+            _appLifetime.ApplicationStopped.Register(OnStopped),
+        ];
+
+        SetDefaultCulture(CultureInfo.InvariantCulture);
+    }
+
     public async Task StartAsync(CancellationToken ct)
     {
         Console.WriteLine(
@@ -56,69 +70,59 @@ public class TurboEmulator(
             "
         );
 
-        Console.WriteLine("Running {0}", GetVersion());
+        _logger.LogInformation("Starting {Emulator}", GetVersion());
         Console.WriteLine();
 
-        SetDefaultCulture(CultureInfo.InvariantCulture);
+        try
+        {
+            var networkManager = _serviceProvider.GetRequiredService<INetworkManager>();
+            var defaultRevision = ActivatorUtilities.CreateInstance<DefaultRevisionPlugin>(
+                _serviceProvider
+            );
 
-        // Register applicaton lifetime events
-        appLifetime.ApplicationStarted.Register(OnStarted);
-        appLifetime.ApplicationStopping.Register(OnStopping);
-        appLifetime.ApplicationStopped.Register(OnStopped);
+            await defaultRevision.InitializeAsync();
+            await networkManager.StartAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Emulator startup was cancelled.");
 
-        var config = serviceProvider.GetRequiredService<IEmulatorConfig>();
-        var socketHostFactory = serviceProvider.GetRequiredService<TcpSocketHostFactory>();
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogCritical(ex, "Emulator failed to start!");
 
-        var socketHost = socketHostFactory();
-
-        var defaultRevision = ActivatorUtilities.CreateInstance<DefaultRevisionPlugin>(
-            serviceProvider
-        );
-
-        await defaultRevision.InitializeAsync();
-        await socketHost.StartAsync(ct);
+            throw;
+        }
     }
 
-    /// <summary>
-    ///     This method is called by the .NET Generic Host.
-    ///     See https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host?view=aspnetcore-5.0 for more
-    ///     information.
-    /// </summary>
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        logger.LogInformation("Shutting down. Disposing services...");
+        _logger.LogInformation("{GetVersion} StopAsync...", GetVersion());
+
         return Task.CompletedTask;
+    }
+
+    private void OnStarted()
+    {
+        _logger.LogInformation("Started {Emulator}", GetVersion());
+        Console.WriteLine();
+    }
+
+    private void OnStopping()
+    {
+        _logger.LogInformation("{GetVersion} Stopping...", GetVersion());
+    }
+
+    private void OnStopped()
+    {
+        _logger.LogInformation("{GetVersion} Stopped", GetVersion());
     }
 
     public string GetVersion()
     {
         return $"Turbo Emulator {MAJOR}.{MINOR}.{PATCH}";
-    }
-
-    /// <summary>
-    ///     This method is called by the host application lifetime after the emulator started succesfully.
-    /// </summary>
-    private void OnStarted()
-    {
-        logger.LogInformation("Emulator started succesfully!");
-    }
-
-    /// <summary>
-    ///     This method is called by the host application lifetime right before the emulator starts stopping
-    ///     Perform on-stopping activities here.
-    ///     This function is called before <see cref="StopAsync(CancellationToken)" />.
-    /// </summary>
-    private void OnStopping()
-    {
-        logger.LogInformation("OnStopping has been called.");
-    }
-
-    /// <summary>
-    ///     This method is called by the host application lifetime after the emulator stopped succesfully.
-    /// </summary>
-    private void OnStopped()
-    {
-        logger.LogInformation("{Emulator} shut down gracefully.", GetVersion());
     }
 
     private void SetDefaultCulture(CultureInfo culture)

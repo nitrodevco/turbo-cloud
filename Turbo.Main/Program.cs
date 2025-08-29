@@ -45,7 +45,7 @@ internal class Program
             {
                 logging.ClearProviders();
                 logging.AddConfiguration(ctx.Configuration.GetSection("Logging"));
-                logging.AddSimpleConsole();
+                logging.AddConsole();
             }
         );
 
