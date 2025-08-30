@@ -13,7 +13,6 @@ using SuperSocket.Connection;
 using SuperSocket.Server;
 using SuperSocket.Server.Abstractions;
 using SuperSocket.Server.Host;
-using Turbo.Authorization.Players.Contexts;
 using Turbo.Authorization.Players.Requirements;
 using Turbo.Core;
 using Turbo.Core.Authorization;

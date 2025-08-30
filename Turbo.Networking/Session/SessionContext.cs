@@ -3,14 +3,10 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using Org.BouncyCastle.Crypto.Engines;
 using SuperSocket.Connection;
 using SuperSocket.Server;
-using Turbo.Core;
 using Turbo.Core.Configuration;
 using Turbo.Core.Networking.Encryption;
-using Turbo.Core.Networking.Protocol;
 using Turbo.Core.Networking.Session;
 using Turbo.Core.Packets.Messages;
 using Turbo.Networking.Encryption;
@@ -23,7 +19,8 @@ public class SessionContext : AppSession, ISessionContext
     private IncomingQueue _incomingQueue;
 
     public bool PolicyDone { get; set; } = true;
-    public string RevisionId { get; private set; } = "default";
+    public string RevisionId { get; private set; } = "Default";
+    public long PlayerId { get; private set; }
     public IStreamCipher Rc4Engine { get; private set; }
 
     public SessionContext(IEmulatorConfig config, IPacketProcessor packetProcessor)
@@ -36,6 +33,11 @@ public class SessionContext : AppSession, ISessionContext
     public void SetRevisionId(string revisionId)
     {
         RevisionId = revisionId;
+    }
+
+    public void SetPlayerId(long playerId)
+    {
+        PlayerId = playerId;
     }
 
     public void SetupEncryption(byte[] key)

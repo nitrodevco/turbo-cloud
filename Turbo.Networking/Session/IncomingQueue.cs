@@ -117,7 +117,12 @@ public class IncomingQueue
                 await _session.ProcessPacketBatchAsync(batch, _cts.Token);
             }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException ex) when (_cts.IsCancellationRequested)
+        {
+            // graceful shutdown – token canceled intentionally
+            // optionally drain remaining items without token:
+            Console.Error.WriteLine($"Incoming cancellation crash sid={_session.SessionID}: {ex}");
+        }
         catch (Exception ex)
         {
             // log and close the session to avoid wedging

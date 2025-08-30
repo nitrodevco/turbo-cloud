@@ -1,6 +1,8 @@
 using System;
 using System.Threading.Tasks;
 using SuperSocket.Connection;
+using Turbo.Authorization.Players.Policies;
+using Turbo.Core.Authorization;
 using Turbo.Core.Networking.Encryption;
 using Turbo.Core.Networking.Session;
 using Turbo.Core.Packets;
@@ -13,12 +15,14 @@ namespace Turbo.Revision20240709;
 public class Revision20240709Plugin(
     IRevisionManager revisionManager,
     IPacketMessageHub messageHub,
-    IDiffieService diffieService
+    IDiffieService diffieService,
+    IAuthorizationManager authorizationManager
 )
 {
     private readonly IRevisionManager _revisionManager = revisionManager;
     private readonly IPacketMessageHub _messageHub = messageHub;
     private readonly IDiffieService _diffieService = diffieService;
+    private readonly IAuthorizationManager _authorizationManager = authorizationManager;
 
     public Task InitializeAsync()
     {
@@ -73,6 +77,13 @@ public class Revision20240709Plugin(
     private async void OnSSOTicketMessage(SSOTicketMessage message, ISessionContext ctx)
     {
         var ticket = message.SSO;
+
+        var result = await _authorizationManager.AuthorizeAsync(ctx, new LoginPolicy());
+
+        if (!result.Succeeded)
+        {
+            Console.WriteLine(result.Failures.ToString());
+        }
 
         Console.WriteLine("SSO Ticket: " + ticket);
     }
