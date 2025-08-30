@@ -1,4 +1,4 @@
-﻿using Turbo.Core.Packets.Messages;
+using Turbo.Core.Packets.Messages;
 using Turbo.Packets.Incoming.Handshake;
 using Turbo.Packets.Parsers;
 
