@@ -45,7 +45,16 @@ public class PacketProcessor(
                     .ConfigureAwait(false);
 
                 _logger.LogDebug(
-                    "Processed packet {PacketHeader} for session {SessionId}",
+                    "Processed packet {PacketHeader}:{PacketType} for session {SessionId}",
+                    clientPacket.Header,
+                    parser.GetType().Name,
+                    ctx.SessionID
+                );
+            }
+            else
+            {
+                _logger.LogDebug(
+                    "Invalid packet {PacketHeader} for session {SessionId}",
                     clientPacket.Header,
                     ctx.SessionID
                 );
@@ -76,7 +85,7 @@ public class PacketProcessor(
                 if (ctx.Rc4Engine is not null)
                     data = ctx.Rc4Engine.ProcessBytes(data);
 
-                await ctx.SendAsync(data, ct);
+                await ctx.SendAsync(data, ct).ConfigureAwait(false);
             }
         }
 

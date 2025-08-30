@@ -16,19 +16,32 @@ public class Revision20240709 : IRevision
         new Dictionary<int, IParser>
         {
             {
-                (int)MessageEvent.InitDiffieHandshakeMessageEvent,
-                new InitDiffieHandshakeMessageParser()
-            },
-            {
                 (int)MessageEvent.CompleteDiffieHandshakeMessageEvent,
                 new CompleteDiffieHandshakeMessageParser()
             },
+            { (int)MessageEvent.DisconnectMessageEvent, new DisconnectMessageParser() },
+            { (int)MessageEvent.InfoRetrieveMessageEvent, new InfoRetrieveMessageParser() },
+            {
+                (int)MessageEvent.InitDiffieHandshakeMessageEvent,
+                new InitDiffieHandshakeMessageParser()
+            },
+            { (int)MessageEvent.SSOTicketMessageEvent, new SSOTicketMessageParser() },
+            { (int)MessageEvent.UniqueIDMessageEvent, new UniqueIdMessageParser() },
+            { (int)MessageEvent.VersionCheckMessageEvent, new VersionCheckMessageParser() },
         };
 
     public IDictionary<Type, ISerializer> Serializers { get; } =
         new Dictionary<Type, ISerializer>
         {
-            { typeof(InitDiffieHandshakeComposer), new InitDiffieHandshakeSerializer() },
-            { typeof(CompleteDiffieHandshakeComposer), new CompleteDiffieHandshakeSerializer() },
+            {
+                typeof(InitDiffieHandshakeComposer),
+                new InitDiffieHandshakeSerializer(MessageComposer.InitDiffieHandshakeComposer)
+            },
+            {
+                typeof(CompleteDiffieHandshakeComposer),
+                new CompleteDiffieHandshakeSerializer(
+                    MessageComposer.CompleteDiffieHandshakeComposer
+                )
+            },
         };
 }

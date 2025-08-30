@@ -4,8 +4,8 @@ using Turbo.Packets.Serializers;
 
 namespace Turbo.Revision20240709.Serializers.Handshake;
 
-public class InitDiffieHandshakeSerializer()
-    : AbstractSerializer<InitDiffieHandshakeComposer>(MessageComposer.InitDiffieHandshakeComposer)
+public class InitDiffieHandshakeSerializer(int header)
+    : AbstractSerializer<InitDiffieHandshakeComposer>(header)
 {
     protected override void Serialize(IServerPacket packet, InitDiffieHandshakeComposer composer) =>
         packet.WriteString(composer.Prime).WriteString(composer.Generator);

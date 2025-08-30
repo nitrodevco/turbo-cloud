@@ -25,26 +25,18 @@ public class Revision20240709Plugin(
         var revision = new Revision20240709();
         _revisionManager.RegisterRevision(revision);
 
-        _messageHub.Subscribe<InitDiffieHandshakeMessage>(this, OnInitDiffieHandshakeMessage);
         _messageHub.Subscribe<CompleteDiffieHandshakeMessage>(
             this,
             OnCompleteDiffieHandshakeMessage
         );
+        _messageHub.Subscribe<DisconnectMessage>(this, OnDisconnectMessage);
+        _messageHub.Subscribe<InfoRetrieveMessage>(this, OnInfoRetrieveMessage);
+        _messageHub.Subscribe<InitDiffieHandshakeMessage>(this, OnInitDiffieHandshakeMessage);
+        _messageHub.Subscribe<SSOTicketMessage>(this, OnSSOTicketMessage);
+        _messageHub.Subscribe<UniqueIdMessage>(this, OnUniqueIdMessage);
+        _messageHub.Subscribe<VersionCheckMessage>(this, OnVersionCheckMessage);
 
         return Task.CompletedTask;
-    }
-
-    private async void OnInitDiffieHandshakeMessage(
-        InitDiffieHandshakeMessage message,
-        ISessionContext ctx
-    )
-    {
-        var prime = _diffieService.GetSignedPrime();
-        var generator = _diffieService.GetSignedGenerator();
-
-        await ctx.SendComposerAsync(
-            new InitDiffieHandshakeComposer { Prime = prime, Generator = generator }
-        );
     }
 
     private async void OnCompleteDiffieHandshakeMessage(
@@ -59,5 +51,49 @@ public class Revision20240709Plugin(
         );
 
         ctx.SetupEncryption(sharedKey);
+    }
+
+    private async void OnDisconnectMessage(DisconnectMessage message, ISessionContext ctx) { }
+
+    private async void OnInfoRetrieveMessage(InfoRetrieveMessage message, ISessionContext ctx) { }
+
+    private async void OnInitDiffieHandshakeMessage(
+        InitDiffieHandshakeMessage message,
+        ISessionContext ctx
+    )
+    {
+        var prime = _diffieService.GetSignedPrime();
+        var generator = _diffieService.GetSignedGenerator();
+
+        await ctx.SendComposerAsync(
+            new InitDiffieHandshakeComposer { Prime = prime, Generator = generator }
+        );
+    }
+
+    private async void OnSSOTicketMessage(SSOTicketMessage message, ISessionContext ctx)
+    {
+        var ticket = message.SSO;
+
+        Console.WriteLine("SSO Ticket: " + ticket);
+    }
+
+    private async void OnUniqueIdMessage(UniqueIdMessage message, ISessionContext ctx)
+    {
+        Console.WriteLine(
+            "Unique ID Message: {0}:{1}:{2}",
+            message.MachineID,
+            message.Fingerprint,
+            message.FlashVersion
+        );
+    }
+
+    private async void OnVersionCheckMessage(VersionCheckMessage message, ISessionContext ctx)
+    {
+        Console.WriteLine(
+            "Version Check Message: {0}:{1}:{2}",
+            message.ClientID,
+            message.ClientURL,
+            message.ExternalVariablesURL
+        );
     }
 }

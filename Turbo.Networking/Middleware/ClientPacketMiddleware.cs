@@ -27,7 +27,5 @@ public class ClientPacketMiddleware : IFrameMiddleware
 
         reader = r;
         clientPacket = new ClientPacket(header, body);
-
-        Console.WriteLine($"[Packet] 0x{header:X4} ({header})");
     }
 }

@@ -9,21 +9,12 @@ namespace Turbo.Packets.Revisions;
 
 public class RevisionManager(ILogger<IRevisionManager> logger) : IRevisionManager
 {
-    public IRevision DefaultRevision { get; private set; }
-
     public IDictionary<string, IRevision> Revisions { get; } = new Dictionary<string, IRevision>();
 
     private readonly ILogger<IRevisionManager> _logger = logger;
 
-    public IRevision GetRevision(string revisionId)
-    {
-        if (string.IsNullOrWhiteSpace(revisionId))
-        {
-            return DefaultRevision;
-        }
-
-        return Revisions.TryGetValue(revisionId, out var revision) ? revision : DefaultRevision;
-    }
+    public IRevision GetRevision(string revisionId) =>
+        Revisions.TryGetValue(revisionId, out var revision) ? revision : null;
 
     public void RegisterRevision(IRevision revision)
     {
@@ -33,7 +24,5 @@ public class RevisionManager(ILogger<IRevisionManager> logger) : IRevisionManage
         }
 
         Revisions[revision.Revision] = revision;
-
-        DefaultRevision = revision;
     }
 }
