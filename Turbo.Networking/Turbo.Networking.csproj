@@ -3,9 +3,9 @@
     <TargetFramework>net9.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="BouncyCastle.Cryptography" Version="2.4.0" />
-    <PackageReference Include="SuperSocket.ProtoBase" Version="2.0.2" />
-    <PackageReference Include="SuperSocket.Server" Version="2.0.2" />
+    <PackageReference Include="BouncyCastle.Cryptography" />
+    <PackageReference Include="SuperSocket.ProtoBase" />
+    <PackageReference Include="SuperSocket.Server" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Turbo.Core\Turbo.Core.csproj" />

@@ -5,10 +5,6 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference
-      Include="Microsoft.CodeAnalysis.NetAnalyzers"
-      Version="9.0.0"
-      PrivateAssets="all"
-    />
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" PrivateAssets="all" />
   </ItemGroup>
 </Project>

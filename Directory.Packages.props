@@ -1,0 +1,27 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.8" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.8" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.8" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Abstractions" Version="9.0.8" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.8" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.8" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.8" />
+    <PackageVersion Include="Microsoft.Orleans.Persistence.Memory" Version="9.2.1" />
+    <PackageVersion Include="Microsoft.Orleans.Server" Version="9.2.1" />
+    <PackageVersion Include="Microsoft.Orleans.Streaming" Version="9.2.1" />
+    <PackageVersion Include="Microsoft.Orleans.Core.Abstractions" Version="9.2.1" />
+    <PackageVersion Include="Microsoft.Orleans.Sdk" Version="9.2.1" />
+    <PackageVersion Include="System.Collections" Version="4.3.0" />
+    <PackageVersion Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
+    <PackageVersion Include="SuperSocket.Server" Version="2.0.2" />
+    <PackageVersion Include="SuperSocket.ProtoBase" Version="2.0.2" />
+    <PackageVersion Include="Scrutor" Version="6.1.0" />
+    <PackageVersion Include="BouncyCastle.Cryptography" Version="2.4.0" />
+  </ItemGroup>
+</Project>
