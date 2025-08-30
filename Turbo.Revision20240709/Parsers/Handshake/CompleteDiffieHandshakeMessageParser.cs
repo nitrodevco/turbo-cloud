@@ -2,7 +2,7 @@ using Turbo.Core.Packets.Messages;
 using Turbo.Packets.Incoming.Handshake;
 using Turbo.Packets.Parsers;
 
-namespace Turbo.DefaultRevision.Parsers.Handshake;
+namespace Turbo.Revision20240709.Parsers.Handshake;
 
 public class CompleteDiffieHandshakeMessageParser : AbstractParser<CompleteDiffieHandshakeMessage>
 {

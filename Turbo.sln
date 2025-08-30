@@ -27,6 +27,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Packets", "Turbo.Pack
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.DefaultRevision", "Turbo.DefaultRevision\Turbo.DefaultRevision.csproj", "{95ECA008-C60C-4EA4-B610-01D1C088315B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Revision20240709", "Turbo.Revision20240709\Turbo.Revision20240709.csproj", "{3D38EBA2-55E2-4281-B74A-3C57E8F09B64}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -181,6 +183,18 @@ Global
 		{95ECA008-C60C-4EA4-B610-01D1C088315B}.Release|x64.Build.0 = Release|Any CPU
 		{95ECA008-C60C-4EA4-B610-01D1C088315B}.Release|x86.ActiveCfg = Release|Any CPU
 		{95ECA008-C60C-4EA4-B610-01D1C088315B}.Release|x86.Build.0 = Release|Any CPU
+		{3D38EBA2-55E2-4281-B74A-3C57E8F09B64}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3D38EBA2-55E2-4281-B74A-3C57E8F09B64}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3D38EBA2-55E2-4281-B74A-3C57E8F09B64}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3D38EBA2-55E2-4281-B74A-3C57E8F09B64}.Debug|x64.Build.0 = Debug|Any CPU
+		{3D38EBA2-55E2-4281-B74A-3C57E8F09B64}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{3D38EBA2-55E2-4281-B74A-3C57E8F09B64}.Debug|x86.Build.0 = Debug|Any CPU
+		{3D38EBA2-55E2-4281-B74A-3C57E8F09B64}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3D38EBA2-55E2-4281-B74A-3C57E8F09B64}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3D38EBA2-55E2-4281-B74A-3C57E8F09B64}.Release|x64.ActiveCfg = Release|Any CPU
+		{3D38EBA2-55E2-4281-B74A-3C57E8F09B64}.Release|x64.Build.0 = Release|Any CPU
+		{3D38EBA2-55E2-4281-B74A-3C57E8F09B64}.Release|x86.ActiveCfg = Release|Any CPU
+		{3D38EBA2-55E2-4281-B74A-3C57E8F09B64}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

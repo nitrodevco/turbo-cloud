@@ -10,15 +10,10 @@ using Turbo.Packets.Outgoing.Handshake;
 
 namespace Turbo.DefaultRevision;
 
-public class DefaultRevisionPlugin(
-    IRevisionManager revisionManager,
-    IPacketMessageHub messageHub,
-    IDiffieService diffieService
-)
+public class DefaultRevisionPlugin(IRevisionManager revisionManager, IPacketMessageHub messageHub)
 {
     private readonly IRevisionManager _revisionManager = revisionManager;
     private readonly IPacketMessageHub _messageHub = messageHub;
-    private readonly IDiffieService _diffieService = diffieService;
 
     public Task InitializeAsync()
     {
@@ -26,11 +21,6 @@ public class DefaultRevisionPlugin(
         _revisionManager.RegisterRevision(revision);
 
         _messageHub.Subscribe<ClientHelloMessage>(this, OnClientHelloMessage);
-        _messageHub.Subscribe<InitDiffieHandshakeMessage>(this, OnInitDiffieHandshakeMessage);
-        _messageHub.Subscribe<CompleteDiffieHandshakeMessage>(
-            this,
-            OnCompleteDiffieHandshakeMessage
-        );
 
         return Task.CompletedTask;
     }
@@ -46,32 +36,5 @@ public class DefaultRevisionPlugin(
 
         ctx.SetRevisionId(message.Production);
         Console.WriteLine($"Set revision to {message.Production} for session {ctx.SessionID}");
-    }
-
-    private async void OnInitDiffieHandshakeMessage(
-        InitDiffieHandshakeMessage message,
-        ISessionContext ctx
-    )
-    {
-        var prime = _diffieService.GetSignedPrime();
-        var generator = _diffieService.GetSignedGenerator();
-
-        await ctx.SendComposerAsync(
-            new InitDiffieHandshakeComposer { Prime = prime, Generator = generator }
-        );
-    }
-
-    private async void OnCompleteDiffieHandshakeMessage(
-        CompleteDiffieHandshakeMessage message,
-        ISessionContext ctx
-    )
-    {
-        var sharedKey = _diffieService.GetSharedKey(message.SharedKey);
-
-        await ctx.SendComposerAsync(
-            new CompleteDiffieHandshakeComposer { PublicKey = _diffieService.GetPublicKey() }
-        );
-
-        ctx.SetupEncryption(sharedKey);
     }
 }

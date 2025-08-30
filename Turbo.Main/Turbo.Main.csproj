@@ -19,10 +19,7 @@
     <PackageReference Include="Microsoft.Orleans.Persistence.Memory" Version="9.2.1" />
     <PackageReference Include="Microsoft.Orleans.Server" Version="9.2.1" />
     <PackageReference Include="Microsoft.Orleans.Streaming" Version="9.2.1" />
-    <PackageReference
-      Include="Pomelo.EntityFrameworkCore.MySql"
-      Version="9.0.0-rc.1.efcore.9.0.0"
-    />
+    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0-rc.1.efcore.9.0.0" />
     <PackageReference Include="SuperSocket.Server" Version="2.0.2" />
     <PackageReference Include="Scrutor" Version="6.1.0" />
     <PackageReference Include="System.Collections" Version="4.3.0" />
@@ -47,5 +44,6 @@
     <ProjectReference Include="..\Turbo.Authorization\Turbo.Authorization.csproj" />
     <ProjectReference Include="..\Turbo.Networking\Turbo.Networking.csproj" />
     <ProjectReference Include="..\Turbo.DefaultRevision\Turbo.DefaultRevision.csproj" />
+    <ProjectReference Include="..\Turbo.Revision20240709\Turbo.Revision20240709.csproj" />
   </ItemGroup>
 </Project>

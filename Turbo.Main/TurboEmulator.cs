@@ -24,6 +24,7 @@ using Turbo.Core.Networking.Protocol;
 using Turbo.DefaultRevision;
 using Turbo.Main.Delegates;
 using Turbo.Packets.Revisions;
+using Turbo.Revision20240709;
 
 namespace Turbo.Main;
 
@@ -79,8 +80,12 @@ public class TurboEmulator : IEmulator
             var defaultRevision = ActivatorUtilities.CreateInstance<DefaultRevisionPlugin>(
                 _serviceProvider
             );
+            var revision20240709 = ActivatorUtilities.CreateInstance<Revision20240709Plugin>(
+                _serviceProvider
+            );
 
             await defaultRevision.InitializeAsync();
+            await revision20240709.InitializeAsync();
             await networkManager.StartAsync();
         }
         catch (OperationCanceledException)
