@@ -14,7 +14,7 @@ public interface ISessionContext : IAppSession
 {
     public bool PolicyDone { get; set; }
     public string RevisionId { get; }
-    public IRc4Service Rc4Service { get; }
+    public IStreamCipher Rc4Engine { get; }
     public void SetRevisionId(string revisionId);
     public void SetupEncryption(byte[] key);
     public ValueTask EnqueuePacketAsync(IClientPacket packet, CancellationToken ct = default);

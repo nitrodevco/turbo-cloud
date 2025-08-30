@@ -73,8 +73,8 @@ public class PacketProcessor(
                 BinaryPrimitives.WriteInt32BigEndian(data.AsSpan(0, 4), payload.Length);
                 payload.CopyTo(data.AsSpan(4));
 
-                if (ctx.Rc4Service is not null)
-                    data = ctx.Rc4Service.ProcessBytes(data);
+                if (ctx.Rc4Engine is not null)
+                    data = ctx.Rc4Engine.ProcessBytes(data);
 
                 await ctx.SendAsync(data, ct);
             }

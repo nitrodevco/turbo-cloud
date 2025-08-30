@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Org.BouncyCastle.Crypto.Engines;
 using SuperSocket.Connection;
 using SuperSocket.Server;
 using Turbo.Core;
@@ -22,7 +23,7 @@ public class SessionContext : AppSession, ISessionContext
 
     public bool PolicyDone { get; set; } = true;
     public string RevisionId { get; private set; } = "default";
-    public IRc4Service Rc4Service { get; private set; }
+    public IStreamCipher Rc4Engine { get; private set; }
 
     public SessionContext(IEmulatorConfig config, IPacketProcessor packetProcessor)
         : base()
@@ -38,7 +39,7 @@ public class SessionContext : AppSession, ISessionContext
 
     public void SetupEncryption(byte[] key)
     {
-        Rc4Service = new Rc4Service(key);
+        Rc4Engine = new Rc4Engine(new KeyParameter(key));
     }
 
     protected override async ValueTask OnSessionConnectedAsync()

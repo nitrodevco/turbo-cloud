@@ -15,7 +15,7 @@ public class DecryptionMiddleware : IFrameMiddleware
         ref IClientPacket? clientPacket
     )
     {
-        var rc4 = ctx.Rc4Service;
+        var rc4 = ctx.Rc4Engine;
 
         if (rc4 is null)
             return;
