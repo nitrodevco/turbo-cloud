@@ -16,6 +16,8 @@ public class LengthFieldMiddleware : IFrameMiddleware
         ref IClientPacket? clientPacket
     )
     {
+        ctx.ProcessSequenceForEncryption(ref reader);
+
         var r = reader;
 
         if (r.Length < 4 || !r.TryReadBigEndian(out int bodyLength) || r.Remaining < bodyLength)

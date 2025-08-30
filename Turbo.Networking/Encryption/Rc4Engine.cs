@@ -21,13 +21,13 @@ public class Rc4Engine : IStreamCipher
 
     public string AlgorithmName => "RC4";
 
-    public byte[] ProcessBytes(byte[] bytes)
+    public byte[] ProcessBytes(byte[] bytes, byte[] output = null)
     {
-        var outputData = new byte[bytes.Length];
+        output ??= new byte[bytes.Length];
 
-        ProcessBytes(bytes, 0, bytes.Length, outputData, 0);
+        ProcessBytes(bytes, 0, bytes.Length, output, 0);
 
-        return outputData;
+        return output;
     }
 
     public void ProcessBytes(byte[] input, int inOff, int length, byte[] output, int outOff)

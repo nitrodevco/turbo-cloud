@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -79,5 +80,18 @@ public class SessionContext : AppSession, ISessionContext
     public async Task SendComposerAsync(IComposer composer, CancellationToken ct = default)
     {
         await _packetProcessor.ProcessComposer(this, composer, ct);
+    }
+
+    public void ProcessSequenceForEncryption(ref SequenceReader<byte> reader)
+    {
+        if (Rc4Engine is null)
+            return;
+
+        var r = reader;
+        var body = Rc4Engine.ProcessBytes(r.UnreadSpan.ToArray());
+
+        r.Advance(body.Length);
+
+        reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(body));
     }
 }

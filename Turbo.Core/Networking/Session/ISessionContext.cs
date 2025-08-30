@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,4 +24,5 @@ public interface ISessionContext : IAppSession
         CancellationToken ct = default
     );
     public Task SendComposerAsync(IComposer composer, CancellationToken ct = default);
+    public void ProcessSequenceForEncryption(ref SequenceReader<byte> reader);
 }
