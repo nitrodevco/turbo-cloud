@@ -8,6 +8,7 @@ using Orleans;
 using Orleans.Runtime;
 using Orleans.Streams;
 using Turbo.Core.Contracts.Players;
+using Turbo.Core.Game.Rooms.Object.Constants;
 using Turbo.Database.Context;
 using Turbo.Events.Players;
 using Turbo.Grains.Shared;
@@ -111,6 +112,8 @@ public class PlayerGrain : Grain, IPlayerGrain
                     Name = entity.Name ?? string.Empty,
                     Motto = entity.Motto ?? string.Empty,
                     Figure = entity.Figure ?? string.Empty,
+                    Gender = entity.Gender,
+                    CreatedAt = entity.CreatedAt,
                     Initialized = true,
                 }
             );
@@ -139,7 +142,8 @@ public class PlayerGrain : Grain, IPlayerGrain
                 up =>
                     up.SetProperty(p => p.Name, _host.State.Name)
                         .SetProperty(p => p.Motto, _host.State.Motto)
-                        .SetProperty(p => p.Figure, _host.State.Figure),
+                        .SetProperty(p => p.Figure, _host.State.Figure)
+                        .SetProperty(p => p.Gender, _host.State.Gender),
                 ct
             );
     }
@@ -192,7 +196,14 @@ public class PlayerGrain : Grain, IPlayerGrain
     /// <inheritdoc />
     public Task<PlayerSummary> GetAsync() =>
         Task.FromResult(
-            new PlayerSummary(PlayerId, _host.State.Name, _host.State.Motto, _host.State.Figure)
+            new PlayerSummary(
+                PlayerId,
+                _host.State.Name,
+                _host.State.Motto,
+                _host.State.Figure,
+                _host.State.Gender,
+                _host.State.CreatedAt
+            )
         );
 
     /// <inheritdoc />

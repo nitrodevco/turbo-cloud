@@ -1,8 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Orleans;
 using Orleans.Serialization;
+using Turbo.Core.Game.Rooms.Object.Constants;
 
 namespace Turbo.Grains.Players;
 
@@ -25,6 +27,12 @@ public sealed partial class PlayerState : INotifyPropertyChanged
     private string _figure = string.Empty;
 
     [Id(3)]
+    private AvatarGender _gender = AvatarGender.M;
+
+    [Id(4)]
+    private DateTime _createdAt = DateTime.UtcNow;
+
+    [Id(5)]
     private bool _initialized;
 
     /// <summary>
@@ -52,6 +60,24 @@ public sealed partial class PlayerState : INotifyPropertyChanged
     {
         get => _figure;
         set => SetProperty(ref _figure, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the player's gender.
+    /// </summary>
+    public AvatarGender Gender
+    {
+        get => _gender;
+        set => SetProperty(ref _gender, value);
+    }
+
+    /// <summary>
+    /// Gets the player's CreatedAt timestamp.
+    /// </summary>
+    public DateTime CreatedAt
+    {
+        get => _createdAt;
+        set => SetProperty(ref _createdAt, value);
     }
 
     /// <summary>
