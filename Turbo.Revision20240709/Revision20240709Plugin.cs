@@ -1,14 +1,15 @@
 using System;
 using System.Threading.Tasks;
-using SuperSocket.Connection;
 using Turbo.Authorization.Players.Policies;
 using Turbo.Core.Authorization;
+using Turbo.Core.Game.Players;
 using Turbo.Core.Networking.Encryption;
 using Turbo.Core.Networking.Session;
 using Turbo.Core.Packets;
 using Turbo.Core.Packets.Revisions;
 using Turbo.Packets.Incoming.Handshake;
 using Turbo.Packets.Outgoing.Handshake;
+using Turbo.Packets.Outgoing.Users;
 
 namespace Turbo.Revision20240709;
 
@@ -16,13 +17,15 @@ public class Revision20240709Plugin(
     IRevisionManager revisionManager,
     IPacketMessageHub messageHub,
     IDiffieService diffieService,
-    IAuthorizationManager authorizationManager
+    IAuthorizationManager authorizationManager,
+    IPlayerManager playerManager
 )
 {
     private readonly IRevisionManager _revisionManager = revisionManager;
     private readonly IPacketMessageHub _messageHub = messageHub;
     private readonly IDiffieService _diffieService = diffieService;
     private readonly IAuthorizationManager _authorizationManager = authorizationManager;
+    private readonly IPlayerManager _playerManager = playerManager;
 
     public Task InitializeAsync()
     {
@@ -57,9 +60,15 @@ public class Revision20240709Plugin(
         ctx.SetupEncryption(sharedKey);
     }
 
-    private async void OnDisconnectMessage(DisconnectMessage message, ISessionContext ctx) { }
+    private void OnDisconnectMessage(DisconnectMessage message, ISessionContext ctx) { }
 
-    private async void OnInfoRetrieveMessage(InfoRetrieveMessage message, ISessionContext ctx) { }
+    private async Task OnInfoRetrieveMessage(InfoRetrieveMessage message, ISessionContext ctx)
+    {
+        var player = await _playerManager.GetPlayerGrain(ctx.PlayerId);
+        var summary = await player.GetAsync();
+
+        await ctx.SendComposerAsync(new UserObjectMessage { Player = summary });
+    }
 
     private async void OnInitDiffieHandshakeMessage(
         InitDiffieHandshakeMessage message,
@@ -85,10 +94,21 @@ public class Revision20240709Plugin(
             Console.WriteLine(result.Failures.ToString());
         }
 
-        Console.WriteLine("SSO Ticket: " + ticket);
+        ctx.SetPlayerId(1);
+
+        await ctx.SendComposerAsync(
+            new AuthenticationOKMessage
+            {
+                AccountId = (int)ctx.PlayerId,
+                SuggestedLoginActions = Array.Empty<short>(),
+                IdentityId = (int)ctx.PlayerId,
+            }
+        );
+
+        await ctx.SendComposerAsync(new ScrSendUserInfoMessage());
     }
 
-    private async void OnUniqueIdMessage(UniqueIdMessage message, ISessionContext ctx)
+    private void OnUniqueIdMessage(UniqueIdMessage message, ISessionContext ctx)
     {
         Console.WriteLine(
             "Unique ID Message: {0}:{1}:{2}",
@@ -98,7 +118,7 @@ public class Revision20240709Plugin(
         );
     }
 
-    private async void OnVersionCheckMessage(VersionCheckMessage message, ISessionContext ctx)
+    private void OnVersionCheckMessage(VersionCheckMessage message, ISessionContext ctx)
     {
         Console.WriteLine(
             "Version Check Message: {0}:{1}:{2}",

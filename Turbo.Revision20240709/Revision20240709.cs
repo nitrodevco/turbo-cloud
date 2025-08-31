@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using Turbo.Core.Packets.Messages;
 using Turbo.Core.Packets.Revisions;
 using Turbo.Packets.Outgoing.Handshake;
+using Turbo.Packets.Outgoing.Users;
 using Turbo.Revision20240709.Parsers.Handshake;
 using Turbo.Revision20240709.Serializers.Handshake;
+using Turbo.Revision20240709.Serializers.Users;
 
 namespace Turbo.Revision20240709;
 
@@ -34,14 +36,40 @@ public class Revision20240709 : IRevision
         new Dictionary<Type, ISerializer>
         {
             {
-                typeof(InitDiffieHandshakeComposer),
-                new InitDiffieHandshakeSerializer(MessageComposer.InitDiffieHandshakeComposer)
+                typeof(AuthenticationOKMessage),
+                new AuthenticationOKMessageSerializer(
+                    MessageComposer.AuthenticationOKMessageComposer
+                )
             },
             {
                 typeof(CompleteDiffieHandshakeComposer),
                 new CompleteDiffieHandshakeSerializer(
                     MessageComposer.CompleteDiffieHandshakeComposer
                 )
+            },
+            {
+                typeof(InitDiffieHandshakeComposer),
+                new InitDiffieHandshakeSerializer(MessageComposer.InitDiffieHandshakeComposer)
+            },
+            {
+                typeof(IsFirstLoginOfDayMessage),
+                new IsFirstLoginOfDaySerializer(MessageComposer.IsFirstLoginOfDayComposer)
+            },
+            {
+                typeof(NoobnessLevelMessage),
+                new NoobnessLevelSerializer(MessageComposer.NoobnessLevelMessageComposer)
+            },
+            {
+                typeof(UserObjectMessage),
+                new UserObjectMessageSerializer(MessageComposer.UserObjectComposer)
+            },
+            {
+                typeof(UserRightsMessage),
+                new UserRightsMessageSerializer(MessageComposer.UserRightsMessageComposer)
+            },
+            {
+                typeof(ScrSendUserInfoMessage),
+                new ScrSendUserInfoSerializer(MessageComposer.ScrSendUserInfoComposer)
             },
         };
 }

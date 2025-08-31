@@ -13,6 +13,15 @@ public enum MessageEvent
 
 public static class MessageComposer
 {
-    public const int InitDiffieHandshakeComposer = 771;
+    // Handshake
+    public const int AuthenticationOKMessageComposer = 2323;
     public const int CompleteDiffieHandshakeComposer = 3777;
+    public const int InitDiffieHandshakeComposer = 771;
+    public const int IsFirstLoginOfDayComposer = 3129;
+    public const int NoobnessLevelMessageComposer = 1916;
+    public const int UserObjectComposer = 3048;
+    public const int UserRightsMessageComposer = 1416;
+
+    // Users
+    public const int ScrSendUserInfoComposer = 937;
 }
