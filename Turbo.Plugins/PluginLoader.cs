@@ -10,45 +10,30 @@ namespace Turbo.Plugins;
 
 public class PluginLoader
 {
-    public static IReadOnlyList<ITurboPlugin> LoadPlugins(
-        string directory,
-        ILogger? logger,
-        PluginLoadPolicy? policy = null
-    )
+    public static IEnumerable<Assembly> GetPluginAssemblies(string directory)
     {
-        var plugins = new List<ITurboPlugin>();
+        var assemblies = new List<Assembly>();
 
         foreach (var dll in Directory.EnumerateFiles(directory, "*.dll"))
         {
-            var ctx = new TurboPluginLoadContext(
-                dll,
-                policy?.ShareAllowPatterns,
-                policy?.ShareDenyPatterns
-            );
-
-            var asm = ctx.LoadFromAssemblyPath(dll);
-            var pluginType = asm.GetTypes()
-                .Where(t =>
-                    typeof(ITurboPlugin).IsAssignableFrom(t) && !t.IsAbstract && !t.IsInterface
-                )
-                .OrderByDescending(t => t.GetCustomAttribute<TurboPluginAttribute>() != null)
-                .FirstOrDefault();
-
-            if (pluginType is null)
-                continue;
-
-            if (Activator.CreateInstance(pluginType) is ITurboPlugin plugin)
+            try
             {
-                plugins.Add(plugin);
-
-                logger?.LogInformation(
-                    "Loading Plugin: {PluginName} by {PluginAuthor}",
-                    plugin.PluginName,
-                    plugin.PluginAuthor
+                var ctx = new TurboPluginLoadContext(
+                    dll,
+                    [@"^Turbo\.", @"^Microsoft\.Extensions\.", @"^System(\..+)?$"],
+                    []
                 );
+
+                var asm = ctx.LoadFromAssemblyPath(dll);
+
+                assemblies.Add(asm);
+            }
+            catch
+            {
+                // ignore load failures
             }
         }
 
-        return plugins;
+        return assemblies.Distinct();
     }
 }

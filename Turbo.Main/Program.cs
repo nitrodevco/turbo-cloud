@@ -3,8 +3,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -12,10 +10,13 @@ using Microsoft.Extensions.Logging;
 using Orleans.Hosting;
 using Turbo.Core.Configuration;
 using Turbo.Core.Game.Players;
-using Turbo.Database.Context;
+using Turbo.Database.Extensions;
+using Turbo.Events.Extensions;
 using Turbo.Main.Configuration;
 using Turbo.Main.Extensions;
 using Turbo.Players;
+using Turbo.Plugins;
+using Turbo.Plugins.Extensions;
 using Turbo.Streams;
 
 namespace Turbo.Main;
@@ -54,6 +55,9 @@ internal class Program
         );
 
         var builder = Host.CreateDefaultBuilder(args);
+        var pluginAssemblies = PluginLoader.GetPluginAssemblies(
+            Path.Combine(AppContext.BaseDirectory, "plugins")
+        );
 
         builder.ConfigureLogging(
             (ctx, logging) =>
@@ -61,22 +65,6 @@ internal class Program
                 logging.ClearProviders();
                 logging.AddConfiguration(ctx.Configuration.GetSection("Logging"));
                 logging.AddConsole();
-            }
-        );
-
-        builder.ConfigureServices(
-            (ctx, services) =>
-            {
-                var turboConfig = new TurboConfig();
-                ctx.Configuration.Bind(TurboConfig.Turbo, turboConfig);
-                services.AddSingleton<IEmulatorConfig>(turboConfig);
-
-                services.AddNetworking();
-
-                services.AddSingleton<IPlayerManager, PlayerManager>();
-
-                // Emulator
-                services.AddHostedService<TurboEmulator>();
             }
         );
 
@@ -125,35 +113,36 @@ internal class Program
             }
         });
 
-        builder.UseTurboPlugins(
-            Path.Combine(AppContext.BaseDirectory, "plugins"),
-            [@"^Turbo\.", @"^Microsoft\.Extensions\.", @"^System(\..+)?$"],
-            [],
-            bootstrapLogger
-        );
+        builder.UseTurboDatabase();
+
+        builder.UsePluginAssemblies(pluginAssemblies, bootstrapLogger);
 
         builder.ConfigureServices(
             (ctx, services) =>
             {
-                var dbConfig = ctx.Configuration.GetSection("Turbo:Database");
-                var connectionString = dbConfig.GetConnectionString("DefaultConnection");
-                var dataLoggingEnabled = dbConfig.GetValue<bool>("DatabaseLoggingEnabled");
+                var turboConfig = new TurboConfig();
+                ctx.Configuration.Bind(TurboConfig.Turbo, turboConfig);
+                services.AddSingleton<IEmulatorConfig>(turboConfig);
 
-                services.AddDbContextFactory<TurboDbContext>(options =>
-                    options
-                        .UseMySql(
-                            connectionString,
-                            ServerVersion.AutoDetect(connectionString),
-                            options =>
-                            {
-                                options.MigrationsAssembly("Turbo.Main");
-                            }
-                        )
-                        .ConfigureWarnings(warnings =>
-                            warnings.Ignore(CoreEventId.RedundantIndexRemoved)
-                        )
-                        .EnableSensitiveDataLogging(dataLoggingEnabled)
-                        .EnableDetailedErrors()
+                services.AddNetworking();
+
+                services.AddSingleton<IPlayerManager, PlayerManager>();
+
+                // Emulator
+                services.AddHostedService<TurboEmulator>();
+
+                services.AddGlobalEventBus(
+                    new[] { typeof(Program).Assembly }.Concat(pluginAssemblies),
+                    opts =>
+                    {
+                        opts.OnPublished = e => Console.WriteLine($"published {e.GetType().Name}");
+                        opts.OnHandled = (e, dur) =>
+                            Console.WriteLine(
+                                $"handled {e.GetType().Name} in {dur.TotalMilliseconds:F1} ms"
+                            );
+                        opts.OnError = (e, ex) =>
+                            Console.WriteLine($"ERROR in {e.GetType().Name}: {ex.Message}");
+                    }
                 );
             }
         );
