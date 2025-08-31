@@ -1,8 +1,9 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Events.Abstractions.Registry;
 
-namespace Turbo.Core.Events.Registry;
+namespace Turbo.Events.Registry;
 
 public sealed record Handler(
     Type ServiceType,

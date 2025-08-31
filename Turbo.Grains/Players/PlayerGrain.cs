@@ -6,11 +6,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Orleans;
 using Orleans.Runtime;
-using Orleans.Streams;
 using Turbo.Core.Contracts.Players;
-using Turbo.Core.Game.Rooms.Object.Constants;
 using Turbo.Database.Context;
-using Turbo.Events.Players;
 using Turbo.Grains.Shared;
 using Turbo.Streams;
 
@@ -24,8 +21,9 @@ public class PlayerGrain : Grain, IPlayerGrain
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory;
     private readonly GrainStateHost<PlayerState> _host;
     private readonly ILogger<PlayerGrain> _logger;
-    private IAsyncStream<PlayerEventEnvelope> _stream = default!;
-    private StreamSubscriptionHandle<PlayerEventEnvelope>? _subHandle;
+
+    //private IAsyncStream<PlayerEventEnvelope> _stream = default!;
+    //private StreamSubscriptionHandle<PlayerEventEnvelope>? _subHandle;
 
     /// <summary>
     /// Gets the player ID for this grain.
@@ -56,7 +54,7 @@ public class PlayerGrain : Grain, IPlayerGrain
             //await ActivateStreamAsync();
             await _host.InitializeAsync();
             await HydrateFromExternalAsync(ct);
-            await PublishAsync(PlayerEventEnvelope.Create(PlayerId, new PlayerActivatedEvent()));
+            // await PublishAsync(PlayerEventEnvelope.Create(PlayerId, new PlayerActivatedEvent()));
             _logger.LogInformation("PlayerGrain {PlayerId} activated.", PlayerId);
         }
         catch (Exception ex)
@@ -155,14 +153,14 @@ public class PlayerGrain : Grain, IPlayerGrain
     {
         var streamProvider = this.GetStreamProvider(PlayerStreams.ProviderName);
 
-        _stream = streamProvider.GetStream<PlayerEventEnvelope>(PlayerStreams.Id(PlayerId));
+        /* _stream = streamProvider.GetStream<PlayerEventEnvelope>(PlayerStreams.Id(PlayerId));
 
         var handles = await _stream.GetAllSubscriptionHandles();
 
         _subHandle =
             handles.Count > 0
                 ? await handles[0].ResumeAsync(OnPlayerEvent)
-                : await _stream.SubscribeAsync(OnPlayerEvent);
+                : await _stream.SubscribeAsync(OnPlayerEvent); */
     }
 
     /// <summary>
@@ -170,10 +168,10 @@ public class PlayerGrain : Grain, IPlayerGrain
     /// </summary>
     protected async Task DeactivateStreamAsync()
     {
-        if (_subHandle is not null)
+        /* if (_subHandle is not null)
         {
             await _subHandle.UnsubscribeAsync();
-        }
+        } */
     }
 
     /// <inheritdoc />
@@ -187,11 +185,11 @@ public class PlayerGrain : Grain, IPlayerGrain
     /// <summary>
     /// Handles incoming player events from the stream.
     /// </summary>
-    private Task OnPlayerEvent(PlayerEventEnvelope evt, StreamSequenceToken? token)
+    /* private Task OnPlayerEvent(PlayerEventEnvelope evt, StreamSequenceToken? token)
     {
         _logger.LogInformation("Player {PlayerId} got event {Event}", PlayerId, evt.ToString());
         return Task.CompletedTask;
-    }
+    } */
 
     /// <inheritdoc />
     public Task<PlayerSummary> GetAsync() =>
@@ -207,5 +205,5 @@ public class PlayerGrain : Grain, IPlayerGrain
         );
 
     /// <inheritdoc />
-    public Task PublishAsync(PlayerEventEnvelope evt) => _stream?.OnNextAsync(evt);
+    // public Task PublishAsync(PlayerEventEnvelope evt) => _stream?.OnNextAsync(evt);
 }

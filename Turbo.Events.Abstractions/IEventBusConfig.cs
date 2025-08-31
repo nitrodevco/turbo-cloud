@@ -1,9 +1,7 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using Turbo.Core.Events.Enums;
+using Turbo.Events.Abstractions.Enums;
 
-namespace Turbo.Core.Events;
+namespace Turbo.Events.Abstractions;
 
 public class IEventBusConfig
 {

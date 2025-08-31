@@ -3,6 +3,10 @@
     <TargetFramework>net9.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Turbo.Core\Turbo.Core.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Turbo.Events.Abstractions\Turbo.Events.Abstractions.csproj" />
   </ItemGroup>
 </Project>

@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 
-namespace Turbo.Core.Events;
+namespace Turbo.Events;
 
 public record EventEnvelope(
     object Event,

@@ -1,5 +1,5 @@
 using System;
 
-namespace Turbo.Events.Exceptions;
+namespace Turbo.Events.Abstractions.Exceptions;
 
 public class EventAbortedException(string? reason = null) : Exception(reason) { }

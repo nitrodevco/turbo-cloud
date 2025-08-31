@@ -5,9 +5,9 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
-using Turbo.Core.Events;
-using Turbo.Core.Events.Registry;
-using Turbo.Events.Attributes;
+using Turbo.Events.Abstractions.Attributes;
+using Turbo.Events.Abstractions.Registry;
+using Turbo.Events.Registry;
 
 namespace Turbo.Events;
 
@@ -36,7 +36,17 @@ public class EventRegistry
                     var tags = t.GetCustomAttributes<EventTagAttribute>()
                         .Select(x => x.Tag)
                         .ToArray();
-                    var method = i.GetMethod(nameof(IEventHandler<IEvent>.HandleAsync))!;
+                    var method = i.GetMethods()
+                        .First(m =>
+                        {
+                            if (m.Name != nameof(IEventHandler<object>.HandleAsync))
+                                return false;
+                            var ps = m.GetParameters();
+                            return ps.Length == 3
+                                && ps[0].ParameterType.IsAssignableFrom(evt) // TEvent
+                                && ps[1].ParameterType == typeof(EventContext)
+                                && ps[2].ParameterType == typeof(CancellationToken);
+                        });
                     var inv = BuildHandlerInvoker(method, i, t);
                     if (!reg._handlers.TryGetValue(evt, out var list))
                         reg._handlers[evt] = list = new();
@@ -52,7 +62,18 @@ public class EventRegistry
                     var tags = t.GetCustomAttributes<EventTagAttribute>()
                         .Select(x => x.Tag)
                         .ToArray();
-                    var method = i.GetMethod(nameof(IEventBehavior<IEvent>.InvokeAsync))!;
+                    var method = i.GetMethods()
+                        .First(m =>
+                        {
+                            if (m.Name != nameof(IEventBehavior<object>.InvokeAsync))
+                                return false;
+                            var p = m.GetParameters();
+                            return p.Length == 4
+                                && p[0].ParameterType.IsAssignableFrom(evt) // TEvent
+                                && p[1].ParameterType == typeof(EventContext)
+                                && p[2].ParameterType == typeof(Func<Task>)
+                                && p[3].ParameterType == typeof(CancellationToken);
+                        });
                     var inv = BuildBehaviorInvoker(t, i, method);
                     if (!reg._behaviors.TryGetValue(evt, out var list))
                         reg._behaviors[evt] = list = new();

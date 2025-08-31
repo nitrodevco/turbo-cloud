@@ -1,4 +1,4 @@
-namespace Turbo.Core.Events.Enums;
+namespace Turbo.Events.Abstractions.Enums;
 
 public enum ExecutionModeType
 {

@@ -1,6 +1,6 @@
 using System;
 
-namespace Turbo.Core.Events.Registry;
+namespace Turbo.Events.Abstractions.Registry;
 
 public class EventContext
 {

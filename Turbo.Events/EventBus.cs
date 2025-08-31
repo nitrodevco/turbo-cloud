@@ -3,30 +3,23 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Turbo.Core.Events;
-using Turbo.Core.Events.Enums;
+using Turbo.Events.Abstractions;
+using Turbo.Events.Abstractions.Enums;
 
 namespace Turbo.Events;
 
-public class EventBus : IEventBus
+public class EventBus(Channel<EventEnvelope> channel, IEventBusConfig opts, ILogger<EventBus> log)
+    : IEventBus
 {
-    private readonly Channel<EventEnvelope> _channel;
-    private readonly IEventBusConfig _opts;
-    private readonly ILogger<EventBus> _log;
-
-    public EventBus(Channel<EventEnvelope> channel, IEventBusConfig opts, ILogger<EventBus> log)
-    {
-        _channel = channel;
-        _opts = opts;
-        _log = log;
-    }
+    private readonly Channel<EventEnvelope> _channel = channel;
+    private readonly IEventBusConfig _opts = opts;
+    private readonly ILogger<EventBus> _logger = log;
 
     public async ValueTask PublishAsync<TEvent>(
         TEvent @event,
         string? tag = null,
         CancellationToken ct = default
     )
-        where TEvent : IEvent
     {
         var env = new EventEnvelope(@event!, tag, null, DateTimeOffset.UtcNow);
         await WriteAsync(env, ct);
@@ -38,7 +31,6 @@ public class EventBus : IEventBus
         string? tag = null,
         CancellationToken ct = default
     )
-        where TEvent : IEvent
     {
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var env = new EventEnvelope(@event!, tag, tcs, DateTimeOffset.UtcNow);

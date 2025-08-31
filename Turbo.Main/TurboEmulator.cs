@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Turbo.Contracts.Events;
 using Turbo.Core;
-using Turbo.Core.Events;
 using Turbo.Core.Networking;
 using Turbo.DefaultRevision;
-using Turbo.Events.Players;
+using Turbo.Events.Abstractions;
 using Turbo.Revision20240709;
 
 namespace Turbo.Main;

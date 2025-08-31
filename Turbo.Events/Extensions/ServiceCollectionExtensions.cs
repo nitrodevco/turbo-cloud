@@ -4,8 +4,8 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Channels;
 using Microsoft.Extensions.DependencyInjection;
-using Turbo.Core.Events;
-using Turbo.Core.Events.Registry;
+using Turbo.Events.Abstractions;
+using Turbo.Events.Abstractions.Registry;
 
 namespace Turbo.Events.Extensions;
 
@@ -17,16 +17,13 @@ public static class ServiceCollectionExtensions
         Action<IEventBusConfig>? configure = null
     )
     {
-        // options
         var opts = new IEventBusConfig();
         configure?.Invoke(opts);
         services.AddSingleton(opts);
 
-        // registry
         var reg = EventRegistry.Build(asms);
         services.AddSingleton(reg);
 
-        // channel with backpressure policy
         var ch = CreateChannel(opts);
         services.AddSingleton(ch);
 

@@ -1,6 +1,6 @@
 using System;
 
-namespace Turbo.Events.Attributes;
+namespace Turbo.Events.Abstractions.Attributes;
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
 public class OrderAttribute(int value) : Attribute

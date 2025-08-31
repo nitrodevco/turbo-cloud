@@ -7,10 +7,11 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Turbo.Core.Events;
-using Turbo.Core.Events.Enums;
-using Turbo.Core.Events.Registry;
-using Turbo.Events.Exceptions;
+using Turbo.Events.Abstractions;
+using Turbo.Events.Abstractions.Enums;
+using Turbo.Events.Abstractions.Exceptions;
+using Turbo.Events.Abstractions.Registry;
+using Turbo.Events.Registry;
 
 namespace Turbo.Events;
 
