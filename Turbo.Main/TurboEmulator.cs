@@ -1,38 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Orleans;
-using SuperSocket.Connection;
-using SuperSocket.Server;
-using SuperSocket.Server.Abstractions;
-using SuperSocket.Server.Host;
-using Turbo.Authorization.Players.Requirements;
 using Turbo.Core;
-using Turbo.Core.Authorization;
-using Turbo.Core.Configuration;
 using Turbo.Core.Game.Players;
 using Turbo.Core.Networking;
-using Turbo.Core.Networking.Protocol;
 using Turbo.DefaultRevision;
-using Turbo.Main.Delegates;
-using Turbo.Packets.Revisions;
 using Turbo.Revision20240709;
 
 namespace Turbo.Main;
 
 public class TurboEmulator : IEmulator
 {
-    public const int MAJOR = 0;
-    public const int MINOR = 0;
-    public const int PATCH = 0;
-
     private readonly IHostApplicationLifetime _appLifetime;
     private readonly ILogger<TurboEmulator> _logger;
     private readonly IServiceProvider _serviceProvider;
@@ -59,20 +42,6 @@ public class TurboEmulator : IEmulator
 
     public async Task StartAsync(CancellationToken ct)
     {
-        Console.WriteLine(
-            @"
-                ████████╗██╗   ██╗██████╗ ██████╗  ██████╗ 
-                ╚══██╔══╝██║   ██║██╔══██╗██╔══██╗██╔═══██╗
-                   ██║   ██║   ██║██████╔╝██████╔╝██║   ██║
-                   ██║   ██║   ██║██╔══██╗██╔══██╗██║   ██║
-                   ██║   ╚██████╔╝██║  ██║██████╔╝╚██████╔╝
-                   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═════╝  ╚═════╝ 
-            "
-        );
-
-        _logger.LogInformation("Starting {Emulator}", GetVersion());
-        Console.WriteLine();
-
         try
         {
             var networkManager = _serviceProvider.GetRequiredService<INetworkManager>();
@@ -103,30 +72,24 @@ public class TurboEmulator : IEmulator
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("{GetVersion} StopAsync...", GetVersion());
+        //_logger.LogInformation("{GetVersion} StopAsync...", GetVersion());
 
         return Task.CompletedTask;
     }
 
     private void OnStarted()
     {
-        _logger.LogInformation("Started {Emulator}", GetVersion());
-        Console.WriteLine();
+        //_logger.LogInformation("Started {Emulator}", GetVersion());
     }
 
     private void OnStopping()
     {
-        _logger.LogInformation("{GetVersion} Stopping...", GetVersion());
+        //_logger.LogInformation("{GetVersion} Stopping...", GetVersion());
     }
 
     private void OnStopped()
     {
-        _logger.LogInformation("{GetVersion} Stopped", GetVersion());
-    }
-
-    public string GetVersion()
-    {
-        return $"Turbo Emulator {MAJOR}.{MINOR}.{PATCH}";
+        //_logger.LogInformation("{GetVersion} Stopped", GetVersion());
     }
 
     private void SetDefaultCulture(CultureInfo culture)

@@ -52,7 +52,7 @@ public class PlayerGrain : Grain, IPlayerGrain
     {
         try
         {
-            await ActivateStreamAsync();
+            //await ActivateStreamAsync();
             await _host.InitializeAsync();
             await HydrateFromExternalAsync(ct);
             await PublishAsync(PlayerEventEnvelope.Create(PlayerId, new PlayerActivatedEvent()));
@@ -196,5 +196,5 @@ public class PlayerGrain : Grain, IPlayerGrain
         );
 
     /// <inheritdoc />
-    public Task PublishAsync(PlayerEventEnvelope evt) => _stream.OnNextAsync(evt);
+    public Task PublishAsync(PlayerEventEnvelope evt) => _stream?.OnNextAsync(evt);
 }

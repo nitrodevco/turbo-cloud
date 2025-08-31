@@ -45,5 +45,6 @@
     <ProjectReference Include="..\Turbo.Networking\Turbo.Networking.csproj" />
     <ProjectReference Include="..\Turbo.DefaultRevision\Turbo.DefaultRevision.csproj" />
     <ProjectReference Include="..\Turbo.Revision20240709\Turbo.Revision20240709.csproj" />
+    <ProjectReference Include="..\Turbo.Plugins\Turbo.Plugins.csproj" />
   </ItemGroup>
 </Project>

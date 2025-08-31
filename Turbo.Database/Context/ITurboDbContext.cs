@@ -62,7 +62,7 @@ public interface ITurboDbContext : IDisposable
 
     public DbSet<PerformanceLogEntity> PerformanceLogs { get; set; }
 
-    public DbSet<PlayerFavouriteRoomsEntity> PlayerFavouriteRooms { get; set; }
+    public DbSet<PlayerFavoriteRoomsEntity> PlayerFavouriteRooms { get; set; }
 
     public int SaveChanges(bool acceptAllChangesOnSuccess);
 

@@ -1,9 +1,7 @@
 using System;
-using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using System.Net;
 using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -12,23 +10,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Orleans.Hosting;
-using SuperSocket;
-using SuperSocket.Connection;
-using SuperSocket.Server;
-using SuperSocket.Server.Abstractions.Session;
-using SuperSocket.Server.Host;
 using Turbo.Core.Configuration;
 using Turbo.Core.Game.Players;
-using Turbo.Core.Networking;
-using Turbo.Core.Networking.Protocol;
-using Turbo.Core.Networking.Session;
-using Turbo.Core.Packets.Revisions;
 using Turbo.Database.Context;
 using Turbo.Main.Configuration;
 using Turbo.Main.Extensions;
-using Turbo.Networking;
-using Turbo.Networking.Session;
-using Turbo.Packets.Revisions;
 using Turbo.Players;
 using Turbo.Streams;
 
@@ -38,6 +24,35 @@ internal class Program
 {
     public static async Task Main(string[] args)
     {
+        var bootstrapLogger = LoggerFactory
+            .Create(builder =>
+            {
+                builder.AddSimpleConsole(op =>
+                {
+                    op.IncludeScopes = true;
+                    op.SingleLine = true;
+                    op.TimestampFormat = "HH:mm:ss ";
+                });
+            })
+            .CreateLogger("Bootstrap");
+
+        Console.WriteLine(
+            @"
+                ████████╗██╗   ██╗██████╗ ██████╗  ██████╗ 
+                ╚══██╔══╝██║   ██║██╔══██╗██╔══██╗██╔═══██╗
+                   ██║   ██║   ██║██████╔╝██████╔╝██║   ██║
+                   ██║   ██║   ██║██╔══██╗██╔══██╗██║   ██║
+                   ██║   ╚██████╔╝██║  ██║██████╔╝╚██████╔╝
+                   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═════╝  ╚═════╝ 
+            "
+        );
+
+        bootstrapLogger.LogInformation(
+            "Starting {GetProjectName} {GetProductVersion}",
+            GetProjectName(),
+            GetProjectVersion()
+        );
+
         var builder = Host.CreateDefaultBuilder(args);
 
         builder.ConfigureLogging(
@@ -55,25 +70,6 @@ internal class Program
                 var turboConfig = new TurboConfig();
                 ctx.Configuration.Bind(TurboConfig.Turbo, turboConfig);
                 services.AddSingleton<IEmulatorConfig>(turboConfig);
-
-                var connectionString = ctx.Configuration.GetConnectionString("DefaultConnection");
-
-                services.AddDbContextFactory<TurboDbContext>(options =>
-                    options
-                        .UseMySql(
-                            connectionString,
-                            ServerVersion.AutoDetect(connectionString),
-                            options =>
-                            {
-                                options.MigrationsAssembly("Turbo.Main");
-                            }
-                        )
-                        .ConfigureWarnings(warnings =>
-                            warnings.Ignore(CoreEventId.RedundantIndexRemoved)
-                        )
-                        .EnableSensitiveDataLogging(turboConfig.DatabaseLoggingEnabled)
-                        .EnableDetailedErrors()
-                );
 
                 services.AddNetworking();
 
@@ -129,6 +125,39 @@ internal class Program
             }
         });
 
+        builder.UseTurboPlugins(
+            Path.Combine(AppContext.BaseDirectory, "plugins"),
+            [@"^Turbo\.", @"^Microsoft\.Extensions\.", @"^System(\..+)?$"],
+            [],
+            bootstrapLogger
+        );
+
+        builder.ConfigureServices(
+            (ctx, services) =>
+            {
+                var dbConfig = ctx.Configuration.GetSection("Turbo:Database");
+                var connectionString = dbConfig.GetConnectionString("DefaultConnection");
+                var dataLoggingEnabled = dbConfig.GetValue<bool>("DatabaseLoggingEnabled");
+
+                services.AddDbContextFactory<TurboDbContext>(options =>
+                    options
+                        .UseMySql(
+                            connectionString,
+                            ServerVersion.AutoDetect(connectionString),
+                            options =>
+                            {
+                                options.MigrationsAssembly("Turbo.Main");
+                            }
+                        )
+                        .ConfigureWarnings(warnings =>
+                            warnings.Ignore(CoreEventId.RedundantIndexRemoved)
+                        )
+                        .EnableSensitiveDataLogging(dataLoggingEnabled)
+                        .EnableDetailedErrors()
+                );
+            }
+        );
+
         var host = builder.Build();
 
         var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
@@ -137,11 +166,30 @@ internal class Program
         try
         {
             await host.StartAsync(shutdownToken);
+
+            bootstrapLogger.LogInformation(
+                "Started {GetProjectName} {GetProductVersion}",
+                GetProjectName(),
+                GetProjectVersion()
+            );
+
             await host.WaitForShutdownAsync(shutdownToken);
         }
         catch (Exception ex)
         {
             Console.WriteLine(ex);
         }
+    }
+
+    private static string GetProjectName()
+    {
+        return "Turbo Emulator";
+    }
+
+    public static Version GetProjectVersion()
+    {
+        return new Version(
+            Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0"
+        );
     }
 }

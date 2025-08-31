@@ -16,10 +16,13 @@ using Turbo.Database.Entities.Tracking;
 
 namespace Turbo.Database.Context;
 
-public class TurboDbContext(DbContextOptions<TurboDbContext> options)
-    : DbContext(options),
-        ITurboDbContext
+public class TurboDbContext(
+    DbContextOptions<TurboDbContext> options,
+    IEnumerable<Assembly> pluginAssemblies
+) : DbContext(options), ITurboDbContext
 {
+    private readonly IEnumerable<Assembly> _pluginAssemblies = pluginAssemblies;
+
     public DbSet<CatalogOfferEntity> CatalogOffers { get; set; }
 
     public DbSet<CatalogPageEntity> CatalogPages { get; set; }
@@ -66,24 +69,10 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<PerformanceLogEntity> PerformanceLogs { get; set; }
 
-    public DbSet<PlayerFavouriteRoomsEntity> PlayerFavouriteRooms { get; set; }
+    public DbSet<PlayerFavoriteRoomsEntity> PlayerFavouriteRooms { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<PlayerFavouriteRoomsEntity>().HasKey(p => new { p.PlayerId, p.RoomId });
-
-        modelBuilder
-            .Entity<PlayerFavouriteRoomsEntity>()
-            .HasOne(p => p.Player)
-            .WithMany()
-            .HasForeignKey(p => p.PlayerId);
-
-        modelBuilder
-            .Entity<PlayerFavouriteRoomsEntity>()
-            .HasOne(p => p.Room)
-            .WithMany()
-            .HasForeignKey(p => p.RoomId);
-
         OnModelCreatingAddDefaultSqlValues(modelBuilder);
 
         modelBuilder.Entity<CatalogPageEntity>(entity =>
@@ -93,7 +82,10 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
             entity.Property(e => e.TextData).HasColumnType("json");
         });
 
-        var entityMethod = typeof(ModelBuilder).GetMethod("Entity", Type.EmptyTypes);
+        foreach (var asm in _pluginAssemblies.Distinct())
+            modelBuilder.ApplyConfigurationsFromAssembly(asm);
+
+        /* var entityMethod = typeof(ModelBuilder).GetMethod("Entity", Type.EmptyTypes);
 
         if (!Directory.Exists("plugins"))
         {
@@ -115,7 +107,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
             {
                 entityMethod.MakeGenericMethod(type).Invoke(modelBuilder, new object[] { });
             }
-        }
+        } */
     }
 
     private void OnModelCreatingAddDefaultSqlValues(ModelBuilder modelBuilder)
