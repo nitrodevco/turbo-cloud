@@ -7,9 +7,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Turbo.Core;
-using Turbo.Core.Game.Players;
+using Turbo.Core.Events;
 using Turbo.Core.Networking;
 using Turbo.DefaultRevision;
+using Turbo.Events.Players;
 using Turbo.Revision20240709;
 
 namespace Turbo.Main;
@@ -19,17 +20,20 @@ public class TurboEmulator : IEmulator
     private readonly IHostApplicationLifetime _appLifetime;
     private readonly ILogger<TurboEmulator> _logger;
     private readonly IServiceProvider _serviceProvider;
+    private readonly IEventBus _eventBus;
     private readonly List<IDisposable> _registrations;
 
     public TurboEmulator(
         IHostApplicationLifetime appLifetime,
         ILogger<TurboEmulator> logger,
-        IServiceProvider serviceProvider
+        IServiceProvider serviceProvider,
+        IEventBus eventBus
     )
     {
         _appLifetime = appLifetime;
         _logger = logger;
         _serviceProvider = serviceProvider;
+        _eventBus = eventBus;
         _registrations =
         [
             _appLifetime.ApplicationStarted.Register(OnStarted),
@@ -79,6 +83,7 @@ public class TurboEmulator : IEmulator
 
     private void OnStarted()
     {
+        _eventBus.PublishAsync(new PlayerJoinedEvent(1));
         //_logger.LogInformation("Started {Emulator}", GetVersion());
     }
 
