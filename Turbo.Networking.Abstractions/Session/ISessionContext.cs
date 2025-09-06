@@ -17,5 +17,4 @@ public interface ISessionContext : IAppSession
     public void SetPlayerId(long playerId);
     public void SetupEncryption(byte[] key);
     public Task SendComposerAsync(IComposer composer, CancellationToken ct = default);
-    public void ProcessSequenceForEncryption(ref SequenceReader<byte> reader);
 }

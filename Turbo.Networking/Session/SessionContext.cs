@@ -12,20 +12,14 @@ using Turbo.Packets.Abstractions;
 
 namespace Turbo.Networking.Session;
 
-public class SessionContext : AppSession, ISessionContext
+public class SessionContext(PacketProcessor packetProcessor) : AppSession(), ISessionContext
 {
-    private readonly PacketProcessor _packetProcessor;
+    private readonly PacketProcessor _packetProcessor = packetProcessor;
 
     public bool PolicyDone { get; set; } = true;
     public string RevisionId { get; private set; } = "Default";
     public long PlayerId { get; private set; }
     public IStreamCipher Rc4Engine { get; private set; }
-
-    public SessionContext(NetworkingConfig config, PacketProcessor packetProcessor)
-        : base()
-    {
-        _packetProcessor = packetProcessor;
-    }
 
     public void SetRevisionId(string revisionId)
     {
@@ -59,18 +53,5 @@ public class SessionContext : AppSession, ISessionContext
     public async Task SendComposerAsync(IComposer composer, CancellationToken ct = default)
     {
         await _packetProcessor.ProcessComposer(this, composer, ct);
-    }
-
-    public void ProcessSequenceForEncryption(ref SequenceReader<byte> reader)
-    {
-        if (Rc4Engine is null)
-            return;
-
-        var r = reader;
-        var body = Rc4Engine.ProcessBytes(r.UnreadSpan.ToArray());
-
-        r.Advance(body.Length);
-
-        reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(body));
     }
 }

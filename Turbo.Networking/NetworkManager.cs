@@ -63,9 +63,7 @@ public class NetworkManager(NetworkingConfig config, PacketProcessor packetProce
 
                     var ctx = (ISessionContext)session;
 
-                    await _packetProcessor
-                        .ProcessClientPacket(ctx, packet, CancellationToken.None)
-                        .ConfigureAwait(false);
+                    await _packetProcessor.ProcessPacket(ctx, packet, CancellationToken.None);
                 }
             );
 

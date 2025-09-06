@@ -3,13 +3,10 @@ using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Turbo.Pipeline.Abstractions.Attributes;
-using Turbo.Pipeline.Abstractions.Delegates;
 using Turbo.Pipeline.Abstractions.Enums;
 using Turbo.Pipeline.Abstractions.Envelope;
 using Turbo.Pipeline.Abstractions.Registry;
@@ -17,118 +14,64 @@ using Turbo.Pipeline.Core.Configuration;
 
 namespace Turbo.Pipeline.Core.Envelope;
 
-public abstract class EnvelopeBus<TEnvelope, TInteraction, TContext, TConfig>(
-    Channel<TEnvelope> ch,
-    TConfig cfg,
-    IServiceProvider root,
-    ILogger logger
-) : BackgroundService, IEnvelopeBus<TInteraction>
+public abstract class EnvelopeBus<TEnvelope, TInteraction, TContext, TConfig>
+    : IEnvelopeBus<TInteraction>
     where TEnvelope : EnvelopeBase<TInteraction>
     where TContext : PipelineContext
     where TConfig : PipelineConfig
 {
-    protected readonly Channel<TEnvelope> _ch = ch;
-    protected readonly TConfig _cfg = cfg;
+    protected readonly TConfig _cfg;
+    protected readonly IServiceProvider _root;
+    protected readonly ILogger _logger;
 
-    protected readonly IServiceProvider _root = root;
-    protected readonly ILogger _logger = logger;
+    private readonly OrderedPerKeyDispatcher<string, TEnvelope> _dispatcher;
 
-    protected override async Task ExecuteAsync(CancellationToken ct)
+    public EnvelopeBus(TConfig cfg, IServiceProvider root, ILogger logger)
     {
-        var r = _ch.Reader;
+        _cfg = cfg;
+        _root = root;
+        _logger = logger;
 
-        try
-        {
-            while (await r.WaitToReadAsync(ct).ConfigureAwait(false))
-            {
-                while (r.TryRead(out var env))
-                {
-                    await EnqueueEnvelopeAsync(env, ct).ConfigureAwait(false);
-                }
-            }
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        _dispatcher = new OrderedPerKeyDispatcher<string, TEnvelope>(
+            keySelector: GetKeyForEnvelope,
+            handler: ProcessOne,
+            capacityPerKey: _cfg.ChannelCapacity,
+            fullMode: _cfg.Backpressure,
+            dropIfCanceledBeforeStart: true
+        );
     }
 
-    public async ValueTask PublishAsync(
+    public Task PublishAsync(
         TInteraction interaction,
         object? args = null,
         string? tag = null,
         CancellationToken ct = default
-    )
-    {
-        _cfg.OnPublished?.Invoke(interaction!);
+    ) => _dispatcher.EnqueueAndWaitAsync(CreateEnvelope(interaction!, args, tag), ct);
 
-        await WriteAsync(CreateEnvelope(interaction!, args, tag, null), ct);
-    }
-
-    public async Task PublishAndWaitAsync(
+    public Task PublishFireAndForgetAsync(
         TInteraction interaction,
         object? args = null,
         string? tag = null,
         CancellationToken ct = default
-    )
-    {
-        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    ) => _dispatcher.EnqueueFireAndForgetAsync(CreateEnvelope(interaction!, args, tag), ct);
 
-        _cfg.OnPublished?.Invoke(interaction!);
+    public virtual void CompleteKey(string key) => _dispatcher.CompleteKey(key);
 
-        await WriteAsync(CreateEnvelope(interaction!, args, tag, tcs), ct);
-        await tcs.Task.WaitAsync(ct);
-    }
+    public virtual void AbortKey(string key) => _dispatcher.AbortKey(key);
 
-    private async ValueTask WriteAsync(TEnvelope env, CancellationToken ct)
-    {
-        var w = _ch.Writer;
-        switch (_cfg.Backpressure)
-        {
-            case BackpressureMode.Wait:
-                await w.WriteAsync(env, ct);
-                break;
-            case BackpressureMode.DropOldest:
-                while (!w.TryWrite(env))
-                    _ch.Reader.TryRead(out _);
-                break;
-            case BackpressureMode.DropNewest:
-                w.TryWrite(env);
-                break;
-            case BackpressureMode.Fail:
-                if (!w.TryWrite(env))
-                    throw new InvalidOperationException("Envelope channel full");
-                break;
-        }
-    }
+    protected abstract string GetKeyForEnvelope(TEnvelope envelope);
 
     protected abstract TEnvelope CreateEnvelope(
         TInteraction interaction,
         object? args,
-        string? tag,
-        TaskCompletionSource? tcs
+        string? tag
     );
-
-    public abstract ValueTask EnqueueEnvelopeAsync(TEnvelope envelope, CancellationToken ct);
 
     protected abstract Type GetHandlerForType(Type interactionType);
 
     protected abstract Type GetBehaviorForType(Type interactionType);
 
     protected abstract TContext CreateContextForEnvelope(TEnvelope envelope, IServiceProvider sp);
-
-    protected abstract Task ExecuteEnvelopesSequentially(
-        TEnvelope env,
-        TContext ctx,
-        object[]? handlers,
-        HandlerInvoker invoker,
-        CancellationToken ct
-    );
-
-    protected abstract Task ExecuteEnvelopesParallel(
-        TEnvelope env,
-        TContext ctx,
-        object[]? handlers,
-        HandlerInvoker invoker,
-        CancellationToken ct
-    );
 
     protected async Task ProcessOne(TEnvelope env, CancellationToken ct)
     {
@@ -164,11 +107,7 @@ public abstract class EnvelopeBus<TEnvelope, TInteraction, TContext, TConfig>(
             .ToArray();
 
         if (handlers.Length == 0 && behaviors.Length == 0)
-        {
-            env.SyncTcs?.TrySetResult();
-
             return;
-        }
 
         var handlerInvokerMap = handlers
             .Select(h => h.GetType())
@@ -219,37 +158,31 @@ public abstract class EnvelopeBus<TEnvelope, TInteraction, TContext, TConfig>(
 
             if (_cfg.Execution == ExecutionMode.Sequential || handlers.Length <= 1)
             {
-                await ExecuteEnvelopesSequentially(env, ctx, handlers, InvokeHandler, ct);
+                foreach (var h in handlers)
+                {
+                    await InvokeHandler(h, env.Data, ctx, ct).ConfigureAwait(false);
+                }
             }
             else
             {
-                await ExecuteEnvelopesParallel(env, ctx, handlers, InvokeHandler, ct);
+                await ParallelHelpers
+                    .RunBoundedAsync(
+                        handlers,
+                        _cfg.DegreeOfParallelism,
+                        h => InvokeHandler(h, env.Data, ctx, ct),
+                        ct
+                    )
+                    .ConfigureAwait(false);
             }
         }
 
         var pipeline = behaviors
             .Reverse()
             .Aggregate(
-                (Func<Task>)InvokeHandlers,
-                (next, b) => (Func<Task>)(() => InvokeBehavior(b, env.Data, ctx, next, ct))
+                InvokeHandlers,
+                (next, b) => () => InvokeBehavior(b, env.Data, ctx, next, ct)
             );
 
-        try
-        {
-            await pipeline().ConfigureAwait(false);
-
-            _cfg.OnHandled?.Invoke(env, Stopwatch.GetElapsedTime(started));
-
-            env.SyncTcs?.TrySetResult();
-        }
-        catch (Exception ex)
-        {
-            _cfg.OnError?.Invoke(env, ex);
-
-            if (_cfg.SwallowHandlerExceptions)
-                env.SyncTcs?.TrySetResult();
-            else
-                env.SyncTcs?.TrySetException(ex);
-        }
+        await pipeline().ConfigureAwait(false);
     }
 }

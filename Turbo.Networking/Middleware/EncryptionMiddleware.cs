@@ -4,7 +4,7 @@ using Turbo.Packets.Abstractions;
 
 namespace Turbo.Networking.Middleware;
 
-public class LengthFieldMiddleware : FrameMiddleware
+public class EncryptionMiddleware : FrameMiddleware
 {
     public override void Invoke(
         ref SequenceReader<byte> reader,
@@ -12,11 +12,14 @@ public class LengthFieldMiddleware : FrameMiddleware
         ref IClientPacket? clientPacket
     )
     {
-        var r = reader;
-
-        if (r.Length < 4 || !r.TryReadBigEndian(out int bodyLength) || r.Remaining < bodyLength)
+        if (ctx.Rc4Engine is null)
             return;
 
-        reader = r;
+        var r = reader;
+        var body = ctx.Rc4Engine.ProcessBytes(r.UnreadSpan.ToArray());
+
+        r.Advance(body.Length);
+
+        reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(body));
     }
 }

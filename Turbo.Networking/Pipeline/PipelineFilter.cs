@@ -10,6 +10,7 @@ public class PipelineFilter : PipelineFilterBase<IClientPacket>
 {
     private readonly FramePipelineBuilder _pipeline = new FramePipelineBuilder()
         .Use(new FlashPolicyMiddleware())
+        .Use(new EncryptionMiddleware())
         .Use(new LengthFieldMiddleware())
         .Use(new ClientPacketMiddleware());
 

@@ -11,17 +11,26 @@ using Turbo.Packets.Abstractions;
 
 namespace Turbo.Networking.Session;
 
-public class PacketProcessor(
-    IRevisionManager revisionManager,
-    IMessageBus messageBus,
-    ILogger<PacketProcessor> logger
-)
+public class PacketProcessor
 {
-    private readonly IRevisionManager _revisionManager = revisionManager;
-    private readonly IMessageBus _messageBus = messageBus;
-    private readonly ILogger<PacketProcessor> _logger = logger;
+    private readonly IRevisionManager _revisionManager;
+    private readonly IMessageBus _messageBus;
+    private readonly ILogger<PacketProcessor> _logger;
 
-    public async Task ProcessClientPacket(
+    public PacketProcessor(
+        IRevisionManager revisionManager,
+        IMessageBus messageBus,
+        ILogger<PacketProcessor> logger
+    )
+    {
+        _revisionManager = revisionManager;
+        _messageBus = messageBus;
+        _logger = logger;
+
+        Console.WriteLine("PacketProcessor initialized");
+    }
+
+    public async Task ProcessPacket(
         ISessionContext ctx,
         IClientPacket clientPacket,
         CancellationToken ct
@@ -37,16 +46,14 @@ public class PacketProcessor(
         {
             if (revision.Parsers.TryGetValue(clientPacket.Header, out var parser))
             {
-                await _messageBus
-                    .PublishAndWaitAsync(parser.Parse(clientPacket), ctx, null, ct)
-                    .ConfigureAwait(false);
-
                 _logger.LogDebug(
-                    "Processed packet {PacketHeader}:{PacketType} for session {SessionId}",
+                    "Processing packet {PacketHeader}:{PacketType} for session {SessionId}",
                     clientPacket.Header,
                     parser.GetType().Name,
                     ctx.SessionID
                 );
+
+                await _messageBus.PublishAsync(parser.Parse(clientPacket), ctx, null, ct);
             }
             else
             {
@@ -57,8 +64,6 @@ public class PacketProcessor(
                 );
             }
         }
-
-        await Task.CompletedTask;
     }
 
     public async Task ProcessComposer(ISessionContext ctx, IComposer composer, CancellationToken ct)

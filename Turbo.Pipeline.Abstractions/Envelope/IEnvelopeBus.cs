@@ -5,14 +5,14 @@ namespace Turbo.Pipeline.Abstractions.Envelope;
 
 public interface IEnvelopeBus<TInteraction>
 {
-    ValueTask PublishAsync(
+    public Task PublishAsync(
         TInteraction interaction,
         object? args = null,
         string? tag = null,
         CancellationToken ct = default
     );
 
-    Task PublishAndWaitAsync(
+    public Task PublishFireAndForgetAsync(
         TInteraction interaction,
         object? args = null,
         string? tag = null,
