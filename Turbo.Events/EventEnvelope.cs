@@ -1,11 +1,6 @@
-using System;
-using System.Threading.Tasks;
+using Turbo.Pipeline.Core.Envelope;
+using Turbo.Primitives;
 
 namespace Turbo.Events;
 
-public record EventEnvelope(
-    object Event,
-    string? Tag,
-    TaskCompletionSource? SyncTcs,
-    DateTimeOffset EnqueuedAt
-);
+public record EventEnvelope : EnvelopeBase<IEvent> { }

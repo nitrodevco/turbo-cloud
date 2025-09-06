@@ -8,13 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Orleans.Hosting;
-using Turbo.Core.Configuration;
-using Turbo.Core.Game.Players;
-using Turbo.Database.Extensions;
-using Turbo.Events.Extensions;
-using Turbo.Main.Configuration;
 using Turbo.Main.Extensions;
-using Turbo.Players;
 using Turbo.Plugins;
 using Turbo.Plugins.Extensions;
 using Turbo.Streams;
@@ -68,6 +62,13 @@ internal class Program
             }
         );
 
+        builder.ConfigureAppConfiguration(
+            (ctx, cfg) =>
+            {
+                cfg.AddEnvironmentVariables(prefix: "TURBO__");
+            }
+        );
+
         builder.UseOrleans(silo =>
         {
             silo.ConfigureEndpoints(
@@ -113,39 +114,9 @@ internal class Program
             }
         });
 
-        builder.UseTurboDatabase();
-
         builder.UsePluginAssemblies(pluginAssemblies, bootstrapLogger);
 
-        builder.ConfigureServices(
-            (ctx, services) =>
-            {
-                var turboConfig = new TurboConfig();
-                ctx.Configuration.Bind(TurboConfig.Turbo, turboConfig);
-                services.AddSingleton<IEmulatorConfig>(turboConfig);
-
-                services.AddNetworking();
-
-                services.AddSingleton<IPlayerManager, PlayerManager>();
-
-                // Emulator
-                services.AddHostedService<TurboEmulator>();
-
-                services.AddGlobalEventBus(
-                    new[] { typeof(Program).Assembly }.Concat(pluginAssemblies),
-                    opts =>
-                    {
-                        opts.OnPublished = e => Console.WriteLine($"published {e.GetType().Name}");
-                        opts.OnHandled = (e, dur) =>
-                            Console.WriteLine(
-                                $"handled {e.GetType().Name} in {dur.TotalMilliseconds:F1} ms"
-                            );
-                        opts.OnError = (e, ex) =>
-                            Console.WriteLine($"ERROR in {e.GetType().Name}: {ex.Message}");
-                    }
-                );
-            }
-        );
+        builder.ConfigureTurbo();
 
         var host = builder.Build();
 

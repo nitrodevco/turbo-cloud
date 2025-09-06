@@ -1,23 +1,23 @@
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SuperSocket.Server.Host;
-using Turbo.Core.Configuration;
-using Turbo.Core.Networking;
-using Turbo.Core.Networking.Encryption;
-using Turbo.Core.Networking.Session;
-using Turbo.Core.Packets.Messages;
-using Turbo.Networking.Encryption;
+using Turbo.Messaging.Abstractions;
+using Turbo.Networking.Abstractions;
+using Turbo.Networking.Abstractions.Session;
+using Turbo.Networking.Configuration;
 using Turbo.Networking.Pipeline;
 using Turbo.Networking.Session;
+using Turbo.Packets.Abstractions;
 
 namespace Turbo.Networking;
 
-public class NetworkManager(IEmulatorConfig config, IPacketProcessor packetProcessor)
+public class NetworkManager(NetworkingConfig config, PacketProcessor packetProcessor)
     : INetworkManager
 {
-    private readonly IEmulatorConfig _config = config;
-    private readonly IPacketProcessor _packetProcessor = packetProcessor;
+    private readonly NetworkingConfig _config = config;
+    private readonly PacketProcessor _packetProcessor = packetProcessor;
     private IHost _superSocketHost;
 
     public async Task StartAsync()
@@ -63,7 +63,9 @@ public class NetworkManager(IEmulatorConfig config, IPacketProcessor packetProce
 
                     var ctx = (ISessionContext)session;
 
-                    await ctx.EnqueuePacketAsync(packet);
+                    await _packetProcessor
+                        .ProcessClientPacket(ctx, packet, CancellationToken.None)
+                        .ConfigureAwait(false);
                 }
             );
 

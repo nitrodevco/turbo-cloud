@@ -1,92 +1,52 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
 using System.Threading.Channels;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Turbo.Events.Abstractions;
-using Turbo.Events.Abstractions.Registry;
+using Turbo.Events.Configuration;
+using Turbo.Pipeline.Abstractions.Enums;
 
 namespace Turbo.Events.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddGlobalEventBus(
+    public static IServiceCollection AddTurboEvents(
         this IServiceCollection services,
-        IEnumerable<Assembly> asms,
-        Action<IEventBusConfig>? configure = null
+        IConfiguration cfg
     )
     {
-        var opts = new IEventBusConfig();
-        configure?.Invoke(opts);
-        services.AddSingleton(opts);
+        services.AddOptions<EventConfig>().Bind(cfg.GetSection(EventConfig.SECTION_NAME));
 
-        var reg = EventRegistry.Build(asms);
-        services.AddSingleton(reg);
+        services.AddSingleton(sp => sp.GetRequiredService<IOptions<EventConfig>>().Value);
 
-        var ch = CreateChannel(opts);
-        services.AddSingleton(ch);
+        services.AddSingleton<Channel<EventEnvelope>>(sp =>
+        {
+            var cfg = sp.GetRequiredService<EventConfig>();
 
-        // bus + pump
+            if (cfg.ChannelCapacity > 0)
+                return Channel.CreateBounded<EventEnvelope>(
+                    new BoundedChannelOptions(cfg.ChannelCapacity)
+                    {
+                        FullMode = cfg.Backpressure switch
+                        {
+                            BackpressureMode.DropNewest => BoundedChannelFullMode.DropWrite,
+                            BackpressureMode.DropOldest => BoundedChannelFullMode.DropOldest,
+                            BackpressureMode.Wait => BoundedChannelFullMode.Wait,
+                            BackpressureMode.Fail => BoundedChannelFullMode.Wait, // we'll throw in EventBus for Fail
+                        },
+                        SingleReader = false,
+                        SingleWriter = false,
+                    }
+                );
+
+            return Channel.CreateUnbounded<EventEnvelope>(
+                new UnboundedChannelOptions { SingleReader = true, SingleWriter = false }
+            );
+        });
+
         services.AddSingleton<IEventBus, EventBus>();
-        services.AddHostedService<EventProcessor>();
-
-        // discover and register handler/behavior services
-        RegisterDiscoveredServices(services, asms);
+        services.AddHostedService(sp => (EventBus)sp.GetRequiredService<IEventBus>());
 
         return services;
-
-        static Channel<EventEnvelope> CreateChannel(IEventBusConfig o)
-        {
-            var ch = Channel.CreateBounded<EventEnvelope>(
-                new BoundedChannelOptions(o.ChannelCapacity)
-                {
-                    SingleReader = false,
-                    SingleWriter = false,
-                    FullMode = BoundedChannelFullMode.Wait,
-                }
-            );
-
-            return ch;
-        }
-
-        static void RegisterDiscoveredServices(
-            IServiceCollection services,
-            IEnumerable<Assembly> assemblies
-        )
-        {
-            var all = assemblies
-                .SelectMany(a =>
-                {
-                    try
-                    {
-                        return a.GetTypes();
-                    }
-                    catch (ReflectionTypeLoadException ex)
-                    {
-                        return ex.Types.Where(t => t is not null)!;
-                    }
-                })
-                .Where(t => t is not null && !t.IsAbstract && !t.IsInterface)!;
-
-            foreach (var t in all)
-            {
-                foreach (var i in t.GetInterfaces())
-                {
-                    if (!i.IsGenericType)
-                        continue;
-
-                    var definition = i.GetGenericTypeDefinition();
-
-                    if (
-                        definition != typeof(IEventHandler<>)
-                        && definition != typeof(IEventBehavior<>)
-                    )
-                        continue;
-
-                    services.AddScoped(i, t);
-                }
-            }
-        }
     }
 }

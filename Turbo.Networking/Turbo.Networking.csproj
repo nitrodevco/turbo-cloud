@@ -8,8 +8,7 @@
     <PackageReference Include="SuperSocket.Server" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Turbo.Core\Turbo.Core.csproj" />
-    <ProjectReference Include="..\Turbo.Utilities\Turbo.Utilities.csproj" />
-    <ProjectReference Include="..\Turbo.Packets\Turbo.Packets.csproj" />
+    <ProjectReference Include="..\Turbo.Networking.Abstractions\Turbo.Networking.Abstractions.csproj" />
+    <ProjectReference Include="..\Turbo.Messaging.Abstractions\Turbo.Messaging.Abstractions.csproj" />
   </ItemGroup>
 </Project>

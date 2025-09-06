@@ -1,15 +1,12 @@
-using System;
 using System.Buffers;
 using System.Text;
-using System.Threading.Tasks;
 using SuperSocket.Connection;
-using Turbo.Core.Networking.Protocol;
-using Turbo.Core.Networking.Session;
-using Turbo.Core.Packets.Messages;
+using Turbo.Networking.Abstractions.Session;
+using Turbo.Packets.Abstractions;
 
 namespace Turbo.Networking.Middleware;
 
-public class FlashPolicyMiddleware : IFrameMiddleware
+public class FlashPolicyMiddleware : FrameMiddleware
 {
     private static readonly byte[] Request = Encoding.ASCII.GetBytes("<policy-file-request/>\0");
     private static readonly byte[] Response = Encoding.ASCII.GetBytes(
@@ -20,7 +17,7 @@ public class FlashPolicyMiddleware : IFrameMiddleware
             + "</cross-domain-policy>\0"
     );
 
-    public void Invoke(
+    public override void Invoke(
         ref SequenceReader<byte> reader,
         ISessionContext ctx,
         ref IClientPacket? clientPacket

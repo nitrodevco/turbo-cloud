@@ -1,9 +1,12 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Pipeline.Abstractions.Registry;
+using Turbo.Primitives;
 
 namespace Turbo.Events.Abstractions.Registry;
 
-public interface IEventHandler<in TEvent>
+public interface IEventHandler<TEvent>
+    where TEvent : IEvent
 {
-    Task HandleAsync(TEvent @event, EventContext ctx, CancellationToken ct);
+    Task HandleAsync(TEvent interaction, EventContext ctx, CancellationToken ct);
 }

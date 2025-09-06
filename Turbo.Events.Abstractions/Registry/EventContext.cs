@@ -1,8 +1,5 @@
-using System;
+using Turbo.Pipeline.Abstractions.Registry;
 
 namespace Turbo.Events.Abstractions.Registry;
 
-public class EventContext
-{
-    public required IServiceProvider Services { get; init; }
-}
+public class EventContext : PipelineContext { }

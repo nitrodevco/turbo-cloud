@@ -1,8 +1,6 @@
-using Org.BouncyCastle.Tls;
 using Turbo.Authorization.Players.Requirements;
 using Turbo.Authorization.Policy;
-using Turbo.Core.Authorization;
-using Turbo.Core.Networking.Session;
+using Turbo.Networking.Abstractions.Session;
 
 namespace Turbo.Authorization.Players.Policies;
 

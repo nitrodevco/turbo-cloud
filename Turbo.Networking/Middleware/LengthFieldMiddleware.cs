@@ -1,16 +1,12 @@
-using System;
 using System.Buffers;
-using System.Buffers.Binary;
-using System.Threading.Tasks;
-using Turbo.Core.Networking.Protocol;
-using Turbo.Core.Networking.Session;
-using Turbo.Core.Packets.Messages;
+using Turbo.Networking.Abstractions.Session;
+using Turbo.Packets.Abstractions;
 
 namespace Turbo.Networking.Middleware;
 
-public class LengthFieldMiddleware : IFrameMiddleware
+public class LengthFieldMiddleware : FrameMiddleware
 {
-    public void Invoke(
+    public override void Invoke(
         ref SequenceReader<byte> reader,
         ISessionContext ctx,
         ref IClientPacket? clientPacket

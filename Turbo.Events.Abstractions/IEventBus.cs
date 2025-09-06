@@ -1,19 +1,6 @@
-using System.Threading;
-using System.Threading.Tasks;
+using Turbo.Pipeline.Abstractions.Envelope;
+using Turbo.Primitives;
 
 namespace Turbo.Events.Abstractions;
 
-public interface IEventBus
-{
-    ValueTask PublishAsync<TEvent>(
-        TEvent @event,
-        string? tag = null,
-        CancellationToken ct = default
-    );
-
-    Task PublishAndWaitAsync<TEvent>(
-        TEvent @event,
-        string? tag = null,
-        CancellationToken ct = default
-    );
-}
+public interface IEventBus : IEnvelopeBus<IEvent> { }

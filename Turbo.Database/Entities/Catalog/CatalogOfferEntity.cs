@@ -14,7 +14,7 @@ public class CatalogOfferEntity : Entity
 
     [Column("localization_id")]
     [Required]
-    public string LocalizationId { get; set; }
+    public required string LocalizationId { get; set; }
 
     [Column("cost_credits")]
     [Required]
@@ -50,7 +50,7 @@ public class CatalogOfferEntity : Entity
     public bool? Visible { get; set; }
 
     [ForeignKey(nameof(CatalogPageEntityId))]
-    public CatalogPageEntity Page { get; set; }
+    public required CatalogPageEntity Page { get; set; }
 
-    public IList<CatalogProductEntity> Products { get; set; }
+    public IList<CatalogProductEntity>? Products { get; set; }
 }

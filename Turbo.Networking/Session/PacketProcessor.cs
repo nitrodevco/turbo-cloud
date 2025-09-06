@@ -1,27 +1,24 @@
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Turbo.Core.Networking.Protocol;
-using Turbo.Core.Networking.Session;
-using Turbo.Core.Packets;
-using Turbo.Core.Packets.Messages;
-using Turbo.Core.Packets.Revisions;
-using Turbo.Packets.Incoming;
+using Turbo.Messaging.Abstractions;
+using Turbo.Networking.Abstractions.Revisions;
+using Turbo.Networking.Abstractions.Session;
+using Turbo.Packets.Abstractions;
 
 namespace Turbo.Networking.Session;
 
 public class PacketProcessor(
     IRevisionManager revisionManager,
-    IPacketMessageHub packetMessageHub,
+    IMessageBus messageBus,
     ILogger<PacketProcessor> logger
-) : IPacketProcessor
+)
 {
     private readonly IRevisionManager _revisionManager = revisionManager;
-    private readonly IPacketMessageHub _packetMessageHub = packetMessageHub;
+    private readonly IMessageBus _messageBus = messageBus;
     private readonly ILogger<PacketProcessor> _logger = logger;
 
     public async Task ProcessClientPacket(
@@ -40,8 +37,8 @@ public class PacketProcessor(
         {
             if (revision.Parsers.TryGetValue(clientPacket.Header, out var parser))
             {
-                await parser
-                    .HandleAsync(ctx, clientPacket, _packetMessageHub, ct)
+                await _messageBus
+                    .PublishAndWaitAsync(parser.Parse(clientPacket), ctx, null, ct)
                     .ConfigureAwait(false);
 
                 _logger.LogDebug(

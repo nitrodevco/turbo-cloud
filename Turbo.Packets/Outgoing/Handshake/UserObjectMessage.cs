@@ -1,6 +1,5 @@
 using Turbo.Core.Contracts.Players;
-using Turbo.Core.Game.Players;
-using Turbo.Core.Packets.Messages;
+using Turbo.Packets.Abstractions;
 
 namespace Turbo.Packets.Outgoing.Handshake;
 

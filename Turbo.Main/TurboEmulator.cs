@@ -8,9 +8,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Turbo.Contracts.Events;
 using Turbo.Core;
-using Turbo.Core.Networking;
 using Turbo.DefaultRevision;
 using Turbo.Events.Abstractions;
+using Turbo.Networking.Abstractions;
 using Turbo.Revision20240709;
 
 namespace Turbo.Main;
@@ -22,18 +22,21 @@ public class TurboEmulator : IEmulator
     private readonly IServiceProvider _serviceProvider;
     private readonly IEventBus _eventBus;
     private readonly List<IDisposable> _registrations;
+    private readonly INetworkManager _networkManager;
 
     public TurboEmulator(
         IHostApplicationLifetime appLifetime,
         ILogger<TurboEmulator> logger,
         IServiceProvider serviceProvider,
-        IEventBus eventBus
+        IEventBus eventBus,
+        INetworkManager networkManager
     )
     {
         _appLifetime = appLifetime;
         _logger = logger;
         _serviceProvider = serviceProvider;
         _eventBus = eventBus;
+        _networkManager = networkManager;
         _registrations =
         [
             _appLifetime.ApplicationStarted.Register(OnStarted),
@@ -48,7 +51,6 @@ public class TurboEmulator : IEmulator
     {
         try
         {
-            var networkManager = _serviceProvider.GetRequiredService<INetworkManager>();
             var defaultRevision = ActivatorUtilities.CreateInstance<DefaultRevisionPlugin>(
                 _serviceProvider
             );
@@ -58,7 +60,7 @@ public class TurboEmulator : IEmulator
 
             await defaultRevision.InitializeAsync();
             await revision20240709.InitializeAsync();
-            await networkManager.StartAsync();
+            await _networkManager.StartAsync();
         }
         catch (OperationCanceledException)
         {

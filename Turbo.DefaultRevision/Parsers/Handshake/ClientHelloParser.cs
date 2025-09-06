@@ -1,11 +1,11 @@
-using Turbo.Core.Packets.Messages;
+using Turbo.Packets.Abstractions;
 using Turbo.Packets.Incoming.Handshake;
-using Turbo.Packets.Parsers;
+using Turbo.Primitives;
 
 namespace Turbo.DefaultRevision.Parsers.Handshake;
 
-public class ClientHelloParser : AbstractParser<ClientHelloMessage>
+public class ClientHelloParser : IParser
 {
-    public override IMessageEvent Parse(IClientPacket packet) =>
+    public IMessageEvent Parse(IClientPacket packet) =>
         new ClientHelloMessage { Production = packet.PopString() };
 }

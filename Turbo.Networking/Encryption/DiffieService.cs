@@ -2,7 +2,7 @@ using System.Text;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.Utilities.Encoders;
-using Turbo.Core.Networking.Encryption;
+using Turbo.Networking.Abstractions.Encryption;
 
 namespace Turbo.Networking.Encryption;
 

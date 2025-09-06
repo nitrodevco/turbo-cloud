@@ -7,7 +7,7 @@ using Turbo.Events.Abstractions.Registry;
 
 namespace Turbo.Revision20240709.EventHandlers;
 
-public sealed class WelcomeOnJoin(ILogger<PlayerJoinedEvent> logger)
+public class WelcomeOnJoin(ILogger<PlayerJoinedEvent> logger)
     : IEventBehavior<PlayerJoinedEvent>,
         IEventHandler<PlayerJoinedEvent>
 {

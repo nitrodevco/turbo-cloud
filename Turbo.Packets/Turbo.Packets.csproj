@@ -4,5 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Turbo.Core\Turbo.Core.csproj" />
+    <ProjectReference Include="..\Turbo.Packets.Abstractions\Turbo.Packets.Abstractions.csproj" />
+    <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
   </ItemGroup>
 </Project>

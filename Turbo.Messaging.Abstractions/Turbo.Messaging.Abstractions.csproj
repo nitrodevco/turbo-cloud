@@ -1,0 +1,11 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup></ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Turbo.Pipeline.Abstractions\Turbo.Pipeline.Abstractions.csproj" />
+    <ProjectReference Include="..\Turbo.Networking.Abstractions\Turbo.Networking.Abstractions.csproj" />
+    <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
+  </ItemGroup>
+</Project>

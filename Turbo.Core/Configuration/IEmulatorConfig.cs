@@ -5,9 +5,6 @@ namespace Turbo.Core.Configuration;
 public interface IEmulatorConfig
 {
     public IGameConfig Game { get; init; }
-    public IEncryptionConfig Encryption { get; init; }
-
-    public INetworkConfig Network { get; init; }
 
     public bool DatabaseLoggingEnabled { get; init; }
 

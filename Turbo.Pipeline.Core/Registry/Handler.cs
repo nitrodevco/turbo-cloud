@@ -1,0 +1,13 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Turbo.Pipeline.Abstractions.Registry;
+
+namespace Turbo.Pipeline.Core.Registry;
+
+public sealed record Handler(
+    Type ServiceType,
+    Func<object, object, PipelineContext, CancellationToken, Task> Invoke,
+    int Order,
+    string[] Tags
+);

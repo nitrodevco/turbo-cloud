@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Core.Authorization;
-using Turbo.Core.Networking.Session;
+using Turbo.Networking.Abstractions.Session;
 
 namespace Turbo.Authorization.Players.Requirements;
 

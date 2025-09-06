@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using Turbo.Core.Packets.Messages;
-using Turbo.Core.Packets.Revisions;
+using Turbo.Networking.Abstractions.Revisions;
+using Turbo.Packets.Abstractions;
 using Turbo.Packets.Outgoing.Handshake;
 using Turbo.Packets.Outgoing.Users;
 using Turbo.Revision20240709.Parsers.Handshake;

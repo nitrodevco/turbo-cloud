@@ -149,9 +149,10 @@ public class PlayerGrain : Grain, IPlayerGrain
     /// <summary>
     /// Activates the Orleans stream for player events.
     /// </summary>
-    protected async Task ActivateStreamAsync()
+    protected Task ActivateStreamAsync()
     {
         var streamProvider = this.GetStreamProvider(PlayerStreams.ProviderName);
+        return Task.CompletedTask;
 
         /* _stream = streamProvider.GetStream<PlayerEventEnvelope>(PlayerStreams.Id(PlayerId));
 
@@ -166,12 +167,13 @@ public class PlayerGrain : Grain, IPlayerGrain
     /// <summary>
     /// Deactivates the Orleans stream for player events.
     /// </summary>
-    protected async Task DeactivateStreamAsync()
+    protected Task DeactivateStreamAsync()
     {
+        return Task.CompletedTask;
         /* if (_subHandle is not null)
-        {
-            await _subHandle.UnsubscribeAsync();
-        } */
+{
+await _subHandle.UnsubscribeAsync();
+} */
     }
 
     /// <inheritdoc />

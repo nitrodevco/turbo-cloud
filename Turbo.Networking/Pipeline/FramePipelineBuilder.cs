@@ -1,18 +1,16 @@
-using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.Threading.Tasks;
-using Turbo.Core.Networking.Protocol;
-using Turbo.Core.Networking.Session;
-using Turbo.Core.Packets.Messages;
+using Turbo.Networking.Abstractions.Session;
+using Turbo.Networking.Middleware;
+using Turbo.Packets.Abstractions;
 
 namespace Turbo.Networking.Pipeline;
 
 public class FramePipelineBuilder
 {
-    private readonly List<IFrameMiddleware> _middleWares = [];
+    private readonly List<FrameMiddleware> _middleWares = [];
 
-    public FramePipelineBuilder Use(IFrameMiddleware mw)
+    public FramePipelineBuilder Use(FrameMiddleware mw)
     {
         _middleWares.Add(mw);
 

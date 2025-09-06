@@ -11,5 +11,6 @@
     <ProjectReference Include="..\Turbo.Core\Turbo.Core.csproj" />
     <ProjectReference Include="..\Turbo.Streams\Turbo.Streams.csproj" />
     <ProjectReference Include="..\Turbo.Events\Turbo.Events.csproj" />
+    <ProjectReference Include="..\Turbo.Networking.Abstractions\Turbo.Networking.Abstractions.csproj" />
   </ItemGroup>
 </Project>

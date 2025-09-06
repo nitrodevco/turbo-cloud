@@ -14,7 +14,7 @@ public class CatalogProductEntity : Entity
 
     [Column("product_type")]
     [Required]
-    public string ProductType { get; set; }
+    public required string ProductType { get; set; }
 
     [Column("definition_id")]
     public int? FurnitureDefinitionEntityId { get; set; }

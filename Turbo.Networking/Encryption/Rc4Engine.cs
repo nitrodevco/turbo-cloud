@@ -1,5 +1,5 @@
 using System;
-using Turbo.Core.Networking.Encryption;
+using Turbo.Networking.Abstractions.Encryption;
 
 namespace Turbo.Networking.Encryption;
 
