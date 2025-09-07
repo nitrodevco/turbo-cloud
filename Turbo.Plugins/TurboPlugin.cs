@@ -1,21 +1,36 @@
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Turbo.Contracts.Plugins;
 
 namespace Turbo.Plugins;
 
 public abstract class TurboPlugin : ITurboPlugin
 {
-    public abstract string PluginName { get; }
-    public abstract string PluginAuthor { get; }
+    public virtual string PluginId { get; private set; } = string.Empty;
+    public virtual string PluginName { get; private set; } = string.Empty;
+    public virtual string PluginAuthor { get; private set; } = string.Empty;
+    public virtual Version PluginVersion { get; private set; } = Version.Parse("1.0.0");
 
-    public virtual void ConfigureHost(IHostBuilder hostBuilder)
+    public abstract ValueTask DisposeAsync();
+
+    public void ProcessManifest(PluginManifest manifest)
     {
-        // Default implementation does nothing
+        PluginId = manifest.Id;
+        PluginName = manifest.Name;
+        PluginAuthor = manifest.Author;
+        PluginVersion = Version.Parse(manifest.Version);
     }
 
-    public virtual void ConfigureServices(HostBuilderContext context, IServiceCollection services)
+    public virtual ValueTask OnEnableAsync(CancellationToken ct)
     {
-        // Default implementation does nothing
+        // handlers live
+        return ValueTask.CompletedTask;
+    }
+
+    public virtual ValueTask OnDisableAsync(CancellationToken ct)
+    {
+        // stop work, unsubscribe if needed
+        return ValueTask.CompletedTask;
     }
 }

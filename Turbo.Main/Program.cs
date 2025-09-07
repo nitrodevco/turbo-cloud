@@ -8,7 +8,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Orleans.Hosting;
 using Turbo.Main.Extensions;
-using Turbo.Plugins;
 using Turbo.Plugins.Extensions;
 
 namespace Turbo.Main;
@@ -47,9 +46,6 @@ internal class Program
         );
 
         var builder = Host.CreateDefaultBuilder(args);
-        var pluginAssemblies = PluginLoader.GetPluginAssemblies(
-            Path.Combine(AppContext.BaseDirectory, "plugins")
-        );
 
         builder.ConfigureLogging(
             (ctx, logging) =>
@@ -111,8 +107,6 @@ internal class Program
                 );
             }
         }); */
-
-        builder.UsePluginAssemblies(pluginAssemblies, bootstrapLogger);
 
         builder.ConfigureTurbo();
 

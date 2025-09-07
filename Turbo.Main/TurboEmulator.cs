@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.DefaultRevision;
 using Turbo.Events.Abstractions;
 using Turbo.Networking.Abstractions;
+using Turbo.Plugins;
 using Turbo.Primitives.Events;
 using Turbo.Revision20240709;
 
@@ -22,13 +23,15 @@ public class TurboEmulator : IHostedService
     private readonly IEventBus _eventBus;
     private readonly List<IDisposable> _registrations;
     private readonly INetworkManager _networkManager;
+    private readonly PluginManager _pluginManager;
 
     public TurboEmulator(
         IHostApplicationLifetime appLifetime,
         ILogger<TurboEmulator> logger,
         IServiceProvider serviceProvider,
         IEventBus eventBus,
-        INetworkManager networkManager
+        INetworkManager networkManager,
+        PluginManager pluginManager
     )
     {
         _appLifetime = appLifetime;
@@ -42,6 +45,7 @@ public class TurboEmulator : IHostedService
             _appLifetime.ApplicationStopping.Register(OnStopping),
             _appLifetime.ApplicationStopped.Register(OnStopped),
         ];
+        _pluginManager = pluginManager;
 
         SetDefaultCulture(CultureInfo.InvariantCulture);
     }
@@ -59,6 +63,9 @@ public class TurboEmulator : IHostedService
 
             await defaultRevision.InitializeAsync();
             await revision20240709.InitializeAsync();
+
+            await _pluginManager.LoadOrReloadAllPlugins(ct);
+
             await _networkManager.StartAsync();
         }
         catch (OperationCanceledException)

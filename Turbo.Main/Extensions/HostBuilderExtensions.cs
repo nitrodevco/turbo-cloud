@@ -9,6 +9,7 @@ using Turbo.Events.Extensions;
 using Turbo.Messaging.Abstractions.Registry;
 using Turbo.Messaging.Extensions;
 using Turbo.Networking.Extensions;
+using Turbo.Plugins.Extensions;
 using Turbo.Revision20240709.Extensions;
 
 namespace Turbo.Main.Extensions;
@@ -20,6 +21,8 @@ public static class HostBuilderExtensions
         host.ConfigureServices(
             (ctx, services) =>
             {
+                services.UseTurboPlugins(ctx.Configuration);
+
                 services.AddTurboDatabase(ctx.Configuration);
                 services.AddTurboNetworking(ctx.Configuration);
                 services.AddTurboEvents(ctx.Configuration);

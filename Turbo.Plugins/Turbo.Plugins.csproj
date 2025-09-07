@@ -2,8 +2,11 @@
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
   </PropertyGroup>
-  <ItemGroup></ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Scrutor" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Turbo.Contracts\Turbo.Contracts.csproj" />
+    <ProjectReference Include="..\Turbo.Database\Turbo.Database.csproj" />
   </ItemGroup>
 </Project>

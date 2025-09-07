@@ -1,14 +1,17 @@
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Turbo.Contracts.Plugins;
 
-public interface ITurboPlugin
+public interface ITurboPlugin : IAsyncDisposable
 {
+    string PluginId { get; }
     string PluginName { get; }
     string PluginAuthor { get; }
+    Version PluginVersion { get; }
 
-    void ConfigureHost(IHostBuilder host);
-
-    void ConfigureServices(HostBuilderContext context, IServiceCollection services);
+    void ProcessManifest(PluginManifest manifest);
+    ValueTask OnEnableAsync(CancellationToken ct); // handlers live
+    ValueTask OnDisableAsync(CancellationToken ct); // stop work, unsubscribe if needed
 }
