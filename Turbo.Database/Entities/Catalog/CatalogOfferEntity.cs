@@ -1,53 +1,46 @@
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Catalog;
 
+[TurboEntity]
 [Table("catalog_offers")]
 public class CatalogOfferEntity : Entity
 {
     [Column("page_id")]
-    [Required]
-    public int CatalogPageEntityId { get; set; }
+    public required int CatalogPageEntityId { get; set; }
 
     [Column("localization_id")]
-    [Required]
     public required string LocalizationId { get; set; }
 
     [Column("cost_credits")]
-    [Required]
-    [DefaultValueSql("0")]
-    public int CostCredits { get; set; }
+    [DefaultValue(0)]
+    public required int CostCredits { get; set; }
 
     [Column("cost_currency")]
-    [Required]
-    [DefaultValueSql(0)]
-    public int CostCurrency { get; set; }
+    [DefaultValue(0)]
+    public required int CostCurrency { get; set; }
 
     [Column("currency_type")]
     public int? CurrencyType { get; set; }
 
     [Column("can_gift")]
-    [Required]
-    [DefaultValueSql(true)]
-    public bool? CanGift { get; set; }
+    [DefaultValue(true)]
+    public required bool CanGift { get; set; }
 
     [Column("can_bundle")]
-    [Required]
-    [DefaultValueSql(true)]
-    public bool? CanBundle { get; set; }
+    [DefaultValue(true)]
+    public required bool CanBundle { get; set; }
 
     [Column("club_level")]
-    [Required]
-    [DefaultValueSql(0)]
-    public int ClubLevel { get; set; }
+    [DefaultValue(0)]
+    public required int ClubLevel { get; set; }
 
     [Column("visible")]
-    [Required]
-    [DefaultValueSql(true)]
-    public bool? Visible { get; set; }
+    [DefaultValue(true)]
+    public required bool Visible { get; set; }
 
     [ForeignKey(nameof(CatalogPageEntityId))]
     public required CatalogPageEntity Page { get; set; }

@@ -1,10 +1,12 @@
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Catalog;
 
+[TurboEntity]
 [Table("catalog_pages")]
 public class CatalogPageEntity : Entity
 {
@@ -12,7 +14,6 @@ public class CatalogPageEntity : Entity
     public int? ParentEntityId { get; set; }
 
     [Column("localization")]
-    [Required]
     [MaxLength(50)]
     public required string Localization { get; set; }
 
@@ -21,13 +22,11 @@ public class CatalogPageEntity : Entity
     public string? Name { get; set; }
 
     [Column("icon")]
-    [Required]
-    [DefaultValueSql(0)]
-    public int Icon { get; set; }
+    [DefaultValue(0)]
+    public required int Icon { get; set; }
 
     [Column("layout")]
-    [Required]
-    [DefaultValueSql("'default_3x3'")]
+    [DefaultValue("default_3x3")]
     [MaxLength(50)]
     public required string Layout { get; set; }
 
@@ -38,9 +37,8 @@ public class CatalogPageEntity : Entity
     public List<string>? TextData { get; set; } = null!;
 
     [Column("visible")]
-    [Required]
-    [DefaultValueSql(true)]
-    public bool? Visible { get; set; }
+    [DefaultValue(true)]
+    public required bool Visible { get; set; }
 
     [ForeignKey(nameof(ParentEntityId))]
     public CatalogPageEntity? ParentEntity { get; set; }

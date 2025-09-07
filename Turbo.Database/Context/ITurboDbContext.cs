@@ -64,7 +64,7 @@ public interface ITurboDbContext : IDisposable
 
     public DbSet<PlayerFavoriteRoomsEntity> PlayerFavouriteRooms { get; set; }
 
-    public int SaveChanges(bool acceptAllChangesOnSuccess);
+    /* public int SaveChanges(bool acceptAllChangesOnSuccess);
 
     public int SaveChanges();
 
@@ -88,5 +88,5 @@ public interface ITurboDbContext : IDisposable
     public EntityEntry Remove([NotNull] object entity);
 
     public EntityEntry<TEntity> Remove<TEntity>([NotNull] TEntity entity)
-        where TEntity : class;
+        where TEntity : class; */
 }

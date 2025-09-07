@@ -1,30 +1,28 @@
 using System;
-using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using Turbo.Database.Attributes;
 using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Room;
 
+[TurboEntity]
 [Table("room_bans")]
 [Index(nameof(RoomEntityId), nameof(PlayerEntityId), IsUnique = true)]
 public class RoomBanEntity : Entity
 {
     [Column("room_id")]
-    [Required]
-    public int RoomEntityId { get; set; }
+    public required int RoomEntityId { get; set; }
 
     [Column("player_id")]
-    [Required]
-    public int PlayerEntityId { get; set; }
+    public required int PlayerEntityId { get; set; }
 
     [Column("date_expires")]
-    [Required]
-    public DateTime DateExpires { get; set; }
+    public required DateTime DateExpires { get; set; }
 
     [ForeignKey(nameof(RoomEntityId))]
-    public RoomEntity RoomEntity { get; set; }
+    public required RoomEntity RoomEntity { get; set; }
 
     [ForeignKey(nameof(PlayerEntityId))]
-    public PlayerEntity PlayerEntity { get; set; }
+    public required PlayerEntity PlayerEntity { get; set; }
 }

@@ -1,27 +1,25 @@
-using System.ComponentModel.DataAnnotations;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Players;
 
+[TurboEntity]
 [Table("player_currencies")]
 [Index(nameof(PlayerEntityId), nameof(Type), IsUnique = true)]
 public class PlayerCurrencyEntity : Entity
 {
     [Column("player_id")]
-    [Required]
-    public int PlayerEntityId { get; set; }
+    public required int PlayerEntityId { get; set; }
 
     [Column("type")]
-    [Required]
-    public string Type { get; set; }
+    public required string Type { get; set; }
 
     [Column("amount")]
-    [Required]
-    [DefaultValueSql(0)]
-    public int Amount { get; set; }
+    [DefaultValue(0)]
+    public required int Amount { get; set; }
 
     [ForeignKey(nameof(PlayerEntityId))]
-    public PlayerEntity PlayerEntity { get; set; }
+    public required PlayerEntity PlayerEntity { get; set; }
 }

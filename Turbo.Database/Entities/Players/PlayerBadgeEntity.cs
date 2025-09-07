@@ -1,24 +1,25 @@
-using System.ComponentModel.DataAnnotations;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Players;
 
+[TurboEntity]
 [Table("player_badges")]
 [Index(nameof(PlayerEntityId), nameof(BadgeCode), IsUnique = true)]
 public class PlayerBadgeEntity : Entity
 {
     [Column("player_id")]
-    [Required]
-    public int PlayerEntityId { get; set; }
+    public required int PlayerEntityId { get; set; }
 
     [Column("badge_code")]
-    [Required]
-    public string BadgeCode { get; set; }
+    public required string BadgeCode { get; set; }
 
     [Column("slot_id")]
+    [DefaultValue(0)]
     public int? SlotId { get; set; }
 
     [ForeignKey(nameof(PlayerEntityId))]
-    public PlayerEntity PlayerEntity { get; set; }
+    public required PlayerEntity PlayerEntity { get; set; }
 }

@@ -1,25 +1,24 @@
-using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using Turbo.Database.Attributes;
 using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Messenger;
 
+[TurboEntity]
 [Table("messenger_requests")]
 [Index(nameof(PlayerEntityId), nameof(RequestedPlayerEntityId), IsUnique = true)]
 public class MessengerRequestEntity : Entity
 {
     [Column("player_id")]
-    [Required]
-    public int PlayerEntityId { get; set; }
+    public required int PlayerEntityId { get; set; }
 
     [Column("requested_id")]
-    [Required]
-    public int RequestedPlayerEntityId { get; set; }
+    public required int RequestedPlayerEntityId { get; set; }
 
     [ForeignKey(nameof(PlayerEntityId))]
-    public PlayerEntity PlayerEntity { get; set; }
+    public required PlayerEntity PlayerEntity { get; set; }
 
     [ForeignKey(nameof(RequestedPlayerEntityId))]
-    public PlayerEntity RequestedPlayerEntity { get; set; }
+    public required PlayerEntity RequestedPlayerEntity { get; set; }
 }

@@ -1,20 +1,21 @@
-using System.ComponentModel.DataAnnotations;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
+using Turbo.Contracts.Enums.Furniture;
 using Turbo.Database.Attributes;
 using Turbo.Database.Entities.Furniture;
 
 namespace Turbo.Database.Entities.Catalog;
 
+[TurboEntity]
 [Table("catalog_products")]
 public class CatalogProductEntity : Entity
 {
     [Column("offer_id")]
-    [Required]
-    public int CatalogOfferEntityId { get; set; }
+    public required int CatalogOfferEntityId { get; set; }
 
     [Column("product_type")]
-    [Required]
-    public required string ProductType { get; set; }
+    [DefaultValue(FurniTypeEnum.Floor)]
+    public required FurniTypeEnum ProductType { get; set; }
 
     [Column("definition_id")]
     public int? FurnitureDefinitionEntityId { get; set; }
@@ -23,23 +24,20 @@ public class CatalogProductEntity : Entity
     public string? ExtraParam { get; set; }
 
     [Column("quantity")]
-    [Required]
-    [DefaultValueSql(1)]
-    public int Quantity { get; set; }
+    [DefaultValue(1)]
+    public required int Quantity { get; set; }
 
     [Column("unique_size")]
-    [Required]
-    [DefaultValueSql(0)]
-    public int UniqueSize { get; set; }
+    [DefaultValue(0)]
+    public required int UniqueSize { get; set; }
 
     [Column("unique_remaining")]
-    [Required]
-    [DefaultValueSql(0)]
-    public int UniqueRemaining { get; set; }
+    [DefaultValue(0)]
+    public required int UniqueRemaining { get; set; }
 
     [ForeignKey(nameof(CatalogOfferEntityId))]
-    public CatalogOfferEntity Offer { get; set; }
+    public required CatalogOfferEntity Offer { get; set; }
 
     [ForeignKey(nameof(FurnitureDefinitionEntityId))]
-    public FurnitureDefinitionEntity FurnitureDefinition { get; set; }
+    public FurnitureDefinitionEntity? FurnitureDefinition { get; set; }
 }

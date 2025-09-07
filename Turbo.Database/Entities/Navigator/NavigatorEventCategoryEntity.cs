@@ -1,8 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Navigator;
 
+[TurboEntity]
 [Table("navigator_eventcats")]
 public class NavigatorEventCategoryEntity : Entity
 {
@@ -11,10 +13,8 @@ public class NavigatorEventCategoryEntity : Entity
     public new int Id { get; set; }
 
     [Column("name")]
-    [Required]
-    public string Name { get; set; }
+    public required string Name { get; set; }
 
     [Column("visible")]
-    [Required]
-    public bool Visible { get; set; }
+    public required bool Visible { get; set; }
 }

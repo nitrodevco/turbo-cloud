@@ -1,11 +1,7 @@
-using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
-using Turbo.Database.Attributes;
-using Turbo.Database.Entities;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Navigator;
@@ -13,6 +9,7 @@ using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Entities.Security;
 using Turbo.Database.Entities.Tracking;
+using Turbo.Database.Extensions;
 
 namespace Turbo.Database.Context;
 
@@ -73,17 +70,10 @@ public class TurboDbContext(
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        OnModelCreatingAddDefaultSqlValues(modelBuilder);
-
-        modelBuilder.Entity<CatalogPageEntity>(entity =>
-        {
-            entity.Property(e => e.ImageData).HasColumnType("json");
-
-            entity.Property(e => e.TextData).HasColumnType("json");
-        });
-
         foreach (var asm in _pluginAssemblies.Distinct())
             modelBuilder.ApplyConfigurationsFromAssembly(asm);
+
+        modelBuilder.ApplyDefaultAttributesFromEntities();
 
         /* var entityMethod = typeof(ModelBuilder).GetMethod("Entity", Type.EmptyTypes);
 
@@ -108,56 +98,5 @@ public class TurboDbContext(
                 entityMethod.MakeGenericMethod(type).Invoke(modelBuilder, new object[] { });
             }
         } */
-    }
-
-    private void OnModelCreatingAddDefaultSqlValues(ModelBuilder modelBuilder)
-    {
-        var asm = Assembly.Load("Turbo.Core");
-
-        if (asm is null)
-        {
-            return;
-        }
-
-        var types = asm.GetTypes().ToList();
-
-        var dbSets = typeof(TurboDbContext)
-            .GetProperties()
-            .Where(p => p.PropertyType.Name.ToLower().Contains("dbset"))
-            .ToList();
-
-        List<Type> dbSetTypes = new();
-
-        foreach (var pi in dbSets)
-        {
-            dbSetTypes.Add(pi.PropertyType.GetGenericArguments()[0]);
-        }
-
-        foreach (var t in types)
-        {
-            if (
-                !typeof(Entity).IsAssignableFrom(t)
-                || t.Name == nameof(Entity)
-                || !dbSetTypes.Contains(t)
-            )
-            {
-                continue;
-            }
-
-            var properties = t.GetProperties().ToList();
-
-            foreach (var p in properties)
-            {
-                var att = p.GetCustomAttribute<DefaultValueSqlAttribute>();
-
-                if (att is not null)
-                {
-                    modelBuilder
-                        .Entity(t)
-                        .Property(p.Name)
-                        .HasDefaultValueSql(att.Value?.ToString());
-                }
-            }
-        }
     }
 }

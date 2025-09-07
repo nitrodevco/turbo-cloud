@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Turbo.Contracts.Enums.Rooms;
 using Turbo.Database.Attributes;
@@ -9,178 +9,153 @@ using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Room;
 
+[TurboEntity]
 [Table("rooms")]
 public class RoomEntity : Entity
 {
     [Column("name")]
-    [Required]
-    public string Name { get; set; }
+    public required string Name { get; set; }
 
     [Column("description")]
     public string? Description { get; set; }
 
     [Column("player_id")]
-    [Required]
-    public int PlayerEntityId { get; set; }
+    public required int PlayerEntityId { get; set; }
 
     [Column("state")]
-    [Required]
-    [DefaultValueSql(RoomStateType.Open)] // RoomStateType.Open
+    [DefaultValue(RoomStateType.Open)] // RoomStateType.Open
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public RoomStateType RoomState { get; set; }
+    public required RoomStateType RoomState { get; set; }
 
     [Column("password")]
     public string? Password { get; set; }
 
     [Column("model_id")]
-    [Required]
-    public int RoomModelEntityId { get; set; }
+    public required int RoomModelEntityId { get; set; }
 
     [Column("category_id")]
     public int? NavigatorCategoryEntityId { get; set; }
 
     [Column("users_now")]
-    [Required]
-    [DefaultValueSql(0)]
-    public int UsersNow { get; set; }
+    [DefaultValue(0)]
+    public required int UsersNow { get; set; }
 
     [Column("users_max")]
-    [Required]
-    [DefaultValueSql(25)]
-    public int UsersMax { get; set; }
+    [DefaultValue(25)]
+    public required int UsersMax { get; set; }
 
     [Column("paint_wall")]
-    [Required]
-    [DefaultValueSql(0.0d)]
-    public double PaintWall { get; set; }
+    [DefaultValue(0.0d)]
+    public required double PaintWall { get; set; }
 
     [Column("paint_floor")]
-    [Required]
-    [DefaultValueSql(0.0d)]
-    public double PaintFloor { get; set; }
+    [DefaultValue(0.0d)]
+    public required double PaintFloor { get; set; }
 
     [Column("paint_landscape")]
-    [Required]
-    [DefaultValueSql(0.0d)]
-    public double PaintLandscape { get; set; }
+    [DefaultValue(0.0d)]
+    public required double PaintLandscape { get; set; }
 
     [Column("wall_height")]
-    [Required]
-    [DefaultValueSql(-1)]
-    public int WallHeight { get; set; }
+    [DefaultValue(-1)]
+    public required int WallHeight { get; set; }
 
     [Column("hide_walls")]
-    [Required]
-    [DefaultValueSql(false)]
-    public bool? HideWalls { get; set; }
+    [DefaultValue(false)]
+    public required bool HideWalls { get; set; }
 
     [Column("thickness_wall")]
-    [Required]
-    [DefaultValueSql(RoomThicknessType.Normal)] // RoomThicknessType.Normal
+    [DefaultValue(RoomThicknessType.Normal)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public RoomThicknessType ThicknessWall { get; set; }
+    public required RoomThicknessType ThicknessWall { get; set; }
 
     [Column("thickness_floor")]
-    [Required]
-    [DefaultValueSql(RoomThicknessType.Normal)] // RoomThicknessType.Normal
+    [DefaultValue(RoomThicknessType.Normal)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public RoomThicknessType ThicknessFloor { get; set; }
+    public required RoomThicknessType ThicknessFloor { get; set; }
 
     [Column("allow_walk_through")]
-    [Required]
-    [DefaultValueSql(true)]
-    public bool? AllowWalkThrough { get; set; }
+    [DefaultValue(true)]
+    public required bool AllowWalkThrough { get; set; }
 
     [Column("allow_editing")]
-    [Required]
-    [DefaultValueSql(true)]
-    public bool? AllowEditing { get; set; }
+    [DefaultValue(true)]
+    public required bool? AllowEditing { get; set; }
 
     [Column("allow_pets")]
-    [Required]
-    [DefaultValueSql(false)]
-    public bool? AllowPets { get; set; }
+    [DefaultValue(false)]
+    public required bool AllowPets { get; set; }
 
     [Column("allow_pets_eat")]
-    [Required]
-    [DefaultValueSql(false)]
-    public bool? AllowPetsEat { get; set; }
+    [DefaultValue(false)]
+    public required bool AllowPetsEat { get; set; }
 
     [Column("trade_type")]
-    [Required]
-    [DefaultValueSql(RoomTradeType.Disabled)] // RoomTradeType.Disabled
+    [DefaultValue(RoomTradeType.Disabled)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public RoomTradeType TradeType { get; set; }
+    public required RoomTradeType TradeType { get; set; }
 
     [Column("mute_type")]
-    [Required]
-    [DefaultValueSql(RoomMuteType.None)] // RoomMuteType.None
+    [DefaultValue(RoomMuteType.None)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public RoomMuteType MuteType { get; set; }
+    public required RoomMuteType MuteType { get; set; }
 
     [Column("kick_type")]
-    [Required]
-    [DefaultValueSql(RoomKickType.None)] // RoomKickType.None
+    [DefaultValue(RoomKickType.None)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public RoomKickType KickType { get; set; }
+    public required RoomKickType KickType { get; set; }
 
     [Column("ban_type")]
-    [Required]
-    [DefaultValueSql(RoomBanType.None)] // RoomBanType.None
+    [DefaultValue(RoomBanType.None)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public RoomBanType BanType { get; set; }
+    public required RoomBanType BanType { get; set; }
 
     [Column("chat_mode_type")]
-    [Required]
-    [DefaultValueSql(RoomChatModeType.FreeFlow)] // RoomChatModeType.FreeFlow
+    [DefaultValue(RoomChatModeType.FreeFlow)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public RoomChatModeType ChatModeType { get; set; }
+    public required RoomChatModeType ChatModeType { get; set; }
 
     [Column("chat_weight_type")]
-    [Required]
-    [DefaultValueSql(RoomChatWeightType.Normal)] // RoomChatWeightType.Normal
+    [DefaultValue(RoomChatWeightType.Normal)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public RoomChatWeightType ChatWeightType { get; set; }
+    public required RoomChatWeightType ChatWeightType { get; set; }
 
     [Column("chat_speed_type")]
-    [Required]
-    [DefaultValueSql(RoomChatSpeedType.Normal)] // RoomChatSpeedType.Normal
+    [DefaultValue(RoomChatSpeedType.Normal)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public RoomChatSpeedType ChatSpeedType { get; set; }
+    public required RoomChatSpeedType ChatSpeedType { get; set; }
 
     [Column("chat_protection_type")]
-    [Required]
-    [DefaultValueSql(RoomChatProtectionType.Minimal)] // RoomChatProtectionType.Minimal
+    [DefaultValue(RoomChatProtectionType.Minimal)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public RoomChatProtectionType ChatProtectionType { get; set; }
+    public required RoomChatProtectionType ChatProtectionType { get; set; }
 
     [Column("chat_distance")]
-    [Required]
-    [DefaultValueSql("50")]
-    public int ChatDistance { get; set; }
+    [DefaultValue(50)]
+    public required int ChatDistance { get; set; }
 
     [Column("last_active")]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public DateTime LastActive { get; set; }
 
     [ForeignKey(nameof(PlayerEntityId))]
-    public PlayerEntity PlayerEntity { get; set; }
+    public required PlayerEntity PlayerEntity { get; set; }
 
     [ForeignKey(nameof(RoomModelEntityId))]
-    public RoomModelEntity RoomModelEntity { get; set; }
+    public required RoomModelEntity RoomModelEntity { get; set; }
 
     [ForeignKey(nameof(NavigatorCategoryEntityId))]
-    public NavigatorFlatCategoryEntity NavigatorFlatCategoryEntity { get; set; }
+    public NavigatorFlatCategoryEntity? NavigatorFlatCategoryEntity { get; set; }
 
     [InverseProperty("RoomEntity")]
-    public List<RoomBanEntity> RoomBans { get; set; }
+    public List<RoomBanEntity>? RoomBans { get; set; }
 
     [InverseProperty("RoomEntity")]
-    public List<RoomMuteEntity> RoomMutes { get; set; }
+    public List<RoomMuteEntity>? RoomMutes { get; set; }
 
     [InverseProperty("RoomEntity")]
-    public List<RoomRightEntity> RoomRights { get; set; }
+    public List<RoomRightEntity>? RoomRights { get; set; }
 
     [InverseProperty("RoomEntity")]
-    public List<RoomChatlogEntity> RoomChats { get; set; }
+    public List<RoomChatlogEntity>? RoomChats { get; set; }
 }

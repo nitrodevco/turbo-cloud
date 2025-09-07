@@ -1,22 +1,23 @@
-using System.ComponentModel.DataAnnotations;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Navigator;
 
+[TurboEntity]
 [Table("navigator_top_level_contexts")]
 [Index(nameof(SearchCode), IsUnique = true)]
 public class NavigatorTopLevelContextEntity : Entity
 {
     [Column("search_code")]
-    [Required]
-    public string SearchCode { get; set; }
+    public required string SearchCode { get; set; }
 
     [Column("visible")]
-    [Required]
-    public bool Visible { get; set; }
+    [DefaultValue(true)]
+    public required bool Visible { get; set; }
 
     [Column("order_num")]
-    [Required]
-    public int OrderNum { get; set; }
+    [DefaultValue(0)]
+    public required int OrderNum { get; set; }
 }

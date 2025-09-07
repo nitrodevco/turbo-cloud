@@ -1,9 +1,11 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Navigator;
 
+[TurboEntity]
 [Table("navigator_flatcats")]
 public class NavigatorFlatCategoryEntity : Entity
 {
@@ -12,33 +14,31 @@ public class NavigatorFlatCategoryEntity : Entity
     public new int Id { get; set; }
 
     [Column("name")]
-    [Required]
-    public string Name { get; set; }
+    public required string Name { get; set; }
 
     [Column("visible")]
-    [Required]
-    public bool Visible { get; set; }
+    [DefaultValue(true)]
+    public required bool Visible { get; set; }
 
     [Column("automatic")]
-    [Required]
-    public bool Automatic { get; set; }
+    [DefaultValue(true)] // TODO hmm
+    public required bool Automatic { get; set; }
 
     [Column("automatic_category")]
-    public string AutomaticCategory { get; set; }
+    public string? AutomaticCategory { get; set; }
 
     [Column("global_category")]
-    public string GlobalCategory { get; set; }
+    public string? GlobalCategory { get; set; }
 
     [Column("staff_only")]
-    [Required]
-    public bool StaffOnly { get; set; }
+    [DefaultValue(false)]
+    public required bool StaffOnly { get; set; }
 
     [Column("min_rank")]
     [DefaultValue(1)]
-    [Required]
-    public int MinRank { get; set; }
+    public required int MinRank { get; set; }
 
     [Column("order_num")]
-    [Required]
-    public int OrderNum { get; set; }
+    [DefaultValue(0)]
+    public required int OrderNum { get; set; }
 }

@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Contracts.Enums.Rooms.Object;
@@ -6,41 +6,35 @@ using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Room;
 
+[TurboEntity]
 [Table("room_models")]
 [Index(nameof(Name), IsUnique = true)]
 public class RoomModelEntity : Entity
 {
     [Column("name")]
-    [Required]
-    public string Name { get; set; }
+    public required string Name { get; set; }
 
     [Column("model")]
-    [Required]
-    public string Model { get; set; }
+    public required string Model { get; set; }
 
     [Column("door_x")]
-    [Required]
-    [DefaultValueSql(0)]
-    public int DoorX { get; set; }
+    [DefaultValue(0)]
+    public required int DoorX { get; set; }
 
     [Column("door_y")]
-    [Required]
-    [DefaultValueSql(0)]
-    public int DoorY { get; set; }
+    [DefaultValue(0)]
+    public required int DoorY { get; set; }
 
     [Column("door_rotation")]
-    [Required]
-    [DefaultValueSql(Rotation.North)] // Rotation.North
+    [DefaultValue(Rotation.North)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public Rotation DoorRotation { get; set; }
+    public required Rotation DoorRotation { get; set; }
 
     [Column("enabled")]
-    [Required]
-    [DefaultValueSql(true)]
-    public bool? Enabled { get; set; }
+    [DefaultValue(true)]
+    public required bool Enabled { get; set; }
 
     [Column("custom")]
-    [Required]
-    [DefaultValueSql(false)]
-    public bool? Custom { get; set; }
+    [DefaultValue(false)]
+    public required bool Custom { get; set; }
 }

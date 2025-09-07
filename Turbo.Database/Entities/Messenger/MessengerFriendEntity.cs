@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Contracts.Enums.Messenger;
@@ -7,32 +7,30 @@ using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Messenger;
 
+[TurboEntity]
 [Table("messenger_friends")]
 [Index(nameof(PlayerEntityId), nameof(FriendPlayerEntityId), IsUnique = true)]
 public class MessengerFriendEntity : Entity
 {
     [Column("player_id")]
-    [Required]
-    public int PlayerEntityId { get; set; }
+    public required int PlayerEntityId { get; set; }
 
     [Column("requested_id")]
-    [Required]
-    public int FriendPlayerEntityId { get; set; }
+    public required int FriendPlayerEntityId { get; set; }
 
     [Column("category_id")]
     public int? MessengerCategoryEntityId { get; set; }
 
     [Column("relation")]
-    [Required]
-    [DefaultValueSql(MessengerFriendRelationEnum.Zero)]
-    public MessengerFriendRelationEnum RelationType { get; set; }
+    [DefaultValue(MessengerFriendRelationEnum.Zero)]
+    public required MessengerFriendRelationEnum RelationType { get; set; }
 
     [ForeignKey(nameof(PlayerEntityId))]
-    public PlayerEntity PlayerEntity { get; set; }
+    public required PlayerEntity PlayerEntity { get; set; }
 
     [ForeignKey(nameof(FriendPlayerEntityId))]
-    public PlayerEntity FriendPlayerEntity { get; set; }
+    public required PlayerEntity FriendPlayerEntity { get; set; }
 
     [ForeignKey(nameof(MessengerCategoryEntityId))]
-    public MessengerCategoryEntity MessengerCategoryEntity { get; set; }
+    public MessengerCategoryEntity? MessengerCategoryEntity { get; set; }
 }
