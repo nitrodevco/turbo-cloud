@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Turbo.Revision20240709.EventHandlers;
 
 namespace Turbo.Revision20240709.Extensions;
 
@@ -11,7 +10,6 @@ public static class ServiceCollectionExtensions
         IConfiguration cfg
     )
     {
-        services.AddTransient<WelcomeOnJoin>();
         services.AddTransient<PacketHandlers>();
 
         return services;

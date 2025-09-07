@@ -105,8 +105,6 @@ public class PluginManager(IServiceProvider host, ILogger<PluginManager> log, Pl
             .First(t => typeof(ITurboPlugin).IsAssignableFrom(t) && !t.IsAbstract);
         var plugin = (ITurboPlugin)ActivatorUtilities.CreateInstance(sp, pluginType);
 
-        plugin.ProcessManifest(manifest);
-
         await plugin.OnEnableAsync(ct);
 
         return new PluginHandle
@@ -125,11 +123,12 @@ public class PluginManager(IServiceProvider host, ILogger<PluginManager> log, Pl
     {
         var services = new ServiceCollection();
 
-        services.AddSingleton<PluginRuntimeConfig>(_ => new PluginRuntimeConfig(
-            ConnectionString: _host.GetRequiredService<DatabaseConfig>().ConnectionString,
-            Schema: $"plugin_{manifest.Id}".ToLowerInvariant(),
-            TablePrefix: $"{manifest.Id.ToLowerInvariant()}_"
-        ));
+        services.AddSingleton(_ =>
+            PluginRuntimeConfig.BuildFromManifest(
+                manifest,
+                _host.GetRequiredService<DatabaseConfig>().ConnectionString
+            )
+        );
 
         // expose limited host services
         services.AddSingleton(_ => _host.GetRequiredService<ILoggerFactory>());

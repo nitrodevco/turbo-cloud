@@ -12,24 +12,15 @@ using Turbo.Packets.Abstractions;
 
 namespace Turbo.Networking.Session;
 
-public class PacketProcessor
+public class PacketProcessor(
+    IRevisionManager revisionManager,
+    IMessageBus messageBus,
+    ILogger<PacketProcessor> logger
+)
 {
-    private readonly IRevisionManager _revisionManager;
-    private readonly IMessageBus _messageBus;
-    private readonly ILogger<PacketProcessor> _logger;
-
-    public PacketProcessor(
-        IRevisionManager revisionManager,
-        IMessageBus messageBus,
-        ILogger<PacketProcessor> logger
-    )
-    {
-        _revisionManager = revisionManager;
-        _messageBus = messageBus;
-        _logger = logger;
-
-        Console.WriteLine("PacketProcessor initialized");
-    }
+    private readonly IRevisionManager _revisionManager = revisionManager;
+    private readonly IMessageBus _messageBus = messageBus;
+    private readonly ILogger<PacketProcessor> _logger = logger;
 
     public async Task ProcessPacket(
         ISessionContext ctx,
