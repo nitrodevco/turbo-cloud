@@ -1,3 +1,5 @@
+using Turbo.Contracts.Abstractions;
+
 namespace Turbo.Packets.Abstractions;
 
 public abstract class AbstractSerializer<T>(int header) : ISerializer

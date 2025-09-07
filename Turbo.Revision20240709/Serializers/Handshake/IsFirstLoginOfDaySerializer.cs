@@ -1,5 +1,5 @@
 using Turbo.Packets.Abstractions;
-using Turbo.Packets.Outgoing.Handshake;
+using Turbo.Primitives.Messages.Outgoing.Handshake;
 
 namespace Turbo.Revision20240709.Serializers.Handshake;
 

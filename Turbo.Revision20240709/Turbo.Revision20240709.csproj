@@ -6,11 +6,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Turbo.Contracts\Turbo.Contracts.csproj" />
     <ProjectReference Include="..\Turbo.Events.Abstractions\Turbo.Events.Abstractions.csproj" />
-    <ProjectReference Include="..\Turbo.Core\Turbo.Core.csproj" />
-    <ProjectReference Include="..\Turbo.Packets\Turbo.Packets.csproj" />
     <ProjectReference Include="..\Turbo.Packets.Abstractions\Turbo.Packets.Abstractions.csproj" />
     <ProjectReference Include="..\Turbo.Networking.Abstractions\Turbo.Networking.Abstractions.csproj" />
     <ProjectReference Include="..\Turbo.Messaging.Abstractions\Turbo.Messaging.Abstractions.csproj" />
-    <ProjectReference Include="..\Turbo.Authorization\Turbo.Authorization.csproj" />
+    <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
   </ItemGroup>
 </Project>

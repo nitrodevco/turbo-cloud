@@ -1,0 +1,9 @@
+using Turbo.Contracts.Abstractions;
+
+namespace Turbo.Primitives.Messages.Incoming.Handshake;
+
+public record SSOTicketMessage : IMessageEvent
+{
+    public string SSO { get; init; }
+    public int ElapsedMilliseconds { get; init; }
+}

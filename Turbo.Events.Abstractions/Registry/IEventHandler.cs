@@ -1,7 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Pipeline.Abstractions.Registry;
-using Turbo.Primitives;
+using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Events.Abstractions.Registry;
 

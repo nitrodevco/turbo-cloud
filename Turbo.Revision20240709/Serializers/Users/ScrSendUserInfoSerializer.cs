@@ -1,5 +1,5 @@
 using Turbo.Packets.Abstractions;
-using Turbo.Packets.Outgoing.Users;
+using Turbo.Primitives.Messages.Outgoing.Users;
 
 namespace Turbo.Revision20240709.Serializers.Users;
 

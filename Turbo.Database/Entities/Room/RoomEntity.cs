@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Turbo.Core.Game.Rooms.Constants;
+using Turbo.Contracts.Enums.Rooms;
 using Turbo.Database.Attributes;
 using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Players;

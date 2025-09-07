@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
-using Turbo.Core.Game.Furniture.Constants;
+using Turbo.Contracts.Enums.Furniture;
 using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Furniture;

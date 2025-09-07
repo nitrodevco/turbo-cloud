@@ -1,22 +1,14 @@
 using System;
 using System.Linq;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
-using Turbo.Authorization;
-using Turbo.Core.Authorization;
-using Turbo.Core.Configuration;
-using Turbo.Core.Game.Players;
 using Turbo.Database.Extensions;
 using Turbo.Events.Abstractions.Registry;
 using Turbo.Events.Extensions;
-using Turbo.Main.Configuration;
 using Turbo.Messaging.Abstractions.Registry;
 using Turbo.Messaging.Extensions;
 using Turbo.Networking.Extensions;
-using Turbo.Players;
 using Turbo.Revision20240709.Extensions;
 
 namespace Turbo.Main.Extensions;
@@ -28,14 +20,6 @@ public static class HostBuilderExtensions
         host.ConfigureServices(
             (ctx, services) =>
             {
-                services
-                    .AddOptions<TurboConfig>()
-                    .Bind(ctx.Configuration.GetSection(TurboConfig.Turbo));
-
-                services.AddSingleton<IEmulatorConfig>(sp =>
-                    sp.GetRequiredService<IOptions<TurboConfig>>().Value
-                );
-
                 services.AddTurboDatabase(ctx.Configuration);
                 services.AddTurboNetworking(ctx.Configuration);
                 services.AddTurboEvents(ctx.Configuration);
@@ -43,10 +27,6 @@ public static class HostBuilderExtensions
 
                 services.AddTurboDefaultRevision(ctx.Configuration);
                 services.AddTurboRevision20240709(ctx.Configuration);
-
-                services.AddSingleton<IAuthorizationManager, AuthorizationManager>();
-
-                services.AddSingleton<IPlayerManager, PlayerManager>();
 
                 // Emulator
                 services.AddHostedService<TurboEmulator>();

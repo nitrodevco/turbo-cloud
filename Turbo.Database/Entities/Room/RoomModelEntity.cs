@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
-using Turbo.Core.Game.Rooms.Utils;
+using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Room;

@@ -11,6 +11,6 @@
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Turbo.Core\Turbo.Core.csproj" />
+    <ProjectReference Include="..\Turbo.Contracts\Turbo.Contracts.csproj" />
   </ItemGroup>
 </Project>

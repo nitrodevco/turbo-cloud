@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
-using Turbo.Core.Game.Messenger.Constants;
+using Turbo.Contracts.Enums.Messenger;
 using Turbo.Database.Attributes;
 using Turbo.Database.Entities.Players;
 

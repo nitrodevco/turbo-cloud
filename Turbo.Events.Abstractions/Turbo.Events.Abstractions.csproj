@@ -4,6 +4,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Turbo.Pipeline.Abstractions\Turbo.Pipeline.Abstractions.csproj" />
-    <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
+    <ProjectReference Include="..\Turbo.Contracts\Turbo.Contracts.csproj" />
   </ItemGroup>
 </Project>

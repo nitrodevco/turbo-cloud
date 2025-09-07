@@ -1,6 +1,6 @@
+using Turbo.Contracts.Abstractions;
 using Turbo.Packets.Abstractions;
-using Turbo.Packets.Incoming.Handshake;
-using Turbo.Primitives;
+using Turbo.Primitives.Messages.Incoming.Handshake;
 
 namespace Turbo.DefaultRevision.Parsers.Handshake;
 

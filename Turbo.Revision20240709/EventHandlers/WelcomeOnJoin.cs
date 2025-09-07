@@ -2,8 +2,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Turbo.Contracts.Events;
 using Turbo.Events.Abstractions.Registry;
+using Turbo.Primitives.Events;
 
 namespace Turbo.Revision20240709.EventHandlers;
 

@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SuperSocket.Connection;
 using Turbo.Messaging.Abstractions.Registry;
-using Turbo.Packets.Incoming.Handshake;
+using Turbo.Primitives.Messages.Incoming.Handshake;
 
 namespace Turbo.DefaultRevision;
 

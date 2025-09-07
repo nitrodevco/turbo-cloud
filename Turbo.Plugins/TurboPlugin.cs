@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Turbo.Core.Plugins;
+using Turbo.Contracts.Plugins;
 
 namespace Turbo.Plugins;
 

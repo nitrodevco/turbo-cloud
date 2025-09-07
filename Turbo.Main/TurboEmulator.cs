@@ -6,16 +6,15 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Turbo.Contracts.Events;
-using Turbo.Core;
 using Turbo.DefaultRevision;
 using Turbo.Events.Abstractions;
 using Turbo.Networking.Abstractions;
+using Turbo.Primitives.Events;
 using Turbo.Revision20240709;
 
 namespace Turbo.Main;
 
-public class TurboEmulator : IEmulator
+public class TurboEmulator : IHostedService
 {
     private readonly IHostApplicationLifetime _appLifetime;
     private readonly ILogger<TurboEmulator> _logger;

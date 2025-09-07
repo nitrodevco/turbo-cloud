@@ -1,4 +1,4 @@
-using Turbo.Primitives;
+using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Packets.Abstractions;
 

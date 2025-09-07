@@ -1,10 +1,10 @@
 using System;
 using Microsoft.Extensions.Logging;
+using Turbo.Contracts.Abstractions;
 using Turbo.Events.Abstractions;
 using Turbo.Events.Abstractions.Registry;
 using Turbo.Events.Configuration;
 using Turbo.Pipeline.Core.Envelope;
-using Turbo.Primitives;
 
 namespace Turbo.Events;
 

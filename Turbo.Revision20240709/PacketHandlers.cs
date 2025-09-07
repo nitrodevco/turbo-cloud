@@ -1,21 +1,15 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Core.Authorization;
-using Turbo.Core.Game.Players;
 using Turbo.Messaging.Abstractions.Registry;
 using Turbo.Networking.Abstractions.Encryption;
-using Turbo.Packets.Incoming.Handshake;
-using Turbo.Packets.Outgoing.Handshake;
-using Turbo.Packets.Outgoing.Users;
+using Turbo.Primitives.Messages.Incoming.Handshake;
+using Turbo.Primitives.Messages.Outgoing.Handshake;
+using Turbo.Primitives.Messages.Outgoing.Users;
 
 namespace Turbo.Revision20240709;
 
-public class PacketHandlers(
-    IDiffieService diffieService,
-    IPlayerManager playerManager,
-    IAuthorizationManager authorizationManager
-)
+public class PacketHandlers(IDiffieService diffieService)
     : IMessageHandler<CompleteDiffieHandshakeMessage>,
         IMessageHandler<DisconnectMessage>,
         IMessageHandler<InfoRetrieveMessage>,
@@ -25,8 +19,6 @@ public class PacketHandlers(
         IMessageHandler<VersionCheckMessage>
 {
     private readonly IDiffieService _diffieService = diffieService;
-    private readonly IPlayerManager _playerManager = playerManager;
-    private readonly IAuthorizationManager _authorizationManager = authorizationManager;
 
     public async Task HandleAsync(
         CompleteDiffieHandshakeMessage message,
@@ -59,10 +51,10 @@ public class PacketHandlers(
         CancellationToken ct
     )
     {
-        var player = await _playerManager.GetPlayerGrain(ctx.Session.PlayerId);
-        var summary = await player.GetAsync();
+        //var player = await _playerManager.GetPlayerGrain(ctx.Session.PlayerId);
+        //var summary = await player.GetAsync();
 
-        await ctx.Session.SendComposerAsync(new UserObjectMessage { Player = summary }, ct);
+        //await ctx.Session.SendComposerAsync(new UserObjectMessage { Player = summary }, ct);
     }
 
     public async Task HandleAsync(

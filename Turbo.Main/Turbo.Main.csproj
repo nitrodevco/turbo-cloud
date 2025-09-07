@@ -34,13 +34,8 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Turbo.Core\Turbo.Core.csproj" />
     <ProjectReference Include="..\Turbo.Database\Turbo.Database.csproj" />
     <ProjectReference Include="..\Turbo.Events\Turbo.Events.csproj" />
-    <ProjectReference Include="..\Turbo.Grains\Turbo.Grains.csproj" />
-    <ProjectReference Include="..\Turbo.Players\Turbo.Players.csproj" />
-    <ProjectReference Include="..\Turbo.Streams\Turbo.Streams.csproj" />
-    <ProjectReference Include="..\Turbo.Authorization\Turbo.Authorization.csproj" />
     <ProjectReference Include="..\Turbo.Networking\Turbo.Networking.csproj" />
     <ProjectReference Include="..\Turbo.DefaultRevision\Turbo.DefaultRevision.csproj" />
     <ProjectReference Include="..\Turbo.Revision20240709\Turbo.Revision20240709.csproj" />

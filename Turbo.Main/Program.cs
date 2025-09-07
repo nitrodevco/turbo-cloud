@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
@@ -11,7 +10,6 @@ using Orleans.Hosting;
 using Turbo.Main.Extensions;
 using Turbo.Plugins;
 using Turbo.Plugins.Extensions;
-using Turbo.Streams;
 
 namespace Turbo.Main;
 
@@ -69,7 +67,7 @@ internal class Program
             }
         );
 
-        builder.UseOrleans(silo =>
+        /* builder.UseOrleans(silo =>
         {
             silo.ConfigureEndpoints(
                 "127.0.0.1",
@@ -112,7 +110,7 @@ internal class Program
                     }
                 );
             }
-        });
+        }); */
 
         builder.UsePluginAssemblies(pluginAssemblies, bootstrapLogger);
 
