@@ -5,5 +5,6 @@ public sealed record PluginManifest(
     string Name,
     string Author,
     string Version,
-    string EntryAssembly
+    string EntryAssembly,
+    string TablePrefix
 );

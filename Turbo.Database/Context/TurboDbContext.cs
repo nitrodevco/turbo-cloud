@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
@@ -9,17 +6,13 @@ using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Entities.Security;
 using Turbo.Database.Entities.Tracking;
-using Turbo.Database.Extensions;
 
 namespace Turbo.Database.Context;
 
-public class TurboDbContext(
-    DbContextOptions<TurboDbContext> options,
-    IEnumerable<Assembly> pluginAssemblies
-) : DbContext(options), ITurboDbContext
+public class TurboDbContext(DbContextOptions<TurboDbContext> options)
+    : DbContextBase<TurboDbContext>(options),
+        ITurboDbContext
 {
-    private readonly IEnumerable<Assembly> _pluginAssemblies = pluginAssemblies;
-
     public DbSet<CatalogOfferEntity> CatalogOffers { get; set; }
 
     public DbSet<CatalogPageEntity> CatalogPages { get; set; }
@@ -67,36 +60,4 @@ public class TurboDbContext(
     public DbSet<PerformanceLogEntity> PerformanceLogs { get; set; }
 
     public DbSet<PlayerFavoriteRoomsEntity> PlayerFavouriteRooms { get; set; }
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        foreach (var asm in _pluginAssemblies.Distinct())
-            modelBuilder.ApplyConfigurationsFromAssembly(asm);
-
-        modelBuilder.ApplyDefaultAttributesFromEntities();
-
-        /* var entityMethod = typeof(ModelBuilder).GetMethod("Entity", Type.EmptyTypes);
-
-        if (!Directory.Exists("plugins"))
-        {
-            Directory.CreateDirectory("plugins");
-        }
-
-        var plugins = Directory.GetFiles("plugins", "*.dll");
-
-        foreach (var plugin in plugins)
-        {
-            // Load assembly
-            var assembly = Assembly.LoadFile(Path.Combine(Directory.GetCurrentDirectory(), plugin));
-
-            var entityTypes = assembly
-                .GetTypes()
-                .Where(t => t.GetCustomAttributes(typeof(TurboEntity), true).Any());
-
-            foreach (var type in entityTypes)
-            {
-                entityMethod.MakeGenericMethod(type).Invoke(modelBuilder, new object[] { });
-            }
-        } */
-    }
 }

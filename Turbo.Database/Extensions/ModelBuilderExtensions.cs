@@ -1,6 +1,9 @@
+using System;
 using System.ComponentModel;
+using System.Linq;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Extensions;
@@ -51,6 +54,70 @@ public static class ModelBuilderExtensions
                     else if (underlying == typeof(string))
                         entity.Property(prop.Name).HasConversion<string>();
                 }
+            }
+        }
+    }
+
+    public static void ApplyConventions(this ModelBuilder mb)
+    {
+        foreach (
+            var p in mb
+                .Model.GetEntityTypes()
+                .SelectMany(t => t.GetProperties())
+                .Where(p => p.ClrType == typeof(string))
+        )
+            p.SetMaxLength(p.GetMaxLength() ?? 512);
+
+        var utc = new ValueConverter<DateTime, DateTime>(
+            v => v.Kind == DateTimeKind.Utc ? v : DateTime.SpecifyKind(v, DateTimeKind.Utc),
+            v => DateTime.SpecifyKind(v, DateTimeKind.Utc)
+        );
+
+        foreach (
+            var p in mb
+                .Model.GetEntityTypes()
+                .SelectMany(t => t.GetProperties())
+                .Where(p => p.ClrType == typeof(DateTime))
+        )
+            p.SetValueConverter(utc);
+
+        foreach (
+            var p in mb
+                .Model.GetEntityTypes()
+                .SelectMany(t => t.GetProperties())
+                .Where(p => p.ClrType == typeof(decimal))
+        )
+        {
+            p.SetPrecision(p.GetPrecision() ?? 18);
+            p.SetScale(p.GetScale() ?? 6);
+        }
+    }
+
+    public static void ApplyTablePrefix(this ModelBuilder mb, string prefix, string? schema = null)
+    {
+        if (string.IsNullOrWhiteSpace(prefix))
+            return;
+
+        foreach (var entity in mb.Model.GetEntityTypes())
+        {
+            // Skip owned types (mapped into owner's table)
+            if (entity.IsOwned())
+                continue;
+
+            var current = entity.GetTableName();
+
+            if (string.IsNullOrEmpty(current))
+                continue;
+
+            // Don’t double-prefix
+            if (!current.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                entity.SetTableName(prefix + current);
+            }
+
+            if (!string.IsNullOrEmpty(schema))
+            {
+                entity.SetSchema(schema);
             }
         }
     }

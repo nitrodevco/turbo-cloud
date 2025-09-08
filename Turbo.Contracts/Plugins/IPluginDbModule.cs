@@ -6,6 +6,6 @@ namespace Turbo.Contracts.Plugins;
 
 public interface IPluginDbModule
 {
-    Task MigrateAsync(IServiceProvider pluginSp, CancellationToken ct);
-    Task UninstallAsync(IServiceProvider pluginSp, CancellationToken ct); // optional
+    Task MigrateAsync(IServiceProvider sp, CancellationToken ct);
+    Task UninstallAsync(IServiceProvider sp, CancellationToken ct);
 }

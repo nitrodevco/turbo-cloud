@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -7,9 +8,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Scrutor;
 using Turbo.Contracts.Plugins;
 using Turbo.Database.Configuration;
+using Turbo.Database.Delegates;
 using Turbo.Plugins.Configuration;
 
 namespace Turbo.Plugins;
@@ -32,15 +33,15 @@ public class PluginManager(IServiceProvider host, ILogger<PluginManager> log, Pl
     public async Task LoadOrReloadAsync(string pluginSourceDir, CancellationToken ct = default)
     {
         // 1) Read manifest → gives you pluginId
-        var manifest = PluginManifestUtil.ReadManifest(pluginSourceDir);
+        var manifest = PluginHelpers.ReadManifest(pluginSourceDir);
         var pluginId = manifest.Id;
 
         // 2) Shadow copy using pluginId
-        var shadowDir = PluginShadowHelper.CreateShadowCopy(pluginSourceDir, pluginId);
+        var shadowDir = PluginHelpers.CreateShadowCopy(pluginSourceDir, pluginId);
 
         // 3) Create collectible ALC + load entry assembly
         var alc = new PluginLoadContext(shadowDir);
-        var entryPath = PluginPathHelper.FindEntryAssemblyPath(shadowDir, manifest);
+        var entryPath = PluginHelpers.FindEntryAssemblyPath(shadowDir, manifest);
         Assembly asm = null!;
         try
         {
@@ -49,7 +50,7 @@ public class PluginManager(IServiceProvider host, ILogger<PluginManager> log, Pl
         catch
         {
             alc.Unload();
-            PluginShadowHelper.TryDeleteDirectory(shadowDir);
+            PluginHelpers.TryDeleteDirectory(shadowDir);
             throw;
         }
 
@@ -93,17 +94,38 @@ public class PluginManager(IServiceProvider host, ILogger<PluginManager> log, Pl
         CancellationToken ct
     )
     {
-        // Build child DI (uses manifest.Id as pluginId)
-        var sp = BuildPluginServiceProvider(asm, manifest);
+        var pluginType =
+            asm.GetTypes().First(t => typeof(ITurboPlugin).IsAssignableFrom(t) && !t.IsAbstract)
+            ?? throw new InvalidOperationException($"No ITurboPlugin found in {shadowDir}.");
+        var plugin = (ITurboPlugin)Activator.CreateInstance(pluginType)!;
 
-        // Run plugin DB migrations BEFORE enabling handlers
-        foreach (var m in sp.GetServices<IPluginDbModule>())
-            await m.MigrateAsync(sp, ct);
+        var services = new ServiceCollection();
 
-        // Create plugin + OnLoad
-        var pluginType = asm.GetTypes()
-            .First(t => typeof(ITurboPlugin).IsAssignableFrom(t) && !t.IsAbstract);
-        var plugin = (ITurboPlugin)ActivatorUtilities.CreateInstance(sp, pluginType);
+        services.AddLogging();
+        services.AddSingleton(_host.GetRequiredService<DatabaseConfig>());
+        services.AddSingleton(_host.GetRequiredService<ILoggerFactory>());
+        services.AddSingleton(manifest);
+        services.AddSingleton<TablePrefixProvider>(sp =>
+        {
+            var manifest = sp.GetRequiredService<PluginManifest>();
+
+            return () => manifest.TablePrefix ?? string.Empty;
+        });
+
+        if (plugin.RequiredHostServices?.Count > 0)
+        {
+            foreach (var t in plugin.RequiredHostServices)
+                services.AddSingleton(_ => _host.GetRequiredService(t));
+        }
+
+        plugin.ConfigureServices(services);
+
+        var sp = services.BuildServiceProvider();
+
+        var dbModule = sp.GetService<IPluginDbModule>();
+
+        if (dbModule is not null)
+            await dbModule.MigrateAsync(sp, ct);
 
         await plugin.OnEnableAsync(ct);
 
@@ -117,50 +139,6 @@ public class PluginManager(IServiceProvider host, ILogger<PluginManager> log, Pl
             PluginServices = sp,
             Plugin = plugin,
         };
-    }
-
-    private IServiceProvider BuildPluginServiceProvider(Assembly pluginAsm, PluginManifest manifest)
-    {
-        var services = new ServiceCollection();
-
-        services.AddSingleton(_ =>
-            PluginRuntimeConfig.BuildFromManifest(
-                manifest,
-                _host.GetRequiredService<DatabaseConfig>().ConnectionString
-            )
-        );
-
-        // expose limited host services
-        services.AddSingleton(_ => _host.GetRequiredService<ILoggerFactory>());
-        services.AddLogging();
-        services.AddSingleton(_ => _host.GetRequiredService<DatabaseConfig>());
-
-        // let the plugin register its own services (DbContext, repos, handlers)
-        foreach (var t in pluginAsm.GetTypes())
-        {
-            if (
-                typeof(IRegistersServices).IsAssignableFrom(t)
-                && !t.IsAbstract
-                && t.GetConstructor(Type.EmptyTypes) != null
-            )
-            {
-                var reg = (IRegistersServices)ActivatorUtilities.CreateInstance(_host, t);
-                reg.ConfigureServices(services);
-            }
-        }
-
-        // add plugin db modules (migrations)
-        services.Scan(s =>
-            s.FromAssemblies(pluginAsm)
-                .AddClasses(c => c.AssignableTo<IPluginDbModule>())
-                .AsImplementedInterfaces()
-                .WithTransientLifetime()
-        );
-
-        // make the manifest available to plugin code if needed
-        services.AddSingleton(manifest);
-
-        return services.BuildServiceProvider();
     }
 
     private async Task UnloadInternalAsync(PluginHandle h, TimeSpan timeout)
@@ -188,7 +166,7 @@ public class PluginManager(IServiceProvider host, ILogger<PluginManager> log, Pl
         if (weak.IsAlive)
             _log.LogWarning("Plugin {Id} did not unload (leaked refs).", h.Id);
 
-        PluginShadowHelper.TryDeleteDirectory(h.ShadowDir);
+        PluginHelpers.TryDeleteDirectory(h.ShadowDir);
         _log.LogInformation("Plugin {Id} unloaded.", h.Id);
     }
 }
