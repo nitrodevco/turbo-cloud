@@ -17,9 +17,9 @@ public class EventBus(EventConfig cfg, IServiceProvider root, ILogger<EventBus> 
         return "";
     }
 
-    protected override EventEnvelope CreateEnvelope(IEvent interaction, object? args, string? tag)
+    protected override EventEnvelope CreateEnvelope(IEvent interaction, object? args)
     {
-        return new EventEnvelope { Data = interaction!, Tag = tag ?? null };
+        return new EventEnvelope { Data = interaction! };
     }
 
     protected override Type GetHandlerForType(Type interactionType)

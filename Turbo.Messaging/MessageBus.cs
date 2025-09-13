@@ -22,22 +22,13 @@ public class MessageBus(MessagingConfig cfg, IServiceProvider root, ILogger<Mess
         return envelope.Session.SessionID;
     }
 
-    protected override MessageEnvelope CreateEnvelope(
-        IMessageEvent interaction,
-        object? args,
-        string? tag
-    )
+    protected override MessageEnvelope CreateEnvelope(IMessageEvent interaction, object? args)
     {
         var session =
             args as ISessionContext
             ?? throw new ArgumentException("Session context is required", nameof(args));
 
-        return new MessageEnvelope
-        {
-            Data = interaction!,
-            Session = session,
-            Tag = tag ?? null,
-        };
+        return new MessageEnvelope { Data = interaction!, Session = session };
     }
 
     protected override Type GetHandlerForType(Type interactionType)

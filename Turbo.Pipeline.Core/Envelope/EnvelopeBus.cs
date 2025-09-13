@@ -44,16 +44,14 @@ public abstract class EnvelopeBus<TEnvelope, TInteraction, TContext, TConfig>
     public Task PublishAsync(
         TInteraction interaction,
         object? args = null,
-        string? tag = null,
         CancellationToken ct = default
-    ) => _dispatcher.EnqueueAndWaitAsync(CreateEnvelope(interaction!, args, tag), ct);
+    ) => _dispatcher.EnqueueAndWaitAsync(CreateEnvelope(interaction!, args), ct);
 
     public Task PublishFireAndForgetAsync(
         TInteraction interaction,
         object? args = null,
-        string? tag = null,
         CancellationToken ct = default
-    ) => _dispatcher.EnqueueFireAndForgetAsync(CreateEnvelope(interaction!, args, tag), ct);
+    ) => _dispatcher.EnqueueFireAndForgetAsync(CreateEnvelope(interaction!, args), ct);
 
     public virtual void CompleteKey(string key) => _dispatcher.CompleteKey(key);
 
@@ -61,11 +59,7 @@ public abstract class EnvelopeBus<TEnvelope, TInteraction, TContext, TConfig>
 
     protected abstract string GetKeyForEnvelope(TEnvelope envelope);
 
-    protected abstract TEnvelope CreateEnvelope(
-        TInteraction interaction,
-        object? args,
-        string? tag
-    );
+    protected abstract TEnvelope CreateEnvelope(TInteraction interaction, object? args);
 
     protected abstract Type GetHandlerForType(Type interactionType);
 
@@ -91,19 +85,11 @@ public abstract class EnvelopeBus<TEnvelope, TInteraction, TContext, TConfig>
         var handlers = sp.GetServices(closedHandler)
             .Cast<object>()
             .OrderBy(h => h.GetType().GetCustomAttribute<OrderAttribute>()?.Value ?? 0)
-            .Where(h =>
-                env.Tag is null
-                || h.GetType().GetCustomAttributes<TagAttribute>().Any(t => t.Tag == env.Tag)
-            )
             .ToArray();
 
         var behaviors = sp.GetServices(closedBehavior)
             .Cast<object>()
             .OrderBy(b => b.GetType().GetCustomAttribute<OrderAttribute>()?.Value ?? 0)
-            .Where(b =>
-                env.Tag is null
-                || b.GetType().GetCustomAttributes<TagAttribute>().Any(t => t.Tag == env.Tag)
-            )
             .ToArray();
 
         if (handlers.Length == 0 && behaviors.Length == 0)
@@ -176,8 +162,8 @@ public abstract class EnvelopeBus<TEnvelope, TInteraction, TContext, TConfig>
             }
         }
 
-        var pipeline = behaviors
-            .Reverse()
+        var pipeline = Enumerable
+            .Reverse(behaviors)
             .Aggregate(
                 InvokeHandlers,
                 (next, b) => () => InvokeBehavior(b, env.Data, ctx, next, ct)

@@ -7,6 +7,5 @@ namespace Turbo.Pipeline.Core.Registry;
 
 public record Behavior(
     Func<IServiceProvider, object, PipelineContext, Func<Task>, CancellationToken, Task> Invoke,
-    int Order,
-    string[] Tags
+    int Order
 );
