@@ -1,14 +1,12 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
-using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Furniture;
 
-[TurboEntity]
 [Table("furniture_teleport_links")]
 [Index(nameof(FurnitureEntityOneId), IsUnique = true)]
 [Index(nameof(FurnitureEntityTwoId), IsUnique = true)]
-public class FurnitureTeleportLinkEntity : Entity
+public class FurnitureTeleportLinkEntity : TurboEntity
 {
     [Column("furniture_one_id")]
     public int FurnitureEntityOneId { get; set; }

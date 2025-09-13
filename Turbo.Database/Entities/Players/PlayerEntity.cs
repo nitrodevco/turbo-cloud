@@ -5,7 +5,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Contracts.Enums.Players;
 using Turbo.Contracts.Enums.Rooms.Object;
-using Turbo.Database.Attributes;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Messenger;
 using Turbo.Database.Entities.Room;
@@ -13,10 +12,9 @@ using Turbo.Database.Entities.Security;
 
 namespace Turbo.Database.Entities.Players;
 
-[TurboEntity]
 [Table("players")]
 [Index(nameof(Name), IsUnique = true)]
-public class PlayerEntity : Entity
+public class PlayerEntity : TurboEntity
 {
     [Column("name")]
     public required string Name { get; set; }

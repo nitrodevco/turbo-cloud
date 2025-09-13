@@ -1,13 +1,11 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Navigator;
 
-[TurboEntity]
 [Table("navigator_flatcats")]
-public class NavigatorFlatCategoryEntity : Entity
+public class NavigatorFlatCategoryEntity : TurboEntity
 {
     [Key]
     [Column("id")]

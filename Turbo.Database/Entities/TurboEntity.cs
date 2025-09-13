@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Turbo.Database.Entities;
 
-public abstract class Entity
+public class TurboEntity
 {
     [Key]
     [Column("id")]

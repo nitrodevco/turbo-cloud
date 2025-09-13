@@ -1,14 +1,12 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Turbo.Contracts.Enums.Furniture;
-using Turbo.Database.Attributes;
 using Turbo.Database.Entities.Furniture;
 
 namespace Turbo.Database.Entities.Catalog;
 
-[TurboEntity]
 [Table("catalog_products")]
-public class CatalogProductEntity : Entity
+public class CatalogProductEntity : TurboEntity
 {
     [Column("offer_id")]
     public required int CatalogOfferEntityId { get; set; }

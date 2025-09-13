@@ -1,14 +1,12 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
-using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Players;
 
-[TurboEntity]
 [Table("player_currencies")]
 [Index(nameof(PlayerEntityId), nameof(Type), IsUnique = true)]
-public class PlayerCurrencyEntity : Entity
+public class PlayerCurrencyEntity : TurboEntity
 {
     [Column("player_id")]
     public required int PlayerEntityId { get; set; }

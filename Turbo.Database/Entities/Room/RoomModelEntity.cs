@@ -2,14 +2,12 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Contracts.Enums.Rooms.Object;
-using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Room;
 
-[TurboEntity]
 [Table("room_models")]
 [Index(nameof(Name), IsUnique = true)]
-public class RoomModelEntity : Entity
+public class RoomModelEntity : TurboEntity
 {
     [Column("name")]
     public required string Name { get; set; }

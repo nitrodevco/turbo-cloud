@@ -1,14 +1,12 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
-using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Navigator;
 
-[TurboEntity]
 [Table("navigator_top_level_contexts")]
 [Index(nameof(SearchCode), IsUnique = true)]
-public class NavigatorTopLevelContextEntity : Entity
+public class NavigatorTopLevelContextEntity : TurboEntity
 {
     [Column("search_code")]
     public required string SearchCode { get; set; }

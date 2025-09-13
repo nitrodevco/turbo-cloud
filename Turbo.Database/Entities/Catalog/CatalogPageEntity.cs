@@ -2,13 +2,11 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Catalog;
 
-[TurboEntity]
 [Table("catalog_pages")]
-public class CatalogPageEntity : Entity
+public class CatalogPageEntity : TurboEntity
 {
     [Column("parent_id")]
     public int? ParentEntityId { get; set; }

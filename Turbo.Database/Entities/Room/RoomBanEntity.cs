@@ -1,15 +1,13 @@
 using System;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
-using Turbo.Database.Attributes;
 using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Room;
 
-[TurboEntity]
 [Table("room_bans")]
 [Index(nameof(RoomEntityId), nameof(PlayerEntityId), IsUnique = true)]
-public class RoomBanEntity : Entity
+public class RoomBanEntity : TurboEntity
 {
     [Column("room_id")]
     public required int RoomEntityId { get; set; }

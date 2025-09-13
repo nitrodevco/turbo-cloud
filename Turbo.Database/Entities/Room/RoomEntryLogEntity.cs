@@ -1,12 +1,10 @@
 using System.ComponentModel.DataAnnotations.Schema;
-using Turbo.Database.Attributes;
 using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Room;
 
-[TurboEntity]
 [Table("room_entry_logs")]
-public class RoomEntryLogEntity : Entity
+public class RoomEntryLogEntity : TurboEntity
 {
     [Column("room_id")]
     public required int RoomEntityId { get; set; }

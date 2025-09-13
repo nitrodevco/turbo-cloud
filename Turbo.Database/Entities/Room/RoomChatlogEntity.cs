@@ -1,13 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Turbo.Database.Attributes;
 using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Room;
 
-[TurboEntity]
 [Table("room_chatlogs")]
-public class RoomChatlogEntity : Entity
+public class RoomChatlogEntity : TurboEntity
 {
     [Column("room_id")]
     public required int RoomEntityId { get; set; }

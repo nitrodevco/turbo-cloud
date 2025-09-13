@@ -2,14 +2,12 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
-using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Players;
 
-[TurboEntity]
 [Table("player_chat_styles")]
 [Index(nameof(ClientStyleId), IsUnique = true)]
-public class PlayerChatStyleEntity : Entity
+public class PlayerChatStyleEntity : TurboEntity
 {
     [Column("client_style_id")]
     [DefaultValue(0)]

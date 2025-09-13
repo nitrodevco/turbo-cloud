@@ -4,14 +4,12 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Contracts.Enums.Furniture;
-using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Furniture;
 
-[TurboEntity]
 [Table("furniture_definitions")]
 [Index(nameof(SpriteId), nameof(Type), IsUnique = true)]
-public class FurnitureDefinitionEntity : Entity
+public class FurnitureDefinitionEntity : TurboEntity
 {
     [Column("sprite_id")]
     public required int SpriteId { get; set; }

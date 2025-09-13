@@ -1,16 +1,14 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
-using Turbo.Database.Attributes;
 using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Security;
 
-[TurboEntity]
 [Table("security_tickets")]
 [Index(nameof(PlayerEntityId), IsUnique = true)]
 [Index(nameof(Ticket), IsUnique = true)]
-public class SecurityTicketEntity : Entity
+public class SecurityTicketEntity : TurboEntity
 {
     [Column("player_id")]
     public int PlayerEntityId { get; set; }

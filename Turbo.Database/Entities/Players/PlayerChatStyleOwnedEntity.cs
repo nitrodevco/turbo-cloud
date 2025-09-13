@@ -1,13 +1,11 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
-using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Players;
 
-[TurboEntity]
 [Table("player_chat_styles_owned")]
 [Index(nameof(PlayerEntityId), nameof(ChatStyleId), IsUnique = true)]
-public class PlayerChatStyleOwnedEntity : Entity
+public class PlayerChatStyleOwnedEntity : TurboEntity
 {
     [Column("player_id")]
     public required int PlayerEntityId { get; set; }

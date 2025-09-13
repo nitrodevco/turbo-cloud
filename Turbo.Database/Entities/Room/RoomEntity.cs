@@ -3,15 +3,13 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Turbo.Contracts.Enums.Rooms;
-using Turbo.Database.Attributes;
 using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Room;
 
-[TurboEntity]
 [Table("rooms")]
-public class RoomEntity : Entity
+public class RoomEntity : TurboEntity
 {
     [Column("name")]
     public required string Name { get; set; }

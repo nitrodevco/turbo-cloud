@@ -1,12 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Navigator;
 
-[TurboEntity]
 [Table("navigator_eventcats")]
-public class NavigatorEventCategoryEntity : Entity
+public class NavigatorEventCategoryEntity : TurboEntity
 {
     [Key]
     [Column("id")]

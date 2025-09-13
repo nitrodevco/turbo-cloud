@@ -1,14 +1,12 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
-using Turbo.Database.Attributes;
 using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Messenger;
 
-[TurboEntity]
 [Table("messenger_requests")]
 [Index(nameof(PlayerEntityId), nameof(RequestedPlayerEntityId), IsUnique = true)]
-public class MessengerRequestEntity : Entity
+public class MessengerRequestEntity : TurboEntity
 {
     [Column("player_id")]
     public required int PlayerEntityId { get; set; }

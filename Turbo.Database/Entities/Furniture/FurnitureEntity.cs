@@ -1,15 +1,13 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Turbo.Contracts.Enums.Rooms.Object;
-using Turbo.Database.Attributes;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 
 namespace Turbo.Database.Entities.Furniture;
 
-[TurboEntity]
 [Table("furniture")]
-public class FurnitureEntity : Entity
+public class FurnitureEntity : TurboEntity
 {
     [Column("player_id")]
     public int PlayerEntityId { get; set; }

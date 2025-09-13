@@ -1,11 +1,9 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
-using Turbo.Database.Attributes;
 
 namespace Turbo.Database.Entities.Tracking;
 
-[TurboEntity]
 [Table("performance_logs")]
 [Index(nameof(IPAddress))]
 [Index(nameof(ElapsedTime))]
