@@ -1,3 +1,5 @@
+using System;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -15,5 +17,12 @@ public interface IEnvelopeBus<TInteraction>
         TInteraction interaction,
         object? args = null,
         CancellationToken ct = default
+    );
+
+    public IDisposable RegisterFromAssembly(
+        string ownerId,
+        Assembly assembly,
+        IServiceProvider ownerRoot,
+        bool useAmbientScope
     );
 }

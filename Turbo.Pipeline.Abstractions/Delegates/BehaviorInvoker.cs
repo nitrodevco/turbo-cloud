@@ -5,10 +5,11 @@ using Turbo.Pipeline.Abstractions.Registry;
 
 namespace Turbo.Pipeline.Abstractions.Delegates;
 
-public delegate Task BehaviorInvoker(
+public delegate Task BehaviorInvoker<TContext>(
     object handler,
     object message,
-    PipelineContext context,
+    TContext context,
     Func<Task> next,
     CancellationToken ct
-);
+)
+    where TContext : PipelineContext;

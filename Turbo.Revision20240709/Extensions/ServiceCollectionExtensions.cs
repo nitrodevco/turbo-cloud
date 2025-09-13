@@ -10,8 +10,6 @@ public static class ServiceCollectionExtensions
         IConfiguration cfg
     )
     {
-        services.AddTransient<PacketHandlers>();
-
         return services;
     }
 }

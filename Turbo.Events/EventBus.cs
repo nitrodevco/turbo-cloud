@@ -22,14 +22,14 @@ public class EventBus(EventConfig cfg, IServiceProvider root, ILogger<EventBus> 
         return new EventEnvelope { Data = interaction! };
     }
 
-    protected override Type GetHandlerForType(Type interactionType)
+    protected override Type GetHandlerForType()
     {
-        return typeof(IEventHandler<>).MakeGenericType(interactionType);
+        return typeof(IEventHandler<>);
     }
 
-    protected override Type GetBehaviorForType(Type interactionType)
+    protected override Type GetBehaviorForType()
     {
-        return typeof(IEventBehavior<>).MakeGenericType(interactionType);
+        return typeof(IEventBehavior<>);
     }
 
     protected override EventContext CreateContextForEnvelope(

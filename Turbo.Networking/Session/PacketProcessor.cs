@@ -45,7 +45,7 @@ public class PacketProcessor(
                     ctx.SessionID
                 );
 
-                await _messageBus.PublishAsync(parser.Parse(clientPacket), ctx, null, ct);
+                await _messageBus.PublishAsync(parser.Parse(clientPacket), ctx, ct);
             }
             else
             {

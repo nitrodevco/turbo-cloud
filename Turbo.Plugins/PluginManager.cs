@@ -11,14 +11,21 @@ using Microsoft.Extensions.Logging;
 using Turbo.Contracts.Plugins;
 using Turbo.Database.Configuration;
 using Turbo.Database.Delegates;
+using Turbo.Events.Abstractions;
 using Turbo.Plugins.Configuration;
+using Turbo.Plugins.Extensions;
 
 namespace Turbo.Plugins;
 
-public class PluginManager(IServiceProvider host, ILogger<PluginManager> log, PluginConfig config)
-    : IAsyncDisposable
+public class PluginManager(
+    IServiceProvider host,
+    IEventBus eventBus,
+    ILogger<PluginManager> log,
+    PluginConfig config
+) : IAsyncDisposable
 {
     private readonly IServiceProvider _host = host;
+    private readonly IEventBus _eventBus = eventBus;
     private readonly ILogger<PluginManager> _log = log;
     private readonly PluginConfig _config = config;
 
@@ -94,51 +101,63 @@ public class PluginManager(IServiceProvider host, ILogger<PluginManager> log, Pl
         CancellationToken ct
     )
     {
-        var pluginType =
-            asm.GetTypes().First(t => typeof(ITurboPlugin).IsAssignableFrom(t) && !t.IsAbstract)
-            ?? throw new InvalidOperationException($"No ITurboPlugin found in {shadowDir}.");
-        var plugin = (ITurboPlugin)Activator.CreateInstance(pluginType)!;
-
-        var services = new ServiceCollection();
-
-        services.AddLogging();
-        services.AddSingleton(_host.GetRequiredService<DatabaseConfig>());
-        services.AddSingleton(_host.GetRequiredService<ILoggerFactory>());
-        services.AddSingleton(manifest);
-        services.AddSingleton<TablePrefixProvider>(sp =>
+        try
         {
-            var manifest = sp.GetRequiredService<PluginManifest>();
+            var pluginTypes = asm.GetTypes();
+            var pluginType =
+                pluginTypes.First(t => typeof(ITurboPlugin).IsAssignableFrom(t) && !t.IsAbstract)
+                ?? throw new InvalidOperationException($"No ITurboPlugin found in {shadowDir}.");
 
-            return () => manifest.TablePrefix ?? string.Empty;
-        });
+            var plugin = (ITurboPlugin)Activator.CreateInstance(pluginType)!;
 
-        if (plugin.RequiredHostServices?.Count > 0)
+            var services = new ServiceCollection();
+
+            services.ConfigurePlugin(_host, plugin, manifest);
+
+            var sp = services.BuildServiceProvider();
+
+            var dbModule = sp.GetService<IPluginDbModule>();
+
+            if (dbModule is not null)
+                await dbModule.MigrateAsync(sp, ct);
+
+            var disposable = _eventBus.RegisterFromAssembly(
+                ownerId: manifest.Author,
+                assembly: asm,
+                ownerRoot: sp,
+                useAmbientScope: false
+            );
+
+            await plugin.OnEnableAsync(ct);
+
+            return new PluginHandle
+            {
+                Id = manifest.Id,
+                Version = Version.Parse(manifest.Version),
+                ShadowDir = shadowDir,
+                Alc = alc,
+                PluginAssembly = asm,
+                PluginServices = sp,
+                Plugin = plugin,
+            };
+        }
+        catch (ReflectionTypeLoadException ex)
         {
-            foreach (var t in plugin.RequiredHostServices)
-                services.AddSingleton(_ => _host.GetRequiredService(t));
+            foreach (var le in ex.LoaderExceptions.Where(e => e != null))
+            {
+                // Capture details to help diagnose missing deps
+                if (le is FileNotFoundException fnf)
+                    _log.LogError("Plugin: missing dependency: {Msg}", fnf.Message);
+                else
+                    _log.LogError("Plugin: type load error: {Msg}", le.Message);
+            }
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Failed to build/enable plugin {Id}.", manifest.Id);
         }
 
-        plugin.ConfigureServices(services);
-
-        var sp = services.BuildServiceProvider();
-
-        var dbModule = sp.GetService<IPluginDbModule>();
-
-        if (dbModule is not null)
-            await dbModule.MigrateAsync(sp, ct);
-
-        await plugin.OnEnableAsync(ct);
-
-        return new PluginHandle
-        {
-            Id = manifest.Id,
-            Version = Version.Parse(manifest.Version),
-            ShadowDir = shadowDir,
-            Alc = alc,
-            PluginAssembly = asm,
-            PluginServices = sp,
-            Plugin = plugin,
-        };
+        return null!;
     }
 
     private async Task UnloadInternalAsync(PluginHandle h, TimeSpan timeout)

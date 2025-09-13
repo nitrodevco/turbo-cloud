@@ -31,14 +31,14 @@ public class MessageBus(MessagingConfig cfg, IServiceProvider root, ILogger<Mess
         return new MessageEnvelope { Data = interaction!, Session = session };
     }
 
-    protected override Type GetHandlerForType(Type interactionType)
+    protected override Type GetHandlerForType()
     {
-        return typeof(IMessageHandler<>).MakeGenericType(interactionType);
+        return typeof(IMessageHandler<>);
     }
 
-    protected override Type GetBehaviorForType(Type interactionType)
+    protected override Type GetBehaviorForType()
     {
-        return typeof(IMessageBehavior<>).MakeGenericType(interactionType);
+        return typeof(IMessageBehavior<>);
     }
 
     protected override MessageContext CreateContextForEnvelope(

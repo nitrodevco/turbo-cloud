@@ -4,9 +4,10 @@ using Turbo.Pipeline.Abstractions.Registry;
 
 namespace Turbo.Pipeline.Abstractions.Delegates;
 
-public delegate Task HandlerInvoker(
+public delegate Task HandlerInvoker<TContext>(
     object handler,
     object message,
-    PipelineContext context,
+    TContext context,
     CancellationToken ct
-);
+)
+    where TContext : PipelineContext;
