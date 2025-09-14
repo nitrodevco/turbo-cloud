@@ -1,19 +1,16 @@
 using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Turbo.Pipeline.Abstractions.Delegates;
-using Turbo.Pipeline.Abstractions.Registry;
 
 namespace Turbo.Pipeline.Core.Registry;
 
 public record Behavior<TContext>(
     string OwnerId,
     Type MessageType,
+    Type ImplementationType,
     int Order,
     bool UseAmbientScope,
-    Func<IServiceScope>? BeginScope,
-    Func<IServiceProvider, object> CreateInScope,
+    IServiceScopeFactory ScopeFactory,
+    Func<IServiceProvider, object> Create,
     BehaviorInvoker<TContext> Invoke
-)
-    where TContext : PipelineContext;
+);

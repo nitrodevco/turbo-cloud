@@ -1,9 +1,6 @@
 using System;
-using System.Linq;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Contracts.Plugins;
 using Turbo.Database.Configuration;
@@ -23,6 +20,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<PluginConfig>>().Value);
 
         services.AddSingleton<PluginManager>();
+        services.AddHostedService<PluginsBootstrapper>();
 
         return services;
     }
@@ -36,7 +34,6 @@ public static class ServiceCollectionExtensions
     {
         services.AddLogging();
         services.AddSingleton(host.GetRequiredService<DatabaseConfig>());
-        services.AddSingleton(host.GetRequiredService<ILoggerFactory>());
         services.AddSingleton(manifest);
         services.AddSingleton<TablePrefixProvider>(sp =>
         {
@@ -48,19 +45,11 @@ public static class ServiceCollectionExtensions
         if (plugin.RequiredHostServices?.Count > 0)
         {
             foreach (var t in plugin.RequiredHostServices)
-                services.AddSingleton(_ => host.GetRequiredService(t));
+            {
+                services.AddSingleton(t, _ => host.GetRequiredService(t));
+            }
         }
 
-        services.ConfigurePluginServices(plugin);
-
-        return services;
-    }
-
-    internal static IServiceCollection ConfigurePluginServices(
-        this IServiceCollection services,
-        ITurboPlugin plugin
-    )
-    {
         plugin.ConfigureServices(services);
 
         return services;

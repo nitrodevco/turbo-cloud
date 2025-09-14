@@ -4,11 +4,9 @@ using System.Threading;
 
 namespace Turbo.Pipeline.Core;
 
-public class CompositeDisposable : IDisposable
+public class CompositeDisposable(IReadOnlyList<IDisposable> items) : IDisposable
 {
-    private IReadOnlyList<IDisposable>? _items;
-
-    public CompositeDisposable(IReadOnlyList<IDisposable> items) => _items = items;
+    private IReadOnlyList<IDisposable>? _items = items;
 
     public void Dispose()
     {

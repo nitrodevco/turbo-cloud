@@ -1,16 +1,17 @@
 using System;
-using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Turbo.Contracts.Abstractions;
 using Turbo.Database.Extensions;
-using Turbo.Events.Abstractions.Registry;
-using Turbo.Events.Extensions;
-using Turbo.Messaging.Abstractions.Registry;
-using Turbo.Messaging.Extensions;
+using Turbo.Events;
+using Turbo.Events.Registry;
+using Turbo.Messages;
+using Turbo.Messages.Registry;
+using Turbo.Networking.Abstractions.Session;
 using Turbo.Networking.Extensions;
+using Turbo.Pipeline.Core.Extensions;
+using Turbo.Plugins;
 using Turbo.Plugins.Extensions;
-using Turbo.Revision20240709.Extensions;
 
 namespace Turbo.Main.Extensions;
 
@@ -25,11 +26,20 @@ public static class HostBuilderExtensions
 
                 services.AddTurboDatabase(ctx.Configuration);
                 services.AddTurboNetworking(ctx.Configuration);
-                services.AddTurboEvents(ctx.Configuration);
-                services.AddTurboMessaging(ctx.Configuration);
 
-                services.AddTurboDefaultRevision(ctx.Configuration);
-                services.AddTurboRevision20240709(ctx.Configuration);
+                services.AddEnvelopeSystem<EventSystem, IEvent, EventContext, object>(
+                    (sp, env, data) => new EventContext { ServiceProvider = sp }
+                );
+
+                services.AddEnvelopeSystem<
+                    MessageSystem,
+                    IMessageEvent,
+                    MessageContext,
+                    ISessionContext
+                >(
+                    (sp, env, session) =>
+                        new MessageContext { ServiceProvider = sp, Session = session }
+                );
 
                 // Emulator
                 services.AddHostedService<TurboEmulator>();

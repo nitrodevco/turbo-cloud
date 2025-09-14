@@ -9,6 +9,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Turbo.Networking.Abstractions\Turbo.Networking.Abstractions.csproj" />
-    <ProjectReference Include="..\Turbo.Messaging.Abstractions\Turbo.Messaging.Abstractions.csproj" />
+    <ProjectReference Include="..\Turbo.Messages\Turbo.Messages.csproj" />
   </ItemGroup>
 </Project>

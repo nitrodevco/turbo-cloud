@@ -2,86 +2,30 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
-using Turbo.Contracts.Plugins;
+using Turbo.Contracts.Attributes;
 
-namespace Turbo.Plugins;
+namespace Turbo.Pipeline.Core;
 
-internal static class PluginHelpers
+public static class AssemblyUtil
 {
-    public static PluginManifest ReadManifest(string dir)
+    // Optional: keep your own prefixes tight so you don't scan the world.
+    private static readonly string[] NamespaceAllowlistPrefixes =
+    [
+        "Turbo", // Turbo.*, Turbo
+    ];
+
+    private static readonly string[] InfraNamespaceBlocklistPrefixes = ["System.", "Microsoft."];
+
+    public static List<Assembly> GetLoadedAssemblies()
     {
-        var path = Path.Combine(dir, "manifest.json");
-        var json = File.ReadAllText(path);
-        return JsonSerializer.Deserialize<PluginManifest>(
-            json,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-        )!;
+        return [.. AppDomain.CurrentDomain.GetAssemblies().Where(a => HasTurboScan(a))];
     }
 
-    public static string FindEntryAssemblyPath(string shadowDir, PluginManifest manifest)
-    {
-        if (!string.IsNullOrWhiteSpace(manifest.EntryAssembly))
-        {
-            var candidate = Path.Combine(shadowDir, manifest.EntryAssembly);
-            if (File.Exists(candidate))
-                return candidate;
-            throw new FileNotFoundException(
-                $"Entry assembly '{manifest.EntryAssembly}' not found in {shadowDir}"
-            );
-        }
-
-        // Fallbacks if you omit EntryAssembly (optional)
-        var byId = Path.Combine(shadowDir, manifest.Id + ".dll");
-        if (File.Exists(byId))
-            return byId;
-
-        var dlls = Directory.GetFiles(shadowDir, "*.dll", SearchOption.TopDirectoryOnly);
-        if (dlls.Length == 1)
-            return dlls[0];
-
-        throw new InvalidOperationException($"Could not determine entry assembly in {shadowDir}");
-    }
-
-    public static string CreateShadowCopy(string sourceDir, string pluginId)
-    {
-        if (!Directory.Exists(sourceDir))
-            throw new DirectoryNotFoundException(sourceDir);
-
-        var root = Path.Combine(AppContext.BaseDirectory, "plugins-shadow", pluginId);
-        Directory.CreateDirectory(root);
-
-        var shadowDir = Path.Combine(root, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(shadowDir);
-
-        CopyAll(new DirectoryInfo(sourceDir), new DirectoryInfo(shadowDir));
-        return shadowDir;
-    }
-
-    public static void TryDeleteDirectory(string dir)
-    {
-        try
-        {
-            if (Directory.Exists(dir))
-                Directory.Delete(dir, true);
-        }
-        catch
-        { /* ignore */
-        }
-    }
-
-    private static void CopyAll(DirectoryInfo source, DirectoryInfo target)
-    {
-        foreach (var file in source.GetFiles())
-            file.CopyTo(Path.Combine(target.FullName, file.Name), overwrite: true);
-
-        foreach (var dir in source.GetDirectories())
-            CopyAll(dir, target.CreateSubdirectory(dir.Name));
-    }
+    public static bool HasTurboScan(Assembly a, string scope = "") =>
+        a.GetCustomAttributes<TurboScan>().Any(att => att.Scope == scope);
 
     public static IEnumerable<Type> SafeGetLoadableTypes(Assembly assembly)
     {
@@ -131,8 +75,8 @@ internal static class PluginHelpers
 
         // 3) (Optional) Limit to your own namespaces; keep internals allowed
         //     Comment this block if you purposely scan 3rd-party libraries.
-        //if (t.Namespace is string ns && !NamespaceAllowlistPrefixes.Any(ns.StartsWith))
-        //    return false;
+        if (t.Namespace is string ns && !NamespaceAllowlistPrefixes.Any(ns.StartsWith))
+            return false;
 
         return true;
     }
@@ -163,6 +107,9 @@ internal static class PluginHelpers
 
     private static bool IsProxyOrInfraType(Type t)
     {
+        if (t.Namespace is string ns && InfraNamespaceBlocklistPrefixes.Any(ns.StartsWith))
+            return true;
+
         var name = t.FullName ?? t.Name;
         if (name.Contains("Proxy", StringComparison.Ordinal))
             return true;

@@ -5,7 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Contracts.Abstractions;
-using Turbo.Messaging.Abstractions;
+using Turbo.Messages;
 using Turbo.Networking.Abstractions.Revisions;
 using Turbo.Networking.Abstractions.Session;
 using Turbo.Packets.Abstractions;
@@ -14,13 +14,13 @@ namespace Turbo.Networking.Session;
 
 public class PacketProcessor(
     IRevisionManager revisionManager,
-    IMessageBus messageBus,
-    ILogger<PacketProcessor> logger
+    MessageSystem messageSystem,
+    ILoggerFactory loggerFactory
 )
 {
     private readonly IRevisionManager _revisionManager = revisionManager;
-    private readonly IMessageBus _messageBus = messageBus;
-    private readonly ILogger<PacketProcessor> _logger = logger;
+    private readonly MessageSystem _messageSystem = messageSystem;
+    private readonly ILogger _logger = loggerFactory.CreateLogger(nameof(PacketProcessor));
 
     public async Task ProcessPacket(
         ISessionContext ctx,
@@ -45,7 +45,7 @@ public class PacketProcessor(
                     ctx.SessionID
                 );
 
-                await _messageBus.PublishAsync(parser.Parse(clientPacket), ctx, ct);
+                await _messageSystem.PublishAsync(parser.Parse(clientPacket), ctx, ct);
             }
             else
             {

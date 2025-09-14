@@ -10,6 +10,6 @@ public interface ITurboPlugin : IAsyncDisposable
 {
     public List<Type> RequiredHostServices { get; }
     void ConfigureServices(IServiceCollection services);
-    ValueTask OnEnableAsync(CancellationToken ct);
-    ValueTask OnDisableAsync(CancellationToken ct);
+    ValueTask OnEnableAsync(IServiceProvider sp, CancellationToken ct);
+    ValueTask OnDisableAsync(IServiceProvider sp, CancellationToken ct);
 }

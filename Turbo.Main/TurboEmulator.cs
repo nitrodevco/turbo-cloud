@@ -1,17 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Turbo.DefaultRevision;
-using Turbo.Events.Abstractions;
 using Turbo.Networking.Abstractions;
+using Turbo.Networking.Abstractions.Revisions;
 using Turbo.Plugins;
-using Turbo.Primitives.Events;
-using Turbo.Revision20240709;
 
 namespace Turbo.Main;
 
@@ -20,24 +17,19 @@ public class TurboEmulator : IHostedService
     private readonly IHostApplicationLifetime _appLifetime;
     private readonly ILogger<TurboEmulator> _logger;
     private readonly IServiceProvider _serviceProvider;
-    private readonly IEventBus _eventBus;
     private readonly List<IDisposable> _registrations;
     private readonly INetworkManager _networkManager;
-    private readonly PluginManager _pluginManager;
 
     public TurboEmulator(
         IHostApplicationLifetime appLifetime,
         ILogger<TurboEmulator> logger,
         IServiceProvider serviceProvider,
-        IEventBus eventBus,
-        INetworkManager networkManager,
-        PluginManager pluginManager
+        INetworkManager networkManager
     )
     {
         _appLifetime = appLifetime;
         _logger = logger;
         _serviceProvider = serviceProvider;
-        _eventBus = eventBus;
         _networkManager = networkManager;
         _registrations =
         [
@@ -45,7 +37,6 @@ public class TurboEmulator : IHostedService
             _appLifetime.ApplicationStopping.Register(OnStopping),
             _appLifetime.ApplicationStopped.Register(OnStopped),
         ];
-        _pluginManager = pluginManager;
 
         SetDefaultCulture(CultureInfo.InvariantCulture);
     }
@@ -54,17 +45,25 @@ public class TurboEmulator : IHostedService
     {
         try
         {
-            var defaultRevision = ActivatorUtilities.CreateInstance<DefaultRevisionPlugin>(
-                _serviceProvider
-            );
-            var revision20240709 = ActivatorUtilities.CreateInstance<Revision20240709Plugin>(
-                _serviceProvider
-            );
+            List<Assembly> allLoaded = [];
+            // var allLoaded = AssemblyScanUtil.GetLoadedAssemblies();
 
-            await defaultRevision.InitializeAsync();
-            await revision20240709.InitializeAsync();
+            foreach (var asm in allLoaded)
+            {
+                /* _eventBus.RegisterFromAssembly(
+                    "Turbo",
+                    asm,
+                    _serviceProvider,
+                    useAmbientScope: true
+                );
 
-            await _pluginManager.LoadOrReloadAllPlugins(ct);
+                _messageBus.RegisterFromAssembly(
+                    "Turbo",
+                    asm,
+                    _serviceProvider,
+                    useAmbientScope: true
+                ); */
+            }
 
             await _networkManager.StartAsync();
         }
@@ -91,7 +90,7 @@ public class TurboEmulator : IHostedService
 
     private void OnStarted()
     {
-        _eventBus.PublishAsync(new PlayerJoinedEvent(1));
+        //_eventBus.PublishAsync(new PlayerJoinedEvent(1));
         //_logger.LogInformation("Started {Emulator}", GetVersion());
     }
 

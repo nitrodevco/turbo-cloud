@@ -5,7 +5,7 @@ using System.Runtime.Loader;
 
 namespace Turbo.Plugins;
 
-public sealed class PluginLoadContext : AssemblyLoadContext
+internal class PluginLoadContext : AssemblyLoadContext
 {
     private readonly AssemblyDependencyResolver _resolver;
 

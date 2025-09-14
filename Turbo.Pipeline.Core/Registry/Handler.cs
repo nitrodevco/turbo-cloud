@@ -1,16 +1,15 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Turbo.Pipeline.Abstractions.Delegates;
-using Turbo.Pipeline.Abstractions.Registry;
 
 namespace Turbo.Pipeline.Core.Registry;
 
 public record Handler<TContext>(
     string OwnerId,
     Type MessageType,
+    Type ImplementationType,
     bool UseAmbientScope,
-    Func<IServiceScope>? BeginScope,
-    Func<IServiceProvider, object> CreateInScope,
+    IServiceScopeFactory ScopeFactory,
+    Func<IServiceProvider, object> Create,
     HandlerInvoker<TContext> Invoke
-)
-    where TContext : PipelineContext;
+);
