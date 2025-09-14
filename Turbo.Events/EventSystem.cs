@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Abstractions;
 using Turbo.Events.Registry;
-using Turbo.Pipeline.Core;
+using Turbo.Pipeline;
 
 namespace Turbo.Events;
 

@@ -1,6 +1,6 @@
 using System;
 
-namespace Turbo.Pipeline.Abstractions.Attributes;
+namespace Turbo.Pipeline.Attributes;
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
 public sealed class OrderAttribute(int value) : Attribute

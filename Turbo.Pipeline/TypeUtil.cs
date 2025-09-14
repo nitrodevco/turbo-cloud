@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Turbo.Pipeline.Core;
+namespace Turbo.Pipeline;
 
 public static class TypeUtil
 {

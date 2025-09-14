@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Turbo.Pipeline.Core;
+namespace Turbo.Pipeline;
 
-public sealed class CompositeEnvelopeScope : IAsyncDisposable
+internal class CompositeEnvelopeScope : IAsyncDisposable
 {
     public const string HostOwnerId = "host";
 

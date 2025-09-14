@@ -3,9 +3,9 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Turbo.Pipeline.Core;
+namespace Turbo.Pipeline;
 
-public class PerPublishInstanceCache : IAsyncDisposable
+internal class PerPublishInstanceCache : IAsyncDisposable
 {
     private readonly ConcurrentDictionary<(string ownerId, Type impl), Lazy<object>> _cache = new(
         Environment.ProcessorCount,

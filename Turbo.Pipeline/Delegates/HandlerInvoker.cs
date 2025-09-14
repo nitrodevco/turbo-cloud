@@ -1,13 +1,11 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Turbo.Pipeline.Abstractions.Delegates;
+namespace Turbo.Pipeline.Delegates;
 
-public delegate Task BehaviorInvoker<TContext>(
+internal delegate Task HandlerInvoker<TContext>(
     object instance,
     object envelope,
     TContext ctx,
-    Func<Task> next,
     CancellationToken ct
 );

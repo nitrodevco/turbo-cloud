@@ -1,16 +1,14 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
-using Turbo.Pipeline.Abstractions.Attributes;
-using Turbo.Pipeline.Abstractions.Registry;
-using Turbo.Pipeline.Core.Registry;
+using Turbo.Pipeline.Attributes;
+using Turbo.Pipeline.Registry;
 
-namespace Turbo.Pipeline.Core;
+namespace Turbo.Pipeline;
 
 public class GenericBus<TInteraction, TContext, TMeta>
 {

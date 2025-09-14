@@ -2,9 +2,9 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Turbo.Pipeline.Core;
+namespace Turbo.Pipeline;
 
-internal sealed class OwnerCtx : IAsyncDisposable
+internal class OwnerCtx : IAsyncDisposable
 {
     public IServiceProvider Root { get; }
     public IServiceScopeFactory ScopeFactory { get; }

@@ -1,6 +1,6 @@
 using System;
 
-namespace Turbo.Pipeline.Abstractions.Registry;
+namespace Turbo.Pipeline.Registry;
 
 public class PipelineContext
 {

@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 
-namespace Turbo.Pipeline.Core;
+namespace Turbo.Pipeline;
 
-public class CompositeDisposable(IReadOnlyList<IDisposable> items) : IDisposable
+internal class CompositeDisposable(IReadOnlyList<IDisposable> items) : IDisposable
 {
     private IReadOnlyList<IDisposable>? _items = items;
 

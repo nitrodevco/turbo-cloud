@@ -9,7 +9,7 @@ using Turbo.Messages;
 using Turbo.Messages.Registry;
 using Turbo.Networking.Abstractions.Session;
 using Turbo.Networking.Extensions;
-using Turbo.Pipeline.Core.Extensions;
+using Turbo.Pipeline.Extensions;
 using Turbo.Plugins;
 using Turbo.Plugins.Extensions;
 

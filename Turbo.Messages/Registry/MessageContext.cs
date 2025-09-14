@@ -1,5 +1,5 @@
 using Turbo.Networking.Abstractions.Session;
-using Turbo.Pipeline.Abstractions.Registry;
+using Turbo.Pipeline.Registry;
 
 namespace Turbo.Messages.Registry;
 

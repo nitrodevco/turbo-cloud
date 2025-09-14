@@ -1,10 +1,10 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
-using Turbo.Pipeline.Abstractions.Delegates;
+using Turbo.Pipeline.Delegates;
 
-namespace Turbo.Pipeline.Core.Registry;
+namespace Turbo.Pipeline.Registry;
 
-public record Handler<TContext>(
+internal record Handler<TContext>(
     string OwnerId,
     Type MessageType,
     Type ImplementationType,

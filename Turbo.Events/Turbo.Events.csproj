@@ -3,7 +3,7 @@
     <TargetFramework>net9.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Turbo.Pipeline.Core\Turbo.Pipeline.Core.csproj" />
+    <ProjectReference Include="..\Turbo.Pipeline\Turbo.Pipeline.csproj" />
     <ProjectReference Include="..\Turbo.Contracts\Turbo.Contracts.csproj" />
   </ItemGroup>
 </Project>

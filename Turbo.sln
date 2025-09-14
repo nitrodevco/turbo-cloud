@@ -21,9 +21,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Primitives", "Turbo.P
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Messages", "Turbo.Messages\Turbo.Messages.csproj", "{206126F1-2CD3-44BF-B635-A3465B99B4D9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Pipeline.Abstractions", "Turbo.Pipeline.Abstractions\Turbo.Pipeline.Abstractions.csproj", "{91D2AF52-65C8-4EA5-8538-40A55A952540}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Pipeline.Core", "Turbo.Pipeline.Core\Turbo.Pipeline.Core.csproj", "{91A0E861-4BD8-4F05-B776-0EE2CA00A3D7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Pipeline", "Turbo.Pipeline\Turbo.Pipeline.csproj", "{91A0E861-4BD8-4F05-B776-0EE2CA00A3D7}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Packets.Abstractions", "Turbo.Packets.Abstractions\Turbo.Packets.Abstractions.csproj", "{28F41A5C-B5ED-4812-A1E5-4DED10468D40}"
 EndProject
@@ -145,18 +143,6 @@ Global
 		{206126F1-2CD3-44BF-B635-A3465B99B4D9}.Release|x64.Build.0 = Release|Any CPU
 		{206126F1-2CD3-44BF-B635-A3465B99B4D9}.Release|x86.ActiveCfg = Release|Any CPU
 		{206126F1-2CD3-44BF-B635-A3465B99B4D9}.Release|x86.Build.0 = Release|Any CPU
-		{91D2AF52-65C8-4EA5-8538-40A55A952540}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{91D2AF52-65C8-4EA5-8538-40A55A952540}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{91D2AF52-65C8-4EA5-8538-40A55A952540}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{91D2AF52-65C8-4EA5-8538-40A55A952540}.Debug|x64.Build.0 = Debug|Any CPU
-		{91D2AF52-65C8-4EA5-8538-40A55A952540}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{91D2AF52-65C8-4EA5-8538-40A55A952540}.Debug|x86.Build.0 = Debug|Any CPU
-		{91D2AF52-65C8-4EA5-8538-40A55A952540}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{91D2AF52-65C8-4EA5-8538-40A55A952540}.Release|Any CPU.Build.0 = Release|Any CPU
-		{91D2AF52-65C8-4EA5-8538-40A55A952540}.Release|x64.ActiveCfg = Release|Any CPU
-		{91D2AF52-65C8-4EA5-8538-40A55A952540}.Release|x64.Build.0 = Release|Any CPU
-		{91D2AF52-65C8-4EA5-8538-40A55A952540}.Release|x86.ActiveCfg = Release|Any CPU
-		{91D2AF52-65C8-4EA5-8538-40A55A952540}.Release|x86.Build.0 = Release|Any CPU
 		{91A0E861-4BD8-4F05-B776-0EE2CA00A3D7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{91A0E861-4BD8-4F05-B776-0EE2CA00A3D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{91A0E861-4BD8-4F05-B776-0EE2CA00A3D7}.Debug|x64.ActiveCfg = Debug|Any CPU

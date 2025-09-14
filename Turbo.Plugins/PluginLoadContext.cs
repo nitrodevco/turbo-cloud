@@ -22,9 +22,7 @@ internal class PluginLoadContext : AssemblyLoadContext
         // Share host assemblies
         if (name.Name is string n && n.StartsWith("Turbo.", StringComparison.Ordinal))
         {
-            var hostAsm = AssemblyLoadContext.Default.Assemblies.FirstOrDefault(a =>
-                a.GetName().Name == n
-            );
+            var hostAsm = Default.Assemblies.FirstOrDefault(a => a.GetName().Name == n);
             if (hostAsm is not null)
                 return hostAsm;
         }

@@ -1,7 +1,7 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Turbo.Pipeline.Core.Extensions;
+namespace Turbo.Pipeline.Extensions;
 
 public static class ServiceCollectionExtensions
 {

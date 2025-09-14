@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Turbo.Pipeline.Abstractions.Registry;
+namespace Turbo.Pipeline.Registry;
 
 public interface IBehavior<in T, in TContext>
 {

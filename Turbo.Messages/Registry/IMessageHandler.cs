@@ -1,5 +1,5 @@
 using Turbo.Contracts.Abstractions;
-using Turbo.Pipeline.Abstractions.Registry;
+using Turbo.Pipeline.Registry;
 
 namespace Turbo.Messages.Registry;
 

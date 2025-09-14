@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Turbo.Contracts.Abstractions;
 using Turbo.Messages.Registry;
 using Turbo.Networking.Abstractions.Session;
-using Turbo.Pipeline.Core;
+using Turbo.Pipeline;
 
 namespace Turbo.Messages;
 

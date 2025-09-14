@@ -7,9 +7,9 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using Turbo.Contracts.Attributes;
 
-namespace Turbo.Pipeline.Core;
+namespace Turbo.Pipeline;
 
-public static class AssemblyUtil
+internal static class AssemblyUtil
 {
     // Optional: keep your own prefixes tight so you don't scan the world.
     private static readonly string[] NamespaceAllowlistPrefixes =

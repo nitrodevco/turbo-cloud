@@ -3,12 +3,12 @@ using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Pipeline.Abstractions.Delegates;
-using Turbo.Pipeline.Abstractions.Registry;
+using Turbo.Pipeline.Delegates;
+using Turbo.Pipeline.Registry;
 
-namespace Turbo.Pipeline.Core;
+namespace Turbo.Pipeline;
 
-public static class InvokerCache<TContext>
+internal static class InvokerCache<TContext>
 {
     private static readonly Type HandlerOpen = typeof(IHandler<,>);
     private static readonly Type BehaviorOpen = typeof(IBehavior<,>);

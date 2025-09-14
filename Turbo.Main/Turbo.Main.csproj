@@ -41,8 +41,7 @@
     <ProjectReference Include="..\Turbo.Networking\Turbo.Networking.csproj" />
     <ProjectReference Include="..\Turbo.Networking.Abstractions\Turbo.Networking.Abstractions.csproj" />
     <ProjectReference Include="..\Turbo.Packets.Abstractions\Turbo.Packets.Abstractions.csproj" />
-    <ProjectReference Include="..\Turbo.Pipeline.Abstractions\Turbo.Pipeline.Abstractions.csproj" />
-    <ProjectReference Include="..\Turbo.Pipeline.Core\Turbo.Pipeline.Core.csproj" />
+    <ProjectReference Include="..\Turbo.Pipeline\Turbo.Pipeline.csproj" />
     <ProjectReference Include="..\Turbo.Plugins\Turbo.Plugins.csproj" />
     <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
   </ItemGroup>

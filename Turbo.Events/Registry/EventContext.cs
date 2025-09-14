@@ -1,4 +1,4 @@
-using Turbo.Pipeline.Abstractions.Registry;
+using Turbo.Pipeline.Registry;
 
 namespace Turbo.Events.Registry;
 
