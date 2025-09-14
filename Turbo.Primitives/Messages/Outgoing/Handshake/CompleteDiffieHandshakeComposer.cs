@@ -4,5 +4,5 @@ namespace Turbo.Primitives.Messages.Outgoing.Handshake;
 
 public class CompleteDiffieHandshakeComposer : IComposer
 {
-    public string PublicKey { get; init; }
+    public required string PublicKey { get; init; }
 }

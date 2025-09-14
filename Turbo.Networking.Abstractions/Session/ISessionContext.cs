@@ -11,7 +11,7 @@ public interface ISessionContext : IAppSession
     public bool PolicyDone { get; set; }
     public string RevisionId { get; }
     public long PlayerId { get; }
-    public IStreamCipher Rc4Engine { get; }
+    public IStreamCipher? Rc4Engine { get; }
     public void SetRevisionId(string revisionId);
     public void SetPlayerId(long playerId);
     public void SetupEncryption(byte[] key);

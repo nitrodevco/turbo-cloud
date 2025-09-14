@@ -17,7 +17,7 @@ public class NetworkManager(NetworkingConfig config, PacketProcessor packetProce
 {
     private readonly NetworkingConfig _config = config;
     private readonly PacketProcessor _packetProcessor = packetProcessor;
-    private IHost _superSocketHost;
+    private IHost? _superSocketHost;
 
     public async Task StartAsync()
     {
@@ -25,7 +25,8 @@ public class NetworkManager(NetworkingConfig config, PacketProcessor packetProce
         {
             CreateSuperSocket();
 
-            await _superSocketHost.StartAsync();
+            if (_superSocketHost is not null)
+                await _superSocketHost.StartAsync();
         }
     }
 

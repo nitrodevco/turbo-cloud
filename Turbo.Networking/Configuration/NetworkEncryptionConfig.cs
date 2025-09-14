@@ -2,7 +2,7 @@ namespace Turbo.Networking.Configuration;
 
 public class NetworkEncryptionConfig
 {
-    public string KeySize { get; init; }
-    public string PublicKey { get; init; }
-    public string PrivateKey { get; init; }
+    public required string KeySize { get; init; }
+    public required string PublicKey { get; init; }
+    public required string PrivateKey { get; init; }
 }

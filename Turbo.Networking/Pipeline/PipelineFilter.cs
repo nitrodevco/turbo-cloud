@@ -16,24 +16,24 @@ public class PipelineFilter : PipelineFilterBase<IClientPacket>
 
     public override IClientPacket Filter(ref SequenceReader<byte> reader)
     {
-        var session = (ISessionContext)Context;
+        if (Context is ISessionContext session)
+        {
+            var r = reader;
+            IClientPacket? packet = null;
 
-        if (session is null)
-            return null;
+            _pipeline.Invoke(ref r, session, ref packet);
 
-        var r = reader;
-        IClientPacket? packet = null;
+            if (packet is not null)
+            {
+                reader = r;
 
-        _pipeline.Invoke(ref r, session, ref packet);
+                Reset();
 
-        if (packet is null)
-            return null;
+                return packet;
+            }
+        }
 
-        reader = r;
-
-        Reset();
-
-        return packet;
+        return null;
     }
 
     public override void Reset() { }

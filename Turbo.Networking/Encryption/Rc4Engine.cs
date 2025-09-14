@@ -21,7 +21,7 @@ public class Rc4Engine : IStreamCipher
 
     public string AlgorithmName => "RC4";
 
-    public byte[] ProcessBytes(byte[] bytes, byte[] output = null)
+    public byte[] ProcessBytes(byte[] bytes, byte[]? output = null)
     {
         output ??= new byte[bytes.Length];
 

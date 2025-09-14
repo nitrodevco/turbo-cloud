@@ -1,6 +1,6 @@
 namespace Turbo.Contracts.Plugins;
 
-public sealed record PluginManifest(
+public record PluginManifest(
     string Id,
     string Name,
     string Author,

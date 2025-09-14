@@ -3,27 +3,27 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Contracts", "Turbo.Contracts\Turbo.Contracts.csproj", "{EF13738C-CE94-4330-B92F-F8B93C26B39B}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Database", "Turbo.Database\Turbo.Database.csproj", "{1EE0E4A1-557D-4779-A65E-73BBAD110CC2}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Events", "Turbo.Events\Turbo.Events.csproj", "{E5060BDA-AD43-4BBE-89BD-6E5F58CFD90B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Main", "Turbo.Main\Turbo.Main.csproj", "{C2FBFECB-92FE-4FBD-8DD0-456DDDB7D859}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Messages", "Turbo.Messages\Turbo.Messages.csproj", "{206126F1-2CD3-44BF-B635-A3465B99B4D9}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Networking", "Turbo.Networking\Turbo.Networking.csproj", "{730AB94C-2527-4902-9BAA-BB5491691162}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Plugins", "Turbo.Plugins\Turbo.Plugins.csproj", "{31AA65DB-2B58-4B59-A1A2-96618D5D125D}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Contracts", "Turbo.Contracts\Turbo.Contracts.csproj", "{EF13738C-CE94-4330-B92F-F8B93C26B39B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Networking.Abstractions", "Turbo.Networking.Abstractions\Turbo.Networking.Abstractions.csproj", "{27D3A516-72C2-4082-9A68-08E424DAF865}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Primitives", "Turbo.Primitives\Turbo.Primitives.csproj", "{B1FB368A-BF76-401B-B60C-269C54EE1FE0}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Messages", "Turbo.Messages\Turbo.Messages.csproj", "{206126F1-2CD3-44BF-B635-A3465B99B4D9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Packets.Abstractions", "Turbo.Packets.Abstractions\Turbo.Packets.Abstractions.csproj", "{28F41A5C-B5ED-4812-A1E5-4DED10468D40}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Pipeline", "Turbo.Pipeline\Turbo.Pipeline.csproj", "{91A0E861-4BD8-4F05-B776-0EE2CA00A3D7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Packets.Abstractions", "Turbo.Packets.Abstractions\Turbo.Packets.Abstractions.csproj", "{28F41A5C-B5ED-4812-A1E5-4DED10468D40}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Plugins", "Turbo.Plugins\Turbo.Plugins.csproj", "{31AA65DB-2B58-4B59-A1A2-96618D5D125D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Primitives", "Turbo.Primitives\Turbo.Primitives.csproj", "{B1FB368A-BF76-401B-B60C-269C54EE1FE0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -4,7 +4,7 @@ public class NetworkingConfig
 {
     public const string SECTION_NAME = "Turbo:Networking";
 
-    public NetworkServerConfig TcpServer { get; init; }
-    public NetworkIncomingQueueConfig IncomingQueue { get; init; }
-    public NetworkEncryptionConfig Encryption { get; init; }
+    public required NetworkServerConfig TcpServer { get; init; }
+    public required NetworkIncomingQueueConfig IncomingQueue { get; init; }
+    public required NetworkEncryptionConfig Encryption { get; init; }
 }
