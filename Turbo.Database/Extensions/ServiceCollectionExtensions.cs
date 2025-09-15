@@ -2,8 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
-using Turbo.Contracts.Plugins;
 using Turbo.Database.Configuration;
 using Turbo.Database.Context;
 using Turbo.Database.Delegates;
@@ -12,18 +12,19 @@ namespace Turbo.Database.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddTurboDatabase(
+    public static IServiceCollection AddTurboDatabaseContext(
         this IServiceCollection services,
-        IConfiguration cfg
+        HostApplicationBuilder builder
     )
     {
-        services.AddOptions<DatabaseConfig>().Bind(cfg.GetSection(DatabaseConfig.SECTION_NAME));
-        services.AddSingleton(sp => sp.GetRequiredService<IOptions<DatabaseConfig>>().Value);
+        services.Configure<DatabaseConfig>(
+            builder.Configuration.GetSection(DatabaseConfig.SECTION_NAME)
+        );
 
         services.AddDbContextFactory<TurboDbContext>(
             (sp, options) =>
             {
-                var dbConfig = sp.GetRequiredService<DatabaseConfig>();
+                var dbConfig = sp.GetRequiredService<IOptions<DatabaseConfig>>().Value;
                 var connectionString = dbConfig.ConnectionString;
                 var loggingEnabled = dbConfig.LoggingEnabled;
 
@@ -47,14 +48,16 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddPluginDbContext<TContext>(this IServiceCollection services)
+    public static IServiceCollection AddPluginDatabaseContext<TContext>(
+        this IServiceCollection services
+    )
         where TContext : DbContext
     {
         services.AddDbContext<TContext>(
             (sp, options) =>
             {
                 var prefix = sp.GetRequiredService<TablePrefixProvider>();
-                var dbConfig = sp.GetRequiredService<DatabaseConfig>();
+                var dbConfig = sp.GetRequiredService<IOptions<DatabaseConfig>>().Value;
                 var connectionString = dbConfig.ConnectionString;
                 var loggingEnabled = dbConfig.LoggingEnabled;
 

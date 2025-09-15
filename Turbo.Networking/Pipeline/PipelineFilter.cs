@@ -14,7 +14,7 @@ public class PipelineFilter : PipelineFilterBase<IClientPacket>
         .Use(new LengthFieldMiddleware())
         .Use(new ClientPacketMiddleware());
 
-    public override IClientPacket Filter(ref SequenceReader<byte> reader)
+    public override IClientPacket? Filter(ref SequenceReader<byte> reader)
     {
         if (Context is ISessionContext session)
         {

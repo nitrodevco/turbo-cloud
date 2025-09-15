@@ -5,9 +5,6 @@ project.lock.json
 *.pyc
 nupkg/
 
-# Visual Studio Code
-.vscode
-
 # Rider
 .idea
 
@@ -40,4 +37,5 @@ msbuild.wrn
 # Appsettings
 **/appsettings.*.json
 
-Turbo/plugins/*
+plugins/*
+plugins-shadow/*

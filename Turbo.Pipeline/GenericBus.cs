@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Turbo.Pipeline.Attributes;
 using Turbo.Pipeline.Registry;
 
@@ -19,14 +21,12 @@ public class GenericBus<TInteraction, TContext, TMeta>
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly Func<IServiceProvider, object, TMeta, TContext> _createContext;
 
-    // Remember which ServiceProvider owns which ownerId (host + plugins)
     private readonly ConcurrentDictionary<string, IServiceProvider> _ownerRoots = new(
         StringComparer.Ordinal
     );
-
-    // env type -> regs
-    private readonly ConcurrentDictionary<Type, List<Handler<TContext>>> _handlers = new();
-    private readonly ConcurrentDictionary<Type, List<Behavior<TContext>>> _behaviors = new();
+    private readonly ConcurrentDictionary<Type, Handler<TContext>[]> _handlers = new();
+    private readonly ConcurrentDictionary<Type, Behavior<TContext>[]> _behaviors = new();
+    private readonly ILogger? _logger;
 
     public GenericBus(
         IServiceProvider hostRoot,
@@ -36,6 +36,7 @@ public class GenericBus<TInteraction, TContext, TMeta>
         _hostRoot = hostRoot ?? throw new ArgumentNullException(nameof(hostRoot));
         _scopeFactory = hostRoot.GetRequiredService<IServiceScopeFactory>();
         _createContext = createContext ?? throw new ArgumentNullException(nameof(createContext));
+        _logger = hostRoot.GetService<ILogger<GenericBus<TInteraction, TContext, TMeta>>>();
 
         // Always register host root
         _ownerRoots[CompositeEnvelopeScope.HostOwnerId] = _hostRoot;
@@ -55,6 +56,13 @@ public class GenericBus<TInteraction, TContext, TMeta>
         bool useAmbientScope
     )
     {
+        if (ownerId is null)
+            throw new ArgumentNullException(nameof(ownerId));
+        if (asm is null)
+            throw new ArgumentNullException(nameof(asm));
+        if (ownerRoot is null)
+            throw new ArgumentNullException(nameof(ownerRoot));
+
         // remember the owner root (idempotent)
         _ownerRoots.AddOrUpdate(ownerId, ownerRoot, (_, __) => ownerRoot);
 
@@ -85,8 +93,11 @@ public class GenericBus<TInteraction, TContext, TMeta>
                     if (seenHandlers.Add(closedHandler))
                     {
                         var factory = ActivatorUtilities.CreateFactory(type, Type.EmptyTypes);
-                        Func<IServiceProvider, object> create = sp =>
-                            factory(sp, Array.Empty<object?>());
+                        Func<IServiceProvider, object> create = useAmbientScope
+                            ? (Func<IServiceProvider, object>)(
+                                sp => factory(sp, Array.Empty<object?>())
+                            )
+                            : (sp => sp.GetRequiredService(type));
 
                         var invoker = InvokerCache<TContext>.GetHandler(envType);
 
@@ -100,16 +111,55 @@ public class GenericBus<TInteraction, TContext, TMeta>
                             Invoke: invoker
                         );
 
-                        var list = _handlers.GetOrAdd(envType, _ => new List<Handler<TContext>>(4));
-                        lock (list)
-                            list.Add(reg);
+                        _handlers.AddOrUpdate(
+                            envType,
+                            _ => new[] { reg },
+                            (_, old) =>
+                            {
+                                var len = old.Length;
+                                var next = new Handler<TContext>[len + 1];
+                                Array.Copy(old, 0, next, 0, len);
+                                next[len] = reg;
+                                return next;
+                            }
+                        );
 
                         added.Add(
                             new ActionDisposable(() =>
                             {
-                                if (_handlers.TryGetValue(envType, out var lst))
-                                    lock (lst)
-                                        lst.Remove(reg);
+                                // atomic remove: retry loop
+                                while (true)
+                                {
+                                    if (!_handlers.TryGetValue(envType, out var cur))
+                                        break;
+                                    var idx = Array.IndexOf(cur, reg);
+                                    if (idx < 0)
+                                        break;
+                                    if (cur.Length == 1)
+                                    {
+                                        // try remove entire entry
+                                        if (
+                                            _handlers.TryRemove(
+                                                new KeyValuePair<Type, Handler<TContext>[]>(
+                                                    envType,
+                                                    cur
+                                                )
+                                            )
+                                        )
+                                            break;
+                                        continue; // retry
+                                    }
+
+                                    var next = new Handler<TContext>[cur.Length - 1];
+                                    if (idx > 0)
+                                        Array.Copy(cur, 0, next, 0, idx);
+                                    if (idx < cur.Length - 1)
+                                        Array.Copy(cur, idx + 1, next, idx, cur.Length - idx - 1);
+
+                                    if (_handlers.TryUpdate(envType, next, cur))
+                                        break;
+                                    // else retry
+                                }
                             })
                         );
                     }
@@ -126,8 +176,11 @@ public class GenericBus<TInteraction, TContext, TMeta>
                     if (seenBehaviors.Add(closedBehavior))
                     {
                         var factory = ActivatorUtilities.CreateFactory(type, Type.EmptyTypes);
-                        Func<IServiceProvider, object> create = sp =>
-                            factory(sp, Array.Empty<object?>());
+                        Func<IServiceProvider, object> create = useAmbientScope
+                            ? (Func<IServiceProvider, object>)(
+                                sp => factory(sp, Array.Empty<object?>())
+                            )
+                            : (sp => sp.GetRequiredService(type));
 
                         var invoker = InvokerCache<TContext>.GetBehavior(envType);
 
@@ -142,23 +195,63 @@ public class GenericBus<TInteraction, TContext, TMeta>
                             Invoke: invoker
                         );
 
-                        var list = _behaviors.GetOrAdd(
+                        _behaviors.AddOrUpdate(
                             envType,
-                            _ => new List<Behavior<TContext>>(4)
+                            _ => new[] { reg },
+                            (_, old) =>
+                            {
+                                // insert ordered by Order
+                                var len = old.Length;
+                                var next = new Behavior<TContext>[len + 1];
+                                var inserted = false;
+                                var p = 0;
+                                for (int i = 0; i < len; i++)
+                                {
+                                    if (!inserted && reg.Order < old[i].Order)
+                                    {
+                                        next[p++] = reg;
+                                        inserted = true;
+                                    }
+                                    next[p++] = old[i];
+                                }
+                                if (!inserted)
+                                    next[p++] = reg;
+                                return next;
+                            }
                         );
-                        lock (list)
-                            TypeUtil.InsertOrdered(
-                                list,
-                                reg,
-                                static (a, b) => a.Order.CompareTo(b.Order)
-                            );
 
                         added.Add(
                             new ActionDisposable(() =>
                             {
-                                if (_behaviors.TryGetValue(envType, out var lst))
-                                    lock (lst)
-                                        lst.Remove(reg);
+                                // atomic remove similar to handlers
+                                while (true)
+                                {
+                                    if (!_behaviors.TryGetValue(envType, out var cur))
+                                        break;
+                                    var idx = Array.IndexOf(cur, reg);
+                                    if (idx < 0)
+                                        break;
+                                    if (cur.Length == 1)
+                                    {
+                                        if (
+                                            _behaviors.TryRemove(
+                                                new KeyValuePair<Type, Behavior<TContext>[]>(
+                                                    envType,
+                                                    cur
+                                                )
+                                            )
+                                        )
+                                            break;
+                                        continue;
+                                    }
+                                    var next = new Behavior<TContext>[cur.Length - 1];
+                                    if (idx > 0)
+                                        Array.Copy(cur, 0, next, 0, idx);
+                                    if (idx < cur.Length - 1)
+                                        Array.Copy(cur, idx + 1, next, idx, cur.Length - idx - 1);
+                                    if (_behaviors.TryUpdate(envType, next, cur))
+                                        break;
+                                }
                             })
                         );
                     }
@@ -247,17 +340,7 @@ public class GenericBus<TInteraction, TContext, TMeta>
                 {
                     await using var scope = reg.ScopeFactory.CreateAsyncScope();
                     var inst = reg.Create(scope.ServiceProvider);
-                    try
-                    {
-                        await reg.Invoke(inst, envelope, baseCtx, ct).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        if (inst is IAsyncDisposable iad)
-                            await iad.DisposeAsync().ConfigureAwait(false);
-                        else if (inst is IDisposable id)
-                            id.Dispose();
-                    }
+                    await reg.Invoke(inst, envelope, baseCtx, ct).ConfigureAwait(false);
                 }
             }
         };
@@ -280,17 +363,7 @@ public class GenericBus<TInteraction, TContext, TMeta>
                 {
                     await using var scope = reg.ScopeFactory.CreateAsyncScope();
                     var inst = reg.Create(scope.ServiceProvider);
-                    try
-                    {
-                        await reg.Invoke(inst, envelope, baseCtx, next, ct).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        if (inst is IAsyncDisposable iad)
-                            await iad.DisposeAsync().ConfigureAwait(false);
-                        else if (inst is IDisposable id)
-                            id.Dispose();
-                    }
+                    await reg.Invoke(inst, envelope, baseCtx, next, ct).ConfigureAwait(false);
                 }
             };
         }

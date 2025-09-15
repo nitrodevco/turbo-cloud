@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Microsoft.Extensions.Options;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Digests;
 using Org.BouncyCastle.Crypto.Encodings;
@@ -20,12 +21,14 @@ public class RsaService : IRsaService
     private readonly BigInteger _privateExponent;
     private readonly RsaKeyParameters _privateKey;
     private readonly RsaKeyParameters _publicKey;
+    private readonly NetworkingConfig _config;
 
-    public RsaService(NetworkingConfig config)
+    public RsaService(IOptions<NetworkingConfig> config)
     {
-        _exponent = new BigInteger(config.Encryption.KeySize, 16);
-        _modulus = new BigInteger(config.Encryption.PublicKey, 16);
-        _privateExponent = new BigInteger(config.Encryption.PrivateKey, 16);
+        _config = config.Value;
+        _exponent = new BigInteger(_config.Encryption.KeySize, 16);
+        _modulus = new BigInteger(_config.Encryption.PublicKey, 16);
+        _privateExponent = new BigInteger(_config.Encryption.PrivateKey, 16);
 
         _publicKey = new RsaKeyParameters(false, _modulus, _exponent);
         _privateKey = new RsaKeyParameters(true, _modulus, _privateExponent);

@@ -9,22 +9,8 @@ using Turbo.Plugins.Configuration;
 
 namespace Turbo.Plugins.Extensions;
 
-public static class ServiceCollectionExtensions
+internal static class ServiceCollectionExtensions
 {
-    public static IServiceCollection UseTurboPlugins(
-        this IServiceCollection services,
-        IConfiguration cfg
-    )
-    {
-        services.AddOptions<PluginConfig>().Bind(cfg.GetSection(PluginConfig.SECTION_NAME));
-        services.AddSingleton(sp => sp.GetRequiredService<IOptions<PluginConfig>>().Value);
-
-        services.AddSingleton<PluginManager>();
-        services.AddHostedService<PluginsBootstrapper>();
-
-        return services;
-    }
-
     internal static IServiceCollection ConfigurePlugin(
         this IServiceCollection services,
         IServiceProvider host,
@@ -33,7 +19,7 @@ public static class ServiceCollectionExtensions
     )
     {
         services.AddLogging();
-        services.AddSingleton(host.GetRequiredService<DatabaseConfig>());
+        services.AddSingleton(host.GetRequiredService<IOptions<DatabaseConfig>>());
         services.AddSingleton(manifest);
         services.AddSingleton<TablePrefixProvider>(sp =>
         {

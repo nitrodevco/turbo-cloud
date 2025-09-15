@@ -7,8 +7,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Turbo.Networking.Abstractions;
-using Turbo.Networking.Abstractions.Revisions;
-using Turbo.Plugins;
 
 namespace Turbo.Main;
 

@@ -1,13 +1,22 @@
 using System;
-using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Orleans.Hosting;
-using Turbo.Main.Extensions;
+using Turbo.Contracts.Abstractions;
+using Turbo.Database.Extensions;
+using Turbo.Events;
+using Turbo.Events.Registry;
+using Turbo.Logging;
+using Turbo.Logging.Extensions;
+using Turbo.Messages;
+using Turbo.Messages.Registry;
+using Turbo.Networking.Abstractions.Session;
+using Turbo.Networking.Extensions;
+using Turbo.Pipeline.Extensions;
 using Turbo.Plugins.Extensions;
 
 namespace Turbo.Main;
@@ -16,16 +25,8 @@ internal class Program
 {
     public static async Task Main(string[] args)
     {
-        var bootstrapLogger = LoggerFactory
-            .Create(builder =>
-            {
-                builder.AddSimpleConsole(op =>
-                {
-                    op.IncludeScopes = true;
-                    op.SingleLine = true;
-                    op.TimestampFormat = "HH:mm:ss ";
-                });
-            })
+        var bootstrapLogger = BootstrapLoggingFactory
+            .CreateBootstrapLoggerFactory()
             .CreateLogger("Bootstrap");
 
         Console.WriteLine(
@@ -45,70 +46,48 @@ internal class Program
             GetProjectVersion()
         );
 
-        var builder = Host.CreateDefaultBuilder(args);
+        var builder = Host.CreateApplicationBuilder(args);
 
-        builder.ConfigureLogging(
-            (ctx, logging) =>
-            {
-                logging.ClearProviders();
-                logging.AddConfiguration(ctx.Configuration.GetSection("Logging"));
-                logging.AddConsole();
-            }
-        );
+        builder.Configuration.AddEnvironmentVariables(prefix: "TURBO__");
 
-        builder.ConfigureAppConfiguration(
-            (ctx, cfg) =>
-            {
-                cfg.AddEnvironmentVariables(prefix: "TURBO__");
-            }
-        );
-
-        /* builder.UseOrleans(silo =>
+        bootstrapLogger.LogInformation("=== Configuration Providers ===");
+        foreach (var p in ((IConfigurationRoot)builder.Configuration).Providers)
         {
-            silo.ConfigureEndpoints(
-                "127.0.0.1",
-                siloPort: 11111,
-                gatewayPort: 3000,
-                listenOnAnyHostAddress: true
-            );
-
-            silo.UseLocalhostClustering()
-                .AddMemoryGrainStorage("PubSubStore")
-                .AddMemoryGrainStorage("PlayerStore");
-
-            var streamTypes = AppDomain
-                .CurrentDomain.GetAssemblies()
-                .SelectMany(a => a.GetTypes())
-                .Where(t => t.IsClass && !t.IsAbstract)
-                .Select(t => new
-                {
-                    Type = t,
-                    Attr = t.GetCustomAttribute<AutoStreamProviderAttribute>(),
-                })
-                .Where(x => x.Attr is not null);
-
-            foreach (var x in streamTypes)
+            if (p is JsonConfigurationProvider jp)
             {
-                var name = x.Attr!.Name;
-                var queueCount = x.Attr!.QueueCount;
-                var streamPubSubType = x.Attr!.StreamPubSubType;
+                var src = (JsonConfigurationSource)jp.Source;
+                var path = src.Path;
 
-                silo.AddMemoryStreams(
-                    name,
-                    opts =>
-                    {
-                        if (queueCount is int n && n > 0)
-                        {
-                            opts.ConfigurePartitioning(n);
-                        }
+                if (path is not null)
+                {
+                    var fileProvider =
+                        src.FileProvider ?? builder.Environment.ContentRootFileProvider;
+                    var fi = fileProvider?.GetFileInfo(path);
+                    var physical = fi?.PhysicalPath ?? "<virtual or unresolved>";
 
-                        opts.ConfigureStreamPubSub(streamPubSubType);
-                    }
-                );
+                    bootstrapLogger.LogInformation(
+                        $"Json: '{path}' -> {physical} (optional={src.Optional})"
+                    );
+                }
             }
-        }); */
+        }
+        bootstrapLogger.LogInformation("=============================");
 
-        builder.ConfigureTurbo();
+        builder.AddTurboLogging();
+        builder.Services.AddTurboDatabaseContext(builder);
+        builder.AddTurboNetworking();
+        builder.Services.AddEnvelopeSystem<EventSystem, IEvent, EventContext, object>(
+            (sp, env, data) => new EventContext { ServiceProvider = sp }
+        );
+        builder.Services.AddEnvelopeSystem<
+            MessageSystem,
+            IMessageEvent,
+            MessageContext,
+            ISessionContext
+        >((sp, env, session) => new MessageContext { ServiceProvider = sp, Session = session });
+
+        builder.AddTurboPlugins();
+        builder.Services.AddHostedService<TurboEmulator>();
 
         var host = builder.Build();
 

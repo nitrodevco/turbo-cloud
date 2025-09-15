@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using SuperSocket.Server.Host;
 using Turbo.Networking.Abstractions;
 using Turbo.Networking.Abstractions.Session;
@@ -12,10 +13,10 @@ using Turbo.Packets.Abstractions;
 
 namespace Turbo.Networking;
 
-public class NetworkManager(NetworkingConfig config, PacketProcessor packetProcessor)
+public class NetworkManager(IOptions<NetworkingConfig> config, PacketProcessor packetProcessor)
     : INetworkManager
 {
-    private readonly NetworkingConfig _config = config;
+    private readonly NetworkingConfig _config = config.Value;
     private readonly PacketProcessor _packetProcessor = packetProcessor;
     private IHost? _superSocketHost;
 

@@ -17,20 +17,14 @@ public static class ServiceCollectionExtensions
             typeof(TMeta)
         );
 
-        services.Add(
-            new ServiceDescriptor(
-                busType,
-                sp => ActivatorUtilities.CreateInstance(sp, busType, createContext),
-                ServiceLifetime.Singleton
-            )
+        services.AddSingleton(
+            busType,
+            sp => ActivatorUtilities.CreateInstance(sp, busType, createContext)
         );
 
-        services.Add(
-            new ServiceDescriptor(
-                typeof(TSystem),
-                sp => ActivatorUtilities.CreateInstance<TSystem>(sp),
-                ServiceLifetime.Singleton
-            )
+        services.AddSingleton(
+            typeof(TSystem),
+            sp => ActivatorUtilities.CreateInstance<TSystem>(sp)
         );
 
         return services;

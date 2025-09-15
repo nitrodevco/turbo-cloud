@@ -1,0 +1,38 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": ".NET Launch (Turbo.Main)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "Build Solution (Debug)",
+            "program": "${workspaceFolder}/Turbo.Main/bin/Debug/net9.0/Turbo.Main.dll",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "stopAtEntry": false,
+            "justMyCode": true,
+            "env": {
+                "DOTNET_ENVIRONMENT": "Development"
+            }
+        },
+        {
+            "name": ".NET Launch (Turbo.Main, Release)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "Build Solution (Release)",
+            "program": "${workspaceFolder}/Turbo.Main/bin/Release/net9.0/Turbo.Main.dll",
+            "cwd": "${workspaceFolder}/Turbo.Main",
+            "console": "integratedTerminal",
+            "stopAtEntry": false,
+            "justMyCode": true,
+            "env": {
+                "DOTNET_ENVIRONMENT": "Production"
+            }
+        },
+        {
+            "name": ".NET Attach",
+            "type": "coreclr",
+            "request": "attach"
+        }
+    ]
+}

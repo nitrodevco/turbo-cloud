@@ -38,19 +38,20 @@ public class PacketProcessor(
         {
             if (revision.Parsers.TryGetValue(clientPacket.Header, out var parser))
             {
-                _logger.LogDebug(
-                    "Processing packet {PacketHeader}:{PacketType} for session {SessionId}",
-                    clientPacket.Header,
-                    parser.GetType().Name,
+                var message = parser.Parse(clientPacket);
+
+                _logger.LogInformation(
+                    "Processing {PacketType} for {SessionId}",
+                    message.GetType().Name,
                     ctx.SessionID
                 );
 
-                await _messageSystem.PublishAsync(parser.Parse(clientPacket), ctx, ct);
+                await _messageSystem.PublishAsync(message, ctx, ct);
             }
             else
             {
-                _logger.LogDebug(
-                    "Invalid packet {PacketHeader} for session {SessionId}",
+                _logger.LogInformation(
+                    "Invalid packet {PacketHeader} for {SessionId}",
                     clientPacket.Header,
                     ctx.SessionID
                 );

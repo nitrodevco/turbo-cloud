@@ -37,15 +37,11 @@ public class SessionContext(PacketProcessor packetProcessor) : AppSession(), ISe
     protected override async ValueTask OnSessionConnectedAsync()
     {
         await base.OnSessionConnectedAsync();
-
-        Console.WriteLine($"Session context created: {SessionID}");
     }
 
     protected override async ValueTask OnSessionClosedAsync(CloseEventArgs e)
     {
         await base.OnSessionClosedAsync(e);
-
-        Console.WriteLine($"Session context closed: {SessionID}");
     }
 
     public async Task SendComposerAsync(IComposer composer, CancellationToken ct = default)

@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Turbo.Contracts.Plugins;
 using Turbo.Events;
 using Turbo.Messages;
@@ -21,14 +22,14 @@ public class PluginManager(
     EventSystem eventSystem,
     MessageSystem messageSystem,
     ILoggerFactory loggerFactory,
-    PluginConfig config
+    IOptions<PluginConfig> config
 ) : IAsyncDisposable
 {
     private readonly IServiceProvider _host = host;
     private readonly EventSystem _eventSystem = eventSystem;
     private readonly MessageSystem _messageSystem = messageSystem;
     private readonly ILogger _logger = loggerFactory.CreateLogger(nameof(PluginManager));
-    private readonly PluginConfig _config = config;
+    private readonly PluginConfig _config = config.Value;
 
     private readonly ConcurrentDictionary<string, PluginHandle> _loaded = new(
         StringComparer.Ordinal
@@ -48,12 +49,16 @@ public class PluginManager(
         CancellationToken ct = default
     )
     {
+        var what = AppContext.BaseDirectory;
+
         if (!Directory.Exists(_config.PluginFolderPath))
         {
             _logger.LogWarning("Plugin folder does not exist: {Path}", _config.PluginFolderPath);
 
             return;
         }
+
+        _logger.LogInformation("Loading plugins from {Path} ...", _config.PluginFolderPath);
 
         var dirs = Directory.EnumerateDirectories(_config.PluginFolderPath).ToArray();
 
