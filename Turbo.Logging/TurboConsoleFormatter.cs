@@ -48,7 +48,6 @@ internal sealed class TurboConsoleFormatter(
         TextWriter textWriter
     )
     {
-        // Pull the latest options every write; picks up appsettings changes automatically.
         var options = _optionsMonitor.CurrentValue;
 
         var now = options.UseUtcTimestamp ? DateTimeOffset.UtcNow : DateTimeOffset.Now;
@@ -64,27 +63,35 @@ internal sealed class TurboConsoleFormatter(
             category = TrimCategory(logEntry.Category!, options.TrimCategoryDepth);
 
         var (fg, bg) = s_levelColors[level];
-        var sb = new StringBuilder(256);
 
+        // Build header (timestamp + level + category)
+        var headerSb = new StringBuilder(128);
         if (options.UseAnsiColor)
         {
-            sb.Append('[').Append(ts).Append("] ");
+            headerSb.Append('[').Append(ts).Append("] ");
             if (bg.Length > 0)
-                sb.Append(bg);
-            sb.Append(fg).Append(levelLabel).Append(RESET);
+                headerSb.Append(bg);
+            headerSb.Append(fg).Append(levelLabel).Append(RESET);
             if (!string.IsNullOrEmpty(bg))
-                sb.Append(RESET);
+                headerSb.Append(RESET);
         }
         else
         {
-            sb.Append('[').Append(ts).Append("] ").Append(levelLabel);
+            headerSb.Append('[').Append(ts).Append("] ").Append(levelLabel);
         }
 
         if (!string.IsNullOrEmpty(category))
-            sb.Append(' ').Append('(').Append(category).Append(')');
+            headerSb.Append(' ').Append('(').Append(category).Append(')');
 
         if (logEntry.EventId.Id != 0)
-            sb.Append(" [").Append(logEntry.EventId.Id).Append(']');
+            headerSb.Append(" [").Append(logEntry.EventId.Id).Append(']');
+
+        var header = headerSb.ToString();
+
+        // ===== Align after the category =====
+        // Assume max width for the header column
+        const int HEADER_WIDTH = 58;
+        var paddedHeader = header.PadRight(HEADER_WIDTH);
 
         var message = logEntry.Formatter?.Invoke(logEntry.State, logEntry.Exception);
         if (!string.IsNullOrEmpty(message))
@@ -94,8 +101,13 @@ internal sealed class TurboConsoleFormatter(
                     .Replace(Environment.NewLine, " ")
                     .Replace('\n', ' ')
                     .Replace('\r', ' ');
-            sb.Append(" : ").Append(message);
         }
+
+        var sb = new StringBuilder(256);
+        sb.Append(paddedHeader);
+
+        if (!string.IsNullOrEmpty(message))
+            sb.Append(": ").Append(message);
 
         if (options.IncludeScopes && scopeProvider is not null)
         {
@@ -108,16 +120,19 @@ internal sealed class TurboConsoleFormatter(
             );
         }
 
+        // Write the line
         textWriter.WriteLine(sb.ToString());
 
+        // Write the exception (on next line, aligned as well)
         if (logEntry.Exception is not null)
         {
+            var exceptionHeader = "".PadLeft(HEADER_WIDTH);
             if (options.UseAnsiColor)
                 textWriter.WriteLine(
-                    $"{s_levelColors[LogLevel.Error].fg}{logEntry.Exception}{RESET}"
+                    $"{exceptionHeader}{s_levelColors[LogLevel.Error].fg}{logEntry.Exception}{RESET}"
                 );
             else
-                textWriter.WriteLine(logEntry.Exception.ToString());
+                textWriter.WriteLine($"{exceptionHeader}{logEntry.Exception}");
         }
     }
 
