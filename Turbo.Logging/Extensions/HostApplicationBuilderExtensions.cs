@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -12,8 +13,15 @@ public static class HostApplicationBuilderExtensions
             host.Configuration.GetSection(TurboConsoleFormatterOptions.SECTION_NAME)
         );
 
-        host.Logging.AddConfiguration(host.Configuration.GetSection("Logging"));
-        host.Logging.AddTurboConsoleLogger();
+        var factory = LoggerFactory.Create(builder =>
+        {
+            builder.ClearProviders();
+            builder.AddConfiguration(host.Configuration.GetSection("Logging"));
+            builder.AddTurboConsoleLogger();
+        });
+
+        host.Services.AddSingleton(factory);
+        host.Services.TryAddSingleton(typeof(ILogger<>), typeof(Logger<>));
 
         return host;
     }

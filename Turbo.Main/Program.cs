@@ -10,7 +10,6 @@ using Turbo.Contracts.Abstractions;
 using Turbo.Database.Extensions;
 using Turbo.Events;
 using Turbo.Events.Registry;
-using Turbo.Logging;
 using Turbo.Logging.Extensions;
 using Turbo.Messages;
 using Turbo.Messages.Registry;
@@ -25,18 +24,22 @@ internal class Program
 {
     public static async Task Main(string[] args)
     {
-        var bootstrapLogger = BootstrapLoggingFactory
-            .CreateBootstrapLoggerFactory()
+        var bootstrapLogger = LoggerFactory
+            .Create(builder =>
+            {
+                builder.ClearProviders();
+                builder.AddTurboConsoleLogger();
+            })
             .CreateLogger("Bootstrap");
 
         Console.WriteLine(
             @"
-                ████████╗██╗   ██╗██████╗ ██████╗  ██████╗ 
-                ╚══██╔══╝██║   ██║██╔══██╗██╔══██╗██╔═══██╗
-                   ██║   ██║   ██║██████╔╝██████╔╝██║   ██║
-                   ██║   ██║   ██║██╔══██╗██╔══██╗██║   ██║
-                   ██║   ╚██████╔╝██║  ██║██████╔╝╚██████╔╝
-                   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═════╝  ╚═════╝ 
+     ████████╗██╗   ██╗██████╗ ██████╗  ██████╗ 
+     ╚══██╔══╝██║   ██║██╔══██╗██╔══██╗██╔═══██╗
+        ██║   ██║   ██║██████╔╝██████╔╝██║   ██║
+        ██║   ██║   ██║██╔══██╗██╔══██╗██║   ██║
+        ██║   ╚██████╔╝██║  ██║██████╔╝╚██████╔╝
+        ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═════╝  ╚═════╝ 
             "
         );
 
@@ -50,28 +53,31 @@ internal class Program
 
         builder.Configuration.AddEnvironmentVariables(prefix: "TURBO__");
 
-        bootstrapLogger.LogInformation("=== Configuration Providers ===");
-        foreach (var p in ((IConfigurationRoot)builder.Configuration).Providers)
+        if (builder.Environment.IsDevelopment())
         {
-            if (p is JsonConfigurationProvider jp)
+            bootstrapLogger.LogInformation("=== Configuration Providers ===");
+            foreach (var p in ((IConfigurationRoot)builder.Configuration).Providers)
             {
-                var src = (JsonConfigurationSource)jp.Source;
-                var path = src.Path;
-
-                if (path is not null)
+                if (p is JsonConfigurationProvider jp)
                 {
-                    var fileProvider =
-                        src.FileProvider ?? builder.Environment.ContentRootFileProvider;
-                    var fi = fileProvider?.GetFileInfo(path);
-                    var physical = fi?.PhysicalPath ?? "<virtual or unresolved>";
+                    var src = (JsonConfigurationSource)jp.Source;
+                    var path = src.Path;
 
-                    bootstrapLogger.LogInformation(
-                        $"Json: '{path}' -> {physical} (optional={src.Optional})"
-                    );
+                    if (path is not null)
+                    {
+                        var fileProvider =
+                            src.FileProvider ?? builder.Environment.ContentRootFileProvider;
+                        var fi = fileProvider?.GetFileInfo(path);
+                        var physical = fi?.PhysicalPath ?? "<virtual or unresolved>";
+
+                        bootstrapLogger.LogInformation(
+                            $"Json: '{path}' -> {physical} (optional={src.Optional})"
+                        );
+                    }
                 }
             }
+            bootstrapLogger.LogInformation("=============================");
         }
-        bootstrapLogger.LogInformation("=============================");
 
         builder.AddTurboLogging();
         builder.Services.AddTurboDatabaseContext(builder);

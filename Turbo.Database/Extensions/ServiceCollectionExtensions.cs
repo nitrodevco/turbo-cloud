@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -28,20 +27,14 @@ public static class ServiceCollectionExtensions
                 var connectionString = dbConfig.ConnectionString;
                 var loggingEnabled = dbConfig.LoggingEnabled;
 
-                options
-                    .UseMySql(
-                        connectionString,
-                        ServerVersion.AutoDetect(connectionString),
-                        options =>
-                        {
-                            options.MigrationsAssembly("Turbo.Main");
-                        }
-                    )
-                    .ConfigureWarnings(warnings =>
-                        warnings.Ignore(CoreEventId.RedundantIndexRemoved)
-                    )
-                    .EnableSensitiveDataLogging(loggingEnabled)
-                    .EnableDetailedErrors();
+                options.UseMySql(
+                    connectionString,
+                    ServerVersion.AutoDetect(connectionString),
+                    options =>
+                    {
+                        options.MigrationsAssembly("Turbo.Main");
+                    }
+                );
             }
         );
 
@@ -63,22 +56,16 @@ public static class ServiceCollectionExtensions
 
                 var asm = typeof(TContext).Assembly.FullName;
 
-                options
-                    .UseMySql(
-                        connectionString,
-                        ServerVersion.AutoDetect(connectionString),
-                        builder =>
-                        {
-                            builder.MigrationsHistoryTable(
-                                $"__EFMigrationsHistory_{prefix().TrimEnd('_')}"
-                            );
-                        }
-                    )
-                    .ConfigureWarnings(warnings =>
-                        warnings.Ignore(CoreEventId.RedundantIndexRemoved)
-                    )
-                    .EnableSensitiveDataLogging(loggingEnabled)
-                    .EnableDetailedErrors();
+                options.UseMySql(
+                    connectionString,
+                    ServerVersion.AutoDetect(connectionString),
+                    builder =>
+                    {
+                        builder.MigrationsHistoryTable(
+                            $"__EFMigrationsHistory_{prefix().TrimEnd('_')}"
+                        );
+                    }
+                );
             }
         );
 

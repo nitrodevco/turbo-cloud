@@ -1,11 +1,11 @@
 using System;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Contracts.Plugins;
 using Turbo.Database.Configuration;
 using Turbo.Database.Delegates;
-using Turbo.Plugins.Configuration;
 
 namespace Turbo.Plugins.Extensions;
 
@@ -18,7 +18,8 @@ internal static class ServiceCollectionExtensions
         PluginManifest manifest
     )
     {
-        services.AddLogging();
+        services.AddSingleton(host.GetRequiredService<ILoggerFactory>());
+        services.TryAddSingleton(typeof(ILogger<>), typeof(Logger<>));
         services.AddSingleton(host.GetRequiredService<IOptions<DatabaseConfig>>());
         services.AddSingleton(manifest);
         services.AddSingleton<TablePrefixProvider>(sp =>
