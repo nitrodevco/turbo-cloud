@@ -1,10 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Turbo.Networking.Abstractions;
-using Turbo.Networking.Abstractions.Encryption;
 using Turbo.Networking.Abstractions.Revisions;
 using Turbo.Networking.Configuration;
-using Turbo.Networking.Encryption;
 using Turbo.Networking.Revisions;
 using Turbo.Networking.Session;
 
@@ -20,8 +18,6 @@ public static class HostApplicationBuilderExtensions
 
         builder.Services.AddSingleton<INetworkManager, NetworkManager>();
         builder.Services.AddSingleton<PacketProcessor>();
-        builder.Services.AddSingleton<IRsaService, RsaService>();
-        builder.Services.AddSingleton<IDiffieService, DiffieService>();
         builder.Services.AddSingleton<IRevisionManager, RevisionManager>();
 
         return builder;

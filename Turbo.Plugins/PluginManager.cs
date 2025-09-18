@@ -58,7 +58,7 @@ public class PluginManager(
             return;
         }
 
-        _logger.LogInformation("Loading plugins from {Path} ...", _config.PluginFolderPath);
+        _logger.LogInformation("Loading plugins from {Path}", _config.PluginFolderPath);
 
         var dirs = Directory.EnumerateDirectories(_config.PluginFolderPath).ToArray();
 

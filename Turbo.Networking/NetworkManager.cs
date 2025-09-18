@@ -52,10 +52,12 @@ public class NetworkManager(IOptions<NetworkingConfig> config, PacketProcessor p
                 {
                     services.AddSingleton(_config);
                     services.AddSingleton(_packetProcessor);
+                    services.AddSingleton<PipelineFilter>();
                 }
             )
             .UseSessionFactory<SessionContextFactory>()
-            .UsePipelineFilterFactory<PipelineFilterFactory>()
+            .UsePipelineFilter<PipelineFilter>()
+            //.UsePipelineFilterFactory<PipelineFilterFactory>()
             .UsePackageHandler(
                 async (session, packet) =>
                 {

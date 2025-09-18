@@ -27,6 +27,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Primitives", "Turbo.P
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Logging", "Turbo.Logging\Turbo.Logging.csproj", "{FAC5648D-7B56-4E65-8EF0-B4EE138E6380}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Crypto", "Turbo.Crypto\Turbo.Crypto.csproj", "{0A8420E0-DDA4-46C1-8775-CDCEF53D8B46}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -181,6 +183,18 @@ Global
 		{FAC5648D-7B56-4E65-8EF0-B4EE138E6380}.Release|x64.Build.0 = Release|Any CPU
 		{FAC5648D-7B56-4E65-8EF0-B4EE138E6380}.Release|x86.ActiveCfg = Release|Any CPU
 		{FAC5648D-7B56-4E65-8EF0-B4EE138E6380}.Release|x86.Build.0 = Release|Any CPU
+		{0A8420E0-DDA4-46C1-8775-CDCEF53D8B46}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0A8420E0-DDA4-46C1-8775-CDCEF53D8B46}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0A8420E0-DDA4-46C1-8775-CDCEF53D8B46}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{0A8420E0-DDA4-46C1-8775-CDCEF53D8B46}.Debug|x64.Build.0 = Debug|Any CPU
+		{0A8420E0-DDA4-46C1-8775-CDCEF53D8B46}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{0A8420E0-DDA4-46C1-8775-CDCEF53D8B46}.Debug|x86.Build.0 = Debug|Any CPU
+		{0A8420E0-DDA4-46C1-8775-CDCEF53D8B46}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0A8420E0-DDA4-46C1-8775-CDCEF53D8B46}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0A8420E0-DDA4-46C1-8775-CDCEF53D8B46}.Release|x64.ActiveCfg = Release|Any CPU
+		{0A8420E0-DDA4-46C1-8775-CDCEF53D8B46}.Release|x64.Build.0 = Release|Any CPU
+		{0A8420E0-DDA4-46C1-8775-CDCEF53D8B46}.Release|x86.ActiveCfg = Release|Any CPU
+		{0A8420E0-DDA4-46C1-8775-CDCEF53D8B46}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

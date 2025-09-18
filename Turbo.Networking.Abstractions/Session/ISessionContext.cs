@@ -2,7 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SuperSocket.Server.Abstractions.Session;
 using Turbo.Contracts.Abstractions;
-using Turbo.Networking.Abstractions.Encryption;
+using Turbo.Crypto;
 
 namespace Turbo.Networking.Abstractions.Session;
 

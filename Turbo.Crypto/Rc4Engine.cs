@@ -1,7 +1,6 @@
 using System;
-using Turbo.Networking.Abstractions.Encryption;
 
-namespace Turbo.Networking.Encryption;
+namespace Turbo.Crypto;
 
 public class Rc4Engine : IStreamCipher
 {

@@ -3,12 +3,12 @@
     <TargetFramework>net9.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="BouncyCastle.Cryptography" />
     <PackageReference Include="SuperSocket.ProtoBase" />
     <PackageReference Include="SuperSocket.Server" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Turbo.Networking.Abstractions\Turbo.Networking.Abstractions.csproj" />
     <ProjectReference Include="..\Turbo.Messages\Turbo.Messages.csproj" />
+    <ProjectReference Include="..\Turbo.Crypto\Turbo.Crypto.csproj" />
   </ItemGroup>
 </Project>

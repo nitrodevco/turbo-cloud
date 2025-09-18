@@ -3,10 +3,10 @@
     <TargetFramework>net9.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="BouncyCastle.Cryptography" />
     <PackageReference Include="SuperSocket.Server.Abstractions" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Turbo.Packets.Abstractions\Turbo.Packets.Abstractions.csproj" />
+    <ProjectReference Include="..\Turbo.Crypto\Turbo.Crypto.csproj" />
   </ItemGroup>
 </Project>

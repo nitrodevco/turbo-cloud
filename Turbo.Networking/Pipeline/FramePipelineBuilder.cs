@@ -1,16 +1,16 @@
 using System.Buffers;
 using System.Collections.Generic;
+using Turbo.Networking.Abstractions.Middleware;
 using Turbo.Networking.Abstractions.Session;
-using Turbo.Networking.Middleware;
 using Turbo.Packets.Abstractions;
 
 namespace Turbo.Networking.Pipeline;
 
 public class FramePipelineBuilder
 {
-    private readonly List<FrameMiddleware> _middleWares = [];
+    private readonly List<IFrameMiddleware> _middleWares = [];
 
-    public FramePipelineBuilder Use(FrameMiddleware mw)
+    public FramePipelineBuilder Use(IFrameMiddleware mw)
     {
         _middleWares.Add(mw);
 

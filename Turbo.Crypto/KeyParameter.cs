@@ -1,6 +1,6 @@
 using System;
 
-namespace Turbo.Networking.Abstractions.Encryption;
+namespace Turbo.Crypto;
 
 public class KeyParameter(byte[] key) : ICipherParameters
 {

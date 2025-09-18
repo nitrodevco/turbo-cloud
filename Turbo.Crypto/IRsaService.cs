@@ -1,4 +1,4 @@
-namespace Turbo.Networking.Abstractions.Encryption;
+namespace Turbo.Crypto;
 
 public interface IRsaService
 {

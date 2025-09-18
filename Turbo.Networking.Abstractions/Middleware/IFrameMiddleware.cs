@@ -2,11 +2,11 @@ using System.Buffers;
 using Turbo.Networking.Abstractions.Session;
 using Turbo.Packets.Abstractions;
 
-namespace Turbo.Networking.Middleware;
+namespace Turbo.Networking.Abstractions.Middleware;
 
-public abstract class FrameMiddleware
+public interface IFrameMiddleware
 {
-    public abstract void Invoke(
+    public void Invoke(
         ref SequenceReader<byte> reader,
         ISessionContext ctx,
         ref IClientPacket? clientPacket

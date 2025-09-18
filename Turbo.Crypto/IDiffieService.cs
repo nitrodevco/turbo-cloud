@@ -1,6 +1,6 @@
 using Org.BouncyCastle.Math;
 
-namespace Turbo.Networking.Abstractions.Encryption;
+namespace Turbo.Crypto;
 
 public interface IDiffieService
 {
