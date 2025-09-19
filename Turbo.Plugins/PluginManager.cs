@@ -10,218 +10,221 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Contracts.Plugins;
-using Turbo.Events;
-using Turbo.Messages;
+using Turbo.Database.Delegates;
+using Turbo.Logging.Extensions;
 using Turbo.Plugins.Configuration;
-using Turbo.Plugins.Extensions;
+using Turbo.Plugins.Exports;
 
 namespace Turbo.Plugins;
 
-public class PluginManager(
-    IServiceProvider host,
-    EventSystem eventSystem,
-    MessageSystem messageSystem,
-    ILoggerFactory loggerFactory,
-    IOptions<PluginConfig> config
-) : IAsyncDisposable
+public sealed class PluginManager(
+    IServiceProvider _host,
+    IOptions<PluginConfig> config,
+    ILogger<PluginManager> logger
+)
 {
-    private readonly IServiceProvider _host = host;
-    private readonly EventSystem _eventSystem = eventSystem;
-    private readonly MessageSystem _messageSystem = messageSystem;
-    private readonly ILogger _logger = loggerFactory.CreateLogger(nameof(PluginManager));
+    private readonly IServiceProvider _host = _host;
+    private readonly ExportRegistry _exports = new();
     private readonly PluginConfig _config = config.Value;
+    private readonly ILogger _logger = logger;
 
-    private readonly ConcurrentDictionary<string, PluginHandle> _loaded = new(
-        StringComparer.Ordinal
-    );
-    private readonly ConcurrentDictionary<string, SemaphoreSlim> _pluginGates = new(
-        StringComparer.Ordinal
+    private readonly ConcurrentDictionary<string, PluginEnvelope> _live = new(
+        StringComparer.OrdinalIgnoreCase
     );
 
-    public Task LoadOrReloadAllPlugins(CancellationToken ct = default) =>
-        LoadOrReloadAllPlugins(
-            maxDegreeOfParallelism: Math.Clamp(Environment.ProcessorCount - 1, 1, 8),
-            ct: ct
-        );
+    private readonly ConcurrentDictionary<string, HashSet<string>> _dependents = new(
+        StringComparer.OrdinalIgnoreCase
+    );
 
-    public async Task LoadOrReloadAllPlugins(
-        int maxDegreeOfParallelism,
-        CancellationToken ct = default
-    )
+    public IReadOnlyDictionary<string, PluginEnvelope> Live => _live;
+
+    private List<(PluginManifest manifest, string folder)> Discover()
     {
-        var what = AppContext.BaseDirectory;
+        var list = new List<(PluginManifest, string)>();
 
         if (!Directory.Exists(_config.PluginFolderPath))
+            return list;
+
+        foreach (var dir in Directory.EnumerateDirectories(_config.PluginFolderPath))
         {
-            _logger.LogWarning("Plugin folder does not exist: {Path}", _config.PluginFolderPath);
-
-            return;
-        }
-
-        _logger.LogInformation("Loading plugins from {Path}", _config.PluginFolderPath);
-
-        var dirs = Directory.EnumerateDirectories(_config.PluginFolderPath).ToArray();
-
-        if (dirs.Length == 0)
-        {
-            _logger.LogInformation("No plugins found in {Path}.", _config.PluginFolderPath);
-
-            return;
-        }
-
-        using var throttler = new SemaphoreSlim(Math.Max(1, maxDegreeOfParallelism));
-
-        var tasks = new List<Task>(dirs.Length);
-
-        foreach (var dir in dirs)
-        {
-            ct.ThrowIfCancellationRequested();
-
-            tasks.Add(
-                Task.Run(
-                    async () =>
-                    {
-                        await throttler.WaitAsync(ct).ConfigureAwait(false);
-
-                        try
-                        {
-                            await LoadOrReloadAsync(dir, ct).ConfigureAwait(false);
-                        }
-                        catch (OperationCanceledException)
-                        { /* bubble through WhenAll */
-                            throw;
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Failed to load plugin from {Dir}", dir);
-                        }
-                        finally
-                        {
-                            throttler.Release();
-                        }
-                    },
-                    ct
-                )
-            );
-        }
-
-        await Task.WhenAll(tasks).ConfigureAwait(false);
-    }
-
-    public async Task LoadOrReloadAsync(string pluginSourceDir, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-
-        var manifest = PluginHelpers.ReadManifest(pluginSourceDir);
-
-        _logger.LogInformation(
-            "Loading {PluginId}@{Version} by {Author}",
-            manifest.Id,
-            manifest.Version,
-            manifest.Author
-        );
-
-        var gate = _pluginGates.GetOrAdd(manifest.Id, _ => new SemaphoreSlim(1, 1));
-
-        await gate.WaitAsync(ct).ConfigureAwait(false);
-
-        try
-        {
-            var shadowDir = PluginHelpers.CreateShadowCopy(pluginSourceDir, manifest.Id);
-            var alc = new PluginLoadContext(shadowDir);
-            var entryPath = PluginHelpers.FindEntryAssemblyPath(shadowDir, manifest);
-            Assembly asm;
-
             try
             {
-                asm = alc.LoadFromAssemblyPath(entryPath);
+                var manifest = PluginDiscovery.ReadManifest(dir);
+
+                list.Add((manifest, dir));
             }
             catch (Exception ex)
             {
-                _logger.LogError(
-                    ex,
-                    "Failed to load {PluginId}@{Version} by {Author} from {Path}",
-                    manifest.Id,
-                    manifest.Version,
-                    manifest.Author,
-                    entryPath
-                );
-                alc.Unload();
-                PluginHelpers.TryDeleteDirectory(shadowDir);
-
-                throw;
+                _logger.LogError(ex, "Failed to read manifest in {dir}", dir);
             }
-
-            if (_loaded.TryRemove(manifest.Id, out var old))
-                await UnloadInternalAsync(old, TimeSpan.FromSeconds(15)).ConfigureAwait(false);
-
-            PluginHandle handle;
-
-            try
-            {
-                handle = BuildPlugin(alc, asm, manifest, shadowDir, ct);
-                await EnablePlugin(handle, ct).ConfigureAwait(false);
-            }
-            catch
-            {
-                // ensure cleanup of this attempt
-                await UnloadInternalAsync(
-                        new PluginHandle
-                        {
-                            Id = manifest.Id,
-                            Version = TryParseVersion(manifest.Version),
-                            ShadowDir = shadowDir,
-                            Alc = alc,
-                            PluginAssembly = asm,
-                            ServiceProvider = null!,
-                            Plugin = new NoopTurboPlugin(),
-                            Disposables = new List<IDisposable>(),
-                        },
-                        TimeSpan.FromSeconds(10)
-                    )
-                    .ConfigureAwait(false);
-                throw;
-            }
-
-            _loaded[manifest.Id] = handle;
-            _logger.LogInformation(
-                "Loaded {PluginId}@{Version} by {Author}",
-                manifest.Id,
-                manifest.Version,
-                manifest.Author
-            );
         }
-        finally
+
+        return list;
+    }
+
+    public async Task LoadAll(CancellationToken ct)
+    {
+        var discovered = Discover();
+        var manifests = PluginDependencyResolver.SortManifests(
+            [.. discovered.Select(d => d.manifest)]
+        );
+
+        foreach (var m in manifests)
         {
-            gate.Release();
+            var (manifest, folder) = discovered.First(d =>
+                d.manifest.Key.Equals(m.Key, StringComparison.OrdinalIgnoreCase)
+            );
+
+            foreach (var d in m.Dependencies)
+            {
+                _dependents.TryAdd(d.Key, []);
+                _dependents[d.Key].Add(m.Key);
+            }
+
+            await LoadOne(manifest, folder, ct);
         }
     }
 
-    public async Task UnloadByIdAsync(string pluginId, TimeSpan timeout)
+    public async Task Reload(string key, CancellationToken ct)
     {
-        var gate = _pluginGates.GetOrAdd(pluginId, _ => new SemaphoreSlim(1, 1));
-        await gate.WaitAsync().ConfigureAwait(false);
+        if (_dependents.TryGetValue(key, out var deps) && deps.Any(_live.ContainsKey))
+            throw new InvalidOperationException(
+                $"Cannot reload {key} while dependents active: {string.Join(",", deps.Where(_live.ContainsKey))}"
+            );
+
+        if (!_live.TryGetValue(key, out var current))
+            throw new InvalidOperationException($"Plugin {key} not loaded");
+
+        var manifest = PluginDiscovery.ReadManifest(current.Folder);
+
+        await LoadOne(manifest, current.Folder, ct, key);
+    }
+
+    public void Unload(string key, CancellationToken ct)
+    {
+        if (_dependents.TryGetValue(key, out var deps) && deps.Any(_live.ContainsKey))
+            throw new InvalidOperationException(
+                $"Cannot unload {key}; dependents active: {string.Join(",", deps.Where(_live.ContainsKey))}"
+            );
+
+        if (_live.TryRemove(key, out var scope))
+        {
+            StopAndTearDown(scope, ct);
+            _logger.LogInformation("Unloaded {Key}", key);
+        }
+    }
+
+    private async Task LoadOne(
+        PluginManifest manifest,
+        string folder,
+        CancellationToken ct,
+        string? replaceKey = null
+    )
+    {
+        var shadowDir = PluginHelpers.CreateShadowCopy(folder, manifest.Key);
+        var alc = new PluginLoadContext(shadowDir);
+        var asmPath = PluginDiscovery.GetAssemblyPath(shadowDir, manifest);
+
         try
         {
-            if (_loaded.TryRemove(pluginId, out var h))
-                await UnloadInternalAsync(h, timeout).ConfigureAwait(false);
+            var asm = alc.LoadFromAssemblyPath(asmPath);
+            var instance = CreatePluginInstance(asm, shadowDir);
+
+            if (!string.Equals(instance.Key, manifest.Key, StringComparison.Ordinal))
+                throw new InvalidOperationException(
+                    $"Key mismatch manifest={manifest.Key} entry={instance.Key}"
+                );
+
+            var sp = CreatePluginServiceProvider(instance, manifest);
+
+            instance.BindExports(new ExportBinder(_exports), sp);
+
+            var envelope = new PluginEnvelope
+            {
+                Manifest = manifest,
+                Folder = folder,
+                ALC = alc,
+                Assembly = asm,
+                Instance = instance,
+                Scope = sp,
+                Disposables = [],
+            };
+
+            await EnablePlugin(envelope, ct).ConfigureAwait(false);
+
+            if (replaceKey is not null || _live.ContainsKey(manifest.Key))
+            {
+                var k = replaceKey ?? manifest.Key;
+                if (_live.TryGetValue(k, out var old))
+                {
+                    _logger.LogInformation(
+                        "Reloading {Key} {OldVer} -> {NewVer}",
+                        k,
+                        old.Manifest.Version,
+                        manifest.Version
+                    );
+                    _live[k] = envelope; // swap first so exports remain valid while we stop old
+                    StopAndTearDown(old, ct);
+                }
+                else
+                {
+                    _live[manifest.Key] = envelope;
+                }
+            }
+            else
+            {
+                _live[manifest.Key] = envelope;
+                _logger.LogInformation("Loaded {Key} v{Ver}", manifest.Key, manifest.Version);
+            }
         }
-        finally
+        catch (Exception ex)
         {
-            gate.Release();
+            _logger.LogError(
+                ex,
+                "Failed to load {Name}@{Version} by {Author} from {Path}",
+                manifest.Name,
+                manifest.Version,
+                manifest.Author,
+                asmPath
+            );
+
+            alc.Unload();
+
+            throw;
         }
     }
 
-    public async ValueTask DisposeAsync()
+    private async Task EnablePlugin(PluginEnvelope envelope, CancellationToken ct)
     {
-        foreach (var h in _loaded.Values)
-            await UnloadInternalAsync(h, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+        var sp = envelope.Scope;
 
-        _loaded.Clear();
+        using (IServiceScope scope = sp.CreateScope())
+        {
+            var dbModule = scope.ServiceProvider.GetService<IPluginDbModule>();
 
-        foreach (var gate in _pluginGates.Values)
-            gate.Dispose();
-        _pluginGates.Clear();
+            if (dbModule is not null)
+                await dbModule.MigrateAsync(scope.ServiceProvider, ct).ConfigureAwait(false);
+        }
+
+        /* envelope.Disposables.Add(
+            _eventSystem.RegisterFromAssembly(
+                envelope.Manifest.Id,
+                envelope.Assembly,
+                envelope.Scope,
+                true
+            )
+        );
+
+        envelope.Disposables.Add(
+            _messageSystem.RegisterFromAssembly(
+                envelope.Manifest.Id,
+                envelope.Assembly,
+                envelope.Scope,
+                true
+            )
+        ); */
+
+        envelope.Instance.StartAsync(sp, ct).GetAwaiter().GetResult();
     }
 
     private ITurboPlugin CreatePluginInstance(Assembly asm, string shadowDir)
@@ -247,160 +250,51 @@ public class PluginManager(
         }
     }
 
-    private IServiceProvider CreatePluginServiceProvider(
+    private ServiceProvider CreatePluginServiceProvider(
         ITurboPlugin plugin,
         PluginManifest manifest
     )
     {
         var services = new ServiceCollection();
 
-        services.ConfigurePlugin(_host, plugin, manifest);
+        services.AddSingleton(manifest);
+        services.AddSingleton<IPluginCatalog>(new PluginCatalog(_exports));
+        services.AddSingleton<IHostServices>(new HostServices(_host));
+        services.ConfigurePrefixedLogging(_host, manifest.Name);
+
+        services.AddSingleton<TablePrefixProvider>(sp =>
+        {
+            var manifest = sp.GetRequiredService<PluginManifest>();
+
+            return () => manifest.TablePrefix ?? string.Empty;
+        });
+
+        plugin.ConfigureServices(services, manifest);
 
         return services.BuildServiceProvider(
             new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = false }
         );
     }
 
-    private async Task EnablePlugin(PluginHandle handle, CancellationToken ct)
+    private void StopAndTearDown(PluginEnvelope env, CancellationToken ct)
     {
         try
         {
-            using var scope = handle.ServiceProvider.CreateScope();
-            var dbModule = scope.ServiceProvider.GetService<IPluginDbModule>();
-
-            if (dbModule is not null)
-                await dbModule.MigrateAsync(scope.ServiceProvider, ct).ConfigureAwait(false);
-
-            var manifest = handle.ServiceProvider.GetRequiredService<PluginManifest>();
-
-            handle.Disposables.Add(
-                _eventSystem.RegisterFromAssembly(
-                    manifest.Id,
-                    handle.PluginAssembly,
-                    handle.ServiceProvider,
-                    true
-                )
-            );
-
-            handle.Disposables.Add(
-                _messageSystem.RegisterFromAssembly(
-                    manifest.Id,
-                    handle.PluginAssembly,
-                    handle.ServiceProvider,
-                    true
-                )
-            );
-
-            await handle.Plugin.OnEnableAsync(handle.ServiceProvider, ct).ConfigureAwait(false);
+            env.Instance.StopAsync(ct).GetAwaiter().GetResult();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Plugin {Id} enable failed.", handle.Id);
-
-            throw;
+            _logger.LogWarning(ex, "StopAsync threw for {Key}", env.Manifest.Key);
         }
-    }
-
-    private static Version TryParseVersion(string v) =>
-        Version.TryParse(v, out var parsed) ? parsed : new Version(0, 0, 0, 0);
-
-    private PluginHandle BuildPlugin(
-        PluginLoadContext alc,
-        Assembly asm,
-        PluginManifest manifest,
-        string shadowDir,
-        CancellationToken ct
-    )
-    {
-        ct.ThrowIfCancellationRequested();
-
-        var plugin = CreatePluginInstance(asm, shadowDir);
-        var sp = CreatePluginServiceProvider(plugin, manifest);
-
-        return new PluginHandle
-        {
-            Id = manifest.Id,
-            Version = TryParseVersion(manifest.Version),
-            ShadowDir = shadowDir,
-            Alc = alc,
-            PluginAssembly = asm,
-            ServiceProvider = sp,
-            Plugin = plugin,
-            Disposables = new List<IDisposable>(),
-        };
-    }
-
-    private async Task UnloadInternalAsync(PluginHandle h, TimeSpan timeout)
-    {
         try
         {
-            await h
-                .Plugin.OnDisableAsync(h.ServiceProvider, CancellationToken.None)
-                .ConfigureAwait(false);
+            env.Scope.Dispose();
         }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Plugin {Id} OnDisable failed.", h.Id);
+        catch
+        { /* ignore */
         }
-
-        foreach (var d in h.Disposables)
-        {
-            try
-            {
-                d.Dispose();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Plugin {Id} disposable threw on Dispose().", h.Id);
-            }
-        }
-        h.Disposables.Clear();
-
-        try
-        {
-            await h.Plugin.DisposeAsync().ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Plugin {Id} DisposeAsync failed.", h.Id);
-        }
-
-        try
-        {
-            if (h.ServiceProvider is IAsyncDisposable iad)
-                await iad.DisposeAsync().ConfigureAwait(false);
-            else
-                (h.ServiceProvider as IDisposable)?.Dispose();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Plugin {Id} ServiceProvider dispose failed.", h.Id);
-        }
-
-        try
-        {
-            h.Alc.Unload();
-
-            var weak = new WeakReference(h.Alc);
-            var start = DateTime.UtcNow;
-            do
-            {
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-                GC.Collect();
-                if (!weak.IsAlive)
-                    break;
-            } while (DateTime.UtcNow - start < timeout);
-
-            if (weak.IsAlive)
-                _logger.LogWarning("Plugin {Id} did not unload (leaked references).", h.Id);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Plugin {Id} unload failed.", h.Id);
-        }
-
-        PluginHelpers.TryDeleteDirectory(h.ShadowDir);
-        _logger.LogInformation("Plugin {Id} unloaded.", h.Id);
+        env.ALC.Unload();
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
     }
 }

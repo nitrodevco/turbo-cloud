@@ -5,11 +5,10 @@ using Turbo.Networking.Abstractions.Revisions;
 
 namespace Turbo.Networking.Revisions;
 
-public class RevisionManager(ILoggerFactory loggerFactory) : IRevisionManager
+public class RevisionManager(ILogger<RevisionManager> logger) : IRevisionManager
 {
+    private readonly ILogger<RevisionManager> _logger = logger;
     public IDictionary<string, IRevision> Revisions { get; } = new Dictionary<string, IRevision>();
-
-    private readonly ILogger _logger = loggerFactory.CreateLogger(nameof(RevisionManager));
 
     public IRevision? GetRevision(string revisionId) =>
         Revisions.TryGetValue(revisionId, out var revision) ? revision : null;
@@ -21,7 +20,7 @@ public class RevisionManager(ILoggerFactory loggerFactory) : IRevisionManager
             return;
         }
 
-        _logger.LogDebug("Registering revision {Revision}", revision.Revision);
+        _logger.LogInformation("Registering revision {Revision}", revision.Revision);
 
         Revisions[revision.Revision] = revision;
     }

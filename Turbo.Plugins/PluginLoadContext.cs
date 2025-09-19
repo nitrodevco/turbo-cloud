@@ -1,46 +1,16 @@
-using System;
-using System.Linq;
+using System.IO;
 using System.Reflection;
 using System.Runtime.Loader;
 
 namespace Turbo.Plugins;
 
-internal class PluginLoadContext : AssemblyLoadContext
+public sealed class PluginLoadContext(string pluginDir) : AssemblyLoadContext(isCollectible: true)
 {
-    private readonly AssemblyDependencyResolver _resolver;
+    private readonly string _dir = pluginDir;
 
-    public PluginLoadContext(string mainAssemblyPath)
-        : base(isCollectible: true)
+    protected override Assembly? Load(AssemblyName assemblyName)
     {
-        _resolver = new AssemblyDependencyResolver(mainAssemblyPath);
-
-        Resolving += OnResolving;
-    }
-
-    private Assembly? OnResolving(AssemblyLoadContext alc, AssemblyName name)
-    {
-        // Share host assemblies
-        if (name.Name is string n && n.StartsWith("Turbo.", StringComparison.Ordinal))
-        {
-            var hostAsm = Default.Assemblies.FirstOrDefault(a => a.GetName().Name == n);
-            if (hostAsm is not null)
-                return hostAsm;
-        }
-
-        // Otherwise, resolve from the plugin folder
-        var path = _resolver.ResolveAssemblyToPath(name);
-        return path is null ? null : LoadFromAssemblyPath(path);
-    }
-
-    protected override Assembly? Load(AssemblyName name)
-    {
-        var path = _resolver.ResolveAssemblyToPath(name);
-        return path is null ? null : LoadFromAssemblyPath(path);
-    }
-
-    protected override IntPtr LoadUnmanagedDll(string name)
-    {
-        var path = _resolver.ResolveUnmanagedDllToPath(name);
-        return path is null ? IntPtr.Zero : LoadUnmanagedDllFromPath(path);
+        var path = Path.Combine(_dir, assemblyName.Name + ".dll");
+        return File.Exists(path) ? LoadFromAssemblyPath(path) : null;
     }
 }

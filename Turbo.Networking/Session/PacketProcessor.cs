@@ -15,12 +15,12 @@ namespace Turbo.Networking.Session;
 public class PacketProcessor(
     IRevisionManager revisionManager,
     MessageSystem messageSystem,
-    ILoggerFactory loggerFactory
+    ILogger<PacketProcessor> logger
 )
 {
     private readonly IRevisionManager _revisionManager = revisionManager;
     private readonly MessageSystem _messageSystem = messageSystem;
-    private readonly ILogger _logger = loggerFactory.CreateLogger(nameof(PacketProcessor));
+    private readonly ILogger<PacketProcessor> _logger = logger;
 
     public async Task ProcessPacket(
         ISessionContext ctx,

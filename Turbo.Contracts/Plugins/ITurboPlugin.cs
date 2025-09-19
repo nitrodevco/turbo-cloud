@@ -1,15 +1,22 @@
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Turbo.Contracts.Plugins.Exports;
 
 namespace Turbo.Contracts.Plugins;
 
 public interface ITurboPlugin : IAsyncDisposable
 {
-    public List<Type> RequiredHostServices { get; }
-    void ConfigureServices(IServiceCollection services);
-    ValueTask OnEnableAsync(IServiceProvider sp, CancellationToken ct);
-    ValueTask OnDisableAsync(IServiceProvider sp, CancellationToken ct);
+    string Key { get; }
+    string Version { get; }
+
+    void ConfigureServices(IServiceCollection services, PluginManifest manifest);
+
+    // Start and Stop are lifecycle hooks inside the plugin scope
+    Task StartAsync(IServiceProvider services, CancellationToken ct);
+    Task StopAsync(CancellationToken ct);
+
+    // Bind exported services to the host export registry
+    void BindExports(IExportBinder binder, IServiceProvider services);
 }

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Turbo.Contracts.Plugins;
 using Turbo.Database.Configuration;
 using Turbo.Database.Context;
 using Turbo.Database.Delegates;
@@ -50,7 +51,8 @@ public static class ServiceCollectionExtensions
             (sp, options) =>
             {
                 var prefix = sp.GetRequiredService<TablePrefixProvider>();
-                var dbConfig = sp.GetRequiredService<IOptions<DatabaseConfig>>().Value;
+                var host = sp.GetRequiredService<IHostServices>();
+                var dbConfig = host.GetRequiredService<IOptions<DatabaseConfig>>().Value;
                 var connectionString = dbConfig.ConnectionString;
                 var loggingEnabled = dbConfig.LoggingEnabled;
 

@@ -21,7 +21,7 @@ public static class HostApplicationBuilderExtensions
         });
 
         host.Services.AddSingleton(factory);
-        host.Services.TryAddSingleton(typeof(ILogger<>), typeof(Logger<>));
+        host.Services.Replace(ServiceDescriptor.Singleton(typeof(ILogger<>), typeof(Logger<>)));
 
         return host;
     }

@@ -11,42 +11,8 @@ using Turbo.Contracts.Plugins;
 
 namespace Turbo.Plugins;
 
-internal static class PluginHelpers
+internal static partial class PluginHelpers
 {
-    public static PluginManifest ReadManifest(string dir)
-    {
-        var path = Path.Combine(dir, "manifest.json");
-        var json = File.ReadAllText(path);
-        return JsonSerializer.Deserialize<PluginManifest>(
-            json,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-        )!;
-    }
-
-    public static string FindEntryAssemblyPath(string shadowDir, PluginManifest manifest)
-    {
-        if (!string.IsNullOrWhiteSpace(manifest.EntryAssembly))
-        {
-            var candidate = Path.Combine(shadowDir, manifest.EntryAssembly);
-            if (File.Exists(candidate))
-                return candidate;
-            throw new FileNotFoundException(
-                $"Entry assembly '{manifest.EntryAssembly}' not found in {shadowDir}"
-            );
-        }
-
-        // Fallbacks if you omit EntryAssembly (optional)
-        var byId = Path.Combine(shadowDir, manifest.Id + ".dll");
-        if (File.Exists(byId))
-            return byId;
-
-        var dlls = Directory.GetFiles(shadowDir, "*.dll", SearchOption.TopDirectoryOnly);
-        if (dlls.Length == 1)
-            return dlls[0];
-
-        throw new InvalidOperationException($"Could not determine entry assembly in {shadowDir}");
-    }
-
     public static string CreateShadowCopy(string sourceDir, string pluginId)
     {
         if (!Directory.Exists(sourceDir))
@@ -66,11 +32,36 @@ internal static class PluginHelpers
     {
         try
         {
-            if (Directory.Exists(dir))
-                Directory.Delete(dir, true);
+            if (!Directory.Exists(dir))
+                return;
+
+            Directory.Delete(dir, true);
+            return;
         }
-        catch
-        { /* ignore */
+        catch (Exception ex)
+        {
+            try
+            {
+                var parent = Path.GetDirectoryName(dir) ?? AppContext.BaseDirectory;
+                var tomb = Path.Combine(
+                    parent,
+                    ".plugin-delete-failed-" + Guid.NewGuid().ToString("N")
+                );
+                Directory.Move(dir, tomb);
+            }
+            catch (Exception moveEx)
+            {
+                try
+                {
+                    Trace.TraceWarning(
+                        "Failed to delete or move plugin directory '{0}': {1}; move error: {2}",
+                        dir,
+                        ex.Message,
+                        moveEx.Message
+                    );
+                }
+                catch { }
+            }
         }
     }
 
@@ -97,7 +88,7 @@ internal static class PluginHelpers
         }
         catch (ReflectionTypeLoadException ex)
         {
-            raw = [.. ex.Types.Where(t => t is not null)!];
+            raw = ex.Types.Where(t => t is not null).ToArray()!;
         }
 
         foreach (var t in raw)
@@ -128,11 +119,6 @@ internal static class PluginHelpers
             return false;
         if (IsProxyOrInfraType(t))
             return false;
-
-        // 3) (Optional) Limit to your own namespaces; keep internals allowed
-        //     Comment this block if you purposely scan 3rd-party libraries.
-        //if (t.Namespace is string ns && !NamespaceAllowlistPrefixes.Any(ns.StartsWith))
-        //    return false;
 
         return true;
     }
@@ -172,4 +158,7 @@ internal static class PluginHelpers
 
         return false;
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex("^[A-Za-z0-9_.-]+$")]
+    private static partial System.Text.RegularExpressions.Regex MyRegex();
 }
