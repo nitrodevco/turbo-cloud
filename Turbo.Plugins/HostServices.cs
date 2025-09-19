@@ -8,9 +8,6 @@ public sealed class HostServices(IServiceProvider host) : IHostServices
 {
     private readonly IServiceProvider _host = host;
 
-    public T GetServices<T>()
-        where T : notnull => _host.GetService<T>();
-
     public T GetRequiredService<T>()
         where T : notnull => _host.GetRequiredService<T>();
 }

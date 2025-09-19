@@ -62,27 +62,44 @@ public sealed class PluginManager(
         return list;
     }
 
-    public async Task LoadAll(CancellationToken ct)
+    public async Task LoadAll(CancellationToken ct, bool unloadRemoved = true)
     {
         var discovered = Discover();
         var manifests = PluginDependencyResolver.SortManifests(
             [.. discovered.Select(d => d.manifest)]
         );
+        var byKey = discovered.ToDictionary(d => d.manifest.Key, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var m in manifests)
+        foreach (var manifest in manifests)
         {
-            var (manifest, folder) = discovered.First(d =>
-                d.manifest.Key.Equals(m.Key, StringComparison.OrdinalIgnoreCase)
-            );
+            var triplet = byKey[manifest.Key];
 
-            foreach (var d in m.Dependencies)
+            foreach (var d in manifest.Dependencies)
             {
                 _dependents.TryAdd(d.Key, []);
-                _dependents[d.Key].Add(m.Key);
+                _dependents[d.Key].Add(manifest.Key);
             }
 
-            await LoadOne(manifest, folder, ct);
+            await LoadOne(manifest, triplet.folder, ct);
         }
+
+        if (unloadRemoved)
+        {
+            var removed = _live.Keys.Where(k => !byKey.ContainsKey(k)).ToList();
+            foreach (var k in removed)
+            {
+                try
+                {
+                    Unload(k, ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to unload removed plugin {Key}", k);
+                }
+            }
+        }
+
+        _logger.LogInformation("Loaded {Count} plugins", _live.Count);
     }
 
     public async Task Reload(string key, CancellationToken ct)
@@ -121,6 +138,13 @@ public sealed class PluginManager(
         string? replaceKey = null
     )
     {
+        _logger.LogInformation(
+            "Loading {Key}@{Version} by {Author}",
+            manifest.Key,
+            manifest.Version,
+            manifest.Author
+        );
+
         var shadowDir = PluginHelpers.CreateShadowCopy(folder, manifest.Key);
         var alc = new PluginLoadContext(shadowDir);
         var asmPath = PluginDiscovery.GetAssemblyPath(shadowDir, manifest);
@@ -174,8 +198,14 @@ public sealed class PluginManager(
             else
             {
                 _live[manifest.Key] = envelope;
-                _logger.LogInformation("Loaded {Key} v{Ver}", manifest.Key, manifest.Version);
             }
+
+            _logger.LogInformation(
+                "Loaded {Key}@{Version} by {Author}",
+                manifest.Key,
+                manifest.Version,
+                manifest.Author
+            );
         }
         catch (Exception ex)
         {
