@@ -4,7 +4,7 @@ using SuperSocket.Server.Abstractions.Session;
 
 namespace Turbo.Networking.Session;
 
-public class SessionContextFactory(IServiceProvider sp) : ISessionFactory
+internal sealed class SessionContextFactory(IServiceProvider sp) : ISessionFactory
 {
     public Type SessionType => typeof(SessionContext);
 

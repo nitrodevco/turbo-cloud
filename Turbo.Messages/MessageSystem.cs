@@ -9,7 +9,7 @@ using Turbo.Pipeline;
 
 namespace Turbo.Messages;
 
-public class MessageSystem(GenericBus<IMessageEvent, MessageContext, ISessionContext> bus)
+public sealed class MessageSystem(GenericBus<IMessageEvent, MessageContext, ISessionContext> bus)
 {
     private readonly GenericBus<IMessageEvent, MessageContext, ISessionContext> _bus = bus;
 

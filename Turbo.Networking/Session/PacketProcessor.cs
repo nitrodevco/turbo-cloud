@@ -12,7 +12,7 @@ using Turbo.Packets.Abstractions;
 
 namespace Turbo.Networking.Session;
 
-public class PacketProcessor(
+public sealed class PacketProcessor(
     IRevisionManager revisionManager,
     MessageSystem messageSystem,
     ILogger<PacketProcessor> logger

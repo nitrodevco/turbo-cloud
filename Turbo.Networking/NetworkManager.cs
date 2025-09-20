@@ -13,8 +13,10 @@ using Turbo.Packets.Abstractions;
 
 namespace Turbo.Networking;
 
-public class NetworkManager(IOptions<NetworkingConfig> config, PacketProcessor packetProcessor)
-    : INetworkManager
+public sealed class NetworkManager(
+    IOptions<NetworkingConfig> config,
+    PacketProcessor packetProcessor
+) : INetworkManager
 {
     private readonly NetworkingConfig _config = config.Value;
     private readonly PacketProcessor _packetProcessor = packetProcessor;

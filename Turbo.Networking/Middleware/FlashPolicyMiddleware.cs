@@ -7,7 +7,7 @@ using Turbo.Packets.Abstractions;
 
 namespace Turbo.Networking.Middleware;
 
-public class FlashPolicyMiddleware : IFrameMiddleware
+internal sealed class FlashPolicyMiddleware : IFrameMiddleware
 {
     private static readonly byte[] Request = Encoding.ASCII.GetBytes("<policy-file-request/>\0");
     private static readonly byte[] Response = Encoding.ASCII.GetBytes(

@@ -8,7 +8,7 @@ using Turbo.Pipeline;
 
 namespace Turbo.Events;
 
-public class EventSystem(GenericBus<IEvent, EventContext, object> bus)
+public sealed class EventSystem(GenericBus<IEvent, EventContext, object> bus)
 {
     private readonly GenericBus<IEvent, EventContext, object> _bus = bus;
 

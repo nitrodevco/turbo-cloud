@@ -6,7 +6,7 @@ using Turbo.Packets.Abstractions;
 
 namespace Turbo.Networking.Pipeline;
 
-public class FramePipelineBuilder
+internal sealed class FramePipelineBuilder
 {
     private readonly List<IFrameMiddleware> _middleWares = [];
 

@@ -5,7 +5,7 @@ using Turbo.Networking.Abstractions.Revisions;
 
 namespace Turbo.Networking.Revisions;
 
-public class RevisionManager(ILogger<RevisionManager> logger) : IRevisionManager
+public sealed class RevisionManager(ILogger<RevisionManager> logger) : IRevisionManager
 {
     private readonly ILogger<RevisionManager> _logger = logger;
     public IDictionary<string, IRevision> Revisions { get; } = new Dictionary<string, IRevision>();

@@ -3,7 +3,7 @@ using System.Threading;
 
 namespace Turbo.Pipeline;
 
-internal class ActionDisposable(Action dispose) : IDisposable
+public class ActionDisposable(Action dispose) : IDisposable
 {
     private Action? _dispose = dispose;
 

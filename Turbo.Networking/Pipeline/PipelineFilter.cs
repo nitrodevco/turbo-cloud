@@ -6,7 +6,7 @@ using Turbo.Packets.Abstractions;
 
 namespace Turbo.Networking.Pipeline;
 
-public class PipelineFilter : PipelineFilterBase<IClientPacket>
+internal sealed class PipelineFilter : PipelineFilterBase<IClientPacket>
 {
     private readonly FramePipelineBuilder _pipeline = new FramePipelineBuilder()
         .Use(new FlashPolicyMiddleware())

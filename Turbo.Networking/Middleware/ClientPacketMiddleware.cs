@@ -5,7 +5,7 @@ using Turbo.Packets.Abstractions;
 
 namespace Turbo.Networking.Middleware;
 
-public class ClientPacketMiddleware : IFrameMiddleware
+internal sealed class ClientPacketMiddleware : IFrameMiddleware
 {
     public void Invoke(
         ref SequenceReader<byte> reader,
