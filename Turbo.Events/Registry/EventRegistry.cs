@@ -1,8 +1,7 @@
 using Turbo.Contracts.Abstractions;
-using Turbo.Events.Registry;
 using Turbo.Pipeline;
 
-namespace Turbo.Events;
+namespace Turbo.Events.Registry;
 
 public sealed class EventRegistry : EnvelopeHost<IEvent, object, EventContext>
 {

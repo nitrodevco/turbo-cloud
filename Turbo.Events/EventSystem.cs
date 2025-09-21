@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Abstractions;
+using Turbo.Events.Registry;
 
 namespace Turbo.Events;
 

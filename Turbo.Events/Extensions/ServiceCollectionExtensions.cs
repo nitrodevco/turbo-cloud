@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Turbo.Events.Registry;
 using Turbo.Runtime.AssemblyProcessing;
 
 namespace Turbo.Events.Extensions;

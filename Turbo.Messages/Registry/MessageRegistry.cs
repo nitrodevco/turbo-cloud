@@ -1,9 +1,8 @@
 using Turbo.Contracts.Abstractions;
-using Turbo.Messages.Registry;
 using Turbo.Networking.Abstractions.Session;
 using Turbo.Pipeline;
 
-namespace Turbo.Messages;
+namespace Turbo.Messages.Registry;
 
 public sealed class MessageRegistry : EnvelopeHost<IMessageEvent, ISessionContext, MessageContext>
 {
