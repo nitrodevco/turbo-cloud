@@ -23,6 +23,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Turbo.Contracts\Turbo.Contracts.csproj" />
+    <ProjectReference Include="..\Turbo.Crypto\Turbo.Crypto.csproj" />
     <ProjectReference Include="..\Turbo.Database\Turbo.Database.csproj" />
     <ProjectReference Include="..\Turbo.Events\Turbo.Events.csproj" />
     <ProjectReference Include="..\Turbo.Logging\Turbo.Logging.csproj" />
@@ -33,5 +34,6 @@
     <ProjectReference Include="..\Turbo.Pipeline\Turbo.Pipeline.csproj" />
     <ProjectReference Include="..\Turbo.Plugins\Turbo.Plugins.csproj" />
     <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
+    <ProjectReference Include="..\Turbo.Runtime\Turbo.Runtime.csproj" />
   </ItemGroup>
 </Project>
