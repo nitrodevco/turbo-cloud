@@ -161,7 +161,7 @@ public sealed class PluginManager(
 
             var sp = CreatePluginServiceProvider(instance, manifest);
 
-            instance.BindExports(new ExportBinder(_exports), sp);
+            await instance.BindExportsAsync(new ExportBinder(_exports), sp).ConfigureAwait(false);
 
             var processor = _host.GetRequiredService<AssemblyProcessor>();
             var handle = await processor.ProcessAsync(asm, sp);

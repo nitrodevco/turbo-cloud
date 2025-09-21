@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Threading.Tasks;
 
 namespace Turbo.Plugins.Exports;
 
@@ -11,6 +12,6 @@ public sealed class ExportRegistry
         where T : class =>
         (ReloadableExport<T>)_map.GetOrAdd((typeof(T), exportKey), _ => new ReloadableExport<T>());
 
-    public void Swap<T>(string exportKey, T instance)
-        where T : class => GetOrCreate<T>(exportKey).Swap(instance);
+    public Task SwapAsync<T>(string exportKey, T instance)
+        where T : class => GetOrCreate<T>(exportKey).SwapAsync(instance);
 }

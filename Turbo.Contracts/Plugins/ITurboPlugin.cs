@@ -17,6 +17,5 @@ public interface ITurboPlugin : IAsyncDisposable
     Task StartAsync(IServiceProvider services, CancellationToken ct);
     Task StopAsync(CancellationToken ct);
 
-    // Bind exported services to the host export registry
-    void BindExports(IExportBinder binder, IServiceProvider services);
+    Task BindExportsAsync(IExportBinder binder, IServiceProvider services);
 }

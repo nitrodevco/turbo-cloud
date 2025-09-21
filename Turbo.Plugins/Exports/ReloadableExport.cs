@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Threading.Tasks;
 using Turbo.Contracts.Plugins.Exports;
 
 namespace Turbo.Plugins.Exports;
@@ -15,7 +15,7 @@ public sealed class ReloadableExport<T> : IExport<T>
     public T Current =>
         _current ?? throw new InvalidOperationException($"Export {typeof(T).Name} not bound yet.");
 
-    public void Swap(T value)
+    public async Task SwapAsync(T value)
     {
         ArgumentNullException.ThrowIfNull(value);
         List<Action<T>> subs;
@@ -30,7 +30,7 @@ public sealed class ReloadableExport<T> : IExport<T>
         try
         {
             if (previous is IAsyncDisposable a)
-                a.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                await a.DisposeAsync().ConfigureAwait(false);
             else if (previous is IDisposable d)
                 d.Dispose();
         }
