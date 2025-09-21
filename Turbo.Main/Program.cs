@@ -79,8 +79,8 @@ internal class Program
         builder.AddTurboPlugins();
 
         builder.Services.AddTurboDatabaseContext(builder);
-        builder.Services.AddEventSystem();
-        builder.Services.AddMessageSystem();
+        builder.Services.AddTurboEventSystem();
+        builder.Services.AddTurboMessageSystem();
 
         builder.Services.AddSingleton<AssemblyProcessor>();
         builder.Services.AddSingleton<ConsoleCommandService>();

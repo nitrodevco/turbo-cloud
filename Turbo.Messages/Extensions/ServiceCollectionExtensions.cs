@@ -6,7 +6,7 @@ namespace Turbo.Messages.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddMessageSystem(this IServiceCollection services)
+    public static IServiceCollection AddTurboMessageSystem(this IServiceCollection services)
     {
         services.AddSingleton<IAssemblyFeatureProcessor, MessageFeatureProcessor>();
         services.AddSingleton<MessageInvokerFactory>();
