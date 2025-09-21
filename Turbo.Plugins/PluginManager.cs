@@ -146,8 +146,8 @@ public sealed class PluginManager(
         );
 
         var shadowDir = PluginHelpers.CreateShadowCopy(folder, manifest.Key);
-        var alc = new PluginLoadContext(shadowDir);
         var asmPath = PluginHelpers.GetAssemblyPath(shadowDir, manifest);
+        var alc = new PluginLoadContext(asmPath);
 
         try
         {
@@ -251,7 +251,7 @@ public sealed class PluginManager(
                 await dbModule.MigrateAsync(scope.ServiceProvider, ct).ConfigureAwait(false);
         }
 
-        envelope.Instance.StartAsync(sp, ct).GetAwaiter().GetResult();
+        await envelope.Instance.StartAsync(sp, ct).ConfigureAwait(false);
     }
 
     private ITurboPlugin CreatePluginInstance(
