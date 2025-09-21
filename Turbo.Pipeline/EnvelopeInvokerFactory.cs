@@ -8,7 +8,7 @@ using Turbo.Runtime.AssemblyProcessing;
 
 namespace Turbo.Pipeline;
 
-public class GenericInvokerFactory<TContext>
+public class EnvelopeInvokerFactory<TContext>
 {
     public HandlerInvoker<TContext> CreateHandlerInvoker(Type handlerType, Type envType)
     {

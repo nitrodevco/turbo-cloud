@@ -16,7 +16,6 @@ public class TurboEmulator : IHostedService
 {
     private readonly IHostApplicationLifetime _appLifetime;
     private readonly ILogger<TurboEmulator> _logger;
-    private readonly IServiceProvider _serviceProvider;
     private readonly List<IDisposable> _registrations;
     private readonly INetworkManager _networkManager;
     private readonly EventSystem _eventSystem;
@@ -24,14 +23,12 @@ public class TurboEmulator : IHostedService
     public TurboEmulator(
         IHostApplicationLifetime appLifetime,
         ILogger<TurboEmulator> logger,
-        IServiceProvider serviceProvider,
         INetworkManager networkManager,
         EventSystem eventSystem
     )
     {
         _appLifetime = appLifetime;
         _logger = logger;
-        _serviceProvider = serviceProvider;
         _networkManager = networkManager;
         _registrations =
         [
@@ -48,26 +45,6 @@ public class TurboEmulator : IHostedService
     {
         try
         {
-            List<Assembly> allLoaded = [];
-            // var allLoaded = AssemblyScanUtil.GetLoadedAssemblies();
-
-            foreach (var asm in allLoaded)
-            {
-                /* _eventBus.RegisterFromAssembly(
-                    "Turbo",
-                    asm,
-                    _serviceProvider,
-                    useAmbientScope: true
-                );
-
-                _messageBus.RegisterFromAssembly(
-                    "Turbo",
-                    asm,
-                    _serviceProvider,
-                    useAmbientScope: true
-                ); */
-            }
-
             await _networkManager.StartAsync();
         }
         catch (OperationCanceledException)

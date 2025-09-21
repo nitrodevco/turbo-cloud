@@ -1,9 +1,15 @@
 using System;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Turbo.Runtime.AssemblyProcessing;
 
 public interface IAssemblyFeatureProcessor
 {
-    IDisposable Process(Assembly assembly, IServiceProvider pluginServices);
+    Task<IDisposable> ProcessAsync(
+        Assembly assembly,
+        IServiceProvider pluginServices,
+        CancellationToken ct = default
+    );
 }

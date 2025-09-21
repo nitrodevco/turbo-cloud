@@ -61,7 +61,7 @@ public sealed class PluginManager(
         return list;
     }
 
-    public async Task LoadAll(CancellationToken ct, bool unloadRemoved = true)
+    public async Task LoadAll(bool unloadRemoved = true, CancellationToken ct = default)
     {
         var discovered = Discover();
         var manifests = PluginDependencyResolver.SortManifests(
@@ -85,6 +85,7 @@ public sealed class PluginManager(
         if (unloadRemoved)
         {
             var removed = _live.Keys.Where(k => !byKey.ContainsKey(k)).ToList();
+
             foreach (var k in removed)
             {
                 try
@@ -163,9 +164,9 @@ public sealed class PluginManager(
             instance.BindExports(new ExportBinder(_exports), sp);
 
             var processor = _host.GetRequiredService<AssemblyProcessor>();
-            var handle = processor.Process(asm, sp);
+            var handle = await processor.ProcessAsync(asm, sp);
 
-            var envelope = new PluginEnvelope
+            var env = new PluginEnvelope
             {
                 Manifest = manifest,
                 Folder = folder,
@@ -176,11 +177,12 @@ public sealed class PluginManager(
                 Disposables = [handle],
             };
 
-            await EnablePlugin(envelope, ct).ConfigureAwait(false);
+            await EnablePlugin(env, ct).ConfigureAwait(false);
 
             if (replaceKey is not null || _live.ContainsKey(manifest.Key))
             {
                 var k = replaceKey ?? manifest.Key;
+
                 if (_live.TryGetValue(k, out var old))
                 {
                     _logger.LogInformation(
@@ -189,17 +191,18 @@ public sealed class PluginManager(
                         old.Manifest.Version,
                         manifest.Version
                     );
-                    _live[k] = envelope; // swap first so exports remain valid while we stop old
+
+                    _live[k] = env;
                     StopAndTearDown(old, ct);
                 }
                 else
                 {
-                    _live[manifest.Key] = envelope;
+                    _live[manifest.Key] = env;
                 }
             }
             else
             {
-                _live[manifest.Key] = envelope;
+                _live[manifest.Key] = env;
             }
 
             _logger.LogInformation(
@@ -294,19 +297,27 @@ public sealed class PluginManager(
     {
         try
         {
+            if (env.Disposables.Count > 0)
+            {
+                foreach (var inst in env.Disposables)
+                {
+                    if (inst is IAsyncDisposable iad)
+                        iad.DisposeAsync().AsTask();
+                    if (inst is IDisposable d)
+                        d.Dispose();
+                }
+
+                env.Disposables.Clear();
+            }
+
             env.Instance.StopAsync(ct).GetAwaiter().GetResult();
+            env.Scope.Dispose();
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "StopAsync threw for {Key}", env.Manifest.Key);
         }
-        try
-        {
-            env.Scope.Dispose();
-        }
-        catch
-        { /* ignore */
-        }
+
         env.ALC.Unload();
         GC.Collect();
         GC.WaitForPendingFinalizers();

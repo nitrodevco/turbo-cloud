@@ -72,7 +72,7 @@ public class ConsoleCommandService(IServiceProvider services)
 
             case "reload-plugins":
                 var pluginMgr = _services.GetRequiredService<PluginManager>();
-                await pluginMgr.LoadAll(ct);
+                await pluginMgr.LoadAll(true, ct);
                 break;
 
             default:

@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 
 namespace Turbo.Runtime;
 
-public sealed class CompositeDisposable : IDisposable
+public sealed class CompositeDisposable(IEnumerable<IDisposable>? items = null) : IDisposable
 {
-    private readonly List<IDisposable> _items = [];
+    private readonly List<IDisposable> _items = items?.ToList() ?? [];
     private int _disposed;
 
     public void Add(IDisposable d)
@@ -27,5 +28,7 @@ public sealed class CompositeDisposable : IDisposable
             catch
             { /* swallow on unload */
             }
+
+        _items.Clear();
     }
 }

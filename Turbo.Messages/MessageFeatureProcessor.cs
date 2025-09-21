@@ -1,5 +1,7 @@
 using System;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Turbo.Messages.Registry;
 using Turbo.Pipeline.Attributes;
@@ -16,7 +18,11 @@ internal sealed class MessageFeatureProcessor(
     private readonly MessageRegistry _registry = registry;
     private readonly MessageInvokerFactory _invokerFactory = invokerFactory;
 
-    public IDisposable Process(Assembly assembly, IServiceProvider sp)
+    public Task<IDisposable> ProcessAsync(
+        Assembly assembly,
+        IServiceProvider sp,
+        CancellationToken ct = default
+    )
     {
         var batch = new CompositeDisposable();
 
@@ -53,6 +59,6 @@ internal sealed class MessageFeatureProcessor(
             batch.Add(_registry.RegisterBehavior(envType, sp, activator, invoker, order));
         }
 
-        return batch;
+        return Task.FromResult<IDisposable>(batch);
     }
 }

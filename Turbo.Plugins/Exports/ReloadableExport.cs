@@ -17,13 +17,12 @@ public sealed class ReloadableExport<T> : IExport<T>
 
     public void Swap(T value)
     {
-        if (value is null)
-            throw new ArgumentNullException(nameof(value));
+        ArgumentNullException.ThrowIfNull(value);
         List<Action<T>> subs;
         lock (_gate)
         {
             _current = value;
-            subs = _subs.ToList();
+            subs = [.. _subs];
         }
         foreach (var s in subs)
             s(value);

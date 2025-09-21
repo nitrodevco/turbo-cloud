@@ -1,5 +1,3 @@
-using Turbo.Pipeline.Registry;
-
 namespace Turbo.Events.Registry;
 
-public sealed class EventContext : PipelineContext { }
+public sealed class EventContext { }

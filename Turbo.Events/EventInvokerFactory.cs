@@ -3,4 +3,4 @@ using Turbo.Pipeline;
 
 namespace Turbo.Events;
 
-internal class EventInvokerFactory : GenericInvokerFactory<EventContext> { }
+internal class EventInvokerFactory : EnvelopeInvokerFactory<EventContext> { }

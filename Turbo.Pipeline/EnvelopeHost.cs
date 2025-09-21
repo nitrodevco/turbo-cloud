@@ -10,7 +10,9 @@ using Turbo.Runtime;
 
 namespace Turbo.Pipeline;
 
-public class GenericHost<TEnvelope, TContext, TMeta>(Func<TEnvelope, TMeta, TContext> createContext)
+public class EnvelopeHost<TEnvelope, TMeta, TContext>(
+    Func<TEnvelope, TMeta, TContext> createContext
+)
 {
     private readonly ConcurrentDictionary<Type, Bucket<TContext>> _byEvent = new();
     private readonly Func<TEnvelope, TMeta, TContext> _createContext = createContext;

@@ -3,4 +3,4 @@ using Turbo.Pipeline;
 
 namespace Turbo.Messages;
 
-internal class MessageInvokerFactory : GenericInvokerFactory<MessageContext> { }
+internal class MessageInvokerFactory : EnvelopeInvokerFactory<MessageContext> { }

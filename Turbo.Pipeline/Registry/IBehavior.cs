@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace Turbo.Pipeline.Registry;
 
-public interface IBehavior<in T, in TContext>
+public interface IBehavior<in TEnvelope, in TContext>
 {
-    Task InvokeAsync(T env, TContext ctx, Func<Task> next, CancellationToken ct);
+    Task InvokeAsync(TEnvelope env, TContext ctx, Func<Task> next, CancellationToken ct);
 }

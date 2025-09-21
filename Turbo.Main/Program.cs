@@ -75,26 +75,26 @@ internal class Program
         }
 
         builder.AddTurboLogging();
-        builder.Services.AddTurboDatabaseContext(builder);
         builder.AddTurboNetworking();
+        builder.AddTurboPlugins();
 
+        builder.Services.AddTurboDatabaseContext(builder);
         builder.Services.AddEventSystem();
         builder.Services.AddMessageSystem();
 
         builder.Services.AddSingleton<AssemblyProcessor>();
-
-        builder.AddTurboPlugins();
         builder.Services.AddSingleton<ConsoleCommandService>();
+
         builder.Services.AddHostedService<TurboEmulator>();
 
         var host = builder.Build();
 
         var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
-        var shutdownToken = lifetime.ApplicationStopping;
+        var ct = lifetime.ApplicationStopping;
 
         try
         {
-            await host.StartAsync(shutdownToken);
+            await host.StartAsync(ct);
 
             bootstrapLogger.LogInformation(
                 "Started {GetProjectName} {GetProductVersion}",
@@ -104,7 +104,7 @@ internal class Program
 
             host.Services.GetService<ConsoleCommandService>()?.Enable();
 
-            await host.WaitForShutdownAsync(shutdownToken);
+            await host.WaitForShutdownAsync(ct);
         }
         catch (Exception ex)
         {

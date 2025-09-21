@@ -4,7 +4,7 @@ using Turbo.Pipeline;
 
 namespace Turbo.Events;
 
-public sealed class EventRegistry : GenericHost<IEvent, EventContext, object>
+public sealed class EventRegistry : EnvelopeHost<IEvent, object, EventContext>
 {
     public EventRegistry()
         : base((env, data) => new EventContext { }) { }

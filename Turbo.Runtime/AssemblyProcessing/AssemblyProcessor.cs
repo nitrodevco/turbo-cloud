@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Turbo.Runtime.AssemblyProcessing;
 
@@ -8,13 +11,27 @@ public sealed class AssemblyProcessor(IEnumerable<IAssemblyFeatureProcessor> pro
 {
     private readonly IReadOnlyList<IAssemblyFeatureProcessor> _processors = [.. processors];
 
-    public IDisposable Process(Assembly asm, IServiceProvider pluginServices)
+    public async Task<IDisposable> ProcessAsync(
+        Assembly asm,
+        IServiceProvider sp,
+        CancellationToken ct = default
+    )
     {
-        var batch = new CompositeDisposable();
+        var tasks = _processors.Select(p => p.ProcessAsync(asm, sp, ct)).ToArray();
 
-        foreach (var p in _processors)
-            batch.Add(p.Process(asm, pluginServices));
+        try
+        {
+            var regs = await Task.WhenAll(tasks).ConfigureAwait(false);
 
-        return batch;
+            return new CompositeDisposable(regs.AsEnumerable().Reverse());
+        }
+        catch
+        {
+            foreach (var t in tasks)
+                if (t.IsCompletedSuccessfully)
+                    t.Result.Dispose();
+
+            throw;
+        }
     }
 }

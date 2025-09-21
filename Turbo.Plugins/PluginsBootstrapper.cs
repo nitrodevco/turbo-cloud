@@ -10,7 +10,7 @@ public class PluginsBootstrapper(PluginManager pluginManager) : IHostedService
 
     public async Task StartAsync(CancellationToken ct)
     {
-        await _pluginManager.LoadAll(ct);
+        await _pluginManager.LoadAll(true, ct);
     }
 
     public async Task StopAsync(CancellationToken ct)

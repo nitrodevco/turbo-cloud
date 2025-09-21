@@ -1,9 +1,8 @@
 using Turbo.Networking.Abstractions.Session;
-using Turbo.Pipeline.Registry;
 
 namespace Turbo.Messages.Registry;
 
-public sealed class MessageContext : PipelineContext
+public sealed class MessageContext
 {
     public required ISessionContext Session { get; init; }
 }
