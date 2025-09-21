@@ -11,14 +11,14 @@ namespace Turbo.Logging;
 
 internal sealed class TurboConsoleFormatter(
     IOptionsMonitor<TurboConsoleFormatterOptions> optionsMonitor
-) : ConsoleFormatter(FormatterName)
+) : ConsoleFormatter(FORMATTER_NAME)
 {
-    public const string FormatterName = "turbo";
+    public const string FORMATTER_NAME = "turbo";
 
     private readonly IOptionsMonitor<TurboConsoleFormatterOptions> _optionsMonitor = optionsMonitor;
 
     // Level label & color mappings
-    private static readonly Dictionary<LogLevel, string> s_levelLabels = new()
+    private static readonly Dictionary<LogLevel, string> LOG_LEVEL_LABELS = new()
     {
         [LogLevel.Trace] = "TRC",
         [LogLevel.Debug] = "DBG",
@@ -29,7 +29,7 @@ internal sealed class TurboConsoleFormatter(
         [LogLevel.None] = "NON",
     };
 
-    private static readonly Dictionary<LogLevel, (string fg, string bg)> s_levelColors = new()
+    private static readonly Dictionary<LogLevel, (string fg, string bg)> LOG_LEVEL_COLORS = new()
     {
         [LogLevel.Trace] = ("\u001b[90m", ""), // Bright Black (Gray)
         [LogLevel.Debug] = ("\u001b[36m", ""), // Cyan
@@ -54,7 +54,7 @@ internal sealed class TurboConsoleFormatter(
         var ts = now.ToString(options.TimestampFormat ?? "yyyy-MM-dd HH:mm:ss.fff");
 
         var level = logEntry.LogLevel;
-        var levelLabel = s_levelLabels.TryGetValue(level, out var lbl)
+        var levelLabel = LOG_LEVEL_LABELS.TryGetValue(level, out var lbl)
             ? lbl
             : level.ToString().ToUpperInvariant();
 
@@ -62,7 +62,7 @@ internal sealed class TurboConsoleFormatter(
         if (options.IncludeCategory && !string.IsNullOrEmpty(logEntry.Category))
             category = TrimCategory(logEntry.Category!, options.TrimCategoryDepth);
 
-        var (fg, bg) = s_levelColors[level];
+        var (fg, bg) = LOG_LEVEL_COLORS[level];
 
         // Build header (timestamp + level + category)
         var headerSb = new StringBuilder(128);
@@ -129,7 +129,7 @@ internal sealed class TurboConsoleFormatter(
             var exceptionHeader = "".PadLeft(HEADER_WIDTH);
             if (options.UseAnsiColor)
                 textWriter.WriteLine(
-                    $"{exceptionHeader}{s_levelColors[LogLevel.Error].fg}{logEntry.Exception}{RESET}"
+                    $"{exceptionHeader}{LOG_LEVEL_COLORS[LogLevel.Error].fg}{logEntry.Exception}{RESET}"
                 );
             else
                 textWriter.WriteLine($"{exceptionHeader}{logEntry.Exception}");

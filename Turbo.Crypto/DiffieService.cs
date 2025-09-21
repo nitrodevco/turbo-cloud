@@ -7,7 +7,7 @@ namespace Turbo.Crypto;
 
 public class DiffieService : IDiffieService
 {
-    private const int DhPrimesBitSize = 128;
+    private const int DH_PRIMES_BIT_SIZE = 128;
     private readonly BigInteger _dhGenerator;
     private readonly BigInteger _dhPrime;
     private readonly BigInteger _dhPrivate;
@@ -20,18 +20,18 @@ public class DiffieService : IDiffieService
         _rsaService = rsaService;
 
         // Generate probable primes for DH parameters
-        _dhPrime = BigInteger.ProbablePrime(DhPrimesBitSize, random);
-        _dhGenerator = BigInteger.ProbablePrime(DhPrimesBitSize, random);
+        _dhPrime = BigInteger.ProbablePrime(DH_PRIMES_BIT_SIZE, random);
+        _dhGenerator = BigInteger.ProbablePrime(DH_PRIMES_BIT_SIZE, random);
 
         while (_dhGenerator.CompareTo(_dhPrime) <= 0)
         {
-            _dhPrime = BigInteger.ProbablePrime(DhPrimesBitSize, random);
-            _dhGenerator = BigInteger.ProbablePrime(DhPrimesBitSize, random);
+            _dhPrime = BigInteger.ProbablePrime(DH_PRIMES_BIT_SIZE, random);
+            _dhGenerator = BigInteger.ProbablePrime(DH_PRIMES_BIT_SIZE, random);
         }
 
         (_dhPrime, _dhGenerator) = (_dhGenerator, _dhPrime);
 
-        _dhPrivate = BigInteger.ProbablePrime(DhPrimesBitSize, random);
+        _dhPrivate = BigInteger.ProbablePrime(DH_PRIMES_BIT_SIZE, random);
         _dhPublic = _dhGenerator.ModPow(_dhPrivate, _dhPrime);
     }
 

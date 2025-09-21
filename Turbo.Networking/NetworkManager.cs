@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SuperSocket.Server.Host;
 using Turbo.Networking.Abstractions;
@@ -16,11 +17,13 @@ namespace Turbo.Networking;
 
 public sealed class NetworkManager(
     IOptions<NetworkingConfig> config,
-    PacketProcessor packetProcessor
+    PacketProcessor packetProcessor,
+    ILogger<NetworkManager> logger
 ) : INetworkManager
 {
     private readonly NetworkingConfig _config = config.Value;
     private readonly PacketProcessor _packetProcessor = packetProcessor;
+    private readonly ILogger<NetworkManager> _logger = logger;
     private IHost? _superSocketHost;
 
     public async Task StartAsync()
@@ -73,7 +76,15 @@ public sealed class NetworkManager(
                     {
                         await _packetProcessor.ProcessPacket(ctx, packet, CancellationToken.None);
                     }
-                    catch (Exception ex) { }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(
+                            ex,
+                            "Failed to process packet {Packet} for session {SessionId}",
+                            packet,
+                            session.SessionID
+                        );
+                    }
                 }
             );
 

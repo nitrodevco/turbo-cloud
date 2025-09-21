@@ -14,26 +14,19 @@ internal sealed class PipelineFilter : PipelineFilterBase<IClientPacket>
         .Use(new LengthFieldMiddleware())
         .Use(new ClientPacketMiddleware());
 
-    public override IClientPacket? Filter(ref SequenceReader<byte> reader)
+    public override IClientPacket Filter(ref SequenceReader<byte> reader)
     {
-        if (Context is ISessionContext session)
-        {
-            var r = reader;
-            IClientPacket? packet = null;
+        var r = reader;
+        IClientPacket? packet = null;
 
+        if (Context is ISessionContext session)
             _pipeline.Invoke(ref r, session, ref packet);
 
-            if (packet is not null)
-            {
-                reader = r;
+        reader = r;
 
-                Reset();
+        Reset();
 
-                return packet;
-            }
-        }
-
-        return null;
+        return packet!;
     }
 
     public override void Reset() { }

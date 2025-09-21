@@ -2,25 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
+using System.Threading;
 
 namespace Turbo.Runtime.AssemblyProcessing;
 
 public static class AssemblyExplorer
 {
-    public static IEnumerable<Type> SafeConcreteTypes(Assembly asm)
-    {
-        using var _ = EnterContextual(asm);
+    private static readonly ConditionalWeakTable<Assembly, Lazy<Type[]>> CONCRETE_TYPE_CACHE = [];
 
-        try
-        {
-            return [.. asm.GetTypes().Where(IsConcrete)];
-        }
-        catch (ReflectionTypeLoadException ex)
-        {
-            return ex.Types.Where(t => t is not null && IsConcrete(t!))!;
-        }
-    }
+    public static IEnumerable<Type> SafeConcreteTypes(Assembly asm) => GetOrCacheConcreteTypes(asm);
 
     public static IEnumerable<(
         Type Concrete,
@@ -28,12 +20,84 @@ public static class AssemblyExplorer
         Type[] Args
     )> FindClosedImplementations(Assembly asm, Type openGenericInterface)
     {
-        foreach (var t in SafeConcreteTypes(asm))
+        var types = GetOrCacheConcreteTypes(asm);
+
+        foreach (var t in types)
         {
             foreach (var iface in t.GetInterfaces())
             {
                 if (iface.IsGenericType && iface.GetGenericTypeDefinition() == openGenericInterface)
                     yield return (t, iface, iface.GetGenericArguments());
+            }
+        }
+    }
+
+    public static IEnumerable<(
+        Type Concrete,
+        Type ClosedInterface,
+        Type[] Args
+    )> FindClosedImplementationsFast(Assembly asm, Type openGenericInterface)
+    {
+        ArgumentNullException.ThrowIfNull(openGenericInterface);
+
+        if (!openGenericInterface.IsGenericTypeDefinition)
+            throw new ArgumentException(
+                "Must be an open generic, e.g. typeof(IFoo<>).",
+                nameof(openGenericInterface)
+            );
+
+        using var _ = EnterContextual(asm);
+
+        foreach (var ti in asm.DefinedTypes)
+        {
+            if (ti.IsAbstract || ti.IsInterface || ti.IsGenericTypeDefinition || !ti.IsPublic)
+                continue;
+
+            Type concrete;
+
+            try
+            {
+                concrete = ti.AsType();
+            }
+            catch
+            {
+                continue;
+            }
+
+            IEnumerable<Type> ifaces;
+
+            try
+            {
+                ifaces = ti.ImplementedInterfaces;
+            }
+            catch
+            {
+                continue;
+            }
+
+            foreach (var iface in ifaces)
+            {
+                bool match = false;
+                Type[]? args = null;
+
+                try
+                {
+                    if (
+                        iface.IsGenericType
+                        && ReferenceEquals(iface.GetGenericTypeDefinition(), openGenericInterface)
+                    )
+                    {
+                        args = iface.GetGenericArguments();
+                        match = true;
+                    }
+                }
+                catch
+                {
+                    // ignore malformed interface
+                }
+
+                if (match && args is not null)
+                    yield return (concrete, iface, args);
             }
         }
     }
@@ -65,6 +129,42 @@ public static class AssemblyExplorer
         return m;
     }
 
+    public static IDisposable CacheScope(Assembly asm)
+    {
+        _ = GetOrCacheConcreteTypes(asm);
+
+        return new CacheScopeImpl(asm);
+    }
+
+    public static void ClearCache(Assembly asm) => CONCRETE_TYPE_CACHE.Remove(asm);
+
+    private static Type[] GetOrCacheConcreteTypes(Assembly asm)
+    {
+        var lazy = CONCRETE_TYPE_CACHE.GetValue(
+            asm,
+            a => new Lazy<Type[]>(
+                () => LoadConcreteTypes(a),
+                LazyThreadSafetyMode.ExecutionAndPublication
+            )
+        );
+
+        return lazy.Value;
+    }
+
+    private static Type[] LoadConcreteTypes(Assembly asm)
+    {
+        using var _ = EnterContextual(asm);
+
+        try
+        {
+            return [.. asm.GetExportedTypes().Where(IsConcrete)];
+        }
+        catch (ReflectionTypeLoadException ex)
+        {
+            return [.. ex.Types.Where(t => t is not null && IsConcrete(t!))!];
+        }
+    }
+
     private static bool IsConcrete(Type t) =>
         !t.IsAbstract && !t.IsInterface && !t.IsGenericTypeDefinition;
 
@@ -73,5 +173,20 @@ public static class AssemblyExplorer
         var alc = AssemblyLoadContext.GetLoadContext(asm);
 
         return alc?.EnterContextualReflection();
+    }
+
+    private sealed class CacheScopeImpl(Assembly asm) : IDisposable
+    {
+        private Assembly? _asm = asm;
+
+        public void Dispose()
+        {
+            if (_asm is not null)
+            {
+                CONCRETE_TYPE_CACHE.Remove(_asm);
+
+                _asm = null;
+            }
+        }
     }
 }

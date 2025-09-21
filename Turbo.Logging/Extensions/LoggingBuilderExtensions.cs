@@ -9,7 +9,7 @@ public static class LoggingBuilderExtensions
         builder.AddConsoleFormatter<TurboConsoleFormatter, TurboConsoleFormatterOptions>();
         builder.AddConsole(opts =>
         {
-            opts.FormatterName = TurboConsoleFormatter.FormatterName;
+            opts.FormatterName = TurboConsoleFormatter.FORMATTER_NAME;
         });
 
         return builder;

@@ -19,12 +19,14 @@ using Turbo.Runtime.AssemblyProcessing;
 namespace Turbo.Plugins;
 
 public sealed class PluginManager(
-    IServiceProvider _host,
+    IServiceProvider host,
+    AssemblyProcessor processor,
     IOptions<PluginConfig> config,
     ILogger<PluginManager> logger
 )
 {
-    private readonly IServiceProvider _host = _host;
+    private readonly IServiceProvider _host = host;
+    private readonly AssemblyProcessor _processor = processor;
     private readonly ExportRegistry _exports = new();
     private readonly PluginConfig _config = config.Value;
     private readonly ILogger _logger = logger;
@@ -150,19 +152,17 @@ public sealed class PluginManager(
         try
         {
             var asm = alc.LoadFromAssemblyPath(asmPath);
-            var instance = CreatePluginInstance(asm, shadowDir);
+
+            var instance = CreatePluginInstance(asm, shadowDir, manifest);
 
             if (!string.Equals(instance.Key, manifest.Key, StringComparison.Ordinal))
                 throw new InvalidOperationException(
-                    $"Key mismatch manifest={manifest.Key} entry={instance.Key}"
+                    $"Failed to load {instance.GetType().Name} key mismatch manifest={manifest.Key} entry={instance.Key}"
                 );
 
             var sp = CreatePluginServiceProvider(instance, manifest);
 
             await instance.BindExportsAsync(new ExportBinder(_exports), sp).ConfigureAwait(false);
-
-            var processor = _host.GetRequiredService<AssemblyProcessor>();
-            var handle = await processor.ProcessAsync(asm, sp);
 
             var env = new PluginEnvelope
             {
@@ -172,8 +172,19 @@ public sealed class PluginManager(
                 Assembly = asm,
                 Instance = instance,
                 Scope = sp,
-                Disposables = [handle],
+                Disposables = [],
             };
+
+            try
+            {
+                var disposable = await _processor.ProcessAsync(asm, sp);
+
+                env.Disposables.Add(disposable);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to process assembly for {Key}", manifest.Key);
+            }
 
             await EnablePlugin(env, ct).ConfigureAwait(false);
 
@@ -184,13 +195,14 @@ public sealed class PluginManager(
                 if (_live.TryGetValue(k, out var old))
                 {
                     _logger.LogInformation(
-                        "Reloading {Key} {OldVer} -> {NewVer}",
+                        "Updating {Key}@{OldVer} -> {NewVer}",
                         k,
                         old.Manifest.Version,
                         manifest.Version
                     );
 
                     _live[k] = env;
+
                     await StopAndTearDown(old, ct).ConfigureAwait(false);
                 }
                 else
@@ -242,25 +254,26 @@ public sealed class PluginManager(
         envelope.Instance.StartAsync(sp, ct).GetAwaiter().GetResult();
     }
 
-    private ITurboPlugin CreatePluginInstance(Assembly asm, string shadowDir)
+    private ITurboPlugin CreatePluginInstance(
+        Assembly asm,
+        string shadowDir,
+        PluginManifest manifest
+    )
     {
         try
         {
             var types = AssemblyExplorer.SafeConcreteTypes(asm);
             var pluginType =
                 types.First(t => !t.IsAbstract && typeof(ITurboPlugin).IsAssignableFrom(t))
-                ?? throw new InvalidOperationException($"No ITurboPlugin found in {shadowDir}.");
+                ?? throw new InvalidOperationException(
+                    $"Failed to find ITurboPlugin in {shadowDir}."
+                );
             return (ITurboPlugin)Activator.CreateInstance(pluginType)!;
         }
-        catch (ReflectionTypeLoadException ex)
+        catch (Exception ex)
         {
-            foreach (var le in ex.LoaderExceptions.Where(e => e is not null))
-            {
-                if (le is FileNotFoundException fnf)
-                    _logger.LogError("Plugin: missing dependency: {Message}", fnf.Message);
-                else
-                    _logger.LogError("Plugin: type load error: {Message}", le!.Message);
-            }
+            _logger.LogError(ex, "Failed to create plugin instance for {Key}", manifest.Key);
+
             throw;
         }
     }
@@ -310,7 +323,8 @@ public sealed class PluginManager(
                     {
                         _logger.LogWarning(
                             ex,
-                            "Exception disposing plugin resource for {Key}",
+                            "Failed to dispose {inst.name} for {Key}",
+                            inst.GetType().Name,
                             env.Manifest.Key
                         );
                     }
@@ -325,7 +339,7 @@ public sealed class PluginManager(
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "StopAsync threw for {Key}", env.Manifest.Key);
+                _logger.LogWarning(ex, "Failed to stop {Key}", env.Manifest.Key);
             }
 
             try
@@ -334,12 +348,12 @@ public sealed class PluginManager(
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Error disposing plugin scope for {Key}", env.Manifest.Key);
+                _logger.LogWarning(ex, "Failed to dispose the scope for {Key}", env.Manifest.Key);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "StopAndTearDown failed for {Key}", env.Manifest.Key);
+            _logger.LogWarning(ex, "Failed to destroy {Key}", env.Manifest.Key);
         }
 
         env.ALC.Unload();
