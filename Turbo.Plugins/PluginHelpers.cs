@@ -9,30 +9,6 @@ namespace Turbo.Plugins;
 
 internal static partial class PluginHelpers
 {
-    public static string CreateShadowCopy(string sourceDir, string pluginId)
-    {
-        if (!Directory.Exists(sourceDir))
-            throw new DirectoryNotFoundException(sourceDir);
-
-        var root = Path.Combine(AppContext.BaseDirectory, "plugins-shadow", pluginId);
-        Directory.CreateDirectory(root);
-
-        var shadowDir = Path.Combine(root, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(shadowDir);
-
-        CopyAll(new DirectoryInfo(sourceDir), new DirectoryInfo(shadowDir));
-        return shadowDir;
-    }
-
-    private static void CopyAll(DirectoryInfo source, DirectoryInfo target)
-    {
-        foreach (var file in source.GetFiles())
-            file.CopyTo(Path.Combine(target.FullName, file.Name), overwrite: true);
-
-        foreach (var dir in source.GetDirectories())
-            CopyAll(dir, target.CreateSubdirectory(dir.Name));
-    }
-
     public static PluginManifest ReadManifest(string dir)
     {
         var path = Path.Combine(dir, "manifest.json");

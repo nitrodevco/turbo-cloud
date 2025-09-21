@@ -30,7 +30,7 @@ public class EnvelopeFeatureProcessor<TEnvelope, TMeta, TContext>(
         var batch = new CompositeDisposable();
 
         foreach (
-            var (concrete, closedIface, args) in AssemblyExplorer.FindClosedImplementationsFast(
+            var (concrete, closedIface, args) in AssemblyExplorer.FindClosedImplementations(
                 asm,
                 _openHandlerInterface
             )
@@ -46,7 +46,7 @@ public class EnvelopeFeatureProcessor<TEnvelope, TMeta, TContext>(
         }
 
         foreach (
-            var (concrete, closedIface, args) in AssemblyExplorer.FindClosedImplementationsFast(
+            var (concrete, closedIface, args) in AssemblyExplorer.FindClosedImplementations(
                 asm,
                 _openBehaviorInterface
             )

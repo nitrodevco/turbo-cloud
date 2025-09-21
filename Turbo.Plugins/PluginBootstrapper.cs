@@ -15,6 +15,6 @@ public sealed class PluginBootstrapper(PluginManager pluginManager) : IHostedSer
 
     public async Task StopAsync(CancellationToken ct)
     {
-        await Task.CompletedTask;
+        await _pluginManager.UnloadAll(ct).ConfigureAwait(false);
     }
 }

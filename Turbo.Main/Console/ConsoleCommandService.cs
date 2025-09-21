@@ -75,6 +75,13 @@ public class ConsoleCommandService(IServiceProvider services)
                 await pluginMgr.LoadAll(true, ct);
                 break;
 
+            case "reload-plugin":
+            {
+                pluginMgr = _services.GetRequiredService<PluginManager>();
+                await pluginMgr.Reload(args[0], ct);
+                break;
+            }
+
             default:
                 System.Console.WriteLine("Unknown command: {Command}", cmd);
                 break;

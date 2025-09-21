@@ -12,31 +12,58 @@ public static class AssemblyExplorer
 {
     private static readonly ConditionalWeakTable<Assembly, Lazy<Type[]>> CONCRETE_TYPE_CACHE = [];
 
-    public static IEnumerable<Type> SafeConcreteTypes(Assembly asm) => GetOrCacheConcreteTypes(asm);
-
-    public static IEnumerable<(
-        Type Concrete,
-        Type ClosedInterface,
-        Type[] Args
-    )> FindClosedImplementations(Assembly asm, Type openGenericInterface)
+    public static Type? FindType(Assembly asm, Type type)
     {
-        var types = GetOrCacheConcreteTypes(asm);
+        using var _ = EnterContextual(asm);
 
-        foreach (var t in types)
+        Type? candidate = null;
+
+        foreach (var ti in asm.DefinedTypes)
         {
-            foreach (var iface in t.GetInterfaces())
+            if (ti.IsAbstract || ti.IsInterface || ti.IsGenericTypeDefinition)
+                continue;
+
+            Type? asType = null;
+
+            try
             {
-                if (iface.IsGenericType && iface.GetGenericTypeDefinition() == openGenericInterface)
-                    yield return (t, iface, iface.GetGenericArguments());
+                asType = ti.AsType();
+            }
+            catch
+            {
+                continue;
+            }
+
+            try
+            {
+                if (type.IsAssignableFrom(asType))
+                {
+                    if (candidate is null)
+                    {
+                        candidate = asType;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException(
+                            $"Multiple ITurboPlugin implementers in assembly {asm.GetName().Name}"
+                        );
+                    }
+                }
+            }
+            catch
+            {
+                // ignore reflection oddities and keep scanning
             }
         }
+
+        return candidate;
     }
 
     public static IEnumerable<(
         Type Concrete,
         Type ClosedInterface,
         Type[] Args
-    )> FindClosedImplementationsFast(Assembly asm, Type openGenericInterface)
+    )> FindClosedImplementations(Assembly asm, Type openGenericInterface)
     {
         ArgumentNullException.ThrowIfNull(openGenericInterface);
 
@@ -129,64 +156,10 @@ public static class AssemblyExplorer
         return m;
     }
 
-    public static IDisposable CacheScope(Assembly asm)
-    {
-        _ = GetOrCacheConcreteTypes(asm);
-
-        return new CacheScopeImpl(asm);
-    }
-
-    public static void ClearCache(Assembly asm) => CONCRETE_TYPE_CACHE.Remove(asm);
-
-    private static Type[] GetOrCacheConcreteTypes(Assembly asm)
-    {
-        var lazy = CONCRETE_TYPE_CACHE.GetValue(
-            asm,
-            a => new Lazy<Type[]>(
-                () => LoadConcreteTypes(a),
-                LazyThreadSafetyMode.ExecutionAndPublication
-            )
-        );
-
-        return lazy.Value;
-    }
-
-    private static Type[] LoadConcreteTypes(Assembly asm)
-    {
-        using var _ = EnterContextual(asm);
-
-        try
-        {
-            return [.. asm.GetExportedTypes().Where(IsConcrete)];
-        }
-        catch (ReflectionTypeLoadException ex)
-        {
-            return [.. ex.Types.Where(t => t is not null && IsConcrete(t!))!];
-        }
-    }
-
-    private static bool IsConcrete(Type t) =>
-        !t.IsAbstract && !t.IsInterface && !t.IsGenericTypeDefinition;
-
     private static AssemblyLoadContext.ContextualReflectionScope? EnterContextual(Assembly asm)
     {
         var alc = AssemblyLoadContext.GetLoadContext(asm);
 
         return alc?.EnterContextualReflection();
-    }
-
-    private sealed class CacheScopeImpl(Assembly asm) : IDisposable
-    {
-        private Assembly? _asm = asm;
-
-        public void Dispose()
-        {
-            if (_asm is not null)
-            {
-                CONCRETE_TYPE_CACHE.Remove(_asm);
-
-                _asm = null;
-            }
-        }
     }
 }

@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Contracts.Plugins;
@@ -75,8 +76,7 @@ public sealed class PluginManager(
 
             foreach (var d in manifest.Dependencies)
             {
-                _dependents.TryAdd(d.Key, []);
-                _dependents[d.Key].Add(manifest.Key);
+                _dependents.GetOrAdd(d.Key, _ => []).Add(manifest.Key);
             }
 
             await LoadOne(manifest, triplet.folder, ct);
@@ -131,6 +131,23 @@ public sealed class PluginManager(
         }
     }
 
+    public async Task UnloadAll(CancellationToken ct)
+    {
+        var keys = _live.Keys.ToList();
+
+        foreach (var key in keys)
+        {
+            try
+            {
+                await Unload(key, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to unload plugin {Key}", key);
+            }
+        }
+    }
+
     private async Task LoadOne(
         PluginManifest manifest,
         string folder,
@@ -139,21 +156,20 @@ public sealed class PluginManager(
     )
     {
         _logger.LogInformation(
-            "Loading {Key}@{Version} by {Author}",
+            "Loading {Key}@{Version} by {Author} from {Folder}",
             manifest.Key,
             manifest.Version,
-            manifest.Author
+            manifest.Author,
+            folder
         );
 
-        var shadowDir = PluginHelpers.CreateShadowCopy(folder, manifest.Key);
-        var asmPath = PluginHelpers.GetAssemblyPath(shadowDir, manifest);
-        var alc = new PluginLoadContext(asmPath);
+        var asmPath = PluginHelpers.GetAssemblyPath(folder, manifest);
+        var loadedAssembly = AssemblyMemoryLoader.LoadFromBytes(asmPath);
 
         try
         {
-            var asm = alc.LoadFromAssemblyPath(asmPath);
-
-            var instance = CreatePluginInstance(asm, shadowDir, manifest);
+            var asm = loadedAssembly.Assembly;
+            var instance = CreatePluginInstance(asm, manifest);
 
             if (!string.Equals(instance.Key, manifest.Key, StringComparison.Ordinal))
                 throw new InvalidOperationException(
@@ -168,8 +184,8 @@ public sealed class PluginManager(
             {
                 Manifest = manifest,
                 Folder = folder,
-                ALC = alc,
-                Assembly = asm,
+                Alc = loadedAssembly.Alc,
+                Assembly = loadedAssembly.Assembly,
                 Instance = instance,
                 Scope = sp,
                 Disposables = [],
@@ -185,6 +201,8 @@ public sealed class PluginManager(
             {
                 _logger.LogWarning(ex, "Failed to process assembly for {Key}", manifest.Key);
             }
+
+            env.Disposables.Add(sp);
 
             await EnablePlugin(env, ct).ConfigureAwait(false);
 
@@ -233,8 +251,6 @@ public sealed class PluginManager(
                 asmPath
             );
 
-            alc.Unload();
-
             throw;
         }
     }
@@ -254,19 +270,14 @@ public sealed class PluginManager(
         await envelope.Instance.StartAsync(sp, ct).ConfigureAwait(false);
     }
 
-    private ITurboPlugin CreatePluginInstance(
-        Assembly asm,
-        string shadowDir,
-        PluginManifest manifest
-    )
+    private ITurboPlugin CreatePluginInstance(Assembly asm, PluginManifest manifest)
     {
         try
         {
-            var types = AssemblyExplorer.SafeConcreteTypes(asm);
             var pluginType =
-                types.First(t => !t.IsAbstract && typeof(ITurboPlugin).IsAssignableFrom(t))
+                AssemblyExplorer.FindType(asm, typeof(ITurboPlugin))
                 ?? throw new InvalidOperationException(
-                    $"Failed to find ITurboPlugin in {shadowDir}."
+                    $"Failed to find ITurboPlugin in {asm.GetType().Name}."
                 );
             return (ITurboPlugin)Activator.CreateInstance(pluginType)!;
         }
@@ -308,6 +319,18 @@ public sealed class PluginManager(
     {
         try
         {
+            if (env.Scope is IServiceProvider sp)
+            {
+                foreach (var svc in sp.GetServices<IHostedService>())
+                {
+                    try
+                    {
+                        await svc.StopAsync(ct).ConfigureAwait(false);
+                    }
+                    catch { }
+                }
+            }
+
             if (env.Disposables.Count > 0)
             {
                 foreach (var inst in env.Disposables)
@@ -341,23 +364,13 @@ public sealed class PluginManager(
             {
                 _logger.LogWarning(ex, "Failed to stop {Key}", env.Manifest.Key);
             }
-
-            try
-            {
-                env.Scope.Dispose();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to dispose the scope for {Key}", env.Manifest.Key);
-            }
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to destroy {Key}", env.Manifest.Key);
         }
+        Console.WriteLine("about to");
 
-        env.ALC.Unload();
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
+        AssemblyMemoryLoader.UnloadAndWait(env.Alc);
     }
 }
