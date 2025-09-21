@@ -15,12 +15,14 @@ namespace Turbo.Networking.Session;
 public sealed class PacketProcessor(
     IRevisionManager revisionManager,
     MessageSystem messageSystem,
-    ILogger<PacketProcessor> logger
+    ILogger<PacketProcessor> logger,
+    IServiceProvider sp
 )
 {
     private readonly IRevisionManager _revisionManager = revisionManager;
     private readonly MessageSystem _messageSystem = messageSystem;
     private readonly ILogger<PacketProcessor> _logger = logger;
+    private readonly IServiceProvider _sp = sp;
 
     public async Task ProcessPacket(
         ISessionContext ctx,

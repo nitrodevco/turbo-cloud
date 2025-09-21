@@ -5,5 +5,5 @@ namespace Turbo.Pipeline.Registry;
 
 public interface IHandler<in T, in TContext>
 {
-    Task HandleAsync(T interaction, TContext ctx, CancellationToken ct);
+    Task HandleAsync(T env, TContext ctx, CancellationToken ct);
 }

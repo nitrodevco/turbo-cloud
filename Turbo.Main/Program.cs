@@ -6,17 +6,14 @@ using Microsoft.Extensions.Configuration.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Turbo.Contracts.Abstractions;
 using Turbo.Database.Extensions;
-using Turbo.Events;
-using Turbo.Events.Registry;
+using Turbo.Events.Extensions;
 using Turbo.Logging.Extensions;
-using Turbo.Messages;
-using Turbo.Messages.Registry;
-using Turbo.Networking.Abstractions.Session;
+using Turbo.Main.Console;
+using Turbo.Messages.Extensions;
 using Turbo.Networking.Extensions;
-using Turbo.Pipeline.Extensions;
 using Turbo.Plugins.Extensions;
+using Turbo.Runtime.AssemblyProcessing;
 
 namespace Turbo.Main;
 
@@ -32,7 +29,7 @@ internal class Program
             })
             .CreateLogger("Bootstrap");
 
-        Console.WriteLine(
+        System.Console.WriteLine(
             @"
      ████████╗██╗   ██╗██████╗ ██████╗  ██████╗ 
      ╚══██╔══╝██║   ██║██╔══██╗██╔══██╗██╔═══██╗
@@ -80,17 +77,14 @@ internal class Program
         builder.AddTurboLogging();
         builder.Services.AddTurboDatabaseContext(builder);
         builder.AddTurboNetworking();
-        builder.Services.AddEnvelopeSystem<EventSystem, IEvent, EventContext, object>(
-            (sp, env, data) => new EventContext { ServiceProvider = sp }
-        );
-        builder.Services.AddEnvelopeSystem<
-            MessageSystem,
-            IMessageEvent,
-            MessageContext,
-            ISessionContext
-        >((sp, env, session) => new MessageContext { ServiceProvider = sp, Session = session });
+
+        builder.Services.AddEventSystem();
+        builder.Services.AddMessageSystem();
+
+        builder.Services.AddSingleton<AssemblyProcessor>();
 
         builder.AddTurboPlugins();
+        builder.Services.AddSingleton<ConsoleCommandService>();
         builder.Services.AddHostedService<TurboEmulator>();
 
         var host = builder.Build();
@@ -108,11 +102,13 @@ internal class Program
                 GetProjectVersion()
             );
 
+            host.Services.GetService<ConsoleCommandService>()?.Enable();
+
             await host.WaitForShutdownAsync(shutdownToken);
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex);
+            bootstrapLogger.LogCritical(ex, "Host terminated unexpectedly");
         }
     }
 

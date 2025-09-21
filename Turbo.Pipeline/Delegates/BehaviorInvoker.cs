@@ -4,9 +4,9 @@ using System.Threading.Tasks;
 
 namespace Turbo.Pipeline.Delegates;
 
-internal delegate Task BehaviorInvoker<TContext>(
-    object instance,
-    object envelope,
+public delegate Task BehaviorInvoker<TContext>(
+    object inst,
+    object env,
     TContext ctx,
     Func<Task> next,
     CancellationToken ct

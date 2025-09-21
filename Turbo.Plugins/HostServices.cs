@@ -4,7 +4,7 @@ using Turbo.Contracts.Plugins;
 
 namespace Turbo.Plugins;
 
-public sealed class HostServices(IServiceProvider host) : IHostServices
+internal sealed class HostServices(IServiceProvider host) : IHostServices
 {
     private readonly IServiceProvider _host = host;
 

@@ -14,6 +14,7 @@ using Turbo.Database.Delegates;
 using Turbo.Logging.Extensions;
 using Turbo.Plugins.Configuration;
 using Turbo.Plugins.Exports;
+using Turbo.Runtime.AssemblyProcessing;
 
 namespace Turbo.Plugins;
 
@@ -35,8 +36,6 @@ public sealed class PluginManager(
     private readonly ConcurrentDictionary<string, HashSet<string>> _dependents = new(
         StringComparer.OrdinalIgnoreCase
     );
-
-    public IReadOnlyDictionary<string, PluginEnvelope> Live => _live;
 
     private List<(PluginManifest manifest, string folder)> Discover()
     {
@@ -163,6 +162,9 @@ public sealed class PluginManager(
 
             instance.BindExports(new ExportBinder(_exports), sp);
 
+            var processor = _host.GetRequiredService<AssemblyProcessor>();
+            var handle = processor.Process(asm, sp);
+
             var envelope = new PluginEnvelope
             {
                 Manifest = manifest,
@@ -171,7 +173,7 @@ public sealed class PluginManager(
                 Assembly = asm,
                 Instance = instance,
                 Scope = sp,
-                Disposables = [],
+                Disposables = [handle],
             };
 
             await EnablePlugin(envelope, ct).ConfigureAwait(false);
@@ -235,24 +237,6 @@ public sealed class PluginManager(
             if (dbModule is not null)
                 await dbModule.MigrateAsync(scope.ServiceProvider, ct).ConfigureAwait(false);
         }
-
-        /* envelope.Disposables.Add(
-            _eventSystem.RegisterFromAssembly(
-                envelope.Manifest.Id,
-                envelope.Assembly,
-                envelope.Scope,
-                true
-            )
-        );
-
-        envelope.Disposables.Add(
-            _messageSystem.RegisterFromAssembly(
-                envelope.Manifest.Id,
-                envelope.Assembly,
-                envelope.Scope,
-                true
-            )
-        ); */
 
         envelope.Instance.StartAsync(sp, ct).GetAwaiter().GetResult();
     }

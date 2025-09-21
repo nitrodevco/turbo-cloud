@@ -11,5 +11,6 @@
     <ProjectReference Include="..\Turbo.Events\Turbo.Events.csproj" />
     <ProjectReference Include="..\Turbo.Messages\Turbo.Messages.csproj" />
     <ProjectReference Include="..\Turbo.Logging\Turbo.Logging.csproj" />
+    <ProjectReference Include="..\Turbo.Runtime\Turbo.Runtime.csproj" />
   </ItemGroup>
 </Project>

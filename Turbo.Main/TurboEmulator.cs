@@ -6,7 +6,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Turbo.Events;
 using Turbo.Networking.Abstractions;
+using Turbo.Primitives.Events;
 
 namespace Turbo.Main;
 
@@ -17,12 +19,14 @@ public class TurboEmulator : IHostedService
     private readonly IServiceProvider _serviceProvider;
     private readonly List<IDisposable> _registrations;
     private readonly INetworkManager _networkManager;
+    private readonly EventSystem _eventSystem;
 
     public TurboEmulator(
         IHostApplicationLifetime appLifetime,
         ILogger<TurboEmulator> logger,
         IServiceProvider serviceProvider,
-        INetworkManager networkManager
+        INetworkManager networkManager,
+        EventSystem eventSystem
     )
     {
         _appLifetime = appLifetime;
@@ -35,6 +39,7 @@ public class TurboEmulator : IHostedService
             _appLifetime.ApplicationStopping.Register(OnStopping),
             _appLifetime.ApplicationStopped.Register(OnStopped),
         ];
+        _eventSystem = eventSystem;
 
         SetDefaultCulture(CultureInfo.InvariantCulture);
     }
@@ -88,6 +93,7 @@ public class TurboEmulator : IHostedService
 
     private void OnStarted()
     {
+        _eventSystem.PublishAsync(new PlayerJoinedEvent(1));
         //_eventBus.PublishAsync(new PlayerJoinedEvent(1));
         //_logger.LogInformation("Started {Emulator}", GetVersion());
     }

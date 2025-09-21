@@ -1,9 +1,9 @@
 using System;
 using System.Threading;
 
-namespace Turbo.Pipeline;
+namespace Turbo.Runtime;
 
-public class ActionDisposable(Action dispose) : IDisposable
+public sealed class ActionDisposable(Action dispose) : IDisposable
 {
     private Action? _dispose = dispose;
 

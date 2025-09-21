@@ -4,7 +4,7 @@ using System.Runtime.Loader;
 
 namespace Turbo.Plugins;
 
-public sealed class PluginLoadContext(string pluginDir) : AssemblyLoadContext(isCollectible: true)
+internal sealed class PluginLoadContext(string pluginDir) : AssemblyLoadContext(isCollectible: true)
 {
     private readonly string _dir = pluginDir;
 

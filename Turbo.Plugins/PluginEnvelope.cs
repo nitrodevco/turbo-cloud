@@ -6,7 +6,7 @@ using Turbo.Contracts.Plugins;
 
 namespace Turbo.Plugins;
 
-public sealed class PluginEnvelope
+internal sealed class PluginEnvelope
 {
     public required PluginManifest Manifest { get; init; }
     public required string Folder { get; init; }

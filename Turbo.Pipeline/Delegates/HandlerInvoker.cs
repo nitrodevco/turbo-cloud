@@ -3,9 +3,9 @@ using System.Threading.Tasks;
 
 namespace Turbo.Pipeline.Delegates;
 
-internal delegate Task HandlerInvoker<TContext>(
-    object instance,
-    object envelope,
+public delegate Task HandlerInvoker<TContext>(
+    object inst,
+    object env,
     TContext ctx,
     CancellationToken ct
 );

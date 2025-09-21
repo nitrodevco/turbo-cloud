@@ -1,24 +1,19 @@
 using System;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Abstractions;
-using Turbo.Events.Registry;
-using Turbo.Pipeline;
 
 namespace Turbo.Events;
 
-public sealed class EventSystem(GenericBus<IEvent, EventContext, object> bus)
+public sealed class EventSystem(EventRegistry registry)
 {
-    private readonly GenericBus<IEvent, EventContext, object> _bus = bus;
+    private readonly EventRegistry _registry = registry;
 
-    public IDisposable RegisterFromAssembly(
-        string ownerId,
-        Assembly asm,
-        IServiceProvider ownerRoot,
-        bool useAmbientScope
-    ) => _bus.RegisterFromAssembly(ownerId, asm, ownerRoot, useAmbientScope);
+    public async Task PublishAsync(IEvent env, CancellationToken ct = default)
+    {
+        if (_registry is null)
+            return;
 
-    public Task PublishAsync<T>(T envelope, CancellationToken ct = default)
-        where T : IEvent => _bus.PublishAsync(envelope, true, ct);
+        await _registry.PublishAsync(env, new object(), ct);
+    }
 }

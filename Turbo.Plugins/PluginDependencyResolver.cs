@@ -5,7 +5,7 @@ using Turbo.Contracts.Plugins;
 
 namespace Turbo.Plugins;
 
-public static class PluginDependencyResolver
+internal static class PluginDependencyResolver
 {
     public static IReadOnlyList<PluginManifest> SortManifests(
         IReadOnlyList<PluginManifest> manifests

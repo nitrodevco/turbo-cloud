@@ -1,25 +1,19 @@
-using System;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Abstractions;
-using Turbo.Messages.Registry;
 using Turbo.Networking.Abstractions.Session;
-using Turbo.Pipeline;
 
 namespace Turbo.Messages;
 
-public sealed class MessageSystem(GenericBus<IMessageEvent, MessageContext, ISessionContext> bus)
+public sealed class MessageSystem(MessageRegistry registry)
 {
-    private readonly GenericBus<IMessageEvent, MessageContext, ISessionContext> _bus = bus;
+    private readonly MessageRegistry _registry = registry;
 
-    public IDisposable RegisterFromAssembly(
-        string ownerId,
-        Assembly asm,
-        IServiceProvider ownerRoot,
-        bool useAmbientScope
-    ) => _bus.RegisterFromAssembly(ownerId, asm, ownerRoot, useAmbientScope);
+    public async Task PublishAsync(IMessageEvent env, ISessionContext meta, CancellationToken ct)
+    {
+        if (_registry is null)
+            return;
 
-    public Task PublishAsync<T>(T envelope, ISessionContext session, CancellationToken ct = default)
-        where T : IMessageEvent => _bus.PublishAsync(envelope, true, session, ct);
+        await _registry.PublishAsync(env, meta, ct);
+    }
 }

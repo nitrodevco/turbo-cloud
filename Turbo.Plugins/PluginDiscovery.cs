@@ -6,7 +6,7 @@ using Turbo.Contracts.Plugins;
 
 namespace Turbo.Plugins;
 
-public static class PluginDiscovery
+internal static class PluginDiscovery
 {
     public static string GetAssemblyPath(string pluginDir, PluginManifest manifest)
     {
