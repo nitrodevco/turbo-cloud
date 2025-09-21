@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -68,7 +69,11 @@ public sealed class NetworkManager(
 
                     var ctx = (ISessionContext)session;
 
-                    await _packetProcessor.ProcessPacket(ctx, packet, CancellationToken.None);
+                    try
+                    {
+                        await _packetProcessor.ProcessPacket(ctx, packet, CancellationToken.None);
+                    }
+                    catch (Exception ex) { }
                 }
             );
 

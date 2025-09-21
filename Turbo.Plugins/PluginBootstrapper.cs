@@ -4,7 +4,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Turbo.Plugins;
 
-public class PluginsBootstrapper(PluginManager pluginManager) : IHostedService
+public sealed class PluginBootstrapper(PluginManager pluginManager) : IHostedService
 {
     private readonly PluginManager _pluginManager = pluginManager;
 

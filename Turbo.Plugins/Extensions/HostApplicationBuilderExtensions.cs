@@ -13,7 +13,7 @@ public static class HostApplicationBuilderExtensions
         );
 
         builder.Services.AddSingleton<PluginManager>();
-        builder.Services.AddHostedService<PluginsBootstrapper>();
+        builder.Services.AddHostedService<PluginBootstrapper>();
 
         return builder;
     }

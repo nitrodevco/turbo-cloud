@@ -34,9 +34,9 @@ internal sealed class MessageFeatureProcessor(
         )
         {
             var envType = args[0];
+
             var invoker = _invokerFactory.CreateHandlerInvoker(concrete, envType);
             var factory = ActivatorUtilities.CreateFactory(concrete, Type.EmptyTypes);
-
             object activator(IServiceProvider sp) => factory(sp, null);
 
             batch.Add(_registry.RegisterHandler(envType, sp, activator, invoker));
@@ -50,10 +50,11 @@ internal sealed class MessageFeatureProcessor(
         )
         {
             var envType = args[0];
+
             var invoker = _invokerFactory.CreateBehaviorInvoker(concrete, envType);
             var order = concrete.GetCustomAttribute<OrderAttribute>()?.Value ?? 0;
-
             var factory = ActivatorUtilities.CreateFactory(concrete, Type.EmptyTypes);
+
             object activator(IServiceProvider sp) => factory(sp, null);
 
             batch.Add(_registry.RegisterBehavior(envType, sp, activator, invoker, order));

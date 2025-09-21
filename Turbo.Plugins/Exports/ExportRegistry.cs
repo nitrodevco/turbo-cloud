@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace Turbo.Plugins.Exports;
 
-public sealed class ExportRegistry
+internal sealed class ExportRegistry
 {
     private readonly ConcurrentDictionary<(Type t, string key), object> _map = new();
 

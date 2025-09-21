@@ -48,7 +48,7 @@ public sealed class PluginManager(
         {
             try
             {
-                var manifest = PluginDiscovery.ReadManifest(dir);
+                var manifest = PluginHelpers.ReadManifest(dir);
 
                 list.Add((manifest, dir));
             }
@@ -64,9 +64,7 @@ public sealed class PluginManager(
     public async Task LoadAll(bool unloadRemoved = true, CancellationToken ct = default)
     {
         var discovered = Discover();
-        var manifests = PluginDependencyResolver.SortManifests(
-            [.. discovered.Select(d => d.manifest)]
-        );
+        var manifests = PluginHelpers.SortManifests([.. discovered.Select(d => d.manifest)]);
         var byKey = discovered.ToDictionary(d => d.manifest.Key, StringComparer.OrdinalIgnoreCase);
 
         foreach (var manifest in manifests)
@@ -112,7 +110,7 @@ public sealed class PluginManager(
         if (!_live.TryGetValue(key, out var current))
             throw new InvalidOperationException($"Plugin {key} not loaded");
 
-        var manifest = PluginDiscovery.ReadManifest(current.Folder);
+        var manifest = PluginHelpers.ReadManifest(current.Folder);
 
         await LoadOne(manifest, current.Folder, ct, key);
     }
@@ -147,7 +145,7 @@ public sealed class PluginManager(
 
         var shadowDir = PluginHelpers.CreateShadowCopy(folder, manifest.Key);
         var alc = new PluginLoadContext(shadowDir);
-        var asmPath = PluginDiscovery.GetAssemblyPath(shadowDir, manifest);
+        var asmPath = PluginHelpers.GetAssemblyPath(shadowDir, manifest);
 
         try
         {
@@ -248,7 +246,7 @@ public sealed class PluginManager(
     {
         try
         {
-            var types = PluginHelpers.SafeGetLoadableTypes(asm);
+            var types = AssemblyExplorer.SafeConcreteTypes(asm);
             var pluginType =
                 types.First(t => !t.IsAbstract && typeof(ITurboPlugin).IsAssignableFrom(t))
                 ?? throw new InvalidOperationException($"No ITurboPlugin found in {shadowDir}.");

@@ -1,11 +1,9 @@
 using System;
-using System.CodeDom.Compiler;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.CompilerServices;
+using System.Text.Json;
+using Turbo.Contracts.Plugins;
 
 namespace Turbo.Plugins;
 
@@ -26,43 +24,6 @@ internal static partial class PluginHelpers
         return shadowDir;
     }
 
-    public static void TryDeleteDirectory(string dir)
-    {
-        try
-        {
-            if (!Directory.Exists(dir))
-                return;
-
-            Directory.Delete(dir, true);
-            return;
-        }
-        catch (Exception ex)
-        {
-            try
-            {
-                var parent = Path.GetDirectoryName(dir) ?? AppContext.BaseDirectory;
-                var tomb = Path.Combine(
-                    parent,
-                    ".plugin-delete-failed-" + Guid.NewGuid().ToString("N")
-                );
-                Directory.Move(dir, tomb);
-            }
-            catch (Exception moveEx)
-            {
-                try
-                {
-                    Trace.TraceWarning(
-                        "Failed to delete or move plugin directory '{0}': {1}; move error: {2}",
-                        dir,
-                        ex.Message,
-                        moveEx.Message
-                    );
-                }
-                catch { }
-            }
-        }
-    }
-
     private static void CopyAll(DirectoryInfo source, DirectoryInfo target)
     {
         foreach (var file in source.GetFiles())
@@ -72,91 +33,122 @@ internal static partial class PluginHelpers
             CopyAll(dir, target.CreateSubdirectory(dir.Name));
     }
 
-    public static IEnumerable<Type> SafeGetLoadableTypes(Assembly assembly)
+    public static PluginManifest ReadManifest(string dir)
     {
-        if (assembly is null)
-            throw new ArgumentNullException(nameof(assembly));
-        if (assembly.IsDynamic)
-            yield break; // nothing concrete to scan
+        var path = Path.Combine(dir, "manifest.json");
 
-        Type[] raw;
+        if (!File.Exists(path))
+            throw new FileNotFoundException($"Plugin manifest not found: {path}");
+
         try
         {
-            raw = assembly.GetTypes();
+            var manifest =
+                (
+                    JsonSerializer.Deserialize<PluginManifest>(
+                        File.ReadAllText(path),
+                        new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true,
+                            ReadCommentHandling = JsonCommentHandling.Skip,
+                            AllowTrailingCommas = true,
+                        }
+                    ) ?? throw new InvalidOperationException("Invalid manifest.json")
+                )
+                ?? throw new InvalidDataException($"manifest.json at {path} deserialized to null");
+
+            if (string.IsNullOrWhiteSpace(manifest.Name))
+                throw new InvalidDataException(
+                    $"Plugin manifest missing required 'Name' in {path}"
+                );
+
+            if (string.IsNullOrWhiteSpace(manifest.Version))
+                throw new InvalidDataException(
+                    $"Plugin manifest missing required 'Version' in {path}"
+                );
+
+            if (string.IsNullOrWhiteSpace(manifest.AssemblyFile))
+                throw new InvalidDataException(
+                    $"Plugin manifest missing required 'AssemblyFile' in {path}"
+                );
+
+            return manifest;
         }
-        catch (ReflectionTypeLoadException ex)
+        catch (Exception ex)
         {
-            raw = ex.Types.Where(t => t is not null).ToArray()!;
+            throw new InvalidDataException(
+                $"Failed to parse manifest.json for plugin at {dir}: {ex.Message}",
+                ex
+            );
         }
+    }
 
-        foreach (var t in raw)
+    public static IReadOnlyList<PluginManifest> SortManifests(
+        IReadOnlyList<PluginManifest> manifests
+    )
+    {
+        var byKey = manifests.ToDictionary(m => m.Key, StringComparer.OrdinalIgnoreCase);
+        var indeg = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var graph = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var m in manifests)
         {
-            if (t is null)
-                continue;
-            if (!IsCandidateType(t))
-                continue;
-
-            yield return t;
+            indeg[m.Key] = 0;
+            graph[m.Key] = [];
         }
+
+        foreach (var m in manifests)
+        {
+            foreach (var d in m.Dependencies)
+            {
+                if (!byKey.ContainsKey(d.Key))
+                    throw new InvalidOperationException($"{m.Key} depends on missing {d.Key}");
+
+                graph[d.Key].Add(m.Key);
+                indeg[m.Key]++;
+            }
+        }
+
+        var q = new Queue<string>(indeg.Where(kv => kv.Value == 0).Select(kv => kv.Key));
+        var order = new List<string>();
+
+        while (q.Count > 0)
+        {
+            var k = q.Dequeue();
+            order.Add(k);
+
+            foreach (var n in graph[k])
+                if (--indeg[n] == 0)
+                    q.Enqueue(n);
+        }
+
+        if (order.Count != manifests.Count)
+            throw new InvalidOperationException("Cyclic plugin dependencies.");
+
+        return [.. order.Select(k => byKey[k])];
     }
 
-    private static bool IsCandidateType(Type t)
+    public static string GetAssemblyPath(string pluginDir, PluginManifest manifest)
     {
-        if (t.IsInterface)
-            return false;
-        if (t.IsAbstract)
-            return false;
-        if (t.IsGenericTypeDefinition)
-            return false;
-        if (t.IsPointer || t.IsByRef)
-            return false;
+        var asmPath = Path.Combine(
+            pluginDir,
+            Path.GetFileNameWithoutExtension(manifest.AssemblyFile) + ".dll"
+        );
 
-        if (IsAnonymousType(t))
-            return false;
-        if (IsCompilerOrToolGenerated(t))
-            return false;
-        if (IsProxyOrInfraType(t))
-            return false;
+        if (!File.Exists(asmPath))
+        {
+            var alt =
+                Directory
+                    .GetFiles(pluginDir, "*.dll")
+                    .FirstOrDefault(f =>
+                        Path.GetFileNameWithoutExtension(f)
+                            .Contains(manifest.Key, StringComparison.OrdinalIgnoreCase)
+                    )
+                ?? throw new FileNotFoundException(
+                    $"No assembly for plugin {manifest.Key} in {pluginDir}"
+                );
+            asmPath = alt;
+        }
 
-        return true;
+        return asmPath;
     }
-
-    private static bool IsAnonymousType(Type t)
-    {
-        if (!Attribute.IsDefined(t, typeof(CompilerGeneratedAttribute), inherit: false))
-            return false;
-
-        var n = t.Name;
-        if (!n.Contains("AnonymousType", StringComparison.Ordinal))
-            return false;
-
-        var isCSharpPattern = n.StartsWith("<>", StringComparison.Ordinal);
-        var isVBPattern = n.StartsWith("VB$", StringComparison.Ordinal);
-
-        var isNonPublic = (t.Attributes & TypeAttributes.NotPublic) == TypeAttributes.NotPublic;
-
-        return (isCSharpPattern || isVBPattern) && t.IsSealed && t.IsGenericType && isNonPublic;
-    }
-
-    private static bool IsCompilerOrToolGenerated(Type t)
-    {
-        return Attribute.IsDefined(t, typeof(CompilerGeneratedAttribute), inherit: false)
-            || Attribute.IsDefined(t, typeof(GeneratedCodeAttribute), inherit: false)
-            || Attribute.IsDefined(t, typeof(DebuggerNonUserCodeAttribute), inherit: false);
-    }
-
-    private static bool IsProxyOrInfraType(Type t)
-    {
-        var name = t.FullName ?? t.Name;
-        if (name.Contains("Proxy", StringComparison.Ordinal))
-            return true;
-
-        if (name.StartsWith("<>", StringComparison.Ordinal))
-            return true;
-
-        return false;
-    }
-
-    [System.Text.RegularExpressions.GeneratedRegex("^[A-Za-z0-9_.-]+$")]
-    private static partial System.Text.RegularExpressions.Regex MyRegex();
 }

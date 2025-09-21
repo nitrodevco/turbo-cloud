@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Plugins.Exports;
 
@@ -9,7 +10,7 @@ public sealed class ReloadableExport<T> : IExport<T>
     where T : class
 {
     private volatile T? _current;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly List<Action<T>> _subs = new();
 
     public T Current =>
@@ -54,6 +55,7 @@ public sealed class ReloadableExport<T> : IExport<T>
             if (_current is not null)
                 onSwap(_current);
         }
+
         return new Unsub(() =>
         {
             lock (_gate)

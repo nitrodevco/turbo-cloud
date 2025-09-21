@@ -3,7 +3,7 @@ using Turbo.Contracts.Plugins.Exports;
 
 namespace Turbo.Plugins.Exports;
 
-public sealed class ExportBinder(ExportRegistry registry) : IExportBinder
+internal sealed class ExportBinder(ExportRegistry registry) : IExportBinder
 {
     public Task ExportAsync<T>(string exportKey, T instance)
         where T : class => registry.SwapAsync(exportKey, instance);
