@@ -14,5 +14,5 @@ internal sealed class PluginEnvelope
     public required Assembly Assembly { get; init; }
     public required ITurboPlugin Instance { get; init; }
     public required ServiceProvider Scope { get; init; }
-    public required List<IDisposable> Disposables { get; init; }
+    public required List<object> Disposables { get; init; }
 }

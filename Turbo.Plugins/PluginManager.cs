@@ -33,7 +33,7 @@ public sealed class PluginManager(
         StringComparer.OrdinalIgnoreCase
     );
 
-    private readonly ConcurrentDictionary<string, HashSet<string>> _dependents = new(
+    private readonly ConcurrentDictionary<string, ConcurrentBag<string>> _dependents = new(
         StringComparer.OrdinalIgnoreCase
     );
 
@@ -90,7 +90,7 @@ public sealed class PluginManager(
             {
                 try
                 {
-                    Unload(k, ct);
+                    await Unload(k, ct).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -117,7 +117,7 @@ public sealed class PluginManager(
         await LoadOne(manifest, current.Folder, ct, key);
     }
 
-    public void Unload(string key, CancellationToken ct)
+    public async Task Unload(string key, CancellationToken ct)
     {
         if (_dependents.TryGetValue(key, out var deps) && deps.Any(_live.ContainsKey))
             throw new InvalidOperationException(
@@ -126,7 +126,7 @@ public sealed class PluginManager(
 
         if (_live.TryRemove(key, out var scope))
         {
-            StopAndTearDown(scope, ct);
+            await StopAndTearDown(scope, ct).ConfigureAwait(false);
             _logger.LogInformation("Unloaded {Key}", key);
         }
     }
@@ -193,7 +193,7 @@ public sealed class PluginManager(
                     );
 
                     _live[k] = env;
-                    StopAndTearDown(old, ct);
+                    await StopAndTearDown(old, ct).ConfigureAwait(false);
                 }
                 else
                 {
@@ -293,7 +293,7 @@ public sealed class PluginManager(
         );
     }
 
-    private void StopAndTearDown(PluginEnvelope env, CancellationToken ct)
+    private async Task StopAndTearDown(PluginEnvelope env, CancellationToken ct)
     {
         try
         {
@@ -301,21 +301,47 @@ public sealed class PluginManager(
             {
                 foreach (var inst in env.Disposables)
                 {
-                    if (inst is IAsyncDisposable iad)
-                        iad.DisposeAsync().AsTask();
-                    if (inst is IDisposable d)
-                        d.Dispose();
+                    try
+                    {
+                        if (inst is IAsyncDisposable iad)
+                            await iad.DisposeAsync().ConfigureAwait(false);
+                        else if (inst is IDisposable d)
+                            d.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(
+                            ex,
+                            "Exception disposing plugin resource for {Key}",
+                            env.Manifest.Key
+                        );
+                    }
                 }
 
                 env.Disposables.Clear();
             }
 
-            env.Instance.StopAsync(ct).GetAwaiter().GetResult();
-            env.Scope.Dispose();
+            try
+            {
+                await env.Instance.StopAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "StopAsync threw for {Key}", env.Manifest.Key);
+            }
+
+            try
+            {
+                env.Scope.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error disposing plugin scope for {Key}", env.Manifest.Key);
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "StopAsync threw for {Key}", env.Manifest.Key);
+            _logger.LogWarning(ex, "StopAndTearDown failed for {Key}", env.Manifest.Key);
         }
 
         env.ALC.Unload();
