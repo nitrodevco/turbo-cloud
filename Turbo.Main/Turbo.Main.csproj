@@ -20,6 +20,9 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <DependentUpon>appsettings.json</DependentUpon>
     </Content>
+    <Content Include="../start-turbo.bat;../start-turbo.ps1">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Turbo.Contracts\Turbo.Contracts.csproj" />

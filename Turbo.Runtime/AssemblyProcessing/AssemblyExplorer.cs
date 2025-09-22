@@ -4,7 +4,6 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
-using System.Threading;
 
 namespace Turbo.Runtime.AssemblyProcessing;
 

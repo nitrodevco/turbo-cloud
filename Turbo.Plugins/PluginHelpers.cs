@@ -77,7 +77,9 @@ internal static partial class PluginHelpers
             foreach (var d in m.Dependencies)
             {
                 if (!byKey.ContainsKey(d.Key))
-                    throw new InvalidOperationException($"{m.Key} depends on missing {d.Key}");
+                {
+                    throw new InvalidOperationException($"{m.Key} is missing dependency {d.Key}");
+                }
 
                 graph[d.Key].Add(m.Key);
                 indeg[m.Key]++;

@@ -66,37 +66,47 @@ public sealed class PluginManager(
 
     public async Task LoadAll(bool unloadRemoved = true, CancellationToken ct = default)
     {
-        var discovered = Discover();
-        var manifests = PluginHelpers.SortManifests([.. discovered.Select(d => d.manifest)]);
-        var byKey = discovered.ToDictionary(d => d.manifest.Key, StringComparer.OrdinalIgnoreCase);
-
-        foreach (var manifest in manifests)
+        try
         {
-            var triplet = byKey[manifest.Key];
+            var discovered = Discover();
+            var manifests = PluginHelpers.SortManifests([.. discovered.Select(d => d.manifest)]);
+            var byKey = discovered.ToDictionary(
+                d => d.manifest.Key,
+                StringComparer.OrdinalIgnoreCase
+            );
 
-            foreach (var d in manifest.Dependencies)
+            foreach (var manifest in manifests)
             {
-                _dependents.GetOrAdd(d.Key, _ => []).Add(manifest.Key);
+                var triplet = byKey[manifest.Key];
+
+                foreach (var d in manifest.Dependencies)
+                {
+                    _dependents.GetOrAdd(d.Key, _ => []).Add(manifest.Key);
+                }
+
+                await LoadOne(manifest, triplet.folder, ct);
             }
 
-            await LoadOne(manifest, triplet.folder, ct);
+            if (unloadRemoved)
+            {
+                var removed = _live.Keys.Where(k => !byKey.ContainsKey(k)).ToList();
+
+                foreach (var k in removed)
+                {
+                    try
+                    {
+                        await Unload(k, ct).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to unload removed plugin {Key}", k);
+                    }
+                }
+            }
         }
-
-        if (unloadRemoved)
+        catch (Exception ex)
         {
-            var removed = _live.Keys.Where(k => !byKey.ContainsKey(k)).ToList();
-
-            foreach (var k in removed)
-            {
-                try
-                {
-                    await Unload(k, ct).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to unload removed plugin {Key}", k);
-                }
-            }
+            _logger.LogError(ex, "Plugin loading aborted: {Message}", ex.Message);
         }
 
         _logger.LogInformation("Loaded {Count} plugins", _live.Count);

@@ -107,7 +107,16 @@ internal sealed class TurboConsoleFormatter(
         sb.Append(paddedHeader);
 
         if (!string.IsNullOrEmpty(message))
-            sb.Append(": ").Append(message);
+        {
+            if (options.UseAnsiColor)
+            {
+                sb.Append(": ").Append(fg).Append(message).Append(RESET);
+            }
+            else
+            {
+                sb.Append(": ").Append(message);
+            }
+        }
 
         if (options.IncludeScopes && scopeProvider is not null)
         {
@@ -126,13 +135,12 @@ internal sealed class TurboConsoleFormatter(
         // Write the exception (on next line, aligned as well)
         if (logEntry.Exception is not null)
         {
-            var exceptionHeader = "".PadLeft(HEADER_WIDTH);
             if (options.UseAnsiColor)
                 textWriter.WriteLine(
-                    $"{exceptionHeader}{LOG_LEVEL_COLORS[LogLevel.Error].fg}{logEntry.Exception}{RESET}"
+                    $"{LOG_LEVEL_COLORS[LogLevel.Error].fg}{logEntry.Exception}{RESET}"
                 );
             else
-                textWriter.WriteLine($"{exceptionHeader}{logEntry.Exception}");
+                textWriter.WriteLine($"{logEntry.Exception}");
         }
     }
 
