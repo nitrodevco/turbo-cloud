@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -7,25 +7,36 @@ namespace Turbo.Runtime;
 
 public sealed class ScopeBag : IAsyncDisposable
 {
-    private readonly Dictionary<IServiceProvider, IServiceScope> _byOwner = new(
-        ReferenceEqualityComparer.Instance
-    );
+    private readonly ConcurrentDictionary<IServiceProvider, IServiceScope> _byOwner = new();
 
     public IServiceProvider Get(IServiceProvider owner)
     {
-        if (!_byOwner.TryGetValue(owner, out var scope))
-        {
-            var factory = owner.GetRequiredService<IServiceScopeFactory>();
-            scope = factory.CreateScope();
-            _byOwner.Add(owner, scope);
-        }
+        var scope = _byOwner.GetOrAdd(
+            owner,
+            o =>
+            {
+                var factory = o.GetRequiredService<IServiceScopeFactory>();
+                return factory.CreateScope();
+            }
+        );
+
         return scope.ServiceProvider;
     }
 
     public ValueTask DisposeAsync()
     {
         foreach (var s in _byOwner.Values)
-            s.Dispose();
+        {
+            try
+            {
+                s.Dispose();
+            }
+            catch
+            {
+                // swallow - disposal best-effort
+            }
+        }
+
         _byOwner.Clear();
         return ValueTask.CompletedTask;
     }

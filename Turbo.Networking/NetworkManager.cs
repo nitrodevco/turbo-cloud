@@ -21,6 +21,7 @@ public sealed class NetworkManager(
     ILogger<NetworkManager> logger
 ) : INetworkManager
 {
+    private readonly object _hostGate = new();
     private readonly NetworkingConfig _config = config.Value;
     private readonly PacketProcessor _packetProcessor = packetProcessor;
     private readonly ILogger<NetworkManager> _logger = logger;
@@ -28,24 +29,37 @@ public sealed class NetworkManager(
 
     public async Task StartAsync()
     {
-        if (_superSocketHost is null)
-        {
-            CreateSuperSocket();
+        bool needStart = false;
 
-            if (_superSocketHost is not null)
-                await _superSocketHost.StartAsync();
+        lock (_hostGate)
+        {
+            if (_superSocketHost is null)
+            {
+                CreateSuperSocket();
+                needStart = true;
+            }
         }
+
+        if (needStart && _superSocketHost is not null)
+            await _superSocketHost.StartAsync().ConfigureAwait(false);
     }
 
     public async Task StopAsync()
     {
-        if (_superSocketHost is not null)
+        IHost? hostToStop = null;
+
+        lock (_hostGate)
         {
-            await _superSocketHost.StopAsync();
+            if (_superSocketHost is null)
+                return;
 
-            _superSocketHost.Dispose();
-
+            hostToStop = _superSocketHost;
             _superSocketHost = null;
+        }
+
+        if (hostToStop is not null)
+        {
+            await hostToStop.StopAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
         }
     }
 

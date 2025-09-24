@@ -49,12 +49,21 @@ public sealed class ReloadableExport<T> : IExport<T>
 
     public IDisposable Subscribe(Action<T> onSwap)
     {
+        T? current;
+
         lock (_gate)
         {
             _subs.Add(onSwap);
-            if (_current is not null)
-                onSwap(_current);
+            current = _current;
         }
+
+        // Invoke outside the lock to avoid potential deadlocks in subscriber callbacks.
+        if (current is not null)
+            try
+            {
+                onSwap(current);
+            }
+            catch { }
 
         return new Unsub(() =>
         {

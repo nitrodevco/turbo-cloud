@@ -119,31 +119,34 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
         {
             await using var scopes = new ScopeBag();
 
-            Task terminal() => InvokeHandlers(scopes, handlers, env, ctx, ct);
+            Func<Task> terminal = () => InvokeHandlers(scopes, handlers, env, ctx, ct);
 
             var composed = behaviors
                 .AsEnumerable()
                 .Reverse()
                 .Aggregate(
-                    () => terminal(),
+                    (Func<Task>)(() => terminal()),
                     (next, beh) =>
-                        () =>
-                        {
-                            var sp = scopes.Get(beh.ServiceProvider);
-                            var inst = beh.Activator(sp);
+                        (Func<Task>)(
+                            async () =>
+                            {
+                                var sp = scopes.Get(beh.ServiceProvider);
+                                var inst = beh.Activator(sp);
 
-                            try
-                            {
-                                return beh.Invoker(inst, env, ctx, () => next(), ct);
+                                try
+                                {
+                                    await beh.Invoker(inst, env, ctx, () => next(), ct)
+                                        .ConfigureAwait(false);
+                                }
+                                finally
+                                {
+                                    if (inst is IAsyncDisposable iad)
+                                        await iad.DisposeAsync().ConfigureAwait(false);
+                                    else if (inst is IDisposable d)
+                                        d.Dispose();
+                                }
                             }
-                            finally
-                            {
-                                if (inst is IAsyncDisposable iad)
-                                    iad.DisposeAsync().AsTask();
-                                if (inst is IDisposable d)
-                                    d.Dispose();
-                            }
-                        }
+                        )
                 );
 
             await composed().ConfigureAwait(false);
