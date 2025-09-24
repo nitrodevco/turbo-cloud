@@ -20,7 +20,7 @@ public sealed class RevisionManager(ILogger<RevisionManager> logger) : IRevision
             return;
         }
 
-        _logger.LogInformation("Registering revision {Revision}", revision.Revision);
+        _logger.LogInformation("Revision Registered: {Revision}", revision.Revision);
 
         Revisions[revision.Revision] = revision;
     }

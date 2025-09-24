@@ -9,6 +9,13 @@ namespace Turbo.Plugins;
 
 internal static partial class PluginHelpers
 {
+    private static JsonSerializerOptions _jsonSerializerOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true,
+    };
+
     public static PluginManifest ReadManifest(string dir)
     {
         var path = Path.Combine(dir, "manifest.json");
@@ -22,12 +29,7 @@ internal static partial class PluginHelpers
                 (
                     JsonSerializer.Deserialize<PluginManifest>(
                         File.ReadAllText(path),
-                        new JsonSerializerOptions
-                        {
-                            PropertyNameCaseInsensitive = true,
-                            ReadCommentHandling = JsonCommentHandling.Skip,
-                            AllowTrailingCommas = true,
-                        }
+                        _jsonSerializerOptions
                     ) ?? throw new InvalidOperationException("Invalid manifest.json")
                 )
                 ?? throw new InvalidDataException($"manifest.json at {path} deserialized to null");

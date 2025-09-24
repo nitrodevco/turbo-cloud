@@ -21,7 +21,7 @@ public class ServerPacket : TurboPacket, IServerPacket
     public IServerPacket WriteByte(byte b)
     {
         Writer.Write(b);
-        _log.Append($"{{u:{b}}}");
+        _logger.Append($"{{u:{b}}}");
         return this;
     }
 
@@ -37,7 +37,7 @@ public class ServerPacket : TurboPacket, IServerPacket
 
         Writer.Write(b);
 
-        _log.Append($"{{s:{s}}}");
+        _logger.Append($"{{s:{s}}}");
         return this;
     }
 
@@ -47,7 +47,7 @@ public class ServerPacket : TurboPacket, IServerPacket
         BinaryPrimitives.WriteInt64BigEndian(b, BitConverter.DoubleToInt64Bits(d));
 
         Writer.Write(b);
-        _log.Append($"{{d:{d}}}");
+        _logger.Append($"{{d:{d}}}");
         return this;
     }
 
@@ -57,7 +57,7 @@ public class ServerPacket : TurboPacket, IServerPacket
         BinaryPrimitives.WriteInt64BigEndian(b, l);
 
         Writer.Write(b);
-        _log.Append($"{{l:{l}}}");
+        _logger.Append($"{{l:{l}}}");
         return this;
     }
 
@@ -67,7 +67,7 @@ public class ServerPacket : TurboPacket, IServerPacket
         BinaryPrimitives.WriteInt32BigEndian(b, i);
 
         Writer.Write(b);
-        _log.Append($"{{i:{i}}}");
+        _logger.Append($"{{i:{i}}}");
         return this;
     }
 
@@ -77,7 +77,7 @@ public class ServerPacket : TurboPacket, IServerPacket
         WriteShort((short)data.Length);
         Writer.Write(data);
 
-        _log.Append($"{{s:\"{s}\"}}");
+        _logger.Append($"{{s:\"{s}\"}}");
         return this;
     }
 
