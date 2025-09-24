@@ -27,7 +27,6 @@ public class EnvelopeFeatureProcessor<TEnvelope, TMeta, TContext>(
         CancellationToken ct = default
     )
     {
-        Console.WriteLine("running processor: " + this.GetType().Name);
         var batch = new CompositeDisposable();
 
         foreach (
