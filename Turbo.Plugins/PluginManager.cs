@@ -311,13 +311,6 @@ public sealed class PluginManager(
         services.AddSingleton<IHostServices>(new HostServices(_host));
         services.ConfigurePrefixedLogging(_host, manifest.Name);
 
-        services.AddSingleton<TablePrefixProvider>(sp =>
-        {
-            var manifest = sp.GetRequiredService<PluginManifest>();
-
-            return () => manifest.TablePrefix ?? string.Empty;
-        });
-
         plugin.ConfigureServices(services, manifest);
 
         return services.BuildServiceProvider(
@@ -379,7 +372,6 @@ public sealed class PluginManager(
         {
             _logger.LogWarning(ex, "Failed to destroy {Key}", env.Manifest.Key);
         }
-        Console.WriteLine("about to");
 
         await AssemblyMemoryLoader.UnloadAndWaitAsync(env.Alc, default, ct);
     }

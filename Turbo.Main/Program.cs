@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Turbo.Crypto.Extensions;
 using Turbo.Database.Extensions;
 using Turbo.Events.Extensions;
 using Turbo.Logging.Extensions;
@@ -71,16 +72,16 @@ internal class Program
                     }
                 }
             }
-            bootstrapLogger.LogInformation("=============================");
+            bootstrapLogger.LogInformation("===============================");
         }
 
-        builder.AddTurboLogging();
-        builder.AddTurboNetworking();
-        builder.AddTurboPlugins();
-
+        builder.Services.AddTurboLogging(builder);
+        builder.Services.AddTurboNetworking(builder);
+        builder.Services.AddTurboPlugins(builder);
         builder.Services.AddTurboDatabaseContext(builder);
         builder.Services.AddTurboEventSystem();
         builder.Services.AddTurboMessageSystem();
+        builder.Services.AddTurboCrypto(builder);
 
         builder.Services.AddSingleton<AssemblyProcessor>();
         builder.Services.AddSingleton<ConsoleCommandService>();

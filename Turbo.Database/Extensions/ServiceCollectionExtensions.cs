@@ -1,5 +1,5 @@
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -42,11 +42,46 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
+    public static IServiceCollection AddPluginTablePrefix<TContext>(
+        this IServiceCollection services
+    )
+        where TContext : DbContext
+    {
+        services.AddSingleton<TablePrefixProvider>(sp =>
+        {
+            var manifest = sp.GetRequiredService<PluginManifest>();
+
+            var tablePrefix = manifest.TablePrefix;
+
+            if (manifest.ExplicitlyNoTablePrefix ?? false)
+                tablePrefix = string.Empty;
+            else
+            {
+                if (string.IsNullOrWhiteSpace(tablePrefix))
+                {
+                    tablePrefix = manifest
+                        .Key.Split('-')
+                        .Where(part => !string.IsNullOrEmpty(part))
+                        .Select(part => char.ToLowerInvariant(part[0]))
+                        .ToString();
+                }
+
+                tablePrefix += "_";
+            }
+
+            return () => manifest.TablePrefix ?? string.Empty;
+        });
+
+        return services;
+    }
+
     public static IServiceCollection AddPluginDatabaseContext<TContext>(
         this IServiceCollection services
     )
         where TContext : DbContext
     {
+        services.AddPluginTablePrefix<TContext>();
+
         services.AddDbContext<TContext>(
             (sp, options) =>
             {
@@ -55,8 +90,6 @@ public static class ServiceCollectionExtensions
                 var dbConfig = host.GetRequiredService<IOptions<DatabaseConfig>>().Value;
                 var connectionString = dbConfig.ConnectionString;
                 var loggingEnabled = dbConfig.LoggingEnabled;
-
-                var asm = typeof(TContext).Assembly.FullName;
 
                 options.UseMySql(
                     connectionString,
