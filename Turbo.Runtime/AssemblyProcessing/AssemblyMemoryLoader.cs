@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Turbo.Runtime.AssemblyProcessing;
 
@@ -42,7 +44,11 @@ public static class AssemblyMemoryLoader
         return new LoadedAssembly(asm, alc, baseDir);
     }
 
-    public static bool UnloadAndWait(ByteLoadingAlc alc, int maxMs = 5000)
+    public static async Task<bool> UnloadAndWaitAsync(
+        ByteLoadingAlc alc,
+        int maxMs = 5000,
+        CancellationToken ct = default
+    )
     {
         var wr = new WeakReference(alc);
 
@@ -50,7 +56,7 @@ public static class AssemblyMemoryLoader
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
-        do
+        while (sw.ElapsedMilliseconds < maxMs && !ct.IsCancellationRequested)
         {
             GC.Collect();
             GC.WaitForPendingFinalizers();
@@ -59,8 +65,15 @@ public static class AssemblyMemoryLoader
             if (!wr.IsAlive)
                 return true;
 
-            System.Threading.Thread.Sleep(50);
-        } while (sw.ElapsedMilliseconds < maxMs);
+            try
+            {
+                await Task.Delay(50, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+        }
 
         return !wr.IsAlive;
     }

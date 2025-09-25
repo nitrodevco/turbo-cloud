@@ -141,7 +141,7 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
                                 finally
                                 {
                                     if (inst is IAsyncDisposable iad)
-                                        await iad.DisposeAsync().ConfigureAwait(false);
+                                        await iad.DisposeAsync().AsTask().ConfigureAwait(false);
                                     else if (inst is IDisposable d)
                                         d.Dispose();
                                 }

@@ -7,29 +7,30 @@ namespace Turbo.Runtime;
 
 public sealed class ScopeBag : IAsyncDisposable
 {
-    private readonly ConcurrentDictionary<IServiceProvider, IServiceScope> _byOwner = new();
+    private readonly ConcurrentDictionary<IServiceProvider, Lazy<IServiceScope>> _byOwner = new();
 
     public IServiceProvider Get(IServiceProvider owner)
     {
-        var scope = _byOwner.GetOrAdd(
+        var lazy = _byOwner.GetOrAdd(
             owner,
-            o =>
+            o => new Lazy<IServiceScope>(() =>
             {
                 var factory = o.GetRequiredService<IServiceScopeFactory>();
                 return factory.CreateScope();
-            }
+            })
         );
 
-        return scope.ServiceProvider;
+        return lazy.Value.ServiceProvider;
     }
 
     public ValueTask DisposeAsync()
     {
-        foreach (var s in _byOwner.Values)
+        foreach (var kv in _byOwner)
         {
             try
             {
-                s.Dispose();
+                if (kv.Value.IsValueCreated)
+                    kv.Value.Value.Dispose();
             }
             catch
             {

@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Plugins.Exports;
@@ -10,8 +10,7 @@ public sealed class ReloadableExport<T> : IExport<T>
     where T : class
 {
     private volatile T? _current;
-    private readonly Lock _gate = new();
-    private readonly List<Action<T>> _subs = new();
+    private ImmutableArray<Action<T>> _subs = [];
 
     public T Current =>
         _current ?? throw new InvalidOperationException($"Export {typeof(T).Name} not bound yet.");
@@ -19,14 +18,9 @@ public sealed class ReloadableExport<T> : IExport<T>
     public async Task SwapAsync(T value)
     {
         ArgumentNullException.ThrowIfNull(value);
-        List<Action<T>> subs;
-        object? previous = null;
-        lock (_gate)
-        {
-            previous = _current;
-            _current = value;
-            subs = [.. _subs];
-        }
+
+        var previous = Interlocked.Exchange(ref _current, value);
+        var subs = _subs;
 
         try
         {
@@ -49,27 +43,19 @@ public sealed class ReloadableExport<T> : IExport<T>
 
     public IDisposable Subscribe(Action<T> onSwap)
     {
-        T? current;
+        ImmutableInterlocked.Update(ref _subs, a => a.Add(onSwap));
 
-        lock (_gate)
-        {
-            _subs.Add(onSwap);
-            current = _current;
-        }
-
-        // Invoke outside the lock to avoid potential deadlocks in subscriber callbacks.
+        var current = _current;
         if (current is not null)
+        {
             try
             {
                 onSwap(current);
             }
             catch { }
+        }
 
-        return new Unsub(() =>
-        {
-            lock (_gate)
-                _subs.Remove(onSwap);
-        });
+        return new Unsub(() => ImmutableInterlocked.Update(ref _subs, a => a.Remove(onSwap)));
     }
 
     private sealed class Unsub(Action a) : IDisposable

@@ -381,6 +381,6 @@ public sealed class PluginManager(
         }
         Console.WriteLine("about to");
 
-        AssemblyMemoryLoader.UnloadAndWait(env.Alc);
+        await AssemblyMemoryLoader.UnloadAndWaitAsync(env.Alc, default, ct);
     }
 }
