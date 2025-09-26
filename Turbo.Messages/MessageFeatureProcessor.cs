@@ -7,7 +7,7 @@ namespace Turbo.Messages;
 
 internal sealed class MessageFeatureProcessor(
     MessageRegistry registry,
-    MessageInvokerFactory invokerFactory
+    EnvelopeInvokerFactory<MessageContext> invokerFactory
 )
     : EnvelopeFeatureProcessor<IMessageEvent, ISessionContext, MessageContext>(
         registry,

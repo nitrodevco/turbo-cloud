@@ -6,7 +6,7 @@ namespace Turbo.Events;
 
 internal sealed class EventFeatureProcessor(
     EventRegistry registry,
-    EventInvokerFactory invokerFactory
+    EnvelopeInvokerFactory<EventContext> invokerFactory
 )
     : EnvelopeFeatureProcessor<IEvent, object, EventContext>(
         registry,
