@@ -14,8 +14,8 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
     Func<TEnvelope, TMeta, TContext> createContext
 )
 {
-    private readonly ConcurrentDictionary<Type, Bucket<TContext>> _byEvent = new();
     private readonly Func<TEnvelope, TMeta, TContext> _createContext = createContext;
+    private readonly ConcurrentDictionary<Type, Bucket<TContext>> _byEvent = new();
 
     public IDisposable RegisterHandler(
         Type envType,
@@ -119,34 +119,45 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
         {
             await using var scopes = new ScopeBag();
 
-            Func<Task> terminal = () => InvokeHandlers(scopes, handlers, env, ctx, ct);
+            Task terminal() => InvokeHandlers(scopes, handlers, env, ctx, ct);
 
             var composed = behaviors
                 .AsEnumerable()
                 .Reverse()
                 .Aggregate(
-                    (Func<Task>)(() => terminal()),
+                    () => terminal(),
                     (next, beh) =>
-                        (Func<Task>)(
-                            async () =>
-                            {
-                                var sp = scopes.Get(beh.ServiceProvider);
-                                var inst = beh.Activator(sp);
+                        async () =>
+                        {
+                            var sp = scopes.Get(beh.ServiceProvider);
+                            object inst;
 
-                                try
-                                {
-                                    await beh.Invoker(inst, env, ctx, () => next(), ct)
-                                        .ConfigureAwait(false);
-                                }
-                                finally
-                                {
-                                    if (inst is IAsyncDisposable iad)
-                                        await iad.DisposeAsync().AsTask().ConfigureAwait(false);
-                                    else if (inst is IDisposable d)
-                                        d.Dispose();
-                                }
+                            try
+                            {
+                                inst = beh.Activator(sp);
                             }
-                        )
+                            catch (Exception)
+                            {
+                                // TODO right now we sliently skip this behavior due to activator failure
+
+                                await next().ConfigureAwait(false);
+
+                                return;
+                            }
+
+                            try
+                            {
+                                await beh.Invoker(inst, env, ctx, () => next(), ct)
+                                    .ConfigureAwait(false);
+                            }
+                            finally
+                            {
+                                if (inst is IAsyncDisposable iad)
+                                    await iad.DisposeAsync().AsTask().ConfigureAwait(false);
+                                else if (inst is IDisposable d)
+                                    d.Dispose();
+                            }
+                        }
                 );
 
             await composed().ConfigureAwait(false);
@@ -170,7 +181,18 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
             foreach (var h in regs)
             {
                 var sp = scopes.Get(h.ServiceProvider);
-                var inst = h.Activator(sp);
+                object inst;
+
+                try
+                {
+                    inst = h.Activator(sp);
+                }
+                catch (Exception e)
+                {
+                    // TODO right now we sliently skip this handler due to activator failure
+
+                    break;
+                }
 
                 tasks.Add(Run(inst, h, env, ctx, ct));
 

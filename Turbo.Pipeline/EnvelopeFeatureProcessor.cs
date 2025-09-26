@@ -39,7 +39,6 @@ public class EnvelopeFeatureProcessor<TEnvelope, TMeta, TContext>(
             var envType = args[0];
             var invoker = _invokerFactory.CreateHandlerInvoker(concrete, envType);
             var factory = ActivatorUtilities.CreateFactory(concrete, Type.EmptyTypes);
-
             object activator(IServiceProvider sp) => factory(sp, null);
 
             batch.Add(_registry.RegisterHandler(envType, sp, activator, invoker));
