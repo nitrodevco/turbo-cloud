@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Turbo.Authentication;
 using Turbo.Crypto.Extensions;
 using Turbo.Database.Extensions;
 using Turbo.Events.Extensions;
@@ -83,6 +84,8 @@ internal class Program
         builder.Services.AddTurboMessageSystem();
         builder.Services.AddTurboCrypto(builder);
 
+        builder.Services.AddHostPlugin<AuthenticationModule, AuthenticationSystem>();
+
         builder.Services.AddSingleton<AssemblyProcessor>();
         builder.Services.AddSingleton<ConsoleCommandService>();
 
@@ -95,7 +98,7 @@ internal class Program
 
         try
         {
-            await host.StartAsync(ct);
+            await host.StartAsync(ct).ConfigureAwait(false);
 
             bootstrapLogger.LogInformation(
                 "Started {GetProjectName} {GetProductVersion}",
@@ -105,7 +108,7 @@ internal class Program
 
             host.Services.GetService<ConsoleCommandService>()?.Enable();
 
-            await host.WaitForShutdownAsync(ct);
+            await host.WaitForShutdownAsync(ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

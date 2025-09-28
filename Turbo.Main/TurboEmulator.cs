@@ -45,7 +45,7 @@ public class TurboEmulator : IHostedService
     {
         try
         {
-            await _networkManager.StartAsync();
+            await _networkManager.StartAsync().ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {

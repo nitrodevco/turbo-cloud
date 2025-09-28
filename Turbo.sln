@@ -31,6 +31,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Crypto", "Turbo.Crypt
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Runtime", "Turbo.Runtime\Turbo.Runtime.csproj", "{E1C443E0-C2E4-4146-B964-8558E8F16FC2}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Authentication", "Turbo.Authentication\Turbo.Authentication.csproj", "{ACD174D1-40A5-4F3B-ACD4-A4857753F5DE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -209,6 +211,18 @@ Global
 		{E1C443E0-C2E4-4146-B964-8558E8F16FC2}.Release|x64.Build.0 = Release|Any CPU
 		{E1C443E0-C2E4-4146-B964-8558E8F16FC2}.Release|x86.ActiveCfg = Release|Any CPU
 		{E1C443E0-C2E4-4146-B964-8558E8F16FC2}.Release|x86.Build.0 = Release|Any CPU
+		{ACD174D1-40A5-4F3B-ACD4-A4857753F5DE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ACD174D1-40A5-4F3B-ACD4-A4857753F5DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ACD174D1-40A5-4F3B-ACD4-A4857753F5DE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{ACD174D1-40A5-4F3B-ACD4-A4857753F5DE}.Debug|x64.Build.0 = Debug|Any CPU
+		{ACD174D1-40A5-4F3B-ACD4-A4857753F5DE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{ACD174D1-40A5-4F3B-ACD4-A4857753F5DE}.Debug|x86.Build.0 = Debug|Any CPU
+		{ACD174D1-40A5-4F3B-ACD4-A4857753F5DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ACD174D1-40A5-4F3B-ACD4-A4857753F5DE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ACD174D1-40A5-4F3B-ACD4-A4857753F5DE}.Release|x64.ActiveCfg = Release|Any CPU
+		{ACD174D1-40A5-4F3B-ACD4-A4857753F5DE}.Release|x64.Build.0 = Release|Any CPU
+		{ACD174D1-40A5-4F3B-ACD4-A4857753F5DE}.Release|x86.ActiveCfg = Release|Any CPU
+		{ACD174D1-40A5-4F3B-ACD4-A4857753F5DE}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -34,16 +34,16 @@ public class SessionContext(PacketProcessor packetProcessor) : AppSession(), ISe
 
     protected override async ValueTask OnSessionConnectedAsync()
     {
-        await base.OnSessionConnectedAsync();
+        await base.OnSessionConnectedAsync().ConfigureAwait(false);
     }
 
     protected override async ValueTask OnSessionClosedAsync(CloseEventArgs e)
     {
-        await base.OnSessionClosedAsync(e);
+        await base.OnSessionClosedAsync(e).ConfigureAwait(false);
     }
 
     public async Task SendComposerAsync(IComposer composer, CancellationToken ct = default)
     {
-        await _packetProcessor.ProcessComposer(this, composer, ct);
+        await _packetProcessor.ProcessComposerAsync(this, composer, ct).ConfigureAwait(false);
     }
 }

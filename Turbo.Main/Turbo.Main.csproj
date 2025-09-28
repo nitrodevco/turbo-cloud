@@ -25,6 +25,7 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Turbo.Authentication\Turbo.Authentication.csproj" />
     <ProjectReference Include="..\Turbo.Contracts\Turbo.Contracts.csproj" />
     <ProjectReference Include="..\Turbo.Crypto\Turbo.Crypto.csproj" />
     <ProjectReference Include="..\Turbo.Database\Turbo.Database.csproj" />

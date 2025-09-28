@@ -14,6 +14,6 @@ public sealed class EventSystem(EventRegistry registry)
         if (_registry is null)
             return;
 
-        await _registry.PublishAsync(env, new object(), ct);
+        await _registry.PublishAsync(env, null, ct).ConfigureAwait(false);
     }
 }

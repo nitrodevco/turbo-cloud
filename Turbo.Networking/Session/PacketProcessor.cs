@@ -24,7 +24,7 @@ public sealed class PacketProcessor(
     private readonly ILogger<PacketProcessor> _logger = logger;
     private readonly IServiceProvider _sp = sp;
 
-    public async Task ProcessPacket(
+    public async Task ProcessPacketAsync(
         ISessionContext ctx,
         IClientPacket clientPacket,
         CancellationToken ct
@@ -48,7 +48,7 @@ public sealed class PacketProcessor(
                     ctx.SessionID
                 );
 
-                await _messageSystem.PublishAsync(message, ctx, ct);
+                await _messageSystem.PublishAsync(message, ctx, ct).ConfigureAwait(false);
             }
             else
             {
@@ -61,7 +61,11 @@ public sealed class PacketProcessor(
         }
     }
 
-    public async Task ProcessComposer(ISessionContext ctx, IComposer composer, CancellationToken ct)
+    public async Task ProcessComposerAsync(
+        ISessionContext ctx,
+        IComposer composer,
+        CancellationToken ct
+    )
     {
         var revision = _revisionManager.GetRevision(ctx.RevisionId);
 
@@ -86,6 +90,6 @@ public sealed class PacketProcessor(
             }
         }
 
-        await Task.CompletedTask;
+        await Task.CompletedTask.ConfigureAwait(false);
     }
 }

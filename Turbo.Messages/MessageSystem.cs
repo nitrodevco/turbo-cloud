@@ -15,6 +15,6 @@ public sealed class MessageSystem(MessageRegistry registry)
         if (_registry is null)
             return;
 
-        await _registry.PublishAsync(env, meta, ct);
+        await _registry.PublishAsync(env, meta, ct).ConfigureAwait(false);
     }
 }

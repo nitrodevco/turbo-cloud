@@ -11,10 +11,10 @@ using Turbo.Runtime;
 namespace Turbo.Pipeline;
 
 public class EnvelopeHost<TEnvelope, TMeta, TContext>(
-    Func<TEnvelope, TMeta, TContext> createContext
+    Func<TEnvelope, TMeta?, TContext> createContext
 )
 {
-    private readonly Func<TEnvelope, TMeta, TContext> _createContext = createContext;
+    private readonly Func<TEnvelope, TMeta?, TContext> _createContext = createContext;
     private readonly ConcurrentDictionary<Type, Bucket<TContext>> _byEvent = new();
 
     public IDisposable RegisterHandler(
@@ -70,7 +70,7 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
         });
     }
 
-    public async Task PublishAsync(TEnvelope env, TMeta meta, CancellationToken ct)
+    public async Task PublishAsync(TEnvelope env, TMeta? meta, CancellationToken ct)
     {
         var t = env?.GetType();
 
@@ -119,13 +119,13 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
         {
             await using var scopes = new ScopeBag();
 
-            Task terminal() => InvokeHandlers(scopes, handlers, env, ctx, ct);
+            Task terminalAsync() => InvokeHandlersAsync(scopes, handlers, env, ctx, ct);
 
             var composed = behaviors
                 .AsEnumerable()
                 .Reverse()
                 .Aggregate(
-                    () => terminal(),
+                    () => terminalAsync(),
                     (next, beh) =>
                         async () =>
                         {
@@ -165,7 +165,7 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
 
         return RunAsync;
 
-        static async Task InvokeHandlers(
+        static async Task InvokeHandlersAsync(
             ScopeBag scopes,
             HandlerReg<TContext>[] regs,
             object env,
@@ -194,9 +194,9 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
                     break;
                 }
 
-                tasks.Add(Run(inst, h, env, ctx, ct));
+                tasks.Add(RunAsync(inst, h, env, ctx, ct));
 
-                static async Task Run(
+                static async Task RunAsync(
                     object inst,
                     HandlerReg<TContext> h,
                     object env,
@@ -211,7 +211,7 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
                     finally
                     {
                         if (inst is IAsyncDisposable iad)
-                            await iad.DisposeAsync().AsTask();
+                            await iad.DisposeAsync().AsTask().ConfigureAwait(false);
                         if (inst is IDisposable d)
                             d.Dispose();
                     }

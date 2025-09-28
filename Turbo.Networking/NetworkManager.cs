@@ -88,7 +88,9 @@ public sealed class NetworkManager(
 
                     try
                     {
-                        await _packetProcessor.ProcessPacket(ctx, packet, CancellationToken.None);
+                        await _packetProcessor
+                            .ProcessPacketAsync(ctx, packet, CancellationToken.None)
+                            .ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
