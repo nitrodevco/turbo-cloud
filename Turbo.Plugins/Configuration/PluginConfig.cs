@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Turbo.Runtime.AssemblyProcessing;
 
 namespace Turbo.Plugins.Configuration;
 

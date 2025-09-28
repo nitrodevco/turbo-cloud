@@ -10,11 +10,11 @@ public sealed class PluginBootstrapper(PluginManager pluginManager) : IHostedSer
 
     public async Task StartAsync(CancellationToken ct)
     {
-        await _pluginManager.LoadAll(true, ct);
+        await _pluginManager.LoadAllAsync(true, ct).ConfigureAwait(false);
     }
 
     public async Task StopAsync(CancellationToken ct)
     {
-        await _pluginManager.UnloadAll(ct).ConfigureAwait(false);
+        await _pluginManager.UnloadAllAsync(ct).ConfigureAwait(false);
     }
 }

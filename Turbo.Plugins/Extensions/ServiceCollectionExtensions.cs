@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Turbo.Contracts.Plugins;
 using Turbo.Plugins.Configuration;
 
 namespace Turbo.Plugins.Extensions;
@@ -17,6 +18,20 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<PluginManager>();
         services.AddHostedService<PluginBootstrapper>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddHostPlugin<TModule, TEntry>(
+        this IServiceCollection services
+    )
+        where TModule : class, IHostPluginModule, new()
+        where TEntry : class, IHostPlugin
+    {
+        var module = new TModule();
+
+        module.ConfigureServices(services);
+        services.AddSingleton<IHostPlugin, TEntry>();
 
         return services;
     }

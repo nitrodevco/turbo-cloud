@@ -29,7 +29,7 @@ public sealed class AssemblyProcessor(IEnumerable<IAssemblyFeatureProcessor> pro
         {
             foreach (var t in tasks)
                 if (t.IsCompletedSuccessfully)
-                    t.Result.Dispose();
+                    (await t.ConfigureAwait(false)).Dispose();
 
             throw;
         }

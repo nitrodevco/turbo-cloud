@@ -9,8 +9,6 @@ namespace Turbo.Runtime.AssemblyProcessing;
 
 public static class AssemblyMemoryLoader
 {
-    public sealed record LoadedAssembly(Assembly Assembly, ByteLoadingAlc Alc, string BaseDir);
-
     public static LoadedAssembly LoadFromBytes(string mainDllPath)
     {
         if (!File.Exists(mainDllPath))
