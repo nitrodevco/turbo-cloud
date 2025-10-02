@@ -326,7 +326,7 @@ public sealed class PluginManager(
         CancellationToken ct
     )
     {
-        //await ProcessMigrationsAsync(sp, ct).ConfigureAwait(false);
+        await ProcessMigrationsAsync(sp, ct).ConfigureAwait(false);
 
         foreach (var svc in sp.GetServices<IHostedService>())
         {
