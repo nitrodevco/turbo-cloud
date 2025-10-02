@@ -6,5 +6,5 @@ namespace Turbo.Pipeline.Registry;
 
 public interface IBehavior<in TEnvelope, in TContext>
 {
-    Task InvokeAsync(TEnvelope env, TContext ctx, Func<Task> next, CancellationToken ct);
+    ValueTask InvokeAsync(TEnvelope env, TContext ctx, Func<ValueTask> next, CancellationToken ct);
 }

@@ -45,7 +45,7 @@ public class EnvelopeInvokerFactory<TContext>
         var inst = Expression.Parameter(typeof(object), "inst");
         var env = Expression.Parameter(typeof(object), "env");
         var ctx = Expression.Parameter(typeof(TContext), "ctx");
-        var next = Expression.Parameter(typeof(Func<Task>), "next");
+        var next = Expression.Parameter(typeof(Func<ValueTask>), "next");
         var ct = Expression.Parameter(typeof(CancellationToken), "ct");
 
         var call = Expression.Call(

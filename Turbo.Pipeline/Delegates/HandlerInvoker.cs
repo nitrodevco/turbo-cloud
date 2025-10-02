@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace Turbo.Pipeline.Delegates;
 
-public delegate Task HandlerInvoker<TContext>(
+public delegate ValueTask HandlerInvoker<TContext>(
     object inst,
     object env,
     TContext ctx,

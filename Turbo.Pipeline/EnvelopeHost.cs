@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
+using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Pipeline.Delegates;
@@ -11,10 +12,10 @@ using Turbo.Runtime;
 namespace Turbo.Pipeline;
 
 public class EnvelopeHost<TEnvelope, TMeta, TContext>(
-    Func<TEnvelope, TMeta?, TContext> createContext
+    EnvelopeHostOptions<TEnvelope, TMeta, TContext> options
 )
 {
-    private readonly Func<TEnvelope, TMeta?, TContext> _createContext = createContext;
+    private readonly EnvelopeHostOptions<TEnvelope, TMeta, TContext> _opt = options;
     private readonly ConcurrentDictionary<Type, Bucket<TContext>> _byEvent = new();
 
     public IDisposable RegisterHandler(
@@ -24,20 +25,26 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
         HandlerInvoker<TContext> invoker
     )
     {
+        ArgumentNullException.ThrowIfNull(envType);
+
         var b = _byEvent.GetOrAdd(envType, _ => new Bucket<TContext>());
 
         lock (b.Gate)
         {
-            b.Handlers.Add(new HandlerReg<TContext>(sp, activator, invoker));
+            b.Handlers = b.Handlers.Add(new HandlerReg<TContext>(sp, activator, invoker));
             b.Version++;
+            InvalidateCache(b);
         }
 
         return new ActionDisposable(() =>
         {
             lock (b.Gate)
             {
-                b.Handlers.RemoveAll(h => h.Activator == activator && h.Invoker == invoker);
+                b.Handlers = b.Handlers.RemoveAll(h =>
+                    h.Activator == activator && h.Invoker == invoker
+                );
                 b.Version++;
+                InvalidateCache(b);
             }
         });
     }
@@ -50,175 +57,330 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
         int order
     )
     {
+        ArgumentNullException.ThrowIfNull(envType);
+
         var b = _byEvent.GetOrAdd(envType, _ => new Bucket<TContext>());
 
         lock (b.Gate)
         {
-            b.Behaviors.Add(new BehaviorReg<TContext>(sp, order, activator, invoker));
+            b.Behaviors = b.Behaviors.Add(new BehaviorReg<TContext>(sp, order, activator, invoker));
             b.Version++;
+            InvalidateCache(b);
         }
 
         return new ActionDisposable(() =>
         {
             lock (b.Gate)
             {
-                b.Behaviors.RemoveAll(x =>
+                b.Behaviors = b.Behaviors.RemoveAll(x =>
                     x.Activator == activator && x.Invoker == invoker && x.Order == order
                 );
                 b.Version++;
+                InvalidateCache(b);
             }
         });
     }
 
     public async Task PublishAsync(TEnvelope env, TMeta? meta, CancellationToken ct)
     {
-        var t = env?.GetType();
+        if (env is null)
+            return;
 
-        if (t is null || env is null || !_byEvent.TryGetValue(t, out var bucket))
+        var t = env.GetType();
+
+        if (!_byEvent.TryGetValue(t, out var bucket) && !_opt.EnableInheritanceDispatch)
+            return;
+
+        var pipeline = GetOrBuildPipeline(t, bucket);
+
+        if (pipeline is null)
             return;
 
         var pipe = GetOrBuildPipeline(t, bucket);
-        var ctx = _createContext(env, meta);
+        var ctx = _opt.CreateContext(env, meta);
 
-        await pipe(env, ctx, ct).ConfigureAwait(false);
+        await pipeline(env!, ctx, ct).ConfigureAwait(false);
     }
 
-    private static Func<object, TContext, CancellationToken, Task> GetOrBuildPipeline(
+    private Func<object, TContext, CancellationToken, ValueTask>? GetOrBuildPipeline(
         Type envType,
-        Bucket<TContext> bucket
+        Bucket<TContext>? primaryBucket
     )
     {
-        var cached = bucket.CachedPipeline;
-
-        if (cached is not null && bucket.CachedVersion == bucket.Version)
-            return cached;
-
-        lock (bucket.Gate)
+        if (!_opt.EnableInheritanceDispatch)
         {
-            if (bucket.CachedPipeline is not null && bucket.CachedVersion == bucket.Version)
-                return bucket.CachedPipeline;
+            if (primaryBucket is null)
+                return null;
 
-            var handlers = bucket.Handlers.ToArray();
-            var behaviors = bucket.Behaviors.OrderBy(x => x.Order).ToArray();
-            var pipeline = BuildPipeline(envType, handlers, behaviors);
+            var cached = Volatile.Read(ref primaryBucket.CachedPipeline);
 
-            bucket.CachedPipeline = pipeline;
-            bucket.CachedVersion = bucket.Version;
+            if (
+                cached is not null
+                && primaryBucket.CachedVersion == primaryBucket.Version
+                && primaryBucket.CachedForEnvType == envType
+            )
+                return cached;
+
+            lock (primaryBucket.Gate)
+            {
+                if (
+                    primaryBucket.CachedPipeline is not null
+                    && primaryBucket.CachedVersion == primaryBucket.Version
+                    && primaryBucket.CachedForEnvType == envType
+                )
+                    return primaryBucket.CachedPipeline;
+
+                var pipeline = BuildPipeline(primaryBucket.Handlers, primaryBucket.Behaviors);
+
+                primaryBucket.CachedPipeline = pipeline;
+                primaryBucket.CachedVersion = primaryBucket.Version;
+                primaryBucket.CachedForEnvType = envType;
+
+                return pipeline;
+            }
+        }
+
+        var (handlers, behaviors, globalVersion) = ResolveForType(envType);
+
+        primaryBucket ??= _byEvent.GetOrAdd(envType, _ => new Bucket<TContext>());
+
+        var cached2 = Volatile.Read(ref primaryBucket.CachedPipeline);
+
+        if (
+            cached2 is not null
+            && primaryBucket.CachedVersion == globalVersion
+            && primaryBucket.CachedForEnvType == envType
+        )
+            return cached2;
+
+        lock (primaryBucket.Gate)
+        {
+            if (
+                primaryBucket.CachedPipeline is not null
+                && primaryBucket.CachedVersion == globalVersion
+                && primaryBucket.CachedForEnvType == envType
+            )
+                return primaryBucket.CachedPipeline;
+
+            var pipeline = BuildPipeline(handlers, behaviors);
+
+            primaryBucket.CachedPipeline = pipeline;
+            primaryBucket.CachedVersion = globalVersion;
+            primaryBucket.CachedForEnvType = envType;
 
             return pipeline;
         }
-    }
 
-    private static Func<object, TContext, CancellationToken, Task> BuildPipeline(
-        Type eventType,
-        HandlerReg<TContext>[] handlers,
-        BehaviorReg<TContext>[] behaviors
-    )
-    {
-        async Task RunAsync(object env, TContext ctx, CancellationToken ct)
+        (
+            ImmutableArray<HandlerReg<TContext>>,
+            ImmutableArray<BehaviorReg<TContext>>,
+            int
+        ) ResolveForType(Type t)
         {
-            await using var scopes = new ScopeBag();
+            var types = EnumerateTypeGraph(t);
+            var handlerBuilder = ImmutableArray.CreateBuilder<HandlerReg<TContext>>();
+            var behaviorBuilder = ImmutableArray.CreateBuilder<BehaviorReg<TContext>>();
+            var versionSum = 0;
 
-            Task terminalAsync() => InvokeHandlersAsync(scopes, handlers, env, ctx, ct);
+            foreach (var tp in types)
+            {
+                if (_byEvent.TryGetValue(tp, out var b))
+                {
+                    versionSum = unchecked(versionSum + b.Version);
+                    handlerBuilder.AddRange(b.Handlers);
+                    behaviorBuilder.AddRange(b.Behaviors);
+                }
+            }
 
-            var composed = behaviors
-                .AsEnumerable()
-                .Reverse()
-                .Aggregate(
-                    () => terminalAsync(),
-                    (next, beh) =>
-                        async () =>
-                        {
-                            var sp = scopes.Get(beh.ServiceProvider);
-                            object inst;
-
-                            try
-                            {
-                                inst = beh.Activator(sp);
-                            }
-                            catch (Exception)
-                            {
-                                // TODO right now we sliently skip this behavior due to activator failure
-
-                                await next().ConfigureAwait(false);
-
-                                return;
-                            }
-
-                            try
-                            {
-                                await beh.Invoker(inst, env, ctx, () => next(), ct)
-                                    .ConfigureAwait(false);
-                            }
-                            finally
-                            {
-                                if (inst is IAsyncDisposable iad)
-                                    await iad.DisposeAsync().AsTask().ConfigureAwait(false);
-                                else if (inst is IDisposable d)
-                                    d.Dispose();
-                            }
-                        }
+            var behaviors = behaviorBuilder
+                .ToImmutable()
+                .Sort(
+                    static (a, b) =>
+                    {
+                        var cmp = a.Order.CompareTo(b.Order);
+                        return cmp != 0 ? cmp : 0;
+                    }
                 );
 
-            await composed().ConfigureAwait(false);
+            return (handlerBuilder.ToImmutable(), behaviors, versionSum);
         }
 
-        return RunAsync;
-
-        static async Task InvokeHandlersAsync(
-            ScopeBag scopes,
-            HandlerReg<TContext>[] regs,
-            object env,
-            TContext ctx,
-            CancellationToken ct
-        )
+        static IEnumerable<Type> EnumerateTypeGraph(Type t)
         {
-            if (regs.Length == 0)
-                return;
+            yield return t;
 
-            var tasks = new List<Task>(regs.Length);
+            for (var cur = t.BaseType; cur is not null; cur = cur.BaseType)
+                yield return cur;
 
-            foreach (var h in regs)
+            foreach (var iface in t.GetInterfaces())
+                yield return iface;
+        }
+    }
+
+    private Func<object, TContext, CancellationToken, ValueTask> BuildPipeline(
+        ImmutableArray<HandlerReg<TContext>> handlers,
+        ImmutableArray<BehaviorReg<TContext>> behaviors
+    )
+    {
+        Func<object, TContext, CancellationToken, ValueTask> terminal = (env, ctx, ct) =>
+            InvokeHandlersAsync(handlers, env, ctx, ct);
+
+        for (int i = behaviors.Length - 1; i >= 0; i--)
+        {
+            var beh = behaviors[i];
+            var next = terminal;
+
+            terminal = async (env, ctx, ct) =>
             {
-                var sp = scopes.Get(h.ServiceProvider);
-                object inst;
+                var scopes = new ScopeBag();
 
                 try
                 {
-                    inst = h.Activator(sp);
-                }
-                catch (Exception e)
-                {
-                    // TODO right now we sliently skip this handler due to activator failure
+                    var sp = scopes.Get(beh.ServiceProvider);
 
-                    break;
-                }
+                    object? inst = null;
 
-                tasks.Add(RunAsync(inst, h, env, ctx, ct));
-
-                static async Task RunAsync(
-                    object inst,
-                    HandlerReg<TContext> h,
-                    object env,
-                    TContext ctx,
-                    CancellationToken ct
-                )
-                {
                     try
                     {
-                        await h.Invoker(inst, env, ctx, ct).ConfigureAwait(false);
+                        inst = beh.Activator(sp);
+                    }
+                    catch (Exception ex)
+                    {
+                        _opt.OnBehaviorActivationError?.Invoke(ex, env);
+
+                        await next(env, ctx, ct).ConfigureAwait(false);
+
+                        return;
+                    }
+
+                    try
+                    {
+                        ValueTask NextAsync() => next(env, ctx, ct);
+
+                        await beh.Invoker(inst, env, ctx, NextAsync, ct).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        _opt.OnBehaviorInvokeError?.Invoke(ex, env);
                     }
                     finally
                     {
                         if (inst is IAsyncDisposable iad)
-                            await iad.DisposeAsync().AsTask().ConfigureAwait(false);
-                        if (inst is IDisposable d)
+                            await iad.DisposeAsync().ConfigureAwait(false);
+                        else if (inst is IDisposable d)
                             d.Dispose();
                     }
                 }
+                finally
+                {
+                    await scopes.DisposeAsync().ConfigureAwait(false);
+                }
+            };
+        }
+
+        return terminal;
+    }
+
+    private async ValueTask InvokeHandlersAsync(
+        ImmutableArray<HandlerReg<TContext>> regs,
+        object env,
+        TContext ctx,
+        CancellationToken ct
+    )
+    {
+        if (regs.IsDefaultOrEmpty)
+            return;
+
+        if (_opt.HandlerMode == HandlerExecutionMode.Sequential)
+        {
+            for (int i = 0; i < regs.Length; i++)
+                await InvokeOneAsync(regs[i], env, ctx, ct).ConfigureAwait(false);
+
+            return;
+        }
+
+        if (regs.Length == 1)
+        {
+            await InvokeOneAsync(regs[0], env, ctx, ct).ConfigureAwait(false);
+
+            return;
+        }
+
+        if (_opt.MaxHandlerDegreeOfParallelism is int dop && dop > 0 && dop < regs.Length)
+        {
+            var work = new List<Func<CancellationToken, ValueTask>>(regs.Length);
+
+            for (int i = 0; i < regs.Length; i++)
+            {
+                var r = regs[i];
+                work.Add(token => InvokeOneAsync(r, env, ctx, token));
             }
+
+            await BoundedHelper.RunAsync(work, dop, ct).ConfigureAwait(false);
+        }
+        else
+        {
+            var tasks = new Task[regs.Length];
+
+            for (int i = 0; i < regs.Length; i++)
+                tasks[i] = InvokeOneAsync(regs[i], env, ctx, ct).AsTask();
 
             await Task.WhenAll(tasks).ConfigureAwait(false);
         }
+    }
+
+    private async ValueTask InvokeOneAsync(
+        HandlerReg<TContext> h,
+        object env,
+        TContext ctx,
+        CancellationToken ct
+    )
+    {
+        var scopes = new ScopeBag();
+
+        try
+        {
+            var sp = scopes.Get(h.ServiceProvider);
+
+            object? inst = null;
+
+            try
+            {
+                inst = h.Activator(sp);
+            }
+            catch (Exception ex)
+            {
+                _opt.OnHandlerActivationError?.Invoke(ex, env);
+                return;
+            }
+
+            try
+            {
+                await h.Invoker(inst, env, ctx, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _opt.OnHandlerInvokeError?.Invoke(ex, env);
+            }
+            finally
+            {
+                if (inst is IAsyncDisposable iad)
+                    await iad.DisposeAsync().ConfigureAwait(false);
+                else if (inst is IDisposable d)
+                    d.Dispose();
+            }
+        }
+        finally
+        {
+            await scopes.DisposeAsync().ConfigureAwait(false);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void InvalidateCache(Bucket<TContext> b)
+    {
+        b.CachedPipeline = null;
+        b.CachedForEnvType = null;
+        b.CachedVersion = 0;
     }
 }

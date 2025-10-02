@@ -75,12 +75,14 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddPluginDatabaseContext<TContext>(
+    public static IServiceCollection AddPluginDatabaseContext<TContext, TModule>(
         this IServiceCollection services
     )
         where TContext : DbContext
+        where TModule : class, IPluginDbModule
     {
         services.AddPluginTablePrefix<TContext>();
+        services.AddTransient<IPluginDbModule, TModule>();
 
         services.AddDbContext<TContext>(
             (sp, options) =>

@@ -4,10 +4,10 @@ using System.Threading.Tasks;
 
 namespace Turbo.Pipeline.Delegates;
 
-public delegate Task BehaviorInvoker<TContext>(
+public delegate ValueTask BehaviorInvoker<TContext>(
     object inst,
     object env,
     TContext ctx,
-    Func<Task> next,
+    Func<ValueTask> next,
     CancellationToken ct
 );

@@ -14,19 +14,18 @@ using Turbo.Contracts.Plugins;
 using Turbo.Logging.Extensions;
 using Turbo.Plugins.Configuration;
 using Turbo.Plugins.Exports;
+using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
 
 namespace Turbo.Plugins;
 
 public sealed class PluginManager(
-    IEnumerable<IHostPlugin> hostPlugins,
     IServiceProvider host,
     AssemblyProcessor processor,
     IOptions<PluginConfig> config,
     ILogger<PluginManager> logger
 )
 {
-    private readonly IEnumerable<IHostPlugin> _hostPlugins = hostPlugins ?? [];
     private readonly IServiceProvider _host = host;
     private readonly AssemblyProcessor _processor = processor;
     private readonly ExportRegistry _exports = new();
@@ -49,7 +48,7 @@ public sealed class PluginManager(
         ValidateOnBuild = false,
     };
 
-    private List<(PluginManifest manifest, string folder)> Discover()
+    private List<(PluginManifest manifest, string folder)> DiscoverPlugins()
     {
         var list = new List<(PluginManifest, string)>(capacity: 16);
 
@@ -74,95 +73,77 @@ public sealed class PluginManager(
         return list;
     }
 
-    private static AssemblyDescriptor MakeDescriptor(
-        string key,
-        Assembly asm,
-        ByteLoadingAlc? alc = null
-    ) =>
-        new()
-        {
-            Key = key,
-            Assembly = asm,
-            Alc = alc,
-        };
-
-    public IEnumerable<AssemblyDescriptor> GetInternalAssemblyDescriptors()
+    public async Task LoadAllAsync(bool unloadRemoved = true, CancellationToken ct = default)
     {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var plugin in _hostPlugins)
-        {
-            if (plugin is null)
-                continue;
-
-            var key = plugin.Key;
-
-            if (!seen.Add(key))
-                continue;
-
-            var asm = plugin.GetType().Assembly;
-
-            yield return MakeDescriptor(key, asm);
-        }
-    }
-
-    public IEnumerable<(
-        AssemblyDescriptor descriptor,
-        PluginManifest manifest,
-        string folder
-    )> GetExternalAssemblyDescriptors()
-    {
-        var discovered = Discover();
-
-        if (discovered.Count == 0)
-            yield break;
-
-        var manifests = PluginHelpers.SortManifests(discovered.Select(d => d.manifest).ToArray());
+        var discovered = DiscoverPlugins();
+        var manifests = PluginHelpers.SortManifests([.. discovered.Select(d => d.manifest)]);
         var byKey = discovered.ToDictionary(
             d => d.manifest.Key,
             d => d.folder,
             StringComparer.OrdinalIgnoreCase
         );
+        var envs = new List<PluginEnvelope>();
+        var tasks = new List<Func<Task>>();
 
         _dependents.Clear();
 
         foreach (var m in manifests)
         {
+            var gate = GetKeyGate(m.Key);
+
+            await gate.WaitAsync(ct).ConfigureAwait(false);
+
             foreach (var dep in m.Dependencies)
-                _dependents.GetOrAdd(dep.Key, _ => new()).Add(m.Key);
+                _dependents.GetOrAdd(dep.Key, _ => []).Add(m.Key);
 
             var folder = byKey[m.Key];
-            var loaded = GetLoadedPluginAssembly(m, folder);
+            LoadedAssembly asm;
 
-            yield return (MakeDescriptor(m.Key, loaded.Assembly, loaded.Alc), m, folder);
-        }
-    }
-
-    public async Task LoadAllAsync(bool unloadRemoved = true, CancellationToken ct = default)
-    {
-        var internalDescriptors = GetInternalAssemblyDescriptors().ToArray();
-        var externalTriplets = GetExternalAssemblyDescriptors().ToArray();
-        var tasks = new List<Func<Task>>(internalDescriptors.Length + externalTriplets.Length);
-
-        foreach (var d in internalDescriptors)
-            tasks.Add(() => _processor.ProcessAsync(d.Assembly, _host, ct));
-
-        foreach (var (descriptor, manifest, folder) in externalTriplets)
-        {
             try
             {
-                var env = await BuildEnvelopeAsync(descriptor, manifest, folder, ct)
-                    .ConfigureAwait(false);
-                var old = _live.GetValueOrDefault(manifest.Key);
+                asm = GetLoadedPluginAssembly(m, folder);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Failed to load assembly for {Name}@{Version} by {Author}",
+                    m.Name,
+                    m.Version,
+                    m.Author
+                );
 
-                _live[manifest.Key] = env;
+                gate.Release();
+
+                continue;
+            }
+
+            try
+            {
+                var current = _live.GetValueOrDefault(m.Key);
+
+                if (current is not null)
+                {
+                    if (_dependents.TryGetValue(m.Key, out var deps) && deps.Any(_live.ContainsKey))
+                        throw new InvalidOperationException(
+                            $"Cannot reload {m.Key} while dependents are active: {string.Join(",", deps.Where(_live.ContainsKey))}"
+                        );
+
+                    await StopAndTearDownAsync(current, ct).ConfigureAwait(false);
+                }
+
+                var next = await BuildEnvelopeAsync(asm, m, folder, ct).ConfigureAwait(false);
+
+                _live[m.Key] = next;
+                envs.Add(next);
 
                 tasks.Add(async () =>
                 {
                     var disp = await _processor
-                        .ProcessAsync(descriptor.Assembly, env.ServiceProvider, ct)
+                        .ProcessAsync(asm.Assembly, next.ServiceProvider, ct)
                         .ConfigureAwait(false);
-                    env.Disposables.Add(disp);
+
+                    next.Disposables.Add(disp);
                 });
             }
             catch (Exception ex)
@@ -170,60 +151,25 @@ public sealed class PluginManager(
                 _logger.LogError(
                     ex,
                     "Failed to load {Name}@{Version} by {Author}",
-                    manifest.Name,
-                    manifest.Version,
-                    manifest.Author
+                    m.Name,
+                    m.Version,
+                    m.Author
                 );
+            }
+            finally
+            {
+                gate.Release();
             }
         }
 
         var degree = Math.Max(2, Environment.ProcessorCount * 4);
 
-        await RunBoundedAsync(tasks, degree, ct).ConfigureAwait(false);
+        await BoundedHelper.RunAsync(tasks, degree, ct).ConfigureAwait(false);
 
         if (unloadRemoved)
-            await UnloadRemovedAsync(
-                    internalDescriptors.Select(d => d.Key),
-                    externalTriplets.Select(t => t.manifest.Key),
-                    ct
-                )
-                .ConfigureAwait(false);
+            await UnloadRemovedAsync(envs.Select(d => d.Key), ct).ConfigureAwait(false);
 
         _logger.LogInformation("Loaded {Count} plugins", _live.Count);
-    }
-
-    public async Task ReloadAsync(string key, CancellationToken ct = default)
-    {
-        var gate = GetKeyGate(key);
-
-        await gate.WaitAsync(ct).ConfigureAwait(false);
-
-        try
-        {
-            if (_dependents.TryGetValue(key, out var deps) && deps.Any(_live.ContainsKey))
-                throw new InvalidOperationException(
-                    $"Cannot reload {key} while dependents are active: {string.Join(",", deps.Where(_live.ContainsKey))}"
-                );
-
-            if (!_live.TryGetValue(key, out var current))
-                throw new InvalidOperationException($"Plugin {key} is not loaded");
-
-            var manifest = PluginHelpers.ReadManifest(current.Folder);
-            var loaded = GetLoadedPluginAssembly(manifest, current.Folder);
-            var descriptor = MakeDescriptor(key, loaded.Assembly, loaded.Alc);
-            var next = await BuildEnvelopeAsync(descriptor, manifest, current.Folder, ct)
-                .ConfigureAwait(false);
-
-            _live[key] = next;
-
-            await StopAndTearDownAsync(current, ct).ConfigureAwait(false);
-
-            _logger.LogInformation("Reloaded {Key} -> {Version}", key, manifest.Version);
-        }
-        finally
-        {
-            gate.Release();
-        }
     }
 
     public async Task UnloadAsync(string key, CancellationToken ct = default)
@@ -242,6 +188,7 @@ public sealed class PluginManager(
             if (_live.TryRemove(key, out var env))
             {
                 await StopAndTearDownAsync(env, ct).ConfigureAwait(false);
+
                 _logger.LogInformation("Unloaded {Key}", key);
             }
         }
@@ -296,82 +243,40 @@ public sealed class PluginManager(
     }
 
     private async Task<PluginEnvelope> BuildEnvelopeAsync(
-        AssemblyDescriptor descriptor,
-        PluginManifest manifest,
+        LoadedAssembly asm,
+        PluginManifest m,
         string folder,
         CancellationToken ct
     )
     {
-        var plugin = CreatePluginInstance(descriptor.Assembly, manifest);
+        var inst = CreatePluginInstance(asm.Assembly);
 
-        if (!string.Equals(plugin.Key, manifest.Key, StringComparison.Ordinal))
+        if (!string.Equals(inst.Key, m.Key, StringComparison.Ordinal))
             throw new InvalidOperationException(
-                $"Plugin key mismatch: manifest={manifest.Key} entry={plugin.Key}"
+                $"Plugin key mismatch: manifest={m.Key} entry={inst.Key}"
             );
 
-        var sp = CreatePluginServiceProvider(plugin, manifest);
+        var sp = CreatePluginServiceProvider(inst, m);
 
-        await plugin.BindExportsAsync(new ExportBinder(_exports), sp).ConfigureAwait(false);
-        await ProcessMigrationsAsync(sp, ct).ConfigureAwait(false);
-        await StartPluginAsync(plugin, sp, ct).ConfigureAwait(false);
+        await inst.BindExportsAsync(new ExportBinder(_exports), sp).ConfigureAwait(false);
+        await StartPluginAsync(inst, sp, ct).ConfigureAwait(false);
 
         return new PluginEnvelope
         {
-            Key = descriptor.Key,
-            Assembly = descriptor.Assembly,
-            Alc = descriptor.Alc,
-            Manifest = manifest,
+            Key = m.Key,
+            Assembly = asm.Assembly,
+            Alc = asm.Alc,
+            Manifest = m,
             Folder = folder,
-            Instance = plugin,
+            Instance = inst,
             ServiceProvider = sp,
             Disposables = [sp],
         };
     }
 
-    private static async Task RunBoundedAsync(
-        IEnumerable<Func<Task>> tasks,
-        int degree,
-        CancellationToken ct
-    )
+    private async Task UnloadRemovedAsync(IEnumerable<string> keys, CancellationToken ct)
     {
-        var sem = new SemaphoreSlim(degree);
-        var running = new List<Task>();
-
-        foreach (var t in tasks)
-        {
-            await sem.WaitAsync(ct).ConfigureAwait(false);
-
-            var task = Task.Run(
-                async () =>
-                {
-                    try
-                    {
-                        await t().ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        sem.Release();
-                    }
-                },
-                ct
-            );
-
-            running.Add(task);
-        }
-
-        await Task.WhenAll(running).ConfigureAwait(false);
-    }
-
-    private async Task UnloadRemovedAsync(
-        IEnumerable<string> internalKeys,
-        IEnumerable<string> externalKeys,
-        CancellationToken ct
-    )
-    {
-        var keep = new HashSet<string>(
-            internalKeys.Concat(externalKeys),
-            StringComparer.OrdinalIgnoreCase
-        );
+        var keep = new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase);
         var removed = _live.Keys.Where(k => !keep.Contains(k)).ToList();
 
         foreach (var k in removed)
@@ -387,22 +292,15 @@ public sealed class PluginManager(
         }
     }
 
-    private ITurboPlugin CreatePluginInstance(Assembly asm, PluginManifest manifest)
+    private static ITurboPlugin CreatePluginInstance(Assembly asm)
     {
-        try
-        {
-            var pluginType =
-                AssemblyExplorer.FindType(asm, typeof(ITurboPlugin))
-                ?? throw new InvalidOperationException(
-                    $"Failed to find ITurboPlugin in assembly '{asm.GetName().Name}'."
-                );
-            return (ITurboPlugin)Activator.CreateInstance(pluginType)!;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to create plugin instance for {Key}", manifest.Key);
-            throw;
-        }
+        var pluginType =
+            AssemblyExplorer.FindType(asm, typeof(ITurboPlugin))
+            ?? throw new InvalidOperationException(
+                $"Failed to find ITurboPlugin in assembly '{asm.GetName().Name}'."
+            );
+
+        return (ITurboPlugin)Activator.CreateInstance(pluginType)!;
     }
 
     private ServiceProvider CreatePluginServiceProvider(
@@ -428,6 +326,8 @@ public sealed class PluginManager(
         CancellationToken ct
     )
     {
+        //await ProcessMigrationsAsync(sp, ct).ConfigureAwait(false);
+
         foreach (var svc in sp.GetServices<IHostedService>())
         {
             try
@@ -447,25 +347,28 @@ public sealed class PluginManager(
         CancellationToken ct
     )
     {
-        await using var scope = pluginRoot.CreateAsyncScope();
-        var dbModule = scope.ServiceProvider.GetService<IPluginDbModule>();
-        if (dbModule is not null)
-            await dbModule.MigrateAsync(scope.ServiceProvider, ct).ConfigureAwait(false);
+        var scope = pluginRoot.CreateAsyncScope();
+
+        try
+        {
+            var sp = scope.ServiceProvider;
+            var dbModule = sp.GetService<IPluginDbModule>();
+
+            if (dbModule is null)
+                return;
+
+            await dbModule.MigrateAsync(sp, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            await scope.DisposeAsync().ConfigureAwait(false);
+        }
     }
 
     private async Task StopAndTearDownAsync(PluginEnvelope env, CancellationToken ct)
     {
         try
         {
-            try
-            {
-                await env.Instance.StopAsync(ct).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to stop plugin {Key}", env.Manifest.Key);
-            }
-
             if (env.ServiceProvider is IServiceProvider sp)
             {
                 foreach (var svc in sp.GetServices<IHostedService>())
@@ -485,6 +388,15 @@ public sealed class PluginManager(
                 }
             }
 
+            try
+            {
+                await env.Instance.StopAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to stop plugin {Key}", env.Manifest.Key);
+            }
+
             if (env.Disposables.Count > 0)
             {
                 foreach (var inst in env.Disposables)
@@ -495,10 +407,10 @@ public sealed class PluginManager(
                         {
                             case IAsyncDisposable iad:
                                 await iad.DisposeAsync().ConfigureAwait(false);
-                                break;
+                                continue;
                             case IDisposable d:
                                 d.Dispose();
-                                break;
+                                continue;
                         }
                     }
                     catch (Exception ex)
@@ -511,6 +423,7 @@ public sealed class PluginManager(
                         );
                     }
                 }
+
                 env.Disposables.Clear();
             }
         }
