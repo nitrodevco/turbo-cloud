@@ -6,9 +6,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Turbo.Runtime;
 
-public sealed class ScopeBag : IAsyncDisposable
+public sealed class JoinedScopeBag(IServiceScope baseScope) : IAsyncDisposable
 {
-    private readonly ConcurrentDictionary<IServiceProvider, Lazy<AsyncScopeHolder>> _byOwner = new(
+    private readonly IServiceScope _baseScope = baseScope;
+    private readonly ConcurrentDictionary<IServiceProvider, Lazy<IServiceScope>> _byOwner = new(
         concurrencyLevel: Environment.ProcessorCount,
         capacity: 4
     );
@@ -17,8 +18,8 @@ public sealed class ScopeBag : IAsyncDisposable
     {
         var lazy = _byOwner.GetOrAdd(
             owner,
-            static o => new Lazy<AsyncScopeHolder>(
-                () => new AsyncScopeHolder { Scope = o.CreateAsyncScope() },
+            o => new Lazy<IServiceScope>(
+                () => new JoinedScope(o.CreateAsyncScope(), _baseScope, false),
                 LazyThreadSafetyMode.ExecutionAndPublication
             )
         );
@@ -31,18 +32,27 @@ public sealed class ScopeBag : IAsyncDisposable
         foreach (var kv in _byOwner)
         {
             var lazy = kv.Value;
+
             if (!lazy.IsValueCreated)
                 continue;
 
             try
             {
-                await lazy.Value.DisposeAsync().ConfigureAwait(false);
+                if (lazy.Value is IAsyncDisposable pad)
+                    await pad.DisposeAsync().ConfigureAwait(false);
+                else
+                    lazy.Value.Dispose();
             }
             catch
             {
                 // best-effort disposal; swallow
             }
         }
+
+        if (_baseScope is IAsyncDisposable bad)
+            await bad.DisposeAsync().ConfigureAwait(false);
+        else
+            _baseScope.Dispose();
 
         _byOwner.Clear();
     }

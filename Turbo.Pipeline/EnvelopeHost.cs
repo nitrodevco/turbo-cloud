@@ -5,6 +5,7 @@ using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Turbo.Pipeline.Delegates;
 using Turbo.Pipeline.Registry;
 using Turbo.Runtime;
@@ -12,9 +13,11 @@ using Turbo.Runtime;
 namespace Turbo.Pipeline;
 
 public class EnvelopeHost<TEnvelope, TMeta, TContext>(
+    IServiceProvider host,
     EnvelopeHostOptions<TEnvelope, TMeta, TContext> options
 )
 {
+    private readonly IServiceProvider _host = host;
     private readonly EnvelopeHostOptions<TEnvelope, TMeta, TContext> _opt = options;
     private readonly ConcurrentDictionary<Type, Bucket<TContext>> _byEvent = new();
 
@@ -96,7 +99,6 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
         if (pipeline is null)
             return;
 
-        var pipe = GetOrBuildPipeline(t, bucket);
         var ctx = _opt.CreateContext(env, meta);
 
         await pipeline(env!, ctx, ct).ConfigureAwait(false);
@@ -222,63 +224,76 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
         ImmutableArray<BehaviorReg<TContext>> behaviors
     )
     {
-        Func<object, TContext, CancellationToken, ValueTask> terminal = (env, ctx, ct) =>
-            InvokeHandlersAsync(handlers, env, ctx, ct);
-
-        for (int i = behaviors.Length - 1; i >= 0; i--)
+        return async (env, ctx, ct) =>
         {
-            var beh = behaviors[i];
-            var next = terminal;
+            var bag = new JoinedScopeBag(_host.CreateAsyncScope());
 
-            terminal = async (env, ctx, ct) =>
+            try
             {
-                var scopes = new ScopeBag();
+                Func<object, TContext, CancellationToken, ValueTask> terminal = async (
+                    env,
+                    ctx,
+                    ct
+                ) => await InvokeHandlersAsync(handlers, env, ctx, ct).ConfigureAwait(false);
 
-                try
+                for (int i = behaviors.Length - 1; i >= 0; i--)
                 {
-                    var sp = scopes.Get(beh.ServiceProvider);
+                    var beh = behaviors[i];
+                    var next = terminal;
 
-                    object? inst = null;
-
-                    try
+                    terminal = async (env, ctx, ct) =>
                     {
-                        inst = beh.Activator(sp);
-                    }
-                    catch (Exception ex)
-                    {
-                        _opt.OnBehaviorActivationError?.Invoke(ex, env);
+                        var sp = bag.Get(beh.ServiceProvider);
 
-                        await next(env, ctx, ct).ConfigureAwait(false);
+                        object? inst = null;
 
-                        return;
-                    }
+                        try
+                        {
+                            inst = beh.Activator(sp);
+                        }
+                        catch (Exception ex)
+                        {
+                            _opt.OnBehaviorActivationError?.Invoke(ex, env);
 
-                    try
-                    {
-                        ValueTask NextAsync() => next(env, ctx, ct);
+                            await next(env, ctx, ct).ConfigureAwait(false);
 
-                        await beh.Invoker(inst, env, ctx, NextAsync, ct).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        _opt.OnBehaviorInvokeError?.Invoke(ex, env);
-                    }
-                    finally
-                    {
-                        if (inst is IAsyncDisposable iad)
-                            await iad.DisposeAsync().ConfigureAwait(false);
-                        else if (inst is IDisposable d)
-                            d.Dispose();
-                    }
+                            return;
+                        }
+
+                        try
+                        {
+                            await beh.Invoker(
+                                    inst,
+                                    env,
+                                    ctx,
+                                    async () => await next(env, ctx, ct).ConfigureAwait(false),
+                                    ct
+                                )
+                                .ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            _opt.OnBehaviorInvokeError?.Invoke(ex, env);
+                        }
+                        finally
+                        {
+                            Console.WriteLine("Finished the behavior");
+                            if (inst is IAsyncDisposable iad)
+                                await iad.DisposeAsync().ConfigureAwait(false);
+                            else if (inst is IDisposable d)
+                                d.Dispose();
+                        }
+                    };
                 }
-                finally
-                {
-                    await scopes.DisposeAsync().ConfigureAwait(false);
-                }
-            };
-        }
 
-        return terminal;
+                await terminal(env, ctx, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                Console.WriteLine("Disposing the bag");
+                await bag.DisposeAsync().ConfigureAwait(false);
+            }
+        };
     }
 
     private async ValueTask InvokeHandlersAsync(
@@ -336,21 +351,25 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
         CancellationToken ct
     )
     {
-        var scopes = new ScopeBag();
+        IServiceScope scope = _host.CreateAsyncScope();
 
         try
         {
-            var sp = scopes.Get(h.ServiceProvider);
+            if (scope != h.ServiceProvider)
+            {
+                scope = new JoinedScope(scope, h.ServiceProvider.CreateAsyncScope());
+            }
 
             object? inst = null;
 
             try
             {
-                inst = h.Activator(sp);
+                inst = h.Activator(scope.ServiceProvider);
             }
             catch (Exception ex)
             {
                 _opt.OnHandlerActivationError?.Invoke(ex, env);
+
                 return;
             }
 
@@ -372,7 +391,10 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
         }
         finally
         {
-            await scopes.DisposeAsync().ConfigureAwait(false);
+            if (scope is IAsyncDisposable pad)
+                await pad.DisposeAsync().ConfigureAwait(false);
+            else
+                scope.Dispose();
         }
     }
 

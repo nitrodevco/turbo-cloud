@@ -5,25 +5,23 @@ using Turbo.Pipeline;
 
 namespace Turbo.Messages.Registry;
 
-public sealed class MessageRegistry : EnvelopeHost<IMessageEvent, ISessionContext, MessageContext>
-{
-    public MessageRegistry()
-        : base(
-            new EnvelopeHostOptions<IMessageEvent, ISessionContext, MessageContext>
+public sealed class MessageRegistry(IServiceProvider sp)
+    : EnvelopeHost<IMessageEvent, ISessionContext, MessageContext>(
+        sp,
+        new EnvelopeHostOptions<IMessageEvent, ISessionContext, MessageContext>
+        {
+            CreateContext = (env, data) =>
             {
-                CreateContext = (env, data) =>
-                {
-                    ArgumentNullException.ThrowIfNull(data);
+                ArgumentNullException.ThrowIfNull(data);
 
-                    return new MessageContext { Session = data };
-                },
-                EnableInheritanceDispatch = true,
-                HandlerMode = HandlerExecutionMode.Parallel,
-                MaxHandlerDegreeOfParallelism = null,
-                OnHandlerActivationError = (ex, env) => { },
-                OnHandlerInvokeError = (ex, env) => { },
-                OnBehaviorActivationError = (ex, env) => { },
-                OnBehaviorInvokeError = (ex, env) => { },
-            }
-        ) { }
-}
+                return new MessageContext { Session = data };
+            },
+            EnableInheritanceDispatch = true,
+            HandlerMode = HandlerExecutionMode.Parallel,
+            MaxHandlerDegreeOfParallelism = null,
+            OnHandlerActivationError = (ex, env) => { },
+            OnHandlerInvokeError = (ex, env) => { },
+            OnBehaviorActivationError = (ex, env) => { },
+            OnBehaviorInvokeError = (ex, env) => { },
+        }
+    ) { }
