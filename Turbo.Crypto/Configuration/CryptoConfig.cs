@@ -7,4 +7,5 @@ public class CryptoConfig
     public required string KeySize { get; init; }
     public required string PublicKey { get; init; }
     public required string PrivateKey { get; init; }
+    public required bool EnableServerToClientEncryption { get; init; }
 }

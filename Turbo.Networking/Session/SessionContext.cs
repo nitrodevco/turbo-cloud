@@ -15,7 +15,8 @@ public class SessionContext(PacketProcessor packetProcessor) : AppSession(), ISe
     public bool PolicyDone { get; set; } = true;
     public string RevisionId { get; private set; } = "Default";
     public long PlayerId { get; private set; }
-    public IStreamCipher? Rc4Engine { get; private set; }
+    public Rc4Service? CryptoIn { get; private set; }
+    public Rc4Service? CryptoOut { get; private set; }
 
     public void SetRevisionId(string revisionId)
     {
@@ -27,9 +28,12 @@ public class SessionContext(PacketProcessor packetProcessor) : AppSession(), ISe
         PlayerId = playerId;
     }
 
-    public void SetupEncryption(byte[] key)
+    public void SetupEncryption(byte[] key, bool setCryptoOut = false)
     {
-        Rc4Engine = new Rc4Engine(new KeyParameter(key));
+        CryptoIn = new Rc4Service(key);
+
+        if (setCryptoOut)
+            CryptoOut = new Rc4Service(key);
     }
 
     protected override async ValueTask OnSessionConnectedAsync()

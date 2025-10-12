@@ -5,7 +5,7 @@ using Turbo.Packets.Abstractions;
 
 namespace Turbo.Networking.Middleware;
 
-internal sealed class EncryptionMiddleware : IFrameMiddleware
+internal sealed class DecryptionMiddleware : IFrameMiddleware
 {
     public void Invoke(
         ref SequenceReader<byte> reader,
@@ -13,11 +13,11 @@ internal sealed class EncryptionMiddleware : IFrameMiddleware
         ref IClientPacket? clientPacket
     )
     {
-        if (ctx.Rc4Engine is null)
+        if (ctx.CryptoIn is null)
             return;
 
         var r = reader;
-        var body = ctx.Rc4Engine.ProcessBytes(r.UnreadSpan.ToArray());
+        var body = ctx.CryptoIn.Process(r.UnreadSpan.ToArray());
 
         r.Advance(body.Length);
 

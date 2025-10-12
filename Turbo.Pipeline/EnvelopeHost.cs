@@ -277,7 +277,6 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
                         }
                         finally
                         {
-                            Console.WriteLine("Finished the behavior");
                             if (inst is IAsyncDisposable iad)
                                 await iad.DisposeAsync().ConfigureAwait(false);
                             else if (inst is IDisposable d)
@@ -290,7 +289,6 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
             }
             finally
             {
-                Console.WriteLine("Disposing the bag");
                 await bag.DisposeAsync().ConfigureAwait(false);
             }
         };

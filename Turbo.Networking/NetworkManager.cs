@@ -77,7 +77,6 @@ public sealed class NetworkManager(
             )
             .UseSessionFactory<SessionContextFactory>()
             .UsePipelineFilter<PipelineFilter>()
-            //.UsePipelineFilterFactory<PipelineFilterFactory>()
             .UsePackageHandler(
                 async (session, packet) =>
                 {

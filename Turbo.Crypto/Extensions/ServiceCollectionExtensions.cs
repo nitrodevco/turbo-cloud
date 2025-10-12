@@ -15,8 +15,8 @@ public static class ServiceCollectionExtensions
             builder.Configuration.GetSection(CryptoConfig.SECTION_NAME)
         );
 
-        services.AddSingleton<IRsaService, RsaService>();
-        services.AddSingleton<IDiffieService, DiffieService>();
+        services.AddSingleton<RsaService>();
+        services.AddSingleton<DiffieService>();
 
         return services;
     }

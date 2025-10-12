@@ -5,5 +5,8 @@ namespace Turbo.Authentication;
 
 public sealed class AuthenticationModule : IHostPluginModule
 {
-    public void ConfigureServices(IServiceCollection services) { }
+    public void ConfigureServices(IServiceCollection services)
+    {
+        services.AddSingleton<AuthenticationService>();
+    }
 }

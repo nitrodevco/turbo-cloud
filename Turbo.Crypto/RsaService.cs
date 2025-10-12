@@ -12,7 +12,7 @@ using Turbo.Crypto.Configuration;
 
 namespace Turbo.Crypto;
 
-public class RsaService : IRsaService
+public sealed class RsaService
 {
     private readonly int _blockSize;
     private readonly BigInteger _exponent;
@@ -20,15 +20,12 @@ public class RsaService : IRsaService
     private readonly BigInteger _privateExponent;
     private readonly RsaKeyParameters _privateKey;
     private readonly RsaKeyParameters _publicKey;
-    private readonly CryptoConfig _config;
 
     public RsaService(IOptions<CryptoConfig> config)
     {
-        _config = config.Value;
-        _exponent = new BigInteger(_config.KeySize, 16);
-        _modulus = new BigInteger(_config.PublicKey, 16);
-        _privateExponent = new BigInteger(_config.PrivateKey, 16);
-
+        _exponent = new BigInteger(config.Value.KeySize, 16);
+        _modulus = new BigInteger(config.Value.PublicKey, 16);
+        _privateExponent = new BigInteger(config.Value.PrivateKey, 16);
         _publicKey = new RsaKeyParameters(false, _modulus, _exponent);
         _privateKey = new RsaKeyParameters(true, _modulus, _privateExponent);
         _blockSize = (_modulus.BitLength + 7) / 8;
@@ -36,30 +33,38 @@ public class RsaService : IRsaService
 
     public byte[] Encrypt(byte[] data)
     {
-        IAsymmetricBlockCipher cipher = new Pkcs1Encoding(new RsaEngine());
+        var cipher = new Pkcs1Encoding(new RsaEngine());
+
         cipher.Init(true, _publicKey);
+
         return cipher.ProcessBlock(data, 0, data.Length);
     }
 
     public byte[] Decrypt(byte[] data)
     {
-        IAsymmetricBlockCipher cipher = new Pkcs1Encoding(new RsaEngine());
+        var cipher = new Pkcs1Encoding(new RsaEngine());
+
         cipher.Init(false, _privateKey);
+
         return cipher.ProcessBlock(data, 0, data.Length);
     }
 
     public byte[] Sign(byte[] data)
     {
-        IAsymmetricBlockCipher cipher = new Pkcs1Encoding(new RsaEngine());
-        cipher.Init(true, _privateKey); // true for encryption mode, using private key as if "signing"
+        var cipher = new Pkcs1Encoding(new RsaEngine());
+
+        cipher.Init(true, _privateKey);
+
         return ProcessData(cipher, data);
     }
 
     public bool Verify(byte[] data, byte[] signature)
     {
-        ISigner verifier = new PssSigner(new RsaEngine(), new Sha256Digest(), 20);
+        var verifier = new PssSigner(new RsaEngine(), new Sha256Digest(), 20);
+
         verifier.Init(false, _publicKey);
         verifier.BlockUpdate(data, 0, data.Length);
+
         return verifier.VerifySignature(signature);
     }
 
@@ -72,6 +77,7 @@ public class RsaService : IRsaService
         {
             var chunkLength = Math.Min(chunkSize, data.Length - chunkPosition);
             var chunkResult = cipher.ProcessBlock(data, chunkPosition, chunkLength);
+
             outputStream.Write(chunkResult, 0, chunkResult.Length);
         }
 

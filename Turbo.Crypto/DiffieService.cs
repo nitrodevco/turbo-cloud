@@ -5,16 +5,16 @@ using Org.BouncyCastle.Utilities.Encoders;
 
 namespace Turbo.Crypto;
 
-public class DiffieService : IDiffieService
+public sealed class DiffieService
 {
     private const int DH_PRIMES_BIT_SIZE = 128;
     private readonly BigInteger _dhGenerator;
     private readonly BigInteger _dhPrime;
     private readonly BigInteger _dhPrivate;
     private readonly BigInteger _dhPublic;
-    private readonly IRsaService _rsaService;
+    private readonly RsaService _rsaService;
 
-    public DiffieService(IRsaService rsaService)
+    public DiffieService(RsaService rsaService)
     {
         var random = new SecureRandom();
         _rsaService = rsaService;

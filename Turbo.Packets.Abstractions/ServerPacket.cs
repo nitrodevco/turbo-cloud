@@ -5,23 +5,18 @@ using System.Text;
 
 namespace Turbo.Packets.Abstractions;
 
-public class ServerPacket : TurboPacket, IServerPacket
+public class ServerPacket(int header) : TurboPacket(header), IServerPacket
 {
-    public MemoryStream Stream { get; } = new();
-    public BinaryWriter Writer { get; private set; }
+    public BinaryWriter Writer { get; } = new(new MemoryStream());
+    public MemoryStream Stream => (MemoryStream)Writer.BaseStream;
 
-    public ServerPacket(int header)
-        : base(header)
-    {
-        Writer = new(Stream);
-    }
-
-    public int Length => (int)Stream.Length;
+    public int Length => (int)Writer.BaseStream.Length;
 
     public IServerPacket WriteByte(byte b)
     {
         Writer.Write(b);
         _logger.Append($"{{u:{b}}}");
+
         return this;
     }
 
@@ -48,6 +43,7 @@ public class ServerPacket : TurboPacket, IServerPacket
 
         Writer.Write(b);
         _logger.Append($"{{d:{d}}}");
+
         return this;
     }
 
@@ -58,6 +54,7 @@ public class ServerPacket : TurboPacket, IServerPacket
 
         Writer.Write(b);
         _logger.Append($"{{l:{l}}}");
+
         return this;
     }
 
@@ -68,16 +65,26 @@ public class ServerPacket : TurboPacket, IServerPacket
 
         Writer.Write(b);
         _logger.Append($"{{i:{i}}}");
+
         return this;
     }
 
     public IServerPacket WriteString(string s)
     {
         var data = Encoding.UTF8.GetBytes(s ?? string.Empty);
+
         WriteShort((short)data.Length);
         Writer.Write(data);
 
         _logger.Append($"{{s:\"{s}\"}}");
+
+        return this;
+    }
+
+    public IServerPacket SetWriterPosition(int position)
+    {
+        Stream.Position = position;
+
         return this;
     }
 

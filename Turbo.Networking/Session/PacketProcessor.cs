@@ -1,6 +1,4 @@
 using System;
-using System.Buffers.Binary;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -43,7 +41,8 @@ public sealed class PacketProcessor(
                 var message = parser.Parse(clientPacket);
 
                 _logger.LogInformation(
-                    "Processing {PacketType} for {SessionId}",
+                    "Processing {Header} {PacketType} for {SessionId}",
+                    clientPacket.Header,
                     message.GetType().Name,
                     ctx.SessionID
                 );
@@ -53,7 +52,7 @@ public sealed class PacketProcessor(
             else
             {
                 _logger.LogInformation(
-                    "Invalid packet {PacketHeader} for {SessionId}",
+                    "Invalid packet {Header} for {SessionId}",
                     clientPacket.Header,
                     ctx.SessionID
                 );
@@ -78,15 +77,18 @@ public sealed class PacketProcessor(
             if (revision.Serializers.TryGetValue(composer.GetType(), out var serializer))
             {
                 var payload = serializer.Serialize(composer).ToArray();
-                var data = new byte[payload.Length + 4];
 
-                BinaryPrimitives.WriteInt32BigEndian(data.AsSpan(0, 4), payload.Length);
-                payload.CopyTo(data.AsSpan(4));
+                if (ctx.CryptoOut is not null)
+                    payload = ctx.CryptoOut.Process(payload);
 
-                if (ctx.Rc4Engine is not null)
-                    data = ctx.Rc4Engine.ProcessBytes(data);
+                await ctx.SendAsync(payload, ct).ConfigureAwait(false);
 
-                await ctx.SendAsync(data, ct).ConfigureAwait(false);
+                _logger.LogInformation(
+                    "Sent {Header} {PacketType} for {SessionId}",
+                    serializer.Header,
+                    composer.GetType().Name,
+                    ctx.SessionID
+                );
             }
         }
 

@@ -11,9 +11,10 @@ public interface ISessionContext : IAppSession
     public bool PolicyDone { get; set; }
     public string RevisionId { get; }
     public long PlayerId { get; }
-    public IStreamCipher? Rc4Engine { get; }
+    public Rc4Service? CryptoIn { get; }
+    public Rc4Service? CryptoOut { get; }
     public void SetRevisionId(string revisionId);
     public void SetPlayerId(long playerId);
-    public void SetupEncryption(byte[] key);
+    public void SetupEncryption(byte[] key, bool setCryptoOut = false);
     public Task SendComposerAsync(IComposer composer, CancellationToken ct = default);
 }

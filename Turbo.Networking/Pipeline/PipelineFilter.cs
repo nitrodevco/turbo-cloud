@@ -1,3 +1,4 @@
+using System;
 using System.Buffers;
 using SuperSocket.ProtoBase;
 using Turbo.Networking.Abstractions.Session;
@@ -10,7 +11,7 @@ internal sealed class PipelineFilter : PipelineFilterBase<IClientPacket>
 {
     private readonly FramePipelineBuilder _pipeline = new FramePipelineBuilder()
         .Use(new FlashPolicyMiddleware())
-        .Use(new EncryptionMiddleware())
+        .Use(new DecryptionMiddleware())
         .Use(new LengthFieldMiddleware())
         .Use(new ClientPacketMiddleware());
 

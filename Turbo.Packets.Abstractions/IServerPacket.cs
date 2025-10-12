@@ -4,7 +4,6 @@ namespace Turbo.Packets.Abstractions;
 
 public interface IServerPacket : ITurboPacket
 {
-    public MemoryStream Stream { get; }
     public BinaryWriter Writer { get; }
     public int Length { get; }
 
@@ -20,5 +19,6 @@ public interface IServerPacket : ITurboPacket
     IServerPacket WriteInteger(int i);
 
     IServerPacket WriteString(string s);
+    IServerPacket SetWriterPosition(int position);
     public byte[] ToArray();
 }

@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Packets.Abstractions;
@@ -9,11 +10,18 @@ public abstract class AbstractSerializer<T>(int header) : ISerializer
 
     public IServerPacket Serialize(IComposer message)
     {
-        IServerPacket packet = new ServerPacket(Header);
+        var packet = new ServerPacket(Header);
 
+        packet.WriteInteger(0);
         packet.WriteShort((short)Header);
 
         Serialize(packet, (T)message);
+
+        var length = packet.Length;
+
+        packet.SetWriterPosition(0);
+        packet.WriteInteger(length - 4);
+        packet.SetWriterPosition(length);
 
         return packet;
     }
