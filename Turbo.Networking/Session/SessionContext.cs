@@ -1,16 +1,18 @@
 using System.Threading;
 using System.Threading.Tasks;
 using SuperSocket.Connection;
+using SuperSocket.ProtoBase;
 using SuperSocket.Server;
 using Turbo.Contracts.Abstractions;
 using Turbo.Crypto;
 using Turbo.Networking.Abstractions.Session;
+using Turbo.Networking.Encoder;
 
 namespace Turbo.Networking.Session;
 
-public class SessionContext(PacketProcessor packetProcessor) : AppSession(), ISessionContext
+public class SessionContext(PackageEncoder packageEncoder) : AppSession(), ISessionContext
 {
-    private readonly PacketProcessor _packetProcessor = packetProcessor;
+    private readonly PackageEncoder _packageEncoder = packageEncoder;
 
     public bool PolicyDone { get; set; } = true;
     public string RevisionId { get; private set; } = "Default";
@@ -48,6 +50,15 @@ public class SessionContext(PacketProcessor packetProcessor) : AppSession(), ISe
 
     public async Task SendComposerAsync(IComposer composer, CancellationToken ct = default)
     {
-        await _packetProcessor.ProcessComposerAsync(this, composer, ct).ConfigureAwait(false);
+        try
+        {
+            await Connection
+                .SendAsync(_packageEncoder, new OutgoingPackage(this, composer), ct)
+                .ConfigureAwait(false);
+        }
+        catch
+        {
+            return;
+        }
     }
 }

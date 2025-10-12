@@ -4,13 +4,13 @@ using Turbo.Networking.Abstractions.Middleware;
 using Turbo.Networking.Abstractions.Session;
 using Turbo.Packets.Abstractions;
 
-namespace Turbo.Networking.Pipeline;
+namespace Turbo.Networking.Decoder;
 
-internal sealed class FramePipelineBuilder
+internal sealed class PackageDecoderPipeline
 {
     private readonly List<IFrameMiddleware> _middleWares = [];
 
-    public FramePipelineBuilder Use(IFrameMiddleware mw)
+    public PackageDecoderPipeline Use(IFrameMiddleware mw)
     {
         _middleWares.Add(mw);
 

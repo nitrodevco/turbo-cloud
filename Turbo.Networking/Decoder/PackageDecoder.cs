@@ -1,19 +1,17 @@
-using System;
 using System.Buffers;
 using SuperSocket.ProtoBase;
 using Turbo.Networking.Abstractions.Session;
-using Turbo.Networking.Middleware;
 using Turbo.Packets.Abstractions;
 
-namespace Turbo.Networking.Pipeline;
+namespace Turbo.Networking.Decoder;
 
-internal sealed class PipelineFilter : PipelineFilterBase<IClientPacket>
+internal sealed class PackageDecoder : PipelineFilterBase<IClientPacket>
 {
-    private readonly FramePipelineBuilder _pipeline = new FramePipelineBuilder()
-        .Use(new FlashPolicyMiddleware())
-        .Use(new DecryptionMiddleware())
-        .Use(new LengthFieldMiddleware())
-        .Use(new ClientPacketMiddleware());
+    private readonly PackageDecoderPipeline _pipeline = new PackageDecoderPipeline()
+        .Use(new FlashPolicyDecoder())
+        .Use(new EncryptionDecoder())
+        .Use(new LengthFieldDecoder())
+        .Use(new ClientPacketDecoder());
 
     public override IClientPacket Filter(ref SequenceReader<byte> reader)
     {

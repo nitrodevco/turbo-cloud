@@ -3,9 +3,9 @@ using Turbo.Networking.Abstractions.Middleware;
 using Turbo.Networking.Abstractions.Session;
 using Turbo.Packets.Abstractions;
 
-namespace Turbo.Networking.Middleware;
+namespace Turbo.Networking.Decoder;
 
-internal sealed class DecryptionMiddleware : IFrameMiddleware
+internal sealed class LengthFieldDecoder : IFrameMiddleware
 {
     public void Invoke(
         ref SequenceReader<byte> reader,
@@ -13,14 +13,11 @@ internal sealed class DecryptionMiddleware : IFrameMiddleware
         ref IClientPacket? clientPacket
     )
     {
-        if (ctx.CryptoIn is null)
+        var r = reader;
+
+        if (r.Length < 4 || !r.TryReadBigEndian(out int bodyLength) || r.Remaining < bodyLength)
             return;
 
-        var r = reader;
-        var body = ctx.CryptoIn.Process(r.UnreadSpan.ToArray());
-
-        r.Advance(body.Length);
-
-        reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(body));
+        reader = r;
     }
 }

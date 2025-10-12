@@ -3,9 +3,9 @@ using Turbo.Networking.Abstractions.Middleware;
 using Turbo.Networking.Abstractions.Session;
 using Turbo.Packets.Abstractions;
 
-namespace Turbo.Networking.Middleware;
+namespace Turbo.Networking.Decoder;
 
-internal sealed class LengthFieldMiddleware : IFrameMiddleware
+internal sealed class ClientPacketDecoder : IFrameMiddleware
 {
     public void Invoke(
         ref SequenceReader<byte> reader,
@@ -15,9 +15,13 @@ internal sealed class LengthFieldMiddleware : IFrameMiddleware
     {
         var r = reader;
 
-        if (r.Length < 4 || !r.TryReadBigEndian(out int bodyLength) || r.Remaining < bodyLength)
-            return;
+        r.TryReadBigEndian(out short header);
+
+        var body = r.UnreadSpan.ToArray();
+
+        r.Advance(body.Length);
 
         reader = r;
+        clientPacket = new ClientPacket(header, body);
     }
 }

@@ -4,7 +4,6 @@ using Turbo.Networking.Abstractions;
 using Turbo.Networking.Abstractions.Revisions;
 using Turbo.Networking.Configuration;
 using Turbo.Networking.Revisions;
-using Turbo.Networking.Session;
 
 namespace Turbo.Networking.Extensions;
 
@@ -20,7 +19,6 @@ public static class ServiceCollectionExtensions
         );
 
         services.AddSingleton<INetworkManager, NetworkManager>();
-        services.AddSingleton<PacketProcessor>();
         services.AddSingleton<IRevisionManager, RevisionManager>();
 
         return services;

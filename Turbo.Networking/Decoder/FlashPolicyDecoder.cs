@@ -5,12 +5,12 @@ using Turbo.Networking.Abstractions.Middleware;
 using Turbo.Networking.Abstractions.Session;
 using Turbo.Packets.Abstractions;
 
-namespace Turbo.Networking.Middleware;
+namespace Turbo.Networking.Decoder;
 
-internal sealed class FlashPolicyMiddleware : IFrameMiddleware
+internal sealed class FlashPolicyDecoder : IFrameMiddleware
 {
-    private static readonly byte[] Request = Encoding.ASCII.GetBytes("<policy-file-request/>\0");
-    private static readonly byte[] Response = Encoding.ASCII.GetBytes(
+    private static readonly byte[] REQUEST = Encoding.ASCII.GetBytes("<policy-file-request/>\0");
+    private static readonly byte[] RESPONSE = Encoding.ASCII.GetBytes(
         "<?xml version=\"1.0\"?>\r\n"
             + "<!DOCTYPE cross-domain-policy SYSTEM \"/xml/dtds/cross-domain-policy.dtd\">\r\n"
             + "<cross-domain-policy>\r\n"
@@ -24,26 +24,26 @@ internal sealed class FlashPolicyMiddleware : IFrameMiddleware
         ref IClientPacket? clientPacket
     )
     {
-        // Already past policy stage?
         if (ctx.PolicyDone)
             return;
 
         var r = reader;
 
-        if (r.Length < Request.Length)
+        if (r.Length < REQUEST.Length)
             return;
 
-        var prefix = r.UnreadSequence.Slice(0, Request.Length);
+        var prefix = r.UnreadSequence.Slice(0, REQUEST.Length);
 
-        r.Advance(Request.Length);
+        r.Advance(REQUEST.Length);
 
         reader = r;
 
-        if (prefix.Equals(Request))
+        if (prefix.Equals(REQUEST))
         {
-            ctx.SendAsync(Response);
-            ctx.CloseAsync(CloseReason.LocalClosing);
             ctx.PolicyDone = true;
+
+            _ = ctx.SendAsync(RESPONSE);
+            _ = ctx.CloseAsync(CloseReason.LocalClosing);
 
             return;
         }

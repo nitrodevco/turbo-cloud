@@ -5,6 +5,7 @@ namespace Turbo.Packets.Abstractions;
 public interface IServerPacket : ITurboPacket
 {
     public BinaryWriter Writer { get; }
+    public MemoryStream Stream { get; }
     public int Length { get; }
 
     IServerPacket WriteByte(byte b);
