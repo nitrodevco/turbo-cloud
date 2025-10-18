@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using SuperSocket.Connection;
+using SuperSocket.ProtoBase;
 using SuperSocket.Server;
 using Turbo.Contracts.Abstractions;
 using Turbo.Crypto;
@@ -9,9 +10,11 @@ using Turbo.Networking.Encoder;
 
 namespace Turbo.Networking.Session;
 
-public class SessionContext(PackageEncoder packageEncoder) : AppSession(), ISessionContext
+public class SessionContext(IPackageEncoder<OutgoingPackage> packageEncoder)
+    : AppSession(),
+        ISessionContext
 {
-    private readonly PackageEncoder _packageEncoder = packageEncoder;
+    private readonly IPackageEncoder<OutgoingPackage> _packageEncoder = packageEncoder;
     public bool PolicyDone { get; set; } = true;
     public string RevisionId { get; private set; } = "Default";
     public long PlayerId { get; private set; }

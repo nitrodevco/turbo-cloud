@@ -1,17 +1,15 @@
 using System;
-using System.Buffers;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SuperSocket.ProtoBase;
+using SuperSocket.Server.Abstractions;
 using SuperSocket.Server.Host;
 using Turbo.Messages;
 using Turbo.Networking.Abstractions;
 using Turbo.Networking.Abstractions.Revisions;
-using Turbo.Networking.Abstractions.Session;
 using Turbo.Networking.Configuration;
 using Turbo.Networking.Decoder;
 using Turbo.Networking.Encoder;
@@ -24,14 +22,14 @@ public sealed class NetworkManager(
     IOptions<NetworkingConfig> config,
     IRevisionManager revisionManager,
     MessageSystem messageSystem,
-    ILogger<NetworkManager> logger
+    ILoggerFactory loggerFactory
 ) : INetworkManager
 {
     private readonly object _hostGate = new();
     private readonly NetworkingConfig _config = config.Value;
     private readonly IRevisionManager _revisionManager = revisionManager;
     private readonly MessageSystem _messageSystem = messageSystem;
-    private readonly ILogger<NetworkManager> _logger = logger;
+    private readonly ILoggerFactory _loggerFactory = loggerFactory;
     private IHost? _superSocketHost;
 
     public async Task StartAsync()
@@ -72,68 +70,30 @@ public sealed class NetworkManager(
 
     private void CreateSuperSocket()
     {
-        var host = SuperSocketHostBuilder
-            .Create<IClientPacket>()
-            .ConfigureServices(
-                (ctx, services) =>
-                {
-                    services.AddSingleton(_config);
-                    services.AddSingleton(_revisionManager);
-                    services.AddSingleton<PackageEncoder>();
-                }
-            )
-            .UseSession<SessionContext>()
-            .UsePipelineFilter<PackageDecoder>()
-            .UsePackageHandler(
-                async (session, packet) =>
-                {
-                    if (packet is null)
-                        return;
+        var builder = SuperSocketHostBuilder.Create<IClientPacket>();
 
-                    var ctx = (ISessionContext)session;
+        builder.ConfigureLogging(
+            (ctx, logging) =>
+            {
+                logging.ClearProviders();
+            }
+        );
 
-                    try
-                    {
-                        var revision =
-                            _revisionManager.GetRevision(ctx.RevisionId)
-                            ?? throw new ArgumentNullException("No revision set");
+        builder.ConfigureServices(
+            (ctx, services) =>
+            {
+                services.AddSingleton(_config);
+                services.AddSingleton(_revisionManager);
+                services.AddSingleton(_messageSystem);
+                services.AddSingleton(_loggerFactory);
+                services.AddSingleton<IPackageEncoder<OutgoingPackage>, PackageEncoder>();
+                services.AddSingleton<IPackageHandler<IClientPacket>, PackageHandler>();
+            }
+        );
 
-                        if (revision.Parsers.TryGetValue(packet.Header, out var parser))
-                        {
-                            var message = parser.Parse(packet);
+        builder.UseSession<SessionContext>();
+        builder.UsePipelineFilter<PackageDecoder>();
 
-                            _logger.LogInformation(
-                                "Processing {Header} {PacketType} for {SessionId}",
-                                packet.Header,
-                                message.GetType().Name,
-                                ctx.SessionID
-                            );
-
-                            _ = _messageSystem
-                                .PublishAsync(message, ctx, CancellationToken.None)
-                                .ConfigureAwait(false);
-
-                            return;
-                        }
-
-                        _logger.LogInformation(
-                            "Parser not found with header {Header} for {SessionId}",
-                            packet.Header,
-                            ctx.SessionID
-                        );
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(
-                            ex,
-                            "Failed to process packet {Packet} for session {SessionId}",
-                            packet.Header,
-                            session.SessionID
-                        );
-                    }
-                }
-            );
-
-        _superSocketHost = host.Build();
+        _superSocketHost = builder.Build();
     }
 }

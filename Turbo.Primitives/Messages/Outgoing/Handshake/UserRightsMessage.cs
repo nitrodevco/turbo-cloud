@@ -5,7 +5,7 @@ namespace Turbo.Primitives.Messages.Outgoing.Handshake;
 
 public record UserRightsMessage : IComposer
 {
-    public ClubLevelEnum ClubLevel { get; init; }
-    public SecurityLevelEnum SecurityLevel { get; init; }
-    public bool IsAmbassador { get; init; }
+    public required ClubLevelEnum ClubLevel { get; init; }
+    public required SecurityLevelEnum SecurityLevel { get; init; }
+    public required bool IsAmbassador { get; init; }
 }

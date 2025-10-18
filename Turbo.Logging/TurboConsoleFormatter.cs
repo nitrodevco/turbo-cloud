@@ -71,17 +71,17 @@ internal sealed class TurboConsoleFormatter(
             headerSb.Append('[').Append(ts).Append("] ");
             if (bg.Length > 0)
                 headerSb.Append(bg);
-            headerSb.Append(fg).Append(levelLabel).Append(RESET);
+            headerSb.Append(fg).Append(RESET);
             if (!string.IsNullOrEmpty(bg))
                 headerSb.Append(RESET);
         }
         else
         {
-            headerSb.Append('[').Append(ts).Append("] ").Append(levelLabel);
+            headerSb.Append('[').Append(ts).Append("] ");
         }
 
         if (!string.IsNullOrEmpty(category))
-            headerSb.Append(' ').Append('(').Append(category).Append(')');
+            headerSb.Append(category);
 
         if (logEntry.EventId.Id != 0)
             headerSb.Append(" [").Append(logEntry.EventId.Id).Append(']');
@@ -90,7 +90,7 @@ internal sealed class TurboConsoleFormatter(
 
         // ===== Align after the category =====
         // Assume max width for the header column
-        const int HEADER_WIDTH = 58;
+        const int HEADER_WIDTH = 55;
         var paddedHeader = header.PadRight(HEADER_WIDTH);
 
         var message = logEntry.Formatter?.Invoke(logEntry.State, logEntry.Exception);

@@ -4,7 +4,7 @@ namespace Turbo.Primitives.Messages.Outgoing.Handshake;
 
 public record AuthenticationOKMessage : IComposer
 {
-    public int? AccountId { get; set; }
-    public short[]? SuggestedLoginActions { get; set; }
-    public int? IdentityId { get; set; }
+    public required int AccountId { get; init; }
+    public required short[] SuggestedLoginActions { get; init; }
+    public required int IdentityId { get; init; }
 }

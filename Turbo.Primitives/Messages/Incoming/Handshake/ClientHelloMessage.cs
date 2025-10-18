@@ -8,7 +8,7 @@ public record ClientHelloMessage : IMessageEvent
 
     public required string Platform { get; init; }
 
-    public int ClientPlatform { get; init; }
+    public required int ClientPlatform { get; init; }
 
-    public int DeviceCategory { get; init; }
+    public required int DeviceCategory { get; init; }
 }

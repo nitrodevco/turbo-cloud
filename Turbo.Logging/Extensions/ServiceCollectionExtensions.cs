@@ -18,15 +18,9 @@ public static class ServiceCollectionExtensions
             builder.Configuration.GetSection(TurboConsoleFormatterOptions.SECTION_NAME)
         );
 
-        var factory = LoggerFactory.Create(build =>
-        {
-            build.ClearProviders();
-            build.AddConfiguration(builder.Configuration.GetSection("Logging"));
-            build.AddTurboConsoleLogger();
-        });
-
-        services.AddSingleton(factory);
-        services.Replace(ServiceDescriptor.Singleton(typeof(ILogger<>), typeof(Logger<>)));
+        builder.Logging.ClearProviders();
+        builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
+        builder.Logging.AddTurboConsoleLogger();
 
         return services;
     }

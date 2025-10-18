@@ -4,7 +4,7 @@ namespace Turbo.Primitives.Messages.Incoming.Handshake;
 
 public record VersionCheckMessage : IMessageEvent
 {
-    public int ClientID { get; init; }
+    public required int ClientID { get; init; }
     public required string ClientURL { get; init; }
     public required string ExternalVariablesURL { get; init; }
 }
