@@ -109,7 +109,7 @@ public sealed class NetworkManager(
                                 ctx.SessionID
                             );
 
-                            await _messageSystem
+                            _ = _messageSystem
                                 .PublishAsync(message, ctx, CancellationToken.None)
                                 .ConfigureAwait(false);
 

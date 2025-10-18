@@ -1,16 +1,8 @@
-using Org.BouncyCastle.Crypto.Engines;
-using Org.BouncyCastle.Crypto.Parameters;
-
 namespace Turbo.Crypto;
 
-public sealed class Rc4Service
+public sealed class Rc4Service(byte[] key)
 {
-    private readonly RC4Engine _rc4Engine = new();
-
-    public Rc4Service(byte[] key)
-    {
-        _rc4Engine.Init(true, new KeyParameter(key));
-    }
+    private readonly Rc4Engine _rc4Engine = new(key);
 
     public byte[] Process(byte[] inputData, byte[]? outputData = null, int? inputOffset = 0)
     {

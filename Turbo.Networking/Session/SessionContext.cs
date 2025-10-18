@@ -17,8 +17,8 @@ public class SessionContext(PackageEncoder packageEncoder) : AppSession(), ISess
     public bool PolicyDone { get; set; } = true;
     public string RevisionId { get; private set; } = "Default";
     public long PlayerId { get; private set; }
-    public Rc4Service? CryptoIn { get; private set; }
-    public Rc4Service? CryptoOut { get; private set; }
+    public Rc4Engine? CryptoIn { get; private set; }
+    public Rc4Engine? CryptoOut { get; private set; }
 
     public void SetRevisionId(string revisionId)
     {
@@ -32,10 +32,10 @@ public class SessionContext(PackageEncoder packageEncoder) : AppSession(), ISess
 
     public void SetupEncryption(byte[] key, bool setCryptoOut = false)
     {
-        CryptoIn = new Rc4Service(key);
+        CryptoIn = new Rc4Engine(key);
 
         if (setCryptoOut)
-            CryptoOut = new Rc4Service(key);
+            CryptoOut = new Rc4Engine(key);
     }
 
     protected override async ValueTask OnSessionConnectedAsync()
