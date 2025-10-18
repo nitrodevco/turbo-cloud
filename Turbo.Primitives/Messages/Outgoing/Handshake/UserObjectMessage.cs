@@ -1,9 +1,9 @@
 using Turbo.Contracts.Abstractions;
-using Turbo.Primitives.Dtos.Players;
+using Turbo.Primitives.Snapshots.Players;
 
 namespace Turbo.Primitives.Messages.Outgoing.Handshake;
 
 public record UserObjectMessage : IComposer
 {
-    public required PlayerSummary Player { get; init; }
+    public required PlayerSnapshot Player { get; init; }
 }

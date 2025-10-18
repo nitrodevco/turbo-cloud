@@ -60,10 +60,10 @@ public class SSOTicketMessageHandler(AuthenticationService authService)
                     ct
                 )
                 .ConfigureAwait(false);
-            /* await ctx
+            await ctx
                 .Session.SendComposerAsync(new ScrSendUserInfoMessage(), ct)
                 .ConfigureAwait(false);
-            await ctx
+            /* await ctx
                 .Session.SendComposerAsync(new FigureSetIdsMessage(), ct)
                 .ConfigureAwait(false);
             await ctx

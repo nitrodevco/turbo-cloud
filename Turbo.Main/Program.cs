@@ -10,6 +10,7 @@ using Turbo.Authentication;
 using Turbo.Crypto.Extensions;
 using Turbo.Database.Extensions;
 using Turbo.Events.Extensions;
+using Turbo.Grains.Extensions;
 using Turbo.Logging.Extensions;
 using Turbo.Main.Console;
 using Turbo.Messages.Extensions;
@@ -75,6 +76,8 @@ internal class Program
             }
             bootstrapLogger.LogInformation("===============================");
         }
+
+        builder.AddTurboGrains();
 
         builder.Services.AddTurboLogging(builder);
         builder.Services.AddTurboNetworking(builder);

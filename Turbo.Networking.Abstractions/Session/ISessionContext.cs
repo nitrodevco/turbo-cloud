@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using SuperSocket.Server.Abstractions.Session;
 using Turbo.Contracts.Abstractions;
 using Turbo.Crypto;
@@ -13,6 +14,7 @@ public interface ISessionContext : IAppSession
     public long PlayerId { get; }
     public Rc4Engine? CryptoIn { get; }
     public Rc4Engine? CryptoOut { get; }
+    public ILogger Logger { get; }
     public void SetRevisionId(string revisionId);
     public void SetPlayerId(long playerId);
     public void SetupEncryption(byte[] key, bool setCryptoOut = false);
