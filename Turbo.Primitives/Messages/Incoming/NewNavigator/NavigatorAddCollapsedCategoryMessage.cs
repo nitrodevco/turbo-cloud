@@ -1,6 +1,6 @@
 using Turbo.Contracts.Abstractions;
 
-namespace Turbo.Primitives.Messages.Incoming.Navigator;
+namespace Turbo.Primitives.Messages.Incoming.NewNavigator;
 
 public record NavigatorAddCollapsedCategoryMessage : IMessageEvent
 {
