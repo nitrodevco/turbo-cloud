@@ -15,6 +15,7 @@ using Turbo.Logging.Extensions;
 using Turbo.Main.Console;
 using Turbo.Messages.Extensions;
 using Turbo.Networking.Extensions;
+using Turbo.Players;
 using Turbo.Plugins.Extensions;
 using Turbo.Runtime.AssemblyProcessing;
 
@@ -88,6 +89,7 @@ internal class Program
         builder.Services.AddTurboCrypto(builder);
 
         builder.Services.AddHostPlugin<AuthenticationModule, AuthenticationSystem>();
+        builder.Services.AddHostPlugin<PlayerModule, PlayerSystem>();
 
         builder.Services.AddSingleton<AssemblyProcessor>();
         builder.Services.AddSingleton<ConsoleCommandService>();

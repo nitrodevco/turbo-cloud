@@ -1,6 +1,6 @@
 namespace Turbo.Contracts.Enums.Rooms.Object;
 
-public enum AvatarGender
+public enum AvatarGenderEnum
 {
     Male = 0,
     Female = 1,

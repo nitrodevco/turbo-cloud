@@ -21,7 +21,7 @@ public static class HostApplicationBuilderExtensions
 
             silo.UseLocalhostClustering()
                 .AddMemoryGrainStorage("PubSubStore")
-                .AddMemoryGrainStorage("PlayerStore");
+                .AddMemoryGrainStorage("player-snapshots");
         });
 
         return builder;

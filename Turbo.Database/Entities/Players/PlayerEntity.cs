@@ -28,9 +28,9 @@ public class PlayerEntity : TurboEntity
     public required string Figure { get; set; }
 
     [Column("gender")]
-    [DefaultValue(AvatarGender.Male)]
+    [DefaultValue(AvatarGenderEnum.Male)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public required AvatarGender Gender { get; set; }
+    public required AvatarGenderEnum Gender { get; set; }
 
     [Column("status")]
     [DefaultValue(PlayerStatusEnum.Offline)]

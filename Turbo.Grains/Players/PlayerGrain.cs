@@ -30,8 +30,8 @@ public class PlayerGrain(
     {
         try
         {
-            var playerId = this.GetPrimaryKeyLong();
-            await HydrateFromExternalAsync(ct).ConfigureAwait(false);
+            await HydrateFromExternalAsync(ct);
+
             _logger.LogInformation("PlayerGrain {PlayerId} activated.", PlayerId);
         }
         catch (Exception ex)
@@ -46,7 +46,7 @@ public class PlayerGrain(
     {
         try
         {
-            await WriteToDatabaseAsync(ct).ConfigureAwait(false);
+            await WriteToDatabaseAsync(ct);
             _logger.LogInformation("PlayerGrain {PlayerId} deactivated.", PlayerId);
         }
         catch (Exception ex)
@@ -62,17 +62,15 @@ public class PlayerGrain(
         if (_state.RecordExists)
             return;
 
-        var playerId = this.GetPrimaryKeyLong();
         TurboDbContext? dbCtx = null;
 
         try
         {
-            dbCtx = await _dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+            dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
 
             var entity = await dbCtx
                 .Players.AsNoTracking()
-                .SingleOrDefaultAsync(e => e.Id == PlayerId, ct)
-                .ConfigureAwait(false);
+                .SingleOrDefaultAsync(e => e.Id == PlayerId, ct);
 
             if (entity is null)
             {
@@ -90,7 +88,7 @@ public class PlayerGrain(
                     CreatedAt = entity.CreatedAt,
                 };
 
-                await _state.WriteStateAsync(ct).ConfigureAwait(false);
+                await _state.WriteStateAsync(ct);
             }
         }
         catch (Exception ex)
@@ -102,19 +100,18 @@ public class PlayerGrain(
         finally
         {
             if (dbCtx is not null)
-                await dbCtx.DisposeAsync().ConfigureAwait(false);
+                await dbCtx.DisposeAsync();
         }
     }
 
     protected async Task WriteToDatabaseAsync(CancellationToken ct)
     {
-        var playerId = this.GetPrimaryKeyLong();
         TurboDbContext? dbCtx = null;
 
         try
         {
-            dbCtx = await _dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-            var snapshot = await GetSnapshotAsync(ct).ConfigureAwait(false);
+            dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
+            var snapshot = await GetSnapshotAsync(ct);
 
             await dbCtx
                 .Players.Where(p => p.Id == PlayerId)
@@ -125,8 +122,7 @@ public class PlayerGrain(
                             .SetProperty(p => p.Figure, snapshot.Figure)
                             .SetProperty(p => p.Gender, snapshot.Gender),
                     ct
-                )
-                .ConfigureAwait(false);
+                );
         }
         catch (Exception ex)
         {
@@ -137,7 +133,7 @@ public class PlayerGrain(
         finally
         {
             if (dbCtx is not null)
-                await dbCtx.DisposeAsync().ConfigureAwait(false);
+                await dbCtx.DisposeAsync();
         }
     }
 

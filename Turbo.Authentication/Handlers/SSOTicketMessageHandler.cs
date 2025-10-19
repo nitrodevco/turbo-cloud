@@ -61,15 +61,6 @@ public class SSOTicketMessageHandler(AuthenticationService authService)
                 )
                 .ConfigureAwait(false);
             await ctx
-                .Session.SendComposerAsync(new ScrSendUserInfoMessage(), ct)
-                .ConfigureAwait(false);
-            /* await ctx
-                .Session.SendComposerAsync(new FigureSetIdsMessage(), ct)
-                .ConfigureAwait(false);
-            await ctx
-                .Session.SendComposerAsync(new NoobnessLevelMessage(), ct)
-                .ConfigureAwait(false);
-            await ctx
                 .Session.SendComposerAsync(
                     new UserRightsMessage
                     {
@@ -79,6 +70,12 @@ public class SSOTicketMessageHandler(AuthenticationService authService)
                     },
                     ct
                 )
+                .ConfigureAwait(false);
+            await ctx
+                .Session.SendComposerAsync(new NoobnessLevelMessage(), ct)
+                .ConfigureAwait(false);
+            /* await ctx
+                .Session.SendComposerAsync(new FigureSetIdsMessage(), ct)
                 .ConfigureAwait(false);
             await ctx
                 .Session.SendComposerAsync(
