@@ -1,9 +1,10 @@
 using System.Buffers;
 using Microsoft.Extensions.Logging;
 using SuperSocket.ProtoBase;
+using Turbo.Networking.Abstractions;
 using Turbo.Networking.Abstractions.Revisions;
 
-namespace Turbo.Networking.Encoder;
+namespace Turbo.Networking;
 
 public sealed class PackageEncoder(IRevisionManager revisionManager, ILogger<PackageEncoder> logger)
     : IPackageEncoder<OutgoingPackage>

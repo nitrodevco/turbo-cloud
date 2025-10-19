@@ -5,8 +5,8 @@ using SuperSocket.ProtoBase;
 using SuperSocket.Server;
 using Turbo.Contracts.Abstractions;
 using Turbo.Crypto;
+using Turbo.Networking.Abstractions;
 using Turbo.Networking.Abstractions.Session;
-using Turbo.Networking.Encoder;
 
 namespace Turbo.Networking.Session;
 
