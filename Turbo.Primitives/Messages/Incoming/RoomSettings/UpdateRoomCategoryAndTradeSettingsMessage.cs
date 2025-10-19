@@ -3,7 +3,7 @@ using Turbo.Contracts.Enums.Rooms;
 
 namespace Turbo.Primitives.Messages.Incoming.RoomSettings;
 
-public record UpdateRoomCategoryAndTradeSettingsComposer : IMessageEvent
+public record UpdateRoomCategoryAndTradeSettingsMessage : IMessageEvent
 {
     public int RoomId { get; init; }
     public int CategoryId { get; init; }
