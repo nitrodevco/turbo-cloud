@@ -55,9 +55,9 @@ dotnet_naming_symbols.private_fields.applicable_modifiers = !static
 dotnet_naming_style.underscore_prefix.required_prefix = _
 dotnet_naming_style.underscore_prefix.capitalization = camel_case
 
-# ConfigureAwaitChecker.Analyzer (all rules as warnings or errors)
-# (It uses a single diagnostic for "no explicit ConfigureAwait" – keep it strict)
-dotnet_analyzer_diagnostic.category-ConfigureAwaitChecker.severity = warning
-
-# Microsoft rules (optional but useful in services)
+# ConfigureAwait
+[*.cs]
 dotnet_diagnostic.CA2007.severity = warning
+
+[*Grain.cs]
+dotnet_diagnostic.CA2007.severity = none

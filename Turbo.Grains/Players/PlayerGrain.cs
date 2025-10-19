@@ -22,9 +22,7 @@ public class PlayerGrain(
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
     private readonly ILogger<PlayerGrain> _logger = logger;
 
-    public long PlayerId => this.GetPrimaryKeyLong();
-
-    public Task<long> GetPlayerIdAsync() => Task.FromResult(PlayerId);
+    public Task<long> GetPlayerIdAsync() => Task.FromResult(this.GetPrimaryKeyLong());
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
@@ -32,11 +30,15 @@ public class PlayerGrain(
         {
             await HydrateFromExternalAsync(ct);
 
-            _logger.LogInformation("PlayerGrain {PlayerId} activated.", PlayerId);
+            _logger.LogInformation("PlayerGrain {PlayerId} activated.", this.GetPrimaryKeyLong());
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error activating PlayerGrain {PlayerId}", PlayerId);
+            _logger.LogError(
+                ex,
+                "Error activating PlayerGrain {PlayerId}",
+                this.GetPrimaryKeyLong()
+            );
 
             throw;
         }
@@ -47,11 +49,16 @@ public class PlayerGrain(
         try
         {
             await WriteToDatabaseAsync(ct);
-            _logger.LogInformation("PlayerGrain {PlayerId} deactivated.", PlayerId);
+
+            _logger.LogInformation("PlayerGrain {PlayerId} deactivated.", this.GetPrimaryKeyLong());
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deactivating PlayerGrain {PlayerId}", PlayerId);
+            _logger.LogError(
+                ex,
+                "Error deactivating PlayerGrain {PlayerId}",
+                this.GetPrimaryKeyLong()
+            );
 
             throw;
         }
@@ -62,25 +69,25 @@ public class PlayerGrain(
         if (_state.RecordExists)
             return;
 
-        TurboDbContext? dbCtx = null;
+        using var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
 
         try
         {
-            dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
-
             var entity = await dbCtx
                 .Players.AsNoTracking()
-                .SingleOrDefaultAsync(e => e.Id == PlayerId, ct);
+                .SingleOrDefaultAsync(e => e.Id == this.GetPrimaryKeyLong(), ct);
 
             if (entity is null)
             {
-                throw new Exception($"Player with ID {PlayerId} not found in database.");
+                throw new Exception(
+                    $"Player with ID {this.GetPrimaryKeyLong()} not found in database."
+                );
             }
             else
             {
                 _state.State = new PlayerSnapshot
                 {
-                    PlayerId = PlayerId,
+                    PlayerId = this.GetPrimaryKeyLong(),
                     Name = entity.Name ?? string.Empty,
                     Motto = entity.Motto ?? string.Empty,
                     Figure = entity.Figure ?? string.Empty,
@@ -93,28 +100,26 @@ public class PlayerGrain(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error hydrating PlayerGrain {PlayerId} from database.", PlayerId);
+            _logger.LogError(
+                ex,
+                "Error hydrating PlayerGrain {PlayerId} from database.",
+                this.GetPrimaryKeyLong()
+            );
 
             throw;
-        }
-        finally
-        {
-            if (dbCtx is not null)
-                await dbCtx.DisposeAsync();
         }
     }
 
     protected async Task WriteToDatabaseAsync(CancellationToken ct)
     {
-        TurboDbContext? dbCtx = null;
+        var snapshot = await GetSnapshotAsync(ct);
+
+        using var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
 
         try
         {
-            dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
-            var snapshot = await GetSnapshotAsync(ct);
-
             await dbCtx
-                .Players.Where(p => p.Id == PlayerId)
+                .Players.Where(p => p.Id == this.GetPrimaryKeyLong())
                 .ExecuteUpdateAsync(
                     up =>
                         up.SetProperty(p => p.Name, snapshot.Name)
@@ -126,14 +131,13 @@ public class PlayerGrain(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error writing PlayerGrain {PlayerId} to database.", PlayerId);
+            _logger.LogError(
+                ex,
+                "Error writing PlayerGrain {PlayerId} to database.",
+                this.GetPrimaryKeyLong()
+            );
 
             throw;
-        }
-        finally
-        {
-            if (dbCtx is not null)
-                await dbCtx.DisposeAsync();
         }
     }
 
@@ -141,7 +145,7 @@ public class PlayerGrain(
         ValueTask.FromResult(
             new PlayerSnapshot
             {
-                PlayerId = PlayerId,
+                PlayerId = this.GetPrimaryKeyLong(),
                 Name = _state.State.Name,
                 Motto = _state.State.Motto,
                 Figure = _state.State.Figure,

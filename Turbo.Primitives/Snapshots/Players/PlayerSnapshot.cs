@@ -1,12 +1,11 @@
 using System;
 using Orleans;
-using Orleans.Serialization;
 using Turbo.Contracts.Enums.Rooms.Object;
 
 namespace Turbo.Primitives.Snapshots.Players;
 
-[GenerateSerializer]
-public sealed class PlayerSnapshot
+[GenerateSerializer, Immutable]
+public record PlayerSnapshot
 {
     [Id(0)]
     public required long PlayerId { get; init; }
@@ -21,7 +20,7 @@ public sealed class PlayerSnapshot
     public required string Figure { get; init; } = string.Empty;
 
     [Id(4)]
-    public required AvatarGender Gender { get; init; }
+    public required AvatarGenderEnum Gender { get; init; }
 
     [Id(5)]
     public required DateTime CreatedAt { get; init; }
