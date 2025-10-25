@@ -5,7 +5,7 @@ using Turbo.Players;
 using Turbo.Primitives.Messages.Incoming.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 
-namespace Turbo.Authentication.Handlers;
+namespace Turbo.PacketHandlers.Authentication;
 
 public class InfoRetrieveMessageHandler(PlayerManager playerManager)
     : IMessageHandler<InfoRetrieveMessage>

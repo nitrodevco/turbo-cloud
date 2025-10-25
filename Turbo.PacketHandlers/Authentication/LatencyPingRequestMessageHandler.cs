@@ -1,11 +1,10 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Tracking;
 using Turbo.Primitives.Messages.Outgoing.Tracking;
 
-namespace Turbo.Authentication.Handlers;
+namespace Turbo.PacketHandlers.Authentication;
 
 public class LatencyPingRequestMessageHandler() : IMessageHandler<LatencyPingRequestMessage>
 {

@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Handshake;
 
-namespace Turbo.Authentication.Handlers;
+namespace Turbo.PacketHandlers.Authentication;
 
 public class DisconnectMessageHandler : IMessageHandler<DisconnectMessage>
 {

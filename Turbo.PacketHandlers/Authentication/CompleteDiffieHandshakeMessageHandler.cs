@@ -7,18 +7,18 @@ using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 
-namespace Turbo.Authentication.Handlers;
+namespace Turbo.PacketHandlers.Authentication;
 
 public class CompleteDiffieHandshakeMessageHandler(
     DiffieService diffieService,
     IOptions<CryptoConfig> config
-) : IMessageHandler<Primitives.Messages.Incoming.Handshake.CompleteDiffieHandshakeMessage>
+) : IMessageHandler<CompleteDiffieHandshakeMessage>
 {
     private readonly DiffieService _diffieService = diffieService;
     private readonly CryptoConfig _config = config.Value;
 
     public async ValueTask HandleAsync(
-        Primitives.Messages.Incoming.Handshake.CompleteDiffieHandshakeMessage message,
+        CompleteDiffieHandshakeMessage message,
         MessageContext ctx,
         CancellationToken ct
     )
@@ -27,7 +27,7 @@ public class CompleteDiffieHandshakeMessageHandler(
 
         await ctx
             .Session.SendComposerAsync(
-                new Primitives.Messages.Outgoing.Handshake.CompleteDiffieHandshakeMessage
+                new CompleteDiffieHandshakeMessageComposer
                 {
                     PublicKey = _diffieService.GetPublicKey(),
                     ServerClientEncryption = _config.EnableServerToClientEncryption,

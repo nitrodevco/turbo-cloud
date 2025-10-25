@@ -1,17 +1,13 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using SuperSocket.Connection;
+using Turbo.Authentication;
 using Turbo.Contracts.Enums.Players;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Handshake;
-using Turbo.Primitives.Messages.Outgoing.Availability;
-using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
-using Turbo.Primitives.Messages.Outgoing.Navigator;
-using Turbo.Primitives.Messages.Outgoing.Users;
 
-namespace Turbo.Authentication.Handlers;
+namespace Turbo.PacketHandlers.Authentication;
 
 public class SSOTicketMessageHandler(AuthenticationService authService)
     : IMessageHandler<SSOTicketMessage>
