@@ -6,7 +6,7 @@ namespace Turbo.Primitives.Snapshots.FriendList;
 public record FriendRequestSnapshot
 {
     [Id(0)]
-    public required long RequestId { get; init; }
+    public required int RequestId { get; init; }
 
     [Id(1)]
     public required string RequesterName { get; init; }

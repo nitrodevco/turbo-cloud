@@ -1,7 +1,7 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Turbo.Contracts.Abstractions;
 
-namespace Turbo.Primitives.Messages.Outgoing.Friendlist;
+namespace Turbo.Primitives.Messages.Outgoing.FriendList;
 
 public record RoomInviteErrorMessage : IComposer
 {

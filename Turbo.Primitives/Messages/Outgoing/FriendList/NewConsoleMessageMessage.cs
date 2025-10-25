@@ -1,6 +1,6 @@
-﻿using Turbo.Contracts.Abstractions;
+using Turbo.Contracts.Abstractions;
 
-namespace Turbo.Primitives.Messages.Outgoing.Friendlist;
+namespace Turbo.Primitives.Messages.Outgoing.FriendList;
 
 public record NewConsoleMessageMessage : IComposer
 {

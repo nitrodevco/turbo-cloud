@@ -68,7 +68,10 @@ public class SSOTicketMessageHandler(AuthenticationService authService)
                 )
                 .ConfigureAwait(false);
             await ctx
-                .Session.SendComposerAsync(new NoobnessLevelMessage(), ct)
+                .Session.SendComposerAsync(
+                    new NoobnessLevelMessage { NoobnessLevel = NoobnessLevelEnum.NotNoob },
+                    ct
+                )
                 .ConfigureAwait(false);
             /* await ctx
                 .Session.SendComposerAsync(new FigureSetIdsMessage(), ct)

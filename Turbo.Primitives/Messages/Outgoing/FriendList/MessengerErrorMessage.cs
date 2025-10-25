@@ -1,7 +1,7 @@
-﻿using Turbo.Contracts.Abstractions;
+using Turbo.Contracts.Abstractions;
 using Turbo.Contracts.Enums.FriendList;
 
-namespace Turbo.Primitives.Messages.Outgoing.Friendlist;
+namespace Turbo.Primitives.Messages.Outgoing.FriendList;
 
 public record MessengerErrorMessage : IComposer
 {

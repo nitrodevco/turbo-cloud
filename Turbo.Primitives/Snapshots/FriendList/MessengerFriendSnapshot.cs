@@ -43,7 +43,7 @@ public record MessengerFriendSnapshot
     public required bool VipMember { get; init; }
 
     [Id(12)]
-    public required bool PocketHabbouser { get; init; }
+    public required bool PocketHabboUser { get; init; }
 
     [Id(13)]
     public required short RelationshipStatus { get; init; }

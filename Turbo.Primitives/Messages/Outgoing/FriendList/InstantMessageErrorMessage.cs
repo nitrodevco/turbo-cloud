@@ -1,11 +1,11 @@
-﻿using Turbo.Contracts.Abstractions;
+using Turbo.Contracts.Abstractions;
 using Turbo.Contracts.Enums.FriendList;
 
-namespace Turbo.Primitives.Messages.Outgoing.Friendlist;
+namespace Turbo.Primitives.Messages.Outgoing.FriendList;
 
 public record InstantMessageErrorMessage : IComposer
 {
     public required InstantMessageErrorCodeEnum ErrorCode { get; init; }
-    public required int PlayerId { get; init; }
+    public required long PlayerId { get; init; }
     public required string Message { get; init; }
 }
