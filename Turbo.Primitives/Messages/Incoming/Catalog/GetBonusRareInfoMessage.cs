@@ -2,4 +2,4 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Incoming.Catalog;
 
-public record GetBonusRareInfoMessage : IMessageEvent { }
+public record GetBonusRareInfoMessage : IMessageEvent;

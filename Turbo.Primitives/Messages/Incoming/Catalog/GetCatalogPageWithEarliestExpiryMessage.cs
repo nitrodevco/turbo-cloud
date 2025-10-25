@@ -2,4 +2,4 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Incoming.Catalog;
 
-public record GetCatalogPageWithEarliestExpiryMessage : IMessageEvent { }
+public record GetCatalogPageWithEarliestExpiryMessage : IMessageEvent;

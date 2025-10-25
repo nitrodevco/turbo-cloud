@@ -12,5 +12,5 @@ public record ForwardToSomeRoomMessage : IMessageEvent
     ///     Known {string} values can be found in <see cref="Core.Game.Navigator.Constants.NavigatorRoomForwardType" />
     ///     ForwardData only contains the string data
     /// </summary>
-    public string? ForwardData { get; init; }
+    public required string ForwardData { get; init; }
 }

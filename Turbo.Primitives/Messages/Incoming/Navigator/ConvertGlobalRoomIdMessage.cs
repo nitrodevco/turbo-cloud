@@ -4,5 +4,5 @@ namespace Turbo.Primitives.Messages.Incoming.Navigator;
 
 public record ConvertGlobalRoomIdMessage : IMessageEvent
 {
-    public string? FlatId { get; init; }
+    public required string FlatId { get; init; }
 }

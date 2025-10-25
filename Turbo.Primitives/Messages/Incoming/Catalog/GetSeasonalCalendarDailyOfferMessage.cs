@@ -2,4 +2,4 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Incoming.Catalog;
 
-public record GetSeasonalCalendarDailyOfferMessage : IMessageEvent { }
+public record GetSeasonalCalendarDailyOfferMessage : IMessageEvent;

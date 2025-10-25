@@ -4,5 +4,5 @@ namespace Turbo.Primitives.Messages.Incoming.Navigator;
 
 public record ForwardToARandomPromotedRoomMessage : IMessageEvent
 {
-    public string? Category { get; init; }
+    public required string Category { get; init; }
 }

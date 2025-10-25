@@ -2,4 +2,4 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Incoming.Navigator;
 
-public record MyRoomRightsSearchMessage : IMessageEvent { }
+public record MyRoomRightsSearchMessage : IMessageEvent;
