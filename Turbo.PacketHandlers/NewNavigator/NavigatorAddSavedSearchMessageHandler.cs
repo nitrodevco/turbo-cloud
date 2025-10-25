@@ -1,0 +1,18 @@
+using System.Threading;
+using System.Threading.Tasks;
+using Turbo.Messages.Registry;
+using Turbo.Primitives.Messages.Incoming.NewNavigator;
+
+namespace Turbo.PacketHandlers.NewNavigator;
+
+public class NavigatorAddSavedSearchMessageHandler : IMessageHandler<NavigatorAddSavedSearchMessage>
+{
+    public async ValueTask HandleAsync(
+        NavigatorAddSavedSearchMessage message,
+        MessageContext ctx,
+        CancellationToken ct
+    )
+    {
+        await ValueTask.CompletedTask.ConfigureAwait(false);
+    }
+}
