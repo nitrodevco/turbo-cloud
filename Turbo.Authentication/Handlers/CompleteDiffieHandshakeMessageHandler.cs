@@ -12,13 +12,13 @@ namespace Turbo.Authentication.Handlers;
 public class CompleteDiffieHandshakeMessageHandler(
     DiffieService diffieService,
     IOptions<CryptoConfig> config
-) : IMessageHandler<CompleteDiffieHandshakeMessage>
+) : IMessageHandler<Primitives.Messages.Incoming.Handshake.CompleteDiffieHandshakeMessage>
 {
     private readonly DiffieService _diffieService = diffieService;
     private readonly CryptoConfig _config = config.Value;
 
     public async ValueTask HandleAsync(
-        CompleteDiffieHandshakeMessage message,
+        Primitives.Messages.Incoming.Handshake.CompleteDiffieHandshakeMessage message,
         MessageContext ctx,
         CancellationToken ct
     )
@@ -27,7 +27,7 @@ public class CompleteDiffieHandshakeMessageHandler(
 
         await ctx
             .Session.SendComposerAsync(
-                new CompleteDiffieHandshakeComposer
+                new Primitives.Messages.Outgoing.Handshake.CompleteDiffieHandshakeMessage
                 {
                     PublicKey = _diffieService.GetPublicKey(),
                     ServerClientEncryption = _config.EnableServerToClientEncryption,

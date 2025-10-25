@@ -8,12 +8,12 @@ using Turbo.Primitives.Messages.Outgoing.Handshake;
 namespace Turbo.Authentication.Handlers;
 
 public class InitDiffieHandshakeMessageHandler(DiffieService diffieService)
-    : IMessageHandler<InitDiffieHandshakeMessage>
+    : IMessageHandler<Primitives.Messages.Incoming.Handshake.InitDiffieHandshakeMessage>
 {
     private readonly DiffieService _diffieService = diffieService;
 
     public async ValueTask HandleAsync(
-        InitDiffieHandshakeMessage message,
+        Primitives.Messages.Incoming.Handshake.InitDiffieHandshakeMessage message,
         MessageContext ctx,
         CancellationToken ct
     )
@@ -23,7 +23,11 @@ public class InitDiffieHandshakeMessageHandler(DiffieService diffieService)
 
         await ctx
             .Session.SendComposerAsync(
-                new InitDiffieHandshakeComposer { Prime = prime, Generator = generator },
+                new Primitives.Messages.Outgoing.Handshake.InitDiffieHandshakeMessage
+                {
+                    Prime = prime,
+                    Generator = generator,
+                },
                 ct
             )
             .ConfigureAwait(false);
