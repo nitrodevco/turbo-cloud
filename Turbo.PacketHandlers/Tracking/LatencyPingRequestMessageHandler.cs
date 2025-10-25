@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Tracking;
+using Turbo.Primitives.Messages.Outgoing.Tracking;
 
 namespace Turbo.PacketHandlers.Tracking;
 
@@ -13,6 +14,11 @@ public class LatencyPingRequestMessageHandler : IMessageHandler<LatencyPingReque
         CancellationToken ct
     )
     {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        await ctx
+            .Session.SendComposerAsync(
+                new LatencyPingResponseMessage { RequestId = message.RequestId },
+                ct
+            )
+            .ConfigureAwait(false);
     }
 }
