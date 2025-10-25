@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Incoming.FriendList;
