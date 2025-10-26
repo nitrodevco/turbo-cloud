@@ -64,12 +64,12 @@ public class SSOTicketMessageHandler(AuthenticationService authService)
                     ct
                 )
                 .ConfigureAwait(false);
-            await ctx
+            /* await ctx
                 .Session.SendComposerAsync(
                     new FavouritesMessage { Limit = 0, FavoriteRoomIds = [] },
                     ct
                 )
-                .ConfigureAwait(false);
+                .ConfigureAwait(false); */
             await ctx
                 .Session.SendComposerAsync(
                     new NoobnessLevelMessage { NoobnessLevel = NoobnessLevelEnum.NotNoob },

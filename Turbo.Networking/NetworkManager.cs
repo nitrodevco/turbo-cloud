@@ -92,7 +92,7 @@ public sealed class NetworkManager(
 
         builder.UseSession<SessionContext>();
         builder.UsePipelineFilter<PackageFilter>();
-        builder.UsePingPong();
+        //builder.UsePingPong();
 
         _superSocketHost = builder.Build();
     }

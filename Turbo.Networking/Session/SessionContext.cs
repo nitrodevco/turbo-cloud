@@ -66,8 +66,6 @@ public class SessionContext(IPackageEncoder<OutgoingPackage> packageEncoder)
             await Connection
                 .SendAsync(_packageEncoder, new OutgoingPackage(this, composer), ct)
                 .ConfigureAwait(false);
-
-            Console.WriteLine(this.LastActiveTime);
         }
         catch
         {

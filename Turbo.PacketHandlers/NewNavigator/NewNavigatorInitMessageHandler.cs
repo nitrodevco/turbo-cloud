@@ -15,19 +15,33 @@ public class NewNavigatorInitMessageHandler : IMessageHandler<NewNavigatorInitMe
     )
     {
         await ctx
-            .Session.SendComposerAsync(new NavigatorMetaDataMessage(), ct)
+            .Session.SendComposerAsync(new NavigatorMetaDataMessage { TopLevelContexts = [] }, ct)
             .ConfigureAwait(false);
         await ctx
-            .Session.SendComposerAsync(new NavigatorLiftedRoomsMessage(), ct)
+            .Session.SendComposerAsync(new NavigatorLiftedRoomsMessage { LiftedRooms = [] }, ct)
             .ConfigureAwait(false);
         await ctx
-            .Session.SendComposerAsync(new NavigatorCollapsedCategoriesMessage(), ct)
+            .Session.SendComposerAsync(
+                new NavigatorCollapsedCategoriesMessage { CollapsedCategoryIds = [] },
+                ct
+            )
             .ConfigureAwait(false);
         await ctx
-            .Session.SendComposerAsync(new NavigatorSavedSearchesMessage(), ct)
+            .Session.SendComposerAsync(new NavigatorSavedSearchesMessage { SavedSearches = [] }, ct)
             .ConfigureAwait(false);
         await ctx
-            .Session.SendComposerAsync(new NewNavigatorPreferencesMessage(), ct)
+            .Session.SendComposerAsync(
+                new NewNavigatorPreferencesMessage
+                {
+                    WindowX = 427,
+                    WindowY = 41,
+                    WindowWidth = 425,
+                    WindowHeight = 400,
+                    LeftPaneHidden = false,
+                    ResultsMode = 1,
+                },
+                ct
+            )
             .ConfigureAwait(false);
     }
 }
