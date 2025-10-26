@@ -29,6 +29,8 @@ public static class ServiceCollectionExtensions
 
         module.ConfigureServices(services);
 
+        services.AddSingleton<IHostPluginModule>(module);
+
         return services;
     }
 }

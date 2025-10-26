@@ -19,10 +19,44 @@ public sealed class Catalog(
     private readonly ICatalogFactory _catalogFactory = catalogFactory;
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
     public CatalogTypeEnum CatalogType { get; } = catalogType;
+    public ICatalogPage? RootPage { get; private set; }
     public IDictionary<int, ICatalogPage> Pages { get; } = new Dictionary<int, ICatalogPage>();
     public IDictionary<int, ICatalogOffer> Offers { get; } = new Dictionary<int, ICatalogOffer>();
     public IDictionary<int, ICatalogProduct> Products { get; } =
         new Dictionary<int, ICatalogProduct>();
+
+    private void BuildCatalog()
+    {
+        var root = _catalogFactory.CreateCatalogRoot();
+
+        Pages.Add(root.Snapshot.Id, root);
+
+        foreach (var offer in Offers.Values)
+        {
+            if (offer is null || !Pages.ContainsKey(offer.Snapshot.PageId))
+                continue;
+
+            offer.SetPage(Pages[offer.Snapshot.PageId]);
+        }
+
+        foreach (var product in Products.Values)
+        {
+            if (product is null || !Offers.ContainsKey(product.Snapshot.OfferId))
+                continue;
+
+            product.SetOffer(Offers[product.Snapshot.OfferId]);
+        }
+
+        foreach (var page in Pages.Values)
+        {
+            if (page is null || !Pages.ContainsKey(page.Snapshot.ParentId))
+                continue;
+
+            page.SetParent(Pages[page.Snapshot.ParentId]);
+        }
+
+        RootPage = root;
+    }
 
     public async ValueTask LoadCatalogAsync(CancellationToken ct)
     {
@@ -50,7 +84,7 @@ public sealed class Catalog(
 
                 var pageSnapshot = new CatalogPageSnapshot(
                     x.Id,
-                    x.ParentEntityId,
+                    x.ParentEntityId ?? -1,
                     x.Localization,
                     x.Name,
                     x.Icon,
@@ -102,6 +136,8 @@ public sealed class Catalog(
 
                 Products.Add(product.Snapshot.Id, product);
             });
+
+            BuildCatalog();
         }
         catch (Exception ex)
         {

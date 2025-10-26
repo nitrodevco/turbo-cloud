@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Turbo.Catalog.Abstractions;
 using Turbo.Primitives.Snapshots.Catalog;
 
@@ -7,9 +8,14 @@ public sealed class CatalogOffer(CatalogOfferSnapshot offerSnapshot) : ICatalogO
 {
     public CatalogOfferSnapshot Snapshot => offerSnapshot;
     public ICatalogPage? Page { get; private set; }
+    public IDictionary<int, ICatalogProduct> Products { get; } =
+        new Dictionary<int, ICatalogProduct>();
 
     public void SetPage(ICatalogPage? page)
     {
+        if (Page == page)
+            return;
+
         Page = page;
 
         Page?.AddOffer(this);
@@ -17,6 +23,11 @@ public sealed class CatalogOffer(CatalogOfferSnapshot offerSnapshot) : ICatalogO
 
     public void AddProduct(ICatalogProduct product)
     {
-        // Implementation for adding a product to the offer
+        if (Products.ContainsKey(product.Snapshot.Id))
+            return;
+
+        Products.Add(product.Snapshot.Id, product);
+
+        product.SetOffer(this);
     }
 }

@@ -31,7 +31,7 @@ public class ConsoleCommandService(IServiceProvider services)
         if (!IsRunning)
             return;
 
-        _cts.Cancel();
+        await _cts.CancelAsync().ConfigureAwait(false);
 
         if (_loopTask is not null)
             await _loopTask.ConfigureAwait(false);
@@ -43,16 +43,16 @@ public class ConsoleCommandService(IServiceProvider services)
     {
         while (!ct.IsCancellationRequested)
         {
-            var input = await Task.Run(System.Console.ReadLine, ct);
+            var input = await Task.Run(System.Console.ReadLine, ct).ConfigureAwait(false);
 
             if (string.IsNullOrWhiteSpace(input))
                 continue;
 
-            await HandleCommandAsync(input, ct);
+            await HandleCommandAsync(input, ct).ConfigureAwait(false);
         }
     }
 
-    private async Task HandleCommandAsync(string input, CancellationToken ct)
+    private Task HandleCommandAsync(string input, CancellationToken ct)
     {
         var parts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var cmd = parts[0].ToLowerInvariant();
@@ -86,5 +86,7 @@ public class ConsoleCommandService(IServiceProvider services)
                 System.Console.WriteLine("Unknown command: {Command}", cmd);
                 break;
         }
+
+        return Task.CompletedTask;
     }
 }

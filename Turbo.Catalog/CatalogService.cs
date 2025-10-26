@@ -24,5 +24,7 @@ public sealed class CatalogService(ILogger<ICatalogService> logger, ICatalogFact
         var catalog = _catalogFactory.CreateCatalog(catalogType);
 
         await catalog.LoadCatalogAsync(ct).ConfigureAwait(false);
+
+        _catalogs[catalog.CatalogType] = catalog;
     }
 }

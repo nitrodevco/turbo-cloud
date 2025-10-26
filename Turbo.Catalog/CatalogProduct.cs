@@ -10,6 +10,9 @@ public sealed class CatalogProduct(CatalogProductSnapshot productSnapshot) : ICa
 
     public void SetOffer(ICatalogOffer? offer)
     {
+        if (Offer == offer)
+            return;
+
         Offer = offer;
 
         Offer?.AddProduct(this);

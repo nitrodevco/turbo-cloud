@@ -13,6 +13,11 @@ public class CatalogFactory(IServiceProvider sp) : ICatalogFactory
         return ActivatorUtilities.CreateInstance<Catalog>(sp, catalogType);
     }
 
+    public ICatalogPage CreateCatalogRoot()
+    {
+        return ActivatorUtilities.CreateInstance<CatalogRoot>(sp);
+    }
+
     public ICatalogOffer CreateCatalogOffer(CatalogOfferSnapshot offerSnapshot)
     {
         return ActivatorUtilities.CreateInstance<CatalogOffer>(sp, offerSnapshot);

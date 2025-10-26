@@ -4,7 +4,7 @@ namespace Turbo.Primitives.Snapshots.Catalog;
 
 public record CatalogPageSnapshot(
     int Id,
-    int? ParentId,
+    int ParentId,
     string Localization,
     string? Name,
     int Icon,

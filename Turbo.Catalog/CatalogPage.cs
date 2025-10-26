@@ -4,14 +4,14 @@ using Turbo.Primitives.Snapshots.Catalog;
 
 namespace Turbo.Catalog;
 
-public sealed class CatalogPage(CatalogPageSnapshot pageSnapshot) : ICatalogPage
+public class CatalogPage(CatalogPageSnapshot pageSnapshot) : ICatalogPage
 {
     public CatalogPageSnapshot Snapshot => pageSnapshot;
     public ICatalogPage? Parent { get; private set; }
     public IDictionary<int, ICatalogPage> Children { get; } = new Dictionary<int, ICatalogPage>();
     public IDictionary<int, ICatalogOffer> Offers { get; } = new Dictionary<int, ICatalogOffer>();
 
-    public void SetParent(ICatalogPage? parent)
+    public virtual void SetParent(ICatalogPage? parent)
     {
         if (Parent == parent)
             return;
