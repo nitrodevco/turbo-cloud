@@ -10,13 +10,13 @@ using Turbo.Runtime.AssemblyProcessing;
 namespace Turbo.Plugins;
 
 public sealed class PluginBootstrapper(
-    IEnumerable<IHostPlugin> hostPlugins,
+    IEnumerable<IHostPluginModule> hostPlugins,
     PluginManager pluginManager,
     AssemblyProcessor processor,
     IServiceProvider serviceProvider
 ) : IHostedService
 {
-    private readonly IEnumerable<IHostPlugin> _hostPlugins = hostPlugins;
+    private readonly IEnumerable<IHostPluginModule> _hostPlugins = hostPlugins;
     private readonly PluginManager _pluginManager = pluginManager;
     private readonly AssemblyProcessor _processor = processor;
     private readonly IServiceProvider _serviceProvider = serviceProvider;

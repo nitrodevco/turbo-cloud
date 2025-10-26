@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Turbo.Authentication;
+using Turbo.Catalog;
 using Turbo.Crypto.Extensions;
 using Turbo.Database.Extensions;
 using Turbo.Events.Extensions;
@@ -89,9 +90,10 @@ internal class Program
         builder.Services.AddTurboMessageSystem();
         builder.Services.AddTurboCrypto(builder);
 
-        builder.Services.AddHostPlugin<AuthenticationModule, AuthenticationSystem>();
-        builder.Services.AddHostPlugin<PacketHandlersModule, PacketHandlersSystem>();
-        builder.Services.AddHostPlugin<PlayerModule, PlayerSystem>();
+        builder.Services.AddHostPlugin<AuthenticationModule>();
+        builder.Services.AddHostPlugin<PacketHandlersModule>();
+        builder.Services.AddHostPlugin<PlayerModule>();
+        builder.Services.AddHostPlugin<CatalogModule>();
 
         builder.Services.AddSingleton<AssemblyProcessor>();
         builder.Services.AddSingleton<ConsoleCommandService>();
