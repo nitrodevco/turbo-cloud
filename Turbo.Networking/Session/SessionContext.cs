@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using SuperSocket.Connection;
@@ -7,6 +8,7 @@ using Turbo.Contracts.Abstractions;
 using Turbo.Crypto;
 using Turbo.Networking.Abstractions;
 using Turbo.Networking.Abstractions.Session;
+using Turbo.Runtime;
 
 namespace Turbo.Networking.Session;
 
@@ -18,8 +20,16 @@ public class SessionContext(IPackageEncoder<OutgoingPackage> packageEncoder)
     public bool PolicyDone { get; set; } = true;
     public string RevisionId { get; private set; } = "Default";
     public long PlayerId { get; private set; }
+    public DateTime LastActivityUtc { get; private set; } = DateTime.UtcNow;
+    public AsyncSignal PongWaiter { get; } = new();
+    public CancellationTokenSource HeartbeatCts { get; } = new();
     public Rc4Engine? CryptoIn { get; private set; }
     public Rc4Engine? CryptoOut { get; private set; }
+
+    public void Touch()
+    {
+        LastActivityUtc = DateTime.UtcNow;
+    }
 
     public void SetRevisionId(string revisionId)
     {
@@ -56,6 +66,8 @@ public class SessionContext(IPackageEncoder<OutgoingPackage> packageEncoder)
             await Connection
                 .SendAsync(_packageEncoder, new OutgoingPackage(this, composer), ct)
                 .ConfigureAwait(false);
+
+            Console.WriteLine(this.LastActiveTime);
         }
         catch
         {

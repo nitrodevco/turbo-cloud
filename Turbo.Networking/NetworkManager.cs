@@ -11,6 +11,7 @@ using Turbo.Messages;
 using Turbo.Networking.Abstractions;
 using Turbo.Networking.Abstractions.Revisions;
 using Turbo.Networking.Configuration;
+using Turbo.Networking.Extensions;
 using Turbo.Networking.Session;
 using Turbo.Packets.Abstractions;
 
@@ -91,6 +92,7 @@ public sealed class NetworkManager(
 
         builder.UseSession<SessionContext>();
         builder.UsePipelineFilter<PackageFilter>();
+        builder.UsePingPong();
 
         _superSocketHost = builder.Build();
     }
