@@ -36,6 +36,7 @@ public class GetCatalogPageMessageHandler(
                     PageId = message.PageId,
                     OfferId = message.OfferId,
                     AcceptSeasonCurrencyAsCredits = false,
+                    FrontPageItems = [],
                 },
                 ct
             )

@@ -7,7 +7,7 @@ public record CatalogProductSnapshot(
     int Id,
     int OfferId,
     ProductTypeEnum ProductType,
-    int? FurniDefinitionId,
+    int FurniDefinitionId,
     string? ExtraParam,
     int Quantity,
     int UniqueSize,

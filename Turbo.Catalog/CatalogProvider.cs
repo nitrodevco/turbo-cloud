@@ -75,7 +75,7 @@ public sealed class CatalogProvider<TTag>(
                 x.Id,
                 x.CatalogOfferEntityId,
                 x.ProductType,
-                x.FurnitureDefinitionEntityId,
+                x.FurnitureDefinitionEntityId ?? -1,
                 x.ExtraParam,
                 x.Quantity,
                 x.UniqueSize,

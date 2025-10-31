@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Turbo.Contracts.Abstractions;
 using Turbo.Primitives.Snapshots.Catalog;
 using Turbo.Primitives.Snapshots.Furniture;
@@ -11,4 +12,5 @@ public record CatalogPageMessageComposer : IComposer
     public required int PageId { get; init; }
     public required int OfferId { get; init; }
     public required bool AcceptSeasonCurrencyAsCredits { get; init; }
+    public required List<CatalogFrontPageItemSnapshot> FrontPageItems { get; init; }
 }
