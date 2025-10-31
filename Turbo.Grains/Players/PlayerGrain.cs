@@ -73,6 +73,11 @@ public class PlayerGrain(
 
         try
         {
+            if (dbCtx.Players is null)
+            {
+                throw new Exception("Database context Players set is null.");
+            }
+
             var entity = await dbCtx
                 .Players.AsNoTracking()
                 .SingleOrDefaultAsync(e => e.Id == this.GetPrimaryKeyLong(), ct);

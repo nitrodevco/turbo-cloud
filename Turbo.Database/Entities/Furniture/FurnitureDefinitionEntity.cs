@@ -8,7 +8,7 @@ using Turbo.Contracts.Enums.Furniture;
 namespace Turbo.Database.Entities.Furniture;
 
 [Table("furniture_definitions")]
-[Index(nameof(SpriteId), nameof(Type), IsUnique = true)]
+[Index(nameof(SpriteId), nameof(ProductType), IsUnique = true)]
 public class FurnitureDefinitionEntity : TurboEntity
 {
     [Column("sprite_id")]
@@ -20,9 +20,9 @@ public class FurnitureDefinitionEntity : TurboEntity
     [Column("product_name")]
     public required string ProductName { get; set; }
 
-    [Column("type")]
+    [Column("product_type")]
     [DefaultValue(ProductTypeEnum.Floor)]
-    public required ProductTypeEnum Type { get; set; }
+    public required ProductTypeEnum ProductType { get; set; }
 
     [Column("logic")]
     [MaxLength(30)]
@@ -35,15 +35,15 @@ public class FurnitureDefinitionEntity : TurboEntity
 
     [Column("x")]
     [DefaultValue(0)]
-    public required int X { get; set; }
+    public required int X { get; set; } // width
 
     [Column("y")]
     [DefaultValue(1)]
-    public required int Y { get; set; }
+    public required int Y { get; set; } // height
 
     [Column("z", TypeName = "double(10,3)")]
     [DefaultValue(0.0d)]
-    public required double Z { get; set; }
+    public required double Z { get; set; } // depth
 
     [Column("can_stack")]
     [DefaultValue(true)]

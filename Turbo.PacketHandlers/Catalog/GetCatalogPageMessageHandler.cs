@@ -1,7 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Catalog.Abstractions;
-using Turbo.Contracts.Enums.Catalog;
 using Turbo.Furniture.Abstractions;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Catalog;
@@ -23,24 +22,23 @@ public class GetCatalogPageMessageHandler(
         CancellationToken ct
     )
     {
-        var catalogType = CatalogTypeEnumExtensions.FromLegacyString(message.Type);
-        var catalog = _catalogService.GetCatalog(catalogType);
+        var catalog = _catalogService.GetCatalog(message.CatalogType);
 
-        if (catalog is not null)
-        {
-            await ctx
-                .Session.SendComposerAsync(
-                    new CatalogPageMessageComposer
-                    {
-                        Catalog = catalog,
-                        Furniture = _furnitureProvider.Current,
-                        PageId = message.PageId,
-                        OfferId = message.OfferId,
-                        AcceptSeasonCurrencyAsCredits = false,
-                    },
-                    ct
-                )
-                .ConfigureAwait(false);
-        }
+        if (catalog is null)
+            return;
+
+        await ctx
+            .Session.SendComposerAsync(
+                new CatalogPageMessageComposer
+                {
+                    Catalog = catalog,
+                    Furniture = _furnitureProvider.Current,
+                    PageId = message.PageId,
+                    OfferId = message.OfferId,
+                    AcceptSeasonCurrencyAsCredits = false,
+                },
+                ct
+            )
+            .ConfigureAwait(false);
     }
 }

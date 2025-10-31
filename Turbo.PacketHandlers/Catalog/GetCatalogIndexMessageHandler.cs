@@ -1,8 +1,6 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Catalog.Abstractions;
-using Turbo.Contracts.Enums.Catalog;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
@@ -20,17 +18,13 @@ public class GetCatalogIndexMessageHandler(ICatalogService catalogService)
         CancellationToken ct
     )
     {
-        var catalogType = CatalogTypeEnumExtensions.FromLegacyString(message.Type);
-        var catalog = _catalogService.GetCatalog(catalogType);
+        var catalog = _catalogService.GetCatalog(message.CatalogType);
 
-        if (catalog is not null)
-        {
-            await ctx
-                .Session.SendComposerAsync(
-                    new CatalogIndexMessageComposer { Catalog = catalog },
-                    ct
-                )
-                .ConfigureAwait(false);
-        }
+        if (catalog is null)
+            return;
+
+        await ctx
+            .Session.SendComposerAsync(new CatalogIndexMessageComposer { Catalog = catalog }, ct)
+            .ConfigureAwait(false);
     }
 }

@@ -43,7 +43,7 @@ internal class Program
         ██║   ██║   ██║██████╔╝██████╔╝██║   ██║
         ██║   ██║   ██║██╔══██╗██╔══██╗██║   ██║
         ██║   ╚██████╔╝██║  ██║██████╔╝╚██████╔╝
-        ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═════╝  ╚═════╝ 
+        ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═════╝  ╚═════╝   
             "
         );
 
@@ -92,10 +92,10 @@ internal class Program
         builder.Services.AddTurboCrypto(builder);
 
         builder.Services.AddHostPlugin<AuthenticationModule>();
-        builder.Services.AddHostPlugin<PacketHandlersModule>();
-        builder.Services.AddHostPlugin<PlayerModule>();
-        builder.Services.AddHostPlugin<CatalogModule>();
         builder.Services.AddHostPlugin<FurnitureModule>();
+        builder.Services.AddHostPlugin<CatalogModule>();
+        builder.Services.AddHostPlugin<PlayerModule>();
+        builder.Services.AddHostPlugin<PacketHandlersModule>();
 
         builder.Services.AddSingleton<AssemblyProcessor>();
         builder.Services.AddSingleton<ConsoleCommandService>();

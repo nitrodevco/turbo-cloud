@@ -15,6 +15,5 @@ public sealed class FurnitureModule : IHostPluginModule
     {
         services.AddSingleton<IFurnitureService, FurnitureService>();
         services.AddSingleton<IFurnitureProvider, FurnitureProvider>();
-        services.AddHostedService<FurnitureBootstrapper>();
     }
 }

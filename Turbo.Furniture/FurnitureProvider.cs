@@ -3,16 +3,20 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
 using Turbo.Furniture.Abstractions;
 using Turbo.Primitives.Snapshots.Furniture;
 
 namespace Turbo.Furniture;
 
-public sealed class FurnitureProvider(IDbContextFactory<TurboDbContext> dbContextFactory)
-    : IFurnitureProvider
+public sealed class FurnitureProvider(
+    IDbContextFactory<TurboDbContext> dbContextFactory,
+    ILogger<IFurnitureProvider> logger
+) : IFurnitureProvider
 {
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
+    private readonly ILogger<IFurnitureProvider> _logger = logger;
     private FurnitureSnapshot _current = Empty();
 
     public FurnitureSnapshot Current => _current;
@@ -32,12 +36,32 @@ public sealed class FurnitureProvider(IDbContextFactory<TurboDbContext> dbContex
                 x.Id,
                 x.SpriteId,
                 x.PublicName,
-                x.ProductName
+                x.ProductName,
+                x.ProductType,
+                x.Logic,
+                x.TotalStates,
+                x.X,
+                x.Y,
+                x.Z,
+                x.CanStack,
+                x.CanWalk,
+                x.CanSit,
+                x.CanLay,
+                x.CanRecycle,
+                x.CanTrade,
+                x.CanGroup,
+                x.CanSell,
+                x.UsagePolicy,
+                x.ExtraData
             ));
 
             var defsById = defs.ToImmutableDictionary(p => p.Id);
-
             var snapshot = new FurnitureSnapshot(DefinitionsById: defsById);
+
+            _logger.LogInformation(
+                "Loaded furniture snapshot: TotalDefs={TotalDefCount}",
+                snapshot.DefinitionsById.Count
+            );
 
             Volatile.Write(ref _current, snapshot);
         }

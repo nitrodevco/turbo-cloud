@@ -4,8 +4,8 @@ namespace Turbo.Contracts.Enums.Furniture;
 
 public static class ProductTypeEnumExtension
 {
-    public static string ToLegacyString(this ProductTypeEnum furniType) =>
-        furniType switch
+    public static string ToLegacyString(this ProductTypeEnum productType) =>
+        productType switch
         {
             ProductTypeEnum.Floor => "s",
             ProductTypeEnum.Wall => "i",
@@ -14,11 +14,11 @@ public static class ProductTypeEnumExtension
             ProductTypeEnum.Robot => "r",
             ProductTypeEnum.HabboClub => "h",
             ProductTypeEnum.Pet => "p",
-            _ => throw new ArgumentOutOfRangeException(nameof(furniType), furniType, null),
+            _ => throw new ArgumentOutOfRangeException(nameof(productType), productType, null),
         };
 
-    public static ProductTypeEnum? FromLegacyString(string furniType) =>
-        furniType switch
+    public static ProductTypeEnum FromLegacyString(this string productType) =>
+        productType switch
         {
             "s" => ProductTypeEnum.Floor,
             "i" => ProductTypeEnum.Wall,
@@ -27,6 +27,6 @@ public static class ProductTypeEnumExtension
             "r" => ProductTypeEnum.Robot,
             "h" => ProductTypeEnum.HabboClub,
             "p" => ProductTypeEnum.Pet,
-            _ => null,
+            _ => throw new ArgumentOutOfRangeException(nameof(productType), productType, null),
         };
 }

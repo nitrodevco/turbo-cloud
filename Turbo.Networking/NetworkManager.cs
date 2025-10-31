@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -31,7 +32,7 @@ public sealed class NetworkManager(
     private readonly ILoggerFactory _loggerFactory = loggerFactory;
     private IHost? _superSocketHost;
 
-    public async Task StartAsync()
+    public async Task StartAsync(CancellationToken ct)
     {
         bool needStart = false;
 
@@ -45,7 +46,7 @@ public sealed class NetworkManager(
         }
 
         if (needStart && _superSocketHost is not null)
-            await _superSocketHost.StartAsync().ConfigureAwait(false);
+            await _superSocketHost.StartAsync(ct).ConfigureAwait(false);
     }
 
     public async Task StopAsync()

@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Turbo.Catalog.Abstractions;
+using Turbo.Catalog.Abstractions.Tags;
 using Turbo.Contracts.Enums.Catalog;
 using Turbo.Contracts.Plugins;
 using Turbo.Database.Context;
@@ -14,10 +16,12 @@ public sealed class CatalogModule : IHostPluginModule
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton<ICatalogService, CatalogService>();
-        services.AddSingleton<ICatalogProvider>(sp => new CatalogProvider(
-            sp.GetRequiredService<IDbContextFactory<TurboDbContext>>(),
-            CatalogTypeEnum.Normal
-        ));
-        services.AddHostedService<CatalogBootstrapper>();
+        services.AddSingleton<ICatalogProvider<NormalCatalog>>(
+            sp => new CatalogProvider<NormalCatalog>(
+                sp.GetRequiredService<IDbContextFactory<TurboDbContext>>(),
+                sp.GetRequiredService<ILogger<ICatalogProvider<NormalCatalog>>>(),
+                CatalogTypeEnum.Normal
+            )
+        );
     }
 }

@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Turbo.Catalog.Abstractions;
 using Turbo.Contracts.Enums.Catalog;
 using Turbo.Database.Context;
@@ -10,16 +11,19 @@ using Turbo.Primitives.Snapshots.Catalog;
 
 namespace Turbo.Catalog;
 
-public sealed class CatalogProvider(
+public sealed class CatalogProvider<TTag>(
     IDbContextFactory<TurboDbContext> dbContextFactory,
+    ILogger<ICatalogProvider<TTag>> logger,
     CatalogTypeEnum catalogType
-) : ICatalogProvider
+) : ICatalogProvider<TTag>
+    where TTag : ICatalogTag
 {
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
-    private readonly CatalogTypeEnum _catalogType = catalogType;
+    private readonly ILogger<ICatalogProvider<TTag>> _logger = logger;
     private CatalogSnapshot _current = Empty();
 
     public CatalogSnapshot Current => _current;
+    public CatalogTypeEnum CatalogType => catalogType;
 
     public async Task ReloadAsync(CancellationToken ct = default)
     {
@@ -98,13 +102,21 @@ public sealed class CatalogProvider(
                 .ToImmutableDictionary(g => g.Key, g => g.Select(x => x.Id).ToImmutableArray());
 
             var snapshot = new CatalogSnapshot(
-                CatalogType: _catalogType,
+                CatalogType: CatalogType,
                 PagesById: pagesById,
                 OffersById: offersById,
                 ProductsById: productsById,
                 PageChildren: pageChildren,
                 PageOffers: pageOffers,
                 OfferProducts: offerProductsMap
+            );
+
+            _logger.LogInformation(
+                "Loaded catalog snapshot: Type={CatalogType}, TotalPages={TotalPageCount}, Offers={TotalOfferCount}, Products={TotalProductCount}",
+                snapshot.CatalogType,
+                snapshot.PagesById.Count,
+                snapshot.OffersById.Count,
+                snapshot.ProductsById.Count
             );
 
             Volatile.Write(ref _current, snapshot);

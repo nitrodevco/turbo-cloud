@@ -1,51 +1,34 @@
 using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Turbo.Events;
+using Turbo.Catalog.Abstractions;
+using Turbo.Catalog.Abstractions.Tags;
+using Turbo.Furniture.Abstractions;
 using Turbo.Networking.Abstractions;
-using Turbo.Primitives.Events;
 
 namespace Turbo.Main;
 
-public class TurboEmulator : IHostedService
+public class TurboEmulator(
+    ILogger<TurboEmulator> logger,
+    IFurnitureProvider furnitureProvider,
+    ICatalogProvider<NormalCatalog> catalogProvider,
+    INetworkManager networkManager
+) : IHostedService
 {
-    private readonly IHostApplicationLifetime _appLifetime;
-    private readonly ILogger<TurboEmulator> _logger;
-    private readonly List<IDisposable> _registrations;
-    private readonly INetworkManager _networkManager;
-    private readonly EventSystem _eventSystem;
-
-    public TurboEmulator(
-        IHostApplicationLifetime appLifetime,
-        ILogger<TurboEmulator> logger,
-        INetworkManager networkManager,
-        EventSystem eventSystem
-    )
-    {
-        _appLifetime = appLifetime;
-        _logger = logger;
-        _networkManager = networkManager;
-        _registrations =
-        [
-            _appLifetime.ApplicationStarted.Register(OnStarted),
-            _appLifetime.ApplicationStopping.Register(OnStopping),
-            _appLifetime.ApplicationStopped.Register(OnStopped),
-        ];
-        _eventSystem = eventSystem;
-
-        SetDefaultCulture(CultureInfo.InvariantCulture);
-    }
+    private readonly ILogger<TurboEmulator> _logger = logger;
+    private readonly IFurnitureProvider _furnitureProvider = furnitureProvider;
+    private readonly ICatalogProvider<NormalCatalog> _catalogProvider = catalogProvider;
+    private readonly INetworkManager _networkManager = networkManager;
 
     public async Task StartAsync(CancellationToken ct)
     {
         try
         {
-            await _networkManager.StartAsync().ConfigureAwait(false);
+            await _furnitureProvider.ReloadAsync(ct).ConfigureAwait(false);
+            await _catalogProvider.ReloadAsync(ct).ConfigureAwait(false);
+            await _networkManager.StartAsync(ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -63,33 +46,8 @@ public class TurboEmulator : IHostedService
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        //_logger.LogInformation("{GetVersion} StopAsync...", GetVersion());
+        _logger.LogInformation("Turbo StopAsync called.");
 
         return Task.CompletedTask;
-    }
-
-    private void OnStarted()
-    {
-        _eventSystem.PublishAsync(new PlayerJoinedEvent(1));
-        //_eventBus.PublishAsync(new PlayerJoinedEvent(1));
-        //_logger.LogInformation("Started {Emulator}", GetVersion());
-    }
-
-    private void OnStopping()
-    {
-        //_logger.LogInformation("{GetVersion} Stopping...", GetVersion());
-    }
-
-    private void OnStopped()
-    {
-        //_logger.LogInformation("{GetVersion} Stopped", GetVersion());
-    }
-
-    private void SetDefaultCulture(CultureInfo culture)
-    {
-        CultureInfo.DefaultThreadCurrentCulture = culture;
-        CultureInfo.DefaultThreadCurrentUICulture = culture;
-        Thread.CurrentThread.CurrentCulture = culture;
-        Thread.CurrentThread.CurrentUICulture = culture;
     }
 }
