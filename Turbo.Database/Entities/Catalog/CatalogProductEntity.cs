@@ -12,8 +12,8 @@ public class CatalogProductEntity : TurboEntity
     public required int CatalogOfferEntityId { get; set; }
 
     [Column("product_type")]
-    [DefaultValue(FurniTypeEnum.Floor)]
-    public required FurniTypeEnum ProductType { get; set; }
+    [DefaultValue(ProductTypeEnum.Floor)]
+    public required ProductTypeEnum ProductType { get; set; }
 
     [Column("definition_id")]
     public int? FurnitureDefinitionEntityId { get; set; }

@@ -34,6 +34,10 @@ public class CatalogPageEntity : TurboEntity
     [Column("text_data")]
     public List<string>? TextData { get; set; } = null!;
 
+    [Column("sort_order")]
+    [DefaultValue(0)]
+    public required int SortOrder { get; set; }
+
     [Column("visible")]
     [DefaultValue(true)]
     public required bool Visible { get; set; }

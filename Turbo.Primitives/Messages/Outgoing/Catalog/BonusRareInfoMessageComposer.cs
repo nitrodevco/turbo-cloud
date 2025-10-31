@@ -4,5 +4,8 @@ namespace Turbo.Primitives.Messages.Outgoing.Catalog;
 
 public record BonusRareInfoMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    public required string ProductType { get; init; }
+    public required int ProductClassId { get; init; }
+    public required int TotalCoinsForBonus { get; init; }
+    public required int CoinsStillRequiredToBuy { get; init; }
 }

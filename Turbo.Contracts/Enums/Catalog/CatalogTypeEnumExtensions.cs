@@ -12,11 +12,11 @@ public static class CatalogTypeEnumExtensions
             _ => throw new ArgumentOutOfRangeException(nameof(catalogType), catalogType, null),
         };
 
-    public static CatalogTypeEnum? FromLegacyString(this string catalogType) =>
+    public static CatalogTypeEnum FromLegacyString(this string catalogType) =>
         catalogType switch
         {
             "NORMAL" => CatalogTypeEnum.Normal,
             "BUILDERS_CLUB" => CatalogTypeEnum.BuildersClub,
-            _ => null,
+            _ => throw new ArgumentOutOfRangeException(nameof(catalogType), catalogType, null),
         };
 }

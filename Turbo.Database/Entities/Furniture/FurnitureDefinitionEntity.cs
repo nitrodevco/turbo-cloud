@@ -21,8 +21,8 @@ public class FurnitureDefinitionEntity : TurboEntity
     public required string ProductName { get; set; }
 
     [Column("type")]
-    [DefaultValue(FurniTypeEnum.Floor)]
-    public required FurniTypeEnum Type { get; set; }
+    [DefaultValue(ProductTypeEnum.Floor)]
+    public required ProductTypeEnum Type { get; set; }
 
     [Column("logic")]
     [MaxLength(30)]

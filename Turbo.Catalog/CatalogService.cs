@@ -1,30 +1,56 @@
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Catalog.Abstractions;
 using Turbo.Contracts.Enums.Catalog;
+using Turbo.Database.Context;
+using Turbo.Primitives.Snapshots.Catalog;
 
 namespace Turbo.Catalog;
 
-public sealed class CatalogService(ILogger<ICatalogService> logger, ICatalogFactory catalogFactory)
-    : ICatalogService
+public sealed class CatalogService(
+    ILogger<ICatalogService> logger,
+    ICatalogProvider catalogProvider,
+    IDbContextFactory<TurboDbContext> dbContextFactory
+) : ICatalogService
 {
     private readonly ILogger<ICatalogService> _logger = logger;
-    private readonly ICatalogFactory _catalogFactory = catalogFactory;
+    private readonly ICatalogProvider _catalogProvider = catalogProvider;
+
+    private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
     private readonly IDictionary<CatalogTypeEnum, ICatalog> _catalogs =
         new ConcurrentDictionary<CatalogTypeEnum, ICatalog>();
 
-    public async Task LoadCatalogAsync(CatalogTypeEnum catalogType, CancellationToken ct)
+    public CatalogSnapshot? GetCatalog(CatalogTypeEnum catalogType)
     {
-        if (_catalogs.ContainsKey(catalogType))
-            return;
+        var current = _catalogProvider.Current;
 
-        var catalog = _catalogFactory.CreateCatalog(catalogType);
+        return current;
+    }
 
-        await catalog.LoadCatalogAsync(ct).ConfigureAwait(false);
+    public async ValueTask LoadCatalogAsync(CatalogTypeEnum catalogType, CancellationToken ct)
+    {
+        try
+        {
+            await _catalogProvider.ReloadAsync(ct).ConfigureAwait(false);
 
-        _catalogs[catalog.CatalogType] = catalog;
+            var current = _catalogProvider.Current;
+
+            _logger.LogInformation(
+                "Loaded catalog snapshot: Type={CatalogType}, Pages={PageCount}, Offers={OfferCount}, Products={ProductCount}",
+                catalogType,
+                current.PagesById.Count,
+                current.OffersById.Count,
+                current.ProductsById.Count
+            );
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
     }
 }

@@ -1,6 +1,6 @@
 namespace Turbo.Contracts.Enums.Furniture;
 
-public enum FurniTypeEnum
+public enum ProductTypeEnum
 {
     Floor = 0,
     Wall = 1,

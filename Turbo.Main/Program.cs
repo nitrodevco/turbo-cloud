@@ -11,6 +11,7 @@ using Turbo.Catalog;
 using Turbo.Crypto.Extensions;
 using Turbo.Database.Extensions;
 using Turbo.Events.Extensions;
+using Turbo.Furniture;
 using Turbo.Grains.Extensions;
 using Turbo.Logging.Extensions;
 using Turbo.Main.Console;
@@ -94,6 +95,7 @@ internal class Program
         builder.Services.AddHostPlugin<PacketHandlersModule>();
         builder.Services.AddHostPlugin<PlayerModule>();
         builder.Services.AddHostPlugin<CatalogModule>();
+        builder.Services.AddHostPlugin<FurnitureModule>();
 
         builder.Services.AddSingleton<AssemblyProcessor>();
         builder.Services.AddSingleton<ConsoleCommandService>();

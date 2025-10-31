@@ -4,5 +4,8 @@ namespace Turbo.Primitives.Messages.Outgoing.Catalog;
 
 public record BuildersClubSubscriptionStatusMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    public int SecondsLeft { get; init; }
+    public int FurniLimit { get; init; }
+    public int MaxFurniLimit { get; init; }
+    public int? SecondsLeftWithGrace { get; init; }
 }

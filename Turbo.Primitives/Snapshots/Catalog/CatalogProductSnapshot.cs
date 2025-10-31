@@ -6,8 +6,8 @@ namespace Turbo.Primitives.Snapshots.Catalog;
 public record CatalogProductSnapshot(
     int Id,
     int OfferId,
-    FurniTypeEnum ProductType,
-    int? DefinitionId,
+    ProductTypeEnum ProductType,
+    int? FurniDefinitionId,
     string? ExtraParam,
     int Quantity,
     int UniqueSize,

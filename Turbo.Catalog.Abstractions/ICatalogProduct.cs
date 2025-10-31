@@ -4,7 +4,7 @@ namespace Turbo.Catalog.Abstractions;
 
 public interface ICatalogProduct
 {
-    CatalogProductSnapshot Snapshot { get; }
-    ICatalogOffer? Offer { get; }
+    public CatalogProductSnapshot Snapshot { get; }
+    public ICatalogOffer? Offer { get; }
     void SetOffer(ICatalogOffer? offer);
 }

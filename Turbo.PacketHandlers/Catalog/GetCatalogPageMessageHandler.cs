@@ -1,18 +1,46 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Catalog.Abstractions;
+using Turbo.Contracts.Enums.Catalog;
+using Turbo.Furniture.Abstractions;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Catalog;
+using Turbo.Primitives.Messages.Outgoing.Catalog;
 
 namespace Turbo.PacketHandlers.Catalog;
 
-public class GetCatalogPageMessageHandler : IMessageHandler<GetCatalogPageMessage>
+public class GetCatalogPageMessageHandler(
+    ICatalogService catalogService,
+    IFurnitureProvider furnitureProvider
+) : IMessageHandler<GetCatalogPageMessage>
 {
+    private readonly ICatalogService _catalogService = catalogService;
+    private readonly IFurnitureProvider _furnitureProvider = furnitureProvider;
+
     public async ValueTask HandleAsync(
         GetCatalogPageMessage message,
         MessageContext ctx,
         CancellationToken ct
     )
     {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        var catalogType = CatalogTypeEnumExtensions.FromLegacyString(message.Type);
+        var catalog = _catalogService.GetCatalog(catalogType);
+
+        if (catalog is not null)
+        {
+            await ctx
+                .Session.SendComposerAsync(
+                    new CatalogPageMessageComposer
+                    {
+                        Catalog = catalog,
+                        Furniture = _furnitureProvider.Current,
+                        PageId = message.PageId,
+                        OfferId = message.OfferId,
+                        AcceptSeasonCurrencyAsCredits = false,
+                    },
+                    ct
+                )
+                .ConfigureAwait(false);
+        }
     }
 }

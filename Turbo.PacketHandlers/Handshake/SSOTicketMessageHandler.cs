@@ -89,7 +89,7 @@ public class SSOTicketMessageHandler(AuthenticationService authService)
                 .ConfigureAwait(false);
             await ctx
                 .Session.SendComposerAsync(
-                    new AvailabilityStatusMessage
+                    new AvailabilityStatusMessageComposer
                     {
                         IsOpen = true,
                         OnShutDown = false,

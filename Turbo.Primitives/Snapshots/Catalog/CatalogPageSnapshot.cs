@@ -9,7 +9,7 @@ public record CatalogPageSnapshot(
     string? Name,
     int Icon,
     string Layout,
-    List<string>? ImageData,
-    List<string>? TextData,
+    List<string> ImageData,
+    List<string> TextData,
     bool Visible
 );

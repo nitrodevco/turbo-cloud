@@ -4,5 +4,5 @@ namespace Turbo.Primitives.Messages.Incoming.Catalog;
 
 public record GetCatalogIndexMessage : IMessageEvent
 {
-    public string? Type { get; init; }
+    public required string Type { get; init; }
 }
