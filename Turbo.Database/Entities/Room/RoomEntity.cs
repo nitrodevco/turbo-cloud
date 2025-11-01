@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Turbo.Contracts.Enums.Navigator;
+using Turbo.Contracts.Enums.Navigator.Chat;
 using Turbo.Contracts.Enums.Rooms;
 using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Players;
@@ -21,10 +22,10 @@ public class RoomEntity : TurboEntity
     [Column("player_id")]
     public required int PlayerEntityId { get; set; }
 
-    [Column("state")]
-    [DefaultValue(DoorModeType.Open)] // RoomStateType.Open
+    [Column("door_mode")]
+    [DefaultValue(DoorModeType.Open)] // DoorModeType.Open
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public required RoomStateType RoomState { get; set; }
+    public required DoorModeType DoorMode { get; set; }
 
     [Column("password")]
     public string? Password { get; set; }
@@ -39,9 +40,9 @@ public class RoomEntity : TurboEntity
     [DefaultValue(0)]
     public required int UsersNow { get; set; }
 
-    [Column("users_max")]
+    [Column("players_max")]
     [DefaultValue(25)]
-    public required int UsersMax { get; set; }
+    public required int PlayersMax { get; set; }
 
     [Column("paint_wall")]
     [DefaultValue(0.0d)]
@@ -77,10 +78,6 @@ public class RoomEntity : TurboEntity
     [DefaultValue(true)]
     public required bool AllowWalkThrough { get; set; }
 
-    [Column("allow_editing")]
-    [DefaultValue(true)]
-    public required bool? AllowEditing { get; set; }
-
     [Column("allow_pets")]
     [DefaultValue(false)]
     public required bool AllowPets { get; set; }
@@ -90,44 +87,44 @@ public class RoomEntity : TurboEntity
     public required bool AllowPetsEat { get; set; }
 
     [Column("trade_type")]
-    [DefaultValue(RoomTradeType.Disabled)]
+    [DefaultValue(TradeModeType.Disabled)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public required RoomTradeType TradeType { get; set; }
+    public required TradeModeType TradeType { get; set; }
 
     [Column("mute_type")]
-    [DefaultValue(RoomMuteType.None)]
+    [DefaultValue(ModSettingType.Owner)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public required RoomMuteType MuteType { get; set; }
+    public required ModSettingType MuteType { get; set; }
 
     [Column("kick_type")]
-    [DefaultValue(RoomKickType.None)]
+    [DefaultValue(ModSettingType.Owner)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public required RoomKickType KickType { get; set; }
+    public required ModSettingType KickType { get; set; }
 
     [Column("ban_type")]
-    [DefaultValue(RoomBanType.None)]
+    [DefaultValue(ModSettingType.Owner)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public required RoomBanType BanType { get; set; }
+    public required ModSettingType BanType { get; set; }
 
     [Column("chat_mode_type")]
-    [DefaultValue(RoomChatModeType.FreeFlow)]
+    [DefaultValue(ChatModeType.FreeFlow)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public required RoomChatModeType ChatModeType { get; set; }
+    public required ChatModeType ChatModeType { get; set; }
 
-    [Column("chat_weight_type")]
-    [DefaultValue(RoomChatWeightType.Normal)]
+    [Column("chat_bubble_type")]
+    [DefaultValue(ChatBubbleWidthType.Normal)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public required RoomChatWeightType ChatWeightType { get; set; }
+    public required ChatBubbleWidthType ChatBubbleType { get; set; }
 
     [Column("chat_speed_type")]
-    [DefaultValue(RoomChatSpeedType.Normal)]
+    [DefaultValue(ChatScrollSpeedType.Normal)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public required RoomChatSpeedType ChatSpeedType { get; set; }
+    public required ChatScrollSpeedType ChatSpeedType { get; set; }
 
-    [Column("chat_protection_type")]
-    [DefaultValue(RoomChatProtectionType.Minimal)]
+    [Column("chat_flood_type")]
+    [DefaultValue(ChatFloodSensitivityType.Minimal)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public required RoomChatProtectionType ChatProtectionType { get; set; }
+    public required ChatFloodSensitivityType ChatFloodType { get; set; }
 
     [Column("chat_distance")]
     [DefaultValue(50)]

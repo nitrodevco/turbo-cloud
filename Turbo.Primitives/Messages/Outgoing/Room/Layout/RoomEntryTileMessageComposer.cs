@@ -1,8 +1,11 @@
 using Turbo.Contracts.Abstractions;
+using Turbo.Contracts.Enums.Rooms.Object;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Layout;
 
 public record RoomEntryTileMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    public required int X { get; init; }
+    public required int Y { get; init; }
+    public required Rotation Rotation { get; init; }
 }

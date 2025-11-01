@@ -1,6 +1,6 @@
 namespace Turbo.Contracts.Enums.Navigator;
 
-public enum NavigatorModSettingType
+public enum ModSettingType
 {
     Owner = 0,
     Rights = 1,

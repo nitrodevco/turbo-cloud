@@ -14,6 +14,7 @@
     <ProjectReference Include="..\Turbo.Furniture\Turbo.Furniture.csproj" />
     <ProjectReference Include="..\Turbo.Messages\Turbo.Messages.csproj" />
     <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
+    <ProjectReference Include="..\Turbo.Rooms\Turbo.Rooms.csproj" />
     <ProjectReference Include="..\Turbo.Players\Turbo.Players.csproj" />
   </ItemGroup>
 </Project>

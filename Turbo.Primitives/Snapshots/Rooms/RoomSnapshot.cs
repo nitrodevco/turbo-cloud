@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Contracts.Enums.Navigator;
+using Turbo.Primitives.Snapshots.Navigator;
 
 namespace Turbo.Primitives.Snapshots.Rooms;
 
@@ -7,7 +8,7 @@ namespace Turbo.Primitives.Snapshots.Rooms;
 public record RoomSnapshot
 {
     [Id(0)]
-    public required long RoomId { get; init; }
+    public required long Id { get; init; }
 
     [Id(1)]
     public required string Name { get; init; } = string.Empty;
@@ -25,8 +26,26 @@ public record RoomSnapshot
     public string? Password { get; init; }
 
     [Id(6)]
-    public int ModelId { get; init; }
+    public required int ModelId { get; init; }
 
     [Id(7)]
-    public int CategoryId { get; init; }
+    public int? CategoryId { get; init; }
+
+    [Id(8)]
+    public required int PlayersMax { get; init; }
+
+    [Id(9)]
+    public required bool AllowPets { get; init; }
+
+    [Id(10)]
+    public required bool AllowPetsEat { get; init; }
+
+    [Id(11)]
+    public required TradeModeType TradeMode { get; init; }
+
+    [Id(12)]
+    public required ModSettingsSnapshot ModSettings { get; init; }
+
+    [Id(13)]
+    public required ChatSettingsSnapshot ChatSettings { get; init; }
 }

@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using Turbo.Contracts.Abstractions;
+using Turbo.Contracts.Enums.Navigator;
+using Turbo.Contracts.Enums.Navigator.Chat;
 using Turbo.Contracts.Enums.Rooms;
 
 namespace Turbo.Primitives.Messages.Incoming.RoomSettings;
@@ -14,20 +16,20 @@ public record SaveRoomSettingsMessage : IMessageEvent
     public int MaxVisitors { get; init; }
     public int CategoryId { get; init; }
     public List<string> Tags { get; init; } = new();
-    public RoomTradeType TradeMode { get; init; }
+    public TradeModeType TradeMode { get; init; }
     public bool AllowPets { get; init; }
     public bool AllowFoodConsume { get; init; }
     public bool AllowWalkThrough { get; init; }
     public bool HideWalls { get; init; }
     public RoomThicknessType WallThickness { get; init; }
     public RoomThicknessType FloorThickness { get; init; }
-    public RoomMuteType WhoCanMute { get; init; }
-    public RoomKickType WhoCanKick { get; init; }
-    public RoomBanType WhoCanBan { get; init; }
-    public RoomChatModeType ChatMode { get; init; }
-    public RoomChatWeightType ChatBubbleSize { get; init; }
-    public RoomChatSpeedType ChatScrollUpFrequency { get; init; }
+    public ModSettingType WhoCanMute { get; init; }
+    public ModSettingType WhoCanKick { get; init; }
+    public ModSettingType WhoCanBan { get; init; }
+    public ChatModeType ChatMode { get; init; }
+    public ChatBubbleWidthType ChatBubbleSize { get; init; }
+    public ChatScrollSpeedType ChatScrollUpFrequency { get; init; }
     public int ChatFullHearRange { get; init; }
-    public RoomChatProtectionType ChatFloodSensitivity { get; init; }
+    public ChatFloodSensitivityType ChatFloodSensitivity { get; init; }
     public bool AllowNavigatorDynCats { get; init; }
 }

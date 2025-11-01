@@ -4,7 +4,7 @@ using Turbo.Contracts.Enums.Navigator;
 namespace Turbo.Primitives.Snapshots.Navigator;
 
 public sealed record RoomSettingsSnapshot(
-    int RoomId,
+    long Id,
     string Name,
     int OwnerId,
     string OwnerName,
