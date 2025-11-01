@@ -4,5 +4,5 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Session;
 
 public record RoomForwardMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    public required int RoomId { get; init; }
 }

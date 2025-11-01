@@ -4,5 +4,5 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Session;
 
 public record HanditemConfigurationMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    public required bool IsHanditemControlBlocked { get; init; }
 }

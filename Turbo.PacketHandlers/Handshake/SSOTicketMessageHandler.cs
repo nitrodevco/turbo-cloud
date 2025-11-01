@@ -8,6 +8,7 @@ using Turbo.Primitives.Messages.Incoming.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Availability;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
+using Turbo.Primitives.Messages.Outgoing.Room.Session;
 
 namespace Turbo.PacketHandlers.Handshake;
 
@@ -60,7 +61,7 @@ public class SSOTicketMessageHandler(AuthenticationService authService)
                 .ConfigureAwait(false);
             await ctx
                 .Session.SendComposerAsync(
-                    new NavigatorSettingsMessage { HomeRoomId = 0, RoomIdToEnter = 0 },
+                    new NavigatorSettingsMessageComposer { HomeRoomId = 0, RoomIdToEnter = 0 },
                     ct
                 )
                 .ConfigureAwait(false);
@@ -113,6 +114,9 @@ public class SSOTicketMessageHandler(AuthenticationService authService)
                     ct
                 )
                 .ConfigureAwait(false); */
+            await ctx
+                .Session.SendComposerAsync(new RoomForwardMessageComposer { RoomId = 1 }, ct)
+                .ConfigureAwait(false);
         }
         else
         {
