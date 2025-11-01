@@ -7,19 +7,23 @@ using Microsoft.Extensions.Logging;
 using Turbo.Catalog.Abstractions;
 using Turbo.Contracts.Enums.Catalog;
 using Turbo.Database.Context;
+using Turbo.Furniture.Abstractions;
 using Turbo.Primitives.Snapshots.Catalog;
+using Turbo.Primitives.Snapshots.Furniture.Extensions;
 
 namespace Turbo.Catalog;
 
 public sealed class CatalogProvider<TTag>(
     IDbContextFactory<TurboDbContext> dbContextFactory,
     ILogger<ICatalogProvider<TTag>> logger,
+    IFurnitureProvider furnitureProvider,
     CatalogTypeEnum catalogType
 ) : ICatalogProvider<TTag>
     where TTag : ICatalogTag
 {
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
     private readonly ILogger<ICatalogProvider<TTag>> _logger = logger;
+    private readonly IFurnitureProvider _furnitureProvider = furnitureProvider;
     private CatalogSnapshot _current = Empty();
 
     public CatalogSnapshot Current => _current;
@@ -76,6 +80,11 @@ public sealed class CatalogProvider<TTag>(
                 x.CatalogOfferEntityId,
                 x.ProductType,
                 x.FurnitureDefinitionEntityId ?? -1,
+                SpriteId: x.FurnitureDefinitionEntityId != null
+                    ? _furnitureProvider
+                        .Current.GetDefinitionById(x.FurnitureDefinitionEntityId.Value)
+                        .SpriteId
+                    : -1,
                 x.ExtraParam,
                 x.Quantity,
                 x.UniqueSize,

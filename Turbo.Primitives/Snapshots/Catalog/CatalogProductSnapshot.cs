@@ -8,7 +8,8 @@ public record CatalogProductSnapshot(
     int OfferId,
     ProductTypeEnum ProductType,
     int FurniDefinitionId,
-    string? ExtraParam,
+    int SpriteId,
+    string ExtraParam,
     int Quantity,
     int UniqueSize,
     int UniqueRemaining

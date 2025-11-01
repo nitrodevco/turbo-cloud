@@ -1,8 +1,5 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Turbo.Contracts.Enums.Catalog;
 using Turbo.Contracts.Plugins;
-using Turbo.Database.Context;
 using Turbo.Furniture.Abstractions;
 
 namespace Turbo.Furniture;

@@ -6,6 +6,7 @@ using Turbo.Catalog.Abstractions.Tags;
 using Turbo.Contracts.Enums.Catalog;
 using Turbo.Contracts.Plugins;
 using Turbo.Database.Context;
+using Turbo.Furniture.Abstractions;
 
 namespace Turbo.Catalog;
 
@@ -20,6 +21,7 @@ public sealed class CatalogModule : IHostPluginModule
             sp => new CatalogProvider<NormalCatalog>(
                 sp.GetRequiredService<IDbContextFactory<TurboDbContext>>(),
                 sp.GetRequiredService<ILogger<ICatalogProvider<NormalCatalog>>>(),
+                sp.GetRequiredService<IFurnitureProvider>(),
                 CatalogTypeEnum.Normal
             )
         );
