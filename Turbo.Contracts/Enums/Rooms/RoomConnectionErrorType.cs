@@ -1,6 +1,6 @@
 namespace Turbo.Contracts.Enums.Rooms;
 
-public enum RoomEnterErrorType
+public enum RoomConnectionErrorType
 {
     RoomFull = 1,
     NoEntry = 2,

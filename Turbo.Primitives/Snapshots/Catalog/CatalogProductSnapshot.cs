@@ -9,7 +9,7 @@ public record CatalogProductSnapshot(
     ProductTypeEnum ProductType,
     int FurniDefinitionId,
     int SpriteId,
-    string ExtraParam,
+    string? ExtraParam,
     int Quantity,
     int UniqueSize,
     int UniqueRemaining

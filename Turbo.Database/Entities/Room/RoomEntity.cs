@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
+using Turbo.Contracts.Enums.Navigator;
 using Turbo.Contracts.Enums.Rooms;
 using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Players;
@@ -21,7 +22,7 @@ public class RoomEntity : TurboEntity
     public required int PlayerEntityId { get; set; }
 
     [Column("state")]
-    [DefaultValue(RoomStateType.Open)] // RoomStateType.Open
+    [DefaultValue(DoorModeType.Open)] // RoomStateType.Open
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public required RoomStateType RoomState { get; set; }
 

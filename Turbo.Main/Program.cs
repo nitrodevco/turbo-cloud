@@ -13,9 +13,11 @@ using Turbo.Database.Extensions;
 using Turbo.Events.Extensions;
 using Turbo.Furniture;
 using Turbo.Grains.Extensions;
+using Turbo.Inventory;
 using Turbo.Logging.Extensions;
 using Turbo.Main.Console;
 using Turbo.Messages.Extensions;
+using Turbo.Navigator;
 using Turbo.Networking.Extensions;
 using Turbo.PacketHandlers;
 using Turbo.Players;
@@ -95,6 +97,8 @@ internal class Program
         builder.Services.AddHostPlugin<FurnitureModule>();
         builder.Services.AddHostPlugin<CatalogModule>();
         builder.Services.AddHostPlugin<PlayerModule>();
+        builder.Services.AddHostPlugin<InventoryModule>();
+        builder.Services.AddHostPlugin<NavigatorModule>();
         builder.Services.AddHostPlugin<PacketHandlersModule>();
 
         builder.Services.AddSingleton<AssemblyProcessor>();

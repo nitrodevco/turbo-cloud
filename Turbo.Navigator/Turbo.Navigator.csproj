@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Turbo.Contracts\Turbo.Contracts.csproj" />
+    <ProjectReference Include="..\Turbo.Database\Turbo.Database.csproj" />
+    <ProjectReference Include="..\Turbo.Navigator.Abstractions\Turbo.Navigator.Abstractions.csproj" />
+    <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
+    <ProjectReference Include="..\Turbo.Players\Turbo.Players.csproj" />
+  </ItemGroup>
+</Project>
