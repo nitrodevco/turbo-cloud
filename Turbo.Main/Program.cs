@@ -22,6 +22,7 @@ using Turbo.Networking.Extensions;
 using Turbo.PacketHandlers;
 using Turbo.Players;
 using Turbo.Plugins.Extensions;
+using Turbo.Rooms;
 using Turbo.Runtime.AssemblyProcessing;
 
 namespace Turbo.Main;
@@ -99,6 +100,7 @@ internal class Program
         builder.Services.AddHostPlugin<PlayerModule>();
         builder.Services.AddHostPlugin<InventoryModule>();
         builder.Services.AddHostPlugin<NavigatorModule>();
+        builder.Services.AddHostPlugin<RoomModule>();
         builder.Services.AddHostPlugin<PacketHandlersModule>();
 
         builder.Services.AddSingleton<AssemblyProcessor>();

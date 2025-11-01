@@ -1,8 +1,9 @@
 using Turbo.Contracts.Abstractions;
+using Turbo.Primitives.Snapshots.Navigator;
 
 namespace Turbo.Primitives.Messages.Outgoing.Navigator;
 
 public record CategoriesWithVisitorCountMessageComposer : IComposer
 {
-    public object? Data { get; init; }
+    public required CategoriesWithVisitorCountSnapshot Categories { get; init; }
 }
