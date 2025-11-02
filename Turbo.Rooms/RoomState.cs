@@ -1,6 +1,6 @@
 using System;
 
-namespace Turbo.Grains.Rooms;
+namespace Turbo.Rooms;
 
 public sealed class RoomState
 {

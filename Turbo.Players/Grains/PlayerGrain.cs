@@ -7,10 +7,10 @@ using Microsoft.Extensions.Logging;
 using Orleans;
 using Orleans.Runtime;
 using Turbo.Database.Context;
-using Turbo.Primitives.Grains;
+using Turbo.Players.Abstractions;
 using Turbo.Primitives.Snapshots.Players;
 
-namespace Turbo.Grains.Players;
+namespace Turbo.Players.Grains;
 
 public class PlayerGrain(
     [PersistentState("snap", "player-snapshots")] IPersistentState<PlayerSnapshot> inner,

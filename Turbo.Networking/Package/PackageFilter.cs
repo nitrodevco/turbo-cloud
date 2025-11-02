@@ -5,7 +5,7 @@ using SuperSocket.ProtoBase;
 using Turbo.Networking.Abstractions.Session;
 using Turbo.Packets.Abstractions;
 
-namespace Turbo.Networking;
+namespace Turbo.Networking.Package;
 
 internal sealed class PackageFilter : PipelineFilterBase<IClientPacket>
 {

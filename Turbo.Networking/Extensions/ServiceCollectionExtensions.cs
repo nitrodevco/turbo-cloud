@@ -2,8 +2,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Turbo.Networking.Abstractions;
 using Turbo.Networking.Abstractions.Revisions;
+using Turbo.Networking.Abstractions.Session;
 using Turbo.Networking.Configuration;
 using Turbo.Networking.Revisions;
+using Turbo.Networking.Session;
 
 namespace Turbo.Networking.Extensions;
 
@@ -20,6 +22,7 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<INetworkManager, NetworkManager>();
         services.AddSingleton<IRevisionManager, RevisionManager>();
+        services.AddSingleton<ISessionGateway, SessionGateway>();
 
         return services;
     }

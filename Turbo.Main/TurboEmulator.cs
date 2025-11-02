@@ -7,6 +7,7 @@ using Turbo.Catalog.Abstractions;
 using Turbo.Catalog.Abstractions.Tags;
 using Turbo.Furniture.Abstractions;
 using Turbo.Networking.Abstractions;
+using Turbo.Rooms.Abstractions;
 
 namespace Turbo.Main;
 
@@ -14,12 +15,14 @@ public class TurboEmulator(
     ILogger<TurboEmulator> logger,
     IFurnitureProvider furnitureProvider,
     ICatalogProvider<NormalCatalog> catalogProvider,
+    IRoomModelProvider roomModelProvider,
     INetworkManager networkManager
 ) : IHostedService
 {
     private readonly ILogger<TurboEmulator> _logger = logger;
     private readonly IFurnitureProvider _furnitureProvider = furnitureProvider;
     private readonly ICatalogProvider<NormalCatalog> _catalogProvider = catalogProvider;
+    private readonly IRoomModelProvider _roomModelProvider = roomModelProvider;
     private readonly INetworkManager _networkManager = networkManager;
 
     public async Task StartAsync(CancellationToken ct)
@@ -28,6 +31,7 @@ public class TurboEmulator(
         {
             await _furnitureProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _catalogProvider.ReloadAsync(ct).ConfigureAwait(false);
+            await _roomModelProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _networkManager.StartAsync(ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)

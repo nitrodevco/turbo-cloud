@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 using Orleans;
-using Turbo.Primitives.Grains;
+using Turbo.Players.Abstractions;
 
 namespace Turbo.Players;
 

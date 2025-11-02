@@ -8,25 +8,32 @@ using Turbo.Database.Context;
 using Turbo.Primitives.Grains;
 using Turbo.Primitives.Snapshots.Navigator;
 using Turbo.Primitives.Snapshots.Rooms;
+using Turbo.Primitives.Snapshots.Rooms.Extensions;
+using Turbo.Rooms.Abstractions;
+using Turbo.Rooms.Mapping;
 
-namespace Turbo.Grains.Rooms;
+namespace Turbo.Rooms;
 
 public class RoomGrain(
     IDbContextFactory<TurboDbContext> dbContextFactory,
-    ILogger<IRoomGrain> logger
+    ILogger<IRoomGrain> logger,
+    IRoomModelProvider roomModelProvider
 ) : Grain, IRoomGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
     private readonly ILogger<IRoomGrain> _logger = logger;
+    private readonly IRoomModelProvider _roomModelProvider = roomModelProvider;
     private readonly RoomState _state = new();
 
     private RoomSnapshot? _snapshot = null;
+    private IRoomMap _roomMap = default!;
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
         try
         {
             await HydrateFromExternalAsync(ct);
+            await LoadMapAsync(ct);
 
             _logger.LogInformation("RoomGrain {RoomId} activated.", this.GetPrimaryKeyLong());
         }
@@ -120,6 +127,15 @@ public class RoomGrain(
 
             throw;
         }
+    }
+
+    protected async Task LoadMapAsync(CancellationToken ct)
+    {
+        if (_snapshot is null)
+            return;
+
+        var model = _roomModelProvider.Current.GetModelById(_snapshot.ModelId);
+        _roomMap = new RoomMap(model.Model);
     }
 
     public ValueTask<RoomSnapshot> GetSnapshotAsync(CancellationToken ct) =>

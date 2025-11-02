@@ -11,5 +11,6 @@ public sealed class RoomModule : IHostPluginModule
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton<IRoomService, RoomService>();
+        services.AddSingleton<IRoomModelProvider, RoomModelProvider>();
     }
 }

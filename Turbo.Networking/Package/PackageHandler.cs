@@ -9,7 +9,7 @@ using Turbo.Networking.Abstractions.Revisions;
 using Turbo.Networking.Abstractions.Session;
 using Turbo.Packets.Abstractions;
 
-namespace Turbo.Networking;
+namespace Turbo.Networking.Package;
 
 public sealed class PackageHandler(
     IRevisionManager revisionManager,

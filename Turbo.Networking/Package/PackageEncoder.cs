@@ -4,7 +4,7 @@ using SuperSocket.ProtoBase;
 using Turbo.Networking.Abstractions;
 using Turbo.Networking.Abstractions.Revisions;
 
-namespace Turbo.Networking;
+namespace Turbo.Networking.Package;
 
 public sealed class PackageEncoder(IRevisionManager revisionManager, ILogger<PackageEncoder> logger)
     : IPackageEncoder<OutgoingPackage>

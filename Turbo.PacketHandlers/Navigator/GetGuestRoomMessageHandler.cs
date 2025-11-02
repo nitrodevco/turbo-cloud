@@ -4,6 +4,7 @@ using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Layout;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Rooms.Abstractions;

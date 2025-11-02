@@ -4,12 +4,15 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Orleans.Persistence.Memory" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Turbo.Contracts\Turbo.Contracts.csproj" />
     <ProjectReference Include="..\Turbo.Crypto\Turbo.Crypto.csproj" />
     <ProjectReference Include="..\Turbo.Database\Turbo.Database.csproj" />
     <ProjectReference Include="..\Turbo.Messages\Turbo.Messages.csproj" />
+    <ProjectReference Include="..\Turbo.Networking.Abstractions\Turbo.Networking.Abstractions.csproj" />
+    <ProjectReference Include="..\Turbo.Players.Abstractions\Turbo.Players.Abstractions.csproj" />
     <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
   </ItemGroup>
 </Project>
