@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace Turbo.Primitives.Snapshots.Catalog;
 
-public record CatalogPageSnapshot(
+public sealed record CatalogPageSnapshot(
     int Id,
     int ParentId,
     string Localization,

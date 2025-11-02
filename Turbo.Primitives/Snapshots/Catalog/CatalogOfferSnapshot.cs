@@ -1,6 +1,6 @@
 namespace Turbo.Primitives.Snapshots.Catalog;
 
-public record CatalogOfferSnapshot(
+public sealed record CatalogOfferSnapshot(
     int Id,
     int PageId,
     string LocalizationId,

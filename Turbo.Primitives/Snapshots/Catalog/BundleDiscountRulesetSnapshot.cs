@@ -1,6 +1,6 @@
 namespace Turbo.Primitives.Snapshots.Catalog;
 
-public record BundleDiscountRulesetSnapshot(
+public sealed record BundleDiscountRulesetSnapshot(
     int MaxPurchaseSize,
     int BundleSize,
     int BundleDiscountSize,

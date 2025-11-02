@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Bots;
 
-public record BotSkillListUpdateEventMessageComposer : IComposer
+public record BotSkillListUpdateMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

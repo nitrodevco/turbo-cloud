@@ -3,7 +3,7 @@ using Turbo.Contracts.Enums.Furniture;
 
 namespace Turbo.Primitives.Snapshots.Catalog;
 
-public record CatalogProductSnapshot(
+public sealed record CatalogProductSnapshot(
     int Id,
     int OfferId,
     ProductTypeEnum ProductType,

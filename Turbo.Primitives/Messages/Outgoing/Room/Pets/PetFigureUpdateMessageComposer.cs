@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Pets;
 
-public record PetExperienceEventMessageComposer : IComposer
+public record PetFigureUpdateMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }
