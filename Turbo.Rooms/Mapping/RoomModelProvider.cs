@@ -5,11 +5,10 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
-using Turbo.Primitives.Snapshots.Rooms;
+using Turbo.Primitives.Snapshots.Rooms.Mapping;
 using Turbo.Rooms.Abstractions;
-using Turbo.Rooms.Mapping;
 
-namespace Turbo.Rooms;
+namespace Turbo.Rooms.Mapping;
 
 public sealed class RoomModelProvider(
     IDbContextFactory<TurboDbContext> dbContextFactory,
@@ -33,14 +32,20 @@ public sealed class RoomModelProvider(
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
 
-            var models = entities.Select(x => new RoomModelSnapshot(
-                x.Id,
-                x.Name,
-                x.DoorX,
-                x.DoorY,
-                x.DoorRotation,
-                RoomModelCompiler.CompileModelFromEntity(x)
-            ));
+            var models = entities.Select(x =>
+            {
+                var modelData = x.Model.Trim().ToLower().Replace("\r\n", "\r").Replace("\n", "\r");
+
+                return new RoomModelSnapshot(
+                    x.Id,
+                    x.Name,
+                    modelData,
+                    x.DoorX,
+                    x.DoorY,
+                    x.DoorRotation,
+                    RoomModelCompiler.CompileModelFromString(modelData)
+                );
+            });
 
             var modelsById = models.ToImmutableDictionary(p => p.Id);
             var snapshot = new RoomModelsSnapshot(modelsById);

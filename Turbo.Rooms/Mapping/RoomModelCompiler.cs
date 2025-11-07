@@ -2,25 +2,24 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Turbo.Contracts.Enums.Rooms;
-using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Snapshots.Rooms.Mapping;
 
 namespace Turbo.Rooms.Mapping;
 
 public static class RoomModelCompiler
 {
-    public static CompiledRoomModelSnapshot CompileModelFromEntity(RoomModelEntity entity)
+    public static CompiledRoomModelSnapshot CompileModelFromString(string model)
     {
-        var model = entity.Model;
         var rows = SplitLines(model);
 
         if (rows.Count == 0)
             throw new InvalidDataException("Room model data is empty.");
 
-        var height = (short)rows.Count;
-        var width = (short)rows.Max(x => x.Length);
-        var heights = new byte[width * height];
-        var states = new byte[width * height];
+        var height = rows.Count;
+        var width = rows.Max(x => x.Length);
+        var size = width * height;
+        var heights = new float[size];
+        var states = new byte[size];
 
         for (var y = 0; y < height; y++)
         {
@@ -33,8 +32,8 @@ public static class RoomModelCompiler
 
                 if (ch.Equals('x'))
                 {
-                    heights[idx] = 0;
-                    states[idx] = (byte)RoomTileType.Closed;
+                    heights[idx] = 0.0f;
+                    states[idx] = (byte)RoomTileStateType.Closed;
                 }
                 else
                 {
@@ -42,13 +41,13 @@ public static class RoomModelCompiler
                     var tileHeight =
                         heightIndex == -1 ? int.Parse(ch.ToString()) : heightIndex + 10;
 
-                    heights[idx] = (byte)tileHeight;
-                    states[idx] = (byte)RoomTileType.Open;
+                    heights[idx] = tileHeight;
+                    states[idx] = (byte)RoomTileStateType.Open;
                 }
             }
         }
 
-        return new CompiledRoomModelSnapshot(entity.Id, width, height, heights, states);
+        return new CompiledRoomModelSnapshot(width, height, heights, states);
     }
 
     private static List<string> SplitLines(string s)
@@ -60,7 +59,7 @@ public static class RoomModelCompiler
         string? line;
 
         while ((line = sr.ReadLine()) is not null)
-            lines.Add(line.TrimEnd().ToLower());
+            lines.Add(line);
 
         return lines;
     }

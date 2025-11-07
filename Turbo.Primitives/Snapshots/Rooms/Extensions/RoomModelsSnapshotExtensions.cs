@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Turbo.Primitives.Snapshots.Rooms.Mapping;
 
 namespace Turbo.Primitives.Snapshots.Rooms.Extensions;
 

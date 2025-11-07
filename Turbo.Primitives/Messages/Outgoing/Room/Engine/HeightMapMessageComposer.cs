@@ -4,5 +4,7 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Engine;
 
 public record HeightMapMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    public required int Width { get; init; }
+    public required int Size { get; init; }
+    public required short[] Heights { get; init; }
 }

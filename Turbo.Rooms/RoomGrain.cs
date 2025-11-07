@@ -9,6 +9,7 @@ using Turbo.Primitives.Grains;
 using Turbo.Primitives.Snapshots.Navigator;
 using Turbo.Primitives.Snapshots.Rooms;
 using Turbo.Primitives.Snapshots.Rooms.Extensions;
+using Turbo.Primitives.Snapshots.Rooms.Mapping;
 using Turbo.Rooms.Abstractions;
 using Turbo.Rooms.Mapping;
 
@@ -107,7 +108,7 @@ public class RoomGrain(
 
     protected async Task WriteToDatabaseAsync(CancellationToken ct)
     {
-        var snapshot = await GetSnapshotAsync(ct);
+        var snapshot = await GetSnapshotAsync();
 
         using var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
 
@@ -135,9 +136,33 @@ public class RoomGrain(
             return;
 
         var model = _roomModelProvider.Current.GetModelById(_snapshot.ModelId);
-        _roomMap = new RoomMap(model.Model);
+        _roomMap = new RoomMap(model);
     }
 
-    public ValueTask<RoomSnapshot> GetSnapshotAsync(CancellationToken ct) =>
-        ValueTask.FromResult(_snapshot!);
+    public async Task ObserveAsync()
+    {
+        if (!_state.IsLoaded)
+            throw new InvalidOperationException("RoomGrain is not loaded.");
+
+        var now = DateTime.UtcNow;
+        var delta = now - _state.LastTick;
+    }
+
+    public ValueTask<RoomSnapshot> GetSnapshotAsync() => ValueTask.FromResult(_snapshot!);
+
+    public ValueTask<RoomMapSnapshot> GetMapSnapshotAsync() =>
+        ValueTask.FromResult(
+            new RoomMapSnapshot
+            {
+                ModelName = _roomMap.ModelName,
+                ModelData = _roomMap.ModelData,
+                Width = _roomMap.Width,
+                Height = _roomMap.Height,
+                Size = _roomMap.Size,
+                DoorX = _roomMap.DoorX,
+                DoorY = _roomMap.DoorY,
+                DoorRotation = _roomMap.DoorRotation,
+                TileRelativeHeights = _roomMap.TileRelativeHeights,
+            }
+        );
 }

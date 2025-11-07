@@ -4,17 +4,21 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Turbo.Database.Context;
 using Turbo.Furniture.Abstractions;
+using Turbo.Furniture.Configuration;
 using Turbo.Primitives.Snapshots.Furniture;
 
 namespace Turbo.Furniture;
 
 public sealed class FurnitureProvider(
+    IOptions<FurnitureConfig> config,
     IDbContextFactory<TurboDbContext> dbContextFactory,
     ILogger<IFurnitureProvider> logger
 ) : IFurnitureProvider
 {
+    private readonly FurnitureConfig _config = config.Value;
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
     private readonly ILogger<IFurnitureProvider> _logger = logger;
     private FurnitureSnapshot _current = Empty();
@@ -42,7 +46,7 @@ public sealed class FurnitureProvider(
                 x.TotalStates,
                 x.X,
                 x.Y,
-                x.Z,
+                x.Z == 0 ? _config.MinimumZValue : x.Z,
                 x.CanStack,
                 x.CanWalk,
                 x.CanSit,

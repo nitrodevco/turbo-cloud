@@ -94,14 +94,14 @@ internal class Program
         builder.Services.AddTurboMessageSystem();
         builder.Services.AddTurboCrypto(builder);
 
-        builder.Services.AddHostPlugin<AuthenticationModule>();
-        builder.Services.AddHostPlugin<FurnitureModule>();
-        builder.Services.AddHostPlugin<CatalogModule>();
-        builder.Services.AddHostPlugin<PlayerModule>();
-        builder.Services.AddHostPlugin<InventoryModule>();
-        builder.Services.AddHostPlugin<NavigatorModule>();
-        builder.Services.AddHostPlugin<RoomModule>();
-        builder.Services.AddHostPlugin<PacketHandlersModule>();
+        builder.Services.AddHostPlugin<AuthenticationModule>(builder);
+        builder.Services.AddHostPlugin<FurnitureModule>(builder);
+        builder.Services.AddHostPlugin<CatalogModule>(builder);
+        builder.Services.AddHostPlugin<PlayerModule>(builder);
+        builder.Services.AddHostPlugin<InventoryModule>(builder);
+        builder.Services.AddHostPlugin<NavigatorModule>(builder);
+        builder.Services.AddHostPlugin<RoomModule>(builder);
+        builder.Services.AddHostPlugin<PacketHandlersModule>(builder);
 
         builder.Services.AddSingleton<AssemblyProcessor>();
         builder.Services.AddSingleton<ConsoleCommandService>();

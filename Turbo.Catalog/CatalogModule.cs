@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Turbo.Catalog.Abstractions;
 using Turbo.Catalog.Abstractions.Tags;
@@ -14,7 +15,7 @@ public sealed class CatalogModule : IHostPluginModule
 {
     public string Key => "turbo-catalog";
 
-    public void ConfigureServices(IServiceCollection services)
+    public void ConfigureServices(IServiceCollection services, HostApplicationBuilder builder)
     {
         services.AddSingleton<ICatalogService, CatalogService>();
         services.AddSingleton<ICatalogProvider<NormalCatalog>>(

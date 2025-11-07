@@ -22,12 +22,15 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddHostPlugin<TModule>(this IServiceCollection services)
+    public static IServiceCollection AddHostPlugin<TModule>(
+        this IServiceCollection services,
+        HostApplicationBuilder builder
+    )
         where TModule : class, IHostPluginModule, new()
     {
         var module = new TModule();
 
-        module.ConfigureServices(services);
+        module.ConfigureServices(services, builder);
 
         services.AddSingleton<IHostPluginModule>(module);
 
