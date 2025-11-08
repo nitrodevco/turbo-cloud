@@ -29,7 +29,7 @@ public sealed class RoomMap : IRoomMap
     private readonly float[] _baseHeights;
     private readonly byte[] _baseStates;
     private readonly Dictionary<long, IRoomFloorItem> _floorItemsById = [];
-    private readonly Dictionary<long, int> _floorItemsByTileIdx = [];
+    private readonly Dictionary<int, long> _floorItemsByTileIdx = [];
 
     public RoomMap(RoomModelSnapshot roomModelSnapshot)
     {
@@ -81,7 +81,7 @@ public sealed class RoomMap : IRoomMap
             var idx = Idx(item.X, item.Y);
 
             _floorItemsById.Add(item.Id, item);
-            _floorItemsByTileIdx.Add(item.Id, idx);
+            _floorItemsByTileIdx.Add(idx, item.Id);
             TileFloorStacks[idx].Add(item.Id);
 
             ComputeTile(idx);
@@ -99,7 +99,7 @@ public sealed class RoomMap : IRoomMap
             var idx = Idx(X, Y);
 
             _floorItemsById.Add(item.Id, item);
-            _floorItemsByTileIdx.Add(item.Id, idx);
+            _floorItemsByTileIdx.Add(idx, item.Id);
             TileFloorStacks[idx].Add(item.Id);
 
             item.SetPosition(X, Y, Z);
@@ -120,10 +120,10 @@ public sealed class RoomMap : IRoomMap
             if (!_floorItemsById.TryGetValue(itemId, out var item))
                 return;
 
-            var idx = _floorItemsByTileIdx[itemId];
+            var idx = Idx(item.X, item.Y);
 
             _floorItemsById.Remove(itemId);
-            _floorItemsByTileIdx.Remove(itemId);
+            _floorItemsByTileIdx.Remove(idx);
             TileFloorStacks[idx].Remove(itemId);
 
             ComputeTile(idx);

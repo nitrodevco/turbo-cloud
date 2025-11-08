@@ -187,16 +187,7 @@ public class RoomGrain(
         {
             var item = floorItems[i];
 
-            snapshots[i] = new RoomFloorItemSnapshot
-            {
-                Id = item.Id,
-                SpriteId = item.Definition.SpriteId,
-                X = item.X,
-                Y = item.Y,
-                Z = item.Z,
-                Rotation = item.Rotation,
-                StackHeight = item.Definition.Z,
-            };
+            snapshots[i] = RoomFloorItemSnapshot.FromFloorItem(item);
         }
 
         return await ValueTask.FromResult(snapshots);

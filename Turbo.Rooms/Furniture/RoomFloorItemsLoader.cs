@@ -9,8 +9,8 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Furniture.Abstractions;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.StuffData;
 using Turbo.Rooms.Abstractions.Furniture;
-using Turbo.Rooms.Furniture.Data;
 
 namespace Turbo.Rooms.Furniture;
 
@@ -79,6 +79,7 @@ public sealed class RoomFloorItemsLoader(
         return new RoomFloorItem
         {
             Id = entity.Id,
+            OwnerId = entity.PlayerEntityId,
             Definition = definition,
             StuffData = stuffData,
         };
