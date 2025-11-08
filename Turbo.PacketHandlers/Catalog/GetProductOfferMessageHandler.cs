@@ -13,11 +13,11 @@ namespace Turbo.PacketHandlers.Catalog;
 
 public class GetProductOfferMessageHandler(
     ICatalogService catalogService,
-    IFurnitureProvider furnitureProvider
+    IFurnitureDefinitionProvider furnitureProvider
 ) : IMessageHandler<GetProductOfferMessage>
 {
     private readonly ICatalogService _catalogService = catalogService;
-    private readonly IFurnitureProvider _furnitureProvider = furnitureProvider;
+    private readonly IFurnitureDefinitionProvider _furnitureProvider = furnitureProvider;
 
     public async ValueTask HandleAsync(
         GetProductOfferMessage message,

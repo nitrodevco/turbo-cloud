@@ -34,7 +34,7 @@ public sealed class RoomModelProvider(
 
             var models = entities.Select(x =>
             {
-                var modelData = x.Model.Trim().ToLower().Replace("\r\n", "\r").Replace("\n", "\r");
+                var modelData = RoomModelCompiler.CleanModelString(x.Model);
 
                 return new RoomModelSnapshot(
                     x.Id,

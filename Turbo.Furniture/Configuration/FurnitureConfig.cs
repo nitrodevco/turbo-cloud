@@ -6,7 +6,7 @@ public class FurnitureConfig
 {
     public const string SECTION_NAME = "Turbo:Furniture";
 
-    public double MinimumZValue { get; init; } = 0.001;
+    public float MinimumZValue { get; init; } = 0.001f;
 
     public int TileHeightMultiplier { get; init; } = 256;
     public RoomScaleType DefaultRoomScale { get; init; } = RoomScaleType.Normal;

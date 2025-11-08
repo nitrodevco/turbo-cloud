@@ -5,9 +5,9 @@ namespace Turbo.Furniture;
 
 public sealed class FurnitureService(
     ILogger<IFurnitureService> logger,
-    IFurnitureProvider furnitureProvider
+    IFurnitureDefinitionProvider furnitureProvider
 ) : IFurnitureService
 {
     private readonly ILogger<IFurnitureService> _logger = logger;
-    private readonly IFurnitureProvider _furnitureProvider = furnitureProvider;
+    private readonly IFurnitureDefinitionProvider _furnitureProvider = furnitureProvider;
 }

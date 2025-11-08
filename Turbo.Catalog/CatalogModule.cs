@@ -22,7 +22,7 @@ public sealed class CatalogModule : IHostPluginModule
             sp => new CatalogProvider<NormalCatalog>(
                 sp.GetRequiredService<IDbContextFactory<TurboDbContext>>(),
                 sp.GetRequiredService<ILogger<ICatalogProvider<NormalCatalog>>>(),
-                sp.GetRequiredService<IFurnitureProvider>(),
+                sp.GetRequiredService<IFurnitureDefinitionProvider>(),
                 CatalogTypeEnum.Normal
             )
         );

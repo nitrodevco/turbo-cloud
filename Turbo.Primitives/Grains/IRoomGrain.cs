@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Snapshots.Rooms;
@@ -9,4 +10,5 @@ public interface IRoomGrain : IGrainWithIntegerKey
 {
     public ValueTask<RoomSnapshot> GetSnapshotAsync();
     public ValueTask<RoomMapSnapshot> GetMapSnapshotAsync();
+    public ValueTask<IReadOnlyList<RoomFloorItemSnapshot>> GetFloorItemSnapshotsAsync();
 }

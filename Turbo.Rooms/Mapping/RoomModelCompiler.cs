@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -8,6 +9,9 @@ namespace Turbo.Rooms.Mapping;
 
 public static class RoomModelCompiler
 {
+    public static string CleanModelString(string model) =>
+        model.Trim().ToLower().Replace("\r\n", "\r").Replace("\n", "\r");
+
     public static CompiledRoomModelSnapshot CompileModelFromString(string model)
     {
         var rows = SplitLines(model);
@@ -48,6 +52,28 @@ public static class RoomModelCompiler
         }
 
         return new CompiledRoomModelSnapshot(width, height, heights, states);
+    }
+
+    public static short EncodeHeight(float height, bool stackingBlocked)
+    {
+        if (height < 0f)
+            return -1;
+
+        int stackingMask = 1 << 14;
+        int heightMask = stackingMask - 1;
+        int raw = (int)MathF.Round(height * 256f);
+
+        if (raw < 0)
+            raw = 0;
+
+        if (raw > heightMask)
+            raw = heightMask;
+
+        int value = raw | (stackingBlocked ? stackingMask : 0);
+
+        value &= 0x7FFF;
+
+        return unchecked((short)value);
     }
 
     private static List<string> SplitLines(string s)

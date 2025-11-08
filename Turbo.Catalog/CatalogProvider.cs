@@ -16,14 +16,14 @@ namespace Turbo.Catalog;
 public sealed class CatalogProvider<TTag>(
     IDbContextFactory<TurboDbContext> dbContextFactory,
     ILogger<ICatalogProvider<TTag>> logger,
-    IFurnitureProvider furnitureProvider,
+    IFurnitureDefinitionProvider furnitureProvider,
     CatalogTypeEnum catalogType
 ) : ICatalogProvider<TTag>
     where TTag : ICatalogTag
 {
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
     private readonly ILogger<ICatalogProvider<TTag>> _logger = logger;
-    private readonly IFurnitureProvider _furnitureProvider = furnitureProvider;
+    private readonly IFurnitureDefinitionProvider _furnitureProvider = furnitureProvider;
     private CatalogSnapshot _current = Empty();
 
     public CatalogSnapshot Current => _current;
@@ -82,8 +82,8 @@ public sealed class CatalogProvider<TTag>(
                 x.FurnitureDefinitionEntityId ?? -1,
                 SpriteId: x.FurnitureDefinitionEntityId != null
                     ? _furnitureProvider
-                        .Current.GetDefinitionById(x.FurnitureDefinitionEntityId.Value)
-                        .SpriteId
+                        .TryGetDefinition(x.FurnitureDefinitionEntityId.Value)
+                        ?.SpriteId ?? -1
                     : -1,
                 x.ExtraParam,
                 x.Quantity,

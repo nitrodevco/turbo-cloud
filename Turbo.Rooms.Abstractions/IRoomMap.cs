@@ -1,4 +1,7 @@
+using System.Collections.Generic;
 using Turbo.Contracts.Enums.Rooms.Object;
+using Turbo.Primitives.Rooms;
+using Turbo.Rooms.Abstractions.Furniture;
 
 namespace Turbo.Rooms.Abstractions;
 
@@ -14,5 +17,8 @@ public interface IRoomMap
     public Rotation DoorRotation { get; }
     public float[] TileHeights { get; }
     public short[] TileRelativeHeights { get; }
-    public byte[] TileStates { get; }
+    public IReadOnlyList<IRoomFloorItem> GetAllFloorItems();
+    public void AddFloorItem(IRoomFloorItem item);
+    public void AddFloorItemAt(IRoomFloorItem item, int X, int Y, float Z, Rotation rotation);
+    public void RemoveFloorItemById(long itemId);
 }

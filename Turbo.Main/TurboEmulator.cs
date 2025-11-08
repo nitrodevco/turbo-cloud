@@ -13,14 +13,14 @@ namespace Turbo.Main;
 
 public class TurboEmulator(
     ILogger<TurboEmulator> logger,
-    IFurnitureProvider furnitureProvider,
+    IFurnitureDefinitionProvider furnitureProvider,
     ICatalogProvider<NormalCatalog> catalogProvider,
     IRoomModelProvider roomModelProvider,
     INetworkManager networkManager
 ) : IHostedService
 {
     private readonly ILogger<TurboEmulator> _logger = logger;
-    private readonly IFurnitureProvider _furnitureProvider = furnitureProvider;
+    private readonly IFurnitureDefinitionProvider _furnitureProvider = furnitureProvider;
     private readonly ICatalogProvider<NormalCatalog> _catalogProvider = catalogProvider;
     private readonly IRoomModelProvider _roomModelProvider = roomModelProvider;
     private readonly INetworkManager _networkManager = networkManager;

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -12,18 +13,21 @@ using Turbo.Primitives.Snapshots.Furniture;
 
 namespace Turbo.Furniture;
 
-public sealed class FurnitureProvider(
+public sealed class FurnitureDefinitionProvider(
     IOptions<FurnitureConfig> config,
     IDbContextFactory<TurboDbContext> dbContextFactory,
-    ILogger<IFurnitureProvider> logger
-) : IFurnitureProvider
+    ILogger<IFurnitureDefinitionProvider> logger
+) : IFurnitureDefinitionProvider
 {
     private readonly FurnitureConfig _config = config.Value;
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
-    private readonly ILogger<IFurnitureProvider> _logger = logger;
-    private FurnitureSnapshot _current = Empty();
+    private readonly ILogger<IFurnitureDefinitionProvider> _logger = logger;
 
-    public FurnitureSnapshot Current => _current;
+    private ImmutableDictionary<int, FurnitureDefinitionSnapshot> _definitionsById =
+        ImmutableDictionary<int, FurnitureDefinitionSnapshot>.Empty;
+
+    public FurnitureDefinitionSnapshot? TryGetDefinition(int id) =>
+        _definitionsById.TryGetValue(id, out var definition) ? definition : null;
 
     public async Task ReloadAsync(CancellationToken ct = default)
     {
@@ -46,7 +50,7 @@ public sealed class FurnitureProvider(
                 x.TotalStates,
                 x.X,
                 x.Y,
-                x.Z == 0 ? _config.MinimumZValue : x.Z,
+                x.Z == 0 ? _config.MinimumZValue : (float)x.Z,
                 x.CanStack,
                 x.CanWalk,
                 x.CanSit,
@@ -59,22 +63,16 @@ public sealed class FurnitureProvider(
                 x.ExtraData
             ));
 
-            var defsById = defs.ToImmutableDictionary(p => p.Id);
-            var snapshot = new FurnitureSnapshot(DefinitionsById: defsById);
+            _definitionsById = defs.ToImmutableDictionary(p => p.Id);
 
             _logger.LogInformation(
-                "Loaded furniture snapshot: TotalDefs={TotalDefCount}",
-                snapshot.DefinitionsById.Count
+                "Loaded {TotalDefCount} furniture definitions",
+                _definitionsById.Count
             );
-
-            Volatile.Write(ref _current, snapshot);
         }
         finally
         {
             await dbCtx.DisposeAsync().ConfigureAwait(false);
         }
     }
-
-    private static FurnitureSnapshot Empty() =>
-        new(DefinitionsById: ImmutableDictionary<int, FurnitureDefinitionSnapshot>.Empty);
 }

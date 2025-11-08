@@ -12,7 +12,7 @@ public sealed record FurnitureDefinitionSnapshot(
     int TotalStates,
     int X,
     int Y,
-    double Z,
+    float Z,
     bool CanStack,
     bool CanWalk,
     bool CanSit,

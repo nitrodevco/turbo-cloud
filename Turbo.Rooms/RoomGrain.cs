@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +12,7 @@ using Turbo.Primitives.Snapshots.Rooms;
 using Turbo.Primitives.Snapshots.Rooms.Extensions;
 using Turbo.Primitives.Snapshots.Rooms.Mapping;
 using Turbo.Rooms.Abstractions;
+using Turbo.Rooms.Abstractions.Furniture;
 using Turbo.Rooms.Mapping;
 
 namespace Turbo.Rooms;
@@ -18,12 +20,14 @@ namespace Turbo.Rooms;
 public class RoomGrain(
     IDbContextFactory<TurboDbContext> dbContextFactory,
     ILogger<IRoomGrain> logger,
-    IRoomModelProvider roomModelProvider
+    IRoomModelProvider roomModelProvider,
+    IRoomFloorItemsLoader floorItemsLoader
 ) : Grain, IRoomGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
     private readonly ILogger<IRoomGrain> _logger = logger;
     private readonly IRoomModelProvider _roomModelProvider = roomModelProvider;
+    private readonly IRoomFloorItemsLoader _floorItemsLoader = floorItemsLoader;
     private readonly RoomState _state = new();
 
     private RoomSnapshot? _snapshot = null;
@@ -35,6 +39,7 @@ public class RoomGrain(
         {
             await HydrateFromExternalAsync(ct);
             await LoadMapAsync(ct);
+            await LoadFloorItemsAsync(ct);
 
             _logger.LogInformation("RoomGrain {RoomId} activated.", this.GetPrimaryKeyLong());
         }
@@ -139,13 +144,20 @@ public class RoomGrain(
         _roomMap = new RoomMap(model);
     }
 
-    public async Task ObserveAsync()
+    protected async Task LoadFloorItemsAsync(CancellationToken ct)
     {
-        if (!_state.IsLoaded)
-            throw new InvalidOperationException("RoomGrain is not loaded.");
+        if (_snapshot is null)
+            return;
 
-        var now = DateTime.UtcNow;
-        var delta = now - _state.LastTick;
+        var floorItems = await _floorItemsLoader.LoadByRoomIdAsync(_snapshot.Id, ct);
+
+        if (floorItems.Count is 0)
+            return;
+
+        foreach (var item in floorItems)
+        {
+            _roomMap.AddFloorItem(item);
+        }
     }
 
     public ValueTask<RoomSnapshot> GetSnapshotAsync() => ValueTask.FromResult(_snapshot!);
@@ -165,4 +177,28 @@ public class RoomGrain(
                 TileRelativeHeights = _roomMap.TileRelativeHeights,
             }
         );
+
+    public async ValueTask<IReadOnlyList<RoomFloorItemSnapshot>> GetFloorItemSnapshotsAsync()
+    {
+        var floorItems = _roomMap.GetAllFloorItems();
+        var snapshots = new RoomFloorItemSnapshot[floorItems.Count];
+
+        for (var i = 0; i < floorItems.Count; i++)
+        {
+            var item = floorItems[i];
+
+            snapshots[i] = new RoomFloorItemSnapshot
+            {
+                Id = item.Id,
+                SpriteId = item.Definition.SpriteId,
+                X = item.X,
+                Y = item.Y,
+                Z = item.Z,
+                Rotation = item.Rotation,
+                StackHeight = item.Definition.Z,
+            };
+        }
+
+        return await ValueTask.FromResult(snapshots);
+    }
 }
