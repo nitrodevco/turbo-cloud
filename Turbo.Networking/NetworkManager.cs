@@ -11,7 +11,9 @@ using SuperSocket.Server.Host;
 using Turbo.Messages;
 using Turbo.Networking.Abstractions;
 using Turbo.Networking.Abstractions.Revisions;
+using Turbo.Networking.Abstractions.Session;
 using Turbo.Networking.Configuration;
+using Turbo.Networking.Extensions;
 using Turbo.Networking.Package;
 using Turbo.Networking.Session;
 using Turbo.Packets.Abstractions;
@@ -20,6 +22,7 @@ namespace Turbo.Networking;
 
 public sealed class NetworkManager(
     IOptions<NetworkingConfig> config,
+    ISessionGateway sessionGateway,
     IRevisionManager revisionManager,
     MessageSystem messageSystem,
     ILoggerFactory loggerFactory
@@ -27,6 +30,7 @@ public sealed class NetworkManager(
 {
     private readonly object _hostGate = new();
     private readonly NetworkingConfig _config = config.Value;
+    private readonly ISessionGateway _sessionGateway = sessionGateway;
     private readonly IRevisionManager _revisionManager = revisionManager;
     private readonly MessageSystem _messageSystem = messageSystem;
     private readonly ILoggerFactory _loggerFactory = loggerFactory;
@@ -83,6 +87,7 @@ public sealed class NetworkManager(
             (ctx, services) =>
             {
                 services.AddSingleton(_config);
+                services.AddSingleton(_sessionGateway);
                 services.AddSingleton(_revisionManager);
                 services.AddSingleton(_messageSystem);
                 services.AddSingleton(_loggerFactory);
@@ -93,6 +98,7 @@ public sealed class NetworkManager(
 
         builder.UseSession<SessionContext>();
         builder.UsePipelineFilter<PackageFilter>();
+        builder.UseSessionGateway();
         //builder.UsePingPong();
 
         _superSocketHost = builder.Build();

@@ -1,11 +1,10 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Orleans;
 using SuperSocket.Connection;
 using Turbo.Authentication;
 using Turbo.Contracts.Enums.Players;
 using Turbo.Messages.Registry;
-using Turbo.Players.Abstractions;
+using Turbo.Networking.Abstractions.Session;
 using Turbo.Primitives.Messages.Incoming.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Availability;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
@@ -14,11 +13,13 @@ using Turbo.Primitives.Messages.Outgoing.Room.Session;
 
 namespace Turbo.PacketHandlers.Handshake;
 
-public class SSOTicketMessageHandler(AuthenticationService authService, IGrainFactory grainFactory)
-    : IMessageHandler<SSOTicketMessage>
+public class SSOTicketMessageHandler(
+    AuthenticationService authService,
+    ISessionGateway sessionGateway
+) : IMessageHandler<SSOTicketMessage>
 {
     private readonly AuthenticationService _authService = authService;
-    private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly ISessionGateway _sessionGateway = sessionGateway;
 
     public async ValueTask HandleAsync(
         SSOTicketMessage message,
@@ -36,9 +37,9 @@ public class SSOTicketMessageHandler(AuthenticationService authService, IGrainFa
             return;
         }
 
-        var endpoint = _grainFactory.GetGrain<IPlayerEndpointGrain>(playerId);
-
-        await endpoint.BindConnectionAsync(ctx.Session.SessionID).ConfigureAwait(false);
+        await _sessionGateway
+            .SetPlayerIdForSessionAsync(playerId, ctx.Session.SessionID)
+            .ConfigureAwait(false);
 
         // auth ok
         // effects
@@ -57,8 +58,6 @@ public class SSOTicketMessageHandler(AuthenticationService authService, IGrainFa
         // builders club status
         // cfh topics
         //
-
-        ctx.Session.SetPlayerId(playerId);
 
         await ctx
             .Session.SendComposerAsync(

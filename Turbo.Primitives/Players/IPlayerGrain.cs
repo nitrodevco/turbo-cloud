@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Snapshots.Players;
 
-namespace Turbo.Players.Abstractions;
+namespace Turbo.Primitives.Players;
 
 public interface IPlayerGrain : IGrainWithIntegerKey
 {

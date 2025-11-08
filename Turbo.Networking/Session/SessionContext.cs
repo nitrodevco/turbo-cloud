@@ -17,10 +17,11 @@ public class SessionContext(IPackageEncoder<OutgoingPackage> packageEncoder)
         ISessionContext
 {
     private readonly IPackageEncoder<OutgoingPackage> _packageEncoder = packageEncoder;
+
     public bool PolicyDone { get; set; } = true;
     public string RevisionId { get; private set; } = "Default";
-    public long PlayerId { get; private set; }
-    public long ActiveRoomId { get; private set; }
+    public long PlayerId { get; private set; } = -1;
+    public long ActiveRoomId { get; private set; } = -1;
     public DateTime LastActivityUtc { get; private set; } = DateTime.UtcNow;
     public AsyncSignal PongWaiter { get; } = new();
     public CancellationTokenSource HeartbeatCts { get; } = new();

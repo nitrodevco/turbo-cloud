@@ -11,6 +11,48 @@ namespace Turbo.Networking.Extensions;
 
 public static class SuperSocketHostBuilderExtensions
 {
+    public static ISuperSocketHostBuilder<TPackage> UseSessionGateway<TPackage>(
+        this ISuperSocketHostBuilder<TPackage> builder
+    )
+    {
+        builder.ConfigureServices(
+            delegate(HostBuilderContext hostCtx, IServiceCollection services)
+            {
+                services.AddSingleton(sp =>
+                {
+                    var gateway = sp.GetRequiredService<ISessionGateway>();
+
+                    return new SessionHandlers
+                    {
+                        Connected = async session =>
+                        {
+                            if (session is not ISessionContext ctx)
+                                return;
+
+                            gateway.Register(session.SessionID, ctx);
+                        },
+                        Closed = async (session, e) =>
+                        {
+                            if (session is not ISessionContext ctx)
+                                return;
+
+                            if (ctx.PlayerId > 0)
+                            {
+                                await gateway
+                                    .SetPlayerIdForSessionAsync(-1, session.SessionID)
+                                    .ConfigureAwait(false);
+                            }
+
+                            gateway.Unregister(session.SessionID);
+                        },
+                    };
+                });
+            }
+        );
+
+        return builder;
+    }
+
     public static ISuperSocketHostBuilder<TPackage> UsePingPong<TPackage>(
         this ISuperSocketHostBuilder<TPackage> builder
     )

@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 using Orleans;
 using Orleans.Runtime;
 using Turbo.Database.Context;
-using Turbo.Players.Abstractions;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Snapshots.Players;
 
 namespace Turbo.Players.Grains;

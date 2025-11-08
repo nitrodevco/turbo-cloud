@@ -63,8 +63,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Rooms.Abstractions", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Authentication.Abstractions", "Turbo.Authentication.Abstractions\Turbo.Authentication.Abstractions.csproj", "{BBE5B532-DC7C-40E2-8839-7E1B47BC5BCB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Players.Abstractions", "Turbo.Players.Abstractions\Turbo.Players.Abstractions.csproj", "{1DE92AF6-324B-4A92-96F4-47AB3EABBF05}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -435,18 +433,6 @@ Global
 		{BBE5B532-DC7C-40E2-8839-7E1B47BC5BCB}.Release|x64.Build.0 = Release|Any CPU
 		{BBE5B532-DC7C-40E2-8839-7E1B47BC5BCB}.Release|x86.ActiveCfg = Release|Any CPU
 		{BBE5B532-DC7C-40E2-8839-7E1B47BC5BCB}.Release|x86.Build.0 = Release|Any CPU
-		{1DE92AF6-324B-4A92-96F4-47AB3EABBF05}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{1DE92AF6-324B-4A92-96F4-47AB3EABBF05}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{1DE92AF6-324B-4A92-96F4-47AB3EABBF05}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{1DE92AF6-324B-4A92-96F4-47AB3EABBF05}.Debug|x64.Build.0 = Debug|Any CPU
-		{1DE92AF6-324B-4A92-96F4-47AB3EABBF05}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{1DE92AF6-324B-4A92-96F4-47AB3EABBF05}.Debug|x86.Build.0 = Debug|Any CPU
-		{1DE92AF6-324B-4A92-96F4-47AB3EABBF05}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{1DE92AF6-324B-4A92-96F4-47AB3EABBF05}.Release|Any CPU.Build.0 = Release|Any CPU
-		{1DE92AF6-324B-4A92-96F4-47AB3EABBF05}.Release|x64.ActiveCfg = Release|Any CPU
-		{1DE92AF6-324B-4A92-96F4-47AB3EABBF05}.Release|x64.Build.0 = Release|Any CPU
-		{1DE92AF6-324B-4A92-96F4-47AB3EABBF05}.Release|x86.ActiveCfg = Release|Any CPU
-		{1DE92AF6-324B-4A92-96F4-47AB3EABBF05}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
