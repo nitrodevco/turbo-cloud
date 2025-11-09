@@ -1,9 +1,9 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
-using Turbo.Primitives.Messages.Incoming.GroupForums;
+using Turbo.Primitives.Messages.Incoming.Groupforums;
 
-namespace Turbo.PacketHandlers.GroupForums;
+namespace Turbo.PacketHandlers.Groupforums;
 
 public class GetUnreadForumsCountMessageHandler : IMessageHandler<GetUnreadForumsCountMessage>
 {
