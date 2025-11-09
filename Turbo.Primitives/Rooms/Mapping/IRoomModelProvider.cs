@@ -1,9 +1,8 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Snapshots.Rooms;
 using Turbo.Primitives.Snapshots.Rooms.Mapping;
 
-namespace Turbo.Rooms.Abstractions;
+namespace Turbo.Primitives.Rooms.Mapping;
 
 public interface IRoomModelProvider
 {

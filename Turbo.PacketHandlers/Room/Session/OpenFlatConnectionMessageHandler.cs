@@ -2,7 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Room.Session;
-using Turbo.Rooms.Abstractions;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.PacketHandlers.Room.Session;
 

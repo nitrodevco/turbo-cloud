@@ -1,8 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
-using Turbo.Rooms.Abstractions;
-using Turbo.Rooms.Abstractions.Furniture;
+using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Furniture;
+using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Furniture;
 using Turbo.Rooms.Mapping;

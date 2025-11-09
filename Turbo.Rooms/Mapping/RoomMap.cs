@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using Turbo.Contracts.Enums.Rooms.Object;
-using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Furniture;
+using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Primitives.Snapshots.Rooms.Mapping;
-using Turbo.Rooms.Abstractions;
 
 namespace Turbo.Rooms.Mapping;
 

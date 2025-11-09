@@ -1,9 +1,8 @@
 using System.Collections.Generic;
 using Turbo.Contracts.Enums.Rooms.Object;
-using Turbo.Primitives.Rooms;
-using Turbo.Rooms.Abstractions.Furniture;
+using Turbo.Primitives.Rooms.Furniture;
 
-namespace Turbo.Rooms.Abstractions;
+namespace Turbo.Primitives.Rooms.Mapping;
 
 public interface IRoomMap
 {

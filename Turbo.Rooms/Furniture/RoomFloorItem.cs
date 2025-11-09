@@ -1,5 +1,5 @@
 using Turbo.Contracts.Enums.Rooms.Object;
-using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Furniture;
 using Turbo.Primitives.Rooms.StuffData;
 using Turbo.Primitives.Snapshots.Furniture;
 

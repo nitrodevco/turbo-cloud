@@ -10,7 +10,7 @@ using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Layout;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
-using Turbo.Rooms.Abstractions;
+using Turbo.Primitives.Rooms;
 using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms;

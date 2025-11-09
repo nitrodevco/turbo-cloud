@@ -5,8 +5,8 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
+using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Primitives.Snapshots.Rooms.Mapping;
-using Turbo.Rooms.Abstractions;
 
 namespace Turbo.Rooms.Mapping;
 

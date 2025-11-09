@@ -7,7 +7,7 @@ using Turbo.Catalog.Abstractions;
 using Turbo.Catalog.Abstractions.Tags;
 using Turbo.Furniture.Abstractions;
 using Turbo.Networking.Abstractions;
-using Turbo.Rooms.Abstractions;
+using Turbo.Primitives.Rooms.Mapping;
 
 namespace Turbo.Main;
 

@@ -2,7 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Grains;
 
-namespace Turbo.Rooms.Abstractions;
+namespace Turbo.Primitives.Rooms;
 
 public interface IRoomService
 {

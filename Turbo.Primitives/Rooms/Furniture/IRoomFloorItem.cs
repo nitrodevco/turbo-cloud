@@ -2,7 +2,7 @@ using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Primitives.Rooms.StuffData;
 using Turbo.Primitives.Snapshots.Furniture;
 
-namespace Turbo.Primitives.Rooms;
+namespace Turbo.Primitives.Rooms.Furniture;
 
 public interface IRoomFloorItem
 {

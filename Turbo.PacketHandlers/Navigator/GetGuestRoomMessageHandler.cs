@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
-using Turbo.Rooms.Abstractions;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.PacketHandlers.Navigator;
 

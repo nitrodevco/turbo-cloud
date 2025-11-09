@@ -7,13 +7,13 @@ using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Primitives.Grains;
+using Turbo.Primitives.Rooms.Furniture;
+using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Primitives.Snapshots.Navigator;
 using Turbo.Primitives.Snapshots.Rooms;
 using Turbo.Primitives.Snapshots.Rooms.Extensions;
 using Turbo.Primitives.Snapshots.Rooms.Mapping;
 using Turbo.Primitives.States.Rooms;
-using Turbo.Rooms.Abstractions;
-using Turbo.Rooms.Abstractions.Furniture;
 using Turbo.Rooms.Mapping;
 
 namespace Turbo.Rooms;
@@ -140,8 +140,11 @@ public class RoomGrain(
     {
         if (_snapshot is null)
             return Task.CompletedTask;
+
         var model = _roomModelProvider.Current.GetModelById(_snapshot.ModelId);
+
         _roomMap = new RoomMap(model);
+
         return Task.CompletedTask;
     }
 

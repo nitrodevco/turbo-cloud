@@ -1,9 +1,8 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Rooms;
 
-namespace Turbo.Rooms.Abstractions.Furniture;
+namespace Turbo.Primitives.Rooms.Furniture;
 
 public interface IRoomFloorItemsLoader
 {
