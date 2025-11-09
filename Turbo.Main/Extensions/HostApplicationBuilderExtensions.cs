@@ -1,14 +1,11 @@
-using System;
-using System.Linq;
-using System.Reflection;
 using Microsoft.Extensions.Hosting;
 using Orleans.Hosting;
 
-namespace Turbo.Grains.Extensions;
+namespace Turbo.Main.Extensions;
 
 public static class HostApplicationBuilderExtensions
 {
-    public static HostApplicationBuilder AddTurboGrains(this HostApplicationBuilder builder)
+    public static HostApplicationBuilder AddOrleans(this HostApplicationBuilder builder)
     {
         builder.UseOrleans(silo =>
         {

@@ -10,7 +10,7 @@ using Turbo.Database.Context;
 using Turbo.Primitives.Grains;
 using Turbo.Primitives.Snapshots.Inventory;
 
-namespace Turbo.Grains.Inventory;
+namespace Turbo.Inventory;
 
 public class InventoryFurniGrain(
     IDbContextFactory<TurboDbContext> dbContextFactory,
@@ -44,7 +44,7 @@ public class InventoryFurniGrain(
         }
     }
 
-    public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
+    public override Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
         try
         {
@@ -63,6 +63,8 @@ public class InventoryFurniGrain(
 
             throw;
         }
+
+        return Task.CompletedTask;
     }
 
     protected async Task HydrateFromExternalAsync(CancellationToken ct)

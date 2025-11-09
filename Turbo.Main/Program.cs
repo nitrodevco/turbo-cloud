@@ -12,10 +12,10 @@ using Turbo.Crypto.Extensions;
 using Turbo.Database.Extensions;
 using Turbo.Events.Extensions;
 using Turbo.Furniture;
-using Turbo.Grains.Extensions;
 using Turbo.Inventory;
 using Turbo.Logging.Extensions;
 using Turbo.Main.Console;
+using Turbo.Main.Extensions;
 using Turbo.Messages.Extensions;
 using Turbo.Navigator;
 using Turbo.Networking.Extensions;
@@ -84,7 +84,7 @@ internal class Program
             bootstrapLogger.LogInformation("===============================");
         }
 
-        builder.AddTurboGrains();
+        builder.AddOrleans();
 
         builder.Services.AddTurboLogging(builder);
         builder.Services.AddTurboNetworking(builder);

@@ -10,6 +10,10 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Orleans.Persistence.Memory" />
+    <PackageReference Include="Microsoft.Orleans.Server" />
+    <PackageReference Include="Microsoft.Orleans.Streaming" />
+    <PackageReference Include="Microsoft.Orleans.Serialization.Abstractions" />
     <PackageReference Include="System.Collections" />
   </ItemGroup>
   <ItemGroup>
@@ -32,7 +36,6 @@
     <ProjectReference Include="..\Turbo.Database\Turbo.Database.csproj" />
     <ProjectReference Include="..\Turbo.Events\Turbo.Events.csproj" />
     <ProjectReference Include="..\Turbo.Furniture\Turbo.Furniture.csproj" />
-    <ProjectReference Include="..\Turbo.Grains\Turbo.Grains.csproj" />
     <ProjectReference Include="..\Turbo.Inventory\Turbo.Inventory.csproj" />
     <ProjectReference Include="..\Turbo.Logging\Turbo.Logging.csproj" />
     <ProjectReference Include="..\Turbo.Messages\Turbo.Messages.csproj" />
