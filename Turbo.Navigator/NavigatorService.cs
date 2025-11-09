@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using Turbo.Navigator.Abstractions;
+using Turbo.Primitives.Navigator;
 
 namespace Turbo.Navigator;
 

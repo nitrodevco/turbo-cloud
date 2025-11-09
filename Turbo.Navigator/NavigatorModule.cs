@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
-using Turbo.Navigator.Abstractions;
+using Turbo.Primitives.Navigator;
 
 namespace Turbo.Navigator;
 
