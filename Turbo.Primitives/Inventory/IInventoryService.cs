@@ -1,3 +1,3 @@
-namespace Turbo.Inventory.Abstractions;
+namespace Turbo.Primitives.Inventory;
 
 public interface IInventoryService { }

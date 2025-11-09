@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
-using Turbo.Inventory.Abstractions;
+using Turbo.Primitives.Inventory;
 
 namespace Turbo.Inventory;
 

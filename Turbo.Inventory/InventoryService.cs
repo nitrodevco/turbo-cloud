@@ -1,8 +1,8 @@
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Orleans;
-using Turbo.Inventory.Abstractions;
 using Turbo.Primitives.Grains;
+using Turbo.Primitives.Inventory;
 
 namespace Turbo.Inventory;
 
