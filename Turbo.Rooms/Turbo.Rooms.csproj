@@ -8,7 +8,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Turbo.Contracts\Turbo.Contracts.csproj" />
     <ProjectReference Include="..\Turbo.Database\Turbo.Database.csproj" />
-    <ProjectReference Include="..\Turbo.Furniture.Abstractions\Turbo.Furniture.Abstractions.csproj" />
     <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
     <ProjectReference Include="..\Turbo.Players\Turbo.Players.csproj" />
   </ItemGroup>

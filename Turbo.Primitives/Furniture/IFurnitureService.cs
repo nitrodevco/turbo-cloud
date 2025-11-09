@@ -1,3 +1,3 @@
-namespace Turbo.Furniture.Abstractions;
+namespace Turbo.Primitives.Furniture;
 
 public interface IFurnitureService { }

@@ -7,7 +7,7 @@ using Turbo.Catalog.Abstractions.Tags;
 using Turbo.Contracts.Enums.Catalog;
 using Turbo.Contracts.Plugins;
 using Turbo.Database.Context;
-using Turbo.Furniture.Abstractions;
+using Turbo.Primitives.Furniture;
 
 namespace Turbo.Catalog;
 

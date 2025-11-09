@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using Turbo.Furniture.Abstractions;
+using Turbo.Primitives.Furniture;
 
 namespace Turbo.Furniture;
 

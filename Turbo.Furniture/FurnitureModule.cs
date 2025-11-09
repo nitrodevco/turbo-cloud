@@ -1,8 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
-using Turbo.Furniture.Abstractions;
 using Turbo.Furniture.Configuration;
+using Turbo.Primitives.Furniture;
 
 namespace Turbo.Furniture;
 

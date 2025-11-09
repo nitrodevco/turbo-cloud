@@ -7,8 +7,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Database.Context;
-using Turbo.Furniture.Abstractions;
 using Turbo.Furniture.Configuration;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Snapshots.Furniture;
 
 namespace Turbo.Furniture;

@@ -7,9 +7,8 @@ using Microsoft.Extensions.Logging;
 using Turbo.Catalog.Abstractions;
 using Turbo.Contracts.Enums.Catalog;
 using Turbo.Database.Context;
-using Turbo.Furniture.Abstractions;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Snapshots.Catalog;
-using Turbo.Primitives.Snapshots.Furniture.Extensions;
 
 namespace Turbo.Catalog;
 

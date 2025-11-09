@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Turbo.Contracts.Enums.Rooms.Furniture.Data;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
-using Turbo.Furniture.Abstractions;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Rooms.Furniture;
 using Turbo.Primitives.Rooms.StuffData;
 

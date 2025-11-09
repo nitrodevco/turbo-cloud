@@ -5,8 +5,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Turbo.Catalog.Abstractions;
 using Turbo.Catalog.Abstractions.Tags;
-using Turbo.Furniture.Abstractions;
 using Turbo.Networking.Abstractions;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Rooms.Mapping;
 
 namespace Turbo.Main;
