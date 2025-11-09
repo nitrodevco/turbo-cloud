@@ -1,3 +1,3 @@
-namespace Turbo.Catalog.Abstractions.Tags;
+namespace Turbo.Primitives.Catalog.Tags;
 
 public sealed class NormalCatalog : ICatalogTag;

@@ -2,11 +2,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Turbo.Catalog.Abstractions;
-using Turbo.Catalog.Abstractions.Tags;
 using Turbo.Contracts.Enums.Catalog;
 using Turbo.Contracts.Plugins;
 using Turbo.Database.Context;
+using Turbo.Primitives.Catalog;
+using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Furniture;
 
 namespace Turbo.Catalog;

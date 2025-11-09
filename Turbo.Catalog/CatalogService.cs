@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
-using Turbo.Catalog.Abstractions;
-using Turbo.Catalog.Abstractions.Tags;
 using Turbo.Contracts.Enums.Catalog;
+using Turbo.Primitives.Catalog;
+using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Snapshots.Catalog;
 
 namespace Turbo.Catalog;

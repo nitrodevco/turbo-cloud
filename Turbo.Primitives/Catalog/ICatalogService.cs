@@ -1,7 +1,7 @@
 using Turbo.Contracts.Enums.Catalog;
 using Turbo.Primitives.Snapshots.Catalog;
 
-namespace Turbo.Catalog.Abstractions;
+namespace Turbo.Primitives.Catalog;
 
 public interface ICatalogService
 {

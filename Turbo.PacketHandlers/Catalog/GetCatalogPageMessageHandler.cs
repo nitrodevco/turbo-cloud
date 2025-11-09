@@ -1,8 +1,8 @@
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Catalog.Abstractions;
 using Turbo.Messages.Registry;
+using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Messages.Incoming.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Snapshots.Catalog.Extensions;

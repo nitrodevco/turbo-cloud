@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Turbo.Contracts.Enums.Catalog;
 using Turbo.Primitives.Snapshots.Catalog;
 
-namespace Turbo.Catalog.Abstractions;
+namespace Turbo.Primitives.Catalog;
 
 public interface ICatalogProvider<TTag>
     where TTag : ICatalogTag

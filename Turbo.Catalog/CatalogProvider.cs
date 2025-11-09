@@ -4,9 +4,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Turbo.Catalog.Abstractions;
 using Turbo.Contracts.Enums.Catalog;
 using Turbo.Database.Context;
+using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Snapshots.Catalog;
 
