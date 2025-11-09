@@ -6,10 +6,12 @@ namespace Turbo.Primitives.Grains;
 
 public interface IPlayerPresenceGrain : IGrainWithIntegerKey
 {
+    public Task<string> GetSessionIdAsync();
+    public Task SetSessionIdAsync(string sessionId);
     public Task<RoomPointerSnapshot> GetCurrentRoomAsync();
     public Task<PendingRoomInfoSnapshot> GetPendingRoomAsync();
-    public Task ResetAsync();
     public Task SetPendingRoomAsync(long roomId, bool approved);
+    public Task ResetAsync();
     public Task<RoomChangedSnapshot> EnterRoomAsync(long roomId);
     public Task<RoomChangedSnapshot> LeaveRoomAsync();
 }

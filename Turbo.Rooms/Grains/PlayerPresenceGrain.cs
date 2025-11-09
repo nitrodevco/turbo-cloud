@@ -2,8 +2,10 @@ using System;
 using System.Threading.Tasks;
 using Orleans;
 using Orleans.Runtime;
+using Orleans.Streams;
 using Turbo.Contracts.Orleans;
 using Turbo.Primitives.Grains;
+using Turbo.Primitives.Orleans.Events.Rooms;
 using Turbo.Primitives.Orleans.Snapshots.Rooms;
 using Turbo.Primitives.Orleans.States.Rooms;
 
@@ -16,6 +18,19 @@ public class PlayerPresenceGrain(
 ) : Grain, IPlayerPresenceGrain
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
+
+    private StreamSubscriptionHandle<RoomEvent>? _subscriptionHandle = null;
+
+    private string _sessionId = string.Empty;
+
+    public Task<string> GetSessionIdAsync() => Task.FromResult(_sessionId);
+
+    public Task SetSessionIdAsync(string sessionId)
+    {
+        _sessionId = sessionId;
+
+        return Task.CompletedTask;
+    }
 
     public Task<RoomPointerSnapshot> GetCurrentRoomAsync() =>
         Task.FromResult(
@@ -31,8 +46,6 @@ public class PlayerPresenceGrain(
             }
         );
 
-    public async Task ResetAsync() => await state.ClearStateAsync();
-
     public async Task SetPendingRoomAsync(long roomId, bool approved)
     {
         state.State.PendingRoomId = roomId;
@@ -40,6 +53,8 @@ public class PlayerPresenceGrain(
 
         await state.WriteStateAsync();
     }
+
+    public async Task ResetAsync() => await state.ClearStateAsync();
 
     public async Task<RoomChangedSnapshot> EnterRoomAsync(long roomId)
     {
@@ -68,6 +83,7 @@ public class PlayerPresenceGrain(
         state.State.PendingRoomApproved = false;
 
         await state.WriteStateAsync();
+        await SubscribeToActiveRoomAsync();
 
         return new RoomChangedSnapshot
         {
@@ -97,6 +113,7 @@ public class PlayerPresenceGrain(
         state.State.Since = DateTimeOffset.UtcNow;
 
         await state.WriteStateAsync();
+        await UnsubscribeFromActiveRoomAsync();
 
         return new RoomChangedSnapshot
         {
@@ -104,5 +121,39 @@ public class PlayerPresenceGrain(
             CurrentRoomId = -1,
             Changed = true,
         };
+    }
+
+    public async Task SubscribeToActiveRoomAsync()
+    {
+        await UnsubscribeFromActiveRoomAsync();
+
+        var roomId = state.State.RoomId;
+
+        if (roomId <= 0)
+            return;
+
+        var streamProvider = this.GetStreamProvider(OrleansStreamProviders.DEFAULT_STREAM_PROVIDER);
+        var stream = streamProvider.GetStream<RoomEvent>(
+            StreamId.Create(OrleansStreamNames.ROOM_EVENTS, roomId)
+        );
+
+        _subscriptionHandle = await stream.SubscribeAsync(OnRoomStreamAsync);
+    }
+
+    public async Task UnsubscribeFromActiveRoomAsync()
+    {
+        if (_subscriptionHandle is null)
+            return;
+
+        await _subscriptionHandle.UnsubscribeAsync();
+
+        _subscriptionHandle = null;
+    }
+
+    private Task OnRoomStreamAsync(RoomEvent evt, StreamSequenceToken? token)
+    {
+        Console.WriteLine($"[Monitor] Room {evt.RoomId}");
+
+        return Task.CompletedTask;
     }
 }

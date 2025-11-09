@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Hosting;
 using Orleans.Hosting;
+using Orleans.Streams;
 using Turbo.Contracts.Orleans;
 
 namespace Turbo.Main.Extensions;
@@ -20,7 +21,8 @@ public static class HostApplicationBuilderExtensions
             silo.UseLocalhostClustering()
                 .AddMemoryGrainStorage(OrleansStorageNames.PRESENCE_STORE)
                 .AddMemoryGrainStorage(OrleansStorageNames.PUB_SUB_STORE)
-                .AddMemoryGrainStorage(OrleansStorageNames.PLAYER_STORE);
+                .AddMemoryGrainStorage(OrleansStorageNames.PLAYER_STORE)
+                .AddMemoryStreams(OrleansStreamProviders.DEFAULT_STREAM_PROVIDER);
         });
 
         return builder;

@@ -5,8 +5,12 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Orleans;
+using Orleans.Runtime;
+using Orleans.Streams;
+using Turbo.Contracts.Orleans;
 using Turbo.Database.Context;
 using Turbo.Primitives.Grains;
+using Turbo.Primitives.Orleans.Events.Rooms;
 using Turbo.Primitives.Orleans.Snapshots.Rooms;
 using Turbo.Primitives.Orleans.Snapshots.Rooms.Mapping;
 using Turbo.Primitives.Orleans.Snapshots.Rooms.Settings;
@@ -31,6 +35,7 @@ public class RoomGrain(
     private readonly IRoomFloorItemsLoader _floorItemsLoader = floorItemsLoader;
     private readonly RoomState _state = new();
 
+    private IAsyncStream<RoomEvent>? _stream = null;
     private RoomSnapshot? _snapshot = null;
     private IRoomMap _roomMap = default!;
 
@@ -38,6 +43,12 @@ public class RoomGrain(
     {
         try
         {
+            var provider = this.GetStreamProvider(OrleansStreamProviders.DEFAULT_STREAM_PROVIDER);
+
+            _stream = provider.GetStream<RoomEvent>(
+                StreamId.Create(OrleansStreamNames.ROOM_EVENTS, this.GetPrimaryKeyLong())
+            );
+
             await HydrateFromExternalAsync(ct);
             await LoadMapAsync(ct);
             await LoadFloorItemsAsync(ct);
