@@ -2,17 +2,23 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Room.Session;
+using Turbo.Rooms.Abstractions;
 
 namespace Turbo.PacketHandlers.Room.Session;
 
-public class OpenFlatConnectionMessageHandler : IMessageHandler<OpenFlatConnectionMessage>
+public class OpenFlatConnectionMessageHandler(IRoomService roomService)
+    : IMessageHandler<OpenFlatConnectionMessage>
 {
+    private readonly IRoomService _roomService = roomService;
+
     public async ValueTask HandleAsync(
         OpenFlatConnectionMessage message,
         MessageContext ctx,
         CancellationToken ct
     )
     {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        await _roomService
+            .OpenRoomForPlayerIdAsync(ctx.Session.PlayerId, message.RoomId, ct)
+            .ConfigureAwait(false);
     }
 }

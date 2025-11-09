@@ -4,6 +4,6 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Session;
 
 public record RoomReadyMessageComposer : IComposer
 {
-    public required string RoomType { get; init; }
+    public required string WorldType { get; init; }
     public required int RoomId { get; init; }
 }

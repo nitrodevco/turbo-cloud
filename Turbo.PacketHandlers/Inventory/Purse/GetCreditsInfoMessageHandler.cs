@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
-using Turbo.Primitives.Messages.Incoming.Inventory.Purse;
+using Turbo.Primitives.Messages.Incoming.Inventory;
 
 namespace Turbo.PacketHandlers.Inventory.Purse;
 

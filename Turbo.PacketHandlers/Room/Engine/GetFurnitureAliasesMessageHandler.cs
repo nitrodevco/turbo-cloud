@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Room.Engine;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 
 namespace Turbo.PacketHandlers.Room.Engine;
 
@@ -13,6 +14,8 @@ public class GetFurnitureAliasesMessageHandler : IMessageHandler<GetFurnitureAli
         CancellationToken ct
     )
     {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        await ctx
+            .Session.SendComposerAsync(new FurnitureAliasesMessageComposer { Aliases = [] }, ct)
+            .ConfigureAwait(false);
     }
 }

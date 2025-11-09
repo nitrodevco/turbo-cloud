@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
 using Turbo.Rooms.Abstractions;
 using Turbo.Rooms.Abstractions.Furniture;
+using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Furniture;
 using Turbo.Rooms.Mapping;
 
@@ -14,8 +15,9 @@ public sealed class RoomModule : IHostPluginModule
 
     public void ConfigureServices(IServiceCollection services, HostApplicationBuilder builder)
     {
-        services.AddSingleton<IRoomFloorItemsLoader, RoomFloorItemsLoader>();
+        services.Configure<RoomConfig>(builder.Configuration.GetSection(RoomConfig.SECTION_NAME));
 
+        services.AddSingleton<IRoomFloorItemsLoader, RoomFloorItemsLoader>();
         services.AddSingleton<IRoomService, RoomService>();
         services.AddSingleton<IRoomModelProvider, RoomModelProvider>();
     }

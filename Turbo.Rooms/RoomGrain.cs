@@ -11,6 +11,7 @@ using Turbo.Primitives.Snapshots.Navigator;
 using Turbo.Primitives.Snapshots.Rooms;
 using Turbo.Primitives.Snapshots.Rooms.Extensions;
 using Turbo.Primitives.Snapshots.Rooms.Mapping;
+using Turbo.Primitives.States.Rooms;
 using Turbo.Rooms.Abstractions;
 using Turbo.Rooms.Abstractions.Furniture;
 using Turbo.Rooms.Mapping;
@@ -135,13 +136,13 @@ public class RoomGrain(
         }
     }
 
-    protected async Task LoadMapAsync(CancellationToken ct)
+    protected Task LoadMapAsync(CancellationToken ct)
     {
         if (_snapshot is null)
-            return;
-
+            return Task.CompletedTask;
         var model = _roomModelProvider.Current.GetModelById(_snapshot.ModelId);
         _roomMap = new RoomMap(model);
+        return Task.CompletedTask;
     }
 
     protected async Task LoadFloorItemsAsync(CancellationToken ct)
@@ -159,6 +160,9 @@ public class RoomGrain(
             _roomMap.AddFloorItem(item);
         }
     }
+
+    public ValueTask<string> GetWorldTypeAsync() =>
+        new ValueTask<string>(_roomMap?.ModelName ?? string.Empty);
 
     public ValueTask<RoomSnapshot> GetSnapshotAsync() => ValueTask.FromResult(_snapshot!);
 

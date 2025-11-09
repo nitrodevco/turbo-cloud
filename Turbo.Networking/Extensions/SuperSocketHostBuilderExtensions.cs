@@ -24,12 +24,12 @@ public static class SuperSocketHostBuilderExtensions
 
                     return new SessionHandlers
                     {
-                        Connected = async session =>
+                        Connected = session =>
                         {
                             if (session is not ISessionContext ctx)
-                                return;
-
-                            gateway.Register(session.SessionID, ctx);
+                                return new ValueTask();
+                            gateway.RegisterSession(ctx);
+                            return new ValueTask();
                         },
                         Closed = async (session, e) =>
                         {
@@ -43,7 +43,7 @@ public static class SuperSocketHostBuilderExtensions
                                     .ConfigureAwait(false);
                             }
 
-                            gateway.Unregister(session.SessionID);
+                            gateway.UnregisterSession(session.SessionID);
                         },
                     };
                 });
@@ -66,14 +66,14 @@ public static class SuperSocketHostBuilderExtensions
 
                     return new SessionHandlers
                     {
-                        Connected = async session =>
+                        Connected = session =>
                         {
                             if (session is not ISessionContext ctx)
-                                return;
-
+                                return new ValueTask();
                             ctx.Touch();
 
                             _ = RunHeartbeatAsync(ctx, config, ctx.HeartbeatCts.Token);
+                            return new ValueTask();
                         },
                         Closed = async (session, e) =>
                         {
@@ -92,54 +92,55 @@ public static class SuperSocketHostBuilderExtensions
         return builder;
     }
 
-    private static async Task RunHeartbeatAsync(
+    private static Task RunHeartbeatAsync(
         ISessionContext session,
         NetworkingConfig cfg,
         CancellationToken ct
     )
     {
+        return Task.CompletedTask;
         /*  var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(cfg.PingIntervalMilliseconds));
- 
-         try
-         {
-             while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
-             {
-                 var last = session.LastActivityUtc;
- 
-                 if (DateTime.UtcNow - last <= cfg.IdleOkActivityWindow)
-                     continue;
- 
-                 await session.SendComposerAsync(new PingMessage(), ct).ConfigureAwait(false);
- 
-                 // Wait for PONG
-                 if (
-                     session.Items.TryGetValue(HeartbeatSessionKeys.PongWaiter, out var waiterObj)
-                     && waiterObj is AsyncSignal waiter
-                 )
-                 {
-                     var completed =
-                         await Task.WhenAny(waiter.WaitAsync(cfg.PongTimeout, ct)) is { };
-                     if (!completed)
-                     {
-                         // No PONG — close session
-                         await session.CloseAsync(CloseReason.TimeOut);
-                         return;
-                     }
- 
-                     // Mark activity on pong
-                     session.Items[HeartbeatSessionKeys.LastActivityUtc] = DateTime.UtcNow;
- 
-                     // Reset waiter for next cycle
-                     session.Items[HeartbeatSessionKeys.PongWaiter] = new AsyncSignal();
-                 }
-             }
-         }
-         catch (OperationCanceledException)
-         {
-         }
-         finally
-         {
-             timer.Dispose();
-         } */
+
+try
+{
+while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
+{
+var last = session.LastActivityUtc;
+
+if (DateTime.UtcNow - last <= cfg.IdleOkActivityWindow)
+continue;
+
+await session.SendComposerAsync(new PingMessage(), ct).ConfigureAwait(false);
+
+// Wait for PONG
+if (
+session.Items.TryGetValue(HeartbeatSessionKeys.PongWaiter, out var waiterObj)
+&& waiterObj is AsyncSignal waiter
+)
+{
+var completed =
+await Task.WhenAny(waiter.WaitAsync(cfg.PongTimeout, ct)) is { };
+if (!completed)
+{
+// No PONG — close session
+await session.CloseAsync(CloseReason.TimeOut);
+return;
+}
+
+// Mark activity on pong
+session.Items[HeartbeatSessionKeys.LastActivityUtc] = DateTime.UtcNow;
+
+// Reset waiter for next cycle
+session.Items[HeartbeatSessionKeys.PongWaiter] = new AsyncSignal();
+}
+}
+}
+catch (OperationCanceledException)
+{
+}
+finally
+{
+timer.Dispose();
+} */
     }
 }

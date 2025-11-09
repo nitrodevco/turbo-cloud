@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Orleans;
 using Orleans.Runtime;
+using Turbo.Contracts.Orleans;
 using Turbo.Database.Context;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Snapshots.Players;
@@ -13,7 +14,8 @@ using Turbo.Primitives.Snapshots.Players;
 namespace Turbo.Players.Grains;
 
 public class PlayerGrain(
-    [PersistentState("snap", "player-snapshots")] IPersistentState<PlayerSnapshot> inner,
+    [PersistentState(OrleansStateNames.PLAYER_SNAPSHOT, OrleansStorageNames.PLAYER_STORE)]
+        IPersistentState<PlayerSnapshot> inner,
     IDbContextFactory<TurboDbContext> dbContextFactory,
     ILogger<PlayerGrain> logger
 ) : Grain, IPlayerGrain

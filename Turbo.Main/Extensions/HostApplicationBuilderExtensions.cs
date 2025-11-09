@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Hosting;
 using Orleans.Hosting;
+using Turbo.Contracts.Orleans;
 
 namespace Turbo.Main.Extensions;
 
@@ -17,8 +18,9 @@ public static class HostApplicationBuilderExtensions
             );
 
             silo.UseLocalhostClustering()
-                .AddMemoryGrainStorage("PubSubStore")
-                .AddMemoryGrainStorage("player-snapshots");
+                .AddMemoryGrainStorage(OrleansStorageNames.PRESENCE_STORE)
+                .AddMemoryGrainStorage(OrleansStorageNames.PUB_SUB_STORE)
+                .AddMemoryGrainStorage(OrleansStorageNames.PLAYER_STORE);
         });
 
         return builder;

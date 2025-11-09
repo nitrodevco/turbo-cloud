@@ -1,6 +1,6 @@
 using System;
 
-namespace Turbo.Rooms;
+namespace Turbo.Primitives.States.Rooms;
 
 public sealed class RoomState
 {
