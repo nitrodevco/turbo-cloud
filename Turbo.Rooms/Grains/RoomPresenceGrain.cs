@@ -4,9 +4,9 @@ using Orleans;
 using Orleans.Runtime;
 using Turbo.Contracts.Orleans;
 using Turbo.Primitives.Grains;
-using Turbo.Primitives.States.Rooms;
+using Turbo.Primitives.Orleans.States.Rooms;
 
-namespace Turbo.Rooms;
+namespace Turbo.Rooms.Grains;
 
 public class RoomPresenceGrain(
     [PersistentState(OrleansStateNames.ROOM_PRESENCE, OrleansStorageNames.PRESENCE_STORE)]

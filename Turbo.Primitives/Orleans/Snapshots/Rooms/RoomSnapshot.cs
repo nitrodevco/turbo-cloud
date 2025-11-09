@@ -1,11 +1,11 @@
 using Orleans;
 using Turbo.Contracts.Enums.Navigator;
-using Turbo.Primitives.Snapshots.Navigator;
+using Turbo.Primitives.Orleans.Snapshots.Rooms.Settings;
 
-namespace Turbo.Primitives.Snapshots.Rooms;
+namespace Turbo.Primitives.Orleans.Snapshots.Rooms;
 
 [GenerateSerializer, Immutable]
-public record RoomSnapshot
+public sealed record RoomSnapshot
 {
     [Id(0)]
     public required long Id { get; init; }

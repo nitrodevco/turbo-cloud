@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 using Orleans;
-using Turbo.Primitives.Snapshots.Rooms;
+using Turbo.Primitives.Orleans.Snapshots.Rooms;
 
 namespace Turbo.Primitives.Grains;
 

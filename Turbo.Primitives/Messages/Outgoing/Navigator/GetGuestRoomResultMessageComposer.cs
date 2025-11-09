@@ -1,5 +1,5 @@
 using Turbo.Contracts.Abstractions;
-using Turbo.Primitives.Snapshots.Rooms;
+using Turbo.Primitives.Orleans.Snapshots.Rooms;
 
 namespace Turbo.Primitives.Messages.Outgoing.Navigator;
 

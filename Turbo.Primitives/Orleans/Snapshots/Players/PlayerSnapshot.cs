@@ -2,7 +2,7 @@ using System;
 using Orleans;
 using Turbo.Contracts.Enums.Rooms.Object;
 
-namespace Turbo.Primitives.Snapshots.Players;
+namespace Turbo.Primitives.Orleans.Snapshots.Players;
 
 [GenerateSerializer, Immutable]
 public record PlayerSnapshot

@@ -4,10 +4,10 @@ using Orleans;
 using Orleans.Runtime;
 using Turbo.Contracts.Orleans;
 using Turbo.Primitives.Grains;
-using Turbo.Primitives.Snapshots.Rooms;
-using Turbo.Primitives.States.Rooms;
+using Turbo.Primitives.Orleans.Snapshots.Rooms;
+using Turbo.Primitives.Orleans.States.Rooms;
 
-namespace Turbo.Rooms;
+namespace Turbo.Rooms.Grains;
 
 public class PlayerPresenceGrain(
     [PersistentState(OrleansStateNames.PLAYER_PRESENCE, OrleansStorageNames.PRESENCE_STORE)]

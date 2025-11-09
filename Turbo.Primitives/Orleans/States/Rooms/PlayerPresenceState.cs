@@ -1,7 +1,7 @@
 using System;
 using Orleans;
 
-namespace Turbo.Primitives.States.Rooms;
+namespace Turbo.Primitives.Orleans.States.Rooms;
 
 [GenerateSerializer]
 public sealed class PlayerPresenceState

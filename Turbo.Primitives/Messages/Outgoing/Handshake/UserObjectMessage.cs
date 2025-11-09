@@ -1,5 +1,5 @@
 using Turbo.Contracts.Abstractions;
-using Turbo.Primitives.Snapshots.Players;
+using Turbo.Primitives.Orleans.Snapshots.Players;
 
 namespace Turbo.Primitives.Messages.Outgoing.Handshake;
 

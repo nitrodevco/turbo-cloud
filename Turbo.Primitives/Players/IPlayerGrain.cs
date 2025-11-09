@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
-using Turbo.Primitives.Snapshots.Players;
+using Turbo.Primitives.Orleans.Snapshots.Players;
 
 namespace Turbo.Primitives.Players;
 

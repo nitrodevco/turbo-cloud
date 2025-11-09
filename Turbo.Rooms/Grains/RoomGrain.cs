@@ -7,16 +7,16 @@ using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Primitives.Grains;
+using Turbo.Primitives.Orleans.Snapshots.Rooms;
+using Turbo.Primitives.Orleans.Snapshots.Rooms.Mapping;
+using Turbo.Primitives.Orleans.Snapshots.Rooms.Settings;
+using Turbo.Primitives.Orleans.States.Rooms;
 using Turbo.Primitives.Rooms.Furniture;
 using Turbo.Primitives.Rooms.Mapping;
-using Turbo.Primitives.Snapshots.Navigator;
-using Turbo.Primitives.Snapshots.Rooms;
 using Turbo.Primitives.Snapshots.Rooms.Extensions;
-using Turbo.Primitives.Snapshots.Rooms.Mapping;
-using Turbo.Primitives.States.Rooms;
 using Turbo.Rooms.Mapping;
 
-namespace Turbo.Rooms;
+namespace Turbo.Rooms.Grains;
 
 public class RoomGrain(
     IDbContextFactory<TurboDbContext> dbContextFactory,
@@ -164,13 +164,12 @@ public class RoomGrain(
         }
     }
 
-    public ValueTask<string> GetWorldTypeAsync() =>
-        new ValueTask<string>(_roomMap?.ModelName ?? string.Empty);
+    public Task<string> GetWorldTypeAsync() => Task.FromResult(_roomMap?.ModelName ?? string.Empty);
 
-    public ValueTask<RoomSnapshot> GetSnapshotAsync() => ValueTask.FromResult(_snapshot!);
+    public Task<RoomSnapshot> GetSnapshotAsync() => Task.FromResult(_snapshot!);
 
-    public ValueTask<RoomMapSnapshot> GetMapSnapshotAsync() =>
-        ValueTask.FromResult(
+    public Task<RoomMapSnapshot> GetMapSnapshotAsync() =>
+        Task.FromResult(
             new RoomMapSnapshot
             {
                 ModelName = _roomMap.ModelName,
@@ -185,7 +184,7 @@ public class RoomGrain(
             }
         );
 
-    public async ValueTask<IReadOnlyList<RoomFloorItemSnapshot>> GetFloorItemSnapshotsAsync()
+    public async Task<IReadOnlyList<RoomFloorItemSnapshot>> GetFloorItemSnapshotsAsync()
     {
         var floorItems = _roomMap.GetAllFloorItems();
         var snapshots = new RoomFloorItemSnapshot[floorItems.Count];
@@ -197,6 +196,6 @@ public class RoomGrain(
             snapshots[i] = RoomFloorItemSnapshot.FromFloorItem(item);
         }
 
-        return await ValueTask.FromResult(snapshots);
+        return snapshots;
     }
 }

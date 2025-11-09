@@ -1,6 +1,6 @@
 using Orleans;
 
-namespace Turbo.Primitives.Snapshots.Rooms.StuffData;
+namespace Turbo.Primitives.Orleans.Snapshots.Rooms.StuffData;
 
 [GenerateSerializer, Immutable]
 public sealed record LegacyStuffPayload

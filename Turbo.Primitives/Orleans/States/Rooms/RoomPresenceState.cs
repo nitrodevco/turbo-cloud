@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Orleans;
 
-namespace Turbo.Primitives.States.Rooms;
+namespace Turbo.Primitives.Orleans.States.Rooms;
 
 [GenerateSerializer]
 public sealed class RoomPresenceState

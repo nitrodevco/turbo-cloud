@@ -2,7 +2,7 @@ using System.Linq;
 using Orleans;
 using Turbo.Primitives.Rooms.StuffData;
 
-namespace Turbo.Primitives.Snapshots.Rooms.StuffData;
+namespace Turbo.Primitives.Orleans.Snapshots.Rooms.StuffData;
 
 [GenerateSerializer, Immutable]
 public sealed record StuffDataSnapshot
