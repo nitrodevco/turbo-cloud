@@ -1,20 +1,20 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
-using Turbo.Crypto;
 using Turbo.Crypto.Configuration;
 using Turbo.Messages.Registry;
+using Turbo.Primitives.Crypto;
 using Turbo.Primitives.Messages.Incoming.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 
 namespace Turbo.PacketHandlers.Handshake;
 
 public class CompleteDiffieHandshakeMessageHandler(
-    DiffieService diffieService,
+    IDiffieService diffieService,
     IOptions<CryptoConfig> config
 ) : IMessageHandler<CompleteDiffieHandshakeMessage>
 {
-    private readonly DiffieService _diffieService = diffieService;
+    private readonly IDiffieService _diffieService = diffieService;
     private readonly CryptoConfig _config = config.Value;
 
     public async ValueTask HandleAsync(

@@ -2,19 +2,20 @@ using System.Text;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.Utilities.Encoders;
+using Turbo.Primitives.Crypto;
 
 namespace Turbo.Crypto;
 
-public sealed class DiffieService
+public sealed class DiffieService : IDiffieService
 {
     private const int DH_PRIMES_BIT_SIZE = 128;
     private readonly BigInteger _dhGenerator;
     private readonly BigInteger _dhPrime;
     private readonly BigInteger _dhPrivate;
     private readonly BigInteger _dhPublic;
-    private readonly RsaService _rsaService;
+    private readonly IRsaService _rsaService;
 
-    public DiffieService(RsaService rsaService)
+    public DiffieService(IRsaService rsaService)
     {
         var random = new SecureRandom();
         _rsaService = rsaService;

@@ -1,8 +1,10 @@
+using Turbo.Primitives.Crypto;
+
 namespace Turbo.Crypto;
 
-public sealed class Rc4Service(byte[] key)
+public sealed class Rc4Service(byte[] key) : IRc4Service
 {
-    private readonly Rc4Engine _rc4Engine = new(key);
+    private readonly IRc4Engine _rc4Engine = new Rc4Engine(key);
 
     public byte[] Process(byte[] inputData, byte[]? outputData = null, int? inputOffset = 0)
     {

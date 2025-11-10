@@ -1,7 +1,7 @@
 using System;
 using Turbo.Contracts.Abstractions;
-using Turbo.Networking.Abstractions.Session;
 using Turbo.Pipeline;
+using Turbo.Primitives.Networking;
 
 namespace Turbo.Messages.Registry;
 

@@ -22,7 +22,7 @@ using Turbo.Rooms.Mapping;
 
 namespace Turbo.Rooms.Grains;
 
-public class RoomGrain(
+public sealed class RoomGrain(
     IDbContextFactory<TurboDbContext> dbContextFactory,
     ILogger<IRoomGrain> logger,
     IRoomModelProvider roomModelProvider,

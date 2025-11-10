@@ -6,8 +6,8 @@ using SuperSocket.Server.Abstractions;
 using SuperSocket.Server.Abstractions.Session;
 using Turbo.Messages;
 using Turbo.Networking.Abstractions.Revisions;
-using Turbo.Networking.Abstractions.Session;
 using Turbo.Packets.Abstractions;
+using Turbo.Primitives.Networking;
 
 namespace Turbo.Networking.Package;
 
@@ -42,9 +42,9 @@ public sealed class PackageHandler(
                 var message = parser.Parse(packet);
 
                 _logger.LogInformation(
-                    "Incoming {Message} for {SessionId}",
+                    "Incoming {Message} for {SessionKey}",
                     message,
-                    ctx.SessionID
+                    ctx.SessionKey
                 );
 
                 _ = _messageSystem
@@ -54,9 +54,9 @@ public sealed class PackageHandler(
             else
             {
                 _logger.LogInformation(
-                    "Incoming Unknown {Header} for {SessionId}",
+                    "Incoming Unknown {Header} for {SessionKey}",
                     packet.Header,
-                    ctx.SessionID
+                    ctx.SessionKey
                 );
             }
         }
@@ -64,9 +64,9 @@ public sealed class PackageHandler(
         {
             _logger.LogError(
                 ex,
-                "Failed to process packet {Packet} for session {SessionId}",
+                "Failed to process packet {Packet} for session {SessionKey}",
                 packet.Header,
-                session.SessionID
+                ctx.SessionKey
             );
         }
 

@@ -1,11 +1,12 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SuperSocket.Server;
 using SuperSocket.Server.Abstractions.Host;
-using Turbo.Networking.Abstractions.Session;
 using Turbo.Networking.Configuration;
+using Turbo.Primitives.Networking;
 
 namespace Turbo.Networking.Extensions;
 
@@ -24,26 +25,15 @@ public static class SuperSocketHostBuilderExtensions
 
                     return new SessionHandlers
                     {
-                        Connected = session =>
+                        Connected = async session =>
                         {
-                            if (session is not ISessionContext ctx)
-                                return new ValueTask();
-                            gateway.RegisterSession(ctx);
-                            return new ValueTask();
+                            if (session is ISessionContext ctx)
+                                gateway.AddSession(ctx.SessionKey, ctx);
                         },
                         Closed = async (session, e) =>
                         {
-                            if (session is not ISessionContext ctx)
-                                return;
-
-                            if (ctx.PlayerId > 0)
-                            {
-                                await gateway
-                                    .SetPlayerIdForSessionAsync(-1, session.SessionID)
-                                    .ConfigureAwait(false);
-                            }
-
-                            gateway.UnregisterSession(session.SessionID);
+                            if (session is ISessionContext ctx)
+                                gateway.RemoveSession(ctx.SessionKey);
                         },
                     };
                 });

@@ -1,4 +1,4 @@
-using Turbo.Networking.Abstractions.Session;
+using Turbo.Primitives.Networking;
 
 namespace Turbo.Messages.Registry;
 

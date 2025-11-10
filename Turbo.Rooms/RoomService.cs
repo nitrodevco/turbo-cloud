@@ -4,12 +4,13 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
-using Turbo.Networking.Abstractions.Session;
 using Turbo.Primitives.Grains;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Layout;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
+using Turbo.Primitives.Networking;
+using Turbo.Primitives.Orleans.Snapshots.Session;
 using Turbo.Primitives.Rooms;
 using Turbo.Rooms.Configuration;
 
@@ -34,6 +35,20 @@ public sealed class RoomService(
         return await Task.FromResult(grain).ConfigureAwait(false);
     }
 
+    public async Task OpenRoomForSessionAsync(
+        SessionKey sessionKey,
+        long roomId,
+        CancellationToken ct = default
+    )
+    {
+        var playerId = _sessionGateway.GetPlayerId(sessionKey);
+
+        if (playerId <= 0)
+            return;
+
+        await OpenRoomForPlayerIdAsync(playerId, roomId, ct).ConfigureAwait(false);
+    }
+
     public async Task OpenRoomForPlayerIdAsync(
         long playerId,
         long roomId,
@@ -50,15 +65,14 @@ public sealed class RoomService(
 
             // if the player is currently in a room, leave it
 
-            var session = _sessionGateway.GetSessionContextByPlayerId(playerId);
+            await playerPresence
+                .SendComposerAsync(new OpenConnectionMessageComposer { RoomId = (int)roomId }, ct)
+                .ConfigureAwait(false);
 
-            if (session is null)
-                return;
+            await playerPresence.SetPendingRoomAsync(roomId, true).ConfigureAwait(false);
 
             var roomGrain = await GetRoomGrainAsync(roomId).ConfigureAwait(false);
             var worldType = await roomGrain.GetWorldTypeAsync().ConfigureAwait(false);
-
-            await playerPresence.SetPendingRoomAsync(roomId, true).ConfigureAwait(false);
 
             // if owner => auto-approve
             // if banned => reject
@@ -66,18 +80,14 @@ public sealed class RoomService(
             // if passworded => reject (for now)
             // if locked => reject (for now)
 
-            await session
-                .SendComposerAsync(new OpenConnectionMessageComposer { RoomId = (int)roomId }, ct)
-                .ConfigureAwait(false);
-
-            await session
+            await playerPresence
                 .SendComposerAsync(
                     new RoomReadyMessageComposer { WorldType = worldType, RoomId = (int)roomId },
                     ct
                 )
                 .ConfigureAwait(false);
 
-            await session
+            await playerPresence
                 .SendComposerAsync(
                     new RoomRatingMessageComposer { Rating = 0, CanRate = false },
                     ct
@@ -85,6 +95,19 @@ public sealed class RoomService(
                 .ConfigureAwait(false);
         }
         catch (Exception e) { }
+    }
+
+    public async Task EnterPendingRoomForSessionAsync(
+        SessionKey sessionKey,
+        CancellationToken ct = default
+    )
+    {
+        var playerId = _sessionGateway.GetPlayerId(sessionKey);
+
+        if (playerId <= 0)
+            return;
+
+        await EnterPendingRoomForPlayerIdAsync(playerId, ct).ConfigureAwait(false);
     }
 
     public async Task EnterPendingRoomForPlayerIdAsync(
@@ -102,17 +125,12 @@ public sealed class RoomService(
             if (pendingRoom.RoomId <= 0 || !pendingRoom.Approved)
                 return;
 
-            var session = _sessionGateway.GetSessionContextByPlayerId(playerId);
-
-            if (session is null)
-                return;
-
             var roomGrain = await GetRoomGrainAsync(pendingRoom.RoomId).ConfigureAwait(false);
             var mapSnapshot = await roomGrain.GetMapSnapshotAsync().ConfigureAwait(false);
 
-            await playerPresence.EnterRoomAsync(pendingRoom.RoomId).ConfigureAwait(false);
+            await playerPresence.SetActiveRoomAsync(pendingRoom.RoomId).ConfigureAwait(false);
 
-            await session
+            await playerPresence
                 .SendComposerAsync(
                     new RoomEntryTileMessageComposer
                     {
@@ -124,7 +142,7 @@ public sealed class RoomService(
                 )
                 .ConfigureAwait(false);
 
-            await session
+            await playerPresence
                 .SendComposerAsync(
                     new HeightMapMessageComposer
                     {
@@ -136,7 +154,7 @@ public sealed class RoomService(
                 )
                 .ConfigureAwait(false);
 
-            await session
+            await playerPresence
                 .SendComposerAsync(
                     new FloorHeightMapMessageComposer
                     {
@@ -153,7 +171,7 @@ public sealed class RoomService(
                 .GetFloorItemSnapshotsAsync()
                 .ConfigureAwait(false);
 
-            await session
+            await playerPresence
                 .SendComposerAsync(
                     new ObjectsMessageComposer { OwnerNames = [], FloorItems = floorItemSnapshots },
                     ct

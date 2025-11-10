@@ -7,7 +7,9 @@ using SuperSocket.Server;
 using Turbo.Contracts.Abstractions;
 using Turbo.Crypto;
 using Turbo.Networking.Abstractions;
-using Turbo.Networking.Abstractions.Session;
+using Turbo.Primitives.Crypto;
+using Turbo.Primitives.Networking;
+using Turbo.Primitives.Orleans.Snapshots.Session;
 using Turbo.Runtime;
 
 namespace Turbo.Networking.Session;
@@ -18,14 +20,28 @@ public class SessionContext(IPackageEncoder<OutgoingPackage> packageEncoder)
 {
     private readonly IPackageEncoder<OutgoingPackage> _packageEncoder = packageEncoder;
 
+    public SessionKey SessionKey { get; private set; } = SessionKey.Empty;
     public bool PolicyDone { get; set; } = true;
     public string RevisionId { get; private set; } = "Default";
-    public long PlayerId { get; private set; } = -1;
     public DateTime LastActivityUtc { get; private set; } = DateTime.UtcNow;
     public AsyncSignal PongWaiter { get; } = new();
     public CancellationTokenSource HeartbeatCts { get; } = new();
-    public Rc4Engine? CryptoIn { get; private set; }
-    public Rc4Engine? CryptoOut { get; private set; }
+    public IRc4Engine? CryptoIn { get; private set; }
+    public IRc4Engine? CryptoOut { get; private set; }
+
+    protected override async ValueTask OnSessionConnectedAsync()
+    {
+        SessionKey = new SessionKey { Value = this.SessionID };
+
+        await base.OnSessionConnectedAsync().ConfigureAwait(false);
+    }
+
+    protected override async ValueTask OnSessionClosedAsync(CloseEventArgs e)
+    {
+        await base.OnSessionClosedAsync(e).ConfigureAwait(false);
+    }
+
+    public async ValueTask CloseSessionAsync() => await this.CloseAsync().ConfigureAwait(false);
 
     public void Touch()
     {
@@ -37,27 +53,12 @@ public class SessionContext(IPackageEncoder<OutgoingPackage> packageEncoder)
         RevisionId = revisionId;
     }
 
-    public void SetPlayerId(long playerId)
-    {
-        PlayerId = playerId;
-    }
-
     public void SetupEncryption(byte[] key, bool setCryptoOut = false)
     {
         CryptoIn = new Rc4Engine(key);
 
         if (setCryptoOut)
             CryptoOut = new Rc4Engine(key);
-    }
-
-    protected override async ValueTask OnSessionConnectedAsync()
-    {
-        await base.OnSessionConnectedAsync().ConfigureAwait(false);
-    }
-
-    protected override async ValueTask OnSessionClosedAsync(CloseEventArgs e)
-    {
-        await base.OnSessionClosedAsync(e).ConfigureAwait(false);
     }
 
     public async Task SendComposerAsync(IComposer composer, CancellationToken ct = default)

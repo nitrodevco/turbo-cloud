@@ -1,5 +1,5 @@
 using Turbo.Contracts.Abstractions;
-using Turbo.Networking.Abstractions.Session;
+using Turbo.Primitives.Networking;
 
 namespace Turbo.Networking.Abstractions;
 

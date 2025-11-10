@@ -1,8 +1,9 @@
 using System;
+using Turbo.Primitives.Crypto;
 
 namespace Turbo.Crypto;
 
-public sealed class Rc4Engine
+public sealed class Rc4Engine : IRc4Engine
 {
     private readonly byte[] _data = new byte[256];
     private int _i;

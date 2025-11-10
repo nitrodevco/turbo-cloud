@@ -18,7 +18,7 @@ public class GetHeightMapMessageHandler(IRoomService roomService)
     )
     {
         await _roomService
-            .EnterPendingRoomForPlayerIdAsync(ctx.Session.PlayerId, ct)
+            .EnterPendingRoomForSessionAsync(ctx.Session.SessionKey, ct)
             .ConfigureAwait(false);
     }
 }

@@ -9,10 +9,11 @@ using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Math;
 using Turbo.Crypto.Configuration;
+using Turbo.Primitives.Crypto;
 
 namespace Turbo.Crypto;
 
-public sealed class RsaService
+public sealed class RsaService : IRsaService
 {
     private readonly int _blockSize;
     private readonly BigInteger _exponent;

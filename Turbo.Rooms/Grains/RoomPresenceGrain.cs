@@ -35,4 +35,24 @@ public class RoomPresenceGrain(
 
         return removed;
     }
+
+    public async Task<bool> AddSessionIdAsync(string sessionId)
+    {
+        var added = state.State.SessionIds.Add(sessionId);
+
+        if (added)
+            await state.WriteStateAsync();
+
+        return added;
+    }
+
+    public async Task<bool> RemoveSessionIdAsync(string sessionId)
+    {
+        var removed = state.State.SessionIds.Remove(sessionId);
+
+        if (removed)
+            await state.WriteStateAsync();
+
+        return removed;
+    }
 }

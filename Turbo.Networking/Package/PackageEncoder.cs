@@ -28,9 +28,9 @@ public sealed class PackageEncoder(IRevisionManager revisionManager, ILogger<Pac
                     payload = pack.Session.CryptoOut.Process(payload);
 
                 _logger.LogInformation(
-                    "Outgoing {Composer} for {SessionId}",
+                    "Outgoing {Composer} for {SessionKey}",
                     pack.Composer,
-                    pack.Session.SessionID
+                    pack.Session.SessionKey
                 );
 
                 writer.Write(payload);
@@ -40,9 +40,9 @@ public sealed class PackageEncoder(IRevisionManager revisionManager, ILogger<Pac
             else
             {
                 _logger.LogWarning(
-                    "Serializer not found for {Name} for {SessionId}",
+                    "Serializer not found for {Name} for {SessionKey}",
                     composerType.Name,
-                    pack.Session.SessionID
+                    pack.Session.SessionKey
                 );
             }
         }

@@ -5,18 +5,19 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Orleans;
 using SuperSocket.ProtoBase;
 using SuperSocket.Server.Abstractions;
 using SuperSocket.Server.Host;
 using Turbo.Messages;
 using Turbo.Networking.Abstractions;
 using Turbo.Networking.Abstractions.Revisions;
-using Turbo.Networking.Abstractions.Session;
 using Turbo.Networking.Configuration;
 using Turbo.Networking.Extensions;
 using Turbo.Networking.Package;
 using Turbo.Networking.Session;
 using Turbo.Packets.Abstractions;
+using Turbo.Primitives.Networking;
 
 namespace Turbo.Networking;
 
@@ -25,7 +26,8 @@ public sealed class NetworkManager(
     ISessionGateway sessionGateway,
     IRevisionManager revisionManager,
     MessageSystem messageSystem,
-    ILoggerFactory loggerFactory
+    ILoggerFactory loggerFactory,
+    IGrainFactory grainFactory
 ) : INetworkManager
 {
     private readonly object _hostGate = new();
@@ -34,6 +36,7 @@ public sealed class NetworkManager(
     private readonly IRevisionManager _revisionManager = revisionManager;
     private readonly MessageSystem _messageSystem = messageSystem;
     private readonly ILoggerFactory _loggerFactory = loggerFactory;
+    private readonly IGrainFactory _grainFactory = grainFactory;
     private IHost? _superSocketHost;
 
     public async Task StartAsync(CancellationToken ct)
@@ -91,6 +94,7 @@ public sealed class NetworkManager(
                 services.AddSingleton(_revisionManager);
                 services.AddSingleton(_messageSystem);
                 services.AddSingleton(_loggerFactory);
+                services.AddSingleton(_grainFactory);
                 services.AddSingleton<IPackageEncoder<OutgoingPackage>, PackageEncoder>();
                 services.AddSingleton<IPackageHandler<IClientPacket>, PackageHandler>();
             }

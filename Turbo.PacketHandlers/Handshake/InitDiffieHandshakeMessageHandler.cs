@@ -1,16 +1,16 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Crypto;
 using Turbo.Messages.Registry;
+using Turbo.Primitives.Crypto;
 using Turbo.Primitives.Messages.Incoming.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 
 namespace Turbo.PacketHandlers.Handshake;
 
-public class InitDiffieHandshakeMessageHandler(DiffieService diffieService)
+public class InitDiffieHandshakeMessageHandler(IDiffieService diffieService)
     : IMessageHandler<InitDiffieHandshakeMessage>
 {
-    private readonly DiffieService _diffieService = diffieService;
+    private readonly IDiffieService _diffieService = diffieService;
 
     public async ValueTask HandleAsync(
         InitDiffieHandshakeMessage message,

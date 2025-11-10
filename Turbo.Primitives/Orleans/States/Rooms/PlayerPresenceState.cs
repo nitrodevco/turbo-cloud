@@ -1,5 +1,6 @@
 using System;
 using Orleans;
+using Turbo.Primitives.Orleans.Snapshots.Session;
 
 namespace Turbo.Primitives.Orleans.States.Rooms;
 
@@ -7,14 +8,17 @@ namespace Turbo.Primitives.Orleans.States.Rooms;
 public sealed class PlayerPresenceState
 {
     [Id(0)]
-    public long RoomId { get; set; } = -1;
+    public required SessionKey SessionKey { get; set; } = SessionKey.Empty;
 
     [Id(1)]
-    public DateTimeOffset Since { get; set; }
+    public required long ActiveRoomId { get; set; } = -1;
 
     [Id(2)]
-    public long PendingRoomId { get; set; } = -1;
+    public required DateTimeOffset Since { get; set; }
 
     [Id(3)]
-    public bool PendingRoomApproved { get; set; } = false;
+    public required long PendingRoomId { get; set; } = -1;
+
+    [Id(4)]
+    public required bool PendingRoomApproved { get; set; } = false;
 }

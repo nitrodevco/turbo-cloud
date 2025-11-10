@@ -1,24 +1,24 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using SuperSocket.Server.Abstractions.Session;
 using Turbo.Contracts.Abstractions;
-using Turbo.Crypto;
+using Turbo.Primitives.Crypto;
+using Turbo.Primitives.Orleans.Snapshots.Session;
 
-namespace Turbo.Networking.Abstractions.Session;
+namespace Turbo.Primitives.Networking;
 
-public interface ISessionContext : IAppSession
+public interface ISessionContext
 {
+    public SessionKey SessionKey { get; }
     public bool PolicyDone { get; set; }
     public string RevisionId { get; }
-    public long PlayerId { get; }
     public DateTime LastActivityUtc { get; }
     public CancellationTokenSource HeartbeatCts { get; }
-    public Rc4Engine? CryptoIn { get; }
-    public Rc4Engine? CryptoOut { get; }
+    public IRc4Engine? CryptoIn { get; }
+    public IRc4Engine? CryptoOut { get; }
+    public ValueTask CloseSessionAsync();
     public void Touch();
     public void SetRevisionId(string revisionId);
-    public void SetPlayerId(long playerId);
     public void SetupEncryption(byte[] key, bool setCryptoOut = false);
     public Task SendComposerAsync(IComposer composer, CancellationToken ct = default);
 }
