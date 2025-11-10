@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Roomsettings;
 
-public record FlatControllersEventMessageComposer : IComposer
+public sealed record FlatControllersEventMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

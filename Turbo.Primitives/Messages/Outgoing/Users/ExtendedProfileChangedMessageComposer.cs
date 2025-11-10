@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Users;
 
-public record ExtendedProfileChangedMessageComposer : IComposer
+public sealed record ExtendedProfileChangedMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

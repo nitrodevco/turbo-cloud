@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Inventory.Trading;
 
-public record TradingYouAreNotAllowedEventMessageComposer : IComposer
+public sealed record TradingYouAreNotAllowedEventMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

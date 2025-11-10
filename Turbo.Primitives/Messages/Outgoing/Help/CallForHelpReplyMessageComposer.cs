@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Help;
 
-public record CallForHelpReplyMessageComposer : IComposer
+public sealed record CallForHelpReplyMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

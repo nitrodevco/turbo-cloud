@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 
-public record WiredAllVariablesHashEventMessageComposer : IComposer
+public sealed record WiredAllVariablesHashEventMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

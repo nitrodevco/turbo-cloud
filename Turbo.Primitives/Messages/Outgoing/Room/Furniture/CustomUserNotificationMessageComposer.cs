@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 
-public record CustomUserNotificationMessageComposer : IComposer
+public sealed record CustomUserNotificationMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

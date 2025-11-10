@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Nft;
 
-public record UserNftWardrobeMessageComposer : IComposer
+public sealed record UserNftWardrobeMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

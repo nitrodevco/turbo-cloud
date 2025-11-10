@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Inventory.Pets;
 
-public record GoToBreedingNestFailureEventMessageComposer : IComposer
+public sealed record GoToBreedingNestFailureEventMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

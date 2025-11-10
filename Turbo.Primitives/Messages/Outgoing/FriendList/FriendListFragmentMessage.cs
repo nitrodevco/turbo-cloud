@@ -4,7 +4,7 @@ using Turbo.Primitives.Snapshots.FriendList;
 
 namespace Turbo.Primitives.Messages.Outgoing.FriendList;
 
-public record FriendListFragmentMessage : IComposer
+public sealed record FriendListFragmentMessage : IComposer
 {
     public required int TotalFragments { get; init; }
     public required int FragmentIndex { get; init; }

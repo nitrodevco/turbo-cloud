@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Notifications;
 
-public record HabboAchievementNotificationMessageComposer : IComposer
+public sealed record HabboAchievementNotificationMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

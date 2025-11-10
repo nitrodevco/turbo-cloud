@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Help;
 
-public record QuizResultsMessageComposer : IComposer
+public sealed record QuizResultsMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

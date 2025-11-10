@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 
-public record WiredSaveSuccessEventMessageComposer : IComposer
+public sealed record WiredSaveSuccessEventMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

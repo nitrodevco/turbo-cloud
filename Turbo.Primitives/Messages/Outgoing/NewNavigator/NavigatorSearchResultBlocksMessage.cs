@@ -2,4 +2,4 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.NewNavigator;
 
-public record NavigatorSearchResultBlocksMessage : IComposer;
+public sealed record NavigatorSearchResultBlocksMessage : IComposer;

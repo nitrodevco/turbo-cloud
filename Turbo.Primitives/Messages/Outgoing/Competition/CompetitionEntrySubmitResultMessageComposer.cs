@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Competition;
 
-public record CompetitionEntrySubmitResultMessageComposer : IComposer
+public sealed record CompetitionEntrySubmitResultMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

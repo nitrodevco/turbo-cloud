@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Users;
 
-public record GuildMembershipUpdatedMessageComposer : IComposer
+public sealed record GuildMembershipUpdatedMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

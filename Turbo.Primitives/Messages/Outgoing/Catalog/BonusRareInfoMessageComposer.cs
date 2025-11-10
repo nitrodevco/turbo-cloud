@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Catalog;
 
-public record BonusRareInfoMessageComposer : IComposer
+public sealed record BonusRareInfoMessageComposer : IComposer
 {
     public required string ProductType { get; init; }
     public required int ProductClassId { get; init; }

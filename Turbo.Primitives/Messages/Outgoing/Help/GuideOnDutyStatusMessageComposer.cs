@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Help;
 
-public record GuideOnDutyStatusMessageComposer : IComposer
+public sealed record GuideOnDutyStatusMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Catalog;
 
-public record HabboClubExtendOfferMessageComposer : IComposer
+public sealed record HabboClubExtendOfferMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

@@ -5,7 +5,7 @@ using Turbo.Primitives.Snapshots.Catalog;
 
 namespace Turbo.Primitives.Messages.Outgoing.Catalog;
 
-public record CatalogPageMessageComposer : IComposer
+public sealed record CatalogPageMessageComposer : IComposer
 {
     public required CatalogTypeEnum CatalogType { get; init; }
     public required CatalogPageSnapshot Page { get; init; }

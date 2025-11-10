@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.FriendList;
 
-public record NewConsoleMessageMessage : IComposer
+public sealed record NewConsoleMessageMessage : IComposer
 {
     public required int ChatId { get; init; }
     public required string Message { get; init; }

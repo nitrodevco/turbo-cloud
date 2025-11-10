@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Catalog;
 
-public record ClubGiftInfoEventMessageComposer : IComposer
+public sealed record ClubGiftInfoEventMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

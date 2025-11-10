@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Preferences;
 
-public record AccountPreferencesEventMessageComposer : IComposer
+public sealed record AccountPreferencesEventMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

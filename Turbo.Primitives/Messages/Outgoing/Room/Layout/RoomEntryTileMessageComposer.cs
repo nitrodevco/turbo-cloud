@@ -3,7 +3,7 @@ using Turbo.Contracts.Enums.Rooms.Object;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Layout;
 
-public record RoomEntryTileMessageComposer : IComposer
+public sealed record RoomEntryTileMessageComposer : IComposer
 {
     public required int X { get; init; }
     public required int Y { get; init; }

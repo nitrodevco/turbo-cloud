@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Game.Directory;
 
-public record Game2JoiningGameFailedMessageMessageComposer : IComposer
+public sealed record Game2JoiningGameFailedMessageMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

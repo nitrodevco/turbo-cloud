@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Availability;
 
-public record InfoHotelClosingMessageComposer : IComposer
+public sealed record InfoHotelClosingMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

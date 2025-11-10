@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Inventory.Bots;
 
-public record BotInventoryEventMessageComposer : IComposer
+public sealed record BotInventoryEventMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

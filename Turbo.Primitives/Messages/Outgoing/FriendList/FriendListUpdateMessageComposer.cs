@@ -4,7 +4,7 @@ using Turbo.Primitives.Snapshots.FriendList;
 
 namespace Turbo.Primitives.Messages.Outgoing.FriendList;
 
-public record FriendListUpdateMessageComposer : IComposer
+public sealed record FriendListUpdateMessageComposer : IComposer
 {
     public required List<FriendCategorySnapshot> FriendCategories { get; init; }
     public required List<FriendListUpdateSnapshot> Updates { get; init; }

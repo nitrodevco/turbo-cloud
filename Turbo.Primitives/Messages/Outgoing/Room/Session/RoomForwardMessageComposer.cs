@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Session;
 
-public record RoomForwardMessageComposer : IComposer
+public sealed record RoomForwardMessageComposer : IComposer
 {
     public required int RoomId { get; init; }
 }

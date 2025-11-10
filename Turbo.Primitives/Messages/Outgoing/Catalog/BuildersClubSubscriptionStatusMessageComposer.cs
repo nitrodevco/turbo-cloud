@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Catalog;
 
-public record BuildersClubSubscriptionStatusMessageComposer : IComposer
+public sealed record BuildersClubSubscriptionStatusMessageComposer : IComposer
 {
     public int SecondsLeft { get; init; }
     public int FurniLimit { get; init; }

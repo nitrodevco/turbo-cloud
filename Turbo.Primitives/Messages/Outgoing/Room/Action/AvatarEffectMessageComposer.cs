@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Action;
 
-public record AvatarEffectMessageComposer : IComposer
+public sealed record AvatarEffectMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

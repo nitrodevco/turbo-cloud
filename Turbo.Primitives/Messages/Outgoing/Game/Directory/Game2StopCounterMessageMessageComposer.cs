@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Game.Directory;
 
-public record Game2StopCounterMessageMessageComposer : IComposer
+public sealed record Game2StopCounterMessageMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

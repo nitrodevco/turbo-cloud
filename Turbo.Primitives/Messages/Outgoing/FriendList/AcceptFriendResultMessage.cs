@@ -4,7 +4,7 @@ using Turbo.Primitives.Snapshots.FriendList;
 
 namespace Turbo.Primitives.Messages.Outgoing.FriendList;
 
-public record AcceptFriendResultMessage : IComposer
+public sealed record AcceptFriendResultMessage : IComposer
 {
     public required List<AcceptFriendFailureSnapshot> Failures { get; init; }
 }

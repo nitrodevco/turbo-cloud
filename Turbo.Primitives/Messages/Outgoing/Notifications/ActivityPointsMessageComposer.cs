@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Notifications;
 
-public record ActivityPointsMessageComposer : IComposer
+public sealed record ActivityPointsMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

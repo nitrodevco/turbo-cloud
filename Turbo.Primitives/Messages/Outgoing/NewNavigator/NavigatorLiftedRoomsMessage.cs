@@ -4,7 +4,7 @@ using Turbo.Primitives.Snapshots.NewNavigator;
 
 namespace Turbo.Primitives.Messages.Outgoing.NewNavigator;
 
-public record NavigatorLiftedRoomsMessage : IComposer
+public sealed record NavigatorLiftedRoomsMessage : IComposer
 {
     public required List<NavigatorLiftedRoomSnapshot> LiftedRooms { get; init; }
 }

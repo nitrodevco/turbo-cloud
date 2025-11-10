@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Moderation;
 
-public record IssueInfoMessageComposer : IComposer
+public sealed record IssueInfoMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

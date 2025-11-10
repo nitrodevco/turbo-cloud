@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Notifications;
 
-public record PetLevelNotificationEventMessageComposer : IComposer
+public sealed record PetLevelNotificationEventMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

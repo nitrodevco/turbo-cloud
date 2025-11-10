@@ -4,7 +4,7 @@ using Turbo.Primitives.Snapshots.FriendList;
 
 namespace Turbo.Primitives.Messages.Outgoing.FriendList;
 
-public record HabboSearchResultMessage : IComposer
+public sealed record HabboSearchResultMessage : IComposer
 {
     public required List<MessengerSearchResultSnapshot> Friends { get; init; }
     public required List<MessengerSearchResultSnapshot> Others { get; init; }

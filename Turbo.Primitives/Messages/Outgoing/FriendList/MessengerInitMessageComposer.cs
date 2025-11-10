@@ -4,7 +4,7 @@ using Turbo.Primitives.Snapshots.FriendList;
 
 namespace Turbo.Primitives.Messages.Outgoing.FriendList;
 
-public record MessengerInitMessageComposer : IComposer
+public sealed record MessengerInitMessageComposer : IComposer
 {
     public required int UserFriendLimit { get; init; }
     public required int NormalFriendLimit { get; init; }

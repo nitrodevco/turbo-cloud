@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Catalog;
 
-public record CatalogPageWithEarliestExpiryMessageComposer : IComposer
+public sealed record CatalogPageWithEarliestExpiryMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

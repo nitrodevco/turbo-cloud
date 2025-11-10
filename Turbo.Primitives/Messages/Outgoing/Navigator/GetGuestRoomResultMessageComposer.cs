@@ -3,7 +3,7 @@ using Turbo.Primitives.Orleans.Snapshots.Rooms;
 
 namespace Turbo.Primitives.Messages.Outgoing.Navigator;
 
-public record GetGuestRoomResultMessageComposer : IComposer
+public sealed record GetGuestRoomResultMessageComposer : IComposer
 {
     public required bool EnterRoom { get; init; }
     public required RoomSnapshot RoomSnapshot { get; init; }

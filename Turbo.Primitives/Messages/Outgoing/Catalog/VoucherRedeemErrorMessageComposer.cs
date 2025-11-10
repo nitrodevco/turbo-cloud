@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Catalog;
 
-public record VoucherRedeemErrorMessageComposer : IComposer
+public sealed record VoucherRedeemErrorMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }

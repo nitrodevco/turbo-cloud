@@ -2,7 +2,7 @@ using Turbo.Contracts.Abstractions;
 
 namespace Turbo.Primitives.Messages.Outgoing.Groupforums;
 
-public record PostMessageMessageComposer : IComposer
+public sealed record PostMessageMessageComposer : IComposer
 {
     // TODO: add properties if/when identified
 }
