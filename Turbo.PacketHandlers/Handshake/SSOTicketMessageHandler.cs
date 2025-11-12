@@ -14,10 +14,13 @@ using Turbo.Primitives.Networking;
 
 namespace Turbo.PacketHandlers.Handshake;
 
-public class SSOTicketMessageHandler(IAuthenticationService authService)
-    : IMessageHandler<SSOTicketMessage>
+public class SSOTicketMessageHandler(
+    IAuthenticationService authService,
+    ISessionGateway sessionGateway
+) : IMessageHandler<SSOTicketMessage>
 {
     private readonly IAuthenticationService _authService = authService;
+    private readonly ISessionGateway _sessionGateway = sessionGateway;
 
     public async ValueTask HandleAsync(
         SSOTicketMessage message,
@@ -39,8 +42,8 @@ public class SSOTicketMessageHandler(IAuthenticationService authService)
                 return;
             }
 
-            await _authService
-                .AssociateSessionWithPlayerAsync(ctx.Session.SessionKey, playerId)
+            await _sessionGateway
+                .AddSessionToPlayerAsync(ctx.Session.SessionKey, playerId)
                 .ConfigureAwait(false);
 
             await ctx
