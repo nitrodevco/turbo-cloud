@@ -28,12 +28,16 @@ public static class SuperSocketHostBuilderExtensions
                         Connected = async session =>
                         {
                             if (session is ISessionContext ctx)
-                                gateway.AddSession(ctx.SessionKey, ctx);
+                                await gateway
+                                    .AddSessionAsync(ctx.SessionKey, ctx)
+                                    .ConfigureAwait(false);
                         },
                         Closed = async (session, e) =>
                         {
                             if (session is ISessionContext ctx)
-                                gateway.RemoveSession(ctx.SessionKey);
+                                await gateway
+                                    .RemoveSessionAsync(ctx.SessionKey)
+                                    .ConfigureAwait(false);
                         },
                     };
                 });

@@ -7,5 +7,4 @@ namespace Turbo.Primitives.Authentication;
 public interface IAuthenticationService
 {
     public Task<int> GetPlayerIdFromTicketAsync(string ticket, CancellationToken ct = default);
-    public Task AssociateSessionWithPlayerAsync(SessionKey key, long playerId);
 }

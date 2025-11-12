@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Contracts.Abstractions;
 
-namespace Turbo.Primitives.Grains.Observers;
+namespace Turbo.Primitives.Orleans.Observers;
 
 public interface ISessionContextObserver : IGrainObserver
 {

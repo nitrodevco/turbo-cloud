@@ -7,8 +7,9 @@ using Orleans.Streams;
 using Turbo.Contracts.Abstractions;
 using Turbo.Contracts.Orleans;
 using Turbo.Primitives.Grains;
-using Turbo.Primitives.Grains.Observers;
 using Turbo.Primitives.Orleans.Events.Rooms;
+using Turbo.Primitives.Orleans.Grains;
+using Turbo.Primitives.Orleans.Observers;
 using Turbo.Primitives.Orleans.Snapshots.Rooms;
 using Turbo.Primitives.Orleans.Snapshots.Session;
 using Turbo.Primitives.Orleans.States.Rooms;
@@ -29,7 +30,7 @@ public class PlayerPresenceGrain(
 
     public Task<SessionKey> GetSessionKeyAsync() => Task.FromResult(state.State.SessionKey);
 
-    public async Task RegisterAsync(SessionKey key, ISessionContextObserver observer)
+    public async Task RegisterSessionAsync(SessionKey key, ISessionContextObserver observer)
     {
         _sessionObserver = observer;
 
@@ -38,7 +39,7 @@ public class PlayerPresenceGrain(
         await state.WriteStateAsync();
     }
 
-    public async Task UnregisterAsync(SessionKey key)
+    public async Task UnregisterSessionAsync(SessionKey key)
     {
         if (state.State.SessionKey?.Value != key.Value)
             return;

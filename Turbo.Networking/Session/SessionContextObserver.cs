@@ -1,11 +1,11 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Abstractions;
-using Turbo.Primitives.Grains.Observers;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Orleans.Observers;
 using Turbo.Primitives.Orleans.Snapshots.Session;
 
-namespace Turbo.Authentication;
+namespace Turbo.Networking.Session;
 
 public sealed class SessionContextObserver(SessionKey sessionKey, ISessionGateway sessionGateway)
     : ISessionContextObserver

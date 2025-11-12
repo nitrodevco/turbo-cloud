@@ -2,17 +2,17 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Contracts.Abstractions;
-using Turbo.Primitives.Grains.Observers;
+using Turbo.Primitives.Orleans.Observers;
 using Turbo.Primitives.Orleans.Snapshots.Rooms;
 using Turbo.Primitives.Orleans.Snapshots.Session;
 
-namespace Turbo.Primitives.Grains;
+namespace Turbo.Primitives.Orleans.Grains;
 
 public interface IPlayerPresenceGrain : IGrainWithIntegerKey
 {
     public Task<SessionKey> GetSessionKeyAsync();
-    public Task RegisterAsync(SessionKey key, ISessionContextObserver observer);
-    public Task UnregisterAsync(SessionKey key);
+    public Task RegisterSessionAsync(SessionKey key, ISessionContextObserver observer);
+    public Task UnregisterSessionAsync(SessionKey key);
     public Task<RoomPointerSnapshot> GetActiveRoomAsync();
     public Task<RoomChangedSnapshot> SetActiveRoomAsync(long roomId);
     public Task<RoomChangedSnapshot> ClearActiveRoomAsync();
