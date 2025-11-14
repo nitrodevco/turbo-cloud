@@ -6,5 +6,9 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Action;
 [GenerateSerializer, Immutable]
 public sealed record SleepMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required int UserId { get; init; }
+
+    [Id(1)]
+    public required bool IsSleeping { get; init; }
 }
