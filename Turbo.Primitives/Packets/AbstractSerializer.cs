@@ -1,7 +1,6 @@
-using System.Buffers.Binary;
 using Turbo.Contracts.Abstractions;
 
-namespace Turbo.Packets.Abstractions;
+namespace Turbo.Primitives.Packets;
 
 public abstract class AbstractSerializer<T>(int header) : ISerializer
     where T : IComposer

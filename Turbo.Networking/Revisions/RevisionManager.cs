@@ -1,7 +1,6 @@
-using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
-using Turbo.Networking.Abstractions.Revisions;
+using Turbo.Primitives.Networking.Revisions;
 
 namespace Turbo.Networking.Revisions;
 

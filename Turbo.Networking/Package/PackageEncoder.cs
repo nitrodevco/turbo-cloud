@@ -1,8 +1,8 @@
 using System.Buffers;
 using Microsoft.Extensions.Logging;
 using SuperSocket.ProtoBase;
-using Turbo.Networking.Abstractions;
-using Turbo.Networking.Abstractions.Revisions;
+using Turbo.Primitives.Networking;
+using Turbo.Primitives.Networking.Revisions;
 
 namespace Turbo.Networking.Package;
 

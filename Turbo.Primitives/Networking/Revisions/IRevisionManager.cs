@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Turbo.Networking.Abstractions.Revisions;
+namespace Turbo.Primitives.Networking.Revisions;
 
 public interface IRevisionManager
 {

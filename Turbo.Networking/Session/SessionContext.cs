@@ -6,7 +6,6 @@ using SuperSocket.ProtoBase;
 using SuperSocket.Server;
 using Turbo.Contracts.Abstractions;
 using Turbo.Crypto;
-using Turbo.Networking.Abstractions;
 using Turbo.Primitives.Crypto;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Snapshots.Session;
@@ -31,7 +30,7 @@ public class SessionContext(IPackageEncoder<OutgoingPackage> packageEncoder)
 
     protected override async ValueTask OnSessionConnectedAsync()
     {
-        SessionKey = new SessionKey { Value = this.SessionID };
+        SessionKey = SessionKey.From(this.SessionID);
 
         await base.OnSessionConnectedAsync().ConfigureAwait(false);
     }

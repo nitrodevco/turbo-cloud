@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Turbo.Networking.Abstractions;
+namespace Turbo.Primitives.Networking;
 
 public interface INetworkManager
 {

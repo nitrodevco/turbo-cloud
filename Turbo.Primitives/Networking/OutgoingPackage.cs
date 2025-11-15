@@ -1,6 +1,5 @@
 using Turbo.Contracts.Abstractions;
-using Turbo.Primitives.Networking;
 
-namespace Turbo.Networking.Abstractions;
+namespace Turbo.Primitives.Networking;
 
 public sealed record OutgoingPackage(ISessionContext Session, IComposer Composer);

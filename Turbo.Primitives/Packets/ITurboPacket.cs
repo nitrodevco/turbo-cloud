@@ -1,4 +1,4 @@
-namespace Turbo.Packets.Abstractions;
+namespace Turbo.Primitives.Packets;
 
 public interface ITurboPacket
 {

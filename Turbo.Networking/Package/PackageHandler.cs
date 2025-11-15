@@ -5,9 +5,9 @@ using Microsoft.Extensions.Logging;
 using SuperSocket.Server.Abstractions;
 using SuperSocket.Server.Abstractions.Session;
 using Turbo.Messages;
-using Turbo.Networking.Abstractions.Revisions;
-using Turbo.Packets.Abstractions;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Networking.Revisions;
+using Turbo.Primitives.Packets;
 
 namespace Turbo.Networking.Package;
 

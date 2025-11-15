@@ -3,7 +3,7 @@ using System.Buffers.Binary;
 using System.IO;
 using System.Text;
 
-namespace Turbo.Packets.Abstractions;
+namespace Turbo.Primitives.Packets;
 
 public class ServerPacket(int header) : TurboPacket(header), IServerPacket
 {

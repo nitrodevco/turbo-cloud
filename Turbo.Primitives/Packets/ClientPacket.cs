@@ -2,7 +2,7 @@ using System;
 using System.Buffers.Binary;
 using System.Text;
 
-namespace Turbo.Packets.Abstractions;
+namespace Turbo.Primitives.Packets;
 
 public class ClientPacket(int header, ReadOnlyMemory<byte> payload)
     : TurboPacket(header),

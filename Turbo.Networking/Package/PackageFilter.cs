@@ -2,8 +2,8 @@ using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using SuperSocket.ProtoBase;
-using Turbo.Packets.Abstractions;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Packets;
 
 namespace Turbo.Networking.Package;
 

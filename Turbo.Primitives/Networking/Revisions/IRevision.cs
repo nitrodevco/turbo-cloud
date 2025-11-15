@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using Turbo.Packets.Abstractions;
+using Turbo.Primitives.Packets;
 
-namespace Turbo.Networking.Abstractions.Revisions;
+namespace Turbo.Primitives.Networking.Revisions;
 
 public interface IRevision
 {

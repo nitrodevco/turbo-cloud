@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Turbo.Packets.Abstractions;
+namespace Turbo.Primitives.Packets;
 
 public interface IClientPacket : ITurboPacket
 {

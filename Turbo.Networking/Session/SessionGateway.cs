@@ -23,6 +23,12 @@ public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
     public ISessionContext? GetSession(SessionKey key) =>
         _sessions.TryGetValue(key.Value, out var ctx) ? ctx : null;
 
+    public ISessionContextObserver? GetSessionObserver(SessionKey key) =>
+        _sessionObservers.TryGetValue(key.Value, out var observer) ? observer.Ref : null;
+
+    public long GetPlayerId(SessionKey key) =>
+        _sessionToPlayer.TryGetValue(key.Value, out var playerId) ? playerId : -1;
+
     public async Task AddSessionAsync(SessionKey key, ISessionContext ctx)
     {
         _sessions[key.Value] = ctx;
@@ -59,9 +65,6 @@ public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
         if (_sessions.TryRemove(key.Value, out _)) { }
     }
 
-    public ISessionContextObserver? GetSessionObserver(SessionKey key) =>
-        _sessionObservers.TryGetValue(key.Value, out var observer) ? observer.Ref : null;
-
     public async Task AddSessionToPlayerAsync(SessionKey key, long playerId)
     {
         var observer = GetSessionObserver(key);
@@ -87,22 +90,7 @@ public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
         var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
 
         await playerPresence
-            .UnregisterSessionAsync(new SessionKey { Value = sessionKeyValue })
+            .UnregisterSessionAsync(SessionKey.From(sessionKeyValue))
             .ConfigureAwait(false);
-    }
-
-    public long GetPlayerId(SessionKey key) =>
-        _sessionToPlayer.TryGetValue(key.Value, out var playerId) ? playerId : -1;
-
-    public void BindSessionToPlayer(SessionKey key, long playerId)
-    {
-        _sessionToPlayer[key.Value] = playerId;
-        _playerToSession[playerId] = key.Value;
-    }
-
-    public void UnbindSessionFromPlayer(SessionKey key)
-    {
-        if (_sessionToPlayer.TryRemove(key.Value, out var playerId))
-            _playerToSession.TryRemove(playerId, out _);
     }
 }

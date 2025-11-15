@@ -28,25 +28,25 @@ public class PlayerPresenceGrain(
 
     private StreamSubscriptionHandle<RoomEvent>? _subscriptionHandle = null;
 
-    public Task<SessionKey> GetSessionKeyAsync() => Task.FromResult(state.State.SessionKey);
+    public Task<SessionKey> GetSessionKeyAsync() => Task.FromResult(state.State.Session);
 
     public async Task RegisterSessionAsync(SessionKey key, ISessionContextObserver observer)
     {
         _sessionObserver = observer;
 
-        state.State.SessionKey = key;
+        state.State.Session = SessionKey.From(key.Value);
 
         await state.WriteStateAsync();
     }
 
     public async Task UnregisterSessionAsync(SessionKey key)
     {
-        if (state.State.SessionKey?.Value != key.Value)
+        if (!state.State.Session.Value.Equals(key.Value))
             return;
 
         _sessionObserver = null;
 
-        state.State.SessionKey = SessionKey.Empty;
+        state.State.Session = SessionKey.Empty;
 
         await state.WriteStateAsync();
 
@@ -64,72 +64,46 @@ public class PlayerPresenceGrain(
     {
         var prev = state.State.ActiveRoomId;
 
-        if (prev != roomId)
-        {
-            if (prev > 0)
-                await _grainFactory
-                    .GetGrain<IRoomPresenceGrain>(prev)
-                    .RemovePlayerIdAsync(this.GetPrimaryKeyLong());
-
-            if (
-                await _grainFactory
-                    .GetGrain<IRoomPresenceGrain>(roomId)
-                    .AddPlayerIdAsync(this.GetPrimaryKeyLong())
-            )
+        if (prev == roomId)
+            return new RoomChangedSnapshot
             {
-                state.State.ActiveRoomId = roomId;
-                state.State.Since = DateTimeOffset.UtcNow;
-                state.State.PendingRoomId = -1;
-                state.State.PendingRoomApproved = false;
+                PreviousRoomId = prev,
+                CurrentRoomId = prev,
+                Changed = false,
+            };
 
-                await state.WriteStateAsync();
-                await SubscribeToActiveRoomAsync();
+        if (prev > 0)
+            await _grainFactory
+                .GetGrain<IRoomPresenceGrain>(prev)
+                .RemovePlayerIdAsync(this.GetPrimaryKeyLong());
 
-                return new RoomChangedSnapshot
-                {
-                    PreviousRoomId = prev,
-                    CurrentRoomId = roomId,
-                    Changed = true,
-                };
-            }
+        state.State.ActiveRoomId = roomId;
+        state.State.Since = DateTimeOffset.UtcNow;
+        state.State.PendingRoomId = -1;
+        state.State.PendingRoomApproved = false;
+
+        await state.WriteStateAsync();
+
+        if (roomId > 0)
+        {
+            await _grainFactory
+                .GetGrain<IRoomPresenceGrain>(roomId)
+                .AddPlayerIdAsync(this.GetPrimaryKeyLong());
+
+            await SubscribeToActiveRoomAsync();
         }
 
         return new RoomChangedSnapshot
         {
             PreviousRoomId = prev,
-            CurrentRoomId = prev,
-            Changed = false,
+            CurrentRoomId = roomId,
+            Changed = true,
         };
     }
 
     public async Task<RoomChangedSnapshot> ClearActiveRoomAsync()
     {
-        var prev = state.State.ActiveRoomId;
-
-        if (prev <= 0)
-            return new RoomChangedSnapshot
-            {
-                PreviousRoomId = -1,
-                CurrentRoomId = -1,
-                Changed = false,
-            };
-
-        await _grainFactory
-            .GetGrain<IRoomPresenceGrain>(prev)
-            .RemovePlayerIdAsync(this.GetPrimaryKeyLong());
-
-        state.State.ActiveRoomId = -1;
-        state.State.Since = DateTimeOffset.UtcNow;
-
-        await state.WriteStateAsync();
-        await UnsubscribeFromActiveRoomAsync();
-
-        return new RoomChangedSnapshot
-        {
-            PreviousRoomId = prev,
-            CurrentRoomId = -1,
-            Changed = true,
-        };
+        return await SetActiveRoomAsync(-1);
     }
 
     public Task<PendingRoomInfoSnapshot> GetPendingRoomAsync() =>
