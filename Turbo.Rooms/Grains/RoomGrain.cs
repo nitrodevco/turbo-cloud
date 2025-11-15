@@ -71,7 +71,7 @@ public class RoomGrain(
                     {
                         RoomId = this.GetPrimaryKeyLong(),
                         Population = 0,
-                        Name = snapshot.Name,
+                        Name = snapshot.RoomName,
                         Description = snapshot.Description,
                         OwnerId = snapshot.OwnerId,
                         OwnerName = string.Empty,
@@ -121,18 +121,23 @@ public class RoomGrain(
 
         _snapshot = new RoomSnapshot
         {
-            Id = entity.Id,
-            Name = entity.Name ?? string.Empty,
-            Description = entity.Description ?? string.Empty,
+            RoomId = entity.Id,
+            RoomName = entity.Name ?? string.Empty,
             OwnerId = (long)entity.PlayerEntityId,
+            OwnerName = string.Empty,
             DoorMode = entity.DoorMode,
-            Password = entity.Password,
-            ModelId = entity.RoomModelEntityId,
-            CategoryId = entity.NavigatorCategoryEntityId,
+            UserCount = _connectedPlayerIds.Count,
             PlayersMax = entity.PlayersMax,
+            Description = entity.Description ?? string.Empty,
+            TradeMode = entity.TradeType,
+            Score = 0,
+            Ranking = 0,
+            CategoryId = entity.NavigatorCategoryEntityId,
+            Tags = [],
             AllowPets = entity.AllowPets,
             AllowPetsEat = entity.AllowPetsEat,
-            TradeMode = entity.TradeType,
+            Password = entity.Password ?? string.Empty,
+            ModelId = entity.RoomModelEntityId,
             ModSettings = new ModSettingsSnapshot
             {
                 WhoCanMute = entity.MuteType,
@@ -194,7 +199,7 @@ public class RoomGrain(
         if (_snapshot is null)
             return;
 
-        var floorItems = await _floorItemsLoader.LoadByRoomIdAsync(_snapshot.Id, ct);
+        var floorItems = await _floorItemsLoader.LoadByRoomIdAsync(_snapshot.RoomId, ct);
 
         if (floorItems.Count is 0)
             return;

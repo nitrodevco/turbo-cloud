@@ -10,5 +10,5 @@ public record SetNewNavigatorWindowPreferencesMessage : IMessageEvent
     public int Width { get; init; }
     public int Height { get; init; }
     public bool OpenSavedSearches { get; init; }
-    public NavigatorResultsMode ResultsMode { get; init; }
+    public NavigatorViewModeType ResultsMode { get; init; }
 }

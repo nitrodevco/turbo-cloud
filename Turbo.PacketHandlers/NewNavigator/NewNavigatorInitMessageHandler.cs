@@ -41,7 +41,7 @@ public class NewNavigatorInitMessageHandler(INavigatorService navigatorService)
             .ConfigureAwait(false);
         await ctx
             .Session.SendComposerAsync(
-                new NewNavigatorPreferencesMessage
+                new NewNavigatorPreferencesMessageComposer
                 {
                     WindowX = 427,
                     WindowY = 41,

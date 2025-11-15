@@ -1,6 +1,6 @@
 namespace Turbo.Contracts.Enums.Navigator;
 
-public enum NavigatorResultsMode
+public enum NavigatorViewModeType
 {
     Rows = 0,
     Tiles = 1,
