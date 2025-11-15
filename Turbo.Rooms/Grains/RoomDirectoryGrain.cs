@@ -1,40 +1,52 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading.Tasks;
 using Orleans;
+using Orleans.Runtime;
+using Turbo.Contracts.Orleans;
 using Turbo.Primitives.Orleans.Grains;
 using Turbo.Primitives.Orleans.Snapshots.Room;
+using Turbo.Primitives.Orleans.States.Rooms;
 
 namespace Turbo.Rooms.Grains;
 
-public class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
+public class RoomDirectoryGrain(
+    [PersistentState(OrleansStateNames.ROOM_DIRECTORY, OrleansStorageNames.ROOM_STORE)]
+        IPersistentState<RoomDirectoryState> state
+) : Grain, IRoomDirectoryGrain
 {
     private readonly Dictionary<long, RoomActiveInfoSnapshot> _activeRooms = [];
 
     public Task<ImmutableArray<RoomActiveInfoSnapshot>> GetActiveRoomsAsync() =>
-        Task.FromResult(_activeRooms.Values.ToImmutableArray());
+        Task.FromResult(state.State.ActiveRooms.Values.ToImmutableArray());
 
-    public Task UpsertActiveRoomAsync(RoomActiveInfoSnapshot info)
+    public async Task UpsertActiveRoomAsync(RoomActiveInfoSnapshot info)
     {
         var updated = info with { LastUpdatedUtc = DateTime.UtcNow };
+        var activeRooms = state.State.ActiveRooms.ToDictionary();
 
-        _activeRooms[info.RoomId] = updated;
+        activeRooms[updated.RoomId] = updated;
 
-        return Task.CompletedTask;
+        state.State.ActiveRooms = activeRooms;
+
+        await state.WriteStateAsync();
     }
 
-    public Task UpdatePopulationAsync(long roomId, int population)
+    public async Task UpdatePopulationAsync(long roomId, int population)
     {
-        if (_activeRooms.TryGetValue(roomId, out var existing))
+        var activeRooms = state.State.ActiveRooms.ToDictionary();
+
+        if (activeRooms.TryGetValue(roomId, out var existing))
         {
             if (population <= 0)
             {
-                _activeRooms.Remove(roomId);
+                activeRooms.Remove(roomId);
             }
             else
             {
-                _activeRooms[roomId] = existing with
+                activeRooms[roomId] = existing with
                 {
                     Population = population,
                     LastUpdatedUtc = DateTime.UtcNow,
@@ -42,13 +54,20 @@ public class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
             }
         }
 
-        return Task.CompletedTask;
+        state.State.ActiveRooms = activeRooms;
+
+        await state.WriteStateAsync();
     }
 
-    public Task MarkInactiveAsync(long roomId)
+    public async Task MarkInactiveAsync(long roomId)
     {
-        _activeRooms.Remove(roomId);
+        var activeRooms = state.State.ActiveRooms.ToDictionary();
 
-        return Task.CompletedTask;
+        if (!activeRooms.Remove(roomId))
+            return;
+
+        state.State.ActiveRooms = activeRooms;
+
+        await state.WriteStateAsync();
     }
 }
