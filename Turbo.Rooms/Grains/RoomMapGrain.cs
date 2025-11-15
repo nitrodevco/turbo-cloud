@@ -12,7 +12,7 @@ using Orleans.Streams;
 using Turbo.Contracts.Orleans;
 using Turbo.Database.Context;
 using Turbo.Primitives.Orleans.Events.Rooms;
-using Turbo.Primitives.Orleans.Grains;
+using Turbo.Primitives.Orleans.Grains.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
 using Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
 using Turbo.Primitives.Rooms.Furniture;
@@ -52,7 +52,6 @@ public class RoomMapGrain(
             );
 
             await HydrateFromExternalAsync(ct);
-            await LoadFloorItemsAsync(ct);
 
             _logger.LogInformation("RoomMapGrain:{RoomId} activated.", this.GetPrimaryKeyLong());
         }
@@ -101,14 +100,8 @@ public class RoomMapGrain(
 
         _worldType = roomModel.Name;
         _roomMap = new RoomMap(roomModel);
-    }
 
-    protected async Task LoadFloorItemsAsync(CancellationToken ct)
-    {
         var floorItems = await _floorItemsLoader.LoadByRoomIdAsync(this.GetPrimaryKeyLong(), ct);
-
-        if (floorItems.Count is 0)
-            return;
 
         foreach (var item in floorItems)
             _roomMap.AddFloorItem(item);
@@ -116,7 +109,7 @@ public class RoomMapGrain(
 
     public Task<string> GetWorldTypeAsync() => Task.FromResult(_worldType);
 
-    public Task<RoomMapSnapshot> GetMapSnapshotAsync() =>
+    public Task<RoomMapSnapshot> GetSnapshotAsync() =>
         Task.FromResult(
             new RoomMapSnapshot
             {

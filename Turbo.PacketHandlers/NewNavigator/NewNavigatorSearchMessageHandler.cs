@@ -41,7 +41,7 @@ public class NewNavigatorSearchMessageHandler : IMessageHandler<NewNavigatorSear
                                     OwnerId = -1,
                                     OwnerName = "Owner1",
                                     DoorMode = DoorModeType.Open,
-                                    UserCount = 10,
+                                    Population = 10,
                                     PlayersMax = 100,
                                     Description = "This is a sample room.",
                                     TradeMode = TradeModeType.Everyone,

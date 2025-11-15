@@ -8,21 +8,25 @@ public static class HostApplicationBuilderExtensions
 {
     public static HostApplicationBuilder AddOrleans(this HostApplicationBuilder builder)
     {
-        builder.UseOrleans(silo =>
-        {
-            silo.ConfigureEndpoints(
-                "127.0.0.1",
-                siloPort: 11111,
-                gatewayPort: 3000,
-                listenOnAnyHostAddress: true
-            );
+        builder.UseOrleans(
+            (System.Action<ISiloBuilder>)(
+                silo =>
+                {
+                    silo.ConfigureEndpoints(
+                        "127.0.0.1",
+                        siloPort: 11111,
+                        gatewayPort: 3000,
+                        listenOnAnyHostAddress: true
+                    );
 
-            silo.UseLocalhostClustering()
-                .AddMemoryGrainStorage(OrleansStorageNames.PRESENCE_STORE)
-                .AddMemoryGrainStorage(OrleansStorageNames.PUB_SUB_STORE)
-                .AddMemoryGrainStorage(OrleansStorageNames.PLAYER_STORE)
-                .AddMemoryStreams(OrleansStreamProviders.DEFAULT_STREAM_PROVIDER);
-        });
+                    silo.UseLocalhostClustering()
+                        .AddMemoryGrainStorage(OrleansStorageNames.PUB_SUB_STORE)
+                        .AddMemoryGrainStorage(OrleansStorageNames.PLAYER_STORE)
+                        .AddMemoryGrainStorage(OrleansStorageNames.ROOM_STORE)
+                        .AddMemoryStreams(OrleansStreamProviders.DEFAULT_STREAM_PROVIDER);
+                }
+            )
+        );
 
         return builder;
     }

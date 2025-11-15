@@ -11,13 +11,13 @@ namespace Turbo.Primitives.Orleans.Grains;
 public interface IPlayerPresenceGrain : IGrainWithIntegerKey
 {
     public Task<SessionKey> GetSessionKeyAsync();
+    public Task<RoomPointerSnapshot> GetActiveRoomAsync();
+    public Task<RoomPendingSnapshot> GetPendingRoomAsync();
     public Task RegisterSessionAsync(SessionKey key, ISessionContextObserver observer);
     public Task UnregisterSessionAsync(SessionKey key);
-    public Task<RoomPointerSnapshot> GetActiveRoomAsync();
-    public Task<RoomChangedInfoSnapshot> SetActiveRoomAsync(long roomId);
-    public Task<RoomChangedInfoSnapshot> ClearActiveRoomAsync();
-    public Task<RoomPendingInfoSnapshot> GetPendingRoomAsync();
+    public Task SetActiveRoomAsync(long roomId);
+    public Task ClearActiveRoomAsync();
+    public Task LeaveRoomAsync(long roomId);
     public Task SetPendingRoomAsync(long roomId, bool approved);
-    public Task ResetAsync();
     public Task SendComposerAsync(IComposer composer, CancellationToken ct = default);
 }

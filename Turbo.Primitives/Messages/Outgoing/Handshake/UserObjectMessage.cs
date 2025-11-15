@@ -5,5 +5,5 @@ namespace Turbo.Primitives.Messages.Outgoing.Handshake;
 
 public sealed record UserObjectMessage : IComposer
 {
-    public required PlayerSnapshot Player { get; init; }
+    public required PlayerSummarySnapshot Player { get; init; }
 }

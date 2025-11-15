@@ -18,7 +18,7 @@ public class GetGuestRoomMessageHandler(IRoomService roomService)
         CancellationToken ct
     )
     {
-        var roomGrain = await _roomService.GetRoomGrainAsync(message.RoomId).ConfigureAwait(false);
+        var roomGrain = _roomService.GetRoomGrain(message.RoomId);
         var snapshot = await roomGrain.GetSnapshotAsync().ConfigureAwait(false);
 
         var staffPick = false;

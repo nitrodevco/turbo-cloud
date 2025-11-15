@@ -10,11 +10,8 @@ public sealed record RoomSnapshot : RoomInfoSnapshot
     public required string Password { get; init; } = string.Empty;
 
     [Id(1)]
-    public required int ModelId { get; init; }
-
-    [Id(2)]
     public required ModSettingsSnapshot ModSettings { get; init; }
 
-    [Id(3)]
+    [Id(2)]
     public required ChatSettingsSnapshot ChatSettings { get; init; }
 }

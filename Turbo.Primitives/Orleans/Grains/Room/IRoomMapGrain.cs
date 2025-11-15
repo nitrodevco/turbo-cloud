@@ -4,11 +4,11 @@ using Orleans;
 using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
 using Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
 
-namespace Turbo.Primitives.Orleans.Grains;
+namespace Turbo.Primitives.Orleans.Grains.Room;
 
 public interface IRoomMapGrain : IGrainWithIntegerKey
 {
     public Task<string> GetWorldTypeAsync();
-    public Task<RoomMapSnapshot> GetMapSnapshotAsync();
+    public Task<RoomMapSnapshot> GetSnapshotAsync();
     public Task<ImmutableArray<RoomFloorItemSnapshot>> GetFloorItemSnapshotsAsync();
 }

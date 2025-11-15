@@ -5,19 +5,19 @@ using Turbo.Contracts.Enums.Rooms.Object;
 namespace Turbo.Primitives.Orleans.Snapshots.Players;
 
 [GenerateSerializer, Immutable]
-public record PlayerSnapshot
+public sealed record PlayerSummarySnapshot
 {
     [Id(0)]
     public required long PlayerId { get; init; }
 
     [Id(1)]
-    public required string Name { get; init; } = string.Empty;
+    public required string Name { get; init; }
 
     [Id(2)]
-    public required string Motto { get; init; } = string.Empty;
+    public required string Motto { get; init; }
 
     [Id(3)]
-    public required string Figure { get; init; } = string.Empty;
+    public required string Figure { get; init; }
 
     [Id(4)]
     public required AvatarGenderEnum Gender { get; init; }

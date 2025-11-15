@@ -16,7 +16,7 @@ public interface ISessionContext
     public CancellationTokenSource HeartbeatCts { get; }
     public IRc4Engine? CryptoIn { get; }
     public IRc4Engine? CryptoOut { get; }
-    public ValueTask CloseSessionAsync();
+    public Task CloseSessionAsync();
     public void Touch();
     public void SetRevisionId(string revisionId);
     public void SetupEncryption(byte[] key, bool setCryptoOut = false);

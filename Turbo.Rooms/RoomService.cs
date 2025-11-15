@@ -10,6 +10,7 @@ using Turbo.Primitives.Messages.Outgoing.Room.Layout;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Grains;
+using Turbo.Primitives.Orleans.Grains.Room;
 using Turbo.Primitives.Orleans.Snapshots.Session;
 using Turbo.Primitives.Rooms;
 using Turbo.Rooms.Configuration;
@@ -28,19 +29,9 @@ public sealed class RoomService(
     private readonly ISessionGateway _sessionGateway = sessionGateway;
     private readonly IGrainFactory _grainFactory = grainFactory;
 
-    public async Task<IRoomGrain> GetRoomGrainAsync(long roomId)
-    {
-        var grain = _grainFactory.GetGrain<IRoomGrain>(roomId);
+    public IRoomDirectoryGrain GetRoomDirectory() => _grainFactory.GetGrain<IRoomDirectoryGrain>(0);
 
-        return await Task.FromResult(grain).ConfigureAwait(false);
-    }
-
-    public async Task<IRoomMapGrain> GetRoomMapGrainAsync(long roomId)
-    {
-        var grain = _grainFactory.GetGrain<IRoomMapGrain>(roomId);
-
-        return await Task.FromResult(grain).ConfigureAwait(false);
-    }
+    public IRoomGrain GetRoomGrain(long roomId) => _grainFactory.GetGrain<IRoomGrain>(roomId);
 
     public async Task OpenRoomForSessionAsync(
         SessionKey sessionKey,
@@ -76,8 +67,7 @@ public sealed class RoomService(
                 .SendComposerAsync(new OpenConnectionMessageComposer { RoomId = (int)roomId }, ct)
                 .ConfigureAwait(false);
 
-            var roomMap = await GetRoomMapGrainAsync(roomId).ConfigureAwait(false);
-            var worldType = await roomMap.GetWorldTypeAsync().ConfigureAwait(false);
+            var worldType = string.Empty;
 
             // if owner => auto-approve
             // if banned => reject
@@ -133,8 +123,8 @@ public sealed class RoomService(
 
             await playerPresence.SetActiveRoomAsync(pendingRoom.RoomId).ConfigureAwait(false);
 
-            var roomMap = await GetRoomMapGrainAsync(pendingRoom.RoomId).ConfigureAwait(false);
-            var mapSnapshot = await roomMap.GetMapSnapshotAsync().ConfigureAwait(false);
+            var roomMap = _grainFactory.GetGrain<IRoomMapGrain>(pendingRoom.RoomId);
+            var mapSnapshot = await roomMap.GetSnapshotAsync().ConfigureAwait(false);
 
             await playerPresence
                 .SendComposerAsync(
@@ -184,7 +174,10 @@ public sealed class RoomService(
                 )
                 .ConfigureAwait(false);
         }
-        catch (Exception e) { }
+        catch (Exception e)
+        {
+            throw;
+        }
     }
 
     public async Task CloseRoomForPlayerAsync(long playerId)

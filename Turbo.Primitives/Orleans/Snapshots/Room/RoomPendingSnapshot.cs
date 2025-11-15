@@ -1,14 +1,13 @@
-using System;
 using Orleans;
 
 namespace Turbo.Primitives.Orleans.Snapshots.Room;
 
 [GenerateSerializer, Immutable]
-public sealed record RoomPointerSnapshot
+public sealed record RoomPendingSnapshot
 {
     [Id(0)]
     public required long RoomId { get; init; } = -1;
 
     [Id(1)]
-    public required DateTime ActiveSinceUtc { get; init; } = DateTime.UtcNow;
+    public required bool Approved { get; init; } = false;
 }

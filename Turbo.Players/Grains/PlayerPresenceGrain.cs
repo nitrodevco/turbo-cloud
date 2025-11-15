@@ -3,20 +3,19 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Orleans.Runtime;
-using Orleans.Streams;
 using Turbo.Contracts.Abstractions;
 using Turbo.Contracts.Orleans;
-using Turbo.Primitives.Orleans.Events.Rooms;
 using Turbo.Primitives.Orleans.Grains;
+using Turbo.Primitives.Orleans.Grains.Room;
 using Turbo.Primitives.Orleans.Observers;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Session;
-using Turbo.Primitives.Orleans.States.Rooms;
+using Turbo.Primitives.Orleans.States.Players;
 
 namespace Turbo.Players.Grains;
 
 public class PlayerPresenceGrain(
-    [PersistentState(OrleansStateNames.PLAYER_PRESENCE, OrleansStorageNames.PRESENCE_STORE)]
+    [PersistentState(OrleansStateNames.PLAYER_PRESENCE, OrleansStorageNames.PLAYER_STORE)]
         IPersistentState<PlayerPresenceState> state,
     IGrainFactory grainFactory
 ) : Grain, IPlayerPresenceGrain
@@ -25,9 +24,26 @@ public class PlayerPresenceGrain(
 
     private ISessionContextObserver? _sessionObserver = null;
 
-    private StreamSubscriptionHandle<RoomEvent>? _subscriptionHandle = null;
+    public Task<SessionKey> GetSessionKeyAsync() =>
+        Task.FromResult(SessionKey.From(state.State.Session.Value));
 
-    public Task<SessionKey> GetSessionKeyAsync() => Task.FromResult(state.State.Session);
+    public Task<RoomPointerSnapshot> GetActiveRoomAsync() =>
+        Task.FromResult(
+            new RoomPointerSnapshot
+            {
+                RoomId = state.State.ActiveRoomId,
+                ActiveSinceUtc = state.State.ActiveRoomSinceUtc,
+            }
+        );
+
+    public Task<RoomPendingSnapshot> GetPendingRoomAsync() =>
+        Task.FromResult(
+            new RoomPendingSnapshot
+            {
+                RoomId = state.State.PendingRoomId,
+                Approved = state.State.PendingRoomApproved,
+            }
+        );
 
     public async Task RegisterSessionAsync(SessionKey key, ISessionContextObserver observer)
     {
@@ -48,64 +64,45 @@ public class PlayerPresenceGrain(
         state.State.Session = SessionKey.Empty;
 
         await state.WriteStateAsync();
-
-        Console.WriteLine(
-            $"[PlayerPresenceGrain] Unregistered session for player {this.GetPrimaryKeyLong()}"
-        );
+        await ClearActiveRoomAsync();
     }
 
-    public Task<RoomPointerSnapshot> GetActiveRoomAsync() =>
-        Task.FromResult(
-            new RoomPointerSnapshot { RoomId = state.State.ActiveRoomId, Since = state.State.Since }
-        );
-
-    public async Task<RoomChangedInfoSnapshot> SetActiveRoomAsync(long roomId)
+    public async Task SetActiveRoomAsync(long roomId)
     {
         var prev = state.State.ActiveRoomId;
-        var changed = prev != roomId;
+        var next = roomId;
+        var changed = prev != next;
 
-        if (prev > 0 && changed)
-            await _grainFactory
-                .GetGrain<IRoomGrain>(prev)
-                .RemovePlayerIdAsync(this.GetPrimaryKeyLong());
-
-        state.State.ActiveRoomId = roomId;
-        state.State.Since = DateTimeOffset.UtcNow;
+        state.State.ActiveRoomId = next;
         state.State.PendingRoomId = -1;
         state.State.PendingRoomApproved = false;
+        state.State.ActiveRoomSinceUtc = DateTime.UtcNow;
 
         await state.WriteStateAsync();
 
-        if (roomId > 0 && changed)
+        if (changed)
         {
-            await _grainFactory
-                .GetGrain<IRoomGrain>(roomId)
-                .AddPlayerIdAsync(this.GetPrimaryKeyLong());
+            if (prev > 0)
+                await _grainFactory
+                    .GetGrain<IRoomPresenceGrain>(prev)
+                    .RemovePlayerIdAsync(this.GetPrimaryKeyLong());
 
-            //await SubscribeToActiveRoomAsync();
+            if (next > 0)
+                await _grainFactory
+                    .GetGrain<IRoomPresenceGrain>(next)
+                    .AddPlayerIdAsync(this.GetPrimaryKeyLong());
         }
-
-        return new RoomChangedInfoSnapshot
-        {
-            PreviousRoomId = prev,
-            CurrentRoomId = roomId,
-            Changed = changed,
-        };
     }
 
-    public async Task<RoomChangedInfoSnapshot> ClearActiveRoomAsync()
+    public async Task ClearActiveRoomAsync() => await SetActiveRoomAsync(-1);
+
+    public async Task LeaveRoomAsync(long roomId)
     {
-        return await SetActiveRoomAsync(-1);
-    }
+        if (state.State.ActiveRoomId != roomId)
+            return;
 
-    public Task<RoomPendingInfoSnapshot> GetPendingRoomAsync() =>
-        Task.FromResult(
-            new RoomPendingInfoSnapshot
-            {
-                RoomId = state.State.PendingRoomId,
-                Approved = state.State.PendingRoomApproved,
-            }
-        );
+        await SetActiveRoomAsync(-1);
+    }
 
     public async Task SetPendingRoomAsync(long roomId, bool approved)
     {
@@ -114,42 +111,6 @@ public class PlayerPresenceGrain(
 
         await state.WriteStateAsync();
     }
-
-    public async Task SubscribeToActiveRoomAsync()
-    {
-        await UnsubscribeFromActiveRoomAsync();
-
-        var roomId = state.State.ActiveRoomId;
-
-        if (roomId <= 0)
-            return;
-
-        var streamProvider = this.GetStreamProvider(OrleansStreamProviders.DEFAULT_STREAM_PROVIDER);
-        var stream = streamProvider.GetStream<RoomEvent>(
-            StreamId.Create(OrleansStreamNames.ROOM_EVENTS, roomId)
-        );
-
-        _subscriptionHandle = await stream.SubscribeAsync(OnRoomStreamAsync);
-    }
-
-    public async Task UnsubscribeFromActiveRoomAsync()
-    {
-        if (_subscriptionHandle is null)
-            return;
-
-        await _subscriptionHandle.UnsubscribeAsync();
-
-        _subscriptionHandle = null;
-    }
-
-    private Task OnRoomStreamAsync(RoomEvent evt, StreamSequenceToken? token)
-    {
-        Console.WriteLine($"[Monitor] Room {evt.RoomId}");
-
-        return Task.CompletedTask;
-    }
-
-    public async Task ResetAsync() => await state.ClearStateAsync();
 
     public Task SendComposerAsync(IComposer composer, CancellationToken ct = default)
     {

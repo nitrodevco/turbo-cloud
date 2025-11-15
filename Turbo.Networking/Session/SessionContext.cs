@@ -40,7 +40,7 @@ public class SessionContext(IPackageEncoder<OutgoingPackage> packageEncoder)
         await base.OnSessionClosedAsync(e).ConfigureAwait(false);
     }
 
-    public async ValueTask CloseSessionAsync() => await this.CloseAsync().ConfigureAwait(false);
+    public async Task CloseSessionAsync() => await this.CloseAsync().ConfigureAwait(false);
 
     public void Touch()
     {

@@ -1,13 +1,14 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Orleans.Grains;
+using Turbo.Primitives.Orleans.Grains.Room;
 using Turbo.Primitives.Orleans.Snapshots.Session;
 
 namespace Turbo.Primitives.Rooms;
 
 public interface IRoomService
 {
-    public Task<IRoomGrain> GetRoomGrainAsync(long roomId);
+    public IRoomDirectoryGrain GetRoomDirectory();
+    public IRoomGrain GetRoomGrain(long roomId);
 
     public Task OpenRoomForSessionAsync(
         SessionKey sessionKey,

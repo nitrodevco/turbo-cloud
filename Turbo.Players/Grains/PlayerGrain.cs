@@ -3,75 +3,40 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Orleans;
 using Orleans.Runtime;
 using Turbo.Contracts.Orleans;
 using Turbo.Database.Context;
 using Turbo.Primitives.Orleans.Snapshots.Players;
+using Turbo.Primitives.Orleans.States.Players;
 using Turbo.Primitives.Players;
 
 namespace Turbo.Players.Grains;
 
 public class PlayerGrain(
-    [PersistentState(OrleansStateNames.PLAYER_SNAPSHOT, OrleansStorageNames.PLAYER_STORE)]
-        IPersistentState<PlayerSnapshot> inner,
-    IDbContextFactory<TurboDbContext> dbContextFactory,
-    ILogger<PlayerGrain> logger
+    [PersistentState(OrleansStateNames.PLAYER_STATE, OrleansStorageNames.PLAYER_STORE)]
+        IPersistentState<PlayerState> state,
+    IDbContextFactory<TurboDbContext> dbContextFactory
 ) : Grain, IPlayerGrain
 {
-    private readonly IPersistentState<PlayerSnapshot> _state = inner;
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
-    private readonly ILogger<PlayerGrain> _logger = logger;
-
-    public Task<long> GetPlayerIdAsync() => Task.FromResult(this.GetPrimaryKeyLong());
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
-        try
-        {
-            await HydrateFromExternalAsync(ct);
-
-            _logger.LogInformation("PlayerGrain {PlayerId} activated.", this.GetPrimaryKeyLong());
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Error activating PlayerGrain:{PlayerId}",
-                this.GetPrimaryKeyLong()
-            );
-
-            throw;
-        }
+        await HydrateFromExternalAsync(ct);
     }
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
-        try
-        {
-            await WriteToDatabaseAsync(ct);
-
-            _logger.LogInformation("PlayerGrain {PlayerId} deactivated.", this.GetPrimaryKeyLong());
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Error deactivating PlayerGrain:{PlayerId}",
-                this.GetPrimaryKeyLong()
-            );
-
-            throw;
-        }
+        await WriteToDatabaseAsync(ct);
     }
 
     protected async Task HydrateFromExternalAsync(CancellationToken ct)
     {
-        if (_state.RecordExists)
+        if (state.State.IsLoaded)
             return;
 
-        using var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
+        var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
 
         try
         {
@@ -79,40 +44,38 @@ public class PlayerGrain(
                 await dbCtx
                     .Players.AsNoTracking()
                     .SingleOrDefaultAsync(e => e.Id == this.GetPrimaryKeyLong(), ct)
-                ?? throw new Exception($"Player not found");
+                ?? throw new Exception(
+                    $"PlayerGrain:{this.GetPrimaryKeyLong()} not found in external database"
+                );
 
-            _state.State = new PlayerSnapshot
-            {
-                PlayerId = this.GetPrimaryKeyLong(),
-                Name = entity.Name ?? string.Empty,
-                Motto = entity.Motto ?? string.Empty,
-                Figure = entity.Figure ?? string.Empty,
-                Gender = entity.Gender,
-                CreatedAt = entity.CreatedAt,
-            };
+            state.State.Name = entity.Name ?? string.Empty;
+            state.State.Motto = entity.Motto ?? string.Empty;
+            state.State.Figure = entity.Figure ?? string.Empty;
+            state.State.Gender = entity.Gender;
+            state.State.CreatedAt = entity.CreatedAt;
+            state.State.IsLoaded = true;
+            state.State.LastUpdated = DateTime.UtcNow;
 
-            await _state.WriteStateAsync(ct);
+            await state.WriteStateAsync(ct);
         }
         catch (Exception ex)
         {
-            _logger.LogError(
-                ex,
-                "Error hydrating PlayerGrain {PlayerId} from database.",
-                this.GetPrimaryKeyLong()
-            );
-
             throw;
+        }
+        finally
+        {
+            await dbCtx.DisposeAsync();
         }
     }
 
     protected async Task WriteToDatabaseAsync(CancellationToken ct)
     {
-        var snapshot = await GetSnapshotAsync(ct);
-
-        using var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
+        var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
 
         try
         {
+            var snapshot = await GetSummaryAsync(ct);
+
             await dbCtx
                 .Players.Where(p => p.Id == this.GetPrimaryKeyLong())
                 .ExecuteUpdateAsync(
@@ -126,26 +89,24 @@ public class PlayerGrain(
         }
         catch (Exception ex)
         {
-            _logger.LogError(
-                ex,
-                "Error writing PlayerGrain {PlayerId} to database.",
-                this.GetPrimaryKeyLong()
-            );
-
             throw;
+        }
+        finally
+        {
+            await dbCtx.DisposeAsync();
         }
     }
 
-    public ValueTask<PlayerSnapshot> GetSnapshotAsync(CancellationToken ct) =>
-        ValueTask.FromResult(
-            new PlayerSnapshot
+    public Task<PlayerSummarySnapshot> GetSummaryAsync(CancellationToken ct) =>
+        Task.FromResult(
+            new PlayerSummarySnapshot
             {
                 PlayerId = this.GetPrimaryKeyLong(),
-                Name = _state.State.Name,
-                Motto = _state.State.Motto,
-                Figure = _state.State.Figure,
-                Gender = _state.State.Gender,
-                CreatedAt = _state.State.CreatedAt,
+                Name = state.State.Name,
+                Motto = state.State.Motto,
+                Figure = state.State.Figure,
+                Gender = state.State.Gender,
+                CreatedAt = state.State.CreatedAt,
             }
         );
 }
