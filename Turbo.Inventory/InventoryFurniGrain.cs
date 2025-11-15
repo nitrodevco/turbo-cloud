@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Database.Context;
-using Turbo.Primitives.Grains;
+using Turbo.Primitives.Orleans.Grains;
 using Turbo.Primitives.Snapshots.Inventory;
 
 namespace Turbo.Inventory;

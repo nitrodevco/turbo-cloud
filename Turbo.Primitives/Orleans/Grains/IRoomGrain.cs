@@ -4,7 +4,7 @@ using Orleans;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
 
-namespace Turbo.Primitives.Grains;
+namespace Turbo.Primitives.Orleans.Grains;
 
 public interface IRoomGrain : IGrainWithIntegerKey
 {

@@ -1,5 +1,5 @@
 using Orleans;
 
-namespace Turbo.Primitives.Grains;
+namespace Turbo.Primitives.Orleans.Grains;
 
 public interface IInventoryFurniGrain : IGrainWithIntegerKey { }
