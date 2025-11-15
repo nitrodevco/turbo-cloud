@@ -24,4 +24,5 @@ public interface IRoomService
         CancellationToken ct = default
     );
     public Task EnterPendingRoomForPlayerIdAsync(long playerId, CancellationToken ct = default);
+    public Task CloseRoomForPlayerAsync(long playerId);
 }

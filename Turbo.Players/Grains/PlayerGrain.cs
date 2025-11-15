@@ -38,7 +38,7 @@ public class PlayerGrain(
         {
             _logger.LogError(
                 ex,
-                "Error activating PlayerGrain {PlayerId}",
+                "Error activating PlayerGrain:{PlayerId}",
                 this.GetPrimaryKeyLong()
             );
 
@@ -58,7 +58,7 @@ public class PlayerGrain(
         {
             _logger.LogError(
                 ex,
-                "Error deactivating PlayerGrain {PlayerId}",
+                "Error deactivating PlayerGrain:{PlayerId}",
                 this.GetPrimaryKeyLong()
             );
 
@@ -75,35 +75,23 @@ public class PlayerGrain(
 
         try
         {
-            if (dbCtx.Players is null)
-            {
-                throw new Exception("Database context Players set is null.");
-            }
+            var entity =
+                await dbCtx
+                    .Players.AsNoTracking()
+                    .SingleOrDefaultAsync(e => e.Id == this.GetPrimaryKeyLong(), ct)
+                ?? throw new Exception($"Player not found");
 
-            var entity = await dbCtx
-                .Players.AsNoTracking()
-                .SingleOrDefaultAsync(e => e.Id == this.GetPrimaryKeyLong(), ct);
-
-            if (entity is null)
+            _state.State = new PlayerSnapshot
             {
-                throw new Exception(
-                    $"Player with ID {this.GetPrimaryKeyLong()} not found in database."
-                );
-            }
-            else
-            {
-                _state.State = new PlayerSnapshot
-                {
-                    PlayerId = this.GetPrimaryKeyLong(),
-                    Name = entity.Name ?? string.Empty,
-                    Motto = entity.Motto ?? string.Empty,
-                    Figure = entity.Figure ?? string.Empty,
-                    Gender = entity.Gender,
-                    CreatedAt = entity.CreatedAt,
-                };
+                PlayerId = this.GetPrimaryKeyLong(),
+                Name = entity.Name ?? string.Empty,
+                Motto = entity.Motto ?? string.Empty,
+                Figure = entity.Figure ?? string.Empty,
+                Gender = entity.Gender,
+                CreatedAt = entity.CreatedAt,
+            };
 
-                await _state.WriteStateAsync(ct);
-            }
+            await _state.WriteStateAsync(ct);
         }
         catch (Exception ex)
         {

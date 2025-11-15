@@ -180,4 +180,15 @@ public sealed class RoomService(
         }
         catch (Exception e) { }
     }
+
+    public async Task CloseRoomForPlayerAsync(long playerId)
+    {
+        var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
+
+        await playerPresence.ClearActiveRoomAsync().ConfigureAwait(false);
+
+        await playerPresence
+            .SendComposerAsync(new CloseConnectionMessageComposer())
+            .ConfigureAwait(false);
+    }
 }

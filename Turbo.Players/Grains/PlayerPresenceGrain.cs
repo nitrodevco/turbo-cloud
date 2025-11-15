@@ -63,16 +63,9 @@ public class PlayerPresenceGrain(
     public async Task<RoomChangedSnapshot> SetActiveRoomAsync(long roomId)
     {
         var prev = state.State.ActiveRoomId;
+        var changed = prev != roomId;
 
-        if (prev == roomId)
-            return new RoomChangedSnapshot
-            {
-                PreviousRoomId = prev,
-                CurrentRoomId = prev,
-                Changed = false,
-            };
-
-        if (prev > 0)
+        if (prev > 0 && changed)
             await _grainFactory
                 .GetGrain<IRoomPresenceGrain>(prev)
                 .RemovePlayerIdAsync(this.GetPrimaryKeyLong());
@@ -84,20 +77,20 @@ public class PlayerPresenceGrain(
 
         await state.WriteStateAsync();
 
-        if (roomId > 0)
+        if (roomId > 0 && changed)
         {
             await _grainFactory
                 .GetGrain<IRoomPresenceGrain>(roomId)
                 .AddPlayerIdAsync(this.GetPrimaryKeyLong());
 
-            await SubscribeToActiveRoomAsync();
+            //await SubscribeToActiveRoomAsync();
         }
 
         return new RoomChangedSnapshot
         {
             PreviousRoomId = prev,
             CurrentRoomId = roomId,
-            Changed = true,
+            Changed = changed,
         };
     }
 
