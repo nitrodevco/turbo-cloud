@@ -1,53 +1,53 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Orleans;
-using Orleans.Runtime;
-using Turbo.Contracts.Orleans;
+using Orleans.Concurrency;
 using Turbo.Primitives.Orleans.Grains.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.States.Room;
 
 namespace Turbo.Rooms.Grains;
 
-public class RoomDirectoryGrain(
-    [PersistentState(OrleansStateNames.ROOM_DIRECTORY, OrleansStorageNames.ROOM_STORE)]
-        IPersistentState<RoomDirectoryState> state
-) : Grain, IRoomDirectoryGrain
+[KeepAlive]
+[Reentrant]
+public class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
 {
+    private readonly Dictionary<long, RoomActiveInfoState> _activeRooms = [];
+    private readonly Dictionary<long, int> _roomPopulations = [];
+
     public Task<ImmutableArray<RoomSummarySnapshot>> GetActiveRoomsAsync() =>
         Task.FromResult(
-            state
-                .State.ActiveRooms.Select(x =>
+            _activeRooms
+                .Values.Select(x =>
                 {
-                    var population = state.State.RoomPopulations[x.Value.RoomId];
+                    var population = _roomPopulations.TryGetValue(x.RoomId, out var pop) ? pop : 0;
 
                     return new RoomSummarySnapshot
                     {
-                        RoomId = x.Value.RoomId,
+                        RoomId = x.RoomId,
                         Population = population,
-                        Name = x.Value.Name,
-                        Description = x.Value.Description,
-                        OwnerId = x.Value.OwnerId,
-                        OwnerName = x.Value.OwnerName,
-                        LastUpdatedUtc = x.Value.LastUpdatedUtc,
+                        Name = x.Name,
+                        Description = x.Description,
+                        OwnerId = x.OwnerId,
+                        OwnerName = x.OwnerName,
+                        LastUpdatedUtc = x.LastUpdatedUtc,
                     };
                 })
                 .ToImmutableArray()
         );
 
     public Task<int> GetRoomPopulationAsync(long roomId) =>
-        Task.FromResult(
-            state.State.RoomPopulations.TryGetValue(roomId, out var population) ? population : 0
-        );
+        Task.FromResult(_roomPopulations.TryGetValue(roomId, out var pop) ? pop : 0);
 
     public async Task UpsertActiveRoomAsync(RoomInfoSnapshot snapshot)
     {
         if (snapshot is null)
             return;
 
-        state.State.ActiveRooms[snapshot.RoomId] = new RoomActiveInfoState
+        _activeRooms[snapshot.RoomId] = new RoomActiveInfoState
         {
             RoomId = snapshot.RoomId,
             Name = snapshot.RoomName,
@@ -56,30 +56,14 @@ public class RoomDirectoryGrain(
             OwnerName = snapshot.OwnerName,
             LastUpdatedUtc = DateTime.UtcNow,
         };
-
-        state.State.LastUpdatedUtc = DateTime.UtcNow;
-
-        await state.WriteStateAsync();
-
-        Console.WriteLine($"RoomDirectory - Upserted active room {snapshot.RoomId}");
     }
 
-    public async Task UpdatePopulationAsync(long roomId, int population)
-    {
-        state.State.RoomPopulations[roomId] = population;
-
-        await state.WriteStateAsync();
-
-        Console.WriteLine($"RoomDirectory - Updated room {roomId} population to {population}");
-    }
+    public async Task UpdatePopulationAsync(long roomId, int population) =>
+        _roomPopulations[roomId] = population;
 
     public async Task RemoveActiveRoomAsync(long roomId)
     {
-        if (!state.State.ActiveRooms.Remove(roomId))
+        if (!_activeRooms.Remove(roomId))
             return;
-
-        state.State.LastUpdatedUtc = DateTime.UtcNow;
-
-        await state.WriteStateAsync();
     }
 }
