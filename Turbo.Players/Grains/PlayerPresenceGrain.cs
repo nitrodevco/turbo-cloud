@@ -52,6 +52,8 @@ public class PlayerPresenceGrain(
         state.State.Session = SessionKey.From(key.Value);
 
         await state.WriteStateAsync();
+
+        Console.WriteLine($"Player {this.GetPrimaryKeyLong()} - Registered session {key.Value}");
     }
 
     public async Task UnregisterSessionAsync(SessionKey key)
@@ -65,6 +67,8 @@ public class PlayerPresenceGrain(
 
         await state.WriteStateAsync();
         await ClearActiveRoomAsync();
+
+        Console.WriteLine($"Player {this.GetPrimaryKeyLong()} - Unregistered session {key.Value}");
     }
 
     public async Task SetActiveRoomAsync(long roomId)
@@ -92,6 +96,8 @@ public class PlayerPresenceGrain(
                     .GetGrain<IRoomPresenceGrain>(next)
                     .AddPlayerIdAsync(this.GetPrimaryKeyLong());
         }
+
+        Console.WriteLine($"Player {this.GetPrimaryKeyLong()} - Set active room to {roomId}");
     }
 
     public async Task ClearActiveRoomAsync() => await SetActiveRoomAsync(-1);

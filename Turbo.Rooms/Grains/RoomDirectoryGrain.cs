@@ -60,6 +60,8 @@ public class RoomDirectoryGrain(
         state.State.LastUpdatedUtc = DateTime.UtcNow;
 
         await state.WriteStateAsync();
+
+        Console.WriteLine($"RoomDirectory - Upserted active room {snapshot.RoomId}");
     }
 
     public async Task UpdatePopulationAsync(long roomId, int population)
@@ -67,6 +69,8 @@ public class RoomDirectoryGrain(
         state.State.RoomPopulations[roomId] = population;
 
         await state.WriteStateAsync();
+
+        Console.WriteLine($"RoomDirectory - Updated room {roomId} population to {population}");
     }
 
     public async Task RemoveActiveRoomAsync(long roomId)

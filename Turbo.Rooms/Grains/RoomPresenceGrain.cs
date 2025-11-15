@@ -32,6 +32,10 @@ public class RoomPresenceGrain(
         await _grainFactory
             .GetGrain<IRoomDirectoryGrain>(0)
             .UpdatePopulationAsync(this.GetPrimaryKeyLong(), state.State.PlayerIds.Count);
+
+        Console.WriteLine(
+            $"Room {this.GetPrimaryKeyLong()} - Added player {playerId}. Population: {state.State.PlayerIds.Count}"
+        );
     }
 
     public async Task RemovePlayerIdAsync(long playerId)
@@ -46,5 +50,9 @@ public class RoomPresenceGrain(
         await _grainFactory
             .GetGrain<IRoomDirectoryGrain>(0)
             .UpdatePopulationAsync(this.GetPrimaryKeyLong(), state.State.PlayerIds.Count);
+
+        Console.WriteLine(
+            $"Room {this.GetPrimaryKeyLong()} - Removed player {playerId}. Population: {state.State.PlayerIds.Count}"
+        );
     }
 }
