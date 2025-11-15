@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Contracts.Abstractions;
 using Turbo.Primitives.Orleans.Observers;
-using Turbo.Primitives.Orleans.Snapshots.Rooms;
+using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Session;
 
 namespace Turbo.Primitives.Orleans.Grains;

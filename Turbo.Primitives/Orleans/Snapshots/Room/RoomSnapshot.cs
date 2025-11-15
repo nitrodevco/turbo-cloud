@@ -1,8 +1,8 @@
 using Orleans;
 using Turbo.Contracts.Enums.Navigator;
-using Turbo.Primitives.Orleans.Snapshots.Rooms.Settings;
+using Turbo.Primitives.Orleans.Snapshots.Room.Settings;
 
-namespace Turbo.Primitives.Orleans.Snapshots.Rooms;
+namespace Turbo.Primitives.Orleans.Snapshots.Room;
 
 [GenerateSerializer, Immutable]
 public sealed record RoomSnapshot

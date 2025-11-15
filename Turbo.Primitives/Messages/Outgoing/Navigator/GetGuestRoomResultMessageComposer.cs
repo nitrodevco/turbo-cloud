@@ -1,6 +1,6 @@
 using Orleans;
 using Turbo.Contracts.Abstractions;
-using Turbo.Primitives.Orleans.Snapshots.Rooms;
+using Turbo.Primitives.Orleans.Snapshots.Room;
 
 namespace Turbo.Primitives.Messages.Outgoing.Navigator;
 

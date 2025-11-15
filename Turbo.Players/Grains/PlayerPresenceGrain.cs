@@ -10,7 +10,7 @@ using Turbo.Primitives.Grains;
 using Turbo.Primitives.Orleans.Events.Rooms;
 using Turbo.Primitives.Orleans.Grains;
 using Turbo.Primitives.Orleans.Observers;
-using Turbo.Primitives.Orleans.Snapshots.Rooms;
+using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Session;
 using Turbo.Primitives.Orleans.States.Rooms;
 
@@ -49,6 +49,10 @@ public class PlayerPresenceGrain(
         state.State.SessionKey = SessionKey.Empty;
 
         await state.WriteStateAsync();
+
+        Console.WriteLine(
+            $"[PlayerPresenceGrain] Unregistered session for player {this.GetPrimaryKeyLong()}"
+        );
     }
 
     public Task<RoomPointerSnapshot> GetActiveRoomAsync() =>

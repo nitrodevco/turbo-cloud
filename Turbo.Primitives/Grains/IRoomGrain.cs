@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Orleans;
-using Turbo.Primitives.Orleans.Snapshots.Rooms;
-using Turbo.Primitives.Orleans.Snapshots.Rooms.Mapping;
+using Turbo.Primitives.Orleans.Snapshots.Room;
+using Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
 
 namespace Turbo.Primitives.Grains;
 

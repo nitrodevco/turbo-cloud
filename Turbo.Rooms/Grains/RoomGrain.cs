@@ -11,9 +11,9 @@ using Turbo.Contracts.Orleans;
 using Turbo.Database.Context;
 using Turbo.Primitives.Grains;
 using Turbo.Primitives.Orleans.Events.Rooms;
-using Turbo.Primitives.Orleans.Snapshots.Rooms;
-using Turbo.Primitives.Orleans.Snapshots.Rooms.Mapping;
-using Turbo.Primitives.Orleans.Snapshots.Rooms.Settings;
+using Turbo.Primitives.Orleans.Snapshots.Room;
+using Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
+using Turbo.Primitives.Orleans.Snapshots.Room.Settings;
 using Turbo.Primitives.Orleans.States.Rooms;
 using Turbo.Primitives.Rooms.Furniture;
 using Turbo.Primitives.Rooms.Mapping;
@@ -195,7 +195,7 @@ public sealed class RoomGrain(
             }
         );
 
-    public async Task<IReadOnlyList<RoomFloorItemSnapshot>> GetFloorItemSnapshotsAsync()
+    public Task<IReadOnlyList<RoomFloorItemSnapshot>> GetFloorItemSnapshotsAsync()
     {
         var floorItems = _roomMap.GetAllFloorItems();
         var snapshots = new RoomFloorItemSnapshot[floorItems.Count];
@@ -207,6 +207,6 @@ public sealed class RoomGrain(
             snapshots[i] = RoomFloorItemSnapshot.FromFloorItem(item);
         }
 
-        return snapshots;
+        return Task.FromResult<IReadOnlyList<RoomFloorItemSnapshot>>(snapshots);
     }
 }

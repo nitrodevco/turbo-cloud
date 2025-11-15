@@ -1,9 +1,9 @@
 using Orleans;
 using Turbo.Contracts.Enums.Rooms.Object;
-using Turbo.Primitives.Orleans.Snapshots.Rooms.StuffData;
+using Turbo.Primitives.Orleans.Snapshots.Room.StuffData;
 using Turbo.Primitives.Rooms.Furniture;
 
-namespace Turbo.Primitives.Orleans.Snapshots.Rooms;
+namespace Turbo.Primitives.Orleans.Snapshots.Room;
 
 [GenerateSerializer, Immutable]
 public sealed record RoomFloorItemSnapshot
