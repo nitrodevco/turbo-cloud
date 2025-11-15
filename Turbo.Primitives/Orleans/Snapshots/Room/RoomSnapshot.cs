@@ -17,7 +17,7 @@ public sealed record RoomSnapshot
     public required string Description { get; init; } = string.Empty;
 
     [Id(3)]
-    public required int OwnerId { get; init; }
+    public required long OwnerId { get; init; }
 
     [Id(4)]
     public required DoorModeType DoorMode { get; init; }

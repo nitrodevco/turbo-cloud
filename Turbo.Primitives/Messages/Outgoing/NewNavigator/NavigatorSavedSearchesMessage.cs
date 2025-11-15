@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using Turbo.Contracts.Abstractions;
-using Turbo.Primitives.Snapshots.NewNavigator;
+using Turbo.Primitives.Orleans.Snapshots.Navigator;
 
 namespace Turbo.Primitives.Messages.Outgoing.NewNavigator;
 

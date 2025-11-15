@@ -6,7 +6,6 @@ using Orleans.Runtime;
 using Orleans.Streams;
 using Turbo.Contracts.Abstractions;
 using Turbo.Contracts.Orleans;
-using Turbo.Primitives.Grains;
 using Turbo.Primitives.Orleans.Events.Rooms;
 using Turbo.Primitives.Orleans.Grains;
 using Turbo.Primitives.Orleans.Observers;
@@ -60,14 +59,14 @@ public class PlayerPresenceGrain(
             new RoomPointerSnapshot { RoomId = state.State.ActiveRoomId, Since = state.State.Since }
         );
 
-    public async Task<RoomChangedSnapshot> SetActiveRoomAsync(long roomId)
+    public async Task<RoomChangedInfoSnapshot> SetActiveRoomAsync(long roomId)
     {
         var prev = state.State.ActiveRoomId;
         var changed = prev != roomId;
 
         if (prev > 0 && changed)
             await _grainFactory
-                .GetGrain<IRoomPresenceGrain>(prev)
+                .GetGrain<IRoomGrain>(prev)
                 .RemovePlayerIdAsync(this.GetPrimaryKeyLong());
 
         state.State.ActiveRoomId = roomId;
@@ -80,13 +79,13 @@ public class PlayerPresenceGrain(
         if (roomId > 0 && changed)
         {
             await _grainFactory
-                .GetGrain<IRoomPresenceGrain>(roomId)
+                .GetGrain<IRoomGrain>(roomId)
                 .AddPlayerIdAsync(this.GetPrimaryKeyLong());
 
             //await SubscribeToActiveRoomAsync();
         }
 
-        return new RoomChangedSnapshot
+        return new RoomChangedInfoSnapshot
         {
             PreviousRoomId = prev,
             CurrentRoomId = roomId,
@@ -94,14 +93,14 @@ public class PlayerPresenceGrain(
         };
     }
 
-    public async Task<RoomChangedSnapshot> ClearActiveRoomAsync()
+    public async Task<RoomChangedInfoSnapshot> ClearActiveRoomAsync()
     {
         return await SetActiveRoomAsync(-1);
     }
 
-    public Task<PendingRoomInfoSnapshot> GetPendingRoomAsync() =>
+    public Task<RoomPendingInfoSnapshot> GetPendingRoomAsync() =>
         Task.FromResult(
-            new PendingRoomInfoSnapshot
+            new RoomPendingInfoSnapshot
             {
                 RoomId = state.State.PendingRoomId,
                 Approved = state.State.PendingRoomApproved,

@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Orleans;
 using Orleans.Runtime;
 using Orleans.Streams;
@@ -12,30 +14,37 @@ using Turbo.Database.Context;
 using Turbo.Primitives.Orleans.Events.Rooms;
 using Turbo.Primitives.Orleans.Grains;
 using Turbo.Primitives.Orleans.Snapshots.Room;
+using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
 using Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
 using Turbo.Primitives.Orleans.Snapshots.Room.Settings;
 using Turbo.Primitives.Orleans.States.Rooms;
 using Turbo.Primitives.Rooms.Furniture;
 using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Primitives.Snapshots.Rooms.Extensions;
+using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Mapping;
 
 namespace Turbo.Rooms.Grains;
 
-public sealed class RoomGrain(
+public class RoomGrain(
     IDbContextFactory<TurboDbContext> dbContextFactory,
+    IOptions<RoomConfig> roomConfig,
     ILogger<IRoomGrain> logger,
     IRoomModelProvider roomModelProvider,
-    IRoomFloorItemsLoader floorItemsLoader
+    IRoomFloorItemsLoader floorItemsLoader,
+    IGrainFactory grainFactory
 ) : Grain, IRoomGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
+    private readonly RoomConfig _roomConfig = roomConfig.Value;
     private readonly ILogger<IRoomGrain> _logger = logger;
     private readonly IRoomModelProvider _roomModelProvider = roomModelProvider;
     private readonly IRoomFloorItemsLoader _floorItemsLoader = floorItemsLoader;
+    private readonly IGrainFactory _grainFactory = grainFactory;
     private readonly RoomState _state = new();
 
     private IAsyncStream<RoomEvent>? _stream = null;
+    private HashSet<long> _connectedPlayerIds = [];
     private RoomSnapshot? _snapshot = null;
     private IRoomMap _roomMap = default!;
 
@@ -53,7 +62,24 @@ public sealed class RoomGrain(
             await LoadMapAsync(ct);
             await LoadFloorItemsAsync(ct);
 
-            _logger.LogInformation("RoomGrain {RoomId} activated.", this.GetPrimaryKeyLong());
+            var snapshot = await GetSnapshotAsync();
+
+            await _grainFactory
+                .GetGrain<IRoomDirectoryGrain>(0)
+                .UpsertActiveRoomAsync(
+                    new RoomActiveInfoSnapshot
+                    {
+                        RoomId = this.GetPrimaryKeyLong(),
+                        Population = 0,
+                        Name = snapshot.Name,
+                        Description = snapshot.Description,
+                        OwnerId = snapshot.OwnerId,
+                        OwnerName = string.Empty,
+                        LastUpdatedUtc = DateTime.UtcNow,
+                    }
+                );
+
+            _logger.LogInformation("RoomGrain:{RoomId} activated.", this.GetPrimaryKeyLong());
         }
         catch
         {
@@ -65,6 +91,10 @@ public sealed class RoomGrain(
     {
         try
         {
+            await _grainFactory
+                .GetGrain<IRoomDirectoryGrain>(0)
+                .MarkInactiveAsync(this.GetPrimaryKeyLong());
+
             await WriteToDatabaseAsync(ct);
 
             _logger.LogInformation("RoomGrain {RoomId} deactivated.", this.GetPrimaryKeyLong());
@@ -94,7 +124,7 @@ public sealed class RoomGrain(
             Id = entity.Id,
             Name = entity.Name ?? string.Empty,
             Description = entity.Description ?? string.Empty,
-            OwnerId = entity.PlayerEntityId,
+            OwnerId = (long)entity.PlayerEntityId,
             DoorMode = entity.DoorMode,
             Password = entity.Password,
             ModelId = entity.RoomModelEntityId,
@@ -173,6 +203,31 @@ public sealed class RoomGrain(
         {
             _roomMap.AddFloorItem(item);
         }
+    }
+
+    public Task<ImmutableArray<long>> GetPlayerIdsAsync() =>
+        Task.FromResult(_connectedPlayerIds.ToImmutableArray());
+
+    public async Task<bool> AddPlayerIdAsync(long playerId)
+    {
+        var added = _connectedPlayerIds.Add(playerId);
+
+        await _grainFactory
+            .GetGrain<IRoomDirectoryGrain>(0)
+            .UpdatePopulationAsync(this.GetPrimaryKeyLong(), _connectedPlayerIds.Count);
+
+        return added;
+    }
+
+    public async Task<bool> RemovePlayerIdAsync(long playerId)
+    {
+        var removed = _connectedPlayerIds.Remove(playerId);
+
+        await _grainFactory
+            .GetGrain<IRoomDirectoryGrain>(0)
+            .UpdatePopulationAsync(this.GetPrimaryKeyLong(), _connectedPlayerIds.Count);
+
+        return removed;
     }
 
     public Task<string> GetWorldTypeAsync() => Task.FromResult(_roomMap?.ModelName ?? string.Empty);

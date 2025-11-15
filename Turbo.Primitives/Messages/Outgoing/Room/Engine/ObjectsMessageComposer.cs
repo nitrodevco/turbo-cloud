@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Orleans;
 using Turbo.Contracts.Abstractions;
-using Turbo.Primitives.Orleans.Snapshots.Room;
+using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Engine;
 

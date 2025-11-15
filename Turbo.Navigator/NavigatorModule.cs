@@ -12,5 +12,9 @@ public sealed class NavigatorModule : IHostPluginModule
     public void ConfigureServices(IServiceCollection services, HostApplicationBuilder builder)
     {
         services.AddSingleton<INavigatorService, NavigatorService>();
+        services.AddSingleton<
+            INavigatorTopLevelContextProvider,
+            NavigatorTopLevelContextProvider
+        >();
     }
 }

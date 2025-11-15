@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Furniture;
+using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Mapping;
 
@@ -15,6 +16,7 @@ public class TurboEmulator(
     ILogger<TurboEmulator> logger,
     IFurnitureDefinitionProvider furnitureProvider,
     ICatalogProvider<NormalCatalog> catalogProvider,
+    INavigatorTopLevelContextProvider topLevelContextProvider,
     IRoomModelProvider roomModelProvider,
     INetworkManager networkManager
 ) : IHostedService
@@ -22,6 +24,8 @@ public class TurboEmulator(
     private readonly ILogger<TurboEmulator> _logger = logger;
     private readonly IFurnitureDefinitionProvider _furnitureProvider = furnitureProvider;
     private readonly ICatalogProvider<NormalCatalog> _catalogProvider = catalogProvider;
+    private readonly INavigatorTopLevelContextProvider _topLevelContextProvider =
+        topLevelContextProvider;
     private readonly IRoomModelProvider _roomModelProvider = roomModelProvider;
     private readonly INetworkManager _networkManager = networkManager;
 
@@ -31,6 +35,7 @@ public class TurboEmulator(
         {
             await _furnitureProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _catalogProvider.ReloadAsync(ct).ConfigureAwait(false);
+            await _topLevelContextProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _roomModelProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _networkManager.StartAsync(ct).ConfigureAwait(false);
         }

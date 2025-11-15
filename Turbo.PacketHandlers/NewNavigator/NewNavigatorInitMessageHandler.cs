@@ -3,19 +3,29 @@ using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.NewNavigator;
 using Turbo.Primitives.Messages.Outgoing.NewNavigator;
+using Turbo.Primitives.Navigator;
+using Turbo.Primitives.Orleans.Snapshots.Navigator;
 
 namespace Turbo.PacketHandlers.NewNavigator;
 
-public class NewNavigatorInitMessageHandler : IMessageHandler<NewNavigatorInitMessage>
+public class NewNavigatorInitMessageHandler(INavigatorService navigatorService)
+    : IMessageHandler<NewNavigatorInitMessage>
 {
+    private readonly INavigatorService _navigatorService = navigatorService;
+
     public async ValueTask HandleAsync(
         NewNavigatorInitMessage message,
         MessageContext ctx,
         CancellationToken ct
     )
     {
+        var topLevelContexts = _navigatorService.GetTopLevelContext().TopLevelContexts;
+
         await ctx
-            .Session.SendComposerAsync(new NavigatorMetaDataMessage { TopLevelContexts = [] }, ct)
+            .Session.SendComposerAsync(
+                new NavigatorMetaDataMessage { TopLevelContexts = topLevelContexts },
+                ct
+            )
             .ConfigureAwait(false);
         await ctx
             .Session.SendComposerAsync(new NavigatorLiftedRoomsMessage { LiftedRooms = [] }, ct)

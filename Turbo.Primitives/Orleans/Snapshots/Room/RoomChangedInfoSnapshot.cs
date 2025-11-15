@@ -3,7 +3,7 @@ using Orleans;
 namespace Turbo.Primitives.Orleans.Snapshots.Room;
 
 [GenerateSerializer, Immutable]
-public sealed record RoomChangedSnapshot
+public sealed record RoomChangedInfoSnapshot
 {
     [Id(0)]
     public required long PreviousRoomId { get; init; }
