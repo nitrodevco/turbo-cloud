@@ -4,22 +4,22 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Turbo.Contracts.Enums.Rooms.Furniture.Data;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Rooms.Furniture;
-using Turbo.Primitives.Rooms.StuffData;
 
 namespace Turbo.Rooms.Furniture;
 
-public sealed class RoomFloorItemsLoader(
+public sealed class RoomItemsLoader(
     IDbContextFactory<TurboDbContext> dbContextFactory,
-    IFurnitureDefinitionProvider defsProvider
-) : IRoomFloorItemsLoader
+    IFurnitureDefinitionProvider defsProvider,
+    IFurnitureLogicFactory furnitureLogicFactory
+) : IRoomItemsLoader
 {
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
     private readonly IFurnitureDefinitionProvider _defsProvider = defsProvider;
+    private readonly IFurnitureLogicFactory _furnitureLogicFactory = furnitureLogicFactory;
 
     public async Task<IReadOnlyList<IRoomFloorItem>> LoadByRoomIdAsync(
         long roomId,
@@ -73,13 +73,16 @@ public sealed class RoomFloorItemsLoader(
             ?? throw new InvalidOperationException(
                 $"Furniture definition with id {entity.FurnitureDefinitionEntityId} not found"
             );
-        var stuffData = StuffDataFactory.CreateStuffData((int)StuffDataTypeEnum.LegacyKey);
+
+        var logic = _furnitureLogicFactory.CreateLogicInstance(definition.LogicName);
+        var stuffData = logic.CreateStuffDataFromJson(entity.StuffData ?? string.Empty);
 
         return new RoomFloorItem
         {
             Id = entity.Id,
             OwnerId = entity.PlayerEntityId,
             Definition = definition,
+            Logic = (IFurnitureFloorLogic)logic,
             StuffData = stuffData,
         };
     }

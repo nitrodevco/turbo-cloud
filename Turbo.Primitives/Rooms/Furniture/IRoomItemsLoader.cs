@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace Turbo.Primitives.Rooms.Furniture;
 
-public interface IRoomFloorItemsLoader
+public interface IRoomItemsLoader
 {
     public Task<IReadOnlyList<IRoomFloorItem>> LoadByRoomIdAsync(
         long roomId,

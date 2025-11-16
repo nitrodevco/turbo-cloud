@@ -32,14 +32,14 @@ public class RoomGrain(
     IDbContextFactory<TurboDbContext> dbContextFactory,
     IOptions<RoomConfig> roomConfig,
     IRoomModelProvider roomModelProvider,
-    IRoomFloorItemsLoader floorItemsLoader,
+    IRoomItemsLoader itemsLoader,
     IGrainFactory grainFactory
 ) : Grain, IRoomGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
     private readonly RoomConfig _roomConfig = roomConfig.Value;
     private readonly IRoomModelProvider _roomModelProvider = roomModelProvider;
-    private readonly IRoomFloorItemsLoader _floorItemsLoader = floorItemsLoader;
+    private readonly IRoomItemsLoader _itemsLoader = itemsLoader;
     private readonly IGrainFactory _grainFactory = grainFactory;
     private readonly TimeSpan _updateInterval = TimeSpan.FromMilliseconds(10);
 
@@ -178,7 +178,7 @@ public class RoomGrain(
 
         _roomMap = new RoomMap(roomModel);
 
-        var floorItems = await _floorItemsLoader.LoadByRoomIdAsync(this.GetPrimaryKeyLong(), ct);
+        var floorItems = await _itemsLoader.LoadByRoomIdAsync(this.GetPrimaryKeyLong(), ct);
 
         foreach (var item in floorItems)
             _roomMap.AddFloorItem(item);

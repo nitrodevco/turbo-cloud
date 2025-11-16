@@ -128,6 +128,41 @@ public static class AssemblyExplorer
         }
     }
 
+    public static IEnumerable<Type> FindAssignees(Assembly asm, Type targetType)
+    {
+        ArgumentNullException.ThrowIfNull(targetType);
+
+        using var _ = EnterContextual(asm);
+
+        foreach (var ti in asm.DefinedTypes)
+        {
+            if (
+                ti.IsAbstract
+                || ti.IsInterface
+                || ti.IsGenericTypeDefinition
+                || !ti.IsPublic
+                || !ti.IsClass
+            )
+                continue;
+
+            Type concrete;
+
+            try
+            {
+                concrete = ti.AsType();
+            }
+            catch
+            {
+                continue;
+            }
+
+            if (!targetType.IsAssignableFrom(concrete))
+                continue;
+
+            yield return concrete;
+        }
+    }
+
     public static MethodInfo ResolveImplementation(
         Type concrete,
         Type closedIface,
