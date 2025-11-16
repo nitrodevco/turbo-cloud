@@ -12,8 +12,8 @@ public interface IRoomFloorItem
     public IStuffData StuffData { get; init; }
     public int X { get; }
     public int Y { get; }
-    public float Z { get; }
+    public double Z { get; }
     public Rotation Rotation { get; }
-    public void SetPosition(int x, int y, float z);
+    public void SetPosition(int x, int y, double z);
     public void SetRotation(Rotation rotation);
 }

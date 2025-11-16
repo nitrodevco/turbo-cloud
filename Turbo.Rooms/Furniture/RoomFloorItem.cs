@@ -13,10 +13,10 @@ public sealed class RoomFloorItem : IRoomFloorItem
     public required IStuffData StuffData { get; init; }
     public int X { get; private set; }
     public int Y { get; private set; }
-    public float Z { get; private set; }
+    public double Z { get; private set; }
     public Rotation Rotation { get; private set; }
 
-    public void SetPosition(int x, int y, float z)
+    public void SetPosition(int x, int y, double z)
     {
         X = x;
         Y = y;

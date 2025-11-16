@@ -33,17 +33,17 @@ public class FurnitureDefinitionEntity : TurboEntity
     [DefaultValue(0)]
     public int TotalStates { get; set; }
 
-    [Column("x")]
+    [Column("width")]
     [DefaultValue(0)]
-    public required int X { get; set; } // width
+    public required int Width { get; set; } // width
 
-    [Column("y")]
+    [Column("height")]
     [DefaultValue(1)]
-    public required int Y { get; set; } // height
+    public required int Height { get; set; } // height
 
-    [Column("z", TypeName = "double(10,3)")]
+    [Column("stack_height", TypeName = "double(10,3)")]
     [DefaultValue(0.0d)]
-    public required double Z { get; set; } // depth
+    public required double StackHeight { get; set; } // depth
 
     [Column("can_stack")]
     [DefaultValue(true)]

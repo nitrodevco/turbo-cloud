@@ -57,19 +57,18 @@ public sealed class RoomService(
     {
         try
         {
+            //await playerPresence.ClearActiveRoomAsync().ConfigureAwait(false);
+
             var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
             var pendingRoom = await playerPresence.GetPendingRoomAsync().ConfigureAwait(false);
 
             if (pendingRoom.RoomId == roomId)
                 return;
 
-            //await playerPresence.ClearActiveRoomAsync().ConfigureAwait(false);
             await playerPresence.SetPendingRoomAsync(roomId, true).ConfigureAwait(false);
             await playerPresence
                 .SendComposerAsync(new OpenConnectionMessageComposer { RoomId = (int)roomId }, ct)
                 .ConfigureAwait(false);
-
-            var worldType = string.Empty;
 
             // if owner => auto-approve
             // if banned => reject
@@ -79,7 +78,7 @@ public sealed class RoomService(
 
             await playerPresence
                 .SendComposerAsync(
-                    new RoomReadyMessageComposer { WorldType = worldType, RoomId = (int)roomId },
+                    new RoomReadyMessageComposer { WorldType = string.Empty, RoomId = (int)roomId },
                     ct
                 )
                 .ConfigureAwait(false);
@@ -115,9 +114,6 @@ public sealed class RoomService(
         try
         {
             var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
-
-            //await playerPresence.ClearActiveRoomAsync().ConfigureAwait(false);
-
             var pendingRoom = await playerPresence.GetPendingRoomAsync().ConfigureAwait(false);
 
             if (pendingRoom.RoomId <= 0 || !pendingRoom.Approved)
@@ -125,8 +121,8 @@ public sealed class RoomService(
 
             await playerPresence.SetActiveRoomAsync(pendingRoom.RoomId).ConfigureAwait(false);
 
-            var roomMap = _grainFactory.GetGrain<IRoomMapGrain>(pendingRoom.RoomId);
-            var mapSnapshot = await roomMap.GetSnapshotAsync().ConfigureAwait(false);
+            var room = _grainFactory.GetGrain<IRoomGrain>(pendingRoom.RoomId);
+            var mapSnapshot = await room.GetMapSnapshotAsync().ConfigureAwait(false);
 
             await playerPresence
                 .SendComposerAsync(
@@ -165,13 +161,13 @@ public sealed class RoomService(
                 )
                 .ConfigureAwait(false);
 
-            var floorItemSnapshots = await roomMap
-                .GetFloorItemSnapshotsAsync()
-                .ConfigureAwait(false);
-
             await playerPresence
                 .SendComposerAsync(
-                    new ObjectsMessageComposer { OwnerNames = [], FloorItems = floorItemSnapshots },
+                    new ObjectsMessageComposer
+                    {
+                        OwnerNames = [],
+                        FloorItems = mapSnapshot.FloorItems,
+                    },
                     ct
                 )
                 .ConfigureAwait(false);

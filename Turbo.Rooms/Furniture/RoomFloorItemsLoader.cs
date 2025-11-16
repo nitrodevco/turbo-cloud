@@ -47,7 +47,7 @@ public sealed class RoomFloorItemsLoader(
                     if (item is null)
                         continue;
 
-                    item.SetPosition(entity.X, entity.Y, (float)entity.Z);
+                    item.SetPosition(entity.X, entity.Y, entity.Z);
                     item.SetRotation(entity.Rotation);
 
                     result.Add(item);

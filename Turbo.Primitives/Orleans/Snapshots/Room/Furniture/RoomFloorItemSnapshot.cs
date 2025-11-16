@@ -24,13 +24,13 @@ public sealed record RoomFloorItemSnapshot
     public required int Y { get; init; }
 
     [Id(5)]
-    public required float Z { get; init; }
+    public required double Z { get; init; }
 
     [Id(6)]
     public required Rotation Rotation { get; init; }
 
     [Id(7)]
-    public required float StackHeight { get; init; }
+    public required double StackHeight { get; init; }
 
     [Id(8)]
     public required StuffDataSnapshot StuffData { get; init; }
@@ -46,7 +46,7 @@ public sealed record RoomFloorItemSnapshot
             Y = item.Y,
             Z = item.Z,
             Rotation = item.Rotation,
-            StackHeight = item.Definition.Z,
+            StackHeight = item.Definition.StackHeight,
             StuffData = StuffDataSnapshot.FromStuffData(item.StuffData),
         };
     }

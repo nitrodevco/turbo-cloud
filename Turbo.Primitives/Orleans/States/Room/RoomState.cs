@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 
@@ -12,7 +11,7 @@ public sealed class RoomState
     public required RoomSnapshot RoomSnapshot { get; set; }
 
     [Id(1)]
-    public required HashSet<long> PlayerIds { get; set; } = [];
+    public required int ModelId { get; set; }
 
     [Id(2)]
     public required bool IsLoaded { get; set; } = false;

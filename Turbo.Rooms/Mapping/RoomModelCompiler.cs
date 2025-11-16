@@ -22,7 +22,7 @@ public static class RoomModelCompiler
         var height = rows.Count;
         var width = rows.Max(x => x.Length);
         var size = width * height;
-        var heights = new float[size];
+        var heights = new double[size];
         var states = new byte[size];
 
         for (var y = 0; y < height; y++)
@@ -36,7 +36,7 @@ public static class RoomModelCompiler
 
                 if (ch.Equals('x'))
                 {
-                    heights[idx] = 0.0f;
+                    heights[idx] = 0.0;
                     states[idx] = (byte)RoomTileStateType.Closed;
                 }
                 else
@@ -54,14 +54,14 @@ public static class RoomModelCompiler
         return new CompiledRoomModelSnapshot(width, height, heights, states);
     }
 
-    public static short EncodeHeight(float height, bool stackingBlocked)
+    public static short EncodeHeight(double height, bool stackingBlocked)
     {
-        if (height < 0f)
+        if (height < 0)
             return -1;
 
         int stackingMask = 1 << 14;
         int heightMask = stackingMask - 1;
-        int raw = (int)MathF.Round(height * 256f);
+        int raw = (int)Math.Round(height * 256.0);
 
         if (raw < 0)
             raw = 0;

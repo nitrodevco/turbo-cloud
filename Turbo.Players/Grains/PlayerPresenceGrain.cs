@@ -6,22 +6,21 @@ using Orleans.Runtime;
 using Turbo.Contracts.Abstractions;
 using Turbo.Contracts.Orleans;
 using Turbo.Primitives.Orleans.Grains;
-using Turbo.Primitives.Orleans.Grains.Room;
 using Turbo.Primitives.Orleans.Observers;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Session;
 using Turbo.Primitives.Orleans.States.Players;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.Players.Grains;
 
 public class PlayerPresenceGrain(
     [PersistentState(OrleansStateNames.PLAYER_PRESENCE, OrleansStorageNames.PLAYER_STORE)]
         IPersistentState<PlayerPresenceState> state,
-    IGrainFactory grainFactory
+    IRoomService roomService
 ) : Grain, IPlayerPresenceGrain
 {
-    private readonly IGrainFactory _grainFactory = grainFactory;
-
+    private readonly IRoomService _roomService = roomService;
     private ISessionContextObserver? _sessionObserver = null;
 
     public Task<SessionKey> GetSessionKeyAsync() =>
@@ -83,14 +82,14 @@ public class PlayerPresenceGrain(
         if (changed)
         {
             if (prev > 0)
-                await _grainFactory
-                    .GetGrain<IRoomGrain>(prev)
-                    .RemovePlayerIdAsync(this.GetPrimaryKeyLong());
+                await _roomService
+                    .GetRoomDirectory()
+                    .RemovePlayerFromRoomAsync(this.GetPrimaryKeyLong(), prev);
 
             if (next > 0)
-                await _grainFactory
-                    .GetGrain<IRoomGrain>(next)
-                    .AddPlayerIdAsync(this.GetPrimaryKeyLong());
+                await _roomService
+                    .GetRoomDirectory()
+                    .AddPlayerToRoomAsync(this.GetPrimaryKeyLong(), next);
         }
     }
 

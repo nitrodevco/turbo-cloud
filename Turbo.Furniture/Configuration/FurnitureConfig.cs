@@ -4,5 +4,5 @@ public class FurnitureConfig
 {
     public const string SECTION_NAME = "Turbo:Furniture";
 
-    public float MinimumZValue { get; init; } = 0.001f;
+    public double MinimumZValue { get; init; } = 0.001;
 }

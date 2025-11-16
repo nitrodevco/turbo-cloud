@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using Turbo.Contracts.Enums.Rooms.Object;
+using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
 using Turbo.Primitives.Rooms.Furniture;
 
 namespace Turbo.Primitives.Rooms.Mapping;
@@ -14,10 +16,20 @@ public interface IRoomMap
     public int DoorX { get; }
     public int DoorY { get; }
     public Rotation DoorRotation { get; }
-    public float[] TileHeights { get; }
+    public double[] TileHeights { get; }
     public short[] TileRelativeHeights { get; }
-    public IReadOnlyList<IRoomFloorItem> GetAllFloorItems();
-    public void AddFloorItem(IRoomFloorItem item);
-    public void AddFloorItemAt(IRoomFloorItem item, int X, int Y, float Z, Rotation rotation);
-    public void RemoveFloorItemById(long itemId);
+    public byte[] TileStates { get; }
+    public long[] TileHighestFloorItems { get; }
+    public List<long>[] TileFloorStacks { get; }
+    public IRoomFloorItem? GetFloorItemById(long itemId);
+    public ImmutableArray<RoomFloorItemSnapshot> GetAllFloorItems();
+    public bool AddFloorItem(IRoomFloorItem item);
+    public bool RemoveFloorItemById(long itemId);
+    public bool MoveFloorItem(
+        long itemId,
+        int newX,
+        int newY,
+        Rotation newRotation,
+        out IRoomFloorItem item
+    );
 }

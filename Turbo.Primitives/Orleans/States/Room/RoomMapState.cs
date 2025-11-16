@@ -1,12 +1,10 @@
-using System.Collections.Immutable;
 using Orleans;
 using Turbo.Contracts.Enums.Rooms.Object;
-using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
 
-namespace Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
+namespace Turbo.Primitives.Orleans.States.Room;
 
 [GenerateSerializer, Immutable]
-public sealed record RoomMapSnapshot
+public sealed class RoomMapState
 {
     [Id(0)]
     public required string ModelName { get; init; }
@@ -31,10 +29,4 @@ public sealed record RoomMapSnapshot
 
     [Id(7)]
     public required Rotation DoorRotation { get; init; }
-
-    [Id(8)]
-    public required short[] TileRelativeHeights { get; init; }
-
-    [Id(9)]
-    public required ImmutableArray<RoomFloorItemSnapshot> FloorItems { get; init; }
 }
