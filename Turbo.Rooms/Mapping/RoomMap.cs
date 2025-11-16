@@ -32,6 +32,7 @@ public sealed class RoomMap : IRoomMap
     private readonly double[] _baseHeights;
     private readonly byte[] _baseStates;
     private readonly Dictionary<long, IRoomFloorItem> _floorItemsById = [];
+    private readonly List<int> _pendingTileIdxUpdates = [];
 
     public RoomMap(RoomModelSnapshot roomModelSnapshot)
     {
@@ -58,8 +59,29 @@ public sealed class RoomMap : IRoomMap
         BuildMap();
     }
 
-    public IRoomFloorItem? GetFloorItemById(long itemId) =>
-        _floorItemsById.TryGetValue(itemId, out var item) ? item : null;
+    public IRoomFloorItem GetFloorItemById(long itemId) =>
+        _floorItemsById.TryGetValue(itemId, out var item) ? item : throw new KeyNotFoundException();
+
+    public List<RoomTileSnapshot> GetAndFlushPendingTileUpdates()
+    {
+        var snapshots = new List<RoomTileSnapshot>(_pendingTileIdxUpdates.Count);
+
+        foreach (var idx in _pendingTileIdxUpdates)
+        {
+            snapshots.Add(
+                new RoomTileSnapshot
+                {
+                    X = (byte)(idx % Width),
+                    Y = (byte)(idx / Width),
+                    RelativeHeight = TileRelativeHeights[idx],
+                }
+            );
+        }
+
+        _pendingTileIdxUpdates.Clear();
+
+        return snapshots;
+    }
 
     public ImmutableArray<RoomFloorItemSnapshot> GetAllFloorItems()
     {
@@ -115,13 +137,11 @@ public sealed class RoomMap : IRoomMap
         int newX,
         int newY,
         Rotation newRotation,
-        out IRoomFloorItem item
+        out RoomFloorItemSnapshot snapshot
     )
     {
-        item = _floorItemsById[itemId];
-
-        if (item is null)
-            return false;
+        var item = GetFloorItemById(itemId);
+        snapshot = RoomFloorItemSnapshot.FromFloorItem(item);
 
         if (GetTileIdxForFloorItem(item, out var oldTileIdxs))
         {
@@ -147,6 +167,8 @@ public sealed class RoomMap : IRoomMap
                 ComputeTile(idx);
             }
         }
+
+        snapshot = RoomFloorItemSnapshot.FromFloorItem(item);
 
         return true;
     }
@@ -241,7 +263,12 @@ public sealed class RoomMap : IRoomMap
         }
 
         if (prevHeight != nextHeight)
+        {
             TileHeights[idx] = nextHeight;
+
+            if (!_pendingTileIdxUpdates.Contains(idx))
+                _pendingTileIdxUpdates.Add(idx);
+        }
 
         if (prevHighestId != nextHighestId)
             TileHighestFloorItems[idx] = nextHighestId;

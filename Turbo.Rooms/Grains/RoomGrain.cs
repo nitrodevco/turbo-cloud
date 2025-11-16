@@ -41,9 +41,11 @@ public class RoomGrain(
     private readonly IRoomModelProvider _roomModelProvider = roomModelProvider;
     private readonly IRoomFloorItemsLoader _floorItemsLoader = floorItemsLoader;
     private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly TimeSpan _updateInterval = TimeSpan.FromMilliseconds(10);
 
     private IAsyncStream<RoomEvent>? _stream = null;
     private IRoomMap? _roomMap = null;
+    private IDisposable? _updateTimer;
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
@@ -58,10 +60,19 @@ public class RoomGrain(
         await _grainFactory
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
             .UpsertActiveRoomAsync(state.State.RoomSnapshot);
+
+        _updateTimer = this.RegisterGrainTimer<object?>(
+            async _ => await FlushUpdatesAsync(),
+            null,
+            _updateInterval,
+            _updateInterval
+        );
     }
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
+        _updateTimer?.Dispose();
+
         await _grainFactory
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
             .RemoveActiveRoomAsync(this.GetPrimaryKeyLong());
@@ -186,19 +197,18 @@ public class RoomGrain(
         if (_roomMap is null)
             throw new Exception("Room map is not built.");
 
-        if (!_roomMap.MoveFloorItem(itemId, newX, newY, newRotation, out var item))
+        if (!_roomMap.MoveFloorItem(itemId, newX, newY, newRotation, out var snapshot))
             return;
 
-        await _grainFactory
-            .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
-            .SendComposerToRoomAsync(
-                new ObjectUpdateMessageComposer
-                {
-                    FloorItem = RoomFloorItemSnapshot.FromFloorItem(item),
-                },
-                this.GetPrimaryKeyLong(),
-                ct
-            );
+        var roomDirectory = _grainFactory.GetGrain<IRoomDirectoryGrain>(
+            RoomDirectoryGrain.SINGLETON_KEY
+        );
+
+        await roomDirectory.SendComposerToRoomAsync(
+            new ObjectUpdateMessageComposer { FloorItem = snapshot },
+            this.GetPrimaryKeyLong(),
+            ct
+        );
     }
 
     public Task<RoomSnapshot> GetSnapshotAsync() => Task.FromResult(state.State.RoomSnapshot);
@@ -254,5 +264,26 @@ public class RoomGrain(
             throw new Exception("Room map is not built.");
 
         return _roomMap.GetAllFloorItems();
+    }
+
+    private async Task FlushUpdatesAsync()
+    {
+        var roomDirectory = _grainFactory.GetGrain<IRoomDirectoryGrain>(
+            RoomDirectoryGrain.SINGLETON_KEY
+        );
+
+        if (_roomMap is not null)
+        {
+            var pendingTileUpdates = _roomMap.GetAndFlushPendingTileUpdates();
+
+            if (pendingTileUpdates.Count > 0)
+            {
+                await roomDirectory.SendComposerToRoomAsync(
+                    new HeightMapUpdateMessageComposer { Tiles = [.. pendingTileUpdates] },
+                    this.GetPrimaryKeyLong(),
+                    CancellationToken.None
+                );
+            }
+        }
     }
 }

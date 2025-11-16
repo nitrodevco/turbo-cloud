@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
+using Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
 using Turbo.Primitives.Rooms.Furniture;
 
 namespace Turbo.Primitives.Rooms.Mapping;
@@ -21,7 +22,8 @@ public interface IRoomMap
     public byte[] TileStates { get; }
     public long[] TileHighestFloorItems { get; }
     public List<long>[] TileFloorStacks { get; }
-    public IRoomFloorItem? GetFloorItemById(long itemId);
+    public IRoomFloorItem GetFloorItemById(long itemId);
+    public List<RoomTileSnapshot> GetAndFlushPendingTileUpdates();
     public ImmutableArray<RoomFloorItemSnapshot> GetAllFloorItems();
     public bool AddFloorItem(IRoomFloorItem item);
     public bool RemoveFloorItemById(long itemId);
@@ -30,6 +32,6 @@ public interface IRoomMap
         int newX,
         int newY,
         Rotation newRotation,
-        out IRoomFloorItem item
+        out RoomFloorItemSnapshot snapshot
     );
 }
