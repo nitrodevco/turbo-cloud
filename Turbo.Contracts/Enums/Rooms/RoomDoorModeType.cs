@@ -1,6 +1,6 @@
-namespace Turbo.Contracts.Enums.Navigator;
+namespace Turbo.Contracts.Enums.Rooms;
 
-public enum DoorModeType
+public enum RoomDoorModeType
 {
     Open = 0,
     Locked = 1,

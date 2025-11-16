@@ -23,9 +23,9 @@ public class RoomEntity : TurboEntity
     public required int PlayerEntityId { get; set; }
 
     [Column("door_mode")]
-    [DefaultValue(DoorModeType.Open)] // DoorModeType.Open
+    [DefaultValue(RoomDoorModeType.Open)] // DoorModeType.Open
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public required DoorModeType DoorMode { get; set; }
+    public required RoomDoorModeType DoorMode { get; set; }
 
     [Column("password")]
     public string? Password { get; set; }
@@ -87,9 +87,9 @@ public class RoomEntity : TurboEntity
     public required bool AllowPetsEat { get; set; }
 
     [Column("trade_type")]
-    [DefaultValue(TradeModeType.Disabled)]
+    [DefaultValue(RoomTradeModeType.Disabled)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public required TradeModeType TradeType { get; set; }
+    public required RoomTradeModeType TradeType { get; set; }
 
     [Column("mute_type")]
     [DefaultValue(ModSettingType.Owner)]

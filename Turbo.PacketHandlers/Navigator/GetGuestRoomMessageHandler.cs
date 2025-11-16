@@ -31,7 +31,7 @@ public class GetGuestRoomMessageHandler(IRoomService roomService)
                 new GetGuestRoomResultMessageComposer
                 {
                     EnterRoom = message.EnterRoom,
-                    RoomSnapshot = snapshot,
+                    RoomInfo = snapshot,
                     RoomForward = message.RoomForward,
                     StaffPick = staffPick,
                     IsGroupMember = groupMember,

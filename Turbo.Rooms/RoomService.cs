@@ -14,6 +14,7 @@ using Turbo.Primitives.Orleans.Grains.Room;
 using Turbo.Primitives.Orleans.Snapshots.Session;
 using Turbo.Primitives.Rooms;
 using Turbo.Rooms.Configuration;
+using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms;
 
@@ -29,7 +30,8 @@ public sealed class RoomService(
     private readonly ISessionGateway _sessionGateway = sessionGateway;
     private readonly IGrainFactory _grainFactory = grainFactory;
 
-    public IRoomDirectoryGrain GetRoomDirectory() => _grainFactory.GetGrain<IRoomDirectoryGrain>(0);
+    public IRoomDirectoryGrain GetRoomDirectory() =>
+        _grainFactory.GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY);
 
     public IRoomGrain GetRoomGrain(long roomId) => _grainFactory.GetGrain<IRoomGrain>(roomId);
 

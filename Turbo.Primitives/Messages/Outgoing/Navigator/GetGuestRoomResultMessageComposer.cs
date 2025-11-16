@@ -11,7 +11,7 @@ public sealed record GetGuestRoomResultMessageComposer : IComposer
     public required bool EnterRoom { get; init; }
 
     [Id(1)]
-    public required RoomSnapshot RoomSnapshot { get; init; }
+    public required RoomSnapshot RoomInfo { get; init; }
 
     [Id(2)]
     public required bool RoomForward { get; init; }

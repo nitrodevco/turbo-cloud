@@ -4,18 +4,17 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Orleans;
-using Orleans.Concurrency;
 using Turbo.Primitives.Orleans.Grains.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room;
-using Turbo.Primitives.Orleans.States.Room;
 
 namespace Turbo.Rooms.Grains;
 
 [KeepAlive]
-[Reentrant]
 public class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
 {
-    private readonly Dictionary<long, RoomActiveInfoState> _activeRooms = [];
+    public const string SINGLETON_KEY = "room-directory";
+
+    private readonly Dictionary<long, RoomActiveSnapshot> _activeRooms = [];
     private readonly Dictionary<long, int> _roomPopulations = [];
 
     public Task<ImmutableArray<RoomSummarySnapshot>> GetActiveRoomsAsync() =>
@@ -28,11 +27,11 @@ public class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
                     return new RoomSummarySnapshot
                     {
                         RoomId = x.RoomId,
-                        Population = population,
                         Name = x.Name,
                         Description = x.Description,
                         OwnerId = x.OwnerId,
                         OwnerName = x.OwnerName,
+                        Population = population,
                         LastUpdatedUtc = x.LastUpdatedUtc,
                     };
                 })
@@ -47,13 +46,14 @@ public class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
         if (snapshot is null)
             return;
 
-        _activeRooms[snapshot.RoomId] = new RoomActiveInfoState
+        _activeRooms[snapshot.RoomId] = new RoomActiveSnapshot
         {
             RoomId = snapshot.RoomId,
-            Name = snapshot.RoomName,
+            Name = snapshot.Name,
             Description = snapshot.Description,
             OwnerId = snapshot.OwnerId,
             OwnerName = snapshot.OwnerName,
+            Population = 0,
             LastUpdatedUtc = DateTime.UtcNow,
         };
     }

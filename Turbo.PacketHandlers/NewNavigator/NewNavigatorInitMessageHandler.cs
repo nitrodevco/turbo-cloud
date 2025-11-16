@@ -19,7 +19,9 @@ public class NewNavigatorInitMessageHandler(INavigatorService navigatorService)
         CancellationToken ct
     )
     {
-        var topLevelContexts = _navigatorService.GetTopLevelContext().TopLevelContexts;
+        var topLevelContexts = await _navigatorService
+            .GetTopLevelContextAsync()
+            .ConfigureAwait(false);
 
         await ctx
             .Session.SendComposerAsync(

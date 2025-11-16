@@ -16,7 +16,7 @@ public class TurboEmulator(
     ILogger<TurboEmulator> logger,
     IFurnitureDefinitionProvider furnitureProvider,
     ICatalogProvider<NormalCatalog> catalogProvider,
-    INavigatorTopLevelContextProvider topLevelContextProvider,
+    INavigatorProvider topLevelContextProvider,
     IRoomModelProvider roomModelProvider,
     INetworkManager networkManager
 ) : IHostedService
@@ -24,8 +24,7 @@ public class TurboEmulator(
     private readonly ILogger<TurboEmulator> _logger = logger;
     private readonly IFurnitureDefinitionProvider _furnitureProvider = furnitureProvider;
     private readonly ICatalogProvider<NormalCatalog> _catalogProvider = catalogProvider;
-    private readonly INavigatorTopLevelContextProvider _topLevelContextProvider =
-        topLevelContextProvider;
+    private readonly INavigatorProvider _topLevelContextProvider = topLevelContextProvider;
     private readonly IRoomModelProvider _roomModelProvider = roomModelProvider;
     private readonly INetworkManager _networkManager = networkManager;
 

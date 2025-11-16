@@ -41,11 +41,7 @@ public sealed class PackageHandler(
             {
                 var message = parser.Parse(packet);
 
-                _logger.LogInformation(
-                    "Incoming {Message} for {SessionKey}",
-                    message,
-                    ctx.SessionKey
-                );
+                _logger.LogInformation("Incoming {Message}", message);
 
                 _ = _messageSystem
                     .PublishAsync(message, ctx, CancellationToken.None)

@@ -26,5 +26,5 @@ public record NavigatorSearchResultBlockSnapshot
     public required NavigatorViewModeType ViewMode { get; init; }
 
     [Id(6)]
-    public required ImmutableArray<NavigatorSearchResultSnapshot> SearchResults { get; init; }
+    public required ImmutableArray<NavigatorSearchResultSnapshot> Results { get; init; }
 }

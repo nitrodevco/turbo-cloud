@@ -1,54 +1,36 @@
 using System.Collections.Immutable;
 using Orleans;
-using Turbo.Contracts.Enums.Navigator;
+using Turbo.Contracts.Enums.Rooms;
 
 namespace Turbo.Primitives.Orleans.Snapshots.Room;
 
 [GenerateSerializer, Immutable]
-public record RoomInfoSnapshot
+public record RoomInfoSnapshot : RoomSummarySnapshot
 {
     [Id(0)]
-    public required long RoomId { get; init; } = -1;
+    public required RoomDoorModeType DoorMode { get; init; } = RoomDoorModeType.Invisible;
 
     [Id(1)]
-    public required string RoomName { get; init; } = string.Empty;
-
-    [Id(2)]
-    public required long OwnerId { get; init; } = -1;
-
-    [Id(3)]
-    public required string OwnerName { get; init; } = string.Empty;
-
-    [Id(4)]
-    public required DoorModeType DoorMode { get; init; } = DoorModeType.Invisible;
-
-    [Id(5)]
-    public required int Population { get; init; } = 0;
-
-    [Id(6)]
     public required int PlayersMax { get; init; } = 0;
 
-    [Id(7)]
-    public required string Description { get; init; } = string.Empty;
+    [Id(2)]
+    public required RoomTradeModeType TradeType { get; init; } = RoomTradeModeType.Disabled;
 
-    [Id(8)]
-    public required TradeModeType TradeMode { get; init; } = TradeModeType.Disabled;
-
-    [Id(9)]
+    [Id(3)]
     public required int Score { get; init; } = 0;
 
-    [Id(10)]
+    [Id(4)]
     public required int Ranking { get; init; } = 0;
 
-    [Id(11)]
+    [Id(5)]
     public required int CategoryId { get; init; } = -1;
 
-    [Id(12)]
+    [Id(6)]
     public required ImmutableArray<string> Tags { get; init; } = [];
 
-    [Id(13)]
+    [Id(7)]
     public required bool AllowPets { get; init; } = false;
 
-    [Id(14)]
+    [Id(8)]
     public required bool AllowPetsEat { get; init; } = false;
 }

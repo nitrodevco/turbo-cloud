@@ -1,6 +1,6 @@
 using System;
 
-namespace Turbo.Contracts.Enums.Navigator;
+namespace Turbo.Contracts.Enums.Rooms;
 
 [Flags]
 public enum RoomBitmask

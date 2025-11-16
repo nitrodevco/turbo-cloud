@@ -59,7 +59,7 @@ public class SSOTicketMessageHandler(
                 .ConfigureAwait(false);
             await ctx
                 .Session.SendComposerAsync(
-                    new NavigatorSettingsMessageComposer { HomeRoomId = 0, RoomIdToEnter = 0 },
+                    new NavigatorSettingsMessageComposer { HomeRoomId = 1, RoomIdToEnter = 1 },
                     ct
                 )
                 .ConfigureAwait(false);
@@ -106,9 +106,6 @@ public class SSOTicketMessageHandler(
             /* await ctx
                 .Session.SendComposerAsync(new FigureSetIdsMessage(), ct)
                 .ConfigureAwait(false); */
-            await ctx
-                .Session.SendComposerAsync(new RoomForwardMessageComposer { RoomId = 1 }, ct)
-                .ConfigureAwait(false);
         }
         catch (Exception e) { }
 

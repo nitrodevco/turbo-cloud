@@ -1,6 +1,6 @@
-namespace Turbo.Contracts.Enums.Navigator;
+namespace Turbo.Contracts.Enums.Rooms;
 
-public enum TradeModeType
+public enum RoomTradeModeType
 {
     Disabled = 0,
     RoomOwnerAndRights = 1,

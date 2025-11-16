@@ -27,11 +27,7 @@ public sealed class PackageEncoder(IRevisionManager revisionManager, ILogger<Pac
                 if (pack.Session.CryptoOut is not null)
                     payload = pack.Session.CryptoOut.Process(payload);
 
-                _logger.LogInformation(
-                    "Outgoing {Composer} for {SessionKey}",
-                    pack.Composer,
-                    pack.Session.SessionKey
-                );
+                _logger.LogInformation("Outgoing {Composer}", pack.Composer);
 
                 writer.Write(payload);
 

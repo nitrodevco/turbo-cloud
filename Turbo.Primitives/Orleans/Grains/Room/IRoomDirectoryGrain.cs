@@ -5,7 +5,7 @@ using Turbo.Primitives.Orleans.Snapshots.Room;
 
 namespace Turbo.Primitives.Orleans.Grains.Room;
 
-public interface IRoomDirectoryGrain : IGrainWithIntegerKey
+public interface IRoomDirectoryGrain : IGrainWithStringKey
 {
     public Task<ImmutableArray<RoomSummarySnapshot>> GetActiveRoomsAsync();
     public Task<int> GetRoomPopulationAsync(long roomId);

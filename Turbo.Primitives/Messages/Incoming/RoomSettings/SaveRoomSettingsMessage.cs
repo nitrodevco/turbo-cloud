@@ -16,7 +16,7 @@ public record SaveRoomSettingsMessage : IMessageEvent
     public int MaxVisitors { get; init; }
     public int CategoryId { get; init; }
     public List<string> Tags { get; init; } = new();
-    public TradeModeType TradeMode { get; init; }
+    public RoomTradeModeType TradeMode { get; init; }
     public bool AllowPets { get; init; }
     public bool AllowFoodConsume { get; init; }
     public bool AllowWalkThrough { get; init; }

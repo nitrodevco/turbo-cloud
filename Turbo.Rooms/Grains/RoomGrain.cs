@@ -1,8 +1,8 @@
 using System;
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Orleans;
 using Orleans.Runtime;
 using Orleans.Streams;
@@ -21,16 +21,13 @@ public class RoomGrain(
     [PersistentState(OrleansStateNames.ROOM_STATE, OrleansStorageNames.ROOM_STORE)]
         IPersistentState<RoomState> state,
     IDbContextFactory<TurboDbContext> dbContextFactory,
-    ILogger<IRoomGrain> logger,
     IRoomService roomService
 ) : Grain, IRoomGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
-    private readonly ILogger<IRoomGrain> _logger = logger;
     private readonly IRoomService _roomService = roomService;
 
     private IAsyncStream<RoomEvent>? _stream = null;
-    private RoomSnapshot? _snapshot = null;
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
@@ -42,7 +39,7 @@ public class RoomGrain(
 
         await HydrateFromExternalAsync(ct);
 
-        await _roomService.GetRoomDirectory().UpsertActiveRoomAsync(_snapshot!);
+        await _roomService.GetRoomDirectory().UpsertActiveRoomAsync(state.State.RoomSnapshot);
     }
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
@@ -52,8 +49,43 @@ public class RoomGrain(
         await WriteToDatabaseAsync(ct);
     }
 
+    public async Task AddPlayerIdAsync(long playerId)
+    {
+        if (!state.State.PlayerIds.Add(playerId))
+            return;
+
+        state.State.LastUpdatedUtc = DateTime.UtcNow;
+
+        await state.WriteStateAsync();
+
+        var count = state.State.PlayerIds.Count;
+
+        await _roomService
+            .GetRoomDirectory()
+            .UpdatePopulationAsync(this.GetPrimaryKeyLong(), count);
+    }
+
+    public async Task RemovePlayerIdAsync(long playerId)
+    {
+        if (!state.State.PlayerIds.Remove(playerId))
+            return;
+
+        state.State.LastUpdatedUtc = DateTime.UtcNow;
+
+        await state.WriteStateAsync();
+
+        var count = state.State.PlayerIds.Count;
+
+        await _roomService
+            .GetRoomDirectory()
+            .UpdatePopulationAsync(this.GetPrimaryKeyLong(), count);
+    }
+
     protected async Task HydrateFromExternalAsync(CancellationToken ct)
     {
+        if (state.State.IsLoaded)
+            return;
+
         var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
 
         try
@@ -66,17 +98,17 @@ public class RoomGrain(
                     $"RoomGrain:{this.GetPrimaryKeyLong()} not found in database."
                 );
 
-            _snapshot = new RoomSnapshot
+            state.State.RoomSnapshot = new RoomSnapshot
             {
                 RoomId = entity.Id,
-                RoomName = entity.Name ?? string.Empty,
+                Name = entity.Name ?? string.Empty,
+                Description = entity.Description ?? string.Empty,
                 OwnerId = (long)entity.PlayerEntityId,
                 OwnerName = string.Empty,
-                DoorMode = entity.DoorMode,
                 Population = 0,
+                DoorMode = entity.DoorMode,
                 PlayersMax = entity.PlayersMax,
-                Description = entity.Description ?? string.Empty,
-                TradeMode = entity.TradeType,
+                TradeType = entity.TradeType,
                 Score = 0,
                 Ranking = 0,
                 CategoryId = entity.NavigatorCategoryEntityId ?? -1,
@@ -98,7 +130,12 @@ public class RoomGrain(
                     FullHearRange = entity.ChatDistance,
                     FloodSensitivity = entity.ChatFloodType,
                 },
+                LastUpdatedUtc = DateTime.UtcNow,
             };
+
+            state.State.IsLoaded = true;
+
+            await state.WriteStateAsync(ct);
         }
         catch (Exception e)
         {
@@ -130,14 +167,14 @@ public class RoomGrain(
         }
     }
 
+    public Task<ImmutableArray<long>> GetPlayerIdsAsync() =>
+        Task.FromResult(state.State.PlayerIds.ToImmutableArray());
+
     public async Task<RoomSnapshot> GetSnapshotAsync()
     {
         var population = await GetRoomPopulationAsync();
 
-        if (_snapshot is null)
-            throw new Exception($"RoomGrain:{this.GetPrimaryKeyLong()} snapshot is null.");
-
-        return _snapshot with
+        return state.State.RoomSnapshot with
         {
             Population = population,
         };
@@ -145,17 +182,16 @@ public class RoomGrain(
 
     public async Task<RoomSummarySnapshot> GetSummaryAsync()
     {
-        var snapshot = _snapshot!;
         var population = await GetRoomPopulationAsync();
 
         return new RoomSummarySnapshot
         {
-            RoomId = snapshot.RoomId,
+            RoomId = state.State.RoomSnapshot.RoomId,
+            Name = state.State.RoomSnapshot.Name,
+            Description = state.State.RoomSnapshot.Description,
+            OwnerId = state.State.RoomSnapshot.OwnerId,
+            OwnerName = state.State.RoomSnapshot.OwnerName,
             Population = population,
-            Name = snapshot.RoomName,
-            Description = snapshot.Description,
-            OwnerId = snapshot.OwnerId,
-            OwnerName = snapshot.OwnerName,
             LastUpdatedUtc = DateTime.UtcNow,
         };
     }
