@@ -1,11 +1,11 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Snapshots.Rooms.Mapping;
+using Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
 
 namespace Turbo.Primitives.Rooms.Mapping;
 
 public interface IRoomModelProvider
 {
-    public RoomModelsSnapshot Current { get; }
+    public RoomModelSnapshot GetModelById(int modelId);
     public Task ReloadAsync(CancellationToken ct = default);
 }

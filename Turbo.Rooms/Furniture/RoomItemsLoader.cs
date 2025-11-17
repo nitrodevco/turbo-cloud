@@ -66,7 +66,7 @@ public sealed class RoomItemsLoader(
         }
     }
 
-    private IRoomFloorItem CreateFromEntity(FurnitureEntity entity)
+    public IRoomFloorItem CreateFromEntity(FurnitureEntity entity)
     {
         var definition =
             _defsProvider.TryGetDefinition(entity.FurnitureDefinitionEntityId)

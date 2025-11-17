@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Orleans;
 using Turbo.Contracts.Enums.Rooms.Object;
@@ -36,5 +37,8 @@ public sealed record RoomMapSnapshot
     public required short[] TileRelativeHeights { get; init; }
 
     [Id(9)]
-    public required ImmutableArray<RoomFloorItemSnapshot> FloorItems { get; init; }
+    public required List<RoomFloorItemSnapshot> FloorItems { get; init; }
+
+    [Id(10)]
+    public required int Version { get; init; }
 }

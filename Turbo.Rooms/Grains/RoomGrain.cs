@@ -1,5 +1,7 @@
 using System;
-using System.Collections.Immutable;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +9,8 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Orleans.Runtime;
 using Orleans.Streams;
+using Turbo.Contracts.Abstractions;
+using Turbo.Contracts.Enums.Rooms;
 using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Contracts.Orleans;
 using Turbo.Database.Context;
@@ -20,7 +24,6 @@ using Turbo.Primitives.Orleans.Snapshots.Room.Settings;
 using Turbo.Primitives.Orleans.States.Room;
 using Turbo.Primitives.Rooms.Furniture;
 using Turbo.Primitives.Rooms.Mapping;
-using Turbo.Primitives.Snapshots.Rooms.Extensions;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Mapping;
 
@@ -43,8 +46,15 @@ public class RoomGrain(
     private readonly IGrainFactory _grainFactory = grainFactory;
     private readonly TimeSpan _updateInterval = TimeSpan.FromMilliseconds(10);
 
+    private RoomModelSnapshot? _roomModel = null;
+    private RoomMapState? _roomMapState = null;
+    private RoomMapSnapshot? _roomMapSnapshot = null;
+    private readonly Dictionary<long, IRoomFloorItem> _floorItemsById = [];
+    private readonly List<int> _pendingTileIdxUpdates = [];
+
+    private int _mapVersion = 0;
+
     private IAsyncStream<RoomEvent>? _stream = null;
-    private IRoomMap? _roomMap = null;
     private IDisposable? _updateTimer;
 
     public override async Task OnActivateAsync(CancellationToken ct)
@@ -62,7 +72,7 @@ public class RoomGrain(
             .UpsertActiveRoomAsync(state.State.RoomSnapshot);
 
         _updateTimer = this.RegisterGrainTimer<object?>(
-            async _ => await FlushUpdatesAsync(),
+            async _ => await FlushUpdatesAsync(CancellationToken.None),
             null,
             _updateInterval,
             _updateInterval
@@ -169,22 +179,58 @@ public class RoomGrain(
 
     public async Task EnsureMapBuiltAsync(CancellationToken ct)
     {
-        if (_roomMap is not null)
-            return;
-
-        var roomModel =
-            _roomModelProvider.Current.GetModelById(state.State.ModelId)
+        _roomModel ??=
+            _roomModelProvider.GetModelById(state.State.ModelId)
             ?? throw new Exception("Invalid room model");
 
-        _roomMap = new RoomMap(roomModel);
+        if (_roomMapState is null)
+        {
+            _roomMapState = new RoomMapState
+            {
+                TileHeights = [.. _roomModel.Heights],
+                TileRelativeHeights = new short[_roomModel.Size],
+                TileStates = [.. _roomModel.States],
+                TileHighestFloorItems = [.. Enumerable.Repeat(-1, _roomModel.Size)],
+                TileFloorStacks = [.. Enumerable.Repeat(new List<long>(), _roomModel.Size)],
+            };
 
-        var floorItems = await _itemsLoader.LoadByRoomIdAsync(this.GetPrimaryKeyLong(), ct);
+            for (int idx = 0; idx < _roomModel.Size; idx++)
+                ComputeTileRelativeHeight(idx);
 
-        foreach (var item in floorItems)
-            _roomMap.AddFloorItem(item);
+            var floorItems = await _itemsLoader.LoadByRoomIdAsync(this.GetPrimaryKeyLong(), ct);
+
+            foreach (var item in floorItems)
+                await AddFloorItemAsync(item, ct);
+        }
+
+        if (_roomMapSnapshot is null || _mapVersion != _roomMapSnapshot.Version)
+            await BuildMapSnapshotAsync(ct);
     }
 
-    public async Task MoveFloorItemAsync(
+    public async Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
+    {
+        if (_roomMapState is null)
+            throw new Exception("Room map state is not initialized.");
+
+        if (!_floorItemsById.TryAdd(item.Id, item))
+            return false;
+
+        if (GetTileIdxForFloorItem(item, out var tileIdxs))
+        {
+            foreach (var idx in tileIdxs)
+            {
+                _roomMapState.TileFloorStacks[idx].Add(item.Id);
+
+                ComputeTile(idx);
+            }
+        }
+
+        _mapVersion++;
+
+        return true;
+    }
+
+    public async Task MoveFloorItemByIdAsync(
         long itemId,
         int newX,
         int newY,
@@ -192,23 +238,246 @@ public class RoomGrain(
         CancellationToken ct
     )
     {
-        await EnsureMapBuiltAsync(ct);
+        if (_roomMapState is null)
+            throw new Exception("Room map state is not initialized.");
 
-        if (_roomMap is null)
-            throw new Exception("Room map is not built.");
+        if (!_floorItemsById.TryGetValue(itemId, out var item))
+            throw new KeyNotFoundException($"Floor item not found: ItemId={itemId}");
 
-        if (!_roomMap.MoveFloorItem(itemId, newX, newY, newRotation, out var snapshot))
+        if (item.X == newX && item.Y == newY && item.Rotation == newRotation)
             return;
 
-        var roomDirectory = _grainFactory.GetGrain<IRoomDirectoryGrain>(
-            RoomDirectoryGrain.SINGLETON_KEY
-        );
+        if (GetTileIdxForFloorItem(item, out var oldTileIdxs))
+        {
+            foreach (var idx in oldTileIdxs)
+            {
+                _roomMapState.TileFloorStacks[idx].Remove(item.Id);
 
-        await roomDirectory.SendComposerToRoomAsync(
-            new ObjectUpdateMessageComposer { FloorItem = snapshot },
-            this.GetPrimaryKeyLong(),
+                ComputeTile(idx);
+            }
+        }
+
+        var newIdx = Idx(newX, newY);
+        var z = _roomMapState.TileHeights[newIdx];
+
+        item.SetPosition(newX, newY, z);
+        item.SetRotation(newRotation);
+
+        if (GetTileIdxForFloorItem(item, out var newTileIdxs))
+        {
+            foreach (var idx in newTileIdxs)
+            {
+                _roomMapState.TileFloorStacks[idx].Add(item.Id);
+
+                ComputeTile(idx);
+            }
+        }
+
+        _mapVersion++;
+
+        await SendComposerToRoomAsync(
+            new ObjectUpdateMessageComposer
+            {
+                FloorItem = RoomFloorItemSnapshot.FromFloorItem(item),
+            },
             ct
         );
+    }
+
+    public async Task RemoveFloorItemByIdAsync(long itemId, long pickerId, CancellationToken ct)
+    {
+        if (_roomMapState is null)
+            throw new Exception("Room map state is not initialized.");
+
+        if (!_floorItemsById.Remove(itemId, out var item))
+            throw new KeyNotFoundException($"Floor item not found: ItemId={itemId}");
+
+        if (GetTileIdxForFloorItem(item, out var tileIdxs))
+        {
+            foreach (var idx in tileIdxs)
+            {
+                _roomMapState.TileFloorStacks[idx].Remove(item.Id);
+
+                ComputeTile(idx);
+            }
+        }
+
+        _mapVersion++;
+
+        await SendComposerToRoomAsync(
+            new ObjectRemoveMessageComposer
+            {
+                ObjectId = (int)item.Id,
+                IsExpired = false,
+                PickerId = (int)pickerId,
+                Delay = 0,
+            },
+            ct
+        );
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int Idx(int x, int y)
+    {
+        var width = _roomModel?.Width ?? 0;
+        var idx = y * width + x;
+
+        if (idx < 0 || idx >= (_roomModel?.Size ?? 0))
+            throw new IndexOutOfRangeException($"Tile index {idx} is out of bounds.");
+
+        return idx;
+    }
+
+    private bool GetTileIdxForSize(
+        int x,
+        int y,
+        Rotation rotation,
+        int width,
+        int height,
+        out List<int> tileIdxs
+    )
+    {
+        tileIdxs = [];
+
+        if (width > 0 && height > 0)
+        {
+            if (rotation == Rotation.East || rotation == Rotation.West)
+            {
+                (width, height) = (height, width);
+            }
+        }
+
+        for (var minX = x; minX < x + width; minX++)
+        {
+            for (var minY = y; minY < y + height; minY++)
+            {
+                tileIdxs.Add(Idx(minX, minY));
+            }
+        }
+
+        return true;
+    }
+
+    private bool GetTileIdxForFloorItem(IRoomFloorItem item, out List<int> tileIdxs) =>
+        GetTileIdxForSize(
+            item.X,
+            item.Y,
+            item.Rotation,
+            item.Definition.Width,
+            item.Definition.Height,
+            out tileIdxs
+        );
+
+    private void ComputeTile(int idx)
+    {
+        if (_roomModel is null || _roomMapState is null)
+            throw new Exception("Room map state is not initialized.");
+
+        var nextHeight = _roomModel.Heights[idx];
+        var floorStack = _roomMapState.TileFloorStacks[idx];
+        var nextHighestId = (long)-1;
+
+        if (floorStack.Count > 0)
+        {
+            foreach (var itemId in floorStack)
+            {
+                var item = _floorItemsById[itemId];
+
+                if (item is null)
+                    continue;
+
+                var height = item.Z + item.Definition.StackHeight;
+
+                // special logic if stack helper
+
+                if (height < nextHeight)
+                    continue;
+
+                nextHeight = Math.Truncate(height * 1000) / 1000;
+                nextHighestId = itemId;
+            }
+        }
+
+        _roomMapState.TileHeights[idx] = nextHeight;
+        _roomMapState.TileHighestFloorItems[idx] = nextHighestId;
+
+        ComputeTileRelativeHeight(idx);
+    }
+
+    private void ComputeTileRelativeHeight(int idx)
+    {
+        if (_roomMapState is null)
+            throw new Exception("Room map state is not initialized.");
+
+        var tileHeight = _roomMapState.TileHeights[idx];
+        var tileState = _roomMapState.TileStates[idx];
+
+        var prev = _roomMapState.TileRelativeHeights[idx];
+        var next = RoomModelCompiler.EncodeHeight(
+            tileHeight,
+            tileState == (byte)RoomTileStateType.Closed
+        );
+
+        if (prev != next)
+        {
+            _roomMapState.TileRelativeHeights[idx] = next;
+
+            if (!_pendingTileIdxUpdates.Contains(idx))
+                _pendingTileIdxUpdates.Add(idx);
+        }
+    }
+
+    private async Task FlushUpdatesAsync(CancellationToken ct)
+    {
+        var pendingIdxs = _pendingTileIdxUpdates.ToArray();
+
+        if (pendingIdxs.Length > 0)
+        {
+            _pendingTileIdxUpdates.Clear();
+
+            var pendingTileUpdates = pendingIdxs
+                .Select(idx => new RoomTileSnapshot
+                {
+                    X = (byte)(idx % _roomModel!.Width),
+                    Y = (byte)(idx / _roomModel!.Width),
+                    RelativeHeight = _roomMapState!.TileRelativeHeights[idx],
+                })
+                .ToArray();
+
+            await SendComposerToRoomAsync(
+                new HeightMapUpdateMessageComposer { Tiles = [.. pendingTileUpdates] },
+                ct
+            );
+        }
+    }
+
+    private async Task BuildMapSnapshotAsync(CancellationToken ct)
+    {
+        if (_roomModel is null || _roomMapState is null)
+            throw new Exception("Room map is not built.");
+
+        var items = new List<RoomFloorItemSnapshot>(_floorItemsById.Count);
+
+        foreach (var stack in _roomMapState.TileFloorStacks)
+        {
+            for (var i = 0; i < stack.Count; i++)
+                items.Add(RoomFloorItemSnapshot.FromFloorItem(_floorItemsById[stack[i]]));
+        }
+
+        _roomMapSnapshot = new RoomMapSnapshot
+        {
+            ModelName = _roomModel.Name,
+            ModelData = _roomModel.Model,
+            Width = _roomModel.Width,
+            Height = _roomModel.Height,
+            Size = _roomModel.Size,
+            DoorX = _roomModel.DoorX,
+            DoorY = _roomModel.DoorY,
+            DoorRotation = _roomModel.DoorRotation,
+            TileRelativeHeights = [.. _roomMapState.TileRelativeHeights],
+            FloorItems = items,
+            Version = _mapVersion,
+        };
     }
 
     public Task<RoomSnapshot> GetSnapshotAsync() => Task.FromResult(state.State.RoomSnapshot);
@@ -238,52 +507,18 @@ public class RoomGrain(
     {
         await EnsureMapBuiltAsync(CancellationToken.None);
 
-        if (_roomMap is null)
-            throw new Exception("Room map is not built.");
+        if (_roomMapSnapshot is null)
+            throw new Exception("Room map snapshot is not built.");
 
-        return new RoomMapSnapshot
-        {
-            ModelName = _roomMap.ModelName,
-            ModelData = _roomMap.ModelData,
-            Width = _roomMap.Width,
-            Height = _roomMap.Height,
-            Size = _roomMap.Size,
-            DoorX = _roomMap.DoorX,
-            DoorY = _roomMap.DoorY,
-            DoorRotation = _roomMap.DoorRotation,
-            TileRelativeHeights = _roomMap.TileRelativeHeights,
-            FloorItems = _roomMap.GetAllFloorItems(),
-        };
+        return _roomMapSnapshot;
     }
 
-    public async Task<ImmutableArray<RoomFloorItemSnapshot>> GetAllFloorItemSnapshotsAsync()
-    {
-        await EnsureMapBuiltAsync(CancellationToken.None);
-
-        if (_roomMap is null)
-            throw new Exception("Room map is not built.");
-
-        return _roomMap.GetAllFloorItems();
-    }
-
-    private async Task FlushUpdatesAsync()
+    public async Task SendComposerToRoomAsync(IComposer composer, CancellationToken ct)
     {
         var roomDirectory = _grainFactory.GetGrain<IRoomDirectoryGrain>(
             RoomDirectoryGrain.SINGLETON_KEY
         );
 
-        if (_roomMap is not null)
-        {
-            var pendingTileUpdates = _roomMap.GetAndFlushPendingTileUpdates();
-
-            if (pendingTileUpdates.Count > 0)
-            {
-                await roomDirectory.SendComposerToRoomAsync(
-                    new HeightMapUpdateMessageComposer { Tiles = [.. pendingTileUpdates] },
-                    this.GetPrimaryKeyLong(),
-                    CancellationToken.None
-                );
-            }
-        }
+        await roomDirectory.SendComposerToRoomAsync(composer, this.GetPrimaryKeyLong(), ct);
     }
 }

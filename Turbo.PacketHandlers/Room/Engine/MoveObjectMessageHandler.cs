@@ -35,7 +35,7 @@ public class MoveObjectMessageHandler(ISessionGateway sessionGateway, IGrainFact
         var roomMap = _grainFactory.GetGrain<IRoomGrain>(activeRoom.RoomId);
 
         await roomMap
-            .MoveFloorItemAsync(message.ObjectId, message.X, message.Y, message.Rotation, ct)
+            .MoveFloorItemByIdAsync(message.ObjectId, message.X, message.Y, message.Rotation, ct)
             .ConfigureAwait(false);
     }
 }

@@ -1,32 +1,13 @@
+using System.Collections.Generic;
 using Orleans;
-using Turbo.Contracts.Enums.Rooms.Object;
 
 namespace Turbo.Primitives.Orleans.States.Room;
 
-[GenerateSerializer, Immutable]
 public sealed class RoomMapState
 {
-    [Id(0)]
-    public required string ModelName { get; init; }
-
-    [Id(1)]
-    public required string ModelData { get; init; }
-
-    [Id(2)]
-    public required int Width { get; init; }
-
-    [Id(3)]
-    public required int Height { get; init; }
-
-    [Id(4)]
-    public required int Size { get; init; }
-
-    [Id(5)]
-    public required int DoorX { get; init; }
-
-    [Id(6)]
-    public required int DoorY { get; init; }
-
-    [Id(7)]
-    public required Rotation DoorRotation { get; init; }
+    public required double[] TileHeights { get; set; }
+    public required short[] TileRelativeHeights { get; set; }
+    public required byte[] TileStates { get; set; }
+    public required long[] TileHighestFloorItems { get; set; }
+    public required List<long>[] TileFloorStacks { get; set; }
 }

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -5,8 +6,8 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
+using Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
 using Turbo.Primitives.Rooms.Mapping;
-using Turbo.Primitives.Snapshots.Rooms.Mapping;
 
 namespace Turbo.Rooms.Mapping;
 
@@ -17,9 +18,15 @@ public sealed class RoomModelProvider(
 {
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
     private readonly ILogger<IRoomModelProvider> _logger = logger;
-    private RoomModelsSnapshot _current = Empty();
+    private ImmutableDictionary<int, RoomModelSnapshot> _modelsById = ImmutableDictionary<
+        int,
+        RoomModelSnapshot
+    >.Empty;
 
-    public RoomModelsSnapshot Current => _current;
+    public RoomModelSnapshot GetModelById(int modelId) =>
+        _modelsById.TryGetValue(modelId, out var model)
+            ? model
+            : throw new KeyNotFoundException($"Room model not found: ModelId={modelId}");
 
     public async Task ReloadAsync(CancellationToken ct = default)
     {
@@ -32,37 +39,37 @@ public sealed class RoomModelProvider(
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
 
-            var models = entities.Select(x =>
-            {
-                var modelData = RoomModelCompiler.CleanModelString(x.Model);
+            _modelsById = entities
+                .Select(x =>
+                {
+                    var modelData = RoomModelCompiler.CleanModelString(x.Model);
+                    var compiledModel = RoomModelCompiler.CompileModelFromString(modelData);
 
-                return new RoomModelSnapshot(
-                    x.Id,
-                    x.Name,
-                    modelData,
-                    x.DoorX,
-                    x.DoorY,
-                    x.DoorRotation,
-                    RoomModelCompiler.CompileModelFromString(modelData)
-                );
-            });
-
-            var modelsById = models.ToImmutableDictionary(p => p.Id);
-            var snapshot = new RoomModelsSnapshot(modelsById);
+                    return new RoomModelSnapshot
+                    {
+                        Id = x.Id,
+                        Name = x.Name,
+                        Model = modelData,
+                        DoorX = x.DoorX,
+                        DoorY = x.DoorY,
+                        DoorRotation = x.DoorRotation,
+                        Width = compiledModel.Width,
+                        Height = compiledModel.Height,
+                        Size = compiledModel.Width * compiledModel.Height,
+                        Heights = compiledModel.Heights,
+                        States = compiledModel.States,
+                    };
+                })
+                .ToImmutableDictionary(x => x.Id);
 
             _logger.LogInformation(
-                "Loaded room models snapshot: TotalModels={TotalModelCount}",
-                snapshot.ModelsById.Count
+                "Loaded room models: TotalModels={TotalModelCount}",
+                _modelsById.Count
             );
-
-            Volatile.Write(ref _current, snapshot);
         }
         finally
         {
             await dbCtx.DisposeAsync().ConfigureAwait(false);
         }
     }
-
-    private static RoomModelsSnapshot Empty() =>
-        new(ModelsById: ImmutableDictionary<int, RoomModelSnapshot>.Empty);
 }
