@@ -30,24 +30,21 @@ public sealed class FurnitureLogicFactory(IServiceProvider host) : IFurnitureLog
 
     public IFurnitureLogic CreateLogicInstance(string logicType)
     {
-        IServiceScope scope = _host.CreateAsyncScope();
-
         if (!_logics.TryGetValue(logicType, out var reg))
-        {
-            reg = default!;
-        }
+            throw new InvalidOperationException(
+                $"No furniture logic registered for type '{logicType}'"
+            );
 
         try
         {
-            if (scope != reg.ServiceProvider)
-            {
-                Console.WriteLine("need joined scope");
-                scope = new JoinedScope(scope, reg.ServiceProvider.CreateAsyncScope());
-            }
+            var sp = reg.ServiceProvider;
+
+            if (sp != _host)
+                sp = new CompositeServiceProvider(sp, _host);
 
             try
             {
-                return (IFurnitureLogic)reg.Activator(scope.ServiceProvider);
+                return (IFurnitureLogic)reg.Activator(sp);
             }
             catch (Exception ex)
             {

@@ -226,71 +226,61 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
     {
         return async (env, ctx, ct) =>
         {
-            var bag = new JoinedScopeBag(_host.CreateAsyncScope());
+            var bag = new CompositeServiceProviderBag(_host);
 
-            try
+            Func<object, TContext, CancellationToken, ValueTask> terminal = async (env, ctx, ct) =>
+                await InvokeHandlersAsync(handlers, env, ctx, ct).ConfigureAwait(false);
+
+            for (int i = behaviors.Length - 1; i >= 0; i--)
             {
-                Func<object, TContext, CancellationToken, ValueTask> terminal = async (
-                    env,
-                    ctx,
-                    ct
-                ) => await InvokeHandlersAsync(handlers, env, ctx, ct).ConfigureAwait(false);
+                var beh = behaviors[i];
+                var next = terminal;
 
-                for (int i = behaviors.Length - 1; i >= 0; i--)
+                terminal = async (env, ctx, ct) =>
                 {
-                    var beh = behaviors[i];
-                    var next = terminal;
+                    var sp = bag.Get(beh.ServiceProvider);
 
-                    terminal = async (env, ctx, ct) =>
+                    object? inst = null;
+
+                    try
                     {
-                        var sp = bag.Get(beh.ServiceProvider);
+                        inst = beh.Activator(sp);
+                    }
+                    catch (Exception ex)
+                    {
+                        _opt.OnBehaviorActivationError?.Invoke(ex, env);
 
-                        object? inst = null;
+                        await next(env, ctx, ct).ConfigureAwait(false);
 
-                        try
-                        {
-                            inst = beh.Activator(sp);
-                        }
-                        catch (Exception ex)
-                        {
-                            _opt.OnBehaviorActivationError?.Invoke(ex, env);
+                        return;
+                    }
 
-                            await next(env, ctx, ct).ConfigureAwait(false);
-
-                            return;
-                        }
-
-                        try
-                        {
-                            await beh.Invoker(
-                                    inst,
-                                    env,
-                                    ctx,
-                                    async () => await next(env, ctx, ct).ConfigureAwait(false),
-                                    ct
-                                )
-                                .ConfigureAwait(false);
-                        }
-                        catch (Exception ex)
-                        {
-                            _opt.OnBehaviorInvokeError?.Invoke(ex, env);
-                        }
-                        finally
-                        {
-                            if (inst is IAsyncDisposable iad)
-                                await iad.DisposeAsync().ConfigureAwait(false);
-                            else if (inst is IDisposable d)
-                                d.Dispose();
-                        }
-                    };
-                }
-
-                await terminal(env, ctx, ct).ConfigureAwait(false);
+                    try
+                    {
+                        await beh.Invoker(
+                                inst,
+                                env,
+                                ctx,
+                                async () => await next(env, ctx, ct).ConfigureAwait(false),
+                                ct
+                            )
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        _opt.OnBehaviorInvokeError?.Invoke(ex, env);
+                    }
+                    finally
+                    {
+                        if (inst is IAsyncDisposable iad)
+                            await iad.DisposeAsync().ConfigureAwait(false);
+                        else if (inst is IDisposable d)
+                            d.Dispose();
+                    }
+                };
             }
-            finally
-            {
-                await bag.DisposeAsync().ConfigureAwait(false);
-            }
+
+            await terminal(env, ctx, ct).ConfigureAwait(false);
         };
     }
 
@@ -349,50 +339,38 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
         CancellationToken ct
     )
     {
-        IServiceScope scope = _host.CreateAsyncScope();
+        var sp = h.ServiceProvider;
+
+        if (sp != _host)
+            sp = new CompositeServiceProvider(sp, _host);
+
+        object? inst = null;
 
         try
         {
-            if (scope != h.ServiceProvider)
-            {
-                scope = new JoinedScope(scope, h.ServiceProvider.CreateAsyncScope());
-            }
+            inst = h.Activator(sp);
+        }
+        catch (Exception ex)
+        {
+            _opt.OnHandlerActivationError?.Invoke(ex, env);
 
-            object? inst = null;
+            return;
+        }
 
-            try
-            {
-                inst = h.Activator(scope.ServiceProvider);
-            }
-            catch (Exception ex)
-            {
-                _opt.OnHandlerActivationError?.Invoke(ex, env);
-
-                return;
-            }
-
-            try
-            {
-                await h.Invoker(inst, env, ctx, ct).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _opt.OnHandlerInvokeError?.Invoke(ex, env);
-            }
-            finally
-            {
-                if (inst is IAsyncDisposable iad)
-                    await iad.DisposeAsync().ConfigureAwait(false);
-                else if (inst is IDisposable d)
-                    d.Dispose();
-            }
+        try
+        {
+            await h.Invoker(inst, env, ctx, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _opt.OnHandlerInvokeError?.Invoke(ex, env);
         }
         finally
         {
-            if (scope is IAsyncDisposable pad)
-                await pad.DisposeAsync().ConfigureAwait(false);
-            else
-                scope.Dispose();
+            if (inst is IAsyncDisposable iad)
+                await iad.DisposeAsync().ConfigureAwait(false);
+            else if (inst is IDisposable d)
+                d.Dispose();
         }
     }
 
