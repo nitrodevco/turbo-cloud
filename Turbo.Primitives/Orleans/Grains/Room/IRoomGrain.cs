@@ -14,7 +14,12 @@ namespace Turbo.Primitives.Orleans.Grains.Room;
 public interface IRoomGrain : IGrainWithIntegerKey
 {
     public Task EnsureMapBuiltAsync(CancellationToken ct);
-    public Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct);
+    public Task<bool> AddFloorItemAsync(
+        IRoomFloorItem item,
+        CancellationToken ct,
+        bool skipCompute = false
+    );
+
     public Task MoveFloorItemByIdAsync(
         long itemId,
         int newX,

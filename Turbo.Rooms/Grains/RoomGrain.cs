@@ -185,29 +185,41 @@ public class RoomGrain(
 
         if (_roomMapState is null)
         {
-            _roomMapState = new RoomMapState
-            {
-                TileHeights = [.. _roomModel.Heights],
-                TileRelativeHeights = new short[_roomModel.Size],
-                TileStates = [.. _roomModel.States],
-                TileHighestFloorItems = [.. Enumerable.Repeat(-1, _roomModel.Size)],
-                TileFloorStacks = [.. Enumerable.Repeat(new List<long>(), _roomModel.Size)],
-            };
+            var tileHighestFloorItems = new long[_roomModel.Size];
+            var tileFloorStacks = new List<long>[_roomModel.Size];
 
             for (int idx = 0; idx < _roomModel.Size; idx++)
-                ComputeTileRelativeHeight(idx);
+            {
+                tileHighestFloorItems[idx] = -1;
+                tileFloorStacks[idx] = [];
+            }
+
+            _roomMapState = new RoomMapState
+            {
+                TileHeights = new double[_roomModel.Size],
+                TileRelativeHeights = new short[_roomModel.Size],
+                TileStates = new byte[_roomModel.Size],
+                TileHighestFloorItems = tileHighestFloorItems,
+                TileFloorStacks = tileFloorStacks,
+            };
 
             var floorItems = await _itemsLoader.LoadByRoomIdAsync(this.GetPrimaryKeyLong(), ct);
 
             foreach (var item in floorItems)
-                await AddFloorItemAsync(item, ct);
+                await AddFloorItemAsync(item, ct, true);
+
+            ComputeMap();
         }
 
         if (_roomMapSnapshot is null || _mapVersion != _roomMapSnapshot.Version)
             await BuildMapSnapshotAsync(ct);
     }
 
-    public async Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
+    public async Task<bool> AddFloorItemAsync(
+        IRoomFloorItem item,
+        CancellationToken ct,
+        bool skipCompute = false
+    )
     {
         if (_roomMapState is null)
             throw new Exception("Room map state is not initialized.");
@@ -221,7 +233,8 @@ public class RoomGrain(
             {
                 _roomMapState.TileFloorStacks[idx].Add(item.Id);
 
-                ComputeTile(idx);
+                if (!skipCompute)
+                    ComputeTile(idx);
             }
         }
 
@@ -258,9 +271,9 @@ public class RoomGrain(
         }
 
         var newIdx = Idx(newX, newY);
-        var z = _roomMapState.TileHeights[newIdx];
+        var newZ = _roomMapState.TileHeights[newIdx];
 
-        item.SetPosition(newX, newY, z);
+        item.SetPosition(newX, newY, newZ);
         item.SetRotation(newRotation);
 
         if (GetTileIdxForFloorItem(item, out var newTileIdxs))
@@ -368,14 +381,15 @@ public class RoomGrain(
             out tileIdxs
         );
 
-    private void ComputeTile(int idx)
+    private void ComputeTile(int idx, bool skipUpdates = false)
     {
         if (_roomModel is null || _roomMapState is null)
             throw new Exception("Room map state is not initialized.");
 
         var nextHeight = _roomModel.Heights[idx];
-        var floorStack = _roomMapState.TileFloorStacks[idx];
+        var nextState = _roomModel.States[idx];
         var nextHighestId = (long)-1;
+        var floorStack = _roomMapState.TileFloorStacks[idx];
 
         if (floorStack.Count > 0)
         {
@@ -393,38 +407,41 @@ public class RoomGrain(
                 if (height < nextHeight)
                     continue;
 
-                nextHeight = Math.Truncate(height * 1000) / 1000;
+                nextHeight = height;
                 nextHighestId = itemId;
             }
         }
 
-        _roomMapState.TileHeights[idx] = nextHeight;
-        _roomMapState.TileHighestFloorItems[idx] = nextHighestId;
+        nextHeight = Math.Truncate(nextHeight * 1000) / 1000;
 
-        ComputeTileRelativeHeight(idx);
-    }
-
-    private void ComputeTileRelativeHeight(int idx)
-    {
-        if (_roomMapState is null)
-            throw new Exception("Room map state is not initialized.");
-
-        var tileHeight = _roomMapState.TileHeights[idx];
-        var tileState = _roomMapState.TileStates[idx];
-
-        var prev = _roomMapState.TileRelativeHeights[idx];
-        var next = RoomModelCompiler.EncodeHeight(
-            tileHeight,
-            tileState == (byte)RoomTileStateType.Closed
+        var prevRelative = _roomMapState.TileRelativeHeights[idx];
+        var nextRelative = RoomModelCompiler.EncodeHeight(
+            nextHeight,
+            nextState == (byte)RoomTileStateType.Closed
         );
 
-        if (prev != next)
-        {
-            _roomMapState.TileRelativeHeights[idx] = next;
+        _roomMapState.TileHeights[idx] = nextHeight;
+        _roomMapState.TileRelativeHeights[idx] = nextRelative;
+        _roomMapState.TileStates[idx] = nextState;
+        _roomMapState.TileHighestFloorItems[idx] = nextHighestId;
 
-            if (!_pendingTileIdxUpdates.Contains(idx))
-                _pendingTileIdxUpdates.Add(idx);
+        if (!skipUpdates)
+        {
+            if (prevRelative != nextRelative)
+            {
+                if (!_pendingTileIdxUpdates.Contains(idx))
+                    _pendingTileIdxUpdates.Add(idx);
+            }
         }
+    }
+
+    private void ComputeMap()
+    {
+        if (_roomModel is null || _roomMapState is null)
+            throw new Exception("Room map state is not initialized.");
+
+        for (int idx = 0; idx < _roomModel.Size; idx++)
+            ComputeTile(idx, true);
     }
 
     private async Task FlushUpdatesAsync(CancellationToken ct)
