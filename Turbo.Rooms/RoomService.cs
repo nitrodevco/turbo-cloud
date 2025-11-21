@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Layout;
@@ -186,6 +187,32 @@ public sealed class RoomService(
 
         await playerPresence
             .SendComposerAsync(new CloseConnectionMessageComposer())
+            .ConfigureAwait(false);
+    }
+
+    public async Task MoveFloorItemInRoomAsync(
+        long playerId,
+        long roomId,
+        long itemId,
+        int newX,
+        int newY,
+        Rotation newRotation,
+        CancellationToken ct = default
+    )
+    {
+        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(roomId);
+
+        await roomGrain.EnsureRoomActiveAsync(ct).ConfigureAwait(false);
+
+        var isValidPlacement = await roomGrain
+            .ValidatePlacementAsync(itemId, newX, newY, newRotation)
+            .ConfigureAwait(false);
+
+        if (!isValidPlacement)
+            return;
+
+        await roomGrain
+            .MoveFloorItemByIdAsync(itemId, newX, newY, newRotation, ct)
             .ConfigureAwait(false);
     }
 }

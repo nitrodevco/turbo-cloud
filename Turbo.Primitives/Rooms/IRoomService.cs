@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Primitives.Orleans.Grains.Room;
 using Turbo.Primitives.Orleans.Snapshots.Session;
 
@@ -26,4 +27,13 @@ public interface IRoomService
     );
     public Task EnterPendingRoomForPlayerIdAsync(long playerId, CancellationToken ct = default);
     public Task CloseRoomForPlayerAsync(long playerId);
+    public Task MoveFloorItemInRoomAsync(
+        long playerId,
+        long roomId,
+        long itemId,
+        int newX,
+        int newY,
+        Rotation newRotation,
+        CancellationToken ct = default
+    );
 }

@@ -65,7 +65,7 @@ public class RoomGrain(
             StreamId.Create(OrleansStreamNames.ROOM_EVENTS, this.GetPrimaryKeyLong())
         );
 
-        await HydrateFromExternalAsync(ct);
+        await HydrateRoomStateAsync(ct);
 
         await _grainFactory
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
@@ -74,15 +74,15 @@ public class RoomGrain(
         this.RegisterGrainTimer<object?>(
             async _ => await FlushDirtyTileIdsAsync(ct),
             null,
-            TimeSpan.FromSeconds(_roomConfig.DirtyTilesFlushIntervalSeconds),
-            TimeSpan.FromSeconds(_roomConfig.DirtyTilesFlushIntervalSeconds)
+            TimeSpan.FromMilliseconds(_roomConfig.DirtyTilesFlushIntervalMilliseconds),
+            TimeSpan.FromMilliseconds(_roomConfig.DirtyTilesFlushIntervalMilliseconds)
         );
 
         this.RegisterGrainTimer<object?>(
             async _ => await FlushDirtyItemIdsAsync(ct),
             null,
-            TimeSpan.FromSeconds(_roomConfig.DirtyItemsFlushIntervalSeconds),
-            TimeSpan.FromSeconds(_roomConfig.DirtyItemsFlushIntervalSeconds)
+            TimeSpan.FromMilliseconds(_roomConfig.DirtyItemsFlushIntervalMilliseconds),
+            TimeSpan.FromMilliseconds(_roomConfig.DirtyItemsFlushIntervalMilliseconds)
         );
     }
 
@@ -95,140 +95,13 @@ public class RoomGrain(
             .RemoveActiveRoomAsync(this.GetPrimaryKeyLong());
     }
 
-    protected async Task HydrateFromExternalAsync(CancellationToken ct)
+    public async Task EnsureRoomActiveAsync(CancellationToken ct)
     {
-        if (state.State.IsLoaded)
-            return;
+        await _grainFactory
+            .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
+            .UpsertActiveRoomAsync(state.State.RoomSnapshot);
 
-        var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
-
-        try
-        {
-            var entity =
-                await dbCtx
-                    .Rooms.AsNoTracking()
-                    .SingleOrDefaultAsync(e => e.Id == this.GetPrimaryKeyLong(), ct)
-                ?? throw new Exception(
-                    $"RoomGrain:{this.GetPrimaryKeyLong()} not found in database."
-                );
-
-            state.State.RoomSnapshot = new RoomSnapshot
-            {
-                RoomId = entity.Id,
-                Name = entity.Name ?? string.Empty,
-                Description = entity.Description ?? string.Empty,
-                OwnerId = (long)entity.PlayerEntityId,
-                OwnerName = string.Empty,
-                Population = 0,
-                DoorMode = entity.DoorMode,
-                PlayersMax = entity.PlayersMax,
-                TradeType = entity.TradeType,
-                Score = 0,
-                Ranking = 0,
-                CategoryId = entity.NavigatorCategoryEntityId ?? -1,
-                Tags = [],
-                AllowPets = entity.AllowPets,
-                AllowPetsEat = entity.AllowPetsEat,
-                Password = entity.Password ?? string.Empty,
-                ModSettings = new ModSettingsSnapshot
-                {
-                    WhoCanMute = entity.MuteType,
-                    WhoCanKick = entity.KickType,
-                    WhoCanBan = entity.BanType,
-                },
-                ChatSettings = new ChatSettingsSnapshot
-                {
-                    ChatMode = entity.ChatModeType,
-                    BubbleWidth = entity.ChatBubbleType,
-                    ScrollSpeed = entity.ChatSpeedType,
-                    FullHearRange = entity.ChatDistance,
-                    FloodSensitivity = entity.ChatFloodType,
-                },
-                LastUpdatedUtc = DateTime.UtcNow,
-            };
-
-            state.State.ModelId = entity.RoomModelEntityId;
-            state.State.IsLoaded = true;
-
-            await state.WriteStateAsync(ct);
-        }
-        catch (Exception e)
-        {
-            throw;
-        }
-        finally
-        {
-            await dbCtx.DisposeAsync();
-        }
-    }
-
-    protected async Task FlushDirtyItemIdsAsync(CancellationToken ct)
-    {
-        if (_dirtyItemIds.Count == 0)
-            return;
-
-        var dirtyItemIds = _dirtyItemIds.ToArray();
-
-        _dirtyItemIds.Clear();
-
-        var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
-
-        try
-        {
-            var dirtySnapshots = dirtyItemIds
-                .Select(id => RoomFloorItemSnapshot.FromFloorItem(_floorItemsById[id]))
-                .ToArray();
-            var dirtyIds = dirtySnapshots.Select(x => x.Id).ToArray();
-            var entities = await dbCtx
-                .Furnitures.Where(x => dirtyIds.Contains(x.Id))
-                .ToDictionaryAsync(x => x.Id, ct);
-
-            foreach (var snapshot in dirtySnapshots)
-            {
-                if (!entities.TryGetValue((int)snapshot.Id, out var entity))
-                    continue;
-
-                entity.X = snapshot.X;
-                entity.Y = snapshot.Y;
-                entity.Z = snapshot.Z;
-                entity.Rotation = snapshot.Rotation;
-                entity.StuffData = snapshot.StuffDataJson;
-            }
-
-            await dbCtx.SaveChangesAsync(ct);
-        }
-        catch (Exception ex)
-        {
-            throw;
-        }
-        finally
-        {
-            await dbCtx.DisposeAsync();
-        }
-    }
-
-    protected async Task FlushDirtyTileIdsAsync(CancellationToken ct)
-    {
-        if (_dirtyTileIds.Count == 0)
-            return;
-
-        var dirtyTileIds = _dirtyTileIds.ToArray();
-
-        _dirtyTileIds.Clear();
-
-        var dirtySnapshots = dirtyTileIds
-            .Select(idx => new RoomTileSnapshot
-            {
-                X = (byte)(idx % _roomModel!.Width),
-                Y = (byte)(idx / _roomModel!.Width),
-                RelativeHeight = _roomMapState!.TileRelativeHeights[idx],
-            })
-            .ToArray();
-
-        await SendComposerToRoomAsync(
-            new HeightMapUpdateMessageComposer { Tiles = [.. dirtySnapshots] },
-            ct
-        );
+        await EnsureMapBuiltAsync(ct);
     }
 
     public async Task EnsureMapBuiltAsync(CancellationToken ct)
@@ -334,19 +207,19 @@ public class RoomGrain(
             }
         }
 
-        var newIdx = Idx(newX, newY);
-        var newZ = _roomMapState.TileHeights[newIdx];
+        var newId = Idx(newX, newY);
+        var newZ = _roomMapState.TileHeights[newId];
 
         item.SetPosition(newX, newY, newZ);
         item.SetRotation(newRotation);
 
         if (GetTileIdForFloorItem(item, out var newTileIds))
         {
-            foreach (var idx in newTileIds)
+            foreach (var id in newTileIds)
             {
-                _roomMapState.TileFloorStacks[idx].Add(item.Id);
+                _roomMapState.TileFloorStacks[id].Add(item.Id);
 
-                ComputeTile(idx);
+                ComputeTile(id);
             }
         }
 
@@ -374,11 +247,11 @@ public class RoomGrain(
 
         if (GetTileIdForFloorItem(item, out var tileIds))
         {
-            foreach (var idx in tileIds)
+            foreach (var id in tileIds)
             {
-                _roomMapState.TileFloorStacks[idx].Remove(item.Id);
+                _roomMapState.TileFloorStacks[id].Remove(item.Id);
 
-                ComputeTile(idx);
+                ComputeTile(id);
             }
         }
 
@@ -396,57 +269,73 @@ public class RoomGrain(
         );
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int Idx(int x, int y)
-    {
-        var width = _roomModel?.Width ?? 0;
-        var idx = y * width + x;
-
-        if (idx < 0 || idx >= (_roomModel?.Size ?? 0))
-            throw new IndexOutOfRangeException($"Tile index {idx} is out of bounds.");
-
-        return idx;
-    }
-
-    private bool GetTileIdForSize(
-        int x,
-        int y,
-        Rotation rotation,
-        int width,
-        int height,
-        out List<int> tileIds
+    public async Task<bool> ValidatePlacementAsync(
+        long itemId,
+        int newX,
+        int newY,
+        Rotation newRotation
     )
     {
-        tileIds = [];
+        if (_roomMapState is null)
+            throw new Exception("Room map state is not initialized.");
 
-        if (width > 0 && height > 0)
-        {
-            if (rotation == Rotation.East || rotation == Rotation.West)
-            {
-                (width, height) = (height, width);
-            }
-        }
+        if (!_floorItemsById.TryGetValue(itemId, out var item))
+            throw new KeyNotFoundException($"Floor item not found: ItemId={itemId}");
 
-        for (var minX = x; minX < x + width; minX++)
+        var isRotating = item.Rotation != newRotation;
+
+        if (
+            GetTileIdForSize(
+                newX,
+                newY,
+                newRotation,
+                item.Definition.Width,
+                item.Definition.Height,
+                out var tileIds
+            )
+        )
         {
-            for (var minY = y; minY < y + height; minY++)
+            foreach (var id in tileIds)
             {
-                tileIds.Add(Idx(minX, minY));
+                var tileState = _roomMapState.TileStates[id];
+                var tileHeight = _roomMapState.TileHeights[id];
+
+                if (
+                    (tileHeight + item.Definition.StackHeight) > _roomConfig.MaxStackHeight
+                    || tileState == (byte)RoomTileStateType.Closed
+                )
+                {
+                    return false;
+                }
+
+                if (
+                    _floorItemsById.TryGetValue(
+                        _roomMapState.TileHighestFloorItems[id],
+                        out var tileItem
+                    )
+                )
+                {
+                    if (isRotating && tileItem == item)
+                        continue;
+
+                    if (tileItem != item)
+                    {
+                        // if is a stack helper, allow placement
+                        // if is a roller, disallow placement
+
+                        if (
+                            !tileItem.Definition.CanStack
+                            || tileItem.Definition.CanSit
+                            || tileItem.Definition.CanLay
+                        )
+                            return false;
+                    }
+                }
             }
         }
 
         return true;
     }
-
-    private bool GetTileIdForFloorItem(IRoomFloorItem item, out List<int> tileIds) =>
-        GetTileIdForSize(
-            item.X,
-            item.Y,
-            item.Rotation,
-            item.Definition.Width,
-            item.Definition.Height,
-            out tileIds
-        );
 
     private void ComputeTile(int idx, bool skipUpdates = false)
     {
@@ -455,8 +344,9 @@ public class RoomGrain(
 
         var nextHeight = _roomModel.Heights[idx];
         var nextState = _roomModel.States[idx];
-        var nextHighestId = (long)-1;
         var floorStack = _roomMapState.TileFloorStacks[idx];
+
+        IRoomFloorItem? nextHighestItem = null;
 
         if (floorStack.Count > 0)
         {
@@ -475,7 +365,7 @@ public class RoomGrain(
                     continue;
 
                 nextHeight = height;
-                nextHighestId = itemId;
+                nextHighestItem = item;
             }
         }
 
@@ -490,7 +380,7 @@ public class RoomGrain(
         _roomMapState.TileHeights[idx] = nextHeight;
         _roomMapState.TileRelativeHeights[idx] = nextRelative;
         _roomMapState.TileStates[idx] = nextState;
-        _roomMapState.TileHighestFloorItems[idx] = nextHighestId;
+        _roomMapState.TileHighestFloorItems[idx] = nextHighestItem?.Id ?? -1;
 
         if (!skipUpdates)
         {
@@ -571,6 +461,194 @@ public class RoomGrain(
             throw new Exception("Room map snapshot is not built.");
 
         return _roomMapSnapshot;
+    }
+
+    private async Task HydrateRoomStateAsync(CancellationToken ct)
+    {
+        if (state.State.IsLoaded)
+            return;
+
+        var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
+
+        try
+        {
+            var entity =
+                await dbCtx
+                    .Rooms.AsNoTracking()
+                    .SingleOrDefaultAsync(e => e.Id == this.GetPrimaryKeyLong(), ct)
+                ?? throw new Exception(
+                    $"RoomGrain:{this.GetPrimaryKeyLong()} not found in database."
+                );
+
+            state.State.RoomSnapshot = new RoomSnapshot
+            {
+                RoomId = entity.Id,
+                Name = entity.Name ?? string.Empty,
+                Description = entity.Description ?? string.Empty,
+                OwnerId = (long)entity.PlayerEntityId,
+                OwnerName = string.Empty,
+                Population = 0,
+                DoorMode = entity.DoorMode,
+                PlayersMax = entity.PlayersMax,
+                TradeType = entity.TradeType,
+                Score = 0,
+                Ranking = 0,
+                CategoryId = entity.NavigatorCategoryEntityId ?? -1,
+                Tags = [],
+                AllowPets = entity.AllowPets,
+                AllowPetsEat = entity.AllowPetsEat,
+                Password = entity.Password ?? string.Empty,
+                ModSettings = new ModSettingsSnapshot
+                {
+                    WhoCanMute = entity.MuteType,
+                    WhoCanKick = entity.KickType,
+                    WhoCanBan = entity.BanType,
+                },
+                ChatSettings = new ChatSettingsSnapshot
+                {
+                    ChatMode = entity.ChatModeType,
+                    BubbleWidth = entity.ChatBubbleType,
+                    ScrollSpeed = entity.ChatSpeedType,
+                    FullHearRange = entity.ChatDistance,
+                    FloodSensitivity = entity.ChatFloodType,
+                },
+                LastUpdatedUtc = DateTime.UtcNow,
+            };
+
+            state.State.ModelId = entity.RoomModelEntityId;
+            state.State.IsLoaded = true;
+
+            await state.WriteStateAsync(ct);
+        }
+        catch (Exception e)
+        {
+            throw;
+        }
+        finally
+        {
+            await dbCtx.DisposeAsync();
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int Idx(int x, int y)
+    {
+        var width = _roomModel?.Width ?? 0;
+        var id = y * width + x;
+
+        if (id < 0 || id >= (_roomModel?.Size ?? 0))
+            throw new IndexOutOfRangeException($"Tile index {id} is out of bounds.");
+
+        return id;
+    }
+
+    private bool GetTileIdForSize(
+        int x,
+        int y,
+        Rotation rotation,
+        int width,
+        int height,
+        out List<int> tileIds
+    )
+    {
+        tileIds = [];
+
+        if (width > 0 && height > 0)
+        {
+            if (rotation == Rotation.East || rotation == Rotation.West)
+            {
+                (width, height) = (height, width);
+            }
+        }
+
+        for (var minX = x; minX < x + width; minX++)
+        {
+            for (var minY = y; minY < y + height; minY++)
+            {
+                tileIds.Add(Idx(minX, minY));
+            }
+        }
+
+        return true;
+    }
+
+    private bool GetTileIdForFloorItem(IRoomFloorItem item, out List<int> tileIds) =>
+        GetTileIdForSize(
+            item.X,
+            item.Y,
+            item.Rotation,
+            item.Definition.Width,
+            item.Definition.Height,
+            out tileIds
+        );
+
+    private async Task FlushDirtyItemIdsAsync(CancellationToken ct)
+    {
+        if (_dirtyItemIds.Count == 0)
+            return;
+
+        var dirtyItemIds = _dirtyItemIds.ToArray();
+
+        _dirtyItemIds.Clear();
+
+        var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
+
+        try
+        {
+            var dirtySnapshots = dirtyItemIds
+                .Select(id => RoomFloorItemSnapshot.FromFloorItem(_floorItemsById[id]))
+                .ToArray();
+            var dirtyIds = dirtySnapshots.Select(x => x.Id).ToArray();
+            var entities = await dbCtx
+                .Furnitures.Where(x => dirtyIds.Contains(x.Id))
+                .ToDictionaryAsync(x => x.Id, ct);
+
+            foreach (var snapshot in dirtySnapshots)
+            {
+                if (!entities.TryGetValue((int)snapshot.Id, out var entity))
+                    continue;
+
+                entity.X = snapshot.X;
+                entity.Y = snapshot.Y;
+                entity.Z = snapshot.Z;
+                entity.Rotation = snapshot.Rotation;
+                entity.StuffData = snapshot.StuffDataJson;
+            }
+
+            await dbCtx.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
+        finally
+        {
+            await dbCtx.DisposeAsync();
+        }
+    }
+
+    private async Task FlushDirtyTileIdsAsync(CancellationToken ct)
+    {
+        if (_dirtyTileIds.Count == 0)
+            return;
+
+        var dirtyTileIds = _dirtyTileIds.ToArray();
+
+        _dirtyTileIds.Clear();
+
+        var dirtySnapshots = dirtyTileIds
+            .Select(idx => new RoomTileSnapshot
+            {
+                X = (byte)(idx % _roomModel!.Width),
+                Y = (byte)(idx / _roomModel!.Width),
+                RelativeHeight = _roomMapState!.TileRelativeHeights[idx],
+            })
+            .ToArray();
+
+        await SendComposerToRoomAsync(
+            new HeightMapUpdateMessageComposer { Tiles = [.. dirtySnapshots] },
+            ct
+        );
     }
 
     public async Task SendComposerToRoomAsync(IComposer composer, CancellationToken ct)
