@@ -19,13 +19,6 @@ public sealed class MapStuffData : StuffDataBase
         Data.Add(STATE_KEY, state);
     }
 
-    public override object GetJsonData()
-    {
-        var parent = base.GetJsonData();
-
-        return new { parent, Data };
-    }
-
     public string GetValue(string key)
     {
         if (Data.TryGetValue(key, out var value))

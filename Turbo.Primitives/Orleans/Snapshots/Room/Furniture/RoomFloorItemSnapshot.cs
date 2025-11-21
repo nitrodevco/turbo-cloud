@@ -1,9 +1,8 @@
+using System.Text.Json;
 using Orleans;
-using Turbo.Contracts.Enums.Rooms.Furniture.Data;
 using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Primitives.Orleans.Snapshots.Room.StuffData;
 using Turbo.Primitives.Rooms.Furniture;
-using Turbo.Primitives.Rooms.StuffData;
 
 namespace Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
 
@@ -37,8 +36,13 @@ public sealed record RoomFloorItemSnapshot
     [Id(8)]
     public required StuffDataSnapshot StuffData { get; init; }
 
+    [Id(9)]
+    public required string StuffDataJson { get; init; }
+
     public static RoomFloorItemSnapshot FromFloorItem(IRoomFloorItem item)
     {
+        var stuffData = StuffDataSnapshot.FromStuffData(item.StuffData);
+
         return new RoomFloorItemSnapshot
         {
             Id = item.Id,
@@ -49,7 +53,8 @@ public sealed record RoomFloorItemSnapshot
             Z = item.Z,
             Rotation = item.Rotation,
             StackHeight = item.Definition.StackHeight,
-            StuffData = StuffDataSnapshot.FromStuffData(item.StuffData),
+            StuffData = stuffData,
+            StuffDataJson = JsonSerializer.Serialize(item.StuffData),
         };
     }
 }

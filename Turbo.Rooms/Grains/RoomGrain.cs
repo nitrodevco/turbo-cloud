@@ -44,18 +44,18 @@ public class RoomGrain(
     private readonly IRoomModelProvider _roomModelProvider = roomModelProvider;
     private readonly IRoomItemsLoader _itemsLoader = itemsLoader;
     private readonly IGrainFactory _grainFactory = grainFactory;
-    private readonly TimeSpan _updateInterval = TimeSpan.FromMilliseconds(10);
 
     private RoomModelSnapshot? _roomModel = null;
     private RoomMapState? _roomMapState = null;
     private RoomMapSnapshot? _roomMapSnapshot = null;
+
     private readonly Dictionary<long, IRoomFloorItem> _floorItemsById = [];
-    private readonly List<int> _pendingTileIdxUpdates = [];
+    private readonly HashSet<long> _dirtyItemIds = [];
+    private readonly HashSet<int> _dirtyTileIds = [];
 
     private int _mapVersion = 0;
 
     private IAsyncStream<RoomEvent>? _stream = null;
-    private IDisposable? _updateTimer;
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
@@ -71,23 +71,28 @@ public class RoomGrain(
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
             .UpsertActiveRoomAsync(state.State.RoomSnapshot);
 
-        _updateTimer = this.RegisterGrainTimer<object?>(
-            async _ => await FlushUpdatesAsync(CancellationToken.None),
+        this.RegisterGrainTimer<object?>(
+            async _ => await FlushDirtyTileIdsAsync(ct),
             null,
-            _updateInterval,
-            _updateInterval
+            TimeSpan.FromSeconds(_roomConfig.DirtyTilesFlushIntervalSeconds),
+            TimeSpan.FromSeconds(_roomConfig.DirtyTilesFlushIntervalSeconds)
+        );
+
+        this.RegisterGrainTimer<object?>(
+            async _ => await FlushDirtyItemIdsAsync(ct),
+            null,
+            TimeSpan.FromSeconds(_roomConfig.DirtyItemsFlushIntervalSeconds),
+            TimeSpan.FromSeconds(_roomConfig.DirtyItemsFlushIntervalSeconds)
         );
     }
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
-        _updateTimer?.Dispose();
+        await FlushDirtyItemIdsAsync(ct);
 
         await _grainFactory
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
             .RemoveActiveRoomAsync(this.GetPrimaryKeyLong());
-
-        await WriteToDatabaseAsync(ct);
     }
 
     protected async Task HydrateFromExternalAsync(CancellationToken ct)
@@ -157,15 +162,40 @@ public class RoomGrain(
         }
     }
 
-    protected async Task WriteToDatabaseAsync(CancellationToken ct)
+    protected async Task FlushDirtyItemIdsAsync(CancellationToken ct)
     {
+        if (_dirtyItemIds.Count == 0)
+            return;
+
+        var dirtyItemIds = _dirtyItemIds.ToArray();
+
+        _dirtyItemIds.Clear();
+
         var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
 
         try
         {
-            /* await dbCtx
-                .Rooms.Where(r => r.Id == this.GetPrimaryKeyLong())
-                .ExecuteUpdateAsync(up => { }, ct); */
+            var dirtySnapshots = dirtyItemIds
+                .Select(id => RoomFloorItemSnapshot.FromFloorItem(_floorItemsById[id]))
+                .ToArray();
+            var dirtyIds = dirtySnapshots.Select(x => x.Id).ToArray();
+            var entities = await dbCtx
+                .Furnitures.Where(x => dirtyIds.Contains(x.Id))
+                .ToDictionaryAsync(x => x.Id, ct);
+
+            foreach (var snapshot in dirtySnapshots)
+            {
+                if (!entities.TryGetValue((int)snapshot.Id, out var entity))
+                    continue;
+
+                entity.X = snapshot.X;
+                entity.Y = snapshot.Y;
+                entity.Z = snapshot.Z;
+                entity.Rotation = snapshot.Rotation;
+                entity.StuffData = snapshot.StuffDataJson;
+            }
+
+            await dbCtx.SaveChangesAsync(ct);
         }
         catch (Exception ex)
         {
@@ -177,6 +207,30 @@ public class RoomGrain(
         }
     }
 
+    protected async Task FlushDirtyTileIdsAsync(CancellationToken ct)
+    {
+        if (_dirtyTileIds.Count == 0)
+            return;
+
+        var dirtyTileIds = _dirtyTileIds.ToArray();
+
+        _dirtyTileIds.Clear();
+
+        var dirtySnapshots = dirtyTileIds
+            .Select(idx => new RoomTileSnapshot
+            {
+                X = (byte)(idx % _roomModel!.Width),
+                Y = (byte)(idx / _roomModel!.Width),
+                RelativeHeight = _roomMapState!.TileRelativeHeights[idx],
+            })
+            .ToArray();
+
+        await SendComposerToRoomAsync(
+            new HeightMapUpdateMessageComposer { Tiles = [.. dirtySnapshots] },
+            ct
+        );
+    }
+
     public async Task EnsureMapBuiltAsync(CancellationToken ct)
     {
         _roomModel ??=
@@ -185,12 +239,10 @@ public class RoomGrain(
 
         if (_roomMapState is null)
         {
-            var tileHighestFloorItems = new long[_roomModel.Size];
             var tileFloorStacks = new List<long>[_roomModel.Size];
 
             for (int idx = 0; idx < _roomModel.Size; idx++)
             {
-                tileHighestFloorItems[idx] = -1;
                 tileFloorStacks[idx] = [];
             }
 
@@ -199,7 +251,7 @@ public class RoomGrain(
                 TileHeights = new double[_roomModel.Size],
                 TileRelativeHeights = new short[_roomModel.Size],
                 TileStates = new byte[_roomModel.Size],
-                TileHighestFloorItems = tileHighestFloorItems,
+                TileHighestFloorItems = new long[_roomModel.Size],
                 TileFloorStacks = tileFloorStacks,
             };
 
@@ -227,15 +279,27 @@ public class RoomGrain(
         if (!_floorItemsById.TryAdd(item.Id, item))
             return false;
 
-        if (GetTileIdxForFloorItem(item, out var tileIdxs))
+        if (GetTileIdForFloorItem(item, out var tileIds))
         {
-            foreach (var idx in tileIdxs)
+            foreach (var idx in tileIds)
             {
                 _roomMapState.TileFloorStacks[idx].Add(item.Id);
 
                 if (!skipCompute)
                     ComputeTile(idx);
             }
+        }
+
+        if (!skipCompute)
+        {
+            await SendComposerToRoomAsync(
+                new ObjectAddMessageComposer
+                {
+                    FloorItem = RoomFloorItemSnapshot.FromFloorItem(item),
+                    OwnerName = string.Empty,
+                },
+                ct
+            );
         }
 
         _mapVersion++;
@@ -260,9 +324,9 @@ public class RoomGrain(
         if (item.X == newX && item.Y == newY && item.Rotation == newRotation)
             return;
 
-        if (GetTileIdxForFloorItem(item, out var oldTileIdxs))
+        if (GetTileIdForFloorItem(item, out var oldTileIds))
         {
-            foreach (var idx in oldTileIdxs)
+            foreach (var idx in oldTileIds)
             {
                 _roomMapState.TileFloorStacks[idx].Remove(item.Id);
 
@@ -276,15 +340,18 @@ public class RoomGrain(
         item.SetPosition(newX, newY, newZ);
         item.SetRotation(newRotation);
 
-        if (GetTileIdxForFloorItem(item, out var newTileIdxs))
+        if (GetTileIdForFloorItem(item, out var newTileIds))
         {
-            foreach (var idx in newTileIdxs)
+            foreach (var idx in newTileIds)
             {
                 _roomMapState.TileFloorStacks[idx].Add(item.Id);
 
                 ComputeTile(idx);
             }
         }
+
+        if (!_dirtyItemIds.Contains(item.Id))
+            _dirtyItemIds.Add(item.Id);
 
         _mapVersion++;
 
@@ -305,9 +372,9 @@ public class RoomGrain(
         if (!_floorItemsById.Remove(itemId, out var item))
             throw new KeyNotFoundException($"Floor item not found: ItemId={itemId}");
 
-        if (GetTileIdxForFloorItem(item, out var tileIdxs))
+        if (GetTileIdForFloorItem(item, out var tileIds))
         {
-            foreach (var idx in tileIdxs)
+            foreach (var idx in tileIds)
             {
                 _roomMapState.TileFloorStacks[idx].Remove(item.Id);
 
@@ -341,16 +408,16 @@ public class RoomGrain(
         return idx;
     }
 
-    private bool GetTileIdxForSize(
+    private bool GetTileIdForSize(
         int x,
         int y,
         Rotation rotation,
         int width,
         int height,
-        out List<int> tileIdxs
+        out List<int> tileIds
     )
     {
-        tileIdxs = [];
+        tileIds = [];
 
         if (width > 0 && height > 0)
         {
@@ -364,21 +431,21 @@ public class RoomGrain(
         {
             for (var minY = y; minY < y + height; minY++)
             {
-                tileIdxs.Add(Idx(minX, minY));
+                tileIds.Add(Idx(minX, minY));
             }
         }
 
         return true;
     }
 
-    private bool GetTileIdxForFloorItem(IRoomFloorItem item, out List<int> tileIdxs) =>
-        GetTileIdxForSize(
+    private bool GetTileIdForFloorItem(IRoomFloorItem item, out List<int> tileIds) =>
+        GetTileIdForSize(
             item.X,
             item.Y,
             item.Rotation,
             item.Definition.Width,
             item.Definition.Height,
-            out tileIdxs
+            out tileIds
         );
 
     private void ComputeTile(int idx, bool skipUpdates = false)
@@ -429,8 +496,8 @@ public class RoomGrain(
         {
             if (prevRelative != nextRelative)
             {
-                if (!_pendingTileIdxUpdates.Contains(idx))
-                    _pendingTileIdxUpdates.Add(idx);
+                if (!_dirtyTileIds.Contains(idx))
+                    _dirtyTileIds.Add(idx);
             }
         }
     }
@@ -442,30 +509,6 @@ public class RoomGrain(
 
         for (int idx = 0; idx < _roomModel.Size; idx++)
             ComputeTile(idx, true);
-    }
-
-    private async Task FlushUpdatesAsync(CancellationToken ct)
-    {
-        var pendingIdxs = _pendingTileIdxUpdates.ToArray();
-
-        if (pendingIdxs.Length > 0)
-        {
-            _pendingTileIdxUpdates.Clear();
-
-            var pendingTileUpdates = pendingIdxs
-                .Select(idx => new RoomTileSnapshot
-                {
-                    X = (byte)(idx % _roomModel!.Width),
-                    Y = (byte)(idx / _roomModel!.Width),
-                    RelativeHeight = _roomMapState!.TileRelativeHeights[idx],
-                })
-                .ToArray();
-
-            await SendComposerToRoomAsync(
-                new HeightMapUpdateMessageComposer { Tiles = [.. pendingTileUpdates] },
-                ct
-            );
-        }
     }
 
     private async Task BuildMapSnapshotAsync(CancellationToken ct)

@@ -18,13 +18,6 @@ public sealed class NumberStuffData : StuffDataBase
         Data[STATE_INDEX] = int.Parse(state);
     }
 
-    public override object GetJsonData()
-    {
-        var parent = base.GetJsonData();
-
-        return new { parent, Data };
-    }
-
     public int GetValue(int index)
     {
         if (index < 0 || index >= Data.Count)

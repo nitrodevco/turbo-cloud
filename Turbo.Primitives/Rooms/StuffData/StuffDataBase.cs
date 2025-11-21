@@ -23,6 +23,4 @@ public class StuffDataBase : IStuffData
     public virtual void SetState(string state) { }
 
     public virtual string GetLegacyString() => string.Empty;
-
-    public virtual object GetJsonData() => new { UniqueNumber, UniqueSeries };
 }

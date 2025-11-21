@@ -13,11 +13,4 @@ public sealed class LegacyStuffData : StuffDataBase
 
         Data = state;
     }
-
-    public override object GetJsonData()
-    {
-        var parent = base.GetJsonData();
-
-        return new { parent, Data };
-    }
 }
