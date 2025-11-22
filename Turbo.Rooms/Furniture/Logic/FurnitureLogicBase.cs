@@ -3,40 +3,41 @@ using System.Threading.Tasks;
 using Turbo.Contracts.Enums.Furniture;
 using Turbo.Contracts.Enums.Rooms.Furniture.Data;
 using Turbo.Primitives.Rooms.Furniture;
-using Turbo.Primitives.Rooms.StuffData;
+using Turbo.Primitives.Rooms.Furniture.Logic;
+using Turbo.Primitives.Rooms.Furniture.StuffData;
 
 namespace Turbo.Rooms.Furniture.Logic;
 
-public abstract class FurnitureLogicBase : IFurnitureLogic
+public abstract class FurnitureLogicBase<TContext>(IStuffDataFactory stuffDataFactory, TContext ctx)
+    : IFurnitureLogic
+    where TContext : IRoomItemContext
 {
-    public virtual StuffDataTypeEnum StuffDataKey => StuffDataTypeEnum.LegacyKey;
+    protected readonly IStuffDataFactory _stuffDataFactory = stuffDataFactory;
+    protected readonly TContext _ctx = ctx;
 
-    public virtual ValueTask OnInteractAsync(FurnitureContext ctx, CancellationToken ct) =>
-        ValueTask.CompletedTask;
+    public virtual StuffDataType StuffDataKey => StuffDataType.LegacyKey;
 
-    public virtual ValueTask OnMoveAsync(FurnitureContext ctx, CancellationToken ct) =>
-        ValueTask.CompletedTask;
+    public virtual bool CanToggle() => false;
 
-    public virtual ValueTask OnStopAsync(FurnitureContext ctx, CancellationToken ct) =>
-        ValueTask.CompletedTask;
+    public virtual double GetHeight() => _ctx.Definition.StackHeight;
 
-    public virtual ValueTask OnPlaceAsync(FurnitureContext ctx, CancellationToken ct) =>
-        ValueTask.CompletedTask;
+    public virtual FurniUsagePolicy GetUsagePolicy() =>
+        _ctx.Definition.TotalStates == 0 ? FurniUsagePolicy.Nobody : _ctx.Definition.UsagePolicy;
 
-    public virtual ValueTask OnPickupAsync(FurnitureContext ctx, CancellationToken ct) =>
-        ValueTask.CompletedTask;
+    public virtual Task SetStateAsync(int state, CancellationToken ct) => Task.CompletedTask;
 
-    public virtual bool CanToggle(FurnitureContext ctx) => false;
+    public virtual void SetupStuffDataFromJson(string json)
+    {
+        var stuffData = _stuffDataFactory.CreateStuffDataFromJson((int)StuffDataKey, json);
 
-    public virtual FurniUsagePolicy GetUsagePolicy(FurnitureContext ctx) =>
-        ctx.DefinitionSnapshot.UsagePolicy;
+        _ctx.SetStuffData(stuffData);
+    }
 
-    public virtual Task SetStateAsync(FurnitureContext ctx, string state, CancellationToken ct) =>
-        Task.CompletedTask;
+    public virtual Task OnInteractAsync(int param, CancellationToken ct) => Task.CompletedTask;
 
-    public virtual IStuffData CreateStuffData() =>
-        StuffDataFactory.CreateStuffData((int)StuffDataKey);
+    public virtual Task OnMoveAsync(CancellationToken ct) => Task.CompletedTask;
 
-    public virtual IStuffData CreateStuffDataFromJson(string json) =>
-        StuffDataFactory.CreateStuffDataFromJson((int)StuffDataKey, json);
+    public virtual Task OnPlaceAsync(CancellationToken ct) => Task.CompletedTask;
+
+    public virtual Task OnPickupAsync(CancellationToken ct) => Task.CompletedTask;
 }

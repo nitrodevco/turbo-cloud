@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using Turbo.Contracts.Enums;
+using Turbo.Logging;
 using Turbo.Primitives.Rooms.Furniture;
+using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Runtime;
 
 namespace Turbo.Rooms.Furniture.Logic;
@@ -14,10 +17,10 @@ public sealed class FurnitureLogicFactory(IServiceProvider host) : IFurnitureLog
     public IDisposable RegisterLogic(
         string logicType,
         IServiceProvider sp,
-        Func<IServiceProvider, object> activator
+        Func<IServiceProvider, IRoomItemContext, IFurnitureLogic> factory
     )
     {
-        var reg = new FurnitureLogicReg(sp, activator);
+        var reg = new FurnitureLogicReg(sp, factory);
 
         _logics[logicType] = reg;
 
@@ -27,32 +30,16 @@ public sealed class FurnitureLogicFactory(IServiceProvider host) : IFurnitureLog
         });
     }
 
-    public IFurnitureLogic CreateLogicInstance(string logicType)
+    public IFurnitureLogic CreateLogicInstance(string logicType, IRoomItemContext ctx)
     {
         if (!_logics.TryGetValue(logicType, out var reg))
-            throw new InvalidOperationException(
-                $"No furniture logic registered for type '{logicType}'"
-            );
+            throw new TurboException(TurboErrorCodeEnum.LogicNotFound);
 
-        try
-        {
-            var sp = reg.ServiceProvider;
+        var sp = reg.ServiceProvider;
 
-            if (sp != _host)
-                sp = new CompositeServiceProvider(sp, _host);
+        if (sp != _host)
+            sp = new CompositeServiceProvider(sp, _host);
 
-            try
-            {
-                return (IFurnitureLogic)reg.Activator(sp);
-            }
-            catch (Exception ex)
-            {
-                throw;
-            }
-        }
-        catch
-        {
-            throw;
-        }
+        return reg.Factory(sp, ctx);
     }
 }

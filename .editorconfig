@@ -61,3 +61,6 @@ dotnet_diagnostic.CA2007.severity = warning
 
 [*Grain.cs]
 dotnet_diagnostic.CA2007.severity = none
+
+[**/Grains/**/*.cs]
+dotnet_diagnostic.CA2007.severity = none

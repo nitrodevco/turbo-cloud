@@ -1,0 +1,9 @@
+using System.Collections.Generic;
+
+namespace Turbo.Primitives.Rooms.Furniture.StuffData;
+
+public interface IStringStuffData : IStuffData
+{
+    public List<string> Data { get; }
+    public string GetValue(int index);
+}

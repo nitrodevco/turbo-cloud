@@ -2,7 +2,7 @@ using System.Text.Json;
 using Orleans;
 using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Primitives.Orleans.Snapshots.Room.StuffData;
-using Turbo.Primitives.Rooms.Furniture;
+using Turbo.Primitives.Rooms.Furniture.Floor;
 
 namespace Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
 

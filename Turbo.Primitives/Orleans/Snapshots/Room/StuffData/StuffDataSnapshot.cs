@@ -1,6 +1,6 @@
 using System.Linq;
 using Orleans;
-using Turbo.Primitives.Rooms.StuffData;
+using Turbo.Primitives.Rooms.Furniture.StuffData;
 
 namespace Turbo.Primitives.Orleans.Snapshots.Room.StuffData;
 
@@ -32,14 +32,14 @@ public sealed record StuffDataSnapshot
     {
         var snapshot = new StuffDataSnapshot
         {
-            StuffBitmask = StuffDataFactory.GetBitmaskForStuffData(data),
+            StuffBitmask = data.GetBitmask(),
             UniqueNumber = data.UniqueNumber,
             UniqueSeries = data.UniqueSeries,
         };
 
         switch (data)
         {
-            case LegacyStuffData legacy:
+            case ILegacyStuffData legacy:
                 snapshot = snapshot with
                 {
                     LegacyPayload = new LegacyStuffPayload
@@ -48,7 +48,7 @@ public sealed record StuffDataSnapshot
                     },
                 };
                 break;
-            case MapStuffData map:
+            case IMapStuffData map:
                 snapshot = snapshot with
                 {
                     MapPayload = new MapStuffPayload
@@ -57,13 +57,13 @@ public sealed record StuffDataSnapshot
                     },
                 };
                 break;
-            case NumberStuffData number:
+            case INumberStuffData number:
                 snapshot = snapshot with
                 {
                     NumberPayload = new NumberStuffPayload { Data = [.. number.Data] },
                 };
                 break;
-            case StringStuffData str:
+            case IStringStuffData str:
                 snapshot = snapshot with
                 {
                     StringPayload = new StringStuffPayload { Data = [.. str.Data] },

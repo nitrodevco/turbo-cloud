@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Turbo.Contracts.Enums.Rooms;
-using Turbo.Primitives.Snapshots.Rooms.Mapping;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Rooms.Mapping;
 

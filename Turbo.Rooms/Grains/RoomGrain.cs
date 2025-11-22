@@ -1,7 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -10,52 +7,68 @@ using Orleans;
 using Orleans.Runtime;
 using Orleans.Streams;
 using Turbo.Contracts.Abstractions;
-using Turbo.Contracts.Enums.Rooms;
 using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Contracts.Orleans;
 using Turbo.Database.Context;
-using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans.Events.Rooms;
 using Turbo.Primitives.Orleans.Grains.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room;
-using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
 using Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
 using Turbo.Primitives.Orleans.Snapshots.Room.Settings;
-using Turbo.Primitives.Orleans.States.Room;
 using Turbo.Primitives.Rooms.Furniture;
+using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Rooms.Configuration;
-using Turbo.Rooms.Mapping;
+using Turbo.Rooms.Grains.Modules;
 
 namespace Turbo.Rooms.Grains;
 
-public class RoomGrain(
-    [PersistentState(OrleansStateNames.ROOM_STATE, OrleansStorageNames.ROOM_STORE)]
-        IPersistentState<RoomState> state,
-    IDbContextFactory<TurboDbContext> dbContextFactory,
-    IOptions<RoomConfig> roomConfig,
-    IRoomModelProvider roomModelProvider,
-    IRoomItemsLoader itemsLoader,
-    IGrainFactory grainFactory
-) : Grain, IRoomGrain
+public class RoomGrain : Grain, IRoomGrain
 {
-    private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
-    private readonly RoomConfig _roomConfig = roomConfig.Value;
-    private readonly IRoomModelProvider _roomModelProvider = roomModelProvider;
-    private readonly IRoomItemsLoader _itemsLoader = itemsLoader;
-    private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly IDbContextFactory<TurboDbContext> _dbContextFactory;
+    private readonly RoomConfig _roomConfig;
+    private readonly IRoomModelProvider _roomModelProvider;
+    private readonly IRoomItemsLoader _itemsLoader;
+    private readonly IFurnitureLogicFactory _furnitureLogicFactory;
+    private readonly IGrainFactory _grainFactory;
 
-    private RoomModelSnapshot? _roomModel = null;
-    private RoomMapState? _roomMapState = null;
-    private RoomMapSnapshot? _roomMapSnapshot = null;
-
-    private readonly Dictionary<long, IRoomFloorItem> _floorItemsById = [];
-    private readonly HashSet<long> _dirtyItemIds = [];
-    private readonly HashSet<int> _dirtyTileIds = [];
-
-    private int _mapVersion = 0;
+    private readonly IPersistentState<RoomState> _state;
+    private readonly RoomLiveState _liveState;
+    private readonly RoomMapModule _mapModule;
+    private readonly RoomFurniModule _furniModule;
 
     private IAsyncStream<RoomEvent>? _stream = null;
+
+    public RoomGrain(
+        [PersistentState(OrleansStateNames.ROOM_STATE, OrleansStorageNames.ROOM_STORE)]
+            IPersistentState<RoomState> state,
+        IDbContextFactory<TurboDbContext> dbContextFactory,
+        IOptions<RoomConfig> roomConfig,
+        IRoomModelProvider roomModelProvider,
+        IRoomItemsLoader itemsLoader,
+        IFurnitureLogicFactory furnitureLogicFactory,
+        IGrainFactory grainFactory
+    )
+    {
+        _dbContextFactory = dbContextFactory;
+        _roomConfig = roomConfig.Value;
+        _roomModelProvider = roomModelProvider;
+        _itemsLoader = itemsLoader;
+        _furnitureLogicFactory = furnitureLogicFactory;
+        _grainFactory = grainFactory;
+
+        _state = state;
+        _liveState = new();
+        _mapModule = new RoomMapModule(this, _roomConfig, _liveState);
+        _furniModule = new RoomFurniModule(
+            this,
+            _roomConfig,
+            _liveState,
+            _mapModule,
+            _itemsLoader,
+            _furnitureLogicFactory
+        );
+    }
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
@@ -67,19 +80,18 @@ public class RoomGrain(
 
         await HydrateRoomStateAsync(ct);
 
-        await _grainFactory
-            .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
-            .UpsertActiveRoomAsync(state.State.RoomSnapshot);
+        await _mapModule.OnActivateAsync(ct);
+        await _furniModule.OnActivateAsync(ct);
 
         this.RegisterGrainTimer<object?>(
-            async _ => await FlushDirtyTileIdsAsync(ct),
+            async _ => await _mapModule.FlushDirtyTileIdsAsync(ct),
             null,
             TimeSpan.FromMilliseconds(_roomConfig.DirtyTilesFlushIntervalMilliseconds),
             TimeSpan.FromMilliseconds(_roomConfig.DirtyTilesFlushIntervalMilliseconds)
         );
 
         this.RegisterGrainTimer<object?>(
-            async _ => await FlushDirtyItemIdsAsync(ct),
+            async _ => await _furniModule.FlushDirtyItemIdsAsync(_dbContextFactory, ct),
             null,
             TimeSpan.FromMilliseconds(_roomConfig.DirtyItemsFlushIntervalMilliseconds),
             TimeSpan.FromMilliseconds(_roomConfig.DirtyItemsFlushIntervalMilliseconds)
@@ -88,7 +100,9 @@ public class RoomGrain(
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
-        await FlushDirtyItemIdsAsync(ct);
+        await _furniModule.FlushDirtyItemIdsAsync(_dbContextFactory, ct);
+        await _furniModule.OnDeactivateAsync(ct);
+        await _mapModule.OnDeactivateAsync(ct);
 
         await _grainFactory
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
@@ -99,338 +113,29 @@ public class RoomGrain(
     {
         await _grainFactory
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
-            .UpsertActiveRoomAsync(state.State.RoomSnapshot);
+            .UpsertActiveRoomAsync(_state.State.RoomSnapshot);
 
-        await EnsureMapBuiltAsync(ct);
+        await _mapModule.EnsureMapBuiltAsync(ct);
+        await _furniModule.EnsureFurniLoadedAsync(ct);
+        await _mapModule.EnsureMapCompiledAsync(ct);
     }
 
-    public async Task EnsureMapBuiltAsync(CancellationToken ct)
-    {
-        _roomModel ??=
-            _roomModelProvider.GetModelById(state.State.ModelId)
-            ?? throw new Exception("Invalid room model");
-
-        if (_roomMapState is null)
-        {
-            var tileFloorStacks = new List<long>[_roomModel.Size];
-
-            for (int idx = 0; idx < _roomModel.Size; idx++)
-            {
-                tileFloorStacks[idx] = [];
-            }
-
-            _roomMapState = new RoomMapState
-            {
-                TileHeights = new double[_roomModel.Size],
-                TileRelativeHeights = new short[_roomModel.Size],
-                TileStates = new byte[_roomModel.Size],
-                TileHighestFloorItems = new long[_roomModel.Size],
-                TileFloorStacks = tileFloorStacks,
-            };
-
-            var floorItems = await _itemsLoader.LoadByRoomIdAsync(this.GetPrimaryKeyLong(), ct);
-
-            foreach (var item in floorItems)
-                await AddFloorItemAsync(item, ct, true);
-
-            ComputeMap();
-        }
-
-        if (_roomMapSnapshot is null || _mapVersion != _roomMapSnapshot.Version)
-            await BuildMapSnapshotAsync(ct);
-    }
-
-    public async Task<bool> AddFloorItemAsync(
-        IRoomFloorItem item,
-        CancellationToken ct,
-        bool skipCompute = false
-    )
-    {
-        if (_roomMapState is null)
-            throw new Exception("Room map state is not initialized.");
-
-        if (!_floorItemsById.TryAdd(item.Id, item))
-            return false;
-
-        if (GetTileIdForFloorItem(item, out var tileIds))
-        {
-            foreach (var idx in tileIds)
-            {
-                _roomMapState.TileFloorStacks[idx].Add(item.Id);
-
-                if (!skipCompute)
-                    ComputeTile(idx);
-            }
-        }
-
-        if (!skipCompute)
-        {
-            await SendComposerToRoomAsync(
-                new ObjectAddMessageComposer
-                {
-                    FloorItem = RoomFloorItemSnapshot.FromFloorItem(item),
-                    OwnerName = string.Empty,
-                },
-                ct
-            );
-        }
-
-        _mapVersion++;
-
-        return true;
-    }
-
-    public async Task MoveFloorItemByIdAsync(
+    public async Task<bool> MoveFloorItemByIdAsync(
         long itemId,
         int newX,
         int newY,
         Rotation newRotation,
         CancellationToken ct
-    )
-    {
-        if (_roomMapState is null)
-            throw new Exception("Room map state is not initialized.");
+    ) => await _furniModule.MoveFloorItemByIdAsync(itemId, newX, newY, newRotation, ct);
 
-        if (!_floorItemsById.TryGetValue(itemId, out var item))
-            throw new KeyNotFoundException($"Floor item not found: ItemId={itemId}");
-
-        if (item.X == newX && item.Y == newY && item.Rotation == newRotation)
-            return;
-
-        if (GetTileIdForFloorItem(item, out var oldTileIds))
-        {
-            foreach (var idx in oldTileIds)
-            {
-                _roomMapState.TileFloorStacks[idx].Remove(item.Id);
-
-                ComputeTile(idx);
-            }
-        }
-
-        var newId = Idx(newX, newY);
-        var newZ = _roomMapState.TileHeights[newId];
-
-        item.SetPosition(newX, newY, newZ);
-        item.SetRotation(newRotation);
-
-        if (GetTileIdForFloorItem(item, out var newTileIds))
-        {
-            foreach (var id in newTileIds)
-            {
-                _roomMapState.TileFloorStacks[id].Add(item.Id);
-
-                ComputeTile(id);
-            }
-        }
-
-        if (!_dirtyItemIds.Contains(item.Id))
-            _dirtyItemIds.Add(item.Id);
-
-        _mapVersion++;
-
-        await SendComposerToRoomAsync(
-            new ObjectUpdateMessageComposer
-            {
-                FloorItem = RoomFloorItemSnapshot.FromFloorItem(item),
-            },
-            ct
-        );
-    }
-
-    public async Task RemoveFloorItemByIdAsync(long itemId, long pickerId, CancellationToken ct)
-    {
-        if (_roomMapState is null)
-            throw new Exception("Room map state is not initialized.");
-
-        if (!_floorItemsById.Remove(itemId, out var item))
-            throw new KeyNotFoundException($"Floor item not found: ItemId={itemId}");
-
-        if (GetTileIdForFloorItem(item, out var tileIds))
-        {
-            foreach (var id in tileIds)
-            {
-                _roomMapState.TileFloorStacks[id].Remove(item.Id);
-
-                ComputeTile(id);
-            }
-        }
-
-        _mapVersion++;
-
-        await SendComposerToRoomAsync(
-            new ObjectRemoveMessageComposer
-            {
-                ObjectId = (int)item.Id,
-                IsExpired = false,
-                PickerId = (int)pickerId,
-                Delay = 0,
-            },
-            ct
-        );
-    }
-
-    public async Task<bool> ValidatePlacementAsync(
+    public async Task<bool> ValidateFloorPlacementAsync(
         long itemId,
         int newX,
         int newY,
         Rotation newRotation
-    )
-    {
-        if (_roomMapState is null)
-            throw new Exception("Room map state is not initialized.");
+    ) => await _furniModule.ValidateFloorPlacementAsync(itemId, newX, newY, newRotation);
 
-        if (!_floorItemsById.TryGetValue(itemId, out var item))
-            throw new KeyNotFoundException($"Floor item not found: ItemId={itemId}");
-
-        var isRotating = item.Rotation != newRotation;
-
-        if (
-            GetTileIdForSize(
-                newX,
-                newY,
-                newRotation,
-                item.Definition.Width,
-                item.Definition.Height,
-                out var tileIds
-            )
-        )
-        {
-            foreach (var id in tileIds)
-            {
-                var tileState = _roomMapState.TileStates[id];
-                var tileHeight = _roomMapState.TileHeights[id];
-
-                if (
-                    (tileHeight + item.Definition.StackHeight) > _roomConfig.MaxStackHeight
-                    || tileState == (byte)RoomTileStateType.Closed
-                )
-                {
-                    return false;
-                }
-
-                if (
-                    _floorItemsById.TryGetValue(
-                        _roomMapState.TileHighestFloorItems[id],
-                        out var tileItem
-                    )
-                )
-                {
-                    if (isRotating && tileItem == item)
-                        continue;
-
-                    if (tileItem != item)
-                    {
-                        // if is a stack helper, allow placement
-                        // if is a roller, disallow placement
-
-                        if (
-                            !tileItem.Definition.CanStack
-                            || tileItem.Definition.CanSit
-                            || tileItem.Definition.CanLay
-                        )
-                            return false;
-                    }
-                }
-            }
-        }
-
-        return true;
-    }
-
-    private void ComputeTile(int idx, bool skipUpdates = false)
-    {
-        if (_roomModel is null || _roomMapState is null)
-            throw new Exception("Room map state is not initialized.");
-
-        var nextHeight = _roomModel.Heights[idx];
-        var nextState = _roomModel.States[idx];
-        var floorStack = _roomMapState.TileFloorStacks[idx];
-
-        IRoomFloorItem? nextHighestItem = null;
-
-        if (floorStack.Count > 0)
-        {
-            foreach (var itemId in floorStack)
-            {
-                var item = _floorItemsById[itemId];
-
-                if (item is null)
-                    continue;
-
-                var height = item.Z + item.Definition.StackHeight;
-
-                // special logic if stack helper
-
-                if (height < nextHeight)
-                    continue;
-
-                nextHeight = height;
-                nextHighestItem = item;
-            }
-        }
-
-        nextHeight = Math.Truncate(nextHeight * 1000) / 1000;
-
-        var prevRelative = _roomMapState.TileRelativeHeights[idx];
-        var nextRelative = RoomModelCompiler.EncodeHeight(
-            nextHeight,
-            nextState == (byte)RoomTileStateType.Closed
-        );
-
-        _roomMapState.TileHeights[idx] = nextHeight;
-        _roomMapState.TileRelativeHeights[idx] = nextRelative;
-        _roomMapState.TileStates[idx] = nextState;
-        _roomMapState.TileHighestFloorItems[idx] = nextHighestItem?.Id ?? -1;
-
-        if (!skipUpdates)
-        {
-            if (prevRelative != nextRelative)
-            {
-                if (!_dirtyTileIds.Contains(idx))
-                    _dirtyTileIds.Add(idx);
-            }
-        }
-    }
-
-    private void ComputeMap()
-    {
-        if (_roomModel is null || _roomMapState is null)
-            throw new Exception("Room map state is not initialized.");
-
-        for (int idx = 0; idx < _roomModel.Size; idx++)
-            ComputeTile(idx, true);
-    }
-
-    private async Task BuildMapSnapshotAsync(CancellationToken ct)
-    {
-        if (_roomModel is null || _roomMapState is null)
-            throw new Exception("Room map is not built.");
-
-        var items = new List<RoomFloorItemSnapshot>(_floorItemsById.Count);
-
-        foreach (var stack in _roomMapState.TileFloorStacks)
-        {
-            for (var i = 0; i < stack.Count; i++)
-                items.Add(RoomFloorItemSnapshot.FromFloorItem(_floorItemsById[stack[i]]));
-        }
-
-        _roomMapSnapshot = new RoomMapSnapshot
-        {
-            ModelName = _roomModel.Name,
-            ModelData = _roomModel.Model,
-            Width = _roomModel.Width,
-            Height = _roomModel.Height,
-            Size = _roomModel.Size,
-            DoorX = _roomModel.DoorX,
-            DoorY = _roomModel.DoorY,
-            DoorRotation = _roomModel.DoorRotation,
-            TileRelativeHeights = [.. _roomMapState.TileRelativeHeights],
-            FloorItems = items,
-            Version = _mapVersion,
-        };
-    }
-
-    public Task<RoomSnapshot> GetSnapshotAsync() => Task.FromResult(state.State.RoomSnapshot);
+    public Task<RoomSnapshot> GetSnapshotAsync() => Task.FromResult(_state.State.RoomSnapshot);
 
     public async Task<RoomSummarySnapshot> GetSummaryAsync()
     {
@@ -438,11 +143,11 @@ public class RoomGrain(
 
         return new RoomSummarySnapshot
         {
-            RoomId = state.State.RoomSnapshot.RoomId,
-            Name = state.State.RoomSnapshot.Name,
-            Description = state.State.RoomSnapshot.Description,
-            OwnerId = state.State.RoomSnapshot.OwnerId,
-            OwnerName = state.State.RoomSnapshot.OwnerName,
+            RoomId = _state.State.RoomSnapshot.RoomId,
+            Name = _state.State.RoomSnapshot.Name,
+            Description = _state.State.RoomSnapshot.Description,
+            OwnerId = _state.State.RoomSnapshot.OwnerId,
+            OwnerName = _state.State.RoomSnapshot.OwnerName,
             Population = population,
             LastUpdatedUtc = DateTime.UtcNow,
         };
@@ -453,19 +158,21 @@ public class RoomGrain(
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
             .GetRoomPopulationAsync(this.GetPrimaryKeyLong());
 
-    public async Task<RoomMapSnapshot> GetMapSnapshotAsync()
+    public async Task<RoomMapSnapshot> GetMapSnapshotAsync(CancellationToken ct) =>
+        await _mapModule.GetMapSnapshotAsync(ct);
+
+    public async Task SendComposerToRoomAsync(IComposer composer, CancellationToken ct)
     {
-        await EnsureMapBuiltAsync(CancellationToken.None);
+        var roomDirectory = _grainFactory.GetGrain<IRoomDirectoryGrain>(
+            RoomDirectoryGrain.SINGLETON_KEY
+        );
 
-        if (_roomMapSnapshot is null)
-            throw new Exception("Room map snapshot is not built.");
-
-        return _roomMapSnapshot;
+        await roomDirectory.SendComposerToRoomAsync(composer, this.GetPrimaryKeyLong(), ct);
     }
 
     private async Task HydrateRoomStateAsync(CancellationToken ct)
     {
-        if (state.State.IsLoaded)
+        if (_state.State.IsLoaded)
             return;
 
         var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
@@ -480,7 +187,9 @@ public class RoomGrain(
                     $"RoomGrain:{this.GetPrimaryKeyLong()} not found in database."
                 );
 
-            state.State.RoomSnapshot = new RoomSnapshot
+            _liveState.Model = _roomModelProvider.GetModelById(entity.RoomModelEntityId);
+
+            _state.State.RoomSnapshot = new RoomSnapshot
             {
                 RoomId = entity.Id,
                 Name = entity.Name ?? string.Empty,
@@ -512,13 +221,13 @@ public class RoomGrain(
                     FullHearRange = entity.ChatDistance,
                     FloodSensitivity = entity.ChatFloodType,
                 },
+                WorldType = _liveState.Model.Name,
                 LastUpdatedUtc = DateTime.UtcNow,
             };
 
-            state.State.ModelId = entity.RoomModelEntityId;
-            state.State.IsLoaded = true;
+            _state.State.IsLoaded = true;
 
-            await state.WriteStateAsync(ct);
+            await _state.WriteStateAsync(ct);
         }
         catch (Exception e)
         {
@@ -528,135 +237,5 @@ public class RoomGrain(
         {
             await dbCtx.DisposeAsync();
         }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int Idx(int x, int y)
-    {
-        var width = _roomModel?.Width ?? 0;
-        var id = y * width + x;
-
-        if (id < 0 || id >= (_roomModel?.Size ?? 0))
-            throw new IndexOutOfRangeException($"Tile index {id} is out of bounds.");
-
-        return id;
-    }
-
-    private bool GetTileIdForSize(
-        int x,
-        int y,
-        Rotation rotation,
-        int width,
-        int height,
-        out List<int> tileIds
-    )
-    {
-        tileIds = [];
-
-        if (width > 0 && height > 0)
-        {
-            if (rotation == Rotation.East || rotation == Rotation.West)
-            {
-                (width, height) = (height, width);
-            }
-        }
-
-        for (var minX = x; minX < x + width; minX++)
-        {
-            for (var minY = y; minY < y + height; minY++)
-            {
-                tileIds.Add(Idx(minX, minY));
-            }
-        }
-
-        return true;
-    }
-
-    private bool GetTileIdForFloorItem(IRoomFloorItem item, out List<int> tileIds) =>
-        GetTileIdForSize(
-            item.X,
-            item.Y,
-            item.Rotation,
-            item.Definition.Width,
-            item.Definition.Height,
-            out tileIds
-        );
-
-    private async Task FlushDirtyItemIdsAsync(CancellationToken ct)
-    {
-        if (_dirtyItemIds.Count == 0)
-            return;
-
-        var dirtyItemIds = _dirtyItemIds.ToArray();
-
-        _dirtyItemIds.Clear();
-
-        var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
-
-        try
-        {
-            var dirtySnapshots = dirtyItemIds
-                .Select(id => RoomFloorItemSnapshot.FromFloorItem(_floorItemsById[id]))
-                .ToArray();
-            var dirtyIds = dirtySnapshots.Select(x => x.Id).ToArray();
-            var entities = await dbCtx
-                .Furnitures.Where(x => dirtyIds.Contains(x.Id))
-                .ToDictionaryAsync(x => x.Id, ct);
-
-            foreach (var snapshot in dirtySnapshots)
-            {
-                if (!entities.TryGetValue((int)snapshot.Id, out var entity))
-                    continue;
-
-                entity.X = snapshot.X;
-                entity.Y = snapshot.Y;
-                entity.Z = snapshot.Z;
-                entity.Rotation = snapshot.Rotation;
-                entity.StuffData = snapshot.StuffDataJson;
-            }
-
-            await dbCtx.SaveChangesAsync(ct);
-        }
-        catch (Exception ex)
-        {
-            throw;
-        }
-        finally
-        {
-            await dbCtx.DisposeAsync();
-        }
-    }
-
-    private async Task FlushDirtyTileIdsAsync(CancellationToken ct)
-    {
-        if (_dirtyTileIds.Count == 0)
-            return;
-
-        var dirtyTileIds = _dirtyTileIds.ToArray();
-
-        _dirtyTileIds.Clear();
-
-        var dirtySnapshots = dirtyTileIds
-            .Select(idx => new RoomTileSnapshot
-            {
-                X = (byte)(idx % _roomModel!.Width),
-                Y = (byte)(idx / _roomModel!.Width),
-                RelativeHeight = _roomMapState!.TileRelativeHeights[idx],
-            })
-            .ToArray();
-
-        await SendComposerToRoomAsync(
-            new HeightMapUpdateMessageComposer { Tiles = [.. dirtySnapshots] },
-            ct
-        );
-    }
-
-    public async Task SendComposerToRoomAsync(IComposer composer, CancellationToken ct)
-    {
-        var roomDirectory = _grainFactory.GetGrain<IRoomDirectoryGrain>(
-            RoomDirectoryGrain.SINGLETON_KEY
-        );
-
-        await roomDirectory.SendComposerToRoomAsync(composer, this.GetPrimaryKeyLong(), ct);
     }
 }

@@ -1,4 +1,5 @@
-using Turbo.Primitives.Rooms.StuffData;
+using Turbo.Primitives.Rooms.Furniture.Logic;
+using Turbo.Primitives.Rooms.Furniture.StuffData;
 using Turbo.Primitives.Snapshots.Furniture;
 
 namespace Turbo.Primitives.Rooms.Furniture;
@@ -11,4 +12,7 @@ public interface IRoomItem<TLogic>
     public FurnitureDefinitionSnapshot Definition { get; }
     public TLogic Logic { get; }
     public IStuffData StuffData { get; }
+
+    public void SetLogic(TLogic logic);
+    public void SetStuffData(IStuffData stuffData);
 }

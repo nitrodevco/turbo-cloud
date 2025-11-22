@@ -9,18 +9,14 @@ using Turbo.Contracts.Abstractions;
 using Turbo.Primitives.Orleans.Grains;
 using Turbo.Primitives.Orleans.Grains.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room;
-using Turbo.Primitives.Rooms;
 
 namespace Turbo.Rooms.Grains;
 
 [KeepAlive]
-public class RoomDirectoryGrain(IRoomService roomService, IGrainFactory grainFactory)
-    : Grain,
-        IRoomDirectoryGrain
+public class RoomDirectoryGrain(IGrainFactory grainFactory) : Grain, IRoomDirectoryGrain
 {
     public const string SINGLETON_KEY = "room-directory";
 
-    private readonly IRoomService _roomService = roomService;
     private readonly IGrainFactory _grainFactory = grainFactory;
 
     private readonly Dictionary<long, RoomActiveSnapshot> _activeRooms = [];
@@ -68,9 +64,6 @@ public class RoomDirectoryGrain(IRoomService roomService, IGrainFactory grainFac
         };
     }
 
-    public async Task UpdatePopulationAsync(long roomId, int population) =>
-        _roomPopulations[roomId] = population;
-
     public async Task RemoveActiveRoomAsync(long roomId)
     {
         if (!_activeRooms.Remove(roomId))
@@ -88,7 +81,7 @@ public class RoomDirectoryGrain(IRoomService roomService, IGrainFactory grainFac
         if (!players.Contains(playerId))
             players.Add(playerId);
 
-        await UpdatePopulationAsync(roomId, players.Count);
+        await UpdatePopulationAsync(roomId);
     }
 
     public async Task RemovePlayerFromRoomAsync(long playerId, long roomId)
@@ -99,7 +92,7 @@ public class RoomDirectoryGrain(IRoomService roomService, IGrainFactory grainFac
         if (!players.Remove(playerId))
             return;
 
-        await UpdatePopulationAsync(roomId, players.Count);
+        await UpdatePopulationAsync(roomId);
     }
 
     public async Task SendComposerToRoomAsync(
@@ -108,9 +101,7 @@ public class RoomDirectoryGrain(IRoomService roomService, IGrainFactory grainFac
         CancellationToken ct = default
     )
     {
-        var playerIds = _roomPlayers[roomId];
-
-        if (playerIds.Count == 0)
+        if (!_roomPlayers.TryGetValue(roomId, out var playerIds) || playerIds.Count == 0)
             return;
 
         foreach (var playerId in playerIds)
@@ -120,4 +111,9 @@ public class RoomDirectoryGrain(IRoomService roomService, IGrainFactory grainFac
             _ = playerPresence.SendComposerAsync(composer, ct);
         }
     }
+
+    private async Task UpdatePopulationAsync(long roomId) =>
+        _roomPopulations[roomId] = _roomPlayers.TryGetValue(roomId, out var players)
+            ? players.Count
+            : 0;
 }

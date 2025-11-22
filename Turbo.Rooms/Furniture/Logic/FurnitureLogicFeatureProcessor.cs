@@ -2,7 +2,8 @@ using System;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Rooms.Furniture;
+using Microsoft.Extensions.DependencyInjection;
+using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
 
@@ -31,10 +32,14 @@ public class FurnitureLogicFeatureProcessor(IFurnitureLogicFactory furnitureLogi
             if (attribute is null)
                 continue;
 
-            var activator = ActivatorHelpers.BuildActivator(concrete);
-            var logicType = attribute.Key;
-
-            batch.Add(_furnitureLogicFactory.RegisterLogic(logicType, sp, activator));
+            batch.Add(
+                _furnitureLogicFactory.RegisterLogic(
+                    attribute.Key,
+                    sp,
+                    (sp, ctx) =>
+                        (IFurnitureLogic)ActivatorUtilities.CreateInstance(sp, concrete, ctx)
+                )
+            );
         }
 
         return Task.FromResult<IDisposable>(batch);

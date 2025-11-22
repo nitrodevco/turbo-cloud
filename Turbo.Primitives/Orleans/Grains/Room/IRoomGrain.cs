@@ -5,32 +5,28 @@ using Turbo.Contracts.Abstractions;
 using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
-using Turbo.Primitives.Rooms.Furniture;
 
 namespace Turbo.Primitives.Orleans.Grains.Room;
 
 public interface IRoomGrain : IGrainWithIntegerKey
 {
     public Task EnsureRoomActiveAsync(CancellationToken ct);
-    public Task EnsureMapBuiltAsync(CancellationToken ct);
-    public Task<bool> AddFloorItemAsync(
-        IRoomFloorItem item,
-        CancellationToken ct,
-        bool skipCompute = false
-    );
-
-    public Task MoveFloorItemByIdAsync(
+    public Task<bool> MoveFloorItemByIdAsync(
         long itemId,
         int newX,
         int newY,
         Rotation newRotation,
         CancellationToken ct
     );
-    public Task RemoveFloorItemByIdAsync(long itemId, long pickerId, CancellationToken ct);
-    public Task<bool> ValidatePlacementAsync(long itemId, int newX, int newY, Rotation newRotation);
+    public Task<bool> ValidateFloorPlacementAsync(
+        long itemId,
+        int newX,
+        int newY,
+        Rotation newRotation
+    );
     public Task<RoomSnapshot> GetSnapshotAsync();
     public Task<RoomSummarySnapshot> GetSummaryAsync();
     public Task<int> GetRoomPopulationAsync();
-    public Task<RoomMapSnapshot> GetMapSnapshotAsync();
+    public Task<RoomMapSnapshot> GetMapSnapshotAsync(CancellationToken ct);
     public Task SendComposerToRoomAsync(IComposer composer, CancellationToken ct);
 }

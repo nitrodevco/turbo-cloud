@@ -77,9 +77,16 @@ public sealed class RoomService(
             // if passworded => reject (for now)
             // if locked => reject (for now)
 
+            var room = GetRoomGrain(roomId);
+            var snapshot = await room.GetSnapshotAsync().ConfigureAwait(false);
+
             await playerPresence
                 .SendComposerAsync(
-                    new RoomReadyMessageComposer { WorldType = string.Empty, RoomId = (int)roomId },
+                    new RoomReadyMessageComposer
+                    {
+                        WorldType = snapshot.WorldType,
+                        RoomId = (int)roomId,
+                    },
                     ct
                 )
                 .ConfigureAwait(false);
@@ -120,10 +127,11 @@ public sealed class RoomService(
             if (pendingRoom.RoomId <= 0 || !pendingRoom.Approved)
                 return;
 
-            await playerPresence.SetActiveRoomAsync(pendingRoom.RoomId).ConfigureAwait(false);
+            var room = GetRoomGrain(pendingRoom.RoomId);
 
-            var room = _grainFactory.GetGrain<IRoomGrain>(pendingRoom.RoomId);
-            var mapSnapshot = await room.GetMapSnapshotAsync().ConfigureAwait(false);
+            await room.EnsureRoomActiveAsync(ct).ConfigureAwait(false);
+
+            var mapSnapshot = await room.GetMapSnapshotAsync(ct).ConfigureAwait(false);
 
             await playerPresence
                 .SendComposerAsync(
@@ -172,6 +180,8 @@ public sealed class RoomService(
                     ct
                 )
                 .ConfigureAwait(false);
+
+            await playerPresence.SetActiveRoomAsync(pendingRoom.RoomId).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -202,14 +212,15 @@ public sealed class RoomService(
     {
         var roomGrain = _grainFactory.GetGrain<IRoomGrain>(roomId);
 
-        await roomGrain.EnsureRoomActiveAsync(ct).ConfigureAwait(false);
-
         var isValidPlacement = await roomGrain
-            .ValidatePlacementAsync(itemId, newX, newY, newRotation)
+            .ValidateFloorPlacementAsync(itemId, newX, newY, newRotation)
             .ConfigureAwait(false);
 
         if (!isValidPlacement)
+        {
+            // need to send a message to the client to reset the item position
             return;
+        }
 
         await roomGrain
             .MoveFloorItemByIdAsync(itemId, newX, newY, newRotation, ct)

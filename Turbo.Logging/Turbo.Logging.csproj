@@ -7,4 +7,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Turbo.Contracts\Turbo.Contracts.csproj" />
+  </ItemGroup>
 </Project>

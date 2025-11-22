@@ -14,4 +14,7 @@ public sealed record RoomSnapshot : RoomInfoSnapshot
 
     [Id(2)]
     public required ChatSettingsSnapshot ChatSettings { get; init; }
+
+    [Id(3)]
+    public required string WorldType { get; init; } = string.Empty;
 }

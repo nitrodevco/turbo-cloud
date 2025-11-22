@@ -12,7 +12,6 @@ public interface IRoomDirectoryGrain : IGrainWithStringKey
     public Task<ImmutableArray<RoomSummarySnapshot>> GetActiveRoomsAsync();
     public Task<int> GetRoomPopulationAsync(long roomId);
     public Task UpsertActiveRoomAsync(RoomInfoSnapshot snapshot);
-    public Task UpdatePopulationAsync(long roomId, int population);
     public Task RemoveActiveRoomAsync(long roomId);
     public Task AddPlayerToRoomAsync(long playerId, long roomId);
     public Task RemovePlayerFromRoomAsync(long playerId, long roomId);
