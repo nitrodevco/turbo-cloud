@@ -1,8 +1,5 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Messages.Outgoing.Room.Engine;
-using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
-using Turbo.Primitives.Orleans.Snapshots.Room.StuffData;
 using Turbo.Primitives.Rooms.Furniture.Floor;
 using Turbo.Rooms.Grains;
 using Turbo.Rooms.Grains.Modules;
@@ -15,32 +12,21 @@ public sealed class RoomFloorItemContext(
     IRoomFloorItem roomItem
 ) : RoomItemContext<IRoomFloorItem>(roomGrain, furniModule, roomItem), IRoomFloorItemContext
 {
-    public void MarkItemDirty() => _furniModule.MarkItemAsDirty(Item.Id);
+    public Task MarkItemDirtyAsync() => _furniModule.MarkItemAsDirtyAsync(Item.Id);
 
-    public Task RefreshItemAsync(CancellationToken ct)
-    {
-        _ = _roomGrain.SendComposerToRoomAsync(
-            new ObjectUpdateMessageComposer
-            {
-                FloorItem = RoomFloorItemSnapshot.FromFloorItem(Item),
-            },
-            ct
-        );
+    public Task AddItemAsync(CancellationToken ct) =>
+        _roomGrain.SendComposerToRoomAsync(Item.GetAddComposer(), ct);
 
-        return Task.CompletedTask;
-    }
+    public Task UpdateItemAsync(CancellationToken ct) =>
+        _roomGrain.SendComposerToRoomAsync(Item.GetUpdateComposer(), ct);
 
-    public Task RefreshStuffDataAsync(CancellationToken ct)
-    {
-        _ = _roomGrain.SendComposerToRoomAsync(
-            new ObjectDataUpdateMessageComposer
-            {
-                ObjectId = Item.Id,
-                StuffData = StuffDataSnapshot.FromStuffData(Item.StuffData),
-            },
-            ct
-        );
+    public Task RefreshStuffDataAsync(CancellationToken ct) =>
+        _roomGrain.SendComposerToRoomAsync(Item.GetRefreshStuffDataComposer(), ct);
 
-        return Task.CompletedTask;
-    }
+    public Task RemoveItemAsync(
+        long pickerId,
+        bool isExpired = false,
+        int delay = 0,
+        CancellationToken ct = default
+    ) => _roomGrain.SendComposerToRoomAsync(Item.GetRemoveComposer(pickerId, isExpired, delay), ct);
 }

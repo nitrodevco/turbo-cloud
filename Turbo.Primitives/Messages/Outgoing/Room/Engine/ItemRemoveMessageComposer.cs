@@ -6,5 +6,9 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Engine;
 [GenerateSerializer, Immutable]
 public sealed record ItemRemoveMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required long ObjectId { get; init; }
+
+    [Id(1)]
+    public required long PickerId { get; init; }
 }

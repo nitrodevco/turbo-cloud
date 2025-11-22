@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -174,7 +175,7 @@ public sealed class RoomService(
                 .SendComposerAsync(
                     new ObjectsMessageComposer
                     {
-                        OwnerNames = [],
+                        OwnerNames = ImmutableDictionary<long, string>.Empty,
                         FloorItems = mapSnapshot.FloorItems,
                     },
                     ct

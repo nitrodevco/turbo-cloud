@@ -45,7 +45,10 @@ public sealed class RoomFurniModule(
         if (_state.IsFurniLoaded)
             return;
 
-        var floorItems = await _itemsLoader.LoadByRoomIdAsync(_roomGrain.GetPrimaryKeyLong(), ct);
+        var (floorItems, wallItems) = await _itemsLoader.LoadByRoomIdAsync(
+            _roomGrain.GetPrimaryKeyLong(),
+            ct
+        );
 
         foreach (var item in floorItems)
             await AddFloorItemAsync(item, ct);
@@ -70,14 +73,7 @@ public sealed class RoomFurniModule(
             }
         }
 
-        _ = _roomGrain.SendComposerToRoomAsync(
-            new ObjectAddMessageComposer
-            {
-                FloorItem = RoomFloorItemSnapshot.FromFloorItem(item),
-                OwnerName = string.Empty,
-            },
-            ct
-        );
+        _ = _roomGrain.SendComposerToRoomAsync(item.GetAddComposer(), ct);
 
         return true;
     }
@@ -124,13 +120,7 @@ public sealed class RoomFurniModule(
         if (!_state.DirtyItemIds.Contains(item.Id))
             _state.DirtyItemIds.Add(item.Id);
 
-        _ = _roomGrain.SendComposerToRoomAsync(
-            new ObjectUpdateMessageComposer
-            {
-                FloorItem = RoomFloorItemSnapshot.FromFloorItem(item),
-            },
-            ct
-        );
+        _ = _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer(), ct);
 
         await item.Logic.OnMoveAsync(ct);
 
@@ -156,16 +146,7 @@ public sealed class RoomFurniModule(
             }
         }
 
-        _ = _roomGrain.SendComposerToRoomAsync(
-            new ObjectRemoveMessageComposer
-            {
-                ObjectId = (int)item.Id,
-                IsExpired = false,
-                PickerId = (int)pickerId,
-                Delay = 0,
-            },
-            ct
-        );
+        _ = _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(pickerId), ct);
 
         return true;
     }
@@ -235,10 +216,12 @@ public sealed class RoomFurniModule(
         return true;
     }
 
-    public void MarkItemAsDirty(long itemId)
+    public Task MarkItemAsDirtyAsync(long itemId)
     {
         if (!_state.DirtyItemIds.Contains(itemId))
             _state.DirtyItemIds.Add(itemId);
+
+        return Task.CompletedTask;
     }
 
     private async Task AttatchFloorLogicIfNeededAsync(IRoomFloorItem item, CancellationToken ct)

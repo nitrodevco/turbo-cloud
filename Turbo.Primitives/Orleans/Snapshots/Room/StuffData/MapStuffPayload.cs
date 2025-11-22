@@ -7,5 +7,5 @@ namespace Turbo.Primitives.Orleans.Snapshots.Room.StuffData;
 public sealed record MapStuffPayload
 {
     [Id(0)]
-    public required ImmutableArray<(string key, string value)> Data { get; init; }
+    public required ImmutableDictionary<string, string> Data { get; init; }
 }

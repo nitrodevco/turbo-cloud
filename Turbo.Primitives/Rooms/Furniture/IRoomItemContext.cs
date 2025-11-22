@@ -7,5 +7,4 @@ public interface IRoomItemContext
 {
     public long RoomId { get; }
     public FurnitureDefinitionSnapshot Definition { get; }
-    public void SetStuffData(IStuffData stuffData);
 }

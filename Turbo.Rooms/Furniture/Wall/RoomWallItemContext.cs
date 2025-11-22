@@ -1,6 +1,5 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms.Furniture.Wall;
 using Turbo.Rooms.Grains;
 using Turbo.Rooms.Grains.Modules;
@@ -13,17 +12,17 @@ public sealed class RoomWallItemContext(
     IRoomWallItem roomItem
 ) : RoomItemContext<IRoomWallItem>(roomGrain, furniModule, roomItem), IRoomWallItemContext
 {
-    public void MarkItemDirty() => _furniModule.MarkItemAsDirty(Item.Id);
+    public Task MarkItemDirtyAsync() => _furniModule.MarkItemAsDirtyAsync(Item.Id);
 
-    public Task RefreshItemAsync(CancellationToken ct)
-    {
-        _ = _roomGrain.SendComposerToRoomAsync(new ItemUpdateMessageComposer { }, ct);
+    public Task AddItemAsync(CancellationToken ct) =>
+        _roomGrain.SendComposerToRoomAsync(Item.GetAddComposer(), ct);
 
-        return Task.CompletedTask;
-    }
+    public Task UpdateItemAsync(CancellationToken ct) =>
+        _roomGrain.SendComposerToRoomAsync(Item.GetUpdateComposer(), ct);
 
-    public async Task RefreshStuffDataAsync(CancellationToken ct)
-    {
-        await RefreshItemAsync(ct);
-    }
+    public Task RefreshStuffDataAsync(CancellationToken ct) =>
+        _roomGrain.SendComposerToRoomAsync(Item.GetRefreshStuffDataComposer(), ct);
+
+    public Task RemoveItemAsync(long pickerId, CancellationToken ct = default) =>
+        _roomGrain.SendComposerToRoomAsync(Item.GetRemoveComposer(pickerId), ct);
 }

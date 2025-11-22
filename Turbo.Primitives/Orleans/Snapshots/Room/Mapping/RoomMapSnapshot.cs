@@ -37,7 +37,7 @@ public sealed record RoomMapSnapshot
     public required short[] TileRelativeHeights { get; init; }
 
     [Id(9)]
-    public required List<RoomFloorItemSnapshot> FloorItems { get; init; }
+    public required ImmutableArray<RoomFloorItemSnapshot> FloorItems { get; init; }
 
     [Id(10)]
     public required int Version { get; init; }

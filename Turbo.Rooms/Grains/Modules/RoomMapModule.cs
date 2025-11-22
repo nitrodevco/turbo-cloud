@@ -194,7 +194,7 @@ public sealed class RoomMapModule(
             DoorY = _state.Model?.DoorY ?? 0,
             DoorRotation = _state.Model?.DoorRotation ?? 0,
             TileRelativeHeights = [.. _state.TileRelativeHeights],
-            FloorItems = items,
+            FloorItems = [.. items],
             Version = _mapVersion,
         };
 

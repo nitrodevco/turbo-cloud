@@ -12,15 +12,12 @@ public class FurnitureWallLogic(IStuffDataFactory stuffDataFactory, IRoomWallIte
 {
     public override bool SetState(int state)
     {
-        var stuffData = _ctx.Item.StuffData;
-
-        if (stuffData is null || state == stuffData.GetState())
+        if (_stuffData is null || state == _stuffData.GetState())
             return false;
 
-        stuffData.SetState(state.ToString());
+        _stuffData.SetState(state.ToString());
 
-        _ctx.MarkItemDirty();
-
+        _ = _ctx.MarkItemDirtyAsync();
         _ = _ctx.RefreshStuffDataAsync(CancellationToken.None);
 
         return true;

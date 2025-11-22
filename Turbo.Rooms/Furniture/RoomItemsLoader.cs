@@ -5,13 +5,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Contracts.Enums;
+using Turbo.Contracts.Enums.Furniture;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Logging;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Rooms.Furniture;
 using Turbo.Primitives.Rooms.Furniture.Floor;
+using Turbo.Primitives.Rooms.Furniture.Wall;
 using Turbo.Rooms.Furniture.Floor;
+using Turbo.Rooms.Furniture.Wall;
 
 namespace Turbo.Rooms.Furniture;
 
@@ -23,10 +26,10 @@ internal sealed class RoomItemsLoader(
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
     private readonly IFurnitureDefinitionProvider _defsProvider = defsProvider;
 
-    public async Task<IReadOnlyList<IRoomFloorItem>> LoadByRoomIdAsync(
-        long roomId,
-        CancellationToken ct = default
-    )
+    public async Task<(
+        IReadOnlyList<IRoomFloorItem>,
+        IReadOnlyList<IRoomWallItem>
+    )> LoadByRoomIdAsync(long roomId, CancellationToken ct = default)
     {
         var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
@@ -38,7 +41,8 @@ internal sealed class RoomItemsLoader(
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
 
-            var result = new List<IRoomFloorItem>(entities.Count);
+            var floorItems = new List<IRoomFloorItem>();
+            var wallItems = new List<IRoomWallItem>();
 
             foreach (var entity in entities)
             {
@@ -46,13 +50,18 @@ internal sealed class RoomItemsLoader(
                 {
                     var item = CreateFromEntity(entity);
 
-                    if (item is null)
-                        continue;
+                    if (item is IRoomFloorItem floorItem)
+                    {
+                        floorItem.SetPosition(entity.X, entity.Y, entity.Z);
+                        floorItem.SetRotation(entity.Rotation);
 
-                    item.SetPosition(entity.X, entity.Y, entity.Z);
-                    item.SetRotation(entity.Rotation);
+                        floorItems.Add(floorItem);
+                    }
 
-                    result.Add(item);
+                    if (item is IRoomWallItem wallItem)
+                    {
+                        wallItems.Add(wallItem);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -60,7 +69,7 @@ internal sealed class RoomItemsLoader(
                 }
             }
 
-            return result;
+            return (floorItems, wallItems);
         }
         finally
         {
@@ -68,21 +77,33 @@ internal sealed class RoomItemsLoader(
         }
     }
 
-    public IRoomFloorItem CreateFromEntity(FurnitureEntity entity)
+    public IRoomItem CreateFromEntity(FurnitureEntity entity)
     {
         var definition =
             _defsProvider.TryGetDefinition(entity.FurnitureDefinitionEntityId)
             ?? throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
 
-        var floorItem = new RoomFloorItem
+        return definition.ProductType switch
         {
-            Id = entity.Id,
-            OwnerId = entity.PlayerEntityId,
-            Definition = definition,
+            ProductTypeEnum.Floor => new RoomFloorItem
+            {
+                Id = entity.Id,
+                OwnerId = entity.PlayerEntityId,
+                OwnerName = string.Empty,
+                Definition = definition,
+                PendingStuffDataRaw = entity.StuffData ?? string.Empty,
+            },
+
+            ProductTypeEnum.Wall => new RoomWallItem
+            {
+                Id = entity.Id,
+                OwnerId = entity.PlayerEntityId,
+                OwnerName = string.Empty,
+                Definition = definition,
+                PendingStuffDataRaw = entity.StuffData ?? string.Empty,
+            },
+
+            _ => throw new TurboException(TurboErrorCodeEnum.InvalidFurnitureProductType),
         };
-
-        floorItem.SetStuffDataRaw(entity.StuffData ?? string.Empty);
-
-        return floorItem;
     }
 }

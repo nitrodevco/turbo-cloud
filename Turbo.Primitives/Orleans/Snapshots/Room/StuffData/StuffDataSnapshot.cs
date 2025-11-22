@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Linq;
 using Orleans;
 using Turbo.Primitives.Rooms.Furniture.StuffData;
@@ -51,10 +52,7 @@ public sealed record StuffDataSnapshot
             case IMapStuffData map:
                 snapshot = snapshot with
                 {
-                    MapPayload = new MapStuffPayload
-                    {
-                        Data = [.. map.Data.Select(kvp => (kvp.Key, kvp.Value))],
-                    },
+                    MapPayload = new MapStuffPayload { Data = map.Data.ToImmutableDictionary() },
                 };
                 break;
             case INumberStuffData number:

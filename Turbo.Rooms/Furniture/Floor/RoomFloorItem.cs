@@ -1,4 +1,9 @@
+using System.Threading.Tasks;
+using Turbo.Contracts.Abstractions;
 using Turbo.Contracts.Enums.Rooms.Object;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
+using Turbo.Primitives.Orleans.Snapshots.Room.StuffData;
 using Turbo.Primitives.Rooms.Furniture.Floor;
 using Turbo.Primitives.Rooms.Furniture.Logic;
 
@@ -26,8 +31,37 @@ public sealed class RoomFloorItem : RoomItem, IRoomFloorItem
 
     public void SetLogic(IFurnitureFloorLogic logic)
     {
-        Logic = logic;
+        logic.Setup(PendingStuffDataRaw);
 
-        logic.SetupStuffDataFromJson(GetStuffDataRaw());
+        PendingStuffDataRaw = string.Empty;
+        Logic = logic;
     }
+
+    public Task<RoomFloorItemSnapshot> GetSnapshotAsync() =>
+        Task.FromResult(RoomFloorItemSnapshot.FromFloorItem(this));
+
+    public Task<StuffDataSnapshot> GetStuffDataSnapshotAsync() =>
+        Task.FromResult(StuffDataSnapshot.FromStuffData(Logic.StuffData));
+
+    public IComposer GetAddComposer() =>
+        new ObjectAddMessageComposer { FloorItem = RoomFloorItemSnapshot.FromFloorItem(this) };
+
+    public IComposer GetUpdateComposer() =>
+        new ObjectUpdateMessageComposer { FloorItem = RoomFloorItemSnapshot.FromFloorItem(this) };
+
+    public IComposer GetRefreshStuffDataComposer() =>
+        new ObjectDataUpdateMessageComposer
+        {
+            ObjectId = Id,
+            StuffData = StuffDataSnapshot.FromStuffData(Logic.StuffData),
+        };
+
+    public IComposer GetRemoveComposer(long pickerId, bool isExpired = false, int delay = 0) =>
+        new ObjectRemoveMessageComposer
+        {
+            ObjectId = Id,
+            IsExpired = isExpired,
+            PickerId = pickerId,
+            Delay = delay,
+        };
 }

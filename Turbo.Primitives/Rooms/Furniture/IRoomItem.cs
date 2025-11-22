@@ -7,10 +7,6 @@ public interface IRoomItem
 {
     public long Id { get; }
     public long OwnerId { get; }
+    public string OwnerName { get; }
     public FurnitureDefinitionSnapshot Definition { get; }
-
-    public IStuffData StuffData { get; }
-    public string GetStuffDataRaw();
-    public void SetStuffDataRaw(string stuffDataRaw);
-    public void SetStuffData(IStuffData stuffData);
 }

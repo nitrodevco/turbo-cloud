@@ -17,24 +17,24 @@ public abstract class FurnitureLogicBase<TItem, TContext>(
 {
     protected readonly IStuffDataFactory _stuffDataFactory = stuffDataFactory;
     protected readonly TContext _ctx = ctx;
+    protected IStuffData _stuffData = default!;
 
     public virtual StuffDataType StuffDataKey => StuffDataType.LegacyKey;
+    public virtual IStuffData StuffData => _stuffData;
 
-    public virtual bool CanToggle() => false;
+    public virtual void Setup(string stuffDataRaw)
+    {
+        _stuffData = CreateStuffDataFromJson(stuffDataRaw);
+    }
 
     public virtual double GetHeight() => _ctx.Definition.StackHeight;
 
     public virtual FurniUsagePolicy GetUsagePolicy() =>
         _ctx.Definition.TotalStates == 0 ? FurniUsagePolicy.Nobody : _ctx.Definition.UsagePolicy;
 
-    public virtual void SetupStuffDataFromJson(string json)
-    {
-        var stuffData = _stuffDataFactory.CreateStuffDataFromJson((int)StuffDataKey, json);
+    public virtual bool CanToggle() => false;
 
-        _ctx.SetStuffData(stuffData);
-    }
-
-    public abstract bool SetState(int state);
+    public virtual bool SetState(int state) => false;
 
     public virtual Task OnAttachAsync(CancellationToken ct) => Task.CompletedTask;
 
@@ -45,4 +45,10 @@ public abstract class FurnitureLogicBase<TItem, TContext>(
     public virtual Task OnPlaceAsync(CancellationToken ct) => Task.CompletedTask;
 
     public virtual Task OnPickupAsync(CancellationToken ct) => Task.CompletedTask;
+
+    protected virtual IStuffData CreateStuffData() =>
+        _stuffDataFactory.CreateStuffData((int)StuffDataKey);
+
+    protected virtual IStuffData CreateStuffDataFromJson(string json) =>
+        _stuffDataFactory.CreateStuffDataFromJson((int)StuffDataKey, json);
 }

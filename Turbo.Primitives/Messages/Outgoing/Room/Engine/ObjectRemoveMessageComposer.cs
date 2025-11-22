@@ -7,13 +7,13 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Engine;
 public sealed record ObjectRemoveMessageComposer : IComposer
 {
     [Id(0)]
-    public required int ObjectId { get; init; }
+    public required long ObjectId { get; init; }
 
     [Id(1)]
     public required bool IsExpired { get; init; }
 
     [Id(2)]
-    public required int PickerId { get; init; }
+    public required long PickerId { get; init; }
 
     [Id(3)]
     public required int Delay { get; init; }

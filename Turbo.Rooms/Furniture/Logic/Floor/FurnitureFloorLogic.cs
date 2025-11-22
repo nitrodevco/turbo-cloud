@@ -14,15 +14,12 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
 {
     public override bool SetState(int state)
     {
-        var stuffData = _ctx.Item.StuffData;
-
-        if (stuffData is null || state == stuffData.GetState())
+        if (_stuffData is null || state == StuffData.GetState())
             return false;
 
-        stuffData.SetState(state.ToString());
+        _stuffData.SetState(state.ToString());
 
-        _ctx.MarkItemDirty();
-
+        _ = _ctx.MarkItemDirtyAsync();
         _ = _ctx.RefreshStuffDataAsync(CancellationToken.None);
 
         return true;
@@ -71,9 +68,9 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
     {
         var totalStates = _ctx.Item.Definition.TotalStates;
 
-        if (totalStates == 0)
+        if (totalStates == 0 || StuffData is null)
             return 0;
 
-        return (_ctx.Item.StuffData.GetState() + 1) % totalStates;
+        return (StuffData.GetState() + 1) % totalStates;
     }
 }

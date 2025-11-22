@@ -9,7 +9,4 @@ public sealed record ObjectAddMessageComposer : IComposer
 {
     [Id(0)]
     public required RoomFloorItemSnapshot FloorItem { get; init; }
-
-    [Id(1)]
-    public required string OwnerName { get; init; }
 }
