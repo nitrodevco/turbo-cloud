@@ -1,6 +1,5 @@
 using Orleans;
 using Turbo.Primitives.Rooms.Furniture;
-using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Furniture.StuffData;
 using Turbo.Primitives.Snapshots.Furniture;
 using Turbo.Rooms.Grains;
@@ -8,19 +7,19 @@ using Turbo.Rooms.Grains.Modules;
 
 namespace Turbo.Rooms.Furniture;
 
-public class RoomItemContext<TLogic>(
+public class RoomItemContext<TItem>(
     RoomGrain roomGrain,
     RoomFurniModule furniModule,
-    IRoomItem<TLogic> roomItem
+    TItem roomItem
 ) : IRoomItemContext
-    where TLogic : IFurnitureLogic
+    where TItem : class, IRoomItem
 {
     protected readonly RoomGrain _roomGrain = roomGrain;
     protected readonly RoomFurniModule _furniModule = furniModule;
-    protected readonly IRoomItem<TLogic> _roomItem = roomItem;
 
+    public TItem Item { get; } = roomItem;
     public long RoomId => _roomGrain.GetPrimaryKeyLong();
-    public FurnitureDefinitionSnapshot Definition => _roomItem.Definition;
+    public FurnitureDefinitionSnapshot Definition => Item.Definition;
 
-    public void SetStuffData(IStuffData stuffData) => _roomItem.SetStuffData(stuffData);
+    public void SetStuffData(IStuffData stuffData) => Item.SetStuffData(stuffData);
 }

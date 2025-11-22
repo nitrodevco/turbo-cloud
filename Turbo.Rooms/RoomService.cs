@@ -218,6 +218,7 @@ public sealed class RoomService(
 
         if (!isValidPlacement)
         {
+            Console.WriteLine("Invalid placement");
             // need to send a message to the client to reset the item position
             return;
         }

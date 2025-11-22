@@ -98,6 +98,7 @@ public sealed class RoomMapModule(
         _state.TileHighestFloorItems = new long[size];
         _state.TileFloorStacks = tileFloorStacks;
         _state.IsMapBuilt = true;
+        _state.NeedsCompile = true;
     }
 
     public Task EnsureMapCompiledAsync(CancellationToken ct)

@@ -9,9 +9,25 @@ namespace Turbo.Rooms.Furniture.Logic.Floor;
 
 [FurnitureLogic("default_floor")]
 public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
-    : FurnitureLogicBase<IRoomFloorItemContext>(stuffDataFactory, ctx),
+    : FurnitureLogicBase<IRoomFloorItem, IRoomFloorItemContext>(stuffDataFactory, ctx),
         IFurnitureFloorLogic
 {
+    public override bool SetState(int state)
+    {
+        var stuffData = _ctx.Item.StuffData;
+
+        if (stuffData is null || state == stuffData.GetState())
+            return false;
+
+        stuffData.SetState(state.ToString());
+
+        _ctx.MarkItemDirty();
+
+        _ = _ctx.RefreshStuffDataAsync(CancellationToken.None);
+
+        return true;
+    }
+
     public virtual bool CanWalk() => _ctx.Definition.CanWalk;
 
     public virtual bool CanSit() => _ctx.Definition.CanSit;
@@ -37,15 +53,19 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
         return CanWalk() || CanSit() || CanLay();
     }
 
-    public override async Task OnInteractAsync(int param, CancellationToken ct)
+    public override Task OnInteractAsync(int param, CancellationToken ct)
     {
-        if (!CanToggle())
-            return;
+        if (CanToggle())
+        {
+            param = GetNextToggleableState();
 
-        param = GetNextToggleableState();
+            SetState(param);
+        }
 
-        await SetStateAsync(param, ct);
+        return Task.CompletedTask;
     }
+
+    public virtual Task OnStopAsync(CancellationToken ct) => Task.CompletedTask;
 
     protected virtual int GetNextToggleableState()
     {
@@ -56,6 +76,4 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
 
         return (_ctx.Item.StuffData.GetState() + 1) % totalStates;
     }
-
-    public virtual Task OnStopAsync(CancellationToken ct) => Task.CompletedTask;
 }

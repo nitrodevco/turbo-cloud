@@ -8,8 +8,11 @@ using Turbo.Primitives.Rooms.Furniture.StuffData;
 
 namespace Turbo.Rooms.Furniture.Logic;
 
-public abstract class FurnitureLogicBase<TContext>(IStuffDataFactory stuffDataFactory, TContext ctx)
-    : IFurnitureLogic
+public abstract class FurnitureLogicBase<TItem, TContext>(
+    IStuffDataFactory stuffDataFactory,
+    TContext ctx
+) : IFurnitureLogic
+    where TItem : IRoomItem
     where TContext : IRoomItemContext
 {
     protected readonly IStuffDataFactory _stuffDataFactory = stuffDataFactory;
@@ -24,14 +27,16 @@ public abstract class FurnitureLogicBase<TContext>(IStuffDataFactory stuffDataFa
     public virtual FurniUsagePolicy GetUsagePolicy() =>
         _ctx.Definition.TotalStates == 0 ? FurniUsagePolicy.Nobody : _ctx.Definition.UsagePolicy;
 
-    public virtual Task SetStateAsync(int state, CancellationToken ct) => Task.CompletedTask;
-
     public virtual void SetupStuffDataFromJson(string json)
     {
         var stuffData = _stuffDataFactory.CreateStuffDataFromJson((int)StuffDataKey, json);
 
         _ctx.SetStuffData(stuffData);
     }
+
+    public abstract bool SetState(int state);
+
+    public virtual Task OnAttachAsync(CancellationToken ct) => Task.CompletedTask;
 
     public virtual Task OnInteractAsync(int param, CancellationToken ct) => Task.CompletedTask;
 

@@ -74,12 +74,15 @@ internal sealed class RoomItemsLoader(
             _defsProvider.TryGetDefinition(entity.FurnitureDefinitionEntityId)
             ?? throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
 
-        return new RoomFloorItem
+        var floorItem = new RoomFloorItem
         {
             Id = entity.Id,
             OwnerId = entity.PlayerEntityId,
             Definition = definition,
-            StuffDataRaw = entity.StuffData ?? string.Empty,
         };
+
+        floorItem.SetStuffDataRaw(entity.StuffData ?? string.Empty);
+
+        return floorItem;
     }
 }

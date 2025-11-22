@@ -235,6 +235,12 @@ public sealed class RoomFurniModule(
         return true;
     }
 
+    public void MarkItemAsDirty(long itemId)
+    {
+        if (!_state.DirtyItemIds.Contains(itemId))
+            _state.DirtyItemIds.Add(itemId);
+    }
+
     private async Task AttatchFloorLogicIfNeededAsync(IRoomFloorItem item, CancellationToken ct)
     {
         if (item.Logic is not null)
@@ -248,6 +254,8 @@ public sealed class RoomFurniModule(
             throw new TurboException(TurboErrorCodeEnum.InvalidFloorLogic);
 
         item.SetLogic(floorLogic);
+
+        await logic.OnAttachAsync(ct);
     }
 
     internal async Task FlushDirtyItemIdsAsync(

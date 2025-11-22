@@ -1,29 +1,27 @@
+using System.Text.Json;
 using Turbo.Primitives.Rooms.Furniture;
-using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Furniture.StuffData;
 using Turbo.Primitives.Snapshots.Furniture;
 
 namespace Turbo.Rooms.Furniture;
 
-public class RoomItem<TLogic> : IRoomItem<TLogic>
-    where TLogic : IFurnitureLogic
+public abstract class RoomItem : IRoomItem
 {
     public required long Id { get; init; }
     public required long OwnerId { get; init; }
     public required FurnitureDefinitionSnapshot Definition { get; init; }
-    public required string StuffDataRaw { get; init; }
-    public TLogic Logic { get; private set; } = default!;
     public IStuffData StuffData { get; private set; } = default!;
+    private string _stuffDataRaw = string.Empty;
 
-    public void SetLogic(TLogic logic)
+    public virtual string GetStuffDataRaw()
     {
-        Logic = logic;
+        if (StuffData is null)
+            return _stuffDataRaw;
 
-        Logic.SetupStuffDataFromJson(StuffDataRaw);
+        return JsonSerializer.Serialize(StuffData);
     }
 
-    public void SetStuffData(IStuffData stuffData)
-    {
-        StuffData = stuffData;
-    }
+    public virtual void SetStuffDataRaw(string stuffDataRaw) => _stuffDataRaw = stuffDataRaw;
+
+    public void SetStuffData(IStuffData stuffData) => StuffData = stuffData;
 }

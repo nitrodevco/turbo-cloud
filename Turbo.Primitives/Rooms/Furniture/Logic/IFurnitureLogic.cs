@@ -11,8 +11,9 @@ public interface IFurnitureLogic
     public bool CanToggle();
     public double GetHeight();
     public FurniUsagePolicy GetUsagePolicy();
-    public Task SetStateAsync(int state, CancellationToken ct);
+    public bool SetState(int state);
     public void SetupStuffDataFromJson(string json);
+    public Task OnAttachAsync(CancellationToken ct);
     public Task OnInteractAsync(int param, CancellationToken ct);
     public Task OnMoveAsync(CancellationToken ct);
     public Task OnPlaceAsync(CancellationToken ct);

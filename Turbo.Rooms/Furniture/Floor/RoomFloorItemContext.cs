@@ -4,7 +4,6 @@ using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
 using Turbo.Primitives.Orleans.Snapshots.Room.StuffData;
 using Turbo.Primitives.Rooms.Furniture.Floor;
-using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Rooms.Grains;
 using Turbo.Rooms.Grains.Modules;
 
@@ -14,9 +13,9 @@ public sealed class RoomFloorItemContext(
     RoomGrain roomGrain,
     RoomFurniModule furniModule,
     IRoomFloorItem roomItem
-) : RoomItemContext<IFurnitureFloorLogic>(roomGrain, furniModule, roomItem), IRoomFloorItemContext
+) : RoomItemContext<IRoomFloorItem>(roomGrain, furniModule, roomItem), IRoomFloorItemContext
 {
-    public IRoomFloorItem Item => (IRoomFloorItem)_roomItem;
+    public void MarkItemDirty() => _furniModule.MarkItemAsDirty(Item.Id);
 
     public Task RefreshItemAsync(CancellationToken ct)
     {
