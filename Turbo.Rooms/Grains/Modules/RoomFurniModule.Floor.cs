@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Turbo.Contracts.Enums;
 using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Logging;
+using Turbo.Primitives.Actor;
 using Turbo.Primitives.Rooms.Furniture.Floor;
 using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Mapping;
@@ -36,6 +37,7 @@ internal sealed partial class RoomFurniModule
     }
 
     public async Task<bool> MoveFloorItemByIdAsync(
+        ActorContext ctx,
         long itemId,
         int newX,
         int newY,
@@ -78,14 +80,14 @@ internal sealed partial class RoomFurniModule
 
         _ = _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer(), ct);
 
-        await item.Logic.OnMoveAsync(ct);
+        await item.Logic.OnMoveAsync(ctx, ct);
 
         return true;
     }
 
     public async Task<bool> RemoveFloorItemByIdAsync(
+        ActorContext ctx,
         long itemId,
-        long pickerId,
         CancellationToken ct
     )
     {
@@ -102,22 +104,30 @@ internal sealed partial class RoomFurniModule
             }
         }
 
-        _ = _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(pickerId), ct);
+        _ = _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(ctx.PlayerId), ct);
+
+        await item.Logic.OnPickupAsync(ctx, ct);
 
         return true;
     }
 
-    public async Task<bool> UseFloorItemByIdAsync(long itemId, int param, CancellationToken ct)
+    public async Task<bool> UseFloorItemByIdAsync(
+        ActorContext ctx,
+        long itemId,
+        int param,
+        CancellationToken ct
+    )
     {
         if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        await item.Logic.OnUseAsync(param, ct);
+        await item.Logic.OnUseAsync(ctx, param, ct);
 
         return true;
     }
 
     public async Task<bool> ClickFloorItemByIdAsync(
+        ActorContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default
@@ -126,12 +136,13 @@ internal sealed partial class RoomFurniModule
         if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        await item.Logic.OnClickAsync(param, ct);
+        await item.Logic.OnClickAsync(ctx, param, ct);
 
         return true;
     }
 
     public async Task<bool> ValidateFloorItemPlacementAsync(
+        ActorContext ctx,
         long itemId,
         int newX,
         int newY,

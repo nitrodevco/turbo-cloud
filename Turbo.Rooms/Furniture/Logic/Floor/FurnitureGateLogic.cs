@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Enums.Furniture;
+using Turbo.Primitives.Actor;
 using Turbo.Primitives.Rooms.Furniture.Floor;
 using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Furniture.StuffData;
@@ -17,13 +18,13 @@ public class FurnitureGateLogic(IStuffDataFactory stuffDataFactory, IRoomFloorIt
 
     public override FurniUsagePolicy GetUsagePolicy() => FurniUsagePolicy.Controller;
 
-    public override async Task OnUseAsync(int param, CancellationToken ct)
+    public override async Task OnUseAsync(ActorContext ctx, int param, CancellationToken ct)
     {
         var tile = await _ctx.GetTileSnapshotAsync(ct);
 
         if (tile.Flags.Has(RoomTileFlags.AvatarOccupied))
             return;
 
-        await base.OnUseAsync(param, ct);
+        await base.OnUseAsync(ctx, param, ct);
     }
 }

@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Contracts.Enums.Rooms.Object;
-using Turbo.Primitives;
+using Turbo.Primitives.Actor;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Layout;
@@ -217,7 +217,7 @@ public sealed class RoomService(
         var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId);
 
         var isValidPlacement = await roomGrain
-            .ValidateFloorItemPlacementAsync(itemId, newX, newY, newRotation)
+            .ValidateFloorItemPlacementAsync(ctx, itemId, newX, newY, newRotation)
             .ConfigureAwait(false);
 
         if (!isValidPlacement)
@@ -239,7 +239,7 @@ public sealed class RoomService(
         }
 
         await roomGrain
-            .MoveFloorItemByIdAsync(itemId, newX, newY, newRotation, ct)
+            .MoveFloorItemByIdAsync(ctx, itemId, newX, newY, newRotation, ct)
             .ConfigureAwait(false);
     }
 
@@ -255,7 +255,7 @@ public sealed class RoomService(
 
         var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId);
 
-        await roomGrain.UseFloorItemByIdAsync(itemId, param, ct).ConfigureAwait(false);
+        await roomGrain.UseFloorItemByIdAsync(ctx, itemId, param, ct).ConfigureAwait(false);
     }
 
     public async Task ClickFloorItemInRoomAsync(
@@ -270,6 +270,6 @@ public sealed class RoomService(
 
         var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId);
 
-        await roomGrain.ClickFloorItemByIdAsync(itemId, param, ct).ConfigureAwait(false);
+        await roomGrain.ClickFloorItemByIdAsync(ctx, itemId, param, ct).ConfigureAwait(false);
     }
 }

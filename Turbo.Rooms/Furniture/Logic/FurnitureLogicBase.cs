@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Enums.Furniture;
+using Turbo.Primitives.Actor;
 using Turbo.Primitives.Rooms.Furniture;
 using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Furniture.StuffData;
@@ -37,15 +38,17 @@ public abstract class FurnitureLogicBase<TItem, TContext>(
 
     public virtual Task OnAttachAsync(CancellationToken ct) => Task.CompletedTask;
 
-    public virtual Task OnUseAsync(int param, CancellationToken ct) => Task.CompletedTask;
+    public virtual Task OnUseAsync(ActorContext ctx, int param, CancellationToken ct) =>
+        Task.CompletedTask;
 
-    public virtual Task OnClickAsync(int param, CancellationToken ct) => Task.CompletedTask;
+    public virtual Task OnClickAsync(ActorContext ctx, int param, CancellationToken ct) =>
+        Task.CompletedTask;
 
-    public virtual Task OnMoveAsync(CancellationToken ct) => Task.CompletedTask;
+    public virtual Task OnMoveAsync(ActorContext ctx, CancellationToken ct) => Task.CompletedTask;
 
-    public virtual Task OnPlaceAsync(CancellationToken ct) => Task.CompletedTask;
+    public virtual Task OnPlaceAsync(ActorContext ctx, CancellationToken ct) => Task.CompletedTask;
 
-    public virtual Task OnPickupAsync(CancellationToken ct) => Task.CompletedTask;
+    public virtual Task OnPickupAsync(ActorContext ctx, CancellationToken ct) => Task.CompletedTask;
 
     protected virtual IStuffData CreateStuffData() =>
         _stuffDataFactory.CreateStuffData((int)StuffDataKey);

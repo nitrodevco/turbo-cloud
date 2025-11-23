@@ -1,4 +1,4 @@
-namespace Turbo.Primitives;
+namespace Turbo.Primitives.Actor;
 
 public enum ActorOrigin
 {

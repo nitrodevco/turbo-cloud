@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Enums.Rooms.Object;
+using Turbo.Primitives.Actor;
 using Turbo.Primitives.Orleans.Snapshots.Session;
 using Turbo.Primitives.Rooms.Grains;
 

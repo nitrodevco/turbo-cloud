@@ -2,8 +2,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Enums;
-using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Logging;
+using Turbo.Primitives.Actor;
 using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -26,6 +26,7 @@ internal sealed partial class RoomFurniModule
     }
 
     public async Task<bool> MoveWallItemByIdAsync(
+        ActorContext ctx,
         long itemId,
         string newLocation,
         CancellationToken ct
@@ -43,12 +44,13 @@ internal sealed partial class RoomFurniModule
 
         _ = _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer(), ct);
 
-        await item.Logic.OnMoveAsync(ct);
+        await item.Logic.OnMoveAsync(ctx, ct);
 
         return true;
     }
 
     public async Task<bool> RemoveWallItemByIdAsync(
+        ActorContext ctx,
         long itemId,
         long pickerId,
         CancellationToken ct
@@ -62,17 +64,23 @@ internal sealed partial class RoomFurniModule
         return true;
     }
 
-    public async Task<bool> UseWallItemByIdAsync(long itemId, int param, CancellationToken ct)
+    public async Task<bool> UseWallItemByIdAsync(
+        ActorContext ctx,
+        long itemId,
+        int param,
+        CancellationToken ct
+    )
     {
         if (!_state.WallItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
-        await item.Logic.OnUseAsync(param, ct);
+        await item.Logic.OnUseAsync(ctx, param, ct);
 
         return true;
     }
 
     public async Task<bool> ClickWallItemByIdAsync(
+        ActorContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default
@@ -81,12 +89,16 @@ internal sealed partial class RoomFurniModule
         if (!_state.WallItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
-        await item.Logic.OnClickAsync(param, ct);
+        await item.Logic.OnClickAsync(ctx, param, ct);
 
         return true;
     }
 
-    public async Task<bool> ValidateWallItemPlacementAsync(long itemId, string newLocation)
+    public async Task<bool> ValidateWallItemPlacementAsync(
+        ActorContext ctx,
+        long itemId,
+        string newLocation
+    )
     {
         return true;
     }

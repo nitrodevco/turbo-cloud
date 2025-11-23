@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Actor;
 using Turbo.Primitives.Rooms.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots;
 
@@ -11,28 +12,38 @@ public sealed partial class RoomGrain
         _furniModule.AddWallItemAsync(item, ct);
 
     public Task<bool> MoveWallItemByIdAsync(
+        ActorContext ctx,
         long itemId,
         string newLocation,
         CancellationToken ct
-    ) => _furniModule.MoveWallItemByIdAsync(itemId, newLocation, ct);
+    ) => _furniModule.MoveWallItemByIdAsync(ctx, itemId, newLocation, ct);
 
-    public Task<bool> RemoveWallItemByIdAsync(long itemId, long pickerId, CancellationToken ct) =>
-        _furniModule.RemoveWallItemByIdAsync(itemId, pickerId, ct);
+    public Task<bool> RemoveWallItemByIdAsync(
+        ActorContext ctx,
+        long itemId,
+        long pickerId,
+        CancellationToken ct
+    ) => _furniModule.RemoveWallItemByIdAsync(ctx, itemId, pickerId, ct);
 
     public Task<bool> UseWallItemByIdAsync(
+        ActorContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default
-    ) => _furniModule.UseWallItemByIdAsync(itemId, param, ct);
+    ) => _furniModule.UseWallItemByIdAsync(ctx, itemId, param, ct);
 
     public Task<bool> ClickWallItemByIdAsync(
+        ActorContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default
-    ) => _furniModule.ClickWallItemByIdAsync(itemId, param, ct);
+    ) => _furniModule.ClickWallItemByIdAsync(ctx, itemId, param, ct);
 
-    public Task<bool> ValidateWallItemPlacementAsync(long itemId, string newLocation) =>
-        _furniModule.ValidateWallItemPlacementAsync(itemId, newLocation);
+    public Task<bool> ValidateWallItemPlacementAsync(
+        ActorContext ctx,
+        long itemId,
+        string newLocation
+    ) => _furniModule.ValidateWallItemPlacementAsync(ctx, itemId, newLocation);
 
     public Task<RoomWallItemSnapshot?> GetWallItemSnapshotByIdAsync(
         long itemId,

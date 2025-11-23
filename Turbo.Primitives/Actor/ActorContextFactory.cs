@@ -1,14 +1,9 @@
 using Turbo.Primitives.Orleans.Snapshots.Session;
 
-namespace Turbo.Primitives;
+namespace Turbo.Primitives.Actor;
 
-public sealed record ActorContext
+public static class ActorContextFactory
 {
-    public required ActorOrigin Origin { get; init; }
-    public SessionKey SessionKey { get; init; } = SessionKey.Empty;
-    public long PlayerId { get; init; } = -1;
-    public long RoomId { get; init; } = -1;
-
     public static ActorContext ForPlayer(SessionKey sessionKey, long playerId, long roomId) =>
         new()
         {
