@@ -7,24 +7,21 @@ using Orleans;
 using Orleans.Runtime;
 using Orleans.Streams;
 using Turbo.Contracts.Abstractions;
-using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Contracts.Orleans;
 using Turbo.Database.Context;
 using Turbo.Primitives.Orleans.Events.Rooms;
-using Turbo.Primitives.Orleans.Grains.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room;
-using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
-using Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
 using Turbo.Primitives.Orleans.Snapshots.Room.Settings;
 using Turbo.Primitives.Rooms.Furniture;
 using Turbo.Primitives.Rooms.Furniture.Logic;
+using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 
 namespace Turbo.Rooms.Grains;
 
-public class RoomGrain : Grain, IRoomGrain
+public sealed partial class RoomGrain : Grain, IRoomGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory;
     private readonly RoomConfig _roomConfig;
@@ -121,42 +118,6 @@ public class RoomGrain : Grain, IRoomGrain
         await _mapModule.EnsureMapCompiledAsync(ct);
     }
 
-    public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
-        long itemId,
-        CancellationToken ct
-    ) =>
-        Task.FromResult(
-            _liveState.FloorItemsById.TryGetValue(itemId, out var item)
-                ? RoomFloorItemSnapshot.FromFloorItem(item)
-                : null
-        );
-
-    public async Task<bool> MoveFloorItemByIdAsync(
-        long itemId,
-        int newX,
-        int newY,
-        Rotation newRotation,
-        CancellationToken ct
-    ) => await _furniModule.MoveFloorItemByIdAsync(itemId, newX, newY, newRotation, ct);
-
-    public async Task<bool> UseFloorItemByIdAsync(
-        long itemId,
-        int param = -1,
-        CancellationToken ct = default
-    ) => await _furniModule.UseFloorItemByIdAsync(itemId, param, ct);
-
-    public async Task<bool> ClickFloorItemByIdAsync(long itemId, CancellationToken ct = default) =>
-        await _furniModule.ClickFloorItemByIdAsync(itemId, ct);
-
-    public async Task<bool> ValidateFloorPlacementAsync(
-        long itemId,
-        int newX,
-        int newY,
-        Rotation newRotation
-    ) => await _furniModule.ValidateFloorPlacementAsync(itemId, newX, newY, newRotation);
-
-    public Task ComputeTileAsync(int x, int y) => _mapModule.ComputeTileAsync(x, y);
-
     public Task<RoomSnapshot> GetSnapshotAsync() => Task.FromResult(_state.State.RoomSnapshot);
 
     public async Task<RoomSummarySnapshot> GetSummaryAsync()
@@ -179,9 +140,6 @@ public class RoomGrain : Grain, IRoomGrain
         await _grainFactory
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
             .GetRoomPopulationAsync(this.GetPrimaryKeyLong());
-
-    public async Task<RoomMapSnapshot> GetMapSnapshotAsync(CancellationToken ct) =>
-        await _mapModule.GetMapSnapshotAsync(ct);
 
     public async Task SendComposerToRoomAsync(IComposer composer, CancellationToken ct)
     {

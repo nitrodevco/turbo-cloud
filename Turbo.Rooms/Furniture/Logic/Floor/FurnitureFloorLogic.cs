@@ -12,15 +12,15 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
     : FurnitureLogicBase<IRoomFloorItem, IRoomFloorItemContext>(stuffDataFactory, ctx),
         IFurnitureFloorLogic
 {
-    public override bool SetState(int state)
+    public override async Task<bool> SetStateAsync(int state)
     {
         if (_stuffData is null || state == StuffData.GetState())
             return false;
 
         _stuffData.SetState(state.ToString());
 
-        _ = _ctx.MarkItemDirtyAsync();
-        _ = _ctx.RefreshStuffDataAsync(CancellationToken.None);
+        await _ctx.MarkItemDirtyAsync();
+        await _ctx.RefreshStuffDataAsync(CancellationToken.None);
 
         return true;
     }
@@ -33,36 +33,25 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
 
     public virtual bool CanLay() => _ctx.Definition.CanLay;
 
-    public override bool CanToggle()
+    public override async Task OnUseAsync(int param, CancellationToken ct)
     {
-        return true;
         if (GetUsagePolicy() == FurniUsagePolicy.Nobody)
-            return false;
+            return;
 
         if (GetUsagePolicy() == FurniUsagePolicy.Controller)
         {
-            // check if rights or higher
-            return false;
+            var isController = false;
+
+            if (!isController)
+                return;
         }
 
-        return true;
+        param = GetNextToggleableState();
+
+        await SetStateAsync(param);
     }
 
-    public virtual bool IsOpen() => CanWalk() || CanSit() || CanLay();
-
-    public override Task OnUseAsync(int param, CancellationToken ct)
-    {
-        if (CanToggle())
-        {
-            param = GetNextToggleableState();
-
-            SetState(param);
-        }
-
-        return Task.CompletedTask;
-    }
-
-    public override Task OnClickAsync(CancellationToken ct) => Task.CompletedTask;
+    public override Task OnClickAsync(int param, CancellationToken ct) => Task.CompletedTask;
 
     public virtual Task OnStopAsync(CancellationToken ct) => Task.CompletedTask;
 

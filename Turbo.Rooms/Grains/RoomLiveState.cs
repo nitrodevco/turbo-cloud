@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
-using Turbo.Primitives.Rooms.Furniture;
 using Turbo.Primitives.Rooms.Furniture.Floor;
 using Turbo.Primitives.Rooms.Furniture.Wall;
 using Turbo.Primitives.Rooms.Mapping;

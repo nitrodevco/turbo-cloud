@@ -12,9 +12,9 @@ using Turbo.Primitives.Messages.Outgoing.Room.Layout;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Grains;
-using Turbo.Primitives.Orleans.Grains.Room;
 using Turbo.Primitives.Orleans.Snapshots.Session;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Grains;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains;
 
@@ -263,6 +263,7 @@ public sealed class RoomService(
         long playerId,
         long roomId,
         long itemId,
+        int param = -1,
         CancellationToken ct = default
     )
     {
@@ -271,6 +272,6 @@ public sealed class RoomService(
 
         var roomGrain = _grainFactory.GetGrain<IRoomGrain>(roomId);
 
-        await roomGrain.ClickFloorItemByIdAsync(itemId, ct).ConfigureAwait(false);
+        await roomGrain.ClickFloorItemByIdAsync(itemId, param, ct).ConfigureAwait(false);
     }
 }

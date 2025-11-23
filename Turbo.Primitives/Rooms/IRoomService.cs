@@ -1,8 +1,8 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Enums.Rooms.Object;
-using Turbo.Primitives.Orleans.Grains.Room;
 using Turbo.Primitives.Orleans.Snapshots.Session;
+using Turbo.Primitives.Rooms.Grains;
 
 namespace Turbo.Primitives.Rooms;
 
@@ -47,6 +47,7 @@ public interface IRoomService
         long playerId,
         long roomId,
         long itemId,
+        int param = -1,
         CancellationToken ct = default
     );
 }

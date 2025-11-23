@@ -5,7 +5,7 @@ using Orleans;
 using Turbo.Contracts.Abstractions;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 
-namespace Turbo.Primitives.Orleans.Grains.Room;
+namespace Turbo.Primitives.Rooms.Grains;
 
 public interface IRoomDirectoryGrain : IGrainWithStringKey
 {

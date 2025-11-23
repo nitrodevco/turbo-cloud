@@ -7,8 +7,8 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Contracts.Abstractions;
 using Turbo.Primitives.Orleans.Grains;
-using Turbo.Primitives.Orleans.Grains.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room;
+using Turbo.Primitives.Rooms.Grains;
 
 namespace Turbo.Rooms.Grains;
 

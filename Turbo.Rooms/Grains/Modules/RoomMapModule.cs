@@ -101,19 +101,17 @@ public sealed class RoomMapModule(
         _state.NeedsCompile = true;
     }
 
-    public Task EnsureMapCompiledAsync(CancellationToken ct)
+    public async Task EnsureMapCompiledAsync(CancellationToken ct)
     {
-        if (_state.NeedsCompile)
-        {
-            _state.NeedsCompile = false;
+        if (!_state.NeedsCompile)
+            return;
 
-            for (int id = 0; id < (_state.Model?.Size ?? 0); id++)
-                _ = ComputeTileAsync(id);
+        _state.NeedsCompile = false;
 
-            _state.DirtyTileIds.Clear();
-        }
+        for (int id = 0; id < (_state.Model?.Size ?? 0); id++)
+            await ComputeTileAsync(id);
 
-        return Task.CompletedTask;
+        _state.DirtyTileIds.Clear();
     }
 
     public Task ComputeTileAsync(int x, int y) => ComputeTileAsync(GetTileId(x, y));
@@ -223,7 +221,7 @@ public sealed class RoomMapModule(
         return _mapSnapshot;
     }
 
-    public async Task FlushDirtyTileIdsAsync(CancellationToken ct)
+    internal async Task FlushDirtyTileIdsAsync(CancellationToken ct)
     {
         if (_state.DirtyTileIds.Count == 0)
             return;

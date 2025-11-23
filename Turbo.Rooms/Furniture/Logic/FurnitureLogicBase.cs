@@ -33,13 +33,13 @@ public abstract class FurnitureLogicBase<TItem, TContext>(
 
     public virtual bool CanToggle() => false;
 
-    public virtual bool SetState(int state) => false;
+    public virtual Task<bool> SetStateAsync(int state) => Task.FromResult(false);
 
     public virtual Task OnAttachAsync(CancellationToken ct) => Task.CompletedTask;
 
     public virtual Task OnUseAsync(int param, CancellationToken ct) => Task.CompletedTask;
 
-    public virtual Task OnClickAsync(CancellationToken ct) => Task.CompletedTask;
+    public virtual Task OnClickAsync(int param, CancellationToken ct) => Task.CompletedTask;
 
     public virtual Task OnMoveAsync(CancellationToken ct) => Task.CompletedTask;
 

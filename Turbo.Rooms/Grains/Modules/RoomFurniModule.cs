@@ -39,22 +39,6 @@ public sealed class RoomFurniModule(
 
     public async Task OnDeactivateAsync(CancellationToken ct) { }
 
-    public async Task EnsureFurniLoadedAsync(CancellationToken ct)
-    {
-        if (_state.IsFurniLoaded)
-            return;
-
-        var (floorItems, wallItems) = await _itemsLoader.LoadByRoomIdAsync(
-            _roomGrain.GetPrimaryKeyLong(),
-            ct
-        );
-
-        foreach (var item in floorItems)
-            await AddFloorItemAsync(item, ct);
-
-        _state.IsFurniLoaded = true;
-    }
-
     public async Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
     {
         if (!_state.FloorItemsById.TryAdd(item.Id, item))
@@ -68,7 +52,7 @@ public sealed class RoomFurniModule(
             {
                 _state.TileFloorStacks[id].Add(item.Id);
 
-                _roomMap.ComputeTileAsync(id);
+                await _roomMap.ComputeTileAsync(id);
             }
         }
 
@@ -97,7 +81,7 @@ public sealed class RoomFurniModule(
             {
                 _state.TileFloorStacks[idx].Remove(item.Id);
 
-                _roomMap.ComputeTileAsync(idx);
+                await _roomMap.ComputeTileAsync(idx);
             }
         }
 
@@ -112,7 +96,7 @@ public sealed class RoomFurniModule(
             {
                 _state.TileFloorStacks[id].Add(item.Id);
 
-                _roomMap.ComputeTileAsync(id);
+                await _roomMap.ComputeTileAsync(id);
             }
         }
 
@@ -140,7 +124,7 @@ public sealed class RoomFurniModule(
             {
                 _state.TileFloorStacks[id].Remove(item.Id);
 
-                _roomMap.ComputeTileAsync(id);
+                await _roomMap.ComputeTileAsync(id);
             }
         }
 
@@ -159,12 +143,16 @@ public sealed class RoomFurniModule(
         return true;
     }
 
-    public async Task<bool> ClickFloorItemByIdAsync(long itemId, CancellationToken ct)
+    public async Task<bool> ClickFloorItemByIdAsync(
+        long itemId,
+        int param = -1,
+        CancellationToken ct = default
+    )
     {
         if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        await item.Logic.OnClickAsync(ct);
+        await item.Logic.OnClickAsync(param, ct);
 
         return true;
     }
@@ -235,6 +223,16 @@ public sealed class RoomFurniModule(
         return Task.CompletedTask;
     }
 
+    public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
+        long itemId,
+        CancellationToken ct
+    ) =>
+        Task.FromResult(
+            _state.FloorItemsById.TryGetValue(itemId, out var item)
+                ? RoomFloorItemSnapshot.FromFloorItem(item)
+                : null
+        );
+
     private async Task AttatchFloorLogicIfNeededAsync(IRoomFloorItem item, CancellationToken ct)
     {
         if (item.Logic is not null)
@@ -250,6 +248,22 @@ public sealed class RoomFurniModule(
         item.SetLogic(floorLogic);
 
         await logic.OnAttachAsync(ct);
+    }
+
+    internal async Task EnsureFurniLoadedAsync(CancellationToken ct)
+    {
+        if (_state.IsFurniLoaded)
+            return;
+
+        var (floorItems, wallItems) = await _itemsLoader.LoadByRoomIdAsync(
+            _roomGrain.GetPrimaryKeyLong(),
+            ct
+        );
+
+        foreach (var item in floorItems)
+            await AddFloorItemAsync(item, ct);
+
+        _state.IsFurniLoaded = true;
     }
 
     internal async Task FlushDirtyItemIdsAsync(

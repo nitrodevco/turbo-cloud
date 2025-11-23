@@ -22,7 +22,13 @@ public class ClickFurniMessageHandler(IRoomService roomService) : IMessageHandle
         if (isFloorItemClicked)
         {
             await _roomService
-                .ClickFloorItemInRoomAsync(ctx.PlayerId, ctx.RoomId, message.ObjectId, ct)
+                .ClickFloorItemInRoomAsync(
+                    ctx.PlayerId,
+                    ctx.RoomId,
+                    message.ObjectId,
+                    message.Param,
+                    ct
+                )
                 .ConfigureAwait(false);
         }
         else if (isWallItemClicked) { }

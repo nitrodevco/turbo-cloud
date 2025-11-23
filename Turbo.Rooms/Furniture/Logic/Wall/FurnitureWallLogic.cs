@@ -1,4 +1,5 @@
 using System.Threading;
+using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Furniture.StuffData;
 using Turbo.Primitives.Rooms.Furniture.Wall;
@@ -10,15 +11,15 @@ public class FurnitureWallLogic(IStuffDataFactory stuffDataFactory, IRoomWallIte
     : FurnitureLogicBase<IRoomWallItem, IRoomWallItemContext>(stuffDataFactory, ctx),
         IFurnitureWallLogic
 {
-    public override bool SetState(int state)
+    public override async Task<bool> SetStateAsync(int state)
     {
-        if (_stuffData is null || state == _stuffData.GetState())
+        if (_stuffData is null || state == StuffData.GetState())
             return false;
 
         _stuffData.SetState(state.ToString());
 
-        _ = _ctx.MarkItemDirtyAsync();
-        _ = _ctx.RefreshStuffDataAsync(CancellationToken.None);
+        await _ctx.MarkItemDirtyAsync();
+        await _ctx.RefreshStuffDataAsync(CancellationToken.None);
 
         return true;
     }
