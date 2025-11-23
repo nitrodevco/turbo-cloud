@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
 using Turbo.Primitives.Rooms.Furniture.Floor;
 using Turbo.Primitives.Rooms.Furniture.Wall;
@@ -8,6 +9,8 @@ namespace Turbo.Rooms.Grains;
 
 public sealed class RoomLiveState
 {
+    public RoomSnapshot RoomSnapshot { get; internal set; } = default!;
+
     public Dictionary<long, IRoomFloorItem> FloorItemsById { get; } = [];
     public Dictionary<long, IRoomWallItem> WallItemsById { get; } = [];
     public bool IsFurniLoaded { get; internal set; } = false;

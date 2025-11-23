@@ -2,15 +2,10 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
-using Orleans.Runtime;
-using Orleans.Streams;
 using Turbo.Contracts.Abstractions;
-using Turbo.Contracts.Orleans;
 using Turbo.Database.Context;
-using Turbo.Primitives.Orleans.Events.Rooms;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room.Settings;
 using Turbo.Primitives.Rooms.Furniture;
@@ -30,25 +25,18 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     private readonly IRoomItemsLoader _itemsLoader;
     private readonly IFurnitureLogicFactory _furnitureLogicFactory;
     private readonly IGrainFactory _grainFactory;
-    private readonly ILogger<IRoomGrain> _logger;
 
-    private readonly IPersistentState<RoomState> _state;
     private readonly RoomLiveState _liveState;
     private readonly RoomMapModule _mapModule;
     private readonly RoomFurniModule _furniModule;
 
-    private IAsyncStream<RoomEvent>? _stream = null;
-
     public RoomGrain(
-        [PersistentState(OrleansStateNames.ROOM_STATE, OrleansStorageNames.ROOM_STORE)]
-            IPersistentState<RoomState> state,
         IDbContextFactory<TurboDbContext> dbContextFactory,
         IOptions<RoomConfig> roomConfig,
         IRoomModelProvider roomModelProvider,
         IRoomItemsLoader itemsLoader,
         IFurnitureLogicFactory furnitureLogicFactory,
-        IGrainFactory grainFactory,
-        ILogger<IRoomGrain> logger
+        IGrainFactory grainFactory
     )
     {
         _dbContextFactory = dbContextFactory;
@@ -57,9 +45,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _itemsLoader = itemsLoader;
         _furnitureLogicFactory = furnitureLogicFactory;
         _grainFactory = grainFactory;
-        _logger = logger;
 
-        _state = state;
         _liveState = new();
         _mapModule = new RoomMapModule(this, _roomConfig, _liveState);
         _furniModule = new RoomFurniModule(
@@ -74,17 +60,11 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
-        var provider = this.GetStreamProvider(OrleansStreamProviders.DEFAULT_STREAM_PROVIDER);
-
-        _stream = provider.GetStream<RoomEvent>(
-            StreamId.Create(OrleansStreamNames.ROOM_EVENTS, this.GetPrimaryKeyLong())
-        );
-
         await HydrateRoomStateAsync(ct);
 
         await _grainFactory
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
-            .UpsertActiveRoomAsync(_state.State.RoomSnapshot);
+            .UpsertActiveRoomAsync(_liveState.RoomSnapshot);
 
         await _mapModule.OnActivateAsync(ct);
         await _furniModule.OnActivateAsync(ct);
@@ -113,12 +93,6 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         await _grainFactory
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
             .RemoveActiveRoomAsync(this.GetPrimaryKeyLong());
-
-        _logger.LogInformation(
-            "RoomGrain:{RoomId} deactivated. Reason: {Reason}",
-            this.GetPrimaryKeyLong(),
-            reason
-        );
     }
 
     public void DeactivateRoom() => DeactivateOnIdle();
@@ -128,12 +102,14 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     public async Task EnsureRoomActiveAsync(CancellationToken ct)
     {
+        DelayRoomDeactivation();
+
         await _mapModule.EnsureMapBuiltAsync(ct);
         await _furniModule.EnsureFurniLoadedAsync(ct);
         await _mapModule.EnsureMapCompiledAsync(ct);
     }
 
-    public Task<RoomSnapshot> GetSnapshotAsync() => Task.FromResult(_state.State.RoomSnapshot);
+    public Task<RoomSnapshot> GetSnapshotAsync() => Task.FromResult(_liveState.RoomSnapshot);
 
     public async Task<RoomSummarySnapshot> GetSummaryAsync()
     {
@@ -141,11 +117,11 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
         return new RoomSummarySnapshot
         {
-            RoomId = _state.State.RoomSnapshot.RoomId,
-            Name = _state.State.RoomSnapshot.Name,
-            Description = _state.State.RoomSnapshot.Description,
-            OwnerId = _state.State.RoomSnapshot.OwnerId,
-            OwnerName = _state.State.RoomSnapshot.OwnerName,
+            RoomId = _liveState.RoomSnapshot.RoomId,
+            Name = _liveState.RoomSnapshot.Name,
+            Description = _liveState.RoomSnapshot.Description,
+            OwnerId = _liveState.RoomSnapshot.OwnerId,
+            OwnerName = _liveState.RoomSnapshot.OwnerName,
             Population = population,
             LastUpdatedUtc = DateTime.UtcNow,
         };
@@ -167,9 +143,6 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     private async Task HydrateRoomStateAsync(CancellationToken ct)
     {
-        if (_state.State.IsLoaded)
-            return;
-
         var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
 
         try
@@ -184,7 +157,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
             _liveState.Model = _roomModelProvider.GetModelById(entity.RoomModelEntityId);
 
-            _state.State.RoomSnapshot = new RoomSnapshot
+            _liveState.RoomSnapshot = new RoomSnapshot
             {
                 RoomId = entity.Id,
                 Name = entity.Name ?? string.Empty,
@@ -219,10 +192,6 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
                 WorldType = _liveState.Model.Name,
                 LastUpdatedUtc = DateTime.UtcNow,
             };
-
-            _state.State.IsLoaded = true;
-
-            await _state.WriteStateAsync(ct);
         }
         catch (Exception e)
         {
