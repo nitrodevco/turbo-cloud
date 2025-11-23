@@ -16,7 +16,7 @@ public sealed record RoomTileSnapshot
     public required double Height { get; init; }
 
     [Id(3)]
-    public required short RelativeHeight { get; init; }
+    public required short EncodedHeight { get; init; }
 
     [Id(4)]
     public required RoomTileFlags Flags { get; init; }

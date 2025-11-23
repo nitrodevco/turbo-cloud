@@ -92,8 +92,8 @@ internal sealed class RoomMapModule(
             tileFloorStacks[id] = [];
 
         _state.TileHeights = new double[size];
-        _state.TileRelativeHeights = new short[size];
-        _state.TileStates = new RoomTileFlags[size];
+        _state.TileEncodedHeights = new short[size];
+        _state.TileFlags = new RoomTileFlags[size];
         _state.TileHighestFloorItems = new long[size];
         _state.TileFloorStacks = tileFloorStacks;
         _state.IsMapBuilt = true;
@@ -120,7 +120,7 @@ internal sealed class RoomMapModule(
         if (!_state.NeedsCompile)
         {
             var nextHeight = _state.Model?.BaseHeights[id] ?? 0.0;
-            var nextState = _state.Model?.BaseFlags[id] ?? RoomTileFlags.Disabled;
+            var nextFlags = _state.Model?.BaseFlags[id] ?? RoomTileFlags.Disabled;
             var floorStack = _state.TileFloorStacks[id];
 
             IRoomFloorItem? nextHighestItem = null;
@@ -148,39 +148,39 @@ internal sealed class RoomMapModule(
 
             nextHeight = Math.Truncate(nextHeight * 1000) / 1000;
 
-            if (!nextState.Has(RoomTileFlags.Disabled))
+            if (!nextFlags.Has(RoomTileFlags.Disabled))
             {
                 if (nextHighestItem is not null)
                 {
                     if (!nextHighestItem.Logic.CanWalk())
                     {
-                        nextState = nextState.Remove(RoomTileFlags.Open);
-                        nextState = nextState.Add(RoomTileFlags.Closed);
+                        nextFlags = nextFlags.Remove(RoomTileFlags.Open);
+                        nextFlags = nextFlags.Add(RoomTileFlags.Closed);
                     }
 
                     if (!nextHighestItem.Logic.CanStack())
-                        nextState = nextState.Add(RoomTileFlags.StackBlocked);
+                        nextFlags = nextFlags.Add(RoomTileFlags.StackBlocked);
 
                     if (nextHighestItem.Logic.CanSit())
-                        nextState = nextState.Add(RoomTileFlags.Sittable);
+                        nextFlags = nextFlags.Add(RoomTileFlags.Sittable);
 
                     if (nextHighestItem.Logic.CanLay())
-                        nextState = nextState.Add(RoomTileFlags.Layable);
+                        nextFlags = nextFlags.Add(RoomTileFlags.Layable);
                 }
             }
 
-            var prevRelative = _state.TileRelativeHeights[id];
-            var nextRelative = RoomModelCompiler.EncodeHeight(
+            var prevEncoded = _state.TileEncodedHeights[id];
+            var nextEncoded = RoomModelCompiler.EncodeHeight(
                 nextHeight,
-                nextState.Has(RoomTileFlags.StackBlocked)
+                nextFlags.Has(RoomTileFlags.StackBlocked)
             );
 
-            if (prevRelative != nextRelative)
+            if (prevEncoded != nextEncoded)
                 _state.DirtyTileIds.Add(id);
 
             _state.TileHeights[id] = nextHeight;
-            _state.TileRelativeHeights[id] = nextRelative;
-            _state.TileStates[id] = nextState;
+            _state.TileEncodedHeights[id] = nextEncoded;
+            _state.TileFlags[id] = nextFlags;
             _state.TileHighestFloorItems[id] = nextHighestItem?.Id ?? -1;
 
             _mapVersion++;
@@ -199,8 +199,8 @@ internal sealed class RoomMapModule(
                 X = (byte)(id % (_state.Model?.Width ?? 0)),
                 Y = (byte)(id / (_state.Model?.Width ?? 0)),
                 Height = _state.TileHeights[id],
-                RelativeHeight = _state.TileRelativeHeights[id],
-                Flags = _state.TileStates[id],
+                EncodedHeight = _state.TileEncodedHeights[id],
+                Flags = _state.TileFlags[id],
             }
         );
 
@@ -227,7 +227,7 @@ internal sealed class RoomMapModule(
             DoorX = _state.Model?.DoorX ?? 0,
             DoorY = _state.Model?.DoorY ?? 0,
             DoorRotation = _state.Model?.DoorRotation ?? 0,
-            TileRelativeHeights = [.. _state.TileRelativeHeights],
+            TileEncodedHeights = [.. _state.TileEncodedHeights],
             FloorItems = [.. items],
             Version = _mapVersion,
         };
@@ -250,8 +250,8 @@ internal sealed class RoomMapModule(
                 X = (byte)(id % (_state.Model?.Width ?? 0)),
                 Y = (byte)(id / (_state.Model?.Width ?? 0)),
                 Height = _state.TileHeights[id],
-                RelativeHeight = _state.TileRelativeHeights[id],
-                Flags = _state.TileStates[id],
+                EncodedHeight = _state.TileEncodedHeights[id],
+                Flags = _state.TileFlags[id],
             })
             .ToArray();
 

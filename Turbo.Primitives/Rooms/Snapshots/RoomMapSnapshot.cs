@@ -32,7 +32,7 @@ public sealed record RoomMapSnapshot
     public required Rotation DoorRotation { get; init; }
 
     [Id(8)]
-    public required short[] TileRelativeHeights { get; init; }
+    public required short[] TileEncodedHeights { get; init; }
 
     [Id(9)]
     public required ImmutableArray<RoomFloorItemSnapshot> FloorItems { get; init; }

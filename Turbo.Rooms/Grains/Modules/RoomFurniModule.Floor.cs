@@ -156,11 +156,11 @@ internal sealed partial class RoomFurniModule
         {
             foreach (var id in tileIds)
             {
-                var tileState = _state.TileStates[id];
+                var tileFlags = _state.TileFlags[id];
                 var tileHeight = _state.TileHeights[id];
 
                 if (
-                    tileState.Has(RoomTileFlags.Disabled)
+                    tileFlags.Has(RoomTileFlags.Disabled)
                     || (tileHeight + tItem.Definition.StackHeight) > _roomConfig.MaxStackHeight
                 )
                     return false;
@@ -175,7 +175,7 @@ internal sealed partial class RoomFurniModule
                     if (isRotating && bItem == tItem)
                         continue;
 
-                    if (tileState.Has(RoomTileFlags.StackBlocked))
+                    if (tileFlags.Has(RoomTileFlags.StackBlocked))
                         return false;
 
                     if (bItem != tItem)

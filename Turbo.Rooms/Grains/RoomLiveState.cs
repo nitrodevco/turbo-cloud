@@ -17,8 +17,8 @@ internal sealed class RoomLiveState
 
     public RoomModelSnapshot? Model { get; internal set; } = null;
     public double[] TileHeights { get; internal set; } = [];
-    public short[] TileRelativeHeights { get; internal set; } = [];
-    public RoomTileFlags[] TileStates { get; internal set; } = [];
+    public short[] TileEncodedHeights { get; internal set; } = [];
+    public RoomTileFlags[] TileFlags { get; internal set; } = [];
     public long[] TileHighestFloorItems { get; internal set; } = [];
     public List<long>[] TileFloorStacks { get; internal set; } = [];
     public bool IsMapBuilt { get; internal set; } = false;

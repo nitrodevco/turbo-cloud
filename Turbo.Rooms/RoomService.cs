@@ -152,7 +152,7 @@ public sealed class RoomService(
                     {
                         Width = mapSnapshot.Width,
                         Size = mapSnapshot.Size,
-                        Heights = mapSnapshot.TileRelativeHeights,
+                        Heights = mapSnapshot.TileEncodedHeights,
                     },
                     ct
                 )
