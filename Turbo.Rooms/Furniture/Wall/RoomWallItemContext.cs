@@ -6,7 +6,7 @@ using Turbo.Rooms.Grains.Modules;
 
 namespace Turbo.Rooms.Furniture.Wall;
 
-public sealed class RoomWallItemContext(
+internal sealed class RoomWallItemContext(
     RoomGrain roomGrain,
     RoomFurniModule furniModule,
     IRoomWallItem roomItem

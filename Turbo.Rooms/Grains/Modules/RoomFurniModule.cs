@@ -4,22 +4,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Orleans;
-using Turbo.Contracts.Enums;
-using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Database.Context;
-using Turbo.Logging;
-using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Furniture;
-using Turbo.Primitives.Rooms.Furniture.Floor;
 using Turbo.Primitives.Rooms.Furniture.Logic;
-using Turbo.Primitives.Rooms.Mapping;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Configuration;
-using Turbo.Rooms.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-public sealed class RoomFurniModule(
+internal sealed partial class RoomFurniModule(
     RoomGrain roomGrain,
     RoomConfig roomConfig,
     RoomLiveState roomLiveState,
@@ -39,215 +33,11 @@ public sealed class RoomFurniModule(
 
     public async Task OnDeactivateAsync(CancellationToken ct) { }
 
-    public async Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
-    {
-        if (!_state.FloorItemsById.TryAdd(item.Id, item))
-            return false;
-
-        await AttatchFloorLogicIfNeededAsync(item, ct);
-
-        if (_roomMap.GetTileIdForFloorItem(item, out var tileIds))
-        {
-            foreach (var id in tileIds)
-            {
-                _state.TileFloorStacks[id].Add(item.Id);
-
-                await _roomMap.ComputeTileAsync(id);
-            }
-        }
-
-        _ = _roomGrain.SendComposerToRoomAsync(item.GetAddComposer(), ct);
-
-        return true;
-    }
-
-    public async Task<bool> MoveFloorItemByIdAsync(
-        long itemId,
-        int newX,
-        int newY,
-        Rotation newRotation,
-        CancellationToken ct
-    )
-    {
-        if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
-            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
-
-        if (item.X == newX && item.Y == newY && item.Rotation == newRotation)
-            return false;
-
-        if (_roomMap.GetTileIdForFloorItem(item, out var oldTileIds))
-        {
-            foreach (var idx in oldTileIds)
-            {
-                _state.TileFloorStacks[idx].Remove(item.Id);
-
-                await _roomMap.ComputeTileAsync(idx);
-            }
-        }
-
-        var newId = _roomMap.GetTileId(newX, newY);
-
-        item.SetPosition(newX, newY, _state.TileHeights[newId]);
-        item.SetRotation(newRotation);
-
-        if (_roomMap.GetTileIdForFloorItem(item, out var newTileIds))
-        {
-            foreach (var id in newTileIds)
-            {
-                _state.TileFloorStacks[id].Add(item.Id);
-
-                await _roomMap.ComputeTileAsync(id);
-            }
-        }
-
-        _state.DirtyItemIds.Add(item.Id);
-
-        _ = _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer(), ct);
-
-        await item.Logic.OnMoveAsync(ct);
-
-        return true;
-    }
-
-    public async Task<bool> RemoveFloorItemByIdAsync(
-        long itemId,
-        long pickerId,
-        CancellationToken ct
-    )
-    {
-        if (!_state.FloorItemsById.Remove(itemId, out var item))
-            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
-
-        if (_roomMap.GetTileIdForFloorItem(item, out var tileIds))
-        {
-            foreach (var id in tileIds)
-            {
-                _state.TileFloorStacks[id].Remove(item.Id);
-
-                await _roomMap.ComputeTileAsync(id);
-            }
-        }
-
-        _ = _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(pickerId), ct);
-
-        return true;
-    }
-
-    public async Task<bool> UseFloorItemByIdAsync(long itemId, int param, CancellationToken ct)
-    {
-        if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
-            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
-
-        await item.Logic.OnUseAsync(param, ct);
-
-        return true;
-    }
-
-    public async Task<bool> ClickFloorItemByIdAsync(
-        long itemId,
-        int param = -1,
-        CancellationToken ct = default
-    )
-    {
-        if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
-            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
-
-        await item.Logic.OnClickAsync(param, ct);
-
-        return true;
-    }
-
-    public async Task<bool> ValidateFloorPlacementAsync(
-        long itemId,
-        int newX,
-        int newY,
-        Rotation newRotation
-    )
-    {
-        if (!_state.FloorItemsById.TryGetValue(itemId, out var tItem))
-            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
-
-        var isRotating = tItem.Rotation != newRotation;
-
-        if (
-            _roomMap.GetTileIdForSize(
-                newX,
-                newY,
-                newRotation,
-                tItem.Definition.Width,
-                tItem.Definition.Height,
-                out var tileIds
-            )
-        )
-        {
-            foreach (var id in tileIds)
-            {
-                var tileState = _state.TileStates[id];
-                var tileHeight = _state.TileHeights[id];
-
-                if (
-                    tileState.Has(RoomTileFlags.Disabled)
-                    || (tileHeight + tItem.Definition.StackHeight) > _roomConfig.MaxStackHeight
-                )
-                    return false;
-
-                if (
-                    _state.FloorItemsById.TryGetValue(
-                        _state.TileHighestFloorItems[id],
-                        out var bItem
-                    )
-                )
-                {
-                    if (isRotating && bItem == tItem)
-                        continue;
-
-                    if (tileState.Has(RoomTileFlags.StackBlocked))
-                        return false;
-
-                    if (bItem != tItem)
-                    {
-                        // if is a stack helper, allow placement
-                        // if is a roller, disallow placement
-                    }
-                }
-            }
-        }
-
-        return true;
-    }
-
     public Task MarkItemAsDirtyAsync(long itemId)
     {
         _state.DirtyItemIds.Add(itemId);
 
         return Task.CompletedTask;
-    }
-
-    public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
-        long itemId,
-        CancellationToken ct
-    ) =>
-        Task.FromResult(
-            _state.FloorItemsById.TryGetValue(itemId, out var item)
-                ? RoomFloorItemSnapshot.FromFloorItem(item)
-                : null
-        );
-
-    private async Task AttatchFloorLogicIfNeededAsync(IRoomFloorItem item, CancellationToken ct)
-    {
-        if (item.Logic is not null)
-            return;
-
-        var logicType = item.Definition.LogicName;
-        var ctx = new RoomFloorItemContext(_roomGrain, this, item);
-        var logic = _furnitureLogicFactory.CreateLogicInstance(logicType, ctx);
-
-        if (logic is not IFurnitureFloorLogic floorLogic)
-            throw new TurboException(TurboErrorCodeEnum.InvalidFloorLogic);
-
-        item.SetLogic(floorLogic);
-
-        await logic.OnAttachAsync(ct);
     }
 
     internal async Task EnsureFurniLoadedAsync(CancellationToken ct)

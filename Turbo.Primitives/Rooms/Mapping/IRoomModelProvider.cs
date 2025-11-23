@@ -1,6 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Primitives.Rooms.Mapping;
 

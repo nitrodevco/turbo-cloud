@@ -1,14 +1,13 @@
 using System.Text.Json;
 using Orleans;
 using Turbo.Contracts.Enums.Furniture;
-using Turbo.Contracts.Enums.Rooms.Object;
-using Turbo.Primitives.Orleans.Snapshots.Room.StuffData;
-using Turbo.Primitives.Rooms.Furniture.Floor;
+using Turbo.Primitives.Rooms.Furniture.Wall;
+using Turbo.Primitives.Rooms.Snapshots.StuffData;
 
-namespace Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
+namespace Turbo.Primitives.Rooms.Snapshots;
 
 [GenerateSerializer, Immutable]
-public sealed record RoomFloorItemSnapshot
+public sealed record RoomWallItemSnapshot
 {
     [Id(0)]
     public required long Id { get; init; }
@@ -23,44 +22,28 @@ public sealed record RoomFloorItemSnapshot
     public required int SpriteId { get; init; }
 
     [Id(4)]
-    public required int X { get; init; }
+    public required string WallLocation { get; init; }
 
     [Id(5)]
-    public required int Y { get; init; }
-
-    [Id(6)]
-    public required double Z { get; init; }
-
-    [Id(7)]
-    public required Rotation Rotation { get; init; }
-
-    [Id(8)]
-    public required double StackHeight { get; init; }
-
-    [Id(9)]
     public required StuffDataSnapshot StuffData { get; init; }
 
-    [Id(10)]
+    [Id(6)]
     public required string StuffDataJson { get; init; }
 
-    [Id(11)]
+    [Id(7)]
     public required FurniUsagePolicy UsagePolicy { get; init; }
 
-    public static RoomFloorItemSnapshot FromFloorItem(IRoomFloorItem item)
+    public static RoomWallItemSnapshot FromWallItem(IRoomWallItem item)
     {
         var stuffData = item.Logic.StuffData;
 
-        return new RoomFloorItemSnapshot
+        return new RoomWallItemSnapshot
         {
             Id = item.Id,
             OwnerId = item.OwnerId,
             OwnerName = item.OwnerName,
             SpriteId = item.Definition.SpriteId,
-            X = item.X,
-            Y = item.Y,
-            Z = item.Z,
-            Rotation = item.Rotation,
-            StackHeight = item.Definition.StackHeight,
+            WallLocation = item.WallLocation,
             StuffData = StuffDataSnapshot.FromStuffData(stuffData),
             StuffDataJson = JsonSerializer.Serialize(stuffData, stuffData.GetType()),
             UsagePolicy = item.Logic.GetUsagePolicy(),

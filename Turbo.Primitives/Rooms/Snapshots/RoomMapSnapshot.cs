@@ -1,10 +1,8 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using Orleans;
 using Turbo.Contracts.Enums.Rooms.Object;
-using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
 
-namespace Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
+namespace Turbo.Primitives.Rooms.Snapshots;
 
 [GenerateSerializer, Immutable]
 public sealed record RoomMapSnapshot

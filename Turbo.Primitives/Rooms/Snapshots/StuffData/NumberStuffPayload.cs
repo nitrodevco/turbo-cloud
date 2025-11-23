@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
 using Orleans;
 
-namespace Turbo.Primitives.Orleans.Snapshots.Room.StuffData;
+namespace Turbo.Primitives.Rooms.Snapshots.StuffData;
 
 [GenerateSerializer, Immutable]
 public sealed record NumberStuffPayload

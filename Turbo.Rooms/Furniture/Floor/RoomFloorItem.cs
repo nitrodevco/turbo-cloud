@@ -2,14 +2,14 @@ using System.Threading.Tasks;
 using Turbo.Contracts.Abstractions;
 using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
-using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
-using Turbo.Primitives.Orleans.Snapshots.Room.StuffData;
 using Turbo.Primitives.Rooms.Furniture.Floor;
 using Turbo.Primitives.Rooms.Furniture.Logic;
+using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.StuffData;
 
 namespace Turbo.Rooms.Furniture.Floor;
 
-public sealed class RoomFloorItem : RoomItem, IRoomFloorItem
+internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
 {
     public int X { get; private set; }
     public int Y { get; private set; }

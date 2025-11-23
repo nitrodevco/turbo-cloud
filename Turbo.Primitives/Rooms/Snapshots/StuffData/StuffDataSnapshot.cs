@@ -1,9 +1,8 @@
 using System.Collections.Immutable;
-using System.Linq;
 using Orleans;
 using Turbo.Primitives.Rooms.Furniture.StuffData;
 
-namespace Turbo.Primitives.Orleans.Snapshots.Room.StuffData;
+namespace Turbo.Primitives.Rooms.Snapshots.StuffData;
 
 [GenerateSerializer, Immutable]
 public sealed record StuffDataSnapshot

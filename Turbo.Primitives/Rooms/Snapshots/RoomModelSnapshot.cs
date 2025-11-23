@@ -2,7 +2,7 @@ using Orleans;
 using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Primitives.Rooms.Mapping;
 
-namespace Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
+namespace Turbo.Primitives.Rooms.Snapshots;
 
 [GenerateSerializer, Immutable]
 public sealed record RoomModelSnapshot

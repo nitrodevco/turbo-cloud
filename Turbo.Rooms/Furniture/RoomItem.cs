@@ -3,7 +3,7 @@ using Turbo.Primitives.Snapshots.Furniture;
 
 namespace Turbo.Rooms.Furniture;
 
-public abstract class RoomItem : IRoomItem
+internal abstract class RoomItem : IRoomItem
 {
     public required long Id { get; init; }
     public required long OwnerId { get; init; }

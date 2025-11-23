@@ -217,7 +217,7 @@ public sealed class RoomService(
         var roomGrain = _grainFactory.GetGrain<IRoomGrain>(roomId);
 
         var isValidPlacement = await roomGrain
-            .ValidateFloorPlacementAsync(itemId, newX, newY, newRotation)
+            .ValidateFloorItemPlacementAsync(itemId, newX, newY, newRotation)
             .ConfigureAwait(false);
 
         if (!isValidPlacement)

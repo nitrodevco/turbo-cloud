@@ -1,16 +1,21 @@
 using System.Threading.Tasks;
 using Turbo.Contracts.Abstractions;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
-using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
 using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Furniture.Wall;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Rooms.Furniture.Wall;
 
-public sealed class RoomWallItem : RoomItem, IRoomWallItem
+internal sealed class RoomWallItem : RoomItem, IRoomWallItem
 {
     public string WallLocation { get; private set; } = string.Empty;
     public IFurnitureWallLogic Logic { get; private set; } = default!;
+
+    public void SetPosition(string wallLocation)
+    {
+        WallLocation = wallLocation;
+    }
 
     public void SetLogic(IFurnitureWallLogic logic)
     {

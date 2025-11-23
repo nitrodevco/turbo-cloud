@@ -15,7 +15,7 @@ public class FurnitureGateLogic(IStuffDataFactory stuffDataFactory, IRoomFloorIt
     private const int CLOSED_STATE = 0;
     private const int OPEN_STATE = 1;
 
-    public override FurniUsagePolicy GetUsagePolicy() => FurniUsagePolicy.Everybody;
+    public override FurniUsagePolicy GetUsagePolicy() => FurniUsagePolicy.Controller;
 
     public override async Task OnUseAsync(int param, CancellationToken ct)
     {

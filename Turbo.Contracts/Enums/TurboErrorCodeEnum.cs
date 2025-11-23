@@ -7,9 +7,11 @@ public enum TurboErrorCodeEnum
     MapNotLoaded,
     TileOutOfBounds,
     FloorItemNotFound,
+    WallItemNotFound,
     LogicNotFound,
     FurnitureDefinitionNotFound,
     InvalidFloorLogic,
+    InvalidWallLogic,
     InvalidFurnitureProductType,
     InvalidSession,
 }
@@ -23,11 +25,14 @@ public static class ErrorCodeExtensions
             TurboErrorCodeEnum.MapNotLoaded => "The room map is not loaded.",
             TurboErrorCodeEnum.TileOutOfBounds => "The tile index is out of bounds.",
             TurboErrorCodeEnum.FloorItemNotFound => "The specified floor item could not be found.",
+            TurboErrorCodeEnum.WallItemNotFound => "The specified wall item could not be found.",
             TurboErrorCodeEnum.LogicNotFound => "The specified furniture logic could not be found.",
             TurboErrorCodeEnum.FurnitureDefinitionNotFound =>
                 "The specified furniture definition could not be found.",
             TurboErrorCodeEnum.InvalidFloorLogic =>
                 "The furniture logic is not valid for floor items.",
+            TurboErrorCodeEnum.InvalidWallLogic =>
+                "The furniture logic is not valid for wall items.",
             TurboErrorCodeEnum.InvalidFurnitureProductType =>
                 "The furniture product type is invalid.",
             TurboErrorCodeEnum.InvalidSession => "The session is invalid.",

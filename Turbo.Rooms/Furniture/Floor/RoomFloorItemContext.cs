@@ -1,13 +1,13 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
 using Turbo.Primitives.Rooms.Furniture.Floor;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Grains;
 using Turbo.Rooms.Grains.Modules;
 
 namespace Turbo.Rooms.Furniture.Floor;
 
-public sealed class RoomFloorItemContext(
+internal sealed class RoomFloorItemContext(
     RoomGrain roomGrain,
     RoomFurniModule furniModule,
     IRoomFloorItem roomItem

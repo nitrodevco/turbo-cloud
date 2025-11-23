@@ -1,9 +1,9 @@
 using System.Threading.Tasks;
 using Turbo.Contracts.Abstractions;
 using Turbo.Contracts.Enums.Rooms.Object;
-using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
-using Turbo.Primitives.Orleans.Snapshots.Room.StuffData;
 using Turbo.Primitives.Rooms.Furniture.Logic;
+using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.StuffData;
 
 namespace Turbo.Primitives.Rooms.Furniture.Floor;
 
