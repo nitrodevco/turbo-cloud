@@ -6,7 +6,8 @@ public class RoomConfig
 {
     public const string SECTION_NAME = "Turbo:Rooms";
 
-    public int RoomDeactivationTimeoutSeconds { get; init; } = 10;
+    public int RoomCheckIntervalMilliseconds { get; init; } = 300000;
+    public int RoomDeactivationDelayMilliseconds { get; init; } = 1800000;
     public int TileHeightMultiplier { get; init; } = 256;
     public int DirtyItemsFlushIntervalMilliseconds { get; init; } = 5000;
     public int DirtyTilesFlushIntervalMilliseconds { get; init; } = 10;

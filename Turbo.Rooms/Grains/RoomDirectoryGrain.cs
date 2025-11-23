@@ -4,24 +4,39 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Contracts.Abstractions;
 using Turbo.Primitives.Orleans.Grains;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Rooms.Grains;
+using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms.Grains;
 
 [KeepAlive]
-public class RoomDirectoryGrain(IGrainFactory grainFactory) : Grain, IRoomDirectoryGrain
+public class RoomDirectoryGrain(IOptions<RoomConfig> roomConfig, IGrainFactory grainFactory)
+    : Grain,
+        IRoomDirectoryGrain
 {
     public const string SINGLETON_KEY = "room-directory";
 
+    private readonly RoomConfig _roomConfig = roomConfig.Value;
     private readonly IGrainFactory _grainFactory = grainFactory;
 
     private readonly Dictionary<long, RoomActiveSnapshot> _activeRooms = [];
     private readonly Dictionary<long, List<long>> _roomPlayers = [];
     private readonly Dictionary<long, int> _roomPopulations = [];
+
+    public override async Task OnActivateAsync(CancellationToken ct)
+    {
+        this.RegisterGrainTimer<object?>(
+            async _ => await CheckRoomsAsync(ct),
+            null,
+            TimeSpan.FromMilliseconds(_roomConfig.RoomCheckIntervalMilliseconds),
+            TimeSpan.FromMilliseconds(_roomConfig.RoomCheckIntervalMilliseconds)
+        );
+    }
 
     public Task<ImmutableArray<RoomSummarySnapshot>> GetActiveRoomsAsync() =>
         Task.FromResult(
@@ -116,4 +131,21 @@ public class RoomDirectoryGrain(IGrainFactory grainFactory) : Grain, IRoomDirect
         _roomPopulations[roomId] = _roomPlayers.TryGetValue(roomId, out var players)
             ? players.Count
             : 0;
+
+    private async Task CheckRoomsAsync(CancellationToken ct)
+    {
+        var rooms = _activeRooms.Values.ToArray();
+
+        foreach (var room in rooms)
+        {
+            var population = _roomPopulations.TryGetValue(room.RoomId, out var pop) ? pop : 0;
+            var roomGrain = _grainFactory.GetGrain<IRoomGrain>(room.RoomId);
+
+            if (population > 0)
+                roomGrain.DelayRoomDeactivation();
+
+            if (population == 0)
+                roomGrain.DeactivateRoom();
+        }
+    }
 }

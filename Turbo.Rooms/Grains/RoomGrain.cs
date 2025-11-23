@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Orleans.Runtime;
@@ -29,6 +30,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     private readonly IRoomItemsLoader _itemsLoader;
     private readonly IFurnitureLogicFactory _furnitureLogicFactory;
     private readonly IGrainFactory _grainFactory;
+    private readonly ILogger<IRoomGrain> _logger;
 
     private readonly IPersistentState<RoomState> _state;
     private readonly RoomLiveState _liveState;
@@ -45,7 +47,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IRoomModelProvider roomModelProvider,
         IRoomItemsLoader itemsLoader,
         IFurnitureLogicFactory furnitureLogicFactory,
-        IGrainFactory grainFactory
+        IGrainFactory grainFactory,
+        ILogger<IRoomGrain> logger
     )
     {
         _dbContextFactory = dbContextFactory;
@@ -54,6 +57,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _itemsLoader = itemsLoader;
         _furnitureLogicFactory = furnitureLogicFactory;
         _grainFactory = grainFactory;
+        _logger = logger;
 
         _state = state;
         _liveState = new();
@@ -77,6 +81,10 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         );
 
         await HydrateRoomStateAsync(ct);
+
+        await _grainFactory
+            .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
+            .UpsertActiveRoomAsync(_state.State.RoomSnapshot);
 
         await _mapModule.OnActivateAsync(ct);
         await _furniModule.OnActivateAsync(ct);
@@ -105,14 +113,21 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         await _grainFactory
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
             .RemoveActiveRoomAsync(this.GetPrimaryKeyLong());
+
+        _logger.LogInformation(
+            "RoomGrain:{RoomId} deactivated. Reason: {Reason}",
+            this.GetPrimaryKeyLong(),
+            reason
+        );
     }
+
+    public void DeactivateRoom() => DeactivateOnIdle();
+
+    public void DelayRoomDeactivation() =>
+        DelayDeactivation(TimeSpan.FromMilliseconds(_roomConfig.RoomDeactivationDelayMilliseconds));
 
     public async Task EnsureRoomActiveAsync(CancellationToken ct)
     {
-        await _grainFactory
-            .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
-            .UpsertActiveRoomAsync(_state.State.RoomSnapshot);
-
         await _mapModule.EnsureMapBuiltAsync(ct);
         await _furniModule.EnsureFurniLoadedAsync(ct);
         await _mapModule.EnsureMapCompiledAsync(ct);
