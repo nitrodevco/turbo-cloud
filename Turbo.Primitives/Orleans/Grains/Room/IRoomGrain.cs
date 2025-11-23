@@ -35,6 +35,7 @@ public interface IRoomGrain : IGrainWithIntegerKey
         int newY,
         Rotation newRotation
     );
+    public Task ComputeTileAsync(int x, int y);
     public Task<RoomSnapshot> GetSnapshotAsync();
     public Task<RoomSummarySnapshot> GetSummaryAsync();
     public Task<int> GetRoomPopulationAsync();

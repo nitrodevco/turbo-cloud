@@ -155,6 +155,8 @@ public class RoomGrain : Grain, IRoomGrain
         Rotation newRotation
     ) => await _furniModule.ValidateFloorPlacementAsync(itemId, newX, newY, newRotation);
 
+    public Task ComputeTileAsync(int x, int y) => _mapModule.ComputeTileAsync(x, y);
+
     public Task<RoomSnapshot> GetSnapshotAsync() => Task.FromResult(_state.State.RoomSnapshot);
 
     public async Task<RoomSummarySnapshot> GetSummaryAsync()

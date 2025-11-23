@@ -68,7 +68,7 @@ public sealed class RoomFurniModule(
             {
                 _state.TileFloorStacks[id].Add(item.Id);
 
-                _roomMap.ComputeTile(id);
+                _roomMap.ComputeTileAsync(id);
             }
         }
 
@@ -97,7 +97,7 @@ public sealed class RoomFurniModule(
             {
                 _state.TileFloorStacks[idx].Remove(item.Id);
 
-                _roomMap.ComputeTile(idx);
+                _roomMap.ComputeTileAsync(idx);
             }
         }
 
@@ -112,7 +112,7 @@ public sealed class RoomFurniModule(
             {
                 _state.TileFloorStacks[id].Add(item.Id);
 
-                _roomMap.ComputeTile(id);
+                _roomMap.ComputeTileAsync(id);
             }
         }
 
@@ -140,7 +140,7 @@ public sealed class RoomFurniModule(
             {
                 _state.TileFloorStacks[id].Remove(item.Id);
 
-                _roomMap.ComputeTile(id);
+                _roomMap.ComputeTileAsync(id);
             }
         }
 

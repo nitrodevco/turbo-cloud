@@ -16,4 +16,5 @@ public interface IRoomFloorItemContext : IRoomItemContext
         int delay = 0,
         CancellationToken ct = default
     );
+    public Task RefreshTileAsync();
 }

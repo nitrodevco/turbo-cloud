@@ -29,4 +29,6 @@ public sealed class RoomFloorItemContext(
         int delay = 0,
         CancellationToken ct = default
     ) => _roomGrain.SendComposerToRoomAsync(Item.GetRemoveComposer(pickerId, isExpired, delay), ct);
+
+    public Task RefreshTileAsync() => _roomGrain.ComputeTileAsync(Item.X, Item.Y);
 }

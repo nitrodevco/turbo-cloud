@@ -108,7 +108,7 @@ public sealed class RoomMapModule(
             _state.NeedsCompile = false;
 
             for (int id = 0; id < (_state.Model?.Size ?? 0); id++)
-                ComputeTile(id);
+                _ = ComputeTileAsync(id);
 
             _state.DirtyTileIds.Clear();
         }
@@ -116,76 +116,80 @@ public sealed class RoomMapModule(
         return Task.CompletedTask;
     }
 
-    public void ComputeTile(int id)
+    public Task ComputeTileAsync(int x, int y) => ComputeTileAsync(GetTileId(x, y));
+
+    public Task ComputeTileAsync(int id)
     {
-        if (_state.NeedsCompile)
-            return;
-
-        var nextHeight = _state.Model?.BaseHeights[id] ?? 0.0;
-        var nextState = _state.Model?.BaseFlags[id] ?? RoomTileFlags.Disabled;
-        var floorStack = _state.TileFloorStacks[id];
-
-        IRoomFloorItem? nextHighestItem = null;
-
-        if (floorStack.Count > 0)
+        if (!_state.NeedsCompile)
         {
-            foreach (var itemId in floorStack)
+            var nextHeight = _state.Model?.BaseHeights[id] ?? 0.0;
+            var nextState = _state.Model?.BaseFlags[id] ?? RoomTileFlags.Disabled;
+            var floorStack = _state.TileFloorStacks[id];
+
+            IRoomFloorItem? nextHighestItem = null;
+
+            if (floorStack.Count > 0)
             {
-                var item = _state.FloorItemsById[itemId];
-
-                if (item is null)
-                    continue;
-
-                var height = item.Z + item.Logic.GetHeight();
-
-                // special logic if stack helper
-
-                if (height < nextHeight)
-                    continue;
-
-                nextHeight = height;
-                nextHighestItem = item;
-            }
-        }
-
-        nextHeight = Math.Truncate(nextHeight * 1000) / 1000;
-
-        if (!nextState.Has(RoomTileFlags.Disabled))
-        {
-            if (nextHighestItem is not null)
-            {
-                if (!nextHighestItem.Logic.CanWalk())
+                foreach (var itemId in floorStack)
                 {
-                    nextState = nextState.Remove(RoomTileFlags.Open);
-                    nextState = nextState.Add(RoomTileFlags.Closed);
+                    var item = _state.FloorItemsById[itemId];
+
+                    if (item is null)
+                        continue;
+
+                    var height = item.Z + item.Logic.GetHeight();
+
+                    // special logic if stack helper
+
+                    if (height < nextHeight)
+                        continue;
+
+                    nextHeight = height;
+                    nextHighestItem = item;
                 }
-
-                if (!nextHighestItem.Logic.CanStack())
-                    nextState = nextState.Add(RoomTileFlags.StackBlocked);
-
-                if (nextHighestItem.Logic.CanSit())
-                    nextState = nextState.Add(RoomTileFlags.Sittable);
-
-                if (nextHighestItem.Logic.CanLay())
-                    nextState = nextState.Add(RoomTileFlags.Layable);
             }
+
+            nextHeight = Math.Truncate(nextHeight * 1000) / 1000;
+
+            if (!nextState.Has(RoomTileFlags.Disabled))
+            {
+                if (nextHighestItem is not null)
+                {
+                    if (!nextHighestItem.Logic.CanWalk())
+                    {
+                        nextState = nextState.Remove(RoomTileFlags.Open);
+                        nextState = nextState.Add(RoomTileFlags.Closed);
+                    }
+
+                    if (!nextHighestItem.Logic.CanStack())
+                        nextState = nextState.Add(RoomTileFlags.StackBlocked);
+
+                    if (nextHighestItem.Logic.CanSit())
+                        nextState = nextState.Add(RoomTileFlags.Sittable);
+
+                    if (nextHighestItem.Logic.CanLay())
+                        nextState = nextState.Add(RoomTileFlags.Layable);
+                }
+            }
+
+            var prevRelative = _state.TileRelativeHeights[id];
+            var nextRelative = RoomModelCompiler.EncodeHeight(
+                nextHeight,
+                nextState.Has(RoomTileFlags.StackBlocked)
+            );
+
+            if (prevRelative != nextRelative)
+                _state.DirtyTileIds.Add(id);
+
+            _state.TileHeights[id] = nextHeight;
+            _state.TileRelativeHeights[id] = nextRelative;
+            _state.TileStates[id] = nextState;
+            _state.TileHighestFloorItems[id] = nextHighestItem?.Id ?? -1;
+
+            _mapVersion++;
         }
 
-        var prevRelative = _state.TileRelativeHeights[id];
-        var nextRelative = RoomModelCompiler.EncodeHeight(
-            nextHeight,
-            nextState.Has(RoomTileFlags.StackBlocked)
-        );
-
-        if (prevRelative != nextRelative)
-            _state.DirtyTileIds.Add(id);
-
-        _state.TileHeights[id] = nextHeight;
-        _state.TileRelativeHeights[id] = nextRelative;
-        _state.TileStates[id] = nextState;
-        _state.TileHighestFloorItems[id] = nextHighestItem?.Id ?? -1;
-
-        _mapVersion++;
+        return Task.CompletedTask;
     }
 
     public async Task<RoomMapSnapshot> GetMapSnapshotAsync(CancellationToken ct)
