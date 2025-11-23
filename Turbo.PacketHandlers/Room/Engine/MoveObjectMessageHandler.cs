@@ -29,5 +29,3 @@ public class MoveObjectMessageHandler(IRoomService roomService) : IMessageHandle
             .ConfigureAwait(false);
     }
 }
-
-internal interface IRoomPresenceGrain { }

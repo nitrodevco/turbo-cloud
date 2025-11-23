@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
 using Turbo.Primitives.Rooms.Furniture.Floor;
 using Turbo.Rooms.Grains;
 using Turbo.Rooms.Grains.Modules;
@@ -31,4 +32,7 @@ public sealed class RoomFloorItemContext(
     ) => _roomGrain.SendComposerToRoomAsync(Item.GetRemoveComposer(pickerId, isExpired, delay), ct);
 
     public Task RefreshTileAsync() => _roomGrain.ComputeTileAsync(Item.X, Item.Y);
+
+    public Task<RoomTileSnapshot> GetTileSnapshotAsync(CancellationToken ct) =>
+        _roomGrain.GetTileSnapshotAsync(Item.X, Item.Y, ct);
 }

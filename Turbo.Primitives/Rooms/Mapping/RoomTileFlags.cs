@@ -12,6 +12,7 @@ public enum RoomTileFlags : ushort
     StackBlocked = 1 << 3,
     Sittable = 1 << 4,
     Layable = 1 << 5,
+    AvatarOccupied = 1 << 6,
 }
 
 public static class RoomTileFlagsExtensions

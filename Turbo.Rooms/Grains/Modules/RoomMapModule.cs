@@ -190,6 +190,21 @@ public sealed class RoomMapModule(
         return Task.CompletedTask;
     }
 
+    public Task<RoomTileSnapshot> GetTileSnapshotAsync(int x, int y, CancellationToken ct) =>
+        GetTileSnapshotAsync(GetTileId(x, y), ct);
+
+    public Task<RoomTileSnapshot> GetTileSnapshotAsync(int id, CancellationToken ct) =>
+        Task.FromResult(
+            new RoomTileSnapshot
+            {
+                X = (byte)(id % (_state.Model?.Width ?? 0)),
+                Y = (byte)(id / (_state.Model?.Width ?? 0)),
+                Height = _state.TileHeights[id],
+                RelativeHeight = _state.TileRelativeHeights[id],
+                Flags = _state.TileStates[id],
+            }
+        );
+
     public async Task<RoomMapSnapshot> GetMapSnapshotAsync(CancellationToken ct)
     {
         if (_mapSnapshot is not null && _mapSnapshot.Version == _mapVersion)
@@ -233,9 +248,11 @@ public sealed class RoomMapModule(
         var dirtySnapshots = dirtyTileIds
             .Select(id => new RoomTileSnapshot
             {
-                X = (byte)(id % _state.Model?.Width ?? 0),
-                Y = (byte)(id / _state.Model?.Width ?? 0),
+                X = (byte)(id % (_state.Model?.Width ?? 0)),
+                Y = (byte)(id / (_state.Model?.Width ?? 0)),
+                Height = _state.TileHeights[id],
                 RelativeHeight = _state.TileRelativeHeights[id],
+                Flags = _state.TileStates[id],
             })
             .ToArray();
 

@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
 
 namespace Turbo.Primitives.Rooms.Furniture.Floor;
 
@@ -17,4 +18,5 @@ public interface IRoomFloorItemContext : IRoomItemContext
         CancellationToken ct = default
     );
     public Task RefreshTileAsync();
+    public Task<RoomTileSnapshot> GetTileSnapshotAsync(CancellationToken ct);
 }
