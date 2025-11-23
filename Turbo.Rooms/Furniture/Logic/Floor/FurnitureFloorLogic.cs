@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Enums.Furniture;
+using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Furniture.Floor;
 using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Furniture.StuffData;
@@ -32,6 +33,13 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
     public virtual bool CanSit() => _ctx.Definition.CanSit;
 
     public virtual bool CanLay() => _ctx.Definition.CanLay;
+
+    public override Task OnMoveAsync(CancellationToken ct)
+    {
+        _ = _ctx.PublishRoomEventAsync(new FloorItemMovedEvent(_ctx.RoomId, _ctx.Item.Id), ct);
+
+        return base.OnMoveAsync(ct);
+    }
 
     public override async Task OnUseAsync(int param, CancellationToken ct)
     {

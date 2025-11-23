@@ -16,20 +16,20 @@ internal sealed class RoomFloorItemContext(
     public Task MarkItemDirtyAsync() => _furniModule.MarkItemAsDirtyAsync(Item.Id);
 
     public Task AddItemAsync(CancellationToken ct) =>
-        _roomGrain.SendComposerToRoomAsync(Item.GetAddComposer(), ct);
+        SendComposerToRoomAsync(Item.GetAddComposer(), ct);
 
     public Task UpdateItemAsync(CancellationToken ct) =>
-        _roomGrain.SendComposerToRoomAsync(Item.GetUpdateComposer(), ct);
+        SendComposerToRoomAsync(Item.GetUpdateComposer(), ct);
 
     public Task RefreshStuffDataAsync(CancellationToken ct) =>
-        _roomGrain.SendComposerToRoomAsync(Item.GetRefreshStuffDataComposer(), ct);
+        SendComposerToRoomAsync(Item.GetRefreshStuffDataComposer(), ct);
 
     public Task RemoveItemAsync(
         long pickerId,
         bool isExpired = false,
         int delay = 0,
         CancellationToken ct = default
-    ) => _roomGrain.SendComposerToRoomAsync(Item.GetRemoveComposer(pickerId, isExpired, delay), ct);
+    ) => SendComposerToRoomAsync(Item.GetRemoveComposer(pickerId, isExpired, delay), ct);
 
     public Task RefreshTileAsync() => _roomGrain.ComputeTileAsync(Item.X, Item.Y);
 

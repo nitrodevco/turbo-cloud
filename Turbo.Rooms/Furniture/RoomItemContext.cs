@@ -1,4 +1,8 @@
+using System.Threading;
+using System.Threading.Tasks;
 using Orleans;
+using Turbo.Contracts.Abstractions;
+using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Furniture;
 using Turbo.Primitives.Snapshots.Furniture;
 using Turbo.Rooms.Grains;
@@ -19,4 +23,10 @@ internal class RoomItemContext<TItem>(
     public TItem Item { get; } = roomItem;
     public long RoomId => _roomGrain.GetPrimaryKeyLong();
     public FurnitureDefinitionSnapshot Definition => Item.Definition;
+
+    public Task PublishRoomEventAsync(RoomEvent @event, CancellationToken ct) =>
+        _roomGrain.PublishRoomEventAsync(@event, ct);
+
+    public Task SendComposerToRoomAsync(IComposer composer, CancellationToken ct) =>
+        _roomGrain.SendComposerToRoomAsync(@composer, ct);
 }

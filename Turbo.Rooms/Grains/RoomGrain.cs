@@ -8,6 +8,7 @@ using Turbo.Contracts.Abstractions;
 using Turbo.Database.Context;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room.Settings;
+using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Furniture;
 using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Grains;
@@ -27,6 +28,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     private readonly IGrainFactory _grainFactory;
 
     private readonly RoomLiveState _liveState;
+    private readonly RoomEventModule _eventModule;
     private readonly RoomMapModule _mapModule;
     private readonly RoomFurniModule _furniModule;
 
@@ -47,8 +49,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _grainFactory = grainFactory;
 
         _liveState = new();
-        _mapModule = new RoomMapModule(this, _roomConfig, _liveState);
-        _furniModule = new RoomFurniModule(
+        _eventModule = new(this, _roomConfig, _liveState);
+        _mapModule = new(this, _roomConfig, _liveState);
+        _furniModule = new(
             this,
             _roomConfig,
             _liveState,
@@ -131,6 +134,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         await _grainFactory
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
             .GetRoomPopulationAsync(this.GetPrimaryKeyLong());
+
+    public Task PublishRoomEventAsync(RoomEvent @event, CancellationToken ct) =>
+        _eventModule.PublishAsync(@event, ct);
 
     public async Task SendComposerToRoomAsync(IComposer composer, CancellationToken ct)
     {
