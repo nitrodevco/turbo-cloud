@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Enums;
-using Turbo.Contracts.Enums.Rooms;
 using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Logging;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
@@ -12,6 +11,7 @@ using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
 using Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Furniture.Floor;
+using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Mapping;
 
@@ -94,7 +94,7 @@ public sealed class RoomMapModule(
 
         _state.TileHeights = new double[size];
         _state.TileRelativeHeights = new short[size];
-        _state.TileStates = new byte[size];
+        _state.TileStates = new RoomTileFlags[size];
         _state.TileHighestFloorItems = new long[size];
         _state.TileFloorStacks = tileFloorStacks;
         _state.IsMapBuilt = true;
@@ -121,8 +121,8 @@ public sealed class RoomMapModule(
         if (_state.NeedsCompile)
             return;
 
-        var nextHeight = _state.Model?.Heights[id] ?? 0.0;
-        var nextState = _state.Model?.States[id] ?? (byte)RoomTileStateType.Closed;
+        var nextHeight = _state.Model?.BaseHeights[id] ?? 0.0;
+        var nextState = _state.Model?.BaseFlags[id] ?? RoomTileFlags.Disabled;
         var floorStack = _state.TileFloorStacks[id];
 
         IRoomFloorItem? nextHighestItem = null;
@@ -150,17 +150,35 @@ public sealed class RoomMapModule(
 
         nextHeight = Math.Truncate(nextHeight * 1000) / 1000;
 
+        if (!nextState.Has(RoomTileFlags.Disabled))
+        {
+            if (nextHighestItem is not null)
+            {
+                if (!nextHighestItem.Logic.CanWalk())
+                {
+                    nextState = nextState.Remove(RoomTileFlags.Open);
+                    nextState = nextState.Add(RoomTileFlags.Closed);
+                }
+
+                if (!nextHighestItem.Logic.CanStack())
+                    nextState = nextState.Add(RoomTileFlags.StackBlocked);
+
+                if (nextHighestItem.Logic.CanSit())
+                    nextState = nextState.Add(RoomTileFlags.Sittable);
+
+                if (nextHighestItem.Logic.CanLay())
+                    nextState = nextState.Add(RoomTileFlags.Layable);
+            }
+        }
+
         var prevRelative = _state.TileRelativeHeights[id];
         var nextRelative = RoomModelCompiler.EncodeHeight(
             nextHeight,
-            nextState == (byte)RoomTileStateType.Closed
+            nextState.Has(RoomTileFlags.StackBlocked)
         );
 
         if (prevRelative != nextRelative)
-        {
-            if (!_state.DirtyTileIds.Contains(id))
-                _state.DirtyTileIds.Add(id);
-        }
+            _state.DirtyTileIds.Add(id);
 
         _state.TileHeights[id] = nextHeight;
         _state.TileRelativeHeights[id] = nextRelative;

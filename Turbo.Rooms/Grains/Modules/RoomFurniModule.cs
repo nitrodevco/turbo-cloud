@@ -5,16 +5,15 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Turbo.Contracts.Enums;
-using Turbo.Contracts.Enums.Rooms;
 using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Database.Context;
 using Turbo.Logging;
-using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Furniture;
 using Turbo.Primitives.Rooms.Furniture.Floor;
 using Turbo.Primitives.Rooms.Furniture.Logic;
+using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Furniture.Floor;
 
@@ -117,8 +116,7 @@ public sealed class RoomFurniModule(
             }
         }
 
-        if (!_state.DirtyItemIds.Contains(item.Id))
-            _state.DirtyItemIds.Add(item.Id);
+        _state.DirtyItemIds.Add(item.Id);
 
         _ = _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer(), ct);
 
@@ -151,6 +149,26 @@ public sealed class RoomFurniModule(
         return true;
     }
 
+    public async Task<bool> UseFloorItemByIdAsync(long itemId, int param, CancellationToken ct)
+    {
+        if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
+            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
+
+        await item.Logic.OnUseAsync(param, ct);
+
+        return true;
+    }
+
+    public async Task<bool> ClickFloorItemByIdAsync(long itemId, CancellationToken ct)
+    {
+        if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
+            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
+
+        await item.Logic.OnClickAsync(ct);
+
+        return true;
+    }
+
     public async Task<bool> ValidateFloorPlacementAsync(
         long itemId,
         int newX,
@@ -158,18 +176,18 @@ public sealed class RoomFurniModule(
         Rotation newRotation
     )
     {
-        if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
+        if (!_state.FloorItemsById.TryGetValue(itemId, out var tItem))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        var isRotating = item.Rotation != newRotation;
+        var isRotating = tItem.Rotation != newRotation;
 
         if (
             _roomMap.GetTileIdForSize(
                 newX,
                 newY,
                 newRotation,
-                item.Definition.Width,
-                item.Definition.Height,
+                tItem.Definition.Width,
+                tItem.Definition.Height,
                 out var tileIds
             )
         )
@@ -180,34 +198,28 @@ public sealed class RoomFurniModule(
                 var tileHeight = _state.TileHeights[id];
 
                 if (
-                    (tileHeight + item.Definition.StackHeight) > _roomConfig.MaxStackHeight
-                    || tileState == (byte)RoomTileStateType.Closed
+                    tileState.Has(RoomTileFlags.Disabled)
+                    || (tileHeight + tItem.Definition.StackHeight) > _roomConfig.MaxStackHeight
                 )
-                {
                     return false;
-                }
 
                 if (
                     _state.FloorItemsById.TryGetValue(
                         _state.TileHighestFloorItems[id],
-                        out var tileItem
+                        out var bItem
                     )
                 )
                 {
-                    if (isRotating && tileItem == item)
+                    if (isRotating && bItem == tItem)
                         continue;
 
-                    if (tileItem != item)
+                    if (tileState.Has(RoomTileFlags.StackBlocked))
+                        return false;
+
+                    if (bItem != tItem)
                     {
                         // if is a stack helper, allow placement
                         // if is a roller, disallow placement
-
-                        if (
-                            !tileItem.Definition.CanStack
-                            || tileItem.Definition.CanSit
-                            || tileItem.Definition.CanLay
-                        )
-                            return false;
                     }
                 }
             }
@@ -218,8 +230,7 @@ public sealed class RoomFurniModule(
 
     public Task MarkItemAsDirtyAsync(long itemId)
     {
-        if (!_state.DirtyItemIds.Contains(itemId))
-            _state.DirtyItemIds.Add(itemId);
+        _state.DirtyItemIds.Add(itemId);
 
         return Task.CompletedTask;
     }

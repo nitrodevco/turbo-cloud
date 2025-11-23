@@ -211,6 +211,9 @@ public sealed class RoomService(
         CancellationToken ct = default
     )
     {
+        if (playerId <= 0 || roomId <= 0 || itemId <= 0)
+            return;
+
         var roomGrain = _grainFactory.GetGrain<IRoomGrain>(roomId);
 
         var isValidPlacement = await roomGrain
@@ -219,13 +222,55 @@ public sealed class RoomService(
 
         if (!isValidPlacement)
         {
-            Console.WriteLine("Invalid placement");
-            // need to send a message to the client to reset the item position
+            var item = await roomGrain
+                .GetFloorItemSnapshotByIdAsync(itemId, ct)
+                .ConfigureAwait(false);
+
+            if (item is not null)
+            {
+                var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
+
+                await playerPresence
+                    .SendComposerAsync(new ObjectUpdateMessageComposer { FloorItem = item }, ct)
+                    .ConfigureAwait(false);
+            }
+
             return;
         }
 
         await roomGrain
             .MoveFloorItemByIdAsync(itemId, newX, newY, newRotation, ct)
             .ConfigureAwait(false);
+    }
+
+    public async Task UseFloorItemInRoomAsync(
+        long playerId,
+        long roomId,
+        long itemId,
+        int param = -1,
+        CancellationToken ct = default
+    )
+    {
+        if (playerId <= 0 || roomId <= 0 || itemId <= 0)
+            return;
+
+        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(roomId);
+
+        await roomGrain.UseFloorItemByIdAsync(itemId, param, ct).ConfigureAwait(false);
+    }
+
+    public async Task ClickFloorItemInRoomAsync(
+        long playerId,
+        long roomId,
+        long itemId,
+        CancellationToken ct = default
+    )
+    {
+        if (playerId <= 0 || roomId <= 0 || itemId <= 0)
+            return;
+
+        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(roomId);
+
+        await roomGrain.ClickFloorItemByIdAsync(itemId, ct).ConfigureAwait(false);
     }
 }

@@ -99,9 +99,9 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
         if (pipeline is null)
             return;
 
-        var ctx = _opt.CreateContext(env, meta);
+        var ctx = await _opt.CreateContextAsync(env, meta).ConfigureAwait(false);
 
-        await pipeline(env!, ctx, ct).ConfigureAwait(false);
+        await pipeline(env, ctx, ct).ConfigureAwait(false);
     }
 
     private Func<object, TContext, CancellationToken, ValueTask>? GetOrBuildPipeline(

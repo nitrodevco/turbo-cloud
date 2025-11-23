@@ -36,4 +36,17 @@ public interface IRoomService
         Rotation newRotation,
         CancellationToken ct = default
     );
+    public Task UseFloorItemInRoomAsync(
+        long playerId,
+        long roomId,
+        long itemId,
+        int param = -1,
+        CancellationToken ct = default
+    );
+    public Task ClickFloorItemInRoomAsync(
+        long playerId,
+        long roomId,
+        long itemId,
+        CancellationToken ct = default
+    );
 }

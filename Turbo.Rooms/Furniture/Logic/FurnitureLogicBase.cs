@@ -1,7 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Enums.Furniture;
-using Turbo.Contracts.Enums.Rooms.Furniture.Data;
 using Turbo.Primitives.Rooms.Furniture;
 using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Furniture.StuffData;
@@ -38,7 +37,9 @@ public abstract class FurnitureLogicBase<TItem, TContext>(
 
     public virtual Task OnAttachAsync(CancellationToken ct) => Task.CompletedTask;
 
-    public virtual Task OnInteractAsync(int param, CancellationToken ct) => Task.CompletedTask;
+    public virtual Task OnUseAsync(int param, CancellationToken ct) => Task.CompletedTask;
+
+    public virtual Task OnClickAsync(CancellationToken ct) => Task.CompletedTask;
 
     public virtual Task OnMoveAsync(CancellationToken ct) => Task.CompletedTask;
 

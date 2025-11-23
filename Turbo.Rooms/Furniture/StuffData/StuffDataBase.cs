@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using Turbo.Contracts.Enums.Rooms.Furniture.Data;
 using Turbo.Primitives.Rooms.Furniture.StuffData;
 
 namespace Turbo.Rooms.Furniture.StuffData;

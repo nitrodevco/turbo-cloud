@@ -1,7 +1,13 @@
 using System;
+using Microsoft.Extensions.DependencyInjection;
+using Orleans;
 using Turbo.Contracts.Abstractions;
+using Turbo.Contracts.Enums;
+using Turbo.Logging;
 using Turbo.Pipeline;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Orleans.Grains;
+using Turbo.Primitives.Orleans.Snapshots.Session;
 
 namespace Turbo.Messages.Registry;
 
@@ -10,11 +16,37 @@ public sealed class MessageRegistry(IServiceProvider sp)
         sp,
         new EnvelopeHostOptions<IMessageEvent, ISessionContext, MessageContext>
         {
-            CreateContext = (env, data) =>
+            CreateContextAsync = async (env, data) =>
             {
-                ArgumentNullException.ThrowIfNull(data);
+                if (data is null)
+                    throw new TurboException(TurboErrorCodeEnum.InvalidSession);
 
-                return new MessageContext { Session = data };
+                var sessionKey = data.SessionKey;
+                var playerId = (long)-1;
+                var roomId = (long)-1;
+
+                var sessionGateway = sp.GetRequiredService<ISessionGateway>();
+
+                if (sessionGateway != null)
+                    playerId = sessionGateway.GetPlayerId(sessionKey);
+
+                if (playerId > 0)
+                {
+                    var grainFactory = sp.GetRequiredService<IGrainFactory>();
+                    var playerPresence = grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
+                    var activeRoom = await playerPresence
+                        .GetActiveRoomAsync()
+                        .ConfigureAwait(false);
+
+                    roomId = activeRoom.RoomId;
+                }
+
+                return new MessageContext
+                {
+                    PlayerId = playerId,
+                    RoomId = roomId,
+                    Session = data,
+                };
             },
             EnableInheritanceDispatch = true,
             HandlerMode = HandlerExecutionMode.Parallel,

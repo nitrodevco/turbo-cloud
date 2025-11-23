@@ -2,17 +2,29 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Room.Engine;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.PacketHandlers.Room.Engine;
 
-public class ClickFurniMessageHandler : IMessageHandler<ClickFurniMessage>
+public class ClickFurniMessageHandler(IRoomService roomService) : IMessageHandler<ClickFurniMessage>
 {
+    private readonly IRoomService _roomService = roomService;
+
     public async ValueTask HandleAsync(
         ClickFurniMessage message,
         MessageContext ctx,
         CancellationToken ct
     )
     {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        var isFloorItemClicked = message.ObjectId > 0;
+        var isWallItemClicked = message.ObjectId < 0;
+
+        if (isFloorItemClicked)
+        {
+            await _roomService
+                .ClickFloorItemInRoomAsync(ctx.PlayerId, ctx.RoomId, message.ObjectId, ct)
+                .ConfigureAwait(false);
+        }
+        else if (isWallItemClicked) { }
     }
 }

@@ -11,6 +11,7 @@ public enum TurboErrorCodeEnum
     FurnitureDefinitionNotFound,
     InvalidFloorLogic,
     InvalidFurnitureProductType,
+    InvalidSession,
 }
 
 public static class ErrorCodeExtensions
@@ -29,6 +30,7 @@ public static class ErrorCodeExtensions
                 "The furniture logic is not valid for floor items.",
             TurboErrorCodeEnum.InvalidFurnitureProductType =>
                 "The furniture product type is invalid.",
+            TurboErrorCodeEnum.InvalidSession => "The session is invalid.",
             _ => "An unknown error occurred.",
         };
 }

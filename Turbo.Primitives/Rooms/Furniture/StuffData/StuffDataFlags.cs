@@ -1,6 +1,6 @@
 using System;
 
-namespace Turbo.Contracts.Enums.Rooms.Furniture.Data;
+namespace Turbo.Primitives.Rooms.Furniture.StuffData;
 
 [Flags]
 public enum StuffDataFlags : ushort

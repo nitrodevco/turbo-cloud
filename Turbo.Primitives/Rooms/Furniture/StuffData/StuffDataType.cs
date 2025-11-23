@@ -1,4 +1,4 @@
-namespace Turbo.Contracts.Enums.Rooms.Furniture.Data;
+namespace Turbo.Primitives.Rooms.Furniture.StuffData;
 
 public enum StuffDataType : byte
 {

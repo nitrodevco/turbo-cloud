@@ -13,6 +13,7 @@ using Turbo.Database.Context;
 using Turbo.Primitives.Orleans.Events.Rooms;
 using Turbo.Primitives.Orleans.Grains.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room;
+using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
 using Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
 using Turbo.Primitives.Orleans.Snapshots.Room.Settings;
 using Turbo.Primitives.Rooms.Furniture;
@@ -120,6 +121,16 @@ public class RoomGrain : Grain, IRoomGrain
         await _mapModule.EnsureMapCompiledAsync(ct);
     }
 
+    public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
+        long itemId,
+        CancellationToken ct
+    ) =>
+        Task.FromResult(
+            _liveState.FloorItemsById.TryGetValue(itemId, out var item)
+                ? RoomFloorItemSnapshot.FromFloorItem(item)
+                : null
+        );
+
     public async Task<bool> MoveFloorItemByIdAsync(
         long itemId,
         int newX,
@@ -127,6 +138,15 @@ public class RoomGrain : Grain, IRoomGrain
         Rotation newRotation,
         CancellationToken ct
     ) => await _furniModule.MoveFloorItemByIdAsync(itemId, newX, newY, newRotation, ct);
+
+    public async Task<bool> UseFloorItemByIdAsync(
+        long itemId,
+        int param = -1,
+        CancellationToken ct = default
+    ) => await _furniModule.UseFloorItemByIdAsync(itemId, param, ct);
+
+    public async Task<bool> ClickFloorItemByIdAsync(long itemId, CancellationToken ct = default) =>
+        await _furniModule.ClickFloorItemByIdAsync(itemId, ct);
 
     public async Task<bool> ValidateFloorPlacementAsync(
         long itemId,

@@ -9,7 +9,7 @@ public sealed class EventRegistry(IServiceProvider sp)
         sp,
         new EnvelopeHostOptions<IEvent, object, EventContext>
         {
-            CreateContext = (env, session) => new EventContext(),
+            CreateContextAsync = async (env, session) => new EventContext(),
             EnableInheritanceDispatch = true,
             HandlerMode = HandlerExecutionMode.Parallel,
             MaxHandlerDegreeOfParallelism = null,

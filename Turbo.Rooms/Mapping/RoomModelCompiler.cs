@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Turbo.Contracts.Enums.Rooms;
+using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Rooms.Mapping;
@@ -23,7 +23,7 @@ public static class RoomModelCompiler
         var width = rows.Max(x => x.Length);
         var size = width * height;
         var heights = new double[size];
-        var states = new byte[size];
+        var states = new RoomTileFlags[size];
 
         for (var y = 0; y < height; y++)
         {
@@ -37,7 +37,7 @@ public static class RoomModelCompiler
                 if (ch.Equals('x'))
                 {
                     heights[idx] = 0.0;
-                    states[idx] = (byte)RoomTileStateType.Closed;
+                    states[idx] = RoomTileFlags.Disabled;
                 }
                 else
                 {
@@ -46,7 +46,7 @@ public static class RoomModelCompiler
                         heightIndex == -1 ? int.Parse(ch.ToString()) : heightIndex + 10;
 
                     heights[idx] = tileHeight;
-                    states[idx] = (byte)RoomTileStateType.Open;
+                    states[idx] = RoomTileFlags.Open;
                 }
             }
         }

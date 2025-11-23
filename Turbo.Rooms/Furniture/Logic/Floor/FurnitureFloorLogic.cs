@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Enums.Furniture;
@@ -25,6 +26,8 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
         return true;
     }
 
+    public virtual bool CanStack() => _ctx.Definition.CanStack;
+
     public virtual bool CanWalk() => _ctx.Definition.CanWalk;
 
     public virtual bool CanSit() => _ctx.Definition.CanSit;
@@ -33,6 +36,7 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
 
     public override bool CanToggle()
     {
+        return true;
         if (GetUsagePolicy() == FurniUsagePolicy.Nobody)
             return false;
 
@@ -45,12 +49,9 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
         return true;
     }
 
-    public virtual bool IsOpen()
-    {
-        return CanWalk() || CanSit() || CanLay();
-    }
+    public virtual bool IsOpen() => CanWalk() || CanSit() || CanLay();
 
-    public override Task OnInteractAsync(int param, CancellationToken ct)
+    public override Task OnUseAsync(int param, CancellationToken ct)
     {
         if (CanToggle())
         {
@@ -61,6 +62,8 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
 
         return Task.CompletedTask;
     }
+
+    public override Task OnClickAsync(CancellationToken ct) => Task.CompletedTask;
 
     public virtual Task OnStopAsync(CancellationToken ct) => Task.CompletedTask;
 

@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Contracts.Enums.Rooms.Object;
+using Turbo.Primitives.Rooms.Mapping;
 
 namespace Turbo.Primitives.Orleans.Snapshots.Room.Mapping;
 
@@ -34,8 +35,8 @@ public sealed record RoomModelSnapshot
     public required int Size { get; init; }
 
     [Id(9)]
-    public required double[] Heights { get; init; }
+    public required double[] BaseHeights { get; init; }
 
     [Id(10)]
-    public required byte[] States { get; init; }
+    public required RoomTileFlags[] BaseFlags { get; init; }
 }

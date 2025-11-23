@@ -5,6 +5,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Turbo.Pipeline\Turbo.Pipeline.csproj" />
     <ProjectReference Include="..\Turbo.Contracts\Turbo.Contracts.csproj" />
+    <ProjectReference Include="..\Turbo.Logging\Turbo.Logging.csproj" />
     <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
     <ProjectReference Include="..\Turbo.Runtime\Turbo.Runtime.csproj" />
   </ItemGroup>
