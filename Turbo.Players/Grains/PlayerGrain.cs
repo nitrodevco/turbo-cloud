@@ -5,8 +5,10 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Orleans.Runtime;
+using Turbo.Contracts.Enums;
 using Turbo.Contracts.Orleans;
 using Turbo.Database.Context;
+using Turbo.Logging;
 using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Orleans.States.Players;
 using Turbo.Primitives.Players;
@@ -44,9 +46,7 @@ public class PlayerGrain(
                 await dbCtx
                     .Players.AsNoTracking()
                     .SingleOrDefaultAsync(e => e.Id == this.GetPrimaryKeyLong(), ct)
-                ?? throw new Exception(
-                    $"PlayerGrain:{this.GetPrimaryKeyLong()} not found in external database"
-                );
+                ?? throw new TurboException(TurboErrorCodeEnum.PlayerNotFound);
 
             state.State.Name = entity.Name ?? string.Empty;
             state.State.Motto = entity.Motto ?? string.Empty;

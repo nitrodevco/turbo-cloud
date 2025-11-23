@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Contracts.Enums.Rooms.Object;
+using Turbo.Primitives;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Layout;
@@ -202,8 +203,7 @@ public sealed class RoomService(
     }
 
     public async Task MoveFloorItemInRoomAsync(
-        long playerId,
-        long roomId,
+        ActorContext ctx,
         long itemId,
         int newX,
         int newY,
@@ -211,10 +211,10 @@ public sealed class RoomService(
         CancellationToken ct = default
     )
     {
-        if (playerId <= 0 || roomId <= 0 || itemId <= 0)
+        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0 || itemId <= 0)
             return;
 
-        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(roomId);
+        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId);
 
         var isValidPlacement = await roomGrain
             .ValidateFloorItemPlacementAsync(itemId, newX, newY, newRotation)
@@ -228,7 +228,7 @@ public sealed class RoomService(
 
             if (item is not null)
             {
-                var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
+                var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(ctx.PlayerId);
 
                 await playerPresence
                     .SendComposerAsync(new ObjectUpdateMessageComposer { FloorItem = item }, ct)
@@ -244,33 +244,31 @@ public sealed class RoomService(
     }
 
     public async Task UseFloorItemInRoomAsync(
-        long playerId,
-        long roomId,
+        ActorContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default
     )
     {
-        if (playerId <= 0 || roomId <= 0 || itemId <= 0)
+        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0 || itemId <= 0)
             return;
 
-        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(roomId);
+        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId);
 
         await roomGrain.UseFloorItemByIdAsync(itemId, param, ct).ConfigureAwait(false);
     }
 
     public async Task ClickFloorItemInRoomAsync(
-        long playerId,
-        long roomId,
+        ActorContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default
     )
     {
-        if (playerId <= 0 || roomId <= 0 || itemId <= 0)
+        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0 || itemId <= 0)
             return;
 
-        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(roomId);
+        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId);
 
         await roomGrain.ClickFloorItemByIdAsync(itemId, param, ct).ConfigureAwait(false);
     }

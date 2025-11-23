@@ -1,0 +1,33 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Events;
+
+namespace Turbo.Rooms.Wired;
+
+public sealed class WiredController : IRoomEventListener
+{
+    public Task OnRoomEventAsync(RoomEvent @event, CancellationToken ct) =>
+        HandleRoomEventAsync(@event, ct);
+
+    private Task HandleRoomEventAsync(RoomEvent @event, CancellationToken ct)
+    {
+        return @event switch
+        {
+            FloorItemMovedEvent floorItemMovedEvent => HandleFloorItemMovedEventAsync(
+                floorItemMovedEvent,
+                ct
+            ),
+            _ => Task.CompletedTask,
+        };
+    }
+
+    private async Task HandleFloorItemMovedEventAsync(
+        FloorItemMovedEvent @event,
+        CancellationToken ct
+    )
+    {
+        Console.WriteLine($"Floor Item Moved");
+    }
+}

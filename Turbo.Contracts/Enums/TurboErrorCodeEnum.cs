@@ -3,6 +3,8 @@ namespace Turbo.Contracts.Enums;
 public enum TurboErrorCodeEnum
 {
     Unknown = 0,
+    PlayerNotFound,
+    RoomNotFound,
     ModelNotFound,
     MapNotLoaded,
     TileOutOfBounds,
@@ -21,6 +23,8 @@ public static class ErrorCodeExtensions
     public static string ToDefaultMessage(this TurboErrorCodeEnum code) =>
         code switch
         {
+            TurboErrorCodeEnum.PlayerNotFound => "The specified player could not be found.",
+            TurboErrorCodeEnum.RoomNotFound => "The specified room could not be found.",
             TurboErrorCodeEnum.ModelNotFound => "The room model could not be found.",
             TurboErrorCodeEnum.MapNotLoaded => "The room map is not loaded.",
             TurboErrorCodeEnum.TileOutOfBounds => "The tile index is out of bounds.",

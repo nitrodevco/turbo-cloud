@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
+using Turbo.Primitives;
 using Turbo.Primitives.Messages.Incoming.Room.Engine;
 using Turbo.Primitives.Rooms;
 
@@ -17,8 +18,10 @@ public class UseFurnitureMessageHandler(IRoomService roomService)
         CancellationToken ct
     )
     {
+        var exec = ActorContext.ForPlayer(ctx.Session.SessionKey, ctx.PlayerId, ctx.RoomId);
+
         await _roomService
-            .UseFloorItemInRoomAsync(ctx.PlayerId, ctx.RoomId, message.ObjectId, message.Param, ct)
+            .UseFloorItemInRoomAsync(exec, message.ObjectId, message.Param, ct)
             .ConfigureAwait(false);
     }
 }

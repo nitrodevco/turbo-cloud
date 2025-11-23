@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
+using Turbo.Primitives;
 using Turbo.Primitives.Messages.Incoming.Room.Engine;
 using Turbo.Primitives.Rooms;
 
@@ -16,10 +17,11 @@ public class MoveObjectMessageHandler(IRoomService roomService) : IMessageHandle
         CancellationToken ct
     )
     {
+        var exec = ActorContext.ForPlayer(ctx.Session.SessionKey, ctx.PlayerId, ctx.RoomId);
+
         await _roomService
             .MoveFloorItemInRoomAsync(
-                ctx.PlayerId,
-                ctx.RoomId,
+                exec,
                 message.ObjectId,
                 message.X,
                 message.Y,

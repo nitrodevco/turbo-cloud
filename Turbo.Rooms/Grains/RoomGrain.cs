@@ -5,7 +5,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Contracts.Abstractions;
+using Turbo.Contracts.Enums;
 using Turbo.Database.Context;
+using Turbo.Logging;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room.Settings;
 using Turbo.Primitives.Rooms.Events;
@@ -15,6 +17,7 @@ using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
+using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Grains;
 
@@ -59,6 +62,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             _itemsLoader,
             _furnitureLogicFactory
         );
+
+        _eventModule.Register(new WiredController());
     }
 
     public override async Task OnActivateAsync(CancellationToken ct)
@@ -157,9 +162,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
                 await dbCtx
                     .Rooms.AsNoTracking()
                     .SingleOrDefaultAsync(e => e.Id == this.GetPrimaryKeyLong(), ct)
-                ?? throw new Exception(
-                    $"RoomGrain:{this.GetPrimaryKeyLong()} not found in database."
-                );
+                ?? throw new TurboException(TurboErrorCodeEnum.RoomNotFound);
 
             _liveState.Model = _roomModelProvider.GetModelById(entity.RoomModelEntityId);
 
