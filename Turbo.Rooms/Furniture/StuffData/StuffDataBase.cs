@@ -3,7 +3,7 @@ using Turbo.Primitives.Rooms.Furniture.StuffData;
 
 namespace Turbo.Rooms.Furniture.StuffData;
 
-public class StuffDataBase : IStuffData
+internal class StuffDataBase : IStuffData
 {
     public const int TYPE_MASK = 0xFF;
     public const int FLAGS_MASK = 0xFF00;

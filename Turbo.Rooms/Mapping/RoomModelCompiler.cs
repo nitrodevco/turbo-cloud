@@ -7,7 +7,7 @@ using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Rooms.Mapping;
 
-public static class RoomModelCompiler
+internal static class RoomModelCompiler
 {
     public static string CleanModelString(string model) =>
         model.Trim().ToLower().Replace("\r\n", "\r").Replace("\n", "\r");

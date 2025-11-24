@@ -3,7 +3,7 @@ using Turbo.Primitives.Rooms.Furniture.StuffData;
 
 namespace Turbo.Rooms.Furniture.StuffData;
 
-public sealed class StringStuffData : StuffDataBase, IStringStuffData
+internal sealed class StringStuffData : StuffDataBase, IStringStuffData
 {
     private const int STATE_INDEX = 0;
 

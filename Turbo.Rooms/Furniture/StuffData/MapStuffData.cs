@@ -3,7 +3,7 @@ using Turbo.Primitives.Rooms.Furniture.StuffData;
 
 namespace Turbo.Rooms.Furniture.StuffData;
 
-public sealed class MapStuffData : StuffDataBase, IMapStuffData
+internal sealed class MapStuffData : StuffDataBase, IMapStuffData
 {
     private const string STATE_KEY = "state";
 

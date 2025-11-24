@@ -28,11 +28,6 @@ public partial interface IRoomGrain
         int param = -1,
         CancellationToken ct = default
     );
-    public Task<bool> ValidateWallItemPlacementAsync(
-        ActorContext ctx,
-        long itemId,
-        string newLocation
-    );
     public Task<RoomWallItemSnapshot?> GetWallItemSnapshotByIdAsync(
         long itemId,
         CancellationToken ct

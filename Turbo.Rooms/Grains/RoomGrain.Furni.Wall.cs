@@ -38,12 +38,6 @@ public sealed partial class RoomGrain
         CancellationToken ct = default
     ) => _actionModule.ClickWallItemByIdAsync(ctx, itemId, param, ct);
 
-    public Task<bool> ValidateWallItemPlacementAsync(
-        ActorContext ctx,
-        long itemId,
-        string newLocation
-    ) => _furniModule.ValidateWallItemPlacementAsync(ctx, itemId, newLocation);
-
     public Task<RoomWallItemSnapshot?> GetWallItemSnapshotByIdAsync(
         long itemId,
         CancellationToken ct

@@ -41,14 +41,6 @@ public sealed partial class RoomGrain
         CancellationToken ct = default
     ) => _actionModule.ClickFloorItemByIdAsync(ctx, itemId, param, ct);
 
-    public Task<bool> ValidateFloorItemPlacementAsync(
-        ActorContext ctx,
-        long itemId,
-        int newX,
-        int newY,
-        Rotation newRotation
-    ) => _furniModule.ValidateFloorItemPlacementAsync(ctx, itemId, newX, newY, newRotation);
-
     public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
         long itemId,
         CancellationToken ct

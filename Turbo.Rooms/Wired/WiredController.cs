@@ -6,7 +6,7 @@ using Turbo.Primitives.Rooms.Events;
 
 namespace Turbo.Rooms.Wired;
 
-public sealed class WiredController : IRoomEventListener
+internal sealed class WiredController : IRoomEventListener
 {
     public Task OnRoomEventAsync(RoomEvent @event, CancellationToken ct) =>
         HandleRoomEventAsync(@event, ct);

@@ -31,13 +31,6 @@ public partial interface IRoomGrain
         int param = -1,
         CancellationToken ct = default
     );
-    public Task<bool> ValidateFloorItemPlacementAsync(
-        ActorContext ctx,
-        long itemId,
-        int newX,
-        int newY,
-        Rotation newRotation
-    );
     public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
         long itemId,
         CancellationToken ct

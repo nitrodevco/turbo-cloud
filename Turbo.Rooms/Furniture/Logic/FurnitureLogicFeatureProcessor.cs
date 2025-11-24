@@ -9,7 +9,7 @@ using Turbo.Runtime.AssemblyProcessing;
 
 namespace Turbo.Rooms.Furniture.Logic;
 
-public class FurnitureLogicFeatureProcessor(IFurnitureLogicFactory furnitureLogicFactory)
+internal class FurnitureLogicFeatureProcessor(IFurnitureLogicFactory furnitureLogicFactory)
     : IAssemblyFeatureProcessor
 {
     private readonly IFurnitureLogicFactory _furnitureLogicFactory = furnitureLogicFactory;
