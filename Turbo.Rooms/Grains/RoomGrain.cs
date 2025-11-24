@@ -34,6 +34,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     private readonly RoomEventModule _eventModule;
     private readonly RoomMapModule _mapModule;
     private readonly RoomFurniModule _furniModule;
+    private readonly RoomActionModule _actionModule;
 
     public RoomGrain(
         IDbContextFactory<TurboDbContext> dbContextFactory,
@@ -62,6 +63,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             _itemsLoader,
             _furnitureLogicFactory
         );
+        _actionModule = new(this, _liveState, _furniModule);
 
         _eventModule.Register(new WiredController());
     }

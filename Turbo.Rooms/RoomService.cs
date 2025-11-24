@@ -216,31 +216,24 @@ public sealed class RoomService(
 
         var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId);
 
-        var isValidPlacement = await roomGrain
-            .ValidateFloorItemPlacementAsync(ctx, itemId, newX, newY, newRotation)
-            .ConfigureAwait(false);
-
-        if (!isValidPlacement)
-        {
-            var item = await roomGrain
-                .GetFloorItemSnapshotByIdAsync(itemId, ct)
-                .ConfigureAwait(false);
-
-            if (item is not null)
-            {
-                var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(ctx.PlayerId);
-
-                await playerPresence
-                    .SendComposerAsync(new ObjectUpdateMessageComposer { FloorItem = item }, ct)
-                    .ConfigureAwait(false);
-            }
-
+        if (
+            await roomGrain
+                .MoveFloorItemByIdAsync(ctx, itemId, newX, newY, newRotation, ct)
+                .ConfigureAwait(false)
+        )
             return;
-        }
 
-        await roomGrain
-            .MoveFloorItemByIdAsync(ctx, itemId, newX, newY, newRotation, ct)
-            .ConfigureAwait(false);
+        var item = await roomGrain.GetFloorItemSnapshotByIdAsync(itemId, ct).ConfigureAwait(false);
+
+        if (item is null)
+            return;
+
+        var session = _sessionGateway.GetSession(ctx.SessionKey);
+
+        if (session is not null)
+            await session
+                .SendComposerAsync(new ObjectUpdateMessageComposer { FloorItem = item }, ct)
+                .ConfigureAwait(false);
     }
 
     public async Task UseFloorItemInRoomAsync(

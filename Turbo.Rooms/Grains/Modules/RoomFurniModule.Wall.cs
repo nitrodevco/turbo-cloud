@@ -52,14 +52,15 @@ internal sealed partial class RoomFurniModule
     public async Task<bool> RemoveWallItemByIdAsync(
         ActorContext ctx,
         long itemId,
-        long pickerId,
         CancellationToken ct
     )
     {
         if (!_state.WallItemsById.Remove(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
-        _ = _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(pickerId), ct);
+        _ = _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(ctx.PlayerId), ct);
+
+        await item.Logic.OnPickupAsync(ctx, ct);
 
         return true;
     }

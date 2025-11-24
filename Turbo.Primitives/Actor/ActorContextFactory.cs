@@ -7,7 +7,7 @@ public static class ActorContextFactory
     public static ActorContext ForPlayer(SessionKey sessionKey, long playerId, long roomId) =>
         new()
         {
-            Origin = ActorOrigin.Player,
+            Origin = ActorOrigin.System, // TODO make player again
             SessionKey = sessionKey,
             PlayerId = playerId,
             RoomId = roomId,

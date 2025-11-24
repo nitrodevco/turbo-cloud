@@ -25,4 +25,6 @@ internal sealed class RoomLiveState
     public bool NeedsCompile { get; internal set; } = false;
     public HashSet<int> DirtyTileIds { get; } = [];
     public HashSet<long> DirtyItemIds { get; } = [];
+
+    public HashSet<long> PlayerIdsWithRights { get; } = [];
 }

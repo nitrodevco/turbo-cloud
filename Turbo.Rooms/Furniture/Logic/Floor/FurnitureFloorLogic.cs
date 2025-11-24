@@ -2,7 +2,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Enums.Furniture;
 using Turbo.Primitives.Actor;
-using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Furniture.Floor;
 using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Furniture.StuffData;
@@ -35,41 +34,12 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
 
     public virtual bool CanLay() => _ctx.Definition.CanLay;
 
-    public override Task OnMoveAsync(ActorContext ctx, CancellationToken ct)
-    {
-        _ = _ctx.PublishRoomEventAsync(
-            new FloorItemMovedEvent
-            {
-                RoomId = _ctx.RoomId,
-                CausedBy = ctx,
-                ItemId = _ctx.Item.Id,
-            },
-            ct
-        );
-
-        return base.OnMoveAsync(ctx, ct);
-    }
-
     public override async Task OnUseAsync(ActorContext ctx, int param, CancellationToken ct)
     {
-        if (GetUsagePolicy() == FurniUsagePolicy.Nobody)
-            return;
-
-        if (GetUsagePolicy() == FurniUsagePolicy.Controller)
-        {
-            var isController = false;
-
-            if (!isController)
-                return;
-        }
-
         param = GetNextToggleableState();
 
         await SetStateAsync(param);
     }
-
-    public override Task OnClickAsync(ActorContext ctx, int param, CancellationToken ct) =>
-        Task.CompletedTask;
 
     public virtual Task OnStopAsync(ActorContext ctx, CancellationToken ct) => Task.CompletedTask;
 

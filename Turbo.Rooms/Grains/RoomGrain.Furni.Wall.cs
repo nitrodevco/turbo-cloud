@@ -9,35 +9,34 @@ namespace Turbo.Rooms.Grains;
 public sealed partial class RoomGrain
 {
     public Task<bool> AddWallItemAsync(IRoomWallItem item, CancellationToken ct) =>
-        _furniModule.AddWallItemAsync(item, ct);
+        _actionModule.AddWallItemAsync(item, ct);
 
     public Task<bool> MoveWallItemByIdAsync(
         ActorContext ctx,
         long itemId,
         string newLocation,
         CancellationToken ct
-    ) => _furniModule.MoveWallItemByIdAsync(ctx, itemId, newLocation, ct);
+    ) => _actionModule.MoveWallItemByIdAsync(ctx, itemId, newLocation, ct);
 
     public Task<bool> RemoveWallItemByIdAsync(
         ActorContext ctx,
         long itemId,
-        long pickerId,
         CancellationToken ct
-    ) => _furniModule.RemoveWallItemByIdAsync(ctx, itemId, pickerId, ct);
+    ) => _actionModule.RemoveWallItemByIdAsync(ctx, itemId, ct);
 
     public Task<bool> UseWallItemByIdAsync(
         ActorContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default
-    ) => _furniModule.UseWallItemByIdAsync(ctx, itemId, param, ct);
+    ) => _actionModule.UseWallItemByIdAsync(ctx, itemId, param, ct);
 
     public Task<bool> ClickWallItemByIdAsync(
         ActorContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default
-    ) => _furniModule.ClickWallItemByIdAsync(ctx, itemId, param, ct);
+    ) => _actionModule.ClickWallItemByIdAsync(ctx, itemId, param, ct);
 
     public Task<bool> ValidateWallItemPlacementAsync(
         ActorContext ctx,

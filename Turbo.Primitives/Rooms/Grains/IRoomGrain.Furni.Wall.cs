@@ -15,12 +15,7 @@ public partial interface IRoomGrain
         string newLocation,
         CancellationToken ct
     );
-    public Task<bool> RemoveWallItemByIdAsync(
-        ActorContext ctx,
-        long itemId,
-        long pickerId,
-        CancellationToken ct
-    );
+    public Task<bool> RemoveWallItemByIdAsync(ActorContext ctx, long itemId, CancellationToken ct);
     public Task<bool> UseWallItemByIdAsync(
         ActorContext ctx,
         long itemId,
