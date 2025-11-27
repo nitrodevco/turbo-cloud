@@ -32,12 +32,46 @@ internal sealed class RoomMapModule(
 
     public int GetTileId(int x, int y)
     {
-        var id = y * (_state.Model?.Width ?? 0) + x;
-
-        if (id < 0 || id >= (_state.Model?.Size ?? 0))
+        if (!IsTileInBounds(x, y))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
-        return id;
+        return y * (_state.Model?.Width ?? 0) + x;
+    }
+
+    public (int x, int y) GetTileXY(int id)
+    {
+        if (!IsTileInBounds(id))
+            throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
+
+        return (id % (_state.Model?.Width ?? 0), id / (_state.Model?.Width ?? 0));
+    }
+
+    public bool IsTileInBounds(int x, int y) =>
+        x >= 0 && y >= 0 && x < (_state.Model?.Width ?? 0) && y < (_state.Model?.Height ?? 0);
+
+    public bool IsTileInBounds(int id) => id >= 0 && id < (_state.Model?.Size ?? 0);
+
+    public (int x, int y) GetTileInfront(int x, int y, Rotation rot) =>
+        rot switch
+        {
+            Rotation.North => (x, y - 1),
+            Rotation.NorthEast => (x + 1, y - 1),
+            Rotation.East => (x + 1, y),
+            Rotation.SouthEast => (x + 1, y + 1),
+            Rotation.South => (x, y + 1),
+            Rotation.SouthWest => (x - 1, y + 1),
+            Rotation.West => (x - 1, y),
+            Rotation.NorthWest => (x - 1, y - 1),
+            _ => (x, y),
+        };
+
+    public int GetTileInfront(int id, Rotation rot)
+    {
+        var (x, y) = GetTileXY(id);
+
+        (x, y) = GetTileInfront(x, y, rot);
+
+        return GetTileId(x, y);
     }
 
     public bool GetTileIdForSize(

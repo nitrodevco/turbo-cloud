@@ -9,6 +9,7 @@ using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Furniture.Floor;
+using Turbo.Rooms.Furniture.Logic.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -228,5 +229,29 @@ internal sealed partial class RoomFurniModule
         item.SetLogic(floorLogic);
 
         await logic.OnAttachAsync(ct);
+    }
+
+    internal Task ComputeRollerItemsAsync(CancellationToken ct)
+    {
+        _state.RollerInfos.Clear();
+
+        foreach (var item in _state.FloorItemsById.Values)
+        {
+            if (item.Logic is not FurnitureRollerLogic rollerLogic)
+                continue;
+
+            _state.RollerInfos.Add(
+                new RollerInfoSnapshot
+                {
+                    ItemId = item.Id,
+                    X = item.X,
+                    Y = item.Y,
+                    TargetX = item.X,
+                    TargetY = item.Y,
+                }
+            );
+        }
+
+        return Task.CompletedTask;
     }
 }
