@@ -40,9 +40,6 @@ internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
     public Task<RoomFloorItemSnapshot> GetSnapshotAsync() =>
         Task.FromResult(RoomFloorItemSnapshot.FromFloorItem(this));
 
-    public Task<StuffDataSnapshot> GetStuffDataSnapshotAsync() =>
-        Task.FromResult(StuffDataSnapshot.FromStuffData(Logic.StuffData));
-
     public IComposer GetAddComposer() =>
         new ObjectAddMessageComposer { FloorItem = RoomFloorItemSnapshot.FromFloorItem(this) };
 

@@ -7,7 +7,7 @@ internal sealed class NumberStuffData : StuffDataBase, INumberStuffData
 {
     private const int STATE_INDEX = 0;
 
-    public List<int> Data { get; private set; } = [];
+    public List<int> Data { get; set; } = [];
 
     public override string GetLegacyString() => GetValue(STATE_INDEX).ToString();
 
@@ -25,5 +25,13 @@ internal sealed class NumberStuffData : StuffDataBase, INumberStuffData
             return 0;
 
         return Data[index];
+    }
+
+    public void SetValue(int index, int value)
+    {
+        if (index < 0)
+            return;
+
+        Data[index] = value;
     }
 }

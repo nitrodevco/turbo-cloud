@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using Orleans;
 using Turbo.Primitives.Rooms.Furniture.StuffData;
 
@@ -23,10 +25,16 @@ public sealed record StuffDataSnapshot
     public MapStuffPayload? MapPayload { get; init; }
 
     [Id(5)]
-    public NumberStuffPayload? NumberPayload { get; init; }
+    public StringStuffPayload? StringPayload { get; init; }
 
     [Id(6)]
-    public StringStuffPayload? StringPayload { get; init; }
+    public VoteStuffPayload? VotePayload { get; init; }
+
+    [Id(7)]
+    public NumberStuffPayload? NumberPayload { get; init; }
+
+    [Id(8)]
+    public HighscoreStuffPayload? HighscorePayload { get; init; }
 
     public static StuffDataSnapshot FromStuffData(IStuffData data)
     {
@@ -42,10 +50,7 @@ public sealed record StuffDataSnapshot
             case ILegacyStuffData legacy:
                 snapshot = snapshot with
                 {
-                    LegacyPayload = new LegacyStuffPayload
-                    {
-                        LegacyString = legacy.GetLegacyString(),
-                    },
+                    LegacyPayload = new LegacyStuffPayload { Data = legacy.GetLegacyString() },
                 };
                 break;
             case IMapStuffData map:
@@ -54,16 +59,42 @@ public sealed record StuffDataSnapshot
                     MapPayload = new MapStuffPayload { Data = map.Data.ToImmutableDictionary() },
                 };
                 break;
+            case IStringStuffData str:
+                snapshot = snapshot with
+                {
+                    StringPayload = new StringStuffPayload { Data = [.. str.Data] },
+                };
+                break;
+            case IVoteStuffData vote:
+                snapshot = snapshot with
+                {
+                    VotePayload = new VoteStuffPayload
+                    {
+                        Data = vote.GetLegacyString(),
+                        Result = vote.Result,
+                    },
+                };
+                break;
             case INumberStuffData number:
                 snapshot = snapshot with
                 {
                     NumberPayload = new NumberStuffPayload { Data = [.. number.Data] },
                 };
                 break;
-            case IStringStuffData str:
+            case IHighscoreStuffData highscore:
                 snapshot = snapshot with
                 {
-                    StringPayload = new StringStuffPayload { Data = [.. str.Data] },
+                    HighscorePayload = new HighscoreStuffPayload
+                    {
+                        Data = highscore.GetLegacyString(),
+                        ScoreType = highscore.ScoreType,
+                        ClearType = highscore.ClearType,
+                        Scores = highscore
+                            .HighscoreData.Select(x =>
+                                KeyValuePair.Create(x.Key, x.Value.ToImmutableArray())
+                            )
+                            .ToImmutableDictionary(),
+                    },
                 };
                 break;
         }

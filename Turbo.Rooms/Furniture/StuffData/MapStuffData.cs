@@ -7,7 +7,7 @@ internal sealed class MapStuffData : StuffDataBase, IMapStuffData
 {
     private const string STATE_KEY = "state";
 
-    public Dictionary<string, string> Data { get; private set; } = [];
+    public Dictionary<string, string> Data { get; set; } = [];
 
     public override string GetLegacyString() => GetValue(STATE_KEY);
 
@@ -26,5 +26,11 @@ internal sealed class MapStuffData : StuffDataBase, IMapStuffData
             return value;
 
         return string.Empty;
+    }
+
+    public void SetValue(string key, string value)
+    {
+        Data.Remove(key);
+        Data.Add(key, value);
     }
 }

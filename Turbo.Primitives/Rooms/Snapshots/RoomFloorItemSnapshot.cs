@@ -48,7 +48,7 @@ public sealed record RoomFloorItemSnapshot
 
     public static RoomFloorItemSnapshot FromFloorItem(IRoomFloorItem item)
     {
-        var stuffData = item.Logic.StuffData;
+        var stuffData = StuffDataSnapshot.FromStuffData(item.Logic.StuffData);
 
         return new RoomFloorItemSnapshot
         {
@@ -61,7 +61,7 @@ public sealed record RoomFloorItemSnapshot
             Z = item.Z,
             Rotation = item.Rotation,
             StackHeight = item.Definition.StackHeight,
-            StuffData = StuffDataSnapshot.FromStuffData(stuffData),
+            StuffData = stuffData,
             StuffDataJson = JsonSerializer.Serialize(stuffData, stuffData.GetType()),
             UsagePolicy = item.Logic.GetUsagePolicy(),
         };

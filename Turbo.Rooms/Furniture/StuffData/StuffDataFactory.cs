@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json;
 using Turbo.Primitives.Rooms.Furniture.StuffData;
 
@@ -14,11 +15,11 @@ public sealed class StuffDataFactory : IStuffDataFactory
         {
             StuffDataType.MapKey => new MapStuffData(),
             StuffDataType.StringKey => new StringStuffData(),
-            StuffDataType.VoteKey => throw new System.NotImplementedException(),
+            StuffDataType.VoteKey => new VoteStuffData(),
             StuffDataType.EmptyKey => new EmptyStuffData(),
             StuffDataType.NumberKey => new NumberStuffData(),
-            StuffDataType.HighscoreKey => throw new System.NotImplementedException(),
-            StuffDataType.CrackableKey => throw new System.NotImplementedException(),
+            StuffDataType.HighscoreKey => new HighscoreStuffData(),
+            StuffDataType.CrackableKey => throw new NotImplementedException(),
             StuffDataType.LegacyKey or _ => new LegacyStuffData(),
         };
 
@@ -35,16 +36,20 @@ public sealed class StuffDataFactory : IStuffDataFactory
         var type = (StuffDataType)(typeAndFlags & StuffDataBase.TYPE_MASK);
         var flags = (StuffDataFlags)(typeAndFlags & StuffDataBase.FLAGS_MASK);
 
+        Console.WriteLine($"Creating stuff data: {type}:{flags}");
+
         IStuffData? data = type switch
         {
             StuffDataType.MapKey => JsonSerializer.Deserialize<MapStuffData>(jsonString),
             StuffDataType.StringKey => JsonSerializer.Deserialize<StringStuffData>(jsonString),
-            StuffDataType.VoteKey => throw new System.NotImplementedException(),
+            StuffDataType.VoteKey => JsonSerializer.Deserialize<VoteStuffData>(jsonString),
             StuffDataType.EmptyKey => JsonSerializer.Deserialize<EmptyStuffData>(jsonString),
             StuffDataType.NumberKey => JsonSerializer.Deserialize<NumberStuffData>(jsonString),
-            StuffDataType.HighscoreKey => throw new System.NotImplementedException(),
-            StuffDataType.CrackableKey => throw new System.NotImplementedException(),
-            _ => null,
+            StuffDataType.HighscoreKey => JsonSerializer.Deserialize<HighscoreStuffData>(
+                jsonString
+            ),
+            StuffDataType.CrackableKey => throw new NotImplementedException(),
+            _ => JsonSerializer.Deserialize<LegacyStuffData>(jsonString),
         };
 
         data ??= JsonSerializer.Deserialize<LegacyStuffData>(jsonString)!;

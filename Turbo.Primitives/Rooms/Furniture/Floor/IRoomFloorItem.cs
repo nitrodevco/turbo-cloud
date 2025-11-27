@@ -19,7 +19,6 @@ public interface IRoomFloorItem : IRoomItem
     public void SetLogic(IFurnitureFloorLogic logic);
 
     public Task<RoomFloorItemSnapshot> GetSnapshotAsync();
-    public Task<StuffDataSnapshot> GetStuffDataSnapshotAsync();
     public IComposer GetAddComposer();
     public IComposer GetUpdateComposer();
     public IComposer GetRefreshStuffDataComposer();
