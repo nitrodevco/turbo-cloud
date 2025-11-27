@@ -43,16 +43,6 @@ internal sealed partial class RoomActionModule
         if (!await _furniModule.MoveFloorItemByIdAsync(ctx, itemId, newX, newY, newRotation, ct))
             return false;
 
-        _ = _roomGrain.PublishRoomEventAsync(
-            new FloorItemMovedEvent
-            {
-                RoomId = _roomGrain.GetPrimaryKeyLong(),
-                CausedBy = ctx,
-                ItemId = itemId,
-            },
-            ct
-        );
-
         return true;
     }
 

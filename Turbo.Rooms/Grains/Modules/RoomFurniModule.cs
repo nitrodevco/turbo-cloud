@@ -8,7 +8,6 @@ using Turbo.Database.Context;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Furniture;
 using Turbo.Primitives.Rooms.Furniture.Logic;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -28,10 +27,6 @@ internal sealed partial class RoomFurniModule(
     private readonly RoomMapModule _roomMap = roomMapModule;
     private readonly IRoomItemsLoader _itemsLoader = itemsLoader;
     private readonly IFurnitureLogicFactory _furnitureLogicFactory = furnitureLogicFactory;
-
-    public async Task OnActivateAsync(CancellationToken ct) { }
-
-    public async Task OnDeactivateAsync(CancellationToken ct) { }
 
     internal async Task EnsureFurniLoadedAsync(CancellationToken ct)
     {

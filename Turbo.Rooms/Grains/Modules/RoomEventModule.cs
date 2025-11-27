@@ -16,15 +16,7 @@ internal sealed class RoomEventModule(
     private readonly RoomGrain _roomGrain = roomGrain;
     private readonly RoomConfig _roomConfig = roomConfig;
     private readonly RoomLiveState _state = roomLiveState;
-
     private readonly List<IRoomEventListener> _listeners = [];
-
-    public async Task OnActivateAsync(CancellationToken ct) { }
-
-    public async Task OnDeactivateAsync(CancellationToken ct)
-    {
-        _listeners.Clear();
-    }
 
     public void Register(IRoomEventListener listener)
     {

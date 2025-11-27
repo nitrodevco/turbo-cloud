@@ -30,10 +30,6 @@ internal sealed class RoomMapModule(
     private RoomMapSnapshot? _mapSnapshot = null;
     private bool _dirty = true;
 
-    public Task OnActivateAsync(CancellationToken ct) => Task.CompletedTask;
-
-    public Task OnDeactivateAsync(CancellationToken ct) => Task.CompletedTask;
-
     public int GetTileId(int x, int y)
     {
         var id = y * (_state.Model?.Width ?? 0) + x;

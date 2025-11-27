@@ -1,4 +1,3 @@
-using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Enums.Rooms;
 using Turbo.Primitives.Actor;
@@ -15,10 +14,6 @@ internal sealed partial class RoomActionModule(
     private readonly RoomGrain _roomGrain = roomGrain;
     private readonly RoomLiveState _state = liveState;
     private readonly RoomFurniModule _furniModule = furniModule;
-
-    public async Task OnActivateAsync(CancellationToken ct) { }
-
-    public async Task OnDeactivateAsync(CancellationToken ct) { }
 
     private async Task<bool> CanManipulateFurniAsync(ActionContext ctx)
     {

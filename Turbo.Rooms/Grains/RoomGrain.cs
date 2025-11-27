@@ -76,9 +76,6 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
             .UpsertActiveRoomAsync(_liveState.RoomSnapshot);
 
-        await _mapModule.OnActivateAsync(ct);
-        await _furniModule.OnActivateAsync(ct);
-
         this.RegisterGrainTimer<object?>(
             async _ => await _mapModule.FlushDirtyTileIdsAsync(ct),
             null,
@@ -97,8 +94,6 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
         await _furniModule.FlushDirtyItemIdsAsync(_dbContextFactory, ct);
-        await _furniModule.OnDeactivateAsync(ct);
-        await _mapModule.OnDeactivateAsync(ct);
 
         await _grainFactory
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
