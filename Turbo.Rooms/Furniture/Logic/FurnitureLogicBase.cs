@@ -29,15 +29,16 @@ public abstract class FurnitureLogicBase<TItem, TContext>(
 
     public virtual Task OnAttachAsync(CancellationToken ct) => Task.CompletedTask;
 
-    public virtual Task OnUseAsync(ActorContext ctx, int param, CancellationToken ct) =>
+    public virtual Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct) =>
         Task.CompletedTask;
 
-    public virtual Task OnClickAsync(ActorContext ctx, int param, CancellationToken ct) =>
+    public virtual Task OnClickAsync(ActionContext ctx, int param, CancellationToken ct) =>
         Task.CompletedTask;
 
-    public virtual Task OnMoveAsync(ActorContext ctx, CancellationToken ct) => Task.CompletedTask;
+    public virtual Task OnMoveAsync(ActionContext ctx, CancellationToken ct) => Task.CompletedTask;
 
-    public virtual Task OnPlaceAsync(ActorContext ctx, CancellationToken ct) => Task.CompletedTask;
+    public virtual Task OnPlaceAsync(ActionContext ctx, CancellationToken ct) => Task.CompletedTask;
 
-    public virtual Task OnPickupAsync(ActorContext ctx, CancellationToken ct) => Task.CompletedTask;
+    public virtual Task OnPickupAsync(ActionContext ctx, CancellationToken ct) =>
+        Task.CompletedTask;
 }

@@ -13,7 +13,7 @@ public sealed partial class RoomGrain
         _actionModule.AddFloorItemAsync(item, ct);
 
     public Task<bool> MoveFloorItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int newX,
         int newY,
@@ -22,20 +22,20 @@ public sealed partial class RoomGrain
     ) => _actionModule.MoveFloorItemByIdAsync(ctx, itemId, newX, newY, newRotation, ct);
 
     public Task<bool> RemoveFloorItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         CancellationToken ct
     ) => _actionModule.RemoveFloorItemByIdAsync(ctx, itemId, ct);
 
     public Task<bool> UseFloorItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default
     ) => _actionModule.UseFloorItemByIdAsync(ctx, itemId, param, ct);
 
     public Task<bool> ClickFloorItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default

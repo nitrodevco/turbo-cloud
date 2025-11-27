@@ -18,7 +18,7 @@ internal sealed partial class RoomActionModule
     }
 
     public async Task<bool> MoveFloorItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int newX,
         int newY,
@@ -57,13 +57,13 @@ internal sealed partial class RoomActionModule
     }
 
     public Task<bool> RemoveFloorItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         CancellationToken ct
     ) => _furniModule.RemoveFloorItemByIdAsync(ctx, itemId, ct);
 
     public async Task<bool> UseFloorItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default
@@ -90,7 +90,7 @@ internal sealed partial class RoomActionModule
     }
 
     public Task<bool> ClickFloorItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default

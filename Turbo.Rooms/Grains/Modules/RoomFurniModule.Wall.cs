@@ -30,7 +30,7 @@ internal sealed partial class RoomFurniModule
     }
 
     public async Task<bool> MoveWallItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         string newLocation,
         CancellationToken ct
@@ -52,7 +52,7 @@ internal sealed partial class RoomFurniModule
     }
 
     public async Task<bool> RemoveWallItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         CancellationToken ct
     )
@@ -70,7 +70,7 @@ internal sealed partial class RoomFurniModule
     }
 
     public async Task<bool> UseWallItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int param,
         CancellationToken ct
@@ -85,7 +85,7 @@ internal sealed partial class RoomFurniModule
     }
 
     public async Task<bool> ClickWallItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default
@@ -100,7 +100,7 @@ internal sealed partial class RoomFurniModule
     }
 
     public async Task<bool> ValidateWallItemPlacementAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         string newLocation
     )

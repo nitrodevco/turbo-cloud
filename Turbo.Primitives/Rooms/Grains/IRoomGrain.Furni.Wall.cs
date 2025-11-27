@@ -10,20 +10,20 @@ public partial interface IRoomGrain
 {
     public Task<bool> AddWallItemAsync(IRoomWallItem item, CancellationToken ct);
     public Task<bool> MoveWallItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         string newLocation,
         CancellationToken ct
     );
-    public Task<bool> RemoveWallItemByIdAsync(ActorContext ctx, long itemId, CancellationToken ct);
+    public Task<bool> RemoveWallItemByIdAsync(ActionContext ctx, long itemId, CancellationToken ct);
     public Task<bool> UseWallItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default
     );
     public Task<bool> ClickWallItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default

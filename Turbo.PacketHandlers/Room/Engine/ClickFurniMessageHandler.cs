@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Messages.Extensions;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Actor;
 using Turbo.Primitives.Messages.Incoming.Room.Engine;
@@ -20,12 +21,15 @@ public class ClickFurniMessageHandler(IRoomService roomService) : IMessageHandle
         var isFloorItemClicked = message.ObjectId > 0;
         var isWallItemClicked = message.ObjectId < 0;
 
-        var exec = ActorContextFactory.ForPlayer(ctx.Session.SessionKey, ctx.PlayerId, ctx.RoomId);
-
         if (isFloorItemClicked)
         {
             await _roomService
-                .ClickFloorItemInRoomAsync(exec, message.ObjectId, message.Param, ct)
+                .ClickFloorItemInRoomAsync(
+                    ctx.ToActionContext(),
+                    message.ObjectId,
+                    message.Param,
+                    ct
+                )
                 .ConfigureAwait(false);
         }
         else if (isWallItemClicked) { }

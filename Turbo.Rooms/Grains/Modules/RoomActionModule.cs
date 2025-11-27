@@ -20,7 +20,7 @@ internal sealed partial class RoomActionModule(
 
     public async Task OnDeactivateAsync(CancellationToken ct) { }
 
-    private async Task<bool> CanManipulateFurniAsync(ActorContext ctx)
+    private async Task<bool> CanManipulateFurniAsync(ActionContext ctx)
     {
         var controllerLevel = await GetControllerLevelAsync(ctx);
 
@@ -45,7 +45,7 @@ internal sealed partial class RoomActionModule(
         return false;
     }
 
-    public async Task<bool> GetIsRoomOwnerAsync(ActorContext ctx)
+    public async Task<bool> GetIsRoomOwnerAsync(ActionContext ctx)
     {
         if (ctx is null)
             return false;
@@ -58,9 +58,9 @@ internal sealed partial class RoomActionModule(
         return false;
     }
 
-    public async Task<RoomControllerLevel> GetControllerLevelAsync(ActorContext ctx)
+    public async Task<RoomControllerLevel> GetControllerLevelAsync(ActionContext ctx)
     {
-        if (ctx.Origin == ActorOrigin.System)
+        if (ctx.Origin == ActionOrigin.System)
             return RoomControllerLevel.Moderator;
 
         if (await GetIsRoomOwnerAsync(ctx))

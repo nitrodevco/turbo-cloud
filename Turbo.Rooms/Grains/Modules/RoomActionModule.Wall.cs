@@ -13,7 +13,7 @@ internal sealed partial class RoomActionModule
     }
 
     public async Task<bool> MoveWallItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         string newLocation,
         CancellationToken ct
@@ -26,20 +26,20 @@ internal sealed partial class RoomActionModule
     }
 
     public Task<bool> RemoveWallItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         CancellationToken ct
     ) => _furniModule.RemoveWallItemByIdAsync(ctx, itemId, ct);
 
     public Task<bool> UseWallItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default
     ) => _furniModule.UseWallItemByIdAsync(ctx, itemId, param, ct);
 
     public Task<bool> ClickWallItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default

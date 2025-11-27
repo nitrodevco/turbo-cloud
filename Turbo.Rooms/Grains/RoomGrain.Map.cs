@@ -17,5 +17,5 @@ public sealed partial class RoomGrain
         _mapModule.GetTileSnapshotAsync(id, ct);
 
     public Task<RoomMapSnapshot> GetMapSnapshotAsync(CancellationToken ct) =>
-        _mapModule.GetMapSnapshotAsync(ct);
+        Task.FromResult(_mapModule.GetMapSnapshot(ct));
 }

@@ -41,7 +41,7 @@ internal sealed partial class RoomFurniModule
     }
 
     public async Task<bool> MoveFloorItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int newX,
         int newY,
@@ -88,7 +88,7 @@ internal sealed partial class RoomFurniModule
     }
 
     public async Task<bool> RemoveFloorItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         CancellationToken ct
     )
@@ -116,7 +116,7 @@ internal sealed partial class RoomFurniModule
     }
 
     public async Task<bool> UseFloorItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int param,
         CancellationToken ct
@@ -131,7 +131,7 @@ internal sealed partial class RoomFurniModule
     }
 
     public async Task<bool> ClickFloorItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default
@@ -146,7 +146,7 @@ internal sealed partial class RoomFurniModule
     }
 
     public async Task<bool> ValidateFloorItemPlacementAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int newX,
         int newY,

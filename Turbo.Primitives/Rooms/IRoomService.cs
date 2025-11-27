@@ -29,7 +29,7 @@ public interface IRoomService
     public Task EnterPendingRoomForPlayerIdAsync(long playerId, CancellationToken ct = default);
     public Task CloseRoomForPlayerAsync(long playerId);
     public Task MoveFloorItemInRoomAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int newX,
         int newY,
@@ -37,13 +37,13 @@ public interface IRoomService
         CancellationToken ct = default
     );
     public Task UseFloorItemInRoomAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default
     );
     public Task ClickFloorItemInRoomAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default

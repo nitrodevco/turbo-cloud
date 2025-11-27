@@ -12,27 +12,27 @@ public sealed partial class RoomGrain
         _actionModule.AddWallItemAsync(item, ct);
 
     public Task<bool> MoveWallItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         string newLocation,
         CancellationToken ct
     ) => _actionModule.MoveWallItemByIdAsync(ctx, itemId, newLocation, ct);
 
     public Task<bool> RemoveWallItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         CancellationToken ct
     ) => _actionModule.RemoveWallItemByIdAsync(ctx, itemId, ct);
 
     public Task<bool> UseWallItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default
     ) => _actionModule.UseWallItemByIdAsync(ctx, itemId, param, ct);
 
     public Task<bool> ClickWallItemByIdAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default

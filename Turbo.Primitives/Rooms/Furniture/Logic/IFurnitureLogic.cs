@@ -12,9 +12,9 @@ public interface IFurnitureLogic
     public bool CanToggle();
     public Task<bool> SetStateAsync(int state);
     public Task OnAttachAsync(CancellationToken ct);
-    public Task OnUseAsync(ActorContext ctx, int param, CancellationToken ct);
-    public Task OnClickAsync(ActorContext ctx, int param, CancellationToken ct);
-    public Task OnMoveAsync(ActorContext ctx, CancellationToken ct);
-    public Task OnPlaceAsync(ActorContext ctx, CancellationToken ct);
-    public Task OnPickupAsync(ActorContext ctx, CancellationToken ct);
+    public Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct);
+    public Task OnClickAsync(ActionContext ctx, int param, CancellationToken ct);
+    public Task OnMoveAsync(ActionContext ctx, CancellationToken ct);
+    public Task OnPlaceAsync(ActionContext ctx, CancellationToken ct);
+    public Task OnPickupAsync(ActionContext ctx, CancellationToken ct);
 }

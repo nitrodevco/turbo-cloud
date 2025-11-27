@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -27,7 +28,7 @@ internal sealed class RoomMapModule(
     private readonly RoomLiveState _state = roomLiveState;
 
     private RoomMapSnapshot? _mapSnapshot = null;
-    private int _mapVersion = 0;
+    private bool _dirty = true;
 
     public Task OnActivateAsync(CancellationToken ct) => Task.CompletedTask;
 
@@ -183,7 +184,7 @@ internal sealed class RoomMapModule(
             _state.TileFlags[id] = nextFlags;
             _state.TileHighestFloorItems[id] = nextHighestItem?.Id ?? -1;
 
-            _mapVersion++;
+            _dirty = true;
         }
 
         return Task.CompletedTask;
@@ -204,11 +205,19 @@ internal sealed class RoomMapModule(
             }
         );
 
-    public async Task<RoomMapSnapshot> GetMapSnapshotAsync(CancellationToken ct)
+    public RoomMapSnapshot GetMapSnapshot(CancellationToken ct)
     {
-        if (_mapSnapshot is not null && _mapSnapshot.Version == _mapVersion)
-            return _mapSnapshot;
+        if (_dirty || _mapSnapshot is null)
+        {
+            _mapSnapshot = BuildSnapshot();
+            _dirty = false;
+        }
 
+        return _mapSnapshot;
+    }
+
+    private RoomMapSnapshot BuildSnapshot()
+    {
         var items = new List<RoomFloorItemSnapshot>(_state.FloorItemsById.Count);
 
         foreach (var stack in _state.TileFloorStacks)
@@ -217,7 +226,7 @@ internal sealed class RoomMapModule(
                 items.Add(_state.FloorItemsById[stack[i]].GetSnapshot());
         }
 
-        _mapSnapshot = new RoomMapSnapshot
+        return new()
         {
             ModelName = _state.Model?.Name ?? string.Empty,
             ModelData = _state.Model?.Model ?? string.Empty,
@@ -229,10 +238,7 @@ internal sealed class RoomMapModule(
             DoorRotation = _state.Model?.DoorRotation ?? 0,
             TileEncodedHeights = [.. _state.TileEncodedHeights],
             FloorItems = [.. items],
-            Version = _mapVersion,
         };
-
-        return _mapSnapshot;
     }
 
     internal async Task FlushDirtyTileIdsAsync(CancellationToken ct)

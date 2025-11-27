@@ -4,10 +4,10 @@ using Turbo.Primitives.Orleans.Snapshots.Session;
 namespace Turbo.Primitives.Actor;
 
 [GenerateSerializer, Immutable]
-public sealed record ActorContext
+public class ActionContext
 {
     [Id(0)]
-    public required ActorOrigin Origin { get; init; }
+    public required ActionOrigin Origin { get; init; }
 
     [Id(1)]
     public SessionKey SessionKey { get; init; } = SessionKey.Empty;

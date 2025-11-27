@@ -1,6 +1,6 @@
 namespace Turbo.Primitives.Actor;
 
-public enum ActorOrigin
+public enum ActionOrigin
 {
     System = 0,
     Player = 1,

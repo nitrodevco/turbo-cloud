@@ -42,14 +42,14 @@ public class FurnitureFloorLogic
 
     public virtual bool CanLay() => _ctx.Definition.CanLay;
 
-    public override async Task OnUseAsync(ActorContext ctx, int param, CancellationToken ct)
+    public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
     {
         param = GetNextToggleableState();
 
         await SetStateAsync(param);
     }
 
-    public virtual Task OnStopAsync(ActorContext ctx, CancellationToken ct) => Task.CompletedTask;
+    public virtual Task OnStopAsync(ActionContext ctx, CancellationToken ct) => Task.CompletedTask;
 
     protected virtual int GetNextToggleableState()
     {

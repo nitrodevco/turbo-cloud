@@ -6,5 +6,5 @@ public abstract record RoomEvent
 {
     public required long RoomId { get; init; }
 
-    public required ActorContext CausedBy { get; init; }
+    public required ActionContext CausedBy { get; init; }
 }

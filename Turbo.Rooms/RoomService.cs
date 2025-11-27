@@ -203,7 +203,7 @@ public sealed class RoomService(
     }
 
     public async Task MoveFloorItemInRoomAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int newX,
         int newY,
@@ -237,7 +237,7 @@ public sealed class RoomService(
     }
 
     public async Task UseFloorItemInRoomAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default
@@ -252,7 +252,7 @@ public sealed class RoomService(
     }
 
     public async Task ClickFloorItemInRoomAsync(
-        ActorContext ctx,
+        ActionContext ctx,
         long itemId,
         int param = -1,
         CancellationToken ct = default
