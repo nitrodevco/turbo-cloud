@@ -7,6 +7,9 @@ internal class StuffDataBase : IStuffData
 {
     public const int TYPE_MASK = 0xFF;
     public const int FLAGS_MASK = 0xFF00;
+    protected const string DEFAULT_STATE = "0";
+    protected const int STATE_INDEX = 0;
+    protected const string STATE_KEY = "state";
 
     public static int CreateBitmask(StuffDataType type, StuffDataFlags flags) =>
         ((int)type & TYPE_MASK) | ((int)flags & FLAGS_MASK);

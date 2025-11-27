@@ -5,7 +5,7 @@ namespace Turbo.Rooms.Furniture.StuffData;
 
 internal sealed class VoteStuffData : StuffDataBase, IVoteStuffData
 {
-    public string Data { get; set; } = "0";
+    public string Data { get; set; } = DEFAULT_STATE;
     public int Result { get; set; } = 0;
 
     public override string GetLegacyString() => Data;
@@ -13,7 +13,7 @@ internal sealed class VoteStuffData : StuffDataBase, IVoteStuffData
     public override void SetState(string state)
     {
         if (string.IsNullOrEmpty(state))
-            state = "0";
+            state = DEFAULT_STATE;
 
         Data = state;
     }

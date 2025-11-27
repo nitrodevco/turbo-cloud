@@ -5,16 +5,20 @@ namespace Turbo.Rooms.Furniture.StuffData;
 
 internal sealed class StringStuffData : StuffDataBase, IStringStuffData
 {
-    private const int STATE_INDEX = 0;
-
     public List<string> Data { get; set; } = [];
+
+    public StringStuffData()
+    {
+        if (Data.Count == 0)
+            Data.Add(DEFAULT_STATE);
+    }
 
     public override string GetLegacyString() => GetValue(STATE_INDEX);
 
     public override void SetState(string state)
     {
         if (string.IsNullOrEmpty(state))
-            state = "0";
+            state = DEFAULT_STATE;
 
         Data[STATE_INDEX] = state;
     }

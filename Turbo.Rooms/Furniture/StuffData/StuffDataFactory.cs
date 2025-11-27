@@ -36,8 +36,6 @@ public sealed class StuffDataFactory : IStuffDataFactory
         var type = (StuffDataType)(typeAndFlags & StuffDataBase.TYPE_MASK);
         var flags = (StuffDataFlags)(typeAndFlags & StuffDataBase.FLAGS_MASK);
 
-        Console.WriteLine($"Creating stuff data: {type}:{flags}");
-
         IStuffData? data = type switch
         {
             StuffDataType.MapKey => JsonSerializer.Deserialize<MapStuffData>(jsonString),
