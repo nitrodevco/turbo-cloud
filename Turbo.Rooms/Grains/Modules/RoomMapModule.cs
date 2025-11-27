@@ -214,7 +214,7 @@ internal sealed class RoomMapModule(
         foreach (var stack in _state.TileFloorStacks)
         {
             for (var i = 0; i < stack.Count; i++)
-                items.Add(RoomFloorItemSnapshot.FromFloorItem(_state.FloorItemsById[stack[i]]));
+                items.Add(_state.FloorItemsById[stack[i]].GetSnapshot());
         }
 
         _mapSnapshot = new RoomMapSnapshot

@@ -17,15 +17,6 @@ public abstract class FurnitureLogicBase<TItem, TContext>(
 {
     protected readonly IStuffDataFactory _stuffDataFactory = stuffDataFactory;
     protected readonly TContext _ctx = ctx;
-    protected IStuffData _stuffData = default!;
-
-    public virtual StuffDataType StuffDataKey => StuffDataType.LegacyKey;
-    public virtual IStuffData StuffData => _stuffData;
-
-    public virtual void Setup(string stuffDataRaw)
-    {
-        _stuffData = CreateStuffDataFromJson(stuffDataRaw);
-    }
 
     public virtual double GetHeight() => _ctx.Definition.StackHeight;
 
@@ -49,10 +40,4 @@ public abstract class FurnitureLogicBase<TItem, TContext>(
     public virtual Task OnPlaceAsync(ActorContext ctx, CancellationToken ct) => Task.CompletedTask;
 
     public virtual Task OnPickupAsync(ActorContext ctx, CancellationToken ct) => Task.CompletedTask;
-
-    protected virtual IStuffData CreateStuffData() =>
-        _stuffDataFactory.CreateStuffData((int)StuffDataKey);
-
-    protected virtual IStuffData CreateStuffDataFromJson(string json) =>
-        _stuffDataFactory.CreateStuffDataFromJson((int)StuffDataKey, json);
 }

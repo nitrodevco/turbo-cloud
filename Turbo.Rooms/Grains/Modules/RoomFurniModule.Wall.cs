@@ -18,6 +18,10 @@ internal sealed partial class RoomFurniModule
         if (!_state.WallItemsById.TryAdd(item.Id, item))
             return false;
 
+        void func(long itemId) => _state.DirtyItemIds.Add(itemId);
+
+        item.SetAction(func);
+
         await AttatchWallLogicIfNeededAsync(item, ct);
 
         _ = _roomGrain.SendComposerToRoomAsync(item.GetAddComposer(), ct);
@@ -40,8 +44,6 @@ internal sealed partial class RoomFurniModule
 
         item.SetPosition(newLocation);
 
-        _state.DirtyItemIds.Add(item.Id);
-
         _ = _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer(), ct);
 
         await item.Logic.OnMoveAsync(ctx, ct);
@@ -59,6 +61,8 @@ internal sealed partial class RoomFurniModule
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
         _ = _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(ctx.PlayerId), ct);
+
+        item.SetAction(null);
 
         await item.Logic.OnPickupAsync(ctx, ct);
 
@@ -109,9 +113,7 @@ internal sealed partial class RoomFurniModule
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _state.WallItemsById.TryGetValue(itemId, out var item)
-                ? RoomWallItemSnapshot.FromWallItem(item)
-                : null
+            _state.WallItemsById.TryGetValue(itemId, out var item) ? item.GetSnapshot() : null
         );
 
     private async Task AttatchWallLogicIfNeededAsync(IRoomWallItem item, CancellationToken ct)

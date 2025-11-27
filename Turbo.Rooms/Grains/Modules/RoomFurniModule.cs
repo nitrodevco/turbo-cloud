@@ -33,13 +33,6 @@ internal sealed partial class RoomFurniModule(
 
     public async Task OnDeactivateAsync(CancellationToken ct) { }
 
-    public Task MarkItemAsDirtyAsync(long itemId)
-    {
-        _state.DirtyItemIds.Add(itemId);
-
-        return Task.CompletedTask;
-    }
-
     internal async Task EnsureFurniLoadedAsync(CancellationToken ct)
     {
         if (_state.IsFurniLoaded)
@@ -73,7 +66,7 @@ internal sealed partial class RoomFurniModule(
         try
         {
             var dirtySnapshots = dirtyItemIds
-                .Select(id => RoomFloorItemSnapshot.FromFloorItem(_state.FloorItemsById[id]))
+                .Select(id => _state.FloorItemsById[id].GetSnapshot())
                 .ToArray();
             var dirtyIds = dirtySnapshots.Select(x => x.Id).ToArray();
             var entities = await dbCtx

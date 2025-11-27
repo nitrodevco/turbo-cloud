@@ -7,18 +7,29 @@ using Turbo.Primitives.Rooms.Furniture.Wall;
 namespace Turbo.Rooms.Furniture.Logic.Wall;
 
 [FurnitureLogic("default_wall")]
-public class FurnitureWallLogic(IStuffDataFactory stuffDataFactory, IRoomWallItemContext ctx)
-    : FurnitureLogicBase<IRoomWallItem, IRoomWallItemContext>(stuffDataFactory, ctx),
+public class FurnitureWallLogic
+    : FurnitureLogicBase<IRoomWallItem, IRoomWallItemContext>,
         IFurnitureWallLogic
 {
+    protected string _stuffData = string.Empty;
+
+    public FurnitureWallLogic(IStuffDataFactory stuffDataFactory, IRoomWallItemContext ctx)
+        : base(stuffDataFactory, ctx)
+    {
+        _stuffData = _ctx.Item.PendingStuffDataRaw;
+    }
+
+    public string StuffData => _stuffData;
+
     public override async Task<bool> SetStateAsync(int state)
     {
-        if (_stuffData is null || state == StuffData.GetState())
+        if (_stuffData.Equals(state.ToString()))
             return false;
 
-        _stuffData.SetState(state.ToString());
+        _stuffData = state.ToString();
 
-        await _ctx.MarkItemDirtyAsync();
+        _ctx.Item.MarkDirty();
+
         await _ctx.RefreshStuffDataAsync(CancellationToken.None);
 
         return true;

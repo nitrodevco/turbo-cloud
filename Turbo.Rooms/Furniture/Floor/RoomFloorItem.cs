@@ -1,4 +1,5 @@
-using System.Threading.Tasks;
+using System;
+using System.Text.Json;
 using Turbo.Contracts.Abstractions;
 using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
@@ -17,41 +18,62 @@ internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
     public Rotation Rotation { get; private set; }
     public IFurnitureFloorLogic Logic { get; private set; } = default!;
 
+    private RoomFloorItemSnapshot? _snapshot;
+    private bool _dirty = true;
+
+    private Action<long>? _onSnapshotChanged;
+
     public void SetPosition(int x, int y, double z)
     {
         X = x;
         Y = y;
         Z = z;
+
+        MarkDirty();
     }
 
     public void SetRotation(Rotation rotation)
     {
         Rotation = rotation;
+
+        MarkDirty();
     }
 
     public void SetLogic(IFurnitureFloorLogic logic)
     {
-        logic.Setup(PendingStuffDataRaw);
-
         PendingStuffDataRaw = string.Empty;
         Logic = logic;
     }
 
-    public Task<RoomFloorItemSnapshot> GetSnapshotAsync() =>
-        Task.FromResult(RoomFloorItemSnapshot.FromFloorItem(this));
+    public void SetAction(Action<long>? onSnapshotChanged)
+    {
+        _onSnapshotChanged = onSnapshotChanged;
+    }
 
-    public IComposer GetAddComposer() =>
-        new ObjectAddMessageComposer { FloorItem = RoomFloorItemSnapshot.FromFloorItem(this) };
+    public void MarkDirty()
+    {
+        _dirty = true;
+        _onSnapshotChanged?.Invoke(Id);
+    }
+
+    public RoomFloorItemSnapshot GetSnapshot()
+    {
+        if (_dirty || _snapshot is null)
+        {
+            _snapshot = BuildSnapshot();
+            _dirty = false;
+        }
+
+        return _snapshot;
+    }
+
+    public IComposer GetAddComposer() => new ObjectAddMessageComposer { FloorItem = GetSnapshot() };
 
     public IComposer GetUpdateComposer() =>
-        new ObjectUpdateMessageComposer { FloorItem = RoomFloorItemSnapshot.FromFloorItem(this) };
+        new ObjectUpdateMessageComposer { FloorItem = GetSnapshot() };
 
     public IComposer GetRefreshStuffDataComposer() =>
-        new ObjectDataUpdateMessageComposer
-        {
-            ObjectId = Id,
-            StuffData = StuffDataSnapshot.FromStuffData(Logic.StuffData),
-        };
+        new ObjectDataUpdateMessageComposer { ObjectId = Id, StuffData = GetSnapshot().StuffData };
 
     public IComposer GetRemoveComposer(long pickerId, bool isExpired = false, int delay = 0) =>
         new ObjectRemoveMessageComposer
@@ -60,5 +82,22 @@ internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
             IsExpired = isExpired,
             PickerId = pickerId,
             Delay = delay,
+        };
+
+    private RoomFloorItemSnapshot BuildSnapshot() =>
+        new()
+        {
+            Id = Id,
+            OwnerId = OwnerId,
+            OwnerName = OwnerName,
+            SpriteId = Definition.SpriteId,
+            X = X,
+            Y = Y,
+            Z = Z,
+            Rotation = Rotation,
+            StackHeight = Definition.StackHeight,
+            StuffData = StuffDataSnapshot.FromStuffData(Logic.StuffData),
+            StuffDataJson = JsonSerializer.Serialize(Logic.StuffData, Logic.StuffData.GetType()),
+            UsagePolicy = Definition.UsagePolicy,
         };
 }

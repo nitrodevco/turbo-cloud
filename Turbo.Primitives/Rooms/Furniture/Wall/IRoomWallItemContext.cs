@@ -6,7 +6,6 @@ namespace Turbo.Primitives.Rooms.Furniture.Wall;
 public interface IRoomWallItemContext : IRoomItemContext
 {
     public IRoomWallItem Item { get; }
-    public Task MarkItemDirtyAsync();
     public Task AddItemAsync(CancellationToken ct);
     public Task UpdateItemAsync(CancellationToken ct);
     public Task RefreshStuffDataAsync(CancellationToken ct);

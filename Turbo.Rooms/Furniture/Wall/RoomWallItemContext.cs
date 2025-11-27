@@ -12,8 +12,6 @@ internal sealed class RoomWallItemContext(
     IRoomWallItem roomItem
 ) : RoomItemContext<IRoomWallItem>(roomGrain, furniModule, roomItem), IRoomWallItemContext
 {
-    public Task MarkItemDirtyAsync() => _furniModule.MarkItemAsDirtyAsync(Item.Id);
-
     public Task AddItemAsync(CancellationToken ct) =>
         SendComposerToRoomAsync(Item.GetAddComposer(), ct);
 

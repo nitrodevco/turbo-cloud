@@ -1,6 +1,5 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Contracts.Enums.Furniture;
 using Turbo.Primitives.Actor;
 using Turbo.Primitives.Rooms.Furniture.Floor;
 using Turbo.Primitives.Rooms.Furniture.Logic;
@@ -9,18 +8,27 @@ using Turbo.Primitives.Rooms.Furniture.StuffData;
 namespace Turbo.Rooms.Furniture.Logic.Floor;
 
 [FurnitureLogic("default_floor")]
-public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
-    : FurnitureLogicBase<IRoomFloorItem, IRoomFloorItemContext>(stuffDataFactory, ctx),
+public class FurnitureFloorLogic
+    : FurnitureLogicBase<IRoomFloorItem, IRoomFloorItemContext>,
         IFurnitureFloorLogic
 {
+    public virtual StuffDataType StuffDataKey => StuffDataType.LegacyKey;
+    protected IStuffData _stuffData;
+
+    public FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
+        : base(stuffDataFactory, ctx)
+    {
+        _stuffData = CreateStuffData(_ctx.Item.PendingStuffDataRaw);
+    }
+
+    public IStuffData StuffData => _stuffData;
+
     public override async Task<bool> SetStateAsync(int state)
     {
-        if (_stuffData is null || state == StuffData.GetState())
-            return false;
-
         _stuffData.SetState(state.ToString());
 
-        await _ctx.MarkItemDirtyAsync();
+        _ctx.Item.MarkDirty();
+
         await _ctx.RefreshStuffDataAsync(CancellationToken.None);
 
         return true;
@@ -52,4 +60,7 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
 
         return (StuffData.GetState() + 1) % totalStates;
     }
+
+    protected virtual IStuffData CreateStuffData(string json = "") =>
+        _stuffDataFactory.CreateStuffDataFromJson((int)StuffDataKey, json);
 }

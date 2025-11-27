@@ -13,8 +13,6 @@ internal sealed class RoomFloorItemContext(
     IRoomFloorItem roomItem
 ) : RoomItemContext<IRoomFloorItem>(roomGrain, furniModule, roomItem), IRoomFloorItemContext
 {
-    public Task MarkItemDirtyAsync() => _furniModule.MarkItemAsDirtyAsync(Item.Id);
-
     public Task AddItemAsync(CancellationToken ct) =>
         SendComposerToRoomAsync(Item.GetAddComposer(), ct);
 

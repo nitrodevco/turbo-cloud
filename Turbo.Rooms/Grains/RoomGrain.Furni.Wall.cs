@@ -43,8 +43,6 @@ public sealed partial class RoomGrain
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _liveState.WallItemsById.TryGetValue(itemId, out var item)
-                ? RoomWallItemSnapshot.FromWallItem(item)
-                : null
+            _liveState.WallItemsById.TryGetValue(itemId, out var item) ? item.GetSnapshot() : null
         );
 }

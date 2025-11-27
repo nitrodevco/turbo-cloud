@@ -19,6 +19,10 @@ internal sealed partial class RoomFurniModule
         if (!_state.FloorItemsById.TryAdd(item.Id, item))
             return false;
 
+        void func(long itemId) => _state.DirtyItemIds.Add(itemId);
+
+        item.SetAction(func);
+
         await AttatchFloorLogicIfNeededAsync(item, ct);
 
         if (_roomMap.GetTileIdForFloorItem(item, out var tileIds))
@@ -76,8 +80,6 @@ internal sealed partial class RoomFurniModule
             }
         }
 
-        _state.DirtyItemIds.Add(item.Id);
-
         _ = _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer(), ct);
 
         await item.Logic.OnMoveAsync(ctx, ct);
@@ -105,6 +107,8 @@ internal sealed partial class RoomFurniModule
         }
 
         _ = _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(ctx.PlayerId), ct);
+
+        item.SetAction(null);
 
         await item.Logic.OnPickupAsync(ctx, ct);
 
@@ -206,9 +210,7 @@ internal sealed partial class RoomFurniModule
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _state.FloorItemsById.TryGetValue(itemId, out var item)
-                ? RoomFloorItemSnapshot.FromFloorItem(item)
-                : null
+            _state.FloorItemsById.TryGetValue(itemId, out var item) ? item.GetSnapshot() : null
         );
 
     private async Task AttatchFloorLogicIfNeededAsync(IRoomFloorItem item, CancellationToken ct)

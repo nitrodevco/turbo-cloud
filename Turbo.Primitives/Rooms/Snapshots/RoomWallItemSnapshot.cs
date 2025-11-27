@@ -25,28 +25,8 @@ public sealed record RoomWallItemSnapshot
     public required string WallLocation { get; init; }
 
     [Id(5)]
-    public required StuffDataSnapshot StuffData { get; init; }
+    public required string StuffData { get; init; }
 
     [Id(6)]
-    public required string StuffDataJson { get; init; }
-
-    [Id(7)]
     public required FurniUsagePolicy UsagePolicy { get; init; }
-
-    public static RoomWallItemSnapshot FromWallItem(IRoomWallItem item)
-    {
-        var stuffData = item.Logic.StuffData;
-
-        return new RoomWallItemSnapshot
-        {
-            Id = item.Id,
-            OwnerId = item.OwnerId,
-            OwnerName = item.OwnerName,
-            SpriteId = item.Definition.SpriteId,
-            WallLocation = item.WallLocation,
-            StuffData = StuffDataSnapshot.FromStuffData(stuffData),
-            StuffDataJson = JsonSerializer.Serialize(stuffData, stuffData.GetType()),
-            UsagePolicy = item.Logic.GetUsagePolicy(),
-        };
-    }
 }
