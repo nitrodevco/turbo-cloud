@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Furniture.StuffData;
 
-namespace Turbo.Primitives.Rooms.Furniture.Logic;
+namespace Turbo.Primitives.Rooms.Object.Logic.Furniture;
 
 public interface IFurnitureFloorLogic : IFurnitureLogic
 {

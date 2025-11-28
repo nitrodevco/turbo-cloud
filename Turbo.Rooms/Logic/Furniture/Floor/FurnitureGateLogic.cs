@@ -3,14 +3,14 @@ using System.Threading.Tasks;
 using Turbo.Contracts.Enums.Furniture;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Furniture.Floor;
-using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Furniture.StuffData;
 using Turbo.Primitives.Rooms.Mapping;
+using Turbo.Primitives.Rooms.Object.Logic;
 
-namespace Turbo.Rooms.Furniture.Logic.Floor;
+namespace Turbo.Rooms.Logic.Furniture.Floor;
 
-[FurnitureLogic("roller")]
-public class FurnitureRollerLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
+[RoomObjectLogic("gate")]
+public class FurnitureGateLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
     : FurnitureFloorLogic(stuffDataFactory, ctx)
 {
     private const int CLOSED_STATE = 0;

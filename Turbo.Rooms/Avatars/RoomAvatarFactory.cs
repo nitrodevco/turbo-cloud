@@ -21,10 +21,6 @@ public sealed class RoomAvatarFactory(IServiceProvider host) : IRoomAvatarFactor
             Motto = snapshot.Motto,
             Figure = snapshot.Figure,
             ObjectId = objectId,
-            X = 5,
-            Y = 5,
-            Z = 0.0,
-            Rotation = Rotation.North,
             PlayerId = snapshot.PlayerId,
             Gender = snapshot.Gender,
         };

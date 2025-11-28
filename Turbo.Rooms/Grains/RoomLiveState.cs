@@ -25,6 +25,7 @@ internal sealed class RoomLiveState
     public RoomTileFlags[] TileFlags { get; internal set; } = [];
     public long[] TileHighestFloorItems { get; internal set; } = [];
     public List<long>[] TileFloorStacks { get; internal set; } = [];
+    public List<long>[] TileAvatarStacks { get; internal set; } = [];
     public bool IsMapBuilt { get; internal set; } = false;
     public bool NeedsCompile { get; internal set; } = false;
     public HashSet<int> DirtyTileIds { get; } = [];

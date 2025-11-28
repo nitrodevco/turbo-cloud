@@ -3,16 +3,16 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
-using Turbo.Primitives.Rooms.Furniture.Logic;
+using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
 
-namespace Turbo.Rooms.Furniture.Logic;
+namespace Turbo.Rooms.Logic;
 
-internal class FurnitureLogicFeatureProcessor(IFurnitureLogicFactory furnitureLogicFactory)
+internal class RoomObjectLogicFeatureProcessor(IRoomObjectLogicFactory roomObjectLogicFactory)
     : IAssemblyFeatureProcessor
 {
-    private readonly IFurnitureLogicFactory _furnitureLogicFactory = furnitureLogicFactory;
+    private readonly IRoomObjectLogicFactory _roomObjectLogicFactory = roomObjectLogicFactory;
 
     public Task<IDisposable> ProcessAsync(
         Assembly asm,
@@ -22,22 +22,22 @@ internal class FurnitureLogicFeatureProcessor(IFurnitureLogicFactory furnitureLo
     {
         var batch = new CompositeDisposable();
 
-        foreach (var concrete in AssemblyExplorer.FindAssignees(asm, typeof(IFurnitureLogic)))
+        foreach (var concrete in AssemblyExplorer.FindAssignees(asm, typeof(IRoomObjectLogic)))
         {
             if (concrete is null)
                 continue;
 
-            var attribute = concrete.GetCustomAttribute<FurnitureLogicAttribute>(false);
+            var attribute = concrete.GetCustomAttribute<RoomObjectLogicAttribute>(false);
 
             if (attribute is null)
                 continue;
 
             batch.Add(
-                _furnitureLogicFactory.RegisterLogic(
+                _roomObjectLogicFactory.RegisterLogic(
                     attribute.Key,
                     sp,
                     (sp, ctx) =>
-                        (IFurnitureLogic)ActivatorUtilities.CreateInstance(sp, concrete, ctx)
+                        (IRoomObjectLogic)ActivatorUtilities.CreateInstance(sp, concrete, ctx)
                 )
             );
         }

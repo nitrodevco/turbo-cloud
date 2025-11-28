@@ -15,9 +15,9 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Avatars;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Furniture;
-using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Mapping;
+using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Wired;
@@ -30,7 +30,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     private readonly RoomConfig _roomConfig;
     private readonly IRoomModelProvider _roomModelProvider;
     private readonly IRoomItemsLoader _itemsLoader;
-    private readonly IFurnitureLogicFactory _furnitureLogicFactory;
+    private readonly IRoomObjectLogicFactory _logicFactory;
     private readonly IRoomAvatarFactory _roomAvatarFactory;
     private readonly IGrainFactory _grainFactory;
 
@@ -47,7 +47,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IOptions<RoomConfig> roomConfig,
         IRoomModelProvider roomModelProvider,
         IRoomItemsLoader itemsLoader,
-        IFurnitureLogicFactory furnitureLogicFactory,
+        IRoomObjectLogicFactory logicFactory,
         IRoomAvatarFactory roomAvatarFactory,
         IGrainFactory grainFactory
     )
@@ -56,7 +56,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _roomConfig = roomConfig.Value;
         _roomModelProvider = roomModelProvider;
         _itemsLoader = itemsLoader;
-        _furnitureLogicFactory = furnitureLogicFactory;
+        _logicFactory = logicFactory;
         _roomAvatarFactory = roomAvatarFactory;
         _grainFactory = grainFactory;
 
@@ -64,15 +64,15 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _liveState = new();
         _eventModule = new(this, _roomConfig, _liveState);
         _mapModule = new(this, _roomConfig, _liveState);
-        _avatarModule = new(this, _roomConfig, _liveState, _mapModule, _roomAvatarFactory);
-        _furniModule = new(
+        _avatarModule = new(
             this,
             _roomConfig,
             _liveState,
             _mapModule,
-            _itemsLoader,
-            _furnitureLogicFactory
+            _roomAvatarFactory,
+            _logicFactory
         );
+        _furniModule = new(this, _roomConfig, _liveState, _mapModule, _itemsLoader, _logicFactory);
         _actionModule = new(this, _liveState, _furniModule);
 
         _eventModule.Register(new WiredController());
@@ -85,11 +85,6 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         await _grainFactory
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
             .UpsertActiveRoomAsync(_liveState.RoomSnapshot);
-
-        var player = _grainFactory.GetGrain<IPlayerGrain>(_liveState.RoomSnapshot.OwnerId);
-        var summary = await player.GetSummaryAsync(ct);
-
-        await _avatarModule.CreateAvatarFromPlayerAsync(summary);
 
         this.RegisterGrainTimer<object?>(
             async _ => await _mapModule.FlushDirtyTileIdsAsync(ct),
@@ -127,6 +122,11 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         await _mapModule.EnsureMapBuiltAsync(ct);
         await _furniModule.EnsureFurniLoadedAsync(ct);
         await _mapModule.EnsureMapCompiledAsync(ct);
+
+        var player = _grainFactory.GetGrain<IPlayerGrain>(_liveState.RoomSnapshot.OwnerId);
+        var summary = await player.GetSummaryAsync(ct);
+
+        await _avatarModule.CreateAvatarFromPlayerAsync(summary);
     }
 
     public Task<RoomSnapshot> GetSnapshotAsync() => Task.FromResult(_liveState.RoomSnapshot);

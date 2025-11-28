@@ -1,7 +1,7 @@
 using System;
 using Turbo.Contracts.Abstractions;
 using Turbo.Contracts.Enums.Rooms.Object;
-using Turbo.Primitives.Rooms.Furniture.Logic;
+using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Primitives.Rooms.Furniture.Floor;

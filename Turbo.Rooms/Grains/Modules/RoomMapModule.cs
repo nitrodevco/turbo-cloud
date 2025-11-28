@@ -9,6 +9,7 @@ using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Logging;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Avatars;
 using Turbo.Primitives.Rooms.Furniture.Floor;
 using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -111,6 +112,8 @@ internal sealed class RoomMapModule(
             out tileIds
         );
 
+    public int GetTileIdForAvatar(IRoomAvatar avatar) => GetTileId(avatar.X, avatar.Y);
+
     public async Task EnsureMapBuiltAsync(CancellationToken ct)
     {
         if (_state.IsMapBuilt)
@@ -119,15 +122,20 @@ internal sealed class RoomMapModule(
         var size = _state.Model?.Size ?? 0;
 
         var tileFloorStacks = new List<long>[size];
+        var tileAvatarStacks = new List<long>[size];
 
         for (int id = 0; id < size; id++)
+        {
             tileFloorStacks[id] = [];
+            tileAvatarStacks[id] = [];
+        }
 
         _state.TileHeights = new double[size];
         _state.TileEncodedHeights = new short[size];
         _state.TileFlags = new RoomTileFlags[size];
         _state.TileHighestFloorItems = new long[size];
         _state.TileFloorStacks = tileFloorStacks;
+        _state.TileAvatarStacks = tileAvatarStacks;
         _state.IsMapBuilt = true;
         _state.NeedsCompile = true;
     }
@@ -154,6 +162,7 @@ internal sealed class RoomMapModule(
             var nextHeight = _state.Model?.BaseHeights[id] ?? 0.0;
             var nextFlags = _state.Model?.BaseFlags[id] ?? RoomTileFlags.Disabled;
             var floorStack = _state.TileFloorStacks[id];
+            var avatarStack = _state.TileAvatarStacks[id];
 
             IRoomFloorItem? nextHighestItem = null;
 
@@ -182,6 +191,11 @@ internal sealed class RoomMapModule(
 
             if (!nextFlags.Has(RoomTileFlags.Disabled))
             {
+                if (avatarStack.Count > 0)
+                {
+                    nextFlags = nextFlags.Add(RoomTileFlags.AvatarOccupied);
+                }
+
                 if (nextHighestItem is not null)
                 {
                     if (!nextHighestItem.Logic.CanWalk())

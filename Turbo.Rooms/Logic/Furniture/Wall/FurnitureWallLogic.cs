@@ -1,12 +1,13 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Furniture.StuffData;
 using Turbo.Primitives.Rooms.Furniture.Wall;
+using Turbo.Primitives.Rooms.Object.Logic;
+using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 
-namespace Turbo.Rooms.Furniture.Logic.Wall;
+namespace Turbo.Rooms.Logic.Furniture.Wall;
 
-[FurnitureLogic("default_wall")]
+[RoomObjectLogic("default_wall")]
 public class FurnitureWallLogic
     : FurnitureLogicBase<IRoomWallItem, IRoomWallItemContext>,
         IFurnitureWallLogic

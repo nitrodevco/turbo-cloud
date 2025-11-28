@@ -3,12 +3,13 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Furniture.Floor;
-using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Furniture.StuffData;
+using Turbo.Primitives.Rooms.Object.Logic;
+using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 
-namespace Turbo.Rooms.Furniture.Logic.Floor;
+namespace Turbo.Rooms.Logic.Furniture.Floor;
 
-[FurnitureLogic("default_floor")]
+[RoomObjectLogic("default_floor")]
 public class FurnitureFloorLogic
     : FurnitureLogicBase<IRoomFloorItem, IRoomFloorItemContext>,
         IFurnitureFloorLogic

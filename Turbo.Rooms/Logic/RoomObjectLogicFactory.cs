@@ -3,34 +3,34 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Turbo.Contracts.Enums;
 using Turbo.Logging;
-using Turbo.Primitives.Rooms.Furniture;
-using Turbo.Primitives.Rooms.Furniture.Logic;
+using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Runtime;
 
-namespace Turbo.Rooms.Furniture.Logic;
+namespace Turbo.Rooms.Logic;
 
-public sealed class FurnitureLogicFactory(IServiceProvider host) : IFurnitureLogicFactory
+public sealed class RoomObjectLogicFactory(IServiceProvider host) : IRoomObjectLogicFactory
 {
     private readonly IServiceProvider _host = host;
-    private readonly ConcurrentDictionary<string, FurnitureLogicReg> _logics = [];
+    private readonly ConcurrentDictionary<string, RoomObjectLogicReg> _logics = [];
 
     public IDisposable RegisterLogic(
         string logicType,
         IServiceProvider sp,
-        Func<IServiceProvider, IRoomItemContext, IFurnitureLogic> factory
+        Func<IServiceProvider, IRoomObjectContext, IRoomObjectLogic> factory
     )
     {
-        var reg = new FurnitureLogicReg(sp, factory);
+        var reg = new RoomObjectLogicReg(sp, factory);
 
         _logics[logicType] = reg;
 
         return new ActionDisposable(() =>
         {
-            _logics.TryRemove(new KeyValuePair<string, FurnitureLogicReg>(logicType, reg));
+            _logics.TryRemove(new KeyValuePair<string, RoomObjectLogicReg>(logicType, reg));
         });
     }
 
-    public IFurnitureLogic CreateLogicInstance(string logicType, IRoomItemContext ctx)
+    public IRoomObjectLogic CreateLogicInstance(string logicType, IRoomObjectContext ctx)
     {
         if (!_logics.TryGetValue(logicType, out var reg))
             throw new TurboException(TurboErrorCodeEnum.LogicNotFound);

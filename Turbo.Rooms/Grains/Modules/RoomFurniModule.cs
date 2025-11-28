@@ -7,7 +7,7 @@ using Orleans;
 using Turbo.Database.Context;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Furniture;
-using Turbo.Primitives.Rooms.Furniture.Logic;
+using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -18,7 +18,7 @@ internal sealed partial class RoomFurniModule(
     RoomLiveState roomLiveState,
     RoomMapModule roomMapModule,
     IRoomItemsLoader itemsLoader,
-    IFurnitureLogicFactory furnitureLogicFactory
+    IRoomObjectLogicFactory logicFactory
 ) : IRoomModule
 {
     private readonly RoomGrain _roomGrain = roomGrain;
@@ -26,7 +26,7 @@ internal sealed partial class RoomFurniModule(
     private readonly RoomLiveState _state = roomLiveState;
     private readonly RoomMapModule _roomMap = roomMapModule;
     private readonly IRoomItemsLoader _itemsLoader = itemsLoader;
-    private readonly IFurnitureLogicFactory _furnitureLogicFactory = furnitureLogicFactory;
+    private readonly IRoomObjectLogicFactory _logicFactory = logicFactory;
 
     internal async Task EnsureFurniLoadedAsync(CancellationToken ct)
     {

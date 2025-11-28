@@ -5,11 +5,11 @@ using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Furniture.Floor;
-using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Mapping;
+using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Furniture.Floor;
-using Turbo.Rooms.Furniture.Logic.Floor;
+using Turbo.Rooms.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -221,10 +221,10 @@ internal sealed partial class RoomFurniModule
 
         var logicType = item.Definition.LogicName;
         var ctx = new RoomFloorItemContext(_roomGrain, this, item);
-        var logic = _furnitureLogicFactory.CreateLogicInstance(logicType, ctx);
+        var logic = _logicFactory.CreateLogicInstance(logicType, ctx);
 
         if (logic is not IFurnitureFloorLogic floorLogic)
-            throw new TurboException(TurboErrorCodeEnum.InvalidFloorLogic);
+            throw new TurboException(TurboErrorCodeEnum.InvalidLogic);
 
         item.SetLogic(floorLogic);
 

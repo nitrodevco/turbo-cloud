@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Contracts.Abstractions;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Furniture;
 using Turbo.Primitives.Snapshots.Furniture;
@@ -21,7 +22,7 @@ internal class RoomItemContext<TItem>(
     protected readonly RoomFurniModule _furniModule = furniModule;
 
     public TItem Item { get; } = roomItem;
-    public long RoomId => _roomGrain.GetPrimaryKeyLong();
+    public RoomId RoomId => RoomId.From(_roomGrain.GetPrimaryKeyLong());
     public FurnitureDefinitionSnapshot Definition => Item.Definition;
 
     public Task PublishRoomEventAsync(RoomEvent @event, CancellationToken ct) =>

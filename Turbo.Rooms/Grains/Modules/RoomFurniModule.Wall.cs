@@ -4,8 +4,8 @@ using System.Threading.Tasks;
 using Turbo.Contracts.Enums;
 using Turbo.Logging;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Furniture.Wall;
+using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Furniture.Wall;
 
@@ -123,10 +123,10 @@ internal sealed partial class RoomFurniModule
 
         var logicType = item.Definition.LogicName;
         var ctx = new RoomWallItemContext(_roomGrain, this, item);
-        var logic = _furnitureLogicFactory.CreateLogicInstance(logicType, ctx);
+        var logic = _logicFactory.CreateLogicInstance(logicType, ctx);
 
         if (logic is not IFurnitureWallLogic wallLogic)
-            throw new TurboException(TurboErrorCodeEnum.InvalidWallLogic);
+            throw new TurboException(TurboErrorCodeEnum.InvalidLogic);
 
         item.SetLogic(wallLogic);
 
