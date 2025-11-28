@@ -10,6 +10,9 @@ using Turbo.Database.Context;
 using Turbo.Logging;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room.Settings;
+using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Avatars;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Furniture;
 using Turbo.Primitives.Rooms.Furniture.Logic;
@@ -28,11 +31,14 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     private readonly IRoomModelProvider _roomModelProvider;
     private readonly IRoomItemsLoader _itemsLoader;
     private readonly IFurnitureLogicFactory _furnitureLogicFactory;
+    private readonly IRoomAvatarFactory _roomAvatarFactory;
     private readonly IGrainFactory _grainFactory;
 
+    private readonly RoomId _roomId;
     private readonly RoomLiveState _liveState;
     private readonly RoomEventModule _eventModule;
     private readonly RoomMapModule _mapModule;
+    private readonly RoomAvatarModule _avatarModule;
     private readonly RoomFurniModule _furniModule;
     private readonly RoomActionModule _actionModule;
 
@@ -42,6 +48,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IRoomModelProvider roomModelProvider,
         IRoomItemsLoader itemsLoader,
         IFurnitureLogicFactory furnitureLogicFactory,
+        IRoomAvatarFactory roomAvatarFactory,
         IGrainFactory grainFactory
     )
     {
@@ -50,11 +57,14 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _roomModelProvider = roomModelProvider;
         _itemsLoader = itemsLoader;
         _furnitureLogicFactory = furnitureLogicFactory;
+        _roomAvatarFactory = roomAvatarFactory;
         _grainFactory = grainFactory;
 
+        _roomId = RoomId.From(this.GetPrimaryKeyLong());
         _liveState = new();
         _eventModule = new(this, _roomConfig, _liveState);
         _mapModule = new(this, _roomConfig, _liveState);
+        _avatarModule = new(this, _roomConfig, _liveState, _mapModule, _roomAvatarFactory);
         _furniModule = new(
             this,
             _roomConfig,
@@ -75,6 +85,11 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         await _grainFactory
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
             .UpsertActiveRoomAsync(_liveState.RoomSnapshot);
+
+        var player = _grainFactory.GetGrain<IPlayerGrain>(_liveState.RoomSnapshot.OwnerId);
+        var summary = await player.GetSummaryAsync(ct);
+
+        await _avatarModule.CreateAvatarFromPlayerAsync(summary);
 
         this.RegisterGrainTimer<object?>(
             async _ => await _mapModule.FlushDirtyTileIdsAsync(ct),
@@ -97,7 +112,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
         await _grainFactory
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
-            .RemoveActiveRoomAsync(this.GetPrimaryKeyLong());
+            .RemoveActiveRoomAsync(_roomId);
     }
 
     public void DeactivateRoom() => DeactivateOnIdle();
@@ -135,7 +150,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public async Task<int> GetRoomPopulationAsync() =>
         await _grainFactory
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
-            .GetRoomPopulationAsync(this.GetPrimaryKeyLong());
+            .GetRoomPopulationAsync(_roomId);
 
     public Task PublishRoomEventAsync(RoomEvent @event, CancellationToken ct) =>
         _eventModule.PublishAsync(@event, ct);
@@ -146,7 +161,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             RoomDirectoryGrain.SINGLETON_KEY
         );
 
-        await roomDirectory.SendComposerToRoomAsync(composer, this.GetPrimaryKeyLong(), ct);
+        await roomDirectory.SendComposerToRoomAsync(composer, _roomId, ct);
     }
 
     private async Task HydrateRoomStateAsync(CancellationToken ct)
@@ -158,7 +173,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             var entity =
                 await dbCtx
                     .Rooms.AsNoTracking()
-                    .SingleOrDefaultAsync(e => e.Id == this.GetPrimaryKeyLong(), ct)
+                    .SingleOrDefaultAsync(e => e.Id == _roomId.Value, ct)
                 ?? throw new TurboException(TurboErrorCodeEnum.RoomNotFound);
 
             _liveState.Model = _roomModelProvider.GetModelById(entity.RoomModelEntityId);

@@ -35,8 +35,7 @@ public class GetCatalogPageMessageHandler(ICatalogService catalogService)
             .GroupBy(p => p.OfferId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        await ctx
-            .Session.SendComposerAsync(
+        await ctx.SendComposerAsync(
                 new CatalogPageMessageComposer
                 {
                     CatalogType = catalog.CatalogType,

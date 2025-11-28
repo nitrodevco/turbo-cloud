@@ -1,4 +1,4 @@
-using Turbo.Primitives.Actor;
+using Turbo.Primitives.Action;
 
 namespace Turbo.Primitives.Rooms.Events;
 

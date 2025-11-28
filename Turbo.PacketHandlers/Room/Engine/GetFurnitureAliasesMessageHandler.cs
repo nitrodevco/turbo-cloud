@@ -14,8 +14,7 @@ public class GetFurnitureAliasesMessageHandler : IMessageHandler<GetFurnitureAli
         CancellationToken ct
     )
     {
-        await ctx
-            .Session.SendComposerAsync(new FurnitureAliasesMessageComposer { Aliases = [] }, ct)
+        await ctx.SendComposerAsync(new FurnitureAliasesMessageComposer { Aliases = [] }, ct)
             .ConfigureAwait(false);
     }
 }

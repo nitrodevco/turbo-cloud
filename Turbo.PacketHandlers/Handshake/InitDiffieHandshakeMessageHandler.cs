@@ -21,8 +21,7 @@ public class InitDiffieHandshakeMessageHandler(IDiffieService diffieService)
         var prime = _diffieService.GetSignedPrime();
         var generator = _diffieService.GetSignedGenerator();
 
-        await ctx
-            .Session.SendComposerAsync(
+        await ctx.SendComposerAsync(
                 new InitDiffieHandshakeMessageComposer { Prime = prime, Generator = generator },
                 ct
             )

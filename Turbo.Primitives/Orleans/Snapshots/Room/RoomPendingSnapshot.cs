@@ -1,4 +1,5 @@
 using Orleans;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.Primitives.Orleans.Snapshots.Room;
 
@@ -6,7 +7,7 @@ namespace Turbo.Primitives.Orleans.Snapshots.Room;
 public sealed record RoomPendingSnapshot
 {
     [Id(0)]
-    public required long RoomId { get; init; } = -1;
+    public required RoomId RoomId { get; init; } = RoomId.Empty;
 
     [Id(1)]
     public required bool Approved { get; init; } = false;

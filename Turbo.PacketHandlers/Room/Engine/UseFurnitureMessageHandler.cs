@@ -1,6 +1,5 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Messages.Extensions;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Room.Engine;
 using Turbo.Primitives.Rooms;
@@ -19,7 +18,7 @@ public class UseFurnitureMessageHandler(IRoomService roomService)
     )
     {
         await _roomService
-            .UseFloorItemInRoomAsync(ctx.ToActionContext(), message.ObjectId, message.Param, ct)
+            .UseFloorItemInRoomAsync(ctx.AsActionContext(), message.ObjectId, message.Param, ct)
             .ConfigureAwait(false);
     }
 }

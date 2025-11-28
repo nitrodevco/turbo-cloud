@@ -1,4 +1,3 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Enums.Navigator;
@@ -45,8 +44,7 @@ public class NewNavigatorSearchMessageHandler(INavigatorService navigatorService
 
         var searchResults = await _navigatorService.GetSearchResultsAsync().ConfigureAwait(false);
 
-        await ctx
-            .Session.SendComposerAsync(
+        await ctx.SendComposerAsync(
                 new NavigatorSearchResultBlocksMessageComposer
                 {
                     SearchCodeOriginal = searchCode,

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Turbo.Primitives.Orleans.Snapshots.Room;
+using Turbo.Primitives.Rooms.Avatars;
 using Turbo.Primitives.Rooms.Furniture.Floor;
 using Turbo.Primitives.Rooms.Furniture.Wall;
 using Turbo.Primitives.Rooms.Mapping;
@@ -13,7 +14,10 @@ internal sealed class RoomLiveState
 
     public Dictionary<long, IRoomFloorItem> FloorItemsById { get; } = [];
     public Dictionary<long, IRoomWallItem> WallItemsById { get; } = [];
+    public List<RollerInfoSnapshot> RollerInfos { get; } = [];
     public bool IsFurniLoaded { get; internal set; } = false;
+
+    public Dictionary<long, IRoomAvatar> AvatarsByObjectId { get; } = [];
 
     public RoomModelSnapshot? Model { get; internal set; } = null;
     public double[] TileHeights { get; internal set; } = [];

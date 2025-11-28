@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Contracts.Abstractions;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Session;
 
@@ -10,5 +11,5 @@ public sealed record RoomReadyMessageComposer : IComposer
     public required string WorldType { get; init; }
 
     [Id(1)]
-    public required int RoomId { get; init; }
+    public required RoomId RoomId { get; init; }
 }

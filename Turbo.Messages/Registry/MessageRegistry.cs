@@ -20,32 +20,22 @@ public sealed class MessageRegistry(IServiceProvider sp)
                 if (data is null)
                     throw new TurboException(TurboErrorCodeEnum.InvalidSession);
 
-                var sessionKey = data.SessionKey;
-                var playerId = (long)-1;
-                var roomId = (long)-1;
-
+                var grainFactory = sp.GetRequiredService<IGrainFactory>();
                 var sessionGateway = sp.GetRequiredService<ISessionGateway>();
-
-                if (sessionGateway != null)
-                    playerId = sessionGateway.GetPlayerId(sessionKey);
+                var playerId = sessionGateway.GetPlayerId(data.SessionKey);
+                var roomId = (long)-1;
 
                 if (playerId > 0)
                 {
-                    var grainFactory = sp.GetRequiredService<IGrainFactory>();
                     var playerPresence = grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
                     var activeRoom = await playerPresence
                         .GetActiveRoomAsync()
                         .ConfigureAwait(false);
 
-                    roomId = activeRoom.RoomId;
+                    roomId = activeRoom.RoomId.Value;
                 }
 
-                return new MessageContext
-                {
-                    PlayerId = playerId,
-                    RoomId = roomId,
-                    Session = data,
-                };
+                return new(data, playerId, roomId);
             },
             EnableInheritanceDispatch = true,
             HandlerMode = HandlerExecutionMode.Parallel,

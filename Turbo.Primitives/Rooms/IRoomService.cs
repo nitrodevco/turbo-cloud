@@ -1,8 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Enums.Rooms.Object;
-using Turbo.Primitives.Actor;
-using Turbo.Primitives.Orleans.Snapshots.Session;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Grains;
 
 namespace Turbo.Primitives.Rooms;
@@ -12,18 +11,9 @@ public interface IRoomService
     public IRoomDirectoryGrain GetRoomDirectory();
     public IRoomGrain GetRoomGrain(long roomId);
 
-    public Task OpenRoomForSessionAsync(
-        SessionKey sessionKey,
-        long roomId,
-        CancellationToken ct = default
-    );
     public Task OpenRoomForPlayerIdAsync(
         long playerId,
-        long roomId,
-        CancellationToken ct = default
-    );
-    public Task EnterPendingRoomForSessionAsync(
-        SessionKey sessionKey,
+        RoomId roomId,
         CancellationToken ct = default
     );
     public Task EnterPendingRoomForPlayerIdAsync(long playerId, CancellationToken ct = default);

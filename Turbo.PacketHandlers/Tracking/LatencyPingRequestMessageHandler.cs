@@ -14,8 +14,7 @@ public class LatencyPingRequestMessageHandler : IMessageHandler<LatencyPingReque
         CancellationToken ct
     )
     {
-        await ctx
-            .Session.SendComposerAsync(
+        await ctx.SendComposerAsync(
                 new LatencyPingResponseMessage { RequestId = message.RequestId },
                 ct
             )

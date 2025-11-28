@@ -14,8 +14,7 @@ public class MessengerInitMessageHandler : IMessageHandler<MessengerInitMessage>
         CancellationToken ct
     )
     {
-        await ctx
-            .Session.SendComposerAsync(
+        await ctx.SendComposerAsync(
                 new MessengerInitMessageComposer
                 {
                     UserFriendLimit = 0,

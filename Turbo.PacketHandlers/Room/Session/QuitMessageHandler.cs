@@ -19,11 +19,6 @@ public class QuitMessageHandler(ISessionGateway sessionGateway, IRoomService roo
         CancellationToken ct
     )
     {
-        var playerId = _sessionGateway.GetPlayerId(ctx.Session.SessionKey);
-
-        if (playerId <= 0)
-            return;
-
-        await _roomService.CloseRoomForPlayerAsync(playerId).ConfigureAwait(false);
+        await _roomService.CloseRoomForPlayerAsync(ctx.PlayerId).ConfigureAwait(false);
     }
 }

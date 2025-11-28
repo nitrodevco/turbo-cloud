@@ -10,14 +10,14 @@ namespace Turbo.Primitives.Rooms.Grains;
 public interface IRoomDirectoryGrain : IGrainWithStringKey
 {
     public Task<ImmutableArray<RoomSummarySnapshot>> GetActiveRoomsAsync();
-    public Task<int> GetRoomPopulationAsync(long roomId);
+    public Task<int> GetRoomPopulationAsync(RoomId roomId);
     public Task UpsertActiveRoomAsync(RoomInfoSnapshot snapshot);
-    public Task RemoveActiveRoomAsync(long roomId);
-    public Task AddPlayerToRoomAsync(long playerId, long roomId);
-    public Task RemovePlayerFromRoomAsync(long playerId, long roomId);
+    public Task RemoveActiveRoomAsync(RoomId roomId);
+    public Task AddPlayerToRoomAsync(long playerId, RoomId roomId);
+    public Task RemovePlayerFromRoomAsync(long playerId, RoomId roomId);
     public Task SendComposerToRoomAsync(
         IComposer composer,
-        long roomId,
+        RoomId roomId,
         CancellationToken ct = default
     );
 }

@@ -25,8 +25,7 @@ public class CompleteDiffieHandshakeMessageHandler(
     {
         var sharedKey = _diffieService.GetSharedKey(message.SharedKey);
 
-        await ctx
-            .Session.SendComposerAsync(
+        await ctx.SendComposerAsync(
                 new CompleteDiffieHandshakeMessageComposer
                 {
                     PublicKey = _diffieService.GetPublicKey(),
@@ -36,6 +35,6 @@ public class CompleteDiffieHandshakeMessageHandler(
             )
             .ConfigureAwait(false);
 
-        ctx.Session.SetupEncryption(sharedKey, _config.EnableServerToClientEncryption);
+        ctx.SetupEncryption(sharedKey, _config.EnableServerToClientEncryption);
     }
 }

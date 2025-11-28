@@ -26,8 +26,7 @@ public class GetGuestRoomMessageHandler(IRoomService roomService)
         var allInRoomMuted = false;
         var canMute = false;
 
-        await ctx
-            .Session.SendComposerAsync(
+        await ctx.SendComposerAsync(
                 new GetGuestRoomResultMessageComposer
                 {
                     EnterRoom = message.EnterRoom,

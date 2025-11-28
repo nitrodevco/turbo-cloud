@@ -12,6 +12,7 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Furniture.Floor;
 using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Avatars;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Mapping;
 
@@ -256,6 +257,11 @@ internal sealed class RoomMapModule(
                 items.Add(_state.FloorItemsById[stack[i]].GetSnapshot());
         }
 
+        var avatars = new List<RoomAvatarSnapshot>(_state.AvatarsByObjectId.Count);
+
+        foreach (var avatar in _state.AvatarsByObjectId.Values)
+            avatars.Add(avatar.GetSnapshot());
+
         return new()
         {
             ModelName = _state.Model?.Name ?? string.Empty,
@@ -268,6 +274,7 @@ internal sealed class RoomMapModule(
             DoorRotation = _state.Model?.DoorRotation ?? 0,
             TileEncodedHeights = [.. _state.TileEncodedHeights],
             FloorItems = [.. items],
+            Avatars = [.. avatars],
         };
     }
 

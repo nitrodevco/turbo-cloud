@@ -9,6 +9,7 @@ using Orleans;
 using Turbo.Contracts.Abstractions;
 using Turbo.Primitives.Orleans.Grains;
 using Turbo.Primitives.Orleans.Snapshots.Room;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Rooms.Configuration;
 
@@ -59,8 +60,8 @@ public class RoomDirectoryGrain(IOptions<RoomConfig> roomConfig, IGrainFactory g
                 .ToImmutableArray()
         );
 
-    public Task<int> GetRoomPopulationAsync(long roomId) =>
-        Task.FromResult(_roomPopulations.TryGetValue(roomId, out var pop) ? pop : 0);
+    public Task<int> GetRoomPopulationAsync(RoomId roomId) =>
+        Task.FromResult(_roomPopulations.TryGetValue(roomId.Value, out var pop) ? pop : 0);
 
     public async Task UpsertActiveRoomAsync(RoomInfoSnapshot snapshot)
     {
@@ -79,18 +80,18 @@ public class RoomDirectoryGrain(IOptions<RoomConfig> roomConfig, IGrainFactory g
         };
     }
 
-    public async Task RemoveActiveRoomAsync(long roomId)
+    public async Task RemoveActiveRoomAsync(RoomId roomId)
     {
-        if (!_activeRooms.Remove(roomId))
+        if (!_activeRooms.Remove(roomId.Value))
             return;
     }
 
-    public async Task AddPlayerToRoomAsync(long playerId, long roomId)
+    public async Task AddPlayerToRoomAsync(long playerId, RoomId roomId)
     {
-        if (!_roomPlayers.TryGetValue(roomId, out var players))
+        if (!_roomPlayers.TryGetValue(roomId.Value, out var players))
         {
             players = [];
-            _roomPlayers[roomId] = players;
+            _roomPlayers[roomId.Value] = players;
         }
 
         if (!players.Contains(playerId))
@@ -99,9 +100,9 @@ public class RoomDirectoryGrain(IOptions<RoomConfig> roomConfig, IGrainFactory g
         await UpdatePopulationAsync(roomId);
     }
 
-    public async Task RemovePlayerFromRoomAsync(long playerId, long roomId)
+    public async Task RemovePlayerFromRoomAsync(long playerId, RoomId roomId)
     {
-        if (!_roomPlayers.TryGetValue(roomId, out var players))
+        if (!_roomPlayers.TryGetValue(roomId.Value, out var players))
             return;
 
         if (!players.Remove(playerId))
@@ -112,11 +113,11 @@ public class RoomDirectoryGrain(IOptions<RoomConfig> roomConfig, IGrainFactory g
 
     public async Task SendComposerToRoomAsync(
         IComposer composer,
-        long roomId,
+        RoomId roomId,
         CancellationToken ct = default
     )
     {
-        if (!_roomPlayers.TryGetValue(roomId, out var playerIds) || playerIds.Count == 0)
+        if (!_roomPlayers.TryGetValue(roomId.Value, out var playerIds) || playerIds.Count == 0)
             return;
 
         foreach (var playerId in playerIds)
@@ -127,8 +128,8 @@ public class RoomDirectoryGrain(IOptions<RoomConfig> roomConfig, IGrainFactory g
         }
     }
 
-    private async Task UpdatePopulationAsync(long roomId) =>
-        _roomPopulations[roomId] = _roomPlayers.TryGetValue(roomId, out var players)
+    private async Task UpdatePopulationAsync(RoomId roomId) =>
+        _roomPopulations[roomId.Value] = _roomPlayers.TryGetValue(roomId.Value, out var players)
             ? players.Count
             : 0;
 

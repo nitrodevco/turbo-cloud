@@ -23,8 +23,7 @@ public class GetCatalogIndexMessageHandler(ICatalogService catalogService)
         if (catalog is null)
             return;
 
-        await ctx
-            .Session.SendComposerAsync(new CatalogIndexMessageComposer { Catalog = catalog }, ct)
+        await ctx.SendComposerAsync(new CatalogIndexMessageComposer { Catalog = catalog }, ct)
             .ConfigureAwait(false);
     }
 }

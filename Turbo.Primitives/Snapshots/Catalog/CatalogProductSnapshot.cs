@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Turbo.Contracts.Enums.Furniture;
 
 namespace Turbo.Primitives.Snapshots.Catalog;

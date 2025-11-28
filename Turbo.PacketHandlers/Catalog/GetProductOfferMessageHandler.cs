@@ -36,8 +36,7 @@ public class GetProductOfferMessageHandler(
             .Select(catalog.GetProductById)
             .ToList();
 
-        await ctx
-            .Session.SendComposerAsync(
+        await ctx.SendComposerAsync(
                 new ProductOfferEventMessageComposer
                 {
                     Offer = offer,

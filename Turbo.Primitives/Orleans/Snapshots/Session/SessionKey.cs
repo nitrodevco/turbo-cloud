@@ -10,5 +10,9 @@ public sealed record SessionKey
 
     public static SessionKey Empty => new() { Value = string.Empty };
 
+    public bool IsEmpty() => string.IsNullOrEmpty(Value);
+
+    public bool CompareTo(SessionKey other) => Value == other.Value;
+
     public static SessionKey From(string value) => new() { Value = value };
 }

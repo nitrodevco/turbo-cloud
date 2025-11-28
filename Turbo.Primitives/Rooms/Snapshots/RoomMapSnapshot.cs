@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Orleans;
 using Turbo.Contracts.Enums.Rooms.Object;
+using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Primitives.Rooms.Snapshots;
 
@@ -36,4 +37,7 @@ public sealed record RoomMapSnapshot
 
     [Id(9)]
     public required ImmutableArray<RoomFloorItemSnapshot> FloorItems { get; init; }
+
+    [Id(10)]
+    public required ImmutableArray<RoomAvatarSnapshot> Avatars { get; init; }
 }

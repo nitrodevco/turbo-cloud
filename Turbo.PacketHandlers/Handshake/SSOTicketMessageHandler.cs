@@ -1,7 +1,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Orleans;
 using Turbo.Contracts.Enums.Players;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Authentication;
@@ -9,7 +8,6 @@ using Turbo.Primitives.Messages.Incoming.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Availability;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
-using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Networking;
 
 namespace Turbo.PacketHandlers.Handshake;
@@ -37,17 +35,16 @@ public class SSOTicketMessageHandler(
 
             if (playerId <= 0)
             {
-                await ctx.Session.CloseSessionAsync().ConfigureAwait(false);
+                await ctx.CloseSessionAsync().ConfigureAwait(false);
 
                 return;
             }
 
             await _sessionGateway
-                .AddSessionToPlayerAsync(ctx.Session.SessionKey, playerId)
+                .AddSessionToPlayerAsync(ctx.SessionKey, playerId)
                 .ConfigureAwait(false);
 
-            await ctx
-                .Session.SendComposerAsync(
+            await ctx.SendComposerAsync(
                     new AuthenticationOKMessage
                     {
                         AccountId = playerId,
@@ -57,26 +54,23 @@ public class SSOTicketMessageHandler(
                     ct
                 )
                 .ConfigureAwait(false);
-            await ctx
-                .Session.SendComposerAsync(
+            await ctx.SendComposerAsync(
                     new NavigatorSettingsMessageComposer { HomeRoomId = 1, RoomIdToEnter = 1 },
                     ct
                 )
                 .ConfigureAwait(false);
             /* await ctx
-                .Session.SendComposerAsync(
+                .SendComposerAsync(
                     new FavouritesMessage { Limit = 0, FavoriteRoomIds = [] },
                     ct
                 )
                 .ConfigureAwait(false); */
-            await ctx
-                .Session.SendComposerAsync(
+            await ctx.SendComposerAsync(
                     new NoobnessLevelMessage { NoobnessLevel = NoobnessLevelEnum.NotNoob },
                     ct
                 )
                 .ConfigureAwait(false);
-            await ctx
-                .Session.SendComposerAsync(
+            await ctx.SendComposerAsync(
                     new UserRightsMessage
                     {
                         ClubLevel = ClubLevelEnum.Vip,
@@ -86,8 +80,7 @@ public class SSOTicketMessageHandler(
                     ct
                 )
                 .ConfigureAwait(false);
-            await ctx
-                .Session.SendComposerAsync(
+            await ctx.SendComposerAsync(
                     new AvailabilityStatusMessageComposer
                     {
                         IsOpen = true,
@@ -97,14 +90,13 @@ public class SSOTicketMessageHandler(
                     ct
                 )
                 .ConfigureAwait(false);
-            await ctx
-                .Session.SendComposerAsync(
+            await ctx.SendComposerAsync(
                     new IsFirstLoginOfDayMessage { IsFirstLoginOfDay = true },
                     ct
                 )
                 .ConfigureAwait(false);
             /* await ctx
-                .Session.SendComposerAsync(new FigureSetIdsMessage(), ct)
+                .SendComposerAsync(new FigureSetIdsMessage(), ct)
                 .ConfigureAwait(false); */
         }
         catch (Exception e) { }

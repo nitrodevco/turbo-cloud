@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Turbo.Contracts.Enums;
 using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Logging;
-using Turbo.Primitives.Actor;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Furniture.Floor;
 using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Mapping;

@@ -1,6 +1,5 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Messages.Extensions;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Room.Engine;
 using Turbo.Primitives.Rooms;
@@ -19,7 +18,7 @@ public class MoveObjectMessageHandler(IRoomService roomService) : IMessageHandle
     {
         await _roomService
             .MoveFloorItemInRoomAsync(
-                ctx.ToActionContext(),
+                ctx.AsActionContext(),
                 message.ObjectId,
                 message.X,
                 message.Y,

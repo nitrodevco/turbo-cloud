@@ -1,6 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Actor;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots;
 

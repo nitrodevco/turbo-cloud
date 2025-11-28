@@ -1,7 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Turbo.Messages.Registry;
 using Turbo.Pipeline;
-using Turbo.Primitives.Actor;
 using Turbo.Runtime.AssemblyProcessing;
 
 namespace Turbo.Messages.Extensions;
@@ -17,7 +16,4 @@ public static class ServiceCollectionExtensions
 
         return services;
     }
-
-    public static ActionContext ToActionContext(this MessageContext ctx) =>
-        ActionContextFactory.ForPlayer(ctx.Session.SessionKey, ctx.PlayerId, ctx.RoomId);
 }

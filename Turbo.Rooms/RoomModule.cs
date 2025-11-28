@@ -2,10 +2,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Avatars;
 using Turbo.Primitives.Rooms.Furniture;
 using Turbo.Primitives.Rooms.Furniture.Logic;
 using Turbo.Primitives.Rooms.Furniture.StuffData;
 using Turbo.Primitives.Rooms.Mapping;
+using Turbo.Rooms.Avatars;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Furniture;
 using Turbo.Rooms.Furniture.Logic;
@@ -27,6 +29,7 @@ public sealed class RoomModule : IHostPluginModule
         services.AddSingleton<IRoomService, RoomService>();
         services.AddSingleton<IRoomModelProvider, RoomModelProvider>();
 
+        services.AddSingleton<IRoomAvatarFactory, RoomAvatarFactory>();
         services.AddSingleton<IStuffDataFactory, StuffDataFactory>();
         services.AddSingleton<IFurnitureLogicFactory, FurnitureLogicFactory>();
         services.AddSingleton<IAssemblyFeatureProcessor, FurnitureLogicFeatureProcessor>();

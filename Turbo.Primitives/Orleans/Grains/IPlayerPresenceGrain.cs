@@ -5,6 +5,7 @@ using Turbo.Contracts.Abstractions;
 using Turbo.Primitives.Orleans.Observers;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Session;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.Primitives.Orleans.Grains;
 
@@ -15,9 +16,9 @@ public interface IPlayerPresenceGrain : IGrainWithIntegerKey
     public Task<RoomPendingSnapshot> GetPendingRoomAsync();
     public Task RegisterSessionAsync(SessionKey key, ISessionContextObserver observer);
     public Task UnregisterSessionAsync(SessionKey key);
-    public Task SetActiveRoomAsync(long roomId);
+    public Task SetActiveRoomAsync(RoomId roomId);
     public Task ClearActiveRoomAsync();
-    public Task LeaveRoomAsync(long roomId);
-    public Task SetPendingRoomAsync(long roomId, bool approved);
+    public Task LeaveRoomAsync(RoomId roomId);
+    public Task SetPendingRoomAsync(RoomId roomId, bool approved);
     public Task SendComposerAsync(IComposer composer, CancellationToken ct = default);
 }
