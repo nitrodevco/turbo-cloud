@@ -57,39 +57,26 @@ internal sealed partial class RoomAvatarModule(
         CancellationToken ct = default
     )
     {
-        _nextObjectId += 1;
-
-        var avatar = _roomAvatarFactory.CreateAvatarFromPlayerSnapshot(
-            objectId: RoomObjectId.From(_nextObjectId),
-            snapshot: snapshot
-        );
-
-        await AddAvatarAsync(avatar, ct);
-
+        var objectId = _nextObjectId += 1;
         var startX = _state.Model?.DoorX ?? 0;
         var startY = _state.Model?.DoorY ?? 0;
         var startRot = _state.Model?.DoorRotation ?? 0;
-        var tileId = -1;
 
-        try
-        {
-            tileId = _roomMap.GetTileId(startX, startY);
-        }
-        catch (Exception)
+        if (!_roomMap.IsTileInBounds(startX, startY))
         {
             startX = 0;
             startY = 0;
             startRot = 0;
         }
 
-        avatar.SetPosition(x: startX, y: startY, z: 0.0, rot: startRot, headRot: startRot);
-
-        await StopWalkingAsync(avatar, ct);
-
-        _ = _roomGrain.SendComposerToRoomAsync(
-            new UsersMessageComposer { Avatars = [avatar.GetSnapshot()] },
-            ct
+        var avatar = _roomAvatarFactory.CreateAvatarFromPlayerSnapshot(
+            objectId: RoomObjectId.From(objectId),
+            snapshot: snapshot
         );
+
+        avatar.SetPosition(startX, startY, 0.0, startRot, startRot);
+
+        await AddAvatarAsync(avatar, ct);
 
         return avatar;
     }
@@ -104,11 +91,13 @@ internal sealed partial class RoomAvatarModule(
         if (!_state.AvatarsByObjectId.TryAdd(avatar.ObjectId.Value, avatar))
             throw new InvalidOperationException("Failed to add avatar to room state.");
 
-        void func(RoomObjectId objectId) => _state.DirtyAvatarIds.Add(objectId.Value);
-
-        avatar.SetAction(func);
-
         await AttatchLogicIfNeededAsync(avatar, ct);
+        await UpdateHeightForAvatarAsync(avatar, ct);
+
+        _ = _roomGrain.SendComposerToRoomAsync(
+            new UsersMessageComposer { Avatars = [avatar.GetSnapshot()] },
+            ct
+        );
 
         return avatar;
     }
@@ -189,6 +178,14 @@ internal sealed partial class RoomAvatarModule(
 
         var (nextX, nextY) = _roomMap.GetTileXY(avatar.NextTileId);
 
+        var prevTileId = _roomMap.GetTileId(avatar.X, avatar.Y);
+
+        if (prevTileId > 0 && _state.TileAvatarStacks[prevTileId].Contains(avatar.ObjectId.Value))
+            _state.TileAvatarStacks[prevTileId].Remove(avatar.ObjectId.Value);
+
+        if (!_state.TileAvatarStacks[avatar.NextTileId].Contains(avatar.ObjectId.Value))
+            _state.TileAvatarStacks[avatar.NextTileId].Add(avatar.ObjectId.Value);
+
         avatar.SetPosition(
             x: nextX,
             y: nextY,
@@ -212,6 +209,7 @@ internal sealed partial class RoomAvatarModule(
         avatar.TilePath.Clear();
         avatar.NextTileId = -1;
         avatar.GoalTileId = -1;
+        avatar.IsWalking = false;
 
         avatar.RemoveStatus(RoomAvatarStatusType.Move);
 

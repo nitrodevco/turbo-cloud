@@ -18,7 +18,6 @@ internal sealed class RoomLiveState
     public bool IsFurniLoaded { get; internal set; } = false;
 
     public Dictionary<long, IRoomAvatar> AvatarsByObjectId { get; } = [];
-    public HashSet<int> DirtyAvatarIds { get; } = [];
 
     public RoomModelSnapshot? Model { get; internal set; } = null;
     public double[] TileHeights { get; internal set; } = [];
