@@ -10,5 +10,9 @@ public sealed record RoomObjectId
 
     public static RoomObjectId Empty => new() { Value = -1 };
 
+    public bool IsEmpty() => Value < 0;
+
+    public bool CompareTo(RoomObjectId other) => Value == other.Value;
+
     public static RoomObjectId From(int value) => new() { Value = value };
 }

@@ -99,6 +99,13 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             TimeSpan.FromMilliseconds(_roomConfig.DirtyItemsFlushIntervalMilliseconds),
             TimeSpan.FromMilliseconds(_roomConfig.DirtyItemsFlushIntervalMilliseconds)
         );
+
+        this.RegisterGrainTimer<object?>(
+            async _ => await _avatarModule.FlushDirtyAvatarsAsync(ct),
+            null,
+            TimeSpan.FromMilliseconds(_roomConfig.DirtyAvatarsFlushIntervalMilliseconds),
+            TimeSpan.FromMilliseconds(_roomConfig.DirtyAvatarsFlushIntervalMilliseconds)
+        );
     }
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)

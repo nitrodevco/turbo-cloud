@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Orleans;
 using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Primitives.Rooms.Object;
@@ -33,4 +34,10 @@ public record RoomAvatarSnapshot
 
     [Id(8)]
     public required Rotation Rotation { get; init; }
+
+    [Id(9)]
+    public required Rotation HeadRotation { get; init; }
+
+    [Id(10)]
+    public required string Status { get; init; }
 }

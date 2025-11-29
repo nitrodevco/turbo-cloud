@@ -1,3 +1,4 @@
+using System.Text;
 using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
@@ -16,8 +17,14 @@ internal sealed class RoomPlayerAvatar : RoomAvatar, IRoomPlayerAvatar
     public int ActivityPoints { get; init; } = 0;
     public bool IsModerator { get; init; } = false;
 
-    protected override RoomPlayerAvatarSnapshot BuildSnapshot() =>
-        new()
+    protected override RoomPlayerAvatarSnapshot BuildSnapshot()
+    {
+        var statusString = new StringBuilder("/");
+
+        foreach (var (type, value) in Statuses)
+            statusString.Append($"{type.ToLegacyString()} {value}/");
+
+        return new()
         {
             WebId = (int)PlayerId,
             Name = Name,
@@ -28,6 +35,7 @@ internal sealed class RoomPlayerAvatar : RoomAvatar, IRoomPlayerAvatar
             Y = Y,
             Z = Z,
             Rotation = Rotation,
+            HeadRotation = HeadRotation,
             Gender = Gender,
             GroupId = GroupId,
             GroupStatus = GroupStatus,
@@ -35,5 +43,7 @@ internal sealed class RoomPlayerAvatar : RoomAvatar, IRoomPlayerAvatar
             SwimFigure = SwimFigure,
             ActivityPoints = ActivityPoints,
             IsModerator = IsModerator,
+            Status = statusString.ToString(),
         };
+    }
 }

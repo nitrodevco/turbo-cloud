@@ -247,4 +247,22 @@ public sealed class RoomService(
 
         await roomGrain.ClickFloorItemByIdAsync(ctx, objectId, param, ct).ConfigureAwait(false);
     }
+
+    public async Task WalkAvatarToAsync(
+        ActionContext ctx,
+        RoomObjectId objectId,
+        int targetX,
+        int targetY,
+        CancellationToken ct = default
+    )
+    {
+        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId.Value <= 0 || objectId.Value <= 0)
+            return;
+
+        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId.Value);
+
+        await roomGrain
+            .WalkAvatarToAsync(ctx, objectId, targetX, targetY, ct)
+            .ConfigureAwait(false);
+    }
 }

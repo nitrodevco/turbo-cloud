@@ -65,7 +65,7 @@ internal sealed partial class RoomFurniModule
 
         item.SetAction(null);
 
-        await item.Logic.OnPickupAsync(ctx, ct);
+        await item.Logic.OnDetachAsync(ct);
 
         return true;
     }

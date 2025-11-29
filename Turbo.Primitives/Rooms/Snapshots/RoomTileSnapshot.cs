@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Rooms.Mapping;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Rooms.Snapshots;
 
@@ -20,4 +21,7 @@ public sealed record RoomTileSnapshot
 
     [Id(4)]
     public required RoomTileFlags Flags { get; init; }
+
+    [Id(5)]
+    public required RoomObjectId HighestObjectId { get; init; }
 }

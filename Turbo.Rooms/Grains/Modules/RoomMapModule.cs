@@ -10,6 +10,7 @@ using Turbo.Logging;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Mapping;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -114,6 +115,42 @@ internal sealed class RoomMapModule(
 
     public int GetTileIdForAvatar(IRoomAvatar avatar) => GetTileId(avatar.X, avatar.Y);
 
+    public bool CheckIfTileValidForAvatar(
+        IRoomAvatar avatar,
+        int tileId,
+        bool isGoal = true,
+        bool ignoreAvatars = false
+    )
+    {
+        if (!IsTileInBounds(tileId))
+            return false;
+
+        var tileFlags = _state.TileFlags[tileId];
+
+        if (tileFlags.Has(RoomTileFlags.Disabled) || tileFlags.Has(RoomTileFlags.Closed))
+            return false;
+
+        if (tileFlags.Has(RoomTileFlags.AvatarOccupied))
+        {
+            var avatarStack = _state.TileAvatarStacks[tileId];
+
+            if (avatarStack.Contains(avatar.ObjectId.Value))
+                return true;
+
+            if (ignoreAvatars)
+            {
+                if (isGoal)
+                    return false;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public async Task EnsureMapBuiltAsync(CancellationToken ct)
     {
         if (_state.IsMapBuilt)
@@ -160,7 +197,8 @@ internal sealed class RoomMapModule(
         if (!_state.NeedsCompile)
         {
             var nextHeight = _state.Model?.BaseHeights[id] ?? 0.0;
-            var nextFlags = _state.Model?.BaseFlags[id] ?? RoomTileFlags.Disabled;
+            var nextFlags =
+                _state.Model?.BaseFlags[id] ?? (RoomTileFlags.Disabled | RoomTileFlags.Closed);
             var floorStack = _state.TileFloorStacks[id];
             var avatarStack = _state.TileAvatarStacks[id];
 
@@ -247,6 +285,7 @@ internal sealed class RoomMapModule(
                 Height = _state.TileHeights[id],
                 EncodedHeight = _state.TileEncodedHeights[id],
                 Flags = _state.TileFlags[id],
+                HighestObjectId = RoomObjectId.From((int)_state.TileHighestFloorItems[id]),
             }
         );
 
@@ -309,6 +348,7 @@ internal sealed class RoomMapModule(
                 Height = _state.TileHeights[id],
                 EncodedHeight = _state.TileEncodedHeights[id],
                 Flags = _state.TileFlags[id],
+                HighestObjectId = RoomObjectId.From((int)_state.TileHighestFloorItems[id]),
             })
             .ToArray();
 

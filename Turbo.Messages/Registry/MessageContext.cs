@@ -5,6 +5,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Snapshots.Session;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Messages.Registry;
 

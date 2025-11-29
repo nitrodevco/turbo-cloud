@@ -95,7 +95,7 @@ internal sealed partial class RoomFurniModule
         CancellationToken ct
     )
     {
-        if (!_state.FloorItemsById.Remove(objectId.Value, out var item))
+        if (objectId.IsEmpty() || !_state.FloorItemsById.Remove(objectId.Value, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         if (_roomMap.GetTileIdForFloorItem(item, out var tileIds))
@@ -112,7 +112,7 @@ internal sealed partial class RoomFurniModule
 
         item.SetAction(null);
 
-        await item.Logic.OnPickupAsync(ctx, ct);
+        await item.Logic.OnDetachAsync(ct);
 
         return true;
     }

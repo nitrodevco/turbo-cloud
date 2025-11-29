@@ -1,5 +1,5 @@
+using System.Collections.Generic;
 using Turbo.Contracts.Enums.Rooms.Object;
-using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
@@ -14,10 +14,21 @@ public interface IRoomAvatar : IRoomObject
     public int Y { get; }
     public double Z { get; }
     public Rotation Rotation { get; }
+    public Rotation HeadRotation { get; }
     public IMovingAvatarLogic Logic { get; }
+    public Dictionary<RoomAvatarStatusType, string> Statuses { get; }
 
-    public void SetPosition(int x, int y, double z, Rotation rot);
+    public void SetPosition(
+        int x,
+        int y,
+        double z = default,
+        Rotation rot = default,
+        Rotation headRot = default
+    );
     public void SetLogic(IMovingAvatarLogic logic);
+    public void AddStatus(RoomAvatarStatusType type, string value);
+    public bool HasStatus(params RoomAvatarStatusType[] types);
+    public void RemoveStatus(params RoomAvatarStatusType[] types);
 
     public RoomAvatarSnapshot GetSnapshot();
 }

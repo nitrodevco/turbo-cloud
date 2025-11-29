@@ -39,4 +39,11 @@ public interface IRoomService
         int param = -1,
         CancellationToken ct = default
     );
+    public Task WalkAvatarToAsync(
+        ActionContext ctx,
+        RoomObjectId objectId,
+        int targetX,
+        int targetY,
+        CancellationToken ct = default
+    );
 }

@@ -1,4 +1,7 @@
+using System.Threading;
+using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Grains;
 using Turbo.Rooms.Grains.Modules;
 
@@ -13,4 +16,7 @@ internal class RoomAvatarContext(
     protected readonly RoomAvatarModule _avatarModule = avatarModule;
 
     public IRoomAvatar Avatar => roomAvatar;
+
+    public virtual Task<RoomTileSnapshot> GetTileSnapshotAsync(CancellationToken ct) =>
+        _roomGrain.GetTileSnapshotAsync(Avatar.X, Avatar.Y, ct);
 }
