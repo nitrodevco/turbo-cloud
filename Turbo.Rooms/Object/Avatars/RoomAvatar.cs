@@ -21,6 +21,12 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
     public IMovingAvatarLogic Logic { get; private set; } = default!;
     public Dictionary<RoomAvatarStatusType, string> Statuses { get; } = [];
 
+    public int GoalTileId { get; set; } = -1;
+    public int NextTileId { get; set; } = -1;
+    public int PrevTileId { get; set; } = -1;
+    public bool IsWalking { get; set; } = false;
+    public Queue<int> TilePath { get; } = new();
+
     private RoomAvatarSnapshot? _snapshot;
 
     public void SetPosition(int x, int y, double z, Rotation rot, Rotation headRot)

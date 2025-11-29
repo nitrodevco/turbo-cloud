@@ -15,4 +15,6 @@ public sealed record RoomObjectId
     public bool CompareTo(RoomObjectId other) => Value == other.Value;
 
     public static RoomObjectId From(int value) => new() { Value = value };
+
+    public override string ToString() => Value.ToString();
 }

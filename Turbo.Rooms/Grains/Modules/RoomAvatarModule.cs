@@ -110,12 +110,6 @@ internal sealed partial class RoomAvatarModule(
 
         await AttatchLogicIfNeededAsync(avatar, ct);
 
-        _state.AvatarMovementsByObjectId[avatar.ObjectId.Value] = RoomAvatarMovementState.From(
-            avatar.ObjectId,
-            avatar.X,
-            avatar.Y
-        );
-
         return avatar;
     }
 
@@ -131,11 +125,13 @@ internal sealed partial class RoomAvatarModule(
             await StopWalkingAsync(avatar, ct);
 
             await avatar.Logic.OnDetachAsync(ct).ConfigureAwait(false);
+
+            var tileId = _roomMap.GetTileId(avatar.X, avatar.Y);
+
+            _state.TileAvatarStacks[tileId].Remove(avatar.ObjectId.Value);
         }
 
-        _state.AvatarMovementsByObjectId.Remove(objectId.Value);
-
-        // remove from avatar tile stack
+        _state.AvatarsByObjectId.Remove(objectId.Value);
     }
 
     private async Task AttatchLogicIfNeededAsync(IRoomAvatar avatar, CancellationToken ct)
@@ -163,79 +159,59 @@ internal sealed partial class RoomAvatarModule(
         CancellationToken ct = default
     )
     {
-        if (!_state.AvatarMovementsByObjectId.TryGetValue(objectId.Value, out var moveState))
-            return;
-
         if (!_state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar))
             return;
 
-        try
-        {
-            await ProcessNextAvatarStepAsync(avatar, ct);
+        await ProcessNextAvatarStepAsync(avatar, ct);
 
-            var targetTileId = _roomMap.GetTileId(targetX, targetY);
+        var targetTileId = _roomMap.GetTileId(targetX, targetY);
 
-            if (
-                (avatar.X == targetX && avatar.Y == targetY)
-                || !_roomMap.CheckIfTileValidForAvatar(avatar, targetTileId)
-            )
-                throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
-
-            moveState.GoalTileId = targetTileId;
-            moveState.TilePath.Clear();
-            moveState.TilePath.Enqueue(targetTileId);
-            moveState.IsWalking = true;
-        }
-        catch (Exception e)
+        if (
+            (avatar.X == targetX && avatar.Y == targetY)
+            || !_roomMap.CheckIfTileValidForAvatar(avatar, targetTileId)
+        )
         {
             await StopWalkingAsync(avatar, ct);
+
+            return;
         }
+
+        avatar.GoalTileId = targetTileId;
+        avatar.TilePath.Clear();
+        avatar.TilePath.Enqueue(targetTileId);
+        avatar.IsWalking = true;
     }
 
     public async Task ProcessNextAvatarStepAsync(IRoomAvatar avatar, CancellationToken ct = default)
     {
-        if (!_state.AvatarMovementsByObjectId.TryGetValue(avatar.ObjectId.Value, out var moveState))
+        if (avatar.NextTileId < 0 || !_roomMap.IsTileInBounds(avatar.NextTileId))
             return;
 
-        try
-        {
-            if (_roomMap.IsTileInBounds(moveState.NextTileId))
-            {
-                moveState.PrevTileId = _roomMap.GetTileId(avatar.X, avatar.Y);
+        var (nextX, nextY) = _roomMap.GetTileXY(avatar.NextTileId);
 
-                var (nextX, nextY) = _roomMap.GetTileXY(moveState.NextTileId);
+        avatar.SetPosition(
+            x: nextX,
+            y: nextY,
+            z: avatar.Z,
+            rot: avatar.Rotation,
+            headRot: avatar.HeadRotation
+        );
 
-                avatar.SetPosition(
-                    x: nextX,
-                    y: nextY,
-                    z: avatar.Z,
-                    rot: avatar.Rotation,
-                    headRot: avatar.HeadRotation
-                );
-            }
+        avatar.NextTileId = -1;
 
-            moveState.NextTileId = -1;
-
-            await UpdateHeightForAvatarAsync(avatar, ct);
-        }
-        catch (Exception)
-        {
-            await StopWalkingAsync(avatar, ct);
-        }
+        await UpdateHeightForAvatarAsync(avatar, ct);
     }
 
     public async Task StopWalkingAsync(IRoomAvatar avatar, CancellationToken ct = default)
     {
-        if (
-            !_state.AvatarMovementsByObjectId.TryGetValue(avatar.ObjectId.Value, out var moveState)
-            || !moveState.IsWalking
-        )
+        if (!avatar.IsWalking)
             return;
 
-        moveState.TilePath.Clear();
-        moveState.NextTileId = -1;
-        moveState.GoalTileId = -1;
-        moveState.IsWalking = false;
+        await ProcessNextAvatarStepAsync(avatar, ct);
+
+        avatar.TilePath.Clear();
+        avatar.NextTileId = -1;
+        avatar.GoalTileId = -1;
 
         avatar.RemoveStatus(RoomAvatarStatusType.Move);
 
@@ -328,33 +304,23 @@ internal sealed partial class RoomAvatarModule(
     {
         await ProcessNextAvatarStepAsync(avatar, ct);
 
-        if (
-            !_state.AvatarMovementsByObjectId.TryGetValue(avatar.ObjectId.Value, out var moveState)
-            || !moveState.IsWalking
-        )
-            return;
-
-        if (moveState.TilePath.Count > 0)
+        if (!avatar.IsWalking || avatar.TilePath.Count <= 0)
         {
-            var nextTileId = moveState.TilePath.Dequeue();
-
-            if (nextTileId > 0)
-                await ProcessAvatarStepAsync(avatar, nextTileId, ct);
+            await StopWalkingAsync(avatar, ct);
 
             return;
         }
 
-        await StopWalkingAsync(avatar, ct);
+        var nextTileId = avatar.TilePath.Dequeue();
+
+        await ProcessAvatarStepAsync(avatar, nextTileId, ct);
     }
 
     private async Task ProcessAvatarStepAsync(IRoomAvatar avatar, int tileId, CancellationToken ct)
     {
-        if (!_state.AvatarMovementsByObjectId.TryGetValue(avatar.ObjectId.Value, out var moveState))
-            return;
-
         try
         {
-            var isGoal = moveState.TilePath.Count == 0;
+            var isGoal = avatar.TilePath.Count == 0;
             var prevTileId = _roomMap.GetTileId(avatar.X, avatar.Y);
             var nextTileId = tileId;
             var (nextX, nextY) = _roomMap.GetTileXY(nextTileId);
@@ -404,7 +370,7 @@ internal sealed partial class RoomAvatarModule(
             avatar.AddStatus(RoomAvatarStatusType.Move, $"{nextX},{nextY},{nextHeight}");
             // set the rotation towards next tile
 
-            moveState.NextTileId = nextTileId;
+            avatar.NextTileId = nextTileId;
 
             if (nextHighestObjectId > 0)
             {

@@ -18,6 +18,12 @@ public interface IRoomAvatar : IRoomObject
     public IMovingAvatarLogic Logic { get; }
     public Dictionary<RoomAvatarStatusType, string> Statuses { get; }
 
+    public int GoalTileId { get; set; }
+    public int NextTileId { get; set; }
+    public int PrevTileId { get; set; }
+    public bool IsWalking { get; set; }
+    public Queue<int> TilePath { get; }
+
     public void SetPosition(
         int x,
         int y,
