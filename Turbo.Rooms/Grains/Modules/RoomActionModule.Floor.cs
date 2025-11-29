@@ -4,7 +4,8 @@ using Turbo.Contracts.Enums.Furniture;
 using Turbo.Contracts.Enums.Rooms;
 using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Rooms.Furniture.Floor;
+using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -17,7 +18,7 @@ internal sealed partial class RoomActionModule
 
     public async Task<bool> MoveFloorItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         int newX,
         int newY,
         Rotation newRotation,
@@ -30,7 +31,7 @@ internal sealed partial class RoomActionModule
         if (
             !await _furniModule.ValidateFloorItemPlacementAsync(
                 ctx,
-                itemId,
+                objectId,
                 newX,
                 newY,
                 newRotation
@@ -38,7 +39,7 @@ internal sealed partial class RoomActionModule
         )
             return false;
 
-        if (!await _furniModule.MoveFloorItemByIdAsync(ctx, itemId, newX, newY, newRotation, ct))
+        if (!await _furniModule.MoveFloorItemByIdAsync(ctx, objectId, newX, newY, newRotation, ct))
             return false;
 
         return true;
@@ -46,18 +47,18 @@ internal sealed partial class RoomActionModule
 
     public Task<bool> RemoveFloorItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         CancellationToken ct
-    ) => _furniModule.RemoveFloorItemByIdAsync(ctx, itemId, ct);
+    ) => _furniModule.RemoveFloorItemByIdAsync(ctx, objectId, ct);
 
     public async Task<bool> UseFloorItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         int param = -1,
         CancellationToken ct = default
     )
     {
-        if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
+        if (!_state.FloorItemsById.TryGetValue(objectId.Value, out var item))
             return false;
 
         var controllerLevel = await GetControllerLevelAsync(ctx);
@@ -79,8 +80,8 @@ internal sealed partial class RoomActionModule
 
     public Task<bool> ClickFloorItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         int param = -1,
         CancellationToken ct = default
-    ) => _furniModule.ClickFloorItemByIdAsync(ctx, itemId, param, ct);
+    ) => _furniModule.ClickFloorItemByIdAsync(ctx, objectId, param, ct);
 }

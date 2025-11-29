@@ -9,9 +9,9 @@ using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Logging;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms;
-using Turbo.Primitives.Rooms.Avatars;
-using Turbo.Primitives.Rooms.Furniture.Floor;
 using Turbo.Primitives.Rooms.Mapping;
+using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 using Turbo.Rooms.Configuration;
@@ -227,7 +227,7 @@ internal sealed class RoomMapModule(
             _state.TileHeights[id] = nextHeight;
             _state.TileEncodedHeights[id] = nextEncoded;
             _state.TileFlags[id] = nextFlags;
-            _state.TileHighestFloorItems[id] = nextHighestItem?.Id ?? -1;
+            _state.TileHighestFloorItems[id] = nextHighestItem?.ObjectId.Value ?? -1;
 
             _dirty = true;
         }

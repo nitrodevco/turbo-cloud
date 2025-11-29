@@ -2,7 +2,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Rooms.Furniture.Floor;
+using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Rooms.Grains;
@@ -14,38 +15,40 @@ public sealed partial class RoomGrain
 
     public Task<bool> MoveFloorItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         int newX,
         int newY,
         Rotation newRotation,
         CancellationToken ct
-    ) => _actionModule.MoveFloorItemByIdAsync(ctx, itemId, newX, newY, newRotation, ct);
+    ) => _actionModule.MoveFloorItemByIdAsync(ctx, objectId, newX, newY, newRotation, ct);
 
     public Task<bool> RemoveFloorItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         CancellationToken ct
-    ) => _actionModule.RemoveFloorItemByIdAsync(ctx, itemId, ct);
+    ) => _actionModule.RemoveFloorItemByIdAsync(ctx, objectId, ct);
 
     public Task<bool> UseFloorItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         int param = -1,
         CancellationToken ct = default
-    ) => _actionModule.UseFloorItemByIdAsync(ctx, itemId, param, ct);
+    ) => _actionModule.UseFloorItemByIdAsync(ctx, objectId, param, ct);
 
     public Task<bool> ClickFloorItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         int param = -1,
         CancellationToken ct = default
-    ) => _actionModule.ClickFloorItemByIdAsync(ctx, itemId, param, ct);
+    ) => _actionModule.ClickFloorItemByIdAsync(ctx, objectId, param, ct);
 
     public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
-        long itemId,
+        RoomObjectId objectId,
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _liveState.FloorItemsById.TryGetValue(itemId, out var item) ? item.GetSnapshot() : null
+            _liveState.FloorItemsById.TryGetValue(objectId.Value, out var item)
+                ? item.GetSnapshot()
+                : null
         );
 }

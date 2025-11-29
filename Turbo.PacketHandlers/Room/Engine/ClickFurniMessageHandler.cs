@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Room.Engine;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.PacketHandlers.Room.Engine;
 
@@ -24,7 +25,7 @@ public class ClickFurniMessageHandler(IRoomService roomService) : IMessageHandle
             await _roomService
                 .ClickFloorItemInRoomAsync(
                     ctx.AsActionContext(),
-                    message.ObjectId,
+                    RoomObjectId.From(message.ObjectId),
                     message.Param,
                     ct
                 )

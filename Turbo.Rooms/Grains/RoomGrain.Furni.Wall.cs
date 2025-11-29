@@ -1,7 +1,8 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Rooms.Furniture.Wall;
+using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Rooms.Grains;
@@ -13,36 +14,38 @@ public sealed partial class RoomGrain
 
     public Task<bool> MoveWallItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         string newLocation,
         CancellationToken ct
-    ) => _actionModule.MoveWallItemByIdAsync(ctx, itemId, newLocation, ct);
+    ) => _actionModule.MoveWallItemByIdAsync(ctx, objectId, newLocation, ct);
 
     public Task<bool> RemoveWallItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         CancellationToken ct
-    ) => _actionModule.RemoveWallItemByIdAsync(ctx, itemId, ct);
+    ) => _actionModule.RemoveWallItemByIdAsync(ctx, objectId, ct);
 
     public Task<bool> UseWallItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         int param = -1,
         CancellationToken ct = default
-    ) => _actionModule.UseWallItemByIdAsync(ctx, itemId, param, ct);
+    ) => _actionModule.UseWallItemByIdAsync(ctx, objectId, param, ct);
 
     public Task<bool> ClickWallItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         int param = -1,
         CancellationToken ct = default
-    ) => _actionModule.ClickWallItemByIdAsync(ctx, itemId, param, ct);
+    ) => _actionModule.ClickWallItemByIdAsync(ctx, objectId, param, ct);
 
     public Task<RoomWallItemSnapshot?> GetWallItemSnapshotByIdAsync(
-        long itemId,
+        RoomObjectId objectId,
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _liveState.WallItemsById.TryGetValue(itemId, out var item) ? item.GetSnapshot() : null
+            _liveState.WallItemsById.TryGetValue(objectId.Value, out var item)
+                ? item.GetSnapshot()
+                : null
         );
 }

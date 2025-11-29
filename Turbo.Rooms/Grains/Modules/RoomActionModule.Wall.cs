@@ -1,7 +1,8 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Rooms.Furniture.Wall;
+using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -14,7 +15,7 @@ internal sealed partial class RoomActionModule
 
     public async Task<bool> MoveWallItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         string newLocation,
         CancellationToken ct
     )
@@ -22,26 +23,26 @@ internal sealed partial class RoomActionModule
         if (!await CanManipulateFurniAsync(ctx))
             return false;
 
-        return await _furniModule.MoveWallItemByIdAsync(ctx, itemId, newLocation, ct);
+        return await _furniModule.MoveWallItemByIdAsync(ctx, objectId, newLocation, ct);
     }
 
     public Task<bool> RemoveWallItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         CancellationToken ct
-    ) => _furniModule.RemoveWallItemByIdAsync(ctx, itemId, ct);
+    ) => _furniModule.RemoveWallItemByIdAsync(ctx, objectId, ct);
 
     public Task<bool> UseWallItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         int param = -1,
         CancellationToken ct = default
-    ) => _furniModule.UseWallItemByIdAsync(ctx, itemId, param, ct);
+    ) => _furniModule.UseWallItemByIdAsync(ctx, objectId, param, ct);
 
     public Task<bool> ClickWallItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         int param = -1,
         CancellationToken ct = default
-    ) => _furniModule.ClickWallItemByIdAsync(ctx, itemId, param, ct);
+    ) => _furniModule.ClickWallItemByIdAsync(ctx, objectId, param, ct);
 }

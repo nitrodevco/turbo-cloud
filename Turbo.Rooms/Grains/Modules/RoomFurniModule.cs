@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Primitives.Rooms;
-using Turbo.Primitives.Rooms.Furniture;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Rooms.Configuration;
 
@@ -63,14 +63,14 @@ internal sealed partial class RoomFurniModule(
             var dirtySnapshots = dirtyItemIds
                 .Select(id => _state.FloorItemsById[id].GetSnapshot())
                 .ToArray();
-            var dirtyIds = dirtySnapshots.Select(x => x.Id).ToArray();
+            var dirtyIds = dirtySnapshots.Select(x => x.ObjectId.Value).ToArray();
             var entities = await dbCtx
                 .Furnitures.Where(x => dirtyIds.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, ct);
 
             foreach (var snapshot in dirtySnapshots)
             {
-                if (!entities.TryGetValue((int)snapshot.Id, out var entity))
+                if (!entities.TryGetValue(snapshot.ObjectId.Value, out var entity))
                     continue;
 
                 entity.X = snapshot.X;

@@ -1,6 +1,7 @@
 using Orleans;
 using Turbo.Contracts.Enums.Furniture;
 using Turbo.Contracts.Enums.Rooms.Object;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.StuffData;
 
 namespace Turbo.Primitives.Rooms.Snapshots;
@@ -9,7 +10,7 @@ namespace Turbo.Primitives.Rooms.Snapshots;
 public sealed record RoomFloorItemSnapshot
 {
     [Id(0)]
-    public required long Id { get; init; }
+    public required RoomObjectId ObjectId { get; init; }
 
     [Id(1)]
     public required long OwnerId { get; init; }

@@ -7,13 +7,13 @@ using Turbo.Logging;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Rooms;
-using Turbo.Primitives.Rooms.Avatars;
 using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
-using Turbo.Rooms.Avatars;
 using Turbo.Rooms.Configuration;
+using Turbo.Rooms.Object.Avatars;
 
 namespace Turbo.Rooms.Grains.Modules;
 

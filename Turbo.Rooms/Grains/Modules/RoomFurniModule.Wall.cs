@@ -4,10 +4,11 @@ using System.Threading.Tasks;
 using Turbo.Contracts.Enums;
 using Turbo.Logging;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Rooms.Furniture.Wall;
+using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots;
-using Turbo.Rooms.Furniture.Wall;
+using Turbo.Rooms.Object.Furniture.Wall;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -15,10 +16,10 @@ internal sealed partial class RoomFurniModule
 {
     public async Task<bool> AddWallItemAsync(IRoomWallItem item, CancellationToken ct)
     {
-        if (!_state.WallItemsById.TryAdd(item.Id, item))
+        if (!_state.WallItemsById.TryAdd(item.ObjectId.Value, item))
             return false;
 
-        void func(long itemId) => _state.DirtyItemIds.Add(itemId);
+        void func(RoomObjectId objectId) => _state.DirtyItemIds.Add(objectId.Value);
 
         item.SetAction(func);
 
@@ -31,12 +32,12 @@ internal sealed partial class RoomFurniModule
 
     public async Task<bool> MoveWallItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         string newLocation,
         CancellationToken ct
     )
     {
-        if (!_state.WallItemsById.TryGetValue(itemId, out var item))
+        if (!_state.WallItemsById.TryGetValue(objectId.Value, out var item))
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
         if (item.WallLocation.Equals(newLocation, StringComparison.OrdinalIgnoreCase))
@@ -53,11 +54,11 @@ internal sealed partial class RoomFurniModule
 
     public async Task<bool> RemoveWallItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         CancellationToken ct
     )
     {
-        if (!_state.WallItemsById.Remove(itemId, out var item))
+        if (!_state.WallItemsById.Remove(objectId.Value, out var item))
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
         _ = _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(ctx.PlayerId), ct);
@@ -71,12 +72,12 @@ internal sealed partial class RoomFurniModule
 
     public async Task<bool> UseWallItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         int param,
         CancellationToken ct
     )
     {
-        if (!_state.WallItemsById.TryGetValue(itemId, out var item))
+        if (!_state.WallItemsById.TryGetValue(objectId.Value, out var item))
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
         await item.Logic.OnUseAsync(ctx, param, ct);
@@ -86,12 +87,12 @@ internal sealed partial class RoomFurniModule
 
     public async Task<bool> ClickWallItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         int param = -1,
         CancellationToken ct = default
     )
     {
-        if (!_state.WallItemsById.TryGetValue(itemId, out var item))
+        if (!_state.WallItemsById.TryGetValue(objectId.Value, out var item))
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
         await item.Logic.OnClickAsync(ctx, param, ct);
@@ -101,7 +102,7 @@ internal sealed partial class RoomFurniModule
 
     public async Task<bool> ValidateWallItemPlacementAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         string newLocation
     )
     {
@@ -109,11 +110,13 @@ internal sealed partial class RoomFurniModule
     }
 
     public Task<RoomWallItemSnapshot?> GetWallItemSnapshotByIdAsync(
-        long itemId,
+        RoomObjectId objectId,
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _state.WallItemsById.TryGetValue(itemId, out var item) ? item.GetSnapshot() : null
+            _state.WallItemsById.TryGetValue(objectId.Value, out var item)
+                ? item.GetSnapshot()
+                : null
         );
 
     private async Task AttatchWallLogicIfNeededAsync(IRoomWallItem item, CancellationToken ct)

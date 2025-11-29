@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Room.Engine;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.PacketHandlers.Room.Engine;
 
@@ -19,7 +20,7 @@ public class MoveObjectMessageHandler(IRoomService roomService) : IMessageHandle
         await _roomService
             .MoveFloorItemInRoomAsync(
                 ctx.AsActionContext(),
-                message.ObjectId,
+                RoomObjectId.From(message.ObjectId),
                 message.X,
                 message.Y,
                 message.Rotation,

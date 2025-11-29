@@ -1,4 +1,5 @@
 using Orleans;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Rooms.Snapshots;
 
@@ -6,7 +7,7 @@ namespace Turbo.Primitives.Rooms.Snapshots;
 public sealed record RollerInfoSnapshot
 {
     [Id(0)]
-    public required long ItemId { get; init; }
+    public required RoomObjectId ObjectId { get; init; }
 
     [Id(1)]
     public required int X { get; init; }

@@ -4,12 +4,13 @@ using Turbo.Contracts.Enums;
 using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Logging;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Rooms.Furniture.Floor;
 using Turbo.Primitives.Rooms.Mapping;
+using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots;
-using Turbo.Rooms.Furniture.Floor;
-using Turbo.Rooms.Logic.Furniture.Floor;
+using Turbo.Rooms.Object.Furniture.Floor;
+using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -17,10 +18,10 @@ internal sealed partial class RoomFurniModule
 {
     public async Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
     {
-        if (!_state.FloorItemsById.TryAdd(item.Id, item))
+        if (!_state.FloorItemsById.TryAdd(item.ObjectId.Value, item))
             return false;
 
-        void func(long itemId) => _state.DirtyItemIds.Add(itemId);
+        void func(RoomObjectId objectId) => _state.DirtyItemIds.Add(objectId.Value);
 
         item.SetAction(func);
 
@@ -30,7 +31,7 @@ internal sealed partial class RoomFurniModule
         {
             foreach (var id in tileIds)
             {
-                _state.TileFloorStacks[id].Add(item.Id);
+                _state.TileFloorStacks[id].Add(item.ObjectId.Value);
 
                 await _roomMap.ComputeTileAsync(id);
             }
@@ -43,14 +44,14 @@ internal sealed partial class RoomFurniModule
 
     public async Task<bool> MoveFloorItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         int newX,
         int newY,
         Rotation newRotation,
         CancellationToken ct
     )
     {
-        if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
+        if (!_state.FloorItemsById.TryGetValue(objectId.Value, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         if (item.X == newX && item.Y == newY && item.Rotation == newRotation)
@@ -60,7 +61,7 @@ internal sealed partial class RoomFurniModule
         {
             foreach (var idx in oldTileIds)
             {
-                _state.TileFloorStacks[idx].Remove(item.Id);
+                _state.TileFloorStacks[idx].Remove(item.ObjectId.Value);
 
                 await _roomMap.ComputeTileAsync(idx);
             }
@@ -75,7 +76,7 @@ internal sealed partial class RoomFurniModule
         {
             foreach (var id in newTileIds)
             {
-                _state.TileFloorStacks[id].Add(item.Id);
+                _state.TileFloorStacks[id].Add(item.ObjectId.Value);
 
                 await _roomMap.ComputeTileAsync(id);
             }
@@ -90,18 +91,18 @@ internal sealed partial class RoomFurniModule
 
     public async Task<bool> RemoveFloorItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         CancellationToken ct
     )
     {
-        if (!_state.FloorItemsById.Remove(itemId, out var item))
+        if (!_state.FloorItemsById.Remove(objectId.Value, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         if (_roomMap.GetTileIdForFloorItem(item, out var tileIds))
         {
             foreach (var id in tileIds)
             {
-                _state.TileFloorStacks[id].Remove(item.Id);
+                _state.TileFloorStacks[id].Remove(item.ObjectId.Value);
 
                 await _roomMap.ComputeTileAsync(id);
             }
@@ -118,12 +119,12 @@ internal sealed partial class RoomFurniModule
 
     public async Task<bool> UseFloorItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         int param,
         CancellationToken ct
     )
     {
-        if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
+        if (!_state.FloorItemsById.TryGetValue(objectId.Value, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         await item.Logic.OnUseAsync(ctx, param, ct);
@@ -133,12 +134,12 @@ internal sealed partial class RoomFurniModule
 
     public async Task<bool> ClickFloorItemByIdAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         int param = -1,
         CancellationToken ct = default
     )
     {
-        if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
+        if (!_state.FloorItemsById.TryGetValue(objectId.Value, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         await item.Logic.OnClickAsync(ctx, param, ct);
@@ -148,13 +149,13 @@ internal sealed partial class RoomFurniModule
 
     public async Task<bool> ValidateFloorItemPlacementAsync(
         ActionContext ctx,
-        long itemId,
+        RoomObjectId objectId,
         int newX,
         int newY,
         Rotation newRotation
     )
     {
-        if (!_state.FloorItemsById.TryGetValue(itemId, out var tItem))
+        if (!_state.FloorItemsById.TryGetValue(objectId.Value, out var tItem))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         var isRotating = tItem.Rotation != newRotation;
@@ -207,11 +208,13 @@ internal sealed partial class RoomFurniModule
     }
 
     public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
-        long itemId,
+        RoomObjectId objectId,
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _state.FloorItemsById.TryGetValue(itemId, out var item) ? item.GetSnapshot() : null
+            _state.FloorItemsById.TryGetValue(objectId.Value, out var item)
+                ? item.GetSnapshot()
+                : null
         );
 
     private async Task AttatchFloorLogicIfNeededAsync(IRoomFloorItem item, CancellationToken ct)
@@ -243,7 +246,7 @@ internal sealed partial class RoomFurniModule
             _state.RollerInfos.Add(
                 new RollerInfoSnapshot
                 {
-                    ItemId = item.Id,
+                    ObjectId = item.ObjectId,
                     X = item.X,
                     Y = item.Y,
                     TargetX = item.X,

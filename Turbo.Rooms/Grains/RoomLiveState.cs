@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using Turbo.Primitives.Orleans.Snapshots.Room;
-using Turbo.Primitives.Rooms.Avatars;
-using Turbo.Primitives.Rooms.Furniture.Floor;
-using Turbo.Primitives.Rooms.Furniture.Wall;
 using Turbo.Primitives.Rooms.Mapping;
+using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Rooms.Grains;

@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Rooms.Furniture.StuffData;
+using Turbo.Primitives.Rooms.Object.Furniture.StuffData;
 
 namespace Turbo.Primitives.Rooms.Object.Logic.Furniture;
 
