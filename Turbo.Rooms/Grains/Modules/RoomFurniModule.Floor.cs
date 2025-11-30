@@ -95,8 +95,6 @@ internal sealed partial class RoomFurniModule
             }
         }
 
-        // TODO update avatars on item
-
         _ = _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer(), ct);
 
         await item.Logic.OnMoveAsync(ctx, ct);
@@ -194,6 +192,7 @@ internal sealed partial class RoomFurniModule
                 if (
                     tileFlags.Has(RoomTileFlags.Disabled)
                     || (tileHeight + tItem.Definition.StackHeight) > _roomConfig.MaxStackHeight
+                    || tileFlags.Has(RoomTileFlags.AvatarOccupied) && !isRotating
                 )
                     return false;
 

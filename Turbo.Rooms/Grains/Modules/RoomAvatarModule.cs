@@ -129,21 +129,17 @@ internal sealed partial class RoomAvatarModule(
 
     public async Task RemoveAvatarAsync(RoomObjectId objectId, CancellationToken ct = default)
     {
-        if (objectId.IsEmpty())
+        if (!_state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar))
             return;
 
-        var avatar = _state.AvatarsByObjectId[objectId.Value];
+        await StopWalkingAsync(avatar, ct);
 
-        if (avatar is not null)
-        {
-            await StopWalkingAsync(avatar, ct);
+        var tileId = _roomMap.GetTileId(avatar.X, avatar.Y);
 
-            await avatar.Logic.OnDetachAsync(ct).ConfigureAwait(false);
+        if (_state.TileAvatarStacks[tileId].Remove(avatar.ObjectId.Value))
+            await _roomMap.ComputeTileAsync(tileId);
 
-            var tileId = _roomMap.GetTileId(avatar.X, avatar.Y);
-
-            _state.TileAvatarStacks[tileId].Remove(avatar.ObjectId.Value);
-        }
+        await avatar.Logic.OnDetachAsync(ct).ConfigureAwait(false);
 
         _state.AvatarsByObjectId.Remove(objectId.Value);
     }
@@ -236,6 +232,7 @@ internal sealed partial class RoomAvatarModule(
             if (!_state.TileAvatarStacks[nextTileId].Contains(avatar.ObjectId.Value))
             {
                 _state.TileAvatarStacks[nextTileId].Add(avatar.ObjectId.Value);
+
                 await _roomMap.ComputeTileAsync(nextTileId);
             }
 
