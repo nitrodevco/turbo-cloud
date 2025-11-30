@@ -251,20 +251,21 @@ internal sealed partial class RoomAvatarModule(
 
     public async Task StopWalkingAsync(IRoomAvatar avatar, CancellationToken ct = default)
     {
-        if (!avatar.IsWalking)
-            return;
+        if (avatar.IsWalking)
+        {
+            avatar.IsWalking = false;
 
-        avatar.IsWalking = false;
+            await ProcessNextAvatarStepAsync(avatar, ct);
 
-        await ProcessNextAvatarStepAsync(avatar, ct);
+            avatar.TilePath.Clear();
+            avatar.NextTileId = -1;
+            avatar.GoalTileId = -1;
 
-        avatar.TilePath.Clear();
-        avatar.NextTileId = -1;
-        avatar.GoalTileId = -1;
+            avatar.RemoveStatus(RoomAvatarStatusType.Move);
 
-        avatar.RemoveStatus(RoomAvatarStatusType.Move);
+            // invoke / stop on tile
+        }
 
-        // invoke / stop on tile
         UpdateHeightForAvatar(avatar);
     }
 

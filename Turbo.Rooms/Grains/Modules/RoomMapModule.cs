@@ -114,9 +114,6 @@ internal sealed class RoomMapModule(
         var floorStack = _state.TileFloorStacks[id];
         var avatarStack = _state.TileAvatarStacks[id];
 
-        if (avatarStack.Count > 0)
-            nextFlags = nextFlags.Add(RoomTileFlags.AvatarOccupied);
-
         IRoomFloorItem? nextHighestItem = null;
 
         if (floorStack.Count > 0)
@@ -160,6 +157,13 @@ internal sealed class RoomMapModule(
                 nextFlags = nextFlags.Add(RoomTileFlags.Layable);
         }
 
+        _state.TileHeights[id] = nextHeight;
+        _state.TileFlags[id] = nextFlags;
+        _state.TileHighestFloorItems[id] = nextHighestItem?.ObjectId.Value ?? -1;
+
+        if (avatarStack.Count > 0)
+            nextFlags = nextFlags.Add(RoomTileFlags.AvatarOccupied);
+
         var prevEncoded = _state.TileEncodedHeights[id];
         var nextEncoded = RoomModelCompiler.EncodeHeight(
             nextHeight,
@@ -171,10 +175,6 @@ internal sealed class RoomMapModule(
             _state.TileEncodedHeights[id] = nextEncoded;
             _state.DirtyHeightTileIds.Add(id);
         }
-
-        _state.TileHeights[id] = nextHeight;
-        _state.TileFlags[id] = nextFlags;
-        _state.TileHighestFloorItems[id] = nextHighestItem?.ObjectId.Value ?? -1;
 
         _dirty = true;
 
