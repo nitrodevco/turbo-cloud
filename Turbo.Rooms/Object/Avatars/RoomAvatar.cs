@@ -25,7 +25,7 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
     public int NextTileId { get; set; } = -1;
     public int PrevTileId { get; set; } = -1;
     public bool IsWalking { get; set; } = false;
-    public Queue<int> TilePath { get; } = new();
+    public List<int> TilePath { get; } = [];
 
     private RoomAvatarSnapshot? _snapshot;
 

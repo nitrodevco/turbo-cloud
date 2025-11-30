@@ -36,6 +36,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     private readonly RoomId _roomId;
     private readonly RoomLiveState _liveState;
+    private readonly RoomPathfinder _pathfinder;
     private readonly RoomEventModule _eventModule;
     private readonly RoomMapModule _mapModule;
     private readonly RoomAvatarModule _avatarModule;
@@ -62,6 +63,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
         _roomId = RoomId.From(this.GetPrimaryKeyLong());
         _liveState = new();
+        _pathfinder = new();
         _eventModule = new(this, _roomConfig, _liveState);
         _mapModule = new(this, _roomConfig, _liveState);
         _avatarModule = new(
@@ -69,6 +71,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             _roomConfig,
             _liveState,
             _mapModule,
+            _pathfinder,
             _roomAvatarFactory,
             _logicFactory
         );

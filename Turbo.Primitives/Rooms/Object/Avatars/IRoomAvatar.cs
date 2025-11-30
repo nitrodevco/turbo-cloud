@@ -22,7 +22,7 @@ public interface IRoomAvatar : IRoomObject
     public int NextTileId { get; set; }
     public int PrevTileId { get; set; }
     public bool IsWalking { get; set; }
-    public Queue<int> TilePath { get; }
+    public List<int> TilePath { get; }
 
     public void SetPosition(int x, int y);
     public void SetPosition(

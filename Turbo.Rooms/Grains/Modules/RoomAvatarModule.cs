@@ -26,6 +26,7 @@ internal sealed partial class RoomAvatarModule(
     RoomConfig roomConfig,
     RoomLiveState roomLiveState,
     RoomMapModule roomMapModule,
+    RoomPathfinder roomPathfinder,
     IRoomAvatarFactory roomAvatarFactory,
     IRoomObjectLogicFactory objectLogicFactory
 ) : IRoomModule
@@ -34,47 +35,13 @@ internal sealed partial class RoomAvatarModule(
     private readonly RoomConfig _roomConfig = roomConfig;
     private readonly RoomLiveState _state = roomLiveState;
     private readonly RoomMapModule _roomMap = roomMapModule;
+    private readonly RoomPathfinder _pathfinder = roomPathfinder;
     private readonly IRoomAvatarFactory _roomAvatarFactory = roomAvatarFactory;
     private readonly IRoomObjectLogicFactory _objectLogicFactory = objectLogicFactory;
 
     private int _nextObjectId = 0;
 
     public int GetTileIdForAvatar(IRoomAvatar avatar) => _roomMap.GetTileId(avatar.X, avatar.Y);
-
-    public bool CheckIfTileValidForAvatar(
-        IRoomAvatar avatar,
-        int tileId,
-        bool isGoal = true,
-        bool isDiagonalCheck = false
-    )
-    {
-        if (!_roomMap.IsTileInBounds(tileId))
-            return false;
-
-        var tileFlags = _state.TileFlags[tileId];
-
-        if (tileFlags.Has(RoomTileFlags.Disabled) || tileFlags.Has(RoomTileFlags.Closed))
-            return false;
-
-        var avatarStack = _state.TileAvatarStacks[tileId];
-
-        if (avatarStack.Count > 0)
-        {
-            if (avatarStack.Contains(avatar.ObjectId.Value))
-                return true;
-
-            if (isGoal || _state.RoomSnapshot.AllowBlocking)
-                return false;
-        }
-
-        if (isDiagonalCheck)
-        {
-            if (tileFlags.Has(RoomTileFlags.Sittable) || tileFlags.Has(RoomTileFlags.Layable))
-                return false;
-        }
-
-        return true;
-    }
 
     public async Task<IRoomAvatar> CreateAvatarFromPlayerAsync(
         PlayerSummarySnapshot snapshot,
@@ -186,24 +153,31 @@ internal sealed partial class RoomAvatarModule(
         if (!_state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar))
             return;
 
-        await ProcessNextAvatarStepAsync(avatar, ct);
+        try
+        {
+            await ProcessNextAvatarStepAsync(avatar, ct);
 
-        var targetTileId = _roomMap.GetTileId(targetX, targetY);
+            var path = _pathfinder.FindPath(
+                avatar,
+                _roomMap,
+                (avatar.X, avatar.Y),
+                (targetX, targetY)
+            );
 
-        if (
-            (avatar.X == targetX && avatar.Y == targetY)
-            || !CheckIfTileValidForAvatar(avatar, targetTileId)
-        )
+            if (path.Count == 0)
+                throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
+
+            avatar.TilePath.Clear();
+            avatar.TilePath.AddRange(path.Skip(1).Select(pos => _roomMap.GetTileId(pos.X, pos.Y)));
+            avatar.GoalTileId = _roomMap.GetTileId(targetX, targetY);
+            avatar.IsWalking = true;
+        }
+        catch (Exception)
         {
             await StopWalkingAsync(avatar, ct);
 
             return;
         }
-
-        avatar.GoalTileId = targetTileId;
-        avatar.TilePath.Clear();
-        avatar.TilePath.Enqueue(targetTileId);
-        avatar.IsWalking = true;
     }
 
     public async Task ProcessNextAvatarStepAsync(IRoomAvatar avatar, CancellationToken ct = default)
@@ -329,7 +303,8 @@ internal sealed partial class RoomAvatarModule(
             return;
         }
 
-        var nextTileId = avatar.TilePath.Dequeue();
+        var nextTileId = avatar.TilePath[0];
+        avatar.TilePath.RemoveAt(0);
 
         await ProcessAvatarStepAsync(avatar, nextTileId, ct);
     }
@@ -351,7 +326,7 @@ internal sealed partial class RoomAvatarModule(
             if (Math.Abs(nextHeight - prevHeight) > Math.Abs(_roomConfig.MaxStepHeight))
                 throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
-            if (!CheckIfTileValidForAvatar(avatar, nextTileId, isGoal))
+            if (!_roomMap.CanAvatarWalk(avatar, nextTileId, isGoal))
             {
                 if (!isGoal)
                 {
@@ -362,22 +337,8 @@ internal sealed partial class RoomAvatarModule(
                 throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
             }
 
-            if (_roomMap.AreTilesDiagonal(avatar.X, avatar.Y, nextX, nextY))
-            {
-                var left = CheckIfTileValidForAvatar(
-                    avatar,
-                    _roomMap.GetTileId(nextX, avatar.Y),
-                    true
-                );
-                var right = CheckIfTileValidForAvatar(
-                    avatar,
-                    _roomMap.GetTileId(avatar.X, nextY),
-                    true
-                );
-
-                if (!left && !right)
-                    throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
-            }
+            if (!_roomMap.CanAvatarWalkBetween(avatar, prevTileId, nextTileId))
+                throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
             _state.TileAvatarStacks[prevTileId].Remove(avatar.ObjectId.Value);
 

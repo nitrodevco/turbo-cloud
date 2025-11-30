@@ -11,6 +11,7 @@ using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Configuration;
@@ -22,7 +23,7 @@ internal sealed class RoomMapModule(
     RoomGrain roomGrain,
     RoomConfig roomConfig,
     RoomLiveState roomLiveState
-) : IRoomModule
+) : IRoomModule, IRoomMapViewer
 {
     private readonly RoomGrain _roomGrain = roomGrain;
     private readonly RoomConfig _roomConfig = roomConfig;
@@ -30,6 +31,9 @@ internal sealed class RoomMapModule(
 
     private RoomMapSnapshot? _mapSnapshot = null;
     private bool _dirty = true;
+
+    public int Width => _state.Model?.Width ?? 0;
+    public int Height => _state.Model?.Height ?? 0;
 
     public int GetTileId(int x, int y)
     {
@@ -179,6 +183,61 @@ internal sealed class RoomMapModule(
         _dirty = true;
 
         return Task.CompletedTask;
+    }
+
+    public bool CanAvatarWalk(
+        IRoomAvatar avatar,
+        int tileId,
+        bool isGoal = true,
+        bool isDiagonalCheck = false
+    )
+    {
+        if (!IsTileInBounds(tileId))
+            return false;
+
+        var tileFlags = _state.TileFlags[tileId];
+
+        if (tileFlags.Has(RoomTileFlags.Disabled) || tileFlags.Has(RoomTileFlags.Closed))
+            return false;
+
+        var avatarStack = _state.TileAvatarStacks[tileId];
+
+        if (avatarStack.Count > 0)
+        {
+            if (avatarStack.Contains(avatar.ObjectId.Value))
+                return true;
+
+            if (isGoal || _state.RoomSnapshot.AllowBlocking)
+                return false;
+        }
+
+        if (isDiagonalCheck)
+        {
+            if (tileFlags.Has(RoomTileFlags.Sittable) || tileFlags.Has(RoomTileFlags.Layable))
+                return false;
+        }
+
+        return true;
+    }
+
+    public bool CanAvatarWalkBetween(IRoomAvatar avatar, int fromTileId, int toTileId)
+    {
+        if (!CanAvatarWalk(avatar, toTileId))
+            return false;
+
+        var (fromX, fromY) = GetTileXY(fromTileId);
+        var (toX, toY) = GetTileXY(toTileId);
+
+        if (AreTilesDiagonal(fromX, fromY, toX, toY))
+        {
+            var left = CanAvatarWalk(avatar, GetTileId(toX, fromY), true, true);
+            var right = CanAvatarWalk(avatar, GetTileId(fromX, toY), true, true);
+
+            if (!left && !right)
+                return false;
+        }
+
+        return true;
     }
 
     public RoomMapSnapshot GetMapSnapshot(CancellationToken ct)
