@@ -33,6 +33,9 @@ public interface IRoomAvatar : IRoomObject
         Rotation headRot = default
     );
     public void SetHeight(double z);
+    public void SetRotation(Rotation rot);
+    public void SetBodyRotation(Rotation rot);
+    public void SetHeadRotation(Rotation rot);
     public void SetLogic(IMovingAvatarLogic logic);
     public void AddStatus(RoomAvatarStatusType type, string value);
     public bool HasStatus(params RoomAvatarStatusType[] types);

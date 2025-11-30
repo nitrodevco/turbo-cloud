@@ -64,6 +64,32 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
         MarkDirty();
     }
 
+    public void SetRotation(Rotation rot)
+    {
+        SetBodyRotation(rot);
+        SetHeadRotation(rot);
+    }
+
+    public void SetBodyRotation(Rotation rot)
+    {
+        if (Rotation == rot)
+            return;
+
+        Rotation = rot;
+
+        MarkDirty();
+    }
+
+    public void SetHeadRotation(Rotation rot)
+    {
+        if (HeadRotation == rot)
+            return;
+
+        HeadRotation = rot;
+
+        MarkDirty();
+    }
+
     public void SetLogic(IMovingAvatarLogic logic)
     {
         Logic = logic;

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Enums;
+using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
@@ -51,22 +52,23 @@ internal sealed partial class RoomAvatarModule(
         var objectId = _nextObjectId += 1;
         var startX = _state.Model?.DoorX ?? 0;
         var startY = _state.Model?.DoorY ?? 0;
-        var startRot = _state.Model?.DoorRotation ?? 0;
+        var startRot = _state.Model?.DoorRotation ?? Rotation.North;
 
         if (!_roomMap.IsTileInBounds(startX, startY))
         {
             // TODO get a valid tile
             startX = 0;
             startY = 0;
-            startRot = 0;
+            startRot = Rotation.North;
         }
 
         var avatar = _roomAvatarFactory.CreateAvatarFromPlayerSnapshot(
-            objectId: RoomObjectId.From(objectId),
-            snapshot: snapshot
+            RoomObjectId.From(objectId),
+            snapshot
         );
 
         avatar.NextTileId = _roomMap.GetTileId(startX, startY);
+        avatar.SetRotation(startRot);
 
         await AddAvatarAsync(avatar, ct);
 
@@ -350,7 +352,7 @@ internal sealed partial class RoomAvatarModule(
 
             avatar.RemoveStatus(RoomAvatarStatusType.Lay, RoomAvatarStatusType.Sit);
             avatar.AddStatus(RoomAvatarStatusType.Move, $"{nextX},{nextY},{nextHeight}");
-            // set the rotation towards next tile
+            avatar.SetRotation(RotationExtensions.FromPoints(avatar.X, avatar.Y, nextX, nextY));
 
             avatar.NextTileId = nextTileId;
         }
