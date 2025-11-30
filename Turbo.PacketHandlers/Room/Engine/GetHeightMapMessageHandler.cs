@@ -17,6 +17,8 @@ public class GetHeightMapMessageHandler(IRoomService roomService)
         CancellationToken ct
     )
     {
-        await _roomService.EnterPendingRoomForPlayerIdAsync(ctx.PlayerId, ct).ConfigureAwait(false);
+        await _roomService
+            .EnterPendingRoomForPlayerIdAsync(ctx.AsActionContext(), ctx.PlayerId, ct)
+            .ConfigureAwait(false);
     }
 }

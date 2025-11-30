@@ -35,14 +35,14 @@ internal sealed partial class RoomActionModule
     public Task<bool> UseWallItemByIdAsync(
         ActionContext ctx,
         RoomObjectId objectId,
-        int param = -1,
-        CancellationToken ct = default
-    ) => _furniModule.UseWallItemByIdAsync(ctx, objectId, param, ct);
+        CancellationToken ct,
+        int param = -1
+    ) => _furniModule.UseWallItemByIdAsync(ctx, objectId, ct, param);
 
     public Task<bool> ClickWallItemByIdAsync(
         ActionContext ctx,
         RoomObjectId objectId,
-        int param = -1,
-        CancellationToken ct = default
-    ) => _furniModule.ClickWallItemByIdAsync(ctx, objectId, param, ct);
+        CancellationToken ct,
+        int param = -1
+    ) => _furniModule.ClickWallItemByIdAsync(ctx, objectId, ct, param);
 }

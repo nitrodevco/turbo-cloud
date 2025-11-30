@@ -30,7 +30,7 @@ internal sealed class RoomItemsLoader(
     public async Task<(
         IReadOnlyList<IRoomFloorItem>,
         IReadOnlyList<IRoomWallItem>
-    )> LoadByRoomIdAsync(long roomId, CancellationToken ct = default)
+    )> LoadByRoomIdAsync(long roomId, CancellationToken ct)
     {
         var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
@@ -64,7 +64,7 @@ internal sealed class RoomItemsLoader(
                         wallItems.Add(wallItem);
                     }
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     continue;
                 }

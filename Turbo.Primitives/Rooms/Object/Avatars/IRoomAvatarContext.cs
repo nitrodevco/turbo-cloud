@@ -8,5 +8,5 @@ public interface IRoomAvatarContext : IRoomObjectContext
 {
     public IRoomAvatar Avatar { get; }
 
-    public Task<RoomTileSnapshot> GetTileSnapshotAsync(CancellationToken ct = default);
+    public Task<RoomTileSnapshot> GetTileSnapshotAsync(CancellationToken ct);
 }

@@ -1,6 +1,6 @@
 namespace Turbo.Contracts.Enums.Rooms.Object;
 
-public enum RoomObjectAvatarDanceType
+public enum RoomAvatarDanceType
 {
     None = 0,
     Dance = 1,

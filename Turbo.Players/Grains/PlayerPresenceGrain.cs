@@ -53,7 +53,7 @@ public class PlayerPresenceGrain(
         await state.WriteStateAsync();
     }
 
-    public async Task UnregisterSessionAsync(SessionKey key)
+    public async Task UnregisterSessionAsync(SessionKey key, CancellationToken ct)
     {
         if (!state.State.Session.CompareTo(key))
             return;
@@ -62,11 +62,11 @@ public class PlayerPresenceGrain(
 
         state.State.Session = SessionKey.Empty;
 
-        await state.WriteStateAsync();
-        await ClearActiveRoomAsync();
+        await state.WriteStateAsync(ct);
+        await ClearActiveRoomAsync(ct);
     }
 
-    public async Task SetActiveRoomAsync(RoomId roomId)
+    public async Task SetActiveRoomAsync(RoomId roomId, CancellationToken ct)
     {
         var prev = state.State.ActiveRoomId;
         var next = roomId;
@@ -84,23 +84,24 @@ public class PlayerPresenceGrain(
             if (!prev.IsEmpty())
                 await _roomService
                     .GetRoomDirectory()
-                    .RemovePlayerFromRoomAsync(this.GetPrimaryKeyLong(), prev);
+                    .RemovePlayerFromRoomAsync(this.GetPrimaryKeyLong(), prev, ct);
 
             if (!next.IsEmpty())
                 await _roomService
                     .GetRoomDirectory()
-                    .AddPlayerToRoomAsync(this.GetPrimaryKeyLong(), next);
+                    .AddPlayerToRoomAsync(this.GetPrimaryKeyLong(), next, ct);
         }
     }
 
-    public async Task ClearActiveRoomAsync() => await SetActiveRoomAsync(RoomId.Empty);
+    public async Task ClearActiveRoomAsync(CancellationToken ct) =>
+        await SetActiveRoomAsync(RoomId.Empty, ct);
 
-    public async Task LeaveRoomAsync(RoomId roomId)
+    public async Task LeaveRoomAsync(RoomId roomId, CancellationToken ct)
     {
         if (!state.State.ActiveRoomId.CompareTo(roomId))
             return;
 
-        await SetActiveRoomAsync(RoomId.Empty);
+        await SetActiveRoomAsync(RoomId.Empty, ct);
     }
 
     public async Task SetPendingRoomAsync(RoomId roomId, bool approved)
@@ -111,7 +112,7 @@ public class PlayerPresenceGrain(
         await state.WriteStateAsync();
     }
 
-    public Task SendComposerAsync(IComposer composer, CancellationToken ct = default)
+    public Task SendComposerAsync(IComposer composer, CancellationToken ct)
     {
         if (_sessionObserver is not null)
         {

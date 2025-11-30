@@ -13,37 +13,41 @@ public interface IRoomService
     public IRoomGrain GetRoomGrain(long roomId);
 
     public Task OpenRoomForPlayerIdAsync(
+        ActionContext ctx,
         long playerId,
         RoomId roomId,
-        CancellationToken ct = default
+        CancellationToken ct
     );
-    public Task EnterPendingRoomForPlayerIdAsync(long playerId, CancellationToken ct = default);
-    public Task CloseRoomForPlayerAsync(long playerId);
+    public Task EnterPendingRoomForPlayerIdAsync(
+        ActionContext ctx,
+        long playerId,
+        CancellationToken ct
+    );
+    public Task CloseRoomForPlayerAsync(long playerId, CancellationToken ct);
     public Task MoveFloorItemInRoomAsync(
         ActionContext ctx,
         RoomObjectId objectId,
         int newX,
         int newY,
         Rotation newRotation,
-        CancellationToken ct = default
+        CancellationToken ct
     );
     public Task UseFloorItemInRoomAsync(
         ActionContext ctx,
         RoomObjectId objectId,
-        int param = -1,
-        CancellationToken ct = default
+        CancellationToken ct,
+        int param = -1
     );
     public Task ClickFloorItemInRoomAsync(
         ActionContext ctx,
         RoomObjectId objectId,
-        int param = -1,
-        CancellationToken ct = default
+        CancellationToken ct,
+        int param = -1
     );
     public Task WalkAvatarToAsync(
         ActionContext ctx,
-        RoomObjectId objectId,
         int targetX,
         int targetY,
-        CancellationToken ct = default
+        CancellationToken ct
     );
 }

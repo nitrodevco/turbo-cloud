@@ -32,4 +32,6 @@ public static class RotationExtensions
 
     public static Rotation FromPoints(int fromX, int fromY, int toX, int toY) =>
         FromDelta(toX - fromX, toY - fromY);
+
+    public static Rotation ToSitRotation(this Rotation rot) => (int)rot % 2 > 0 ? rot - 1 : rot;
 }

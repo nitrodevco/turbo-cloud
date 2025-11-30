@@ -20,5 +20,5 @@ public interface ISessionContext
     public void Touch();
     public void SetRevisionId(string revisionId);
     public void SetupEncryption(byte[] key, bool setCryptoOut = false);
-    public Task SendComposerAsync(IComposer composer, CancellationToken ct = default);
+    public Task SendComposerAsync(IComposer composer, CancellationToken ct);
 }

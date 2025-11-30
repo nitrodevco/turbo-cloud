@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Orleans.Observers;
 using Turbo.Primitives.Orleans.Snapshots.Session;
@@ -10,7 +11,7 @@ public interface ISessionGateway
     public ISessionContextObserver? GetSessionObserver(SessionKey key);
     public long GetPlayerId(SessionKey key);
     public Task AddSessionAsync(SessionKey key, ISessionContext ctx);
-    public Task RemoveSessionAsync(SessionKey key);
+    public Task RemoveSessionAsync(SessionKey key, CancellationToken ct);
     public Task AddSessionToPlayerAsync(SessionKey key, long playerId);
-    public Task RemoveSessionFromPlayerAsync(long playerId);
+    public Task RemoveSessionFromPlayerAsync(long playerId, CancellationToken ct);
 }

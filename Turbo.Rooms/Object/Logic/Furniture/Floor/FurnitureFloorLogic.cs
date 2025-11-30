@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.StuffData;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -15,15 +16,17 @@ public class FurnitureFloorLogic
         IFurnitureFloorLogic
 {
     public virtual StuffDataType StuffDataKey => StuffDataType.LegacyKey;
+
     protected IStuffData _stuffData;
+
+    public IStuffData StuffData => _stuffData;
+    public IRoomFloorItemContext Context => _ctx;
 
     public FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
         : base(stuffDataFactory, ctx)
     {
         _stuffData = CreateStuffData(_ctx.Item.PendingStuffDataRaw);
     }
-
-    public IStuffData StuffData => _stuffData;
 
     public override Task<int> GetStateAsync() => Task.FromResult(_stuffData.GetState());
 
@@ -47,9 +50,18 @@ public class FurnitureFloorLogic
 
     public virtual bool CanLay() => _ctx.Definition.CanLay;
 
-    public virtual Task OnStepAsync(ActionContext ctx, CancellationToken ct) => Task.CompletedTask;
+    public virtual Task OnStepAsync(IRoomAvatarContext ctx, CancellationToken ct) =>
+        Task.CompletedTask;
 
-    public virtual Task OnStopAsync(ActionContext ctx, CancellationToken ct) => Task.CompletedTask;
+    public virtual Task OnStopAsync(IRoomAvatarContext ctx, CancellationToken ct)
+    {
+        if (CanSit())
+            ctx.Avatar.Sit(true, _ctx.Item.Definition.StackHeight);
+        else if (CanLay())
+            ctx.Avatar.Lay(true, _ctx.Item.Definition.StackHeight);
+
+        return Task.CompletedTask;
+    }
 
     public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
     {

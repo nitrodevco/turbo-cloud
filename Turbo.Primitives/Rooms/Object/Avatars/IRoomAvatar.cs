@@ -13,10 +13,12 @@ public interface IRoomAvatar : IRoomObject
     public int X { get; }
     public int Y { get; }
     public double Z { get; }
-    public Rotation Rotation { get; }
+    public Rotation BodyRotation { get; }
     public Rotation HeadRotation { get; }
-    public IMovingAvatarLogic Logic { get; }
+    public IRoomAvatarLogic Logic { get; }
     public Dictionary<RoomAvatarStatusType, string> Statuses { get; }
+
+    public RoomAvatarDanceType DanceType { get; }
 
     public int GoalTileId { get; set; }
     public int NextTileId { get; set; }
@@ -25,18 +27,15 @@ public interface IRoomAvatar : IRoomObject
     public List<int> TilePath { get; }
 
     public void SetPosition(int x, int y);
-    public void SetPosition(
-        int x,
-        int y,
-        double z = default,
-        Rotation rot = default,
-        Rotation headRot = default
-    );
     public void SetHeight(double z);
     public void SetRotation(Rotation rot);
     public void SetBodyRotation(Rotation rot);
     public void SetHeadRotation(Rotation rot);
-    public void SetLogic(IMovingAvatarLogic logic);
+    public void SetLogic(IRoomAvatarLogic logic);
+    public bool SetDance(RoomAvatarDanceType danceType = RoomAvatarDanceType.None);
+    public void Sit(bool flag = true, double height = 0.5, Rotation? rot = null);
+    public void Lay(bool flag = true, double height = 0.5, Rotation? rot = null);
+
     public void AddStatus(RoomAvatarStatusType type, string value);
     public bool HasStatus(params RoomAvatarStatusType[] types);
     public void RemoveStatus(params RoomAvatarStatusType[] types);

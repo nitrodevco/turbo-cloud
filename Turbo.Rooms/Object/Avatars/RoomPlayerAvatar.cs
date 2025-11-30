@@ -34,7 +34,7 @@ internal sealed class RoomPlayerAvatar : RoomAvatar, IRoomPlayerAvatar
             X = X,
             Y = Y,
             Z = Z,
-            Rotation = Rotation,
+            Rotation = BodyRotation,
             HeadRotation = HeadRotation,
             Gender = Gender,
             GroupId = GroupId,

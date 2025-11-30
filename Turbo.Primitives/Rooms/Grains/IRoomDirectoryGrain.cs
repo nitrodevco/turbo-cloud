@@ -13,11 +13,7 @@ public interface IRoomDirectoryGrain : IGrainWithStringKey
     public Task<int> GetRoomPopulationAsync(RoomId roomId);
     public Task UpsertActiveRoomAsync(RoomInfoSnapshot snapshot);
     public Task RemoveActiveRoomAsync(RoomId roomId);
-    public Task AddPlayerToRoomAsync(long playerId, RoomId roomId);
-    public Task RemovePlayerFromRoomAsync(long playerId, RoomId roomId);
-    public Task SendComposerToRoomAsync(
-        IComposer composer,
-        RoomId roomId,
-        CancellationToken ct = default
-    );
+    public Task AddPlayerToRoomAsync(long playerId, RoomId roomId, CancellationToken ct);
+    public Task RemovePlayerFromRoomAsync(long playerId, RoomId roomId, CancellationToken ct);
+    public Task SendComposerToRoomAsync(IComposer composer, RoomId roomId, CancellationToken ct);
 }

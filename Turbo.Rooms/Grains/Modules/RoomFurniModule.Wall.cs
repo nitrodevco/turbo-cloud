@@ -73,8 +73,8 @@ internal sealed partial class RoomFurniModule
     public async Task<bool> UseWallItemByIdAsync(
         ActionContext ctx,
         RoomObjectId objectId,
-        int param,
-        CancellationToken ct
+        CancellationToken ct,
+        int param = -1
     )
     {
         if (!_state.WallItemsById.TryGetValue(objectId.Value, out var item))
@@ -88,8 +88,8 @@ internal sealed partial class RoomFurniModule
     public async Task<bool> ClickWallItemByIdAsync(
         ActionContext ctx,
         RoomObjectId objectId,
-        int param = -1,
-        CancellationToken ct = default
+        CancellationToken ct,
+        int param = -1
     )
     {
         if (!_state.WallItemsById.TryGetValue(objectId.Value, out var item))
@@ -100,14 +100,11 @@ internal sealed partial class RoomFurniModule
         return true;
     }
 
-    public async Task<bool> ValidateWallItemPlacementAsync(
+    public Task<bool> ValidateWallItemPlacementAsync(
         ActionContext ctx,
         RoomObjectId objectId,
         string newLocation
-    )
-    {
-        return true;
-    }
+    ) => Task.FromResult(true);
 
     public Task<RoomWallItemSnapshot?> GetWallItemSnapshotByIdAsync(
         RoomObjectId objectId,

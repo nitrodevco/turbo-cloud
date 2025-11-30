@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Networking;
@@ -46,12 +47,12 @@ public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
         );
     }
 
-    public async Task RemoveSessionAsync(SessionKey key)
+    public async Task RemoveSessionAsync(SessionKey key, CancellationToken ct)
     {
         var playerId = GetPlayerId(key);
 
         if (playerId > 0)
-            await RemoveSessionFromPlayerAsync(playerId).ConfigureAwait(false);
+            await RemoveSessionFromPlayerAsync(playerId, ct).ConfigureAwait(false);
 
         if (_sessionObservers.TryRemove(key.Value, out var observer))
         {
@@ -59,7 +60,7 @@ public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
             {
                 _grainFactory.DeleteObjectReference<ISessionContextObserver>(observer.Ref);
             }
-            catch (Exception e) { }
+            catch (Exception) { }
         }
 
         if (_sessions.TryRemove(key.Value, out _)) { }
@@ -80,7 +81,7 @@ public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
         await playerPresence.RegisterSessionAsync(key, observer).ConfigureAwait(false);
     }
 
-    public async Task RemoveSessionFromPlayerAsync(long playerId)
+    public async Task RemoveSessionFromPlayerAsync(long playerId, CancellationToken ct)
     {
         if (!_playerToSession.TryRemove(playerId, out var sessionKeyValue))
             return;
@@ -90,7 +91,7 @@ public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
         var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
 
         await playerPresence
-            .UnregisterSessionAsync(SessionKey.From(sessionKeyValue))
+            .UnregisterSessionAsync(SessionKey.From(sessionKeyValue), ct)
             .ConfigureAwait(false);
     }
 }

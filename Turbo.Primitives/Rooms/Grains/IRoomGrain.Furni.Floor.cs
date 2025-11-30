@@ -28,14 +28,14 @@ public partial interface IRoomGrain
     public Task<bool> UseFloorItemByIdAsync(
         ActionContext ctx,
         RoomObjectId objectId,
-        int param = -1,
-        CancellationToken ct = default
+        CancellationToken ct,
+        int param = -1
     );
     public Task<bool> ClickFloorItemByIdAsync(
         ActionContext ctx,
         RoomObjectId objectId,
-        int param = -1,
-        CancellationToken ct = default
+        CancellationToken ct,
+        int param = -1
     );
     public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
         RoomObjectId objectId,

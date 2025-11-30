@@ -131,11 +131,6 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
         await _mapModule.EnsureMapBuiltAsync(ct);
         await _furniModule.EnsureFurniLoadedAsync(ct);
-
-        var player = _grainFactory.GetGrain<IPlayerGrain>(_liveState.RoomSnapshot.OwnerId);
-        var summary = await player.GetSummaryAsync(ct);
-
-        await _avatarModule.CreateAvatarFromPlayerAsync(summary);
     }
 
     public Task<RoomSnapshot> GetSnapshotAsync() => Task.FromResult(_liveState.RoomSnapshot);

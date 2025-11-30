@@ -14,7 +14,8 @@ internal sealed class RoomLiveState
 
     public Dictionary<long, IRoomFloorItem> FloorItemsById { get; } = [];
     public Dictionary<long, IRoomWallItem> WallItemsById { get; } = [];
-    public Dictionary<long, IRoomAvatar> AvatarsByObjectId { get; } = [];
+    public Dictionary<int, IRoomAvatar> AvatarsByObjectId { get; } = [];
+    public Dictionary<long, int> AvatarsByPlayerId { get; } = [];
 
     public RoomModelSnapshot? Model { get; internal set; } = null;
     public double[] TileHeights { get; internal set; } = [];

@@ -220,15 +220,20 @@ internal sealed class RoomMapModule(
         return true;
     }
 
-    public bool CanAvatarWalkBetween(IRoomAvatar avatar, int fromTileId, int toTileId)
+    public bool CanAvatarWalkBetween(
+        IRoomAvatar avatar,
+        int fromTileId,
+        int toTileId,
+        bool isGoal = true
+    )
     {
-        if (!CanAvatarWalk(avatar, toTileId))
+        if (!CanAvatarWalk(avatar, toTileId, isGoal))
             return false;
 
         var (fromX, fromY) = GetTileXY(fromTileId);
         var (toX, toY) = GetTileXY(toTileId);
 
-        if (AreTilesDiagonal(fromX, fromY, toX, toY))
+        if (_roomConfig.EnableDiagonalChecking && AreTilesDiagonal(fromX, fromY, toX, toY))
         {
             var left = CanAvatarWalk(avatar, GetTileId(toX, fromY), true, true);
             var right = CanAvatarWalk(avatar, GetTileId(fromX, toY), true, true);
@@ -283,83 +288,87 @@ internal sealed class RoomMapModule(
         };
     }
 
-    internal async Task EnsureMapBuiltAsync(CancellationToken ct)
+    internal Task EnsureMapBuiltAsync(CancellationToken ct)
     {
-        if (_state.IsMapReady)
-            return;
-
-        var size = _state.Model?.Size ?? 0;
-
-        var tileHeights = new double[size];
-        var tileEncodedHeights = new short[size];
-        var tileFlags = new RoomTileFlags[size];
-        var tileHighestFloorItems = new long[size];
-        var tileFloorStacks = new List<long>[size];
-        var tileAvatarStacks = new List<long>[size];
-
-        for (int id = 0; id < size; id++)
+        if (!_state.IsMapReady)
         {
-            var height = _state.Model?.BaseHeights[id] ?? 0.0;
-            var flags =
-                _state.Model?.BaseFlags[id]
-                ?? (RoomTileFlags.Disabled | RoomTileFlags.Closed | RoomTileFlags.StackBlocked);
+            var size = _state.Model?.Size ?? 0;
 
-            tileHeights[id] = height;
-            tileEncodedHeights[id] = RoomModelCompiler.EncodeHeight(
-                height,
-                flags.Has(RoomTileFlags.StackBlocked)
-            );
-            tileFlags[id] = flags;
-            tileHighestFloorItems[id] = -1;
-            tileFloorStacks[id] = [];
-            tileAvatarStacks[id] = [];
+            var tileHeights = new double[size];
+            var tileEncodedHeights = new short[size];
+            var tileFlags = new RoomTileFlags[size];
+            var tileHighestFloorItems = new long[size];
+            var tileFloorStacks = new List<long>[size];
+            var tileAvatarStacks = new List<long>[size];
+
+            for (int id = 0; id < size; id++)
+            {
+                var height = _state.Model?.BaseHeights[id] ?? 0.0;
+                var flags =
+                    _state.Model?.BaseFlags[id]
+                    ?? (RoomTileFlags.Disabled | RoomTileFlags.Closed | RoomTileFlags.StackBlocked);
+
+                tileHeights[id] = height;
+                tileEncodedHeights[id] = RoomModelCompiler.EncodeHeight(
+                    height,
+                    flags.Has(RoomTileFlags.StackBlocked)
+                );
+                tileFlags[id] = flags;
+                tileHighestFloorItems[id] = -1;
+                tileFloorStacks[id] = [];
+                tileAvatarStacks[id] = [];
+            }
+
+            _state.TileHeights = tileHeights;
+            _state.TileEncodedHeights = tileEncodedHeights;
+            _state.TileFlags = tileFlags;
+            _state.TileHighestFloorItems = tileHighestFloorItems;
+            _state.TileFloorStacks = tileFloorStacks;
+            _state.TileAvatarStacks = tileAvatarStacks;
+            _state.IsMapReady = true;
         }
 
-        _state.TileHeights = tileHeights;
-        _state.TileEncodedHeights = tileEncodedHeights;
-        _state.TileFlags = tileFlags;
-        _state.TileHighestFloorItems = tileHighestFloorItems;
-        _state.TileFloorStacks = tileFloorStacks;
-        _state.TileAvatarStacks = tileAvatarStacks;
-        _state.IsMapReady = true;
+        return Task.CompletedTask;
     }
 
-    internal async Task FlushDirtyHeightTileIdsAsync(CancellationToken ct)
+    internal Task FlushDirtyHeightTileIdsAsync(CancellationToken ct)
     {
-        if (_state.DirtyHeightTileIds.Count == 0)
-            return;
-
-        var dirtyHeightTileIds = _state.DirtyHeightTileIds.ToArray();
-
-        _state.DirtyHeightTileIds.Clear();
-
-        var dirtySnapshots = new List<RoomTileSnapshot>();
-
-        foreach (var id in dirtyHeightTileIds)
+        if (_state.DirtyHeightTileIds.Count > 0)
         {
-            //await ComputeTileAsync(id);
+            var dirtyHeightTileIds = _state.DirtyHeightTileIds.ToArray();
 
-            var (x, y) = GetTileXY(id);
+            _state.DirtyHeightTileIds.Clear();
 
-            dirtySnapshots.Add(
-                new RoomTileSnapshot
-                {
-                    X = (byte)x,
-                    Y = (byte)y,
-                    Height = _state.TileHeights[id],
-                    EncodedHeight = _state.TileEncodedHeights[id],
-                    Flags = _state.TileFlags[id],
-                    HighestObjectId = RoomObjectId.From((int)_state.TileHighestFloorItems[id]),
-                }
-            );
+            var dirtySnapshots = new List<RoomTileSnapshot>();
+
+            foreach (var id in dirtyHeightTileIds)
+            {
+                //await ComputeTileAsync(id);
+
+                var (x, y) = GetTileXY(id);
+
+                dirtySnapshots.Add(
+                    new RoomTileSnapshot
+                    {
+                        X = (byte)x,
+                        Y = (byte)y,
+                        Height = _state.TileHeights[id],
+                        EncodedHeight = _state.TileEncodedHeights[id],
+                        Flags = _state.TileFlags[id],
+                        HighestObjectId = RoomObjectId.From((int)_state.TileHighestFloorItems[id]),
+                    }
+                );
+            }
+
+            if (dirtySnapshots.Count > 0)
+            {
+                _ = _roomGrain.SendComposerToRoomAsync(
+                    new HeightMapUpdateMessageComposer { Tiles = [.. dirtySnapshots] },
+                    ct
+                );
+            }
         }
 
-        if (dirtySnapshots.Count == 0)
-            return;
-
-        _ = _roomGrain.SendComposerToRoomAsync(
-            new HeightMapUpdateMessageComposer { Tiles = [.. dirtySnapshots] },
-            ct
-        );
+        return Task.CompletedTask;
     }
 }

@@ -24,9 +24,9 @@ internal sealed class RoomFloorItemContext(
 
     public Task RemoveItemAsync(
         long pickerId,
+        CancellationToken ct,
         bool isExpired = false,
-        int delay = 0,
-        CancellationToken ct = default
+        int delay = 0
     ) => SendComposerToRoomAsync(Item.GetRemoveComposer(pickerId, isExpired, delay), ct);
 
     public Task RefreshTileAsync() => _roomGrain.ComputeTileAsync(Item.X, Item.Y);

@@ -28,16 +28,16 @@ public sealed partial class RoomGrain
     public Task<bool> UseWallItemByIdAsync(
         ActionContext ctx,
         RoomObjectId objectId,
-        int param = -1,
-        CancellationToken ct = default
-    ) => _actionModule.UseWallItemByIdAsync(ctx, objectId, param, ct);
+        CancellationToken ct,
+        int param = -1
+    ) => _actionModule.UseWallItemByIdAsync(ctx, objectId, ct, param);
 
     public Task<bool> ClickWallItemByIdAsync(
         ActionContext ctx,
         RoomObjectId objectId,
-        int param = -1,
-        CancellationToken ct = default
-    ) => _actionModule.ClickWallItemByIdAsync(ctx, objectId, param, ct);
+        CancellationToken ct,
+        int param = -1
+    ) => _actionModule.ClickWallItemByIdAsync(ctx, objectId, ct, param);
 
     public Task<RoomWallItemSnapshot?> GetWallItemSnapshotByIdAsync(
         RoomObjectId objectId,

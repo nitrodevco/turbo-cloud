@@ -13,5 +13,10 @@ public interface IRoomMapViewer
         bool isGoal = true,
         bool isDiagonalCheck = false
     );
-    public bool CanAvatarWalkBetween(IRoomAvatar avatar, int fromTileId, int toTileId);
+    public bool CanAvatarWalkBetween(
+        IRoomAvatar avatar,
+        int fromTileId,
+        int toTileId,
+        bool isGoal = true
+    );
 }

@@ -21,6 +21,6 @@ internal sealed class RoomWallItemContext(
     public Task RefreshStuffDataAsync(CancellationToken ct) =>
         SendComposerToRoomAsync(Item.GetRefreshStuffDataComposer(), ct);
 
-    public Task RemoveItemAsync(long pickerId, CancellationToken ct = default) =>
+    public Task RemoveItemAsync(long pickerId, CancellationToken ct) =>
         SendComposerToRoomAsync(Item.GetRemoveComposer(pickerId), ct);
 }

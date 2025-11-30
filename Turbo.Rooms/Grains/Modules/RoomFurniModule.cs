@@ -82,7 +82,7 @@ internal sealed partial class RoomFurniModule(
 
             await dbCtx.SaveChangesAsync(ct);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             throw;
         }

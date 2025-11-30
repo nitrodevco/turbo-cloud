@@ -148,8 +148,8 @@ internal sealed partial class RoomFurniModule
     public async Task<bool> ClickFloorItemByIdAsync(
         ActionContext ctx,
         RoomObjectId objectId,
-        int param = -1,
-        CancellationToken ct = default
+        CancellationToken ct,
+        int param = -1
     )
     {
         if (!_state.FloorItemsById.TryGetValue(objectId.Value, out var item))
@@ -160,7 +160,7 @@ internal sealed partial class RoomFurniModule
         return true;
     }
 
-    public async Task<bool> ValidateFloorItemPlacementAsync(
+    public bool ValidateFloorItemPlacement(
         ActionContext ctx,
         RoomObjectId objectId,
         int newX,
@@ -192,7 +192,12 @@ internal sealed partial class RoomFurniModule
                 if (
                     tileFlags.Has(RoomTileFlags.Disabled)
                     || (tileHeight + tItem.Definition.StackHeight) > _roomConfig.MaxStackHeight
-                    || tileFlags.Has(RoomTileFlags.AvatarOccupied) && !isRotating
+                    || (
+                        !_roomConfig.PlaceItemsOnAvatars
+                        && tileFlags.Has(RoomTileFlags.AvatarOccupied)
+                        && !isRotating
+                    )
+                    || tileFlags.Has(RoomTileFlags.AvatarOccupied) && !tItem.Logic.CanWalk()
                 )
                     return false;
 

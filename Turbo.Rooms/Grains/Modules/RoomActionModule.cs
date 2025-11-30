@@ -40,17 +40,16 @@ internal sealed partial class RoomActionModule(
         return false;
     }
 
-    public async Task<bool> GetIsRoomOwnerAsync(ActionContext ctx)
+    public Task<bool> GetIsRoomOwnerAsync(ActionContext ctx)
     {
-        if (ctx is null)
-            return false;
+        var isOwner = false;
 
-        if (_state.RoomSnapshot.OwnerId == ctx.PlayerId)
-            return true;
+        if (ctx is not null && _state.RoomSnapshot.OwnerId == ctx.PlayerId)
+            isOwner = true;
 
         // if has perm any_room_owner true
 
-        return false;
+        return Task.FromResult(isOwner);
     }
 
     public async Task<RoomControllerLevel> GetControllerLevelAsync(ActionContext ctx)

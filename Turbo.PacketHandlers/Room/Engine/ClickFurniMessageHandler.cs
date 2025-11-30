@@ -26,8 +26,8 @@ public class ClickFurniMessageHandler(IRoomService roomService) : IMessageHandle
                 .ClickFloorItemInRoomAsync(
                     ctx.AsActionContext(),
                     RoomObjectId.From(message.ObjectId),
-                    message.Param,
-                    ct
+                    ct,
+                    message.Param
                 )
                 .ConfigureAwait(false);
         }

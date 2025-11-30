@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Turbo.Contracts.Enums.Rooms.Object;
@@ -16,9 +17,10 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
     public int X { get; protected set; }
     public int Y { get; protected set; }
     public double Z { get; protected set; }
-    public Rotation Rotation { get; protected set; }
+    public Rotation BodyRotation { get; protected set; }
     public Rotation HeadRotation { get; protected set; }
-    public IMovingAvatarLogic Logic { get; private set; } = default!;
+    public RoomAvatarDanceType DanceType { get; private set; } = RoomAvatarDanceType.None;
+    public IRoomAvatarLogic Logic { get; private set; } = default!;
     public Dictionary<RoomAvatarStatusType, string> Statuses { get; } = [];
 
     public int GoalTileId { get; set; } = -1;
@@ -40,22 +42,10 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
         MarkDirty();
     }
 
-    public void SetPosition(int x, int y, double z, Rotation rot, Rotation headRot)
-    {
-        if (X == x && Y == y && Z == z && rot == Rotation && headRot == HeadRotation)
-            return;
-
-        X = x;
-        Y = y;
-        Z = z;
-        Rotation = rot;
-        HeadRotation = headRot;
-
-        MarkDirty();
-    }
-
     public void SetHeight(double z)
     {
+        z = Math.Truncate(z * 1000) / 1000;
+
         if (Z == z)
             return;
 
@@ -72,10 +62,10 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
 
     public void SetBodyRotation(Rotation rot)
     {
-        if (Rotation == rot)
+        if (BodyRotation == rot)
             return;
 
-        Rotation = rot;
+        BodyRotation = rot;
 
         MarkDirty();
     }
@@ -90,9 +80,59 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
         MarkDirty();
     }
 
-    public void SetLogic(IMovingAvatarLogic logic)
+    public bool SetDance(RoomAvatarDanceType danceType = RoomAvatarDanceType.None)
+    {
+        if (DanceType == danceType)
+            return false;
+
+        if (HasStatus(RoomAvatarStatusType.Sit, RoomAvatarStatusType.Lay))
+            return false;
+
+        // check if dance valid
+        // check if dance is hc only / validate hc
+
+        DanceType = danceType;
+
+        return true;
+    }
+
+    public void SetLogic(IRoomAvatarLogic logic)
     {
         Logic = logic;
+    }
+
+    public void Sit(bool flag = true, double height = 0.5, Rotation? rot = null)
+    {
+        if (flag)
+        {
+            if (HasStatus(RoomAvatarStatusType.Sit))
+                return;
+
+            // remove dance
+            RemoveStatus(RoomAvatarStatusType.Lay);
+
+            rot ??= BodyRotation;
+
+            SetRotation(rot.Value.ToSitRotation());
+            AddStatus(RoomAvatarStatusType.Sit, height.ToString());
+        }
+    }
+
+    public void Lay(bool flag = true, double height = 0.5, Rotation? rot = null)
+    {
+        if (flag)
+        {
+            if (HasStatus(RoomAvatarStatusType.Lay))
+                return;
+
+            // remove dance
+            RemoveStatus(RoomAvatarStatusType.Sit);
+
+            rot ??= BodyRotation;
+
+            SetRotation(rot.Value.ToSitRotation());
+            AddStatus(RoomAvatarStatusType.Sit, height.ToString());
+        }
     }
 
     public void AddStatus(RoomAvatarStatusType type, string value)

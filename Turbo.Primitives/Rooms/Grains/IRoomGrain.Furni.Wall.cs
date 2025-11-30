@@ -24,14 +24,14 @@ public partial interface IRoomGrain
     public Task<bool> UseWallItemByIdAsync(
         ActionContext ctx,
         RoomObjectId objectId,
-        int param = -1,
-        CancellationToken ct = default
+        CancellationToken ct,
+        int param = -1
     );
     public Task<bool> ClickWallItemByIdAsync(
         ActionContext ctx,
         RoomObjectId objectId,
-        int param = -1,
-        CancellationToken ct = default
+        CancellationToken ct,
+        int param = -1
     );
     public Task<RoomWallItemSnapshot?> GetWallItemSnapshotByIdAsync(
         RoomObjectId objectId,

@@ -14,13 +14,14 @@ public class FurnitureWallLogic
 {
     protected string _stuffData = string.Empty;
 
+    public string StuffData => _stuffData;
+    public IRoomWallItemContext Context => _ctx;
+
     public FurnitureWallLogic(IStuffDataFactory stuffDataFactory, IRoomWallItemContext ctx)
         : base(stuffDataFactory, ctx)
     {
         _stuffData = _ctx.Item.PendingStuffDataRaw;
     }
-
-    public string StuffData => _stuffData;
 
     public override Task<int> GetStateAsync() => Task.FromResult(int.Parse(_stuffData));
 

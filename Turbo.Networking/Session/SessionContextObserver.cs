@@ -13,7 +13,7 @@ public sealed class SessionContextObserver(SessionKey sessionKey, ISessionGatewa
     private readonly SessionKey _sessionKey = sessionKey;
     private readonly ISessionGateway _sessionGateway = sessionGateway;
 
-    public Task SendComposerAsync(IComposer composer, CancellationToken ct = default)
+    public Task SendComposerAsync(IComposer composer, CancellationToken ct)
     {
         var ctx = _sessionGateway.GetSession(_sessionKey);
 

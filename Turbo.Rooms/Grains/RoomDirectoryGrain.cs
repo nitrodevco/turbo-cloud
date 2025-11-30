@@ -9,6 +9,7 @@ using Orleans;
 using Turbo.Contracts.Abstractions;
 using Turbo.Primitives.Orleans.Grains;
 using Turbo.Primitives.Orleans.Snapshots.Room;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Rooms.Configuration;
@@ -29,7 +30,7 @@ public class RoomDirectoryGrain(IOptions<RoomConfig> roomConfig, IGrainFactory g
     private readonly Dictionary<long, List<long>> _roomPlayers = [];
     private readonly Dictionary<long, int> _roomPopulations = [];
 
-    public override async Task OnActivateAsync(CancellationToken ct)
+    public override Task OnActivateAsync(CancellationToken ct)
     {
         this.RegisterGrainTimer<object?>(
             async _ => await CheckRoomsAsync(ct),
@@ -37,6 +38,8 @@ public class RoomDirectoryGrain(IOptions<RoomConfig> roomConfig, IGrainFactory g
             TimeSpan.FromMilliseconds(_roomConfig.RoomCheckIntervalMilliseconds),
             TimeSpan.FromMilliseconds(_roomConfig.RoomCheckIntervalMilliseconds)
         );
+
+        return Task.CompletedTask;
     }
 
     public Task<ImmutableArray<RoomSummarySnapshot>> GetActiveRoomsAsync() =>
@@ -63,30 +66,33 @@ public class RoomDirectoryGrain(IOptions<RoomConfig> roomConfig, IGrainFactory g
     public Task<int> GetRoomPopulationAsync(RoomId roomId) =>
         Task.FromResult(_roomPopulations.TryGetValue(roomId.Value, out var pop) ? pop : 0);
 
-    public async Task UpsertActiveRoomAsync(RoomInfoSnapshot snapshot)
+    public Task UpsertActiveRoomAsync(RoomInfoSnapshot snapshot)
     {
-        if (snapshot is null)
-            return;
-
-        _activeRooms[snapshot.RoomId] = new RoomActiveSnapshot
+        if (snapshot is not null)
         {
-            RoomId = snapshot.RoomId,
-            Name = snapshot.Name,
-            Description = snapshot.Description,
-            OwnerId = snapshot.OwnerId,
-            OwnerName = snapshot.OwnerName,
-            Population = 0,
-            LastUpdatedUtc = DateTime.UtcNow,
-        };
+            _activeRooms[snapshot.RoomId] = new RoomActiveSnapshot
+            {
+                RoomId = snapshot.RoomId,
+                Name = snapshot.Name,
+                Description = snapshot.Description,
+                OwnerId = snapshot.OwnerId,
+                OwnerName = snapshot.OwnerName,
+                Population = 0,
+                LastUpdatedUtc = DateTime.UtcNow,
+            };
+        }
+
+        return Task.CompletedTask;
     }
 
-    public async Task RemoveActiveRoomAsync(RoomId roomId)
+    public Task RemoveActiveRoomAsync(RoomId roomId)
     {
-        if (!_activeRooms.Remove(roomId.Value))
-            return;
+        _activeRooms.Remove(roomId.Value);
+
+        return Task.CompletedTask;
     }
 
-    public async Task AddPlayerToRoomAsync(long playerId, RoomId roomId)
+    public async Task AddPlayerToRoomAsync(long playerId, RoomId roomId, CancellationToken ct)
     {
         if (!_roomPlayers.TryGetValue(roomId.Value, out var players))
         {
@@ -100,7 +106,7 @@ public class RoomDirectoryGrain(IOptions<RoomConfig> roomConfig, IGrainFactory g
         await UpdatePopulationAsync(roomId);
     }
 
-    public async Task RemovePlayerFromRoomAsync(long playerId, RoomId roomId)
+    public async Task RemovePlayerFromRoomAsync(long playerId, RoomId roomId, CancellationToken ct)
     {
         if (!_roomPlayers.TryGetValue(roomId.Value, out var players))
             return;
@@ -109,31 +115,37 @@ public class RoomDirectoryGrain(IOptions<RoomConfig> roomConfig, IGrainFactory g
             return;
 
         await UpdatePopulationAsync(roomId);
+
+        var room = _grainFactory.GetGrain<IRoomGrain>(roomId.Value);
+
+        await room.RemoveAvatarFromPlayerAsync(playerId, ct).ConfigureAwait(false);
     }
 
-    public async Task SendComposerToRoomAsync(
-        IComposer composer,
-        RoomId roomId,
-        CancellationToken ct = default
-    )
+    public Task SendComposerToRoomAsync(IComposer composer, RoomId roomId, CancellationToken ct)
     {
-        if (!_roomPlayers.TryGetValue(roomId.Value, out var playerIds) || playerIds.Count == 0)
-            return;
-
-        foreach (var playerId in playerIds)
+        if (_roomPlayers.TryGetValue(roomId.Value, out var playerIds) && playerIds.Count > 0)
         {
-            var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
+            foreach (var playerId in playerIds)
+            {
+                var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
 
-            _ = playerPresence.SendComposerAsync(composer, ct);
+                _ = playerPresence.SendComposerAsync(composer, ct);
+            }
         }
+
+        return Task.CompletedTask;
     }
 
-    private async Task UpdatePopulationAsync(RoomId roomId) =>
+    private Task UpdatePopulationAsync(RoomId roomId)
+    {
         _roomPopulations[roomId.Value] = _roomPlayers.TryGetValue(roomId.Value, out var players)
             ? players.Count
             : 0;
 
-    private async Task CheckRoomsAsync(CancellationToken ct)
+        return Task.CompletedTask;
+    }
+
+    private Task CheckRoomsAsync(CancellationToken ct)
     {
         var rooms = _activeRooms.Values.ToArray();
 
@@ -148,5 +160,7 @@ public class RoomDirectoryGrain(IOptions<RoomConfig> roomConfig, IGrainFactory g
             if (population == 0)
                 roomGrain.DeactivateRoom();
         }
+
+        return Task.CompletedTask;
     }
 }

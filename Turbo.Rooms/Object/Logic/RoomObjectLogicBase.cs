@@ -1,10 +1,11 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Logic;
 
 namespace Turbo.Rooms.Object.Logic;
 
-public abstract class RoomObjectLogicBase<TContext>(TContext ctx)
+public abstract class RoomObjectLogicBase<TContext>(TContext ctx) : IRoomObjectLogic
     where TContext : IRoomObjectContext
 {
     protected readonly TContext _ctx = ctx;

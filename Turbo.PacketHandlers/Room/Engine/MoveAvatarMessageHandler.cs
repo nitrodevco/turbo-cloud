@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Room.Engine;
 using Turbo.Primitives.Rooms;
-using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.PacketHandlers.Room.Engine;
 
@@ -17,16 +16,8 @@ public class MoveAvatarMessageHandler(IRoomService roomService) : IMessageHandle
         CancellationToken ct
     )
     {
-        var objectId = RoomObjectId.From(1);
-
         await _roomService
-            .WalkAvatarToAsync(
-                ctx.AsActionContext(),
-                objectId,
-                message.TargetX,
-                message.TargetY,
-                ct
-            )
+            .WalkAvatarToAsync(ctx.AsActionContext(), message.TargetX, message.TargetY, ct)
             .ConfigureAwait(false);
     }
 }

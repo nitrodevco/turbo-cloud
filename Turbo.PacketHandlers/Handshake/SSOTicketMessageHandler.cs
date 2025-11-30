@@ -99,7 +99,7 @@ public class SSOTicketMessageHandler(
                 .SendComposerAsync(new FigureSetIdsMessage(), ct)
                 .ConfigureAwait(false); */
         }
-        catch (Exception e) { }
+        catch (Exception) { }
 
         // auth ok
         // effects

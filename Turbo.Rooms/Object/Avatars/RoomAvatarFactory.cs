@@ -9,9 +9,8 @@ public sealed class RoomAvatarFactory : IRoomAvatarFactory
     public IRoomPlayerAvatar CreateAvatarFromPlayerSnapshot(
         RoomObjectId objectId,
         PlayerSummarySnapshot snapshot
-    )
-    {
-        var avatar = new RoomPlayerAvatar
+    ) =>
+        new RoomPlayerAvatar
         {
             Name = snapshot.Name,
             Motto = snapshot.Motto,
@@ -20,7 +19,4 @@ public sealed class RoomAvatarFactory : IRoomAvatarFactory
             PlayerId = snapshot.PlayerId,
             Gender = snapshot.Gender,
         };
-
-        return avatar;
-    }
 }

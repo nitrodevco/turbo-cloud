@@ -32,16 +32,16 @@ public sealed partial class RoomGrain
     public Task<bool> UseFloorItemByIdAsync(
         ActionContext ctx,
         RoomObjectId objectId,
-        int param = -1,
-        CancellationToken ct = default
-    ) => _actionModule.UseFloorItemByIdAsync(ctx, objectId, param, ct);
+        CancellationToken ct,
+        int param = -1
+    ) => _actionModule.UseFloorItemByIdAsync(ctx, objectId, ct, param);
 
     public Task<bool> ClickFloorItemByIdAsync(
         ActionContext ctx,
         RoomObjectId objectId,
-        int param = -1,
-        CancellationToken ct = default
-    ) => _actionModule.ClickFloorItemByIdAsync(ctx, objectId, param, ct);
+        CancellationToken ct,
+        int param = -1
+    ) => _actionModule.ClickFloorItemByIdAsync(ctx, objectId, ct, param);
 
     public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
         RoomObjectId objectId,

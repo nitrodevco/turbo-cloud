@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json;
 using Turbo.Contracts.Abstractions;
 using Turbo.Contracts.Enums.Rooms.Object;
@@ -21,6 +22,11 @@ internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
 
     public void SetPosition(int x, int y, double z)
     {
+        z = Math.Truncate(z * 1000) / 1000;
+
+        if (X == x && Y == y && Z == z)
+            return;
+
         X = x;
         Y = y;
         Z = z;

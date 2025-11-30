@@ -35,7 +35,7 @@ public static class SuperSocketHostBuilderExtensions
                         {
                             if (session is ISessionContext ctx)
                                 await gateway
-                                    .RemoveSessionAsync(ctx.SessionKey)
+                                    .RemoveSessionAsync(ctx.SessionKey, CancellationToken.None)
                                     .ConfigureAwait(false);
                         },
                     };

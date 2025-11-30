@@ -1,5 +1,5 @@
+using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Primitives.Orleans.Snapshots.Players;
-using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Rooms.Object.Avatars;
 

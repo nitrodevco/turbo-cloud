@@ -15,10 +15,10 @@ public interface IPlayerPresenceGrain : IGrainWithIntegerKey
     public Task<RoomPointerSnapshot> GetActiveRoomAsync();
     public Task<RoomPendingSnapshot> GetPendingRoomAsync();
     public Task RegisterSessionAsync(SessionKey key, ISessionContextObserver observer);
-    public Task UnregisterSessionAsync(SessionKey key);
-    public Task SetActiveRoomAsync(RoomId roomId);
-    public Task ClearActiveRoomAsync();
-    public Task LeaveRoomAsync(RoomId roomId);
+    public Task UnregisterSessionAsync(SessionKey key, CancellationToken ct);
+    public Task SetActiveRoomAsync(RoomId roomId, CancellationToken ct);
+    public Task ClearActiveRoomAsync(CancellationToken ct);
+    public Task LeaveRoomAsync(RoomId roomId, CancellationToken ct);
     public Task SetPendingRoomAsync(RoomId roomId, bool approved);
-    public Task SendComposerAsync(IComposer composer, CancellationToken ct = default);
+    public Task SendComposerAsync(IComposer composer, CancellationToken ct);
 }

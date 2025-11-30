@@ -10,6 +10,6 @@ public interface IRoomItemsLoader
 {
     public Task<(IReadOnlyList<IRoomFloorItem>, IReadOnlyList<IRoomWallItem>)> LoadByRoomIdAsync(
         long roomId,
-        CancellationToken ct = default
+        CancellationToken ct
     );
 }

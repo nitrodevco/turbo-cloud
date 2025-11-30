@@ -16,4 +16,6 @@ public class RoomConfig
     public int DefaultWallHeight { get; init; } = 0;
     public double MaxStepHeight { get; init; } = 2.0;
     public bool AllowDiagonalMovement { get; init; } = true;
+    public bool PlaceItemsOnAvatars { get; init; } = true;
+    public bool EnableDiagonalChecking { get; init; } = true;
 }

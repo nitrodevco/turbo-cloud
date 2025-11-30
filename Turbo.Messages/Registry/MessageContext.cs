@@ -31,7 +31,7 @@ public sealed class MessageContext(ISessionContext session, long playerId = -1, 
     public async Task CloseSessionAsync() =>
         await _session.CloseSessionAsync().ConfigureAwait(false);
 
-    public async Task SendComposerAsync(IComposer composer, CancellationToken ct = default) =>
+    public async Task SendComposerAsync(IComposer composer, CancellationToken ct) =>
         await _session.SendComposerAsync(composer, ct).ConfigureAwait(false);
 
     public void SetRevisionId(string production) => _session.SetRevisionId(production);

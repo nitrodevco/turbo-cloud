@@ -13,6 +13,7 @@ using Turbo.Primitives.Messages.Outgoing.Room.Layout;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Grains;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object;
@@ -39,9 +40,10 @@ public sealed class RoomService(
     public IRoomGrain GetRoomGrain(long roomId) => _grainFactory.GetGrain<IRoomGrain>(roomId);
 
     public async Task OpenRoomForPlayerIdAsync(
+        ActionContext ctx,
         long playerId,
         RoomId roomId,
-        CancellationToken ct = default
+        CancellationToken ct
     )
     {
         try
@@ -90,8 +92,9 @@ public sealed class RoomService(
     }
 
     public async Task EnterPendingRoomForPlayerIdAsync(
+        ActionContext ctx,
         long playerId,
-        CancellationToken ct = default
+        CancellationToken ct
     )
     {
         try
@@ -108,7 +111,7 @@ public sealed class RoomService(
 
             var mapSnapshot = await room.GetMapSnapshotAsync(ct).ConfigureAwait(false);
 
-            await playerPresence
+            _ = playerPresence
                 .SendComposerAsync(
                     new RoomEntryTileMessageComposer
                     {
@@ -120,7 +123,7 @@ public sealed class RoomService(
                 )
                 .ConfigureAwait(false);
 
-            await playerPresence
+            _ = playerPresence
                 .SendComposerAsync(
                     new HeightMapMessageComposer
                     {
@@ -132,7 +135,7 @@ public sealed class RoomService(
                 )
                 .ConfigureAwait(false);
 
-            await playerPresence
+            _ = playerPresence
                 .SendComposerAsync(
                     new FloorHeightMapMessageComposer
                     {
@@ -147,7 +150,7 @@ public sealed class RoomService(
 
             var furniSnapshot = await room.GetAllFloorItemSnapshotsAsync(ct).ConfigureAwait(false);
 
-            await playerPresence
+            _ = playerPresence
                 .SendComposerAsync(
                     new ObjectsMessageComposer
                     {
@@ -160,11 +163,21 @@ public sealed class RoomService(
 
             var avatarSnapshot = await room.GetAllAvatarSnapshotsAsync(ct).ConfigureAwait(false);
 
-            await playerPresence
+            _ = playerPresence
                 .SendComposerAsync(new UsersMessageComposer { Avatars = avatarSnapshot }, ct)
                 .ConfigureAwait(false);
+            _ = playerPresence
+                .SendComposerAsync(new UserUpdateMessageComposer { Avatars = avatarSnapshot }, ct)
+                .ConfigureAwait(false);
 
-            await playerPresence.SetActiveRoomAsync(pendingRoom.RoomId).ConfigureAwait(false);
+            await playerPresence.SetActiveRoomAsync(pendingRoom.RoomId, ct).ConfigureAwait(false);
+
+            var playerSnapshot = await _grainFactory
+                .GetGrain<IPlayerGrain>(playerId)
+                .GetSummaryAsync(ct)
+                .ConfigureAwait(false);
+
+            await room.CreateAvatarFromPlayerAsync(playerSnapshot, ct).ConfigureAwait(false);
         }
         catch (Exception)
         {
@@ -172,17 +185,17 @@ public sealed class RoomService(
         }
     }
 
-    public async Task CloseRoomForPlayerAsync(long playerId)
+    public async Task CloseRoomForPlayerAsync(long playerId, CancellationToken ct)
     {
         if (playerId <= 0)
             return;
 
         var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
 
-        await playerPresence.ClearActiveRoomAsync().ConfigureAwait(false);
+        await playerPresence.ClearActiveRoomAsync(ct).ConfigureAwait(false);
 
         await playerPresence
-            .SendComposerAsync(new CloseConnectionMessageComposer())
+            .SendComposerAsync(new CloseConnectionMessageComposer(), ct)
             .ConfigureAwait(false);
     }
 
@@ -192,7 +205,7 @@ public sealed class RoomService(
         int newX,
         int newY,
         Rotation newRotation,
-        CancellationToken ct = default
+        CancellationToken ct
     )
     {
         if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId.Value <= 0 || objectId.Value <= 0)
@@ -225,8 +238,8 @@ public sealed class RoomService(
     public async Task UseFloorItemInRoomAsync(
         ActionContext ctx,
         RoomObjectId objectId,
-        int param = -1,
-        CancellationToken ct = default
+        CancellationToken ct,
+        int param = -1
     )
     {
         if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId.Value <= 0 || objectId.Value <= 0)
@@ -234,14 +247,14 @@ public sealed class RoomService(
 
         var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId.Value);
 
-        await roomGrain.UseFloorItemByIdAsync(ctx, objectId, param, ct).ConfigureAwait(false);
+        await roomGrain.UseFloorItemByIdAsync(ctx, objectId, ct, param).ConfigureAwait(false);
     }
 
     public async Task ClickFloorItemInRoomAsync(
         ActionContext ctx,
         RoomObjectId objectId,
-        int param = -1,
-        CancellationToken ct = default
+        CancellationToken ct,
+        int param = -1
     )
     {
         if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId.Value <= 0 || objectId.Value <= 0)
@@ -249,24 +262,21 @@ public sealed class RoomService(
 
         var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId.Value);
 
-        await roomGrain.ClickFloorItemByIdAsync(ctx, objectId, param, ct).ConfigureAwait(false);
+        await roomGrain.ClickFloorItemByIdAsync(ctx, objectId, ct, param).ConfigureAwait(false);
     }
 
     public async Task WalkAvatarToAsync(
         ActionContext ctx,
-        RoomObjectId objectId,
         int targetX,
         int targetY,
-        CancellationToken ct = default
+        CancellationToken ct
     )
     {
-        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId.Value <= 0 || objectId.Value <= 0)
+        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId.Value <= 0)
             return;
 
         var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId.Value);
 
-        await roomGrain
-            .WalkAvatarToAsync(ctx, objectId, targetX, targetY, ct)
-            .ConfigureAwait(false);
+        await roomGrain.WalkAvatarToAsync(ctx, targetX, targetY, ct).ConfigureAwait(false);
     }
 }

@@ -28,15 +28,7 @@ internal sealed partial class RoomActionModule
         if (!await CanManipulateFurniAsync(ctx))
             return false;
 
-        if (
-            !await _furniModule.ValidateFloorItemPlacementAsync(
-                ctx,
-                objectId,
-                newX,
-                newY,
-                newRotation
-            )
-        )
+        if (!_furniModule.ValidateFloorItemPlacement(ctx, objectId, newX, newY, newRotation))
             return false;
 
         if (!await _furniModule.MoveFloorItemByIdAsync(ctx, objectId, newX, newY, newRotation, ct))
@@ -54,8 +46,8 @@ internal sealed partial class RoomActionModule
     public async Task<bool> UseFloorItemByIdAsync(
         ActionContext ctx,
         RoomObjectId objectId,
-        int param = -1,
-        CancellationToken ct = default
+        CancellationToken ct,
+        int param = -1
     )
     {
         if (!_state.FloorItemsById.TryGetValue(objectId.Value, out var item))
@@ -81,7 +73,7 @@ internal sealed partial class RoomActionModule
     public Task<bool> ClickFloorItemByIdAsync(
         ActionContext ctx,
         RoomObjectId objectId,
-        int param = -1,
-        CancellationToken ct = default
-    ) => _furniModule.ClickFloorItemByIdAsync(ctx, objectId, param, ct);
+        CancellationToken ct,
+        int param = -1
+    ) => _furniModule.ClickFloorItemByIdAsync(ctx, objectId, ct, param);
 }
