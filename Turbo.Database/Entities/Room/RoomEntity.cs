@@ -74,9 +74,9 @@ public class RoomEntity : TurboEntity
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public required RoomThicknessType ThicknessFloor { get; set; }
 
-    [Column("allow_walk_through")]
-    [DefaultValue(true)]
-    public required bool AllowWalkThrough { get; set; }
+    [Column("allow_blocking")]
+    [DefaultValue(false)]
+    public required bool AllowBlocking { get; set; }
 
     [Column("allow_pets")]
     [DefaultValue(false)]

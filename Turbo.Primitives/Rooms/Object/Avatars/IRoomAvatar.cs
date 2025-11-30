@@ -24,6 +24,7 @@ public interface IRoomAvatar : IRoomObject
     public bool IsWalking { get; set; }
     public Queue<int> TilePath { get; }
 
+    public void SetPosition(int x, int y);
     public void SetPosition(
         int x,
         int y,
@@ -31,6 +32,7 @@ public interface IRoomAvatar : IRoomObject
         Rotation rot = default,
         Rotation headRot = default
     );
+    public void SetHeight(double z);
     public void SetLogic(IMovingAvatarLogic logic);
     public void AddStatus(RoomAvatarStatusType type, string value);
     public bool HasStatus(params RoomAvatarStatusType[] types);

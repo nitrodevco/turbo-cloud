@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Enums.Rooms.Object;
@@ -38,6 +39,9 @@ public partial interface IRoomGrain
     );
     public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
         RoomObjectId objectId,
+        CancellationToken ct
+    );
+    public Task<ImmutableArray<RoomFloorItemSnapshot>> GetAllFloorItemSnapshotsAsync(
         CancellationToken ct
     );
 }

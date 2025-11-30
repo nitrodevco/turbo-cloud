@@ -34,10 +34,4 @@ public sealed record RoomMapSnapshot
 
     [Id(8)]
     public required short[] TileEncodedHeights { get; init; }
-
-    [Id(9)]
-    public required ImmutableArray<RoomFloorItemSnapshot> FloorItems { get; init; }
-
-    [Id(10)]
-    public required ImmutableArray<RoomAvatarSnapshot> Avatars { get; init; }
 }

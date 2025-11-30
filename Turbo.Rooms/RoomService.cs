@@ -86,7 +86,7 @@ public sealed class RoomService(
                 )
                 .ConfigureAwait(false);
         }
-        catch (Exception e) { }
+        catch (Exception) { }
     }
 
     public async Task EnterPendingRoomForPlayerIdAsync(
@@ -145,24 +145,28 @@ public sealed class RoomService(
                 )
                 .ConfigureAwait(false);
 
+            var furniSnapshot = await room.GetAllFloorItemSnapshotsAsync(ct).ConfigureAwait(false);
+
             await playerPresence
                 .SendComposerAsync(
                     new ObjectsMessageComposer
                     {
                         OwnerNames = ImmutableDictionary<long, string>.Empty,
-                        FloorItems = mapSnapshot.FloorItems,
+                        FloorItems = furniSnapshot,
                     },
                     ct
                 )
                 .ConfigureAwait(false);
 
+            var avatarSnapshot = await room.GetAllAvatarSnapshotsAsync(ct).ConfigureAwait(false);
+
             await playerPresence
-                .SendComposerAsync(new UsersMessageComposer { Avatars = mapSnapshot.Avatars }, ct)
+                .SendComposerAsync(new UsersMessageComposer { Avatars = avatarSnapshot }, ct)
                 .ConfigureAwait(false);
 
             await playerPresence.SetActiveRoomAsync(pendingRoom.RoomId).ConfigureAwait(false);
         }
-        catch (Exception e)
+        catch (Exception)
         {
             throw;
         }

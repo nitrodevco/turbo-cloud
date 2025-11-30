@@ -1342,7 +1342,7 @@ namespace Turbo.Main.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true)
-                        .HasColumnName("allow_walk_through");
+                        .HasColumnName("allow_blocking");
 
                     b.Property<int>("BanType")
                         .HasColumnType("int")

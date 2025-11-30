@@ -15,4 +15,5 @@ public class RoomConfig
     public RoomScaleType DefaultRoomScale { get; init; } = RoomScaleType.Normal;
     public int DefaultWallHeight { get; init; } = 0;
     public double MaxStepHeight { get; init; } = 2.0;
+    public bool AllowDiagonalMovement { get; init; } = true;
 }

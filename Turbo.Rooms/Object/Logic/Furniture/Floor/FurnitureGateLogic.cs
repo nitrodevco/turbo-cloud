@@ -18,6 +18,16 @@ public class FurnitureGateLogic(IStuffDataFactory stuffDataFactory, IRoomFloorIt
 
     public override FurniUsagePolicy GetUsagePolicy() => FurniUsagePolicy.Controller;
 
+    public override bool CanWalk()
+    {
+        var state = _stuffData.GetState();
+
+        if (state == OPEN_STATE)
+            return true;
+
+        return false;
+    }
+
     public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
     {
         var tile = await _ctx.GetTileSnapshotAsync(ct);

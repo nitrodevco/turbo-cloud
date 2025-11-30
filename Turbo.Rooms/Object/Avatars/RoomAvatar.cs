@@ -29,6 +29,17 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
 
     private RoomAvatarSnapshot? _snapshot;
 
+    public void SetPosition(int x, int y)
+    {
+        if (X == x && Y == y)
+            return;
+
+        X = x;
+        Y = y;
+
+        MarkDirty();
+    }
+
     public void SetPosition(int x, int y, double z, Rotation rot, Rotation headRot)
     {
         if (X == x && Y == y && Z == z && rot == Rotation && headRot == HeadRotation)
@@ -39,6 +50,16 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
         Z = z;
         Rotation = rot;
         HeadRotation = headRot;
+
+        MarkDirty();
+    }
+
+    public void SetHeight(double z)
+    {
+        if (Z == z)
+            return;
+
+        Z = z;
 
         MarkDirty();
     }

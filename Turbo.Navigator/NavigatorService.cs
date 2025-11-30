@@ -53,6 +53,7 @@ public sealed class NavigatorService(
                     Ranking = x.Ranking,
                     CategoryId = x.CategoryId,
                     Tags = x.Tags,
+                    AllowBlocking = x.AllowBlocking,
                     AllowPets = x.AllowPets,
                     AllowPetsEat = x.AllowPetsEat,
                     LastUpdatedUtc = x.LastUpdatedUtc,

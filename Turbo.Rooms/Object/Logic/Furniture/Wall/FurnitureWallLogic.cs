@@ -22,6 +22,8 @@ public class FurnitureWallLogic
 
     public string StuffData => _stuffData;
 
+    public override Task<int> GetStateAsync() => Task.FromResult(int.Parse(_stuffData));
+
     public override async Task<bool> SetStateAsync(int state)
     {
         if (_stuffData.Equals(state.ToString()))

@@ -24,6 +24,8 @@ public abstract class FurnitureLogicBase<TItem, TContext>(
 
     public virtual bool CanToggle() => false;
 
+    public virtual Task<int> GetStateAsync() => Task.FromResult(0);
+
     public virtual Task<bool> SetStateAsync(int state) => Task.FromResult(false);
 
     public virtual Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct) =>

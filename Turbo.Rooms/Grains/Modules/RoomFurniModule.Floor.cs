@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Enums;
@@ -16,10 +19,20 @@ namespace Turbo.Rooms.Grains.Modules;
 
 internal sealed partial class RoomFurniModule
 {
+    public bool GetTileIdForFloorItem(IRoomFloorItem item, out List<int> tileIds) =>
+        _roomMap.GetTileIdForSize(
+            item.X,
+            item.Y,
+            item.Rotation,
+            item.Definition.Width,
+            item.Definition.Height,
+            out tileIds
+        );
+
     public async Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
     {
         if (!_state.FloorItemsById.TryAdd(item.ObjectId.Value, item))
-            return false;
+            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         void func(RoomObjectId objectId) => _state.DirtyItemIds.Add(objectId.Value);
 
@@ -27,7 +40,7 @@ internal sealed partial class RoomFurniModule
 
         await AttatchFloorLogicIfNeededAsync(item, ct);
 
-        if (_roomMap.GetTileIdForFloorItem(item, out var tileIds))
+        if (GetTileIdForFloorItem(item, out var tileIds))
         {
             foreach (var id in tileIds)
             {
@@ -57,13 +70,13 @@ internal sealed partial class RoomFurniModule
         if (item.X == newX && item.Y == newY && item.Rotation == newRotation)
             return false;
 
-        if (_roomMap.GetTileIdForFloorItem(item, out var oldTileIds))
+        if (GetTileIdForFloorItem(item, out var oldTileIds))
         {
-            foreach (var idx in oldTileIds)
+            foreach (var id in oldTileIds)
             {
-                _state.TileFloorStacks[idx].Remove(item.ObjectId.Value);
+                _state.TileFloorStacks[id].Remove(item.ObjectId.Value);
 
-                await _roomMap.ComputeTileAsync(idx);
+                await _roomMap.ComputeTileAsync(id);
             }
         }
 
@@ -72,7 +85,7 @@ internal sealed partial class RoomFurniModule
         item.SetPosition(newX, newY, _state.TileHeights[newId]);
         item.SetRotation(newRotation);
 
-        if (_roomMap.GetTileIdForFloorItem(item, out var newTileIds))
+        if (GetTileIdForFloorItem(item, out var newTileIds))
         {
             foreach (var id in newTileIds)
             {
@@ -81,6 +94,8 @@ internal sealed partial class RoomFurniModule
                 await _roomMap.ComputeTileAsync(id);
             }
         }
+
+        // TODO update avatars on item
 
         _ = _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer(), ct);
 
@@ -95,10 +110,10 @@ internal sealed partial class RoomFurniModule
         CancellationToken ct
     )
     {
-        if (objectId.IsEmpty() || !_state.FloorItemsById.Remove(objectId.Value, out var item))
+        if (!_state.FloorItemsById.Remove(objectId.Value, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        if (_roomMap.GetTileIdForFloorItem(item, out var tileIds))
+        if (GetTileIdForFloorItem(item, out var tileIds))
         {
             foreach (var id in tileIds)
             {
@@ -206,6 +221,13 @@ internal sealed partial class RoomFurniModule
 
         return true;
     }
+
+    public Task<ImmutableArray<RoomFloorItemSnapshot>> GetAllFloorItemSnapshotsAsync(
+        CancellationToken ct
+    ) =>
+        Task.FromResult(
+            _state.FloorItemsById.Values.Select(x => x.GetSnapshot()).ToImmutableArray()
+        );
 
     public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
         RoomObjectId objectId,

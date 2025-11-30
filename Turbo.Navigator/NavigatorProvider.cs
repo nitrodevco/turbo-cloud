@@ -54,6 +54,7 @@ public sealed class NavigatorProvider(
                     Ranking = 0,
                     CategoryId = x.NavigatorCategoryEntityId ?? -1,
                     Tags = [],
+                    AllowBlocking = x.AllowBlocking,
                     AllowPets = x.AllowPets,
                     AllowPetsEat = x.AllowPetsEat,
                     LastUpdatedUtc = DateTime.UtcNow,

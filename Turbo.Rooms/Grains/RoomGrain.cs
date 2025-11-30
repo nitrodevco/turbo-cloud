@@ -87,7 +87,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             .UpsertActiveRoomAsync(_liveState.RoomSnapshot);
 
         this.RegisterGrainTimer<object?>(
-            async _ => await _mapModule.FlushDirtyTileIdsAsync(ct),
+            async _ => await _mapModule.FlushDirtyHeightTileIdsAsync(ct),
             null,
             TimeSpan.FromMilliseconds(_roomConfig.DirtyTilesFlushIntervalMilliseconds),
             TimeSpan.FromMilliseconds(_roomConfig.DirtyTilesFlushIntervalMilliseconds)
@@ -128,7 +128,6 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
         await _mapModule.EnsureMapBuiltAsync(ct);
         await _furniModule.EnsureFurniLoadedAsync(ct);
-        await _mapModule.EnsureMapCompiledAsync(ct);
 
         var player = _grainFactory.GetGrain<IPlayerGrain>(_liveState.RoomSnapshot.OwnerId);
         var summary = await player.GetSummaryAsync(ct);
@@ -200,6 +199,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
                 Ranking = 0,
                 CategoryId = entity.NavigatorCategoryEntityId ?? -1,
                 Tags = [],
+                AllowBlocking = entity.AllowBlocking,
                 AllowPets = entity.AllowPets,
                 AllowPetsEat = entity.AllowPetsEat,
                 Password = entity.Password ?? string.Empty,
@@ -221,7 +221,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
                 LastUpdatedUtc = DateTime.UtcNow,
             };
         }
-        catch (Exception e)
+        catch (Exception)
         {
             throw;
         }

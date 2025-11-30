@@ -14,5 +14,6 @@ public interface IFurnitureFloorLogic : IFurnitureLogic
     public bool CanWalk();
     public bool CanSit();
     public bool CanLay();
+    public Task OnStepAsync(ActionContext ctx, CancellationToken ct);
     public Task OnStopAsync(ActionContext ctx, CancellationToken ct);
 }

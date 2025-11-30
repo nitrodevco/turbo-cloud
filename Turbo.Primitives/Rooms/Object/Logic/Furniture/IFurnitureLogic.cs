@@ -10,6 +10,7 @@ public interface IFurnitureLogic : IRoomObjectLogic
     public double GetHeight();
     public FurniUsagePolicy GetUsagePolicy();
     public bool CanToggle();
+    public Task<int> GetStateAsync();
     public Task<bool> SetStateAsync(int state);
     public Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct);
     public Task OnClickAsync(ActionContext ctx, int param, CancellationToken ct);

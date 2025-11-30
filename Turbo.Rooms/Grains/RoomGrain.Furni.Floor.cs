@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Enums.Rooms.Object;
@@ -51,4 +52,8 @@ public sealed partial class RoomGrain
                 ? item.GetSnapshot()
                 : null
         );
+
+    public Task<ImmutableArray<RoomFloorItemSnapshot>> GetAllFloorItemSnapshotsAsync(
+        CancellationToken ct
+    ) => _furniModule.GetAllFloorItemSnapshotsAsync(ct);
 }

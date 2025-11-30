@@ -14,9 +14,6 @@ internal sealed class RoomLiveState
 
     public Dictionary<long, IRoomFloorItem> FloorItemsById { get; } = [];
     public Dictionary<long, IRoomWallItem> WallItemsById { get; } = [];
-    public List<RollerInfoSnapshot> RollerInfos { get; } = [];
-    public bool IsFurniLoaded { get; internal set; } = false;
-
     public Dictionary<long, IRoomAvatar> AvatarsByObjectId { get; } = [];
 
     public RoomModelSnapshot? Model { get; internal set; } = null;
@@ -26,10 +23,13 @@ internal sealed class RoomLiveState
     public long[] TileHighestFloorItems { get; internal set; } = [];
     public List<long>[] TileFloorStacks { get; internal set; } = [];
     public List<long>[] TileAvatarStacks { get; internal set; } = [];
-    public bool IsMapBuilt { get; internal set; } = false;
-    public bool NeedsCompile { get; internal set; } = false;
-    public HashSet<int> DirtyTileIds { get; } = [];
-    public HashSet<long> DirtyItemIds { get; } = [];
 
     public HashSet<long> PlayerIdsWithRights { get; } = [];
+    public List<RollerInfoSnapshot> RollerInfos { get; } = [];
+
+    public HashSet<int> DirtyHeightTileIds { get; } = [];
+    public HashSet<long> DirtyItemIds { get; } = [];
+
+    public bool IsMapReady { get; internal set; } = false;
+    public bool IsFurniLoaded { get; internal set; } = false;
 }

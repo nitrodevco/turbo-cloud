@@ -6,5 +6,5 @@ public sealed record CompiledRoomModelSnapshot(
     int Width,
     int Height,
     double[] Heights,
-    RoomTileFlags[] States
+    RoomTileFlags[] Flags
 );

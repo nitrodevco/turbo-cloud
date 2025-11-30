@@ -25,6 +25,8 @@ public class FurnitureFloorLogic
 
     public IStuffData StuffData => _stuffData;
 
+    public override Task<int> GetStateAsync() => Task.FromResult(_stuffData.GetState());
+
     public override async Task<bool> SetStateAsync(int state)
     {
         _stuffData.SetState(state.ToString());
@@ -32,6 +34,7 @@ public class FurnitureFloorLogic
         _ctx.Item.MarkDirty();
 
         await _ctx.RefreshStuffDataAsync(CancellationToken.None);
+        await _ctx.RefreshTileAsync();
 
         return true;
     }
@@ -44,14 +47,16 @@ public class FurnitureFloorLogic
 
     public virtual bool CanLay() => _ctx.Definition.CanLay;
 
+    public virtual Task OnStepAsync(ActionContext ctx, CancellationToken ct) => Task.CompletedTask;
+
+    public virtual Task OnStopAsync(ActionContext ctx, CancellationToken ct) => Task.CompletedTask;
+
     public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
     {
         param = GetNextToggleableState();
 
         await SetStateAsync(param);
     }
-
-    public virtual Task OnStopAsync(ActionContext ctx, CancellationToken ct) => Task.CompletedTask;
 
     public override async Task OnMoveAsync(ActionContext ctx, CancellationToken ct)
     {

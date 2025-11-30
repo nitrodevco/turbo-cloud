@@ -1011,7 +1011,7 @@ namespace Turbo.Main.Migrations
                             nullable: false,
                             defaultValue: 0
                         ),
-                        allow_walk_through = table.Column<bool>(
+                        allow_blocking = table.Column<bool>(
                             type: "tinyint(1)",
                             nullable: false,
                             defaultValue: true
