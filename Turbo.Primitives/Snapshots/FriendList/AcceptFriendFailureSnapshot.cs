@@ -1,5 +1,5 @@
 using Orleans;
-using Turbo.Contracts.Enums.FriendList;
+using Turbo.Primitives.FriendList.Enums;
 
 namespace Turbo.Primitives.Snapshots.FriendList;
 
@@ -10,5 +10,5 @@ public record AcceptFriendFailureSnapshot
     public required long SenderId { get; init; }
 
     [Id(1)]
-    public required FriendListErrorCodeEnum ErrorCode { get; init; }
+    public required FriendListErrorCodeType ErrorCode { get; init; }
 }

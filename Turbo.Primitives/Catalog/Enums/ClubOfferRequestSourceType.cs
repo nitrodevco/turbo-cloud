@@ -1,6 +1,6 @@
-namespace Turbo.Contracts.Enums.Catalog;
+namespace Turbo.Primitives.Catalog.Enums;
 
-public enum ClubOfferRequestSourceEnum
+public enum ClubOfferRequestSourceType
 {
     Unknown = 0,
     CatalogPage = 1,

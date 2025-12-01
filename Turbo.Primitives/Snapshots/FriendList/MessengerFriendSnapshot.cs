@@ -13,7 +13,7 @@ public record MessengerFriendSnapshot
     public required string Name { get; init; }
 
     [Id(2)]
-    public required AvatarGenderEnum Gender { get; init; }
+    public required AvatarGenderType Gender { get; init; }
 
     [Id(3)]
     public required bool Online { get; init; }

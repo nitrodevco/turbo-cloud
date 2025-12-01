@@ -4,9 +4,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Turbo.Contracts.Enums.Catalog;
 using Turbo.Database.Context;
 using Turbo.Primitives.Catalog;
+using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Snapshots.Catalog;
 
@@ -16,7 +16,7 @@ public sealed class CatalogProvider<TTag>(
     IDbContextFactory<TurboDbContext> dbContextFactory,
     ILogger<ICatalogProvider<TTag>> logger,
     IFurnitureDefinitionProvider furnitureProvider,
-    CatalogTypeEnum catalogType
+    CatalogType catalogType
 ) : ICatalogProvider<TTag>
     where TTag : ICatalogTag
 {
@@ -26,7 +26,7 @@ public sealed class CatalogProvider<TTag>(
     private CatalogSnapshot _current = Empty();
 
     public CatalogSnapshot Current => _current;
-    public CatalogTypeEnum CatalogType => catalogType;
+    public CatalogType CatalogType => catalogType;
 
     public async Task ReloadAsync(CancellationToken ct = default)
     {
@@ -137,7 +137,7 @@ public sealed class CatalogProvider<TTag>(
 
     private static CatalogSnapshot Empty() =>
         new(
-            CatalogTypeEnum.Normal,
+            CatalogType.Normal,
             ImmutableDictionary<int, CatalogPageSnapshot>.Empty,
             ImmutableDictionary<int, CatalogOfferSnapshot>.Empty,
             ImmutableDictionary<int, CatalogProductSnapshot>.Empty,

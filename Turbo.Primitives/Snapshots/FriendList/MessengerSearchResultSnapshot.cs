@@ -25,7 +25,7 @@ public record MessengerSearchResultSnapshot
     public required string UnknownString { get; init; }
 
     [Id(6)]
-    public required AvatarGenderEnum Gender { get; init; }
+    public required AvatarGenderType Gender { get; init; }
 
     [Id(7)]
     public required string Figure { get; init; }

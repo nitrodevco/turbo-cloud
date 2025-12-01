@@ -1,6 +1,6 @@
 namespace Turbo.Primitives.Rooms.Enums;
 
-public enum RoomControllerLevel
+public enum RoomControllerType
 {
     None = 0,
     Rights = 1,

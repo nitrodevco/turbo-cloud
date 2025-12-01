@@ -5,11 +5,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Contracts.Enums;
-using Turbo.Contracts.Enums.Furniture;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Logging;
 using Turbo.Primitives.Furniture;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -86,7 +86,7 @@ internal sealed class RoomItemsLoader(
 
         return definition.ProductType switch
         {
-            ProductTypeEnum.Floor => new RoomFloorItem
+            ProductType.Floor => new RoomFloorItem
             {
                 ObjectId = RoomObjectId.From(entity.Id),
                 OwnerId = entity.PlayerEntityId,
@@ -95,7 +95,7 @@ internal sealed class RoomItemsLoader(
                 PendingStuffDataRaw = entity.StuffData ?? string.Empty,
             },
 
-            ProductTypeEnum.Wall => new RoomWallItem
+            ProductType.Wall => new RoomWallItem
             {
                 ObjectId = RoomObjectId.From(entity.Id),
                 OwnerId = entity.PlayerEntityId,

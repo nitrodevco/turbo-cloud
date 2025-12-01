@@ -1,6 +1,6 @@
-namespace Turbo.Contracts.Enums.FriendList;
+namespace Turbo.Primitives.FriendList.Enums;
 
-public enum FriendListErrorCodeEnum
+public enum FriendListErrorCodeType
 {
     YouHitFriendLimit = 1,
     TheyHitFriendLimit = 2,

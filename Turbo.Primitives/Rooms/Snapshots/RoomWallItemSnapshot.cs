@@ -1,5 +1,5 @@
 using Orleans;
-using Turbo.Contracts.Enums.Furniture;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Rooms.Snapshots;
@@ -26,5 +26,5 @@ public sealed record RoomWallItemSnapshot
     public required string StuffData { get; init; }
 
     [Id(6)]
-    public required FurniUsagePolicy UsagePolicy { get; init; }
+    public required FurnitureUsageType UsagePolicy { get; init; }
 }

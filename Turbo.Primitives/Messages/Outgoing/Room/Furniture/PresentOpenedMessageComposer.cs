@@ -1,6 +1,6 @@
 using Orleans;
 using Turbo.Contracts.Abstractions;
-using Turbo.Contracts.Enums.Furniture;
+using Turbo.Primitives.Furniture.Enums;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 
@@ -14,13 +14,13 @@ public sealed record PresentOpenedMessageComposer : IComposer
     public required int ClassId { get; init; }
 
     [Id(2)]
-    public required ProductTypeEnum ProductCode { get; init; }
+    public required ProductType ProductCode { get; init; }
 
     [Id(3)]
     public required int PlacedItemId { get; init; }
 
     [Id(4)]
-    public required ProductTypeEnum PlacedItemType { get; init; }
+    public required ProductType PlacedItemType { get; init; }
 
     [Id(5)]
     public required bool PlacedInRoom { get; init; }

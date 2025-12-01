@@ -1,8 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Contracts.Enums.Furniture;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -56,12 +54,12 @@ internal sealed partial class RoomActionModule
         var controllerLevel = await GetControllerLevelAsync(ctx);
         var usagePolicy = item.Logic.GetUsagePolicy();
 
-        if (usagePolicy == FurniUsagePolicy.Nobody)
+        if (usagePolicy == FurnitureUsageType.Nobody)
             return false;
 
-        if (usagePolicy == FurniUsagePolicy.Controller)
+        if (usagePolicy == FurnitureUsageType.Controller)
         {
-            if (controllerLevel < RoomControllerLevel.Rights)
+            if (controllerLevel < RoomControllerType.Rights)
                 return false;
         }
 

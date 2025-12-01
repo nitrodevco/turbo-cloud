@@ -1,6 +1,5 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Contracts.Enums.Furniture;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -16,7 +15,7 @@ public class FurnitureRollerLogic(IStuffDataFactory stuffDataFactory, IRoomFloor
     private const int CLOSED_STATE = 0;
     private const int OPEN_STATE = 1;
 
-    public override FurniUsagePolicy GetUsagePolicy() => FurniUsagePolicy.Controller;
+    public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Controller;
 
     public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
     {

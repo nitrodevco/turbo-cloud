@@ -58,7 +58,7 @@ public class PlayerGrain(
 
             await state.WriteStateAsync(ct);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             throw;
         }
@@ -87,7 +87,7 @@ public class PlayerGrain(
                     ct
                 );
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             throw;
         }

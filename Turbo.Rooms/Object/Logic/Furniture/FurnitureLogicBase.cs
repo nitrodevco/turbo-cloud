@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Contracts.Enums.Furniture;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.StuffData;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
@@ -19,8 +19,8 @@ public abstract class FurnitureLogicBase<TItem, TContext>(
 
     public virtual double GetHeight() => _ctx.Definition.StackHeight;
 
-    public virtual FurniUsagePolicy GetUsagePolicy() =>
-        _ctx.Definition.TotalStates == 0 ? FurniUsagePolicy.Nobody : _ctx.Definition.UsagePolicy;
+    public virtual FurnitureUsageType GetUsagePolicy() =>
+        _ctx.Definition.TotalStates == 0 ? FurnitureUsageType.Nobody : _ctx.Definition.UsagePolicy;
 
     public virtual bool CanToggle() => false;
 

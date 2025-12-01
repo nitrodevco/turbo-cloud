@@ -1,10 +1,10 @@
 using System.Collections.Immutable;
-using Turbo.Contracts.Enums.Catalog;
+using Turbo.Primitives.Catalog.Enums;
 
 namespace Turbo.Primitives.Snapshots.Catalog;
 
 public sealed record CatalogSnapshot(
-    CatalogTypeEnum CatalogType,
+    CatalogType CatalogType,
     ImmutableDictionary<int, CatalogPageSnapshot> PagesById,
     IImmutableDictionary<int, CatalogOfferSnapshot> OffersById,
     IImmutableDictionary<int, CatalogProductSnapshot> ProductsById,

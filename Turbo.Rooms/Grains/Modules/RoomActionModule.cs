@@ -19,7 +19,7 @@ internal sealed partial class RoomActionModule(
     {
         var controllerLevel = await GetControllerLevelAsync(ctx);
 
-        if (controllerLevel >= RoomControllerLevel.GroupAdmin)
+        if (controllerLevel >= RoomControllerType.GroupAdmin)
             return true;
 
         var isGroupRoom = false;
@@ -28,12 +28,12 @@ internal sealed partial class RoomActionModule(
         {
             var canGroupDecorate = false;
 
-            if (controllerLevel >= RoomControllerLevel.GroupRights && canGroupDecorate)
+            if (controllerLevel >= RoomControllerType.GroupRights && canGroupDecorate)
                 return true;
         }
         else
         {
-            if (controllerLevel >= RoomControllerLevel.Rights)
+            if (controllerLevel >= RoomControllerType.Rights)
                 return true;
         }
 
@@ -52,13 +52,13 @@ internal sealed partial class RoomActionModule(
         return Task.FromResult(isOwner);
     }
 
-    public async Task<RoomControllerLevel> GetControllerLevelAsync(ActionContext ctx)
+    public async Task<RoomControllerType> GetControllerLevelAsync(ActionContext ctx)
     {
         if (ctx.Origin == ActionOrigin.System)
-            return RoomControllerLevel.Moderator;
+            return RoomControllerType.Moderator;
 
         if (await GetIsRoomOwnerAsync(ctx))
-            return RoomControllerLevel.Owner;
+            return RoomControllerType.Owner;
 
         var isGroupRoom = false;
 
@@ -74,9 +74,9 @@ internal sealed partial class RoomActionModule(
             // if has perm room_rights Rights
 
             if (_state.PlayerIdsWithRights.Contains(ctx.PlayerId))
-                return RoomControllerLevel.Rights;
+                return RoomControllerType.Rights;
         }
 
-        return RoomControllerLevel.None;
+        return RoomControllerType.None;
     }
 }

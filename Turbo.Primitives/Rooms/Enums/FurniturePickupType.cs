@@ -1,4 +1,4 @@
-namespace Turbo.Contracts.Enums.Furniture;
+namespace Turbo.Primitives.Rooms.Enums;
 
 public enum FurniturePickupType
 {

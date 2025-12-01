@@ -1,9 +1,9 @@
 using Turbo.Contracts.Abstractions;
-using Turbo.Contracts.Enums.FriendList;
+using Turbo.Primitives.FriendList.Enums;
 
 namespace Turbo.Primitives.Messages.Outgoing.FriendList;
 
 public sealed record FollowFriendFailedMessage : IComposer
 {
-    public required FollowFriendErrorCodeEnum ErrorCode { get; init; }
+    public required FollowFriendErrorCodeType ErrorCode { get; init; }
 }

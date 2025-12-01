@@ -1,14 +1,14 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Contracts.Enums.Furniture;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Primitives.Rooms.Object.Logic.Furniture;
 
 public interface IFurnitureLogic : IRoomObjectLogic
 {
     public double GetHeight();
-    public FurniUsagePolicy GetUsagePolicy();
+    public FurnitureUsageType GetUsagePolicy();
     public bool CanToggle();
     public Task<int> GetStateAsync();
     public Task<bool> SetStateAsync(int state);

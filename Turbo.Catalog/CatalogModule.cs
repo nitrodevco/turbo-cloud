@@ -2,10 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Turbo.Contracts.Enums.Catalog;
 using Turbo.Contracts.Plugins;
 using Turbo.Database.Context;
 using Turbo.Primitives.Catalog;
+using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Furniture;
 
@@ -23,7 +23,7 @@ public sealed class CatalogModule : IHostPluginModule
                 sp.GetRequiredService<IDbContextFactory<TurboDbContext>>(),
                 sp.GetRequiredService<ILogger<ICatalogProvider<NormalCatalog>>>(),
                 sp.GetRequiredService<IFurnitureDefinitionProvider>(),
-                CatalogTypeEnum.Normal
+                CatalogType.Normal
             )
         );
     }

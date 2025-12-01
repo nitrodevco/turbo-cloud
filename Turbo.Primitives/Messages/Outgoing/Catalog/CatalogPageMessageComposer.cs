@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Orleans;
 using Turbo.Contracts.Abstractions;
-using Turbo.Contracts.Enums.Catalog;
+using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Snapshots.Catalog;
 
 namespace Turbo.Primitives.Messages.Outgoing.Catalog;
@@ -10,7 +10,7 @@ namespace Turbo.Primitives.Messages.Outgoing.Catalog;
 public sealed record CatalogPageMessageComposer : IComposer
 {
     [Id(0)]
-    public required CatalogTypeEnum CatalogType { get; init; }
+    public required CatalogType CatalogType { get; init; }
 
     [Id(1)]
     public required CatalogPageSnapshot Page { get; init; }

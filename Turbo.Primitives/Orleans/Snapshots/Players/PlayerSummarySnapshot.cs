@@ -20,7 +20,7 @@ public sealed record PlayerSummarySnapshot
     public required string Figure { get; init; }
 
     [Id(4)]
-    public required AvatarGenderEnum Gender { get; init; }
+    public required AvatarGenderType Gender { get; init; }
 
     [Id(5)]
     public required DateTime CreatedAt { get; init; }

@@ -1,6 +1,6 @@
 namespace Turbo.Primitives.Rooms.Enums;
 
-public enum RoomObjectAvatarExpression
+public enum AvatarExpressionType
 {
     None,
     Wave,

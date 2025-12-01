@@ -1,9 +1,9 @@
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Contracts.Enums.Catalog;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Catalog;
+using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Messages.Incoming.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
@@ -25,7 +25,7 @@ public class GetProductOfferMessageHandler(
         CancellationToken ct
     )
     {
-        var catalog = _catalogService.GetCatalog(CatalogTypeEnum.Normal);
+        var catalog = _catalogService.GetCatalog(CatalogType.Normal);
 
         if (catalog is null)
             return;

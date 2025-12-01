@@ -1,6 +1,6 @@
-namespace Turbo.Contracts.Enums.FriendList;
+namespace Turbo.Primitives.FriendList.Enums;
 
-public enum InstantMessageErrorCodeEnum
+public enum InstantMessageErrorCodeType
 {
     ReceiverMuted = 3,
     SenderMuted = 4,

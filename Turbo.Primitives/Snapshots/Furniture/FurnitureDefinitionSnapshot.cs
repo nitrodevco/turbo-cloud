@@ -1,4 +1,5 @@
-using Turbo.Contracts.Enums.Furniture;
+using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Primitives.Snapshots.Furniture;
 
@@ -7,7 +8,7 @@ public sealed record FurnitureDefinitionSnapshot(
     int SpriteId,
     string PublicName,
     string ProductName,
-    ProductTypeEnum ProductType,
+    ProductType ProductType,
     string LogicName,
     int TotalStates,
     int Width,
@@ -21,6 +22,6 @@ public sealed record FurnitureDefinitionSnapshot(
     bool CanTrade,
     bool CanGroup,
     bool CanSell,
-    FurniUsagePolicy UsagePolicy,
+    FurnitureUsageType UsagePolicy,
     string? ExtraData
 );

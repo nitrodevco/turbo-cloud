@@ -1,6 +1,6 @@
-namespace Turbo.Contracts.Enums.FriendList;
+namespace Turbo.Primitives.FriendList.Enums;
 
-public enum FriendNotificationCodeEnum
+public enum FriendNotificationCodeType
 {
     InstantMessage = -1,
     RoomEvent = 0,

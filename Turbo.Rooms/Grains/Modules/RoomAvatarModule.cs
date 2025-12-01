@@ -251,7 +251,7 @@ internal sealed partial class RoomAvatarModule(
                 avatar.NextTileId = -1;
                 avatar.GoalTileId = -1;
 
-                avatar.RemoveStatus(RoomAvatarStatusType.Move);
+                avatar.RemoveStatus(AvatarStatusType.Move);
 
                 await InvokeAvatarAsync(avatar, ct);
             }
@@ -428,8 +428,8 @@ internal sealed partial class RoomAvatarModule(
 
             await _roomMap.ComputeTileAsync(nextTileId);
 
-            avatar.RemoveStatus(RoomAvatarStatusType.Lay, RoomAvatarStatusType.Sit);
-            avatar.AddStatus(RoomAvatarStatusType.Move, $"{nextX},{nextY},{nextHeight}");
+            avatar.RemoveStatus(AvatarStatusType.Lay, AvatarStatusType.Sit);
+            avatar.AddStatus(AvatarStatusType.Move, $"{nextX},{nextY},{nextHeight}");
             avatar.SetRotation(RotationExtensions.FromPoints(avatar.X, avatar.Y, nextX, nextY));
 
             avatar.NextTileId = nextTileId;

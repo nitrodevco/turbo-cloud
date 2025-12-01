@@ -1,5 +1,4 @@
 using Orleans;
-using Turbo.Contracts.Enums.Furniture;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.StuffData;
@@ -43,5 +42,5 @@ public sealed record RoomFloorItemSnapshot
     public required string StuffDataJson { get; init; }
 
     [Id(11)]
-    public required FurniUsagePolicy UsagePolicy { get; init; }
+    public required FurnitureUsageType UsagePolicy { get; init; }
 }

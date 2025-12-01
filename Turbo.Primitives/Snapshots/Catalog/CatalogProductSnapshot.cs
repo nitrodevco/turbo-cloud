@@ -1,11 +1,11 @@
-using Turbo.Contracts.Enums.Furniture;
+using Turbo.Primitives.Furniture.Enums;
 
 namespace Turbo.Primitives.Snapshots.Catalog;
 
 public sealed record CatalogProductSnapshot(
     int Id,
     int OfferId,
-    ProductTypeEnum ProductType,
+    ProductType ProductType,
     int FurniDefinitionId,
     int SpriteId,
     string? ExtraParam,

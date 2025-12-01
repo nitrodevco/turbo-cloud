@@ -16,9 +16,9 @@ public interface IRoomAvatar : IRoomObject
     public Rotation BodyRotation { get; }
     public Rotation HeadRotation { get; }
     public IRoomAvatarLogic Logic { get; }
-    public Dictionary<RoomAvatarStatusType, string> Statuses { get; }
+    public Dictionary<AvatarStatusType, string> Statuses { get; }
 
-    public RoomAvatarDanceType DanceType { get; }
+    public AvatarDanceType DanceType { get; }
 
     public int GoalTileId { get; set; }
     public int NextTileId { get; set; }
@@ -32,13 +32,13 @@ public interface IRoomAvatar : IRoomObject
     public void SetBodyRotation(Rotation rot);
     public void SetHeadRotation(Rotation rot);
     public void SetLogic(IRoomAvatarLogic logic);
-    public bool SetDance(RoomAvatarDanceType danceType = RoomAvatarDanceType.None);
+    public bool SetDance(AvatarDanceType danceType = AvatarDanceType.None);
     public void Sit(bool flag = true, double height = 0.5, Rotation? rot = null);
     public void Lay(bool flag = true, double height = 0.5, Rotation? rot = null);
 
-    public void AddStatus(RoomAvatarStatusType type, string value);
-    public bool HasStatus(params RoomAvatarStatusType[] types);
-    public void RemoveStatus(params RoomAvatarStatusType[] types);
+    public void AddStatus(AvatarStatusType type, string value);
+    public bool HasStatus(params AvatarStatusType[] types);
+    public void RemoveStatus(params AvatarStatusType[] types);
 
     public RoomAvatarSnapshot GetSnapshot();
 }

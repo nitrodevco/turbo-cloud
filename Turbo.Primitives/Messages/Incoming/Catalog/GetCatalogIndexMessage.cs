@@ -1,9 +1,9 @@
 using Turbo.Contracts.Abstractions;
-using Turbo.Contracts.Enums.Catalog;
+using Turbo.Primitives.Catalog.Enums;
 
 namespace Turbo.Primitives.Messages.Incoming.Catalog;
 
 public record GetCatalogIndexMessage : IMessageEvent
 {
-    public required CatalogTypeEnum CatalogType { get; init; }
+    public required CatalogType CatalogType { get; init; }
 }

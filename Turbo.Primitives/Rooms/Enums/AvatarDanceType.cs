@@ -1,6 +1,6 @@
 namespace Turbo.Primitives.Rooms.Enums;
 
-public enum RoomAvatarDanceType
+public enum AvatarDanceType
 {
     None = 0,
     Dance = 1,

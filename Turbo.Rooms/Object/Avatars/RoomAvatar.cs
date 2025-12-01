@@ -19,9 +19,9 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
     public double Z { get; protected set; }
     public Rotation BodyRotation { get; protected set; }
     public Rotation HeadRotation { get; protected set; }
-    public RoomAvatarDanceType DanceType { get; private set; } = RoomAvatarDanceType.None;
+    public AvatarDanceType DanceType { get; private set; } = AvatarDanceType.None;
     public IRoomAvatarLogic Logic { get; private set; } = default!;
-    public Dictionary<RoomAvatarStatusType, string> Statuses { get; } = [];
+    public Dictionary<AvatarStatusType, string> Statuses { get; } = [];
 
     public int GoalTileId { get; set; } = -1;
     public int NextTileId { get; set; } = -1;
@@ -80,12 +80,12 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
         MarkDirty();
     }
 
-    public bool SetDance(RoomAvatarDanceType danceType = RoomAvatarDanceType.None)
+    public bool SetDance(AvatarDanceType danceType = AvatarDanceType.None)
     {
         if (DanceType == danceType)
             return false;
 
-        if (HasStatus(RoomAvatarStatusType.Sit, RoomAvatarStatusType.Lay))
+        if (HasStatus(AvatarStatusType.Sit, AvatarStatusType.Lay))
             return false;
 
         // check if dance valid
@@ -105,16 +105,16 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
     {
         if (flag)
         {
-            if (HasStatus(RoomAvatarStatusType.Sit))
+            if (HasStatus(AvatarStatusType.Sit))
                 return;
 
             // remove dance
-            RemoveStatus(RoomAvatarStatusType.Lay);
+            RemoveStatus(AvatarStatusType.Lay);
 
             rot ??= BodyRotation;
 
             SetRotation(rot.Value.ToSitRotation());
-            AddStatus(RoomAvatarStatusType.Sit, height.ToString());
+            AddStatus(AvatarStatusType.Sit, height.ToString());
         }
     }
 
@@ -122,30 +122,30 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
     {
         if (flag)
         {
-            if (HasStatus(RoomAvatarStatusType.Lay))
+            if (HasStatus(AvatarStatusType.Lay))
                 return;
 
             // remove dance
-            RemoveStatus(RoomAvatarStatusType.Sit);
+            RemoveStatus(AvatarStatusType.Sit);
 
             rot ??= BodyRotation;
 
             SetRotation(rot.Value.ToSitRotation());
-            AddStatus(RoomAvatarStatusType.Sit, height.ToString());
+            AddStatus(AvatarStatusType.Sit, height.ToString());
         }
     }
 
-    public void AddStatus(RoomAvatarStatusType type, string value)
+    public void AddStatus(AvatarStatusType type, string value)
     {
         Statuses[type] = value;
 
         MarkDirty();
     }
 
-    public bool HasStatus(params RoomAvatarStatusType[] types) =>
+    public bool HasStatus(params AvatarStatusType[] types) =>
         types.Any(x => Statuses.ContainsKey(x));
 
-    public void RemoveStatus(params RoomAvatarStatusType[] types)
+    public void RemoveStatus(params AvatarStatusType[] types)
     {
         if (types.Length == 0)
             return;

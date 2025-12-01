@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
-using Turbo.Contracts.Enums.Furniture;
 using Turbo.Database.Entities.Furniture;
+using Turbo.Primitives.Furniture.Enums;
 
 namespace Turbo.Database.Entities.Catalog;
 
@@ -12,8 +12,8 @@ public class CatalogProductEntity : TurboEntity
     public required int CatalogOfferEntityId { get; set; }
 
     [Column("product_type")]
-    [DefaultValue(ProductTypeEnum.Floor)]
-    public required ProductTypeEnum ProductType { get; set; }
+    [DefaultValue(ProductType.Floor)]
+    public required ProductType ProductType { get; set; }
 
     [Column("definition_id")]
     public int? FurnitureDefinitionEntityId { get; set; }

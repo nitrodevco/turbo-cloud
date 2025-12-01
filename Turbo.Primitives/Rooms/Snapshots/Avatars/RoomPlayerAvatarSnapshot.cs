@@ -7,7 +7,7 @@ namespace Turbo.Primitives.Rooms.Snapshots.Avatars;
 public sealed record RoomPlayerAvatarSnapshot : RoomAvatarSnapshot
 {
     [Id(0)]
-    public required AvatarGenderEnum Gender { get; init; }
+    public required AvatarGenderType Gender { get; init; }
 
     [Id(1)]
     public required int GroupId { get; init; }

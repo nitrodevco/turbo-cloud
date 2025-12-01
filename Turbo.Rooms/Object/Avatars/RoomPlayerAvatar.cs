@@ -8,7 +8,7 @@ namespace Turbo.Rooms.Object.Avatars;
 internal sealed class RoomPlayerAvatar : RoomAvatar, IRoomPlayerAvatar
 {
     public required long PlayerId { get; init; }
-    public required AvatarGenderEnum Gender { get; init; }
+    public required AvatarGenderType Gender { get; init; }
 
     public int GroupId { get; init; } = -1;
     public int GroupStatus { get; init; } = -1;

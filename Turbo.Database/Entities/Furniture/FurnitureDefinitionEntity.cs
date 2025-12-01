@@ -3,7 +3,8 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
-using Turbo.Contracts.Enums.Furniture;
+using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Database.Entities.Furniture;
 
@@ -21,8 +22,8 @@ public class FurnitureDefinitionEntity : TurboEntity
     public required string ProductName { get; set; }
 
     [Column("product_type")]
-    [DefaultValue(ProductTypeEnum.Floor)]
-    public required ProductTypeEnum ProductType { get; set; }
+    [DefaultValue(ProductType.Floor)]
+    public required ProductType ProductType { get; set; }
 
     [Column("logic")]
     [MaxLength(30)]
@@ -78,9 +79,9 @@ public class FurnitureDefinitionEntity : TurboEntity
     public required bool CanSell { get; set; }
 
     [Column("usage_policy")]
-    [DefaultValue(FurniUsagePolicy.Controller)]
+    [DefaultValue(FurnitureUsageType.Controller)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public FurniUsagePolicy UsagePolicy { get; set; }
+    public FurnitureUsageType UsagePolicy { get; set; }
 
     [Column("extra_data")]
     public string? ExtraData { get; set; }

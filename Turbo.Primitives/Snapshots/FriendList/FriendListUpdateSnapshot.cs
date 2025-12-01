@@ -1,5 +1,5 @@
 using Orleans;
-using Turbo.Contracts.Enums.FriendList;
+using Turbo.Primitives.FriendList.Enums;
 
 namespace Turbo.Primitives.Snapshots.FriendList;
 
@@ -7,7 +7,7 @@ namespace Turbo.Primitives.Snapshots.FriendList;
 public record FriendListUpdateSnapshot
 {
     [Id(0)]
-    public required FriendListUpdateActionEnum ActionType { get; init; }
+    public required FriendListUpdateActionType ActionType { get; init; }
 
     [Id(1)]
     public int? FriendId { get; init; }

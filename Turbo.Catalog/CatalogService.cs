@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
-using Turbo.Contracts.Enums.Catalog;
 using Turbo.Primitives.Catalog;
+using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Snapshots.Catalog;
 
@@ -14,9 +14,9 @@ public sealed class CatalogService(
     private readonly ILogger<ICatalogService> _logger = logger;
     private readonly ICatalogProvider<NormalCatalog> _catalogProvider = catalogProvider;
 
-    public CatalogSnapshot? GetCatalog(CatalogTypeEnum catalogType)
+    public CatalogSnapshot? GetCatalog(CatalogType catalogType)
     {
-        if (catalogType != CatalogTypeEnum.Normal)
+        if (catalogType != CatalogType.Normal)
         {
             _logger.LogWarning("Requested unsupported catalog type: {CatalogType}", catalogType);
 

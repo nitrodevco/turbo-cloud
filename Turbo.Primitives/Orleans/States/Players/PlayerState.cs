@@ -17,7 +17,7 @@ public sealed class PlayerState
     public required string Figure { get; set; } = string.Empty;
 
     [Id(3)]
-    public required AvatarGenderEnum Gender { get; set; } = AvatarGenderEnum.Male;
+    public required AvatarGenderType Gender { get; set; } = AvatarGenderType.Male;
 
     [Id(4)]
     public required DateTime CreatedAt { get; set; } = DateTime.UtcNow;

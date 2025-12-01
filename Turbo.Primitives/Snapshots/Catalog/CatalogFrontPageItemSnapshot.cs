@@ -1,4 +1,4 @@
-using Turbo.Contracts.Enums.Catalog;
+using Turbo.Primitives.Catalog.Enums;
 
 namespace Turbo.Primitives.Snapshots.Catalog;
 
@@ -6,7 +6,7 @@ public sealed record CatalogFrontPageItemSnapshot(
     int Position,
     string ItemName,
     string ItemPromoImage,
-    CatalogFrontPageItemTypeEnum Type,
+    CatalogFrontPageItemType Type,
     string? CatalogPageLocation,
     int? ProductOfferId,
     string? ProductCode,
