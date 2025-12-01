@@ -1,9 +1,9 @@
 using System;
 
-namespace Turbo.Contracts.Enums.Rooms;
+namespace Turbo.Primitives.Rooms.Enums;
 
 [Flags]
-public enum RoomBitmask
+public enum RoomBitmaskFlags
 {
     None = 0,
     Thumbnail = 1 << 0,

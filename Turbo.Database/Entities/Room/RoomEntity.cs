@@ -4,9 +4,9 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Turbo.Contracts.Enums.Navigator;
 using Turbo.Contracts.Enums.Navigator.Chat;
-using Turbo.Contracts.Enums.Rooms;
 using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Players;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Database.Entities.Room;
 

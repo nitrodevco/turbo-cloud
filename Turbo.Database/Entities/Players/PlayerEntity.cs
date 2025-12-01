@@ -3,11 +3,11 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
-using Turbo.Contracts.Enums.Players;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Messenger;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Entities.Security;
+using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Database.Entities.Players;
@@ -33,14 +33,14 @@ public class PlayerEntity : TurboEntity
     public required AvatarGenderEnum Gender { get; set; }
 
     [Column("status")]
-    [DefaultValue(PlayerStatusEnum.Offline)]
+    [DefaultValue(PlayerStatusType.Offline)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public required PlayerStatusEnum PlayerStatus { get; set; }
+    public required PlayerStatusType PlayerStatus { get; set; }
 
     [Column("perk_flags")]
-    [DefaultValue(PlayerPerkEnum.None)]
+    [DefaultValue(PlayerPerkFlags.None)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public required PlayerPerkEnum PlayerPerks { get; set; }
+    public required PlayerPerkFlags PlayerPerks { get; set; }
 
     [Column("room_chat_style_id")]
     public int? RoomChatStyleId { get; set; }

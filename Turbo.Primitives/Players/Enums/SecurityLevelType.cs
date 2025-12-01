@@ -1,6 +1,6 @@
-namespace Turbo.Contracts.Enums.Players;
+namespace Turbo.Primitives.Players.Enums;
 
-public enum SecurityLevelEnum
+public enum SecurityLevelType
 {
     None = 0,
     Celebrity = 1,

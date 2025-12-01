@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
-using Turbo.Contracts.Enums.Rooms;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Rooms.Grains.Modules;
 

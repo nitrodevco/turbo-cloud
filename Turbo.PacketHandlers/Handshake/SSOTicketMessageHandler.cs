@@ -1,7 +1,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Contracts.Enums.Players;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Authentication;
 using Turbo.Primitives.Messages.Incoming.Handshake;
@@ -9,6 +8,7 @@ using Turbo.Primitives.Messages.Outgoing.Availability;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.PacketHandlers.Handshake;
 
@@ -66,15 +66,15 @@ public class SSOTicketMessageHandler(
                 )
                 .ConfigureAwait(false); */
             await ctx.SendComposerAsync(
-                    new NoobnessLevelMessage { NoobnessLevel = NoobnessLevelEnum.NotNoob },
+                    new NoobnessLevelMessage { NoobnessLevel = NoobnessLevelType.NotNoob },
                     ct
                 )
                 .ConfigureAwait(false);
             await ctx.SendComposerAsync(
                     new UserRightsMessage
                     {
-                        ClubLevel = ClubLevelEnum.Vip,
-                        SecurityLevel = SecurityLevelEnum.Administrator,
+                        ClubLevel = ClubLevelType.Vip,
+                        SecurityLevel = SecurityLevelType.Administrator,
                         IsAmbassador = false,
                     },
                     ct

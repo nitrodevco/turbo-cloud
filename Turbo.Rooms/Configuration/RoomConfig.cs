@@ -1,4 +1,4 @@
-using Turbo.Contracts.Enums.Rooms;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Rooms.Configuration;
 

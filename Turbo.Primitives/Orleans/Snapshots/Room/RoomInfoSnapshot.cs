@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 using Orleans;
-using Turbo.Contracts.Enums.Rooms;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Primitives.Orleans.Snapshots.Room;
 

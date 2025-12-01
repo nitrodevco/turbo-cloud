@@ -1,9 +1,9 @@
 using Turbo.Contracts.Abstractions;
-using Turbo.Contracts.Enums.Players;
+using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.Primitives.Messages.Outgoing.Handshake;
 
 public sealed record NoobnessLevelMessage : IComposer
 {
-    public required NoobnessLevelEnum NoobnessLevel { get; init; }
+    public required NoobnessLevelType NoobnessLevel { get; init; }
 }

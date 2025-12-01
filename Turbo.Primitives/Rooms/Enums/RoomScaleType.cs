@@ -1,4 +1,4 @@
-namespace Turbo.Contracts.Enums.Rooms;
+namespace Turbo.Primitives.Rooms.Enums;
 
 public enum RoomScaleType
 {
