@@ -1,6 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Contracts.Abstractions;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Snapshots.Furniture;
 

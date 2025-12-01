@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Turbo.Contracts.Abstractions;
+using Turbo.Primitives.Networking;
 
 namespace Turbo.Primitives.Messages.Outgoing.Navigator;
 

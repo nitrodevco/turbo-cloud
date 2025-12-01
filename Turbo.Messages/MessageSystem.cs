@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Contracts.Abstractions;
 using Turbo.Messages.Registry;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Networking;
 
 namespace Turbo.Messages;

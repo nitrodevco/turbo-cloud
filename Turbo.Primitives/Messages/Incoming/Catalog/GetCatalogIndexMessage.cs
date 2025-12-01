@@ -1,5 +1,5 @@
-using Turbo.Contracts.Abstractions;
 using Turbo.Primitives.Catalog.Enums;
+using Turbo.Primitives.Networking;
 
 namespace Turbo.Primitives.Messages.Incoming.Catalog;
 

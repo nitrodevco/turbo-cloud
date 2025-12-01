@@ -1,7 +1,8 @@
 using System;
 using System.Threading.Tasks;
-using Turbo.Contracts.Abstractions;
+using Turbo.Primitives.Networking;
 using Turbo.Pipeline;
+using Turbo.Primitives.Events;
 
 namespace Turbo.Events.Registry;
 

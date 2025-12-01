@@ -1,4 +1,4 @@
-using Turbo.Contracts.Abstractions;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Primitives.Messages.Incoming.Room.Engine;

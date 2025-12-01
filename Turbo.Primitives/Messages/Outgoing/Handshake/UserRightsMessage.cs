@@ -1,4 +1,4 @@
-using Turbo.Contracts.Abstractions;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.Primitives.Messages.Outgoing.Handshake;

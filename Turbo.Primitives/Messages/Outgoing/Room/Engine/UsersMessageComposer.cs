@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 using Orleans;
-using Turbo.Contracts.Abstractions;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Engine;

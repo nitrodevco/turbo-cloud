@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using Orleans;
-using Turbo.Contracts.Abstractions;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Snapshots.Vault;
 
 namespace Turbo.Primitives.Messages.Outgoing.Vault;

@@ -1,5 +1,5 @@
 using Orleans;
-using Turbo.Contracts.Abstractions;
+using Turbo.Primitives.Networking;
 
 namespace Turbo.Primitives.Messages.Outgoing.Vault;
 
