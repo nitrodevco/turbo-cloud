@@ -1,5 +1,5 @@
 using System;
-using Turbo.Contracts.Enums;
+using Turbo.Primitives;
 
 namespace Turbo.Logging;
 

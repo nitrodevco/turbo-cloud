@@ -1,4 +1,4 @@
-namespace Turbo.Contracts.Enums;
+namespace Turbo.Primitives;
 
 public enum TurboErrorCodeEnum
 {

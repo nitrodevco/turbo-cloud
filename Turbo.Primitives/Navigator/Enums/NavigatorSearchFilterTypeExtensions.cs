@@ -1,6 +1,6 @@
 using System;
 
-namespace Turbo.Contracts.Enums.Navigator;
+namespace Turbo.Primitives.Navigator.Enums;
 
 public static class NavigatorSearchFilterTypeExtensions
 {

@@ -1,8 +1,8 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
-using Turbo.Contracts.Enums.Messenger;
 using Turbo.Database.Entities.Players;
+using Turbo.Primitives.FriendList.Enums;
 
 namespace Turbo.Database.Entities.Messenger;
 
@@ -20,8 +20,8 @@ public class MessengerFriendEntity : TurboEntity
     public int? MessengerCategoryEntityId { get; set; }
 
     [Column("relation")]
-    [DefaultValue(MessengerFriendRelationEnum.Zero)]
-    public required MessengerFriendRelationEnum RelationType { get; set; }
+    [DefaultValue(MessengerFriendRelationType.Zero)]
+    public required MessengerFriendRelationType RelationType { get; set; }
 
     [ForeignKey(nameof(PlayerEntityId))]
     public required PlayerEntity PlayerEntity { get; set; }

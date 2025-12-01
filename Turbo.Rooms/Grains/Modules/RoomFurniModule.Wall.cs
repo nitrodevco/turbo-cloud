@@ -1,8 +1,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Contracts.Enums;
 using Turbo.Logging;
+using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;

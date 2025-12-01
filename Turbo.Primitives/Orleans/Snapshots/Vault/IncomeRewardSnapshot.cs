@@ -1,5 +1,5 @@
 using Orleans;
-using Turbo.Contracts.Enums.Vault;
+using Turbo.Primitives.Vault.Enums;
 
 namespace Turbo.Primitives.Orleans.Snapshots.Vault;
 

@@ -1,10 +1,10 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Contracts.Enums.Navigator;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.NewNavigator;
 using Turbo.Primitives.Messages.Outgoing.NewNavigator;
 using Turbo.Primitives.Navigator;
+using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Orleans.Snapshots.Navigator;
 
 namespace Turbo.PacketHandlers.NewNavigator;

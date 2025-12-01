@@ -1,4 +1,4 @@
-namespace Turbo.Contracts.Enums.Navigator.Chat;
+namespace Turbo.Primitives.Navigator.Enums;
 
 public enum ChatModeType
 {

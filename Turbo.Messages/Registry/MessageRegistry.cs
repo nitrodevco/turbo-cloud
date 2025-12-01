@@ -2,9 +2,9 @@ using System;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans;
 using Turbo.Contracts.Abstractions;
-using Turbo.Contracts.Enums;
 using Turbo.Logging;
 using Turbo.Pipeline;
+using Turbo.Primitives;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Grains;
 

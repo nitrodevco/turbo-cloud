@@ -2,10 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
-using Turbo.Contracts.Enums.Navigator;
-using Turbo.Contracts.Enums.Navigator.Chat;
 using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Players;
+using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Database.Entities.Room;

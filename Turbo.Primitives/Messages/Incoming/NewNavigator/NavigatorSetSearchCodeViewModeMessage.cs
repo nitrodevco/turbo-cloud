@@ -1,5 +1,5 @@
 using Turbo.Contracts.Abstractions;
-using Turbo.Contracts.Enums.Navigator;
+using Turbo.Primitives.Navigator.Enums;
 
 namespace Turbo.Primitives.Messages.Incoming.NewNavigator;
 

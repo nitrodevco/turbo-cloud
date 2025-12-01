@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 using Orleans;
-using Turbo.Contracts.Enums.Navigator;
+using Turbo.Primitives.Navigator.Enums;
 
 namespace Turbo.Primitives.Orleans.Snapshots.Navigator;
 

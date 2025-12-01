@@ -1,6 +1,6 @@
 using Orleans;
 using Turbo.Contracts.Abstractions;
-using Turbo.Contracts.Enums.Vault;
+using Turbo.Primitives.Vault.Enums;
 
 namespace Turbo.Primitives.Messages.Outgoing.Vault;
 

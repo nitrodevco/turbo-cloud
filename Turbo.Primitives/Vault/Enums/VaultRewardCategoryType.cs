@@ -1,4 +1,4 @@
-namespace Turbo.Contracts.Enums.Vault;
+namespace Turbo.Primitives.Vault.Enums;
 
 public enum VaultRewardCategoryType
 {

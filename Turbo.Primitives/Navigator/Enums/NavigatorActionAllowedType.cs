@@ -1,4 +1,4 @@
-namespace Turbo.Contracts.Enums.Navigator;
+namespace Turbo.Primitives.Navigator.Enums;
 
 public enum NavigatorActionAllowedType
 {
