@@ -1,5 +1,5 @@
 using Orleans;
-using Turbo.Contracts.Enums.Rooms.Object;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Primitives.Snapshots.FriendList;
 

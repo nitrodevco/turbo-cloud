@@ -1,4 +1,3 @@
-using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Primitives.Orleans.Snapshots.Players;
 
 namespace Turbo.Primitives.Rooms.Object.Avatars;

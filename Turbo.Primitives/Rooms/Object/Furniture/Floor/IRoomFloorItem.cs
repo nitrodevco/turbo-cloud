@@ -1,5 +1,5 @@
 using Turbo.Contracts.Abstractions;
-using Turbo.Contracts.Enums.Rooms.Object;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots;
 

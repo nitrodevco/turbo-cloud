@@ -4,11 +4,11 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Contracts.Enums.Players;
-using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Messenger;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Entities.Security;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Database.Entities.Players;
 

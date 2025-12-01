@@ -1,8 +1,8 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
-using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Database.Entities.Furniture;
 

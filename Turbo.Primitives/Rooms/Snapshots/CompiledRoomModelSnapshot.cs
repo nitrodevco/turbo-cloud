@@ -1,4 +1,4 @@
-using Turbo.Primitives.Rooms.Mapping;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Primitives.Rooms.Snapshots;
 

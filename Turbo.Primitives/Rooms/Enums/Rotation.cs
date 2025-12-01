@@ -1,6 +1,18 @@
 using System;
 
-namespace Turbo.Contracts.Enums.Rooms.Object;
+namespace Turbo.Primitives.Rooms.Enums;
+
+public enum Rotation
+{
+    North = 0,
+    NorthEast = 1,
+    East = 2,
+    SouthEast = 3,
+    South = 4,
+    SouthWest = 5,
+    West = 6,
+    NorthWest = 7,
+}
 
 public static class RotationExtensions
 {

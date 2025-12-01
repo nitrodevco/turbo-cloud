@@ -1,5 +1,5 @@
 using Orleans;
-using Turbo.Primitives.Rooms.Mapping;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Rooms.Snapshots;

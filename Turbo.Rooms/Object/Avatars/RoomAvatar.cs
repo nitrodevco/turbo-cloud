@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Turbo.Contracts.Enums.Rooms.Object;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;

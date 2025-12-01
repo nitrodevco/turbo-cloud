@@ -1,6 +1,12 @@
 using System;
 
-namespace Turbo.Contracts.Enums.Rooms.Object;
+namespace Turbo.Primitives.Rooms.Enums;
+
+public enum AvatarGenderEnum
+{
+    Male = 0,
+    Female = 1,
+}
 
 public static class AvatarGenderEnumExtensions
 {

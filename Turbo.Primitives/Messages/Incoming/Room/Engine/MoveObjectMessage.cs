@@ -1,5 +1,5 @@
 using Turbo.Contracts.Abstractions;
-using Turbo.Contracts.Enums.Rooms.Object;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Primitives.Messages.Incoming.Room.Engine;
 

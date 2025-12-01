@@ -1,4 +1,4 @@
-namespace Turbo.Primitives.Rooms.Object;
+namespace Turbo.Primitives.Rooms.Enums;
 
 public enum RoomObjectType
 {

@@ -1,9 +1,48 @@
-namespace Turbo.Primitives.Rooms.Object.Avatars;
+namespace Turbo.Primitives.Rooms.Enums;
+
+public enum RoomAvatarStatusType
+{
+    Move,
+    Slide,
+    Sit,
+    Lay,
+    FlatControl,
+    Sign,
+    Gesture,
+    Wave,
+    Trading,
+    Dip,
+    Eat,
+    Beg,
+    Dead,
+    Jump,
+    Play,
+    Speak,
+    Croak,
+    Relax,
+    Wings,
+    Flame,
+    Rip,
+    Grow,
+    Grow1,
+    Grow2,
+    Grow3,
+    Grow4,
+    Grow5,
+    Grow6,
+    Grow7,
+    LayIn,
+    LayOut,
+    Kick,
+    WagTail,
+    JumpIn,
+    JumpOut,
+}
 
 public static class RoomAvatarStatusTypeExtensions
 {
-    public static string ToLegacyString(this RoomAvatarStatusType productType) =>
-        productType switch
+    public static string ToLegacyString(this RoomAvatarStatusType statusType) =>
+        statusType switch
         {
             RoomAvatarStatusType.Move => "mv",
             RoomAvatarStatusType.Slide => "sld",

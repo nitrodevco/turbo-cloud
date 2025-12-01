@@ -1,6 +1,4 @@
-using System;
 using Turbo.Contracts.Abstractions;
-using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots;
 
@@ -13,9 +11,6 @@ public interface IRoomWallItem : IRoomItem
 
     public void SetPosition(string wallLocation);
     public void SetLogic(IFurnitureWallLogic logic);
-    public void SetAction(Action<RoomObjectId>? onSnapshotChanged);
-    public void MarkDirty();
-
     public RoomWallItemSnapshot GetSnapshot();
     public IComposer GetAddComposer();
     public IComposer GetUpdateComposer();

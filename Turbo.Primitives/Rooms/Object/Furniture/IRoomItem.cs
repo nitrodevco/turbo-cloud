@@ -1,4 +1,3 @@
-using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Snapshots.Furniture;
 
 namespace Turbo.Primitives.Rooms.Object.Furniture;

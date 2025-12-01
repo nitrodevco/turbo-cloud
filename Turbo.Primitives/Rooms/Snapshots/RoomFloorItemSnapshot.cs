@@ -1,6 +1,6 @@
 using Orleans;
 using Turbo.Contracts.Enums.Furniture;
-using Turbo.Contracts.Enums.Rooms.Object;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.StuffData;
 

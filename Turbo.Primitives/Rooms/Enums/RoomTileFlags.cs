@@ -1,6 +1,6 @@
 using System;
 
-namespace Turbo.Primitives.Rooms.Mapping;
+namespace Turbo.Primitives.Rooms.Enums;
 
 [Flags]
 public enum RoomTileFlags : ushort

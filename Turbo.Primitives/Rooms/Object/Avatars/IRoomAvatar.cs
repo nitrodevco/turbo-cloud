@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Turbo.Contracts.Enums.Rooms.Object;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 

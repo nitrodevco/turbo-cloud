@@ -1,8 +1,8 @@
 using System;
 using System.Text.Json;
 using Turbo.Contracts.Abstractions;
-using Turbo.Contracts.Enums.Rooms.Object;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots;

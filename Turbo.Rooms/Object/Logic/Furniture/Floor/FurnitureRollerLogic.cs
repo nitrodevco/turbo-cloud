@@ -2,7 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Enums.Furniture;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Rooms.Mapping;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.StuffData;
 using Turbo.Primitives.Rooms.Object.Logic;

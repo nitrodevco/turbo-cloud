@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using Turbo.Contracts.Abstractions;
 using Turbo.Pipeline;
 
@@ -9,7 +10,7 @@ public sealed class EventRegistry(IServiceProvider sp)
         sp,
         new EnvelopeHostOptions<IEvent, object, EventContext>
         {
-            CreateContextAsync = async (env, session) => new EventContext(),
+            CreateContextAsync = (env, session) => Task.FromResult(new EventContext()),
             EnableInheritanceDispatch = true,
             HandlerMode = HandlerExecutionMode.Parallel,
             MaxHandlerDegreeOfParallelism = null,
