@@ -10,27 +10,25 @@ using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
-using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Furniture;
-using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Object.Furniture.Wall;
-using Turbo.Rooms.Object.Furniture.Floor;
-using Turbo.Rooms.Object.Furniture.Wall;
+using Turbo.Primitives.Furniture.StuffData;
+using Turbo.Primitives.Inventory.Furniture;
 
-namespace Turbo.Rooms.Object.Furniture;
+namespace Turbo.Inventory.Furniture;
 
-internal sealed class RoomItemsLoader(
+internal sealed class FurnitureItemsLoader(
     IDbContextFactory<TurboDbContext> dbContextFactory,
-    IFurnitureDefinitionProvider defsProvider
-) : IRoomItemsLoader
+    IFurnitureDefinitionProvider defsProvider,
+    IStuffDataFactory stuffDataFactory
+) : IFurnitureItemsLoader
 {
     private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
     private readonly IFurnitureDefinitionProvider _defsProvider = defsProvider;
+    private readonly IStuffDataFactory _stuffDataFactory = stuffDataFactory;
 
     public async Task<(
-        IReadOnlyList<IRoomFloorItem>,
-        IReadOnlyList<IRoomWallItem>
-    )> LoadByRoomIdAsync(long roomId, CancellationToken ct)
+        IReadOnlyList<IFurnitureFloorItem>,
+        IReadOnlyList<IFurnitureWallItem>
+    )> LoadByPlayerIdAsync(long playerId, CancellationToken ct)
     {
         var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
@@ -38,12 +36,12 @@ internal sealed class RoomItemsLoader(
         {
             var entities = await dbCtx
                 .Furnitures.AsNoTracking()
-                .Where(x => x.RoomEntityId == roomId)
+                .Where(x => x.PlayerEntityId == playerId && x.RoomEntityId == null)
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
 
-            var floorItems = new List<IRoomFloorItem>();
-            var wallItems = new List<IRoomWallItem>();
+            var floorItems = new List<IFurnitureFloorItem>();
+            var wallItems = new List<IFurnitureWallItem>();
 
             foreach (var entity in entities)
             {
@@ -51,16 +49,14 @@ internal sealed class RoomItemsLoader(
                 {
                     var item = CreateFromEntity(entity);
 
-                    if (item is IRoomFloorItem floorItem)
+                    switch (item)
                     {
-                        floorItem.SetPosition(entity.X, entity.Y, entity.Z);
-                        floorItem.SetRotation(entity.Rotation);
-
-                        floorItems.Add(floorItem);
-                    }
-                    else if (item is IRoomWallItem wallItem)
-                    {
-                        wallItems.Add(wallItem);
+                        case IFurnitureFloorItem floorItem:
+                            floorItems.Add(floorItem);
+                            continue;
+                        case IFurnitureWallItem wallItem:
+                            wallItems.Add(wallItem);
+                            continue;
                     }
                 }
                 catch (Exception)
@@ -77,7 +73,7 @@ internal sealed class RoomItemsLoader(
         }
     }
 
-    public IRoomItem CreateFromEntity(FurnitureEntity entity)
+    public IFurnitureItem CreateFromEntity(FurnitureEntity entity)
     {
         var definition =
             _defsProvider.TryGetDefinition(entity.FurnitureDefinitionEntityId)
@@ -85,22 +81,21 @@ internal sealed class RoomItemsLoader(
 
         return definition.ProductType switch
         {
-            ProductType.Floor => new RoomFloorItem
+            ProductType.Floor => new FurnitureFloorItem
             {
-                ObjectId = RoomObjectId.From(entity.Id),
-                OwnerId = entity.PlayerEntityId,
-                OwnerName = string.Empty,
+                ItemId = entity.Id,
                 Definition = definition,
-                PendingStuffDataRaw = entity.StuffData ?? string.Empty,
+                StuffData = _stuffDataFactory.CreateStuffDataFromJson(
+                    (int)StuffDataType.LegacyKey,
+                    entity.StuffData ?? string.Empty
+                ),
             },
 
-            ProductType.Wall => new RoomWallItem
+            ProductType.Wall => new FurnitureWallItem
             {
-                ObjectId = RoomObjectId.From(entity.Id),
-                OwnerId = entity.PlayerEntityId,
-                OwnerName = string.Empty,
+                ItemId = entity.Id,
                 Definition = definition,
-                PendingStuffDataRaw = entity.StuffData ?? string.Empty,
+                StuffData = entity.StuffData ?? string.Empty,
             },
 
             _ => throw new TurboException(TurboErrorCodeEnum.InvalidFurnitureProductType),

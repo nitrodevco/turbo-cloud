@@ -1,6 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Rooms.Object.Furniture.StuffData;
+using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;

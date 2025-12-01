@@ -11,11 +11,4 @@ public sealed class InventoryService(ILogger<IInventoryService> logger, IGrainFa
 {
     private readonly ILogger<IInventoryService> _logger = logger;
     private readonly IGrainFactory _grainFactory = grainFactory;
-
-    public async Task<IInventoryFurniGrain> GetInventoryFurniGrainAsync(long playerId)
-    {
-        var grain = _grainFactory.GetGrain<IInventoryFurniGrain>(playerId);
-
-        return await Task.FromResult(grain).ConfigureAwait(false);
-    }
 }

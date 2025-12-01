@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Orleans;
-using Turbo.Primitives.Rooms.Object.Furniture.StuffData;
+using Turbo.Primitives.Furniture.StuffData;
 
 namespace Turbo.Primitives.Rooms.Snapshots.StuffData;
 
