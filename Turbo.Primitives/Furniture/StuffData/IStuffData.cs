@@ -15,7 +15,7 @@ public interface IStuffData
     public int GetState();
     public void SetState(string state);
     public string GetLegacyString();
-    public void SetAction(Action<int>? onSnapshotChanged);
+    public void SetAction(System.Action? onSnapshotChanged);
     public void MarkDirty();
     public StuffDataSnapshot GetSnapshot();
 }

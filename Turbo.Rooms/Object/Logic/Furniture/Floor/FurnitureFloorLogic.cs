@@ -26,6 +26,10 @@ public class FurnitureFloorLogic
         : base(stuffDataFactory, ctx)
     {
         _stuffData = CreateStuffData(_ctx.Item.PendingStuffDataRaw);
+
+        void func() => _ctx.Item.MarkDirty();
+
+        _stuffData.SetAction(func);
     }
 
     public override Task<int> GetStateAsync() => Task.FromResult(_stuffData.GetState());
@@ -33,8 +37,6 @@ public class FurnitureFloorLogic
     public override async Task<bool> SetStateAsync(int state)
     {
         _stuffData.SetState(state.ToString());
-
-        _ctx.Item.MarkDirty();
 
         await _ctx.RefreshStuffDataAsync(CancellationToken.None);
         await _ctx.RefreshTileAsync();

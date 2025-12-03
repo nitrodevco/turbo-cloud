@@ -16,7 +16,7 @@ internal abstract class StuffDataBase : IStuffData
     public static int CreateBitmask(StuffDataType type, StuffDataFlags flags) =>
         ((int)type & TYPE_MASK) | ((int)flags & FLAGS_MASK);
 
-    protected Action<int>? _onSnapshotChanged;
+    protected Action? _onSnapshotChanged;
     protected bool _dirty = true;
     protected StuffDataSnapshot? _snapshot;
 
@@ -29,6 +29,7 @@ internal abstract class StuffDataBase : IStuffData
     [JsonPropertyName("U_S")]
     public int UniqueSeries { get; set; } = 0;
 
+    [JsonIgnore]
     public bool IsDirty => _dirty;
 
     public int GetBitmask() =>
@@ -44,7 +45,7 @@ internal abstract class StuffDataBase : IStuffData
 
     public virtual string GetLegacyString() => string.Empty;
 
-    public void SetAction(Action<int>? onSnapshotChanged)
+    public void SetAction(Action? onSnapshotChanged)
     {
         _onSnapshotChanged = onSnapshotChanged;
     }
@@ -52,7 +53,7 @@ internal abstract class StuffDataBase : IStuffData
     public void MarkDirty()
     {
         _dirty = true;
-        _onSnapshotChanged?.Invoke(-1);
+        _onSnapshotChanged?.Invoke();
     }
 
     public virtual StuffDataSnapshot GetSnapshot()
