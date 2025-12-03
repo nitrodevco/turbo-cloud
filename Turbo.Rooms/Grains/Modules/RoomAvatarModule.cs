@@ -25,6 +25,7 @@ internal sealed partial class RoomAvatarModule(
     RoomGrain roomGrain,
     RoomConfig roomConfig,
     RoomLiveState roomLiveState,
+    RoomSecurityModule securityModule,
     RoomMapModule roomMapModule,
     RoomPathfinder roomPathfinder,
     IRoomAvatarFactory roomAvatarFactory,
@@ -34,6 +35,7 @@ internal sealed partial class RoomAvatarModule(
     private readonly RoomGrain _roomGrain = roomGrain;
     private readonly RoomConfig _roomConfig = roomConfig;
     private readonly RoomLiveState _state = roomLiveState;
+    private readonly RoomSecurityModule _securityModule = securityModule;
     private readonly RoomMapModule _roomMap = roomMapModule;
     private readonly RoomPathfinder _pathfinder = roomPathfinder;
     private readonly IRoomAvatarFactory _roomAvatarFactory = roomAvatarFactory;
@@ -45,11 +47,6 @@ internal sealed partial class RoomAvatarModule(
 
     public async Task<IRoomAvatar> CreateAvatarFromPlayerAsync(
         ActionContext ctx,
-        PlayerSummarySnapshot snapshot,
-        CancellationToken ct
-    ) => await CreateAvatarFromPlayerAsync(snapshot, ct);
-
-    public async Task<IRoomAvatar> CreateAvatarFromPlayerAsync(
         PlayerSummarySnapshot snapshot,
         CancellationToken ct
     )
@@ -71,6 +68,10 @@ internal sealed partial class RoomAvatarModule(
             RoomObjectId.From(objectId),
             snapshot
         );
+
+        var controllerLevel = await _securityModule.GetControllerLevelAsync(ctx);
+
+        avatar.AddStatus(AvatarStatusType.FlatControl, controllerLevel.ToString());
 
         avatar.NextTileId = _roomMap.GetTileId(startX, startY);
 

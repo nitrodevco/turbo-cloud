@@ -15,10 +15,6 @@ public partial interface IRoomGrain
         PlayerSummarySnapshot snapshot,
         CancellationToken ct
     );
-    public Task<IRoomAvatar> CreateAvatarFromPlayerAsync(
-        PlayerSummarySnapshot snapshot,
-        CancellationToken ct
-    );
     public Task RemoveAvatarFromPlayerAsync(long playerId, CancellationToken ct);
     public Task WalkAvatarToAsync(
         ActionContext ctx,

@@ -6,5 +6,6 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Permissions;
 [GenerateSerializer, Immutable]
 public sealed record YouAreOwnerMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required int RoomId { get; init; }
 }

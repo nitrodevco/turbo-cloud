@@ -6,5 +6,6 @@ namespace Turbo.Primitives.Messages.Outgoing.Inventory.Purse;
 [GenerateSerializer, Immutable]
 public sealed record CreditBalanceEventMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required string Balance { get; init; }
 }

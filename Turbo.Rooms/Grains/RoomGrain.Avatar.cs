@@ -16,11 +16,6 @@ public sealed partial class RoomGrain
         CancellationToken ct
     ) => _avatarModule.CreateAvatarFromPlayerAsync(ctx, snapshot, ct);
 
-    public Task<IRoomAvatar> CreateAvatarFromPlayerAsync(
-        PlayerSummarySnapshot snapshot,
-        CancellationToken ct
-    ) => _avatarModule.CreateAvatarFromPlayerAsync(snapshot, ct);
-
     public Task RemoveAvatarFromPlayerAsync(long playerId, CancellationToken ct) =>
         _avatarModule.RemoveAvatarFromPlayerAsync(playerId, ct);
 

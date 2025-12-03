@@ -21,7 +21,7 @@ public sealed class PackageHandler(
     private readonly MessageSystem _messageSystem = messageSystem;
     private readonly ILogger<PackageHandler> _logger = logger;
 
-    public ValueTask Handle(
+    public async ValueTask Handle(
         IAppSession session,
         IClientPacket packet,
         CancellationToken cancellationToken
@@ -43,7 +43,7 @@ public sealed class PackageHandler(
 
                 _logger.LogInformation("Incoming {Message}", message);
 
-                _ = _messageSystem
+                await _messageSystem
                     .PublishAsync(message, ctx, CancellationToken.None)
                     .ConfigureAwait(false);
             }
@@ -65,7 +65,5 @@ public sealed class PackageHandler(
                 ctx.SessionKey
             );
         }
-
-        return ValueTask.CompletedTask;
     }
 }

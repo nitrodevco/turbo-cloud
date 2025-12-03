@@ -20,7 +20,7 @@ internal sealed partial class RoomActionModule
         CancellationToken ct
     )
     {
-        if (!await CanManipulateFurniAsync(ctx))
+        if (!await _securityModule.CanManipulateFurniAsync(ctx))
             return false;
 
         return await _furniModule.MoveWallItemByIdAsync(ctx, objectId, newLocation, ct);

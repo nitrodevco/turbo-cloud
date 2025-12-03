@@ -9,7 +9,9 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Layout;
+using Turbo.Primitives.Messages.Outgoing.Room.Permissions;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
+using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Grains;
 using Turbo.Primitives.Players;
@@ -111,7 +113,7 @@ public sealed class RoomService(
 
             var mapSnapshot = await room.GetMapSnapshotAsync(ct).ConfigureAwait(false);
 
-            _ = playerPresence
+            await playerPresence
                 .SendComposerAsync(
                     new RoomEntryTileMessageComposer
                     {
@@ -123,7 +125,7 @@ public sealed class RoomService(
                 )
                 .ConfigureAwait(false);
 
-            _ = playerPresence
+            await playerPresence
                 .SendComposerAsync(
                     new HeightMapMessageComposer
                     {
@@ -135,7 +137,7 @@ public sealed class RoomService(
                 )
                 .ConfigureAwait(false);
 
-            _ = playerPresence
+            await playerPresence
                 .SendComposerAsync(
                     new FloorHeightMapMessageComposer
                     {
@@ -151,7 +153,7 @@ public sealed class RoomService(
             var ownersSnapshot = await room.GetAllOwnersAsync(ct).ConfigureAwait(false);
             var furniSnapshot = await room.GetAllFloorItemSnapshotsAsync(ct).ConfigureAwait(false);
 
-            _ = playerPresence
+            await playerPresence
                 .SendComposerAsync(
                     new ObjectsMessageComposer
                     {
@@ -164,11 +166,34 @@ public sealed class RoomService(
 
             var avatarSnapshot = await room.GetAllAvatarSnapshotsAsync(ct).ConfigureAwait(false);
 
-            _ = playerPresence
+            await playerPresence
                 .SendComposerAsync(new UsersMessageComposer { Avatars = avatarSnapshot }, ct)
                 .ConfigureAwait(false);
-            _ = playerPresence
+            await playerPresence
                 .SendComposerAsync(new UserUpdateMessageComposer { Avatars = avatarSnapshot }, ct)
+                .ConfigureAwait(false);
+
+            await playerPresence
+                .SendComposerAsync(
+                    new YouAreControllerMessageComposer
+                    {
+                        RoomId = (int)pendingRoom.RoomId.Value,
+                        ControllerLevel = RoomControllerType.Owner,
+                    },
+                    ct
+                )
+                .ConfigureAwait(false);
+            await playerPresence
+                .SendComposerAsync(
+                    new WiredPermissionsEventMessageComposer { CanModify = true, CanRead = true },
+                    ct
+                )
+                .ConfigureAwait(false);
+            await playerPresence
+                .SendComposerAsync(
+                    new YouAreOwnerMessageComposer { RoomId = (int)pendingRoom.RoomId.Value },
+                    ct
+                )
                 .ConfigureAwait(false);
 
             await playerPresence.SetActiveRoomAsync(pendingRoom.RoomId, ct).ConfigureAwait(false);
@@ -178,7 +203,7 @@ public sealed class RoomService(
                 .GetSummaryAsync(ct)
                 .ConfigureAwait(false);
 
-            await room.CreateAvatarFromPlayerAsync(playerSnapshot, ct).ConfigureAwait(false);
+            await room.CreateAvatarFromPlayerAsync(ctx, playerSnapshot, ct).ConfigureAwait(false);
         }
         catch (Exception)
         {

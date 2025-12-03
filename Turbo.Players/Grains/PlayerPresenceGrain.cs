@@ -111,13 +111,11 @@ public class PlayerPresenceGrain(
         await state.WriteStateAsync();
     }
 
-    public Task SendComposerAsync(IComposer composer, CancellationToken ct)
+    public async Task SendComposerAsync(IComposer composer, CancellationToken ct)
     {
         if (_sessionObserver is not null)
         {
-            _ = _sessionObserver.SendComposerAsync(composer, ct);
+            await _sessionObserver.SendComposerAsync(composer, ct);
         }
-
-        return Task.CompletedTask;
     }
 }

@@ -26,7 +26,7 @@ internal sealed partial class RoomActionModule
         CancellationToken ct
     )
     {
-        if (!await CanManipulateFurniAsync(ctx))
+        if (!await _securityModule.CanManipulateFurniAsync(ctx))
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
         if (!_furniModule.ValidateNewFloorItemPlacement(ctx, item, newX, newY, newRotation))
@@ -49,7 +49,7 @@ internal sealed partial class RoomActionModule
         CancellationToken ct
     )
     {
-        if (!await CanManipulateFurniAsync(ctx))
+        if (!await _securityModule.CanManipulateFurniAsync(ctx))
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
         if (!_furniModule.ValidateFloorItemPlacement(ctx, objectId, newX, newY, newRotation))
@@ -77,7 +77,7 @@ internal sealed partial class RoomActionModule
         if (!_state.FloorItemsById.TryGetValue(objectId.Value, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        var controllerLevel = await GetControllerLevelAsync(ctx);
+        var controllerLevel = await _securityModule.GetControllerLevelAsync(ctx);
         var usagePolicy = item.Logic.GetUsagePolicy();
 
         if (usagePolicy == FurnitureUsageType.Nobody)

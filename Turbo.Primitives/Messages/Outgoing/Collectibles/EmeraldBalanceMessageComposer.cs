@@ -6,5 +6,6 @@ namespace Turbo.Primitives.Messages.Outgoing.Collectibles;
 [GenerateSerializer, Immutable]
 public sealed record EmeraldBalanceMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required int EmeraldBalance { get; init; }
 }

@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
+using Turbo.Primitives.Messages.Outgoing.FriendList;
 
 namespace Turbo.PacketHandlers.FriendList;
 
@@ -13,6 +14,7 @@ public class GetFriendRequestsMessageHandler : IMessageHandler<GetFriendRequests
         CancellationToken ct
     )
     {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        await ctx.SendComposerAsync(new FriendRequestsMessageComposer { Requests = [] }, ct)
+            .ConfigureAwait(false);
     }
 }
