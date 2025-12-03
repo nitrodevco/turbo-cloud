@@ -6,7 +6,6 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots;
-using Turbo.Primitives.Rooms.Snapshots.StuffData;
 
 namespace Turbo.Rooms.Object.Furniture.Floor;
 
@@ -67,7 +66,7 @@ internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
         new ObjectDataUpdateMessageComposer
         {
             ObjectId = ObjectId,
-            StuffData = GetSnapshot().StuffData,
+            StuffData = Logic.StuffData.GetSnapshot(),
         };
 
     public IComposer GetRemoveComposer(long pickerId, bool isExpired = false, int delay = 0) =>
@@ -91,7 +90,7 @@ internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
             Z = Z,
             Rotation = Rotation,
             StackHeight = Definition.StackHeight,
-            StuffData = StuffDataSnapshot.FromStuffData(Logic.StuffData),
+            StuffData = Logic.StuffData.GetSnapshot(),
             StuffDataJson = JsonSerializer.Serialize(Logic.StuffData, Logic.StuffData.GetType()),
             UsagePolicy = Definition.UsagePolicy,
         };

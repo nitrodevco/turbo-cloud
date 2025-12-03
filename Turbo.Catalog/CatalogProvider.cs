@@ -13,14 +13,14 @@ using Turbo.Primitives.Snapshots.Catalog;
 namespace Turbo.Catalog;
 
 public sealed class CatalogProvider<TTag>(
-    IDbContextFactory<TurboDbContext> dbContextFactory,
+    IDbContextFactory<TurboDbContext> dbCtxFactory,
     ILogger<ICatalogProvider<TTag>> logger,
     IFurnitureDefinitionProvider furnitureProvider,
     CatalogType catalogType
 ) : ICatalogProvider<TTag>
     where TTag : ICatalogTag
 {
-    private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
     private readonly ILogger<ICatalogProvider<TTag>> _logger = logger;
     private readonly IFurnitureDefinitionProvider _furnitureProvider = furnitureProvider;
     private CatalogSnapshot _current = Empty();
@@ -30,7 +30,7 @@ public sealed class CatalogProvider<TTag>(
 
     public async Task ReloadAsync(CancellationToken ct = default)
     {
-        var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
         try
         {

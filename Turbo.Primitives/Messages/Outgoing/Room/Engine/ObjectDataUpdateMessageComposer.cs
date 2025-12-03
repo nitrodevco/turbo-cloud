@@ -1,7 +1,7 @@
 using Orleans;
+using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Snapshots.StuffData;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Engine;
 

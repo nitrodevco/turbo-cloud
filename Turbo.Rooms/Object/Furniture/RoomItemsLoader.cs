@@ -1,15 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Logging;
+using Turbo.Players.Grains;
 using Turbo.Primitives;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Inventory.Furniture;
+using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -20,19 +26,22 @@ using Turbo.Rooms.Object.Furniture.Wall;
 namespace Turbo.Rooms.Object.Furniture;
 
 internal sealed class RoomItemsLoader(
-    IDbContextFactory<TurboDbContext> dbContextFactory,
+    IDbContextFactory<TurboDbContext> dbCtxFactory,
+    IGrainFactory grainFactory,
     IFurnitureDefinitionProvider defsProvider
 ) : IRoomItemsLoader
 {
-    private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
+    private readonly IGrainFactory _grainFactory = grainFactory;
     private readonly IFurnitureDefinitionProvider _defsProvider = defsProvider;
 
     public async Task<(
         IReadOnlyList<IRoomFloorItem>,
-        IReadOnlyList<IRoomWallItem>
+        IReadOnlyList<IRoomWallItem>,
+        IReadOnlyDictionary<long, string>
     )> LoadByRoomIdAsync(long roomId, CancellationToken ct)
     {
-        var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
         try
         {
@@ -45,11 +54,23 @@ internal sealed class RoomItemsLoader(
             var floorItems = new List<IRoomFloorItem>();
             var wallItems = new List<IRoomWallItem>();
 
+            var ownerIdsUnique = entities.Select(x => (long)x.PlayerEntityId).Distinct().ToList();
+            var ownerNames = await _grainFactory
+                .GetGrain<IPlayerDirectoryGrain>(PlayerDirectoryGrain.SINGLETON_KEY)
+                .GetPlayerNamesAsync(ownerIdsUnique, ct)
+                .ConfigureAwait(false);
+
             foreach (var entity in entities)
             {
                 try
                 {
                     var item = CreateFromEntity(entity);
+
+                    item.SetOwnerName(
+                        ownerNames.TryGetValue(entity.PlayerEntityId, out var name)
+                            ? name ?? string.Empty
+                            : string.Empty
+                    );
 
                     if (item is IRoomFloorItem floorItem)
                     {
@@ -69,7 +90,7 @@ internal sealed class RoomItemsLoader(
                 }
             }
 
-            return (floorItems, wallItems);
+            return (floorItems, wallItems, ownerNames);
         }
         finally
         {
@@ -101,6 +122,68 @@ internal sealed class RoomItemsLoader(
                 OwnerName = string.Empty,
                 Definition = definition,
                 PendingStuffDataRaw = entity.StuffData ?? string.Empty,
+            },
+
+            _ => throw new TurboException(TurboErrorCodeEnum.InvalidFurnitureProductType),
+        };
+    }
+
+    public IRoomItem CreateFromFurnitureItem(IFurnitureItem item)
+    {
+        var definition = item.Definition;
+
+        return item switch
+        {
+            IFurnitureFloorItem floor => new RoomFloorItem
+            {
+                ObjectId = RoomObjectId.From(floor.ItemId),
+                OwnerId = floor.OwnerId,
+                OwnerName = string.Empty,
+                Definition = definition,
+                PendingStuffDataRaw = JsonSerializer.Serialize(
+                    floor.StuffData,
+                    floor.StuffData.GetType()
+                ),
+            },
+
+            IFurnitureWallItem wall => new RoomWallItem
+            {
+                ObjectId = RoomObjectId.From(wall.ItemId),
+                OwnerId = wall.OwnerId,
+                OwnerName = string.Empty,
+                Definition = definition,
+                PendingStuffDataRaw = wall.StuffData,
+            },
+
+            _ => throw new TurboException(TurboErrorCodeEnum.InvalidFurnitureProductType),
+        };
+    }
+
+    public IRoomItem CreateFromFurnitureItemSnapshot(FurnitureItemSnapshot item)
+    {
+        var definition = item.Definition;
+
+        return item switch
+        {
+            IFurnitureFloorItem floor => new RoomFloorItem
+            {
+                ObjectId = RoomObjectId.From(floor.ItemId),
+                OwnerId = floor.OwnerId,
+                OwnerName = string.Empty,
+                Definition = definition,
+                PendingStuffDataRaw = JsonSerializer.Serialize(
+                    floor.StuffData,
+                    floor.StuffData.GetType()
+                ),
+            },
+
+            IFurnitureWallItem wall => new RoomWallItem
+            {
+                ObjectId = RoomObjectId.From(wall.ItemId),
+                OwnerId = wall.OwnerId,
+                OwnerName = string.Empty,
+                Definition = definition,
+                PendingStuffDataRaw = wall.StuffData,
             },
 
             _ => throw new TurboException(TurboErrorCodeEnum.InvalidFurnitureProductType),

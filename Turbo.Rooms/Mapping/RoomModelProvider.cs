@@ -7,16 +7,16 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
 using Turbo.Primitives.Rooms.Mapping;
-using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Mapping;
 
 namespace Turbo.Rooms.Mapping;
 
 public sealed class RoomModelProvider(
-    IDbContextFactory<TurboDbContext> dbContextFactory,
+    IDbContextFactory<TurboDbContext> dbCtxFactory,
     ILogger<IRoomModelProvider> logger
 ) : IRoomModelProvider
 {
-    private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
     private readonly ILogger<IRoomModelProvider> _logger = logger;
     private ImmutableDictionary<int, RoomModelSnapshot> _modelsById = ImmutableDictionary<
         int,
@@ -30,7 +30,7 @@ public sealed class RoomModelProvider(
 
     public async Task ReloadAsync(CancellationToken ct = default)
     {
-        var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
         try
         {

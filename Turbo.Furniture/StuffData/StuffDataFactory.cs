@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Immutable;
 using System.Text.Json;
+using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
 
 namespace Turbo.Furniture.StuffData;
@@ -55,5 +57,72 @@ public sealed class StuffDataFactory : IStuffDataFactory
         data.SetType(type);
 
         return data;
+    }
+
+    public StuffDataSnapshot FromStuffData(IStuffData data)
+    {
+        var bitmask = data.GetBitmask();
+        var uniqueNumber = data.UniqueNumber;
+        var uniqueSeries = data.UniqueSeries;
+
+        return data switch
+        {
+            ILegacyStuffData legacy => new LegacyStuffSnapshot
+            {
+                StuffBitmask = bitmask,
+                UniqueNumber = uniqueNumber,
+                UniqueSeries = uniqueSeries,
+                Data = legacy.GetLegacyString(),
+            },
+            IMapStuffData map => new MapStuffSnapshot
+            {
+                StuffBitmask = bitmask,
+                UniqueNumber = uniqueNumber,
+                UniqueSeries = uniqueSeries,
+                Data = map.Data.ToImmutableDictionary(),
+            },
+            INumberStuffData number => new NumberStuffSnapshot
+            {
+                StuffBitmask = bitmask,
+                UniqueNumber = uniqueNumber,
+                UniqueSeries = uniqueSeries,
+                Data = [.. number.Data],
+            },
+            IStringStuffData str => new StringStuffSnapshot
+            {
+                StuffBitmask = bitmask,
+                UniqueNumber = uniqueNumber,
+                UniqueSeries = uniqueSeries,
+                Data = [.. str.Data],
+            },
+            IVoteStuffData vote => new VoteStuffSnapshot
+            {
+                StuffBitmask = bitmask,
+                UniqueNumber = uniqueNumber,
+                UniqueSeries = uniqueSeries,
+                Data = vote.GetLegacyString(),
+                Result = vote.Result,
+            },
+            IHighscoreStuffData highscore => new HighscoreStuffSnapshot
+            {
+                StuffBitmask = bitmask,
+                UniqueNumber = uniqueNumber,
+                UniqueSeries = uniqueSeries,
+                Data = highscore.GetLegacyString(),
+                ScoreType = highscore.ScoreType,
+                ClearType = highscore.ClearType,
+                Scores = highscore.HighscoreData.ToImmutableDictionary(
+                    kv => kv.Key,
+                    kv => kv.Value.ToImmutableArray()
+                ),
+            },
+            IEmptyStuffData empty => new EmptyStuffSnapshot
+            {
+                StuffBitmask = bitmask,
+                UniqueNumber = uniqueNumber,
+                UniqueSeries = uniqueSeries,
+            },
+            _ => throw new ArgumentOutOfRangeException(nameof(data), "Unknown stuff data type"),
+        };
     }
 }

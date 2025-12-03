@@ -9,18 +9,18 @@ using Microsoft.Extensions.Options;
 using Turbo.Database.Context;
 using Turbo.Furniture.Configuration;
 using Turbo.Primitives.Furniture;
-using Turbo.Primitives.Snapshots.Furniture;
+using Turbo.Primitives.Furniture.Snapshots;
 
 namespace Turbo.Furniture;
 
 public sealed class FurnitureDefinitionProvider(
     IOptions<FurnitureConfig> config,
-    IDbContextFactory<TurboDbContext> dbContextFactory,
+    IDbContextFactory<TurboDbContext> dbCtxFactory,
     ILogger<IFurnitureDefinitionProvider> logger
 ) : IFurnitureDefinitionProvider
 {
     private readonly FurnitureConfig _config = config.Value;
-    private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
     private readonly ILogger<IFurnitureDefinitionProvider> _logger = logger;
 
     private ImmutableDictionary<int, FurnitureDefinitionSnapshot> _definitionsById =
@@ -31,7 +31,7 @@ public sealed class FurnitureDefinitionProvider(
 
     public async Task ReloadAsync(CancellationToken ct = default)
     {
-        var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
         try
         {
@@ -44,12 +44,12 @@ public sealed class FurnitureDefinitionProvider(
                 x.Id,
                 x.SpriteId,
                 x.PublicName,
-                x.ProductName,
                 x.ProductType,
+                x.FurniCategory,
                 x.Logic,
                 x.TotalStates,
                 x.Width,
-                x.Height,
+                x.Length,
                 x.StackHeight == 0 ? _config.MinimumZValue : x.StackHeight,
                 x.CanStack,
                 x.CanWalk,

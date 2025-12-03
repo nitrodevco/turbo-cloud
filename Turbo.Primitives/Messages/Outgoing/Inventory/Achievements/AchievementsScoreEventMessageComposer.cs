@@ -6,5 +6,6 @@ namespace Turbo.Primitives.Messages.Outgoing.Inventory.Achievements;
 [GenerateSerializer, Immutable]
 public sealed record AchievementsScoreEventMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required int Score { get; init; }
 }

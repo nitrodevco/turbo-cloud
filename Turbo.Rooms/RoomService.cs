@@ -148,13 +148,14 @@ public sealed class RoomService(
                 )
                 .ConfigureAwait(false);
 
+            var ownersSnapshot = await room.GetAllOwnersAsync(ct).ConfigureAwait(false);
             var furniSnapshot = await room.GetAllFloorItemSnapshotsAsync(ct).ConfigureAwait(false);
 
             _ = playerPresence
                 .SendComposerAsync(
                     new ObjectsMessageComposer
                     {
-                        OwnerNames = ImmutableDictionary<long, string>.Empty,
+                        OwnerNames = ownersSnapshot,
                         FloorItems = furniSnapshot,
                     },
                     ct

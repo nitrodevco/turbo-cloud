@@ -1,9 +1,9 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object.Furniture;
-using Turbo.Primitives.Snapshots.Furniture;
 using Turbo.Rooms.Grains;
 using Turbo.Rooms.Grains.Modules;
 

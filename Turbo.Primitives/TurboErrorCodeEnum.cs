@@ -17,6 +17,8 @@ public enum TurboErrorCodeEnum
     InvalidFurnitureProductType,
     InvalidSession,
     InvalidMoveTarget,
+    NoPermissionToManipulateFurni,
+    InvalidFloorItemPlacement,
 }
 
 public static class ErrorCodeExtensions
@@ -40,6 +42,9 @@ public static class ErrorCodeExtensions
                 "The furniture product type is invalid.",
             TurboErrorCodeEnum.InvalidSession => "The session is invalid.",
             TurboErrorCodeEnum.InvalidMoveTarget => "The move target is invalid.",
+            TurboErrorCodeEnum.NoPermissionToManipulateFurni =>
+                "You do not have permission to manipulate furniture.",
+            TurboErrorCodeEnum.InvalidFloorItemPlacement => "The floor item placement is invalid.",
             _ => "An unknown error occurred.",
         };
 }

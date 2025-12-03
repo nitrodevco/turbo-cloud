@@ -13,7 +13,7 @@ using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Mapping;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Mapping;
 
@@ -87,21 +87,21 @@ internal sealed class RoomMapModule(
         int y,
         Rotation rotation,
         int width,
-        int height,
+        int length,
         out List<int> tileIds
     )
     {
         tileIds = [];
 
-        if (width > 0 && height > 0)
+        if (width > 0 && length > 0)
         {
             if (rotation == Rotation.East || rotation == Rotation.West)
-                (width, height) = (height, width);
+                (width, length) = (length, width);
         }
 
         for (var minX = x; minX < x + width; minX++)
         {
-            for (var minY = y; minY < y + height; minY++)
+            for (var minY = y; minY < y + length; minY++)
                 tileIds.Add(GetTileId(minX, minY));
         }
 

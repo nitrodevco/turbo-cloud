@@ -1,6 +1,6 @@
 namespace Turbo.Primitives.Furniture.Enums;
 
-public enum FurnitureType
+public enum FurnitureCategory
 {
     Default = 1,
     WallPaper = 2,

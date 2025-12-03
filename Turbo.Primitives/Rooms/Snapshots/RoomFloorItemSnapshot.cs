@@ -1,7 +1,7 @@
 using Orleans;
+using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Snapshots.StuffData;
 
 namespace Turbo.Primitives.Rooms.Snapshots;
 

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Mapping;
 
 namespace Turbo.Rooms.Mapping;
 
@@ -52,7 +52,13 @@ internal static class RoomModelCompiler
             }
         }
 
-        return new CompiledRoomModelSnapshot(width, height, heights, flags);
+        return new CompiledRoomModelSnapshot
+        {
+            Width = width,
+            Height = height,
+            Heights = heights,
+            Flags = flags,
+        };
     }
 
     public static short EncodeHeight(double height, bool stackingBlocked)

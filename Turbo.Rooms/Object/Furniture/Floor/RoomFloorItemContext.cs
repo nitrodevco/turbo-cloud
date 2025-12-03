@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Mapping;
 using Turbo.Rooms.Grains;
 using Turbo.Rooms.Grains.Modules;
 

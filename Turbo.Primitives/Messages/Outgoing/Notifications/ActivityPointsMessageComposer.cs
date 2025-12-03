@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Orleans;
 using Turbo.Primitives.Networking;
 
@@ -6,5 +7,6 @@ namespace Turbo.Primitives.Messages.Outgoing.Notifications;
 [GenerateSerializer, Immutable]
 public sealed record ActivityPointsMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required ImmutableDictionary<int, int> PointsByCategoryId { get; init; }
 }

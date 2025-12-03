@@ -1,42 +1,42 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Turbo.Database.Context;
+using Turbo.Inventory.Grains.Modules;
 using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Grains;
+using Turbo.Primitives.Networking;
+using Turbo.Primitives.Orleans.Grains;
 
 namespace Turbo.Inventory.Grains;
 
 public sealed partial class InventoryGrain : Grain, IInventoryGrain
 {
-    private readonly IDbContextFactory<TurboDbContext> _dbContextFactory;
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
+    private readonly IGrainFactory _grainFactory;
     private readonly IFurnitureItemsLoader _furnitureItemsLoader;
 
     private readonly InventoryLiveState _state;
+    private readonly InventoryFurniModule _furniModule;
 
     public InventoryGrain(
         IDbContextFactory<TurboDbContext> dbContextFactory,
+        IGrainFactory grainFactory,
         IFurnitureItemsLoader furnitureItemsLoader
     )
     {
-        _dbContextFactory = dbContextFactory;
+        _dbCtxFactory = dbContextFactory;
+        _grainFactory = grainFactory;
         _furnitureItemsLoader = furnitureItemsLoader;
 
         _state = new();
+        _furniModule = new InventoryFurniModule(this, _state, _furnitureItemsLoader);
     }
 
-    public override async Task OnActivateAsync(CancellationToken ct)
+    public override Task OnActivateAsync(CancellationToken ct)
     {
-        try
-        {
-            await LoadFurnitureAsync(ct);
-        }
-        catch (Exception ex)
-        {
-            throw;
-        }
+        return Task.CompletedTask;
     }
 
     public override Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
@@ -44,18 +44,10 @@ public sealed partial class InventoryGrain : Grain, IInventoryGrain
         return Task.CompletedTask;
     }
 
-    private async Task LoadFurnitureAsync(CancellationToken ct)
+    public Task SendComposerAsync(IComposer composer, CancellationToken ct)
     {
-        var (floorItems, wallItems) = await _furnitureItemsLoader
-            .LoadByPlayerIdAsync(this.GetPrimaryKeyLong(), ct)
-            .ConfigureAwait(false);
+        var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(this.GetPrimaryKeyLong());
 
-        foreach (var item in floorItems)
-            await AddFloorItemAsync(item, ct);
-
-        foreach (var item in wallItems)
-        {
-            //
-        }
+        return playerPresence.SendComposerAsync(composer, ct);
     }
 }

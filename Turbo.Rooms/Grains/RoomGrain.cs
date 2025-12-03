@@ -25,7 +25,7 @@ namespace Turbo.Rooms.Grains;
 
 public sealed partial class RoomGrain : Grain, IRoomGrain
 {
-    private readonly IDbContextFactory<TurboDbContext> _dbContextFactory;
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly RoomConfig _roomConfig;
     private readonly IRoomModelProvider _roomModelProvider;
     private readonly IRoomItemsLoader _itemsLoader;
@@ -43,7 +43,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     private readonly RoomActionModule _actionModule;
 
     public RoomGrain(
-        IDbContextFactory<TurboDbContext> dbContextFactory,
+        IDbContextFactory<TurboDbContext> dbCtxFactory,
         IOptions<RoomConfig> roomConfig,
         IRoomModelProvider roomModelProvider,
         IRoomItemsLoader itemsLoader,
@@ -52,7 +52,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IGrainFactory grainFactory
     )
     {
-        _dbContextFactory = dbContextFactory;
+        _dbCtxFactory = dbCtxFactory;
         _roomConfig = roomConfig.Value;
         _roomModelProvider = roomModelProvider;
         _itemsLoader = itemsLoader;
@@ -96,7 +96,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         );
 
         this.RegisterGrainTimer<object?>(
-            async _ => await _furniModule.FlushDirtyItemIdsAsync(_dbContextFactory, ct),
+            async _ => await _furniModule.FlushDirtyItemIdsAsync(_dbCtxFactory, ct),
             null,
             TimeSpan.FromMilliseconds(_roomConfig.DirtyItemsFlushIntervalMilliseconds),
             TimeSpan.FromMilliseconds(_roomConfig.DirtyItemsFlushIntervalMilliseconds)
@@ -112,7 +112,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
-        await _furniModule.FlushDirtyItemIdsAsync(_dbContextFactory, ct);
+        await _furniModule.FlushDirtyItemIdsAsync(_dbCtxFactory, ct);
 
         await _grainFactory
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
@@ -169,7 +169,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     private async Task HydrateRoomStateAsync(CancellationToken ct)
     {
-        var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         try
         {

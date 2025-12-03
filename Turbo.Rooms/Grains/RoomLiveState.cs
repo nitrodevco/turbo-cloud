@@ -5,6 +5,7 @@ using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Mapping;
 
 namespace Turbo.Rooms.Grains;
 
@@ -14,6 +15,7 @@ internal sealed class RoomLiveState
 
     public Dictionary<long, IRoomFloorItem> FloorItemsById { get; } = [];
     public Dictionary<long, IRoomWallItem> WallItemsById { get; } = [];
+    public Dictionary<long, string> OwnerNamesById { get; } = [];
     public Dictionary<int, IRoomAvatar> AvatarsByObjectId { get; } = [];
     public Dictionary<long, int> AvatarsByPlayerId { get; } = [];
 

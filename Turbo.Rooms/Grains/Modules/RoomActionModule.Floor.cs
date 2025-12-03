@@ -1,6 +1,9 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Logging;
+using Turbo.Primitives;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -14,6 +17,29 @@ internal sealed partial class RoomActionModule
         return _furniModule.AddFloorItemAsync(item, ct);
     }
 
+    public async Task<bool> PlaceFloorItemAsync(
+        ActionContext ctx,
+        FurnitureFloorItemSnapshot item,
+        int newX,
+        int newY,
+        Rotation newRotation,
+        CancellationToken ct
+    )
+    {
+        if (!await CanManipulateFurniAsync(ctx))
+            throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
+
+        if (!_furniModule.ValidateNewFloorItemPlacement(ctx, item, newX, newY, newRotation))
+            throw new TurboException(TurboErrorCodeEnum.InvalidFloorItemPlacement);
+
+        if (!await _furniModule.PlaceFloorItemAsync(ctx, item, newX, newY, newRotation, ct))
+            return false;
+
+        // TODO add player name to owner names cache
+
+        return true;
+    }
+
     public async Task<bool> MoveFloorItemByIdAsync(
         ActionContext ctx,
         RoomObjectId objectId,
@@ -24,10 +50,10 @@ internal sealed partial class RoomActionModule
     )
     {
         if (!await CanManipulateFurniAsync(ctx))
-            return false;
+            throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
         if (!_furniModule.ValidateFloorItemPlacement(ctx, objectId, newX, newY, newRotation))
-            return false;
+            throw new TurboException(TurboErrorCodeEnum.InvalidFloorItemPlacement);
 
         if (!await _furniModule.MoveFloorItemByIdAsync(ctx, objectId, newX, newY, newRotation, ct))
             return false;
@@ -49,7 +75,7 @@ internal sealed partial class RoomActionModule
     )
     {
         if (!_state.FloorItemsById.TryGetValue(objectId.Value, out var item))
-            return false;
+            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         var controllerLevel = await GetControllerLevelAsync(ctx);
         var usagePolicy = item.Logic.GetUsagePolicy();

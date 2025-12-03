@@ -77,7 +77,7 @@ public class PlayerPresenceGrain(
         state.State.PendingRoomApproved = false;
         state.State.ActiveRoomSinceUtc = DateTime.UtcNow;
 
-        await state.WriteStateAsync();
+        await state.WriteStateAsync(ct);
 
         if (changed)
         {
@@ -93,8 +93,7 @@ public class PlayerPresenceGrain(
         }
     }
 
-    public async Task ClearActiveRoomAsync(CancellationToken ct) =>
-        await SetActiveRoomAsync(RoomId.Empty, ct);
+    public Task ClearActiveRoomAsync(CancellationToken ct) => SetActiveRoomAsync(RoomId.Empty, ct);
 
     public async Task LeaveRoomAsync(RoomId roomId, CancellationToken ct)
     {

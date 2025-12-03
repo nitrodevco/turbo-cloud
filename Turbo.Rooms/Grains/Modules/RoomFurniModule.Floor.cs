@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -24,7 +25,7 @@ internal sealed partial class RoomFurniModule
             item.Y,
             item.Rotation,
             item.Definition.Width,
-            item.Definition.Height,
+            item.Definition.Length,
             out tileIds
         );
 
@@ -52,6 +53,27 @@ internal sealed partial class RoomFurniModule
         _ = _roomGrain.SendComposerToRoomAsync(item.GetAddComposer(), ct);
 
         return true;
+    }
+
+    public async Task<bool> PlaceFloorItemAsync(
+        ActionContext ctx,
+        FurnitureFloorItemSnapshot item,
+        int newX,
+        int newY,
+        Rotation newRotation,
+        CancellationToken ct
+    )
+    {
+        var newId = _roomMap.GetTileId(newX, newY);
+        var roomItem = _itemsLoader.CreateFromFurnitureItemSnapshot(item);
+
+        if (roomItem is not IRoomFloorItem floorItem)
+            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
+
+        floorItem.SetPosition(newX, newY, _state.TileHeights[newId]);
+        floorItem.SetRotation(newRotation);
+
+        return await AddFloorItemAsync(floorItem, ct);
     }
 
     public async Task<bool> MoveFloorItemByIdAsync(
@@ -170,15 +192,13 @@ internal sealed partial class RoomFurniModule
         if (!_state.FloorItemsById.TryGetValue(objectId.Value, out var tItem))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        var isRotating = tItem.Rotation != newRotation;
-
         if (
             _roomMap.GetTileIdForSize(
                 newX,
                 newY,
                 newRotation,
                 tItem.Definition.Width,
-                tItem.Definition.Height,
+                tItem.Definition.Length,
                 out var tileIds
             )
         )
@@ -187,10 +207,14 @@ internal sealed partial class RoomFurniModule
             {
                 var tileFlags = _state.TileFlags[id];
                 var tileHeight = _state.TileHeights[id];
+                var highestItemId = _state.TileHighestFloorItems[id];
+                var bItem = _state.FloorItemsById[highestItemId];
+                var isRotating = bItem == tItem && tItem.Rotation != newRotation;
 
                 if (
                     tileFlags.Has(RoomTileFlags.Disabled)
                     || (tileHeight + tItem.Definition.StackHeight) > _roomConfig.MaxStackHeight
+                    || tileFlags.Has(RoomTileFlags.StackBlocked) && !isRotating
                     || (
                         !_roomConfig.PlaceItemsOnAvatars
                         && tileFlags.Has(RoomTileFlags.AvatarOccupied)
@@ -200,24 +224,62 @@ internal sealed partial class RoomFurniModule
                 )
                     return false;
 
-                if (
-                    _state.FloorItemsById.TryGetValue(
-                        _state.TileHighestFloorItems[id],
-                        out var bItem
-                    )
-                )
+                if (isRotating)
+                    continue;
+
+                if (bItem is not null && bItem != tItem)
                 {
-                    if (isRotating && bItem == tItem)
-                        continue;
+                    // if is a stack helper, allow placement
+                    // if is a roller, disallow placement
+                }
+            }
+        }
 
-                    if (tileFlags.Has(RoomTileFlags.StackBlocked))
-                        return false;
+        return true;
+    }
 
-                    if (bItem != tItem)
-                    {
-                        // if is a stack helper, allow placement
-                        // if is a roller, disallow placement
-                    }
+    public bool ValidateNewFloorItemPlacement(
+        ActionContext ctx,
+        FurnitureFloorItemSnapshot item,
+        int newX,
+        int newY,
+        Rotation newRotation
+    )
+    {
+        if (
+            _roomMap.GetTileIdForSize(
+                newX,
+                newY,
+                newRotation,
+                item.Definition.Width,
+                item.Definition.Length,
+                out var tileIds
+            )
+        )
+        {
+            foreach (var id in tileIds)
+            {
+                var tileFlags = _state.TileFlags[id];
+                var tileHeight = _state.TileHeights[id];
+                var highestItemId = _state.TileHighestFloorItems[id];
+                var bItem = _state.FloorItemsById[highestItemId];
+
+                if (
+                    tileFlags.Has(RoomTileFlags.Disabled)
+                    || (tileHeight + item.Definition.StackHeight) > _roomConfig.MaxStackHeight
+                    || tileFlags.Has(RoomTileFlags.StackBlocked)
+                    || (
+                        !_roomConfig.PlaceItemsOnAvatars
+                        && tileFlags.Has(RoomTileFlags.AvatarOccupied)
+                    )
+                    || tileFlags.Has(RoomTileFlags.AvatarOccupied) && !item.Definition.CanWalk
+                )
+                    return false;
+
+                if (bItem is not null)
+                {
+                    // if is a stack helper, allow placement
+                    // if is a roller, disallow placement
                 }
             }
         }

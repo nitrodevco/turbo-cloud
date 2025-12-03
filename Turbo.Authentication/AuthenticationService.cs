@@ -6,17 +6,17 @@ using Turbo.Primitives.Authentication;
 
 namespace Turbo.Authentication;
 
-public sealed class AuthenticationService(IDbContextFactory<TurboDbContext> dbContextFactory)
+public sealed class AuthenticationService(IDbContextFactory<TurboDbContext> dbCtxFactory)
     : IAuthenticationService
 {
-    private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
 
     public async Task<int> GetPlayerIdFromTicketAsync(string ticket, CancellationToken ct = default)
     {
         if (ticket is null || ticket.Length == 0)
             return 0;
 
-        var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
         try
         {

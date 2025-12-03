@@ -16,12 +16,12 @@ using Turbo.Primitives.Inventory.Furniture;
 namespace Turbo.Inventory.Furniture;
 
 internal sealed class FurnitureItemsLoader(
-    IDbContextFactory<TurboDbContext> dbContextFactory,
+    IDbContextFactory<TurboDbContext> dbCtxFactory,
     IFurnitureDefinitionProvider defsProvider,
     IStuffDataFactory stuffDataFactory
 ) : IFurnitureItemsLoader
 {
-    private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
     private readonly IFurnitureDefinitionProvider _defsProvider = defsProvider;
     private readonly IStuffDataFactory _stuffDataFactory = stuffDataFactory;
 
@@ -30,7 +30,7 @@ internal sealed class FurnitureItemsLoader(
         IReadOnlyList<IFurnitureWallItem>
     )> LoadByPlayerIdAsync(long playerId, CancellationToken ct)
     {
-        var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
         try
         {
@@ -84,6 +84,7 @@ internal sealed class FurnitureItemsLoader(
             ProductType.Floor => new FurnitureFloorItem
             {
                 ItemId = entity.Id,
+                OwnerId = entity.PlayerEntityId,
                 Definition = definition,
                 StuffData = _stuffDataFactory.CreateStuffDataFromJson(
                     (int)StuffDataType.LegacyKey,
@@ -94,6 +95,7 @@ internal sealed class FurnitureItemsLoader(
             ProductType.Wall => new FurnitureWallItem
             {
                 ItemId = entity.Id,
+                OwnerId = entity.PlayerEntityId,
                 Definition = definition,
                 StuffData = entity.StuffData ?? string.Empty,
             },

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
 
 namespace Turbo.Furniture.StuffData;
@@ -21,6 +22,8 @@ internal sealed class NumberStuffData : StuffDataBase, INumberStuffData
             state = DEFAULT_STATE;
 
         Data[STATE_INDEX] = int.Parse(state);
+
+        MarkDirty();
     }
 
     public int GetValue(int index)
@@ -37,5 +40,16 @@ internal sealed class NumberStuffData : StuffDataBase, INumberStuffData
             return;
 
         Data[index] = value;
+
+        MarkDirty();
     }
+
+    protected override StuffDataSnapshot BuildSnapshot() =>
+        new NumberStuffSnapshot()
+        {
+            StuffBitmask = GetBitmask(),
+            UniqueNumber = UniqueNumber,
+            UniqueSeries = UniqueSeries,
+            Data = [.. Data],
+        };
 }

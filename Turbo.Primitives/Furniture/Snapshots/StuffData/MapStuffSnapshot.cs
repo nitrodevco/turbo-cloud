@@ -1,10 +1,10 @@
 using System.Collections.Immutable;
 using Orleans;
 
-namespace Turbo.Primitives.Rooms.Snapshots.StuffData;
+namespace Turbo.Primitives.Furniture.Snapshots.StuffData;
 
 [GenerateSerializer, Immutable]
-public sealed record MapStuffPayload
+public sealed record MapStuffSnapshot : StuffDataSnapshot
 {
     [Id(0)]
     public required ImmutableDictionary<string, string> Data { get; init; }

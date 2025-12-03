@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
 
 namespace Turbo.Furniture.StuffData;
@@ -20,6 +22,8 @@ internal sealed class MapStuffData : StuffDataBase, IMapStuffData
             state = DEFAULT_STATE;
 
         Data[STATE_KEY] = state;
+
+        MarkDirty();
     }
 
     public string GetValue(string key)
@@ -29,4 +33,13 @@ internal sealed class MapStuffData : StuffDataBase, IMapStuffData
 
         return string.Empty;
     }
+
+    protected override StuffDataSnapshot BuildSnapshot() =>
+        new MapStuffSnapshot()
+        {
+            StuffBitmask = GetBitmask(),
+            UniqueNumber = UniqueNumber,
+            UniqueSeries = UniqueSeries,
+            Data = Data.ToImmutableDictionary(),
+        };
 }

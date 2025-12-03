@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,15 +29,21 @@ internal sealed partial class RoomFurniModule(
     private readonly IRoomItemsLoader _itemsLoader = itemsLoader;
     private readonly IRoomObjectLogicFactory _logicFactory = logicFactory;
 
+    public Task<ImmutableDictionary<long, string>> GetAllOwnersAsync(CancellationToken ct) =>
+        Task.FromResult(_state.OwnerNamesById.ToImmutableDictionary());
+
     internal async Task EnsureFurniLoadedAsync(CancellationToken ct)
     {
         if (_state.IsFurniLoaded)
             return;
 
-        var (floorItems, wallItems) = await _itemsLoader.LoadByRoomIdAsync(
+        var (floorItems, wallItems, ownerNames) = await _itemsLoader.LoadByRoomIdAsync(
             _roomGrain.GetPrimaryKeyLong(),
             ct
         );
+
+        foreach (var (id, name) in ownerNames)
+            _state.OwnerNamesById.TryAdd(id, name);
 
         foreach (var item in floorItems)
             await AddFloorItemAsync(item, ct);
@@ -45,7 +52,7 @@ internal sealed partial class RoomFurniModule(
     }
 
     internal async Task FlushDirtyItemIdsAsync(
-        IDbContextFactory<TurboDbContext> dbContextFactory,
+        IDbContextFactory<TurboDbContext> dbCtxFactory,
         CancellationToken ct
     )
     {
@@ -56,7 +63,7 @@ internal sealed partial class RoomFurniModule(
 
         _state.DirtyItemIds.Clear();
 
-        var dbCtx = await dbContextFactory.CreateDbContextAsync(ct);
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct);
 
         try
         {

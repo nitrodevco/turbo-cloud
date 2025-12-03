@@ -1,3 +1,4 @@
+using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
 
 namespace Turbo.Furniture.StuffData;
@@ -15,9 +16,26 @@ internal sealed class VoteStuffData : StuffDataBase, IVoteStuffData
             state = DEFAULT_STATE;
 
         Data = state;
+
+        MarkDirty();
     }
 
     public int GetResult() => Result;
 
-    public void SetResult(int result) => Result = result;
+    public void SetResult(int result)
+    {
+        Result = result;
+
+        MarkDirty();
+    }
+
+    protected override StuffDataSnapshot BuildSnapshot() =>
+        new VoteStuffSnapshot()
+        {
+            StuffBitmask = GetBitmask(),
+            UniqueNumber = UniqueNumber,
+            UniqueSeries = UniqueSeries,
+            Data = GetLegacyString(),
+            Result = GetResult(),
+        };
 }

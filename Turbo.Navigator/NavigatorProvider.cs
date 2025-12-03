@@ -14,11 +14,11 @@ using Turbo.Primitives.Orleans.Snapshots.Room;
 namespace Turbo.Navigator;
 
 public sealed class NavigatorProvider(
-    IDbContextFactory<TurboDbContext> dbContextFactory,
+    IDbContextFactory<TurboDbContext> dbCtxFactory,
     ILogger<NavigatorProvider> logger
 ) : INavigatorProvider
 {
-    private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
     private readonly ILogger<NavigatorProvider> _logger = logger;
 
     private ImmutableArray<NavigatorTopLevelContextSnapshot> _topLevelContexts = [];
@@ -28,7 +28,7 @@ public sealed class NavigatorProvider(
 
     public async Task<List<RoomInfoSnapshot>> GetRoomResultsAsync(CancellationToken ct = default)
     {
-        var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
         try
         {
@@ -69,7 +69,7 @@ public sealed class NavigatorProvider(
 
     public async Task ReloadAsync(CancellationToken ct = default)
     {
-        var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
         try
         {

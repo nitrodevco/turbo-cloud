@@ -1,9 +1,11 @@
+using System;
 using System.Text.Json.Serialization;
+using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
 
 namespace Turbo.Furniture.StuffData;
 
-internal class StuffDataBase : IStuffData
+internal abstract class StuffDataBase : IStuffData
 {
     public const int TYPE_MASK = 0xFF;
     public const int FLAGS_MASK = 0xFF00;
@@ -14,6 +16,10 @@ internal class StuffDataBase : IStuffData
     public static int CreateBitmask(StuffDataType type, StuffDataFlags flags) =>
         ((int)type & TYPE_MASK) | ((int)flags & FLAGS_MASK);
 
+    protected Action<int>? _onSnapshotChanged;
+    protected bool _dirty = true;
+    protected StuffDataSnapshot? _snapshot;
+
     [JsonIgnore]
     public StuffDataType StuffType { get; private set; }
 
@@ -22,6 +28,8 @@ internal class StuffDataBase : IStuffData
 
     [JsonPropertyName("U_S")]
     public int UniqueSeries { get; set; } = 0;
+
+    public bool IsDirty => _dirty;
 
     public int GetBitmask() =>
         CreateBitmask(StuffType, IsUnique() ? StuffDataFlags.Unique : StuffDataFlags.None);
@@ -35,4 +43,28 @@ internal class StuffDataBase : IStuffData
     public virtual void SetState(string state) { }
 
     public virtual string GetLegacyString() => string.Empty;
+
+    public void SetAction(Action<int>? onSnapshotChanged)
+    {
+        _onSnapshotChanged = onSnapshotChanged;
+    }
+
+    public void MarkDirty()
+    {
+        _dirty = true;
+        _onSnapshotChanged?.Invoke(-1);
+    }
+
+    public virtual StuffDataSnapshot GetSnapshot()
+    {
+        if (_dirty || _snapshot is null)
+        {
+            _snapshot = BuildSnapshot();
+            _dirty = false;
+        }
+
+        return _snapshot;
+    }
+
+    protected abstract StuffDataSnapshot BuildSnapshot();
 }

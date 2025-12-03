@@ -1,10 +1,10 @@
 using System.Collections.Immutable;
 using Orleans;
 
-namespace Turbo.Primitives.Rooms.Snapshots.StuffData;
+namespace Turbo.Primitives.Furniture.Snapshots.StuffData;
 
 [GenerateSerializer, Immutable]
-public sealed record HighscoreStuffPayload
+public sealed record HighscoreStuffSnapshot : StuffDataSnapshot
 {
     [Id(0)]
     public required string Data { get; init; }

@@ -1,3 +1,4 @@
+using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
 
 namespace Turbo.Furniture.StuffData;
@@ -14,5 +15,16 @@ internal sealed class LegacyStuffData : StuffDataBase, ILegacyStuffData
             state = DEFAULT_STATE;
 
         Data = state;
+
+        MarkDirty();
     }
+
+    protected override StuffDataSnapshot BuildSnapshot() =>
+        new LegacyStuffSnapshot()
+        {
+            StuffBitmask = GetBitmask(),
+            UniqueNumber = UniqueNumber,
+            UniqueSeries = UniqueSeries,
+            Data = GetLegacyString(),
+        };
 }

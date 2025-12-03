@@ -35,11 +35,12 @@ internal sealed class RoomPathfinder(int maxNodes = 4096)
         var currentTileId = map.GetTileId(start.X, start.Y);
         var goalTileId = map.GetTileId(goal.X, goal.Y);
 
-        if (!map.CanAvatarWalk(avatar, currentTileId) || !map.CanAvatarWalk(avatar, goalTileId))
+        if (
+            currentTileId == goalTileId
+            || !map.CanAvatarWalk(avatar, currentTileId)
+            || !map.CanAvatarWalk(avatar, goalTileId)
+        )
             return [];
-
-        if (startX == goalX && startY == goalY)
-            return [(startX, startY)];
 
         var open = new PriorityQueue<Node, int>();
         var allNodes = new Dictionary<(int, int), Node>(capacity: 256);
@@ -47,11 +48,13 @@ internal sealed class RoomPathfinder(int maxNodes = 4096)
         Node GetOrCreateNode(int x, int y)
         {
             var key = (x, y);
+
             if (allNodes.TryGetValue(key, out var n))
                 return n;
 
             n = new Node { X = x, Y = y };
             allNodes[key] = n;
+
             return n;
         }
 
@@ -67,49 +70,63 @@ internal sealed class RoomPathfinder(int maxNodes = 4096)
 
         while (open.Count > 0 && allNodes.Count <= _maxNodes)
         {
-            var current = open.Dequeue();
-            var cKey = (current.X, current.Y);
-            var cTileId = map.GetTileId(current.X, current.Y);
-
-            if (!closed.Add(cKey))
-                continue;
-
-            if (current.X == goalX && current.Y == goalY)
-                return ReconstructPath(current);
-
-            for (var i = 0; i < DIRECTIONS.Length; i++)
+            try
             {
-                var (dx, dy, moveCost) = DIRECTIONS[i];
-                var nx = current.X + dx;
-                var ny = current.Y + dy;
+                var current = open.Dequeue();
+                var cKey = (current.X, current.Y);
+                var cTileId = map.GetTileId(current.X, current.Y);
 
-                if (nx < 0 || ny < 0 || nx >= map.Width || ny >= map.Height)
+                if (!closed.Add(cKey))
                     continue;
 
-                if (closed.Contains((nx, ny)))
-                    continue;
+                if (current.X == goalX && current.Y == goalY)
+                    return ReconstructPath(current);
 
-                var nTileId = map.GetTileId(nx, ny);
-
-                if (!map.CanAvatarWalkBetween(avatar, cTileId, nTileId))
-                    continue;
-
-                var tentativeG = current.G + moveCost;
-                var neighbor = GetOrCreateNode(nx, ny);
-
-                if (neighbor.Parent == null && !(nx == startX && ny == startY))
+                for (var i = 0; i < DIRECTIONS.Length; i++)
                 {
-                    neighbor.Parent = current;
-                    neighbor.G = tentativeG;
-                    neighbor.H = Heuristic(nx, ny, goalX, goalY);
-                    open.Enqueue(neighbor, neighbor.F);
+                    var (dx, dy, moveCost) = DIRECTIONS[i];
+                    var nx = current.X + dx;
+                    var ny = current.Y + dy;
+
+                    if (nx < 0 || ny < 0 || nx >= map.Width || ny >= map.Height)
+                        continue;
+
+                    if (closed.Contains((nx, ny)))
+                        continue;
+
+                    try
+                    {
+                        var nTileId = map.GetTileId(nx, ny);
+
+                        if (!map.CanAvatarWalkBetween(avatar, cTileId, nTileId))
+                            continue;
+
+                        var tentativeG = current.G + moveCost;
+                        var neighbor = GetOrCreateNode(nx, ny);
+
+                        if (neighbor.Parent == null && !(nx == startX && ny == startY))
+                        {
+                            neighbor.Parent = current;
+                            neighbor.G = tentativeG;
+                            neighbor.H = Heuristic(nx, ny, goalX, goalY);
+                            open.Enqueue(neighbor, neighbor.F);
+                        }
+                        else if (tentativeG < neighbor.G)
+                        {
+                            neighbor.Parent = current;
+                            neighbor.G = tentativeG;
+                            open.Enqueue(neighbor, neighbor.F);
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        continue;
+                    }
                 }
-                else if (tentativeG < neighbor.G)
-                {
-                    neighbor.Parent = current;
-                    neighbor.G = tentativeG;
-                    open.Enqueue(neighbor, neighbor.F);
-                }
+            }
+            catch (Exception e)
+            {
+                continue;
             }
         }
 

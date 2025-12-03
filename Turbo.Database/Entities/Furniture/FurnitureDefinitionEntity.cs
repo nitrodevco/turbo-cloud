@@ -9,7 +9,7 @@ using Turbo.Primitives.Rooms.Enums;
 namespace Turbo.Database.Entities.Furniture;
 
 [Table("furniture_definitions")]
-[Index(nameof(SpriteId), nameof(ProductType), IsUnique = true)]
+[Index(nameof(SpriteId), nameof(ProductType), nameof(FurniCategory), IsUnique = true)]
 public class FurnitureDefinitionEntity : TurboEntity
 {
     [Column("sprite_id")]
@@ -18,12 +18,15 @@ public class FurnitureDefinitionEntity : TurboEntity
     [Column("public_name")]
     public required string PublicName { get; set; }
 
-    [Column("product_name")]
-    public required string ProductName { get; set; }
-
-    [Column("product_type")]
+    [Column("type")]
     [DefaultValue(ProductType.Floor)]
+    [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public required ProductType ProductType { get; set; }
+
+    [Column("category")]
+    [DefaultValue(FurnitureCategory.Default)]
+    [DatabaseGenerated(DatabaseGeneratedOption.None)]
+    public required FurnitureCategory FurniCategory { get; set; }
 
     [Column("logic")]
     [MaxLength(30)]
@@ -36,11 +39,11 @@ public class FurnitureDefinitionEntity : TurboEntity
 
     [Column("width")]
     [DefaultValue(0)]
-    public required int Width { get; set; } // width
+    public required int Width { get; set; } // columns
 
-    [Column("height")]
+    [Column("length")]
     [DefaultValue(1)]
-    public required int Height { get; set; } // height
+    public required int Length { get; set; } // rows
 
     [Column("stack_height", TypeName = "double(10,3)")]
     [DefaultValue(0.0d)]

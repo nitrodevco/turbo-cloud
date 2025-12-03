@@ -1,6 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Mapping;
 
 namespace Turbo.Rooms.Grains;
 

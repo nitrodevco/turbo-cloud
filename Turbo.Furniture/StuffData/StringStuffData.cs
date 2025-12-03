@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
 
 namespace Turbo.Furniture.StuffData;
@@ -21,6 +22,8 @@ internal sealed class StringStuffData : StuffDataBase, IStringStuffData
             state = DEFAULT_STATE;
 
         Data[STATE_INDEX] = state;
+
+        MarkDirty();
     }
 
     public string GetValue(int index)
@@ -34,5 +37,16 @@ internal sealed class StringStuffData : StuffDataBase, IStringStuffData
     public void SetValue(int index, string value)
     {
         Data[index] = value;
+
+        MarkDirty();
     }
+
+    protected override StuffDataSnapshot BuildSnapshot() =>
+        new StringStuffSnapshot()
+        {
+            StuffBitmask = GetBitmask(),
+            UniqueNumber = UniqueNumber,
+            UniqueSeries = UniqueSeries,
+            Data = [.. Data],
+        };
 }

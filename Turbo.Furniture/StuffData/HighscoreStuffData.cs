@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
 
 namespace Turbo.Furniture.StuffData;
@@ -18,15 +20,27 @@ internal sealed class HighscoreStuffData : StuffDataBase, IHighscoreStuffData
             state = "0";
 
         Data = state;
+
+        MarkDirty();
     }
 
     public int GetScoreType() => ScoreType;
 
-    public void SetScoreType(int scoreType) => ScoreType = scoreType;
+    public void SetScoreType(int scoreType)
+    {
+        ScoreType = scoreType;
+
+        MarkDirty();
+    }
 
     public int GetClearType() => ClearType;
 
-    public void SetClearType(int clearType) => ClearType = clearType;
+    public void SetClearType(int clearType)
+    {
+        ClearType = clearType;
+
+        MarkDirty();
+    }
 
     public void SetScore(int score, string name)
     {
@@ -35,10 +49,31 @@ internal sealed class HighscoreStuffData : StuffDataBase, IHighscoreStuffData
             value = [name];
             HighscoreData[score] = value;
 
+            MarkDirty();
+
             return;
         }
 
         if (!value.Contains(name))
+        {
             value.Add(name);
+
+            MarkDirty();
+        }
     }
+
+    protected override StuffDataSnapshot BuildSnapshot() =>
+        new HighscoreStuffSnapshot()
+        {
+            StuffBitmask = GetBitmask(),
+            UniqueNumber = UniqueNumber,
+            UniqueSeries = UniqueSeries,
+            Data = GetLegacyString(),
+            ScoreType = GetScoreType(),
+            ClearType = GetClearType(),
+            Scores = HighscoreData.ToImmutableDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value.ToImmutableArray()
+            ),
+        };
 }

@@ -12,16 +12,19 @@ using Turbo.Primitives;
 using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Orleans.States.Players;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Grains;
 
 namespace Turbo.Players.Grains;
 
 public class PlayerGrain(
     [PersistentState(OrleansStateNames.PLAYER_STATE, OrleansStorageNames.PLAYER_STORE)]
         IPersistentState<PlayerState> state,
-    IDbContextFactory<TurboDbContext> dbContextFactory
+    IDbContextFactory<TurboDbContext> dbCtxFactory,
+    IGrainFactory grainFactory
 ) : Grain, IPlayerGrain
 {
-    private readonly IDbContextFactory<TurboDbContext> _dbContextFactory = dbContextFactory;
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
+    private readonly IGrainFactory _grainFactory = grainFactory;
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
@@ -38,7 +41,7 @@ public class PlayerGrain(
         if (state.State.IsLoaded)
             return;
 
-        var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         try
         {
@@ -56,6 +59,10 @@ public class PlayerGrain(
             state.State.IsLoaded = true;
             state.State.LastUpdated = DateTime.UtcNow;
 
+            await _grainFactory
+                .GetGrain<IPlayerDirectoryGrain>(PlayerDirectoryGrain.SINGLETON_KEY)
+                .SetPlayerNameAsync(this.GetPrimaryKeyLong(), state.State.Name, ct);
+
             await state.WriteStateAsync(ct);
         }
         catch (Exception)
@@ -70,7 +77,7 @@ public class PlayerGrain(
 
     protected async Task WriteToDatabaseAsync(CancellationToken ct)
     {
-        var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         try
         {
