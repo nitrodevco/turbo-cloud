@@ -26,7 +26,7 @@ internal sealed partial class RoomActionModule
         CancellationToken ct
     )
     {
-        if (!await _securityModule.CanManipulateFurniAsync(ctx))
+        if (!await _securityModule.CanPlaceFurniAsync(ctx))
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
         if (!_furniModule.ValidateNewFloorItemPlacement(ctx, item, newX, newY, newRotation))

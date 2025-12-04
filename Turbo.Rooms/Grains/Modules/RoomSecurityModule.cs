@@ -34,6 +34,13 @@ internal sealed class RoomSecurityModule(RoomGrain roomGrain, RoomLiveState live
         return false;
     }
 
+    public async Task<bool> CanPlaceFurniAsync(ActionContext ctx)
+    {
+        // TODO placement rules?
+
+        return await CanManipulateFurniAsync(ctx);
+    }
+
     public Task<bool> GetIsRoomOwnerAsync(ActionContext ctx)
     {
         var isOwner = false;

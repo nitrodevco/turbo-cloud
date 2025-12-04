@@ -43,8 +43,6 @@ internal sealed partial class RoomAvatarModule(
 
     private int _nextObjectId = 0;
 
-    public int GetTileIdForAvatar(IRoomAvatar avatar) => _roomMap.GetTileId(avatar.X, avatar.Y);
-
     public async Task<IRoomAvatar> CreateAvatarFromPlayerAsync(
         ActionContext ctx,
         PlayerSummarySnapshot snapshot,
