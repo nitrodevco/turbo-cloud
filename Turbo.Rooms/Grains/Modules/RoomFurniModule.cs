@@ -50,33 +50,52 @@ internal sealed partial class RoomFurniModule(
         foreach (var item in floorItems)
             await AddFloorItemAsync(item, ct);
 
+        foreach (var item in wallItems)
+            await AddWallItemAsync(item, ct);
+
         _state.IsFurniLoaded = true;
     }
 
     internal async Task FlushDirtyItemIdsAsync(CancellationToken ct)
     {
-        if (_state.DirtyItemIds.Count == 0)
+        if (_state.DirtyFloorItemIds.Count == 0 && _state.DirtyWallItemIds.Count == 0)
             return;
 
-        var dirtyItemIds = _state.DirtyItemIds.ToArray();
+        var dirtyFloorItemIds = _state.DirtyFloorItemIds.ToArray();
+        var dirtyWallItemIds = _state.DirtyWallItemIds.ToArray();
 
-        _state.DirtyItemIds.Clear();
+        _state.DirtyFloorItemIds.Clear();
+        _state.DirtyWallItemIds.Clear();
 
         var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         try
         {
-            var dirtySnapshots = dirtyItemIds
-                .Select(id => _state.FloorItemsById[id].GetSnapshot())
+            var dirtyFloorSnapshots = dirtyFloorItemIds
+                .Select(id =>
+                    _state.FloorItemsById.TryGetValue(id, out var item) ? item.GetSnapshot() : null
+                )
                 .ToArray();
-            var dirtyIds = dirtySnapshots.Select(x => x.ObjectId.Value).ToArray();
+            var dirtyWallSnapshots = dirtyWallItemIds
+                .Select(id =>
+                    _state.WallItemsById.TryGetValue(id, out var item) ? item.GetSnapshot() : null
+                )
+                .ToArray();
+            var dirtyIds = dirtyFloorSnapshots
+                .Where(x => x is not null)
+                .Select(x => x!.ObjectId.Value)
+                .Concat(dirtyWallSnapshots.Where(x => x is not null).Select(x => x!.ObjectId.Value))
+                .ToArray();
             var entities = await dbCtx
                 .Furnitures.Where(x => dirtyIds.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, ct);
 
-            foreach (var snapshot in dirtySnapshots)
+            foreach (var snapshot in dirtyFloorSnapshots)
             {
-                if (!entities.TryGetValue(snapshot.ObjectId.Value, out var entity))
+                if (
+                    snapshot is null
+                    || !entities.TryGetValue(snapshot.ObjectId.Value, out var entity)
+                )
                     continue;
 
                 entity.X = snapshot.X;
@@ -84,6 +103,22 @@ internal sealed partial class RoomFurniModule(
                 entity.Z = snapshot.Z;
                 entity.Rotation = snapshot.Rotation;
                 entity.StuffData = snapshot.StuffDataJson;
+            }
+
+            foreach (var snapshot in dirtyWallSnapshots)
+            {
+                if (
+                    snapshot is null
+                    || !entities.TryGetValue(snapshot.ObjectId.Value, out var entity)
+                )
+                    continue;
+
+                entity.X = snapshot.X;
+                entity.Y = snapshot.Y;
+                entity.Z = snapshot.Z;
+                entity.WallOffset = snapshot.WallOffset;
+                entity.Rotation = snapshot.Rotation;
+                entity.StuffData = snapshot.StuffData;
             }
 
             await dbCtx.SaveChangesAsync(ct);

@@ -121,11 +121,18 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
-        await _furniModule.FlushDirtyItemIdsAsync(ct);
+        try
+        {
+            await _furniModule.FlushDirtyItemIdsAsync(ct);
 
-        await _grainFactory
-            .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
-            .RemoveActiveRoomAsync(_roomId);
+            await _grainFactory
+                .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
+                .RemoveActiveRoomAsync(_roomId);
+        }
+        catch (Exception)
+        {
+            return;
+        }
     }
 
     public void DeactivateRoom() => DeactivateOnIdle();

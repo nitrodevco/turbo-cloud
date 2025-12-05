@@ -62,7 +62,7 @@ internal sealed class RoomWallItem : RoomItem, IRoomWallItem
         new ItemRemoveMessageComposer { ObjectId = ObjectId, PickerId = (int)pickerId };
 
     public string ConvertWallPositionToString() =>
-        $":w={X},{Y} l={WallOffset},{Math.Truncate(Z)} {(Rotation == Rotation.North ? "l" : "r")}";
+        $":w={X},{Y} l={WallOffset},{Math.Truncate(Z)} {(Rotation == Rotation.South ? "l" : "r")}";
 
     private RoomWallItemSnapshot BuildSnapshot() =>
         new()

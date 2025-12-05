@@ -321,7 +321,7 @@ internal sealed partial class RoomFurniModule
 
     private void ProcessDirtyFloorItem(int itemId, CancellationToken ct)
     {
-        _state.DirtyItemIds.Add(itemId);
+        _state.DirtyFloorItemIds.Add(itemId);
     }
 
     private async Task AttatchFloorLogicIfNeededAsync(IRoomFloorItem item, CancellationToken ct)
@@ -348,7 +348,7 @@ internal sealed partial class RoomFurniModule
             if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
                 throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-            _state.DirtyItemIds.Remove(itemId);
+            _state.DirtyFloorItemIds.Remove(itemId);
 
             var snapshot = item.GetSnapshot();
 

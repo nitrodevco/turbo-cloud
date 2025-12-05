@@ -177,7 +177,7 @@ internal sealed partial class RoomFurniModule
 
     private void ProcessDirtyWallItem(int itemId, CancellationToken ct)
     {
-        _state.DirtyItemIds.Add(itemId);
+        _state.DirtyWallItemIds.Add(itemId);
     }
 
     private async Task AttatchWallLogicIfNeededAsync(IRoomWallItem item, CancellationToken ct)
@@ -204,7 +204,7 @@ internal sealed partial class RoomFurniModule
             if (!_state.WallItemsById.TryGetValue(itemId, out var item))
                 throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
-            _state.DirtyItemIds.Remove(itemId);
+            _state.DirtyWallItemIds.Remove(itemId);
 
             var snapshot = item.GetSnapshot();
 

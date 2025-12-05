@@ -31,7 +31,8 @@ internal sealed class RoomLiveState
     public List<RollerInfoSnapshot> RollerInfos { get; } = [];
 
     public HashSet<int> DirtyHeightTileIds { get; } = [];
-    public HashSet<long> DirtyItemIds { get; } = [];
+    public HashSet<long> DirtyFloorItemIds { get; } = [];
+    public HashSet<long> DirtyWallItemIds { get; } = [];
 
     public bool IsMapReady { get; internal set; } = false;
     public bool IsFurniLoaded { get; internal set; } = false;
