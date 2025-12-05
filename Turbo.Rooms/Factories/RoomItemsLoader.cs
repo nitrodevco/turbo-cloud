@@ -16,6 +16,7 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Players.Grains;
+using Turbo.Primitives.Rooms.Factories;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -23,7 +24,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Furniture.Wall;
 
-namespace Turbo.Rooms.Object.Furniture;
+namespace Turbo.Rooms.Factories;
 
 internal sealed class RoomItemsLoader(
     IDbContextFactory<TurboDbContext> dbCtxFactory,

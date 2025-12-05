@@ -124,7 +124,7 @@ internal sealed class RoomPathfinder(int maxNodes = 4096)
                     }
                 }
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 continue;
             }

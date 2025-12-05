@@ -20,11 +20,26 @@ public sealed record RoomWallItemSnapshot
     public required int SpriteId { get; init; }
 
     [Id(4)]
-    public required string WallLocation { get; init; }
+    public required int X { get; init; }
 
     [Id(5)]
-    public required string StuffData { get; init; }
+    public required int Y { get; init; }
 
     [Id(6)]
+    public required double Z { get; init; }
+
+    [Id(7)]
+    public required int WallOffset { get; init; }
+
+    [Id(8)]
+    public required Rotation Rotation { get; init; }
+
+    [Id(9)]
+    public required string WallPosition { get; init; }
+
+    [Id(10)]
+    public required string StuffData { get; init; }
+
+    [Id(11)]
     public required FurnitureUsageType UsagePolicy { get; init; }
 }

@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
 
@@ -11,46 +10,127 @@ namespace Turbo.Rooms.Grains;
 
 public sealed partial class RoomGrain
 {
-    public Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct) =>
-        _actionModule.AddFloorItemAsync(item, ct);
+    public async Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
+    {
+        try
+        {
+            if (!await _actionModule.AddFloorItemAsync(item, ct))
+                return false;
 
-    public Task<bool> MoveFloorItemByIdAsync(
+            return true;
+        }
+        catch
+        {
+            // TODO handle exceptions
+
+            return false;
+        }
+    }
+
+    public async Task<bool> MoveFloorItemByIdAsync(
         ActionContext ctx,
-        RoomObjectId objectId,
+        int itemId,
         int newX,
         int newY,
         Rotation newRotation,
         CancellationToken ct
-    ) => _actionModule.MoveFloorItemByIdAsync(ctx, objectId, newX, newY, newRotation, ct);
+    )
+    {
+        try
+        {
+            if (
+                !await _actionModule.MoveFloorItemByIdAsync(
+                    ctx,
+                    itemId,
+                    newX,
+                    newY,
+                    newRotation,
+                    ct
+                )
+            )
+                return false;
 
-    public Task<bool> RemoveFloorItemByIdAsync(
+            return true;
+        }
+        catch
+        {
+            // TODO handle exceptions
+
+            return false;
+        }
+    }
+
+    public async Task<bool> RemoveFloorItemByIdAsync(
         ActionContext ctx,
-        RoomObjectId objectId,
+        int itemId,
         CancellationToken ct
-    ) => _actionModule.RemoveFloorItemByIdAsync(ctx, objectId, ct);
+    )
+    {
+        try
+        {
+            if (!await _actionModule.RemoveFloorItemByIdAsync(ctx, itemId, ct))
+                return false;
 
-    public Task<bool> UseFloorItemByIdAsync(
+            return true;
+        }
+        catch
+        {
+            // TODO handle exceptions
+
+            return false;
+        }
+    }
+
+    public async Task<bool> UseFloorItemByIdAsync(
         ActionContext ctx,
-        RoomObjectId objectId,
+        int itemId,
         CancellationToken ct,
         int param = -1
-    ) => _actionModule.UseFloorItemByIdAsync(ctx, objectId, ct, param);
+    )
+    {
+        try
+        {
+            if (!await _actionModule.UseFloorItemByIdAsync(ctx, itemId, ct, param))
+                return false;
 
-    public Task<bool> ClickFloorItemByIdAsync(
+            return true;
+        }
+        catch
+        {
+            // TODO handle exceptions
+
+            return false;
+        }
+    }
+
+    public async Task<bool> ClickFloorItemByIdAsync(
         ActionContext ctx,
-        RoomObjectId objectId,
+        int itemId,
         CancellationToken ct,
         int param = -1
-    ) => _actionModule.ClickFloorItemByIdAsync(ctx, objectId, ct, param);
+    )
+    {
+        try
+        {
+            if (!await _actionModule.ClickFloorItemByIdAsync(ctx, itemId, ct, param))
+                return false;
+
+            return true;
+        }
+        catch
+        {
+            // TODO handle exceptions
+
+            return false;
+        }
+    }
 
     public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
-        RoomObjectId objectId,
+        int itemId,
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _liveState.FloorItemsById.TryGetValue(objectId.Value, out var item)
-                ? item.GetSnapshot()
-                : null
+            _liveState.FloorItemsById.TryGetValue(itemId, out var item) ? item.GetSnapshot() : null
         );
 
     public Task<ImmutableArray<RoomFloorItemSnapshot>> GetAllFloorItemSnapshotsAsync(

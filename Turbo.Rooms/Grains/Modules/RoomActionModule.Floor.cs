@@ -5,7 +5,6 @@ using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -42,7 +41,7 @@ internal sealed partial class RoomActionModule
 
     public async Task<bool> MoveFloorItemByIdAsync(
         ActionContext ctx,
-        RoomObjectId objectId,
+        int itemId,
         int newX,
         int newY,
         Rotation newRotation,
@@ -52,10 +51,10 @@ internal sealed partial class RoomActionModule
         if (!await _securityModule.CanManipulateFurniAsync(ctx))
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
-        if (!_furniModule.ValidateFloorItemPlacement(ctx, objectId, newX, newY, newRotation))
+        if (!_furniModule.ValidateFloorItemPlacement(ctx, itemId, newX, newY, newRotation))
             throw new TurboException(TurboErrorCodeEnum.InvalidFloorItemPlacement);
 
-        if (!await _furniModule.MoveFloorItemByIdAsync(ctx, objectId, newX, newY, newRotation, ct))
+        if (!await _furniModule.MoveFloorItemByIdAsync(ctx, itemId, newX, newY, newRotation, ct))
             return false;
 
         return true;
@@ -63,18 +62,18 @@ internal sealed partial class RoomActionModule
 
     public Task<bool> RemoveFloorItemByIdAsync(
         ActionContext ctx,
-        RoomObjectId objectId,
+        int itemId,
         CancellationToken ct
-    ) => _furniModule.RemoveFloorItemByIdAsync(ctx, objectId, ct);
+    ) => _furniModule.RemoveFloorItemByIdAsync(ctx, itemId, ct);
 
     public async Task<bool> UseFloorItemByIdAsync(
         ActionContext ctx,
-        RoomObjectId objectId,
+        int itemId,
         CancellationToken ct,
         int param = -1
     )
     {
-        if (!_state.FloorItemsById.TryGetValue(objectId.Value, out var item))
+        if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         var controllerLevel = await _securityModule.GetControllerLevelAsync(ctx);
@@ -96,8 +95,8 @@ internal sealed partial class RoomActionModule
 
     public Task<bool> ClickFloorItemByIdAsync(
         ActionContext ctx,
-        RoomObjectId objectId,
+        int itemId,
         CancellationToken ct,
         int param = -1
-    ) => _furniModule.ClickFloorItemByIdAsync(ctx, objectId, ct, param);
+    ) => _furniModule.ClickFloorItemByIdAsync(ctx, itemId, ct, param);
 }

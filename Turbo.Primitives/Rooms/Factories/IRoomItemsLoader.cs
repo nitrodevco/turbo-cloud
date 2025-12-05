@@ -2,10 +2,11 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 
-namespace Turbo.Primitives.Rooms.Object.Furniture;
+namespace Turbo.Primitives.Rooms.Factories;
 
 public interface IRoomItemsLoader
 {

@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Primitives.Rooms;
-using Turbo.Primitives.Rooms.Object.Furniture;
+using Turbo.Primitives.Rooms.Factories;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Rooms.Configuration;
 
@@ -18,6 +18,7 @@ internal sealed partial class RoomFurniModule(
     RoomConfig roomConfig,
     RoomLiveState roomLiveState,
     RoomMapModule roomMapModule,
+    IDbContextFactory<TurboDbContext> dbCtxFactory,
     IRoomItemsLoader itemsLoader,
     IRoomObjectLogicFactory logicFactory
 ) : IRoomModule
@@ -26,6 +27,7 @@ internal sealed partial class RoomFurniModule(
     private readonly RoomConfig _roomConfig = roomConfig;
     private readonly RoomLiveState _state = roomLiveState;
     private readonly RoomMapModule _roomMap = roomMapModule;
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
     private readonly IRoomItemsLoader _itemsLoader = itemsLoader;
     private readonly IRoomObjectLogicFactory _logicFactory = logicFactory;
 
@@ -51,10 +53,7 @@ internal sealed partial class RoomFurniModule(
         _state.IsFurniLoaded = true;
     }
 
-    internal async Task FlushDirtyItemIdsAsync(
-        IDbContextFactory<TurboDbContext> dbCtxFactory,
-        CancellationToken ct
-    )
+    internal async Task FlushDirtyItemIdsAsync(CancellationToken ct)
     {
         if (_state.DirtyItemIds.Count == 0)
             return;
@@ -63,7 +62,7 @@ internal sealed partial class RoomFurniModule(
 
         _state.DirtyItemIds.Clear();
 
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct);
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         try
         {

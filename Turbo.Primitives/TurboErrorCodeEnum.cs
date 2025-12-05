@@ -10,6 +10,7 @@ public enum TurboErrorCodeEnum
     MapNotLoaded,
     TileOutOfBounds,
     FloorItemNotFound,
+    FloorItemNotRemoved,
     WallItemNotFound,
     LogicNotFound,
     FurnitureDefinitionNotFound,
@@ -19,6 +20,7 @@ public enum TurboErrorCodeEnum
     InvalidMoveTarget,
     NoPermissionToManipulateFurni,
     InvalidFloorItemPlacement,
+    InvalidWallItemPlacement,
 }
 
 public static class ErrorCodeExtensions
@@ -33,6 +35,8 @@ public static class ErrorCodeExtensions
             TurboErrorCodeEnum.MapNotLoaded => "The room map is not loaded.",
             TurboErrorCodeEnum.TileOutOfBounds => "The tile index is out of bounds.",
             TurboErrorCodeEnum.FloorItemNotFound => "The specified floor item could not be found.",
+            TurboErrorCodeEnum.FloorItemNotRemoved =>
+                "The specified floor item could not be removed.",
             TurboErrorCodeEnum.WallItemNotFound => "The specified wall item could not be found.",
             TurboErrorCodeEnum.LogicNotFound => "The specified furniture logic could not be found.",
             TurboErrorCodeEnum.FurnitureDefinitionNotFound =>
@@ -45,6 +49,7 @@ public static class ErrorCodeExtensions
             TurboErrorCodeEnum.NoPermissionToManipulateFurni =>
                 "You do not have permission to manipulate furniture.",
             TurboErrorCodeEnum.InvalidFloorItemPlacement => "The floor item placement is invalid.",
+            TurboErrorCodeEnum.InvalidWallItemPlacement => "The wall item placement is invalid.",
             _ => "An unknown error occurred.",
         };
 }

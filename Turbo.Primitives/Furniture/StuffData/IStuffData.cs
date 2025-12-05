@@ -1,4 +1,3 @@
-using System;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 
 namespace Turbo.Primitives.Furniture.StuffData;

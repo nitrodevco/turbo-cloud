@@ -1,5 +1,7 @@
+using System;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -8,14 +10,25 @@ namespace Turbo.Rooms.Object.Furniture.Wall;
 
 internal sealed class RoomWallItem : RoomItem, IRoomWallItem
 {
-    public string WallLocation { get; private set; } = string.Empty;
+    public int X { get; private set; }
+    public int Y { get; private set; }
+    public double Z { get; private set; }
+    public int WallOffset { get; private set; }
+    public Rotation Rotation { get; private set; }
     public IFurnitureWallLogic Logic { get; private set; } = default!;
 
     private RoomWallItemSnapshot? _snapshot;
 
-    public void SetPosition(string wallLocation)
+    public void SetPosition(int x, int y, double z, int wallOffset, Rotation rot)
     {
-        WallLocation = wallLocation;
+        if (X == x && Y == y && Z == z && WallOffset == wallOffset && Rotation == rot)
+            return;
+
+        X = x;
+        Y = y;
+        Z = z;
+        WallOffset = wallOffset;
+        Rotation = rot;
 
         MarkDirty();
     }
@@ -48,6 +61,9 @@ internal sealed class RoomWallItem : RoomItem, IRoomWallItem
     public IComposer GetRemoveComposer(long pickerId) =>
         new ItemRemoveMessageComposer { ObjectId = ObjectId, PickerId = (int)pickerId };
 
+    public string ConvertWallPositionToString() =>
+        $":w={X},{Y} l={WallOffset},{Math.Truncate(Z)} {(Rotation == Rotation.North ? "l" : "r")}";
+
     private RoomWallItemSnapshot BuildSnapshot() =>
         new()
         {
@@ -55,7 +71,12 @@ internal sealed class RoomWallItem : RoomItem, IRoomWallItem
             OwnerId = OwnerId,
             OwnerName = OwnerName,
             SpriteId = Definition.SpriteId,
-            WallLocation = WallLocation,
+            X = X,
+            Y = Y,
+            Z = Z,
+            WallOffset = WallOffset,
+            Rotation = Rotation,
+            WallPosition = ConvertWallPositionToString(),
             StuffData = Logic.StuffData,
             UsagePolicy = Definition.UsagePolicy,
         };

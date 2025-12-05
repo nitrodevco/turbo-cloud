@@ -12,10 +12,10 @@ using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room.Settings;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Factories;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Primitives.Rooms.Object.Avatars;
-using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
@@ -67,7 +67,15 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _pathfinder = new();
         _eventModule = new(this, _roomConfig, _liveState);
         _mapModule = new(this, _roomConfig, _liveState);
-        _furniModule = new(this, _roomConfig, _liveState, _mapModule, _itemsLoader, _logicFactory);
+        _furniModule = new(
+            this,
+            _roomConfig,
+            _liveState,
+            _mapModule,
+            _dbCtxFactory,
+            _itemsLoader,
+            _logicFactory
+        );
         _avatarModule = new(
             this,
             _roomConfig,
@@ -99,7 +107,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         );
 
         this.RegisterGrainTimer<object?>(
-            async _ => await _furniModule.FlushDirtyItemIdsAsync(_dbCtxFactory, ct),
+            async _ => await _furniModule.FlushDirtyItemIdsAsync(ct),
             null,
             TimeSpan.FromMilliseconds(_roomConfig.DirtyItemsFlushIntervalMilliseconds),
             TimeSpan.FromMilliseconds(_roomConfig.DirtyItemsFlushIntervalMilliseconds)
@@ -115,7 +123,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
-        await _furniModule.FlushDirtyItemIdsAsync(_dbCtxFactory, ct);
+        await _furniModule.FlushDirtyItemIdsAsync(ct);
 
         await _grainFactory
             .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)

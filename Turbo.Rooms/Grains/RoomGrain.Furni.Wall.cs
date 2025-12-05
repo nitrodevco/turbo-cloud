@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots;
 
@@ -9,43 +9,130 @@ namespace Turbo.Rooms.Grains;
 
 public sealed partial class RoomGrain
 {
-    public Task<bool> AddWallItemAsync(IRoomWallItem item, CancellationToken ct) =>
-        _actionModule.AddWallItemAsync(item, ct);
+    public async Task<bool> AddWallItemAsync(IRoomWallItem item, CancellationToken ct)
+    {
+        try
+        {
+            if (!await _actionModule.AddWallItemAsync(item, ct))
+                return false;
 
-    public Task<bool> MoveWallItemByIdAsync(
+            return true;
+        }
+        catch
+        {
+            // TODO handle exceptions
+
+            return false;
+        }
+    }
+
+    public async Task<bool> MoveWallItemByIdAsync(
         ActionContext ctx,
-        RoomObjectId objectId,
-        string newLocation,
+        int itemId,
+        int newX,
+        int newY,
+        double newZ,
+        int wallOffset,
+        Rotation newRot,
         CancellationToken ct
-    ) => _actionModule.MoveWallItemByIdAsync(ctx, objectId, newLocation, ct);
+    )
+    {
+        try
+        {
+            if (
+                !await _actionModule.MoveWallItemByIdAsync(
+                    ctx,
+                    itemId,
+                    newX,
+                    newY,
+                    newZ,
+                    wallOffset,
+                    newRot,
+                    ct
+                )
+            )
+                return false;
 
-    public Task<bool> RemoveWallItemByIdAsync(
+            return true;
+        }
+        catch
+        {
+            // TODO handle exceptions
+
+            return false;
+        }
+    }
+
+    public async Task<bool> RemoveWallItemByIdAsync(
         ActionContext ctx,
-        RoomObjectId objectId,
+        int itemId,
         CancellationToken ct
-    ) => _actionModule.RemoveWallItemByIdAsync(ctx, objectId, ct);
+    )
+    {
+        try
+        {
+            if (!await _actionModule.RemoveWallItemByIdAsync(ctx, itemId, ct))
+                return false;
 
-    public Task<bool> UseWallItemByIdAsync(
+            return true;
+        }
+        catch
+        {
+            // TODO handle exceptions
+
+            return false;
+        }
+    }
+
+    public async Task<bool> UseWallItemByIdAsync(
         ActionContext ctx,
-        RoomObjectId objectId,
+        int itemId,
         CancellationToken ct,
         int param = -1
-    ) => _actionModule.UseWallItemByIdAsync(ctx, objectId, ct, param);
+    )
+    {
+        try
+        {
+            if (!await _actionModule.UseWallItemByIdAsync(ctx, itemId, ct, param))
+                return false;
 
-    public Task<bool> ClickWallItemByIdAsync(
+            return true;
+        }
+        catch
+        {
+            // TODO handle exceptions
+
+            return false;
+        }
+    }
+
+    public async Task<bool> ClickWallItemByIdAsync(
         ActionContext ctx,
-        RoomObjectId objectId,
+        int itemId,
         CancellationToken ct,
         int param = -1
-    ) => _actionModule.ClickWallItemByIdAsync(ctx, objectId, ct, param);
+    )
+    {
+        try
+        {
+            if (!await _actionModule.ClickWallItemByIdAsync(ctx, itemId, ct, param))
+                return false;
+
+            return true;
+        }
+        catch
+        {
+            // TODO handle exceptions
+
+            return false;
+        }
+    }
 
     public Task<RoomWallItemSnapshot?> GetWallItemSnapshotByIdAsync(
-        RoomObjectId objectId,
+        int itemId,
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _liveState.WallItemsById.TryGetValue(objectId.Value, out var item)
-                ? item.GetSnapshot()
-                : null
+            _liveState.WallItemsById.TryGetValue(itemId, out var item) ? item.GetSnapshot() : null
         );
 }

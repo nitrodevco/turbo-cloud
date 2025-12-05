@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
 
@@ -14,31 +13,27 @@ public partial interface IRoomGrain
     public Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct);
     public Task<bool> MoveFloorItemByIdAsync(
         ActionContext ctx,
-        RoomObjectId objectId,
+        int itemId,
         int newX,
         int newY,
         Rotation newRotation,
         CancellationToken ct
     );
-    public Task<bool> RemoveFloorItemByIdAsync(
-        ActionContext ctx,
-        RoomObjectId objectId,
-        CancellationToken ct
-    );
+    public Task<bool> RemoveFloorItemByIdAsync(ActionContext ctx, int itemId, CancellationToken ct);
     public Task<bool> UseFloorItemByIdAsync(
         ActionContext ctx,
-        RoomObjectId objectId,
+        int itemId,
         CancellationToken ct,
         int param = -1
     );
     public Task<bool> ClickFloorItemByIdAsync(
         ActionContext ctx,
-        RoomObjectId objectId,
+        int itemId,
         CancellationToken ct,
         int param = -1
     );
     public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
-        RoomObjectId objectId,
+        int itemId,
         CancellationToken ct
     );
     public Task<ImmutableArray<RoomFloorItemSnapshot>> GetAllFloorItemSnapshotsAsync(
