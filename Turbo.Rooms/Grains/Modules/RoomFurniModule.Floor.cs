@@ -36,7 +36,7 @@ internal sealed partial class RoomFurniModule
             {
                 _state.TileFloorStacks[id].Add(item.ObjectId.Value);
 
-                await _roomMap.ComputeTileAsync(id);
+                _roomMap.ComputeTile(id);
             }
         }
 
@@ -89,7 +89,7 @@ internal sealed partial class RoomFurniModule
             {
                 _state.TileFloorStacks[id].Remove(item.ObjectId.Value);
 
-                await _roomMap.ComputeTileAsync(id);
+                _roomMap.ComputeTile(id);
             }
         }
 
@@ -102,7 +102,7 @@ internal sealed partial class RoomFurniModule
             {
                 _state.TileFloorStacks[id].Add(item.ObjectId.Value);
 
-                await _roomMap.ComputeTileAsync(id);
+                _roomMap.ComputeTile(id);
             }
         }
 
@@ -128,7 +128,7 @@ internal sealed partial class RoomFurniModule
             {
                 _state.TileFloorStacks[id].Remove(itemId);
 
-                await _roomMap.ComputeTileAsync(id);
+                _roomMap.ComputeTile(id);
             }
         }
 

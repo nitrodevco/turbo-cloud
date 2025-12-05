@@ -14,8 +14,6 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Factories;
 using Turbo.Primitives.Rooms.Grains;
-using Turbo.Primitives.Rooms.Mapping;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;

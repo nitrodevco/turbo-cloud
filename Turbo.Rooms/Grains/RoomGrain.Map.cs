@@ -6,9 +6,9 @@ namespace Turbo.Rooms.Grains;
 
 public sealed partial class RoomGrain
 {
-    public Task ComputeTileAsync(int x, int y) => _mapModule.ComputeTileAsync(x, y);
+    public void ComputeTile(int x, int y) => _mapModule.ComputeTile(x, y);
 
-    public Task ComputeTileAsync(int id) => _mapModule.ComputeTileAsync(id);
+    public void ComputeTile(int id) => _mapModule.ComputeTile(id);
 
     public Task<RoomTileSnapshot> GetTileSnapshotAsync(int x, int y, CancellationToken ct) =>
         _mapModule.GetTileSnapshotAsync(x, y, ct);

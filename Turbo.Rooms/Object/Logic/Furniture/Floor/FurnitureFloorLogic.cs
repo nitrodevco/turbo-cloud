@@ -39,7 +39,8 @@ public class FurnitureFloorLogic
         _stuffData.SetState(state.ToString());
 
         await _ctx.RefreshStuffDataAsync(CancellationToken.None);
-        await _ctx.RefreshTileAsync();
+
+        _ctx.RefreshTile();
 
         return true;
     }

@@ -16,6 +16,6 @@ public interface IRoomFloorItemContext : IRoomItemContext
         bool isExpired = false,
         int delay = 0
     );
-    public Task RefreshTileAsync();
+    public void RefreshTile();
     public Task<RoomTileSnapshot> GetTileSnapshotAsync(CancellationToken ct);
 }

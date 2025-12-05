@@ -29,7 +29,7 @@ internal sealed class RoomFloorItemContext(
         int delay = 0
     ) => SendComposerToRoomAsync(Item.GetRemoveComposer(pickerId, isExpired, delay), ct);
 
-    public Task RefreshTileAsync() => _roomGrain.ComputeTileAsync(Item.X, Item.Y);
+    public void RefreshTile() => _roomGrain.ComputeTile(Item.X, Item.Y);
 
     public Task<RoomTileSnapshot> GetTileSnapshotAsync(CancellationToken ct) =>
         _roomGrain.GetTileSnapshotAsync(Item.X, Item.Y, ct);

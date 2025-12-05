@@ -107,9 +107,9 @@ internal sealed class RoomMapModule(
         return true;
     }
 
-    public Task ComputeTileAsync(int x, int y) => ComputeTileAsync(GetTileId(x, y));
+    public void ComputeTile(int x, int y) => ComputeTile(GetTileId(x, y));
 
-    public Task ComputeTileAsync(int id)
+    public void ComputeTile(int id)
     {
         var nextHeight = _state.Model?.BaseHeights[id] ?? 0.0;
         var nextFlags =
@@ -177,8 +177,6 @@ internal sealed class RoomMapModule(
         }
 
         _dirty = true;
-
-        return Task.CompletedTask;
     }
 
     public bool CanAvatarWalk(

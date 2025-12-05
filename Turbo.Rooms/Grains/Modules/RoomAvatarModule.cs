@@ -116,7 +116,7 @@ internal sealed partial class RoomAvatarModule(
             var tileId = _roomMap.GetTileId(avatar.X, avatar.Y);
 
             if (_state.TileAvatarStacks[tileId].Remove(avatar.ObjectId.Value))
-                await _roomMap.ComputeTileAsync(tileId);
+                _roomMap.ComputeTile(tileId);
 
             await avatar.Logic.OnDetachAsync(ct).ConfigureAwait(false);
 
@@ -281,14 +281,14 @@ internal sealed partial class RoomAvatarModule(
             if (prevTileId > 0)
             {
                 if (_state.TileAvatarStacks[prevTileId].Remove(avatar.ObjectId.Value))
-                    await _roomMap.ComputeTileAsync(prevTileId);
+                    _roomMap.ComputeTile(prevTileId);
             }
 
             if (!_state.TileAvatarStacks[nextTileId].Contains(avatar.ObjectId.Value))
             {
                 _state.TileAvatarStacks[nextTileId].Add(avatar.ObjectId.Value);
 
-                await _roomMap.ComputeTileAsync(nextTileId);
+                _roomMap.ComputeTile(nextTileId);
             }
 
             avatar.SetPosition(nextX, nextY);
@@ -422,11 +422,11 @@ internal sealed partial class RoomAvatarModule(
 
             _state.TileAvatarStacks[prevTileId].Remove(avatar.ObjectId.Value);
 
-            await _roomMap.ComputeTileAsync(prevTileId);
+            _roomMap.ComputeTile(prevTileId);
 
             _state.TileAvatarStacks[nextTileId].Add(avatar.ObjectId.Value);
 
-            await _roomMap.ComputeTileAsync(nextTileId);
+            _roomMap.ComputeTile(nextTileId);
 
             avatar.RemoveStatus(AvatarStatusType.Lay, AvatarStatusType.Sit);
             avatar.AddStatus(AvatarStatusType.Move, $"{nextX},{nextY},{nextHeight}");
