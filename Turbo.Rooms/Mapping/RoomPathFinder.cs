@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Primitives.Rooms.Object.Avatars;
-using Turbo.Rooms.Mapping;
 
 internal sealed class RoomPathfinder(int maxNodes = 4096)
 {
@@ -22,6 +21,16 @@ internal sealed class RoomPathfinder(int maxNodes = 4096)
     };
 
     private readonly int _maxNodes = maxNodes;
+
+    internal sealed class Node
+    {
+        public int X;
+        public int Y;
+        public int G; // Cost from start
+        public int H; // Heuristic cost to goal
+        public int F => G + H;
+        public Node? Parent;
+    }
 
     public IReadOnlyList<(int X, int Y)> FindPath(
         IRoomAvatar avatar,

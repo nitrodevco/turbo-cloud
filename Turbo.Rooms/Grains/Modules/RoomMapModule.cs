@@ -15,7 +15,6 @@ using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 using Turbo.Rooms.Configuration;
-using Turbo.Rooms.Mapping;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -169,10 +168,7 @@ internal sealed class RoomMapModule(
         _state.TileHighestFloorItems[id] = nextHighestItem?.ObjectId.Value ?? -1;
 
         var prevEncoded = _state.TileEncodedHeights[id];
-        var nextEncoded = RoomModelCompiler.EncodeHeight(
-            nextHeight,
-            nextFlags.Has(RoomTileFlags.StackBlocked)
-        );
+        var nextEncoded = EncodeHeight(nextHeight, nextFlags.Has(RoomTileFlags.StackBlocked));
 
         if (prevEncoded != nextEncoded)
         {
@@ -288,6 +284,28 @@ internal sealed class RoomMapModule(
         };
     }
 
+    private static short EncodeHeight(double height, bool stackingBlocked)
+    {
+        if (height < 0)
+            return -1;
+
+        int stackingMask = 1 << 14;
+        int heightMask = stackingMask - 1;
+        int raw = (int)Math.Round(height * 256.0);
+
+        if (raw < 0)
+            raw = 0;
+
+        if (raw > heightMask)
+            raw = heightMask;
+
+        int value = raw | (stackingBlocked ? stackingMask : 0);
+
+        value &= 0x7FFF;
+
+        return unchecked((short)value);
+    }
+
     internal Task EnsureMapBuiltAsync(CancellationToken ct)
     {
         if (!_state.IsMapReady)
@@ -309,7 +327,7 @@ internal sealed class RoomMapModule(
                     ?? (RoomTileFlags.Disabled | RoomTileFlags.Closed | RoomTileFlags.StackBlocked);
 
                 tileHeights[id] = height;
-                tileEncodedHeights[id] = RoomModelCompiler.EncodeHeight(
+                tileEncodedHeights[id] = EncodeHeight(
                     height,
                     flags.Has(RoomTileFlags.StackBlocked)
                 );

@@ -1,8 +1,10 @@
 using Turbo.Primitives.Orleans.Snapshots.Players;
+using Turbo.Primitives.Rooms.Factories;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Rooms.Object.Avatars;
 
-namespace Turbo.Rooms.Object.Avatars;
+namespace Turbo.Rooms.Factories;
 
 public sealed class RoomAvatarFactory : IRoomAvatarFactory
 {
