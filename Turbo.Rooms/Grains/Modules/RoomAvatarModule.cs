@@ -148,7 +148,7 @@ internal sealed partial class RoomAvatarModule(
         await avatarLogic.OnAttachAsync(ct);
     }
 
-    public async Task WalkAvatarToAsync(
+    public async Task<bool> WalkAvatarToAsync(
         ActionContext ctx,
         int targetX,
         int targetY,
@@ -156,18 +156,20 @@ internal sealed partial class RoomAvatarModule(
     )
     {
         if (ctx.PlayerId <= 0)
-            return;
+            return false;
 
         if (!_state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectIdValue))
-            return;
+            return false;
 
         if (!_state.AvatarsByObjectId.TryGetValue(objectIdValue, out var avatar))
-            return;
+            return false;
 
         await WalkAvatarToAsync(avatar, targetX, targetY, ct);
+
+        return true;
     }
 
-    public async Task WalkAvatarToAsync(
+    public async Task<bool> WalkAvatarToAsync(
         RoomObjectId objectId,
         int targetX,
         int targetY,
@@ -175,12 +177,14 @@ internal sealed partial class RoomAvatarModule(
     )
     {
         if (!_state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar))
-            return;
+            return false;
 
         await WalkAvatarToAsync(avatar, targetX, targetY, ct);
+
+        return true;
     }
 
-    public async Task WalkAvatarToAsync(
+    public async Task<bool> WalkAvatarToAsync(
         IRoomAvatar avatar,
         int targetX,
         int targetY,
@@ -205,10 +209,14 @@ internal sealed partial class RoomAvatarModule(
             avatar.TilePath.AddRange(path.Skip(1).Select(pos => _roomMap.GetTileId(pos.X, pos.Y)));
             avatar.GoalTileId = _roomMap.GetTileId(targetX, targetY);
             avatar.IsWalking = true;
+
+            return true;
         }
         catch (Exception)
         {
             await StopWalkingAsync(avatar, ct);
+
+            return false;
         }
     }
 
@@ -261,7 +269,7 @@ internal sealed partial class RoomAvatarModule(
         catch (Exception) { }
     }
 
-    public async Task ProcessNextAvatarStepAsync(IRoomAvatar avatar, CancellationToken ct)
+    private async Task ProcessNextAvatarStepAsync(IRoomAvatar avatar, CancellationToken ct)
     {
         try
         {
@@ -339,36 +347,43 @@ internal sealed partial class RoomAvatarModule(
 
     internal async Task FlushDirtyAvatarsAsync(CancellationToken ct)
     {
-        var avatars = _state.AvatarsByObjectId.Values.ToArray();
-
-        if (avatars.Length == 0)
-            return;
-
-        var dirtySnapshots = new List<RoomAvatarSnapshot>();
-
-        foreach (var avatar in avatars)
+        try
         {
-            try
+            var avatars = _state.AvatarsByObjectId.Values.ToArray();
+
+            if (avatars.Length == 0)
+                return;
+
+            var dirtySnapshots = new List<RoomAvatarSnapshot>();
+
+            foreach (var avatar in avatars)
             {
-                await ProcessDirtyAvatarAsync(avatar, ct);
+                try
+                {
+                    await ProcessDirtyAvatarAsync(avatar, ct);
 
-                if (!avatar.IsDirty)
-                    continue;
+                    if (!avatar.IsDirty)
+                        continue;
 
-                var snapshot = avatar.GetSnapshot();
+                    var snapshot = avatar.GetSnapshot();
 
-                dirtySnapshots.Add(snapshot);
+                    dirtySnapshots.Add(snapshot);
+                }
+                catch (Exception) { }
             }
-            catch (Exception) { }
+
+            if (dirtySnapshots.Count == 0)
+                return;
+
+            _ = _roomGrain.SendComposerToRoomAsync(
+                new UserUpdateMessageComposer { Avatars = [.. dirtySnapshots] },
+                ct
+            );
         }
-
-        if (dirtySnapshots.Count == 0)
+        catch (Exception)
+        {
             return;
-
-        _ = _roomGrain.SendComposerToRoomAsync(
-            new UserUpdateMessageComposer { Avatars = [.. dirtySnapshots] },
-            ct
-        );
+        }
     }
 
     internal async Task ProcessDirtyAvatarAsync(IRoomAvatar avatar, CancellationToken ct)

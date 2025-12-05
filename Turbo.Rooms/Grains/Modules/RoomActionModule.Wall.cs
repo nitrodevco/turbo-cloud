@@ -28,7 +28,7 @@ internal sealed partial class RoomActionModule
     )
     {
         if (!await _securityModule.CanPlaceFurniAsync(ctx))
-            throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
+            throw new TurboException(TurboErrorCodeEnum.NoPermissionToPlaceFurni);
 
         if (
             !await _furniModule.ValidateNewWallItemPlacementAsync(
@@ -41,7 +41,7 @@ internal sealed partial class RoomActionModule
                 newRot
             )
         )
-            throw new TurboException(TurboErrorCodeEnum.InvalidFloorItemPlacement);
+            throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
         if (
             !await _furniModule.PlaceWallItemAsync(
@@ -74,7 +74,7 @@ internal sealed partial class RoomActionModule
     )
     {
         if (!await _securityModule.CanManipulateFurniAsync(ctx))
-            return false;
+            throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
         if (
             !await _furniModule.ValidateWallItemPlacementAsync(
@@ -87,7 +87,7 @@ internal sealed partial class RoomActionModule
                 newRot
             )
         )
-            throw new TurboException(TurboErrorCodeEnum.InvalidWallItemPlacement);
+            throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
         if (
             !await _furniModule.MoveWallItemByIdAsync(
@@ -122,19 +122,13 @@ internal sealed partial class RoomActionModule
         if (!_state.WallItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
-        var controllerLevel = await _securityModule.GetControllerLevelAsync(ctx);
         var usagePolicy = item.Logic.GetUsagePolicy();
 
-        if (usagePolicy == FurnitureUsageType.Nobody)
+        if (
+            !await _securityModule.CanUseFurniAsync(ctx, usagePolicy)
+            || !await _furniModule.UseWallItemByIdAsync(ctx, itemId, ct, param)
+        )
             return false;
-
-        if (usagePolicy == FurnitureUsageType.Controller)
-        {
-            if (controllerLevel < RoomControllerType.Rights)
-                return false;
-        }
-
-        await item.Logic.OnUseAsync(ctx, param, ct);
 
         return true;
     }

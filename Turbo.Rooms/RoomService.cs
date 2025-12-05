@@ -149,14 +149,27 @@ public sealed class RoomService(
                 .ConfigureAwait(false);
 
             var ownersSnapshot = await room.GetAllOwnersAsync(ct).ConfigureAwait(false);
-            var furniSnapshot = await room.GetAllFloorItemSnapshotsAsync(ct).ConfigureAwait(false);
+            var floorSnapshot = await room.GetAllFloorItemSnapshotsAsync(ct).ConfigureAwait(false);
 
             await playerPresence
                 .SendComposerAsync(
                     new ObjectsMessageComposer
                     {
                         OwnerNames = ownersSnapshot,
-                        FloorItems = furniSnapshot,
+                        FloorItems = floorSnapshot,
+                    },
+                    ct
+                )
+                .ConfigureAwait(false);
+
+            var wallSnapshot = await room.GetAllWallItemSnapshotsAsync(ct).ConfigureAwait(false);
+
+            await playerPresence
+                .SendComposerAsync(
+                    new ItemsMessageComposer
+                    {
+                        OwnerNames = ownersSnapshot,
+                        WallItems = wallSnapshot,
                     },
                     ct
                 )

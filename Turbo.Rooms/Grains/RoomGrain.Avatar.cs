@@ -3,28 +3,69 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Orleans.Snapshots.Players;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Rooms.Grains;
 
 public sealed partial class RoomGrain
 {
-    public Task<IRoomAvatar> CreateAvatarFromPlayerAsync(
+    public async Task<bool> CreateAvatarFromPlayerAsync(
         ActionContext ctx,
         PlayerSummarySnapshot snapshot,
         CancellationToken ct
-    ) => _avatarModule.CreateAvatarFromPlayerAsync(ctx, snapshot, ct);
+    )
+    {
+        try
+        {
+            var avatar = await _avatarModule.CreateAvatarFromPlayerAsync(ctx, snapshot, ct);
 
-    public Task RemoveAvatarFromPlayerAsync(long playerId, CancellationToken ct) =>
-        _avatarModule.RemoveAvatarFromPlayerAsync(playerId, ct);
+            return true;
+        }
+        catch
+        {
+            // TODO handle exceptions
 
-    public Task WalkAvatarToAsync(
+            return false;
+        }
+    }
+
+    public async Task<bool> RemoveAvatarFromPlayerAsync(long playerId, CancellationToken ct)
+    {
+        try
+        {
+            await _avatarModule.RemoveAvatarFromPlayerAsync(playerId, ct);
+
+            return true;
+        }
+        catch
+        {
+            // TODO handle exceptions
+
+            return false;
+        }
+    }
+
+    public async Task<bool> WalkAvatarToAsync(
         ActionContext ctx,
         int targetX,
         int targetY,
         CancellationToken ct
-    ) => _avatarModule.WalkAvatarToAsync(ctx, targetX, targetY, ct);
+    )
+    {
+        try
+        {
+            if (!await _avatarModule.WalkAvatarToAsync(ctx, targetX, targetY, ct))
+                return false;
+
+            return true;
+        }
+        catch
+        {
+            // TODO handle exceptions
+
+            return false;
+        }
+    }
 
     public Task<ImmutableArray<RoomAvatarSnapshot>> GetAllAvatarSnapshotsAsync(
         CancellationToken ct

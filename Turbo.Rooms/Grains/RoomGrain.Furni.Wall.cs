@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
@@ -135,4 +136,8 @@ public sealed partial class RoomGrain
         Task.FromResult(
             _liveState.WallItemsById.TryGetValue(itemId, out var item) ? item.GetSnapshot() : null
         );
+
+    public Task<ImmutableArray<RoomWallItemSnapshot>> GetAllWallItemSnapshotsAsync(
+        CancellationToken ct
+    ) => _furniModule.GetAllWallItemSnapshotsAsync(ct);
 }

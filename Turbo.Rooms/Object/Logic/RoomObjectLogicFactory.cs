@@ -33,7 +33,7 @@ public sealed class RoomObjectLogicFactory(IServiceProvider host) : IRoomObjectL
     public IRoomObjectLogic CreateLogicInstance(string logicType, IRoomObjectContext ctx)
     {
         if (!_logics.TryGetValue(logicType, out var reg))
-            throw new TurboException(TurboErrorCodeEnum.LogicNotFound);
+            throw new TurboException(TurboErrorCodeEnum.InvalidLogic);
 
         var sp = reg.ServiceProvider;
 

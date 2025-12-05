@@ -34,6 +34,22 @@ internal sealed class RoomSecurityModule(RoomGrain roomGrain, RoomLiveState live
         return false;
     }
 
+    public async Task<bool> CanUseFurniAsync(ActionContext ctx, FurnitureUsageType usageType)
+    {
+        var controllerLevel = await GetControllerLevelAsync(ctx);
+
+        if (usageType == FurnitureUsageType.Nobody)
+            return false;
+
+        if (usageType == FurnitureUsageType.Controller)
+        {
+            if (controllerLevel < RoomControllerType.Rights)
+                return false;
+        }
+
+        return true;
+    }
+
     public async Task<bool> CanPlaceFurniAsync(ActionContext ctx)
     {
         // TODO placement rules?

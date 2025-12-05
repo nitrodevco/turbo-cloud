@@ -147,12 +147,12 @@ internal sealed partial class RoomFurniModule
 
     public async Task<bool> UseFloorItemByIdAsync(
         ActionContext ctx,
-        RoomObjectId objectId,
-        int param,
-        CancellationToken ct
+        int itemId,
+        CancellationToken ct,
+        int param = -1
     )
     {
-        if (!_state.FloorItemsById.TryGetValue(objectId.Value, out var item))
+        if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         await item.Logic.OnUseAsync(ctx, param, ct);

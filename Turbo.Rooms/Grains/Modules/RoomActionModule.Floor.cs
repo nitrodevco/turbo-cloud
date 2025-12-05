@@ -26,10 +26,10 @@ internal sealed partial class RoomActionModule
     )
     {
         if (!await _securityModule.CanPlaceFurniAsync(ctx))
-            throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
+            throw new TurboException(TurboErrorCodeEnum.NoPermissionToPlaceFurni);
 
         if (!_furniModule.ValidateNewFloorItemPlacement(ctx, item, newX, newY, newRotation))
-            throw new TurboException(TurboErrorCodeEnum.InvalidFloorItemPlacement);
+            throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
         if (!await _furniModule.PlaceFloorItemAsync(ctx, item, newX, newY, newRotation, ct))
             return false;
@@ -52,7 +52,7 @@ internal sealed partial class RoomActionModule
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
         if (!_furniModule.ValidateFloorItemPlacement(ctx, itemId, newX, newY, newRotation))
-            throw new TurboException(TurboErrorCodeEnum.InvalidFloorItemPlacement);
+            throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
         if (!await _furniModule.MoveFloorItemByIdAsync(ctx, itemId, newX, newY, newRotation, ct))
             return false;
@@ -76,19 +76,13 @@ internal sealed partial class RoomActionModule
         if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        var controllerLevel = await _securityModule.GetControllerLevelAsync(ctx);
         var usagePolicy = item.Logic.GetUsagePolicy();
 
-        if (usagePolicy == FurnitureUsageType.Nobody)
+        if (
+            !await _securityModule.CanUseFurniAsync(ctx, usagePolicy)
+            || !await _furniModule.UseFloorItemByIdAsync(ctx, itemId, ct, param)
+        )
             return false;
-
-        if (usagePolicy == FurnitureUsageType.Controller)
-        {
-            if (controllerLevel < RoomControllerType.Rights)
-                return false;
-        }
-
-        await item.Logic.OnUseAsync(ctx, param, ct);
 
         return true;
     }

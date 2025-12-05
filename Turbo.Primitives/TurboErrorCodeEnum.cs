@@ -10,17 +10,14 @@ public enum TurboErrorCodeEnum
     MapNotLoaded,
     TileOutOfBounds,
     FloorItemNotFound,
-    FloorItemNotRemoved,
     WallItemNotFound,
-    LogicNotFound,
     FurnitureDefinitionNotFound,
     InvalidLogic,
     InvalidFurnitureProductType,
     InvalidSession,
     InvalidMoveTarget,
+    NoPermissionToPlaceFurni,
     NoPermissionToManipulateFurni,
-    InvalidFloorItemPlacement,
-    InvalidWallItemPlacement,
 }
 
 public static class ErrorCodeExtensions
@@ -35,10 +32,7 @@ public static class ErrorCodeExtensions
             TurboErrorCodeEnum.MapNotLoaded => "The room map is not loaded.",
             TurboErrorCodeEnum.TileOutOfBounds => "The tile index is out of bounds.",
             TurboErrorCodeEnum.FloorItemNotFound => "The specified floor item could not be found.",
-            TurboErrorCodeEnum.FloorItemNotRemoved =>
-                "The specified floor item could not be removed.",
             TurboErrorCodeEnum.WallItemNotFound => "The specified wall item could not be found.",
-            TurboErrorCodeEnum.LogicNotFound => "The specified furniture logic could not be found.",
             TurboErrorCodeEnum.FurnitureDefinitionNotFound =>
                 "The specified furniture definition could not be found.",
             TurboErrorCodeEnum.InvalidLogic => "The logic is not valid.",
@@ -46,10 +40,10 @@ public static class ErrorCodeExtensions
                 "The furniture product type is invalid.",
             TurboErrorCodeEnum.InvalidSession => "The session is invalid.",
             TurboErrorCodeEnum.InvalidMoveTarget => "The move target is invalid.",
+            TurboErrorCodeEnum.NoPermissionToPlaceFurni =>
+                "You do not have permission to place furniture.",
             TurboErrorCodeEnum.NoPermissionToManipulateFurni =>
                 "You do not have permission to manipulate furniture.",
-            TurboErrorCodeEnum.InvalidFloorItemPlacement => "The floor item placement is invalid.",
-            TurboErrorCodeEnum.InvalidWallItemPlacement => "The wall item placement is invalid.",
             _ => "An unknown error occurred.",
         };
 }
