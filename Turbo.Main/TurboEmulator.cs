@@ -8,7 +8,7 @@ using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Rooms.Mapping;
+using Turbo.Primitives.Rooms.Factories;
 
 namespace Turbo.Main;
 
