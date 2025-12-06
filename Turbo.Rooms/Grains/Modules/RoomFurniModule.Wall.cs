@@ -28,58 +28,57 @@ internal sealed partial class RoomFurniModule
 
         await AttatchWallLogicIfNeededAsync(item, ct);
 
-        _ = _roomGrain.SendComposerToRoomAsync(item.GetAddComposer(), ct);
+        if (!_roomMap.AddWallItem(item))
+            return false;
 
         return true;
     }
 
     public async Task<bool> PlaceWallItemAsync(
         ActionContext ctx,
-        FurnitureWallItemSnapshot item,
-        int newX,
-        int newY,
-        double newZ,
+        FurnitureWallItemSnapshot snapshot,
+        int x,
+        int y,
+        double z,
         int wallOffset,
         Rotation rot,
         CancellationToken ct
     )
     {
-        var roomItem = _itemsLoader.CreateFromFurnitureItemSnapshot(item);
+        var roomItem = _itemsLoader.CreateFromFurnitureItemSnapshot(snapshot);
 
-        if (roomItem is not IRoomWallItem wallItem)
+        if (roomItem is not IRoomWallItem item)
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
-        wallItem.SetPosition(newX, newY, newZ, wallOffset, rot);
+        if (!_state.WallItemsById.TryAdd(item.ObjectId.Value, item))
+            throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
-        return await AddWallItemAsync(wallItem, ct);
+        item.SetAction(objectId => ProcessDirtyWallItem(objectId.Value, ct));
+
+        await AttatchWallLogicIfNeededAsync(item, ct);
+
+        if (!_roomMap.PlaceWallItem(item, x, y, z, rot, wallOffset))
+            return false;
+
+        return true;
     }
 
     public async Task<bool> MoveWallItemByIdAsync(
         ActionContext ctx,
         int itemId,
-        int newX,
-        int newY,
-        double newZ,
+        int x,
+        int y,
+        double z,
         int wallOffset,
-        Rotation newRot,
+        Rotation rot,
         CancellationToken ct
     )
     {
         if (!_state.WallItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
-        if (
-            item.X == newX
-            && item.Y == newY
-            && item.Z == newZ
-            && item.WallOffset == wallOffset
-            && item.Rotation == newRot
-        )
+        if (!_roomMap.MoveWallItemItem(item, x, y, z, rot, wallOffset))
             return false;
-
-        item.SetPosition(newX, newY, newZ, wallOffset, newRot);
-
-        _ = _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer(), ct);
 
         await item.Logic.OnMoveAsync(ctx, ct);
 
@@ -89,19 +88,21 @@ internal sealed partial class RoomFurniModule
     public async Task<bool> RemoveWallItemByIdAsync(
         ActionContext ctx,
         int itemId,
-        CancellationToken ct
+        CancellationToken ct,
+        int pickerId = -1
     )
     {
         if (!_state.WallItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
+        if (!_roomMap.RemoveWallItem(item, pickerId))
+            return false;
+
         await item.Logic.OnDetachAsync(ct);
 
         item.SetAction(null);
 
-        _ = _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(ctx.PlayerId), ct);
-
-        await FlushDirtyWallItemNowAsync(itemId, ct);
+        await FlushDirtyWallItemAsync(itemId, ct);
 
         _state.WallItemsById.Remove(itemId);
 
@@ -141,21 +142,21 @@ internal sealed partial class RoomFurniModule
     public Task<bool> ValidateWallItemPlacementAsync(
         ActionContext ctx,
         int itemId,
-        int newX,
-        int newY,
-        double newZ,
+        int x,
+        int y,
+        double z,
         int wallOffset,
-        Rotation newRot
+        Rotation rot
     ) => Task.FromResult(true);
 
     public Task<bool> ValidateNewWallItemPlacementAsync(
         ActionContext ctx,
         FurnitureWallItemSnapshot item,
-        int newX,
-        int newY,
-        double newZ,
+        int x,
+        int y,
+        double z,
         int wallOffset,
-        Rotation newRot
+        Rotation rot
     ) => Task.FromResult(true);
 
     public Task<ImmutableArray<RoomWallItemSnapshot>> GetAllWallItemSnapshotsAsync(
@@ -197,7 +198,7 @@ internal sealed partial class RoomFurniModule
         await logic.OnAttachAsync(ct);
     }
 
-    private async Task FlushDirtyWallItemNowAsync(long itemId, CancellationToken ct)
+    private async Task FlushDirtyWallItemAsync(long itemId, CancellationToken ct)
     {
         try
         {
@@ -227,6 +228,57 @@ internal sealed partial class RoomFurniModule
         catch (Exception)
         {
             // TODO output log
+        }
+    }
+
+    internal async Task FlushDirtyWallItemsAsync(CancellationToken ct)
+    {
+        if (_state.DirtyWallItemIds.Count == 0)
+            return;
+
+        var dirtyIds = _state.DirtyWallItemIds.ToArray();
+
+        _state.DirtyWallItemIds.Clear();
+
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        try
+        {
+            var snapshots = dirtyIds
+                .Select(id =>
+                    _state.WallItemsById.TryGetValue(id, out var item) ? item.GetSnapshot() : null
+                )
+                .ToArray();
+            var ids = snapshots.Where(x => x is not null).Select(x => x!.ObjectId.Value).ToArray();
+            var entities = await dbCtx
+                .Furnitures.Where(x => ids.Contains(x.Id))
+                .ToDictionaryAsync(x => x.Id, ct);
+
+            foreach (var snapshot in snapshots)
+            {
+                if (
+                    snapshot is null
+                    || !entities.TryGetValue(snapshot.ObjectId.Value, out var entity)
+                )
+                    continue;
+
+                entity.X = snapshot.X;
+                entity.Y = snapshot.Y;
+                entity.Z = snapshot.Z;
+                entity.WallOffset = snapshot.WallOffset;
+                entity.Rotation = snapshot.Rotation;
+                entity.StuffData = snapshot.StuffData;
+            }
+
+            await dbCtx.SaveChangesAsync(ct);
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            await dbCtx.DisposeAsync();
         }
     }
 }

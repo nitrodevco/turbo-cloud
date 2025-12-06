@@ -55,7 +55,7 @@ internal sealed partial class RoomAvatarModule(
         var startY = _state.Model?.DoorY ?? 0;
         var startRot = _state.Model?.DoorRotation ?? Rotation.North;
 
-        if (!_roomMap.IsTileInBounds(startX, startY))
+        if (!_roomMap.InBounds(startX, startY))
         {
             // TODO get a valid tile
             startX = 0;
@@ -72,7 +72,7 @@ internal sealed partial class RoomAvatarModule(
 
         avatar.AddStatus(AvatarStatusType.FlatControl, controllerLevel.ToString());
 
-        avatar.NextTileId = _roomMap.GetTileId(startX, startY);
+        avatar.NextTileId = _roomMap.ToIdx(startX, startY);
 
         await AddAvatarAsync(avatar, ct);
 
@@ -113,7 +113,7 @@ internal sealed partial class RoomAvatarModule(
 
             await StopWalkingAsync(avatar, ct);
 
-            var tileId = _roomMap.GetTileId(avatar.X, avatar.Y);
+            var tileId = _roomMap.ToIdx(avatar.X, avatar.Y);
 
             if (_state.TileAvatarStacks[tileId].Remove(avatar.ObjectId.Value))
                 _roomMap.ComputeTile(tileId);
@@ -195,6 +195,8 @@ internal sealed partial class RoomAvatarModule(
         {
             await ProcessNextAvatarStepAsync(avatar, ct);
 
+            var goalTileId = _roomMap.ToIdx(targetX, targetY);
+
             var path = _pathfinder.FindPath(
                 avatar,
                 _roomMap,
@@ -206,8 +208,8 @@ internal sealed partial class RoomAvatarModule(
                 throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
             avatar.TilePath.Clear();
-            avatar.TilePath.AddRange(path.Skip(1).Select(pos => _roomMap.GetTileId(pos.X, pos.Y)));
-            avatar.GoalTileId = _roomMap.GetTileId(targetX, targetY);
+            avatar.TilePath.AddRange(path.Skip(1).Select(pos => _roomMap.ToIdx(pos.X, pos.Y)));
+            avatar.GoalTileId = _roomMap.ToIdx(targetX, targetY);
             avatar.IsWalking = true;
 
             return true;
@@ -227,24 +229,6 @@ internal sealed partial class RoomAvatarModule(
             _state.AvatarsByObjectId.Values.Select(x => x.GetSnapshot()).ToImmutableArray()
         );
 
-    private async Task InvokeAvatarAsync(IRoomAvatar avatar, CancellationToken ct)
-    {
-        try
-        {
-            var tileId = _roomMap.GetTileId(avatar.X, avatar.Y);
-            var highestItemId = _state.TileHighestFloorItems[tileId];
-
-            if (highestItemId > 0)
-            {
-                var floorItem = _state.FloorItemsById[highestItemId];
-
-                if (floorItem is not null)
-                    await floorItem.Logic.OnStopAsync(avatar.Logic.Context, ct);
-            }
-        }
-        catch (Exception) { }
-    }
-
     private async Task StopWalkingAsync(IRoomAvatar avatar, CancellationToken ct)
     {
         try
@@ -261,10 +245,8 @@ internal sealed partial class RoomAvatarModule(
 
                 avatar.RemoveStatus(AvatarStatusType.Move);
 
-                await InvokeAvatarAsync(avatar, ct);
+                await _roomMap.InvokeAvatarAsync(avatar, ct);
             }
-
-            UpdateHeightForAvatar(avatar);
         }
         catch (Exception) { }
     }
@@ -280,7 +262,7 @@ internal sealed partial class RoomAvatarModule(
 
             avatar.NextTileId = -1;
 
-            var prevTileId = _roomMap.GetTileId(avatar.X, avatar.Y);
+            var prevTileId = _roomMap.ToIdx(avatar.X, avatar.Y);
             var (nextX, nextY) = _roomMap.GetTileXY(nextTileId);
 
             if (prevTileId == nextTileId)
@@ -302,46 +284,11 @@ internal sealed partial class RoomAvatarModule(
             avatar.SetPosition(nextX, nextY);
             avatar.SetRotation(avatar.BodyRotation);
 
-            UpdateHeightForAvatar(avatar);
+            _roomMap.UpdateHeightForAvatar(avatar);
         }
         catch (Exception)
         {
             await StopWalkingAsync(avatar, ct);
-        }
-    }
-
-    private void UpdateHeightForAvatar(IRoomAvatar avatar)
-    {
-        var tileId = _roomMap.GetTileId(avatar.X, avatar.Y);
-        var next = GetTileHeightForAvatar(tileId);
-
-        avatar.SetHeight(next);
-    }
-
-    private double GetTileHeightForAvatar(int tileId)
-    {
-        try
-        {
-            var height = _state.TileHeights[tileId];
-            var flags = _state.TileFlags[tileId];
-            var highestItemId = _state.TileHighestFloorItems[tileId];
-
-            if (
-                highestItemId > 0
-                && (flags.Has(RoomTileFlags.Sittable) || flags.Has(RoomTileFlags.Layable))
-            )
-            {
-                var floorItem = _state.FloorItemsById[highestItemId];
-
-                if (floorItem is not null)
-                    height -= floorItem.Definition.StackHeight;
-            }
-
-            return height;
-        }
-        catch (Exception)
-        {
-            return 0.0;
         }
     }
 
@@ -412,22 +359,24 @@ internal sealed partial class RoomAvatarModule(
         try
         {
             var isGoal = avatar.TilePath.Count == 0;
-            var prevTileId = _roomMap.GetTileId(avatar.X, avatar.Y);
+            var prevTileId = _roomMap.ToIdx(avatar.X, avatar.Y);
             var (nextX, nextY) = _roomMap.GetTileXY(nextTileId);
-            var prevHeight = GetTileHeightForAvatar(prevTileId);
-            var nextHeight = GetTileHeightForAvatar(nextTileId);
+            var prevHeight = _roomMap.GetTileHeightForAvatar(prevTileId);
+            var nextHeight = _roomMap.GetTileHeightForAvatar(nextTileId);
 
             if (Math.Abs(nextHeight - prevHeight) > Math.Abs(_roomConfig.MaxStepHeight))
                 throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
             if (!_roomMap.CanAvatarWalkBetween(avatar, prevTileId, nextTileId, isGoal))
             {
+                // TODO ensure this isnt a never ending battle
+
                 if (!isGoal)
                 {
                     var (goalX, goalY) = _roomMap.GetTileXY(avatar.GoalTileId);
 
-                    await WalkAvatarToAsync(avatar, goalX, goalY, ct);
-                    await ProcessDirtyAvatarAsync(avatar, ct);
+                    //await WalkAvatarToAsync(avatar, goalX, goalY, ct);
+                    //await ProcessDirtyAvatarAsync(avatar, ct);
 
                     return;
                 }

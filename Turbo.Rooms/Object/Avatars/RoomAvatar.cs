@@ -105,9 +105,6 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
     {
         if (flag)
         {
-            if (HasStatus(AvatarStatusType.Sit))
-                return;
-
             // remove dance
             RemoveStatus(AvatarStatusType.Lay);
 
@@ -116,15 +113,19 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
             SetRotation(rot.Value.ToSitRotation());
             AddStatus(AvatarStatusType.Sit, height.ToString());
         }
+        else
+        {
+            if (!HasStatus(AvatarStatusType.Sit))
+                return;
+
+            RemoveStatus(AvatarStatusType.Sit);
+        }
     }
 
     public void Lay(bool flag = true, double height = 0.5, Rotation? rot = null)
     {
         if (flag)
         {
-            if (HasStatus(AvatarStatusType.Lay))
-                return;
-
             // remove dance
             RemoveStatus(AvatarStatusType.Sit);
 
@@ -132,6 +133,13 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
 
             SetRotation(rot.Value.ToSitRotation());
             AddStatus(AvatarStatusType.Sit, height.ToString());
+        }
+        else
+        {
+            if (!HasStatus(AvatarStatusType.Lay))
+                return;
+
+            RemoveStatus(AvatarStatusType.Lay);
         }
     }
 

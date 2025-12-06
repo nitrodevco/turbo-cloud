@@ -82,6 +82,10 @@ internal sealed class RoomItemsLoader(
                     }
                     else if (item is IRoomWallItem wallItem)
                     {
+                        wallItem.SetPosition(entity.X, entity.Y, entity.Z);
+                        wallItem.SetWallOffset(entity.WallOffset);
+                        wallItem.SetRotation(entity.Rotation);
+
                         wallItems.Add(wallItem);
                     }
                 }

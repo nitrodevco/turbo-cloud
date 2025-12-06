@@ -110,6 +110,9 @@ internal sealed partial class RoomService(
             await room.EnsureRoomActiveAsync(ct).ConfigureAwait(false);
 
             var mapSnapshot = await room.GetMapSnapshotAsync(ct).ConfigureAwait(false);
+            var ownersSnapshot = await room.GetAllOwnersAsync(ct).ConfigureAwait(false);
+            var floorSnapshot = await room.GetAllFloorItemSnapshotsAsync(ct).ConfigureAwait(false);
+            var wallSnapshot = await room.GetAllWallItemSnapshotsAsync(ct).ConfigureAwait(false);
 
             await playerPresence
                 .SendComposerAsync(
@@ -148,9 +151,6 @@ internal sealed partial class RoomService(
                 )
                 .ConfigureAwait(false);
 
-            var ownersSnapshot = await room.GetAllOwnersAsync(ct).ConfigureAwait(false);
-            var floorSnapshot = await room.GetAllFloorItemSnapshotsAsync(ct).ConfigureAwait(false);
-
             await playerPresence
                 .SendComposerAsync(
                     new ObjectsMessageComposer
@@ -161,8 +161,6 @@ internal sealed partial class RoomService(
                     ct
                 )
                 .ConfigureAwait(false);
-
-            var wallSnapshot = await room.GetAllWallItemSnapshotsAsync(ct).ConfigureAwait(false);
 
             await playerPresence
                 .SendComposerAsync(

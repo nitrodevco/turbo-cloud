@@ -56,15 +56,8 @@ public class FurnitureFloorLogic
     public virtual Task OnStepAsync(IRoomAvatarContext ctx, CancellationToken ct) =>
         Task.CompletedTask;
 
-    public virtual Task OnStopAsync(IRoomAvatarContext ctx, CancellationToken ct)
-    {
-        if (CanSit())
-            ctx.Avatar.Sit(true, _ctx.Item.Definition.StackHeight);
-        else if (CanLay())
-            ctx.Avatar.Lay(true, _ctx.Item.Definition.StackHeight);
-
-        return Task.CompletedTask;
-    }
+    public virtual Task OnInvokeAsync(IRoomAvatarContext ctx, CancellationToken ct) =>
+        Task.CompletedTask;
 
     public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
     {

@@ -6,7 +6,7 @@ public interface IRoomMapViewer
 {
     public int Width { get; }
     public int Height { get; }
-    public int GetTileId(int x, int y);
+    public int ToIdx(int x, int y);
     public bool CanAvatarWalk(
         IRoomAvatar avatar,
         int tileId,

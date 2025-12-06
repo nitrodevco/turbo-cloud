@@ -39,105 +39,116 @@ internal sealed class RoomPathfinder(int maxNodes = 4096)
         (int X, int Y) goal
     )
     {
-        var (startX, startY) = start;
-        var (goalX, goalY) = goal;
-        var currentTileId = map.GetTileId(start.X, start.Y);
-        var goalTileId = map.GetTileId(goal.X, goal.Y);
-
-        if (
-            currentTileId == goalTileId
-            || !map.CanAvatarWalk(avatar, currentTileId)
-            || !map.CanAvatarWalk(avatar, goalTileId)
-        )
-            return [];
-
-        var open = new PriorityQueue<Node, int>();
-        var allNodes = new Dictionary<(int, int), Node>(capacity: 256);
-
-        Node GetOrCreateNode(int x, int y)
+        try
         {
-            var key = (x, y);
+            var (startX, startY) = start;
+            var (goalX, goalY) = goal;
+            var currentTileId = map.ToIdx(start.X, start.Y);
+            var goalTileId = map.ToIdx(goal.X, goal.Y);
 
-            if (allNodes.TryGetValue(key, out var n))
-                return n;
+            if (
+                currentTileId == goalTileId
+                || !map.CanAvatarWalk(avatar, currentTileId)
+                || !map.CanAvatarWalk(avatar, goalTileId)
+            )
+                return [];
 
-            n = new Node { X = x, Y = y };
-            allNodes[key] = n;
+            var open = new PriorityQueue<Node, int>();
+            var allNodes = new Dictionary<(int, int), Node>(capacity: 256);
 
-            return n;
-        }
-
-        var startNode = GetOrCreateNode(startX, startY);
-
-        startNode.G = 0;
-        startNode.H = Heuristic(startX, startY, goalX, goalY);
-        startNode.Parent = null;
-
-        open.Enqueue(startNode, startNode.F);
-
-        var closed = new HashSet<(int, int)>();
-
-        while (open.Count > 0 && allNodes.Count <= _maxNodes)
-        {
-            try
+            Node GetOrCreateNode(int x, int y)
             {
-                var current = open.Dequeue();
-                var cKey = (current.X, current.Y);
-                var cTileId = map.GetTileId(current.X, current.Y);
+                var key = (x, y);
 
-                if (!closed.Add(cKey))
-                    continue;
+                if (allNodes.TryGetValue(key, out var n))
+                    return n;
 
-                if (current.X == goalX && current.Y == goalY)
-                    return ReconstructPath(current);
+                n = new Node { X = x, Y = y };
+                allNodes[key] = n;
 
-                for (var i = 0; i < DIRECTIONS.Length; i++)
+                return n;
+            }
+
+            var startNode = GetOrCreateNode(startX, startY);
+
+            startNode.G = 0;
+            startNode.H = Heuristic(startX, startY, goalX, goalY);
+            startNode.Parent = null;
+
+            open.Enqueue(startNode, startNode.F);
+
+            var closed = new HashSet<(int, int)>();
+
+            while (open.Count > 0 && allNodes.Count <= _maxNodes)
+            {
+                try
                 {
-                    var (dx, dy, moveCost) = DIRECTIONS[i];
-                    var nx = current.X + dx;
-                    var ny = current.Y + dy;
+                    var current = open.Dequeue();
+                    var cKey = (current.X, current.Y);
+                    var cTileId = map.ToIdx(current.X, current.Y);
 
-                    if (nx < 0 || ny < 0 || nx >= map.Width || ny >= map.Height)
+                    if (!closed.Add(cKey))
                         continue;
 
-                    if (closed.Contains((nx, ny)))
-                        continue;
+                    if (current.X == goalX && current.Y == goalY)
+                        return ReconstructPath(current);
 
-                    try
+                    for (var i = 0; i < DIRECTIONS.Length; i++)
                     {
-                        var nTileId = map.GetTileId(nx, ny);
+                        try
+                        {
+                            var (dx, dy, moveCost) = DIRECTIONS[i];
+                            var nx = current.X + dx;
+                            var ny = current.Y + dy;
 
-                        if (!map.CanAvatarWalkBetween(avatar, cTileId, nTileId))
+                            if (nx < 0 || ny < 0 || nx >= map.Width || ny >= map.Height)
+                                continue;
+
+                            if (closed.Contains((nx, ny)))
+                                continue;
+
+                            var nTileId = map.ToIdx(nx, ny);
+
+                            if (
+                                !map.CanAvatarWalkBetween(
+                                    avatar,
+                                    cTileId,
+                                    nTileId,
+                                    nx == goalX && ny == goalY
+                                )
+                            )
+                                continue;
+
+                            var tentativeG = current.G + moveCost;
+                            var neighbor = GetOrCreateNode(nx, ny);
+
+                            if (neighbor.Parent == null && !(nx == startX && ny == startY))
+                            {
+                                neighbor.Parent = current;
+                                neighbor.G = tentativeG;
+                                neighbor.H = Heuristic(nx, ny, goalX, goalY);
+                                open.Enqueue(neighbor, neighbor.F);
+                            }
+                            else if (tentativeG < neighbor.G)
+                            {
+                                neighbor.Parent = current;
+                                neighbor.G = tentativeG;
+                                open.Enqueue(neighbor, neighbor.F);
+                            }
+                        }
+                        catch (Exception)
+                        {
                             continue;
-
-                        var tentativeG = current.G + moveCost;
-                        var neighbor = GetOrCreateNode(nx, ny);
-
-                        if (neighbor.Parent == null && !(nx == startX && ny == startY))
-                        {
-                            neighbor.Parent = current;
-                            neighbor.G = tentativeG;
-                            neighbor.H = Heuristic(nx, ny, goalX, goalY);
-                            open.Enqueue(neighbor, neighbor.F);
                         }
-                        else if (tentativeG < neighbor.G)
-                        {
-                            neighbor.Parent = current;
-                            neighbor.G = tentativeG;
-                            open.Enqueue(neighbor, neighbor.F);
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        continue;
                     }
                 }
-            }
-            catch (Exception)
-            {
-                continue;
+                catch (Exception)
+                {
+                    continue;
+                }
             }
         }
+        catch (Exception) { }
 
         return [];
     }

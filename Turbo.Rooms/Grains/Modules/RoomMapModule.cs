@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Logging;
@@ -11,14 +12,13 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-internal sealed class RoomMapModule(
+internal sealed partial class RoomMapModule(
     RoomGrain roomGrain,
     RoomConfig roomConfig,
     RoomLiveState roomLiveState
@@ -33,58 +33,89 @@ internal sealed class RoomMapModule(
 
     public int Width => _state.Model?.Width ?? 0;
     public int Height => _state.Model?.Height ?? 0;
+    public int Size => _state.Model?.Size ?? 0;
 
-    public int GetTileId(int x, int y)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public int ToIdx(int x, int y) => y * Width + x;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public int GetX(int idx) => idx % Width;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public int GetY(int idx) => idx / Width;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool InBounds(int x, int y) => (uint)x < (uint)Width && (uint)y < (uint)Height;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool InBounds(int idx) => (uint)idx < (uint)(Width * Height);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool IsDiagonal(int idxA, int idxB)
     {
-        if (!IsTileInBounds(x, y))
-            throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
+        var delta = idxB - idxA;
 
-        return y * (_state.Model?.Width ?? 0) + x;
+        if (delta != Width + 1 && delta != Width - 1 && delta != -Width + 1 && delta != -Width - 1)
+            return false;
+
+        var ax = idxA % Width;
+        var bx = idxB % Width;
+
+        return Math.Abs(ax - bx) == 1;
     }
 
-    public (int x, int y) GetTileXY(int id)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public (int dx, int dy) GetDirectionOffset(Rotation dir)
     {
-        if (!IsTileInBounds(id))
-            throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
-
-        return (id % (_state.Model?.Width ?? 0), id / (_state.Model?.Width ?? 0));
-    }
-
-    public bool IsTileInBounds(int x, int y) =>
-        x >= 0 && y >= 0 && x < (_state.Model?.Width ?? 0) && y < (_state.Model?.Height ?? 0);
-
-    public bool IsTileInBounds(int id) => id >= 0 && id < (_state.Model?.Size ?? 0);
-
-    public (int x, int y) GetTileInfront(int x, int y, Rotation rot) =>
-        rot switch
+        return dir switch
         {
-            Rotation.North => (x, y - 1),
-            Rotation.NorthEast => (x + 1, y - 1),
-            Rotation.East => (x + 1, y),
-            Rotation.SouthEast => (x + 1, y + 1),
-            Rotation.South => (x, y + 1),
-            Rotation.SouthWest => (x - 1, y + 1),
-            Rotation.West => (x - 1, y),
-            Rotation.NorthWest => (x - 1, y - 1),
-            _ => (x, y),
+            Rotation.North => (0, -1),
+            Rotation.NorthEast => (1, -1),
+            Rotation.East => (1, 0),
+            Rotation.SouthEast => (1, 1),
+            Rotation.South => (0, 1),
+            Rotation.SouthWest => (-1, 1),
+            Rotation.West => (-1, 0),
+            Rotation.NorthWest => (-1, -1),
+            _ => (0, 0),
         };
-
-    public int GetTileInfront(int id, Rotation rot)
-    {
-        var (x, y) = GetTileXY(id);
-
-        (x, y) = GetTileInfront(x, y, rot);
-
-        return GetTileId(x, y);
     }
 
-    public bool AreTilesDiagonal(int x1, int y1, int x2, int y2) =>
-        Math.Abs(x2 - x1) == 1 && Math.Abs(y2 - y1) == 1;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool TryGetTileInFront(int index, Rotation direction, out int nextIndex)
+    {
+        var x = GetX(index);
+        var y = GetY(index);
+
+        var (dx, dy) = GetDirectionOffset(direction);
+
+        var nx = x + dx;
+        var ny = y + dy;
+
+        if (!InBounds(nx, ny))
+        {
+            nextIndex = -1;
+
+            return false;
+        }
+
+        nextIndex = ToIdx(nx, ny);
+
+        return true;
+    }
+
+    public (int x, int y) GetTileXY(int idx)
+    {
+        if (!InBounds(idx))
+            throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
+
+        return (GetX(idx), GetY(idx));
+    }
 
     public bool GetTileIdForSize(
         int x,
         int y,
-        Rotation rotation,
+        Rotation rot,
         int width,
         int length,
         out List<int> tileIds
@@ -94,23 +125,39 @@ internal sealed class RoomMapModule(
 
         if (width > 0 && length > 0)
         {
-            if (rotation == Rotation.East || rotation == Rotation.West)
+            if (rot == Rotation.East || rot == Rotation.West)
                 (width, length) = (length, width);
         }
 
         for (var minX = x; minX < x + width; minX++)
         {
             for (var minY = y; minY < y + length; minY++)
-                tileIds.Add(GetTileId(minX, minY));
+            {
+                var idx = ToIdx(minX, minY);
+
+                if (!InBounds(idx))
+                    throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
+
+                tileIds.Add(idx);
+            }
         }
 
         return true;
     }
 
-    public void ComputeTile(int x, int y) => ComputeTile(GetTileId(x, y));
+    public void ComputeAllTiles()
+    {
+        for (int idx = 0; idx < Size; idx++)
+            ComputeTile(idx);
+    }
+
+    public void ComputeTile(int x, int y) => ComputeTile(ToIdx(x, y));
 
     public void ComputeTile(int id)
     {
+        if (_state.IsTileComputationPaused)
+            return;
+
         var nextHeight = _state.Model?.BaseHeights[id] ?? 0.0;
         var nextFlags =
             _state.Model?.BaseFlags[id] ?? (RoomTileFlags.Disabled | RoomTileFlags.Closed);
@@ -179,66 +226,6 @@ internal sealed class RoomMapModule(
         _dirty = true;
     }
 
-    public bool CanAvatarWalk(
-        IRoomAvatar avatar,
-        int tileId,
-        bool isGoal = true,
-        bool isDiagonalCheck = false
-    )
-    {
-        if (!IsTileInBounds(tileId))
-            return false;
-
-        var tileFlags = _state.TileFlags[tileId];
-
-        if (tileFlags.Has(RoomTileFlags.Disabled) || tileFlags.Has(RoomTileFlags.Closed))
-            return false;
-
-        var avatarStack = _state.TileAvatarStacks[tileId];
-
-        if (avatarStack.Count > 0)
-        {
-            if (avatarStack.Contains(avatar.ObjectId.Value))
-                return true;
-
-            if (isGoal || _state.RoomSnapshot.AllowBlocking)
-                return false;
-        }
-
-        if (isDiagonalCheck)
-        {
-            if (tileFlags.Has(RoomTileFlags.Sittable) || tileFlags.Has(RoomTileFlags.Layable))
-                return false;
-        }
-
-        return true;
-    }
-
-    public bool CanAvatarWalkBetween(
-        IRoomAvatar avatar,
-        int fromTileId,
-        int toTileId,
-        bool isGoal = true
-    )
-    {
-        if (!CanAvatarWalk(avatar, toTileId, isGoal))
-            return false;
-
-        var (fromX, fromY) = GetTileXY(fromTileId);
-        var (toX, toY) = GetTileXY(toTileId);
-
-        if (_roomConfig.EnableDiagonalChecking && AreTilesDiagonal(fromX, fromY, toX, toY))
-        {
-            var left = CanAvatarWalk(avatar, GetTileId(toX, fromY), true, true);
-            var right = CanAvatarWalk(avatar, GetTileId(fromX, toY), true, true);
-
-            if (!left && !right)
-                return false;
-        }
-
-        return true;
-    }
-
     public RoomMapSnapshot GetMapSnapshot(CancellationToken ct)
     {
         if (_dirty || _mapSnapshot is null)
@@ -251,7 +238,7 @@ internal sealed class RoomMapModule(
     }
 
     public Task<RoomTileSnapshot> GetTileSnapshotAsync(int x, int y, CancellationToken ct) =>
-        GetTileSnapshotAsync(GetTileId(x, y), ct);
+        GetTileSnapshotAsync(ToIdx(x, y), ct);
 
     public Task<RoomTileSnapshot> GetTileSnapshotAsync(int id, CancellationToken ct) =>
         Task.FromResult(
@@ -359,15 +346,11 @@ internal sealed class RoomMapModule(
 
             foreach (var id in dirtyHeightTileIds)
             {
-                //await ComputeTileAsync(id);
-
-                var (x, y) = GetTileXY(id);
-
                 dirtySnapshots.Add(
                     new RoomTileSnapshot
                     {
-                        X = (byte)x,
-                        Y = (byte)y,
+                        X = (byte)GetX(id),
+                        Y = (byte)GetY(id),
                         Height = _state.TileHeights[id],
                         EncodedHeight = _state.TileEncodedHeights[id],
                         Flags = _state.TileFlags[id],

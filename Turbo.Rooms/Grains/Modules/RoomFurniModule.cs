@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -47,8 +45,15 @@ internal sealed partial class RoomFurniModule(
         foreach (var (id, name) in ownerNames)
             _state.OwnerNamesById.TryAdd(id, name);
 
+        _state.IsTileComputationPaused = true;
+
         foreach (var item in floorItems)
             await AddFloorItemAsync(item, ct);
+
+        _state.IsTileComputationPaused = false;
+
+        _roomMap.ComputeAllTiles();
+        _state.DirtyHeightTileIds.Clear();
 
         foreach (var item in wallItems)
             await AddWallItemAsync(item, ct);
@@ -58,78 +63,7 @@ internal sealed partial class RoomFurniModule(
 
     internal async Task FlushDirtyItemIdsAsync(CancellationToken ct)
     {
-        if (_state.DirtyFloorItemIds.Count == 0 && _state.DirtyWallItemIds.Count == 0)
-            return;
-
-        var dirtyFloorItemIds = _state.DirtyFloorItemIds.ToArray();
-        var dirtyWallItemIds = _state.DirtyWallItemIds.ToArray();
-
-        _state.DirtyFloorItemIds.Clear();
-        _state.DirtyWallItemIds.Clear();
-
-        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
-
-        try
-        {
-            var dirtyFloorSnapshots = dirtyFloorItemIds
-                .Select(id =>
-                    _state.FloorItemsById.TryGetValue(id, out var item) ? item.GetSnapshot() : null
-                )
-                .ToArray();
-            var dirtyWallSnapshots = dirtyWallItemIds
-                .Select(id =>
-                    _state.WallItemsById.TryGetValue(id, out var item) ? item.GetSnapshot() : null
-                )
-                .ToArray();
-            var dirtyIds = dirtyFloorSnapshots
-                .Where(x => x is not null)
-                .Select(x => x!.ObjectId.Value)
-                .Concat(dirtyWallSnapshots.Where(x => x is not null).Select(x => x!.ObjectId.Value))
-                .ToArray();
-            var entities = await dbCtx
-                .Furnitures.Where(x => dirtyIds.Contains(x.Id))
-                .ToDictionaryAsync(x => x.Id, ct);
-
-            foreach (var snapshot in dirtyFloorSnapshots)
-            {
-                if (
-                    snapshot is null
-                    || !entities.TryGetValue(snapshot.ObjectId.Value, out var entity)
-                )
-                    continue;
-
-                entity.X = snapshot.X;
-                entity.Y = snapshot.Y;
-                entity.Z = snapshot.Z;
-                entity.Rotation = snapshot.Rotation;
-                entity.StuffData = snapshot.StuffDataJson;
-            }
-
-            foreach (var snapshot in dirtyWallSnapshots)
-            {
-                if (
-                    snapshot is null
-                    || !entities.TryGetValue(snapshot.ObjectId.Value, out var entity)
-                )
-                    continue;
-
-                entity.X = snapshot.X;
-                entity.Y = snapshot.Y;
-                entity.Z = snapshot.Z;
-                entity.WallOffset = snapshot.WallOffset;
-                entity.Rotation = snapshot.Rotation;
-                entity.StuffData = snapshot.StuffData;
-            }
-
-            await dbCtx.SaveChangesAsync(ct);
-        }
-        catch (Exception)
-        {
-            throw;
-        }
-        finally
-        {
-            await dbCtx.DisposeAsync();
-        }
+        await FlushDirtyFloorItemsAsync(ct);
+        await FlushDirtyWallItemsAsync(ct);
     }
 }

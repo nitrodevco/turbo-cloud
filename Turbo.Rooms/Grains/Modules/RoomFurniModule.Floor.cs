@@ -30,85 +30,69 @@ internal sealed partial class RoomFurniModule
 
         await AttatchFloorLogicIfNeededAsync(item, ct);
 
-        if (GetTileIdForFloorItem(item, out var tileIds))
-        {
-            foreach (var id in tileIds)
-            {
-                _state.TileFloorStacks[id].Add(item.ObjectId.Value);
+        if (!_roomMap.AddFloorItem(item, true, out var updatedTileIds))
+            return false;
 
-                _roomMap.ComputeTile(id);
-            }
-        }
-
-        _ = _roomGrain.SendComposerToRoomAsync(item.GetAddComposer(), ct);
+        await _roomMap.InvokeAvatarsOnTilesAsync(updatedTileIds, ct);
 
         return true;
     }
 
     public async Task<bool> PlaceFloorItemAsync(
         ActionContext ctx,
-        FurnitureFloorItemSnapshot item,
-        int newX,
-        int newY,
-        Rotation newRotation,
+        FurnitureFloorItemSnapshot snapshot,
+        int x,
+        int y,
+        Rotation rot,
         CancellationToken ct
     )
     {
-        var newId = _roomMap.GetTileId(newX, newY);
-        var roomItem = _itemsLoader.CreateFromFurnitureItemSnapshot(item);
+        var tileIdx = _roomMap.ToIdx(x, y);
 
-        if (roomItem is not IRoomFloorItem floorItem)
+        if (!_roomMap.InBounds(tileIdx))
+            throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
+
+        var roomItem = _itemsLoader.CreateFromFurnitureItemSnapshot(snapshot);
+
+        if (roomItem is not IRoomFloorItem item)
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        floorItem.SetPosition(newX, newY, _state.TileHeights[newId]);
-        floorItem.SetRotation(newRotation);
+        if (!_state.FloorItemsById.TryAdd(item.ObjectId.Value, item))
+            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        return await AddFloorItemAsync(floorItem, ct);
+        item.SetAction(objectId => ProcessDirtyFloorItem(objectId.Value, ct));
+
+        await AttatchFloorLogicIfNeededAsync(item, ct);
+
+        if (!_roomMap.PlaceFloorItem(item, tileIdx, rot, true, out var updatedTileIds))
+            return false;
+
+        await _roomMap.InvokeAvatarsOnTilesAsync(updatedTileIds, ct);
+
+        return true;
     }
 
     public async Task<bool> MoveFloorItemByIdAsync(
         ActionContext ctx,
         int itemId,
-        int newX,
-        int newY,
-        Rotation newRotation,
+        int x,
+        int y,
+        Rotation rot,
         CancellationToken ct
     )
     {
         if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        if (item.X == newX && item.Y == newY && item.Rotation == newRotation)
+        var pTileIdx = _roomMap.ToIdx(item.X, item.Y);
+        var nTileIdx = _roomMap.ToIdx(x, y);
+
+        if (!_roomMap.MoveFloorItem(item, nTileIdx, rot, true, out var updatedTileIds))
             return false;
 
-        var newId = _roomMap.GetTileId(newX, newY);
-
-        if (GetTileIdForFloorItem(item, out var oldTileIds))
-        {
-            foreach (var id in oldTileIds)
-            {
-                _state.TileFloorStacks[id].Remove(item.ObjectId.Value);
-
-                _roomMap.ComputeTile(id);
-            }
-        }
-
-        item.SetPosition(newX, newY, _state.TileHeights[newId]);
-        item.SetRotation(newRotation);
-
-        if (GetTileIdForFloorItem(item, out var newTileIds))
-        {
-            foreach (var id in newTileIds)
-            {
-                _state.TileFloorStacks[id].Add(item.ObjectId.Value);
-
-                _roomMap.ComputeTile(id);
-            }
-        }
-
-        _ = _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer(), ct);
-
         await item.Logic.OnMoveAsync(ctx, ct);
+
+        await _roomMap.InvokeAvatarsOnTilesAsync(updatedTileIds, ct);
 
         return true;
     }
@@ -116,29 +100,23 @@ internal sealed partial class RoomFurniModule
     public async Task<bool> RemoveFloorItemByIdAsync(
         ActionContext ctx,
         int itemId,
-        CancellationToken ct
+        CancellationToken ct,
+        int pickerId = -1
     )
     {
         if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        if (GetTileIdForFloorItem(item, out var tileIds))
-        {
-            foreach (var id in tileIds)
-            {
-                _state.TileFloorStacks[id].Remove(itemId);
+        if (!_roomMap.RemoveFloorItem(item, pickerId, true, out var updatedTileIds))
+            return false;
 
-                _roomMap.ComputeTile(id);
-            }
-        }
+        await _roomMap.InvokeAvatarsOnTilesAsync(updatedTileIds, ct);
 
         await item.Logic.OnDetachAsync(ct);
 
         item.SetAction(null);
 
-        _ = _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(ctx.PlayerId), ct);
-
-        await FlushDirtyFloorItemNowAsync(itemId, ct);
+        await FlushDirtyFloorItemAsync(itemId, ct);
 
         _state.FloorItemsById.Remove(itemId);
 
@@ -178,9 +156,9 @@ internal sealed partial class RoomFurniModule
     public bool ValidateFloorItemPlacement(
         ActionContext ctx,
         int itemId,
-        int newX,
-        int newY,
-        Rotation newRotation
+        int x,
+        int y,
+        Rotation rot
     )
     {
         if (!_state.FloorItemsById.TryGetValue(itemId, out var tItem))
@@ -188,34 +166,39 @@ internal sealed partial class RoomFurniModule
 
         if (
             _roomMap.GetTileIdForSize(
-                newX,
-                newY,
-                newRotation,
+                x,
+                y,
+                rot,
                 tItem.Definition.Width,
                 tItem.Definition.Length,
                 out var tileIds
             )
         )
         {
-            foreach (var id in tileIds)
+            foreach (var idx in tileIds)
             {
-                var tileFlags = _state.TileFlags[id];
-                var tileHeight = _state.TileHeights[id];
-                var highestItemId = _state.TileHighestFloorItems[id];
+                var tileFlags = _state.TileFlags[idx];
+                var tileHeight = _state.TileHeights[idx];
+                var highestItemId = _state.TileHighestFloorItems[idx];
                 var isRotating = false;
 
                 IRoomFloorItem? bItem = null;
 
                 if (highestItemId > 0)
-                {
                     bItem = _state.FloorItemsById[highestItemId];
-                    isRotating = bItem == tItem && tItem.Rotation != newRotation;
+
+                if (bItem == tItem)
+                {
+                    tileHeight -= tItem.Definition.StackHeight;
+
+                    if (tItem.Rotation != rot)
+                        isRotating = true;
                 }
 
                 if (
                     tileFlags.Has(RoomTileFlags.Disabled)
                     || (tileHeight + tItem.Definition.StackHeight) > _roomConfig.MaxStackHeight
-                    || tileFlags.Has(RoomTileFlags.StackBlocked) && !isRotating
+                    || tileFlags.Has(RoomTileFlags.StackBlocked) && bItem != tItem
                     || (
                         !_roomConfig.PlaceItemsOnAvatars
                         && tileFlags.Has(RoomTileFlags.AvatarOccupied)
@@ -225,7 +208,7 @@ internal sealed partial class RoomFurniModule
                 )
                     return false;
 
-                if (isRotating)
+                if (bItem == tItem)
                     continue;
 
                 if (bItem is not null && bItem != tItem)
@@ -242,16 +225,16 @@ internal sealed partial class RoomFurniModule
     public bool ValidateNewFloorItemPlacement(
         ActionContext ctx,
         FurnitureFloorItemSnapshot item,
-        int newX,
-        int newY,
-        Rotation newRotation
+        int x,
+        int y,
+        Rotation rot
     )
     {
         if (
             _roomMap.GetTileIdForSize(
-                newX,
-                newY,
-                newRotation,
+                x,
+                y,
+                rot,
                 item.Definition.Width,
                 item.Definition.Length,
                 out var tileIds
@@ -341,7 +324,7 @@ internal sealed partial class RoomFurniModule
         await logic.OnAttachAsync(ct);
     }
 
-    private async Task FlushDirtyFloorItemNowAsync(long itemId, CancellationToken ct)
+    private async Task FlushDirtyFloorItemAsync(long itemId, CancellationToken ct)
     {
         try
         {
@@ -370,6 +353,56 @@ internal sealed partial class RoomFurniModule
         catch (Exception)
         {
             // TODO output log
+        }
+    }
+
+    internal async Task FlushDirtyFloorItemsAsync(CancellationToken ct)
+    {
+        if (_state.DirtyFloorItemIds.Count == 0)
+            return;
+
+        var dirtyIds = _state.DirtyFloorItemIds.ToArray();
+
+        _state.DirtyFloorItemIds.Clear();
+
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        try
+        {
+            var snapshots = dirtyIds
+                .Select(id =>
+                    _state.FloorItemsById.TryGetValue(id, out var item) ? item.GetSnapshot() : null
+                )
+                .ToArray();
+            var ids = snapshots.Where(x => x is not null).Select(x => x!.ObjectId.Value).ToArray();
+            var entities = await dbCtx
+                .Furnitures.Where(x => ids.Contains(x.Id))
+                .ToDictionaryAsync(x => x.Id, ct);
+
+            foreach (var snapshot in snapshots)
+            {
+                if (
+                    snapshot is null
+                    || !entities.TryGetValue(snapshot.ObjectId.Value, out var entity)
+                )
+                    continue;
+
+                entity.X = snapshot.X;
+                entity.Y = snapshot.Y;
+                entity.Z = snapshot.Z;
+                entity.Rotation = snapshot.Rotation;
+                entity.StuffData = snapshot.StuffDataJson;
+            }
+
+            await dbCtx.SaveChangesAsync(ct);
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            await dbCtx.DisposeAsync();
         }
     }
 

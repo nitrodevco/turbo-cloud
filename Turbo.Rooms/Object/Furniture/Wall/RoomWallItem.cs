@@ -13,21 +13,39 @@ internal sealed class RoomWallItem : RoomItem, IRoomWallItem
     public int X { get; private set; }
     public int Y { get; private set; }
     public double Z { get; private set; }
-    public int WallOffset { get; private set; }
     public Rotation Rotation { get; private set; }
+    public int WallOffset { get; private set; }
     public IFurnitureWallLogic Logic { get; private set; } = default!;
 
     private RoomWallItemSnapshot? _snapshot;
 
-    public void SetPosition(int x, int y, double z, int wallOffset, Rotation rot)
+    public void SetPosition(int x, int y, double z)
     {
-        if (X == x && Y == y && Z == z && WallOffset == wallOffset && Rotation == rot)
+        if (X == x && Y == y && Z == z)
             return;
 
         X = x;
         Y = y;
         Z = z;
+
+        MarkDirty();
+    }
+
+    public void SetWallOffset(int wallOffset)
+    {
+        if (WallOffset == wallOffset)
+            return;
+
         WallOffset = wallOffset;
+
+        MarkDirty();
+    }
+
+    public void SetRotation(Rotation rot)
+    {
+        if (Rotation == rot)
+            return;
+
         Rotation = rot;
 
         MarkDirty();

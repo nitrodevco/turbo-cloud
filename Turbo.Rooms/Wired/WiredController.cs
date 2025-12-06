@@ -25,7 +25,6 @@ internal sealed class WiredController : IRoomEventListener
 
     private Task HandleFloorItemMovedEventAsync(FloorItemMovedEvent @event, CancellationToken ct)
     {
-        Console.WriteLine($"Floor Item Moved");
         return Task.CompletedTask;
     }
 }

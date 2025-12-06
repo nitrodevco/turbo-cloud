@@ -36,4 +36,5 @@ internal sealed class RoomLiveState
 
     public bool IsMapReady { get; internal set; } = false;
     public bool IsFurniLoaded { get; internal set; } = false;
+    public bool IsTileComputationPaused { get; internal set; } = false;
 }

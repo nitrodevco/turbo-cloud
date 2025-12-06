@@ -17,5 +17,5 @@ public interface IFurnitureFloorLogic : IFurnitureLogic
     public bool CanSit();
     public bool CanLay();
     public Task OnStepAsync(IRoomAvatarContext ctx, CancellationToken ct);
-    public Task OnStopAsync(IRoomAvatarContext ctx, CancellationToken ct);
+    public Task OnInvokeAsync(IRoomAvatarContext ctx, CancellationToken ct);
 }
