@@ -7,6 +7,11 @@ namespace Turbo.Primitives.Inventory.Grains;
 
 public partial interface IInventoryGrain
 {
+    public Task SendFurniToPlayerAsync(CancellationToken ct);
+    public Task<FurnitureFloorItemSnapshot?> GetFloorItemSnapshotAsync(
+        int itemId,
+        CancellationToken ct
+    );
     public Task<ImmutableArray<FurnitureFloorItemSnapshot>> GetAllFloorItemSnapshotsAsync(
         CancellationToken ct
     );

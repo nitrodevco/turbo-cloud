@@ -170,7 +170,7 @@ internal sealed class RoomItemsLoader(
 
         return item switch
         {
-            IFurnitureFloorItem floor => new RoomFloorItem
+            FurnitureFloorItemSnapshot floor => new RoomFloorItem
             {
                 ObjectId = RoomObjectId.From(floor.ItemId),
                 OwnerId = floor.OwnerId,
@@ -182,7 +182,7 @@ internal sealed class RoomItemsLoader(
                 ),
             },
 
-            IFurnitureWallItem wall => new RoomWallItem
+            FurnitureWallItemSnapshot wall => new RoomWallItem
             {
                 ObjectId = RoomObjectId.From(wall.ItemId),
                 OwnerId = wall.OwnerId,

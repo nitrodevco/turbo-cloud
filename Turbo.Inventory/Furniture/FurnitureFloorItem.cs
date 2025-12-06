@@ -24,6 +24,8 @@ internal sealed class FurnitureFloorItem : FurnitureItem, IFurnitureFloorItem
     private FurnitureFloorItemSnapshot BuildSnapshot() =>
         new()
         {
+            OwnerId = OwnerId,
+            OwnerName = string.Empty,
             ItemId = ItemId,
             SpriteId = Definition.SpriteId,
             Definition = Definition,

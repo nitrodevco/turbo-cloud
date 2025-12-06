@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -11,12 +12,20 @@ namespace Turbo.Primitives.Rooms.Grains;
 public partial interface IRoomGrain
 {
     public Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct);
+    public Task<bool> PlaceFloorItemAsync(
+        ActionContext ctx,
+        FurnitureFloorItemSnapshot item,
+        int x,
+        int y,
+        Rotation rot,
+        CancellationToken ct
+    );
     public Task<bool> MoveFloorItemByIdAsync(
         ActionContext ctx,
         int itemId,
-        int newX,
-        int newY,
-        Rotation newRotation,
+        int x,
+        int y,
+        Rotation rot,
         CancellationToken ct
     );
     public Task<bool> RemoveFloorItemByIdAsync(ActionContext ctx, int itemId, CancellationToken ct);

@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -27,27 +28,42 @@ public sealed partial class RoomGrain
         }
     }
 
-    public async Task<bool> MoveFloorItemByIdAsync(
+    public async Task<bool> PlaceFloorItemAsync(
         ActionContext ctx,
-        int itemId,
-        int newX,
-        int newY,
+        FurnitureFloorItemSnapshot item,
+        int x,
+        int y,
         Rotation newRotation,
         CancellationToken ct
     )
     {
         try
         {
-            if (
-                !await _actionModule.MoveFloorItemByIdAsync(
-                    ctx,
-                    itemId,
-                    newX,
-                    newY,
-                    newRotation,
-                    ct
-                )
-            )
+            if (!await _actionModule.PlaceFloorItemAsync(ctx, item, x, y, newRotation, ct))
+                return false;
+
+            return true;
+        }
+        catch
+        {
+            // TODO handle exceptions
+
+            return false;
+        }
+    }
+
+    public async Task<bool> MoveFloorItemByIdAsync(
+        ActionContext ctx,
+        int itemId,
+        int x,
+        int y,
+        Rotation rot,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            if (!await _actionModule.MoveFloorItemByIdAsync(ctx, itemId, x, y, rot, ct))
                 return false;
 
             return true;

@@ -7,5 +7,11 @@ namespace Turbo.Primitives.Inventory.Snapshots;
 public abstract record FurnitureItemSnapshot
 {
     [Id(0)]
+    public required int OwnerId { get; init; }
+
+    [Id(1)]
+    public required string OwnerName { get; init; }
+
+    [Id(2)]
     public required FurnitureDefinitionSnapshot Definition { get; init; }
 }

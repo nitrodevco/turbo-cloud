@@ -49,6 +49,14 @@ internal sealed partial class InventoryFurniModule(
         return true;
     }
 
+    public Task<FurnitureFloorItemSnapshot?> GetFloorItemSnapshotAsync(
+        int itemId,
+        CancellationToken ct
+    ) =>
+        Task.FromResult(
+            _state.FloorItemsById.TryGetValue(itemId, out var item) ? item.GetSnapshot() : null
+        );
+
     public Task<ImmutableArray<FurnitureFloorItemSnapshot>> GetAllFloorItemSnapshotsAsync(
         CancellationToken ct
     ) =>

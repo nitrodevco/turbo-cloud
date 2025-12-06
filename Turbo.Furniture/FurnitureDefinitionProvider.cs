@@ -40,28 +40,31 @@ public sealed class FurnitureDefinitionProvider(
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
 
-            var defs = entities.Select(x => new FurnitureDefinitionSnapshot(
-                x.Id,
-                x.SpriteId,
-                x.PublicName,
-                x.ProductType,
-                x.FurniCategory,
-                x.Logic,
-                x.TotalStates,
-                x.Width,
-                x.Length,
-                x.StackHeight == 0 ? _config.MinimumZValue : x.StackHeight,
-                x.CanStack,
-                x.CanWalk,
-                x.CanSit,
-                x.CanLay,
-                x.CanRecycle,
-                x.CanTrade,
-                x.CanGroup,
-                x.CanSell,
-                x.UsagePolicy,
-                x.ExtraData
-            ));
+            var defs = entities
+                .Select(x => new FurnitureDefinitionSnapshot
+                {
+                    Id = x.Id,
+                    SpriteId = x.SpriteId,
+                    PublicName = x.PublicName,
+                    ProductType = x.ProductType,
+                    FurniCategory = x.FurniCategory,
+                    LogicName = x.Logic,
+                    TotalStates = x.TotalStates,
+                    Width = x.Width,
+                    Length = x.Length,
+                    StackHeight = x.StackHeight == 0 ? _config.MinimumZValue : x.StackHeight,
+                    CanStack = x.CanStack,
+                    CanWalk = x.CanWalk,
+                    CanSit = x.CanSit,
+                    CanLay = x.CanLay,
+                    CanRecycle = x.CanRecycle,
+                    CanTrade = x.CanTrade,
+                    CanGroup = x.CanGroup,
+                    CanSell = x.CanSell,
+                    UsagePolicy = x.UsagePolicy,
+                    ExtraData = x.ExtraData,
+                })
+                .ToList();
 
             _definitionsById = defs.ToImmutableDictionary(p => p.Id);
 

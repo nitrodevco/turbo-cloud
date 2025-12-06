@@ -19,8 +19,8 @@ internal sealed partial class RoomActionModule
     public async Task<bool> PlaceFloorItemAsync(
         ActionContext ctx,
         FurnitureFloorItemSnapshot item,
-        int newX,
-        int newY,
+        int x,
+        int y,
         Rotation newRotation,
         CancellationToken ct
     )
@@ -28,10 +28,10 @@ internal sealed partial class RoomActionModule
         if (!await _securityModule.CanPlaceFurniAsync(ctx))
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToPlaceFurni);
 
-        if (!_furniModule.ValidateNewFloorItemPlacement(ctx, item, newX, newY, newRotation))
+        if (!_furniModule.ValidateNewFloorItemPlacement(ctx, item, x, y, newRotation))
             throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
-        if (!await _furniModule.PlaceFloorItemAsync(ctx, item, newX, newY, newRotation, ct))
+        if (!await _furniModule.PlaceFloorItemAsync(ctx, item, x, y, newRotation, ct))
             return false;
 
         // TODO add player name to owner names cache
