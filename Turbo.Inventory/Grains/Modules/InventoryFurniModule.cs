@@ -12,7 +12,7 @@ using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
 
 namespace Turbo.Inventory.Grains.Modules;
 
-internal sealed partial class InventoryFurniModule(
+internal sealed class InventoryFurniModule(
     InventoryGrain inventoryGrain,
     InventoryLiveState liveState,
     IFurnitureItemsLoader furnitureItemsLoader
@@ -39,10 +39,11 @@ internal sealed partial class InventoryFurniModule(
 
         item.SetAction(itemId => { });
 
-        await _inventoryGrain.SendComposerAsync(
-            new FurniListAddOrUpdateEventMessageComposer { Item = item.GetSnapshot() },
-            ct
-        );
+        if (_state.IsFurniReady)
+            await _inventoryGrain.SendComposerAsync(
+                new FurniListAddOrUpdateEventMessageComposer { Item = item.GetSnapshot() },
+                ct
+            );
 
         return true;
     }
@@ -52,10 +53,11 @@ internal sealed partial class InventoryFurniModule(
         if (!_state.FurnitureById.Remove(itemId, out var item))
             return false;
 
-        await _inventoryGrain.SendComposerAsync(
-            new FurniListRemoveEventMessageComposer { ItemId = -Math.Abs(itemId) },
-            ct
-        );
+        if (_state.IsFurniReady)
+            await _inventoryGrain.SendComposerAsync(
+                new FurniListRemoveEventMessageComposer { ItemId = -Math.Abs(itemId) },
+                ct
+            );
 
         return true;
     }
@@ -76,15 +78,12 @@ internal sealed partial class InventoryFurniModule(
     {
         _state.FurnitureById.Clear();
 
-        var (floorItems, wallItems) = await _furnitureItemsLoader.LoadByPlayerIdAsync(
+        var items = await _furnitureItemsLoader.LoadByPlayerIdAsync(
             _inventoryGrain.GetPrimaryKeyLong(),
             ct
         );
 
-        foreach (var item in floorItems)
-            await AddItemAsync(item, ct);
-
-        foreach (var item in wallItems)
+        foreach (var item in items)
             await AddItemAsync(item, ct);
     }
 }

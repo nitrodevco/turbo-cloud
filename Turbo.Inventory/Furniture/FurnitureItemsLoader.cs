@@ -9,7 +9,6 @@ using Turbo.Database.Entities.Furniture;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Furniture;
-using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Inventory.Furniture;
 
@@ -25,10 +24,10 @@ internal sealed class FurnitureItemsLoader(
     private readonly IFurnitureDefinitionProvider _defsProvider = defsProvider;
     private readonly IStuffDataFactory _stuffDataFactory = stuffDataFactory;
 
-    public async Task<(
-        IReadOnlyList<IFurnitureFloorItem>,
-        IReadOnlyList<IFurnitureWallItem>
-    )> LoadByPlayerIdAsync(long playerId, CancellationToken ct)
+    public async Task<IReadOnlyList<IFurnitureItem>> LoadByPlayerIdAsync(
+        long playerId,
+        CancellationToken ct
+    )
     {
         var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
@@ -40,8 +39,7 @@ internal sealed class FurnitureItemsLoader(
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
 
-            var floorItems = new List<IFurnitureFloorItem>();
-            var wallItems = new List<IFurnitureWallItem>();
+            var items = new List<IFurnitureItem>();
 
             foreach (var entity in entities)
             {
@@ -49,15 +47,7 @@ internal sealed class FurnitureItemsLoader(
                 {
                     var item = CreateFromEntity(entity);
 
-                    switch (item)
-                    {
-                        case IFurnitureFloorItem floorItem:
-                            floorItems.Add(floorItem);
-                            continue;
-                        case IFurnitureWallItem wallItem:
-                            wallItems.Add(wallItem);
-                            continue;
-                    }
+                    items.Add(item);
                 }
                 catch (Exception)
                 {
@@ -65,7 +55,7 @@ internal sealed class FurnitureItemsLoader(
                 }
             }
 
-            return (floorItems, wallItems);
+            return items;
         }
         finally
         {
@@ -79,31 +69,15 @@ internal sealed class FurnitureItemsLoader(
             _defsProvider.TryGetDefinition(entity.FurnitureDefinitionEntityId)
             ?? throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
 
-        return definition.ProductType switch
+        return new FurnitureItem()
         {
-            ProductType.Floor => new FurnitureFloorItem
-            {
-                ItemId = entity.Id,
-                OwnerId = entity.PlayerEntityId,
-                Definition = definition,
-                StuffData = _stuffDataFactory.CreateStuffDataFromJson(
-                    (int)StuffDataType.LegacyKey,
-                    entity.StuffData ?? string.Empty
-                ),
-            },
-
-            ProductType.Wall => new FurnitureWallItem
-            {
-                ItemId = entity.Id,
-                OwnerId = entity.PlayerEntityId,
-                Definition = definition,
-                StuffData = _stuffDataFactory.CreateStuffDataFromJson(
-                    (int)StuffDataType.LegacyKey,
-                    entity.StuffData ?? string.Empty
-                ),
-            },
-
-            _ => throw new TurboException(TurboErrorCodeEnum.InvalidFurnitureProductType),
+            ItemId = entity.Id,
+            OwnerId = entity.PlayerEntityId,
+            Definition = definition,
+            StuffData = _stuffDataFactory.CreateStuffDataFromJson(
+                (int)StuffDataType.LegacyKey,
+                entity.StuffData ?? string.Empty
+            ),
         };
     }
 }

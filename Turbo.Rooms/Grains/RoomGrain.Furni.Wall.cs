@@ -30,7 +30,7 @@ public sealed partial class RoomGrain
 
     public async Task<bool> PlaceWallItemAsync(
         ActionContext ctx,
-        FurnitureWallItemSnapshot item,
+        FurnitureItemSnapshot item,
         int x,
         int y,
         double z,

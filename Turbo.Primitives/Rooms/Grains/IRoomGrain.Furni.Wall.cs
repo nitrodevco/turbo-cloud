@@ -14,7 +14,7 @@ public partial interface IRoomGrain
     public Task<bool> AddWallItemAsync(IRoomWallItem item, CancellationToken ct);
     public Task<bool> PlaceWallItemAsync(
         ActionContext ctx,
-        FurnitureWallItemSnapshot item,
+        FurnitureItemSnapshot item,
         int x,
         int y,
         double z,

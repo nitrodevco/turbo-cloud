@@ -5,7 +5,7 @@ using Turbo.Primitives.Furniture.Snapshots.StuffData;
 namespace Turbo.Primitives.Inventory.Snapshots;
 
 [GenerateSerializer, Immutable]
-public abstract record FurnitureItemSnapshot
+public sealed record FurnitureItemSnapshot
 {
     [Id(0)]
     public required int ItemId { get; init; }

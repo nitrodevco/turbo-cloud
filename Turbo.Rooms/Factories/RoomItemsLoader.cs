@@ -13,7 +13,6 @@ using Turbo.Players.Grains;
 using Turbo.Primitives;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
-using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms.Factories;
@@ -133,71 +132,40 @@ internal sealed class RoomItemsLoader(
         };
     }
 
-    public IRoomItem CreateFromFurnitureItem(IFurnitureItem item)
-    {
-        var definition = item.Definition;
-
-        return item switch
-        {
-            IFurnitureFloorItem floor => new RoomFloorItem
-            {
-                ObjectId = RoomObjectId.From(floor.ItemId),
-                OwnerId = floor.OwnerId,
-                OwnerName = string.Empty,
-                Definition = definition,
-                PendingStuffDataRaw = JsonSerializer.Serialize(
-                    floor.StuffData,
-                    floor.StuffData.GetType()
-                ),
-            },
-
-            IFurnitureWallItem wall => new RoomWallItem
-            {
-                ObjectId = RoomObjectId.From(wall.ItemId),
-                OwnerId = wall.OwnerId,
-                OwnerName = string.Empty,
-                Definition = definition,
-                PendingStuffDataRaw = JsonSerializer.Serialize(
-                    wall.StuffData,
-                    wall.StuffData.GetType()
-                ),
-            },
-
-            _ => throw new TurboException(TurboErrorCodeEnum.InvalidFurnitureProductType),
-        };
-    }
-
     public IRoomItem CreateFromFurnitureItemSnapshot(FurnitureItemSnapshot item)
     {
         var definition = item.Definition;
 
-        return item switch
+        if (definition.ProductType == ProductType.Floor)
         {
-            FurnitureFloorItemSnapshot floor => new RoomFloorItem
+            return new RoomFloorItem
             {
-                ObjectId = RoomObjectId.From(floor.ItemId),
-                OwnerId = floor.OwnerId,
+                ObjectId = RoomObjectId.From(item.ItemId),
+                OwnerId = item.OwnerId,
                 OwnerName = string.Empty,
                 Definition = definition,
                 PendingStuffDataRaw = JsonSerializer.Serialize(
-                    floor.StuffData,
-                    floor.StuffData.GetType()
+                    item.StuffData,
+                    item.StuffData.GetType()
                 ),
-            },
+            };
+        }
 
-            FurnitureWallItemSnapshot wall => new RoomWallItem
+        if (definition.ProductType == ProductType.Wall)
+        {
+            return new RoomWallItem
             {
-                ObjectId = RoomObjectId.From(wall.ItemId),
-                OwnerId = wall.OwnerId,
+                ObjectId = RoomObjectId.From(item.ItemId),
+                OwnerId = item.OwnerId,
                 OwnerName = string.Empty,
                 Definition = definition,
                 PendingStuffDataRaw = JsonSerializer.Serialize(
-                    wall.StuffData,
-                    wall.StuffData.GetType()
+                    item.StuffData,
+                    item.StuffData.GetType()
                 ),
-            },
+            };
+        }
 
-            _ => throw new TurboException(TurboErrorCodeEnum.InvalidFurnitureProductType),
-        };
+        throw new TurboException(TurboErrorCodeEnum.InvalidFurnitureProductType);
     }
 }

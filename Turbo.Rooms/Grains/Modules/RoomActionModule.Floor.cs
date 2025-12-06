@@ -18,7 +18,7 @@ internal sealed partial class RoomActionModule
 
     public async Task<bool> PlaceFloorItemAsync(
         ActionContext ctx,
-        FurnitureFloorItemSnapshot item,
+        FurnitureItemSnapshot item,
         int x,
         int y,
         Rotation newRotation,

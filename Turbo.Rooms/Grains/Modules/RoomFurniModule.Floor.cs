@@ -40,7 +40,7 @@ internal sealed partial class RoomFurniModule
 
     public async Task<bool> PlaceFloorItemAsync(
         ActionContext ctx,
-        FurnitureFloorItemSnapshot snapshot,
+        FurnitureItemSnapshot snapshot,
         int x,
         int y,
         Rotation rot,
@@ -226,7 +226,7 @@ internal sealed partial class RoomFurniModule
 
     public bool ValidateNewFloorItemPlacement(
         ActionContext ctx,
-        FurnitureFloorItemSnapshot item,
+        FurnitureItemSnapshot item,
         int x,
         int y,
         Rotation rot

@@ -4,9 +4,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Inventory.Grains;
-using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
 
@@ -43,16 +43,14 @@ public sealed class InventoryService(ILogger<IInventoryService> logger, IGrainFa
                 .GetItemSnapshotAsync(itemId, ct)
                 .ConfigureAwait(false);
 
-            if (snapshot is null)
+            if (snapshot is null || snapshot.Definition.ProductType != ProductType.Floor)
                 return;
 
             var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId.Value);
 
-            if (snapshot is not FurnitureFloorItemSnapshot floorSnapshot)
-                return;
             if (
                 !await roomGrain
-                    .PlaceFloorItemAsync(ctx, floorSnapshot, x, y, rot, ct)
+                    .PlaceFloorItemAsync(ctx, snapshot, x, y, rot, ct)
                     .ConfigureAwait(false)
             )
             {
@@ -92,17 +90,14 @@ public sealed class InventoryService(ILogger<IInventoryService> logger, IGrainFa
                 .GetItemSnapshotAsync(itemId, ct)
                 .ConfigureAwait(false);
 
-            if (snapshot is null)
+            if (snapshot is null || snapshot.Definition.ProductType != ProductType.Wall)
                 return;
 
             var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId.Value);
 
-            if (snapshot is not FurnitureWallItemSnapshot wallSnapshot)
-                return;
-
             if (
                 !await roomGrain
-                    .PlaceWallItemAsync(ctx, wallSnapshot, x, y, z, wallOffset, rot, ct)
+                    .PlaceWallItemAsync(ctx, snapshot, x, y, z, wallOffset, rot, ct)
                     .ConfigureAwait(false)
             )
             {
