@@ -271,7 +271,7 @@ internal sealed partial class RoomMapModule(
 
     private static short EncodeHeight(double height, bool stackingBlocked)
     {
-        if (height < 0)
+        if (height < 0 || stackingBlocked)
             return -1;
 
         int stackingMask = 1 << 14;
@@ -284,7 +284,7 @@ internal sealed partial class RoomMapModule(
         if (raw > heightMask)
             raw = heightMask;
 
-        int value = raw | (stackingBlocked ? stackingMask : 0);
+        int value = raw;
 
         value &= 0x7FFF;
 

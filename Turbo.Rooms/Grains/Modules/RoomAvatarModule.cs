@@ -197,6 +197,9 @@ internal sealed partial class RoomAvatarModule(
 
             var goalTileId = _roomMap.ToIdx(targetX, targetY);
 
+            if (!avatar.SetGoalTileId(goalTileId))
+                throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
+
             var path = _pathfinder.FindPath(
                 avatar,
                 _roomMap,
@@ -209,7 +212,6 @@ internal sealed partial class RoomAvatarModule(
 
             avatar.TilePath.Clear();
             avatar.TilePath.AddRange(path.Skip(1).Select(pos => _roomMap.ToIdx(pos.X, pos.Y)));
-            avatar.GoalTileId = _roomMap.ToIdx(targetX, targetY);
             avatar.IsWalking = true;
 
             return true;
@@ -241,8 +243,7 @@ internal sealed partial class RoomAvatarModule(
 
                 avatar.TilePath.Clear();
                 avatar.NextTileId = -1;
-                avatar.GoalTileId = -1;
-
+                avatar.SetGoalTileId(-1);
                 avatar.RemoveStatus(AvatarStatusType.Move);
 
                 await _roomMap.InvokeAvatarAsync(avatar, ct);
@@ -369,14 +370,12 @@ internal sealed partial class RoomAvatarModule(
 
             if (!_roomMap.CanAvatarWalkBetween(avatar, prevTileId, nextTileId, isGoal))
             {
-                // TODO ensure this isnt a never ending battle
-
                 if (!isGoal)
                 {
                     var (goalX, goalY) = _roomMap.GetTileXY(avatar.GoalTileId);
 
-                    //await WalkAvatarToAsync(avatar, goalX, goalY, ct);
-                    //await ProcessDirtyAvatarAsync(avatar, ct);
+                    await WalkAvatarToAsync(avatar, goalX, goalY, ct);
+                    await ProcessDirtyAvatarAsync(avatar, ct);
 
                     return;
                 }

@@ -23,13 +23,41 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
     public IRoomAvatarLogic Logic { get; private set; } = default!;
     public Dictionary<AvatarStatusType, string> Statuses { get; } = [];
 
-    public int GoalTileId { get; set; } = -1;
+    public int GoalTileId { get; private set; } = -1;
     public int NextTileId { get; set; } = -1;
     public int PrevTileId { get; set; } = -1;
     public bool IsWalking { get; set; } = false;
     public List<int> TilePath { get; } = [];
 
+    private int _goalTries = 0;
+
     private RoomAvatarSnapshot? _snapshot;
+
+    public bool SetGoalTileId(int tileId)
+    {
+        if (tileId == -1)
+        {
+            GoalTileId = -1;
+            _goalTries = 0;
+
+            return true;
+        }
+
+        if (_goalTries == 3)
+            return false;
+
+        if (tileId == GoalTileId)
+        {
+            _goalTries++;
+        }
+        else
+        {
+            GoalTileId = tileId;
+            _goalTries = 0;
+        }
+
+        return true;
+    }
 
     public void SetPosition(int x, int y)
     {
