@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -15,6 +16,32 @@ public sealed partial class RoomGrain
         try
         {
             if (!await _actionModule.AddWallItemAsync(item, ct))
+                return false;
+
+            return true;
+        }
+        catch
+        {
+            // TODO handle exceptions
+
+            return false;
+        }
+    }
+
+    public async Task<bool> PlaceWallItemAsync(
+        ActionContext ctx,
+        FurnitureWallItemSnapshot item,
+        int x,
+        int y,
+        double z,
+        int wallOffset,
+        Rotation rot,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            if (!await _actionModule.PlaceWallItemAsync(ctx, item, x, y, z, wallOffset, rot, ct))
                 return false;
 
             return true;

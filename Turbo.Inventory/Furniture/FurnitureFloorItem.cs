@@ -10,7 +10,7 @@ internal sealed class FurnitureFloorItem : FurnitureItem, IFurnitureFloorItem
 
     private FurnitureFloorItemSnapshot? _snapshot;
 
-    public FurnitureFloorItemSnapshot GetSnapshot()
+    public override FurnitureItemSnapshot GetSnapshot()
     {
         if (_dirty || _snapshot is null)
         {

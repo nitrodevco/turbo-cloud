@@ -1,6 +1,7 @@
 using System;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Inventory.Furniture;
+using Turbo.Primitives.Inventory.Snapshots;
 
 namespace Turbo.Inventory.Furniture;
 
@@ -19,6 +20,8 @@ internal abstract class FurnitureItem : IFurnitureItem
     {
         _onSnapshotChanged = onSnapshotChanged;
     }
+
+    public abstract FurnitureItemSnapshot GetSnapshot();
 
     public void MarkDirty()
     {

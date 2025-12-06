@@ -97,7 +97,10 @@ internal sealed class FurnitureItemsLoader(
                 ItemId = entity.Id,
                 OwnerId = entity.PlayerEntityId,
                 Definition = definition,
-                StuffData = entity.StuffData ?? string.Empty,
+                StuffData = _stuffDataFactory.CreateStuffDataFromJson(
+                    (int)StuffDataType.LegacyKey,
+                    entity.StuffData ?? string.Empty
+                ),
             },
 
             _ => throw new TurboException(TurboErrorCodeEnum.InvalidFurnitureProductType),

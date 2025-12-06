@@ -17,6 +17,12 @@ public abstract class FurnitureLogicBase<TItem, TContext>(
 {
     protected readonly IStuffDataFactory _stuffDataFactory = stuffDataFactory;
 
+    public virtual StuffDataType StuffDataKey => StuffDataType.LegacyKey;
+
+    protected IStuffData _stuffData = default!;
+
+    public IStuffData StuffData => _stuffData;
+
     public virtual double GetHeight() => _ctx.Definition.StackHeight;
 
     public virtual FurnitureUsageType GetUsagePolicy() =>
@@ -40,4 +46,7 @@ public abstract class FurnitureLogicBase<TItem, TContext>(
 
     public virtual Task OnPickupAsync(ActionContext ctx, CancellationToken ct) =>
         Task.CompletedTask;
+
+    protected virtual IStuffData CreateStuffData(string json = "") =>
+        _stuffDataFactory.CreateStuffDataFromJson((int)StuffDataKey, json);
 }

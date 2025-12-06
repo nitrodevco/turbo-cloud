@@ -221,7 +221,8 @@ internal sealed partial class RoomFurniModule
             entity.Z = snapshot.Z;
             entity.Rotation = snapshot.Rotation;
             entity.WallOffset = snapshot.WallOffset;
-            entity.StuffData = snapshot.StuffData;
+            entity.StuffData = snapshot.StuffDataJson;
+            entity.RoomEntityId = (int)_state.RoomId;
 
             await dbCtx.SaveChangesAsync(ct);
         }
@@ -267,7 +268,8 @@ internal sealed partial class RoomFurniModule
                 entity.Z = snapshot.Z;
                 entity.WallOffset = snapshot.WallOffset;
                 entity.Rotation = snapshot.Rotation;
-                entity.StuffData = snapshot.StuffData;
+                entity.StuffData = snapshot.StuffDataJson;
+                entity.RoomEntityId = (int)_state.RoomId;
             }
 
             await dbCtx.SaveChangesAsync(ct);

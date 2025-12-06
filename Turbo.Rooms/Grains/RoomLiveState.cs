@@ -11,6 +11,7 @@ namespace Turbo.Rooms.Grains;
 
 internal sealed class RoomLiveState
 {
+    public required long RoomId { get; internal init; }
     public RoomSnapshot RoomSnapshot { get; internal set; } = default!;
 
     public Dictionary<long, IRoomFloorItem> FloorItemsById { get; } = [];

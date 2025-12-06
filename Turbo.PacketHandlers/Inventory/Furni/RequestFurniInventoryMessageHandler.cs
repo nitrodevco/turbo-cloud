@@ -4,7 +4,6 @@ using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Messages.Incoming.Inventory.Furni;
-using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
 
 namespace Turbo.PacketHandlers.Inventory.Furni;
 
@@ -19,18 +18,11 @@ public class RequestFurniInventoryMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        var inventory = _grainFactory.GetGrain<IInventoryGrain>(ctx.PlayerId);
-        var floorItems = await inventory.GetAllFloorItemSnapshotsAsync(ct).ConfigureAwait(false);
+        if (ctx.PlayerId <= 0)
+            return;
 
-        await ctx.SendComposerAsync(
-                new FurniListEventMessageComposer
-                {
-                    TotalFragments = 1,
-                    CurrentFragment = 0,
-                    Items = [.. floorItems],
-                },
-                ct
-            )
-            .ConfigureAwait(false);
+        var inventory = _grainFactory.GetGrain<IInventoryGrain>(ctx.PlayerId);
+
+        await inventory.SendItemsToPlayerAsync(ct).ConfigureAwait(false);
     }
 }

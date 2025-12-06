@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Furniture.Snapshots;
+using Turbo.Primitives.Furniture.Snapshots.StuffData;
 
 namespace Turbo.Primitives.Inventory.Snapshots;
 
@@ -7,11 +8,35 @@ namespace Turbo.Primitives.Inventory.Snapshots;
 public abstract record FurnitureItemSnapshot
 {
     [Id(0)]
-    public required int OwnerId { get; init; }
+    public required int ItemId { get; init; }
 
     [Id(1)]
-    public required string OwnerName { get; init; }
+    public required int SpriteId { get; init; }
 
     [Id(2)]
+    public required int OwnerId { get; init; }
+
+    [Id(3)]
+    public required string OwnerName { get; init; }
+
+    [Id(4)]
     public required FurnitureDefinitionSnapshot Definition { get; init; }
+
+    [Id(5)]
+    public required StuffDataSnapshot StuffData { get; init; }
+
+    [Id(6)]
+    public required int SecondsToExpiration { get; init; }
+
+    [Id(7)]
+    public required bool HasRentPeriodStarted { get; init; }
+
+    [Id(8)]
+    public required int RoomId { get; init; }
+
+    [Id(9)]
+    public string SlotId { get; init; } = string.Empty;
+
+    [Id(10)]
+    public int Extra { get; init; } = 0;
 }

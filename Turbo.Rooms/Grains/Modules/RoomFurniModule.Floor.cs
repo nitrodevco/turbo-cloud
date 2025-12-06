@@ -67,6 +67,8 @@ internal sealed partial class RoomFurniModule
         if (!_roomMap.PlaceFloorItem(item, tileIdx, rot, true, out var updatedTileIds))
             return false;
 
+        await FlushDirtyFloorItemAsync(item.ObjectId.Value, ct);
+
         await _roomMap.InvokeAvatarsOnTilesAsync(updatedTileIds, ct);
 
         return true;
@@ -347,6 +349,7 @@ internal sealed partial class RoomFurniModule
             entity.Z = snapshot.Z;
             entity.Rotation = snapshot.Rotation;
             entity.StuffData = snapshot.StuffDataJson;
+            entity.RoomEntityId = (int)_state.RoomId;
 
             await dbCtx.SaveChangesAsync(ct);
         }
@@ -392,6 +395,7 @@ internal sealed partial class RoomFurniModule
                 entity.Z = snapshot.Z;
                 entity.Rotation = snapshot.Rotation;
                 entity.StuffData = snapshot.StuffDataJson;
+                entity.RoomEntityId = (int)_state.RoomId;
             }
 
             await dbCtx.SaveChangesAsync(ct);

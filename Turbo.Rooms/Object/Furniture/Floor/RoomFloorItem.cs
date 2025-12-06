@@ -89,9 +89,9 @@ internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
             Y = Y,
             Z = Z,
             Rotation = Rotation,
-            StackHeight = Definition.StackHeight,
             StuffData = Logic.StuffData.GetSnapshot(),
             StuffDataJson = JsonSerializer.Serialize(Logic.StuffData, Logic.StuffData.GetType()),
             UsagePolicy = Definition.UsagePolicy,
+            StackHeight = Definition.StackHeight,
         };
 }

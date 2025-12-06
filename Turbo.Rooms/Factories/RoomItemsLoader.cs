@@ -157,7 +157,10 @@ internal sealed class RoomItemsLoader(
                 OwnerId = wall.OwnerId,
                 OwnerName = string.Empty,
                 Definition = definition,
-                PendingStuffDataRaw = wall.StuffData,
+                PendingStuffDataRaw = JsonSerializer.Serialize(
+                    wall.StuffData,
+                    wall.StuffData.GetType()
+                ),
             },
 
             _ => throw new TurboException(TurboErrorCodeEnum.InvalidFurnitureProductType),
@@ -188,7 +191,10 @@ internal sealed class RoomItemsLoader(
                 OwnerId = wall.OwnerId,
                 OwnerName = string.Empty,
                 Definition = definition,
-                PendingStuffDataRaw = wall.StuffData,
+                PendingStuffDataRaw = JsonSerializer.Serialize(
+                    wall.StuffData,
+                    wall.StuffData.GetType()
+                ),
             },
 
             _ => throw new TurboException(TurboErrorCodeEnum.InvalidFurnitureProductType),

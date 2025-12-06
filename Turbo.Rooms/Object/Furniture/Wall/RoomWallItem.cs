@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums;
@@ -74,7 +75,11 @@ internal sealed class RoomWallItem : RoomItem, IRoomWallItem
         new ItemUpdateMessageComposer { WallItem = GetSnapshot() };
 
     public IComposer GetRefreshStuffDataComposer() =>
-        new ItemDataUpdateMessageComposer { ObjectId = ObjectId, State = GetSnapshot().StuffData };
+        new ItemDataUpdateMessageComposer
+        {
+            ObjectId = ObjectId,
+            State = Logic.StuffData.GetLegacyString(),
+        };
 
     public IComposer GetRemoveComposer(long pickerId) =>
         new ItemRemoveMessageComposer { ObjectId = ObjectId, PickerId = (int)pickerId };
@@ -92,10 +97,11 @@ internal sealed class RoomWallItem : RoomItem, IRoomWallItem
             X = X,
             Y = Y,
             Z = Z,
-            WallOffset = WallOffset,
             Rotation = Rotation,
-            WallPosition = ConvertWallPositionToString(),
-            StuffData = Logic.StuffData,
+            StuffData = Logic.StuffData.GetSnapshot(),
+            StuffDataJson = JsonSerializer.Serialize(Logic.StuffData, Logic.StuffData.GetType()),
             UsagePolicy = Definition.UsagePolicy,
+            WallOffset = WallOffset,
+            WallPosition = ConvertWallPositionToString(),
         };
 }

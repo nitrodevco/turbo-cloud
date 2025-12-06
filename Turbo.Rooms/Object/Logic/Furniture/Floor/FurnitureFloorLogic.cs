@@ -15,11 +15,6 @@ public class FurnitureFloorLogic
     : FurnitureLogicBase<IRoomFloorItem, IRoomFloorItemContext>,
         IFurnitureFloorLogic
 {
-    public virtual StuffDataType StuffDataKey => StuffDataType.LegacyKey;
-
-    protected IStuffData _stuffData;
-
-    public IStuffData StuffData => _stuffData;
     public IRoomFloorItemContext Context => _ctx;
 
     public FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
@@ -27,9 +22,7 @@ public class FurnitureFloorLogic
     {
         _stuffData = CreateStuffData(_ctx.Item.PendingStuffDataRaw);
 
-        void func() => _ctx.Item.MarkDirty();
-
-        _stuffData.SetAction(func);
+        _stuffData.SetAction(() => _ctx.Item.MarkDirty());
     }
 
     public override Task<int> GetStateAsync() => Task.FromResult(_stuffData.GetState());
@@ -90,7 +83,4 @@ public class FurnitureFloorLogic
 
         return (StuffData.GetState() + 1) % totalStates;
     }
-
-    protected virtual IStuffData CreateStuffData(string json = "") =>
-        _stuffDataFactory.CreateStuffDataFromJson((int)StuffDataKey, json);
 }

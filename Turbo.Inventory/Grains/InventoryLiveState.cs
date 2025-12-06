@@ -5,6 +5,6 @@ namespace Turbo.Inventory.Grains;
 
 internal sealed class InventoryLiveState
 {
-    public Dictionary<int, IFurnitureFloorItem> FloorItemsById { get; } = [];
+    public Dictionary<int, IFurnitureItem> FurnitureById { get; } = [];
     public bool IsFurniReady { get; set; } = false;
 }

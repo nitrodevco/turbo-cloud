@@ -12,27 +12,21 @@ public class FurnitureWallLogic
     : FurnitureLogicBase<IRoomWallItem, IRoomWallItemContext>,
         IFurnitureWallLogic
 {
-    protected string _stuffData = string.Empty;
-
-    public string StuffData => _stuffData;
     public IRoomWallItemContext Context => _ctx;
 
     public FurnitureWallLogic(IStuffDataFactory stuffDataFactory, IRoomWallItemContext ctx)
         : base(stuffDataFactory, ctx)
     {
-        _stuffData = _ctx.Item.PendingStuffDataRaw;
+        _stuffData = CreateStuffData(_ctx.Item.PendingStuffDataRaw);
+
+        _stuffData.SetAction(() => _ctx.Item.MarkDirty());
     }
 
-    public override Task<int> GetStateAsync() => Task.FromResult(int.Parse(_stuffData));
+    public override Task<int> GetStateAsync() => Task.FromResult(_stuffData.GetState());
 
     public override async Task<bool> SetStateAsync(int state)
     {
-        if (_stuffData.Equals(state.ToString()))
-            return false;
-
-        _stuffData = state.ToString();
-
-        _ctx.Item.MarkDirty();
+        _stuffData.SetState(state.ToString());
 
         await _ctx.RefreshStuffDataAsync(CancellationToken.None);
 

@@ -18,8 +18,11 @@ public class RequestFurniInventoryWhenNotInRoomMessageHandler(IGrainFactory grai
         CancellationToken ct
     )
     {
+        if (ctx.PlayerId <= 0)
+            return;
+
         var inventory = _grainFactory.GetGrain<IInventoryGrain>(ctx.PlayerId);
 
-        await inventory.SendFurniToPlayerAsync(ct).ConfigureAwait(false);
+        await inventory.SendItemsToPlayerAsync(ct).ConfigureAwait(false);
     }
 }

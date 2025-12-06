@@ -24,8 +24,9 @@ public class MoveWallItemMessageHandler(IRoomService roomService)
         if (position.Length != 3)
             return;
 
-        var coords = position[0].Substring(3).Split(',');
-        var loc = position[1].Substring(2).Split(',');
+        var coords = position[0][3..].Split(',');
+        var loc = position[1][2..].Split(',');
+        var rot = position[2].Equals("l") ? Rotation.South : Rotation.West;
 
         if (coords.Length != 2 || loc.Length != 2)
             return;
@@ -41,8 +42,6 @@ public class MoveWallItemMessageHandler(IRoomService roomService)
 
         if (!double.TryParse(loc[1], out var z))
             return;
-
-        var rot = position[2].Equals("l") ? Rotation.South : Rotation.West;
 
         await _roomService
             .MoveWallItemInRoomAsync(

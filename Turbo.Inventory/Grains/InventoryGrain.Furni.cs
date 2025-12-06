@@ -14,14 +14,17 @@ public sealed partial class InventoryGrain
     public Task EnsureFurniLoadedAsync(CancellationToken ct) =>
         _furniModule.EnsureFurniLoadedAsync(ct);
 
-    public Task<bool> AddFloorItemAsync(IFurnitureFloorItem item, CancellationToken ct) =>
-        _furniModule.AddFloorItemAsync(item, ct);
+    public Task<bool> AddItemAsync(IFurnitureItem item, CancellationToken ct) =>
+        _furniModule.AddItemAsync(item, ct);
 
-    public async Task SendFurniToPlayerAsync(CancellationToken ct)
+    public Task<bool> RemoveItemAsync(int itemId, CancellationToken ct) =>
+        _furniModule.RemoveItemAsync(itemId, ct);
+
+    public async Task SendItemsToPlayerAsync(CancellationToken ct)
     {
         await EnsureFurniLoadedAsync(ct);
 
-        var floorItems = await GetAllFloorItemSnapshotsAsync(ct);
+        var floorItems = await GetAllItemSnapshotsAsync(ct);
 
         var totalFragments = (int)
             Math.Max(
@@ -30,7 +33,7 @@ public sealed partial class InventoryGrain
             );
         var currentFragment = 0;
         var count = 0;
-        List<FurnitureFloorItemSnapshot> fragmentItems = [];
+        List<FurnitureItemSnapshot> fragmentItems = [];
 
         foreach (var item in floorItems)
         {
@@ -72,12 +75,10 @@ public sealed partial class InventoryGrain
             .ConfigureAwait(false);
     }
 
-    public Task<FurnitureFloorItemSnapshot?> GetFloorItemSnapshotAsync(
-        int itemId,
-        CancellationToken ct
-    ) => _furniModule.GetFloorItemSnapshotAsync(itemId, ct);
+    public Task<FurnitureItemSnapshot?> GetItemSnapshotAsync(int itemId, CancellationToken ct) =>
+        _furniModule.GetItemSnapshotAsync(itemId, ct);
 
-    public Task<ImmutableArray<FurnitureFloorItemSnapshot>> GetAllFloorItemSnapshotsAsync(
+    public Task<ImmutableArray<FurnitureItemSnapshot>> GetAllItemSnapshotsAsync(
         CancellationToken ct
-    ) => _furniModule.GetAllFloorItemSnapshotsAsync(ct);
+    ) => _furniModule.GetAllItemSnapshotsAsync(ct);
 }

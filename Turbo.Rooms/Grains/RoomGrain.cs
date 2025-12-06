@@ -60,7 +60,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _grainFactory = grainFactory;
 
         _roomId = RoomId.From(this.GetPrimaryKeyLong());
-        _liveState = new();
+        _liveState = new() { RoomId = this.GetPrimaryKeyLong() };
         _securityModule = new(this, _liveState);
         _pathfinder = new();
         _eventModule = new(this, _roomConfig, _liveState);
