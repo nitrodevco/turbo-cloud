@@ -79,12 +79,13 @@ public sealed partial class RoomGrain
     public async Task<bool> RemoveFloorItemByIdAsync(
         ActionContext ctx,
         int itemId,
-        CancellationToken ct
+        CancellationToken ct,
+        int pickerId = -1
     )
     {
         try
         {
-            if (!await _actionModule.RemoveFloorItemByIdAsync(ctx, itemId, ct))
+            if (!await _actionModule.RemoveFloorItemByIdAsync(ctx, itemId, ct, pickerId))
                 return false;
 
             return true;

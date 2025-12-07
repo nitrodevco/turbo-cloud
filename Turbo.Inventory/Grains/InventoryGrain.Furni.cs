@@ -1,78 +1,27 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Inventory.Furniture;
+using Orleans;
 using Turbo.Primitives.Inventory.Snapshots;
-using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
+using Turbo.Primitives.Players.Grains;
 
 namespace Turbo.Inventory.Grains;
 
 public sealed partial class InventoryGrain
 {
-    public Task EnsureFurniLoadedAsync(CancellationToken ct) =>
-        _furniModule.EnsureFurniLoadedAsync(ct);
+    public Task EnsureFurnitureReadyAsync(CancellationToken ct) =>
+        _furniModule.EnsureFurnitureReadyAsync(ct);
 
-    public Task<bool> AddItemAsync(IFurnitureItem item, CancellationToken ct) =>
-        _furniModule.AddItemAsync(item, ct);
-
-    public Task<bool> RemoveItemAsync(int itemId, CancellationToken ct) =>
-        _furniModule.RemoveItemAsync(itemId, ct);
-
-    public async Task SendItemsToPlayerAsync(CancellationToken ct)
+    public async Task<bool> RemoveFurnitureAsync(int itemId, CancellationToken ct)
     {
-        await EnsureFurniLoadedAsync(ct);
+        if (!await _furniModule.RemoveFurnitureAsync(itemId, ct))
+            return false;
 
-        var floorItems = await GetAllItemSnapshotsAsync(ct);
+        var presence = _grainFactory.GetGrain<IPlayerPresenceGrain>(this.GetPrimaryKeyLong());
 
-        var totalFragments = (int)
-            Math.Max(
-                1,
-                Math.Ceiling((double)floorItems.Length / _inventoryConfig.FurniPerFragment)
-            );
-        var currentFragment = 0;
-        var count = 0;
-        List<FurnitureItemSnapshot> fragmentItems = [];
+        await presence.OnFurnitureRemovedAsync(itemId, ct);
 
-        foreach (var item in floorItems)
-        {
-            fragmentItems.Add(item);
-
-            count++;
-
-            if (count == _inventoryConfig.FurniPerFragment)
-            {
-                await SendComposerAsync(
-                        new FurniListEventMessageComposer
-                        {
-                            TotalFragments = totalFragments,
-                            CurrentFragment = currentFragment,
-                            Items = [.. fragmentItems],
-                        },
-                        ct
-                    )
-                    .ConfigureAwait(false);
-
-                fragmentItems.Clear();
-                count = 0;
-                currentFragment++;
-            }
-        }
-
-        if (count <= 0)
-            return;
-
-        await SendComposerAsync(
-                new FurniListEventMessageComposer
-                {
-                    TotalFragments = totalFragments,
-                    CurrentFragment = currentFragment,
-                    Items = [.. fragmentItems],
-                },
-                ct
-            )
-            .ConfigureAwait(false);
+        return true;
     }
 
     public Task<FurnitureItemSnapshot?> GetItemSnapshotAsync(int itemId, CancellationToken ct) =>

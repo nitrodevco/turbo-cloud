@@ -118,7 +118,7 @@ internal sealed partial class RoomFurniModule
 
         item.SetAction(null);
 
-        await FlushDirtyFloorItemAsync(itemId, ct);
+        await FlushDirtyFloorItemAsync(itemId, ct, true);
 
         _state.FloorItemsById.Remove(itemId);
 
@@ -326,7 +326,11 @@ internal sealed partial class RoomFurniModule
         await logic.OnAttachAsync(ct);
     }
 
-    private async Task FlushDirtyFloorItemAsync(long itemId, CancellationToken ct)
+    private async Task FlushDirtyFloorItemAsync(
+        long itemId,
+        CancellationToken ct,
+        bool remove = false
+    )
     {
         try
         {
@@ -349,7 +353,7 @@ internal sealed partial class RoomFurniModule
             entity.Z = snapshot.Z;
             entity.Rotation = snapshot.Rotation;
             entity.StuffData = snapshot.StuffDataJson;
-            entity.RoomEntityId = (int)_state.RoomId;
+            entity.RoomEntityId = remove ? null : (int)_state.RoomId;
 
             await dbCtx.SaveChangesAsync(ct);
         }

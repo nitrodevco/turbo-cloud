@@ -2,9 +2,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
 using Turbo.Inventory.Configuration;
-using Turbo.Inventory.Furniture;
+using Turbo.Inventory.Factories;
 using Turbo.Primitives.Inventory;
-using Turbo.Primitives.Inventory.Furniture;
+using Turbo.Primitives.Inventory.Factories;
 
 namespace Turbo.Inventory;
 
@@ -18,7 +18,7 @@ public sealed class InventoryModule : IHostPluginModule
             builder.Configuration.GetSection(InventoryConfig.SECTION_NAME)
         );
 
-        services.AddSingleton<IFurnitureItemsLoader, FurnitureItemsLoader>();
+        services.AddSingleton<IInventoryFurnitureLoader, InventoryFurnitureLoader>();
         services.AddSingleton<IInventoryService, InventoryService>();
     }
 }

@@ -2,8 +2,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
-using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Messages.Incoming.Inventory.Furni;
+using Turbo.Primitives.Players.Grains;
 
 namespace Turbo.PacketHandlers.Inventory.Furni;
 
@@ -21,8 +21,8 @@ public class RequestFurniInventoryWhenNotInRoomMessageHandler(IGrainFactory grai
         if (ctx.PlayerId <= 0)
             return;
 
-        var inventory = _grainFactory.GetGrain<IInventoryGrain>(ctx.PlayerId);
+        var presence = _grainFactory.GetGrain<IPlayerPresenceGrain>(ctx.PlayerId);
 
-        await inventory.SendItemsToPlayerAsync(ct).ConfigureAwait(false);
+        await presence.OpenFurnitureInventoryAsync(ct).ConfigureAwait(false);
     }
 }

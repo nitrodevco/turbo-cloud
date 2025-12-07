@@ -1,4 +1,6 @@
+using System;
 using Microsoft.Extensions.Hosting;
+using Orleans.Configuration;
 using Orleans.Hosting;
 using Turbo.Contracts.Orleans;
 
@@ -12,6 +14,10 @@ public static class HostApplicationBuilderExtensions
             (System.Action<ISiloBuilder>)(
                 silo =>
                 {
+                    silo.Configure<GrainCollectionOptions>(options =>
+                    {
+                        options.CollectionAge = TimeSpan.FromMinutes(2);
+                    });
                     silo.ConfigureEndpoints(
                         "127.0.0.1",
                         siloPort: 11111,

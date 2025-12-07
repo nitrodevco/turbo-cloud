@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -6,75 +5,69 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Logging;
 using Turbo.Primitives;
+using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Snapshots;
-using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
 
 namespace Turbo.Inventory.Grains.Modules;
 
 internal sealed class InventoryFurniModule(
     InventoryGrain inventoryGrain,
     InventoryLiveState liveState,
-    IFurnitureItemsLoader furnitureItemsLoader
+    IInventoryFurnitureLoader furnitureItemsLoader
 )
 {
     private readonly InventoryGrain _inventoryGrain = inventoryGrain;
     private readonly InventoryLiveState _state = liveState;
-    private readonly IFurnitureItemsLoader _furnitureItemsLoader = furnitureItemsLoader;
+    private readonly IInventoryFurnitureLoader _furnitureItemsLoader = furnitureItemsLoader;
 
-    public async Task EnsureFurniLoadedAsync(CancellationToken ct)
+    public async Task EnsureFurnitureReadyAsync(CancellationToken ct)
     {
-        if (_state.IsFurniReady)
+        if (_state.IsFurnitureReady)
             return;
 
-        await LoadItemsAsync(ct);
+        await LoadFurnitureAsync(ct);
 
-        _state.IsFurniReady = true;
+        _state.IsFurnitureReady = true;
     }
 
-    public async Task<bool> AddItemAsync(IFurnitureItem item, CancellationToken ct)
+    public async Task<IFurnitureItem> AddFurnitureAsync(IFurnitureItem item, CancellationToken ct)
     {
         if (!_state.FurnitureById.TryAdd(item.ItemId, item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         item.SetAction(itemId => { });
 
-        if (_state.IsFurniReady)
-            await _inventoryGrain.SendComposerAsync(
-                new FurniListAddOrUpdateEventMessageComposer { Item = item.GetSnapshot() },
-                ct
-            );
-
-        return true;
+        return item;
     }
 
-    public async Task<bool> RemoveItemAsync(int itemId, CancellationToken ct)
+    public async Task<bool> RemoveFurnitureAsync(int itemId, CancellationToken ct)
     {
         if (!_state.FurnitureById.Remove(itemId, out var item))
             return false;
 
-        if (_state.IsFurniReady)
-            await _inventoryGrain.SendComposerAsync(
-                new FurniListRemoveEventMessageComposer { ItemId = -Math.Abs(itemId) },
-                ct
-            );
+        item.SetAction(null);
 
         return true;
     }
 
-    public Task<FurnitureItemSnapshot?> GetItemSnapshotAsync(int itemId, CancellationToken ct) =>
-        Task.FromResult(
-            _state.FurnitureById.TryGetValue(itemId, out var item) ? item.GetSnapshot() : null
-        );
+    public async Task<FurnitureItemSnapshot?> GetItemSnapshotAsync(int itemId, CancellationToken ct)
+    {
+        await EnsureFurnitureReadyAsync(ct);
 
-    public Task<ImmutableArray<FurnitureItemSnapshot>> GetAllItemSnapshotsAsync(
+        return _state.FurnitureById.TryGetValue(itemId, out var item) ? item.GetSnapshot() : null;
+    }
+
+    public async Task<ImmutableArray<FurnitureItemSnapshot>> GetAllItemSnapshotsAsync(
         CancellationToken ct
-    ) =>
-        Task.FromResult(
-            _state.FurnitureById.Values.Select(x => x.GetSnapshot()).ToImmutableArray()
-        );
+    )
+    {
+        await EnsureFurnitureReadyAsync(ct);
 
-    private async Task LoadItemsAsync(CancellationToken ct)
+        return [.. _state.FurnitureById.Values.Select(x => x.GetSnapshot())];
+    }
+
+    private async Task LoadFurnitureAsync(CancellationToken ct)
     {
         _state.FurnitureById.Clear();
 
@@ -84,6 +77,6 @@ internal sealed class InventoryFurniModule(
         );
 
         foreach (var item in items)
-            await AddItemAsync(item, ct);
+            await AddFurnitureAsync(item, ct);
     }
 }

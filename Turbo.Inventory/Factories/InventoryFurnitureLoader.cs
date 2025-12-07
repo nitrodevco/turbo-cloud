@@ -6,19 +6,21 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
+using Turbo.Inventory.Furniture;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.StuffData;
+using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Furniture;
 
-namespace Turbo.Inventory.Furniture;
+namespace Turbo.Inventory.Factories;
 
-internal sealed class FurnitureItemsLoader(
+internal sealed class InventoryFurnitureLoader(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IFurnitureDefinitionProvider defsProvider,
     IStuffDataFactory stuffDataFactory
-) : IFurnitureItemsLoader
+) : IInventoryFurnitureLoader
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
     private readonly IFurnitureDefinitionProvider _defsProvider = defsProvider;

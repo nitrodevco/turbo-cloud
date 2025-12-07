@@ -58,7 +58,7 @@ public sealed class InventoryService(ILogger<IInventoryService> logger, IGrainFa
                 return;
             }
 
-            await inventoryGrain.RemoveItemAsync(itemId, ct).ConfigureAwait(false);
+            await inventoryGrain.RemoveFurnitureAsync(itemId, ct).ConfigureAwait(false);
         }
         catch (Exception) { }
     }
@@ -105,7 +105,7 @@ public sealed class InventoryService(ILogger<IInventoryService> logger, IGrainFa
                 return;
             }
 
-            await inventoryGrain.RemoveItemAsync(itemId, ct).ConfigureAwait(false);
+            await inventoryGrain.RemoveFurnitureAsync(itemId, ct).ConfigureAwait(false);
         }
         catch (Exception) { }
     }

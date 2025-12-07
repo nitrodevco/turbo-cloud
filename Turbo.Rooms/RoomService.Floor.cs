@@ -41,6 +41,28 @@ internal sealed partial class RoomService
                 .ConfigureAwait(false);
     }
 
+    public async Task PickupFloorItemInRoomAsync(
+        ActionContext ctx,
+        int itemId,
+        CancellationToken ct,
+        bool isConfirm = true
+    )
+    {
+        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId.Value <= 0 || itemId <= 0)
+            return;
+
+        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId.Value);
+
+        if (
+            await roomGrain
+                .RemoveFloorItemByIdAsync(ctx, itemId, ct, (int)ctx.PlayerId)
+                .ConfigureAwait(false)
+        )
+            return;
+
+        // put it in the inventory
+    }
+
     public async Task UseFloorItemInRoomAsync(
         ActionContext ctx,
         int itemId,

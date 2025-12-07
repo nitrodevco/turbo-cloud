@@ -5,7 +5,7 @@ using Turbo.Logging;
 using Turbo.Pipeline;
 using Turbo.Primitives;
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Orleans.Grains;
+using Turbo.Primitives.Players.Grains;
 
 namespace Turbo.Messages.Registry;
 

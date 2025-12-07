@@ -6,10 +6,8 @@ using Orleans;
 using Turbo.Database.Context;
 using Turbo.Inventory.Configuration;
 using Turbo.Inventory.Grains.Modules;
-using Turbo.Primitives.Inventory.Furniture;
+using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Grains;
-using Turbo.Primitives.Networking;
-using Turbo.Primitives.Orleans.Grains;
 
 namespace Turbo.Inventory.Grains;
 
@@ -18,7 +16,7 @@ public sealed partial class InventoryGrain : Grain, IInventoryGrain
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly InventoryConfig _inventoryConfig;
     private readonly IGrainFactory _grainFactory;
-    private readonly IFurnitureItemsLoader _furnitureItemsLoader;
+    private readonly IInventoryFurnitureLoader _furnitureItemsLoader;
 
     private readonly InventoryLiveState _state;
     private readonly InventoryFurniModule _furniModule;
@@ -27,7 +25,7 @@ public sealed partial class InventoryGrain : Grain, IInventoryGrain
         IDbContextFactory<TurboDbContext> dbContextFactory,
         IOptions<InventoryConfig> inventoryConfig,
         IGrainFactory grainFactory,
-        IFurnitureItemsLoader furnitureItemsLoader
+        IInventoryFurnitureLoader furnitureItemsLoader
     )
     {
         _dbCtxFactory = dbContextFactory;
@@ -47,12 +45,5 @@ public sealed partial class InventoryGrain : Grain, IInventoryGrain
     public override Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
         return Task.CompletedTask;
-    }
-
-    public Task SendComposerAsync(IComposer composer, CancellationToken ct)
-    {
-        var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(this.GetPrimaryKeyLong());
-
-        return playerPresence.SendComposerAsync(composer, ct);
     }
 }

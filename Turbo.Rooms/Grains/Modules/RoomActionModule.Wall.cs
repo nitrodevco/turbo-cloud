@@ -109,8 +109,9 @@ internal sealed partial class RoomActionModule
     public Task<bool> RemoveWallItemByIdAsync(
         ActionContext ctx,
         int itemId,
-        CancellationToken ct
-    ) => _furniModule.RemoveWallItemByIdAsync(ctx, itemId, ct);
+        CancellationToken ct,
+        int pickerId = -1
+    ) => _furniModule.RemoveWallItemByIdAsync(ctx, itemId, ct, pickerId);
 
     public async Task<bool> UseWallItemByIdAsync(
         ActionContext ctx,

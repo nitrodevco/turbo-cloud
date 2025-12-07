@@ -4,9 +4,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Orleans.Grains;
 using Turbo.Primitives.Orleans.Observers;
 using Turbo.Primitives.Orleans.Snapshots.Session;
+using Turbo.Primitives.Players.Grains;
 
 namespace Turbo.Networking.Session;
 

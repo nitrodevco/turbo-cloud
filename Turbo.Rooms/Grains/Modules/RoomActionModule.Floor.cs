@@ -60,11 +60,20 @@ internal sealed partial class RoomActionModule
         return true;
     }
 
-    public Task<bool> RemoveFloorItemByIdAsync(
+    public async Task<bool> RemoveFloorItemByIdAsync(
         ActionContext ctx,
         int itemId,
-        CancellationToken ct
-    ) => _furniModule.RemoveFloorItemByIdAsync(ctx, itemId, ct);
+        CancellationToken ct,
+        int pickerId = -1
+    )
+    {
+        // can we pickup this item
+        // do we steal it
+        if (!await _furniModule.RemoveFloorItemByIdAsync(ctx, itemId, ct, pickerId))
+            return false;
+
+        return true;
+    }
 
     public async Task<bool> UseFloorItemByIdAsync(
         ActionContext ctx,

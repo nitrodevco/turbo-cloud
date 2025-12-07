@@ -7,9 +7,9 @@ using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Session;
 using Turbo.Primitives.Rooms;
 
-namespace Turbo.Primitives.Orleans.Grains;
+namespace Turbo.Primitives.Players.Grains;
 
-public interface IPlayerPresenceGrain : IGrainWithIntegerKey
+public partial interface IPlayerPresenceGrain : IGrainWithIntegerKey
 {
     public Task<SessionKey> GetSessionKeyAsync();
     public Task<RoomPointerSnapshot> GetActiveRoomAsync();

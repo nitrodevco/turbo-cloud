@@ -15,6 +15,12 @@ public partial interface IRoomService
         Rotation newRotation,
         CancellationToken ct
     );
+    public Task PickupFloorItemInRoomAsync(
+        ActionContext ctx,
+        int itemId,
+        CancellationToken ct,
+        bool isConfirm = true
+    );
     public Task UseFloorItemInRoomAsync(
         ActionContext ctx,
         int itemId,
