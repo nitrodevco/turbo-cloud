@@ -75,7 +75,7 @@ public sealed partial class PlayerPresenceGrain : Grain, IPlayerPresenceGrain
 
         _state.State.Session = SessionKey.From(key.Value);
 
-        _inventoryModule.OnSessionAttached();
+        await _inventoryModule.OnSessionAttachedAsync(CancellationToken.None);
 
         await _state.WriteStateAsync();
     }
@@ -85,7 +85,7 @@ public sealed partial class PlayerPresenceGrain : Grain, IPlayerPresenceGrain
         if (!_state.State.Session.CompareTo(key))
             return;
 
-        _inventoryModule.OnSessionAttached();
+        await _inventoryModule.OnSessionDetachedAsync(ct);
 
         _sessionObserver = null;
 

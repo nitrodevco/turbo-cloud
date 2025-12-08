@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Inventory.Furniture;
@@ -44,12 +45,12 @@ internal sealed class FurnitureItem : IFurnitureItem
     private FurnitureItemSnapshot BuildSnapshot() =>
         new()
         {
-            OwnerId = OwnerId,
-            OwnerName = string.Empty,
             ItemId = ItemId,
             SpriteId = Definition.SpriteId,
+            OwnerId = OwnerId,
             Definition = Definition,
             StuffData = StuffData.GetSnapshot(),
+            StuffDataJson = JsonSerializer.Serialize(StuffData, StuffData.GetType()),
             SecondsToExpiration = -1,
             HasRentPeriodStarted = false,
             RoomId = -1,

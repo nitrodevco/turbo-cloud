@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
@@ -11,53 +12,47 @@ namespace Turbo.Rooms.Grains.Modules;
 
 internal sealed partial class RoomActionModule
 {
-    public Task<bool> AddWallItemAsync(IRoomWallItem item, CancellationToken ct)
-    {
-        return _furniModule.AddWallItemAsync(item, ct);
-    }
+    public Task<bool> AddWallItemAsync(IRoomWallItem item, CancellationToken ct) =>
+        _furniModule.AddWallItemAsync(item, ct);
 
     public async Task<bool> PlaceWallItemAsync(
         ActionContext ctx,
-        FurnitureItemSnapshot item,
-        int newX,
-        int newY,
-        double newZ,
+        FurnitureItemSnapshot snapshot,
+        int x,
+        int y,
+        double z,
         int wallOffset,
-        Rotation newRot,
+        Rotation rot,
         CancellationToken ct
     )
     {
         if (!await _securityModule.CanPlaceFurniAsync(ctx))
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToPlaceFurni);
 
+        var item = _itemsLoader.CreateFromFurnitureItemSnapshot(snapshot);
+
+        if (item is not IRoomWallItem wallItem)
+            throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
+
         if (
             !await _furniModule.ValidateNewWallItemPlacementAsync(
                 ctx,
-                item,
-                newX,
-                newY,
-                newZ,
+                wallItem,
+                x,
+                y,
+                z,
                 wallOffset,
-                newRot
+                rot
             )
         )
             throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
-        if (
-            !await _furniModule.PlaceWallItemAsync(
-                ctx,
-                item,
-                newX,
-                newY,
-                newZ,
-                wallOffset,
-                newRot,
-                ct
-            )
-        )
+        if (!await _furniModule.PlaceWallItemAsync(ctx, wallItem, x, y, z, wallOffset, rot, ct))
             return false;
 
-        // TODO add player name to owner names cache
+        var inventory = _grainFactory.GetGrain<IInventoryGrain>(item.OwnerId);
+
+        await inventory.RemoveFurnitureAsync(item.ObjectId.Value, ct);
 
         return true;
     }
@@ -65,11 +60,11 @@ internal sealed partial class RoomActionModule
     public async Task<bool> MoveWallItemByIdAsync(
         ActionContext ctx,
         int itemId,
-        int newX,
-        int newY,
-        double newZ,
+        int x,
+        int y,
+        double z,
         int wallOffset,
-        Rotation newRot,
+        Rotation rot,
         CancellationToken ct
     )
     {
@@ -80,38 +75,45 @@ internal sealed partial class RoomActionModule
             !await _furniModule.ValidateWallItemPlacementAsync(
                 ctx,
                 itemId,
-                newX,
-                newY,
-                newZ,
+                x,
+                y,
+                z,
                 wallOffset,
-                newRot
+                rot
             )
         )
             throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
-        if (
-            !await _furniModule.MoveWallItemByIdAsync(
-                ctx,
-                itemId,
-                newX,
-                newY,
-                newZ,
-                wallOffset,
-                newRot,
-                ct
-            )
-        )
+        if (!await _furniModule.MoveWallItemByIdAsync(ctx, itemId, x, y, z, wallOffset, rot, ct))
             return false;
 
         return true;
     }
 
-    public Task<bool> RemoveWallItemByIdAsync(
+    public async Task<bool> RemoveWallItemByIdAsync(
         ActionContext ctx,
         int itemId,
-        CancellationToken ct,
-        int pickerId = -1
-    ) => _furniModule.RemoveWallItemByIdAsync(ctx, itemId, ct, pickerId);
+        CancellationToken ct
+    )
+    {
+        var pickupType = await _securityModule.GetFurniPickupTypeAsync(ctx);
+
+        if (pickupType == FurniturePickupType.None)
+            throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
+
+        var pickerId = pickupType == FurniturePickupType.SendToOwner ? -1 : (int)ctx.PlayerId;
+
+        var wallItem = await _furniModule.RemoveWallItemByIdAsync(ctx, itemId, ct, pickerId);
+
+        if (wallItem is null)
+            return false;
+
+        var inventory = _grainFactory.GetGrain<IInventoryGrain>(wallItem.OwnerId);
+
+        await inventory.AddFurnitureFromRoomItemSnapshotAsync(wallItem, ct);
+
+        return true;
+    }
 
     public async Task<bool> UseWallItemByIdAsync(
         ActionContext ctx,

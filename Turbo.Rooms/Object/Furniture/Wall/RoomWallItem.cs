@@ -93,6 +93,7 @@ internal sealed class RoomWallItem : RoomItem, IRoomWallItem
             ObjectId = ObjectId,
             OwnerId = OwnerId,
             OwnerName = OwnerName,
+            DefinitionId = Definition.Id,
             SpriteId = Definition.SpriteId,
             X = X,
             Y = Y,

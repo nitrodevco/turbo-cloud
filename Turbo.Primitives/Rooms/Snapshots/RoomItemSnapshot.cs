@@ -18,26 +18,29 @@ public abstract record RoomItemSnapshot
     public required string OwnerName { get; init; }
 
     [Id(3)]
-    public required int SpriteId { get; init; }
+    public required int DefinitionId { get; init; }
 
     [Id(4)]
-    public required int X { get; init; }
+    public required int SpriteId { get; init; }
 
     [Id(5)]
-    public required int Y { get; init; }
+    public required int X { get; init; }
 
     [Id(6)]
-    public required double Z { get; init; }
+    public required int Y { get; init; }
 
     [Id(7)]
-    public required Rotation Rotation { get; init; }
+    public required double Z { get; init; }
 
     [Id(8)]
-    public required StuffDataSnapshot StuffData { get; init; }
+    public required Rotation Rotation { get; init; }
 
     [Id(9)]
-    public required string StuffDataJson { get; init; }
+    public required StuffDataSnapshot StuffData { get; init; }
 
     [Id(10)]
+    public required string StuffDataJson { get; init; }
+
+    [Id(11)]
     public required FurnitureUsageType UsagePolicy { get; init; }
 }

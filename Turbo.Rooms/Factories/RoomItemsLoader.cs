@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
@@ -132,22 +132,19 @@ internal sealed class RoomItemsLoader(
         };
     }
 
-    public IRoomItem CreateFromFurnitureItemSnapshot(FurnitureItemSnapshot item)
+    public IRoomItem CreateFromFurnitureItemSnapshot(FurnitureItemSnapshot snapshot)
     {
-        var definition = item.Definition;
+        var definition = snapshot.Definition;
 
         if (definition.ProductType == ProductType.Floor)
         {
             return new RoomFloorItem
             {
-                ObjectId = RoomObjectId.From(item.ItemId),
-                OwnerId = item.OwnerId,
+                ObjectId = RoomObjectId.From(snapshot.ItemId),
+                OwnerId = snapshot.OwnerId,
                 OwnerName = string.Empty,
                 Definition = definition,
-                PendingStuffDataRaw = JsonSerializer.Serialize(
-                    item.StuffData,
-                    item.StuffData.GetType()
-                ),
+                PendingStuffDataRaw = snapshot.StuffDataJson,
             };
         }
 
@@ -155,14 +152,11 @@ internal sealed class RoomItemsLoader(
         {
             return new RoomWallItem
             {
-                ObjectId = RoomObjectId.From(item.ItemId),
-                OwnerId = item.OwnerId,
+                ObjectId = RoomObjectId.From(snapshot.ItemId),
+                OwnerId = snapshot.OwnerId,
                 OwnerName = string.Empty,
                 Definition = definition,
-                PendingStuffDataRaw = JsonSerializer.Serialize(
-                    item.StuffData,
-                    item.StuffData.GetType()
-                ),
+                PendingStuffDataRaw = snapshot.StuffDataJson,
             };
         }
 

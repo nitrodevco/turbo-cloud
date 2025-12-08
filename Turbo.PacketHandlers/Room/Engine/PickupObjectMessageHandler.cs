@@ -21,7 +21,14 @@ public class PickupObjectMessageHandler(IRoomService roomService)
 
         if (categoryId == 1)
         {
-            // wall
+            await _roomService
+                .PickupWallItemInRoomAsync(
+                    ctx.AsActionContext(),
+                    message.ObjectId,
+                    ct,
+                    message.Confirm
+                )
+                .ConfigureAwait(false);
             return;
         }
 

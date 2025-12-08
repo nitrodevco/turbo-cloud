@@ -17,13 +17,13 @@ public sealed record FurnitureItemSnapshot
     public required int OwnerId { get; init; }
 
     [Id(3)]
-    public required string OwnerName { get; init; }
-
-    [Id(4)]
     public required FurnitureDefinitionSnapshot Definition { get; init; }
 
-    [Id(5)]
+    [Id(4)]
     public required StuffDataSnapshot StuffData { get; init; }
+
+    [Id(5)]
+    public required string StuffDataJson { get; init; }
 
     [Id(6)]
     public required int SecondsToExpiration { get; init; }

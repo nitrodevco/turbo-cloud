@@ -17,6 +17,7 @@ internal sealed partial class RoomFurniModule(
     RoomLiveState roomLiveState,
     RoomMapModule roomMapModule,
     IDbContextFactory<TurboDbContext> dbCtxFactory,
+    IGrainFactory grainFactory,
     IRoomItemsLoader itemsLoader,
     IRoomObjectLogicFactory logicFactory
 ) : IRoomModule
@@ -26,6 +27,7 @@ internal sealed partial class RoomFurniModule(
     private readonly RoomLiveState _state = roomLiveState;
     private readonly RoomMapModule _roomMap = roomMapModule;
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
+    private readonly IGrainFactory _grainFactory = grainFactory;
     private readonly IRoomItemsLoader _itemsLoader = itemsLoader;
     private readonly IRoomObjectLogicFactory _logicFactory = logicFactory;
 

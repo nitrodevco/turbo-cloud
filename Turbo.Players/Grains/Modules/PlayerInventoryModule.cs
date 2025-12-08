@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
-using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
@@ -20,14 +19,16 @@ internal sealed class PlayerInventoryModule(
 
     private bool _isFurnitureInventoryPrimed = false;
 
-    public void OnSessionAttached()
+    public async Task OnSessionAttachedAsync(CancellationToken ct)
     {
         _isFurnitureInventoryPrimed = false;
     }
 
-    public void OnSessionDetached()
+    public async Task OnSessionDetachedAsync(CancellationToken ct)
     {
         _isFurnitureInventoryPrimed = false;
+
+        await _presenceGrain.SendComposerAsync(new FurniListInvalidateEventMessageComposer(), ct);
     }
 
     public async Task OpenFurnitureInventoryAsync(CancellationToken ct)
@@ -88,13 +89,13 @@ internal sealed class PlayerInventoryModule(
         _isFurnitureInventoryPrimed = true;
     }
 
-    public async Task OnFurnitureAddedAsync(IFurnitureItem item, CancellationToken ct)
+    public async Task OnFurnitureAddedAsync(FurnitureItemSnapshot snapshot, CancellationToken ct)
     {
         if (!_isFurnitureInventoryPrimed)
             return;
 
         await _presenceGrain.SendComposerAsync(
-            new FurniListAddOrUpdateEventMessageComposer { Item = item.GetSnapshot() },
+            new FurniListAddOrUpdateEventMessageComposer { Item = snapshot },
             ct
         );
     }

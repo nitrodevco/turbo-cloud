@@ -33,13 +33,13 @@ public sealed partial class RoomGrain
         FurnitureItemSnapshot item,
         int x,
         int y,
-        Rotation newRotation,
+        Rotation rot,
         CancellationToken ct
     )
     {
         try
         {
-            if (!await _actionModule.PlaceFloorItemAsync(ctx, item, x, y, newRotation, ct))
+            if (!await _actionModule.PlaceFloorItemAsync(ctx, item, x, y, rot, ct))
                 return false;
 
             return true;
@@ -79,13 +79,12 @@ public sealed partial class RoomGrain
     public async Task<bool> RemoveFloorItemByIdAsync(
         ActionContext ctx,
         int itemId,
-        CancellationToken ct,
-        int pickerId = -1
+        CancellationToken ct
     )
     {
         try
         {
-            if (!await _actionModule.RemoveFloorItemByIdAsync(ctx, itemId, ct, pickerId))
+            if (!await _actionModule.RemoveFloorItemByIdAsync(ctx, itemId, ct))
                 return false;
 
             return true;

@@ -7,15 +7,31 @@ namespace Turbo.Primitives.Rooms;
 
 public partial interface IRoomService
 {
+    public Task PlaceWallItemInRoomAsync(
+        ActionContext ctx,
+        int itemId,
+        int x,
+        int y,
+        double z,
+        int wallOffset,
+        Rotation rot,
+        CancellationToken ct
+    );
     public Task MoveWallItemInRoomAsync(
         ActionContext ctx,
         int itemId,
-        int newX,
-        int newY,
-        double newZ,
+        int x,
+        int y,
+        double z,
         int wallOffset,
-        Rotation newRot,
+        Rotation rot,
         CancellationToken ct
+    );
+    public Task PickupWallItemInRoomAsync(
+        ActionContext ctx,
+        int itemId,
+        CancellationToken ct,
+        bool isConfirm = true
     );
     public Task UseWallItemInRoomAsync(
         ActionContext ctx,

@@ -8,5 +8,6 @@ public interface IRoomItem : IRoomObject
     public string OwnerName { get; }
     public string PendingStuffDataRaw { get; }
     public FurnitureDefinitionSnapshot Definition { get; }
+    public void SetOwnerId(long ownerId);
     public void SetOwnerName(string ownerName);
 }

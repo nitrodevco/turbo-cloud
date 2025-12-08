@@ -31,14 +31,14 @@ internal sealed class InventoryFurniModule(
         _state.IsFurnitureReady = true;
     }
 
-    public async Task<IFurnitureItem> AddFurnitureAsync(IFurnitureItem item, CancellationToken ct)
+    public async Task<bool> AddFurnitureAsync(IFurnitureItem item, CancellationToken ct)
     {
         if (!_state.FurnitureById.TryAdd(item.ItemId, item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         item.SetAction(itemId => { });
 
-        return item;
+        return true;
     }
 
     public async Task<bool> RemoveFurnitureAsync(int itemId, CancellationToken ct)

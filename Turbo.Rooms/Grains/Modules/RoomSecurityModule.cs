@@ -57,6 +57,19 @@ internal sealed class RoomSecurityModule(RoomGrain roomGrain, RoomLiveState live
         return await CanManipulateFurniAsync(ctx);
     }
 
+    public async Task<FurniturePickupType> GetFurniPickupTypeAsync(ActionContext ctx)
+    {
+        if (ctx.Origin == ActionOrigin.System)
+            return FurniturePickupType.SendToOwner;
+
+        // if can steal furni, SendToRequester
+
+        if (await GetControllerLevelAsync(ctx) >= RoomControllerType.GroupAdmin)
+            return FurniturePickupType.SendToOwner;
+
+        return FurniturePickupType.None;
+    }
+
     public Task<bool> GetIsRoomOwnerAsync(ActionContext ctx)
     {
         var isOwner = false;

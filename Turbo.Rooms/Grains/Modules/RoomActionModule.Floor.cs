@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -11,30 +12,35 @@ namespace Turbo.Rooms.Grains.Modules;
 
 internal sealed partial class RoomActionModule
 {
-    public Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
-    {
-        return _furniModule.AddFloorItemAsync(item, ct);
-    }
+    public Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct) =>
+        _furniModule.AddFloorItemAsync(item, ct);
 
     public async Task<bool> PlaceFloorItemAsync(
         ActionContext ctx,
-        FurnitureItemSnapshot item,
+        FurnitureItemSnapshot snapshot,
         int x,
         int y,
-        Rotation newRotation,
+        Rotation rot,
         CancellationToken ct
     )
     {
         if (!await _securityModule.CanPlaceFurniAsync(ctx))
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToPlaceFurni);
 
-        if (!_furniModule.ValidateNewFloorItemPlacement(ctx, item, x, y, newRotation))
+        var item = _itemsLoader.CreateFromFurnitureItemSnapshot(snapshot);
+
+        if (item is not IRoomFloorItem floorItem)
+            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
+
+        if (!_furniModule.ValidateNewFloorItemPlacement(ctx, floorItem, x, y, rot))
             throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
-        if (!await _furniModule.PlaceFloorItemAsync(ctx, item, x, y, newRotation, ct))
+        if (!await _furniModule.PlaceFloorItemAsync(ctx, floorItem, x, y, rot, ct))
             return false;
 
-        // TODO add player name to owner names cache
+        var inventory = _grainFactory.GetGrain<IInventoryGrain>(item.OwnerId);
+
+        await inventory.RemoveFurnitureAsync(item.ObjectId.Value, ct);
 
         return true;
     }
@@ -42,19 +48,19 @@ internal sealed partial class RoomActionModule
     public async Task<bool> MoveFloorItemByIdAsync(
         ActionContext ctx,
         int itemId,
-        int newX,
-        int newY,
-        Rotation newRotation,
+        int x,
+        int y,
+        Rotation rot,
         CancellationToken ct
     )
     {
         if (!await _securityModule.CanManipulateFurniAsync(ctx))
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
-        if (!_furniModule.ValidateFloorItemPlacement(ctx, itemId, newX, newY, newRotation))
+        if (!_furniModule.ValidateFloorItemPlacement(ctx, itemId, x, y, rot))
             throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
-        if (!await _furniModule.MoveFloorItemByIdAsync(ctx, itemId, newX, newY, newRotation, ct))
+        if (!await _furniModule.MoveFloorItemByIdAsync(ctx, itemId, x, y, rot, ct))
             return false;
 
         return true;
@@ -63,14 +69,24 @@ internal sealed partial class RoomActionModule
     public async Task<bool> RemoveFloorItemByIdAsync(
         ActionContext ctx,
         int itemId,
-        CancellationToken ct,
-        int pickerId = -1
+        CancellationToken ct
     )
     {
-        // can we pickup this item
-        // do we steal it
-        if (!await _furniModule.RemoveFloorItemByIdAsync(ctx, itemId, ct, pickerId))
+        var pickupType = await _securityModule.GetFurniPickupTypeAsync(ctx);
+
+        if (pickupType == FurniturePickupType.None)
+            throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
+
+        var pickerId = pickupType == FurniturePickupType.SendToOwner ? -1 : (int)ctx.PlayerId;
+
+        var floorItem = await _furniModule.RemoveFloorItemByIdAsync(ctx, itemId, ct, pickerId);
+
+        if (floorItem is null)
             return false;
+
+        var inventory = _grainFactory.GetGrain<IInventoryGrain>(floorItem.OwnerId);
+
+        await inventory.AddFurnitureFromRoomItemSnapshotAsync(floorItem, ct);
 
         return true;
     }

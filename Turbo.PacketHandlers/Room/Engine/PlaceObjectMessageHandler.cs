@@ -2,16 +2,16 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
-using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Messages.Incoming.Room.Engine;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.PacketHandlers.Room.Engine;
 
-public class PlaceObjectMessageHandler(IInventoryService inventoryService)
+public class PlaceObjectMessageHandler(IRoomService roomService)
     : IMessageHandler<PlaceObjectMessage>
 {
-    private readonly IInventoryService _inventoryService = inventoryService;
+    private readonly IRoomService _roomService = roomService;
 
     public async ValueTask HandleAsync(
         PlaceObjectMessage message,
@@ -41,7 +41,7 @@ public class PlaceObjectMessageHandler(IInventoryService inventoryService)
             if (coords.Length != 2 || loc.Length != 2)
                 return;
 
-            await _inventoryService
+            await _roomService
                 .PlaceWallItemInRoomAsync(
                     ctx.AsActionContext(),
                     itemId,
@@ -56,7 +56,7 @@ public class PlaceObjectMessageHandler(IInventoryService inventoryService)
         }
         else
         {
-            await _inventoryService
+            await _roomService
                 .PlaceFloorItemInRoomAsync(
                     ctx.AsActionContext(),
                     itemId,

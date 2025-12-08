@@ -84,6 +84,7 @@ internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
             ObjectId = ObjectId,
             OwnerId = OwnerId,
             OwnerName = OwnerName,
+            DefinitionId = Definition.Id,
             SpriteId = Definition.SpriteId,
             X = X,
             Y = Y,

@@ -13,6 +13,7 @@ using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Furniture;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Inventory.Factories;
 
@@ -71,6 +72,8 @@ internal sealed class InventoryFurnitureLoader(
             _defsProvider.TryGetDefinition(entity.FurnitureDefinitionEntityId)
             ?? throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
 
+        // TODO we need to get the correct stuff data key
+
         return new FurnitureItem()
         {
             ItemId = entity.Id,
@@ -79,6 +82,24 @@ internal sealed class InventoryFurnitureLoader(
             StuffData = _stuffDataFactory.CreateStuffDataFromJson(
                 (int)StuffDataType.LegacyKey,
                 entity.StuffData ?? string.Empty
+            ),
+        };
+    }
+
+    public IFurnitureItem CreateFromRoomItemSnapshot(RoomItemSnapshot snapshot)
+    {
+        var definition =
+            _defsProvider.TryGetDefinition(snapshot.DefinitionId)
+            ?? throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
+
+        return new FurnitureItem()
+        {
+            ItemId = snapshot.ObjectId.Value,
+            OwnerId = (int)snapshot.OwnerId,
+            Definition = definition,
+            StuffData = _stuffDataFactory.CreateStuffDataFromJson(
+                snapshot.StuffData.StuffBitmask,
+                snapshot.StuffDataJson
             ),
         };
     }

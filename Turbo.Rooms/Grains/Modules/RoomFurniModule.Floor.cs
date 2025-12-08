@@ -6,9 +6,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Logging;
+using Turbo.Players.Grains;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -26,6 +27,17 @@ internal sealed partial class RoomFurniModule
         if (!_state.FloorItemsById.TryAdd(item.ObjectId.Value, item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
+        if (!_state.OwnerNamesById.TryGetValue(item.OwnerId, out string? value))
+        {
+            var ownerName = await _grainFactory
+                .GetGrain<IPlayerDirectoryGrain>(PlayerDirectoryGrain.SINGLETON_KEY)
+                .GetPlayerNameAsync(item.OwnerId, ct);
+
+            value = ownerName;
+            _state.OwnerNamesById[item.OwnerId] = value;
+        }
+
+        item.SetOwnerName(value ?? string.Empty);
         item.SetAction(objectId => ProcessDirtyFloorItem(objectId.Value, ct));
 
         await AttatchFloorLogicIfNeededAsync(item, ct);
@@ -40,7 +52,7 @@ internal sealed partial class RoomFurniModule
 
     public async Task<bool> PlaceFloorItemAsync(
         ActionContext ctx,
-        FurnitureItemSnapshot snapshot,
+        IRoomFloorItem item,
         int x,
         int y,
         Rotation rot,
@@ -52,14 +64,20 @@ internal sealed partial class RoomFurniModule
         if (!_roomMap.InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
-        var roomItem = _itemsLoader.CreateFromFurnitureItemSnapshot(snapshot);
-
-        if (roomItem is not IRoomFloorItem item)
-            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
-
         if (!_state.FloorItemsById.TryAdd(item.ObjectId.Value, item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
+        if (!_state.OwnerNamesById.TryGetValue(item.OwnerId, out string? value))
+        {
+            var ownerName = await _grainFactory
+                .GetGrain<IPlayerDirectoryGrain>(PlayerDirectoryGrain.SINGLETON_KEY)
+                .GetPlayerNameAsync(item.OwnerId, ct);
+
+            value = ownerName;
+            _state.OwnerNamesById[item.OwnerId] = value;
+        }
+
+        item.SetOwnerName(value ?? string.Empty);
         item.SetAction(objectId => ProcessDirtyFloorItem(objectId.Value, ct));
 
         await AttatchFloorLogicIfNeededAsync(item, ct);
@@ -86,7 +104,6 @@ internal sealed partial class RoomFurniModule
         if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        var pTileIdx = _roomMap.ToIdx(item.X, item.Y);
         var nTileIdx = _roomMap.ToIdx(x, y);
 
         if (!_roomMap.MoveFloorItem(item, nTileIdx, rot, true, out var updatedTileIds))
@@ -99,7 +116,7 @@ internal sealed partial class RoomFurniModule
         return true;
     }
 
-    public async Task<bool> RemoveFloorItemByIdAsync(
+    public async Task<RoomFloorItemSnapshot?> RemoveFloorItemByIdAsync(
         ActionContext ctx,
         int itemId,
         CancellationToken ct,
@@ -109,20 +126,24 @@ internal sealed partial class RoomFurniModule
         if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
+        if (pickerId == -1)
+            pickerId = (int)item.OwnerId;
+
         if (!_roomMap.RemoveFloorItem(item, pickerId, true, out var updatedTileIds))
-            return false;
+            return null;
 
         await _roomMap.InvokeAvatarsOnTilesAsync(updatedTileIds, ct);
 
         await item.Logic.OnDetachAsync(ct);
 
+        item.SetOwnerId(pickerId);
         item.SetAction(null);
 
         await FlushDirtyFloorItemAsync(itemId, ct, true);
 
         _state.FloorItemsById.Remove(itemId);
 
-        return true;
+        return item.GetSnapshot();
     }
 
     public async Task<bool> UseFloorItemByIdAsync(
@@ -226,7 +247,7 @@ internal sealed partial class RoomFurniModule
 
     public bool ValidateNewFloorItemPlacement(
         ActionContext ctx,
-        FurnitureItemSnapshot item,
+        IRoomFloorItem item,
         int x,
         int y,
         Rotation rot
@@ -353,6 +374,7 @@ internal sealed partial class RoomFurniModule
             entity.Z = snapshot.Z;
             entity.Rotation = snapshot.Rotation;
             entity.StuffData = snapshot.StuffDataJson;
+            entity.PlayerEntityId = (int)snapshot.OwnerId;
             entity.RoomEntityId = remove ? null : (int)_state.RoomId;
 
             await dbCtx.SaveChangesAsync(ct);
@@ -399,6 +421,7 @@ internal sealed partial class RoomFurniModule
                 entity.Z = snapshot.Z;
                 entity.Rotation = snapshot.Rotation;
                 entity.StuffData = snapshot.StuffDataJson;
+                entity.PlayerEntityId = (int)snapshot.OwnerId;
                 entity.RoomEntityId = (int)_state.RoomId;
             }
 

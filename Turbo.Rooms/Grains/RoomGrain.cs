@@ -71,6 +71,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             _liveState,
             _mapModule,
             _dbCtxFactory,
+            _grainFactory,
             _itemsLoader,
             _logicFactory
         );
@@ -84,7 +85,14 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             _roomAvatarFactory,
             _logicFactory
         );
-        _actionModule = new(this, _liveState, _securityModule, _furniModule);
+        _actionModule = new(
+            this,
+            _liveState,
+            _securityModule,
+            _furniModule,
+            _grainFactory,
+            _itemsLoader
+        );
 
         _eventModule.Register(new WiredController());
     }
