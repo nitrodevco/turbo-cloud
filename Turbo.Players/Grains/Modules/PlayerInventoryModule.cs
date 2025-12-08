@@ -106,7 +106,7 @@ internal sealed class PlayerInventoryModule(
             return;
 
         await _presenceGrain.SendComposerAsync(
-            new FurniListRemoveEventMessageComposer { ItemId = -Math.Abs(itemId) },
+            new FurniListRemoveEventMessageComposer { ItemId = itemId },
             ct
         );
     }
