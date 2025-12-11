@@ -14,10 +14,6 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
     public string Motto { get; init; } = string.Empty;
     public string Figure { get; init; } = string.Empty;
 
-    public int X { get; protected set; }
-    public int Y { get; protected set; }
-    public double Z { get; protected set; }
-    public Rotation BodyRotation { get; protected set; }
     public Rotation HeadRotation { get; protected set; }
     public AvatarDanceType DanceType { get; private set; } = AvatarDanceType.None;
     public IRoomAvatarLogic Logic { get; private set; } = default!;
@@ -109,10 +105,10 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
 
     public void SetBodyRotation(Rotation rot)
     {
-        if (BodyRotation == rot)
+        if (Rotation == rot)
             return;
 
-        BodyRotation = rot;
+        Rotation = rot;
 
         MarkDirty();
     }
@@ -155,7 +151,7 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
             // remove dance
             RemoveStatus(AvatarStatusType.Lay);
 
-            rot ??= BodyRotation;
+            rot ??= Rotation;
 
             SetRotation(rot.Value.ToSitRotation());
             AddStatus(AvatarStatusType.Sit, height.ToString());
@@ -176,7 +172,7 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
             // remove dance
             RemoveStatus(AvatarStatusType.Sit);
 
-            rot ??= BodyRotation;
+            rot ??= Rotation;
 
             SetRotation(rot.Value.ToSitRotation());
             AddStatus(AvatarStatusType.Sit, height.ToString());

@@ -7,10 +7,6 @@ namespace Turbo.Primitives.Rooms.Object.Furniture.Wall;
 
 public interface IRoomWallItem : IRoomItem
 {
-    public int X { get; }
-    public int Y { get; }
-    public double Z { get; }
-    public Rotation Rotation { get; }
     public int WallOffset { get; }
     public IFurnitureWallLogic Logic { get; }
 

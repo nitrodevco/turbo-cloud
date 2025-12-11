@@ -10,10 +10,6 @@ public interface IRoomAvatar : IRoomObject
     public string Name { get; }
     public string Motto { get; }
     public string Figure { get; }
-    public int X { get; }
-    public int Y { get; }
-    public double Z { get; }
-    public Rotation BodyRotation { get; }
     public Rotation HeadRotation { get; }
     public IRoomAvatarLogic Logic { get; }
     public Dictionary<AvatarStatusType, string> Statuses { get; }

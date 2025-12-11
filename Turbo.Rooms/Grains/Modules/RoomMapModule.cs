@@ -302,7 +302,7 @@ internal sealed partial class RoomMapModule(
             var tileFlags = new RoomTileFlags[size];
             var tileHighestFloorItems = new long[size];
             var tileFloorStacks = new List<long>[size];
-            var tileAvatarStacks = new List<long>[size];
+            var tileAvatarStacks = new List<int>[size];
 
             for (int id = 0; id < size; id++)
             {

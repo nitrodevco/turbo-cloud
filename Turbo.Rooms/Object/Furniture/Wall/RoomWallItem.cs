@@ -11,10 +11,6 @@ namespace Turbo.Rooms.Object.Furniture.Wall;
 
 internal sealed class RoomWallItem : RoomItem, IRoomWallItem
 {
-    public int X { get; private set; }
-    public int Y { get; private set; }
-    public double Z { get; private set; }
-    public Rotation Rotation { get; private set; }
     public int WallOffset { get; private set; }
     public IFurnitureWallLogic Logic { get; private set; } = default!;
 

@@ -11,10 +11,6 @@ namespace Turbo.Rooms.Object.Furniture.Floor;
 
 internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
 {
-    public int X { get; private set; }
-    public int Y { get; private set; }
-    public double Z { get; private set; }
-    public Rotation Rotation { get; private set; }
     public IFurnitureFloorLogic Logic { get; private set; } = default!;
 
     private RoomFloorItemSnapshot? _snapshot;

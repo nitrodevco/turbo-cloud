@@ -46,6 +46,8 @@ public class FurnitureFloorLogic
 
     public virtual bool CanLay() => _ctx.Definition.CanLay;
 
+    public virtual bool CanRoll() => true;
+
     public virtual Task OnStepAsync(IRoomAvatarContext ctx, CancellationToken ct) =>
         Task.CompletedTask;
 

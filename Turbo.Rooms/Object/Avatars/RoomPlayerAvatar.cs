@@ -34,7 +34,7 @@ internal sealed class RoomPlayerAvatar : RoomAvatar, IRoomPlayerAvatar
             X = X,
             Y = Y,
             Z = Z,
-            BodyRotation = BodyRotation,
+            BodyRotation = Rotation,
             HeadRotation = HeadRotation,
             Status = statusString.ToString(),
             GoalTileId = GoalTileId,

@@ -1,3 +1,4 @@
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
 
 namespace Turbo.Primitives.Rooms.Mapping;
@@ -7,6 +8,7 @@ public interface IRoomMapViewer
     public int Width { get; }
     public int Height { get; }
     public int ToIdx(int x, int y);
+    public bool TryGetTileInFront(int index, Rotation direction, out int nextIndex);
     public bool CanAvatarWalk(
         IRoomAvatar avatar,
         int tileId,

@@ -284,7 +284,7 @@ internal sealed partial class RoomAvatarModule(
             }
 
             avatar.SetPosition(nextX, nextY);
-            avatar.SetRotation(avatar.BodyRotation);
+            avatar.SetRotation(avatar.Rotation);
 
             _roomMap.UpdateHeightForAvatar(avatar);
         }
