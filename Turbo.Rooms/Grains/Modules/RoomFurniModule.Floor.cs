@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Org.BouncyCastle.Math.EC.Rfc7748;
 using Turbo.Logging;
 using Turbo.Players.Grains;
 using Turbo.Primitives;
@@ -15,6 +16,7 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Avatars;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
@@ -22,6 +24,8 @@ namespace Turbo.Rooms.Grains.Modules;
 
 internal sealed partial class RoomFurniModule
 {
+    private int _rollerProcessTick = 0;
+
     public async Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
     {
         if (!_state.FloorItemsById.TryAdd(item.ObjectId.Value, item))
@@ -422,7 +426,7 @@ internal sealed partial class RoomFurniModule
                 entity.Rotation = snapshot.Rotation;
                 entity.StuffData = snapshot.StuffDataJson;
                 entity.PlayerEntityId = (int)snapshot.OwnerId;
-                entity.RoomEntityId = (int)_state.RoomId;
+                entity.RoomEntityId = _state.RoomId;
             }
 
             await dbCtx.SaveChangesAsync(ct);
@@ -443,21 +447,140 @@ internal sealed partial class RoomFurniModule
 
         foreach (var item in _state.FloorItemsById.Values)
         {
-            if (item.Logic is not FurnitureRollerLogic rollerLogic)
-                continue;
+            try
+            {
+                if (item.Logic is not FurnitureRollerLogic rollerLogic)
+                    continue;
 
-            _state.RollerInfos.Add(
-                new RollerInfoSnapshot
-                {
-                    ObjectId = item.ObjectId,
-                    X = item.X,
-                    Y = item.Y,
-                    TargetX = item.X,
-                    TargetY = item.Y,
-                }
-            );
+                var currentTileIdx = _roomMap.ToIdx(item.X, item.Y);
+                var targetTileIdx = _roomMap.TryGetTileInFront(
+                    currentTileIdx,
+                    item.Rotation,
+                    out var tTileIdx
+                )
+                    ? tTileIdx
+                    : -1;
+
+                if (targetTileIdx == -1)
+                    continue;
+
+                _state.RollerInfos.Add(
+                    new RollerData
+                    {
+                        ItemId = item.ObjectId.Value,
+                        CurrentTileIdx = currentTileIdx,
+                        TargetTileIdx = targetTileIdx,
+                        RollerSnapshot = item.GetSnapshot(),
+                    }
+                );
+            }
+            catch (Exception)
+            {
+                continue;
+            }
         }
 
         return Task.CompletedTask;
+    }
+
+    internal async Task ProcessRollerItemsAsync(CancellationToken ct)
+    {
+        if (_rollerProcessTick > -1)
+        {
+            // commit last roll
+
+            if (_rollerProcessTick > 0)
+                _rollerProcessTick--;
+
+            if (_rollerProcessTick != 0)
+                return;
+
+            _rollerProcessTick = 4; // TODO set config
+        }
+
+        var rollers = _state
+            .FloorItemsById.Values.Where(x => x.Logic is FurnitureRollerLogic)
+            .ToList();
+
+        if (rollers.Count == 0)
+            return;
+
+        foreach (var stack in rollers.GroupBy(x => x.Rotation))
+        {
+            var rollerStack = OrderRollersFrontToBack(stack);
+
+            foreach (var roller in rollerStack)
+            {
+                try
+                {
+                    var fromIdx = _roomMap.ToIdx(roller.X, roller.Y);
+
+                    if (!_roomMap.TryGetTileInFront(fromIdx, roller.Rotation, out var toIdx))
+                        continue;
+
+                    var candidates = new List<IRoomObject>();
+
+                    candidates.AddRange(
+                        _state
+                            .TileFloorStacks[fromIdx]
+                            .Select(x => _state.FloorItemsById[x])
+                            .Where(x => x.ObjectId.Value != roller.ObjectId.Value)
+                    );
+
+                    candidates.AddRange(
+                        _state
+                            .TileAvatarStacks[fromIdx]
+                            .Select(x => _state.AvatarsByObjectId[x])
+                            .Where(x => !x.IsWalking)
+                    );
+
+                    var candidate = candidates.Where(x => x.Z > roller.Z).OrderBy(c => c.Z).Last();
+
+                    if (IsAvatarAboutToWalkHere(toIdx))
+                        continue;
+
+                    Console.WriteLine(
+                        $"Roller {roller.ObjectId.Value} rolling object {candidate.ObjectId.Value} from tile {fromIdx} to tile {toIdx}"
+                    );
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+            }
+        }
+    }
+
+    private static IEnumerable<IRoomFloorItem> OrderRollersFrontToBack(
+        IEnumerable<IRoomFloorItem> rollers
+    )
+    {
+        var list = rollers.ToList();
+
+        if (list.Count == 0)
+            return list;
+
+        // All rollers in this group should share the same direction.
+        var dir = list[0].Rotation;
+
+        return dir switch
+        {
+            Rotation.East => list.OrderByDescending(r => r.X).ThenBy(r => r.Y),
+            Rotation.West => list.OrderBy(r => r.X).ThenBy(r => r.Y),
+            Rotation.South => list.OrderByDescending(r => r.Y).ThenBy(r => r.X),
+            Rotation.North => list.OrderBy(r => r.Y).ThenBy(r => r.X),
+            _ => list.OrderBy(r => r.Y).ThenBy(r => r.X),
+        };
+    }
+
+    private bool IsAvatarAboutToWalkHere(int tileIdx)
+    {
+        foreach (var avatar in _state.AvatarsByObjectId.Values)
+        {
+            if (avatar.NextTileId == tileIdx)
+                return true;
+        }
+
+        return false;
     }
 }
