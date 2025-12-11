@@ -22,7 +22,7 @@ public sealed class MessageRegistry(IServiceProvider sp)
                 var grainFactory = sp.GetRequiredService<IGrainFactory>();
                 var sessionGateway = sp.GetRequiredService<ISessionGateway>();
                 var playerId = sessionGateway.GetPlayerId(data.SessionKey);
-                var roomId = (long)-1;
+                var roomId = -1;
 
                 if (playerId > 0)
                 {
@@ -31,7 +31,7 @@ public sealed class MessageRegistry(IServiceProvider sp)
                         .GetActiveRoomAsync()
                         .ConfigureAwait(false);
 
-                    roomId = activeRoom.RoomId.Value;
+                    roomId = activeRoom.RoomId;
                 }
 
                 return new(data, playerId, roomId);

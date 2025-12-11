@@ -55,7 +55,7 @@ public sealed partial class PlayerPresenceGrain : Grain, IPlayerPresenceGrain
         Task.FromResult(
             new RoomPointerSnapshot
             {
-                RoomId = RoomId.From(_state.State.ActiveRoomId.Value),
+                RoomId = _state.State.ActiveRoomId,
                 ActiveSinceUtc = _state.State.ActiveRoomSinceUtc,
             }
         );
@@ -64,7 +64,7 @@ public sealed partial class PlayerPresenceGrain : Grain, IPlayerPresenceGrain
         Task.FromResult(
             new RoomPendingSnapshot
             {
-                RoomId = RoomId.From(_state.State.PendingRoomId.Value),
+                RoomId = _state.State.PendingRoomId,
                 Approved = _state.State.PendingRoomApproved,
             }
         );
@@ -97,14 +97,14 @@ public sealed partial class PlayerPresenceGrain : Grain, IPlayerPresenceGrain
         await ClearActiveRoomAsync(ct);
     }
 
-    public async Task SetActiveRoomAsync(RoomId roomId, CancellationToken ct)
+    public async Task SetActiveRoomAsync(int roomId, CancellationToken ct)
     {
         var prev = _state.State.ActiveRoomId;
         var next = roomId;
-        var changed = !prev.CompareTo(next);
+        var changed = prev != next;
 
-        _state.State.ActiveRoomId = RoomId.From(next.Value);
-        _state.State.PendingRoomId = RoomId.Empty;
+        _state.State.ActiveRoomId = next;
+        _state.State.PendingRoomId = -1;
         _state.State.PendingRoomApproved = false;
         _state.State.ActiveRoomSinceUtc = DateTime.UtcNow;
 
@@ -112,31 +112,31 @@ public sealed partial class PlayerPresenceGrain : Grain, IPlayerPresenceGrain
 
         if (changed)
         {
-            if (!prev.IsEmpty())
+            if (prev != -1)
                 await _roomService
                     .GetRoomDirectory()
                     .RemovePlayerFromRoomAsync(this.GetPrimaryKeyLong(), prev, ct);
 
-            if (!next.IsEmpty())
+            if (next != -1)
                 await _roomService
                     .GetRoomDirectory()
                     .AddPlayerToRoomAsync(this.GetPrimaryKeyLong(), next, ct);
         }
     }
 
-    public Task ClearActiveRoomAsync(CancellationToken ct) => SetActiveRoomAsync(RoomId.Empty, ct);
+    public Task ClearActiveRoomAsync(CancellationToken ct) => SetActiveRoomAsync(-1, ct);
 
-    public async Task LeaveRoomAsync(RoomId roomId, CancellationToken ct)
+    public async Task LeaveRoomAsync(int roomId, CancellationToken ct)
     {
-        if (!_state.State.ActiveRoomId.CompareTo(roomId))
+        if (_state.State.ActiveRoomId != roomId)
             return;
 
-        await SetActiveRoomAsync(RoomId.Empty, ct);
+        await SetActiveRoomAsync(-1, ct);
     }
 
-    public async Task SetPendingRoomAsync(RoomId roomId, bool approved)
+    public async Task SetPendingRoomAsync(int roomId, bool approved)
     {
-        _state.State.PendingRoomId = RoomId.From(roomId.Value);
+        _state.State.PendingRoomId = roomId;
         _state.State.PendingRoomApproved = approved;
 
         await _state.WriteStateAsync();

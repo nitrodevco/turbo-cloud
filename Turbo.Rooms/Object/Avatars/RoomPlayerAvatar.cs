@@ -34,8 +34,12 @@ internal sealed class RoomPlayerAvatar : RoomAvatar, IRoomPlayerAvatar
             X = X,
             Y = Y,
             Z = Z,
-            Rotation = BodyRotation,
+            BodyRotation = BodyRotation,
             HeadRotation = HeadRotation,
+            Status = statusString.ToString(),
+            GoalTileId = GoalTileId,
+            NextTileId = NextTileId,
+            IsWalking = IsWalking,
             Gender = Gender,
             GroupId = GroupId,
             GroupStatus = GroupStatus,
@@ -43,7 +47,6 @@ internal sealed class RoomPlayerAvatar : RoomAvatar, IRoomPlayerAvatar
             SwimFigure = SwimFigure,
             ActivityPoints = ActivityPoints,
             IsModerator = IsModerator,
-            Status = statusString.ToString(),
         };
     }
 }

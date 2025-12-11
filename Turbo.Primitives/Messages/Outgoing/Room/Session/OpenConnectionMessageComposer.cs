@@ -8,5 +8,5 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Session;
 public sealed record OpenConnectionMessageComposer : IComposer
 {
     [Id(0)]
-    public required RoomId RoomId { get; init; }
+    public required int RoomId { get; init; }
 }

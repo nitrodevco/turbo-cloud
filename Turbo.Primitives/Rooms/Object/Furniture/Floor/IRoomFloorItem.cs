@@ -12,6 +12,7 @@ public interface IRoomFloorItem : IRoomItem
     public double Z { get; }
     public Rotation Rotation { get; }
     public IFurnitureFloorLogic Logic { get; }
+    public double Height { get; }
 
     public void SetPosition(int x, int y, double z);
     public void SetRotation(Rotation rotation);

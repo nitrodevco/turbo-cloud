@@ -17,5 +17,5 @@ public class ActionContext
     public long PlayerId { get; init; } = -1;
 
     [Id(3)]
-    public RoomId RoomId { get; init; } = RoomId.Empty;
+    public int RoomId { get; init; } = -1;
 }

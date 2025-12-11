@@ -7,14 +7,14 @@ using Turbo.Primitives.Rooms;
 
 namespace Turbo.Messages.Registry;
 
-public sealed class MessageContext(ISessionContext session, long playerId = -1, long roomId = -1)
+public sealed class MessageContext(ISessionContext session, long playerId = -1, int roomId = -1)
 {
     private long _playerId = playerId;
-    private RoomId _roomId = RoomId.From(roomId);
+    private int _roomId = roomId;
     private ISessionContext _session = session;
 
     public long PlayerId => _playerId;
-    public RoomId RoomId => RoomId.From(_roomId.Value);
+    public int RoomId => _roomId;
     public SessionKey SessionKey => SessionKey.From(_session.SessionKey.Value);
 
     public ActionContext AsActionContext() =>
@@ -23,7 +23,7 @@ public sealed class MessageContext(ISessionContext session, long playerId = -1, 
             Origin = ActionOrigin.Player,
             SessionKey = SessionKey,
             PlayerId = PlayerId,
-            RoomId = RoomId.From(RoomId.Value),
+            RoomId = RoomId,
         };
 
     public async Task CloseSessionAsync() =>

@@ -21,12 +21,13 @@ public interface IRoomAvatar : IRoomObject
     public AvatarDanceType DanceType { get; }
 
     public int GoalTileId { get; }
-    public int NextTileId { get; set; }
-    public int PrevTileId { get; set; }
-    public bool IsWalking { get; set; }
+    public int NextTileId { get; }
+    public bool IsWalking { get; }
     public List<int> TilePath { get; }
 
     public bool SetGoalTileId(int tileId);
+    public void SetNextTileId(int tileId);
+    public void SetIsWalking(bool flag);
     public void SetPosition(int x, int y);
     public void SetHeight(double z);
     public void SetRotation(Rotation rot);

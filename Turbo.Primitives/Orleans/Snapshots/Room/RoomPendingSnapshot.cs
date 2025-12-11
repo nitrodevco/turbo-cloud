@@ -7,7 +7,7 @@ namespace Turbo.Primitives.Orleans.Snapshots.Room;
 public sealed record RoomPendingSnapshot
 {
     [Id(0)]
-    public required RoomId RoomId { get; init; } = RoomId.Empty;
+    public required int RoomId { get; init; } = -1;
 
     [Id(1)]
     public required bool Approved { get; init; } = false;

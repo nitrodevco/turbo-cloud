@@ -11,5 +11,5 @@ public sealed record RoomReadyMessageComposer : IComposer
     public required string WorldType { get; init; }
 
     [Id(1)]
-    public required RoomId RoomId { get; init; }
+    public required int RoomId { get; init; }
 }

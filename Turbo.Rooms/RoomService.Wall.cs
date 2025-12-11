@@ -27,7 +27,7 @@ internal sealed partial class RoomService
             ctx is null
             || ctx.Origin != ActionOrigin.Player
             || ctx.PlayerId <= 0
-            || ctx.RoomId.Value <= 0
+            || ctx.RoomId <= 0
         )
             return;
 
@@ -42,7 +42,7 @@ internal sealed partial class RoomService
             if (snapshot is null || snapshot.Definition.ProductType != ProductType.Wall)
                 return;
 
-            var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId.Value);
+            var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId);
 
             if (
                 !await roomGrain
@@ -68,10 +68,10 @@ internal sealed partial class RoomService
         CancellationToken ct
     )
     {
-        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId.Value <= 0 || itemId <= 0)
+        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0 || itemId <= 0)
             return;
 
-        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId.Value);
+        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId);
 
         if (
             await roomGrain
@@ -100,10 +100,10 @@ internal sealed partial class RoomService
         bool isConfirm = true
     )
     {
-        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId.Value <= 0 || itemId <= 0)
+        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0 || itemId <= 0)
             return;
 
-        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId.Value);
+        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId);
 
         await roomGrain.RemoveWallItemByIdAsync(ctx, itemId, ct).ConfigureAwait(false);
     }
@@ -115,10 +115,10 @@ internal sealed partial class RoomService
         int param = -1
     )
     {
-        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId.Value <= 0 || itemId <= 0)
+        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0 || itemId <= 0)
             return;
 
-        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId.Value);
+        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId);
 
         await roomGrain.UseWallItemByIdAsync(ctx, itemId, ct, param).ConfigureAwait(false);
     }
@@ -130,10 +130,10 @@ internal sealed partial class RoomService
         int param = -1
     )
     {
-        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId.Value <= 0 || itemId <= 0)
+        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0 || itemId <= 0)
             return;
 
-        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId.Value);
+        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId);
 
         await roomGrain.ClickWallItemByIdAsync(ctx, itemId, ct, param).ConfigureAwait(false);
     }

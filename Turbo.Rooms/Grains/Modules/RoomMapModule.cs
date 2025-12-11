@@ -178,7 +178,7 @@ internal sealed partial class RoomMapModule(
                 if (item is null)
                     continue;
 
-                var height = item.Z + item.Logic.GetHeight();
+                var height = item.Height;
 
                 // special logic if stack helper
 

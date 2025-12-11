@@ -31,7 +31,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     private readonly IRoomAvatarFactory _roomAvatarFactory;
     private readonly IGrainFactory _grainFactory;
 
-    private readonly RoomId _roomId;
+    private readonly int _roomId;
     private readonly RoomLiveState _liveState;
     private readonly RoomSecurityModule _securityModule;
     private readonly RoomPathfinder _pathfinder;
@@ -59,8 +59,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _roomAvatarFactory = roomAvatarFactory;
         _grainFactory = grainFactory;
 
-        _roomId = RoomId.From(this.GetPrimaryKeyLong());
-        _liveState = new() { RoomId = this.GetPrimaryKeyLong() };
+        _roomId = (int)this.GetPrimaryKeyLong();
+        _liveState = new() { RoomId = _roomId };
         _securityModule = new(this, _liveState);
         _pathfinder = new();
         _eventModule = new(this, _roomConfig, _liveState);
@@ -120,7 +120,11 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         );
 
         this.RegisterGrainTimer<object?>(
-            async _ => await _avatarModule.FlushDirtyAvatarsAsync(ct),
+            async _ =>
+            {
+                await _furniModule.ProcessRollerItemsAsync(ct);
+                await _avatarModule.FlushDirtyAvatarsAsync(ct);
+            },
             null,
             TimeSpan.FromMilliseconds(_roomConfig.DirtyAvatarsFlushIntervalMilliseconds),
             TimeSpan.FromMilliseconds(_roomConfig.DirtyAvatarsFlushIntervalMilliseconds)
@@ -198,9 +202,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         try
         {
             var entity =
-                await dbCtx
-                    .Rooms.AsNoTracking()
-                    .SingleOrDefaultAsync(e => e.Id == _roomId.Value, ct)
+                await dbCtx.Rooms.AsNoTracking().SingleOrDefaultAsync(e => e.Id == _roomId, ct)
                 ?? throw new TurboException(TurboErrorCodeEnum.RoomNotFound);
 
             _liveState.Model = _roomModelProvider.GetModelById(entity.RoomModelEntityId);

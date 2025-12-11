@@ -24,9 +24,8 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
     public Dictionary<AvatarStatusType, string> Statuses { get; } = [];
 
     public int GoalTileId { get; private set; } = -1;
-    public int NextTileId { get; set; } = -1;
-    public int PrevTileId { get; set; } = -1;
-    public bool IsWalking { get; set; } = false;
+    public int NextTileId { get; private set; } = -1;
+    public bool IsWalking { get; private set; } = false;
     public List<int> TilePath { get; } = [];
 
     private int _goalTries = 0;
@@ -43,9 +42,6 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
             return true;
         }
 
-        if (_goalTries == 3)
-            return false;
-
         if (tileId == GoalTileId)
         {
             _goalTries++;
@@ -56,7 +52,30 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
             _goalTries = 0;
         }
 
+        if (_goalTries == 3)
+            return false;
+
         return true;
+    }
+
+    public void SetNextTileId(int tileId)
+    {
+        if (NextTileId == tileId)
+            return;
+
+        NextTileId = tileId;
+
+        MarkDirty();
+    }
+
+    public void SetIsWalking(bool flag)
+    {
+        if (IsWalking == flag)
+            return;
+
+        IsWalking = flag;
+
+        MarkDirty();
     }
 
     public void SetPosition(int x, int y)

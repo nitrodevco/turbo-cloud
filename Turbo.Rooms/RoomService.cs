@@ -42,7 +42,7 @@ internal sealed partial class RoomService(
     public async Task OpenRoomForPlayerIdAsync(
         ActionContext ctx,
         long playerId,
-        RoomId roomId,
+        int roomId,
         CancellationToken ct
     )
     {
@@ -53,7 +53,7 @@ internal sealed partial class RoomService(
             var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
             var pendingRoom = await playerPresence.GetPendingRoomAsync().ConfigureAwait(false);
 
-            if (pendingRoom.RoomId.Value == roomId.Value)
+            if (pendingRoom.RoomId == roomId)
                 return;
 
             await playerPresence.SetPendingRoomAsync(roomId, true).ConfigureAwait(false);
@@ -67,7 +67,7 @@ internal sealed partial class RoomService(
             // if passworded => reject (for now)
             // if locked => reject (for now)
 
-            var room = GetRoomGrain(roomId.Value);
+            var room = GetRoomGrain(roomId);
             var snapshot = await room.GetSnapshotAsync().ConfigureAwait(false);
 
             await playerPresence
@@ -102,10 +102,10 @@ internal sealed partial class RoomService(
             var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
             var pendingRoom = await playerPresence.GetPendingRoomAsync().ConfigureAwait(false);
 
-            if (pendingRoom.RoomId.Value <= 0 || !pendingRoom.Approved)
+            if (pendingRoom.RoomId <= 0 || !pendingRoom.Approved)
                 return;
 
-            var room = GetRoomGrain(pendingRoom.RoomId.Value);
+            var room = GetRoomGrain(pendingRoom.RoomId);
 
             await room.EnsureRoomActiveAsync(ct).ConfigureAwait(false);
 
@@ -186,7 +186,7 @@ internal sealed partial class RoomService(
                 .SendComposerAsync(
                     new YouAreControllerMessageComposer
                     {
-                        RoomId = (int)pendingRoom.RoomId.Value,
+                        RoomId = pendingRoom.RoomId,
                         ControllerLevel = RoomControllerType.Owner,
                     },
                     ct
@@ -200,7 +200,7 @@ internal sealed partial class RoomService(
                 .ConfigureAwait(false);
             await playerPresence
                 .SendComposerAsync(
-                    new YouAreOwnerMessageComposer { RoomId = (int)pendingRoom.RoomId.Value },
+                    new YouAreOwnerMessageComposer { RoomId = pendingRoom.RoomId },
                     ct
                 )
                 .ConfigureAwait(false);
@@ -241,10 +241,10 @@ internal sealed partial class RoomService(
         CancellationToken ct
     )
     {
-        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId.Value <= 0)
+        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0)
             return;
 
-        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId.Value);
+        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId);
 
         await roomGrain.WalkAvatarToAsync(ctx, targetX, targetY, ct).ConfigureAwait(false);
     }

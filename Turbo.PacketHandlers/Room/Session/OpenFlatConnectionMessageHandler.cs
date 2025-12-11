@@ -18,12 +18,7 @@ public class OpenFlatConnectionMessageHandler(IRoomService roomService)
     )
     {
         await _roomService
-            .OpenRoomForPlayerIdAsync(
-                ctx.AsActionContext(),
-                ctx.PlayerId,
-                RoomId.From(message.RoomId),
-                ct
-            )
+            .OpenRoomForPlayerIdAsync(ctx.AsActionContext(), ctx.PlayerId, message.RoomId, ct)
             .ConfigureAwait(false);
     }
 }

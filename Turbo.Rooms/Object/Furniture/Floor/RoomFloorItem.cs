@@ -19,6 +19,8 @@ internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
 
     private RoomFloorItemSnapshot? _snapshot;
 
+    public double Height => Z + (Logic?.GetHeight() ?? Definition.StackHeight);
+
     public void SetPosition(int x, int y, double z)
     {
         z = Math.Truncate(z * 1000) / 1000;

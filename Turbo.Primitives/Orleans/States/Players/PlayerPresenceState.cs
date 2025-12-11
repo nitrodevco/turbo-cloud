@@ -12,10 +12,10 @@ public sealed class PlayerPresenceState
     public required SessionKey Session { get; set; } = SessionKey.Empty;
 
     [Id(1)]
-    public required RoomId ActiveRoomId { get; set; } = RoomId.Empty;
+    public required int ActiveRoomId { get; set; } = -1;
 
     [Id(2)]
-    public required RoomId PendingRoomId { get; set; } = RoomId.Empty;
+    public required int PendingRoomId { get; set; } = -1;
 
     [Id(3)]
     public required bool PendingRoomApproved { get; set; } = false;

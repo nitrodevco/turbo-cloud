@@ -72,7 +72,7 @@ internal sealed partial class RoomAvatarModule(
 
         avatar.AddStatus(AvatarStatusType.FlatControl, controllerLevel.ToString());
 
-        avatar.NextTileId = _roomMap.ToIdx(startX, startY);
+        avatar.SetNextTileId(_roomMap.ToIdx(startX, startY));
 
         await AddAvatarAsync(avatar, ct);
 
@@ -212,7 +212,8 @@ internal sealed partial class RoomAvatarModule(
 
             avatar.TilePath.Clear();
             avatar.TilePath.AddRange(path.Skip(1).Select(pos => _roomMap.ToIdx(pos.X, pos.Y)));
-            avatar.IsWalking = true;
+
+            avatar.SetIsWalking(true);
 
             return true;
         }
@@ -237,12 +238,12 @@ internal sealed partial class RoomAvatarModule(
         {
             if (avatar.IsWalking)
             {
-                avatar.IsWalking = false;
+                avatar.SetIsWalking(false);
 
                 await ProcessNextAvatarStepAsync(avatar, ct);
 
                 avatar.TilePath.Clear();
-                avatar.NextTileId = -1;
+                avatar.SetNextTileId(-1);
                 avatar.SetGoalTileId(-1);
                 avatar.RemoveStatus(AvatarStatusType.Move);
 
@@ -261,7 +262,7 @@ internal sealed partial class RoomAvatarModule(
             if (nextTileId < 0)
                 return;
 
-            avatar.NextTileId = -1;
+            avatar.SetNextTileId(-1);
 
             var prevTileId = _roomMap.ToIdx(avatar.X, avatar.Y);
             var (nextX, nextY) = _roomMap.GetTileXY(nextTileId);
@@ -394,8 +395,7 @@ internal sealed partial class RoomAvatarModule(
             avatar.RemoveStatus(AvatarStatusType.Lay, AvatarStatusType.Sit);
             avatar.AddStatus(AvatarStatusType.Move, $"{nextX},{nextY},{nextHeight}");
             avatar.SetRotation(RotationExtensions.FromPoints(avatar.X, avatar.Y, nextX, nextY));
-
-            avatar.NextTileId = nextTileId;
+            avatar.SetNextTileId(nextTileId);
         }
         catch (Exception)
         {
