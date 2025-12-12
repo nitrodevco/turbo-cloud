@@ -10,9 +10,12 @@ using Turbo.Logging;
 using Turbo.Players.Grains;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -463,16 +466,6 @@ internal sealed partial class RoomFurniModule
 
                 if (targetTileIdx == -1)
                     continue;
-
-                _state.RollerInfos.Add(
-                    new RollerData
-                    {
-                        ItemId = item.ObjectId.Value,
-                        CurrentTileIdx = currentTileIdx,
-                        TargetTileIdx = targetTileIdx,
-                        RollerSnapshot = item.GetSnapshot(),
-                    }
-                );
             }
             catch (Exception)
             {
@@ -505,6 +498,8 @@ internal sealed partial class RoomFurniModule
         if (rollers.Count == 0)
             return;
 
+        var composers = new List<IComposer>();
+
         foreach (var stack in rollers.GroupBy(x => x.Rotation))
         {
             var rollerStack = OrderRollersFrontToBack(stack);
@@ -518,36 +513,129 @@ internal sealed partial class RoomFurniModule
                     if (!_roomMap.TryGetTileInFront(fromIdx, roller.Rotation, out var toIdx))
                         continue;
 
-                    var candidates = new List<IRoomObject>();
+                    var toTileState = _state.TileFlags[toIdx];
 
-                    candidates.AddRange(
-                        _state
-                            .TileFloorStacks[fromIdx]
-                            .Select(x => _state.FloorItemsById[x])
-                            .Where(x => x.ObjectId.Value != roller.ObjectId.Value)
-                    );
-
-                    candidates.AddRange(
-                        _state
-                            .TileAvatarStacks[fromIdx]
-                            .Select(x => _state.AvatarsByObjectId[x])
-                            .Where(x => !x.IsWalking)
-                    );
-
-                    var candidate = candidates.Where(x => x.Z > roller.Z).OrderBy(c => c.Z).Last();
-
-                    if (IsAvatarAboutToWalkHere(toIdx))
+                    if (
+                        toTileState.Has(RoomTileFlags.Closed)
+                        || !toTileState.Has(RoomTileFlags.StackBlocked)
+                    )
                         continue;
 
-                    Console.WriteLine(
-                        $"Roller {roller.ObjectId.Value} rolling object {candidate.ObjectId.Value} from tile {fromIdx} to tile {toIdx}"
-                    );
+                    var candidates = new List<IRoomObject>();
+
+                    var floorItems = _state
+                        .TileFloorStacks[fromIdx]
+                        .Select(x => _state.FloorItemsById[x])
+                        .Where(x => x.ObjectId.Value != roller.ObjectId.Value)
+                        .ToList();
+                    var avatars = _state
+                        .TileAvatarStacks[fromIdx]
+                        .Select(x => _state.AvatarsByObjectId[x])
+                        .Where(x => !x.IsWalking)
+                        .ToList();
+
+                    candidates.AddRange(floorItems);
+                    candidates.AddRange(avatars);
+
+                    if (candidates.Count == 0 || IsAvatarAboutToWalkHere(toIdx))
+                        continue;
+
+                    double heightOffset = 0.0;
+
+                    var toRoller = _state
+                        .TileFloorStacks[toIdx]
+                        .Select(x => _state.FloorItemsById[x])
+                        .Where(x => x.Logic is FurnitureRollerLogic)
+                        .First();
+
+                    if (toRoller is null)
+                        heightOffset = -roller.Definition.StackHeight;
+
+                    if (avatars.Count > 0)
+                    {
+                        var sent = false;
+
+                        foreach (var avatar in avatars)
+                        {
+                            if (!sent)
+                            {
+                                composers.Add(
+                                    new SlideObjectBundleMessageComposer
+                                    {
+                                        FromX = roller.X,
+                                        FromY = roller.Y,
+                                        ToX = _roomMap.GetX(toIdx),
+                                        ToY = _roomMap.GetY(toIdx),
+                                        RollerItemId = roller.ObjectId.Value,
+                                        FloorItemHeights =
+                                        [
+                                            .. floorItems.Select(c => (c.ObjectId.Value, c.Z, c.Z)),
+                                        ],
+                                        Avatar = (
+                                            SlideAvatarMoveType.Slide,
+                                            avatar.ObjectId.Value,
+                                            avatar.Z,
+                                            avatar.Z
+                                        ),
+                                    }
+                                );
+
+                                sent = true;
+
+                                continue;
+                            }
+
+                            composers.Add(
+                                new SlideObjectBundleMessageComposer
+                                {
+                                    FromX = roller.X,
+                                    FromY = roller.Y,
+                                    ToX = _roomMap.GetX(toIdx),
+                                    ToY = _roomMap.GetY(toIdx),
+                                    RollerItemId = roller.ObjectId.Value,
+                                    FloorItemHeights = [],
+                                    Avatar = (
+                                        SlideAvatarMoveType.Slide,
+                                        avatar.ObjectId.Value,
+                                        avatar.Z,
+                                        avatar.Z
+                                    ),
+                                }
+                            );
+                        }
+                    }
+                    else
+                    {
+                        composers.Add(
+                            new SlideObjectBundleMessageComposer
+                            {
+                                FromX = roller.X,
+                                FromY = roller.Y,
+                                ToX = _roomMap.GetX(toIdx),
+                                ToY = _roomMap.GetY(toIdx),
+                                RollerItemId = roller.ObjectId.Value,
+                                FloorItemHeights =
+                                [
+                                    .. floorItems.Select(c => (c.ObjectId.Value, c.Z, c.Z)),
+                                ],
+                                Avatar = null,
+                            }
+                        );
+                    }
                 }
                 catch (Exception)
                 {
                     continue;
                 }
             }
+        }
+
+        if (composers.Count == 0)
+            return;
+
+        foreach (var composer in composers)
+        {
+            _ = _roomGrain.SendComposerToRoomAsync(composer, ct);
         }
     }
 
