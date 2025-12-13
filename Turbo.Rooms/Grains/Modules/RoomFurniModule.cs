@@ -6,7 +6,6 @@ using Orleans;
 using Turbo.Database.Context;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Factories;
-using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms.Grains.Modules;

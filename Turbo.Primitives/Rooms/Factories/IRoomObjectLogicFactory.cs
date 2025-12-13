@@ -1,6 +1,8 @@
 using System;
+using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Logic;
 
-namespace Turbo.Primitives.Rooms.Object.Logic;
+namespace Turbo.Primitives.Rooms.Factories;
 
 public interface IRoomObjectLogicFactory
 {

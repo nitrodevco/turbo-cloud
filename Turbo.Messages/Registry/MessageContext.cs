@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Snapshots.Session;
-using Turbo.Primitives.Rooms;
 
 namespace Turbo.Messages.Registry;
 

@@ -64,7 +64,7 @@ public class SSOTicketMessageHandler(
             await ctx.SendComposerAsync(new AvatarEffectsMessageComposer { Effects = [] }, ct)
                 .ConfigureAwait(false);
             await ctx.SendComposerAsync(
-                    new NavigatorSettingsMessageComposer { HomeRoomId = 1, RoomIdToEnter = 0 },
+                    new NavigatorSettingsMessageComposer { HomeRoomId = 1, RoomIdToEnter = 1 },
                     ct
                 )
                 .ConfigureAwait(false);

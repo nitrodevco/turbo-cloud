@@ -10,13 +10,12 @@ using Turbo.Primitives;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room.Settings;
-using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Factories;
 using Turbo.Primitives.Rooms.Grains;
-using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
+using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Grains;
@@ -33,13 +32,16 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     private readonly int _roomId;
     private readonly RoomLiveState _liveState;
-    private readonly RoomSecurityModule _securityModule;
-    private readonly RoomPathfinder _pathfinder;
+
     private readonly RoomEventModule _eventModule;
+    private readonly RoomSecurityModule _securityModule;
     private readonly RoomMapModule _mapModule;
     private readonly RoomAvatarModule _avatarModule;
     private readonly RoomFurniModule _furniModule;
     private readonly RoomActionModule _actionModule;
+
+    private readonly RoomPathingSystem _pathingSystem;
+    private readonly RoomRollerSystem _rollerSystem;
 
     public RoomGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
@@ -61,10 +63,20 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
         _roomId = (int)this.GetPrimaryKeyLong();
         _liveState = new() { RoomId = _roomId };
-        _securityModule = new(this, _liveState);
-        _pathfinder = new();
+        _pathingSystem = new();
         _eventModule = new(this, _roomConfig, _liveState);
+        _securityModule = new(this, _liveState);
         _mapModule = new(this, _roomConfig, _liveState);
+        _avatarModule = new(
+            this,
+            _roomConfig,
+            _liveState,
+            _pathingSystem,
+            _securityModule,
+            _mapModule,
+            _roomAvatarFactory,
+            _logicFactory
+        );
         _furniModule = new(
             this,
             _roomConfig,
@@ -75,16 +87,6 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             _itemsLoader,
             _logicFactory
         );
-        _avatarModule = new(
-            this,
-            _roomConfig,
-            _liveState,
-            _securityModule,
-            _mapModule,
-            _pathfinder,
-            _roomAvatarFactory,
-            _logicFactory
-        );
         _actionModule = new(
             this,
             _liveState,
@@ -93,6 +95,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             _grainFactory,
             _itemsLoader
         );
+
+        _rollerSystem = new(this, _roomConfig, _liveState, _mapModule);
 
         _eventModule.Register(new WiredController());
     }
@@ -122,12 +126,12 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         this.RegisterGrainTimer<object?>(
             async _ =>
             {
-                await _furniModule.ProcessRollerItemsAsync(ct);
+                await _rollerSystem.ProcessRollersAsync(ct);
                 await _avatarModule.FlushDirtyAvatarsAsync(ct);
             },
             null,
-            TimeSpan.FromMilliseconds(_roomConfig.DirtyAvatarsFlushIntervalMilliseconds),
-            TimeSpan.FromMilliseconds(_roomConfig.DirtyAvatarsFlushIntervalMilliseconds)
+            TimeSpan.FromMilliseconds(_roomConfig.RoomTickMilliseconds),
+            TimeSpan.FromMilliseconds(_roomConfig.RoomTickMilliseconds)
         );
     }
 

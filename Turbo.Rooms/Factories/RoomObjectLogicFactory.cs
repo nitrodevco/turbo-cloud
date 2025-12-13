@@ -3,11 +3,13 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Turbo.Logging;
 using Turbo.Primitives;
+using Turbo.Primitives.Rooms.Factories;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Logic;
+using Turbo.Rooms.Object.Logic;
 using Turbo.Runtime;
 
-namespace Turbo.Rooms.Object.Logic;
+namespace Turbo.Rooms.Factories;
 
 public sealed class RoomObjectLogicFactory(IServiceProvider host) : IRoomObjectLogicFactory
 {

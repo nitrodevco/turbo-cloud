@@ -5,21 +5,16 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Org.BouncyCastle.Math.EC.Rfc7748;
 using Turbo.Logging;
 using Turbo.Players.Grains;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Messages.Outgoing.Room.Engine;
-using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots;
-using Turbo.Primitives.Rooms.Snapshots.Avatars;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
@@ -27,8 +22,6 @@ namespace Turbo.Rooms.Grains.Modules;
 
 internal sealed partial class RoomFurniModule
 {
-    private int _rollerProcessTick = 0;
-
     public async Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
     {
         if (!_state.FloorItemsById.TryAdd(item.ObjectId.Value, item))
@@ -235,6 +228,7 @@ internal sealed partial class RoomFurniModule
                         && !isRotating
                     )
                     || tileFlags.Has(RoomTileFlags.AvatarOccupied) && !tItem.Logic.CanWalk()
+                    || bItem?.Logic is FurnitureRollerLogic && tItem.Logic is FurnitureRollerLogic
                 )
                     return false;
 
@@ -291,6 +285,7 @@ internal sealed partial class RoomFurniModule
                         && tileFlags.Has(RoomTileFlags.AvatarOccupied)
                     )
                     || tileFlags.Has(RoomTileFlags.AvatarOccupied) && !item.Definition.CanWalk
+                    || bItem?.Logic is FurnitureRollerLogic && item.Logic is FurnitureRollerLogic
                 )
                     return false;
 
@@ -442,233 +437,5 @@ internal sealed partial class RoomFurniModule
         {
             await dbCtx.DisposeAsync();
         }
-    }
-
-    internal Task ComputeRollerItemsAsync(CancellationToken ct)
-    {
-        _state.RollerInfos.Clear();
-
-        foreach (var item in _state.FloorItemsById.Values)
-        {
-            try
-            {
-                if (item.Logic is not FurnitureRollerLogic rollerLogic)
-                    continue;
-
-                var currentTileIdx = _roomMap.ToIdx(item.X, item.Y);
-                var targetTileIdx = _roomMap.TryGetTileInFront(
-                    currentTileIdx,
-                    item.Rotation,
-                    out var tTileIdx
-                )
-                    ? tTileIdx
-                    : -1;
-
-                if (targetTileIdx == -1)
-                    continue;
-            }
-            catch (Exception)
-            {
-                continue;
-            }
-        }
-
-        return Task.CompletedTask;
-    }
-
-    internal async Task ProcessRollerItemsAsync(CancellationToken ct)
-    {
-        if (_rollerProcessTick > -1)
-        {
-            // commit last roll
-
-            if (_rollerProcessTick > 0)
-                _rollerProcessTick--;
-
-            if (_rollerProcessTick != 0)
-                return;
-
-            _rollerProcessTick = 4; // TODO set config
-        }
-
-        var rollers = _state
-            .FloorItemsById.Values.Where(x => x.Logic is FurnitureRollerLogic)
-            .ToList();
-
-        if (rollers.Count == 0)
-            return;
-
-        var composers = new List<IComposer>();
-
-        foreach (var stack in rollers.GroupBy(x => x.Rotation))
-        {
-            var rollerStack = OrderRollersFrontToBack(stack);
-
-            foreach (var roller in rollerStack)
-            {
-                try
-                {
-                    var fromIdx = _roomMap.ToIdx(roller.X, roller.Y);
-
-                    if (!_roomMap.TryGetTileInFront(fromIdx, roller.Rotation, out var toIdx))
-                        continue;
-
-                    var toTileState = _state.TileFlags[toIdx];
-
-                    if (
-                        toTileState.Has(RoomTileFlags.Closed)
-                        || !toTileState.Has(RoomTileFlags.StackBlocked)
-                    )
-                        continue;
-
-                    var candidates = new List<IRoomObject>();
-
-                    var floorItems = _state
-                        .TileFloorStacks[fromIdx]
-                        .Select(x => _state.FloorItemsById[x])
-                        .Where(x => x.ObjectId.Value != roller.ObjectId.Value)
-                        .ToList();
-                    var avatars = _state
-                        .TileAvatarStacks[fromIdx]
-                        .Select(x => _state.AvatarsByObjectId[x])
-                        .Where(x => !x.IsWalking)
-                        .ToList();
-
-                    candidates.AddRange(floorItems);
-                    candidates.AddRange(avatars);
-
-                    if (candidates.Count == 0 || IsAvatarAboutToWalkHere(toIdx))
-                        continue;
-
-                    double heightOffset = 0.0;
-
-                    var toRoller = _state
-                        .TileFloorStacks[toIdx]
-                        .Select(x => _state.FloorItemsById[x])
-                        .Where(x => x.Logic is FurnitureRollerLogic)
-                        .First();
-
-                    if (toRoller is null)
-                        heightOffset = -roller.Definition.StackHeight;
-
-                    if (avatars.Count > 0)
-                    {
-                        var sent = false;
-
-                        foreach (var avatar in avatars)
-                        {
-                            if (!sent)
-                            {
-                                composers.Add(
-                                    new SlideObjectBundleMessageComposer
-                                    {
-                                        FromX = roller.X,
-                                        FromY = roller.Y,
-                                        ToX = _roomMap.GetX(toIdx),
-                                        ToY = _roomMap.GetY(toIdx),
-                                        RollerItemId = roller.ObjectId.Value,
-                                        FloorItemHeights =
-                                        [
-                                            .. floorItems.Select(c => (c.ObjectId.Value, c.Z, c.Z)),
-                                        ],
-                                        Avatar = (
-                                            SlideAvatarMoveType.Slide,
-                                            avatar.ObjectId.Value,
-                                            avatar.Z,
-                                            avatar.Z
-                                        ),
-                                    }
-                                );
-
-                                sent = true;
-
-                                continue;
-                            }
-
-                            composers.Add(
-                                new SlideObjectBundleMessageComposer
-                                {
-                                    FromX = roller.X,
-                                    FromY = roller.Y,
-                                    ToX = _roomMap.GetX(toIdx),
-                                    ToY = _roomMap.GetY(toIdx),
-                                    RollerItemId = roller.ObjectId.Value,
-                                    FloorItemHeights = [],
-                                    Avatar = (
-                                        SlideAvatarMoveType.Slide,
-                                        avatar.ObjectId.Value,
-                                        avatar.Z,
-                                        avatar.Z
-                                    ),
-                                }
-                            );
-                        }
-                    }
-                    else
-                    {
-                        composers.Add(
-                            new SlideObjectBundleMessageComposer
-                            {
-                                FromX = roller.X,
-                                FromY = roller.Y,
-                                ToX = _roomMap.GetX(toIdx),
-                                ToY = _roomMap.GetY(toIdx),
-                                RollerItemId = roller.ObjectId.Value,
-                                FloorItemHeights =
-                                [
-                                    .. floorItems.Select(c => (c.ObjectId.Value, c.Z, c.Z)),
-                                ],
-                                Avatar = null,
-                            }
-                        );
-                    }
-                }
-                catch (Exception)
-                {
-                    continue;
-                }
-            }
-        }
-
-        if (composers.Count == 0)
-            return;
-
-        foreach (var composer in composers)
-        {
-            _ = _roomGrain.SendComposerToRoomAsync(composer, ct);
-        }
-    }
-
-    private static IEnumerable<IRoomFloorItem> OrderRollersFrontToBack(
-        IEnumerable<IRoomFloorItem> rollers
-    )
-    {
-        var list = rollers.ToList();
-
-        if (list.Count == 0)
-            return list;
-
-        // All rollers in this group should share the same direction.
-        var dir = list[0].Rotation;
-
-        return dir switch
-        {
-            Rotation.East => list.OrderByDescending(r => r.X).ThenBy(r => r.Y),
-            Rotation.West => list.OrderBy(r => r.X).ThenBy(r => r.Y),
-            Rotation.South => list.OrderByDescending(r => r.Y).ThenBy(r => r.X),
-            Rotation.North => list.OrderBy(r => r.Y).ThenBy(r => r.X),
-            _ => list.OrderBy(r => r.Y).ThenBy(r => r.X),
-        };
-    }
-
-    private bool IsAvatarAboutToWalkHere(int tileIdx)
-    {
-        foreach (var avatar in _state.AvatarsByObjectId.Values)
-        {
-            if (avatar.NextTileId == tileIdx)
-                return true;
-        }
-
-        return false;
     }
 }

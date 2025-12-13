@@ -96,6 +96,31 @@ internal sealed partial class RoomMapModule
         return true;
     }
 
+    public bool RollFloorItem(
+        IRoomFloorItem item,
+        int tileIdx,
+        double z,
+        out List<int> updatedTileIds
+    )
+    {
+        if (!InBounds(tileIdx))
+            throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
+
+        updatedTileIds = [];
+
+        RemoveFloorItem(item, -1, false, out var removedTileIds);
+        updatedTileIds.AddRange(removedTileIds);
+
+        item.SetPosition(GetX(tileIdx), GetY(tileIdx), z);
+
+        AddFloorItem(item, false, out var addedTileIds);
+        updatedTileIds.AddRange(addedTileIds);
+
+        updatedTileIds = [.. updatedTileIds.Distinct()];
+
+        return true;
+    }
+
     public bool RemoveFloorItem(
         IRoomFloorItem item,
         long pickerId,

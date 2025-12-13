@@ -4,10 +4,8 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 using Turbo.Rooms.Mapping;
-using Turbo.Rooms.Object.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains;
 

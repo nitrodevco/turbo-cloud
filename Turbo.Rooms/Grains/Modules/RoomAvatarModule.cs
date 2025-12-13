@@ -14,10 +14,10 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Factories;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
-using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 using Turbo.Rooms.Configuration;
+using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Avatars;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -26,9 +26,9 @@ internal sealed partial class RoomAvatarModule(
     RoomGrain roomGrain,
     RoomConfig roomConfig,
     RoomLiveState roomLiveState,
+    RoomPathingSystem roomPathing,
     RoomSecurityModule securityModule,
     RoomMapModule roomMapModule,
-    RoomPathfinder roomPathfinder,
     IRoomAvatarFactory roomAvatarFactory,
     IRoomObjectLogicFactory objectLogicFactory
 ) : IRoomModule
@@ -38,7 +38,7 @@ internal sealed partial class RoomAvatarModule(
     private readonly RoomLiveState _state = roomLiveState;
     private readonly RoomSecurityModule _securityModule = securityModule;
     private readonly RoomMapModule _roomMap = roomMapModule;
-    private readonly RoomPathfinder _pathfinder = roomPathfinder;
+    private readonly RoomPathingSystem _pathingSystem = roomPathing;
     private readonly IRoomAvatarFactory _roomAvatarFactory = roomAvatarFactory;
     private readonly IRoomObjectLogicFactory _objectLogicFactory = objectLogicFactory;
 
@@ -200,7 +200,7 @@ internal sealed partial class RoomAvatarModule(
             if (!avatar.SetGoalTileId(goalTileId))
                 throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
-            var path = _pathfinder.FindPath(
+            var path = _pathingSystem.FindPath(
                 avatar,
                 _roomMap,
                 (avatar.X, avatar.Y),

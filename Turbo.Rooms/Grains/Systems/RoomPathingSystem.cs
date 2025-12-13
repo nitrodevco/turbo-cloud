@@ -4,7 +4,9 @@ using System.Runtime.CompilerServices;
 using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Primitives.Rooms.Object.Avatars;
 
-internal sealed class RoomPathfinder(int maxNodes = 4096)
+namespace Turbo.Rooms.Grains.Systems;
+
+internal sealed class RoomPathingSystem(int maxNodes = 4096)
 {
     private static readonly int CARDINAL_COST = 10;
     private static readonly int DIAGONAL_COST = 14;
