@@ -31,7 +31,7 @@ internal sealed partial class RoomMapModule
                 else if (canLay)
                     avatar.Lay(true, floorItem.Definition.StackHeight, floorItem.Rotation);
 
-                await floorItem.Logic.OnInvokeAsync(avatar.Logic.Context, ct);
+                await floorItem.Logic.OnInvokeAsync((IRoomAvatarContext)avatar.Logic.Context, ct);
             }
 
             if (!canSit && avatar.HasStatus(AvatarStatusType.Sit))
@@ -43,6 +43,20 @@ internal sealed partial class RoomMapModule
             UpdateHeightForAvatar(avatar);
         }
         catch (Exception) { }
+    }
+
+    public async Task InvokeAvatarsAsync(HashSet<int> avatarIds, CancellationToken ct)
+    {
+        if (avatarIds.Count == 0)
+            return;
+
+        foreach (var avatarId in avatarIds)
+        {
+            if (!_state.AvatarsByObjectId.TryGetValue(avatarId, out var avatar))
+                continue;
+
+            await InvokeAvatarAsync(avatar, ct);
+        }
     }
 
     public async Task InvokeAvatarsOnTilesAsync(List<int> tileIdx, CancellationToken ct)
@@ -154,9 +168,10 @@ internal sealed partial class RoomMapModule
         RemoveAvatar(avatar, false);
 
         avatar.SetPosition(GetX(tileIdx), GetY(tileIdx), true);
-        avatar.SetHeight(z, true);
 
         AddAvatar(avatar, false);
+
+        avatar.SetHeight(GetTileHeightForAvatar(tileIdx), true);
 
         return true;
     }
@@ -216,7 +231,7 @@ internal sealed partial class RoomMapModule
                     height -= floorItem.Definition.StackHeight;
             }
 
-            return height;
+            return Math.Round(height, 3);
         }
         catch (Exception)
         {

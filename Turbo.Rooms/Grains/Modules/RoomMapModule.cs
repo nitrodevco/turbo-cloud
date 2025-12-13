@@ -15,7 +15,6 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 using Turbo.Rooms.Configuration;
-using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -181,7 +180,7 @@ internal sealed partial class RoomMapModule(
                 if (item is null)
                     continue;
 
-                var height = item.Height;
+                var height = item.Z + item.Height;
 
                 // special logic if stack helper
 
@@ -192,6 +191,8 @@ internal sealed partial class RoomMapModule(
                 nextHighestItem = item;
             }
         }
+
+        //nextHeight = Math.Round(nextHeight, 2);
 
         if (nextHighestItem is not null)
         {

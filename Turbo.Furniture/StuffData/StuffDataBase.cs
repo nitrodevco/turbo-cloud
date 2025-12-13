@@ -1,5 +1,6 @@
 using System;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
 
@@ -13,13 +14,6 @@ internal abstract class StuffDataBase : IStuffData
     protected const int STATE_INDEX = 0;
     protected const string STATE_KEY = "state";
 
-    public static int CreateBitmask(StuffDataType type, StuffDataFlags flags) =>
-        ((int)type & TYPE_MASK) | ((int)flags & FLAGS_MASK);
-
-    protected Action? _onSnapshotChanged;
-    protected bool _dirty = true;
-    protected StuffDataSnapshot? _snapshot;
-
     [JsonIgnore]
     public StuffDataType StuffType { get; private set; }
 
@@ -32,6 +26,13 @@ internal abstract class StuffDataBase : IStuffData
     [JsonIgnore]
     public bool IsDirty => _dirty;
 
+    protected Func<Task>? _onSnapshotChanged;
+    protected bool _dirty = true;
+    protected StuffDataSnapshot? _snapshot;
+
+    public static int CreateBitmask(StuffDataType type, StuffDataFlags flags) =>
+        ((int)type & TYPE_MASK) | ((int)flags & FLAGS_MASK);
+
     public int GetBitmask() =>
         CreateBitmask(StuffType, IsUnique() ? StuffDataFlags.Unique : StuffDataFlags.None);
 
@@ -41,19 +42,17 @@ internal abstract class StuffDataBase : IStuffData
 
     public virtual int GetState() => int.Parse(GetLegacyString());
 
-    public virtual void SetState(string state) { }
+    public abstract Task SetStateAsync(string state);
 
     public virtual string GetLegacyString() => string.Empty;
 
-    public void SetAction(Action? onSnapshotChanged)
-    {
-        _onSnapshotChanged = onSnapshotChanged;
-    }
+    public void SetAction(Func<Task>? onSnapshotChanged) => _onSnapshotChanged = onSnapshotChanged;
 
     public void MarkDirty()
     {
         _dirty = true;
-        _onSnapshotChanged?.Invoke();
+
+        _ = _onSnapshotChanged?.Invoke();
     }
 
     public virtual StuffDataSnapshot GetSnapshot()

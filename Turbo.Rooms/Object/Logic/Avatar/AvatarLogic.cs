@@ -9,8 +9,6 @@ public class AvatarLogic(IRoomAvatarContext ctx)
     : RoomObjectLogicBase<IRoomAvatarContext>(ctx),
         IRoomAvatarLogic
 {
-    public IRoomAvatarContext Context => _ctx;
-
     public bool CanRoll()
     {
         if (_ctx.Avatar.IsWalking)

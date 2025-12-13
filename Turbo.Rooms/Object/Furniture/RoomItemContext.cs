@@ -10,11 +10,11 @@ using Turbo.Rooms.Grains.Modules;
 
 namespace Turbo.Rooms.Object.Furniture;
 
-internal class RoomItemContext<TItem>(
+internal abstract class RoomItemContext<TItem>(
     RoomGrain roomGrain,
     RoomFurniModule furniModule,
     TItem roomItem
-) : RoomObjectContext(roomGrain), IRoomItemContext
+) : RoomObjectContext(roomGrain), IRoomItemContext<TItem>
     where TItem : IRoomItem
 {
     protected readonly RoomFurniModule _furniModule = furniModule;
@@ -29,4 +29,17 @@ internal class RoomItemContext<TItem>(
 
     public Task SendComposerToRoomAsync(IComposer composer, CancellationToken ct) =>
         _roomGrain.SendComposerToRoomAsync(@composer, ct);
+
+    public abstract Task AddItemAsync(CancellationToken ct);
+
+    public abstract Task UpdateItemAsync(CancellationToken ct);
+
+    public abstract Task RefreshStuffDataAsync(CancellationToken ct);
+
+    public abstract Task RemoveItemAsync(
+        long pickerId,
+        CancellationToken ct,
+        bool isExpired = false,
+        int delay = 0
+    );
 }

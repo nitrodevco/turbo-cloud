@@ -31,12 +31,27 @@ internal sealed class RoomRollerSystem(
     private int _tickCount = 0;
 
     private Dictionary<Rotation, List<int>> _rollerIdsByDirection = [];
+    private List<RollerMovePlan> _currentPlans = [];
 
     private bool _isDirtyRollers = true;
 
     public async Task ProcessRollersAsync(CancellationToken ct)
     {
         _tickCount++;
+
+        if (_currentPlans.Count > 0)
+        {
+            foreach (var plan in _currentPlans)
+            {
+                var avatarIds = plan
+                    .MovedAvatars.Select(x => x.RoomObject.ObjectId.Value)
+                    .ToHashSet();
+
+                await _roomMap.InvokeAvatarsAsync(avatarIds, ct);
+            }
+
+            _currentPlans.Clear();
+        }
 
         if (_tickCount != _roomConfig.RoomRollerTickCount)
             return;
@@ -48,7 +63,7 @@ internal sealed class RoomRollerSystem(
         if (_rollerIdsByDirection.Count == 0)
             return;
 
-        var plans = new List<RollerMovePlan>();
+        _currentPlans.Clear();
 
         foreach (var (rotation, rollerIds) in _rollerIdsByDirection)
         {
@@ -72,11 +87,12 @@ internal sealed class RoomRollerSystem(
                     var fromTileState = _state.TileFlags[fromIdx];
                     var toTileState = _state.TileFlags[toIdx];
                     var toTileHeight = _state.TileHeights[toIdx];
+                    var rollerHeight = roller.Z + roller.Height;
 
                     if (
-                        toTileHeight > roller.Height
+                        toTileHeight > rollerHeight
                         || toTileState.Has(RoomTileFlags.AvatarOccupied)
-                        || plans.Any(x => x.ToIdx == toIdx)
+                        || _currentPlans.Any(x => x.ToIdx == toIdx)
                         || IsAvatarAboutToWalkHere(toIdx)
                     )
                         continue;
@@ -84,17 +100,13 @@ internal sealed class RoomRollerSystem(
                     var floorItems = _state
                         .TileFloorStacks[fromIdx]
                         .Select(x => _state.FloorItemsById[x])
-                        .Where(x => x.Z >= roller.Height && x.Logic.CanRoll())
+                        .Where(x => x.Z >= rollerHeight && x.Logic.CanRoll())
                         .ToList();
                     var avatars = _state
                         .TileAvatarStacks[fromIdx]
                         .Select(x => _state.AvatarsByObjectId[x])
-                        .Where(x => x.Z >= roller.Height && x.Logic.CanRoll())
+                        .Where(x => x.Z >= rollerHeight && x.Logic.CanRoll())
                         .ToList();
-
-                    Console.WriteLine(
-                        $"Roller {avatars} at ({roller.X},{roller.Y}) moving {floorItems.Count} floor items and {avatars.Count} avatars to tile {toIdx}."
-                    );
 
                     if (
                         floorItems.Count == 0 && avatars.Count == 0
@@ -103,7 +115,7 @@ internal sealed class RoomRollerSystem(
                     )
                         continue;
 
-                    plans.Add(
+                    _currentPlans.Add(
                         new RollerMovePlan
                         {
                             RollerId = roller.ObjectId.Value,
@@ -113,18 +125,36 @@ internal sealed class RoomRollerSystem(
                             [
                                 .. floorItems.Select(x => new RollerMovedEntity
                                 {
+                                    ObjectId = x.ObjectId,
                                     RoomObject = x,
+                                    ZOffset = 0,
                                     FromZ = x.Z,
-                                    ToZ = x.Z - roller.Height + toTileHeight,
+                                    ToZ = x.Z - rollerHeight + toTileHeight,
                                 }),
                             ],
                             MovedAvatars =
                             [
-                                .. avatars.Select(x => new RollerMovedEntity
+                                .. avatars.Select(x =>
                                 {
-                                    RoomObject = x,
-                                    FromZ = x.Z,
-                                    ToZ = x.Z - roller.Height + toTileHeight,
+                                    var offset = 0.0;
+
+                                    if (x.HasStatus(AvatarStatusType.Sit))
+                                    {
+                                        offset = double.Parse(x.Statuses[AvatarStatusType.Sit]);
+                                    }
+                                    else if (x.HasStatus(AvatarStatusType.Lay))
+                                    {
+                                        offset = double.Parse(x.Statuses[AvatarStatusType.Lay]);
+                                    }
+
+                                    return new RollerMovedEntity
+                                    {
+                                        ObjectId = x.ObjectId,
+                                        RoomObject = x,
+                                        ZOffset = offset,
+                                        FromZ = x.Z,
+                                        ToZ = x.Z - rollerHeight + toTileHeight,
+                                    };
                                 }),
                             ],
                         }
@@ -137,29 +167,25 @@ internal sealed class RoomRollerSystem(
             }
         }
 
-        if (plans.Count == 0)
+        if (_currentPlans.Count == 0)
             return;
 
         var composers = new List<IComposer>();
+        var updatedAvatarIds = new HashSet<int>();
 
-        foreach (var plan in plans)
+        foreach (var plan in _currentPlans)
         {
             var (fromX, fromY) = _roomMap.GetTileXY(plan.FromIdx);
             var (toX, toY) = _roomMap.GetTileXY(plan.ToIdx);
 
-            foreach (var moved in plan.MovedFloorItems)
+            foreach (var item in plan.MovedFloorItems)
             {
                 _roomMap.RollFloorItem(
-                    (IRoomFloorItem)moved.RoomObject,
+                    (IRoomFloorItem)item.RoomObject,
                     plan.ToIdx,
-                    moved.ToZ,
+                    item.ToZ,
                     out _
                 );
-            }
-
-            foreach (var moved in plan.MovedAvatars)
-            {
-                _roomMap.RollAvatar((IRoomAvatar)moved.RoomObject, plan.ToIdx, moved.ToZ);
             }
 
             if (plan.MovedAvatars.Count > 0)
@@ -168,6 +194,12 @@ internal sealed class RoomRollerSystem(
 
                 foreach (var avatar in plan.MovedAvatars)
                 {
+                    var avatarObject = (IRoomAvatar)avatar.RoomObject;
+
+                    _roomMap.RollAvatar(avatarObject, plan.ToIdx, avatar.ToZ);
+
+                    updatedAvatarIds.Add(avatarObject.ObjectId.Value);
+
                     if (!sent)
                     {
                         composers.Add(
@@ -187,8 +219,8 @@ internal sealed class RoomRollerSystem(
                                 Avatar = (
                                     SlideAvatarMoveType.Slide,
                                     avatar.RoomObject.ObjectId.Value,
-                                    avatar.FromZ,
-                                    avatar.ToZ
+                                    avatar.FromZ + avatar.ZOffset,
+                                    avatar.ToZ + avatar.ZOffset
                                 ),
                             }
                         );

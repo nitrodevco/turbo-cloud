@@ -15,11 +15,11 @@ internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
 
     private RoomFloorItemSnapshot? _snapshot;
 
-    public double Height => Z + (Logic?.GetHeight() ?? Definition.StackHeight);
+    public double Height => Logic?.GetHeight() ?? Definition.StackHeight;
 
     public void SetPosition(int x, int y, double z)
     {
-        z = Math.Round(z, 2);
+        z = Math.Round(z, 3);
 
         if (X == x && Y == y && Z == z)
             return;

@@ -4,18 +4,9 @@ using Turbo.Primitives.Rooms.Snapshots.Mapping;
 
 namespace Turbo.Primitives.Rooms.Object.Furniture.Floor;
 
-public interface IRoomFloorItemContext : IRoomItemContext
+public interface IRoomFloorItemContext : IRoomItemContext<IRoomFloorItem>
 {
-    public IRoomFloorItem Item { get; }
-    public Task AddItemAsync(CancellationToken ct);
-    public Task UpdateItemAsync(CancellationToken ct);
-    public Task RefreshStuffDataAsync(CancellationToken ct);
-    public Task RemoveItemAsync(
-        long pickerId,
-        CancellationToken ct,
-        bool isExpired = false,
-        int delay = 0
-    );
+    //public IRoomFloorItem Item { get; }
     public void RefreshTile();
     public Task<RoomTileSnapshot> GetTileSnapshotAsync(CancellationToken ct);
 }

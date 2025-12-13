@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -52,7 +53,10 @@ public sealed class FurnitureDefinitionProvider(
                     TotalStates = x.TotalStates,
                     Width = x.Width,
                     Length = x.Length,
-                    StackHeight = x.StackHeight == 0 ? _config.MinimumZValue : x.StackHeight,
+                    StackHeight = Math.Round(
+                        x.StackHeight == 0 ? _config.MinimumZValue : x.StackHeight,
+                        3
+                    ),
                     CanStack = x.CanStack,
                     CanWalk = x.CanWalk,
                     CanSit = x.CanSit,

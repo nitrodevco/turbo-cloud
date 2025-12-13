@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
 
@@ -16,7 +17,7 @@ internal sealed class MapStuffData : StuffDataBase, IMapStuffData
 
     public override string GetLegacyString() => GetValue(STATE_KEY);
 
-    public override void SetState(string state)
+    public override Task SetStateAsync(string state)
     {
         if (string.IsNullOrEmpty(state))
             state = DEFAULT_STATE;
@@ -24,6 +25,8 @@ internal sealed class MapStuffData : StuffDataBase, IMapStuffData
         Data[STATE_KEY] = state;
 
         MarkDirty();
+
+        return Task.CompletedTask;
     }
 
     public string GetValue(string key)

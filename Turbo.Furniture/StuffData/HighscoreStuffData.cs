@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
 
@@ -14,7 +15,7 @@ internal sealed class HighscoreStuffData : StuffDataBase, IHighscoreStuffData
 
     public override string GetLegacyString() => Data;
 
-    public override void SetState(string state)
+    public override Task SetStateAsync(string state)
     {
         if (string.IsNullOrEmpty(state))
             state = "0";
@@ -22,6 +23,8 @@ internal sealed class HighscoreStuffData : StuffDataBase, IHighscoreStuffData
         Data = state;
 
         MarkDirty();
+
+        return Task.CompletedTask;
     }
 
     public int GetScoreType() => ScoreType;

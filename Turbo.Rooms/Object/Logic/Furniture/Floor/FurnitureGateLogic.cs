@@ -19,7 +19,7 @@ public class FurnitureGateLogic(IStuffDataFactory stuffDataFactory, IRoomFloorIt
 
     public override bool CanWalk()
     {
-        var state = _stuffData.GetState();
+        var state = StuffData.GetState();
 
         if (state == OPEN_STATE)
             return true;

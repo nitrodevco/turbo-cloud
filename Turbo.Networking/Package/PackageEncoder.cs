@@ -1,3 +1,4 @@
+using System;
 using System.Buffers;
 using Microsoft.Extensions.Logging;
 using SuperSocket.ProtoBase;
@@ -14,33 +15,45 @@ public sealed class PackageEncoder(IRevisionManager revisionManager, ILogger<Pac
 
     public int Encode(IBufferWriter<byte> writer, OutgoingPackage pack)
     {
-        var revision = _revisionManager.GetRevision(pack.Session.RevisionId);
-
-        if (revision is not null)
+        try
         {
-            var composerType = pack.Composer.GetType();
+            var revision = _revisionManager.GetRevision(pack.Session.RevisionId);
 
-            if (revision.Serializers.TryGetValue(composerType, out var serializer))
+            if (revision is not null)
             {
-                var payload = serializer.Serialize(pack.Composer).ToArray();
+                var composerType = pack.Composer.GetType();
 
-                if (pack.Session.CryptoOut is not null)
-                    payload = pack.Session.CryptoOut.Process(payload);
+                if (revision.Serializers.TryGetValue(composerType, out var serializer))
+                {
+                    var payload = serializer.Serialize(pack.Composer).ToArray();
 
-                _logger.LogInformation("Outgoing {Composer}", pack.Composer);
+                    if (pack.Session.CryptoOut is not null)
+                        payload = pack.Session.CryptoOut.Process(payload);
 
-                writer.Write(payload);
+                    _logger.LogDebug("Outgoing {Composer}", pack.Composer);
 
-                return payload.Length;
+                    writer.Write(payload);
+
+                    return payload.Length;
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "Serializer not found for {Name} for {SessionKey}",
+                        composerType.Name,
+                        pack.Session.SessionKey
+                    );
+                }
             }
-            else
-            {
-                _logger.LogWarning(
-                    "Serializer not found for {Name} for {SessionKey}",
-                    composerType.Name,
-                    pack.Session.SessionKey
-                );
-            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to serialize packet {Packet} for session {SessionKey}",
+                pack.Composer.GetType().Name,
+                pack.Session.SessionKey
+            );
         }
 
         return 0;

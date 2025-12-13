@@ -125,8 +125,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         this.RegisterGrainTimer<object?>(
             async _ =>
             {
-                await _rollerSystem.ProcessRollersAsync(ct);
                 await _avatarModule.FlushDirtyAvatarsAsync(ct);
+                await _rollerSystem.ProcessRollersAsync(ct);
             },
             null,
             TimeSpan.FromMilliseconds(_roomConfig.RoomTickMilliseconds),

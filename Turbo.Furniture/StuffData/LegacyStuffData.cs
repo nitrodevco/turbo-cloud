@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
 
@@ -9,7 +10,7 @@ internal sealed class LegacyStuffData : StuffDataBase, ILegacyStuffData
 
     public override string GetLegacyString() => Data;
 
-    public override void SetState(string state)
+    public override Task SetStateAsync(string state)
     {
         if (string.IsNullOrEmpty(state))
             state = DEFAULT_STATE;
@@ -17,6 +18,8 @@ internal sealed class LegacyStuffData : StuffDataBase, ILegacyStuffData
         Data = state;
 
         MarkDirty();
+
+        return Task.CompletedTask;
     }
 
     protected override StuffDataSnapshot BuildSnapshot() =>

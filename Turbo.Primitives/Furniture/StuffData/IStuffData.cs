@@ -1,3 +1,5 @@
+using System;
+using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 
 namespace Turbo.Primitives.Furniture.StuffData;
@@ -12,9 +14,9 @@ public interface IStuffData
     public void SetType(StuffDataType type);
     public bool IsUnique();
     public int GetState();
-    public void SetState(string state);
+    public Task SetStateAsync(string state);
     public string GetLegacyString();
-    public void SetAction(System.Action? onSnapshotChanged);
+    public void SetAction(Func<Task>? onSnapshotChanged);
     public void MarkDirty();
     public StuffDataSnapshot GetSnapshot();
 }

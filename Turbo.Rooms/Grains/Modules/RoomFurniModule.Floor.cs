@@ -192,13 +192,10 @@ internal sealed partial class RoomFurniModule
                     tileFlags.Has(RoomTileFlags.Disabled)
                     || (tileHeight + tItem.Definition.StackHeight) > _roomConfig.MaxStackHeight
                     || tileFlags.Has(RoomTileFlags.StackBlocked) && bItem != tItem
-                    || (
-                        !_roomConfig.PlaceItemsOnAvatars
+                    || !_roomConfig.PlaceItemsOnAvatars
                         && tileFlags.Has(RoomTileFlags.AvatarOccupied)
                         && !isRotating
-                    )
                     || tileFlags.Has(RoomTileFlags.AvatarOccupied) && !tItem.Logic.CanWalk()
-                    || bItem?.Logic is FurnitureRollerLogic && tItem.Logic is FurnitureRollerLogic
                 )
                     return false;
 
@@ -207,8 +204,10 @@ internal sealed partial class RoomFurniModule
 
                 if (bItem is not null && bItem != tItem)
                 {
+                    if (bItem.Logic is FurnitureRollerLogic && tItem.Logic is FurnitureRollerLogic)
+                        return false;
+
                     // if is a stack helper, allow placement
-                    // if is a roller, disallow placement
                 }
             }
         }

@@ -13,16 +13,16 @@ internal sealed class RoomFloorItemContext(
     IRoomFloorItem roomItem
 ) : RoomItemContext<IRoomFloorItem>(roomGrain, furniModule, roomItem), IRoomFloorItemContext
 {
-    public Task AddItemAsync(CancellationToken ct) =>
+    public override Task AddItemAsync(CancellationToken ct) =>
         SendComposerToRoomAsync(Item.GetAddComposer(), ct);
 
-    public Task UpdateItemAsync(CancellationToken ct) =>
+    public override Task UpdateItemAsync(CancellationToken ct) =>
         SendComposerToRoomAsync(Item.GetUpdateComposer(), ct);
 
-    public Task RefreshStuffDataAsync(CancellationToken ct) =>
+    public override Task RefreshStuffDataAsync(CancellationToken ct) =>
         SendComposerToRoomAsync(Item.GetRefreshStuffDataComposer(), ct);
 
-    public Task RemoveItemAsync(
+    public override Task RemoveItemAsync(
         long pickerId,
         CancellationToken ct,
         bool isExpired = false,

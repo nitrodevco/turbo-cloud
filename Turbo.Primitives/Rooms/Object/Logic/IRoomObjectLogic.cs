@@ -5,6 +5,7 @@ namespace Turbo.Primitives.Rooms.Object.Logic;
 
 public interface IRoomObjectLogic
 {
+    public IRoomObjectContext Context { get; }
     public Task OnAttachAsync(CancellationToken ct);
     public Task OnDetachAsync(CancellationToken ct);
 }

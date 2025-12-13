@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
 
@@ -16,7 +17,7 @@ internal sealed class NumberStuffData : StuffDataBase, INumberStuffData
 
     public override string GetLegacyString() => GetValue(STATE_INDEX).ToString();
 
-    public override void SetState(string state)
+    public override Task SetStateAsync(string state)
     {
         if (string.IsNullOrEmpty(state))
             state = DEFAULT_STATE;
@@ -24,6 +25,8 @@ internal sealed class NumberStuffData : StuffDataBase, INumberStuffData
         Data[STATE_INDEX] = int.Parse(state);
 
         MarkDirty();
+
+        return Task.CompletedTask;
     }
 
     public int GetValue(int index)

@@ -1,4 +1,3 @@
-using System;
 using System.Text.Json;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Networking;
@@ -81,7 +80,7 @@ internal sealed class RoomWallItem : RoomItem, IRoomWallItem
         new ItemRemoveMessageComposer { ObjectId = ObjectId, PickerId = (int)pickerId };
 
     public string ConvertWallPositionToString() =>
-        $":w={X},{Y} l={WallOffset},{Z:0.00} {(Rotation == Rotation.South ? "l" : "r")}";
+        $":w={X},{Y} l={WallOffset},{Z} {(Rotation == Rotation.South ? "l" : "r")}";
 
     private RoomWallItemSnapshot BuildSnapshot() =>
         new()
