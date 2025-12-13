@@ -53,17 +53,15 @@ internal sealed class PlayerInventoryModule(
 
             if (count == furniPerFragment)
             {
-                await _presenceGrain
-                    .SendComposerAsync(
-                        new FurniListEventMessageComposer
-                        {
-                            TotalFragments = totalFragments,
-                            CurrentFragment = currentFragment,
-                            Items = [.. fragmentItems],
-                        },
-                        ct
-                    )
-                    .ConfigureAwait(false);
+                await _presenceGrain.SendComposerAsync(
+                    new FurniListEventMessageComposer
+                    {
+                        TotalFragments = totalFragments,
+                        CurrentFragment = currentFragment,
+                        Items = [.. fragmentItems],
+                    },
+                    ct
+                );
 
                 fragmentItems.Clear();
                 count = 0;
@@ -74,17 +72,15 @@ internal sealed class PlayerInventoryModule(
         if (count <= 0)
             return;
 
-        await _presenceGrain
-            .SendComposerAsync(
-                new FurniListEventMessageComposer
-                {
-                    TotalFragments = totalFragments,
-                    CurrentFragment = currentFragment,
-                    Items = [.. fragmentItems],
-                },
-                ct
-            )
-            .ConfigureAwait(false);
+        await _presenceGrain.SendComposerAsync(
+            new FurniListEventMessageComposer
+            {
+                TotalFragments = totalFragments,
+                CurrentFragment = currentFragment,
+                Items = [.. fragmentItems],
+            },
+            ct
+        );
 
         _isFurnitureInventoryPrimed = true;
     }

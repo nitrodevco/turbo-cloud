@@ -88,7 +88,7 @@ internal sealed partial class RoomAvatarModule(
         ArgumentNullException.ThrowIfNull(avatar);
 
         if (!_state.AvatarsByObjectId.TryAdd(avatar.ObjectId.Value, avatar))
-            throw new InvalidOperationException("Failed to add avatar to room state.");
+            throw new TurboException(TurboErrorCodeEnum.AvatarNotFound);
 
         await AttatchLogicIfNeededAsync(avatar, ct);
         await ProcessNextAvatarStepAsync(avatar, ct);
@@ -113,12 +113,9 @@ internal sealed partial class RoomAvatarModule(
 
             await StopWalkingAsync(avatar, ct);
 
-            var tileId = _roomMap.ToIdx(avatar.X, avatar.Y);
+            _roomMap.RemoveAvatar(avatar, false);
 
-            if (_state.TileAvatarStacks[tileId].Remove(avatar.ObjectId.Value))
-                _roomMap.ComputeTile(tileId);
-
-            await avatar.Logic.OnDetachAsync(ct).ConfigureAwait(false);
+            await avatar.Logic.OnDetachAsync(ct);
 
             _state.AvatarsByPlayerId.Remove(objectIdValue);
             _state.AvatarsByObjectId.Remove(objectIdValue);
@@ -270,21 +267,11 @@ internal sealed partial class RoomAvatarModule(
             if (prevTileId == nextTileId)
                 return;
 
-            if (prevTileId > 0)
-            {
-                if (_state.TileAvatarStacks[prevTileId].Remove(avatar.ObjectId.Value))
-                    _roomMap.ComputeTile(prevTileId);
-            }
-
-            if (!_state.TileAvatarStacks[nextTileId].Contains(avatar.ObjectId.Value))
-            {
-                _state.TileAvatarStacks[nextTileId].Add(avatar.ObjectId.Value);
-
-                _roomMap.ComputeTile(nextTileId);
-            }
+            _roomMap.RemoveAvatar(avatar, false);
 
             avatar.SetPosition(nextX, nextY);
-            avatar.SetRotation(avatar.Rotation);
+
+            _roomMap.AddAvatar(avatar, false);
 
             _roomMap.UpdateHeightForAvatar(avatar);
         }

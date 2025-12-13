@@ -16,7 +16,6 @@ using Turbo.Primitives.Rooms.Grains;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
-using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Grains;
 
@@ -98,7 +97,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
         _rollerSystem = new(this, _roomConfig, _liveState, _mapModule);
 
-        _eventModule.Register(new WiredController());
+        _eventModule.Register(_rollerSystem);
     }
 
     public override async Task OnActivateAsync(CancellationToken ct)

@@ -15,6 +15,7 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 using Turbo.Rooms.Configuration;
+using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -171,6 +172,8 @@ internal sealed partial class RoomMapModule(
 
         if (floorStack.Count > 0)
         {
+            nextFlags = nextFlags.Add(RoomTileFlags.FurnitureOccupied);
+
             foreach (var itemId in floorStack)
             {
                 var item = _state.FloorItemsById[itemId];
@@ -189,8 +192,6 @@ internal sealed partial class RoomMapModule(
                 nextHighestItem = item;
             }
         }
-
-        nextHeight = Math.Truncate(nextHeight * 1000) / 1000;
 
         if (nextHighestItem is not null)
         {
@@ -301,8 +302,8 @@ internal sealed partial class RoomMapModule(
             var tileEncodedHeights = new short[size];
             var tileFlags = new RoomTileFlags[size];
             var tileHighestFloorItems = new long[size];
-            var tileFloorStacks = new List<long>[size];
-            var tileAvatarStacks = new List<int>[size];
+            var tileFloorStacks = new HashSet<long>[size];
+            var tileAvatarStacks = new HashSet<int>[size];
 
             for (int id = 0; id < size; id++)
             {

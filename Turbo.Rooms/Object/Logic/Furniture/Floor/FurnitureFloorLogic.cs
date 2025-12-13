@@ -2,7 +2,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.StuffData;
-using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -59,21 +58,6 @@ public class FurnitureFloorLogic
         param = GetNextToggleableState();
 
         await SetStateAsync(param);
-    }
-
-    public override async Task OnMoveAsync(ActionContext ctx, CancellationToken ct)
-    {
-        _ = _ctx.PublishRoomEventAsync(
-            new FloorItemMovedEvent
-            {
-                RoomId = _ctx.RoomId,
-                CausedBy = ctx,
-                ItemId = _ctx.Item.ObjectId,
-            },
-            ct
-        );
-
-        await base.OnMoveAsync(ctx, ct);
     }
 
     protected virtual int GetNextToggleableState()

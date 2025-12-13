@@ -10,4 +10,12 @@ public class AvatarLogic(IRoomAvatarContext ctx)
         IRoomAvatarLogic
 {
     public IRoomAvatarContext Context => _ctx;
+
+    public bool CanRoll()
+    {
+        if (_ctx.Avatar.IsWalking)
+            return false;
+
+        return true;
+    }
 }

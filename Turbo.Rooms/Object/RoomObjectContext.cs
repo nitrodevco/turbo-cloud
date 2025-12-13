@@ -9,4 +9,6 @@ internal abstract class RoomObjectContext(RoomGrain roomGrain) : IRoomObjectCont
     protected readonly RoomGrain _roomGrain = roomGrain;
 
     public int RoomId => (int)_roomGrain.GetPrimaryKeyLong();
+
+    public abstract RoomObjectId ObjectId { get; }
 }

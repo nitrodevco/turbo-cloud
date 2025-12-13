@@ -116,7 +116,7 @@ public class RoomDirectoryGrain(IOptions<RoomConfig> roomConfig, IGrainFactory g
 
         var room = _grainFactory.GetGrain<IRoomGrain>(roomId);
 
-        await room.RemoveAvatarFromPlayerAsync(playerId, ct).ConfigureAwait(false);
+        await room.RemoveAvatarFromPlayerAsync(playerId, ct);
     }
 
     public Task SendComposerToRoomAsync(IComposer composer, int roomId, CancellationToken ct)

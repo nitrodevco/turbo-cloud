@@ -24,8 +24,8 @@ public interface IRoomAvatar : IRoomObject
     public bool SetGoalTileId(int tileId);
     public void SetNextTileId(int tileId);
     public void SetIsWalking(bool flag);
-    public void SetPosition(int x, int y);
-    public void SetHeight(double z);
+    public void SetPosition(int x, int y, bool silent = false);
+    public void SetHeight(double z, bool silent = false);
     public void SetRotation(Rotation rot);
     public void SetBodyRotation(Rotation rot);
     public void SetHeadRotation(Rotation rot);

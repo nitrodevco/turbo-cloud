@@ -24,25 +24,10 @@ internal sealed partial class RoomFurniModule
 {
     public async Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
     {
-        if (!_state.FloorItemsById.TryAdd(item.ObjectId.Value, item))
-            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
-
-        if (!_state.OwnerNamesById.TryGetValue(item.OwnerId, out string? value))
-        {
-            var ownerName = await _grainFactory
-                .GetGrain<IPlayerDirectoryGrain>(PlayerDirectoryGrain.SINGLETON_KEY)
-                .GetPlayerNameAsync(item.OwnerId, ct);
-
-            value = ownerName;
-            _state.OwnerNamesById[item.OwnerId] = value;
-        }
-
-        item.SetOwnerName(value ?? string.Empty);
-        item.SetAction(objectId => ProcessDirtyFloorItem(objectId.Value, ct));
-
-        await AttatchFloorLogicIfNeededAsync(item, ct);
-
-        if (!_roomMap.AddFloorItem(item, true, out var updatedTileIds))
+        if (
+            !await AttatchFloorItemAsync(item, ct)
+            || !_roomMap.AddFloorItem(item, true, out var updatedTileIds)
+        )
             return false;
 
         await _roomMap.InvokeAvatarsOnTilesAsync(updatedTileIds, ct);
@@ -64,25 +49,10 @@ internal sealed partial class RoomFurniModule
         if (!_roomMap.InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
-        if (!_state.FloorItemsById.TryAdd(item.ObjectId.Value, item))
-            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
-
-        if (!_state.OwnerNamesById.TryGetValue(item.OwnerId, out string? value))
-        {
-            var ownerName = await _grainFactory
-                .GetGrain<IPlayerDirectoryGrain>(PlayerDirectoryGrain.SINGLETON_KEY)
-                .GetPlayerNameAsync(item.OwnerId, ct);
-
-            value = ownerName;
-            _state.OwnerNamesById[item.OwnerId] = value;
-        }
-
-        item.SetOwnerName(value ?? string.Empty);
-        item.SetAction(objectId => ProcessDirtyFloorItem(objectId.Value, ct));
-
-        await AttatchFloorLogicIfNeededAsync(item, ct);
-
-        if (!_roomMap.PlaceFloorItem(item, tileIdx, rot, true, out var updatedTileIds))
+        if (
+            !await AttatchFloorItemAsync(item, ct)
+            || !_roomMap.PlaceFloorItem(item, tileIdx, rot, true, out var updatedTileIds)
+        )
             return false;
 
         await FlushDirtyFloorItemAsync(item.ObjectId.Value, ct);
@@ -326,6 +296,29 @@ internal sealed partial class RoomFurniModule
             item.Definition.Length,
             out tileIds
         );
+
+    private async Task<bool> AttatchFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
+    {
+        if (!_state.FloorItemsById.TryAdd(item.ObjectId.Value, item))
+            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
+
+        if (!_state.OwnerNamesById.TryGetValue(item.OwnerId, out string? value))
+        {
+            var ownerName = await _grainFactory
+                .GetGrain<IPlayerDirectoryGrain>(PlayerDirectoryGrain.SINGLETON_KEY)
+                .GetPlayerNameAsync(item.OwnerId, ct);
+
+            value = ownerName;
+            _state.OwnerNamesById[item.OwnerId] = value;
+        }
+
+        item.SetOwnerName(value ?? string.Empty);
+        item.SetAction(objectId => ProcessDirtyFloorItem(objectId.Value, ct));
+
+        await AttatchFloorLogicIfNeededAsync(item, ct);
+
+        return true;
+    }
 
     private void ProcessDirtyFloorItem(int itemId, CancellationToken ct)
     {

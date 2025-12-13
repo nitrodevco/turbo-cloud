@@ -74,7 +74,7 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
         MarkDirty();
     }
 
-    public void SetPosition(int x, int y)
+    public void SetPosition(int x, int y, bool silent = false)
     {
         if (X == x && Y == y)
             return;
@@ -82,19 +82,21 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
         X = x;
         Y = y;
 
-        MarkDirty();
+        if (!silent)
+            MarkDirty();
     }
 
-    public void SetHeight(double z)
+    public void SetHeight(double z, bool silent = false)
     {
-        z = Math.Truncate(z * 1000) / 1000;
+        z = Math.Round(z, 2);
 
         if (Z == z)
             return;
 
         Z = z;
 
-        MarkDirty();
+        if (!silent)
+            MarkDirty();
     }
 
     public void SetRotation(Rotation rot)

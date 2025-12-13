@@ -15,6 +15,4 @@ public interface IFurnitureLogic : IRoomObjectLogic
     public Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct);
     public Task OnClickAsync(ActionContext ctx, int param, CancellationToken ct);
     public Task OnMoveAsync(ActionContext ctx, CancellationToken ct);
-    public Task OnPlaceAsync(ActionContext ctx, CancellationToken ct);
-    public Task OnPickupAsync(ActionContext ctx, CancellationToken ct);
 }

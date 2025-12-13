@@ -22,25 +22,7 @@ internal sealed partial class RoomFurniModule
 {
     public async Task<bool> AddWallItemAsync(IRoomWallItem item, CancellationToken ct)
     {
-        if (!_state.WallItemsById.TryAdd(item.ObjectId.Value, item))
-            throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
-
-        if (!_state.OwnerNamesById.TryGetValue(item.OwnerId, out string? value))
-        {
-            var ownerName = await _grainFactory
-                .GetGrain<IPlayerDirectoryGrain>(PlayerDirectoryGrain.SINGLETON_KEY)
-                .GetPlayerNameAsync(item.OwnerId, ct);
-
-            value = ownerName;
-            _state.OwnerNamesById[item.OwnerId] = value;
-        }
-
-        item.SetOwnerName(value ?? string.Empty);
-        item.SetAction(objectId => ProcessDirtyWallItem(objectId.Value, ct));
-
-        await AttatchWallLogicIfNeededAsync(item, ct);
-
-        if (!_roomMap.AddWallItem(item))
+        if (!await AttatchWallItemAsync(item, ct) || !_roomMap.AddWallItem(item))
             return false;
 
         return true;
@@ -57,25 +39,10 @@ internal sealed partial class RoomFurniModule
         CancellationToken ct
     )
     {
-        if (!_state.WallItemsById.TryAdd(item.ObjectId.Value, item))
-            throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
-
-        if (!_state.OwnerNamesById.TryGetValue(item.OwnerId, out string? value))
-        {
-            var ownerName = await _grainFactory
-                .GetGrain<IPlayerDirectoryGrain>(PlayerDirectoryGrain.SINGLETON_KEY)
-                .GetPlayerNameAsync(item.OwnerId, ct);
-
-            value = ownerName;
-            _state.OwnerNamesById[item.OwnerId] = value;
-        }
-
-        item.SetOwnerName(value ?? string.Empty);
-        item.SetAction(objectId => ProcessDirtyWallItem(objectId.Value, ct));
-
-        await AttatchWallLogicIfNeededAsync(item, ct);
-
-        if (!_roomMap.PlaceWallItem(item, x, y, z, rot, wallOffset))
+        if (
+            !await AttatchWallItemAsync(item, ct)
+            || !_roomMap.PlaceWallItem(item, x, y, z, rot, wallOffset)
+        )
             return false;
 
         await FlushDirtyWallItemAsync(item.ObjectId.Value, ct);
@@ -201,6 +168,29 @@ internal sealed partial class RoomFurniModule
                 ? item.GetSnapshot()
                 : null
         );
+
+    private async Task<bool> AttatchWallItemAsync(IRoomWallItem item, CancellationToken ct)
+    {
+        if (!_state.WallItemsById.TryAdd(item.ObjectId.Value, item))
+            throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
+
+        if (!_state.OwnerNamesById.TryGetValue(item.OwnerId, out string? value))
+        {
+            var ownerName = await _grainFactory
+                .GetGrain<IPlayerDirectoryGrain>(PlayerDirectoryGrain.SINGLETON_KEY)
+                .GetPlayerNameAsync(item.OwnerId, ct);
+
+            value = ownerName;
+            _state.OwnerNamesById[item.OwnerId] = value;
+        }
+
+        item.SetOwnerName(value ?? string.Empty);
+        item.SetAction(objectId => ProcessDirtyWallItem(objectId.Value, ct));
+
+        await AttatchWallLogicIfNeededAsync(item, ct);
+
+        return true;
+    }
 
     private void ProcessDirtyWallItem(int itemId, CancellationToken ct)
     {

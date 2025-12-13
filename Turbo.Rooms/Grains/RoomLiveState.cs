@@ -5,7 +5,6 @@ using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
-using Turbo.Rooms.Mapping;
 
 namespace Turbo.Rooms.Grains;
 
@@ -25,11 +24,10 @@ internal sealed class RoomLiveState
     public short[] TileEncodedHeights { get; internal set; } = [];
     public RoomTileFlags[] TileFlags { get; internal set; } = [];
     public long[] TileHighestFloorItems { get; internal set; } = [];
-    public List<long>[] TileFloorStacks { get; internal set; } = [];
-    public List<int>[] TileAvatarStacks { get; internal set; } = [];
+    public HashSet<long>[] TileFloorStacks { get; internal set; } = [];
+    public HashSet<int>[] TileAvatarStacks { get; internal set; } = [];
 
     public HashSet<long> PlayerIdsWithRights { get; } = [];
-    public List<RollerData> RollerInfos { get; } = [];
 
     public HashSet<int> DirtyHeightTileIds { get; } = [];
     public HashSet<long> DirtyFloorItemIds { get; } = [];

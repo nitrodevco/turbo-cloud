@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 
@@ -34,18 +35,44 @@ public abstract class FurnitureLogicBase<TItem, TContext>(
 
     public virtual Task<bool> SetStateAsync(int state) => Task.FromResult(false);
 
+    public override Task OnAttachAsync(CancellationToken ct) =>
+        _ctx.PublishRoomEventAsync(
+            new RoomItemAttatchedEvent
+            {
+                RoomId = _ctx.RoomId,
+                CausedBy = null,
+                ItemId = _ctx.ObjectId,
+            },
+            ct
+        );
+
+    public override Task OnDetachAsync(CancellationToken ct) =>
+        _ctx.PublishRoomEventAsync(
+            new RoomItemDetachedEvent
+            {
+                RoomId = _ctx.RoomId,
+                CausedBy = null,
+                ItemId = _ctx.ObjectId,
+            },
+            ct
+        );
+
     public virtual Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct) =>
         Task.CompletedTask;
 
     public virtual Task OnClickAsync(ActionContext ctx, int param, CancellationToken ct) =>
         Task.CompletedTask;
 
-    public virtual Task OnMoveAsync(ActionContext ctx, CancellationToken ct) => Task.CompletedTask;
-
-    public virtual Task OnPlaceAsync(ActionContext ctx, CancellationToken ct) => Task.CompletedTask;
-
-    public virtual Task OnPickupAsync(ActionContext ctx, CancellationToken ct) =>
-        Task.CompletedTask;
+    public virtual Task OnMoveAsync(ActionContext ctx, CancellationToken ct) =>
+        _ctx.PublishRoomEventAsync(
+            new RoomItemMovedEvent
+            {
+                RoomId = _ctx.RoomId,
+                CausedBy = ctx,
+                ItemId = _ctx.ObjectId,
+            },
+            ct
+        );
 
     protected virtual IStuffData CreateStuffData(string json = "") =>
         _stuffDataFactory.CreateStuffDataFromJson((int)StuffDataKey, json);

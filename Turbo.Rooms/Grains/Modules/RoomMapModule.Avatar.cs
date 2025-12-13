@@ -103,11 +103,9 @@ internal sealed partial class RoomMapModule
         if (tileFlags.Has(RoomTileFlags.Disabled) || tileFlags.Has(RoomTileFlags.Closed))
             return false;
 
-        var avatarStack = _state.TileAvatarStacks[tileIdx];
-
-        if (avatarStack.Count > 0)
+        if (tileFlags.Has(RoomTileFlags.AvatarOccupied))
         {
-            if (avatarStack.Contains(avatar.ObjectId.Value))
+            if (_state.TileAvatarStacks[tileIdx].Contains(avatar.ObjectId.Value))
                 return true;
 
             if (isGoal || _state.RoomSnapshot.AllowBlocking)
@@ -146,6 +144,49 @@ internal sealed partial class RoomMapModule
         }
 
         return true;
+    }
+
+    public bool RollAvatar(IRoomAvatar avatar, int tileIdx, double z)
+    {
+        if (!InBounds(tileIdx))
+            throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
+
+        RemoveAvatar(avatar, false);
+
+        avatar.SetPosition(GetX(tileIdx), GetY(tileIdx), true);
+        avatar.SetHeight(z, true);
+
+        AddAvatar(avatar, false);
+
+        return true;
+    }
+
+    public void AddAvatar(IRoomAvatar avatar, bool flush)
+    {
+        var tileIdx = ToIdx(avatar.X, avatar.Y);
+
+        if (!InBounds(tileIdx))
+            throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
+
+        _state.TileAvatarStacks[tileIdx].Add(avatar.ObjectId.Value);
+
+        ComputeTile(tileIdx);
+
+        if (flush) { }
+    }
+
+    public void RemoveAvatar(IRoomAvatar avatar, bool flush)
+    {
+        var tileIdx = ToIdx(avatar.X, avatar.Y);
+
+        if (!InBounds(tileIdx))
+            throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
+
+        _state.TileAvatarStacks[tileIdx].Remove(avatar.ObjectId.Value);
+
+        ComputeTile(tileIdx);
+
+        if (flush) { }
     }
 
     public void UpdateHeightForAvatar(IRoomAvatar avatar)
