@@ -96,7 +96,7 @@ internal sealed class RoomWallItem : RoomItem, IRoomWallItem
             Rotation = Rotation,
             StuffData = Logic.StuffData.GetSnapshot(),
             StuffDataJson = JsonSerializer.Serialize(Logic.StuffData, Logic.StuffData.GetType()),
-            UsagePolicy = Definition.UsagePolicy,
+            UsagePolicy = Logic.GetUsagePolicy(),
             WallOffset = WallOffset,
             WallPosition = ConvertWallPositionToString(),
         };

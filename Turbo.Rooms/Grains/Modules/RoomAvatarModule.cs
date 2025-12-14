@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -92,8 +91,7 @@ internal sealed partial class RoomAvatarModule(
 
         await AttatchLogicIfNeededAsync(avatar, ct);
         await ProcessNextAvatarStepAsync(avatar, ct);
-
-        _ = _roomGrain.SendComposerToRoomAsync(
+        await _roomGrain.SendComposerToRoomAsync(
             new UsersMessageComposer { Avatars = [avatar.GetSnapshot()] },
             ct
         );
@@ -120,7 +118,7 @@ internal sealed partial class RoomAvatarModule(
             _state.AvatarsByPlayerId.Remove(objectIdValue);
             _state.AvatarsByObjectId.Remove(objectIdValue);
 
-            _ = _roomGrain.SendComposerToRoomAsync(
+            await _roomGrain.SendComposerToRoomAsync(
                 new UserRemoveMessageComposer { ObjectId = RoomObjectId.From(objectIdValue) },
                 ct
             );
@@ -229,7 +227,7 @@ internal sealed partial class RoomAvatarModule(
             _state.AvatarsByObjectId.Values.Select(x => x.GetSnapshot()).ToImmutableArray()
         );
 
-    private async Task StopWalkingAsync(IRoomAvatar avatar, CancellationToken ct)
+    public async Task StopWalkingAsync(IRoomAvatar avatar, CancellationToken ct)
     {
         try
         {
@@ -250,7 +248,7 @@ internal sealed partial class RoomAvatarModule(
         catch (Exception) { }
     }
 
-    private async Task ProcessNextAvatarStepAsync(IRoomAvatar avatar, CancellationToken ct)
+    public async Task ProcessNextAvatarStepAsync(IRoomAvatar avatar, CancellationToken ct)
     {
         try
         {
@@ -274,115 +272,6 @@ internal sealed partial class RoomAvatarModule(
             _roomMap.AddAvatar(avatar, false);
 
             _roomMap.UpdateHeightForAvatar(avatar);
-        }
-        catch (Exception)
-        {
-            await StopWalkingAsync(avatar, ct);
-        }
-    }
-
-    internal async Task FlushDirtyAvatarsAsync(CancellationToken ct)
-    {
-        try
-        {
-            var avatars = _state.AvatarsByObjectId.Values.ToArray();
-
-            if (avatars.Length == 0)
-                return;
-
-            var dirtySnapshots = new List<RoomAvatarSnapshot>();
-
-            foreach (var avatar in avatars)
-            {
-                try
-                {
-                    await ProcessDirtyAvatarAsync(avatar, ct);
-
-                    if (!avatar.IsDirty)
-                        continue;
-
-                    var snapshot = avatar.GetSnapshot();
-
-                    dirtySnapshots.Add(snapshot);
-                }
-                catch (Exception) { }
-            }
-
-            if (dirtySnapshots.Count == 0)
-                return;
-
-            _ = _roomGrain.SendComposerToRoomAsync(
-                new UserUpdateMessageComposer { Avatars = [.. dirtySnapshots] },
-                ct
-            );
-        }
-        catch (Exception)
-        {
-            return;
-        }
-    }
-
-    internal async Task ProcessDirtyAvatarAsync(IRoomAvatar avatar, CancellationToken ct)
-    {
-        await ProcessNextAvatarStepAsync(avatar, ct);
-
-        if (avatar.TilePath.Count <= 0)
-        {
-            await StopWalkingAsync(avatar, ct);
-
-            return;
-        }
-
-        var nextTileId = avatar.TilePath[0];
-        avatar.TilePath.RemoveAt(0);
-
-        await ValidateAvatarStepAsync(avatar, nextTileId, ct);
-    }
-
-    internal async Task ValidateAvatarStepAsync(
-        IRoomAvatar avatar,
-        int nextTileId,
-        CancellationToken ct
-    )
-    {
-        try
-        {
-            var isGoal = avatar.TilePath.Count == 0;
-            var prevTileId = _roomMap.ToIdx(avatar.X, avatar.Y);
-            var (nextX, nextY) = _roomMap.GetTileXY(nextTileId);
-            var prevHeight = _roomMap.GetTileHeightForAvatar(prevTileId);
-            var nextHeight = _roomMap.GetTileHeightForAvatar(nextTileId);
-
-            if (Math.Abs(nextHeight - prevHeight) > Math.Abs(_roomConfig.MaxStepHeight))
-                throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
-
-            if (!_roomMap.CanAvatarWalkBetween(avatar, prevTileId, nextTileId, isGoal))
-            {
-                if (!isGoal)
-                {
-                    var (goalX, goalY) = _roomMap.GetTileXY(avatar.GoalTileId);
-
-                    await WalkAvatarToAsync(avatar, goalX, goalY, ct);
-                    await ProcessDirtyAvatarAsync(avatar, ct);
-
-                    return;
-                }
-
-                throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
-            }
-
-            _state.TileAvatarStacks[prevTileId].Remove(avatar.ObjectId.Value);
-
-            _roomMap.ComputeTile(prevTileId);
-
-            _state.TileAvatarStacks[nextTileId].Add(avatar.ObjectId.Value);
-
-            _roomMap.ComputeTile(nextTileId);
-
-            avatar.RemoveStatus(AvatarStatusType.Lay, AvatarStatusType.Sit);
-            avatar.AddStatus(AvatarStatusType.Move, $"{nextX},{nextY},{nextHeight}");
-            avatar.SetRotation(RotationExtensions.FromPoints(avatar.X, avatar.Y, nextX, nextY));
-            avatar.SetNextTileId(nextTileId);
         }
         catch (Exception)
         {

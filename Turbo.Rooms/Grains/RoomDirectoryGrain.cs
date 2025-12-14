@@ -119,7 +119,7 @@ public class RoomDirectoryGrain(IOptions<RoomConfig> roomConfig, IGrainFactory g
         await room.RemoveAvatarFromPlayerAsync(playerId, ct);
     }
 
-    public Task SendComposerToRoomAsync(IComposer composer, int roomId, CancellationToken ct)
+    public async Task SendComposerToRoomAsync(IComposer composer, int roomId, CancellationToken ct)
     {
         if (_roomPlayers.TryGetValue(roomId, out var playerIds) && playerIds.Count > 0)
         {
@@ -127,11 +127,9 @@ public class RoomDirectoryGrain(IOptions<RoomConfig> roomConfig, IGrainFactory g
             {
                 var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
 
-                _ = playerPresence.SendComposerAsync(composer, ct);
+                await playerPresence.SendComposerAsync(composer, ct);
             }
         }
-
-        return Task.CompletedTask;
     }
 
     private Task UpdatePopulationAsync(int roomId)

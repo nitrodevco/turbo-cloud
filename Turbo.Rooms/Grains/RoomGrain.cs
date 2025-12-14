@@ -40,6 +40,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     private readonly RoomActionModule _actionModule;
 
     private readonly RoomPathingSystem _pathingSystem;
+    private readonly RoomAvatarTickSystem _avatarTickSystem;
     private readonly RoomRollerSystem _rollerSystem;
 
     public RoomGrain(
@@ -95,6 +96,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             _itemsLoader
         );
 
+        _avatarTickSystem = new(this, _roomConfig, _liveState, _avatarModule, _mapModule);
         _rollerSystem = new(this, _roomConfig, _liveState, _mapModule);
 
         _eventModule.Register(_rollerSystem);
@@ -125,7 +127,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         this.RegisterGrainTimer<object?>(
             async _ =>
             {
-                await _avatarModule.FlushDirtyAvatarsAsync(ct);
+                await _avatarTickSystem.ProcessAvatarsAsync(ct);
                 await _rollerSystem.ProcessRollersAsync(ct);
             },
             null,

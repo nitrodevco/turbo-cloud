@@ -53,10 +53,7 @@ public sealed class FurnitureDefinitionProvider(
                     TotalStates = x.TotalStates,
                     Width = x.Width,
                     Length = x.Length,
-                    StackHeight = Math.Round(
-                        x.StackHeight == 0 ? _config.MinimumZValue : x.StackHeight,
-                        3
-                    ),
+                    StackHeight = Math.Round(Math.Max(_config.MinimumZValue, x.StackHeight), 3),
                     CanStack = x.CanStack,
                     CanWalk = x.CanWalk,
                     CanSit = x.CanSit,

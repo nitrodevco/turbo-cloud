@@ -363,7 +363,7 @@ internal sealed partial class RoomMapModule(
 
             if (dirtySnapshots.Count > 0)
             {
-                _ = _roomGrain.SendComposerToRoomAsync(
+                await _roomGrain.SendComposerToRoomAsync(
                     new HeightMapUpdateMessageComposer { Tiles = [.. dirtySnapshots] },
                     ct
                 );
