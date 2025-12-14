@@ -109,7 +109,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             .UpsertActiveRoomAsync(_liveState.RoomSnapshot);
 
         this.RegisterGrainTimer<object?>(
-            async _ => await _mapModule.FlushDirtyHeightTileIdsAsync(ct),
+            async _ => await _mapModule.FlushDirtyTileIdxsAsync(ct),
             null,
             TimeSpan.FromMilliseconds(_roomConfig.DirtyTilesFlushIntervalMilliseconds),
             TimeSpan.FromMilliseconds(_roomConfig.DirtyTilesFlushIntervalMilliseconds)

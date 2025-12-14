@@ -16,6 +16,9 @@ internal sealed partial class RoomMapModule
     {
         try
         {
+            if (avatar.IsWalking)
+                return;
+
             var tileId = ToIdx(avatar.X, avatar.Y);
             var highestItemId = _state.TileHighestFloorItems[tileId];
             var canSit = false;
@@ -45,26 +48,14 @@ internal sealed partial class RoomMapModule
         catch (Exception) { }
     }
 
-    public async Task InvokeAvatarsAsync(HashSet<int> avatarIds, CancellationToken ct)
-    {
-        if (avatarIds.Count == 0)
-            return;
-
-        foreach (var avatarId in avatarIds)
-        {
-            if (!_state.AvatarsByObjectId.TryGetValue(avatarId, out var avatar))
-                continue;
-
-            await InvokeAvatarAsync(avatar, ct);
-        }
-    }
-
-    public async Task InvokeAvatarsOnTilesAsync(List<int> tileIdx, CancellationToken ct)
+    public async Task InvokeAvatarsOnTilesAsync(HashSet<int> tileIdx, CancellationToken ct)
     {
         if (tileIdx.Count == 0)
             return;
 
-        var avatarIds = new List<long>();
+        tileIdx = [.. tileIdx.Distinct()];
+
+        var avatarIds = new HashSet<int>();
 
         foreach (var idx in tileIdx)
         {
@@ -84,13 +75,11 @@ internal sealed partial class RoomMapModule
             }
         }
 
-        avatarIds = [.. avatarIds.Distinct()];
-
         foreach (var avatarId in avatarIds)
         {
             try
             {
-                if (!_state.AvatarsByObjectId.TryGetValue((int)avatarId, out var avatar))
+                if (!_state.AvatarsByObjectId.TryGetValue(avatarId, out var avatar))
                     continue;
 
                 await InvokeAvatarAsync(avatar, ct);
@@ -160,18 +149,18 @@ internal sealed partial class RoomMapModule
         return true;
     }
 
-    public bool RollAvatar(IRoomAvatar avatar, int tileIdx, double z)
+    public bool RollAvatar(IRoomAvatar avatar, int tileIdx)
     {
         if (!InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
         RemoveAvatar(avatar, false);
 
-        avatar.SetPosition(GetX(tileIdx), GetY(tileIdx), true);
+        avatar.SetPosition(GetX(tileIdx), GetY(tileIdx));
 
         AddAvatar(avatar, false);
 
-        avatar.SetHeight(GetTileHeightForAvatar(tileIdx), true);
+        avatar.SetHeight(GetTileHeightForAvatar(tileIdx));
 
         return true;
     }
@@ -206,10 +195,33 @@ internal sealed partial class RoomMapModule
 
     public void UpdateHeightForAvatar(IRoomAvatar avatar)
     {
-        var tileId = ToIdx(avatar.X, avatar.Y);
-        var next = GetTileHeightForAvatar(tileId);
+        try
+        {
+            var tileId = ToIdx(avatar.X, avatar.Y);
+            var height = _state.TileHeights[tileId];
+            var flags = _state.TileFlags[tileId];
+            var highestItemId = _state.TileHighestFloorItems[tileId];
+            var postureOffset = 0.0;
 
-        avatar.SetHeight(next);
+            if (
+                highestItemId > 0
+                && (flags.Has(RoomTileFlags.Sittable) || flags.Has(RoomTileFlags.Layable))
+            )
+            {
+                var floorItem = _state.FloorItemsById[highestItemId];
+
+                if (floorItem is not null)
+                {
+                    postureOffset = floorItem.Definition.StackHeight;
+
+                    height -= postureOffset;
+                }
+            }
+
+            avatar.SetPostureOffset(Math.Round(postureOffset, 3));
+            avatar.SetHeight(Math.Round(height, 3));
+        }
+        catch (Exception) { }
     }
 
     public double GetTileHeightForAvatar(int tileId)

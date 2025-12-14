@@ -19,6 +19,7 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
     public IRoomAvatarLogic Logic { get; private set; } = default!;
     public Dictionary<AvatarStatusType, string> Statuses { get; } = [];
 
+    public double PostureOffset { get; private set; } = 0.0;
     public int GoalTileId { get; private set; } = -1;
     public int NextTileId { get; private set; } = -1;
     public bool IsWalking { get; private set; } = false;
@@ -27,6 +28,14 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
     private int _goalTries = 0;
 
     private RoomAvatarSnapshot? _snapshot;
+
+    public void SetPostureOffset(double offset)
+    {
+        if (PostureOffset == offset)
+            return;
+
+        PostureOffset = offset;
+    }
 
     public bool SetGoalTileId(int tileId)
     {

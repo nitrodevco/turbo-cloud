@@ -8,5 +8,4 @@ internal sealed record RollerMovedEntity
     public required IRoomObject RoomObject { get; init; }
     public required double FromZ { get; init; }
     public required double ToZ { get; init; }
-    public required double ZOffset { get; init; }
 }

@@ -28,30 +28,14 @@ internal sealed class RoomRollerSystem(
     private readonly RoomLiveState _state = roomLiveState;
     private readonly RoomMapModule _roomMap = roomMapModule;
 
-    private int _tickCount = 0;
-
-    private Dictionary<Rotation, List<int>> _rollerIdsByDirection = [];
-    private List<RollerMovePlan> _currentPlans = [];
+    private readonly List<List<int>> _rollerIdSets = [];
 
     private bool _isDirtyRollers = true;
+    private int _tickCount = 0;
 
     public async Task ProcessRollersAsync(CancellationToken ct)
     {
         _tickCount++;
-
-        if (_currentPlans.Count > 0)
-        {
-            foreach (var plan in _currentPlans)
-            {
-                var avatarIds = plan
-                    .MovedAvatars.Select(x => x.RoomObject.ObjectId.Value)
-                    .ToHashSet();
-
-                await _roomMap.InvokeAvatarsAsync(avatarIds, ct);
-            }
-
-            _currentPlans.Clear();
-        }
 
         if (_tickCount != _roomConfig.RoomRollerTickCount)
             return;
@@ -60,20 +44,25 @@ internal sealed class RoomRollerSystem(
 
         ComputeRollers();
 
-        if (_rollerIdsByDirection.Count == 0)
+        if (_rollerIdSets.Count == 0)
             return;
 
-        _currentPlans.Clear();
+        var currentPlans = new List<RollerMovePlan>();
+        var reservedTileIdxs = new HashSet<int>();
+        var nextAvatarTiles = new HashSet<int>(
+            _state.AvatarsByObjectId.Values.Where(x => x.NextTileId >= 0).Select(x => x.NextTileId)
+        );
 
-        foreach (var (rotation, rollerIds) in _rollerIdsByDirection)
+        foreach (var rollerIds in _rollerIdSets)
         {
-            var rollers = rollerIds.Select(x => _state.FloorItemsById[x]).ToList();
+            if (rollerIds.Count == 0)
+                continue;
 
-            foreach (var roller in rollers)
+            foreach (var rollerId in rollerIds)
             {
                 try
                 {
-                    if (roller is null)
+                    if (!_state.FloorItemsById.TryGetValue(rollerId, out var roller))
                         continue;
 
                     var fromIdx = _roomMap.ToIdx(roller.X, roller.Y);
@@ -84,6 +73,9 @@ internal sealed class RoomRollerSystem(
                     )
                         continue;
 
+                    if (reservedTileIdxs.Contains(toIdx) || nextAvatarTiles.Contains(toIdx))
+                        continue;
+
                     var fromTileState = _state.TileFlags[fromIdx];
                     var toTileState = _state.TileFlags[toIdx];
                     var toTileHeight = _state.TileHeights[toIdx];
@@ -92,21 +84,33 @@ internal sealed class RoomRollerSystem(
                     if (
                         toTileHeight > rollerHeight
                         || toTileState.Has(RoomTileFlags.AvatarOccupied)
-                        || _currentPlans.Any(x => x.ToIdx == toIdx)
-                        || IsAvatarAboutToWalkHere(toIdx)
                     )
                         continue;
 
-                    var floorItems = _state
-                        .TileFloorStacks[fromIdx]
-                        .Select(x => _state.FloorItemsById[x])
-                        .Where(x => x.Z >= rollerHeight && x.Logic.CanRoll())
-                        .ToList();
-                    var avatars = _state
-                        .TileAvatarStacks[fromIdx]
-                        .Select(x => _state.AvatarsByObjectId[x])
-                        .Where(x => x.Z >= rollerHeight && x.Logic.CanRoll())
-                        .ToList();
+                    var floorItems = new List<IRoomFloorItem>();
+                    var avatars = new List<IRoomAvatar>();
+
+                    foreach (var itemId in _state.TileFloorStacks[fromIdx])
+                    {
+                        if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
+                            continue;
+
+                        if (item.Z < rollerHeight || !item.Logic.CanRoll())
+                            continue;
+
+                        floorItems.Add(item);
+                    }
+
+                    foreach (var avatarId in _state.TileAvatarStacks[fromIdx])
+                    {
+                        if (!_state.AvatarsByObjectId.TryGetValue(avatarId, out var avatar))
+                            continue;
+
+                        if (avatar.Z < rollerHeight || !avatar.Logic.CanRoll())
+                            continue;
+
+                        avatars.Add(avatar);
+                    }
 
                     if (
                         floorItems.Count == 0 && avatars.Count == 0
@@ -115,7 +119,7 @@ internal sealed class RoomRollerSystem(
                     )
                         continue;
 
-                    _currentPlans.Add(
+                    currentPlans.Add(
                         new RollerMovePlan
                         {
                             RollerId = roller.ObjectId.Value,
@@ -127,7 +131,6 @@ internal sealed class RoomRollerSystem(
                                 {
                                     ObjectId = x.ObjectId,
                                     RoomObject = x,
-                                    ZOffset = 0,
                                     FromZ = x.Z,
                                     ToZ = x.Z - rollerHeight + toTileHeight,
                                 }),
@@ -136,22 +139,10 @@ internal sealed class RoomRollerSystem(
                             [
                                 .. avatars.Select(x =>
                                 {
-                                    var offset = 0.0;
-
-                                    if (x.HasStatus(AvatarStatusType.Sit))
-                                    {
-                                        offset = double.Parse(x.Statuses[AvatarStatusType.Sit]);
-                                    }
-                                    else if (x.HasStatus(AvatarStatusType.Lay))
-                                    {
-                                        offset = double.Parse(x.Statuses[AvatarStatusType.Lay]);
-                                    }
-
                                     return new RollerMovedEntity
                                     {
                                         ObjectId = x.ObjectId,
                                         RoomObject = x,
-                                        ZOffset = offset,
                                         FromZ = x.Z,
                                         ToZ = x.Z - rollerHeight + toTileHeight,
                                     };
@@ -159,6 +150,8 @@ internal sealed class RoomRollerSystem(
                             ],
                         }
                     );
+
+                    reservedTileIdxs.Add(toIdx);
                 }
                 catch (Exception)
                 {
@@ -167,26 +160,21 @@ internal sealed class RoomRollerSystem(
             }
         }
 
-        if (_currentPlans.Count == 0)
+        if (currentPlans.Count == 0)
             return;
 
         var composers = new List<IComposer>();
-        var updatedAvatarIds = new HashSet<int>();
 
-        foreach (var plan in _currentPlans)
+        foreach (var plan in currentPlans)
         {
             var (fromX, fromY) = _roomMap.GetTileXY(plan.FromIdx);
             var (toX, toY) = _roomMap.GetTileXY(plan.ToIdx);
 
             foreach (var item in plan.MovedFloorItems)
-            {
-                _roomMap.RollFloorItem(
-                    (IRoomFloorItem)item.RoomObject,
-                    plan.ToIdx,
-                    item.ToZ,
-                    out _
-                );
-            }
+                _roomMap.RollFloorItem((IRoomFloorItem)item.RoomObject, plan.ToIdx, item.ToZ);
+
+            foreach (var avatar in plan.MovedAvatars)
+                _roomMap.RollAvatar((IRoomAvatar)avatar.RoomObject, plan.ToIdx);
 
             if (plan.MovedAvatars.Count > 0)
             {
@@ -195,10 +183,6 @@ internal sealed class RoomRollerSystem(
                 foreach (var avatar in plan.MovedAvatars)
                 {
                     var avatarObject = (IRoomAvatar)avatar.RoomObject;
-
-                    _roomMap.RollAvatar(avatarObject, plan.ToIdx, avatar.ToZ);
-
-                    updatedAvatarIds.Add(avatarObject.ObjectId.Value);
 
                     if (!sent)
                     {
@@ -219,8 +203,8 @@ internal sealed class RoomRollerSystem(
                                 Avatar = (
                                     SlideAvatarMoveType.Slide,
                                     avatar.RoomObject.ObjectId.Value,
-                                    avatar.FromZ + avatar.ZOffset,
-                                    avatar.ToZ + avatar.ZOffset
+                                    avatar.FromZ + avatarObject.PostureOffset,
+                                    avatar.ToZ + avatarObject.PostureOffset
                                 ),
                             }
                         );
@@ -242,8 +226,8 @@ internal sealed class RoomRollerSystem(
                             Avatar = (
                                 SlideAvatarMoveType.Slide,
                                 avatar.RoomObject.ObjectId.Value,
-                                avatar.FromZ,
-                                avatar.ToZ
+                                avatar.FromZ + avatarObject.PostureOffset,
+                                avatar.ToZ + avatarObject.PostureOffset
                             ),
                         }
                     );
@@ -272,20 +256,7 @@ internal sealed class RoomRollerSystem(
         }
 
         foreach (var composer in composers)
-        {
-            _ = _roomGrain.SendComposerToRoomAsync(composer, ct);
-        }
-    }
-
-    private bool IsAvatarAboutToWalkHere(int tileIdx)
-    {
-        foreach (var avatar in _state.AvatarsByObjectId.Values)
-        {
-            if (avatar.NextTileId == tileIdx)
-                return true;
-        }
-
-        return false;
+            await _roomGrain.SendComposerToRoomAsync(composer, ct);
     }
 
     private void ComputeRollers()
@@ -293,7 +264,7 @@ internal sealed class RoomRollerSystem(
         if (!_isDirtyRollers)
             return;
 
-        _rollerIdsByDirection.Clear();
+        _rollerIdSets.Clear();
 
         var rollers = _state
             .FloorItemsById.Values.Where(x => x.Logic is FurnitureRollerLogic)
@@ -302,11 +273,11 @@ internal sealed class RoomRollerSystem(
         if (rollers.Count == 0)
             return;
 
-        foreach (var group in rollers.GroupBy(x => x.Rotation))
+        foreach (var group in rollers.GroupBy(x => x.Rotation).OrderBy(x => x.Key))
         {
             var stack = OrderRollersFrontToBack(group);
 
-            _rollerIdsByDirection.TryAdd(group.Key, [.. stack.Select(x => x.ObjectId.Value)]);
+            _rollerIdSets.Add([.. stack.Select(x => x.ObjectId.Value)]);
         }
 
         _isDirtyRollers = false;
@@ -347,27 +318,6 @@ internal sealed class RoomRollerSystem(
             Rotation.West => list.OrderBy(r => r.X).ThenBy(r => r.Y),
             Rotation.South => list.OrderByDescending(r => r.Y).ThenBy(r => r.X),
             Rotation.North => list.OrderBy(r => r.Y).ThenBy(r => r.X),
-            _ => list.OrderBy(r => r.Y).ThenBy(r => r.X),
-        };
-    }
-
-    public static IEnumerable<IRoomFloorItem> OrderRollersBackToFront(
-        IEnumerable<IRoomFloorItem> rollers
-    )
-    {
-        var list = rollers.ToList();
-
-        if (list.Count == 0)
-            return list;
-
-        var dir = list[0].Rotation;
-
-        return dir switch
-        {
-            Rotation.East => list.OrderBy(r => r.X).ThenBy(r => r.Y),
-            Rotation.West => list.OrderByDescending(r => r.X).ThenBy(r => r.Y),
-            Rotation.South => list.OrderBy(r => r.Y).ThenBy(r => r.X),
-            Rotation.North => list.OrderByDescending(r => r.Y).ThenBy(r => r.X),
             _ => list.OrderBy(r => r.Y).ThenBy(r => r.X),
         };
     }

@@ -11,7 +11,7 @@ public class RoomConfig
     public int RoomTickMilliseconds { get; init; } = 500;
     public int RoomRollerTickCount { get; init; } = 4;
     public int DirtyItemsFlushIntervalMilliseconds { get; init; } = 5250;
-    public int DirtyTilesFlushIntervalMilliseconds { get; init; } = 10;
+    public int DirtyTilesFlushIntervalMilliseconds { get; init; } = 50;
     public double MaxStackHeight { get; init; } = 40.0;
     public RoomScaleType DefaultRoomScale { get; init; } = RoomScaleType.Normal;
     public int DefaultWallHeight { get; init; } = 0;

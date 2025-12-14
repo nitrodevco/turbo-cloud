@@ -225,6 +225,8 @@ internal sealed partial class RoomMapModule(
             _state.DirtyHeightTileIds.Add(id);
         }
 
+        _state.DirtyTileIdxs.Add(id);
+
         _dirty = true;
     }
 
@@ -336,30 +338,30 @@ internal sealed partial class RoomMapModule(
         return Task.CompletedTask;
     }
 
-    internal Task FlushDirtyHeightTileIdsAsync(CancellationToken ct)
+    internal async Task FlushDirtyTileIdxsAsync(CancellationToken ct)
     {
-        if (_state.DirtyHeightTileIds.Count > 0)
+        var dirtyTileIdxs = _state.DirtyTileIdxs.ToHashSet();
+        var dirtyHeightTileIds = _state.DirtyHeightTileIds.ToHashSet();
+
+        _state.DirtyTileIdxs.Clear();
+        _state.DirtyHeightTileIds.Clear();
+
+        if (dirtyTileIdxs.Count > 0)
+            await InvokeAvatarsOnTilesAsync(dirtyTileIdxs, ct);
+
+        if (dirtyHeightTileIds.Count > 0)
         {
-            var dirtyHeightTileIds = _state.DirtyHeightTileIds.ToArray();
-
-            _state.DirtyHeightTileIds.Clear();
-
-            var dirtySnapshots = new List<RoomTileSnapshot>();
-
-            foreach (var id in dirtyHeightTileIds)
-            {
-                dirtySnapshots.Add(
-                    new RoomTileSnapshot
-                    {
-                        X = (byte)GetX(id),
-                        Y = (byte)GetY(id),
-                        Height = _state.TileHeights[id],
-                        EncodedHeight = _state.TileEncodedHeights[id],
-                        Flags = _state.TileFlags[id],
-                        HighestObjectId = RoomObjectId.From((int)_state.TileHighestFloorItems[id]),
-                    }
-                );
-            }
+            var dirtySnapshots = dirtyHeightTileIds
+                .Select(x => new RoomTileSnapshot
+                {
+                    X = (byte)GetX(x),
+                    Y = (byte)GetY(x),
+                    Height = _state.TileHeights[x],
+                    EncodedHeight = _state.TileEncodedHeights[x],
+                    Flags = _state.TileFlags[x],
+                    HighestObjectId = RoomObjectId.From((int)_state.TileHighestFloorItems[x]),
+                })
+                .ToList();
 
             if (dirtySnapshots.Count > 0)
             {
@@ -369,7 +371,5 @@ internal sealed partial class RoomMapModule(
                 );
             }
         }
-
-        return Task.CompletedTask;
     }
 }

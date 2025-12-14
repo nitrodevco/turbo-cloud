@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using Turbo.Logging;
 using Turbo.Primitives;
@@ -10,14 +9,12 @@ namespace Turbo.Rooms.Grains.Modules;
 
 internal sealed partial class RoomMapModule
 {
-    public bool AddFloorItem(IRoomFloorItem item, bool flush, out List<int> updatedTileIds)
+    public bool AddFloorItem(IRoomFloorItem item, bool flush)
     {
         var tileIdx = ToIdx(item.X, item.Y);
 
         if (!InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
-
-        updatedTileIds = [];
 
         if (
             GetTileIdForSize(
@@ -35,8 +32,6 @@ internal sealed partial class RoomMapModule
                 _state.TileFloorStacks[idx].Add(item.ObjectId.Value);
 
                 ComputeTile(idx);
-
-                updatedTileIds.Add(idx);
             }
         }
 
@@ -46,13 +41,7 @@ internal sealed partial class RoomMapModule
         return true;
     }
 
-    public bool PlaceFloorItem(
-        IRoomFloorItem item,
-        int nTileIdx,
-        Rotation rot,
-        bool flush,
-        out List<int> updatedTileIds
-    )
+    public bool PlaceFloorItem(IRoomFloorItem item, int nTileIdx, Rotation rot, bool flush)
     {
         if (!InBounds(nTileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
@@ -60,32 +49,20 @@ internal sealed partial class RoomMapModule
         item.SetPosition(GetX(nTileIdx), GetY(nTileIdx), _state.TileHeights[nTileIdx]);
         item.SetRotation(rot);
 
-        return AddFloorItem(item, flush, out updatedTileIds);
+        return AddFloorItem(item, flush);
     }
 
-    public bool MoveFloorItem(
-        IRoomFloorItem item,
-        int tileIdx,
-        Rotation rot,
-        bool flush,
-        out List<int> updatedTileIds
-    )
+    public bool MoveFloorItem(IRoomFloorItem item, int tileIdx, Rotation rot, bool flush)
     {
         if (!InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
-        updatedTileIds = [];
-
-        RemoveFloorItem(item, -1, false, out var removedTileIds);
-        updatedTileIds.AddRange(removedTileIds);
+        RemoveFloorItem(item, -1, false);
 
         item.SetPosition(GetX(tileIdx), GetY(tileIdx), _state.TileHeights[tileIdx]);
         item.SetRotation(rot);
 
-        AddFloorItem(item, false, out var addedTileIds);
-        updatedTileIds.AddRange(addedTileIds);
-
-        updatedTileIds = [.. updatedTileIds.Distinct()];
+        AddFloorItem(item, false);
 
         if (flush)
             _ = _roomGrain.SendComposerToRoomAsync(
@@ -96,44 +73,26 @@ internal sealed partial class RoomMapModule
         return true;
     }
 
-    public bool RollFloorItem(
-        IRoomFloorItem item,
-        int tileIdx,
-        double z,
-        out List<int> updatedTileIds
-    )
+    public bool RollFloorItem(IRoomFloorItem item, int tileIdx, double z)
     {
         if (!InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
-        updatedTileIds = [];
-
-        RemoveFloorItem(item, -1, false, out var removedTileIds);
-        updatedTileIds.AddRange(removedTileIds);
+        RemoveFloorItem(item, -1, false);
 
         item.SetPosition(GetX(tileIdx), GetY(tileIdx), z);
 
-        AddFloorItem(item, false, out var addedTileIds);
-        updatedTileIds.AddRange(addedTileIds);
-
-        updatedTileIds = [.. updatedTileIds.Distinct()];
+        AddFloorItem(item, false);
 
         return true;
     }
 
-    public bool RemoveFloorItem(
-        IRoomFloorItem item,
-        long pickerId,
-        bool flush,
-        out List<int> updatedTileIds
-    )
+    public bool RemoveFloorItem(IRoomFloorItem item, long pickerId, bool flush)
     {
         var tileIdx = ToIdx(item.X, item.Y);
 
         if (!InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
-
-        updatedTileIds = [];
 
         if (
             GetTileIdForSize(
@@ -151,8 +110,6 @@ internal sealed partial class RoomMapModule
                 _state.TileFloorStacks[idx].Remove(item.ObjectId.Value);
 
                 ComputeTile(idx);
-
-                updatedTileIds.Add(idx);
             }
         }
 

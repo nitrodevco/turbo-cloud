@@ -29,6 +29,7 @@ internal sealed class RoomLiveState
 
     public HashSet<long> PlayerIdsWithRights { get; } = [];
 
+    public HashSet<int> DirtyTileIdxs { get; } = [];
     public HashSet<int> DirtyHeightTileIds { get; } = [];
     public HashSet<long> DirtyFloorItemIds { get; } = [];
     public HashSet<long> DirtyWallItemIds { get; } = [];

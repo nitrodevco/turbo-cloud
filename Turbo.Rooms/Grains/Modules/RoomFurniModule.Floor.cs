@@ -24,13 +24,8 @@ internal sealed partial class RoomFurniModule
 {
     public async Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
     {
-        if (
-            !await AttatchFloorItemAsync(item, ct)
-            || !_roomMap.AddFloorItem(item, true, out var updatedTileIds)
-        )
+        if (!await AttatchFloorItemAsync(item, ct) || !_roomMap.AddFloorItem(item, true))
             return false;
-
-        await _roomMap.InvokeAvatarsOnTilesAsync(updatedTileIds, ct);
 
         return true;
     }
@@ -51,13 +46,11 @@ internal sealed partial class RoomFurniModule
 
         if (
             !await AttatchFloorItemAsync(item, ct)
-            || !_roomMap.PlaceFloorItem(item, tileIdx, rot, true, out var updatedTileIds)
+            || !_roomMap.PlaceFloorItem(item, tileIdx, rot, true)
         )
             return false;
 
         await FlushDirtyFloorItemAsync(item.ObjectId.Value, ct);
-
-        await _roomMap.InvokeAvatarsOnTilesAsync(updatedTileIds, ct);
 
         return true;
     }
@@ -76,12 +69,10 @@ internal sealed partial class RoomFurniModule
 
         var nTileIdx = _roomMap.ToIdx(x, y);
 
-        if (!_roomMap.MoveFloorItem(item, nTileIdx, rot, true, out var updatedTileIds))
+        if (!_roomMap.MoveFloorItem(item, nTileIdx, rot, true))
             return false;
 
         await item.Logic.OnMoveAsync(ctx, ct);
-
-        await _roomMap.InvokeAvatarsOnTilesAsync(updatedTileIds, ct);
 
         return true;
     }
@@ -99,10 +90,8 @@ internal sealed partial class RoomFurniModule
         if (pickerId == -1)
             pickerId = (int)item.OwnerId;
 
-        if (!_roomMap.RemoveFloorItem(item, pickerId, true, out var updatedTileIds))
+        if (!_roomMap.RemoveFloorItem(item, pickerId, true))
             return null;
-
-        await _roomMap.InvokeAvatarsOnTilesAsync(updatedTileIds, ct);
 
         await item.Logic.OnDetachAsync(ct);
 
