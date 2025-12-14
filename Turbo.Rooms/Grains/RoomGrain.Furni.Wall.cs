@@ -5,7 +5,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
-using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Rooms.Grains;
 

@@ -5,7 +5,7 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
-using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Rooms.Object.Furniture.Floor;
 

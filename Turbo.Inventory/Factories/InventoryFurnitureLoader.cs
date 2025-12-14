@@ -13,7 +13,7 @@ using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Furniture;
-using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Inventory.Factories;
 

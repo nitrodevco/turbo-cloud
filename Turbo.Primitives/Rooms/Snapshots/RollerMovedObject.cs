@@ -1,8 +1,8 @@
 using Turbo.Primitives.Rooms.Object;
 
-namespace Turbo.Rooms.Grains.Systems;
+namespace Turbo.Primitives.Rooms.Snapshots;
 
-internal sealed record RollerMovedEntity
+public sealed record RollerMovedObject
 {
     public required RoomObjectId ObjectId { get; init; }
     public required IRoomObject RoomObject { get; init; }

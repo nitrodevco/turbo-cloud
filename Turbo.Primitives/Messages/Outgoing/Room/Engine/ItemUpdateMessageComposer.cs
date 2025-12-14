@@ -1,6 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Engine;
 

@@ -13,7 +13,7 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
-using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Object.Furniture.Wall;
 
 namespace Turbo.Rooms.Grains.Modules;

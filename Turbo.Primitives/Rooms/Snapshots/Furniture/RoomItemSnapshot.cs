@@ -3,7 +3,7 @@ using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 
-namespace Turbo.Primitives.Rooms.Snapshots;
+namespace Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 [GenerateSerializer, Immutable]
 public abstract record RoomItemSnapshot

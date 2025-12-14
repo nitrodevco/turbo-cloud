@@ -1,6 +1,6 @@
 using Orleans;
 
-namespace Turbo.Primitives.Rooms.Snapshots;
+namespace Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 [GenerateSerializer, Immutable]
 public sealed record RoomWallItemSnapshot : RoomItemSnapshot

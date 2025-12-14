@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Snapshots;
-using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Primitives.Inventory.Grains;
 

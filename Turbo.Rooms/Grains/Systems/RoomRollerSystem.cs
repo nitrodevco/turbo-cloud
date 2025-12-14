@@ -10,6 +10,7 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
@@ -141,7 +142,7 @@ internal sealed class RoomRollerSystem(
                             ToIdx = toIdx,
                             MovedFloorItems =
                             [
-                                .. floorItems.Select(x => new RollerMovedEntity
+                                .. floorItems.Select(x => new RollerMovedObject
                                 {
                                     ObjectId = x.ObjectId,
                                     RoomObject = x,
@@ -153,7 +154,7 @@ internal sealed class RoomRollerSystem(
                             [
                                 .. avatars.Select(x =>
                                 {
-                                    return new RollerMovedEntity
+                                    return new RollerMovedObject
                                     {
                                         ObjectId = x.ObjectId,
                                         RoomObject = x,
