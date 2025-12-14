@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using SuperSocket.Connection;
 using SuperSocket.ProtoBase;
 using SuperSocket.Server;
@@ -29,6 +30,7 @@ public class SessionContext(IPackageEncoder<OutgoingPackage> packageEncoder)
 
     protected override async ValueTask OnSessionConnectedAsync()
     {
+        this.LogDebug("TESTING!!");
         SessionKey = SessionKey.From(this.SessionID);
 
         await base.OnSessionConnectedAsync().ConfigureAwait(false);

@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Primitives.Rooms;
-using Turbo.Primitives.Rooms.Factories;
+using Turbo.Primitives.Rooms.Providers;
 using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -17,8 +17,8 @@ internal sealed partial class RoomFurniModule(
     RoomMapModule roomMapModule,
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IGrainFactory grainFactory,
-    IRoomItemsLoader itemsLoader,
-    IRoomObjectLogicFactory logicFactory
+    IRoomItemsProvider itemsLoader,
+    IRoomObjectLogicProvider logicFactory
 ) : IRoomModule
 {
     private readonly RoomGrain _roomGrain = roomGrain;
@@ -27,8 +27,8 @@ internal sealed partial class RoomFurniModule(
     private readonly RoomMapModule _roomMap = roomMapModule;
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
     private readonly IGrainFactory _grainFactory = grainFactory;
-    private readonly IRoomItemsLoader _itemsLoader = itemsLoader;
-    private readonly IRoomObjectLogicFactory _logicFactory = logicFactory;
+    private readonly IRoomItemsProvider _itemsLoader = itemsLoader;
+    private readonly IRoomObjectLogicProvider _logicFactory = logicFactory;
 
     public Task<ImmutableDictionary<long, string>> GetAllOwnersAsync(CancellationToken ct) =>
         Task.FromResult(_state.OwnerNamesById.ToImmutableDictionary());

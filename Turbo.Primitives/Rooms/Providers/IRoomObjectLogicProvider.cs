@@ -2,9 +2,9 @@ using System;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Logic;
 
-namespace Turbo.Primitives.Rooms.Factories;
+namespace Turbo.Primitives.Rooms.Providers;
 
-public interface IRoomObjectLogicFactory
+public interface IRoomObjectLogicProvider
 {
     public IDisposable RegisterLogic(
         string logicType,

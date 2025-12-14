@@ -15,21 +15,21 @@ using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Players.Grains;
-using Turbo.Primitives.Rooms.Factories;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
+using Turbo.Primitives.Rooms.Providers;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Furniture.Wall;
 
-namespace Turbo.Rooms.Factories;
+namespace Turbo.Rooms.Providers;
 
-internal sealed class RoomItemsLoader(
+internal sealed class RoomItemsProvider(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IGrainFactory grainFactory,
     IFurnitureDefinitionProvider defsProvider
-) : IRoomItemsLoader
+) : IRoomItemsProvider
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
     private readonly IGrainFactory _grainFactory = grainFactory;

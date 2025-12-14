@@ -3,19 +3,19 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Turbo.Primitives.Catalog;
+using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Rooms.Factories;
+using Turbo.Primitives.Rooms.Providers;
 
 namespace Turbo.Main;
 
 public class TurboEmulator(
     ILogger<TurboEmulator> logger,
     IFurnitureDefinitionProvider furnitureProvider,
-    ICatalogProvider<NormalCatalog> catalogProvider,
+    ICatalogSnapshotProvider<NormalCatalog> catalogProvider,
     INavigatorProvider topLevelContextProvider,
     IRoomModelProvider roomModelProvider,
     INetworkManager networkManager
@@ -23,7 +23,7 @@ public class TurboEmulator(
 {
     private readonly ILogger<TurboEmulator> _logger = logger;
     private readonly IFurnitureDefinitionProvider _furnitureProvider = furnitureProvider;
-    private readonly ICatalogProvider<NormalCatalog> _catalogProvider = catalogProvider;
+    private readonly ICatalogSnapshotProvider<NormalCatalog> _catalogProvider = catalogProvider;
     private readonly INavigatorProvider _topLevelContextProvider = topLevelContextProvider;
     private readonly IRoomModelProvider _roomModelProvider = roomModelProvider;
     private readonly INetworkManager _networkManager = networkManager;

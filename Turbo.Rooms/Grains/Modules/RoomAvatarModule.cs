@@ -10,10 +10,10 @@ using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Factories;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
+using Turbo.Primitives.Rooms.Providers;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Systems;
@@ -28,8 +28,8 @@ internal sealed partial class RoomAvatarModule(
     RoomPathingSystem roomPathing,
     RoomSecurityModule securityModule,
     RoomMapModule roomMapModule,
-    IRoomAvatarFactory roomAvatarFactory,
-    IRoomObjectLogicFactory objectLogicFactory
+    IRoomAvatarProvider roomAvatarFactory,
+    IRoomObjectLogicProvider objectLogicFactory
 ) : IRoomModule
 {
     private readonly RoomGrain _roomGrain = roomGrain;
@@ -38,8 +38,8 @@ internal sealed partial class RoomAvatarModule(
     private readonly RoomSecurityModule _securityModule = securityModule;
     private readonly RoomMapModule _roomMap = roomMapModule;
     private readonly RoomPathingSystem _pathingSystem = roomPathing;
-    private readonly IRoomAvatarFactory _roomAvatarFactory = roomAvatarFactory;
-    private readonly IRoomObjectLogicFactory _objectLogicFactory = objectLogicFactory;
+    private readonly IRoomAvatarProvider _roomAvatarFactory = roomAvatarFactory;
+    private readonly IRoomObjectLogicProvider _objectLogicFactory = objectLogicFactory;
 
     private int _nextObjectId = 0;
 

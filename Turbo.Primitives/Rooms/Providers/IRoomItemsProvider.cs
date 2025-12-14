@@ -6,9 +6,9 @@ using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 
-namespace Turbo.Primitives.Rooms.Factories;
+namespace Turbo.Primitives.Rooms.Providers;
 
-public interface IRoomItemsLoader
+public interface IRoomItemsProvider
 {
     public Task<(
         IReadOnlyList<IRoomFloorItem>,

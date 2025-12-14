@@ -3,15 +3,15 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Turbo.Logging;
 using Turbo.Primitives;
-using Turbo.Primitives.Rooms.Factories;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Logic;
+using Turbo.Primitives.Rooms.Providers;
 using Turbo.Rooms.Object.Logic;
 using Turbo.Runtime;
 
-namespace Turbo.Rooms.Factories;
+namespace Turbo.Rooms.Providers;
 
-public sealed class RoomObjectLogicFactory(IServiceProvider host) : IRoomObjectLogicFactory
+public sealed class RoomObjectLogicProvider(IServiceProvider host) : IRoomObjectLogicProvider
 {
     private readonly IServiceProvider _host = host;
     private readonly ConcurrentDictionary<string, RoomObjectLogicReg> _logics = [];

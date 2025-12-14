@@ -1,6 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Rooms;
-using Turbo.Primitives.Rooms.Factories;
+using Turbo.Primitives.Rooms.Providers;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -10,7 +10,7 @@ internal sealed partial class RoomActionModule(
     RoomSecurityModule securityModule,
     RoomFurniModule furniModule,
     IGrainFactory grainFactory,
-    IRoomItemsLoader itemsLoader
+    IRoomItemsProvider itemsLoader
 ) : IRoomModule
 {
     private readonly RoomGrain _roomGrain = roomGrain;
@@ -18,5 +18,5 @@ internal sealed partial class RoomActionModule(
     private readonly RoomSecurityModule _securityModule = securityModule;
     private readonly RoomFurniModule _furniModule = furniModule;
     private readonly IGrainFactory _grainFactory = grainFactory;
-    private readonly IRoomItemsLoader _itemsLoader = itemsLoader;
+    private readonly IRoomItemsProvider _itemsLoader = itemsLoader;
 }

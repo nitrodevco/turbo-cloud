@@ -1,9 +1,9 @@
 using Turbo.Primitives.Catalog.Enums;
-using Turbo.Primitives.Snapshots.Catalog;
+using Turbo.Primitives.Catalog.Snapshots;
 
 namespace Turbo.Primitives.Catalog;
 
 public interface ICatalogService
 {
-    public CatalogSnapshot? GetCatalog(CatalogType catalogType);
+    public CatalogSnapshot GetCatalogSnapshot(CatalogType catalogType);
 }

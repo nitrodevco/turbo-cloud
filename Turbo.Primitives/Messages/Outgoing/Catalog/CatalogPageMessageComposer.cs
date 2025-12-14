@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Catalog.Enums;
+using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Snapshots.Catalog;
 
 namespace Turbo.Primitives.Messages.Outgoing.Catalog;
 

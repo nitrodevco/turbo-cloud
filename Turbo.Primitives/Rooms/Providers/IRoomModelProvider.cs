@@ -2,7 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 
-namespace Turbo.Primitives.Rooms.Factories;
+namespace Turbo.Primitives.Rooms.Providers;
 
 public interface IRoomModelProvider
 {

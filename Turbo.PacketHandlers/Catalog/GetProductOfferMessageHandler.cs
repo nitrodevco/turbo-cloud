@@ -1,23 +1,21 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
-using Turbo.Primitives.Furniture;
+using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Messages.Incoming.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
-using Turbo.Primitives.Snapshots.Catalog.Extensions;
 
 namespace Turbo.PacketHandlers.Catalog;
 
-public class GetProductOfferMessageHandler(
-    ICatalogService catalogService,
-    IFurnitureDefinitionProvider furnitureProvider
-) : IMessageHandler<GetProductOfferMessage>
+public class GetProductOfferMessageHandler(ICatalogService catalogService)
+    : IMessageHandler<GetProductOfferMessage>
 {
     private readonly ICatalogService _catalogService = catalogService;
-    private readonly IFurnitureDefinitionProvider _furnitureProvider = furnitureProvider;
 
     public async ValueTask HandleAsync(
         GetProductOfferMessage message,
@@ -25,25 +23,30 @@ public class GetProductOfferMessageHandler(
         CancellationToken ct
     )
     {
-        var catalog = _catalogService.GetCatalog(CatalogType.Normal);
+        try
+        {
+            var snapshot = _catalogService.GetCatalogSnapshot(CatalogType.Normal);
 
-        if (catalog is null)
-            return;
+            if (!snapshot.OffersById.TryGetValue(message.OfferId, out var offer))
+                return;
 
-        var offer = catalog.GetOfferById(message.OfferId);
-        var offerProducts = catalog
-            .GetProductIdsByOfferId(offer.Id)
-            .Select(catalog.GetProductById)
-            .ToList();
+            List<CatalogProductSnapshot> offerProducts = [];
 
-        await ctx.SendComposerAsync(
-                new ProductOfferEventMessageComposer
-                {
-                    Offer = offer,
-                    OfferProducts = offerProducts,
-                },
-                ct
-            )
-            .ConfigureAwait(false);
+            if (snapshot.OfferProductIds.TryGetValue(offer.Id, out var productIds))
+            {
+                offerProducts = [.. productIds.Select(x => snapshot.ProductsById[x])];
+            }
+
+            await ctx.SendComposerAsync(
+                    new ProductOfferEventMessageComposer
+                    {
+                        Offer = offer,
+                        OfferProducts = offerProducts,
+                    },
+                    ct
+                )
+                .ConfigureAwait(false);
+        }
+        catch (Exception) { }
     }
 }

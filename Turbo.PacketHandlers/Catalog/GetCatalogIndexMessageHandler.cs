@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
@@ -18,12 +19,13 @@ public class GetCatalogIndexMessageHandler(ICatalogService catalogService)
         CancellationToken ct
     )
     {
-        var catalog = _catalogService.GetCatalog(message.CatalogType);
+        try
+        {
+            var snapshot = _catalogService.GetCatalogSnapshot(message.CatalogType);
 
-        if (catalog is null)
-            return;
-
-        await ctx.SendComposerAsync(new CatalogIndexMessageComposer { Catalog = catalog }, ct)
-            .ConfigureAwait(false);
+            await ctx.SendComposerAsync(new CatalogIndexMessageComposer { Catalog = snapshot }, ct)
+                .ConfigureAwait(false);
+        }
+        catch (Exception) { }
     }
 }

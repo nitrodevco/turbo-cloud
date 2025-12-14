@@ -1,28 +1,31 @@
+using System;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
+using Turbo.Primitives.Catalog.Providers;
+using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Catalog.Tags;
-using Turbo.Primitives.Snapshots.Catalog;
 
 namespace Turbo.Catalog;
 
 public sealed class CatalogService(
     ILogger<ICatalogService> logger,
-    ICatalogProvider<NormalCatalog> catalogProvider
+    ICatalogSnapshotProvider<NormalCatalog> normalCatalogProvider
 ) : ICatalogService
 {
     private readonly ILogger<ICatalogService> _logger = logger;
-    private readonly ICatalogProvider<NormalCatalog> _catalogProvider = catalogProvider;
+    private readonly ICatalogSnapshotProvider<NormalCatalog> _normalCatalogProvider =
+        normalCatalogProvider;
 
-    public CatalogSnapshot? GetCatalog(CatalogType catalogType)
+    public CatalogSnapshot GetCatalogSnapshot(CatalogType catalogType)
     {
-        if (catalogType != CatalogType.Normal)
+        return catalogType switch
         {
-            _logger.LogWarning("Requested unsupported catalog type: {CatalogType}", catalogType);
-
-            return null;
-        }
-
-        return _catalogProvider.Current;
+            CatalogType.Normal => _normalCatalogProvider.Current,
+            CatalogType.BuildersClub => throw new NotSupportedException(
+                $"Catalog type {catalogType} is not supported."
+            ),
+            _ => throw new NotSupportedException($"Catalog type {catalogType} is not supported."),
+        };
     }
 }

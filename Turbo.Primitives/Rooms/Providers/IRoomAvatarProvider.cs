@@ -2,9 +2,9 @@ using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 
-namespace Turbo.Primitives.Rooms.Factories;
+namespace Turbo.Primitives.Rooms.Providers;
 
-public interface IRoomAvatarFactory
+public interface IRoomAvatarProvider
 {
     public IRoomPlayerAvatar CreateAvatarFromPlayerSnapshot(
         RoomObjectId objectId,

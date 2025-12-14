@@ -11,8 +11,8 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room.Settings;
 using Turbo.Primitives.Rooms.Events;
-using Turbo.Primitives.Rooms.Factories;
 using Turbo.Primitives.Rooms.Grains;
+using Turbo.Primitives.Rooms.Providers;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
@@ -24,9 +24,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly RoomConfig _roomConfig;
     private readonly IRoomModelProvider _roomModelProvider;
-    private readonly IRoomItemsLoader _itemsLoader;
-    private readonly IRoomObjectLogicFactory _logicFactory;
-    private readonly IRoomAvatarFactory _roomAvatarFactory;
+    private readonly IRoomItemsProvider _itemsLoader;
+    private readonly IRoomObjectLogicProvider _logicFactory;
+    private readonly IRoomAvatarProvider _roomAvatarFactory;
     private readonly IGrainFactory _grainFactory;
 
     private readonly int _roomId;
@@ -47,9 +47,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IOptions<RoomConfig> roomConfig,
         IRoomModelProvider roomModelProvider,
-        IRoomItemsLoader itemsLoader,
-        IRoomObjectLogicFactory logicFactory,
-        IRoomAvatarFactory roomAvatarFactory,
+        IRoomItemsProvider itemsLoader,
+        IRoomObjectLogicProvider logicFactory,
+        IRoomAvatarProvider roomAvatarFactory,
         IGrainFactory grainFactory
     )
     {

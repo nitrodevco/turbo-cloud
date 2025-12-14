@@ -3,17 +3,17 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
-using Turbo.Primitives.Rooms.Factories;
 using Turbo.Primitives.Rooms.Object.Logic;
+using Turbo.Primitives.Rooms.Providers;
 using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
 
 namespace Turbo.Rooms.Object.Logic;
 
-internal class RoomObjectLogicFeatureProcessor(IRoomObjectLogicFactory roomObjectLogicFactory)
+internal class RoomObjectLogicFeatureProcessor(IRoomObjectLogicProvider roomObjectLogicFactory)
     : IAssemblyFeatureProcessor
 {
-    private readonly IRoomObjectLogicFactory _roomObjectLogicFactory = roomObjectLogicFactory;
+    private readonly IRoomObjectLogicProvider _roomObjectLogicFactory = roomObjectLogicFactory;
 
     public Task<IDisposable> ProcessAsync(
         Assembly asm,

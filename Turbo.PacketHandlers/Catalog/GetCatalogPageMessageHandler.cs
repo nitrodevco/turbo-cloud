@@ -1,11 +1,13 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Catalog;
+using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Messages.Incoming.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
-using Turbo.Primitives.Snapshots.Catalog.Extensions;
 
 namespace Turbo.PacketHandlers.Catalog;
 
@@ -20,34 +22,42 @@ public class GetCatalogPageMessageHandler(ICatalogService catalogService)
         CancellationToken ct
     )
     {
-        var catalog = _catalogService.GetCatalog(message.CatalogType);
+        try
+        {
+            var snapshot = _catalogService.GetCatalogSnapshot(message.CatalogType);
 
-        if (catalog is null)
-            return;
+            if (!snapshot.PagesById.TryGetValue(message.PageId, out var page))
+                return;
 
-        var page = catalog.GetPageById(message.PageId);
-        var offers = catalog
-            .GetOfferIdsByPageId(message.PageId)
-            .Select(catalog.GetOfferById)
-            .ToList();
-        var offerProducts = offers
-            .SelectMany(x => catalog.GetProductIdsByOfferId(x.Id).Select(catalog.GetProductById))
-            .GroupBy(p => p.OfferId)
-            .ToDictionary(g => g.Key, g => g.ToList());
+            List<CatalogOfferSnapshot> offers = [];
+            Dictionary<int, List<CatalogProductSnapshot>> offerProducts = [];
 
-        await ctx.SendComposerAsync(
-                new CatalogPageMessageComposer
-                {
-                    CatalogType = catalog.CatalogType,
-                    Page = page,
-                    Offers = offers,
-                    OfferProducts = offerProducts,
-                    OfferId = message.OfferId,
-                    AcceptSeasonCurrencyAsCredits = false,
-                    FrontPageItems = [],
-                },
-                ct
-            )
-            .ConfigureAwait(false);
+            if (snapshot.PageOfferIds.TryGetValue(page.Id, out var offerIds))
+            {
+                offers = [.. offerIds.Select(x => snapshot.OffersById[x])];
+                offerProducts = offers
+                    .SelectMany(x =>
+                        snapshot.OfferProductIds[x.Id].Select(x => snapshot.ProductsById[x])
+                    )
+                    .GroupBy(x => x.OfferId)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+            }
+
+            await ctx.SendComposerAsync(
+                    new CatalogPageMessageComposer
+                    {
+                        CatalogType = snapshot.CatalogType,
+                        Page = page,
+                        Offers = offers,
+                        OfferProducts = offerProducts,
+                        OfferId = message.OfferId,
+                        AcceptSeasonCurrencyAsCredits = false,
+                        FrontPageItems = [],
+                    },
+                    ct
+                )
+                .ConfigureAwait(false);
+        }
+        catch (Exception) { }
     }
 }

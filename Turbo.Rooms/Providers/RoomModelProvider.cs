@@ -8,10 +8,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Factories;
+using Turbo.Primitives.Rooms.Providers;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 
-namespace Turbo.Rooms.Factories;
+namespace Turbo.Rooms.Providers;
 
 public sealed class RoomModelProvider(
     IDbContextFactory<TurboDbContext> dbCtxFactory,

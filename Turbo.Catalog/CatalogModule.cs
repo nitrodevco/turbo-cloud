@@ -2,10 +2,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Turbo.Catalog.Configuration;
+using Turbo.Catalog.Providers;
 using Turbo.Contracts.Plugins;
 using Turbo.Database.Context;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
+using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Furniture;
 
@@ -17,11 +20,15 @@ public sealed class CatalogModule : IHostPluginModule
 
     public void ConfigureServices(IServiceCollection services, HostApplicationBuilder builder)
     {
+        services.Configure<CatalogConfig>(
+            builder.Configuration.GetSection(CatalogConfig.SECTION_NAME)
+        );
+
         services.AddSingleton<ICatalogService, CatalogService>();
-        services.AddSingleton<ICatalogProvider<NormalCatalog>>(
-            sp => new CatalogProvider<NormalCatalog>(
+        services.AddSingleton<ICatalogSnapshotProvider<NormalCatalog>>(
+            sp => new CatalogSnapshotProvider<NormalCatalog>(
                 sp.GetRequiredService<IDbContextFactory<TurboDbContext>>(),
-                sp.GetRequiredService<ILogger<ICatalogProvider<NormalCatalog>>>(),
+                sp.GetRequiredService<ILogger<ICatalogSnapshotProvider<NormalCatalog>>>(),
                 sp.GetRequiredService<IFurnitureDefinitionProvider>(),
                 CatalogType.Normal
             )
