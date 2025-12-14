@@ -175,12 +175,10 @@ internal sealed partial class RoomMapModule(
 
             foreach (var itemId in floorStack)
             {
-                var item = _state.FloorItemsById[itemId];
-
-                if (item is null)
+                if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
                     continue;
 
-                var height = item.Z + item.Height;
+                var height = item.Z + item.Logic.GetStackHeight();
 
                 // special logic if stack helper
 

@@ -22,7 +22,7 @@ internal sealed partial class RoomFurniModule
 {
     public async Task<bool> AddWallItemAsync(IRoomWallItem item, CancellationToken ct)
     {
-        if (!await AttatchWallItemAsync(item, ct) || !_roomMap.AddWallItem(item))
+        if (!await AttatchWallItemAsync(item, ct) || !_roomMap.AddWallItem(item, true))
             return false;
 
         return true;
@@ -41,7 +41,7 @@ internal sealed partial class RoomFurniModule
     {
         if (
             !await AttatchWallItemAsync(item, ct)
-            || !_roomMap.PlaceWallItem(item, x, y, z, rot, wallOffset)
+            || !_roomMap.PlaceWallItem(item, x, y, z, rot, wallOffset, true)
         )
             return false;
 
@@ -64,7 +64,7 @@ internal sealed partial class RoomFurniModule
         if (!_state.WallItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
-        if (!_roomMap.MoveWallItemItem(item, x, y, z, rot, wallOffset))
+        if (!_roomMap.MoveWallItemItem(item, x, y, z, rot, wallOffset, true))
             return false;
 
         await item.Logic.OnMoveAsync(ctx, ct);
@@ -84,8 +84,6 @@ internal sealed partial class RoomFurniModule
 
         if (pickerId == -1)
             pickerId = (int)item.OwnerId;
-
-        item.SetOwnerId(pickerId);
 
         if (!_roomMap.RemoveWallItem(item, pickerId))
             return null;

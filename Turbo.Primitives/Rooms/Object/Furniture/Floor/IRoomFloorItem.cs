@@ -8,7 +8,6 @@ namespace Turbo.Primitives.Rooms.Object.Furniture.Floor;
 public interface IRoomFloorItem : IRoomItem
 {
     public IFurnitureFloorLogic Logic { get; }
-    public double Height { get; }
 
     public void SetPosition(int x, int y, double z);
     public void SetRotation(Rotation rotation);

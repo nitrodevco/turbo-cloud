@@ -11,5 +11,6 @@ public interface IFurnitureFloorLogic : IFurnitureLogic, IRollableObject
     public bool CanSit();
     public bool CanLay();
     public double GetPostureOffset();
+    public double GetStackHeight();
     public Task OnInvokeAsync(IRoomAvatarContext ctx, CancellationToken ct);
 }

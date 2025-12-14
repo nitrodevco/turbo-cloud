@@ -164,22 +164,20 @@ internal sealed partial class RoomFurniModule
                 var highestItemId = _state.TileHighestFloorItems[idx];
                 var isRotating = false;
 
-                IRoomFloorItem? bItem = null;
-
-                if (highestItemId > 0)
-                    bItem = _state.FloorItemsById[highestItemId];
-
-                if (bItem == tItem)
+                if (_state.FloorItemsById.TryGetValue(highestItemId, out var bItem))
                 {
-                    tileHeight -= tItem.Definition.StackHeight;
+                    if (bItem == tItem)
+                    {
+                        tileHeight -= tItem.Logic.GetStackHeight();
 
-                    if (tItem.Rotation != rot)
-                        isRotating = true;
+                        if (tItem.Rotation != rot)
+                            isRotating = true;
+                    }
                 }
 
                 if (
                     tileFlags.Has(RoomTileFlags.Disabled)
-                    || (tileHeight + tItem.Definition.StackHeight) > _roomConfig.MaxStackHeight
+                    || (tileHeight + tItem.Logic.GetStackHeight()) > _roomConfig.MaxStackHeight
                     || tileFlags.Has(RoomTileFlags.StackBlocked) && bItem != tItem
                     || !_roomConfig.PlaceItemsOnAvatars
                         && tileFlags.Has(RoomTileFlags.AvatarOccupied)
@@ -193,7 +191,14 @@ internal sealed partial class RoomFurniModule
 
                 if (bItem is not null && bItem != tItem)
                 {
-                    if (bItem.Logic is FurnitureRollerLogic && tItem.Logic is FurnitureRollerLogic)
+                    if (
+                        bItem.Logic is FurnitureRollerLogic
+                        && (
+                            tItem.Definition.Width > 1
+                            || tItem.Definition.Length > 1
+                            || tItem.Logic is FurnitureRollerLogic
+                        )
+                    )
                         return false;
 
                     // if is a stack helper, allow placement
@@ -229,28 +234,32 @@ internal sealed partial class RoomFurniModule
                 var tileHeight = _state.TileHeights[id];
                 var highestItemId = _state.TileHighestFloorItems[id];
 
-                IRoomFloorItem? bItem = null;
-
-                if (highestItemId > 0)
-                    bItem = _state.FloorItemsById[highestItemId];
+                _state.FloorItemsById.TryGetValue(highestItemId, out var bItem);
 
                 if (
                     tileFlags.Has(RoomTileFlags.Disabled)
-                    || (tileHeight + item.Definition.StackHeight) > _roomConfig.MaxStackHeight
+                    || (tileHeight + item.Logic.GetStackHeight()) > _roomConfig.MaxStackHeight
                     || tileFlags.Has(RoomTileFlags.StackBlocked)
                     || (
                         !_roomConfig.PlaceItemsOnAvatars
                         && tileFlags.Has(RoomTileFlags.AvatarOccupied)
                     )
-                    || tileFlags.Has(RoomTileFlags.AvatarOccupied) && !item.Definition.CanWalk
-                    || bItem?.Logic is FurnitureRollerLogic && item.Logic is FurnitureRollerLogic
+                    || tileFlags.Has(RoomTileFlags.AvatarOccupied) && !item.Logic.CanWalk()
                 )
                     return false;
 
                 if (bItem is not null)
                 {
+                    if (
+                        bItem.Logic is FurnitureRollerLogic
+                        && (
+                            item.Definition.Width > 1
+                            || item.Definition.Length > 1
+                            || item.Logic is FurnitureRollerLogic
+                        )
+                    )
+                        return false;
                     // if is a stack helper, allow placement
-                    // if is a roller, disallow placement
                 }
             }
         }

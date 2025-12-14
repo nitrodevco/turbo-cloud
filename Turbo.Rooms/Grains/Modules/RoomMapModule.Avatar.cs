@@ -30,9 +30,9 @@ internal sealed partial class RoomMapModule
                 canLay = floorItem.Logic.CanLay();
 
                 if (canSit)
-                    avatar.Sit(true, floorItem.Definition.StackHeight, floorItem.Rotation);
+                    avatar.Sit(true, floorItem.Logic.GetPostureOffset(), floorItem.Rotation);
                 else if (canLay)
-                    avatar.Lay(true, floorItem.Definition.StackHeight, floorItem.Rotation);
+                    avatar.Lay(true, floorItem.Logic.GetPostureOffset(), floorItem.Rotation);
 
                 await floorItem.Logic.OnInvokeAsync((IRoomAvatarContext)avatar.Logic.Context, ct);
             }

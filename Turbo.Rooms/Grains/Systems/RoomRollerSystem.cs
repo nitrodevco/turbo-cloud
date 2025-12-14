@@ -76,10 +76,9 @@ internal sealed class RoomRollerSystem(
                     if (reservedTileIdxs.Contains(toIdx) || nextAvatarTiles.Contains(toIdx))
                         continue;
 
-                    var fromTileState = _state.TileFlags[fromIdx];
                     var toTileState = _state.TileFlags[toIdx];
                     var toTileHeight = _state.TileHeights[toIdx];
-                    var rollerHeight = roller.Z + roller.Height;
+                    var rollerHeight = roller.Z + roller.Logic.GetStackHeight();
 
                     if (
                         toTileHeight > rollerHeight
@@ -95,7 +94,12 @@ internal sealed class RoomRollerSystem(
                         if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
                             continue;
 
-                        if (item.Z < rollerHeight || !item.Logic.CanRoll())
+                        if (
+                            item.Definition.Width > 1
+                            || item.Definition.Length > 1
+                            || item.Z < rollerHeight
+                            || !item.Logic.CanRoll()
+                        )
                             continue;
 
                         floorItems.Add(item);
@@ -143,8 +147,8 @@ internal sealed class RoomRollerSystem(
                                     {
                                         ObjectId = x.ObjectId,
                                         RoomObject = x,
-                                        FromZ = x.Z + x.PostureOffset,
-                                        ToZ = x.Z - rollerHeight + toTileHeight + x.PostureOffset,
+                                        FromZ = x.Z,
+                                        ToZ = x.Z - rollerHeight + toTileHeight,
                                     };
                                 }),
                             ],
@@ -203,8 +207,8 @@ internal sealed class RoomRollerSystem(
                                 Avatar = (
                                     SlideAvatarMoveType.Slide,
                                     avatar.RoomObject.ObjectId.Value,
-                                    avatar.FromZ,
-                                    avatar.ToZ
+                                    avatar.FromZ + avatarObject.PostureOffset,
+                                    avatar.ToZ + avatarObject.PostureOffset
                                 ),
                             }
                         );
@@ -226,8 +230,8 @@ internal sealed class RoomRollerSystem(
                             Avatar = (
                                 SlideAvatarMoveType.Slide,
                                 avatar.RoomObject.ObjectId.Value,
-                                avatar.FromZ,
-                                avatar.ToZ
+                                avatar.FromZ + avatarObject.PostureOffset,
+                                avatar.ToZ + avatarObject.PostureOffset
                             ),
                         }
                     );

@@ -26,13 +26,15 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
     public virtual double GetPostureOffset()
     {
         if (CanSit())
-            return _ctx.Definition.StackHeight;
+            return GetStackHeight();
 
         if (CanLay())
-            return _ctx.Definition.StackHeight;
+            return GetStackHeight();
 
         return 0.0;
     }
+
+    public virtual double GetStackHeight() => _ctx.Definition.StackHeight;
 
     public virtual Task OnInvokeAsync(IRoomAvatarContext ctx, CancellationToken ct) =>
         Task.CompletedTask;

@@ -40,8 +40,6 @@ public abstract class FurnitureLogicBase<TItem, TContext>
         });
     }
 
-    public virtual double GetHeight() => _ctx.Definition.StackHeight;
-
     public virtual FurnitureUsageType GetUsagePolicy() =>
         _ctx.Definition.TotalStates == 0 ? FurnitureUsageType.Nobody : _ctx.Definition.UsagePolicy;
 

@@ -10,7 +10,6 @@ public interface IFurnitureLogic : IRoomObjectLogic
 {
     public StuffDataType StuffDataKey { get; }
     public IStuffData StuffData { get; }
-    public double GetHeight();
     public FurnitureUsageType GetUsagePolicy();
     public bool CanToggle();
     public Task<int> GetStateAsync();

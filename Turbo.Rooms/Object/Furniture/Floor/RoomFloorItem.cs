@@ -15,8 +15,6 @@ internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
 
     private RoomFloorItemSnapshot? _snapshot;
 
-    public double Height => Logic?.GetHeight() ?? Definition.StackHeight;
-
     public void SetPosition(int x, int y, double z)
     {
         z = Math.Round(z, 3);
@@ -90,7 +88,7 @@ internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
             Rotation = Rotation,
             StuffData = Logic.StuffData.GetSnapshot(),
             StuffDataJson = JsonSerializer.Serialize(Logic.StuffData, Logic.StuffData.GetType()),
-            UsagePolicy = Definition.UsagePolicy,
-            StackHeight = Definition.StackHeight,
+            UsagePolicy = Logic.GetUsagePolicy(),
+            StackHeight = Logic.GetStackHeight(),
         };
 }
