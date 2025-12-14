@@ -10,5 +10,6 @@ public interface IFurnitureFloorLogic : IFurnitureLogic, IRollableObject
     public bool CanWalk();
     public bool CanSit();
     public bool CanLay();
+    public double GetPostureOffset();
     public Task OnInvokeAsync(IRoomAvatarContext ctx, CancellationToken ct);
 }

@@ -23,6 +23,17 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
 
     public virtual bool CanRoll() => true;
 
+    public virtual double GetPostureOffset()
+    {
+        if (CanSit())
+            return _ctx.Definition.StackHeight;
+
+        if (CanLay())
+            return _ctx.Definition.StackHeight;
+
+        return 0.0;
+    }
+
     public virtual Task OnInvokeAsync(IRoomAvatarContext ctx, CancellationToken ct) =>
         Task.CompletedTask;
 }

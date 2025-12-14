@@ -149,7 +149,7 @@ internal sealed partial class RoomMapModule
         return true;
     }
 
-    public bool RollAvatar(IRoomAvatar avatar, int tileIdx)
+    public bool RollAvatar(IRoomAvatar avatar, int tileIdx, double z)
     {
         if (!InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
@@ -160,7 +160,7 @@ internal sealed partial class RoomMapModule
 
         AddAvatar(avatar, false);
 
-        avatar.SetHeight(GetTileHeightForAvatar(tileIdx));
+        avatar.SetHeight(z);
 
         return true;
     }
@@ -199,27 +199,19 @@ internal sealed partial class RoomMapModule
         {
             var tileId = ToIdx(avatar.X, avatar.Y);
             var height = _state.TileHeights[tileId];
-            var flags = _state.TileFlags[tileId];
             var highestItemId = _state.TileHighestFloorItems[tileId];
             var postureOffset = 0.0;
 
-            if (
-                highestItemId > 0
-                && (flags.Has(RoomTileFlags.Sittable) || flags.Has(RoomTileFlags.Layable))
-            )
+            if (highestItemId > 0)
             {
-                var floorItem = _state.FloorItemsById[highestItemId];
-
-                if (floorItem is not null)
+                if (_state.FloorItemsById.TryGetValue(highestItemId, out var floorItem))
                 {
-                    postureOffset = floorItem.Definition.StackHeight;
-
-                    height -= postureOffset;
+                    postureOffset = floorItem.Logic.GetPostureOffset();
                 }
             }
 
             avatar.SetPostureOffset(Math.Round(postureOffset, 3));
-            avatar.SetHeight(Math.Round(height, 3));
+            avatar.SetHeight(Math.Round(height - postureOffset, 3));
         }
         catch (Exception) { }
     }
@@ -229,21 +221,18 @@ internal sealed partial class RoomMapModule
         try
         {
             var height = _state.TileHeights[tileId];
-            var flags = _state.TileFlags[tileId];
             var highestItemId = _state.TileHighestFloorItems[tileId];
+            var postureOffset = 0.0;
 
-            if (
-                highestItemId > 0
-                && (flags.Has(RoomTileFlags.Sittable) || flags.Has(RoomTileFlags.Layable))
-            )
+            if (highestItemId > 0)
             {
-                var floorItem = _state.FloorItemsById[highestItemId];
-
-                if (floorItem is not null)
-                    height -= floorItem.Definition.StackHeight;
+                if (_state.FloorItemsById.TryGetValue(highestItemId, out var floorItem))
+                {
+                    postureOffset = floorItem.Logic.GetPostureOffset();
+                }
             }
 
-            return Math.Round(height, 3);
+            return Math.Round(height - postureOffset, 3);
         }
         catch (Exception)
         {
