@@ -88,6 +88,7 @@ internal sealed class RoomRollerSystem(
 
                     var floorItems = new List<IRoomFloorItem>();
                     var avatars = new List<IRoomAvatar>();
+                    var canAvatarMove = true;
 
                     foreach (var itemId in _state.TileFloorStacks[fromIdx])
                     {
@@ -110,11 +111,20 @@ internal sealed class RoomRollerSystem(
                         if (!_state.AvatarsByObjectId.TryGetValue(avatarId, out var avatar))
                             continue;
 
-                        if (avatar.Z < rollerHeight || !avatar.Logic.CanRoll())
+                        if (avatar.Z < rollerHeight)
                             continue;
+
+                        if (!avatar.Logic.CanRoll())
+                        {
+                            canAvatarMove = false;
+                            break;
+                        }
 
                         avatars.Add(avatar);
                     }
+
+                    if (!canAvatarMove)
+                        continue;
 
                     if (
                         floorItems.Count == 0 && avatars.Count == 0
@@ -313,7 +323,6 @@ internal sealed class RoomRollerSystem(
         if (list.Count == 0)
             return list;
 
-        // All rollers in this group should share the same direction.
         var dir = list[0].Rotation;
 
         return dir switch
