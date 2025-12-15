@@ -178,7 +178,7 @@ internal sealed partial class RoomMapModule(
                 if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
                     continue;
 
-                var height = item.Z + item.Logic.GetStackHeight();
+                var height = item.Z + item.GetStackHeight();
 
                 // special logic if stack helper
 

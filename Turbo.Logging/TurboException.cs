@@ -3,7 +3,7 @@ using Turbo.Primitives;
 
 namespace Turbo.Logging;
 
-public sealed class TurboException : Exception
+public class TurboException : Exception
 {
     public TurboErrorCodeEnum ErrorCode { get; }
 

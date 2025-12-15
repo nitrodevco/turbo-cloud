@@ -56,71 +56,85 @@ public sealed class CatalogSnapshotProvider<TTag>(
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
 
-            var pageModels = pages.Select(x => new CatalogPageSnapshot
-            {
-                Id = x.Id,
-                ParentId = x.ParentEntityId ?? -1,
-                Localization = x.Localization,
-                Name = x.Name,
-                Icon = x.Icon,
-                Layout = x.Layout,
-                ImageData = x.ImageData ?? [],
-                TextData = x.TextData ?? [],
-                Visible = x.Visible,
-            });
-
-            var offerModels = offers.Select(x => new CatalogOfferSnapshot
-            {
-                Id = x.Id,
-                PageId = x.CatalogPageEntityId,
-                LocalizationId = x.LocalizationId ?? string.Empty,
-                Rentable = false,
-                CostCredits = x.CostCredits,
-                CostCurrency = x.CostCurrency,
-                CurrencyType = x.CurrencyType,
-                CostSilver = 0,
-                CanGift = x.CanGift,
-                CanBundle = x.CanBundle,
-                ClubLevel = x.ClubLevel,
-                Visible = x.Visible,
-            });
-
-            var productModels = products.Select(x => new CatalogProductSnapshot
-            {
-                Id = x.Id,
-                OfferId = x.CatalogOfferEntityId,
-                ProductType = x.ProductType,
-                FurniDefinitionId = x.FurnitureDefinitionEntityId ?? -1,
-                SpriteId =
-                    x.FurnitureDefinitionEntityId != null
-                        ? _furnitureProvider
-                            .TryGetDefinition(x.FurnitureDefinitionEntityId.Value)
-                            ?.SpriteId ?? -1
-                        : -1,
-                ExtraParam = x.ExtraParam,
-                Quantity = x.Quantity,
-                UniqueSize = x.UniqueSize,
-                UniqueRemaining = x.UniqueRemaining,
-            });
-
-            var pagesById = pageModels.ToImmutableDictionary(p => p.Id);
-            var offersById = offerModels.ToImmutableDictionary(o => o.Id);
-            var productsById = productModels.ToImmutableDictionary(p => p.Id);
-
-            var pageChildren = pages
+            var pageChildrenIds = pages
                 .GroupBy(p => p.ParentEntityId ?? -1)
                 .ToImmutableDictionary(
                     g => g.Key,
                     g => g.OrderBy(x => x.SortOrder).Select(x => x.Id).ToImmutableArray()
                 );
 
-            var pageOffers = offers
+            var pageOfferIds = offers
                 .GroupBy(o => o.CatalogPageEntityId)
                 .ToImmutableDictionary(g => g.Key, g => g.Select(x => x.Id).ToImmutableArray());
 
-            var offerProductsMap = products
+            var offerProductIds = products
                 .GroupBy(op => op.CatalogOfferEntityId)
                 .ToImmutableDictionary(g => g.Key, g => g.Select(x => x.Id).ToImmutableArray());
+
+            var productsById = products
+                .Select(x => new CatalogProductSnapshot
+                {
+                    Id = x.Id,
+                    OfferId = x.CatalogOfferEntityId,
+                    ProductType = x.ProductType,
+                    FurniDefinitionId = x.FurnitureDefinitionEntityId ?? -1,
+                    SpriteId =
+                        x.FurnitureDefinitionEntityId != null
+                            ? _furnitureProvider
+                                .TryGetDefinition(x.FurnitureDefinitionEntityId.Value)
+                                ?.SpriteId ?? -1
+                            : -1,
+                    ExtraParam = x.ExtraParam,
+                    Quantity = x.Quantity,
+                    UniqueSize = x.UniqueSize,
+                    UniqueRemaining = x.UniqueRemaining,
+                })
+                .ToImmutableDictionary(x => x.Id);
+
+            var offersById = offers
+                .Select(x =>
+                {
+                    var ids = offerProductIds.TryGetValue(x.Id, out var productIds)
+                        ? productIds
+                        : [];
+                    var products = ids.Select(x => productsById[x]).ToImmutableArray();
+
+                    return new CatalogOfferSnapshot()
+                    {
+                        Id = x.Id,
+                        PageId = x.CatalogPageEntityId,
+                        LocalizationId = x.LocalizationId ?? string.Empty,
+                        Rentable = false,
+                        CostCredits = x.CostCredits,
+                        CostCurrency = x.CostCurrency,
+                        CurrencyType = x.CurrencyType,
+                        CostSilver = 0,
+                        CanGift = x.CanGift,
+                        CanBundle = x.CanBundle,
+                        ClubLevel = x.ClubLevel,
+                        Visible = x.Visible,
+                        ProductIds = ids,
+                        Products = products,
+                    };
+                })
+                .ToImmutableDictionary(x => x.Id);
+
+            var pagesById = pages
+                .Select(x => new CatalogPageSnapshot
+                {
+                    Id = x.Id,
+                    ParentId = x.ParentEntityId ?? -1,
+                    Localization = x.Localization,
+                    Name = x.Name,
+                    Icon = x.Icon,
+                    Layout = x.Layout,
+                    ImageData = x.ImageData ?? [],
+                    TextData = x.TextData ?? [],
+                    Visible = x.Visible,
+                    OfferIds = pageOfferIds.TryGetValue(x.Id, out var offerIds) ? offerIds : [],
+                    ChildIds = pageChildrenIds.TryGetValue(x.Id, out var childIds) ? childIds : [],
+                })
+                .ToImmutableDictionary(x => x.Id);
 
             var snapshot = new CatalogSnapshot
             {
@@ -129,9 +143,9 @@ public sealed class CatalogSnapshotProvider<TTag>(
                 PagesById = pagesById,
                 OffersById = offersById,
                 ProductsById = productsById,
-                PageChildrenIds = pageChildren,
-                PageOfferIds = pageOffers,
-                OfferProductIds = offerProductsMap,
+                PageChildrenIds = pageChildrenIds,
+                PageOfferIds = pageOfferIds,
+                OfferProductIds = offerProductIds,
             };
 
             _logger.LogInformation(

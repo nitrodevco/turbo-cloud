@@ -168,7 +168,7 @@ internal sealed partial class RoomFurniModule
                 {
                     if (bItem == tItem)
                     {
-                        tileHeight -= tItem.Logic.GetStackHeight();
+                        tileHeight -= tItem.GetStackHeight();
 
                         if (tItem.Rotation != rot)
                             isRotating = true;
@@ -177,7 +177,7 @@ internal sealed partial class RoomFurniModule
 
                 if (
                     tileFlags.Has(RoomTileFlags.Disabled)
-                    || (tileHeight + tItem.Logic.GetStackHeight()) > _roomConfig.MaxStackHeight
+                    || (tileHeight + tItem.GetStackHeight()) > _roomConfig.MaxStackHeight
                     || tileFlags.Has(RoomTileFlags.StackBlocked) && bItem != tItem
                     || !_roomConfig.PlaceItemsOnAvatars
                         && tileFlags.Has(RoomTileFlags.AvatarOccupied)
@@ -233,17 +233,17 @@ internal sealed partial class RoomFurniModule
                 var tileFlags = _state.TileFlags[id];
                 var tileHeight = _state.TileHeights[id];
                 var highestItemId = _state.TileHighestFloorItems[id];
+                IRoomFloorItem? bItem = null;
 
-                _state.FloorItemsById.TryGetValue(highestItemId, out var bItem);
+                if (_state.FloorItemsById.TryGetValue(highestItemId, out var floorItem))
+                    bItem = floorItem;
 
                 if (
                     tileFlags.Has(RoomTileFlags.Disabled)
-                    || (tileHeight + item.Logic.GetStackHeight()) > _roomConfig.MaxStackHeight
+                    || (tileHeight + item.GetStackHeight()) > _roomConfig.MaxStackHeight
                     || tileFlags.Has(RoomTileFlags.StackBlocked)
-                    || (
-                        !_roomConfig.PlaceItemsOnAvatars
+                    || !_roomConfig.PlaceItemsOnAvatars
                         && tileFlags.Has(RoomTileFlags.AvatarOccupied)
-                    )
                     || tileFlags.Has(RoomTileFlags.AvatarOccupied) && !item.Logic.CanWalk()
                 )
                     return false;

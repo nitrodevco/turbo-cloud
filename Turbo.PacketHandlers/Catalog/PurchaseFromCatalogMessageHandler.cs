@@ -1,18 +1,52 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Orleans;
+using Turbo.Catalog.Exceptions;
 using Turbo.Messages.Registry;
+using Turbo.Primitives.Catalog.Enums;
+using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Messages.Incoming.Catalog;
+using Turbo.Primitives.Messages.Outgoing.Catalog;
 
 namespace Turbo.PacketHandlers.Catalog;
 
-public class PurchaseFromCatalogMessageHandler : IMessageHandler<PurchaseFromCatalogMessage>
+public class PurchaseFromCatalogMessageHandler(IGrainFactory grainFactory)
+    : IMessageHandler<PurchaseFromCatalogMessage>
 {
+    private readonly IGrainFactory _grainFactory = grainFactory;
+
     public async ValueTask HandleAsync(
         PurchaseFromCatalogMessage message,
         MessageContext ctx,
         CancellationToken ct
     )
     {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        if (ctx.PlayerId <= 0)
+            return;
+
+        try
+        {
+            var purchaseGrain = _grainFactory.GetGrain<ICatalogPurchaseGrain>(ctx.PlayerId);
+            var offer = await purchaseGrain
+                .PurchaseOfferFromCatalogAsync(
+                    CatalogType.Normal,
+                    message.OfferId,
+                    message.ExtraParam ?? string.Empty,
+                    message.Quantity,
+                    ct
+                )
+                .ConfigureAwait(false);
+
+            await ctx.SendComposerAsync(new PurchaseOKMessageComposer { Offer = offer }, ct)
+                .ConfigureAwait(false);
+        }
+        catch (CatalogPurchaseException ex)
+        {
+            await ctx.SendComposerAsync(
+                    new PurchaseNotAllowedMessageComposer { ErrorType = ex.ErrorType },
+                    ct
+                )
+                .ConfigureAwait(false);
+        }
     }
 }

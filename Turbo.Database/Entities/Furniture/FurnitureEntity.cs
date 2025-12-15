@@ -43,10 +43,10 @@ public class FurnitureEntity : TurboEntity
     public string? StuffData { get; set; }
 
     [ForeignKey(nameof(PlayerEntityId))]
-    public required PlayerEntity PlayerEntity { get; set; }
+    public PlayerEntity? PlayerEntity { get; set; }
 
     [ForeignKey(nameof(FurnitureDefinitionEntityId))]
-    public required FurnitureDefinitionEntity FurnitureDefinitionEntity { get; set; }
+    public FurnitureDefinitionEntity? FurnitureDefinitionEntity { get; set; }
 
     [ForeignKey(nameof(RoomEntityId))]
     public RoomEntity? RoomEntity { get; set; }

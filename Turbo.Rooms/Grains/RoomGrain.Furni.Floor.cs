@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
@@ -44,7 +45,7 @@ public sealed partial class RoomGrain
 
             return true;
         }
-        catch
+        catch (Exception)
         {
             // TODO handle exceptions
 

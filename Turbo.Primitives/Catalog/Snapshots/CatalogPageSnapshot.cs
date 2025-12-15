@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using Orleans;
 
 namespace Turbo.Primitives.Catalog.Snapshots;
@@ -32,4 +33,10 @@ public sealed record CatalogPageSnapshot
 
     [Id(8)]
     public required bool Visible { get; init; }
+
+    [Id(9)]
+    public required ImmutableArray<int> OfferIds { get; init; }
+
+    [Id(10)]
+    public required ImmutableArray<int> ChildIds { get; init; }
 }

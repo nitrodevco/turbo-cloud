@@ -1,7 +1,16 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Turbo.Database.Entities.Furniture;
+using Turbo.Inventory.Furniture;
+using Turbo.Logging;
+using Turbo.Primitives;
+using Turbo.Primitives.Catalog.Snapshots;
+using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Players.Grains;
@@ -53,6 +62,73 @@ public sealed partial class InventoryGrain
         await presence.OnFurnitureRemovedAsync(itemId, ct);
 
         return true;
+    }
+
+    public async Task GrantCatalogOfferAsync(
+        CatalogOfferSnapshot offer,
+        string extraParam,
+        int quantity,
+        CancellationToken ct
+    )
+    {
+        quantity = Math.Max(1, quantity);
+
+        var entities = new List<FurnitureEntity>();
+
+        foreach (var product in offer.Products)
+        {
+            if (product.ProductType is ProductType.Floor || product.ProductType is ProductType.Wall)
+            {
+                var def =
+                    _furnitureDefinitionProvider.TryGetDefinition(product.FurniDefinitionId)
+                    ?? throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
+
+                for (int i = 0; i < quantity; i++)
+                    entities.Add(
+                        new FurnitureEntity
+                        {
+                            PlayerEntityId = (int)this.GetPrimaryKeyLong(),
+                            FurnitureDefinitionEntityId = def.Id,
+                        }
+                    );
+
+                continue;
+            }
+        }
+
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+
+        try
+        {
+            dbCtx.AddRange(entities);
+
+            await dbCtx.SaveChangesAsync(ct);
+
+            var items = new List<IFurnitureItem>();
+
+            foreach (var entity in entities)
+            {
+                var def =
+                    _furnitureDefinitionProvider.TryGetDefinition(
+                        entity.FurnitureDefinitionEntityId
+                    ) ?? throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
+
+                await AddFurnitureAsync(
+                    new FurnitureItem()
+                    {
+                        ItemId = entity.Id,
+                        OwnerId = entity.PlayerEntityId,
+                        Definition = def,
+                        StuffData = _stuffDataFactory.CreateStuffData((int)StuffDataType.LegacyKey),
+                    },
+                    ct
+                );
+            }
+        }
+        finally
+        {
+            await dbCtx.DisposeAsync().ConfigureAwait(false);
+        }
     }
 
     public Task<FurnitureItemSnapshot?> GetItemSnapshotAsync(int itemId, CancellationToken ct) =>

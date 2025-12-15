@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
@@ -29,18 +29,29 @@ public class GetCatalogPageMessageHandler(ICatalogService catalogService)
             if (!snapshot.PagesById.TryGetValue(message.PageId, out var page))
                 return;
 
-            List<CatalogOfferSnapshot> offers = [];
-            Dictionary<int, List<CatalogProductSnapshot>> offerProducts = [];
+            var offers = new List<CatalogOfferSnapshot>();
+            var offerProducts = new Dictionary<int, ImmutableArray<CatalogProductSnapshot>>();
 
-            if (snapshot.PageOfferIds.TryGetValue(page.Id, out var offerIds))
+            foreach (var offerId in page.OfferIds)
             {
-                offers = [.. offerIds.Select(x => snapshot.OffersById[x])];
-                offerProducts = offers
-                    .SelectMany(x =>
-                        snapshot.OfferProductIds[x.Id].Select(x => snapshot.ProductsById[x])
-                    )
-                    .GroupBy(x => x.OfferId)
-                    .ToDictionary(g => g.Key, g => g.ToList());
+                if (snapshot.OffersById.TryGetValue(offerId, out var offer))
+                    offers.Add(offer);
+            }
+
+            foreach (var offer in offers)
+            {
+                if (!snapshot.OfferProductIds.TryGetValue(offer.Id, out var productIds))
+                    continue;
+
+                var products = new List<CatalogProductSnapshot>();
+
+                foreach (var productId in productIds)
+                {
+                    if (snapshot.ProductsById.TryGetValue(productId, out var product))
+                        products.Add(product);
+                }
+
+                offerProducts[offer.Id] = [.. products];
             }
 
             await ctx.SendComposerAsync(
@@ -48,8 +59,8 @@ public class GetCatalogPageMessageHandler(ICatalogService catalogService)
                     {
                         CatalogType = snapshot.CatalogType,
                         Page = page,
-                        Offers = offers,
-                        OfferProducts = offerProducts,
+                        Offers = [.. offers],
+                        OfferProducts = offerProducts.ToImmutableDictionary(),
                         OfferId = message.OfferId,
                         AcceptSeasonCurrencyAsCredits = false,
                         FrontPageItems = [],

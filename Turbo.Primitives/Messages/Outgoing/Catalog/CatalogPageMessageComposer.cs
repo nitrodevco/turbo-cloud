@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using System.Collections.Immutable;
 using Orleans;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Snapshots;
@@ -16,10 +16,13 @@ public sealed record CatalogPageMessageComposer : IComposer
     public required CatalogPageSnapshot Page { get; init; }
 
     [Id(2)]
-    public required List<CatalogOfferSnapshot> Offers { get; init; }
+    public required ImmutableArray<CatalogOfferSnapshot> Offers { get; init; }
 
     [Id(3)]
-    public required Dictionary<int, List<CatalogProductSnapshot>> OfferProducts { get; init; }
+    public required ImmutableDictionary<
+        int,
+        ImmutableArray<CatalogProductSnapshot>
+    > OfferProducts { get; init; }
 
     [Id(4)]
     public required int OfferId { get; init; }
@@ -28,5 +31,5 @@ public sealed record CatalogPageMessageComposer : IComposer
     public required bool AcceptSeasonCurrencyAsCredits { get; init; }
 
     [Id(6)]
-    public required List<CatalogFrontPageItemSnapshot> FrontPageItems { get; init; }
+    public required ImmutableArray<CatalogFrontPageItemSnapshot> FrontPageItems { get; init; }
 }

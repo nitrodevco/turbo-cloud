@@ -79,7 +79,7 @@ internal sealed class RoomRollerSystem(
 
                     var toTileState = _state.TileFlags[toIdx];
                     var toTileHeight = _state.TileHeights[toIdx];
-                    var rollerHeight = roller.Z + roller.Logic.GetStackHeight();
+                    var rollerHeight = roller.Z + roller.GetStackHeight();
 
                     if (
                         toTileHeight > rollerHeight
