@@ -1,4 +1,5 @@
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
@@ -18,6 +19,6 @@ public interface IRoomWallItem : IRoomItem
     public IComposer GetAddComposer();
     public IComposer GetUpdateComposer();
     public IComposer GetRefreshStuffDataComposer();
-    public IComposer GetRemoveComposer(long pickerId);
+    public IComposer GetRemoveComposer(PlayerId pickerId);
     public string ConvertWallPositionToString();
 }

@@ -10,6 +10,7 @@ using Turbo.Database.Context;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans.Snapshots.Navigator;
 using Turbo.Primitives.Orleans.Snapshots.Room;
+using Turbo.Primitives.Players;
 
 namespace Turbo.Navigator;
 
@@ -44,7 +45,7 @@ public sealed class NavigatorProvider(
                     RoomId = x.Id,
                     Name = x.Name ?? string.Empty,
                     Description = x.Description ?? string.Empty,
-                    OwnerId = (long)x.PlayerEntityId,
+                    OwnerId = (PlayerId)x.PlayerEntityId,
                     OwnerName = string.Empty,
                     Population = 0,
                     DoorMode = x.DoorMode,

@@ -1,4 +1,5 @@
 using System.Text;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
@@ -7,7 +8,7 @@ namespace Turbo.Rooms.Object.Avatars;
 
 internal sealed class RoomPlayerAvatar : RoomAvatar, IRoomPlayerAvatar
 {
-    public required long PlayerId { get; init; }
+    public required PlayerId PlayerId { get; init; }
     public required AvatarGenderType Gender { get; init; }
 
     public int GroupId { get; init; } = -1;

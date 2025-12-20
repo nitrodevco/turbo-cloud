@@ -1,5 +1,6 @@
 using System;
 using Orleans;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Primitives.Orleans.Snapshots.Players;
@@ -8,7 +9,7 @@ namespace Turbo.Primitives.Orleans.Snapshots.Players;
 public sealed record PlayerSummarySnapshot
 {
     [Id(0)]
-    public required long PlayerId { get; init; }
+    public required PlayerId PlayerId { get; init; }
 
     [Id(1)]
     public required string Name { get; init; }

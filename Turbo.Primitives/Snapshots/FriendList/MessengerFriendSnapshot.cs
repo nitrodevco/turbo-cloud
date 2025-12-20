@@ -1,4 +1,5 @@
 using Orleans;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Primitives.Snapshots.FriendList;
@@ -7,7 +8,7 @@ namespace Turbo.Primitives.Snapshots.FriendList;
 public record MessengerFriendSnapshot
 {
     [Id(0)]
-    public required long Id { get; init; }
+    public required PlayerId PlayerId { get; init; }
 
     [Id(1)]
     public required string Name { get; init; }

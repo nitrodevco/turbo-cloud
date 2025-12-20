@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
@@ -37,7 +38,7 @@ internal abstract class RoomItemContext<TItem>(
     public abstract Task RefreshStuffDataAsync(CancellationToken ct);
 
     public abstract Task RemoveItemAsync(
-        long pickerId,
+        PlayerId pickerId,
         CancellationToken ct,
         bool isExpired = false,
         int delay = 0

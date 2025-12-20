@@ -8,6 +8,7 @@ using Turbo.Primitives;
 using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Players;
 
 namespace Turbo.Inventory.Grains.Modules;
 
@@ -72,7 +73,7 @@ internal sealed class InventoryFurniModule(
         _state.FurnitureById.Clear();
 
         var items = await _furnitureItemsLoader.LoadByPlayerIdAsync(
-            _inventoryGrain.GetPrimaryKeyLong(),
+            (PlayerId)_inventoryGrain.GetPrimaryKeyLong(),
             ct
         );
 

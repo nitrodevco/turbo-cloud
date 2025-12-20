@@ -1,4 +1,5 @@
 using System.Threading;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 
@@ -58,7 +59,7 @@ internal sealed partial class RoomMapModule
         return true;
     }
 
-    public bool RemoveWallItem(IRoomWallItem item, long pickerId = -1, bool flush = true)
+    public bool RemoveWallItem(IRoomWallItem item, PlayerId pickerId, bool flush = true)
     {
         if (flush)
             _ = _roomGrain.SendComposerToRoomAsync(

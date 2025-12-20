@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Rooms.Grains;
 using Turbo.Rooms.Grains.Modules;
@@ -22,7 +23,7 @@ internal sealed class RoomWallItemContext(
         SendComposerToRoomAsync(Item.GetRefreshStuffDataComposer(), ct);
 
     public override Task RemoveItemAsync(
-        long pickerId,
+        PlayerId pickerId,
         CancellationToken ct,
         bool isExpired = false,
         int delay = 0

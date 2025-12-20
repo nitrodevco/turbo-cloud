@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 using Turbo.Rooms.Grains;
@@ -23,7 +24,7 @@ internal sealed class RoomFloorItemContext(
         SendComposerToRoomAsync(Item.GetRefreshStuffDataComposer(), ct);
 
     public override Task RemoveItemAsync(
-        long pickerId,
+        PlayerId pickerId,
         CancellationToken ct,
         bool isExpired = false,
         int delay = 0

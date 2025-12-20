@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Engine;
@@ -14,7 +15,7 @@ public sealed record ObjectRemoveMessageComposer : IComposer
     public required bool IsExpired { get; init; }
 
     [Id(2)]
-    public required long PickerId { get; init; }
+    public required PlayerId PickerId { get; init; }
 
     [Id(3)]
     public required int Delay { get; init; }

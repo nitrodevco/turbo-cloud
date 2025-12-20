@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Turbo.Database.Context;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains;
 
 namespace Turbo.Players.Grains;
@@ -19,9 +20,9 @@ public class PlayerDirectoryGrain(IDbContextFactory<TurboDbContext> dbCtxFactory
 
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
 
-    private readonly Dictionary<long, string> _idToName = [];
+    private readonly Dictionary<PlayerId, string> _idToName = [];
 
-    public async Task<string> GetPlayerNameAsync(long playerId, CancellationToken ct)
+    public async Task<string> GetPlayerNameAsync(PlayerId playerId, CancellationToken ct)
     {
         if (_idToName.TryGetValue(playerId, out var x))
             return x;
@@ -42,12 +43,12 @@ public class PlayerDirectoryGrain(IDbContextFactory<TurboDbContext> dbCtxFactory
         return dbName;
     }
 
-    public async Task<ImmutableDictionary<long, string>> GetPlayerNamesAsync(
-        List<long> playerIds,
+    public async Task<ImmutableDictionary<PlayerId, string>> GetPlayerNamesAsync(
+        List<PlayerId> playerIds,
         CancellationToken ct
     )
     {
-        var names = new Dictionary<long, string>();
+        var names = new Dictionary<PlayerId, string>();
 
         if (playerIds.Count == 1)
         {
@@ -59,7 +60,7 @@ public class PlayerDirectoryGrain(IDbContextFactory<TurboDbContext> dbCtxFactory
         else
         {
             var ids = playerIds.Distinct().ToList();
-            var notFound = new List<long>();
+            var notFound = new List<PlayerId>();
 
             foreach (var playerId in ids)
             {
@@ -95,14 +96,14 @@ public class PlayerDirectoryGrain(IDbContextFactory<TurboDbContext> dbCtxFactory
         return names.ToImmutableDictionary();
     }
 
-    public Task SetPlayerNameAsync(long playerId, string name, CancellationToken ct)
+    public Task SetPlayerNameAsync(PlayerId playerId, string name, CancellationToken ct)
     {
         _idToName[playerId] = name;
 
         return Task.CompletedTask;
     }
 
-    public Task InvalidatePlayerNameAsync(long playerId, CancellationToken ct)
+    public Task InvalidatePlayerNameAsync(PlayerId playerId, CancellationToken ct)
     {
         _idToName.Remove(playerId);
 

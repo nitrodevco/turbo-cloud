@@ -37,11 +37,11 @@ internal sealed partial class RoomService(
     public IRoomDirectoryGrain GetRoomDirectory() =>
         _grainFactory.GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY);
 
-    public IRoomGrain GetRoomGrain(long roomId) => _grainFactory.GetGrain<IRoomGrain>(roomId);
+    public IRoomGrain GetRoomGrain(RoomId roomId) => _grainFactory.GetGrain<IRoomGrain>(roomId);
 
     public async Task OpenRoomForPlayerIdAsync(
         ActionContext ctx,
-        long playerId,
+        PlayerId playerId,
         RoomId roomId,
         CancellationToken ct
     )
@@ -93,7 +93,7 @@ internal sealed partial class RoomService(
 
     public async Task EnterPendingRoomForPlayerIdAsync(
         ActionContext ctx,
-        long playerId,
+        PlayerId playerId,
         CancellationToken ct
     )
     {
@@ -220,7 +220,7 @@ internal sealed partial class RoomService(
         }
     }
 
-    public async Task CloseRoomForPlayerAsync(long playerId, CancellationToken ct)
+    public async Task CloseRoomForPlayerAsync(PlayerId playerId, CancellationToken ct)
     {
         if (playerId <= 0)
             return;

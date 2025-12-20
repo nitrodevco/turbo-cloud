@@ -13,6 +13,7 @@ using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Furniture;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Inventory.Factories;
@@ -28,7 +29,7 @@ internal sealed class InventoryFurnitureLoader(
     private readonly IStuffDataFactory _stuffDataFactory = stuffDataFactory;
 
     public async Task<IReadOnlyList<IFurnitureItem>> LoadByPlayerIdAsync(
-        long playerId,
+        PlayerId playerId,
         CancellationToken ct
     )
     {

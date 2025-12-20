@@ -1,3 +1,5 @@
+using Turbo.Primitives.Players;
+
 namespace Turbo.Primitives.Events;
 
-public record PlayerJoinedEvent(long PlayerId) : IEvent;
+public record PlayerJoinedEvent(PlayerId PlayerId) : IEvent;

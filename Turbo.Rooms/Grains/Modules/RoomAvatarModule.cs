@@ -8,6 +8,7 @@ using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans.Snapshots.Players;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
@@ -99,7 +100,7 @@ internal sealed partial class RoomAvatarModule(
         return avatar;
     }
 
-    public async Task RemoveAvatarFromPlayerAsync(long playerId, CancellationToken ct)
+    public async Task RemoveAvatarFromPlayerAsync(PlayerId playerId, CancellationToken ct)
     {
         try
         {

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Turbo.Database.Context;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Rooms.Configuration;
@@ -30,7 +31,7 @@ internal sealed partial class RoomFurniModule(
     private readonly IRoomItemsProvider _itemsLoader = itemsLoader;
     private readonly IRoomObjectLogicProvider _logicFactory = logicFactory;
 
-    public Task<ImmutableDictionary<long, string>> GetAllOwnersAsync(CancellationToken ct) =>
+    public Task<ImmutableDictionary<PlayerId, string>> GetAllOwnersAsync(CancellationToken ct) =>
         Task.FromResult(_state.OwnerNamesById.ToImmutableDictionary());
 
     internal async Task EnsureFurniLoadedAsync(CancellationToken ct)
@@ -39,7 +40,7 @@ internal sealed partial class RoomFurniModule(
             return;
 
         var (floorItems, wallItems, ownerNames) = await _itemsLoader.LoadByRoomIdAsync(
-            _roomGrain.GetPrimaryKeyLong(),
+            (RoomId)_roomGrain.GetPrimaryKeyLong(),
             ct
         );
 

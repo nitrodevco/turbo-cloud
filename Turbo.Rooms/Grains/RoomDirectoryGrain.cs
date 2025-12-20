@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Snapshots.Room;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Grains;
@@ -25,9 +26,9 @@ public class RoomDirectoryGrain(IOptions<RoomConfig> roomConfig, IGrainFactory g
     private readonly RoomConfig _roomConfig = roomConfig.Value;
     private readonly IGrainFactory _grainFactory = grainFactory;
 
-    private readonly Dictionary<long, RoomActiveSnapshot> _activeRooms = [];
-    private readonly Dictionary<long, List<long>> _roomPlayers = [];
-    private readonly Dictionary<long, int> _roomPopulations = [];
+    private readonly Dictionary<RoomId, RoomActiveSnapshot> _activeRooms = [];
+    private readonly Dictionary<RoomId, List<PlayerId>> _roomPlayers = [];
+    private readonly Dictionary<RoomId, int> _roomPopulations = [];
 
     public override Task OnActivateAsync(CancellationToken ct)
     {
@@ -91,7 +92,7 @@ public class RoomDirectoryGrain(IOptions<RoomConfig> roomConfig, IGrainFactory g
         return Task.CompletedTask;
     }
 
-    public async Task AddPlayerToRoomAsync(long playerId, RoomId roomId, CancellationToken ct)
+    public async Task AddPlayerToRoomAsync(PlayerId playerId, RoomId roomId, CancellationToken ct)
     {
         if (!_roomPlayers.TryGetValue(roomId, out var players))
         {
@@ -105,7 +106,11 @@ public class RoomDirectoryGrain(IOptions<RoomConfig> roomConfig, IGrainFactory g
         await UpdatePopulationAsync(roomId);
     }
 
-    public async Task RemovePlayerFromRoomAsync(long playerId, RoomId roomId, CancellationToken ct)
+    public async Task RemovePlayerFromRoomAsync(
+        PlayerId playerId,
+        RoomId roomId,
+        CancellationToken ct
+    )
     {
         if (!_roomPlayers.TryGetValue(roomId, out var players))
             return;

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Observers;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains;
 
 namespace Turbo.Networking.Session;
@@ -15,8 +16,8 @@ public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
 
     private readonly ConcurrentDictionary<SessionKey, ISessionContext> _sessions = new();
     private readonly ConcurrentDictionary<SessionKey, ObserverEntry> _sessionObservers = new();
-    private readonly ConcurrentDictionary<SessionKey, long> _sessionToPlayer = new();
-    private readonly ConcurrentDictionary<long, SessionKey> _playerToSession = new();
+    private readonly ConcurrentDictionary<SessionKey, PlayerId> _sessionToPlayer = new();
+    private readonly ConcurrentDictionary<PlayerId, SessionKey> _playerToSession = new();
 
     private sealed record ObserverEntry(SessionContextObserver Impl, ISessionContextObserver Ref);
 
@@ -26,7 +27,7 @@ public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
     public ISessionContextObserver? GetSessionObserver(SessionKey key) =>
         _sessionObservers.TryGetValue(key, out var observer) ? observer.Ref : null;
 
-    public long GetPlayerId(SessionKey key) =>
+    public PlayerId GetPlayerId(SessionKey key) =>
         _sessionToPlayer.TryGetValue(key, out var playerId) ? playerId : -1;
 
     public Task AddSessionAsync(SessionKey key, ISessionContext ctx)
@@ -67,7 +68,7 @@ public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
         if (_sessions.TryRemove(key, out _)) { }
     }
 
-    public async Task AddSessionToPlayerAsync(SessionKey key, long playerId)
+    public async Task AddSessionToPlayerAsync(SessionKey key, PlayerId playerId)
     {
         var observer = GetSessionObserver(key);
 
@@ -82,7 +83,7 @@ public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
         await playerPresence.RegisterSessionAsync(key, observer).ConfigureAwait(false);
     }
 
-    public async Task RemoveSessionFromPlayerAsync(long playerId, CancellationToken ct)
+    public async Task RemoveSessionFromPlayerAsync(PlayerId playerId, CancellationToken ct)
     {
         if (!_playerToSession.TryRemove(playerId, out var sessionKey))
             return;

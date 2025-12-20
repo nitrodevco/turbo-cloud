@@ -8,6 +8,7 @@ using Turbo.Players.Grains.Modules;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Observers;
 using Turbo.Primitives.Orleans.Snapshots.Room;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms;
 
@@ -112,12 +113,12 @@ public sealed partial class PlayerPresenceGrain : Grain, IPlayerPresenceGrain
             if (prev != -1)
                 await _roomService
                     .GetRoomDirectory()
-                    .RemovePlayerFromRoomAsync(this.GetPrimaryKeyLong(), prev, ct);
+                    .RemovePlayerFromRoomAsync((PlayerId)this.GetPrimaryKeyLong(), prev, ct);
 
             if (next != -1)
                 await _roomService
                     .GetRoomDirectory()
-                    .AddPlayerToRoomAsync(this.GetPrimaryKeyLong(), next, ct);
+                    .AddPlayerToRoomAsync((PlayerId)this.GetPrimaryKeyLong(), next, ct);
         }
     }
 

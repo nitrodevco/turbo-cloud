@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Turbo.Primitives.Orleans.Snapshots.Room;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -16,9 +17,9 @@ internal sealed class RoomLiveState
 
     public Dictionary<long, IRoomFloorItem> FloorItemsById { get; } = [];
     public Dictionary<long, IRoomWallItem> WallItemsById { get; } = [];
-    public Dictionary<long, string> OwnerNamesById { get; } = [];
+    public Dictionary<PlayerId, string> OwnerNamesById { get; } = [];
     public Dictionary<int, IRoomAvatar> AvatarsByObjectId { get; } = [];
-    public Dictionary<long, int> AvatarsByPlayerId { get; } = [];
+    public Dictionary<PlayerId, int> AvatarsByPlayerId { get; } = [];
 
     public RoomModelSnapshot? Model { get; internal set; } = null;
     public double[] TileHeights { get; internal set; } = [];
@@ -28,7 +29,7 @@ internal sealed class RoomLiveState
     public HashSet<long>[] TileFloorStacks { get; internal set; } = [];
     public HashSet<int>[] TileAvatarStacks { get; internal set; } = [];
 
-    public HashSet<long> PlayerIdsWithRights { get; } = [];
+    public HashSet<PlayerId> PlayerIdsWithRights { get; } = [];
 
     public HashSet<int> DirtyTileIdxs { get; } = [];
     public HashSet<int> DirtyHeightTileIds { get; } = [];

@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 
@@ -12,7 +13,7 @@ public abstract record RoomItemSnapshot
     public required RoomObjectId ObjectId { get; init; }
 
     [Id(1)]
-    public required long OwnerId { get; init; }
+    public required PlayerId OwnerId { get; init; }
 
     [Id(2)]
     public required string OwnerName { get; init; }

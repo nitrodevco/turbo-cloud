@@ -10,6 +10,8 @@ using Turbo.Primitives;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room.Settings;
+using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Providers;
@@ -29,7 +31,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     private readonly IRoomAvatarProvider _roomAvatarFactory;
     private readonly IGrainFactory _grainFactory;
 
-    private readonly int _roomId;
+    private readonly RoomId _roomId;
     private readonly RoomLiveState _liveState;
 
     private readonly RoomEventModule _eventModule;
@@ -61,7 +63,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _roomAvatarFactory = roomAvatarFactory;
         _grainFactory = grainFactory;
 
-        _roomId = (int)this.GetPrimaryKeyLong();
+        _roomId = (RoomId)this.GetPrimaryKeyLong();
         _liveState = new() { RoomId = _roomId };
         _pathingSystem = new();
         _eventModule = new(this, _roomConfig, _liveState);
@@ -217,7 +219,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
                 RoomId = entity.Id,
                 Name = entity.Name ?? string.Empty,
                 Description = entity.Description ?? string.Empty,
-                OwnerId = (long)entity.PlayerEntityId,
+                OwnerId = (PlayerId)entity.PlayerEntityId,
                 OwnerName = string.Empty,
                 Population = 0,
                 DoorMode = entity.DoorMode,

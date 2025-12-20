@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Orleans.Snapshots.Players;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Rooms.Grains;
@@ -29,7 +30,7 @@ public sealed partial class RoomGrain
         }
     }
 
-    public async Task<bool> RemoveAvatarFromPlayerAsync(long playerId, CancellationToken ct)
+    public async Task<bool> RemoveAvatarFromPlayerAsync(PlayerId playerId, CancellationToken ct)
     {
         try
         {

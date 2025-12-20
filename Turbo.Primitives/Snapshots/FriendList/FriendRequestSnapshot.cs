@@ -1,4 +1,5 @@
 using Orleans;
+using Turbo.Primitives.Players;
 
 namespace Turbo.Primitives.Snapshots.FriendList;
 
@@ -15,5 +16,5 @@ public record FriendRequestSnapshot
     public required string FigureString { get; init; }
 
     [Id(3)]
-    public required long RequesterUserId { get; init; }
+    public required PlayerId RequesterUserId { get; init; }
 }

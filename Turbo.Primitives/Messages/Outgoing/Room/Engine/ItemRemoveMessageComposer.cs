@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Engine;
@@ -11,5 +12,5 @@ public sealed record ItemRemoveMessageComposer : IComposer
     public required RoomObjectId ObjectId { get; init; }
 
     [Id(1)]
-    public required long PickerId { get; init; }
+    public required PlayerId PickerId { get; init; }
 }

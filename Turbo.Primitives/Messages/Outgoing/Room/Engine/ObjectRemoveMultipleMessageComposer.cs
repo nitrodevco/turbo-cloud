@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Engine;
 
@@ -11,5 +12,5 @@ public sealed record ObjectRemoveMultipleMessageComposer : IComposer
     public required ImmutableArray<long> ObjectIdsToRemove { get; init; }
 
     [Id(1)]
-    public required long PickerId { get; init; }
+    public required PlayerId PickerId { get; init; }
 }

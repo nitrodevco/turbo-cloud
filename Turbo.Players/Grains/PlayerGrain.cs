@@ -61,7 +61,7 @@ public class PlayerGrain(
 
             await _grainFactory
                 .GetGrain<IPlayerDirectoryGrain>(PlayerDirectoryGrain.SINGLETON_KEY)
-                .SetPlayerNameAsync(this.GetPrimaryKeyLong(), state.State.Name, ct);
+                .SetPlayerNameAsync((PlayerId)this.GetPrimaryKeyLong(), state.State.Name, ct);
 
             await state.WriteStateAsync(ct);
         }
@@ -108,7 +108,7 @@ public class PlayerGrain(
         Task.FromResult(
             new PlayerSummarySnapshot
             {
-                PlayerId = this.GetPrimaryKeyLong(),
+                PlayerId = (PlayerId)this.GetPrimaryKeyLong(),
                 Name = state.State.Name,
                 Motto = state.State.Motto,
                 Figure = state.State.Figure,

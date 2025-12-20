@@ -2,6 +2,7 @@ using System;
 using System.Text.Json;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
@@ -67,7 +68,7 @@ internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
             StuffData = Logic.StuffData.GetSnapshot(),
         };
 
-    public IComposer GetRemoveComposer(long pickerId, bool isExpired = false, int delay = 0) =>
+    public IComposer GetRemoveComposer(PlayerId pickerId, bool isExpired = false, int delay = 0) =>
         new ObjectRemoveMessageComposer
         {
             ObjectId = ObjectId,

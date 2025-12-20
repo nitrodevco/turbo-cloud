@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
@@ -76,7 +77,7 @@ internal sealed class RoomWallItem : RoomItem, IRoomWallItem
             State = Logic.StuffData.GetLegacyString(),
         };
 
-    public IComposer GetRemoveComposer(long pickerId) =>
+    public IComposer GetRemoveComposer(PlayerId pickerId) =>
         new ItemRemoveMessageComposer { ObjectId = ObjectId, PickerId = (int)pickerId };
 
     public string ConvertWallPositionToString() =>

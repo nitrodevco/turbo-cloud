@@ -14,7 +14,9 @@ using Turbo.Primitives;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -38,8 +40,8 @@ internal sealed class RoomItemsProvider(
     public async Task<(
         IReadOnlyList<IRoomFloorItem>,
         IReadOnlyList<IRoomWallItem>,
-        IReadOnlyDictionary<long, string>
-    )> LoadByRoomIdAsync(long roomId, CancellationToken ct)
+        IReadOnlyDictionary<PlayerId, string>
+    )> LoadByRoomIdAsync(RoomId roomId, CancellationToken ct)
     {
         var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
@@ -54,7 +56,10 @@ internal sealed class RoomItemsProvider(
             var floorItems = new List<IRoomFloorItem>();
             var wallItems = new List<IRoomWallItem>();
 
-            var ownerIdsUnique = entities.Select(x => (long)x.PlayerEntityId).Distinct().ToList();
+            var ownerIdsUnique = entities
+                .Select(x => (PlayerId)x.PlayerEntityId)
+                .Distinct()
+                .ToList();
             var ownerNames = await _grainFactory
                 .GetGrain<IPlayerDirectoryGrain>(PlayerDirectoryGrain.SINGLETON_KEY)
                 .GetPlayerNamesAsync(ownerIdsUnique, ct)

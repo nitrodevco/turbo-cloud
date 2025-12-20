@@ -1,6 +1,7 @@
 using System.Threading;
 using Turbo.Logging;
 using Turbo.Primitives;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 
@@ -86,7 +87,7 @@ internal sealed partial class RoomMapModule
         return true;
     }
 
-    public bool RemoveFloorItem(IRoomFloorItem item, long pickerId, bool flush)
+    public bool RemoveFloorItem(IRoomFloorItem item, PlayerId pickerId, bool flush)
     {
         var tileIdx = ToIdx(item.X, item.Y);
 
