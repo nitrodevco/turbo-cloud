@@ -23,28 +23,23 @@ public class PlayerDirectoryGrain(IDbContextFactory<TurboDbContext> dbCtxFactory
 
     public async Task<string> GetPlayerNameAsync(long playerId, CancellationToken ct)
     {
-        var name = string.Empty;
-
         if (_idToName.TryGetValue(playerId, out var x))
-            name = x;
-        else
-        {
-            await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+            return x;
 
-            var dbName = await dbCtx
-                .Players.AsNoTracking()
-                .Where(x => x.Id == playerId)
-                .Select(x => x.Name)
-                .FirstAsync(ct);
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-            if (dbName is not null)
-            {
-                name = dbName;
-                _idToName[playerId] = dbName;
-            }
-        }
+        var dbName = await dbCtx
+            .Players.AsNoTracking()
+            .Where(x => x.Id == playerId)
+            .Select(x => x.Name)
+            .FirstAsync(ct);
 
-        return name;
+        if (string.IsNullOrWhiteSpace(dbName))
+            return string.Empty;
+
+        _idToName[playerId] = dbName;
+
+        return dbName;
     }
 
     public async Task<ImmutableDictionary<long, string>> GetPlayerNamesAsync(

@@ -10,7 +10,7 @@ public class ActionContext
     public required ActionOrigin Origin { get; init; }
 
     [Id(1)]
-    public SessionKey SessionKey { get; init; } = SessionKey.Empty;
+    public SessionKey SessionKey { get; init; } = string.Empty;
 
     [Id(2)]
     public long PlayerId { get; init; } = -1;

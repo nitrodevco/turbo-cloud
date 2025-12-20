@@ -14,28 +14,28 @@ public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
 
-    private readonly ConcurrentDictionary<string, ISessionContext> _sessions = new();
-    private readonly ConcurrentDictionary<string, ObserverEntry> _sessionObservers = new();
-    private readonly ConcurrentDictionary<string, long> _sessionToPlayer = new();
-    private readonly ConcurrentDictionary<long, string> _playerToSession = new();
+    private readonly ConcurrentDictionary<SessionKey, ISessionContext> _sessions = new();
+    private readonly ConcurrentDictionary<SessionKey, ObserverEntry> _sessionObservers = new();
+    private readonly ConcurrentDictionary<SessionKey, long> _sessionToPlayer = new();
+    private readonly ConcurrentDictionary<long, SessionKey> _playerToSession = new();
 
     private sealed record ObserverEntry(SessionContextObserver Impl, ISessionContextObserver Ref);
 
     public ISessionContext? GetSession(SessionKey key) =>
-        _sessions.TryGetValue(key.Value, out var ctx) ? ctx : null;
+        _sessions.TryGetValue(key, out var ctx) ? ctx : null;
 
     public ISessionContextObserver? GetSessionObserver(SessionKey key) =>
-        _sessionObservers.TryGetValue(key.Value, out var observer) ? observer.Ref : null;
+        _sessionObservers.TryGetValue(key, out var observer) ? observer.Ref : null;
 
     public long GetPlayerId(SessionKey key) =>
-        _sessionToPlayer.TryGetValue(key.Value, out var playerId) ? playerId : -1;
+        _sessionToPlayer.TryGetValue(key, out var playerId) ? playerId : -1;
 
     public Task AddSessionAsync(SessionKey key, ISessionContext ctx)
     {
-        _sessions[key.Value] = ctx;
+        _sessions[key] = ctx;
 
         _sessionObservers.AddOrUpdate(
-            key.Value,
+            key,
             _ =>
             {
                 var impl = new SessionContextObserver(key, this);
@@ -56,7 +56,7 @@ public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
         if (playerId > 0)
             await RemoveSessionFromPlayerAsync(playerId, ct).ConfigureAwait(false);
 
-        if (_sessionObservers.TryRemove(key.Value, out var observer))
+        if (_sessionObservers.TryRemove(key, out var observer))
         {
             try
             {
@@ -65,7 +65,7 @@ public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
             catch (Exception) { }
         }
 
-        if (_sessions.TryRemove(key.Value, out _)) { }
+        if (_sessions.TryRemove(key, out _)) { }
     }
 
     public async Task AddSessionToPlayerAsync(SessionKey key, long playerId)
@@ -77,23 +77,21 @@ public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
 
         var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
 
-        _sessionToPlayer[key.Value] = playerId;
-        _playerToSession[playerId] = key.Value;
+        _sessionToPlayer[key] = playerId;
+        _playerToSession[playerId] = key;
 
         await playerPresence.RegisterSessionAsync(key, observer).ConfigureAwait(false);
     }
 
     public async Task RemoveSessionFromPlayerAsync(long playerId, CancellationToken ct)
     {
-        if (!_playerToSession.TryRemove(playerId, out var sessionKeyValue))
+        if (!_playerToSession.TryRemove(playerId, out var sessionKey))
             return;
 
-        _sessionToPlayer.TryRemove(sessionKeyValue, out _);
+        _sessionToPlayer.TryRemove(sessionKey, out _);
 
         var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
 
-        await playerPresence
-            .UnregisterSessionAsync(SessionKey.From(sessionKeyValue), ct)
-            .ConfigureAwait(false);
+        await playerPresence.UnregisterSessionAsync(sessionKey, ct).ConfigureAwait(false);
     }
 }

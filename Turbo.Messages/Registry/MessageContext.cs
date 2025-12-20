@@ -14,7 +14,7 @@ public sealed class MessageContext(ISessionContext session, long playerId = -1, 
 
     public long PlayerId => _playerId;
     public int RoomId => _roomId;
-    public SessionKey SessionKey => SessionKey.From(_session.SessionKey.Value);
+    public SessionKey SessionKey => _session.SessionKey;
 
     public ActionContext AsActionContext() =>
         new()

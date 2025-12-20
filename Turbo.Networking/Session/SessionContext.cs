@@ -19,7 +19,7 @@ public class SessionContext(IPackageEncoder<OutgoingPackage> packageEncoder)
 {
     private readonly IPackageEncoder<OutgoingPackage> _packageEncoder = packageEncoder;
 
-    public SessionKey SessionKey { get; private set; } = SessionKey.Empty;
+    public SessionKey SessionKey { get; private set; } = string.Empty;
     public bool PolicyDone { get; set; } = true;
     public string RevisionId { get; private set; } = "Default";
     public DateTime LastActivityUtc { get; private set; } = DateTime.UtcNow;
@@ -30,8 +30,7 @@ public class SessionContext(IPackageEncoder<OutgoingPackage> packageEncoder)
 
     protected override async ValueTask OnSessionConnectedAsync()
     {
-        this.LogDebug("TESTING!!");
-        SessionKey = SessionKey.From(this.SessionID);
+        SessionKey = this.SessionID;
 
         await base.OnSessionConnectedAsync().ConfigureAwait(false);
     }

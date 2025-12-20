@@ -9,7 +9,6 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Observers;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Session;
-using Turbo.Primitives.Orleans.States.Players;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms;
 
@@ -38,18 +37,17 @@ public sealed partial class PlayerPresenceGrain : Grain, IPlayerPresenceGrain
         _inventoryModule = new PlayerInventoryModule(this, grainFactory);
     }
 
-    public override async Task OnActivateAsync(CancellationToken ct)
+    public override Task OnActivateAsync(CancellationToken ct)
     {
-        Console.WriteLine($"PlayerPresenceGrain activated: {this.GetPrimaryKeyLong()}");
+        return Task.CompletedTask;
     }
 
-    public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
+    public override Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
-        Console.WriteLine($"PlayerPresenceGrain deactivated: {this.GetPrimaryKeyLong()}");
+        return Task.CompletedTask;
     }
 
-    public Task<SessionKey> GetSessionKeyAsync() =>
-        Task.FromResult(SessionKey.From(_state.State.Session.Value));
+    public Task<SessionKey> GetSessionKeyAsync() => Task.FromResult(_state.State.SessionKey);
 
     public Task<RoomPointerSnapshot> GetActiveRoomAsync() =>
         Task.FromResult(
@@ -73,7 +71,7 @@ public sealed partial class PlayerPresenceGrain : Grain, IPlayerPresenceGrain
     {
         _sessionObserver = observer;
 
-        _state.State.Session = SessionKey.From(key.Value);
+        _state.State.SessionKey = key;
 
         await _inventoryModule.OnSessionAttachedAsync(CancellationToken.None);
 
@@ -82,7 +80,7 @@ public sealed partial class PlayerPresenceGrain : Grain, IPlayerPresenceGrain
 
     public async Task UnregisterSessionAsync(SessionKey key, CancellationToken ct)
     {
-        if (!_state.State.Session.CompareTo(key))
+        if (!_state.State.SessionKey.Equals(key))
             return;
 
         await _inventoryModule.OnSessionDetachedAsync(ct);
@@ -91,7 +89,7 @@ public sealed partial class PlayerPresenceGrain : Grain, IPlayerPresenceGrain
 
         // reset the persistent state?
 
-        _state.State.Session = SessionKey.Empty;
+        _state.State.SessionKey = string.Empty;
 
         await _state.WriteStateAsync(ct);
         await ClearActiveRoomAsync(ct);

@@ -2,13 +2,13 @@ using System;
 using Orleans;
 using Turbo.Primitives.Orleans.Snapshots.Session;
 
-namespace Turbo.Primitives.Orleans.States.Players;
+namespace Turbo.Players.Grains;
 
 [GenerateSerializer]
 public sealed class PlayerPresenceState
 {
     [Id(0)]
-    public required SessionKey Session { get; set; } = SessionKey.Empty;
+    public required SessionKey SessionKey { get; set; } = string.Empty;
 
     [Id(1)]
     public required int ActiveRoomId { get; set; } = -1;
