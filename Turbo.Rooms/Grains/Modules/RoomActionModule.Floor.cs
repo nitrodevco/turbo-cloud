@@ -5,6 +5,7 @@ using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 
@@ -77,7 +78,10 @@ internal sealed partial class RoomActionModule
         if (pickupType == FurniturePickupType.None)
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
-        var pickerId = pickupType == FurniturePickupType.SendToOwner ? -1 : (int)ctx.PlayerId;
+        PlayerId pickerId = -1;
+
+        if (pickupType is not FurniturePickupType.SendToOwner)
+            pickerId = ctx.PlayerId;
 
         var floorItem = await _furniModule.RemoveFloorItemByIdAsync(ctx, itemId, ct, pickerId);
 

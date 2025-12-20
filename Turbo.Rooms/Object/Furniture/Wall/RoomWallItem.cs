@@ -78,7 +78,7 @@ internal sealed class RoomWallItem : RoomItem, IRoomWallItem
         };
 
     public IComposer GetRemoveComposer(PlayerId pickerId) =>
-        new ItemRemoveMessageComposer { ObjectId = ObjectId, PickerId = (int)pickerId };
+        new ItemRemoveMessageComposer { ObjectId = ObjectId, PickerId = pickerId };
 
     public string ConvertWallPositionToString() =>
         $":w={X},{Y} l={WallOffset},{Z} {(Rotation == Rotation.South ? "l" : "r")}";

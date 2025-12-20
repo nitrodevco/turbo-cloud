@@ -1,8 +1,10 @@
+using Turbo.Primitives.Players;
+
 namespace Turbo.Primitives.Snapshots.Inventory;
 
 public sealed record InventoryFurniSnapshot(
     int Id,
-    int PlayerId,
+    PlayerId PlayerId,
     int DefinitionId,
     string? StuffData
 );

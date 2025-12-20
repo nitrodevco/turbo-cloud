@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Primitives.FriendList.Enums;
+using Turbo.Primitives.Players;
 
 namespace Turbo.Primitives.Snapshots.FriendList;
 
@@ -10,7 +11,7 @@ public record FriendListUpdateSnapshot
     public required FriendListUpdateActionType ActionType { get; init; }
 
     [Id(1)]
-    public int? FriendId { get; init; }
+    public PlayerId FriendId { get; init; }
 
     [Id(2)]
     public MessengerFriendSnapshot? Friend { get; init; }

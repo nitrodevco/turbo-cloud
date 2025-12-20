@@ -88,7 +88,7 @@ internal sealed partial class RoomFurniModule
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         if (pickerId == -1)
-            pickerId = (int)item.OwnerId;
+            pickerId = item.OwnerId;
 
         if (!_roomMap.RemoveFloorItem(item, pickerId, true))
             return null;
@@ -366,8 +366,8 @@ internal sealed partial class RoomFurniModule
             entity.Z = snapshot.Z;
             entity.Rotation = snapshot.Rotation;
             entity.StuffData = snapshot.StuffDataJson;
-            entity.PlayerEntityId = (int)snapshot.OwnerId;
-            entity.RoomEntityId = remove ? null : (int)_state.RoomId;
+            entity.PlayerEntityId = snapshot.OwnerId;
+            entity.RoomEntityId = remove ? null : _state.RoomId;
 
             await dbCtx.SaveChangesAsync(ct);
         }
@@ -413,7 +413,7 @@ internal sealed partial class RoomFurniModule
                 entity.Z = snapshot.Z;
                 entity.Rotation = snapshot.Rotation;
                 entity.StuffData = snapshot.StuffDataJson;
-                entity.PlayerEntityId = (int)snapshot.OwnerId;
+                entity.PlayerEntityId = snapshot.OwnerId;
                 entity.RoomEntityId = _state.RoomId;
             }
 

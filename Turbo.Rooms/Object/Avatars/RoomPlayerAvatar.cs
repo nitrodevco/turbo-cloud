@@ -27,7 +27,7 @@ internal sealed class RoomPlayerAvatar : RoomAvatar, IRoomPlayerAvatar
 
         return new()
         {
-            WebId = (int)PlayerId,
+            WebId = PlayerId,
             Name = Name,
             Motto = Motto,
             Figure = Figure,

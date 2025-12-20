@@ -96,7 +96,7 @@ internal sealed class InventoryFurnitureLoader(
         return new FurnitureItem()
         {
             ItemId = snapshot.ObjectId.Value,
-            OwnerId = (int)snapshot.OwnerId,
+            OwnerId = snapshot.OwnerId,
             Definition = definition,
             StuffData = _stuffDataFactory.CreateStuffDataFromJson(
                 snapshot.StuffData.StuffBitmask,
