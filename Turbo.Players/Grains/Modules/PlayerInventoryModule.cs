@@ -6,6 +6,7 @@ using Orleans;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Players.Grains.Modules;
 
@@ -97,7 +98,7 @@ internal sealed class PlayerInventoryModule(
         );
     }
 
-    public async Task OnFurnitureRemovedAsync(int itemId, CancellationToken ct)
+    public async Task OnFurnitureRemovedAsync(RoomObjectId itemId, CancellationToken ct)
     {
         if (!_isFurnitureInventoryPrimed)
             return;

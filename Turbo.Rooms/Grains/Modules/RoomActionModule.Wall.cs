@@ -7,6 +7,7 @@ using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -53,14 +54,14 @@ internal sealed partial class RoomActionModule
 
         var inventory = _grainFactory.GetGrain<IInventoryGrain>(item.OwnerId);
 
-        await inventory.RemoveFurnitureAsync(item.ObjectId.Value, ct);
+        await inventory.RemoveFurnitureAsync(item.ObjectId, ct);
 
         return true;
     }
 
     public async Task<bool> MoveWallItemByIdAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         int x,
         int y,
         double z,
@@ -93,7 +94,7 @@ internal sealed partial class RoomActionModule
 
     public async Task<bool> RemoveWallItemByIdAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         CancellationToken ct
     )
     {
@@ -121,7 +122,7 @@ internal sealed partial class RoomActionModule
 
     public async Task<bool> UseWallItemByIdAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         CancellationToken ct,
         int param = -1
     )
@@ -142,7 +143,7 @@ internal sealed partial class RoomActionModule
 
     public Task<bool> ClickWallItemByIdAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         CancellationToken ct,
         int param = -1
     ) => _furniModule.ClickWallItemByIdAsync(ctx, itemId, ct, param);

@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
@@ -65,6 +66,8 @@ internal abstract class StuffDataBase : IStuffData
 
         return _snapshot;
     }
+
+    public virtual string ToJson() => JsonSerializer.Serialize(this, GetType());
 
     protected abstract StuffDataSnapshot BuildSnapshot();
 }

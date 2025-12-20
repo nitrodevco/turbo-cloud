@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Rooms;
 
@@ -9,7 +10,7 @@ public partial interface IRoomService
 {
     public Task PlaceFloorItemInRoomAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         int x,
         int y,
         Rotation rot,
@@ -17,7 +18,7 @@ public partial interface IRoomService
     );
     public Task MoveFloorItemInRoomAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         int x,
         int y,
         Rotation rot,
@@ -25,19 +26,19 @@ public partial interface IRoomService
     );
     public Task PickupFloorItemInRoomAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         CancellationToken ct,
         bool isConfirm = true
     );
     public Task UseFloorItemInRoomAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         CancellationToken ct,
         int param = -1
     );
     public Task ClickFloorItemInRoomAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         CancellationToken ct,
         int param = -1
     );

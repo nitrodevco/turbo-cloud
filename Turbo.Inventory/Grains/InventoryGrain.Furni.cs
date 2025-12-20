@@ -14,6 +14,7 @@ using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Players.Grains;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Inventory.Grains;
@@ -52,7 +53,7 @@ public sealed partial class InventoryGrain
         return true;
     }
 
-    public async Task<bool> RemoveFurnitureAsync(int itemId, CancellationToken ct)
+    public async Task<bool> RemoveFurnitureAsync(RoomObjectId itemId, CancellationToken ct)
     {
         if (!await _furniModule.RemoveFurnitureAsync(itemId, ct))
             return false;
@@ -131,8 +132,10 @@ public sealed partial class InventoryGrain
         }
     }
 
-    public Task<FurnitureItemSnapshot?> GetItemSnapshotAsync(int itemId, CancellationToken ct) =>
-        _furniModule.GetItemSnapshotAsync(itemId, ct);
+    public Task<FurnitureItemSnapshot?> GetItemSnapshotAsync(
+        RoomObjectId itemId,
+        CancellationToken ct
+    ) => _furniModule.GetItemSnapshotAsync(itemId, ct);
 
     public Task<ImmutableArray<FurnitureItemSnapshot>> GetAllItemSnapshotsAsync(
         CancellationToken ct

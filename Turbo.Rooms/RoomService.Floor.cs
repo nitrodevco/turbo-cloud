@@ -7,6 +7,7 @@ using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Rooms;
 
@@ -14,7 +15,7 @@ internal sealed partial class RoomService
 {
     public async Task PlaceFloorItemInRoomAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         int x,
         int y,
         Rotation rot,
@@ -58,7 +59,7 @@ internal sealed partial class RoomService
 
     public async Task MoveFloorItemInRoomAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         int x,
         int y,
         Rotation rot,
@@ -90,7 +91,7 @@ internal sealed partial class RoomService
 
     public async Task PickupFloorItemInRoomAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         CancellationToken ct,
         bool isConfirm = true
     )
@@ -105,7 +106,7 @@ internal sealed partial class RoomService
 
     public async Task UseFloorItemInRoomAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         CancellationToken ct,
         int param = -1
     )
@@ -120,7 +121,7 @@ internal sealed partial class RoomService
 
     public async Task ClickFloorItemInRoomAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         CancellationToken ct,
         int param = -1
     )

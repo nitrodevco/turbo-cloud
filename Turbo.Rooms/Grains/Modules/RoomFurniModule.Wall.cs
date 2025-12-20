@@ -45,14 +45,14 @@ internal sealed partial class RoomFurniModule
         )
             return false;
 
-        await FlushDirtyWallItemAsync(item.ObjectId.Value, ct);
+        await FlushDirtyWallItemAsync(item.ObjectId, ct);
 
         return true;
     }
 
     public async Task<bool> MoveWallItemByIdAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         int x,
         int y,
         double z,
@@ -74,7 +74,7 @@ internal sealed partial class RoomFurniModule
 
     public async Task<RoomWallItemSnapshot?> RemoveWallItemByIdAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         CancellationToken ct,
         int pickerId = -1
     )
@@ -102,7 +102,7 @@ internal sealed partial class RoomFurniModule
 
     public async Task<bool> UseWallItemByIdAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         CancellationToken ct,
         int param = -1
     )
@@ -117,7 +117,7 @@ internal sealed partial class RoomFurniModule
 
     public async Task<bool> ClickWallItemByIdAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         CancellationToken ct,
         int param = -1
     )
@@ -132,7 +132,7 @@ internal sealed partial class RoomFurniModule
 
     public Task<bool> ValidateWallItemPlacementAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         int x,
         int y,
         double z,
@@ -162,14 +162,12 @@ internal sealed partial class RoomFurniModule
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _state.WallItemsById.TryGetValue(objectId.Value, out var item)
-                ? item.GetSnapshot()
-                : null
+            _state.WallItemsById.TryGetValue(objectId, out var item) ? item.GetSnapshot() : null
         );
 
     private async Task<bool> AttatchWallItemAsync(IRoomWallItem item, CancellationToken ct)
     {
-        if (!_state.WallItemsById.TryAdd(item.ObjectId.Value, item))
+        if (!_state.WallItemsById.TryAdd(item.ObjectId, item))
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
         if (!_state.OwnerNamesById.TryGetValue(item.OwnerId, out string? value))
@@ -183,7 +181,7 @@ internal sealed partial class RoomFurniModule
         }
 
         item.SetOwnerName(value ?? string.Empty);
-        item.SetAction(objectId => ProcessDirtyWallItem(objectId.Value, ct));
+        item.SetAction(objectId => ProcessDirtyWallItem(objectId, ct));
 
         await AttatchWallLogicIfNeededAsync(item, ct);
 
@@ -213,7 +211,7 @@ internal sealed partial class RoomFurniModule
     }
 
     private async Task FlushDirtyWallItemAsync(
-        long itemId,
+        RoomObjectId itemId,
         CancellationToken ct,
         bool remove = false
     )
@@ -225,22 +223,17 @@ internal sealed partial class RoomFurniModule
 
             _state.DirtyWallItemIds.Remove(itemId);
 
-            var snapshot = item.GetSnapshot();
-
             using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-            var entity = await dbCtx.Furnitures.SingleAsync(
-                x => x.Id == snapshot.ObjectId.Value,
-                ct
-            );
+            var entity = await dbCtx.Furnitures.SingleAsync(x => x.Id == (int)item.ObjectId, ct);
 
-            entity.X = snapshot.X;
-            entity.Y = snapshot.Y;
-            entity.Z = snapshot.Z;
-            entity.Rotation = snapshot.Rotation;
-            entity.WallOffset = snapshot.WallOffset;
-            entity.StuffData = snapshot.StuffDataJson;
-            entity.PlayerEntityId = snapshot.OwnerId;
+            entity.X = item.X;
+            entity.Y = item.Y;
+            entity.Z = item.Z;
+            entity.Rotation = item.Rotation;
+            entity.WallOffset = item.WallOffset;
+            entity.StuffData = item.Logic?.StuffData.ToJson();
+            entity.PlayerEntityId = (int)item.OwnerId;
             entity.RoomEntityId = remove ? null : _state.RoomId;
 
             await dbCtx.SaveChangesAsync(ct);
@@ -256,7 +249,7 @@ internal sealed partial class RoomFurniModule
         if (_state.DirtyWallItemIds.Count == 0)
             return;
 
-        var dirtyIds = _state.DirtyWallItemIds.ToArray();
+        var dirtyIds = _state.DirtyWallItemIds.Select(x => (int)x).ToArray();
 
         _state.DirtyWallItemIds.Clear();
 
@@ -264,32 +257,23 @@ internal sealed partial class RoomFurniModule
 
         try
         {
-            var snapshots = dirtyIds
-                .Select(id =>
-                    _state.WallItemsById.TryGetValue(id, out var item) ? item.GetSnapshot() : null
-                )
-                .ToArray();
-            var ids = snapshots.Where(x => x is not null).Select(x => x!.ObjectId.Value).ToArray();
             var entities = await dbCtx
-                .Furnitures.Where(x => ids.Contains(x.Id))
-                .ToDictionaryAsync(x => x.Id, ct);
+                .Furnitures.Where(x => dirtyIds.Select(x => (int)x).Contains(x.Id))
+                .ToListAsync(ct);
 
-            foreach (var snapshot in snapshots)
+            foreach (var entity in entities)
             {
-                if (
-                    snapshot is null
-                    || !entities.TryGetValue(snapshot.ObjectId.Value, out var entity)
-                )
+                if (!_state.WallItemsById.TryGetValue(entity.Id, out var item))
                     continue;
 
-                entity.X = snapshot.X;
-                entity.Y = snapshot.Y;
-                entity.Z = snapshot.Z;
-                entity.WallOffset = snapshot.WallOffset;
-                entity.Rotation = snapshot.Rotation;
-                entity.StuffData = snapshot.StuffDataJson;
-                entity.PlayerEntityId = snapshot.OwnerId;
-                entity.RoomEntityId = _state.RoomId;
+                entity.X = item.X;
+                entity.Y = item.Y;
+                entity.Z = item.Z;
+                entity.WallOffset = item.WallOffset;
+                entity.Rotation = item.Rotation;
+                entity.StuffData = item.Logic?.StuffData.ToJson();
+                entity.PlayerEntityId = (int)item.OwnerId;
+                entity.RoomEntityId = (int)_state.RoomId;
             }
 
             await dbCtx.SaveChangesAsync(ct);

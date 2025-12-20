@@ -209,7 +209,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         try
         {
             var entity =
-                await dbCtx.Rooms.AsNoTracking().SingleOrDefaultAsync(e => e.Id == _roomId, ct)
+                await dbCtx.Rooms.AsNoTracking().SingleOrDefaultAsync(e => e.Id == (int)_roomId, ct)
                 ?? throw new TurboException(TurboErrorCodeEnum.RoomNotFound);
 
             _liveState.Model = _roomModelProvider.GetModelById(entity.RoomModelEntityId);

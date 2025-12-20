@@ -108,7 +108,7 @@ internal sealed partial class RoomMapModule
 
         if (tileFlags.Has(RoomTileFlags.AvatarOccupied))
         {
-            if (_state.TileAvatarStacks[tileIdx].Contains(avatar.ObjectId.Value))
+            if (_state.TileAvatarStacks[tileIdx].Contains(avatar.ObjectId))
                 return true;
 
             if (isGoal || _state.RoomSnapshot.AllowBlocking)
@@ -172,7 +172,7 @@ internal sealed partial class RoomMapModule
         if (!InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
-        _state.TileAvatarStacks[tileIdx].Add(avatar.ObjectId.Value);
+        _state.TileAvatarStacks[tileIdx].Add(avatar.ObjectId);
 
         ComputeTile(tileIdx);
 
@@ -186,7 +186,7 @@ internal sealed partial class RoomMapModule
         if (!InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
-        _state.TileAvatarStacks[tileIdx].Remove(avatar.ObjectId.Value);
+        _state.TileAvatarStacks[tileIdx].Remove(avatar.ObjectId);
 
         ComputeTile(tileIdx);
 

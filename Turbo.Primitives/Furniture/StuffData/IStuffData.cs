@@ -19,4 +19,5 @@ public interface IStuffData
     public void SetAction(Func<Task>? onSnapshotChanged);
     public void MarkDirty();
     public StuffDataSnapshot GetSnapshot();
+    public string ToJson();
 }

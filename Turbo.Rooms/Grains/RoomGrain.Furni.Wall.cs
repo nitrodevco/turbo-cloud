@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
@@ -56,7 +57,7 @@ public sealed partial class RoomGrain
 
     public async Task<bool> MoveWallItemByIdAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         int newX,
         int newY,
         double newZ,
@@ -93,7 +94,7 @@ public sealed partial class RoomGrain
 
     public async Task<bool> RemoveWallItemByIdAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         CancellationToken ct
     )
     {
@@ -114,7 +115,7 @@ public sealed partial class RoomGrain
 
     public async Task<bool> UseWallItemByIdAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         CancellationToken ct,
         int param = -1
     )
@@ -136,7 +137,7 @@ public sealed partial class RoomGrain
 
     public async Task<bool> ClickWallItemByIdAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         CancellationToken ct,
         int param = -1
     )
@@ -157,7 +158,7 @@ public sealed partial class RoomGrain
     }
 
     public Task<RoomWallItemSnapshot?> GetWallItemSnapshotByIdAsync(
-        int itemId,
+        RoomObjectId itemId,
         CancellationToken ct
     ) =>
         Task.FromResult(

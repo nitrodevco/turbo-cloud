@@ -6,7 +6,7 @@ namespace Turbo.Rooms.Object;
 
 internal abstract class RoomObject : IRoomObject
 {
-    public required RoomObjectId ObjectId { get; init; } = RoomObjectId.Empty;
+    public required RoomObjectId ObjectId { get; init; } = -1;
 
     public int X { get; protected set; }
     public int Y { get; protected set; }

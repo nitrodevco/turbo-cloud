@@ -63,10 +63,7 @@ internal sealed partial class RoomAvatarModule(
             startRot = Rotation.North;
         }
 
-        var avatar = _roomAvatarFactory.CreateAvatarFromPlayerSnapshot(
-            RoomObjectId.From(objectId),
-            snapshot
-        );
+        var avatar = _roomAvatarFactory.CreateAvatarFromPlayerSnapshot(objectId, snapshot);
 
         var controllerLevel = await _securityModule.GetControllerLevelAsync(ctx);
 
@@ -76,7 +73,7 @@ internal sealed partial class RoomAvatarModule(
 
         await AddAvatarAsync(avatar, ct);
 
-        _state.AvatarsByPlayerId[snapshot.PlayerId] = avatar.ObjectId.Value;
+        _state.AvatarsByPlayerId[snapshot.PlayerId] = avatar.ObjectId;
 
         avatar.SetRotation(startRot);
 
@@ -87,7 +84,7 @@ internal sealed partial class RoomAvatarModule(
     {
         ArgumentNullException.ThrowIfNull(avatar);
 
-        if (!_state.AvatarsByObjectId.TryAdd(avatar.ObjectId.Value, avatar))
+        if (!_state.AvatarsByObjectId.TryAdd(avatar.ObjectId, avatar))
             throw new TurboException(TurboErrorCodeEnum.AvatarNotFound);
 
         await AttatchLogicIfNeededAsync(avatar, ct);
@@ -104,10 +101,10 @@ internal sealed partial class RoomAvatarModule(
     {
         try
         {
-            if (!_state.AvatarsByPlayerId.TryGetValue(playerId, out var objectIdValue))
+            if (!_state.AvatarsByPlayerId.TryGetValue(playerId, out var objectId))
                 return;
 
-            if (!_state.AvatarsByObjectId.TryGetValue(objectIdValue, out var avatar))
+            if (!_state.AvatarsByObjectId.TryGetValue(objectId, out var avatar))
                 return;
 
             await StopWalkingAsync(avatar, ct);
@@ -116,11 +113,11 @@ internal sealed partial class RoomAvatarModule(
 
             await avatar.Logic.OnDetachAsync(ct);
 
-            _state.AvatarsByPlayerId.Remove(objectIdValue);
-            _state.AvatarsByObjectId.Remove(objectIdValue);
+            _state.AvatarsByPlayerId.Remove(playerId);
+            _state.AvatarsByObjectId.Remove(objectId);
 
             await _roomGrain.SendComposerToRoomAsync(
-                new UserRemoveMessageComposer { ObjectId = RoomObjectId.From(objectIdValue) },
+                new UserRemoveMessageComposer { ObjectId = objectId },
                 ct
             );
         }
@@ -172,7 +169,7 @@ internal sealed partial class RoomAvatarModule(
         CancellationToken ct
     )
     {
-        if (!_state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar))
+        if (!_state.AvatarsByObjectId.TryGetValue(objectId, out var avatar))
             return false;
 
         await WalkAvatarToAsync(avatar, targetX, targetY, ct);

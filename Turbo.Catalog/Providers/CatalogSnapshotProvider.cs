@@ -60,7 +60,11 @@ public sealed class CatalogSnapshotProvider<TTag>(
                 .GroupBy(p => p.ParentEntityId ?? -1)
                 .ToImmutableDictionary(
                     g => g.Key,
-                    g => g.OrderBy(x => x.SortOrder).Select(x => x.Id).ToImmutableArray()
+                    g =>
+                        g.OrderBy(x => x.SortOrder)
+                            .ThenBy(x => x.Localization)
+                            .Select(x => x.Id)
+                            .ToImmutableArray()
                 );
 
             var pageOfferIds = offers

@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
 
@@ -7,5 +8,5 @@ namespace Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
 public sealed record FurniListRemoveEventMessageComposer : IComposer
 {
     [Id(0)]
-    public required int ItemId { get; init; }
+    public required RoomObjectId ItemId { get; init; }
 }

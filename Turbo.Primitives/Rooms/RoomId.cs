@@ -6,7 +6,7 @@ namespace Turbo.Primitives.Rooms;
 public readonly record struct RoomId
 {
     [Id(0)]
-    public int Value { private get; init; }
+    public int Value { get; init; }
 
     public RoomId(int value)
     {

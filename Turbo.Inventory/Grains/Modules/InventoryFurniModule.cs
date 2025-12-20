@@ -9,6 +9,7 @@ using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Inventory.Grains.Modules;
 
@@ -42,7 +43,7 @@ internal sealed class InventoryFurniModule(
         return Task.FromResult(true);
     }
 
-    public Task<bool> RemoveFurnitureAsync(int itemId, CancellationToken ct)
+    public Task<bool> RemoveFurnitureAsync(RoomObjectId itemId, CancellationToken ct)
     {
         if (!_state.FurnitureById.Remove(itemId, out var item))
             return Task.FromResult(false);
@@ -52,7 +53,10 @@ internal sealed class InventoryFurniModule(
         return Task.FromResult(true);
     }
 
-    public async Task<FurnitureItemSnapshot?> GetItemSnapshotAsync(int itemId, CancellationToken ct)
+    public async Task<FurnitureItemSnapshot?> GetItemSnapshotAsync(
+        RoomObjectId itemId,
+        CancellationToken ct
+    )
     {
         await EnsureFurnitureReadyAsync(ct);
 

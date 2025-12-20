@@ -29,7 +29,7 @@ internal sealed partial class RoomMapModule
         {
             foreach (var idx in tileIds)
             {
-                _state.TileFloorStacks[idx].Add(item.ObjectId.Value);
+                _state.TileFloorStacks[idx].Add(item.ObjectId);
 
                 ComputeTile(idx);
             }
@@ -107,7 +107,7 @@ internal sealed partial class RoomMapModule
         {
             foreach (var idx in tileIds)
             {
-                _state.TileFloorStacks[idx].Remove(item.ObjectId.Value);
+                _state.TileFloorStacks[idx].Remove(item.ObjectId);
 
                 ComputeTile(idx);
             }

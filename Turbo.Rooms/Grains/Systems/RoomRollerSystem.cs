@@ -137,7 +137,7 @@ internal sealed class RoomRollerSystem(
                     currentPlans.Add(
                         new RollerMovePlan
                         {
-                            RollerId = roller.ObjectId.Value,
+                            RollerId = roller.ObjectId,
                             FromIdx = fromIdx,
                             ToIdx = toIdx,
                             MovedFloorItems =
@@ -212,12 +212,12 @@ internal sealed class RoomRollerSystem(
                                 FloorItemHeights =
                                 [
                                     .. plan.MovedFloorItems.Select(x =>
-                                        (x.RoomObject.ObjectId.Value, x.FromZ, x.ToZ)
+                                        (x.RoomObject.ObjectId, x.FromZ, x.ToZ)
                                     ),
                                 ],
                                 Avatar = (
                                     SlideAvatarMoveType.Slide,
-                                    avatar.RoomObject.ObjectId.Value,
+                                    avatar.RoomObject.ObjectId,
                                     avatar.FromZ + avatarObject.PostureOffset,
                                     avatar.ToZ + avatarObject.PostureOffset
                                 ),
@@ -240,7 +240,7 @@ internal sealed class RoomRollerSystem(
                             FloorItemHeights = [],
                             Avatar = (
                                 SlideAvatarMoveType.Slide,
-                                avatar.RoomObject.ObjectId.Value,
+                                avatar.RoomObject.ObjectId,
                                 avatar.FromZ + avatarObject.PostureOffset,
                                 avatar.ToZ + avatarObject.PostureOffset
                             ),
@@ -261,7 +261,7 @@ internal sealed class RoomRollerSystem(
                         FloorItemHeights =
                         [
                             .. plan.MovedFloorItems.Select(x =>
-                                (x.RoomObject.ObjectId.Value, x.FromZ, x.ToZ)
+                                (x.RoomObject.ObjectId, x.FromZ, x.ToZ)
                             ),
                         ],
                         Avatar = null,
@@ -292,7 +292,7 @@ internal sealed class RoomRollerSystem(
         {
             var stack = OrderRollersFrontToBack(group);
 
-            _rollerIdSets.Add([.. stack.Select(x => x.ObjectId.Value)]);
+            _rollerIdSets.Add([.. stack.Select(x => x.ObjectId)]);
         }
 
         _isDirtyRollers = false;

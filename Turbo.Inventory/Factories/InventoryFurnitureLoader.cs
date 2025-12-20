@@ -39,7 +39,7 @@ internal sealed class InventoryFurnitureLoader(
         {
             var entities = await dbCtx
                 .Furnitures.AsNoTracking()
-                .Where(x => x.PlayerEntityId == playerId && x.RoomEntityId == null)
+                .Where(x => x.PlayerEntityId == (int)playerId && x.RoomEntityId == null)
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
 
@@ -95,7 +95,7 @@ internal sealed class InventoryFurnitureLoader(
 
         return new FurnitureItem()
         {
-            ItemId = snapshot.ObjectId.Value,
+            ItemId = snapshot.ObjectId,
             OwnerId = snapshot.OwnerId,
             Definition = definition,
             StuffData = _stuffDataFactory.CreateStuffDataFromJson(

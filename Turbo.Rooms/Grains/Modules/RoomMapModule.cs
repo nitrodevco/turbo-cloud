@@ -212,7 +212,7 @@ internal sealed partial class RoomMapModule(
 
         _state.TileHeights[id] = nextHeight;
         _state.TileFlags[id] = nextFlags;
-        _state.TileHighestFloorItems[id] = nextHighestItem?.ObjectId.Value ?? -1;
+        _state.TileHighestFloorItems[id] = nextHighestItem?.ObjectId ?? -1;
 
         var prevEncoded = _state.TileEncodedHeights[id];
         var nextEncoded = EncodeHeight(nextHeight, nextFlags.Has(RoomTileFlags.StackBlocked));
@@ -251,7 +251,7 @@ internal sealed partial class RoomMapModule(
                 Height = _state.TileHeights[id],
                 EncodedHeight = _state.TileEncodedHeights[id],
                 Flags = _state.TileFlags[id],
-                HighestObjectId = RoomObjectId.From((int)_state.TileHighestFloorItems[id]),
+                HighestObjectId = _state.TileHighestFloorItems[id],
             }
         );
 
@@ -302,9 +302,9 @@ internal sealed partial class RoomMapModule(
             var tileHeights = new double[size];
             var tileEncodedHeights = new short[size];
             var tileFlags = new RoomTileFlags[size];
-            var tileHighestFloorItems = new long[size];
-            var tileFloorStacks = new HashSet<long>[size];
-            var tileAvatarStacks = new HashSet<int>[size];
+            var tileHighestFloorItems = new RoomObjectId[size];
+            var tileFloorStacks = new HashSet<RoomObjectId>[size];
+            var tileAvatarStacks = new HashSet<RoomObjectId>[size];
 
             for (int id = 0; id < size; id++)
             {
@@ -357,7 +357,7 @@ internal sealed partial class RoomMapModule(
                     Height = _state.TileHeights[x],
                     EncodedHeight = _state.TileEncodedHeights[x],
                     Flags = _state.TileFlags[x],
-                    HighestObjectId = RoomObjectId.From((int)_state.TileHighestFloorItems[x]),
+                    HighestObjectId = _state.TileHighestFloorItems[x],
                 })
                 .ToList();
 

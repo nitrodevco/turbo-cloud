@@ -49,7 +49,7 @@ internal sealed class RoomItemsProvider(
         {
             var entities = await dbCtx
                 .Furnitures.AsNoTracking()
-                .Where(x => x.RoomEntityId == roomId)
+                .Where(x => x.RoomEntityId == (int)roomId)
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
 
@@ -117,7 +117,7 @@ internal sealed class RoomItemsProvider(
         {
             ProductType.Floor => new RoomFloorItem
             {
-                ObjectId = RoomObjectId.From(entity.Id),
+                ObjectId = entity.Id,
                 OwnerId = entity.PlayerEntityId,
                 OwnerName = string.Empty,
                 Definition = definition,
@@ -126,7 +126,7 @@ internal sealed class RoomItemsProvider(
 
             ProductType.Wall => new RoomWallItem
             {
-                ObjectId = RoomObjectId.From(entity.Id),
+                ObjectId = entity.Id,
                 OwnerId = entity.PlayerEntityId,
                 OwnerName = string.Empty,
                 Definition = definition,
@@ -145,7 +145,7 @@ internal sealed class RoomItemsProvider(
         {
             return new RoomFloorItem
             {
-                ObjectId = RoomObjectId.From(snapshot.ItemId),
+                ObjectId = snapshot.ItemId,
                 OwnerId = snapshot.OwnerId,
                 OwnerName = string.Empty,
                 Definition = definition,
@@ -157,7 +157,7 @@ internal sealed class RoomItemsProvider(
         {
             return new RoomWallItem
             {
-                ObjectId = RoomObjectId.From(snapshot.ItemId),
+                ObjectId = snapshot.ItemId,
                 OwnerId = snapshot.OwnerId,
                 OwnerName = string.Empty,
                 Definition = definition,

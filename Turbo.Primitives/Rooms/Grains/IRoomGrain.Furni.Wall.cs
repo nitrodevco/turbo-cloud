@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
@@ -24,7 +25,7 @@ public partial interface IRoomGrain
     );
     public Task<bool> MoveWallItemByIdAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         int x,
         int y,
         double z,
@@ -32,21 +33,25 @@ public partial interface IRoomGrain
         Rotation rot,
         CancellationToken ct
     );
-    public Task<bool> RemoveWallItemByIdAsync(ActionContext ctx, int itemId, CancellationToken ct);
+    public Task<bool> RemoveWallItemByIdAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        CancellationToken ct
+    );
     public Task<bool> UseWallItemByIdAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         CancellationToken ct,
         int param = -1
     );
     public Task<bool> ClickWallItemByIdAsync(
         ActionContext ctx,
-        int itemId,
+        RoomObjectId itemId,
         CancellationToken ct,
         int param = -1
     );
     public Task<RoomWallItemSnapshot?> GetWallItemSnapshotByIdAsync(
-        int itemId,
+        RoomObjectId itemId,
         CancellationToken ct
     );
     public Task<ImmutableArray<RoomWallItemSnapshot>> GetAllWallItemSnapshotsAsync(

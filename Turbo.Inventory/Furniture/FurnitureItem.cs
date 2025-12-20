@@ -4,13 +4,15 @@ using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Inventory.Furniture;
 
 internal sealed class FurnitureItem : IFurnitureItem
 {
-    public required int ItemId { get; init; }
-    public required int OwnerId { get; init; }
+    public required RoomObjectId ItemId { get; init; }
+    public required PlayerId OwnerId { get; init; }
     public required FurnitureDefinitionSnapshot Definition { get; init; }
     public required IStuffData StuffData { get; init; }
 

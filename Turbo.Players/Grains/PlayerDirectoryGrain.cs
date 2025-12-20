@@ -31,7 +31,7 @@ public class PlayerDirectoryGrain(IDbContextFactory<TurboDbContext> dbCtxFactory
 
         var dbName = await dbCtx
             .Players.AsNoTracking()
-            .Where(x => x.Id == playerId)
+            .Where(x => x.Id == (int)playerId)
             .Select(x => x.Name)
             .FirstAsync(ct);
 
@@ -80,7 +80,7 @@ public class PlayerDirectoryGrain(IDbContextFactory<TurboDbContext> dbCtxFactory
 
                 var players = await dbCtx
                     .Players.AsNoTracking()
-                    .Where(x => notFound.Contains(x.Id))
+                    .Where(x => notFound.Select(x => (int)x).Contains(x.Id))
                     .Select(x => new { x.Id, x.Name })
                     .ToDictionaryAsync(x => x.Id, x => x.Name, ct);
 
