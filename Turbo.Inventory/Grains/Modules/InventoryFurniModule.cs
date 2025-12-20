@@ -31,24 +31,24 @@ internal sealed class InventoryFurniModule(
         _state.IsFurnitureReady = true;
     }
 
-    public async Task<bool> AddFurnitureAsync(IFurnitureItem item, CancellationToken ct)
+    public Task<bool> AddFurnitureAsync(IFurnitureItem item, CancellationToken ct)
     {
         if (!_state.FurnitureById.TryAdd(item.ItemId, item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         item.SetAction(itemId => { });
 
-        return true;
+        return Task.FromResult(true);
     }
 
-    public async Task<bool> RemoveFurnitureAsync(int itemId, CancellationToken ct)
+    public Task<bool> RemoveFurnitureAsync(int itemId, CancellationToken ct)
     {
         if (!_state.FurnitureById.Remove(itemId, out var item))
-            return false;
+            return Task.FromResult(false);
 
         item.SetAction(null);
 
-        return true;
+        return Task.FromResult(true);
     }
 
     public async Task<FurnitureItemSnapshot?> GetItemSnapshotAsync(int itemId, CancellationToken ct)

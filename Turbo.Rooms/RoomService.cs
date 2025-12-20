@@ -42,7 +42,7 @@ internal sealed partial class RoomService(
     public async Task OpenRoomForPlayerIdAsync(
         ActionContext ctx,
         long playerId,
-        int roomId,
+        RoomId roomId,
         CancellationToken ct
     )
     {

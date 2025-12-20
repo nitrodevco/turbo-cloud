@@ -1,7 +1,7 @@
 using System;
 using Orleans;
 
-namespace Turbo.Primitives.Orleans.Snapshots.Session;
+namespace Turbo.Primitives.Networking;
 
 [GenerateSerializer, Immutable]
 public readonly record struct SessionKey

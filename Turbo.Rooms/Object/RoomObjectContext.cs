@@ -1,4 +1,5 @@
 using Orleans;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Rooms.Grains;
 
@@ -8,7 +9,7 @@ internal abstract class RoomObjectContext(RoomGrain roomGrain) : IRoomObjectCont
 {
     protected readonly RoomGrain _roomGrain = roomGrain;
 
-    public int RoomId => (int)_roomGrain.GetPrimaryKeyLong();
+    public RoomId RoomId => (int)_roomGrain.GetPrimaryKeyLong();
 
     public abstract RoomObjectId ObjectId { get; }
 }

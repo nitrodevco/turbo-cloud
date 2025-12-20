@@ -19,9 +19,10 @@ internal sealed class PlayerInventoryModule(
 
     private bool _isFurnitureInventoryPrimed = false;
 
-    public async Task OnSessionAttachedAsync(CancellationToken ct)
+    public Task OnSessionAttachedAsync(CancellationToken ct)
     {
         _isFurnitureInventoryPrimed = false;
+        return Task.CompletedTask;
     }
 
     public async Task OnSessionDetachedAsync(CancellationToken ct)

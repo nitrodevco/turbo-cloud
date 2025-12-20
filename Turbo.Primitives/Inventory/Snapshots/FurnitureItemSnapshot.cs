@@ -1,6 +1,7 @@
 using Orleans;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.Primitives.Inventory.Snapshots;
 
@@ -32,7 +33,7 @@ public sealed record FurnitureItemSnapshot
     public required bool HasRentPeriodStarted { get; init; }
 
     [Id(8)]
-    public required int RoomId { get; init; }
+    public required RoomId RoomId { get; init; }
 
     [Id(9)]
     public string SlotId { get; init; } = string.Empty;

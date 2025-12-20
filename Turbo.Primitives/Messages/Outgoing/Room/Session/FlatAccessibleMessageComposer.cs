@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Session;
 
@@ -7,7 +8,7 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Session;
 public sealed record FlatAccessibleMessageComposer : IComposer
 {
     [Id(0)]
-    public required int RoomId { get; init; }
+    public required RoomId RoomId { get; init; }
 
     [Id(1)]
     public required string Username { get; init; }

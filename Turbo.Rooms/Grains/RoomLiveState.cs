@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Turbo.Primitives.Orleans.Snapshots.Room;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -10,7 +11,7 @@ namespace Turbo.Rooms.Grains;
 
 internal sealed class RoomLiveState
 {
-    public required int RoomId { get; internal init; }
+    public required RoomId RoomId { get; internal init; }
     public RoomSnapshot RoomSnapshot { get; internal set; } = default!;
 
     public Dictionary<long, IRoomFloorItem> FloorItemsById { get; } = [];

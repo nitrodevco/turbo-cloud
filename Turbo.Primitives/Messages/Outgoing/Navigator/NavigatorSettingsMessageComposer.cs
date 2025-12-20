@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.Primitives.Messages.Outgoing.Navigator;
 
@@ -7,8 +8,8 @@ namespace Turbo.Primitives.Messages.Outgoing.Navigator;
 public sealed record NavigatorSettingsMessageComposer : IComposer
 {
     [Id(0)]
-    public int HomeRoomId { get; init; }
+    public RoomId HomeRoomId { get; init; }
 
     [Id(1)]
-    public int RoomIdToEnter { get; init; }
+    public RoomId RoomIdToEnter { get; init; }
 }

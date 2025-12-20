@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Permissions;
 
@@ -7,5 +8,5 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Permissions;
 public sealed record YouAreOwnerMessageComposer : IComposer
 {
     [Id(0)]
-    public required int RoomId { get; init; }
+    public required RoomId RoomId { get; init; }
 }

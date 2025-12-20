@@ -2,18 +2,18 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Orleans.Snapshots.Session;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.Messages.Registry;
 
-public sealed class MessageContext(ISessionContext session, long playerId = -1, int roomId = -1)
+public sealed class MessageContext(ISessionContext session, long playerId, RoomId roomId)
 {
     private long _playerId = playerId;
-    private int _roomId = roomId;
+    private RoomId _roomId = roomId;
     private ISessionContext _session = session;
 
     public long PlayerId => _playerId;
-    public int RoomId => _roomId;
+    public RoomId RoomId => _roomId;
     public SessionKey SessionKey => _session.SessionKey;
 
     public ActionContext AsActionContext() =>

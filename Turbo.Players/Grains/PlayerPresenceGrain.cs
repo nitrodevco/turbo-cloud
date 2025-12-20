@@ -8,7 +8,6 @@ using Turbo.Players.Grains.Modules;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Observers;
 using Turbo.Primitives.Orleans.Snapshots.Room;
-using Turbo.Primitives.Orleans.Snapshots.Session;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms;
 
@@ -95,7 +94,7 @@ public sealed partial class PlayerPresenceGrain : Grain, IPlayerPresenceGrain
         await ClearActiveRoomAsync(ct);
     }
 
-    public async Task SetActiveRoomAsync(int roomId, CancellationToken ct)
+    public async Task SetActiveRoomAsync(RoomId roomId, CancellationToken ct)
     {
         var prev = _state.State.ActiveRoomId;
         var next = roomId;
@@ -124,7 +123,7 @@ public sealed partial class PlayerPresenceGrain : Grain, IPlayerPresenceGrain
 
     public Task ClearActiveRoomAsync(CancellationToken ct) => SetActiveRoomAsync(-1, ct);
 
-    public async Task LeaveRoomAsync(int roomId, CancellationToken ct)
+    public async Task LeaveRoomAsync(RoomId roomId, CancellationToken ct)
     {
         if (_state.State.ActiveRoomId != roomId)
             return;
@@ -132,7 +131,7 @@ public sealed partial class PlayerPresenceGrain : Grain, IPlayerPresenceGrain
         await SetActiveRoomAsync(-1, ct);
     }
 
-    public async Task SetPendingRoomAsync(int roomId, bool approved)
+    public async Task SetPendingRoomAsync(RoomId roomId, bool approved)
     {
         _state.State.PendingRoomId = roomId;
         _state.State.PendingRoomApproved = approved;

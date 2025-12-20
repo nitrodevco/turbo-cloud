@@ -1,13 +1,14 @@
 using System.Collections.Generic;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Primitives.Messages.Incoming.RoomSettings;
 
 public record SaveRoomSettingsMessage : IMessageEvent
 {
-    public int RoomId { get; init; }
+    public RoomId RoomId { get; init; }
     public string RoomName { get; init; } = string.Empty;
     public string RoomDescription { get; init; } = string.Empty;
     public int DoorMode { get; init; }

@@ -1,5 +1,6 @@
 using Orleans;
-using Turbo.Primitives.Orleans.Snapshots.Session;
+using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.Primitives.Action;
 
@@ -16,5 +17,5 @@ public class ActionContext
     public long PlayerId { get; init; } = -1;
 
     [Id(3)]
-    public int RoomId { get; init; } = -1;
+    public RoomId RoomId { get; init; } = -1;
 }

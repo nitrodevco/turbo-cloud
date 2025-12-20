@@ -1,6 +1,6 @@
 using System;
 using Orleans;
-using Turbo.Primitives.Orleans.Snapshots.Session;
+using Turbo.Primitives.Networking;
 
 namespace Turbo.Players.Grains;
 

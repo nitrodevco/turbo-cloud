@@ -13,7 +13,7 @@ public partial interface IRoomService
     public Task OpenRoomForPlayerIdAsync(
         ActionContext ctx,
         long playerId,
-        int roomId,
+        RoomId roomId,
         CancellationToken ct
     );
     public Task EnterPendingRoomForPlayerIdAsync(
