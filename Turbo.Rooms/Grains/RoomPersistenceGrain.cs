@@ -75,13 +75,6 @@ public sealed class RoomPersistenceGrain(
         return Task.CompletedTask;
     }
 
-    public Task MarkItemAsRemovedAsync(RoomId roomId, RoomObjectId itemId, CancellationToken ct)
-    {
-        _removedItemIds.Add(itemId);
-
-        return Task.CompletedTask;
-    }
-
     private async Task FlushDirtyItemsAsync(CancellationToken ct)
     {
         if (_dirtyItems.Count == 0)

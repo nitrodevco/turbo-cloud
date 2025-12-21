@@ -71,10 +71,9 @@ internal sealed class RoomRollerSystem(
                     if (
                         !_roomMap.TryGetTileInFront(fromIdx, roller.Rotation, out var toIdx)
                         || fromIdx == toIdx
+                        || reservedTileIdxs.Contains(toIdx)
+                        || nextAvatarTiles.Contains(toIdx)
                     )
-                        continue;
-
-                    if (reservedTileIdxs.Contains(toIdx) || nextAvatarTiles.Contains(toIdx))
                         continue;
 
                     var toTileState = _state.TileFlags[toIdx];
@@ -93,11 +92,9 @@ internal sealed class RoomRollerSystem(
 
                     foreach (var itemId in _state.TileFloorStacks[fromIdx])
                     {
-                        if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
-                            continue;
-
                         if (
-                            item.Definition.Width > 1
+                            !_state.FloorItemsById.TryGetValue(itemId, out var item)
+                            || item.Definition.Width > 1
                             || item.Definition.Length > 1
                             || item.Z < rollerHeight
                             || !item.Logic.CanRoll()
@@ -109,10 +106,10 @@ internal sealed class RoomRollerSystem(
 
                     foreach (var avatarId in _state.TileAvatarStacks[fromIdx])
                     {
-                        if (!_state.AvatarsByObjectId.TryGetValue(avatarId, out var avatar))
-                            continue;
-
-                        if (avatar.Z < rollerHeight)
+                        if (
+                            !_state.AvatarsByObjectId.TryGetValue(avatarId, out var avatar)
+                            || avatar.Z < rollerHeight
+                        )
                             continue;
 
                         if (!avatar.Logic.CanRoll())

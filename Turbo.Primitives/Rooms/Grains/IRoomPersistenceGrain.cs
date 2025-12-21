@@ -20,6 +20,4 @@ public interface IRoomPersistenceGrain : IGrainWithIntegerKey
         List<RoomItemSnapshot> snapshots,
         CancellationToken ct
     );
-
-    public Task MarkItemAsRemovedAsync(RoomId roomId, RoomObjectId itemId, CancellationToken ct);
 }

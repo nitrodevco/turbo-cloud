@@ -8,7 +8,7 @@ public class RoomConfig
 
     public int RoomCheckIntervalMilliseconds { get; init; } = 300000;
     public int RoomDeactivationDelayMilliseconds { get; init; } = 1800000;
-    public int RoomTickMilliseconds { get; init; } = 500;
+    public int RoomTickMilliseconds { get; init; } = 480;
     public int RoomRollerTickCount { get; init; } = 4;
     public int DirtyTilesFlushIntervalMilliseconds { get; init; } = 50;
     public double MaxStackHeight { get; init; } = 40.0;

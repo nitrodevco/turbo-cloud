@@ -62,7 +62,7 @@ internal sealed partial class RoomAvatarModule(
 
         var controllerLevel = await _securityModule.GetControllerLevelAsync(ctx);
 
-        avatar.AddStatus(AvatarStatusType.FlatControl, controllerLevel.ToString());
+        avatar.AddStatus(AvatarStatusType.FlatControl, ((int)controllerLevel).ToString());
 
         avatar.SetNextTileId(_roomMap.ToIdx(startX, startY));
 

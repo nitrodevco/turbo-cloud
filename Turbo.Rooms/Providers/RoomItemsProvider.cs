@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Build.Framework;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
+using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
@@ -27,11 +29,13 @@ namespace Turbo.Rooms.Providers;
 
 internal sealed class RoomItemsProvider(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
+    ILogger<IRoomItemsProvider> logger,
     IGrainFactory grainFactory,
     IFurnitureDefinitionProvider defsProvider
 ) : IRoomItemsProvider
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
+    private readonly ILogger<IRoomItemsProvider> _logger = logger;
     private readonly IGrainFactory _grainFactory = grainFactory;
     private readonly IFurnitureDefinitionProvider _defsProvider = defsProvider;
 
@@ -41,68 +45,58 @@ internal sealed class RoomItemsProvider(
         IReadOnlyDictionary<PlayerId, string>
     )> LoadByRoomIdAsync(RoomId roomId, CancellationToken ct)
     {
-        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
-        try
+        var entities = await dbCtx
+            .Furnitures.AsNoTracking()
+            .Where(x => x.RoomEntityId == (int)roomId)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        var floorItems = new List<IRoomFloorItem>();
+        var wallItems = new List<IRoomWallItem>();
+
+        var ownerIdsUnique = entities.Select(x => (PlayerId)x.PlayerEntityId).Distinct().ToList();
+        var ownerNames = await _grainFactory
+            .GetPlayerDirectoryGrain()
+            .GetPlayerNamesAsync(ownerIdsUnique, ct)
+            .ConfigureAwait(false);
+
+        foreach (var entity in entities)
         {
-            var entities = await dbCtx
-                .Furnitures.AsNoTracking()
-                .Where(x => x.RoomEntityId == (int)roomId)
-                .ToListAsync(ct)
-                .ConfigureAwait(false);
-
-            var floorItems = new List<IRoomFloorItem>();
-            var wallItems = new List<IRoomWallItem>();
-
-            var ownerIdsUnique = entities
-                .Select(x => (PlayerId)x.PlayerEntityId)
-                .Distinct()
-                .ToList();
-            var ownerNames = await _grainFactory
-                .GetPlayerDirectoryGrain()
-                .GetPlayerNamesAsync(ownerIdsUnique, ct)
-                .ConfigureAwait(false);
-
-            foreach (var entity in entities)
+            try
             {
-                try
+                var item = CreateFromEntity(entity);
+
+                item.SetOwnerName(
+                    ownerNames.TryGetValue(entity.PlayerEntityId, out var name)
+                        ? name ?? string.Empty
+                        : string.Empty
+                );
+
+                if (item is IRoomFloorItem floorItem)
                 {
-                    var item = CreateFromEntity(entity);
+                    floorItem.SetPosition(entity.X, entity.Y, entity.Z);
+                    floorItem.SetRotation(entity.Rotation);
 
-                    item.SetOwnerName(
-                        ownerNames.TryGetValue(entity.PlayerEntityId, out var name)
-                            ? name ?? string.Empty
-                            : string.Empty
-                    );
-
-                    if (item is IRoomFloorItem floorItem)
-                    {
-                        floorItem.SetPosition(entity.X, entity.Y, entity.Z);
-                        floorItem.SetRotation(entity.Rotation);
-
-                        floorItems.Add(floorItem);
-                    }
-                    else if (item is IRoomWallItem wallItem)
-                    {
-                        wallItem.SetPosition(entity.X, entity.Y, entity.Z);
-                        wallItem.SetWallOffset(entity.WallOffset);
-                        wallItem.SetRotation(entity.Rotation);
-
-                        wallItems.Add(wallItem);
-                    }
+                    floorItems.Add(floorItem);
                 }
-                catch (Exception)
+                else if (item is IRoomWallItem wallItem)
                 {
-                    continue;
+                    wallItem.SetPosition(entity.X, entity.Y, entity.Z);
+                    wallItem.SetWallOffset(entity.WallOffset);
+                    wallItem.SetRotation(entity.Rotation);
+
+                    wallItems.Add(wallItem);
                 }
             }
+            catch (Exception)
+            {
+                continue;
+            }
+        }
 
-            return (floorItems, wallItems, ownerNames);
-        }
-        finally
-        {
-            await dbCtx.DisposeAsync().ConfigureAwait(false);
-        }
+        return (floorItems, wallItems, ownerNames);
     }
 
     public IRoomItem CreateFromEntity(FurnitureEntity entity)
