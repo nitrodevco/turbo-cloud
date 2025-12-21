@@ -13,14 +13,9 @@ public interface IRoomItemContext<TItem> : IRoomObjectContext
     public TItem Item { get; }
     public FurnitureDefinitionSnapshot Definition { get; }
     public Task PublishRoomEventAsync(RoomEvent @event, CancellationToken ct);
-    public Task SendComposerToRoomAsync(IComposer composer, CancellationToken ct);
-    public Task AddItemAsync(CancellationToken ct);
-    public Task UpdateItemAsync(CancellationToken ct);
-    public Task RefreshStuffDataAsync(CancellationToken ct);
-    public Task RemoveItemAsync(
-        PlayerId pickerId,
-        CancellationToken ct,
-        bool isExpired = false,
-        int delay = 0
-    );
+    public Task SendComposerToRoomAsync(IComposer composer);
+    public Task AddItemAsync();
+    public Task UpdateItemAsync();
+    public Task RefreshStuffDataAsync();
+    public Task RemoveItemAsync(PlayerId pickerId, bool isExpired = false, int delay = 0);
 }

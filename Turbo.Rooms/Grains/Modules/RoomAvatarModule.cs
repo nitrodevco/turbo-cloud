@@ -14,9 +14,7 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
-using Turbo.Primitives.Rooms.Providers;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
-using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Avatars;
 
@@ -24,23 +22,17 @@ namespace Turbo.Rooms.Grains.Modules;
 
 internal sealed partial class RoomAvatarModule(
     RoomGrain roomGrain,
-    RoomConfig roomConfig,
     RoomLiveState roomLiveState,
     RoomPathingSystem roomPathing,
     RoomSecurityModule securityModule,
-    RoomMapModule roomMapModule,
-    IRoomAvatarProvider roomAvatarFactory,
-    IRoomObjectLogicProvider objectLogicFactory
+    RoomMapModule roomMapModule
 ) : IRoomModule
 {
     private readonly RoomGrain _roomGrain = roomGrain;
-    private readonly RoomConfig _roomConfig = roomConfig;
     private readonly RoomLiveState _state = roomLiveState;
     private readonly RoomSecurityModule _securityModule = securityModule;
     private readonly RoomMapModule _roomMap = roomMapModule;
     private readonly RoomPathingSystem _pathingSystem = roomPathing;
-    private readonly IRoomAvatarProvider _roomAvatarFactory = roomAvatarFactory;
-    private readonly IRoomObjectLogicProvider _objectLogicFactory = objectLogicFactory;
 
     private int _nextObjectId = 0;
 
@@ -63,7 +55,10 @@ internal sealed partial class RoomAvatarModule(
             startRot = Rotation.North;
         }
 
-        var avatar = _roomAvatarFactory.CreateAvatarFromPlayerSnapshot(objectId, snapshot);
+        var avatar = _roomGrain._roomAvatarFactory.CreateAvatarFromPlayerSnapshot(
+            objectId,
+            snapshot
+        );
 
         var controllerLevel = await _securityModule.GetControllerLevelAsync(ctx);
 
@@ -90,11 +85,31 @@ internal sealed partial class RoomAvatarModule(
         await AttatchLogicIfNeededAsync(avatar, ct);
         await ProcessNextAvatarStepAsync(avatar, ct);
         await _roomGrain.SendComposerToRoomAsync(
-            new UsersMessageComposer { Avatars = [avatar.GetSnapshot()] },
-            ct
+            new UsersMessageComposer { Avatars = [avatar.GetSnapshot()] }
         );
 
         return avatar;
+    }
+
+    public async Task RemoveAvatarAsync(RoomObjectId objectId, CancellationToken ct)
+    {
+        try
+        {
+            if (!_state.AvatarsByObjectId.TryGetValue(objectId, out var avatar))
+                return;
+
+            await StopWalkingAsync(avatar, ct);
+            await avatar.Logic.OnDetachAsync(ct);
+
+            _roomMap.RemoveAvatar(avatar, false);
+
+            _state.AvatarsByObjectId.Remove(objectId);
+
+            await _roomGrain.SendComposerToRoomAsync(
+                new UserRemoveMessageComposer { ObjectId = objectId }
+            );
+        }
+        catch (Exception) { }
     }
 
     public async Task RemoveAvatarFromPlayerAsync(PlayerId playerId, CancellationToken ct)
@@ -104,22 +119,9 @@ internal sealed partial class RoomAvatarModule(
             if (!_state.AvatarsByPlayerId.TryGetValue(playerId, out var objectId))
                 return;
 
-            if (!_state.AvatarsByObjectId.TryGetValue(objectId, out var avatar))
-                return;
-
-            await StopWalkingAsync(avatar, ct);
-
-            _roomMap.RemoveAvatar(avatar, false);
-
-            await avatar.Logic.OnDetachAsync(ct);
+            await RemoveAvatarAsync(objectId, ct);
 
             _state.AvatarsByPlayerId.Remove(playerId);
-            _state.AvatarsByObjectId.Remove(objectId);
-
-            await _roomGrain.SendComposerToRoomAsync(
-                new UserRemoveMessageComposer { ObjectId = objectId },
-                ct
-            );
         }
         catch (Exception) { }
     }
@@ -131,7 +133,7 @@ internal sealed partial class RoomAvatarModule(
 
         var logicType = "default_avatar";
         var ctx = new RoomAvatarContext(_roomGrain, this, avatar);
-        var logic = _objectLogicFactory.CreateLogicInstance(logicType, ctx);
+        var logic = _roomGrain._logicFactory.CreateLogicInstance(logicType, ctx);
 
         if (logic is not IRoomAvatarLogic avatarLogic)
             throw new TurboException(TurboErrorCodeEnum.InvalidLogic);
@@ -229,19 +231,19 @@ internal sealed partial class RoomAvatarModule(
     {
         try
         {
-            if (avatar.IsWalking)
-            {
-                avatar.SetIsWalking(false);
+            if (!avatar.IsWalking)
+                return;
 
-                await ProcessNextAvatarStepAsync(avatar, ct);
+            avatar.SetIsWalking(false);
 
-                avatar.TilePath.Clear();
-                avatar.SetNextTileId(-1);
-                avatar.SetGoalTileId(-1);
-                avatar.RemoveStatus(AvatarStatusType.Move);
+            await ProcessNextAvatarStepAsync(avatar, ct);
 
-                await _roomMap.InvokeAvatarAsync(avatar, ct);
-            }
+            avatar.TilePath.Clear();
+            avatar.SetNextTileId(-1);
+            avatar.SetGoalTileId(-1);
+            avatar.RemoveStatus(AvatarStatusType.Move);
+
+            await _roomMap.InvokeAvatarAsync(avatar, ct);
         }
         catch (Exception) { }
     }

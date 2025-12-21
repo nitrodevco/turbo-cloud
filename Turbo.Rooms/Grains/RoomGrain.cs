@@ -2,12 +2,16 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Orleans.Runtime;
+using Orleans.Streams;
 using Turbo.Database.Context;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room.Settings;
 using Turbo.Primitives.Players;
@@ -15,6 +19,7 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Providers;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
@@ -23,13 +28,16 @@ namespace Turbo.Rooms.Grains;
 
 public sealed partial class RoomGrain : Grain, IRoomGrain
 {
-    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
-    private readonly RoomConfig _roomConfig;
-    private readonly IRoomModelProvider _roomModelProvider;
-    private readonly IRoomItemsProvider _itemsLoader;
-    private readonly IRoomObjectLogicProvider _logicFactory;
-    private readonly IRoomAvatarProvider _roomAvatarFactory;
-    private readonly IGrainFactory _grainFactory;
+    internal readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
+    internal readonly RoomConfig _roomConfig;
+    internal readonly ILogger<IRoomGrain> _logger;
+    internal readonly IRoomModelProvider _roomModelProvider;
+    internal readonly IRoomItemsProvider _itemsLoader;
+    internal readonly IRoomObjectLogicProvider _logicFactory;
+    internal readonly IRoomAvatarProvider _roomAvatarFactory;
+    internal readonly IGrainFactory _grainFactory;
+
+    internal IAsyncStream<RoomOutbound> _roomOutbound = default!;
 
     private readonly RoomId _roomId;
     private readonly RoomLiveState _liveState;
@@ -48,6 +56,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public RoomGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IOptions<RoomConfig> roomConfig,
+        ILogger<IRoomGrain> logger,
         IRoomModelProvider roomModelProvider,
         IRoomItemsProvider itemsLoader,
         IRoomObjectLogicProvider logicFactory,
@@ -57,6 +66,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     {
         _dbCtxFactory = dbCtxFactory;
         _roomConfig = roomConfig.Value;
+        _logger = logger;
         _roomModelProvider = roomModelProvider;
         _itemsLoader = itemsLoader;
         _logicFactory = logicFactory;
@@ -69,34 +79,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _eventModule = new(this, _roomConfig, _liveState);
         _securityModule = new(this, _liveState);
         _mapModule = new(this, _roomConfig, _liveState);
-        _avatarModule = new(
-            this,
-            _roomConfig,
-            _liveState,
-            _pathingSystem,
-            _securityModule,
-            _mapModule,
-            _roomAvatarFactory,
-            _logicFactory
-        );
-        _furniModule = new(
-            this,
-            _roomConfig,
-            _liveState,
-            _mapModule,
-            _dbCtxFactory,
-            _grainFactory,
-            _itemsLoader,
-            _logicFactory
-        );
-        _actionModule = new(
-            this,
-            _liveState,
-            _securityModule,
-            _furniModule,
-            _grainFactory,
-            _itemsLoader
-        );
+        _avatarModule = new(this, _liveState, _pathingSystem, _securityModule, _mapModule);
+        _furniModule = new(this, _liveState, _mapModule);
+        _actionModule = new(this, _liveState, _securityModule, _furniModule);
 
         _avatarTickSystem = new(this, _roomConfig, _liveState, _avatarModule, _mapModule);
         _rollerSystem = new(this, _roomConfig, _liveState, _mapModule);
@@ -108,29 +93,22 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     {
         await HydrateRoomStateAsync(ct);
 
-        await _grainFactory
-            .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
-            .UpsertActiveRoomAsync(_liveState.RoomSnapshot);
+        await _grainFactory.GetRoomDirectoryGrain().UpsertActiveRoomAsync(_liveState.RoomSnapshot);
+
+        var provider = this.GetStreamProvider(OrleansStreamProviders.ROOM_STREAM_PROVIDER);
+
+        var streamId = StreamId.Create(OrleansStreamNames.ROOM_STREAM, this.GetPrimaryKeyLong());
+
+        _roomOutbound = provider.GetStream<RoomOutbound>(streamId);
 
         this.RegisterGrainTimer<object?>(
-            async _ => await _mapModule.FlushDirtyTileIdxsAsync(ct),
-            null,
-            TimeSpan.FromMilliseconds(_roomConfig.DirtyTilesFlushIntervalMilliseconds),
-            TimeSpan.FromMilliseconds(_roomConfig.DirtyTilesFlushIntervalMilliseconds)
-        );
-
-        this.RegisterGrainTimer<object?>(
-            async _ => await _furniModule.FlushDirtyItemIdsAsync(ct),
-            null,
-            TimeSpan.FromMilliseconds(_roomConfig.DirtyItemsFlushIntervalMilliseconds),
-            TimeSpan.FromMilliseconds(_roomConfig.DirtyItemsFlushIntervalMilliseconds)
-        );
-
-        this.RegisterGrainTimer<object?>(
-            async _ =>
+            async (state, ct) =>
             {
                 await _avatarTickSystem.ProcessAvatarsAsync(ct);
                 await _rollerSystem.ProcessRollersAsync(ct);
+
+                await FlushDirtyTilesAsync(ct);
+                await FlushDirtyItemsAsync(ct);
             },
             null,
             TimeSpan.FromMilliseconds(_roomConfig.RoomTickMilliseconds),
@@ -142,11 +120,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     {
         try
         {
-            await _furniModule.FlushDirtyItemIdsAsync(ct);
+            await FlushDirtyItemsAsync(ct);
 
-            await _grainFactory
-                .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
-                .RemoveActiveRoomAsync(_roomId);
+            await _grainFactory.GetRoomDirectoryGrain().RemoveActiveRoomAsync(_roomId);
         }
         catch (Exception)
         {
@@ -186,21 +162,13 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     }
 
     public async Task<int> GetRoomPopulationAsync() =>
-        await _grainFactory
-            .GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY)
-            .GetRoomPopulationAsync(_roomId);
+        await _grainFactory.GetRoomDirectoryGrain().GetRoomPopulationAsync(_roomId);
 
     public Task PublishRoomEventAsync(RoomEvent @event, CancellationToken ct) =>
         _eventModule.PublishAsync(@event, ct);
 
-    public async Task SendComposerToRoomAsync(IComposer composer, CancellationToken ct)
-    {
-        var roomDirectory = _grainFactory.GetGrain<IRoomDirectoryGrain>(
-            RoomDirectoryGrain.SINGLETON_KEY
-        );
-
-        await roomDirectory.SendComposerToRoomAsync(composer, _roomId, ct);
-    }
+    public Task SendComposerToRoomAsync(IComposer composer) =>
+        _roomOutbound.OnNextAsync(new RoomOutbound { RoomId = _roomId, Composer = composer });
 
     private async Task HydrateRoomStateAsync(CancellationToken ct)
     {

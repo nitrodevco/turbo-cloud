@@ -5,14 +5,13 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Orleans.Runtime;
-using Turbo.Contracts.Orleans;
 using Turbo.Database.Context;
 using Turbo.Logging;
 using Turbo.Primitives;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Orleans.States.Players;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Players.Grains;
 
 namespace Turbo.Players.Grains;
 
@@ -60,7 +59,7 @@ public class PlayerGrain(
             state.State.LastUpdated = DateTime.UtcNow;
 
             await _grainFactory
-                .GetGrain<IPlayerDirectoryGrain>(PlayerDirectoryGrain.SINGLETON_KEY)
+                .GetPlayerDirectoryGrain()
                 .SetPlayerNameAsync((PlayerId)this.GetPrimaryKeyLong(), state.State.Name, ct);
 
             await state.WriteStateAsync(ct);

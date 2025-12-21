@@ -1,6 +1,7 @@
 using System;
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.Players.Grains;
 
@@ -11,10 +12,10 @@ public sealed class PlayerPresenceState
     public required SessionKey SessionKey { get; set; } = string.Empty;
 
     [Id(1)]
-    public required int ActiveRoomId { get; set; } = -1;
+    public required RoomId ActiveRoomId { get; set; } = -1;
 
     [Id(2)]
-    public required int PendingRoomId { get; set; } = -1;
+    public required RoomId PendingRoomId { get; set; } = -1;
 
     [Id(3)]
     public required bool PendingRoomApproved { get; set; } = false;

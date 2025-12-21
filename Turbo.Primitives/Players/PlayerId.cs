@@ -6,7 +6,7 @@ namespace Turbo.Primitives.Players;
 public readonly record struct PlayerId
 {
     [Id(0)]
-    public int Value { private get; init; }
+    public int Value { get; init; }
 
     public PlayerId(int value)
     {

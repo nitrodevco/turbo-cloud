@@ -4,9 +4,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Orleans.Observers;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Players.Grains;
 
 namespace Turbo.Networking.Session;
 
@@ -75,7 +75,7 @@ public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
         if (observer is null)
             return;
 
-        var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
+        var playerPresence = _grainFactory.GetPlayerPresenceGrain(playerId);
 
         _sessionToPlayer[key] = playerId;
         _playerToSession[playerId] = key;
@@ -90,7 +90,7 @@ public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
 
         _sessionToPlayer.TryRemove(sessionKey, out _);
 
-        var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
+        var playerPresence = _grainFactory.GetPlayerPresenceGrain(playerId);
 
         await playerPresence.UnregisterSessionAsync(sessionKey, ct).ConfigureAwait(false);
     }

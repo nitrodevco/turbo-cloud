@@ -4,9 +4,9 @@ using Orleans;
 using Turbo.Catalog.Exceptions;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Catalog.Enums;
-using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Messages.Incoming.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
+using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Catalog;
 
@@ -26,7 +26,7 @@ public class PurchaseFromCatalogMessageHandler(IGrainFactory grainFactory)
 
         try
         {
-            var purchaseGrain = _grainFactory.GetGrain<ICatalogPurchaseGrain>(ctx.PlayerId);
+            var purchaseGrain = _grainFactory.GetCatalogPurchaseGrain(ctx.PlayerId);
             var offer = await purchaseGrain
                 .PurchaseOfferFromCatalogAsync(
                     CatalogType.Normal,

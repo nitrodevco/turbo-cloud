@@ -28,19 +28,14 @@ internal abstract class RoomItemContext<TItem>(
     public Task PublishRoomEventAsync(RoomEvent @event, CancellationToken ct) =>
         _roomGrain.PublishRoomEventAsync(@event, ct);
 
-    public Task SendComposerToRoomAsync(IComposer composer, CancellationToken ct) =>
-        _roomGrain.SendComposerToRoomAsync(@composer, ct);
+    public Task SendComposerToRoomAsync(IComposer composer) =>
+        _roomGrain.SendComposerToRoomAsync(composer);
 
-    public abstract Task AddItemAsync(CancellationToken ct);
+    public abstract Task AddItemAsync();
 
-    public abstract Task UpdateItemAsync(CancellationToken ct);
+    public abstract Task UpdateItemAsync();
 
-    public abstract Task RefreshStuffDataAsync(CancellationToken ct);
+    public abstract Task RefreshStuffDataAsync();
 
-    public abstract Task RemoveItemAsync(
-        PlayerId pickerId,
-        CancellationToken ct,
-        bool isExpired = false,
-        int delay = 0
-    );
+    public abstract Task RemoveItemAsync(PlayerId pickerId, bool isExpired = false, int delay = 0);
 }

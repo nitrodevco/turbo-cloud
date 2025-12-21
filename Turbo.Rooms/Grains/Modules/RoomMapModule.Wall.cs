@@ -1,5 +1,3 @@
-using System.Threading;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 
@@ -7,11 +5,8 @@ namespace Turbo.Rooms.Grains.Modules;
 
 internal sealed partial class RoomMapModule
 {
-    public bool AddWallItem(IRoomWallItem item, bool flush = true)
+    public bool AddWallItem(IRoomWallItem item)
     {
-        if (flush)
-            _ = _roomGrain.SendComposerToRoomAsync(item.GetAddComposer(), CancellationToken.None);
-
         return true;
     }
 
@@ -21,15 +16,14 @@ internal sealed partial class RoomMapModule
         int y,
         double z,
         Rotation rot,
-        int wallOffset,
-        bool flush = true
+        int wallOffset
     )
     {
         item.SetPosition(x, y, z);
         item.SetRotation(rot);
         item.SetWallOffset(wallOffset);
 
-        return AddWallItem(item, flush);
+        return AddWallItem(item);
     }
 
     public bool MoveWallItemItem(
@@ -38,35 +32,22 @@ internal sealed partial class RoomMapModule
         int y,
         double z,
         Rotation rot,
-        int wallOffset,
-        bool flush = true
+        int wallOffset
     )
     {
-        RemoveWallItem(item, -1, false);
+        RemoveWallItem(item);
 
         item.SetPosition(x, y, z);
         item.SetRotation(rot);
         item.SetWallOffset(wallOffset);
 
-        AddWallItem(item, false);
-
-        if (flush)
-            _ = _roomGrain.SendComposerToRoomAsync(
-                item.GetUpdateComposer(),
-                CancellationToken.None
-            );
+        AddWallItem(item);
 
         return true;
     }
 
-    public bool RemoveWallItem(IRoomWallItem item, PlayerId pickerId, bool flush = true)
+    public bool RemoveWallItem(IRoomWallItem item)
     {
-        if (flush)
-            _ = _roomGrain.SendComposerToRoomAsync(
-                item.GetRemoveComposer(pickerId),
-                CancellationToken.None
-            );
-
         return true;
     }
 }

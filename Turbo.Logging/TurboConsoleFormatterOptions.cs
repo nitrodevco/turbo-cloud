@@ -25,9 +25,5 @@ internal class TurboConsoleFormatterOptions : ConsoleFormatterOptions
     public bool UseAnsiColor { get; set; } = true;
 
     /// <summary>Include scopes if configured (default inherited from ConsoleFormatterOptions.IncludeScopes).</summary>
-    public new bool IncludeScopes
-    {
-        get => base.IncludeScopes;
-        set => base.IncludeScopes = value;
-    }
+    public new bool IncludeScopes { get; set; } = true;
 }

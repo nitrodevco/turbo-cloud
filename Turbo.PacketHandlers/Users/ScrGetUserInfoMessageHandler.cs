@@ -1,18 +1,19 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Users;
 using Turbo.Primitives.Messages.Outgoing.Preferences;
 using Turbo.Primitives.Messages.Outgoing.Users;
-using Turbo.Primitives.Players;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.PacketHandlers.Users;
 
-public class ScrGetUserInfoMessageHandler(IPlayerService playerService)
+public class ScrGetUserInfoMessageHandler(IGrainFactory grainFactory)
     : IMessageHandler<ScrGetUserInfoMessage>
 {
-    private readonly IPlayerService _playerService = playerService;
+    private readonly IGrainFactory _grainFactory = grainFactory;
 
     public async ValueTask HandleAsync(
         ScrGetUserInfoMessage message,
@@ -20,7 +21,7 @@ public class ScrGetUserInfoMessageHandler(IPlayerService playerService)
         CancellationToken ct
     )
     {
-        var player = _playerService.GetPlayerGrain(ctx.PlayerId);
+        var player = _grainFactory.GetPlayerGrain(ctx.PlayerId);
         var snapshot = await player.GetSummaryAsync(ct).ConfigureAwait(false);
 
         await ctx.SendComposerAsync(

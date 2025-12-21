@@ -5,7 +5,7 @@ using Turbo.Logging;
 using Turbo.Pipeline;
 using Turbo.Primitives;
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Players.Grains;
+using Turbo.Primitives.Orleans;
 
 namespace Turbo.Messages.Registry;
 
@@ -26,7 +26,7 @@ public sealed class MessageRegistry(IServiceProvider sp)
 
                 if (playerId > 0)
                 {
-                    var playerPresence = grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
+                    var playerPresence = grainFactory.GetPlayerPresenceGrain(playerId);
                     var activeRoom = await playerPresence
                         .GetActiveRoomAsync()
                         .ConfigureAwait(false);

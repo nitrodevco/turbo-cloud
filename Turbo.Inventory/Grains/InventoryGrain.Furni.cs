@@ -13,7 +13,7 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Snapshots;
-using Turbo.Primitives.Players.Grains;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
@@ -29,7 +29,7 @@ public sealed partial class InventoryGrain
         if (!await _furniModule.AddFurnitureAsync(item, ct))
             return false;
 
-        var presence = _grainFactory.GetGrain<IPlayerPresenceGrain>(this.GetPrimaryKeyLong());
+        var presence = _grainFactory.GetPlayerPresenceGrain(this.GetPrimaryKeyLong());
 
         await presence.OnFurnitureAddedAsync(item.GetSnapshot(), ct);
 
@@ -46,7 +46,7 @@ public sealed partial class InventoryGrain
         if (!await _furniModule.AddFurnitureAsync(item, ct))
             return false;
 
-        var presence = _grainFactory.GetGrain<IPlayerPresenceGrain>(this.GetPrimaryKeyLong());
+        var presence = _grainFactory.GetPlayerPresenceGrain(this.GetPrimaryKeyLong());
 
         await presence.OnFurnitureAddedAsync(item.GetSnapshot(), ct);
 
@@ -58,7 +58,7 @@ public sealed partial class InventoryGrain
         if (!await _furniModule.RemoveFurnitureAsync(itemId, ct))
             return false;
 
-        var presence = _grainFactory.GetGrain<IPlayerPresenceGrain>(this.GetPrimaryKeyLong());
+        var presence = _grainFactory.GetPlayerPresenceGrain(this.GetPrimaryKeyLong());
 
         await presence.OnFurnitureRemovedAsync(itemId, ct);
 

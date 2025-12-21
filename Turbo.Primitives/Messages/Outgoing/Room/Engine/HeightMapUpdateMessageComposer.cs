@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using Orleans;
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Rooms.Snapshots.Mapping;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Engine;
 
@@ -9,5 +8,5 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Engine;
 public sealed record HeightMapUpdateMessageComposer : IComposer
 {
     [Id(0)]
-    public required ImmutableArray<RoomTileSnapshot> Tiles { get; init; }
+    public required ImmutableArray<(int X, int Y, short Height)> TileHeights { get; init; }
 }

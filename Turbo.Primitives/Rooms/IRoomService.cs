@@ -2,15 +2,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Rooms.Grains;
 
 namespace Turbo.Primitives.Rooms;
 
 public partial interface IRoomService
 {
-    public IRoomDirectoryGrain GetRoomDirectory();
-    public IRoomGrain GetRoomGrain(RoomId roomId);
-
     public Task OpenRoomForPlayerIdAsync(
         ActionContext ctx,
         PlayerId playerId,

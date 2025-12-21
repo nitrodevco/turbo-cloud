@@ -32,10 +32,9 @@ internal sealed class RoomLiveState
 
     public HashSet<PlayerId> PlayerIdsWithRights { get; } = [];
 
-    public HashSet<int> DirtyTileIdxs { get; } = [];
-    public HashSet<int> DirtyHeightTileIds { get; } = [];
-    public HashSet<RoomObjectId> DirtyFloorItemIds { get; } = [];
-    public HashSet<RoomObjectId> DirtyWallItemIds { get; } = [];
+    public HashSet<int> DirtyHeightTileIds { get; set; } = [];
+    public HashSet<RoomObjectId> DirtyFloorItemIds { get; set; } = [];
+    public HashSet<RoomObjectId> DirtyWallItemIds { get; set; } = [];
 
     public bool IsMapReady { get; internal set; } = false;
     public bool IsFurniLoaded { get; internal set; } = false;

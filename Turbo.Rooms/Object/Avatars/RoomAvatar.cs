@@ -23,6 +23,7 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
     public int GoalTileId { get; private set; } = -1;
     public int NextTileId { get; private set; } = -1;
     public bool IsWalking { get; private set; } = false;
+    public bool NeedsInvoke { get; private set; } = false;
     public List<int> TilePath { get; } = [];
 
     private int _goalTries = 0;
@@ -79,6 +80,16 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
             return;
 
         IsWalking = flag;
+
+        MarkDirty();
+    }
+
+    public void SetNeedsInvoke(bool flag)
+    {
+        if (NeedsInvoke == flag)
+            return;
+
+        NeedsInvoke = flag;
 
         MarkDirty();
     }

@@ -3,8 +3,8 @@ using System.Threading.Tasks;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
@@ -29,7 +29,7 @@ internal sealed partial class RoomActionModule
         if (!await _securityModule.CanPlaceFurniAsync(ctx))
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToPlaceFurni);
 
-        var item = _itemsLoader.CreateFromFurnitureItemSnapshot(snapshot);
+        var item = _roomGrain._itemsLoader.CreateFromFurnitureItemSnapshot(snapshot);
 
         if (item is not IRoomFloorItem floorItem)
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
@@ -40,7 +40,7 @@ internal sealed partial class RoomActionModule
         if (!await _furniModule.PlaceFloorItemAsync(ctx, floorItem, x, y, rot, ct))
             return false;
 
-        var inventory = _grainFactory.GetGrain<IInventoryGrain>(item.OwnerId);
+        var inventory = _roomGrain._grainFactory.GetInventoryGrain(item.OwnerId);
 
         await inventory.RemoveFurnitureAsync(item.ObjectId, ct);
 
@@ -89,7 +89,7 @@ internal sealed partial class RoomActionModule
         if (floorItem is null)
             return false;
 
-        var inventory = _grainFactory.GetGrain<IInventoryGrain>(floorItem.OwnerId);
+        var inventory = _roomGrain._grainFactory.GetInventoryGrain(floorItem.OwnerId);
 
         await inventory.AddFurnitureFromRoomItemSnapshotAsync(floorItem, ct);
 

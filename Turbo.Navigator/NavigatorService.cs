@@ -2,7 +2,9 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Orleans;
 using Turbo.Primitives.Navigator;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Orleans.Snapshots.Navigator;
 using Turbo.Primitives.Rooms;
 
@@ -11,12 +13,14 @@ namespace Turbo.Navigator;
 public sealed class NavigatorService(
     ILogger<INavigatorService> logger,
     INavigatorProvider navigatorProvider,
-    IRoomService roomService
+    IRoomService roomService,
+    IGrainFactory grainFactory
 ) : INavigatorService
 {
     private readonly ILogger<INavigatorService> _logger = logger;
     private readonly INavigatorProvider _navigatorProvider = navigatorProvider;
     private readonly IRoomService _roomService = roomService;
+    private readonly IGrainFactory _grainFactory = grainFactory;
 
     public async Task<ImmutableArray<NavigatorTopLevelContextSnapshot>> GetTopLevelContextAsync() =>
         await _navigatorProvider.GetTopLevelContextsAsync().ConfigureAwait(false);
@@ -25,8 +29,8 @@ public sealed class NavigatorService(
     {
         var rooms = await _navigatorProvider.GetRoomResultsAsync().ConfigureAwait(false);
 
-        var activeRooms = await _roomService
-            .GetRoomDirectory()
+        var activeRooms = await _grainFactory
+            .GetRoomDirectoryGrain()
             .GetActiveRoomsAsync()
             .ConfigureAwait(false);
 

@@ -33,7 +33,7 @@ public abstract class FurnitureLogicBase<TItem, TContext>
         {
             _ctx.Item.MarkDirty();
 
-            await _ctx.RefreshStuffDataAsync(CancellationToken.None);
+            await _ctx.RefreshStuffDataAsync();
 
             if (_ctx is IRoomFloorItemContext floorCtx)
                 floorCtx.RefreshTile();

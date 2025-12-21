@@ -2,7 +2,7 @@ using System;
 using Microsoft.Extensions.Hosting;
 using Orleans.Configuration;
 using Orleans.Hosting;
-using Turbo.Contracts.Orleans;
+using Turbo.Primitives.Orleans;
 
 namespace Turbo.Main.Extensions;
 
@@ -29,7 +29,8 @@ public static class HostApplicationBuilderExtensions
                         .AddMemoryGrainStorage(OrleansStorageNames.PUB_SUB_STORE)
                         .AddMemoryGrainStorage(OrleansStorageNames.PLAYER_STORE)
                         .AddMemoryGrainStorage(OrleansStorageNames.ROOM_STORE)
-                        .AddMemoryStreams(OrleansStreamProviders.DEFAULT_STREAM_PROVIDER);
+                        .AddMemoryStreams(OrleansStreamProviders.DEFAULT_STREAM_PROVIDER)
+                        .AddMemoryStreams(OrleansStreamProviders.ROOM_STREAM_PROVIDER);
                 }
             )
         );

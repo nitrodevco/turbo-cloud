@@ -1,5 +1,8 @@
+using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 
 namespace Turbo.Rooms.Grains;
@@ -18,4 +21,38 @@ public sealed partial class RoomGrain
 
     public Task<RoomMapSnapshot> GetMapSnapshotAsync(CancellationToken ct) =>
         Task.FromResult(_mapModule.GetMapSnapshot(ct));
+
+    private async Task FlushDirtyTilesAsync(CancellationToken ct)
+    {
+        if (_liveState.DirtyHeightTileIds.Count == 0)
+            return;
+
+        var dirtyHeightTileIds = _liveState.DirtyHeightTileIds;
+        _liveState.DirtyHeightTileIds = [];
+
+        var heights = new List<(int X, int Y, short Height)>(
+            Math.Min(dirtyHeightTileIds.Count, _roomConfig.MaxTileHeightsPerFlush)
+        );
+
+        foreach (var x in dirtyHeightTileIds)
+        {
+            heights.Add((_mapModule.GetX(x), _mapModule.GetY(x), _liveState.TileEncodedHeights[x]));
+
+            if (heights.Count == heights.Capacity)
+            {
+                _ = SendComposerToRoomAsync(
+                    new HeightMapUpdateMessageComposer { TileHeights = [.. heights] }
+                );
+
+                heights.Clear();
+            }
+        }
+
+        if (heights.Count > 0)
+        {
+            _ = SendComposerToRoomAsync(
+                new HeightMapUpdateMessageComposer { TileHeights = [.. heights] }
+            );
+        }
+    }
 }

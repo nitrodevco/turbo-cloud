@@ -16,5 +16,5 @@ public partial interface IRoomGrain : IGrainWithIntegerKey
     public Task<RoomSummarySnapshot> GetSummaryAsync();
     public Task<int> GetRoomPopulationAsync();
     public Task PublishRoomEventAsync(RoomEvent @event, CancellationToken ct);
-    public Task SendComposerToRoomAsync(IComposer composer, CancellationToken ct);
+    public Task SendComposerToRoomAsync(IComposer composer);
 }

@@ -14,21 +14,18 @@ internal sealed class RoomFloorItemContext(
     IRoomFloorItem roomItem
 ) : RoomItemContext<IRoomFloorItem>(roomGrain, furniModule, roomItem), IRoomFloorItemContext
 {
-    public override Task AddItemAsync(CancellationToken ct) =>
-        SendComposerToRoomAsync(Item.GetAddComposer(), ct);
+    public override Task AddItemAsync() => SendComposerToRoomAsync(Item.GetAddComposer());
 
-    public override Task UpdateItemAsync(CancellationToken ct) =>
-        SendComposerToRoomAsync(Item.GetUpdateComposer(), ct);
+    public override Task UpdateItemAsync() => SendComposerToRoomAsync(Item.GetUpdateComposer());
 
-    public override Task RefreshStuffDataAsync(CancellationToken ct) =>
-        SendComposerToRoomAsync(Item.GetRefreshStuffDataComposer(), ct);
+    public override Task RefreshStuffDataAsync() =>
+        SendComposerToRoomAsync(Item.GetRefreshStuffDataComposer());
 
     public override Task RemoveItemAsync(
         PlayerId pickerId,
-        CancellationToken ct,
         bool isExpired = false,
         int delay = 0
-    ) => SendComposerToRoomAsync(Item.GetRemoveComposer(pickerId, isExpired, delay), ct);
+    ) => SendComposerToRoomAsync(Item.GetRemoveComposer(pickerId, isExpired, delay));
 
     public void RefreshTile() => _roomGrain.ComputeTile(Item.X, Item.Y);
 

@@ -1,13 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Logging;
 using Turbo.Primitives;
-using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Mapping;
@@ -167,7 +165,17 @@ internal sealed partial class RoomMapModule(
         IRoomFloorItem? nextHighestItem = null;
 
         if (avatarStack.Count > 0)
+        {
             nextFlags = nextFlags.Add(RoomTileFlags.AvatarOccupied);
+
+            foreach (var objectId in avatarStack)
+            {
+                if (!_state.AvatarsByObjectId.TryGetValue(objectId, out var avatar))
+                    continue;
+
+                avatar.SetNeedsInvoke(true);
+            }
+        }
 
         if (floorStack.Count > 0)
         {
@@ -189,8 +197,6 @@ internal sealed partial class RoomMapModule(
                 nextHighestItem = item;
             }
         }
-
-        //nextHeight = Math.Round(nextHeight, 2);
 
         if (nextHighestItem is not null)
         {
@@ -222,8 +228,6 @@ internal sealed partial class RoomMapModule(
             _state.TileEncodedHeights[id] = nextEncoded;
             _state.DirtyHeightTileIds.Add(id);
         }
-
-        _state.DirtyTileIdxs.Add(id);
 
         _dirty = true;
     }
@@ -334,40 +338,5 @@ internal sealed partial class RoomMapModule(
         }
 
         return Task.CompletedTask;
-    }
-
-    internal async Task FlushDirtyTileIdxsAsync(CancellationToken ct)
-    {
-        var dirtyTileIdxs = _state.DirtyTileIdxs.ToHashSet();
-        var dirtyHeightTileIds = _state.DirtyHeightTileIds.ToHashSet();
-
-        _state.DirtyTileIdxs.Clear();
-        _state.DirtyHeightTileIds.Clear();
-
-        if (dirtyTileIdxs.Count > 0)
-            await InvokeAvatarsOnTilesAsync(dirtyTileIdxs, ct);
-
-        if (dirtyHeightTileIds.Count > 0)
-        {
-            var dirtySnapshots = dirtyHeightTileIds
-                .Select(x => new RoomTileSnapshot
-                {
-                    X = (byte)GetX(x),
-                    Y = (byte)GetY(x),
-                    Height = _state.TileHeights[x],
-                    EncodedHeight = _state.TileEncodedHeights[x],
-                    Flags = _state.TileFlags[x],
-                    HighestObjectId = _state.TileHighestFloorItems[x],
-                })
-                .ToList();
-
-            if (dirtySnapshots.Count > 0)
-            {
-                await _roomGrain.SendComposerToRoomAsync(
-                    new HeightMapUpdateMessageComposer { Tiles = [.. dirtySnapshots] },
-                    ct
-                );
-            }
-        }
     }
 }

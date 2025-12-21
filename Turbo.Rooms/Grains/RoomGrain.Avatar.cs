@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Players;
@@ -22,9 +24,12 @@ public sealed partial class RoomGrain
 
             return true;
         }
-        catch
+        catch (Exception ex)
         {
-            // TODO handle exceptions
+            _logger.LogError(
+                ex,
+                $"Failed to create avatar for player {snapshot.PlayerId} in room {_roomId}."
+            );
 
             return false;
         }
@@ -38,9 +43,12 @@ public sealed partial class RoomGrain
 
             return true;
         }
-        catch
+        catch (Exception ex)
         {
-            // TODO handle exceptions
+            _logger.LogError(
+                ex,
+                $"Failed to remove avatar for player {playerId} in room {_roomId}."
+            );
 
             return false;
         }
@@ -60,9 +68,12 @@ public sealed partial class RoomGrain
 
             return true;
         }
-        catch
+        catch (Exception ex)
         {
-            // TODO handle exceptions
+            _logger.LogError(
+                ex,
+                $"Failed to walk avatar for player {ctx.PlayerId} in room {_roomId} to ({targetX}, {targetY})."
+            );
 
             return false;
         }

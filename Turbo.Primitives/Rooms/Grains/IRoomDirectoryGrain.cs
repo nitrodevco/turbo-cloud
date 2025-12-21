@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
-using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Players;
 
@@ -16,5 +15,4 @@ public interface IRoomDirectoryGrain : IGrainWithStringKey
     public Task RemoveActiveRoomAsync(RoomId roomId);
     public Task AddPlayerToRoomAsync(PlayerId playerId, RoomId roomId, CancellationToken ct);
     public Task RemovePlayerFromRoomAsync(PlayerId playerId, RoomId roomId, CancellationToken ct);
-    public Task SendComposerToRoomAsync(IComposer composer, RoomId roomId, CancellationToken ct);
 }

@@ -1,35 +1,21 @@
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using Orleans;
-using Turbo.Database.Context;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
-using Turbo.Primitives.Rooms.Providers;
-using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms.Grains.Modules;
 
 internal sealed partial class RoomFurniModule(
     RoomGrain roomGrain,
-    RoomConfig roomConfig,
     RoomLiveState roomLiveState,
-    RoomMapModule roomMapModule,
-    IDbContextFactory<TurboDbContext> dbCtxFactory,
-    IGrainFactory grainFactory,
-    IRoomItemsProvider itemsLoader,
-    IRoomObjectLogicProvider logicFactory
+    RoomMapModule roomMapModule
 ) : IRoomModule
 {
     private readonly RoomGrain _roomGrain = roomGrain;
-    private readonly RoomConfig _roomConfig = roomConfig;
     private readonly RoomLiveState _state = roomLiveState;
     private readonly RoomMapModule _roomMap = roomMapModule;
-    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
-    private readonly IGrainFactory _grainFactory = grainFactory;
-    private readonly IRoomItemsProvider _itemsLoader = itemsLoader;
-    private readonly IRoomObjectLogicProvider _logicFactory = logicFactory;
 
     public Task<ImmutableDictionary<PlayerId, string>> GetAllOwnersAsync(CancellationToken ct) =>
         Task.FromResult(_state.OwnerNamesById.ToImmutableDictionary());
@@ -39,7 +25,7 @@ internal sealed partial class RoomFurniModule(
         if (_state.IsFurniLoaded)
             return;
 
-        var (floorItems, wallItems, ownerNames) = await _itemsLoader.LoadByRoomIdAsync(
+        var (floorItems, wallItems, ownerNames) = await _roomGrain._itemsLoader.LoadByRoomIdAsync(
             (RoomId)_roomGrain.GetPrimaryKeyLong(),
             ct
         );
@@ -61,11 +47,5 @@ internal sealed partial class RoomFurniModule(
             await AddWallItemAsync(item, ct);
 
         _state.IsFurniLoaded = true;
-    }
-
-    internal async Task FlushDirtyItemIdsAsync(CancellationToken ct)
-    {
-        await FlushDirtyFloorItemsAsync(ct);
-        await FlushDirtyWallItemsAsync(ct);
     }
 }

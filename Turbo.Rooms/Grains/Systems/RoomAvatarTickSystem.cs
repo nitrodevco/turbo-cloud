@@ -53,14 +53,16 @@ internal sealed class RoomAvatarTickSystem(
         if (dirtySnapshots.Count == 0)
             return;
 
-        await _roomGrain.SendComposerToRoomAsync(
-            new UserUpdateMessageComposer { Avatars = [.. dirtySnapshots] },
-            ct
+        _ = _roomGrain.SendComposerToRoomAsync(
+            new UserUpdateMessageComposer { Avatars = [.. dirtySnapshots] }
         );
     }
 
     internal async Task ProcessDirtyAvatarAsync(IRoomAvatar avatar, CancellationToken ct)
     {
+        if (avatar.NeedsInvoke)
+            await _roomMap.InvokeAvatarAsync(avatar, ct);
+
         await _roomAvatar.ProcessNextAvatarStepAsync(avatar, ct);
 
         if (avatar.TilePath.Count <= 0)

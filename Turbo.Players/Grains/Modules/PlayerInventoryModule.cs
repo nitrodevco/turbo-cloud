@@ -3,20 +3,16 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
-using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Players.Grains.Modules;
 
-internal sealed class PlayerInventoryModule(
-    PlayerPresenceGrain presenceGrain,
-    IGrainFactory grainFactory
-)
+internal sealed class PlayerInventoryModule(PlayerPresenceGrain presenceGrain)
 {
     private readonly PlayerPresenceGrain _presenceGrain = presenceGrain;
-    private readonly IGrainFactory _grainFactory = grainFactory;
 
     private bool _isFurnitureInventoryPrimed = false;
 
@@ -30,12 +26,12 @@ internal sealed class PlayerInventoryModule(
     {
         _isFurnitureInventoryPrimed = false;
 
-        await _presenceGrain.SendComposerAsync(new FurniListInvalidateEventMessageComposer(), ct);
+        await _presenceGrain.SendComposerAsync(new FurniListInvalidateEventMessageComposer());
     }
 
     public async Task OpenFurnitureInventoryAsync(CancellationToken ct)
     {
-        var inventoryGrain = _grainFactory.GetGrain<IInventoryGrain>(
+        var inventoryGrain = _presenceGrain._grainFactory.GetInventoryGrain(
             _presenceGrain.GetPrimaryKeyLong()
         );
         var items = await inventoryGrain.GetAllItemSnapshotsAsync(ct);
@@ -61,8 +57,7 @@ internal sealed class PlayerInventoryModule(
                         TotalFragments = totalFragments,
                         CurrentFragment = currentFragment,
                         Items = [.. fragmentItems],
-                    },
-                    ct
+                    }
                 );
 
                 fragmentItems.Clear();
@@ -80,8 +75,7 @@ internal sealed class PlayerInventoryModule(
                 TotalFragments = totalFragments,
                 CurrentFragment = currentFragment,
                 Items = [.. fragmentItems],
-            },
-            ct
+            }
         );
 
         _isFurnitureInventoryPrimed = true;
@@ -93,8 +87,7 @@ internal sealed class PlayerInventoryModule(
             return;
 
         await _presenceGrain.SendComposerAsync(
-            new FurniListAddOrUpdateEventMessageComposer { Item = snapshot },
-            ct
+            new FurniListAddOrUpdateEventMessageComposer { Item = snapshot }
         );
     }
 
@@ -104,8 +97,7 @@ internal sealed class PlayerInventoryModule(
             return;
 
         await _presenceGrain.SendComposerAsync(
-            new FurniListRemoveEventMessageComposer { ItemId = itemId },
-            ct
+            new FurniListRemoveEventMessageComposer { ItemId = itemId }
         );
     }
 }

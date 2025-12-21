@@ -10,7 +10,7 @@ using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Catalog.Snapshots;
-using Turbo.Primitives.Inventory.Grains;
+using Turbo.Primitives.Orleans;
 
 namespace Turbo.Catalog.Grains;
 
@@ -61,7 +61,7 @@ public sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrain
         if (!snapshot.OffersById.TryGetValue(offerId, out var offer))
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.OfferNotFound);
 
-        var inventory = _grainFactory.GetGrain<IInventoryGrain>(this.GetPrimaryKeyLong());
+        var inventory = _grainFactory.GetInventoryGrain(this.GetPrimaryKeyLong());
 
         await inventory.GrantCatalogOfferAsync(offer, extraParam, quantity, ct);
 

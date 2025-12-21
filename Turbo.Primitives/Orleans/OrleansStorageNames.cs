@@ -1,4 +1,4 @@
-namespace Turbo.Contracts.Orleans;
+namespace Turbo.Primitives.Orleans;
 
 public static class OrleansStorageNames
 {

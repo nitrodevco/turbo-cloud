@@ -9,15 +9,13 @@ using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Logging;
-using Turbo.Players.Grains;
 using Turbo.Primitives;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms;
-using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
@@ -61,7 +59,7 @@ internal sealed class RoomItemsProvider(
                 .Distinct()
                 .ToList();
             var ownerNames = await _grainFactory
-                .GetGrain<IPlayerDirectoryGrain>(PlayerDirectoryGrain.SINGLETON_KEY)
+                .GetPlayerDirectoryGrain()
                 .GetPlayerNamesAsync(ownerIdsUnique, ct)
                 .ConfigureAwait(false);
 

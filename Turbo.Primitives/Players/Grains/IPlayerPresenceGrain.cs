@@ -17,7 +17,7 @@ public partial interface IPlayerPresenceGrain : IGrainWithIntegerKey
     public Task UnregisterSessionAsync(SessionKey key, CancellationToken ct);
     public Task SetActiveRoomAsync(RoomId roomId, CancellationToken ct);
     public Task ClearActiveRoomAsync(CancellationToken ct);
-    public Task LeaveRoomAsync(RoomId roomId, CancellationToken ct);
     public Task SetPendingRoomAsync(RoomId roomId, bool approved);
-    public Task SendComposerAsync(IComposer composer, CancellationToken ct);
+    public Task SendComposerAsync(IComposer composer);
+    public Task SendComposerAsync(params IComposer[] composers);
 }

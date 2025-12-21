@@ -16,6 +16,8 @@ internal sealed partial class RoomMapModule
     {
         try
         {
+            avatar.SetNeedsInvoke(false);
+
             if (avatar.IsWalking)
                 return;
 

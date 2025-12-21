@@ -1,7 +1,5 @@
-using System.Threading;
 using Turbo.Logging;
 using Turbo.Primitives;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 
@@ -9,7 +7,7 @@ namespace Turbo.Rooms.Grains.Modules;
 
 internal sealed partial class RoomMapModule
 {
-    public bool AddFloorItem(IRoomFloorItem item, bool flush)
+    public bool AddFloorItem(IRoomFloorItem item)
     {
         var tileIdx = ToIdx(item.X, item.Y);
 
@@ -35,13 +33,10 @@ internal sealed partial class RoomMapModule
             }
         }
 
-        if (flush)
-            _ = _roomGrain.SendComposerToRoomAsync(item.GetAddComposer(), CancellationToken.None);
-
         return true;
     }
 
-    public bool PlaceFloorItem(IRoomFloorItem item, int nTileIdx, Rotation rot, bool flush)
+    public bool PlaceFloorItem(IRoomFloorItem item, int nTileIdx, Rotation rot)
     {
         if (!InBounds(nTileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
@@ -49,26 +44,20 @@ internal sealed partial class RoomMapModule
         item.SetPosition(GetX(nTileIdx), GetY(nTileIdx), _state.TileHeights[nTileIdx]);
         item.SetRotation(rot);
 
-        return AddFloorItem(item, flush);
+        return AddFloorItem(item);
     }
 
-    public bool MoveFloorItem(IRoomFloorItem item, int tileIdx, Rotation rot, bool flush)
+    public bool MoveFloorItem(IRoomFloorItem item, int tileIdx, Rotation rot)
     {
         if (!InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
-        RemoveFloorItem(item, -1, false);
+        RemoveFloorItem(item);
 
         item.SetPosition(GetX(tileIdx), GetY(tileIdx), _state.TileHeights[tileIdx]);
         item.SetRotation(rot);
 
-        AddFloorItem(item, false);
-
-        if (flush)
-            _ = _roomGrain.SendComposerToRoomAsync(
-                item.GetUpdateComposer(),
-                CancellationToken.None
-            );
+        AddFloorItem(item);
 
         return true;
     }
@@ -78,16 +67,16 @@ internal sealed partial class RoomMapModule
         if (!InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
-        RemoveFloorItem(item, -1, false);
+        RemoveFloorItem(item);
 
         item.SetPosition(GetX(tileIdx), GetY(tileIdx), z);
 
-        AddFloorItem(item, false);
+        AddFloorItem(item);
 
         return true;
     }
 
-    public bool RemoveFloorItem(IRoomFloorItem item, PlayerId pickerId, bool flush)
+    public bool RemoveFloorItem(IRoomFloorItem item)
     {
         var tileIdx = ToIdx(item.X, item.Y);
 
@@ -112,12 +101,6 @@ internal sealed partial class RoomMapModule
                 ComputeTile(idx);
             }
         }
-
-        if (flush)
-            _ = _roomGrain.SendComposerToRoomAsync(
-                item.GetRemoveComposer(pickerId),
-                CancellationToken.None
-            );
 
         return true;
     }

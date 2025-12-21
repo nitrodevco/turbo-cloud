@@ -12,13 +12,11 @@ using Turbo.Primitives.Messages.Outgoing.Room.Permissions;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Grains;
 using Turbo.Rooms.Configuration;
-using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms;
 
@@ -34,11 +32,6 @@ internal sealed partial class RoomService(
     private readonly ISessionGateway _sessionGateway = sessionGateway;
     private readonly IGrainFactory _grainFactory = grainFactory;
 
-    public IRoomDirectoryGrain GetRoomDirectory() =>
-        _grainFactory.GetGrain<IRoomDirectoryGrain>(RoomDirectoryGrain.SINGLETON_KEY);
-
-    public IRoomGrain GetRoomGrain(RoomId roomId) => _grainFactory.GetGrain<IRoomGrain>(roomId);
-
     public async Task OpenRoomForPlayerIdAsync(
         ActionContext ctx,
         PlayerId playerId,
@@ -48,18 +41,14 @@ internal sealed partial class RoomService(
     {
         try
         {
-            //await playerPresence.ClearActiveRoomAsync().ConfigureAwait(false);
-
-            var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
+            var playerPresence = _grainFactory.GetPlayerPresenceGrain(playerId);
             var pendingRoom = await playerPresence.GetPendingRoomAsync().ConfigureAwait(false);
 
             if (pendingRoom.RoomId == roomId)
                 return;
 
+            await playerPresence.ClearActiveRoomAsync(ct).ConfigureAwait(false);
             await playerPresence.SetPendingRoomAsync(roomId, true).ConfigureAwait(false);
-            await playerPresence
-                .SendComposerAsync(new OpenConnectionMessageComposer { RoomId = roomId }, ct)
-                .ConfigureAwait(false);
 
             // if owner => auto-approve
             // if banned => reject
@@ -67,28 +56,25 @@ internal sealed partial class RoomService(
             // if passworded => reject (for now)
             // if locked => reject (for now)
 
-            var room = GetRoomGrain(roomId);
+            var room = _grainFactory.GetRoomGrain(roomId);
             var snapshot = await room.GetSnapshotAsync().ConfigureAwait(false);
 
             await playerPresence
                 .SendComposerAsync(
+                    new OpenConnectionMessageComposer { RoomId = roomId },
                     new RoomReadyMessageComposer
                     {
                         WorldType = snapshot.WorldType,
                         RoomId = roomId,
                     },
-                    ct
-                )
-                .ConfigureAwait(false);
-
-            await playerPresence
-                .SendComposerAsync(
-                    new RoomRatingMessageComposer { Rating = 0, CanRate = false },
-                    ct
+                    new RoomRatingMessageComposer { Rating = 0, CanRate = false }
                 )
                 .ConfigureAwait(false);
         }
-        catch (Exception) { }
+        catch (Exception)
+        {
+            throw;
+        }
     }
 
     public async Task EnterPendingRoomForPlayerIdAsync(
@@ -99,13 +85,13 @@ internal sealed partial class RoomService(
     {
         try
         {
-            var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
+            var playerPresence = _grainFactory.GetPlayerPresenceGrain(playerId);
             var pendingRoom = await playerPresence.GetPendingRoomAsync().ConfigureAwait(false);
 
             if (pendingRoom.RoomId <= 0 || !pendingRoom.Approved)
                 return;
 
-            var room = GetRoomGrain(pendingRoom.RoomId);
+            var room = _grainFactory.GetRoomGrain(pendingRoom.RoomId);
 
             await room.EnsureRoomActiveAsync(ct).ConfigureAwait(false);
 
@@ -122,24 +108,12 @@ internal sealed partial class RoomService(
                         Y = mapSnapshot.DoorY,
                         Rotation = mapSnapshot.DoorRotation,
                     },
-                    ct
-                )
-                .ConfigureAwait(false);
-
-            await playerPresence
-                .SendComposerAsync(
                     new HeightMapMessageComposer
                     {
                         Width = mapSnapshot.Width,
                         Size = mapSnapshot.Size,
                         Heights = mapSnapshot.TileEncodedHeights,
                     },
-                    ct
-                )
-                .ConfigureAwait(false);
-
-            await playerPresence
-                .SendComposerAsync(
                     new FloorHeightMapMessageComposer
                     {
                         ScaleType = _roomConfig.DefaultRoomScale,
@@ -147,72 +121,36 @@ internal sealed partial class RoomService(
                         ModelData = mapSnapshot.ModelData,
                         AreaHideData = [],
                     },
-                    ct
-                )
-                .ConfigureAwait(false);
-
-            await playerPresence
-                .SendComposerAsync(
                     new ObjectsMessageComposer
                     {
                         OwnerNames = ownersSnapshot,
                         FloorItems = floorSnapshot,
                     },
-                    ct
-                )
-                .ConfigureAwait(false);
-
-            await playerPresence
-                .SendComposerAsync(
                     new ItemsMessageComposer
                     {
                         OwnerNames = ownersSnapshot,
                         WallItems = wallSnapshot,
-                    },
-                    ct
+                    }
                 )
                 .ConfigureAwait(false);
 
             var avatarSnapshot = await room.GetAllAvatarSnapshotsAsync(ct).ConfigureAwait(false);
 
             await playerPresence
-                .SendComposerAsync(new UsersMessageComposer { Avatars = avatarSnapshot }, ct)
-                .ConfigureAwait(false);
-            await playerPresence
-                .SendComposerAsync(new UserUpdateMessageComposer { Avatars = avatarSnapshot }, ct)
-                .ConfigureAwait(false);
-
-            await playerPresence
                 .SendComposerAsync(
+                    new UsersMessageComposer { Avatars = avatarSnapshot },
+                    new UserUpdateMessageComposer { Avatars = avatarSnapshot },
                     new YouAreControllerMessageComposer
                     {
                         RoomId = pendingRoom.RoomId,
                         ControllerLevel = RoomControllerType.Owner,
                     },
-                    ct
-                )
-                .ConfigureAwait(false);
-            await playerPresence
-                .SendComposerAsync(
                     new WiredPermissionsEventMessageComposer { CanModify = true, CanRead = true },
-                    ct
-                )
-                .ConfigureAwait(false);
-            await playerPresence
-                .SendComposerAsync(
-                    new YouAreOwnerMessageComposer { RoomId = pendingRoom.RoomId },
-                    ct
+                    new YouAreOwnerMessageComposer { RoomId = pendingRoom.RoomId }
                 )
                 .ConfigureAwait(false);
 
             await playerPresence.SetActiveRoomAsync(pendingRoom.RoomId, ct).ConfigureAwait(false);
-
-            var playerSnapshot = await _grainFactory
-                .GetGrain<IPlayerGrain>(playerId)
-                .GetSummaryAsync(ct)
-                .ConfigureAwait(false);
-
-            await room.CreateAvatarFromPlayerAsync(ctx, playerSnapshot, ct).ConfigureAwait(false);
         }
         catch (Exception)
         {
@@ -225,12 +163,12 @@ internal sealed partial class RoomService(
         if (playerId <= 0)
             return;
 
-        var playerPresence = _grainFactory.GetGrain<IPlayerPresenceGrain>(playerId);
+        var playerPresence = _grainFactory.GetPlayerPresenceGrain(playerId);
 
         await playerPresence.ClearActiveRoomAsync(ct).ConfigureAwait(false);
 
         await playerPresence
-            .SendComposerAsync(new CloseConnectionMessageComposer(), ct)
+            .SendComposerAsync(new CloseConnectionMessageComposer())
             .ConfigureAwait(false);
     }
 
@@ -244,7 +182,7 @@ internal sealed partial class RoomService(
         if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0)
             return;
 
-        var roomGrain = _grainFactory.GetGrain<IRoomGrain>(ctx.RoomId);
+        var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
 
         await roomGrain.WalkAvatarToAsync(ctx, targetX, targetY, ct).ConfigureAwait(false);
     }

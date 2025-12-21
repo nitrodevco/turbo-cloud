@@ -1,16 +1,17 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
-using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Navigator;
 
-public class GetGuestRoomMessageHandler(IRoomService roomService)
+public class GetGuestRoomMessageHandler(IGrainFactory grainFactory)
     : IMessageHandler<GetGuestRoomMessage>
 {
-    private readonly IRoomService _roomService = roomService;
+    private readonly IGrainFactory _grainFactory = grainFactory;
 
     public async ValueTask HandleAsync(
         GetGuestRoomMessage message,
@@ -18,7 +19,7 @@ public class GetGuestRoomMessageHandler(IRoomService roomService)
         CancellationToken ct
     )
     {
-        var roomGrain = _roomService.GetRoomGrain(message.RoomId);
+        var roomGrain = _grainFactory.GetRoomGrain(message.RoomId);
         var snapshot = await roomGrain.GetSnapshotAsync().ConfigureAwait(false);
 
         var staffPick = false;

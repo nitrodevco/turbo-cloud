@@ -271,7 +271,7 @@ internal sealed class RoomRollerSystem(
         }
 
         foreach (var composer in composers)
-            await _roomGrain.SendComposerToRoomAsync(composer, ct);
+            _ = _roomGrain.SendComposerToRoomAsync(composer);
     }
 
     private void ComputeRollers()

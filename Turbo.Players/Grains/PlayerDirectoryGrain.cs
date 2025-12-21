@@ -16,8 +16,6 @@ public class PlayerDirectoryGrain(IDbContextFactory<TurboDbContext> dbCtxFactory
     : Grain,
         IPlayerDirectoryGrain
 {
-    public const string SINGLETON_KEY = "player-directory";
-
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
 
     private readonly Dictionary<PlayerId, string> _idToName = [];

@@ -20,12 +20,14 @@ public interface IRoomAvatar : IRoomObject
     public int GoalTileId { get; }
     public int NextTileId { get; }
     public bool IsWalking { get; }
+    public bool NeedsInvoke { get; }
     public List<int> TilePath { get; }
 
     public void SetPostureOffset(double offset);
     public bool SetGoalTileId(int tileId);
     public void SetNextTileId(int tileId);
     public void SetIsWalking(bool flag);
+    public void SetNeedsInvoke(bool flag);
     public void SetPosition(int x, int y, bool silent = false);
     public void SetHeight(double z, bool silent = false);
     public void SetRotation(Rotation rot);

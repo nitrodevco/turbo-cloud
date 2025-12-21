@@ -1,14 +1,11 @@
-using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using Turbo.Logging;
-using Turbo.Players.Grains;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Players.Grains;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
@@ -22,7 +19,7 @@ internal sealed partial class RoomFurniModule
 {
     public async Task<bool> AddWallItemAsync(IRoomWallItem item, CancellationToken ct)
     {
-        if (!await AttatchWallItemAsync(item, ct) || !_roomMap.AddWallItem(item, true))
+        if (!await AttatchWallItemAsync(item, ct) || !_roomMap.AddWallItem(item))
             return false;
 
         return true;
@@ -41,11 +38,13 @@ internal sealed partial class RoomFurniModule
     {
         if (
             !await AttatchWallItemAsync(item, ct)
-            || !_roomMap.PlaceWallItem(item, x, y, z, rot, wallOffset, true)
+            || !_roomMap.PlaceWallItem(item, x, y, z, rot, wallOffset)
         )
             return false;
 
-        await FlushDirtyWallItemAsync(item.ObjectId, ct);
+        await _roomGrain.SendComposerToRoomAsync(item.GetAddComposer());
+
+        item.MarkDirty();
 
         return true;
     }
@@ -64,8 +63,10 @@ internal sealed partial class RoomFurniModule
         if (!_state.WallItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
-        if (!_roomMap.MoveWallItemItem(item, x, y, z, rot, wallOffset, true))
+        if (!_roomMap.MoveWallItemItem(item, x, y, z, rot, wallOffset))
             return false;
+
+        await _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer());
 
         await item.Logic.OnMoveAsync(ctx, ct);
 
@@ -85,19 +86,25 @@ internal sealed partial class RoomFurniModule
         if (pickerId == -1)
             pickerId = item.OwnerId;
 
-        if (!_roomMap.RemoveWallItem(item, pickerId))
+        if (!_roomMap.RemoveWallItem(item))
             return null;
+
+        await _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(pickerId));
 
         await item.Logic.OnDetachAsync(ct);
 
         item.SetOwnerId(pickerId);
         item.SetAction(null);
 
-        await FlushDirtyWallItemAsync(itemId, ct, true);
-
         _state.WallItemsById.Remove(itemId);
 
-        return item.GetSnapshot();
+        var snapshot = item.GetSnapshot();
+
+        await _roomGrain
+            ._grainFactory.GetRoomPersistenceGrain(_state.RoomId)
+            .EnqueueDirtyItemAsync(_state.RoomId, snapshot, ct, true);
+
+        return snapshot;
     }
 
     public async Task<bool> UseWallItemByIdAsync(
@@ -172,8 +179,8 @@ internal sealed partial class RoomFurniModule
 
         if (!_state.OwnerNamesById.TryGetValue(item.OwnerId, out string? value))
         {
-            var ownerName = await _grainFactory
-                .GetGrain<IPlayerDirectoryGrain>(PlayerDirectoryGrain.SINGLETON_KEY)
+            var ownerName = await _roomGrain
+                ._grainFactory.GetPlayerDirectoryGrain()
                 .GetPlayerNameAsync(item.OwnerId, ct);
 
             value = ownerName;
@@ -181,16 +188,11 @@ internal sealed partial class RoomFurniModule
         }
 
         item.SetOwnerName(value ?? string.Empty);
-        item.SetAction(objectId => ProcessDirtyWallItem(objectId, ct));
+        item.SetAction(objectId => _state.DirtyWallItemIds.Add(objectId));
 
         await AttatchWallLogicIfNeededAsync(item, ct);
 
         return true;
-    }
-
-    private void ProcessDirtyWallItem(int itemId, CancellationToken ct)
-    {
-        _state.DirtyWallItemIds.Add(itemId);
     }
 
     private async Task AttatchWallLogicIfNeededAsync(IRoomWallItem item, CancellationToken ct)
@@ -200,7 +202,7 @@ internal sealed partial class RoomFurniModule
 
         var logicType = item.Definition.LogicName;
         var ctx = new RoomWallItemContext(_roomGrain, this, item);
-        var logic = _logicFactory.CreateLogicInstance(logicType, ctx);
+        var logic = _roomGrain._logicFactory.CreateLogicInstance(logicType, ctx);
 
         if (logic is not IFurnitureWallLogic wallLogic)
             throw new TurboException(TurboErrorCodeEnum.InvalidLogic);
@@ -208,83 +210,5 @@ internal sealed partial class RoomFurniModule
         item.SetLogic(wallLogic);
 
         await logic.OnAttachAsync(ct);
-    }
-
-    private async Task FlushDirtyWallItemAsync(
-        RoomObjectId itemId,
-        CancellationToken ct,
-        bool remove = false
-    )
-    {
-        try
-        {
-            if (!_state.WallItemsById.TryGetValue(itemId, out var item))
-                throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
-
-            _state.DirtyWallItemIds.Remove(itemId);
-
-            using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
-
-            var entity = await dbCtx.Furnitures.SingleAsync(x => x.Id == (int)item.ObjectId, ct);
-
-            entity.X = item.X;
-            entity.Y = item.Y;
-            entity.Z = item.Z;
-            entity.Rotation = item.Rotation;
-            entity.WallOffset = item.WallOffset;
-            entity.StuffData = item.Logic?.StuffData.ToJson();
-            entity.PlayerEntityId = (int)item.OwnerId;
-            entity.RoomEntityId = remove ? null : _state.RoomId;
-
-            await dbCtx.SaveChangesAsync(ct);
-        }
-        catch (Exception)
-        {
-            // TODO output log
-        }
-    }
-
-    internal async Task FlushDirtyWallItemsAsync(CancellationToken ct)
-    {
-        if (_state.DirtyWallItemIds.Count == 0)
-            return;
-
-        var dirtyIds = _state.DirtyWallItemIds.Select(x => (int)x).ToArray();
-
-        _state.DirtyWallItemIds.Clear();
-
-        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
-
-        try
-        {
-            var entities = await dbCtx
-                .Furnitures.Where(x => dirtyIds.Select(x => (int)x).Contains(x.Id))
-                .ToListAsync(ct);
-
-            foreach (var entity in entities)
-            {
-                if (!_state.WallItemsById.TryGetValue(entity.Id, out var item))
-                    continue;
-
-                entity.X = item.X;
-                entity.Y = item.Y;
-                entity.Z = item.Z;
-                entity.WallOffset = item.WallOffset;
-                entity.Rotation = item.Rotation;
-                entity.StuffData = item.Logic?.StuffData.ToJson();
-                entity.PlayerEntityId = (int)item.OwnerId;
-                entity.RoomEntityId = (int)_state.RoomId;
-            }
-
-            await dbCtx.SaveChangesAsync(ct);
-        }
-        catch (Exception)
-        {
-            throw;
-        }
-        finally
-        {
-            await dbCtx.DisposeAsync();
-        }
     }
 }
