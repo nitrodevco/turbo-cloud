@@ -27,8 +27,16 @@ internal sealed class RoomAvatarTickSystem(
     private readonly RoomAvatarModule _roomAvatar = roomAvatarModule;
     private readonly RoomMapModule _roomMap = roomMapModule;
 
+    private int _tickMs => _roomConfig.AvatarTickMs;
+
     public async Task ProcessAvatarsAsync(long now, CancellationToken ct)
     {
+        if (now < _state.NextAvatarBoundaryMs)
+            return;
+
+        while (now >= _state.NextAvatarBoundaryMs)
+            _state.NextAvatarBoundaryMs += _tickMs;
+
         var dirtySnapshots = new List<RoomAvatarSnapshot>();
 
         foreach (var avatar in _state.AvatarsByObjectId.Values)
@@ -49,16 +57,7 @@ internal sealed class RoomAvatarTickSystem(
                 }
                 else
                 {
-                    var nextTileId = avatar.TilePath[0];
-                    avatar.TilePath.RemoveAt(0);
-
-                    if (avatar.TilePath.Count == 0)
-                        avatar.PendingStopAtMs = _roomGrain.AlignToNextBoundary(
-                            now,
-                            _roomConfig.AvatarTickMs
-                        );
-
-                    await ValidateAvatarStepAsync(avatar, nextTileId, now, ct);
+                    await ProcessAvatarAsync(avatar, now, ct);
                 }
 
                 if (!avatar.IsDirty)
@@ -78,6 +77,17 @@ internal sealed class RoomAvatarTickSystem(
         _ = _roomGrain.SendComposerToRoomAsync(
             new UserUpdateMessageComposer { Avatars = [.. dirtySnapshots] }
         );
+    }
+
+    private async Task ProcessAvatarAsync(IRoomAvatar avatar, long now, CancellationToken ct)
+    {
+        var nextTileId = avatar.TilePath[0];
+        avatar.TilePath.RemoveAt(0);
+
+        if (avatar.TilePath.Count == 0)
+            avatar.PendingStopAtMs = _roomGrain.AlignToNextBoundary(now, _tickMs);
+
+        await ValidateAvatarStepAsync(avatar, nextTileId, now, ct);
     }
 
     private async Task ValidateAvatarStepAsync(
@@ -106,10 +116,7 @@ internal sealed class RoomAvatarTickSystem(
 
                     if (await _roomAvatar.WalkAvatarToAsync(avatar, goalX, goalY, ct))
                     {
-                        nextTileId = avatar.TilePath[0];
-                        avatar.TilePath.RemoveAt(0);
-
-                        await ValidateAvatarStepAsync(avatar, nextTileId, now, ct);
+                        await ProcessAvatarAsync(avatar, now, ct);
 
                         return;
                     }

@@ -32,9 +32,16 @@ internal sealed class RoomRollerSystem(
     private readonly List<List<int>> _rollerIdSets = [];
 
     private bool _isDirtyRollers = true;
+    private int _tickMs => _roomConfig.RollerTickMs;
 
     public async Task ProcessRollersAsync(long now, CancellationToken ct)
     {
+        if (now < _state.NextRollerBoundaryMs)
+            return;
+
+        while (now >= _state.NextRollerBoundaryMs)
+            _state.NextRollerBoundaryMs += _tickMs;
+
         ComputeRollers();
 
         if (_rollerIdSets.Count == 0)

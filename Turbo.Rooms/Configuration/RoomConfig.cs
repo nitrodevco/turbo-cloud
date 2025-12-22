@@ -6,7 +6,6 @@ public class RoomConfig
 {
     public const string SECTION_NAME = "Turbo:Rooms";
 
-    public int RoomRollerTickCount { get; init; } = 4;
     public double MaxStackHeight { get; init; } = 40.0;
     public RoomScaleType DefaultRoomScale { get; init; } = RoomScaleType.Normal;
     public int DefaultWallHeight { get; init; } = 0;
@@ -19,8 +18,7 @@ public class RoomConfig
     public int RoomTickMs { get; init; } = 50;
     public int AvatarTickMs { get; init; } = 500;
     public int RollerTickMs { get; init; } = 2000;
-    public int DirtyItemsFlushIntervalMilliseconds { get; init; } = 2000;
+    public int DirtyItemsTickMs { get; init; } = 2000;
     public int MaxDirtyItemsPerFlush { get; init; } = 100;
-
     public int MaxTileHeightsPerFlush { get; init; } = 200;
 }

@@ -116,22 +116,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             {
                 var now = NowMs();
 
-                if (now >= _liveState.NextAvatarBoundaryMs)
-                {
-                    while (now >= _liveState.NextAvatarBoundaryMs)
-                        _liveState.NextAvatarBoundaryMs += _roomConfig.AvatarTickMs;
-
-                    await _avatarTickSystem.ProcessAvatarsAsync(now, ct);
-                }
-
-                if (now >= _liveState.NextRollerBoundaryMs)
-                {
-                    while (now >= _liveState.NextRollerBoundaryMs)
-                        _liveState.NextRollerBoundaryMs += _roomConfig.RollerTickMs;
-
-                    await _rollerSystem.ProcessRollersAsync(now, ct);
-                }
-
+                await _avatarTickSystem.ProcessAvatarsAsync(now, ct);
+                await _rollerSystem.ProcessRollersAsync(now, ct);
                 await FlushDirtyTilesAsync(ct);
                 await FlushDirtyItemsAsync(ct);
             },

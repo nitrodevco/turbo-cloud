@@ -36,8 +36,8 @@ public sealed class RoomPersistenceGrain(
         _timer = this.RegisterGrainTimer<object?>(
             static async (self, ct) => await ((RoomPersistenceGrain)self!).FlushDirtyItemsAsync(ct),
             this,
-            TimeSpan.FromMilliseconds(_roomConfig.DirtyItemsFlushIntervalMilliseconds),
-            TimeSpan.FromMilliseconds(_roomConfig.DirtyItemsFlushIntervalMilliseconds)
+            TimeSpan.FromMilliseconds(_roomConfig.DirtyItemsTickMs),
+            TimeSpan.FromMilliseconds(_roomConfig.DirtyItemsTickMs)
         );
 
         return Task.CompletedTask;
