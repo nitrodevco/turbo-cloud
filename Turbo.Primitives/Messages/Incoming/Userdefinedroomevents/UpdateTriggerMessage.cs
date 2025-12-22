@@ -2,4 +2,4 @@ using Turbo.Primitives.Networking;
 
 namespace Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 
-public record UpdateTriggerMessage : IMessageEvent { }
+public record UpdateTriggerMessage : UpdateWired, IMessageEvent { }

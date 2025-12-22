@@ -21,7 +21,7 @@ public class FurnitureRollerLogic(IStuffDataFactory stuffDataFactory, IRoomFloor
     {
         await base.OnAttachAsync(ct);
 
-        await _ctx.PublishRoomEventAsync(
+        _ = _ctx.PublishRoomEventAsync(
             new RoomRollerChangedEvent
             {
                 RoomId = _ctx.RoomId,

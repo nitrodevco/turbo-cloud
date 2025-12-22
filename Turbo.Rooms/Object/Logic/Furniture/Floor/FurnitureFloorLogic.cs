@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.StuffData;
+using Turbo.Primitives.Rooms.Events.Avatar;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -38,4 +39,19 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
 
     public virtual Task OnInvokeAsync(IRoomAvatarContext ctx, CancellationToken ct) =>
         Task.CompletedTask;
+
+    public virtual Task OnWalkAsync(IRoomAvatarContext ctx, CancellationToken ct)
+    {
+        _ = _ctx.PublishRoomEventAsync(
+            new AvatarWalkOnFurniEvent
+            {
+                RoomId = _ctx.RoomId,
+                CausedBy = null,
+                AvatarId = _ctx.ObjectId,
+            },
+            ct
+        );
+
+        return Task.CompletedTask;
+    }
 }

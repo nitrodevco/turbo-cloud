@@ -13,4 +13,5 @@ public interface IFurnitureFloorLogic : IFurnitureLogic, IRollableObject
     public double GetPostureOffset();
     public double GetStackHeight();
     public Task OnInvokeAsync(IRoomAvatarContext ctx, CancellationToken ct);
+    public Task OnWalkAsync(IRoomAvatarContext ctx, CancellationToken ct);
 }

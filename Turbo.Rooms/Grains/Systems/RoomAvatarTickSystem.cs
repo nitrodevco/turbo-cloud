@@ -128,6 +128,16 @@ internal sealed class RoomAvatarTickSystem(
             _roomMap.RemoveAvatarAtIdx(avatar, prevTileId, false);
             _roomMap.AddAvatarAtIdx(avatar, nextTileId, false);
 
+            var highestItemId = _state.TileHighestFloorItems[nextTileId];
+
+            if (
+                highestItemId > 0
+                && _state.FloorItemsById.TryGetValue(highestItemId, out var floorItem)
+            )
+            {
+                await floorItem.Logic.OnWalkAsync((IRoomAvatarContext)avatar.Logic.Context, ct);
+            }
+
             avatar.RemoveStatus(AvatarStatusType.Lay, AvatarStatusType.Sit);
             avatar.AddStatus(AvatarStatusType.Move, $"{nextX},{nextY},{nextHeight}");
             avatar.SetRotation(RotationExtensions.FromPoints(avatar.X, avatar.Y, nextX, nextY));
