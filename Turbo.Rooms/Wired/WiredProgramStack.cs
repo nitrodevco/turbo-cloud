@@ -5,7 +5,7 @@ namespace Turbo.Rooms.Wired;
 
 internal sealed class WiredProgramStack
 {
-    public required int TileIdx { get; init; }
+    public required int StackId { get; init; }
 
     public List<IWiredTrigger> Triggers { get; init; } = [];
     public List<IWiredSelector> Selectors { get; init; } = [];

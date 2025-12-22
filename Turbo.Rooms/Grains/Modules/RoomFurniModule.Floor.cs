@@ -63,14 +63,15 @@ internal sealed partial class RoomFurniModule
         if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        var nTileIdx = _roomMap.ToIdx(x, y);
+        var prevIdx = _roomMap.ToIdx(item.X, item.Y);
+        var nextIdx = _roomMap.ToIdx(x, y);
 
-        if (!_roomMap.MoveFloorItem(item, nTileIdx, rot))
+        if (!_roomMap.MoveFloorItem(item, nextIdx, rot))
             return false;
 
         await _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer());
 
-        await item.Logic.OnMoveAsync(ctx, ct);
+        await item.Logic.OnMoveAsync(ctx, prevIdx, ct);
 
         return true;
     }

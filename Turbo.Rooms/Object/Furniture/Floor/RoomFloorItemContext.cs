@@ -14,6 +14,8 @@ internal sealed class RoomFloorItemContext(
     IRoomFloorItem roomItem
 ) : RoomItemContext<IRoomFloorItem>(roomGrain, furniModule, roomItem), IRoomFloorItemContext
 {
+    public int GetTileIdx() => _roomGrain.ToIdx(Item.X, Item.Y);
+
     public override Task AddItemAsync() => SendComposerToRoomAsync(Item.GetAddComposer());
 
     public override Task UpdateItemAsync() => SendComposerToRoomAsync(Item.GetUpdateComposer());

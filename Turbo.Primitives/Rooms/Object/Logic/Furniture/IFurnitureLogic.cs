@@ -16,5 +16,5 @@ public interface IFurnitureLogic : IRoomObjectLogic
     public Task SetStateAsync(int state);
     public Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct);
     public Task OnClickAsync(ActionContext ctx, int param, CancellationToken ct);
-    public Task OnMoveAsync(ActionContext ctx, CancellationToken ct);
+    public Task OnMoveAsync(ActionContext ctx, int prevIdx, CancellationToken ct);
 }

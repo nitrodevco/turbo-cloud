@@ -47,9 +47,9 @@ public class FurnitureRollerLogic(IStuffDataFactory stuffDataFactory, IRoomFloor
         );
     }
 
-    public override async Task OnMoveAsync(ActionContext ctx, CancellationToken ct)
+    public override async Task OnMoveAsync(ActionContext ctx, int prevIdx, CancellationToken ct)
     {
-        await base.OnMoveAsync(ctx, ct);
+        await base.OnMoveAsync(ctx, prevIdx, ct);
 
         await _ctx.PublishRoomEventAsync(
             new RoomRollerChangedEvent

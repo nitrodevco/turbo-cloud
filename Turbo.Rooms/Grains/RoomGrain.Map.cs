@@ -9,6 +9,8 @@ namespace Turbo.Rooms.Grains;
 
 public sealed partial class RoomGrain
 {
+    public int ToIdx(int x, int y) => _mapModule.ToIdx(x, y);
+
     public void ComputeTile(int x, int y) => _mapModule.ComputeTile(x, y);
 
     public void ComputeTile(int id) => _mapModule.ComputeTile(id);

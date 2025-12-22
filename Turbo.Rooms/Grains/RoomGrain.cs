@@ -100,6 +100,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         );
 
         _eventModule.Register(_rollerSystem);
+        _eventModule.Register(_wiredSystem);
     }
 
     public override async Task OnActivateAsync(CancellationToken ct)

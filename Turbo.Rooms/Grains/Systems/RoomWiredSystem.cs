@@ -32,8 +32,10 @@ internal sealed class RoomWiredSystem(
     private readonly IWiredDefinitionProvider _wiredDefinitionProvider = wiredDefinitionProvider;
 
     private WiredCompiled? _wiredCompiled;
+    private Dictionary<int, WiredProgramStack> _stacksById = [];
+    private HashSet<int> _dirtyStackIds = [];
+
     private int _tickMs => _roomConfig.WiredTickMs;
-    private bool _needsCompute = true;
 
     public async Task ProcessWiredAsync(long now, CancellationToken ct)
     {
@@ -48,7 +50,39 @@ internal sealed class RoomWiredSystem(
         var compiled = _wiredCompiled;
     }
 
-    private async Task ProcessWiredStackAsync(
+    public Task OnRoomEventAsync(RoomEvent evt, CancellationToken ct) =>
+        HandleRoomEventAsync(evt, ct);
+
+    private async Task HandleRoomEventAsync(RoomEvent evt, CancellationToken ct)
+    {
+        if (evt is null)
+            return;
+
+        if (evt is RoomWiredStackChangedEvent stackChanged)
+        {
+            foreach (var stackId in stackChanged.StackIds)
+                _dirtyStackIds.Add(stackId);
+
+            return;
+        }
+
+        if (
+            _wiredCompiled is null
+            || !_wiredCompiled.StackIdsByEventType.TryGetValue(evt.GetType(), out var stackIds)
+        )
+            return;
+
+        foreach (var stackId in stackIds)
+        {
+            var program = _wiredCompiled.StacksById[stackId];
+
+            var ctx = new WiredContext { Room = _roomGrain, Event = evt };
+
+            await ProcessWiredProgramAsync(program, ctx, ct);
+        }
+    }
+
+    private async Task ProcessWiredProgramAsync(
         WiredProgramStack stack,
         IWiredContext ctx,
         CancellationToken ct
@@ -151,37 +185,40 @@ internal sealed class RoomWiredSystem(
         }
     }
 
-    public Task OnRoomEventAsync(RoomEvent evt, CancellationToken ct) =>
-        HandleRoomEventAsync(evt, ct);
-
-    private async Task HandleRoomEventAsync(RoomEvent evt, CancellationToken ct) { }
-
     private void ComputeWiredStacks()
     {
-        if (!_needsCompute)
+        if (_dirtyStackIds.Count == 0 || !_state.IsFurniLoaded)
             return;
 
         var compiled = new WiredCompiled();
+        var dirtyStackIds = _dirtyStackIds.ToList();
 
-        var wiredItems = _state
-            .FloorItemsById.Values.Where(x => x.Logic is FurnitureWiredLogic)
-            .ToList();
+        _dirtyStackIds.Clear();
 
-        foreach (var stack in wiredItems.GroupBy(x => _roomMap.ToIdx(x.X, x.Y)))
+        foreach (var stackId in dirtyStackIds)
         {
-            var ordered = stack.OrderBy(x => x.Z).ToList();
-            var program = new WiredProgramStack { TileIdx = stack.Key };
+            _stacksById.Remove(stackId);
 
-            foreach (var item in ordered)
+            var wiredItems = _state
+                .TileFloorStacks[stackId]
+                .Select(x => _state.FloorItemsById[x])
+                .Where(x => x.Logic is FurnitureWiredLogic)
+                .ToList();
+
+            if (wiredItems.Count == 0)
+                continue;
+
+            var program = new WiredProgramStack { StackId = stackId };
+
+            foreach (var item in wiredItems)
             {
                 try
                 {
                     var logic = (FurnitureWiredLogic)item.Logic;
+                    var wiredDef = logic.WiredDefinition;
 
-                    var wiredDef = _wiredDefinitionProvider.CreateWiredInstance(
-                        logic.WiredType,
-                        item.Logic.Context
-                    );
+                    if (wiredDef is null)
+                        continue;
 
                     switch (wiredDef)
                     {
@@ -211,7 +248,7 @@ internal sealed class RoomWiredSystem(
                 }
             }
 
-            compiled.StacksById[stack.Key] = program;
+            compiled.StacksById[stackId] = program;
 
             foreach (var trigger in program.Triggers)
             {
@@ -222,9 +259,10 @@ internal sealed class RoomWiredSystem(
                     if (!compiled.StackIdsByEventType.TryGetValue(eventType, out var list))
                     {
                         list = [];
+                        compiled.StackIdsByEventType[eventType] = list;
                     }
 
-                    list.Add(stack.Key);
+                    list.Add(stackId);
                 }
             }
         }
@@ -233,6 +271,5 @@ internal sealed class RoomWiredSystem(
             list.Sort();
 
         _wiredCompiled = compiled;
-        _needsCompute = false;
     }
 }

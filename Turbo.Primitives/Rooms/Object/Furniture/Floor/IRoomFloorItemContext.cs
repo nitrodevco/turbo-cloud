@@ -6,6 +6,8 @@ namespace Turbo.Primitives.Rooms.Object.Furniture.Floor;
 
 public interface IRoomFloorItemContext : IRoomItemContext<IRoomFloorItem>
 {
+    public int GetTileIdx();
+
     //public IRoomFloorItem Item { get; }
     public void RefreshTile();
     public Task<RoomTileSnapshot> GetTileSnapshotAsync(CancellationToken ct);

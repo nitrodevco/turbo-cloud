@@ -81,13 +81,14 @@ public abstract class FurnitureLogicBase<TItem, TContext>
     public virtual Task OnClickAsync(ActionContext ctx, int param, CancellationToken ct) =>
         Task.CompletedTask;
 
-    public virtual Task OnMoveAsync(ActionContext ctx, CancellationToken ct) =>
+    public virtual Task OnMoveAsync(ActionContext ctx, int prevIdx, CancellationToken ct) =>
         _ctx.PublishRoomEventAsync(
             new RoomItemMovedEvent
             {
                 RoomId = _ctx.RoomId,
                 CausedBy = ctx,
                 ItemId = _ctx.ObjectId,
+                PrevIdx = prevIdx,
             },
             ct
         );

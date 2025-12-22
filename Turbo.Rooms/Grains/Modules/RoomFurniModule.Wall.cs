@@ -68,7 +68,7 @@ internal sealed partial class RoomFurniModule
 
         await _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer());
 
-        await item.Logic.OnMoveAsync(ctx, ct);
+        await item.Logic.OnMoveAsync(ctx, -1, ct);
 
         return true;
     }
