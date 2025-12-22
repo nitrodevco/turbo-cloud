@@ -294,12 +294,12 @@ internal sealed class RoomRollerSystem(
         _isDirtyRollers = false;
     }
 
-    public Task OnRoomEventAsync(RoomEvent @event, CancellationToken ct) =>
-        HandleRoomEventAsync(@event, ct);
+    public Task OnRoomEventAsync(RoomEvent evt, CancellationToken ct) =>
+        HandleRoomEventAsync(evt, ct);
 
-    private Task HandleRoomEventAsync(RoomEvent @event, CancellationToken ct)
+    private Task HandleRoomEventAsync(RoomEvent evt, CancellationToken ct)
     {
-        switch (@event)
+        switch (evt)
         {
             case RoomRollerChangedEvent rollerChangedEvent:
                 _isDirtyRollers = true;

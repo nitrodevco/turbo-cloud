@@ -25,8 +25,8 @@ internal abstract class RoomItemContext<TItem>(
     public TItem Item { get; } = roomItem;
     public FurnitureDefinitionSnapshot Definition => Item.Definition;
 
-    public Task PublishRoomEventAsync(RoomEvent @event, CancellationToken ct) =>
-        _roomGrain.PublishRoomEventAsync(@event, ct);
+    public Task PublishRoomEventAsync(RoomEvent evt, CancellationToken ct) =>
+        _roomGrain.PublishRoomEventAsync(evt, ct);
 
     public Task SendComposerToRoomAsync(IComposer composer) =>
         _roomGrain.SendComposerToRoomAsync(composer);

@@ -6,5 +6,5 @@ namespace Turbo.Primitives.Rooms;
 
 public interface IRoomEventListener
 {
-    public Task OnRoomEventAsync(RoomEvent @event, CancellationToken ct);
+    public Task OnRoomEventAsync(RoomEvent evt, CancellationToken ct);
 }

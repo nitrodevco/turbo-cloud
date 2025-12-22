@@ -13,6 +13,7 @@ public enum TurboErrorCodeEnum
     WallItemNotFound,
     FurnitureDefinitionNotFound,
     InvalidLogic,
+    InvalidWired,
     InvalidFurnitureProductType,
     InvalidSession,
     InvalidMoveTarget,
@@ -36,6 +37,7 @@ public static class ErrorCodeExtensions
             TurboErrorCodeEnum.FurnitureDefinitionNotFound =>
                 "The specified furniture definition could not be found.",
             TurboErrorCodeEnum.InvalidLogic => "The logic is not valid.",
+            TurboErrorCodeEnum.InvalidWired => "The wired definition is not valid.",
             TurboErrorCodeEnum.InvalidFurnitureProductType =>
                 "The furniture product type is invalid.",
             TurboErrorCodeEnum.InvalidSession => "The session is invalid.",

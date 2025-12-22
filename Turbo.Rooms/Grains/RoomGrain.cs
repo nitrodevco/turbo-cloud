@@ -36,6 +36,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly IRoomItemsProvider _itemsLoader;
     internal readonly IRoomObjectLogicProvider _logicFactory;
     internal readonly IRoomAvatarProvider _roomAvatarFactory;
+    internal readonly IWiredDefinitionProvider _wiredDefinitionProvider;
     internal readonly IGrainFactory _grainFactory;
 
     internal IAsyncStream<RoomOutbound> _roomOutbound = default!;
@@ -63,6 +64,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IRoomItemsProvider itemsLoader,
         IRoomObjectLogicProvider logicFactory,
         IRoomAvatarProvider roomAvatarFactory,
+        IWiredDefinitionProvider wiredDefinitionProvider,
         IGrainFactory grainFactory
     )
     {
@@ -73,6 +75,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _itemsLoader = itemsLoader;
         _logicFactory = logicFactory;
         _roomAvatarFactory = roomAvatarFactory;
+        _wiredDefinitionProvider = wiredDefinitionProvider;
         _grainFactory = grainFactory;
 
         _roomId = (RoomId)this.GetPrimaryKeyLong();
@@ -87,7 +90,14 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
         _avatarTickSystem = new(this, _roomConfig, _liveState, _avatarModule, _mapModule);
         _rollerSystem = new(this, _roomConfig, _liveState, _mapModule);
-        _wiredSystem = new(this, _roomConfig, _liveState, _avatarModule, _mapModule);
+        _wiredSystem = new(
+            this,
+            _roomConfig,
+            _liveState,
+            _avatarModule,
+            _mapModule,
+            _wiredDefinitionProvider
+        );
 
         _eventModule.Register(_rollerSystem);
     }
@@ -119,6 +129,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
                 var now = NowMs();
 
                 await _avatarTickSystem.ProcessAvatarsAsync(now, ct);
+                await _wiredSystem.ProcessWiredAsync(now, ct);
                 await _rollerSystem.ProcessRollersAsync(now, ct);
                 await FlushDirtyTilesAsync(ct);
                 await FlushDirtyItemsAsync(ct);
@@ -177,8 +188,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public async Task<int> GetRoomPopulationAsync() =>
         await _grainFactory.GetRoomDirectoryGrain().GetRoomPopulationAsync(_roomId);
 
-    public Task PublishRoomEventAsync(RoomEvent @event, CancellationToken ct) =>
-        _eventModule.PublishAsync(@event, ct);
+    public Task PublishRoomEventAsync(RoomEvent evt, CancellationToken ct) =>
+        _eventModule.PublishAsync(evt, ct);
 
     public Task SendComposerToRoomAsync(IComposer composer) =>
         _roomOutbound.OnNextAsync(new RoomOutbound { RoomId = _roomId, Composer = composer });

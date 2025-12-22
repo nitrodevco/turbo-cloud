@@ -1,17 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Logging;
-using Turbo.Primitives;
-using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms;
-using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
-using Turbo.Primitives.Rooms.Object.Avatars;
-using Turbo.Primitives.Rooms.Snapshots.Avatars;
+using Turbo.Primitives.Rooms.Providers;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
+using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Grains.Systems;
@@ -21,7 +20,8 @@ internal sealed class RoomWiredSystem(
     RoomConfig roomConfig,
     RoomLiveState roomLiveState,
     RoomAvatarModule roomAvatarModule,
-    RoomMapModule roomMapModule
+    RoomMapModule roomMapModule,
+    IWiredDefinitionProvider wiredDefinitionProvider
 ) : IRoomEventListener
 {
     private readonly RoomGrain _roomGrain = roomGrain;
@@ -29,31 +29,213 @@ internal sealed class RoomWiredSystem(
     private readonly RoomLiveState _state = roomLiveState;
     private readonly RoomAvatarModule _roomAvatar = roomAvatarModule;
     private readonly RoomMapModule _roomMap = roomMapModule;
+    private readonly IWiredDefinitionProvider _wiredDefinitionProvider = wiredDefinitionProvider;
 
-    private readonly WiredGraph _wiredGraph;
+    private WiredCompiled? _wiredCompiled;
+    private int _tickMs => _roomConfig.WiredTickMs;
+    private bool _needsCompute = true;
 
-    private int _tickMs => _roomConfig.AvatarTickMs;
-
-    public async Task ProcessAvatarsAsync(long now, CancellationToken ct)
+    public async Task ProcessWiredAsync(long now, CancellationToken ct)
     {
-        if (now < _state.NextAvatarBoundaryMs)
+        if (now < _state.NextWiredBoundaryMs)
             return;
 
-        while (now >= _state.NextAvatarBoundaryMs)
-            _state.NextAvatarBoundaryMs += _tickMs;
+        while (now >= _state.NextWiredBoundaryMs)
+            _state.NextWiredBoundaryMs += _tickMs;
+
+        ComputeWiredStacks();
+
+        var compiled = _wiredCompiled;
     }
 
-    public Task OnRoomEventAsync(RoomEvent @event, CancellationToken ct) =>
-        HandleRoomEventAsync(@event, ct);
-
-    private async Task HandleRoomEventAsync(RoomEvent @event, CancellationToken ct)
+    private async Task ProcessWiredStackAsync(
+        WiredProgramStack stack,
+        IWiredContext ctx,
+        CancellationToken ct
+    )
     {
-        if (!_wiredGraph.NodesByEventType.TryGetValue(@event.GetType(), out var nodes))
+        if (++ctx.Depth > _roomConfig.WiredMaxDepth)
             return;
 
-        foreach (var node in nodes)
+        foreach (var selector in stack.Selectors)
+            selector.Select(ctx);
+
+        var fired = false;
+
+        foreach (var trigger in stack.Triggers)
         {
-            //
+            if (await trigger.MatchesAsync(ctx))
+            {
+                fired = true;
+                break;
+            }
         }
+
+        if (!fired)
+            return;
+
+        foreach (var variable in stack.Variables)
+            variable.Apply(ctx);
+
+        foreach (var addon in stack.Addons)
+            await addon.MutatePolicyAsync(ctx, ct);
+
+        if (!EvaluateConditions(stack.Conditions, ctx))
+            return;
+
+        foreach (var addon in stack.Addons)
+            await addon.BeforeEffectsAsync(ctx, ct);
+
+        if (ctx.Policy.Delay is { } delay)
+            await Task.Delay(delay, ct);
+
+        await ExecuteEffectsAsync(stack.Effects, ctx, ct);
+
+        foreach (var addon in stack.Addons)
+            await addon.AfterEffectsAsync(ctx, ct);
+    }
+
+    private static bool EvaluateConditions(List<IWiredCondition> conditions, IWiredContext ctx)
+    {
+        if (conditions.Count == 0)
+            return true;
+
+        return ctx.Policy.ConditionMode switch
+        {
+            ConditionModeType.None => true,
+            ConditionModeType.Any => conditions.Exists(c => c.Evaluate(ctx)),
+            ConditionModeType.All => conditions.TrueForAll(c => c.Evaluate(ctx)),
+            _ => conditions.TrueForAll(c => c.Evaluate(ctx)),
+        };
+    }
+
+    private static async Task ExecuteEffectsAsync(
+        List<IWiredEffect> effects,
+        IWiredContext ctx,
+        CancellationToken ct
+    )
+    {
+        if (effects.Count == 0)
+            return;
+
+        switch (ctx.Policy.EffectMode)
+        {
+            case EffectModeType.FirstOnly:
+            {
+                await effects[0].ExecuteAsync(ctx, ct);
+                return;
+            }
+
+            case EffectModeType.Random:
+            {
+                var idx = Random.Shared.Next(effects.Count);
+
+                await effects[idx].ExecuteAsync(ctx, ct);
+
+                return;
+            }
+
+            default:
+            case EffectModeType.All:
+            {
+                foreach (var effect in effects)
+                {
+                    var ok = await effect.ExecuteAsync(ctx, ct);
+
+                    if (ok && ctx.Policy.ShortCircuitOnFirstEffectSuccess)
+                        break;
+                }
+
+                return;
+            }
+        }
+    }
+
+    public Task OnRoomEventAsync(RoomEvent evt, CancellationToken ct) =>
+        HandleRoomEventAsync(evt, ct);
+
+    private async Task HandleRoomEventAsync(RoomEvent evt, CancellationToken ct) { }
+
+    private void ComputeWiredStacks()
+    {
+        if (!_needsCompute)
+            return;
+
+        var compiled = new WiredCompiled();
+
+        var wiredItems = _state
+            .FloorItemsById.Values.Where(x => x.Logic is FurnitureWiredLogic)
+            .ToList();
+
+        foreach (var stack in wiredItems.GroupBy(x => _roomMap.ToIdx(x.X, x.Y)))
+        {
+            var ordered = stack.OrderBy(x => x.Z).ToList();
+            var program = new WiredProgramStack { TileIdx = stack.Key };
+
+            foreach (var item in ordered)
+            {
+                try
+                {
+                    var logic = (FurnitureWiredLogic)item.Logic;
+
+                    var wiredDef = _wiredDefinitionProvider.CreateWiredInstance(
+                        logic.WiredType,
+                        item.Logic.Context
+                    );
+
+                    switch (wiredDef)
+                    {
+                        case IWiredTrigger trigger:
+                            program.Triggers.Add(trigger);
+                            break;
+                        case IWiredSelector selector:
+                            program.Selectors.Add(selector);
+                            break;
+                        case IWiredCondition condition:
+                            program.Conditions.Add(condition);
+                            break;
+                        case IWiredAddon addon:
+                            program.Addons.Add(addon);
+                            break;
+                        case IWiredVariable variable:
+                            program.Variables.Add(variable);
+                            break;
+                        case IWiredEffect effect:
+                            program.Effects.Add(effect);
+                            break;
+                    }
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+            }
+
+            compiled.StacksById[stack.Key] = program;
+
+            foreach (var trigger in program.Triggers)
+            {
+                var eventTypes = trigger.SupportedEventTypes;
+
+                foreach (var eventType in eventTypes)
+                {
+                    if (!compiled.StackIdsByEventType.TryGetValue(eventType, out var list))
+                    {
+                        list = [];
+                        compiled.StackIdsByEventType[eventType] = list;
+                    }
+                    else
+                    {
+                        list.Add(stack.Key);
+                    }
+                }
+            }
+        }
+
+        foreach (var list in compiled.StackIdsByEventType.Values)
+            list.Sort();
+
+        _wiredCompiled = compiled;
+        _needsCompute = false;
     }
 }

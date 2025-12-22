@@ -12,7 +12,7 @@ public interface IRoomItemContext<TItem> : IRoomObjectContext
 {
     public TItem Item { get; }
     public FurnitureDefinitionSnapshot Definition { get; }
-    public Task PublishRoomEventAsync(RoomEvent @event, CancellationToken ct);
+    public Task PublishRoomEventAsync(RoomEvent evt, CancellationToken ct);
     public Task SendComposerToRoomAsync(IComposer composer);
     public Task AddItemAsync();
     public Task UpdateItemAsync();

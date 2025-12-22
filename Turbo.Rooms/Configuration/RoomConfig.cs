@@ -18,7 +18,10 @@ public class RoomConfig
     public int RoomTickMs { get; init; } = 50;
     public int AvatarTickMs { get; init; } = 500;
     public int RollerTickMs { get; init; } = 2000;
+    public int WiredTickMs { get; init; } = 50;
     public int DirtyItemsTickMs { get; init; } = 2000;
     public int MaxDirtyItemsPerFlush { get; init; } = 100;
     public int MaxTileHeightsPerFlush { get; init; } = 200;
+
+    public int WiredMaxDepth { get; init; } = 20;
 }

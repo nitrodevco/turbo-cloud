@@ -26,9 +26,9 @@ internal sealed class RoomEventModule(
 
     public void Unregister(IRoomEventListener listener) => _listeners.Remove(listener);
 
-    public async Task PublishAsync(RoomEvent @event, CancellationToken ct)
+    public async Task PublishAsync(RoomEvent evt, CancellationToken ct)
     {
         foreach (var listener in _listeners)
-            await listener.OnRoomEventAsync(@event, ct);
+            await listener.OnRoomEventAsync(evt, ct);
     }
 }

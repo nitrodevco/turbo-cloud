@@ -47,7 +47,8 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
             {
                 RoomId = _ctx.RoomId,
                 CausedBy = null,
-                AvatarId = _ctx.ObjectId,
+                AvatarId = ctx.ObjectId,
+                FurniId = _ctx.ObjectId,
             },
             ct
         );

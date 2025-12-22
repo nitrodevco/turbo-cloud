@@ -1,9 +1,12 @@
-using Turbo.Primitives.Rooms.Events;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Wired;
 
 namespace Turbo.Rooms.Wired.Triggers;
 
-public abstract class WiredTrigger : IWiredTrigger
+public abstract class WiredTrigger : WiredDefinition, IWiredTrigger
 {
-    public abstract bool Matches(RoomEvent @event);
+    public abstract List<Type> SupportedEventTypes { get; }
+    public abstract Task<bool> MatchesAsync(IWiredContext ctx);
 }
