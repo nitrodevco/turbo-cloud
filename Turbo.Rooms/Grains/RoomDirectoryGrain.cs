@@ -36,8 +36,8 @@ public class RoomDirectoryGrain(
         this.RegisterGrainTimer<object?>(
             async _ => await CheckRoomsAsync(ct),
             null,
-            TimeSpan.FromMilliseconds(_roomConfig.RoomCheckIntervalMilliseconds),
-            TimeSpan.FromMilliseconds(_roomConfig.RoomCheckIntervalMilliseconds)
+            TimeSpan.FromMilliseconds(_roomConfig.RoomCheckMs),
+            TimeSpan.FromMilliseconds(_roomConfig.RoomCheckMs)
         );
 
         return Task.CompletedTask;

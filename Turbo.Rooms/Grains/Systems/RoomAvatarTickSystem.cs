@@ -27,7 +27,7 @@ internal sealed class RoomAvatarTickSystem(
     private readonly RoomAvatarModule _roomAvatar = roomAvatarModule;
     private readonly RoomMapModule _roomMap = roomMapModule;
 
-    public async Task ProcessAvatarsAsync(CancellationToken ct)
+    public async Task ProcessAvatarsAsync(long now, CancellationToken ct)
     {
         var dirtySnapshots = new List<RoomAvatarSnapshot>();
 
@@ -35,14 +35,36 @@ internal sealed class RoomAvatarTickSystem(
         {
             try
             {
-                await ProcessDirtyAvatarAsync(avatar, ct);
+                await _roomAvatar.ProcessNextAvatarStepAsync(avatar, ct);
+
+                if (avatar.TilePath.Count <= 0)
+                {
+                    if (avatar.PendingStopAtMs > 0 && now < avatar.PendingStopAtMs)
+                        continue;
+
+                    await _roomAvatar.StopWalkingAsync(avatar, ct);
+
+                    if (avatar.NeedsInvoke)
+                        await _roomMap.InvokeAvatarAsync(avatar, ct);
+                }
+                else
+                {
+                    var nextTileId = avatar.TilePath[0];
+                    avatar.TilePath.RemoveAt(0);
+
+                    if (avatar.TilePath.Count == 0)
+                        avatar.PendingStopAtMs = _roomGrain.AlignToNextBoundary(
+                            now,
+                            _roomConfig.AvatarTickMs
+                        );
+
+                    await ValidateAvatarStepAsync(avatar, nextTileId, now, ct);
+                }
 
                 if (!avatar.IsDirty)
                     continue;
 
-                var snapshot = avatar.GetSnapshot();
-
-                dirtySnapshots.Add(snapshot);
+                dirtySnapshots.Add(avatar.GetSnapshot());
             }
             catch (Exception)
             {
@@ -58,30 +80,10 @@ internal sealed class RoomAvatarTickSystem(
         );
     }
 
-    internal async Task ProcessDirtyAvatarAsync(IRoomAvatar avatar, CancellationToken ct)
-    {
-        if (avatar.NeedsInvoke)
-            await _roomMap.InvokeAvatarAsync(avatar, ct);
-
-        await _roomAvatar.ProcessNextAvatarStepAsync(avatar, ct);
-
-        if (avatar.TilePath.Count <= 0)
-        {
-            await _roomAvatar.StopWalkingAsync(avatar, ct);
-
-            return;
-        }
-
-        var nextTileId = avatar.TilePath[0];
-
-        avatar.TilePath.RemoveAt(0);
-
-        await ValidateAvatarStepAsync(avatar, nextTileId, ct);
-    }
-
-    internal async Task ValidateAvatarStepAsync(
+    private async Task ValidateAvatarStepAsync(
         IRoomAvatar avatar,
         int nextTileId,
+        long now,
         CancellationToken ct
     )
     {
@@ -102,22 +104,28 @@ internal sealed class RoomAvatarTickSystem(
                 {
                     var (goalX, goalY) = _roomMap.GetTileXY(avatar.GoalTileId);
 
-                    await _roomAvatar.WalkAvatarToAsync(avatar, goalX, goalY, ct);
-                    await ProcessDirtyAvatarAsync(avatar, ct);
+                    if (await _roomAvatar.WalkAvatarToAsync(avatar, goalX, goalY, ct))
+                    {
+                        nextTileId = avatar.TilePath[0];
+                        avatar.TilePath.RemoveAt(0);
 
-                    return;
+                        await ValidateAvatarStepAsync(avatar, nextTileId, now, ct);
+
+                        return;
+                    }
                 }
 
                 throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
             }
 
-            _roomMap.RemoveAvatar(avatar, false);
-            _roomMap.AddAvatar(avatar, false);
+            _roomMap.RemoveAvatarAtIdx(avatar, prevTileId, false);
+            _roomMap.AddAvatarAtIdx(avatar, nextTileId, false);
 
             avatar.RemoveStatus(AvatarStatusType.Lay, AvatarStatusType.Sit);
             avatar.AddStatus(AvatarStatusType.Move, $"{nextX},{nextY},{nextHeight}");
             avatar.SetRotation(RotationExtensions.FromPoints(avatar.X, avatar.Y, nextX, nextY));
-            avatar.SetNextTileId(nextTileId);
+
+            avatar.NextTileId = nextTileId;
         }
         catch (Exception)
         {

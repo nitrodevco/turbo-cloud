@@ -64,7 +64,7 @@ internal sealed partial class RoomAvatarModule(
 
         avatar.AddStatus(AvatarStatusType.FlatControl, ((int)controllerLevel).ToString());
 
-        avatar.SetNextTileId(_roomMap.ToIdx(startX, startY));
+        avatar.NextTileId = _roomMap.ToIdx(startX, startY);
 
         await AddAvatarAsync(avatar, ct);
 
@@ -188,17 +188,18 @@ internal sealed partial class RoomAvatarModule(
     {
         try
         {
-            await ProcessNextAvatarStepAsync(avatar, ct);
-
             var goalTileId = _roomMap.ToIdx(targetX, targetY);
+            var currentTileId =
+                avatar.NextTileId > 0 ? avatar.NextTileId : _roomMap.ToIdx(avatar.X, avatar.Y);
+            var (currentX, currentY) = _roomMap.GetTileXY(currentTileId);
 
-            if (!avatar.SetGoalTileId(goalTileId))
+            if ((goalTileId == currentTileId) || !avatar.SetGoalTileId(goalTileId))
                 throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
             var path = _pathingSystem.FindPath(
                 avatar,
                 _roomMap,
-                (avatar.X, avatar.Y),
+                (currentX, currentY),
                 (targetX, targetY)
             );
 
@@ -208,7 +209,7 @@ internal sealed partial class RoomAvatarModule(
             avatar.TilePath.Clear();
             avatar.TilePath.AddRange(path.Skip(1).Select(pos => _roomMap.ToIdx(pos.X, pos.Y)));
 
-            avatar.SetIsWalking(true);
+            avatar.IsWalking = true;
 
             return true;
         }
@@ -234,16 +235,18 @@ internal sealed partial class RoomAvatarModule(
             if (!avatar.IsWalking)
                 return;
 
-            avatar.SetIsWalking(false);
+            avatar.IsWalking = false;
+            avatar.NextMoveStepAtMs = 0;
+            avatar.NextMoveUpdateAtMs = 0;
+            avatar.PendingStopAtMs = 0;
 
             await ProcessNextAvatarStepAsync(avatar, ct);
 
             avatar.TilePath.Clear();
-            avatar.SetNextTileId(-1);
+            avatar.NextTileId = -1;
             avatar.SetGoalTileId(-1);
             avatar.RemoveStatus(AvatarStatusType.Move);
-
-            await _roomMap.InvokeAvatarAsync(avatar, ct);
+            avatar.NeedsInvoke = true;
         }
         catch (Exception) { }
     }
@@ -257,7 +260,7 @@ internal sealed partial class RoomAvatarModule(
             if (nextTileId < 0)
                 return;
 
-            avatar.SetNextTileId(-1);
+            avatar.NextTileId = -1;
 
             var prevTileId = _roomMap.ToIdx(avatar.X, avatar.Y);
             var (nextX, nextY) = _roomMap.GetTileXY(nextTileId);

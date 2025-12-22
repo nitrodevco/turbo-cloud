@@ -19,24 +19,20 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
     public IRoomAvatarLogic Logic { get; private set; } = default!;
     public Dictionary<AvatarStatusType, string> Statuses { get; } = [];
 
-    public double PostureOffset { get; private set; } = 0.0;
+    public double PostureOffset { get; set; } = 0.0;
     public int GoalTileId { get; private set; } = -1;
-    public int NextTileId { get; private set; } = -1;
-    public bool IsWalking { get; private set; } = false;
-    public bool NeedsInvoke { get; private set; } = false;
+    public int NextTileId { get; set; } = -1;
+    public bool IsWalking { get; set; } = false;
+    public bool NeedsInvoke { get; set; } = false;
     public List<int> TilePath { get; } = [];
+
+    public long NextMoveStepAtMs { get; set; } = 0;
+    public long NextMoveUpdateAtMs { get; set; } = 0;
+    public long PendingStopAtMs { get; set; } = 0;
 
     private int _goalTries = 0;
 
     private RoomAvatarSnapshot? _snapshot;
-
-    public void SetPostureOffset(double offset)
-    {
-        if (PostureOffset == offset)
-            return;
-
-        PostureOffset = offset;
-    }
 
     public bool SetGoalTileId(int tileId)
     {
@@ -64,37 +60,7 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
         return true;
     }
 
-    public void SetNextTileId(int tileId)
-    {
-        if (NextTileId == tileId)
-            return;
-
-        NextTileId = tileId;
-
-        MarkDirty();
-    }
-
-    public void SetIsWalking(bool flag)
-    {
-        if (IsWalking == flag)
-            return;
-
-        IsWalking = flag;
-
-        MarkDirty();
-    }
-
-    public void SetNeedsInvoke(bool flag)
-    {
-        if (NeedsInvoke == flag)
-            return;
-
-        NeedsInvoke = flag;
-
-        MarkDirty();
-    }
-
-    public void SetPosition(int x, int y, bool silent = false)
+    public void SetPosition(int x, int y)
     {
         if (X == x && Y == y)
             return;
@@ -102,11 +68,10 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
         X = x;
         Y = y;
 
-        if (!silent)
-            MarkDirty();
+        MarkDirty();
     }
 
-    public void SetHeight(double z, bool silent = false)
+    public void SetHeight(double z)
     {
         z = Math.Round(z, 3);
 
@@ -115,8 +80,7 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
 
         Z = z;
 
-        if (!silent)
-            MarkDirty();
+        MarkDirty();
     }
 
     public void SetRotation(Rotation rot)

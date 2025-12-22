@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -91,6 +92,15 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
+        if (_liveState.EpochMs == 0)
+        {
+            var now = NowMs();
+
+            _liveState.EpochMs = now;
+            _liveState.NextAvatarBoundaryMs = AlignToNextBoundary(now, _roomConfig.AvatarTickMs);
+            _liveState.NextRollerBoundaryMs = AlignToNextBoundary(now, _roomConfig.RollerTickMs);
+        }
+
         await HydrateRoomStateAsync(ct);
 
         await _grainFactory.GetRoomDirectoryGrain().UpsertActiveRoomAsync(_liveState.RoomSnapshot);
@@ -104,15 +114,30 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         this.RegisterGrainTimer<object?>(
             async (state, ct) =>
             {
-                await _avatarTickSystem.ProcessAvatarsAsync(ct);
-                await _rollerSystem.ProcessRollersAsync(ct);
+                var now = NowMs();
+
+                if (now >= _liveState.NextAvatarBoundaryMs)
+                {
+                    while (now >= _liveState.NextAvatarBoundaryMs)
+                        _liveState.NextAvatarBoundaryMs += _roomConfig.AvatarTickMs;
+
+                    await _avatarTickSystem.ProcessAvatarsAsync(now, ct);
+                }
+
+                if (now >= _liveState.NextRollerBoundaryMs)
+                {
+                    while (now >= _liveState.NextRollerBoundaryMs)
+                        _liveState.NextRollerBoundaryMs += _roomConfig.RollerTickMs;
+
+                    await _rollerSystem.ProcessRollersAsync(now, ct);
+                }
 
                 await FlushDirtyTilesAsync(ct);
                 await FlushDirtyItemsAsync(ct);
             },
             null,
-            TimeSpan.FromMilliseconds(_roomConfig.RoomTickMilliseconds),
-            TimeSpan.FromMilliseconds(_roomConfig.RoomTickMilliseconds)
+            TimeSpan.FromMilliseconds(_roomConfig.RoomTickMs),
+            TimeSpan.FromMilliseconds(_roomConfig.RoomTickMs)
         );
     }
 
@@ -133,7 +158,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public void DeactivateRoom() => DeactivateOnIdle();
 
     public void DelayRoomDeactivation() =>
-        DelayDeactivation(TimeSpan.FromMilliseconds(_roomConfig.RoomDeactivationDelayMilliseconds));
+        DelayDeactivation(TimeSpan.FromMilliseconds(_roomConfig.RoomDeactivationDelayMs));
 
     public async Task EnsureRoomActiveAsync(CancellationToken ct)
     {
@@ -227,5 +252,15 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         {
             await dbCtx.DisposeAsync();
         }
+    }
+
+    internal long NowMs() => (long)(Stopwatch.GetTimestamp() * 1000.0 / Stopwatch.Frequency);
+
+    internal long AlignToNextBoundary(long now, int offset)
+    {
+        var delta = now - _liveState.EpochMs;
+        var mod = delta % offset;
+
+        return mod == 0 ? now : now + (offset - mod);
     }
 }

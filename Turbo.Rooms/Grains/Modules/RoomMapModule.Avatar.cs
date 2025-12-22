@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Logging;
@@ -16,7 +14,7 @@ internal sealed partial class RoomMapModule
     {
         try
         {
-            avatar.SetNeedsInvoke(false);
+            avatar.NeedsInvoke = false;
 
             if (avatar.IsWalking)
                 return;
@@ -48,49 +46,6 @@ internal sealed partial class RoomMapModule
             UpdateHeightForAvatar(avatar);
         }
         catch (Exception) { }
-    }
-
-    public async Task InvokeAvatarsOnTilesAsync(HashSet<int> tileIdx, CancellationToken ct)
-    {
-        if (tileIdx.Count == 0)
-            return;
-
-        tileIdx = [.. tileIdx.Distinct()];
-
-        var avatarIds = new HashSet<int>();
-
-        foreach (var idx in tileIdx)
-        {
-            try
-            {
-                if (!InBounds(idx))
-                    throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
-
-                var avatarStack = _state.TileAvatarStacks[idx];
-
-                foreach (var avatarId in avatarStack)
-                    avatarIds.Add(avatarId);
-            }
-            catch (Exception)
-            {
-                continue;
-            }
-        }
-
-        foreach (var avatarId in avatarIds)
-        {
-            try
-            {
-                if (!_state.AvatarsByObjectId.TryGetValue(avatarId, out var avatar))
-                    continue;
-
-                await InvokeAvatarAsync(avatar, ct);
-            }
-            catch (Exception)
-            {
-                continue;
-            }
-        }
     }
 
     public bool CanAvatarWalk(
@@ -171,6 +126,11 @@ internal sealed partial class RoomMapModule
     {
         var tileIdx = ToIdx(avatar.X, avatar.Y);
 
+        AddAvatarAtIdx(avatar, tileIdx, flush);
+    }
+
+    public void AddAvatarAtIdx(IRoomAvatar avatar, int tileIdx, bool flush)
+    {
         if (!InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
@@ -185,6 +145,11 @@ internal sealed partial class RoomMapModule
     {
         var tileIdx = ToIdx(avatar.X, avatar.Y);
 
+        RemoveAvatarAtIdx(avatar, tileIdx, flush);
+    }
+
+    public void RemoveAvatarAtIdx(IRoomAvatar avatar, int tileIdx, bool flush)
+    {
         if (!InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
@@ -212,7 +177,8 @@ internal sealed partial class RoomMapModule
                 }
             }
 
-            avatar.SetPostureOffset(Math.Round(postureOffset, 3));
+            avatar.PostureOffset = Math.Round(postureOffset, 3);
+
             avatar.SetHeight(Math.Round(height - postureOffset, 3));
         }
         catch (Exception) { }

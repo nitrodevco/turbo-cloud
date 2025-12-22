@@ -173,7 +173,7 @@ internal sealed partial class RoomMapModule(
                 if (!_state.AvatarsByObjectId.TryGetValue(objectId, out var avatar))
                     continue;
 
-                avatar.SetNeedsInvoke(true);
+                avatar.NeedsInvoke = true;
             }
         }
 

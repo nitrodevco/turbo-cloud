@@ -6,19 +6,19 @@ public class RoomConfig
 {
     public const string SECTION_NAME = "Turbo:Rooms";
 
-    public int RoomCheckIntervalMilliseconds { get; init; } = 300000;
-    public int RoomDeactivationDelayMilliseconds { get; init; } = 1800000;
-    public int RoomTickMilliseconds { get; init; } = 480;
     public int RoomRollerTickCount { get; init; } = 4;
-    public int DirtyTilesFlushIntervalMilliseconds { get; init; } = 50;
     public double MaxStackHeight { get; init; } = 40.0;
     public RoomScaleType DefaultRoomScale { get; init; } = RoomScaleType.Normal;
     public int DefaultWallHeight { get; init; } = 0;
     public double MaxStepHeight { get; init; } = 2.0;
-    public bool AllowDiagonalMovement { get; init; } = true;
     public bool PlaceItemsOnAvatars { get; init; } = true;
     public bool EnableDiagonalChecking { get; init; } = true;
 
+    public int RoomCheckMs { get; init; } = 300000;
+    public int RoomDeactivationDelayMs { get; init; } = 1800000;
+    public int RoomTickMs { get; init; } = 50;
+    public int AvatarTickMs { get; init; } = 500;
+    public int RollerTickMs { get; init; } = 2000;
     public int DirtyItemsFlushIntervalMilliseconds { get; init; } = 2000;
     public int MaxDirtyItemsPerFlush { get; init; } = 100;
 

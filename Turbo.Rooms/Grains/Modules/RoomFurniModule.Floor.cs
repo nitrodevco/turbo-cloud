@@ -183,10 +183,12 @@ internal sealed partial class RoomFurniModule
                     tileFlags.Has(RoomTileFlags.Disabled)
                     || (tileHeight + tItem.GetStackHeight()) > _roomGrain._roomConfig.MaxStackHeight
                     || tileFlags.Has(RoomTileFlags.StackBlocked) && bItem != tItem
-                    || !_roomGrain._roomConfig.PlaceItemsOnAvatars
+                    || (
+                        !_roomGrain._roomConfig.PlaceItemsOnAvatars
                         && tileFlags.Has(RoomTileFlags.AvatarOccupied)
                         && !isRotating
-                    || tileFlags.Has(RoomTileFlags.AvatarOccupied) && !tItem.Logic.CanWalk()
+                    )
+                    || (tileFlags.Has(RoomTileFlags.AvatarOccupied) && !tItem.Logic.CanWalk())
                 )
                     return false;
 
@@ -246,9 +248,11 @@ internal sealed partial class RoomFurniModule
                     tileFlags.Has(RoomTileFlags.Disabled)
                     || (tileHeight + item.GetStackHeight()) > _roomGrain._roomConfig.MaxStackHeight
                     || tileFlags.Has(RoomTileFlags.StackBlocked)
-                    || !_roomGrain._roomConfig.PlaceItemsOnAvatars
+                    || (
+                        !_roomGrain._roomConfig.PlaceItemsOnAvatars
                         && tileFlags.Has(RoomTileFlags.AvatarOccupied)
-                    || tileFlags.Has(RoomTileFlags.AvatarOccupied) && !item.Logic.CanWalk()
+                    )
+                    || (tileFlags.Has(RoomTileFlags.AvatarOccupied) && !item.Logic.CanWalk())
                 )
                     return false;
 

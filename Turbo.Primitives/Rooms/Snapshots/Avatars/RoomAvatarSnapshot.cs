@@ -39,13 +39,4 @@ public record RoomAvatarSnapshot
 
     [Id(10)]
     public required string Status { get; init; }
-
-    [Id(11)]
-    public required int GoalTileId { get; init; }
-
-    [Id(12)]
-    public required int NextTileId { get; init; }
-
-    [Id(13)]
-    public required bool IsWalking { get; init; }
 }

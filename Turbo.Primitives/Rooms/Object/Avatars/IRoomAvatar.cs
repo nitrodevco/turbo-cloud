@@ -16,20 +16,20 @@ public interface IRoomAvatar : IRoomObject
 
     public AvatarDanceType DanceType { get; }
 
-    public double PostureOffset { get; }
+    public double PostureOffset { get; set; }
     public int GoalTileId { get; }
-    public int NextTileId { get; }
-    public bool IsWalking { get; }
-    public bool NeedsInvoke { get; }
+    public int NextTileId { get; set; }
+    public bool IsWalking { get; set; }
+    public bool NeedsInvoke { get; set; }
     public List<int> TilePath { get; }
 
-    public void SetPostureOffset(double offset);
+    public long NextMoveStepAtMs { get; set; }
+    public long NextMoveUpdateAtMs { get; set; }
+    public long PendingStopAtMs { get; set; }
+
     public bool SetGoalTileId(int tileId);
-    public void SetNextTileId(int tileId);
-    public void SetIsWalking(bool flag);
-    public void SetNeedsInvoke(bool flag);
-    public void SetPosition(int x, int y, bool silent = false);
-    public void SetHeight(double z, bool silent = false);
+    public void SetPosition(int x, int y);
+    public void SetHeight(double z);
     public void SetRotation(Rotation rot);
     public void SetBodyRotation(Rotation rot);
     public void SetHeadRotation(Rotation rot);

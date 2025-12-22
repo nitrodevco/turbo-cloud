@@ -32,17 +32,9 @@ internal sealed class RoomRollerSystem(
     private readonly List<List<int>> _rollerIdSets = [];
 
     private bool _isDirtyRollers = true;
-    private int _tickCount = 0;
 
-    public async Task ProcessRollersAsync(CancellationToken ct)
+    public async Task ProcessRollersAsync(long now, CancellationToken ct)
     {
-        _tickCount++;
-
-        if (_tickCount != _roomConfig.RoomRollerTickCount)
-            return;
-
-        _tickCount = 0;
-
         ComputeRollers();
 
         if (_rollerIdSets.Count == 0)
@@ -125,9 +117,9 @@ internal sealed class RoomRollerSystem(
                         continue;
 
                     if (
-                        floorItems.Count == 0 && avatars.Count == 0
-                        || floorItems.Count > 0 && toTileState.Has(RoomTileFlags.StackBlocked)
-                        || avatars.Count > 0 && toTileState.Has(RoomTileFlags.Closed)
+                        (floorItems.Count == 0 && avatars.Count == 0)
+                        || (floorItems.Count > 0 && toTileState.Has(RoomTileFlags.StackBlocked))
+                        || (avatars.Count > 0 && toTileState.Has(RoomTileFlags.Closed))
                     )
                         continue;
 
