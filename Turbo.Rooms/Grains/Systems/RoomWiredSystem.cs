@@ -222,12 +222,9 @@ internal sealed class RoomWiredSystem(
                     if (!compiled.StackIdsByEventType.TryGetValue(eventType, out var list))
                     {
                         list = [];
-                        compiled.StackIdsByEventType[eventType] = list;
                     }
-                    else
-                    {
-                        list.Add(stack.Key);
-                    }
+
+                    list.Add(stack.Key);
                 }
             }
         }
