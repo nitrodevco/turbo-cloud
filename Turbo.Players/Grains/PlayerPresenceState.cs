@@ -6,7 +6,7 @@ using Turbo.Primitives.Rooms;
 namespace Turbo.Players.Grains;
 
 [GenerateSerializer]
-public sealed class PlayerPresenceState
+internal sealed class PlayerPresenceState
 {
     [Id(0)]
     public required SessionKey SessionKey { get; set; } = string.Empty;

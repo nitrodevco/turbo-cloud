@@ -18,7 +18,7 @@ using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Players.Grains;
 
-public sealed partial class PlayerPresenceGrain
+internal sealed partial class PlayerPresenceGrain
     : Grain,
         IPlayerPresenceGrain,
         IAsyncObserver<RoomOutbound>
@@ -92,16 +92,15 @@ public sealed partial class PlayerPresenceGrain
         if (!_state.State.SessionKey.Equals(key))
             return;
 
+        await ClearActiveRoomAsync(ct);
+
         await _inventoryModule.OnSessionDetachedAsync(ct);
 
         _sessionObserver = null;
 
-        // reset the persistent state?
-
         _state.State.SessionKey = string.Empty;
 
         await _state.WriteStateAsync(ct);
-        await ClearActiveRoomAsync(ct);
     }
 
     public async Task SetActiveRoomAsync(RoomId roomId, CancellationToken ct)

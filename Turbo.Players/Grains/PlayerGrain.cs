@@ -15,7 +15,7 @@ using Turbo.Primitives.Players;
 
 namespace Turbo.Players.Grains;
 
-public class PlayerGrain(
+internal sealed class PlayerGrain(
     [PersistentState(OrleansStateNames.PLAYER_STATE, OrleansStorageNames.PLAYER_STORE)]
         IPersistentState<PlayerState> state,
     IDbContextFactory<TurboDbContext> dbCtxFactory,
@@ -27,7 +27,7 @@ public class PlayerGrain(
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
-        await HydrateFromExternalAsync(ct);
+        await HydrateAsync(ct);
     }
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
@@ -35,72 +35,50 @@ public class PlayerGrain(
         await WriteToDatabaseAsync(ct);
     }
 
-    protected async Task HydrateFromExternalAsync(CancellationToken ct)
+    private async Task HydrateAsync(CancellationToken ct)
     {
         if (state.State.IsLoaded)
             return;
 
-        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-        try
-        {
-            var entity =
-                await dbCtx
-                    .Players.AsNoTracking()
-                    .SingleOrDefaultAsync(e => e.Id == this.GetPrimaryKeyLong(), ct)
-                ?? throw new TurboException(TurboErrorCodeEnum.PlayerNotFound);
+        var entity =
+            await dbCtx
+                .Players.AsNoTracking()
+                .SingleOrDefaultAsync(e => e.Id == this.GetPrimaryKeyLong(), ct)
+            ?? throw new TurboException(TurboErrorCodeEnum.PlayerNotFound);
 
-            state.State.Name = entity.Name ?? string.Empty;
-            state.State.Motto = entity.Motto ?? string.Empty;
-            state.State.Figure = entity.Figure ?? string.Empty;
-            state.State.Gender = entity.Gender;
-            state.State.CreatedAt = entity.CreatedAt;
-            state.State.IsLoaded = true;
-            state.State.LastUpdated = DateTime.UtcNow;
+        state.State.Name = entity.Name ?? string.Empty;
+        state.State.Motto = entity.Motto ?? string.Empty;
+        state.State.Figure = entity.Figure ?? string.Empty;
+        state.State.Gender = entity.Gender;
+        state.State.CreatedAt = entity.CreatedAt;
+        state.State.IsLoaded = true;
+        state.State.LastUpdated = DateTime.UtcNow;
 
-            await _grainFactory
-                .GetPlayerDirectoryGrain()
-                .SetPlayerNameAsync((PlayerId)this.GetPrimaryKeyLong(), state.State.Name, ct);
+        await _grainFactory
+            .GetPlayerDirectoryGrain()
+            .SetPlayerNameAsync((PlayerId)this.GetPrimaryKeyLong(), state.State.Name, ct);
 
-            await state.WriteStateAsync(ct);
-        }
-        catch (Exception)
-        {
-            throw;
-        }
-        finally
-        {
-            await dbCtx.DisposeAsync();
-        }
+        await state.WriteStateAsync(ct);
     }
 
-    protected async Task WriteToDatabaseAsync(CancellationToken ct)
+    private async Task WriteToDatabaseAsync(CancellationToken ct)
     {
-        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-        try
-        {
-            var snapshot = await GetSummaryAsync(ct);
+        var snapshot = await GetSummaryAsync(ct);
 
-            await dbCtx
-                .Players.Where(p => p.Id == this.GetPrimaryKeyLong())
-                .ExecuteUpdateAsync(
-                    up =>
-                        up.SetProperty(p => p.Name, snapshot.Name)
-                            .SetProperty(p => p.Motto, snapshot.Motto)
-                            .SetProperty(p => p.Figure, snapshot.Figure)
-                            .SetProperty(p => p.Gender, snapshot.Gender),
-                    ct
-                );
-        }
-        catch (Exception)
-        {
-            throw;
-        }
-        finally
-        {
-            await dbCtx.DisposeAsync();
-        }
+        await dbCtx
+            .Players.Where(p => p.Id == this.GetPrimaryKeyLong())
+            .ExecuteUpdateAsync(
+                up =>
+                    up.SetProperty(p => p.Name, snapshot.Name)
+                        .SetProperty(p => p.Motto, snapshot.Motto)
+                        .SetProperty(p => p.Figure, snapshot.Figure)
+                        .SetProperty(p => p.Gender, snapshot.Gender),
+                ct
+            );
     }
 
     public Task<PlayerSummarySnapshot> GetSummaryAsync(CancellationToken ct) =>

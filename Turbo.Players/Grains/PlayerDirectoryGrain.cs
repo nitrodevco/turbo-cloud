@@ -12,7 +12,7 @@ using Turbo.Primitives.Players.Grains;
 namespace Turbo.Players.Grains;
 
 [KeepAlive]
-public class PlayerDirectoryGrain(IDbContextFactory<TurboDbContext> dbCtxFactory)
+internal class PlayerDirectoryGrain(IDbContextFactory<TurboDbContext> dbCtxFactory)
     : Grain,
         IPlayerDirectoryGrain
 {

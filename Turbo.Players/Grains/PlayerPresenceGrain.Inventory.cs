@@ -5,7 +5,7 @@ using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Players.Grains;
 
-public sealed partial class PlayerPresenceGrain
+internal sealed partial class PlayerPresenceGrain
 {
     public Task OpenFurnitureInventoryAsync(CancellationToken ct) =>
         _inventoryModule.OpenFurnitureInventoryAsync(ct);
