@@ -38,8 +38,6 @@ internal sealed class InventoryFurniModule(
         if (!_state.FurnitureById.TryAdd(item.ItemId, item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        item.SetAction(itemId => { });
-
         return Task.FromResult(true);
     }
 
@@ -47,8 +45,6 @@ internal sealed class InventoryFurniModule(
     {
         if (!_state.FurnitureById.Remove(itemId, out var item))
             return Task.FromResult(false);
-
-        item.SetAction(null);
 
         return Task.FromResult(true);
     }

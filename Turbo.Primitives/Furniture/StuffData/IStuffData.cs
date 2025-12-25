@@ -11,7 +11,6 @@ public interface IStuffData
     public int UniqueSeries { get; }
     public bool IsDirty { get; }
     public int GetBitmask();
-    public void SetType(StuffDataType type);
     public bool IsUnique();
     public int GetState();
     public Task SetStateAsync(string state);

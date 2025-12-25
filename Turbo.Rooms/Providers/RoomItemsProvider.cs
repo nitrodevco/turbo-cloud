@@ -9,7 +9,6 @@ using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
-using Turbo.Furniture;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Furniture.Enums;
@@ -133,30 +132,35 @@ internal sealed class RoomItemsProvider(
     {
         var definition = snapshot.Definition;
 
-        // TODO FIX MISSING STUFF
+        IRoomItem? item = null;
 
         if (definition.ProductType == ProductType.Floor)
         {
-            return new RoomFloorItem
+            item = new RoomFloorItem
             {
                 ObjectId = snapshot.ItemId,
                 OwnerId = snapshot.OwnerId,
-                OwnerName = string.Empty,
+                OwnerName = snapshot.OwnerName,
                 Definition = definition,
             };
         }
 
         if (definition.ProductType == ProductType.Wall)
         {
-            return new RoomWallItem
+            item = new RoomWallItem
             {
                 ObjectId = snapshot.ItemId,
                 OwnerId = snapshot.OwnerId,
-                OwnerName = string.Empty,
+                OwnerName = snapshot.OwnerName,
                 Definition = definition,
             };
         }
 
-        throw new TurboException(TurboErrorCodeEnum.InvalidFurnitureProductType);
+        if (item is null)
+            throw new TurboException(TurboErrorCodeEnum.InvalidFurnitureProductType);
+
+        item.SetExtraData(snapshot.ExtraData);
+
+        return item;
     }
 }

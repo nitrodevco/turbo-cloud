@@ -20,26 +20,29 @@ public sealed record FurnitureItemSnapshot
     public required PlayerId OwnerId { get; init; }
 
     [Id(3)]
-    public required FurnitureDefinitionSnapshot Definition { get; init; }
+    public required string OwnerName { get; init; }
 
     [Id(4)]
-    public required StuffDataSnapshot StuffData { get; init; }
+    public required FurnitureDefinitionSnapshot Definition { get; init; }
 
     [Id(5)]
-    public required string StuffDataJson { get; init; }
+    public required StuffDataSnapshot StuffData { get; init; }
 
     [Id(6)]
-    public required int SecondsToExpiration { get; init; }
+    public required string ExtraData { get; init; }
 
     [Id(7)]
-    public required bool HasRentPeriodStarted { get; init; }
+    public required int SecondsToExpiration { get; init; }
 
     [Id(8)]
-    public required RoomId RoomId { get; init; }
+    public required bool HasRentPeriodStarted { get; init; }
 
     [Id(9)]
-    public string SlotId { get; init; } = string.Empty;
+    public required RoomId RoomId { get; init; }
 
     [Id(10)]
+    public string SlotId { get; init; } = string.Empty;
+
+    [Id(11)]
     public int Extra { get; init; } = 0;
 }

@@ -102,7 +102,7 @@ public sealed class RoomPersistenceGrain(
                     Y = item.Y,
                     Z = item.Z,
                     Rotation = item.Rotation,
-                    ExtraData = item.ExtraDataJson,
+                    ExtraData = item.ExtraData,
                 };
 
                 dbCtx.Attach(dbEntity);

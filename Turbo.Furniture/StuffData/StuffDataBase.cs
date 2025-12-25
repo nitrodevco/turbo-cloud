@@ -16,7 +16,7 @@ internal abstract class StuffDataBase : IStuffData
     protected const string STATE_KEY = "state";
 
     [JsonIgnore]
-    public StuffDataType StuffType { get; private set; }
+    public abstract StuffDataType StuffType { get; }
 
     [JsonPropertyName("U_N")]
     public int UniqueNumber { get; set; } = 0;
@@ -36,8 +36,6 @@ internal abstract class StuffDataBase : IStuffData
 
     public int GetBitmask() =>
         CreateBitmask(StuffType, IsUnique() ? StuffDataFlags.Unique : StuffDataFlags.None);
-
-    public void SetType(StuffDataType type) => StuffType = type;
 
     public bool IsUnique() => UniqueNumber > 0 && UniqueSeries > 0;
 

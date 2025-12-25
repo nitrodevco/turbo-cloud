@@ -37,6 +37,8 @@ public sealed class RoomObjectLogicProvider(IServiceProvider host) : IRoomObject
         if (!_logics.TryGetValue(logicType, out var reg))
             throw new TurboException(TurboErrorCodeEnum.InvalidLogic);
 
+        // TODO we need to fall back if not found
+
         var sp = reg.ServiceProvider;
 
         if (sp != _host)

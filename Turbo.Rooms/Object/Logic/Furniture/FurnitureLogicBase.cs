@@ -29,14 +29,10 @@ public abstract class FurnitureLogicBase<TItem, TContext>
     {
         _stuffDataFactory = stuffDataFactory;
 
-        if (_ctx.Item.ExtraData.TryGetSection("stuff", out var element))
-        {
-            StuffData = CreateStuffData(element.GetRawText());
-        }
-        else
-        {
-            StuffData = CreateStuffData();
-        }
+        StuffData = _stuffDataFactory.CreateStuffDataFromExtraData(
+            StuffDataKey,
+            ctx.Item.ExtraData
+        );
 
         StuffData.SetAction(async () =>
         {
@@ -104,9 +100,6 @@ public abstract class FurnitureLogicBase<TItem, TContext>
             },
             ct
         );
-
-    protected virtual IStuffData CreateStuffData(string json = "") =>
-        _stuffDataFactory.CreateStuffDataFromJson((int)StuffDataKey, json);
 
     protected virtual int GetNextToggleableState()
     {

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
@@ -7,6 +8,9 @@ namespace Turbo.Furniture.StuffData;
 
 internal sealed class NumberStuffData : StuffDataBase, INumberStuffData
 {
+    [JsonIgnore]
+    public override StuffDataType StuffType => StuffDataType.NumberKey;
+
     public List<int> Data { get; set; } = [];
 
     public NumberStuffData()

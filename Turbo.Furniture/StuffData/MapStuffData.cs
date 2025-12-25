@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
@@ -8,6 +9,9 @@ namespace Turbo.Furniture.StuffData;
 
 internal sealed class MapStuffData : StuffDataBase, IMapStuffData
 {
+    [JsonIgnore]
+    public override StuffDataType StuffType => StuffDataType.MapKey;
+
     public Dictionary<string, string> Data { get; set; } = [];
 
     public MapStuffData()

@@ -1,5 +1,4 @@
 using System;
-using System.Text.Json;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
@@ -89,7 +88,7 @@ internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
             Z = Z,
             Rotation = Rotation,
             StuffData = Logic.StuffData.GetSnapshot(),
-            ExtraDataJson = ExtraData.GetJsonString(),
+            ExtraData = ExtraData.GetJsonString(),
             UsagePolicy = Logic.GetUsagePolicy(),
             StackHeight = GetStackHeight(),
         };

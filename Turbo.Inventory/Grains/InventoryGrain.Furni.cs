@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Database.Entities.Furniture;
+using Turbo.Furniture;
 using Turbo.Inventory.Furniture;
 using Turbo.Logging;
 using Turbo.Primitives;
@@ -105,8 +106,6 @@ public sealed partial class InventoryGrain
 
             await dbCtx.SaveChangesAsync(ct);
 
-            var items = new List<IFurnitureItem>();
-
             foreach (var entity in entities)
             {
                 var def =
@@ -114,12 +113,16 @@ public sealed partial class InventoryGrain
                         entity.FurnitureDefinitionEntityId
                     ) ?? throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
 
+                // TODO need to batch these
+
                 await AddFurnitureAsync(
                     new FurnitureItem()
                     {
                         ItemId = entity.Id,
                         OwnerId = entity.PlayerEntityId,
+                        OwnerName = string.Empty,
                         Definition = def,
+                        ExtraData = new ExtraData("{}"),
                         StuffData = _stuffDataFactory.CreateStuffData((int)StuffDataType.LegacyKey),
                     },
                     ct
