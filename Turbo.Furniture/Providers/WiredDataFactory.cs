@@ -1,6 +1,7 @@
 using System;
 using System.Text.Json;
 using Turbo.Furniture.WiredData;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.WiredData;
@@ -27,24 +28,28 @@ public sealed class WiredDataFactory : IWiredDataFactory
     {
         if (!string.IsNullOrEmpty(jsonData))
         {
-            var reader = new ExtraDataReader(jsonData);
+            var reader = new ExtraData(jsonData);
 
-            if (reader.TryGet("wired", out var wiredElement))
+            return CreateWiredDataFromExtraData(type, reader);
+        }
+
+        return CreateWiredData(type);
+    }
+
+    public IWiredData CreateWiredDataFromExtraData(WiredType type, IExtraData extraData)
+    {
+        if (extraData.TryGetSection("wired", out var wiredElement))
+        {
+            return type switch
             {
-                return type switch
-                {
-                    WiredType.Action => wiredElement.Deserialize<WiredActionData>()!,
-                    WiredType.Addon => wiredElement.Deserialize<WiredAddonData>()!,
-                    WiredType.Condition => wiredElement.Deserialize<WiredConditionData>()!,
-                    WiredType.Selector => wiredElement.Deserialize<WiredSelectorData>()!,
-                    WiredType.Trigger => wiredElement.Deserialize<WiredTriggerData>()!,
-                    WiredType.Variable => wiredElement.Deserialize<WiredVariableData>()!,
-                    _ => throw new ArgumentOutOfRangeException(
-                        nameof(type),
-                        "Unknown wired data type"
-                    ),
-                };
-            }
+                WiredType.Action => wiredElement.Deserialize<WiredActionData>()!,
+                WiredType.Addon => wiredElement.Deserialize<WiredAddonData>()!,
+                WiredType.Condition => wiredElement.Deserialize<WiredConditionData>()!,
+                WiredType.Selector => wiredElement.Deserialize<WiredSelectorData>()!,
+                WiredType.Trigger => wiredElement.Deserialize<WiredTriggerData>()!,
+                WiredType.Variable => wiredElement.Deserialize<WiredVariableData>()!,
+                _ => throw new ArgumentOutOfRangeException(nameof(type), "Unknown wired data type"),
+            };
         }
 
         return CreateWiredData(type);

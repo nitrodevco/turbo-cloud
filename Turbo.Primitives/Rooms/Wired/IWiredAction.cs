@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace Turbo.Primitives.Rooms.Wired;
 
-public interface IWiredAction : IWiredDefinition
+public interface IWiredAction
 {
     public Task<bool> ExecuteAsync(IWiredContext ctx, CancellationToken ct);
 }

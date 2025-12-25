@@ -1,6 +1,6 @@
 namespace Turbo.Primitives.Rooms.Wired;
 
-public interface IWiredSelector : IWiredDefinition
+public interface IWiredSelector
 {
     public void Select(IWiredContext ctx);
 }

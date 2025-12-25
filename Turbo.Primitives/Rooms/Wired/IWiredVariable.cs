@@ -1,6 +1,6 @@
 namespace Turbo.Primitives.Rooms.Wired;
 
-public interface IWiredVariable : IWiredDefinition
+public interface IWiredVariable
 {
     public void Apply(IWiredContext ctx);
 }

@@ -66,10 +66,4 @@ public sealed record FurnitureDefinitionSnapshot
 
     [Id(19)]
     public required string? ExtraData { get; init; }
-
-    [Id(20)]
-    public required bool IsWired { get; init; }
-
-    [Id(21)]
-    public required string WiredType { get; init; }
 }

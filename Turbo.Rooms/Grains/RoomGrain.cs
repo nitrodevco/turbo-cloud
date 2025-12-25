@@ -36,7 +36,6 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly IRoomItemsProvider _itemsLoader;
     internal readonly IRoomObjectLogicProvider _logicFactory;
     internal readonly IRoomAvatarProvider _roomAvatarFactory;
-    internal readonly IWiredDefinitionProvider _wiredDefinitionProvider;
     internal readonly IGrainFactory _grainFactory;
 
     internal IAsyncStream<RoomOutbound> _roomOutbound = default!;
@@ -64,7 +63,6 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IRoomItemsProvider itemsLoader,
         IRoomObjectLogicProvider logicFactory,
         IRoomAvatarProvider roomAvatarFactory,
-        IWiredDefinitionProvider wiredDefinitionProvider,
         IGrainFactory grainFactory
     )
     {
@@ -75,7 +73,6 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _itemsLoader = itemsLoader;
         _logicFactory = logicFactory;
         _roomAvatarFactory = roomAvatarFactory;
-        _wiredDefinitionProvider = wiredDefinitionProvider;
         _grainFactory = grainFactory;
 
         _roomId = (RoomId)this.GetPrimaryKeyLong();
@@ -90,14 +87,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
         _avatarTickSystem = new(this, _roomConfig, _liveState, _avatarModule, _mapModule);
         _rollerSystem = new(this, _roomConfig, _liveState, _mapModule);
-        _wiredSystem = new(
-            this,
-            _roomConfig,
-            _liveState,
-            _avatarModule,
-            _mapModule,
-            _wiredDefinitionProvider
-        );
+        _wiredSystem = new(this, _roomConfig, _liveState, _avatarModule, _mapModule);
 
         _eventModule.Register(_rollerSystem);
         _eventModule.Register(_wiredSystem);
@@ -112,6 +102,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             _liveState.EpochMs = now;
             _liveState.NextAvatarBoundaryMs = AlignToNextBoundary(now, _roomConfig.AvatarTickMs);
             _liveState.NextRollerBoundaryMs = AlignToNextBoundary(now, _roomConfig.RollerTickMs);
+            _liveState.NextWiredBoundaryMs = AlignToNextBoundary(now, _roomConfig.WiredTickMs);
         }
 
         await HydrateRoomStateAsync(ct);

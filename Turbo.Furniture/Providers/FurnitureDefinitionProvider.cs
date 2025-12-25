@@ -42,35 +42,28 @@ public sealed class FurnitureDefinitionProvider(
                 .ConfigureAwait(false);
 
             var defs = entities
-                .Select(x =>
+                .Select(x => new FurnitureDefinitionSnapshot
                 {
-                    var isWired = x.Logic.StartsWith("wf_");
-
-                    return new FurnitureDefinitionSnapshot
-                    {
-                        Id = x.Id,
-                        SpriteId = x.SpriteId,
-                        PublicName = x.PublicName,
-                        ProductType = x.ProductType,
-                        FurniCategory = x.FurniCategory,
-                        LogicName = isWired ? "default_wired" : x.Logic,
-                        TotalStates = x.TotalStates,
-                        Width = x.Width,
-                        Length = x.Length,
-                        StackHeight = Math.Round(Math.Max(_config.MinimumZValue, x.StackHeight), 3),
-                        CanStack = x.CanStack,
-                        CanWalk = x.CanWalk,
-                        CanSit = x.CanSit,
-                        CanLay = x.CanLay,
-                        CanRecycle = x.CanRecycle,
-                        CanTrade = x.CanTrade,
-                        CanGroup = x.CanGroup,
-                        CanSell = x.CanSell,
-                        UsagePolicy = x.UsagePolicy,
-                        ExtraData = x.ExtraData,
-                        IsWired = isWired,
-                        WiredType = isWired ? x.Logic : string.Empty,
-                    };
+                    Id = x.Id,
+                    SpriteId = x.SpriteId,
+                    PublicName = x.PublicName,
+                    ProductType = x.ProductType,
+                    FurniCategory = x.FurniCategory,
+                    LogicName = x.Logic,
+                    TotalStates = x.TotalStates,
+                    Width = x.Width,
+                    Length = x.Length,
+                    StackHeight = Math.Round(Math.Max(_config.MinimumZValue, x.StackHeight), 3),
+                    CanStack = x.CanStack,
+                    CanWalk = x.CanWalk,
+                    CanSit = x.CanSit,
+                    CanLay = x.CanLay,
+                    CanRecycle = x.CanRecycle,
+                    CanTrade = x.CanTrade,
+                    CanGroup = x.CanGroup,
+                    CanSell = x.CanSell,
+                    UsagePolicy = x.UsagePolicy,
+                    ExtraData = x.ExtraData,
                 })
                 .ToList();
 

@@ -1,43 +1,47 @@
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Furniture.WiredData;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Object.Logic;
-using Turbo.Primitives.Rooms.Providers;
-using Turbo.Primitives.Rooms.Wired;
 
-namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
+namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 
-[RoomObjectLogic("default_wired")]
-public class FurnitureWiredLogic : FurnitureFloorLogic
+public abstract class FurnitureWiredLogic : FurnitureFloorLogic
 {
-    private readonly IWiredDefinitionProvider _wiredDefinitionProvider;
-    private readonly IGrainFactory _grainFactory;
+    public virtual WiredType WiredType => WiredType.None;
 
-    private readonly IWiredDefinition _wiredDefinition;
+    protected readonly IWiredDataFactory _wiredDataFactory;
+    protected readonly IGrainFactory _grainFactory;
 
-    public IWiredDefinition WiredDefinition => _wiredDefinition;
+    public IWiredData WiredData { get; private set; }
 
     public FurnitureWiredLogic(
-        IWiredDefinitionProvider wiredDefinitionProvider,
+        IWiredDataFactory wiredDataFactory,
         IGrainFactory grainFactory,
         IStuffDataFactory stuffDataFactory,
         IRoomFloorItemContext ctx
     )
         : base(stuffDataFactory, ctx)
     {
-        _wiredDefinitionProvider = wiredDefinitionProvider;
+        _wiredDataFactory = wiredDataFactory;
         _grainFactory = grainFactory;
 
-        _wiredDefinition = _wiredDefinitionProvider.CreateWiredInstance(
-            ctx.Definition.WiredType,
-            ctx
-        );
+        WiredData = _wiredDataFactory.CreateWiredDataFromExtraData(WiredType, ctx.Item.ExtraData);
+
+        WiredData.SetAction(async () =>
+        {
+            _ctx.Item.ExtraData.UpdateSection(
+                "wired",
+                JsonSerializer.SerializeToNode(WiredData, WiredData.GetType())
+            );
+        });
     }
 
     public override async Task OnAttachAsync(CancellationToken ct)

@@ -35,6 +35,14 @@ public sealed class RoomObjectLogicProvider(IServiceProvider host) : IRoomObject
     public IRoomObjectLogic CreateLogicInstance(string logicType, IRoomObjectContext ctx)
     {
         if (!_logics.TryGetValue(logicType, out var reg))
+        {
+            Console.WriteLine(
+                $"[RoomObjectLogicProvider] Logic type '{logicType}' not found, falling back to default_floor"
+            );
+            reg = _logics.TryGetValue("default_floor", out var defaultReg) ? defaultReg : null;
+        }
+
+        if (reg is null)
             throw new TurboException(TurboErrorCodeEnum.InvalidLogic);
 
         // TODO we need to fall back if not found

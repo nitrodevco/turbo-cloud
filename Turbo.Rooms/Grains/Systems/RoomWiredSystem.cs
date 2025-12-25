@@ -6,11 +6,10 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
-using Turbo.Primitives.Rooms.Providers;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
-using Turbo.Rooms.Object.Logic.Furniture.Floor;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Grains.Systems;
@@ -20,8 +19,7 @@ internal sealed class RoomWiredSystem(
     RoomConfig roomConfig,
     RoomLiveState roomLiveState,
     RoomAvatarModule roomAvatarModule,
-    RoomMapModule roomMapModule,
-    IWiredDefinitionProvider wiredDefinitionProvider
+    RoomMapModule roomMapModule
 ) : IRoomEventListener
 {
     private readonly RoomGrain _roomGrain = roomGrain;
@@ -29,7 +27,6 @@ internal sealed class RoomWiredSystem(
     private readonly RoomLiveState _state = roomLiveState;
     private readonly RoomAvatarModule _roomAvatar = roomAvatarModule;
     private readonly RoomMapModule _roomMap = roomMapModule;
-    private readonly IWiredDefinitionProvider _wiredDefinitionProvider = wiredDefinitionProvider;
 
     private WiredCompiled? _wiredCompiled;
     private Dictionary<int, WiredProgramStack> _stacksById = [];
@@ -217,13 +214,7 @@ internal sealed class RoomWiredSystem(
             {
                 try
                 {
-                    var logic = (FurnitureWiredLogic)item.Logic;
-                    var wiredDef = logic.WiredDefinition;
-
-                    if (wiredDef is null)
-                        continue;
-
-                    switch (wiredDef)
+                    switch (item.Logic)
                     {
                         case IWiredTrigger trigger:
                             program.Triggers.Add(trigger);

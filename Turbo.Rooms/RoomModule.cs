@@ -6,8 +6,6 @@ using Turbo.Primitives.Rooms.Providers;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Object.Logic;
 using Turbo.Rooms.Providers;
-using Turbo.Rooms.Wired;
-using Turbo.Rooms.Wired.Providers;
 using Turbo.Runtime.AssemblyProcessing;
 
 namespace Turbo.Rooms;
@@ -24,10 +22,8 @@ public sealed class RoomModule : IHostPluginModule
         services.AddSingleton<IRoomItemsProvider, RoomItemsProvider>();
         services.AddSingleton<IRoomModelProvider, RoomModelProvider>();
         services.AddSingleton<IRoomObjectLogicProvider, RoomObjectLogicProvider>();
-        services.AddSingleton<IWiredDefinitionProvider, WiredDefinitionProvider>();
 
         services.AddSingleton<IAssemblyFeatureProcessor, RoomObjectLogicFeatureProcessor>();
-        services.AddSingleton<IAssemblyFeatureProcessor, WiredFeatureProcessor>();
 
         services.AddSingleton<IRoomService, RoomService>();
     }
