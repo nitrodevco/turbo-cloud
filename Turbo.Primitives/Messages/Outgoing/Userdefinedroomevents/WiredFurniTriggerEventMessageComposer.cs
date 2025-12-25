@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using Orleans;
+using Turbo.Primitives.Furniture.Snapshots.WiredData;
 using Turbo.Primitives.Networking;
 
 namespace Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
@@ -6,5 +8,6 @@ namespace Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 [GenerateSerializer, Immutable]
 public sealed record WiredFurniTriggerEventMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required WiredDataSnapshot WiredData { get; init; }
 }

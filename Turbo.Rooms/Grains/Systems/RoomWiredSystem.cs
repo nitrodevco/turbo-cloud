@@ -32,6 +32,9 @@ internal sealed class RoomWiredSystem(
     private Dictionary<int, WiredProgramStack> _stacksById = [];
     private HashSet<int> _dirtyStackIds = [];
 
+    private readonly Queue<RoomEvent> _queue = new();
+    private bool _isProcessingQueue = false;
+
     private int _tickMs => _roomConfig.WiredTickMs;
 
     public async Task ProcessWiredAsync(long now, CancellationToken ct)
@@ -47,13 +50,34 @@ internal sealed class RoomWiredSystem(
         if (_stacksById.Count == 0)
             return;
 
-        var compiled = _wiredCompiled;
+        while (_queue.Count > 0)
+        {
+            var payload = _queue.Dequeue();
+
+            await ProcessRoomEventAsync(payload, ct);
+        }
     }
 
     public Task OnRoomEventAsync(RoomEvent evt, CancellationToken ct) =>
         HandleRoomEventAsync(evt, ct);
 
     private async Task HandleRoomEventAsync(RoomEvent evt, CancellationToken ct)
+    {
+        if (evt is null)
+            return;
+
+        if (evt is RoomWiredStackChangedEvent stackChanged)
+        {
+            foreach (var stackId in stackChanged.StackIds)
+                _dirtyStackIds.Add(stackId);
+
+            return;
+        }
+
+        _queue.Enqueue(evt);
+    }
+
+    private async Task ProcessRoomEventAsync(RoomEvent evt, CancellationToken ct)
     {
         if (evt is null)
             return;

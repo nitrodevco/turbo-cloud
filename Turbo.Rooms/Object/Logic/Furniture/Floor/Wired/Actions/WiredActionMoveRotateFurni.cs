@@ -17,8 +17,6 @@ public class WiredActionMoveRotateFurni(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredActionLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
-    public override WiredType WiredType => WiredType.Action;
-
     public override Task<bool> ExecuteAsync(IWiredContext ctx, CancellationToken ct)
     {
         return Task.FromResult(true);
