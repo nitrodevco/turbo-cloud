@@ -1,8 +1,8 @@
-using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 
 namespace Turbo.Primitives.Rooms.Wired;
 
 public interface IWiredDefinition
 {
-    public IRoomObjectContext Context { get; }
+    public IRoomFloorItemContext Context { get; }
 }

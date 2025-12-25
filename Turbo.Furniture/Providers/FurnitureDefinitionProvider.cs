@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Database.Context;
 using Turbo.Furniture.Configuration;
-using Turbo.Primitives.Furniture;
+using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
 
 namespace Turbo.Furniture;

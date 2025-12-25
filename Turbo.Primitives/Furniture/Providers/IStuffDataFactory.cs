@@ -1,4 +1,6 @@
-namespace Turbo.Primitives.Furniture.StuffData;
+using Turbo.Primitives.Furniture.StuffData;
+
+namespace Turbo.Primitives.Furniture.Providers;
 
 public interface IStuffDataFactory
 {

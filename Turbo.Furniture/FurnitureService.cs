@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Furniture;
+using Turbo.Primitives.Furniture.Providers;
 
 namespace Turbo.Furniture;
 

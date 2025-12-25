@@ -2,7 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.Snapshots;
 
-namespace Turbo.Primitives.Furniture;
+namespace Turbo.Primitives.Furniture.Providers;
 
 public interface IFurnitureDefinitionProvider
 {

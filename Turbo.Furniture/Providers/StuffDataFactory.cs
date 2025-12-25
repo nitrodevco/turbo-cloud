@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Immutable;
 using System.Text.Json;
+using Turbo.Furniture.StuffData;
+using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
 
-namespace Turbo.Furniture.StuffData;
+namespace Turbo.Furniture.Providers;
 
 public sealed class StuffDataFactory : IStuffDataFactory
 {
@@ -30,33 +32,37 @@ public sealed class StuffDataFactory : IStuffDataFactory
         return data;
     }
 
-    public IStuffData CreateStuffDataFromJson(int typeAndFlags, string jsonString)
+    public IStuffData CreateStuffDataFromJson(int typeAndFlags, string? jsonData)
     {
-        if (string.IsNullOrEmpty(jsonString))
-            return CreateStuffData(typeAndFlags);
-
-        var type = (StuffDataType)(typeAndFlags & StuffDataBase.TYPE_MASK);
-        var flags = (StuffDataFlags)(typeAndFlags & StuffDataBase.FLAGS_MASK);
-
-        IStuffData? data = type switch
+        if (!string.IsNullOrEmpty(jsonData))
         {
-            StuffDataType.MapKey => JsonSerializer.Deserialize<MapStuffData>(jsonString),
-            StuffDataType.StringKey => JsonSerializer.Deserialize<StringStuffData>(jsonString),
-            StuffDataType.VoteKey => JsonSerializer.Deserialize<VoteStuffData>(jsonString),
-            StuffDataType.EmptyKey => JsonSerializer.Deserialize<EmptyStuffData>(jsonString),
-            StuffDataType.NumberKey => JsonSerializer.Deserialize<NumberStuffData>(jsonString),
-            StuffDataType.HighscoreKey => JsonSerializer.Deserialize<HighscoreStuffData>(
-                jsonString
-            ),
-            StuffDataType.CrackableKey => throw new NotImplementedException(),
-            _ => JsonSerializer.Deserialize<LegacyStuffData>(jsonString),
-        };
+            var reader = new ExtraDataReader(jsonData);
 
-        data ??= JsonSerializer.Deserialize<LegacyStuffData>(jsonString)!;
+            if (reader.TryGet("stuff", out var stuffElement))
+            {
+                var type = (StuffDataType)(typeAndFlags & StuffDataBase.TYPE_MASK);
+                var flags = (StuffDataFlags)(typeAndFlags & StuffDataBase.FLAGS_MASK);
+                IStuffData data = null!;
 
-        data.SetType(type);
+                data = type switch
+                {
+                    StuffDataType.MapKey => stuffElement.Deserialize<MapStuffData>()!,
+                    StuffDataType.StringKey => stuffElement.Deserialize<StringStuffData>()!,
+                    StuffDataType.VoteKey => stuffElement.Deserialize<VoteStuffData>()!,
+                    StuffDataType.EmptyKey => stuffElement.Deserialize<EmptyStuffData>()!,
+                    StuffDataType.NumberKey => stuffElement.Deserialize<NumberStuffData>()!,
+                    StuffDataType.HighscoreKey => stuffElement.Deserialize<HighscoreStuffData>()!,
+                    StuffDataType.CrackableKey => throw new NotImplementedException(),
+                    _ => stuffElement.Deserialize<LegacyStuffData>()!,
+                };
 
-        return data;
+                data.SetType(type);
+
+                return data;
+            }
+        }
+
+        return CreateStuffData(typeAndFlags);
     }
 
     public StuffDataSnapshot FromStuffData(IStuffData data)

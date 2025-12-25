@@ -1,4 +1,4 @@
-using Turbo.Primitives.Furniture.StuffData;
+using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;

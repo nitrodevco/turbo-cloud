@@ -3,13 +3,12 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Turbo.Logging;
 using Turbo.Primitives;
-using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Wired;
 using Turbo.Runtime;
 
-namespace Turbo.Rooms.Providers;
+namespace Turbo.Rooms.Wired.Providers;
 
 public sealed class WiredDefinitionProvider(IServiceProvider host) : IWiredDefinitionProvider
 {
@@ -19,7 +18,7 @@ public sealed class WiredDefinitionProvider(IServiceProvider host) : IWiredDefin
     public IDisposable RegisterDefinition(
         string wiredType,
         IServiceProvider sp,
-        Func<IServiceProvider, IRoomObjectContext, IWiredDefinition> factory
+        Func<IServiceProvider, IRoomFloorItemContext, IWiredDefinition> factory
     )
     {
         var reg = new WiredDefinitionReg(sp, factory);
@@ -32,7 +31,7 @@ public sealed class WiredDefinitionProvider(IServiceProvider host) : IWiredDefin
         });
     }
 
-    public IWiredDefinition CreateWiredInstance(string wiredType, IRoomObjectContext ctx)
+    public IWiredDefinition CreateWiredInstance(string wiredType, IRoomFloorItemContext ctx)
     {
         if (!_defs.TryGetValue(wiredType, out var reg))
             throw new TurboException(TurboErrorCodeEnum.InvalidWired);

@@ -1,11 +1,16 @@
-using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired;
 
 namespace Turbo.Rooms.Wired;
 
-public abstract class WiredDefinition(IRoomObjectContext ctx) : IWiredDefinition
+public abstract class WiredDefinition : IWiredDefinition
 {
-    protected readonly IRoomObjectContext _ctx = ctx;
+    protected readonly IRoomFloorItemContext _ctx;
 
-    public IRoomObjectContext Context { get; } = ctx;
+    public IRoomFloorItemContext Context => _ctx;
+
+    public WiredDefinition(IRoomFloorItemContext ctx)
+    {
+        _ctx = ctx;
+    }
 }

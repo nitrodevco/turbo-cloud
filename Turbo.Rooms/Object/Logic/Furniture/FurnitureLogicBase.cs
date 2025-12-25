@@ -1,6 +1,8 @@
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events;
@@ -27,11 +29,21 @@ public abstract class FurnitureLogicBase<TItem, TContext>
     {
         _stuffDataFactory = stuffDataFactory;
 
-        StuffData = CreateStuffData(_ctx.Item.PendingStuffDataRaw);
+        if (_ctx.Item.ExtraData.TryGetSection("stuff", out var element))
+        {
+            StuffData = CreateStuffData(element.GetRawText());
+        }
+        else
+        {
+            StuffData = CreateStuffData();
+        }
 
         StuffData.SetAction(async () =>
         {
-            _ctx.Item.MarkDirty();
+            _ctx.Item.ExtraData.UpdateSection(
+                "stuff",
+                JsonSerializer.SerializeToNode(StuffData, StuffData.GetType())
+            );
 
             await _ctx.RefreshStuffDataAsync();
 

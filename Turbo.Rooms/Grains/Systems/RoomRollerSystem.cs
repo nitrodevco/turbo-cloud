@@ -272,7 +272,7 @@ internal sealed class RoomRollerSystem(
 
     private void ComputeRollers()
     {
-        if (!_isDirtyRollers)
+        if (!_isDirtyRollers || !_state.IsFurniLoaded)
             return;
 
         _rollerIdSets.Clear();

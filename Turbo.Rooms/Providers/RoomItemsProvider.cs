@@ -9,10 +9,11 @@ using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
+using Turbo.Furniture;
 using Turbo.Logging;
 using Turbo.Primitives;
-using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -67,6 +68,8 @@ internal sealed class RoomItemsProvider(
             {
                 var item = CreateFromEntity(entity);
 
+                item.SetExtraData(entity.ExtraData);
+
                 item.SetOwnerName(
                     ownerNames.TryGetValue(entity.PlayerEntityId, out var name)
                         ? name ?? string.Empty
@@ -112,7 +115,6 @@ internal sealed class RoomItemsProvider(
                 OwnerId = entity.PlayerEntityId,
                 OwnerName = string.Empty,
                 Definition = definition,
-                PendingStuffDataRaw = entity.StuffData ?? string.Empty,
             },
 
             ProductType.Wall => new RoomWallItem
@@ -121,7 +123,6 @@ internal sealed class RoomItemsProvider(
                 OwnerId = entity.PlayerEntityId,
                 OwnerName = string.Empty,
                 Definition = definition,
-                PendingStuffDataRaw = entity.StuffData ?? string.Empty,
             },
 
             _ => throw new TurboException(TurboErrorCodeEnum.InvalidFurnitureProductType),
@@ -132,6 +133,8 @@ internal sealed class RoomItemsProvider(
     {
         var definition = snapshot.Definition;
 
+        // TODO FIX MISSING STUFF
+
         if (definition.ProductType == ProductType.Floor)
         {
             return new RoomFloorItem
@@ -140,7 +143,6 @@ internal sealed class RoomItemsProvider(
                 OwnerId = snapshot.OwnerId,
                 OwnerName = string.Empty,
                 Definition = definition,
-                PendingStuffDataRaw = snapshot.StuffDataJson,
             };
         }
 
@@ -152,7 +154,6 @@ internal sealed class RoomItemsProvider(
                 OwnerId = snapshot.OwnerId,
                 OwnerName = string.Empty,
                 Definition = definition,
-                PendingStuffDataRaw = snapshot.StuffDataJson,
             };
         }
 

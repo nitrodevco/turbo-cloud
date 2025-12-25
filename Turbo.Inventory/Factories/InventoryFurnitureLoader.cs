@@ -9,7 +9,7 @@ using Turbo.Database.Entities.Furniture;
 using Turbo.Inventory.Furniture;
 using Turbo.Logging;
 using Turbo.Primitives;
-using Turbo.Primitives.Furniture;
+using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Furniture;
@@ -82,7 +82,7 @@ internal sealed class InventoryFurnitureLoader(
             Definition = definition,
             StuffData = _stuffDataFactory.CreateStuffDataFromJson(
                 (int)StuffDataType.LegacyKey,
-                entity.StuffData ?? string.Empty
+                entity.ExtraData ?? string.Empty
             ),
         };
     }
@@ -100,7 +100,7 @@ internal sealed class InventoryFurnitureLoader(
             Definition = definition,
             StuffData = _stuffDataFactory.CreateStuffDataFromJson(
                 snapshot.StuffData.StuffBitmask,
-                snapshot.StuffDataJson
+                snapshot.ExtraDataJson
             ),
         };
     }

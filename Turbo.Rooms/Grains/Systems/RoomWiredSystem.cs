@@ -47,6 +47,9 @@ internal sealed class RoomWiredSystem(
 
         ComputeWiredStacks();
 
+        if (_stacksById.Count == 0)
+            return;
+
         var compiled = _wiredCompiled;
     }
 
@@ -144,7 +147,7 @@ internal sealed class RoomWiredSystem(
     }
 
     private static async Task ExecuteEffectsAsync(
-        List<IWiredEffect> effects,
+        List<IWiredAction> effects,
         IWiredContext ctx,
         CancellationToken ct
     )
@@ -237,7 +240,7 @@ internal sealed class RoomWiredSystem(
                         case IWiredVariable variable:
                             program.Variables.Add(variable);
                             break;
-                        case IWiredEffect effect:
+                        case IWiredAction effect:
                             program.Effects.Add(effect);
                             break;
                     }

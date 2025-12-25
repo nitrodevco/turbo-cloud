@@ -6,8 +6,7 @@ using Orleans;
 using Turbo.Database.Context;
 using Turbo.Inventory.Configuration;
 using Turbo.Inventory.Grains.Modules;
-using Turbo.Primitives.Furniture;
-using Turbo.Primitives.Furniture.StuffData;
+using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Grains;
 

@@ -40,7 +40,7 @@ public abstract record RoomItemSnapshot
     public required StuffDataSnapshot StuffData { get; init; }
 
     [Id(10)]
-    public required string StuffDataJson { get; init; }
+    public required string ExtraDataJson { get; init; }
 
     [Id(11)]
     public required FurnitureUsageType UsagePolicy { get; init; }

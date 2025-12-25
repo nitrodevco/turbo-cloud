@@ -12,5 +12,5 @@ internal sealed class WiredProgramStack
     public List<IWiredCondition> Conditions { get; init; } = [];
     public List<IWiredAddon> Addons { get; init; } = [];
     public List<IWiredVariable> Variables { get; init; } = [];
-    public List<IWiredEffect> Effects { get; init; } = [];
+    public List<IWiredAction> Effects { get; init; } = [];
 }

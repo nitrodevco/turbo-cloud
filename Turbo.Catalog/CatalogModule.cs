@@ -10,7 +10,7 @@ using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
-using Turbo.Primitives.Furniture;
+using Turbo.Primitives.Furniture.Providers;
 
 namespace Turbo.Catalog;
 

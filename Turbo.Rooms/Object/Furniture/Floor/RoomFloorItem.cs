@@ -41,7 +41,6 @@ internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
 
     public void SetLogic(IFurnitureFloorLogic logic)
     {
-        PendingStuffDataRaw = string.Empty;
         Logic = logic;
     }
 
@@ -90,7 +89,7 @@ internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
             Z = Z,
             Rotation = Rotation,
             StuffData = Logic.StuffData.GetSnapshot(),
-            StuffDataJson = JsonSerializer.Serialize(Logic.StuffData, Logic.StuffData.GetType()),
+            ExtraDataJson = ExtraData.GetJsonString(),
             UsagePolicy = Logic.GetUsagePolicy(),
             StackHeight = GetStackHeight(),
         };

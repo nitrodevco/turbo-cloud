@@ -102,7 +102,7 @@ public sealed class RoomPersistenceGrain(
                     Y = item.Y,
                     Z = item.Z,
                     Rotation = item.Rotation,
-                    StuffData = item.StuffDataJson,
+                    ExtraData = item.ExtraDataJson,
                 };
 
                 dbCtx.Attach(dbEntity);
@@ -115,7 +115,7 @@ public sealed class RoomPersistenceGrain(
                 e.Property(x => x.Y).IsModified = true;
                 e.Property(x => x.Z).IsModified = true;
                 e.Property(x => x.Rotation).IsModified = true;
-                e.Property(x => x.StuffData).IsModified = true;
+                e.Property(x => x.ExtraData).IsModified = true;
 
                 if (item is RoomWallItemSnapshot wallItem)
                 {

@@ -1,6 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Furniture.StuffData;
+using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Events.Avatar;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;

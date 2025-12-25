@@ -7,6 +7,7 @@ using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Object.Logic;
 using Turbo.Rooms.Providers;
 using Turbo.Rooms.Wired;
+using Turbo.Rooms.Wired.Providers;
 using Turbo.Runtime.AssemblyProcessing;
 
 namespace Turbo.Rooms;

@@ -39,8 +39,8 @@ public class FurnitureEntity : TurboEntity
     [DefaultValue(0)]
     public int WallOffset { get; set; } = 0;
 
-    [Column("stuff_data")]
-    public string? StuffData { get; set; }
+    [Column("extra_data")]
+    public string? ExtraData { get; set; }
 
     [ForeignKey(nameof(PlayerEntityId))]
     public PlayerEntity? PlayerEntity { get; set; }
