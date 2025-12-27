@@ -46,7 +46,7 @@ public sealed class FurnitureDefinitionProvider(
                 {
                     Id = x.Id,
                     SpriteId = x.SpriteId,
-                    PublicName = x.PublicName,
+                    Name = x.Name,
                     ProductType = x.ProductType,
                     FurniCategory = x.FurniCategory,
                     LogicName = x.Logic,

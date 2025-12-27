@@ -14,7 +14,7 @@ public sealed record FurnitureDefinitionSnapshot
     public required int SpriteId { get; init; }
 
     [Id(2)]
-    public required string PublicName { get; init; }
+    public required string Name { get; init; }
 
     [Id(3)]
     public required ProductType ProductType { get; init; }

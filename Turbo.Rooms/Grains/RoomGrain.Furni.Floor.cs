@@ -164,7 +164,7 @@ public sealed partial class RoomGrain
         Task.FromResult(
             _liveState.FloorItemsById.TryGetValue(itemId, out var item)
                 ? item.Logic is FurnitureWiredLogic wiredLogic
-                    ? wiredLogic.WiredData.GetSnapshot()
+                    ? wiredLogic.GetSnapshot()
                     : null
                 : null
         );

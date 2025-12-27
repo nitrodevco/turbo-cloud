@@ -15,8 +15,8 @@ public class FurnitureDefinitionEntity : TurboEntity
     [Column("sprite_id")]
     public required int SpriteId { get; set; }
 
-    [Column("public_name")]
-    public required string PublicName { get; set; }
+    [Column("name")]
+    public required string Name { get; set; }
 
     [Column("type")]
     [DefaultValue(ProductType.Floor)]
