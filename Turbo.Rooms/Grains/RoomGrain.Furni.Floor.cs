@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Snapshots.WiredData;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -133,6 +134,28 @@ public sealed partial class RoomGrain
         try
         {
             if (!await _actionModule.ClickFloorItemByIdAsync(ctx, itemId, ct, param))
+                return false;
+
+            return true;
+        }
+        catch
+        {
+            // TODO handle exceptions
+
+            return false;
+        }
+    }
+
+    public async Task<bool> ApplyWiredUpdateAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        UpdateWired update,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            if (!await _actionModule.ApplyWiredUpdateAsync(ctx, itemId, update, ct))
                 return false;
 
             return true;

@@ -33,7 +33,7 @@ public abstract class FurnitureWiredConditionLogic(
             FurniSourceTypes = WiredData.FurniSources,
             UserSourceTypes = WiredData.PlayerSources,
             Code = WiredCode,
-            AdvancedMode = false,
+            AdvancedMode = true,
             AmountFurniSelections = [],
             AllowWallFurni = false,
             AllowedFurniSources = GetFurniSources(),

@@ -287,7 +287,7 @@ internal sealed class RoomWiredSystem(
             {
                 if (item.Logic is IFurnitureWiredLogic wiredLogic)
                 {
-                    await wiredLogic.ConfigureWiredAsync(ct);
+                    await wiredLogic.LoadWiredAsync(ct);
 
                     switch (wiredLogic)
                     {

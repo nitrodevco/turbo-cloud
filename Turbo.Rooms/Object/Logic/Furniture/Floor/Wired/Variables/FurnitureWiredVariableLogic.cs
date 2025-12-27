@@ -31,7 +31,7 @@ public abstract class FurnitureWiredVariableLogic(
             FurniSourceTypes = WiredData.FurniSources,
             UserSourceTypes = WiredData.PlayerSources,
             Code = WiredCode,
-            AdvancedMode = false,
+            AdvancedMode = true,
             AmountFurniSelections = [],
             AllowWallFurni = false,
             AllowedFurniSources = GetFurniSources(),

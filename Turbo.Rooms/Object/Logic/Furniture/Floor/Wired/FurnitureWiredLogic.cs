@@ -1,4 +1,7 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,6 +11,7 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots.WiredData;
 using Turbo.Primitives.Furniture.WiredData;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -62,6 +66,8 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
     {
         await base.OnAttachAsync(ct);
 
+        //await RefreshWiredParamsAsync(ct);
+
         _ = _ctx.PublishRoomEventAsync(
             new RoomWiredStackChangedEvent
             {
@@ -111,60 +117,111 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
             .ConfigureAwait(false);
     }
 
-    public async Task ConfigureWiredAsync(CancellationToken ct)
+    public virtual async Task<bool> ApplyWiredUpdateAsync(
+        ActionContext ctx,
+        UpdateWired update,
+        CancellationToken ct
+    )
     {
-        if (_params.Count == 0)
-        {
-            FillDefaultSources();
+        var stuffIds = new List<int>();
+        var furniSources = new Dictionary<int, WiredSourceType>();
 
-            return;
+        if (update.StuffIds.Count > 0)
+        {
+            var count = 0;
+
+            foreach (var stuffId in update.StuffIds)
+            {
+                var snapshot = await _ctx.GetFloorItemSnapshotByIdAsync(stuffId, ct);
+
+                if (snapshot is null)
+                    continue;
+
+                stuffIds.Add(stuffId);
+
+                count++;
+
+                if (count >= _furniLimit)
+                    break;
+            }
         }
 
-        if (_params.ContainsKey(WiredParamType.WIRED_TIMER))
+        if (update.FurniSources.Count > 0)
         {
-            //
+            var index = 0;
+
+            foreach (var type in update.FurniSources)
+            {
+                furniSources[index] = (WiredSourceType)type;
+
+                index++;
+            }
         }
 
-        if (_params.ContainsKey(WiredParamType.WIRED_SELECTION_TYPE))
+        WiredData.StuffIds = stuffIds;
+        WiredData.FurniSources = furniSources;
+
+        WiredData.MarkDirty();
+
+        _ = _ctx.PublishRoomEventAsync(
+            new RoomWiredStackChangedEvent
+            {
+                RoomId = _ctx.RoomId,
+                CausedBy = ctx,
+                StackIds = [_ctx.GetTileIdx()],
+            },
+            ct
+        );
+
+        return true;
+    }
+
+    public async Task RefreshWiredParamsAsync(CancellationToken ct)
+    {
+        _params.Clear();
+
+        if (!string.IsNullOrEmpty(WiredData.StringParam))
+            _params[WiredParamType.WIRED_TEXT.ToString()] = WiredData.StringParam;
+
+        if (WiredData.StuffIds is not null && WiredData.StuffIds.Count > 0)
+            _params[WiredParamType.WIRED_SELECTED_ITEMS.ToString()] = string.Join(
+                ";",
+                WiredData.StuffIds
+            );
+
+        if (WiredData.FurniSources is not null && WiredData.FurniSources.Count > 0)
         {
-            //
+            var sources = new List<string>();
+
+            foreach (var (key, value) in WiredData.FurniSources)
+                sources.Add($"{key}_{value}");
+
+            _params[WiredParamType.WIRED_FURNI_SOURCES.ToString()] = string.Join(";", sources);
         }
 
-        if (_params.ContainsKey(WiredParamType.WIRED_MATCH_TYPE))
+        if (WiredData.PlayerSources is not null && WiredData.PlayerSources.Count > 0)
         {
-            //
+            var sources = new List<string>();
+
+            foreach (var (key, value) in WiredData.PlayerSources)
+                sources.Add($"{key}_{value}");
+
+            _params[WiredParamType.WIRED_USER_SOURCES.ToString()] = string.Join(";", sources);
         }
 
-        if (_params.ContainsKey(WiredParamType.WIRED_TEXT))
-        {
-            //
-        }
+        _ = _ctx.PublishRoomEventAsync(
+            new RoomWiredStackChangedEvent
+            {
+                RoomId = _ctx.RoomId,
+                CausedBy = null,
+                StackIds = [_ctx.GetTileIdx()],
+            },
+            ct
+        );
+    }
 
-        if (_params.ContainsKey(WiredParamType.WIRED_PARAMETERS))
-        {
-            //
-        }
-
-        if (_params.ContainsKey(WiredParamType.WIRED_FURNI_SOURCES))
-        {
-            //
-        }
-
-        if (_params.ContainsKey(WiredParamType.WIRED_USER_SOURCES))
-        {
-            //
-        }
-
-        if (_params.ContainsKey(WiredParamType.WIRED_SELECTED_ITEMS))
-        {
-            //
-        }
-
-        if (_params.ContainsKey(WiredParamType.WIRED_SNAPSHOTS))
-        {
-            //
-        }
-
+    public async Task LoadWiredAsync(CancellationToken ct)
+    {
         FillDefaultSources();
     }
 
@@ -201,10 +258,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
 
     public WiredDataSnapshot GetSnapshot()
     {
-        if (_snapshot is null)
-        {
-            _snapshot = BuildSnapshot();
-        }
+        _snapshot = BuildSnapshot();
 
         return _snapshot;
     }

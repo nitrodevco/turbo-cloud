@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Snapshots.WiredData;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -46,6 +47,12 @@ public partial interface IRoomGrain
         RoomObjectId itemId,
         CancellationToken ct,
         int param = -1
+    );
+    public Task<bool> ApplyWiredUpdateAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        UpdateWired update,
+        CancellationToken ct
     );
     public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
         RoomObjectId itemId,

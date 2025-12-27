@@ -4,11 +4,13 @@ using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -123,4 +125,23 @@ internal sealed partial class RoomActionModule
         CancellationToken ct,
         int param = -1
     ) => _furniModule.ClickFloorItemByIdAsync(ctx, itemId, ct, param);
+
+    public async Task<bool> ApplyWiredUpdateAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        UpdateWired update,
+        CancellationToken ct
+    )
+    {
+        if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
+            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
+
+        if (item.Logic is not FurnitureWiredLogic wiredLogic)
+            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
+
+        if (!await wiredLogic.ApplyWiredUpdateAsync(ctx, update, ct))
+            return false;
+
+        return true;
+    }
 }

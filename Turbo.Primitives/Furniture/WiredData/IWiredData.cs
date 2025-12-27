@@ -16,4 +16,5 @@ public interface IWiredData
     public Dictionary<int, WiredSourceType> FurniSources { get; set; }
     public Dictionary<int, WiredSourceType> PlayerSources { get; set; }
     public void SetAction(Func<Task>? onSnapshotChanged);
+    public void MarkDirty();
 }

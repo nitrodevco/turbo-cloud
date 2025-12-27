@@ -6,6 +6,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Grains;
 using Turbo.Rooms.Grains.Modules;
 
@@ -24,6 +25,11 @@ internal abstract class RoomItemContext<TItem>(
 
     public TItem Item { get; } = roomItem;
     public FurnitureDefinitionSnapshot Definition => Item.Definition;
+
+    public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
+        RoomObjectId objectId,
+        CancellationToken ct
+    ) => _roomGrain.GetFloorItemSnapshotByIdAsync(objectId, ct);
 
     public Task PublishRoomEventAsync(RoomEvent evt, CancellationToken ct) =>
         _roomGrain.PublishRoomEventAsync(evt, ct);
