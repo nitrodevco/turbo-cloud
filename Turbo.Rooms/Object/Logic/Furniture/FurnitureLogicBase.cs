@@ -2,10 +2,11 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
@@ -20,9 +21,10 @@ public abstract class FurnitureLogicBase<TItem, TContext>
 {
     protected readonly IStuffDataFactory _stuffDataFactory;
 
-    public virtual StuffDataType StuffDataKey => StuffDataType.LegacyKey;
-
     public IStuffData StuffData { get; private set; }
+
+    protected virtual StuffPersistanceType _stuffPersistanceType => StuffPersistanceType.External;
+    protected virtual StuffDataType _stuffDataType => StuffDataType.LegacyKey;
 
     public FurnitureLogicBase(IStuffDataFactory stuffDataFactory, TContext ctx)
         : base(ctx)
@@ -30,21 +32,24 @@ public abstract class FurnitureLogicBase<TItem, TContext>
         _stuffDataFactory = stuffDataFactory;
 
         StuffData = _stuffDataFactory.CreateStuffDataFromExtraData(
-            StuffDataKey,
+            _stuffDataType,
             ctx.Item.ExtraData
         );
 
         StuffData.SetAction(async () =>
         {
-            _ctx.Item.ExtraData.UpdateSection(
-                "stuff",
-                JsonSerializer.SerializeToNode(StuffData, StuffData.GetType())
-            );
+            _ = ctx.RefreshStuffDataAsync();
 
-            await _ctx.RefreshStuffDataAsync();
+            if (_stuffPersistanceType == StuffPersistanceType.External)
+            {
+                ctx.Item.ExtraData.UpdateSection(
+                    "stuff",
+                    JsonSerializer.SerializeToNode(StuffData, StuffData.GetType())
+                );
 
-            if (_ctx is IRoomFloorItemContext floorCtx)
-                floorCtx.RefreshTile();
+                if (_ctx is IRoomFloorItemContext floorCtx)
+                    floorCtx.RefreshTile();
+            }
         });
     }
 
@@ -56,6 +61,9 @@ public abstract class FurnitureLogicBase<TItem, TContext>
     public virtual Task<int> GetStateAsync() => Task.FromResult(StuffData.GetState());
 
     public virtual Task SetStateAsync(int state) => StuffData.SetStateAsync(state.ToString());
+
+    public virtual Task SetStateSilentlyAsync(int state) =>
+        StuffData.SetStateSilentlyAsync(state.ToString());
 
     public override Task OnAttachAsync(CancellationToken ct) =>
         _ctx.PublishRoomEventAsync(
@@ -87,7 +95,15 @@ public abstract class FurnitureLogicBase<TItem, TContext>
     }
 
     public virtual Task OnClickAsync(ActionContext ctx, int param, CancellationToken ct) =>
-        Task.CompletedTask;
+        _ctx.PublishRoomEventAsync(
+            new RoomItemClickedEvent
+            {
+                RoomId = _ctx.RoomId,
+                CausedBy = ctx,
+                ItemId = _ctx.ObjectId,
+            },
+            ct
+        );
 
     public virtual Task OnMoveAsync(ActionContext ctx, int prevIdx, CancellationToken ct) =>
         _ctx.PublishRoomEventAsync(

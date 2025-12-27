@@ -21,14 +21,19 @@ internal sealed class NumberStuffData : StuffDataBase, INumberStuffData
 
     public override string GetLegacyString() => GetValue(STATE_INDEX).ToString();
 
-    public override Task SetStateAsync(string state)
+    public override async Task SetStateAsync(string state)
+    {
+        await SetStateSilentlyAsync(state);
+
+        MarkDirty();
+    }
+
+    public override Task SetStateSilentlyAsync(string state)
     {
         if (string.IsNullOrEmpty(state))
             state = DEFAULT_STATE;
 
         Data[STATE_INDEX] = int.Parse(state);
-
-        MarkDirty();
 
         return Task.CompletedTask;
     }

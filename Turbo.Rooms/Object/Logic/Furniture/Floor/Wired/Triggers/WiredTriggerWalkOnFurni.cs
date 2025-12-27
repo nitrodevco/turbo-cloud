@@ -24,13 +24,6 @@ public class WiredTriggerWalkOnFurni(
 
     private WiredSourceType _itemSource;
 
-    protected override void FillInternalData()
-    {
-        base.FillInternalData();
-
-        _itemSource = WiredData.FurniSources.GetValueOrDefault(0, WiredSourceType.SELECTED_ITEMS);
-    }
-
     public override List<WiredSourceType[]> GetFurniSources() =>
         [
             [WiredSourceType.SELECTED_ITEMS, WiredSourceType.SELECTOR_ITEMS],
@@ -41,5 +34,12 @@ public class WiredTriggerWalkOnFurni(
         var result = ctx.Event is AvatarWalkOnFurniEvent;
 
         return Task.FromResult(result);
+    }
+
+    protected override void FillInternalData()
+    {
+        base.FillInternalData();
+
+        _itemSource = WiredData.FurniSources.GetValueOrDefault(0, WiredSourceType.SELECTED_ITEMS);
     }
 }

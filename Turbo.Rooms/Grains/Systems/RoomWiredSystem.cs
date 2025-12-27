@@ -97,60 +97,74 @@ internal sealed class RoomWiredSystem(
         )
             return;
 
+        var wiredContexts = new List<IWiredContext>();
+
         foreach (var stackId in stackIds)
         {
-            var program = _wiredCompiled.StacksById[stackId];
+            var stack = _wiredCompiled.StacksById[stackId];
 
-            var ctx = new WiredContext { Room = _roomGrain, Event = evt };
+            if (stack is null)
+                continue;
 
-            await ProcessWiredProgramAsync(program, ctx, ct);
+            foreach (var trigger in stack.Triggers)
+            {
+                if (await trigger.MatchesEventAsync(evt))
+                {
+                    var ctx = new WiredContext
+                    {
+                        Room = _roomGrain,
+                        Event = evt,
+                        Stack = stack,
+                        Trigger = trigger,
+                    };
+
+                    wiredContexts.Add(ctx);
+
+                    if (ctx.Policy.ShortCircuitOnFirstEffectSuccess)
+                        break;
+                }
+            }
         }
+
+        if (wiredContexts.Count == 0)
+            return;
+
+        foreach (var ctx in wiredContexts)
+            await ProcessWiredContextAsync(ctx, ct);
     }
 
-    private async Task ProcessWiredProgramAsync(
-        WiredProgramStack stack,
-        IWiredContext ctx,
-        CancellationToken ct
-    )
+    private async Task ProcessWiredContextAsync(IWiredContext ctx, CancellationToken ct)
     {
         if (++ctx.Depth > _roomConfig.WiredMaxDepth)
             return;
 
-        foreach (var selector in stack.Selectors)
+        foreach (var selector in ctx.Stack.Selectors)
             selector.Select(ctx);
 
-        var fired = false;
-
-        foreach (var trigger in stack.Triggers)
-        {
-            if (await trigger.MatchesAsync(ctx))
-            {
-                fired = true;
-                break;
-            }
-        }
-
-        if (!fired)
-            return;
-
-        foreach (var variable in stack.Variables)
+        foreach (var variable in ctx.Stack.Variables)
             variable.Apply(ctx);
 
-        foreach (var addon in stack.Addons)
+        foreach (var addon in ctx.Stack.Addons)
             await addon.MutatePolicyAsync(ctx, ct);
 
-        if (!EvaluateConditions(stack.Conditions, ctx))
+        if (!EvaluateConditions(ctx.Stack.Conditions, ctx))
             return;
 
-        foreach (var addon in stack.Addons)
+        if (ctx.Trigger is not null)
+        {
+            if (!await ctx.Trigger.CanTriggerAsync(ctx))
+                return;
+        }
+
+        foreach (var addon in ctx.Stack.Addons)
             await addon.BeforeEffectsAsync(ctx, ct);
 
         if (ctx.Policy.Delay is { } delay)
             await Task.Delay(delay, ct);
 
-        await ExecuteEffectsAsync(stack.Effects, ctx, ct);
+        await ExecuteEffectsAsync(ctx.Stack.Effects, ctx, ct);
 
-        foreach (var addon in stack.Addons)
+        foreach (var addon in ctx.Stack.Addons)
             await addon.AfterEffectsAsync(ctx, ct);
     }
 

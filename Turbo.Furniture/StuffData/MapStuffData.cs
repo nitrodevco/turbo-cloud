@@ -21,14 +21,19 @@ internal sealed class MapStuffData : StuffDataBase, IMapStuffData
 
     public override string GetLegacyString() => GetValue(STATE_KEY);
 
-    public override Task SetStateAsync(string state)
+    public override async Task SetStateAsync(string state)
+    {
+        await SetStateSilentlyAsync(state);
+
+        MarkDirty();
+    }
+
+    public override Task SetStateSilentlyAsync(string state)
     {
         if (string.IsNullOrEmpty(state))
             state = DEFAULT_STATE;
 
         Data[STATE_KEY] = state;
-
-        MarkDirty();
 
         return Task.CompletedTask;
     }

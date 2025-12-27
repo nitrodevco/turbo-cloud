@@ -5,6 +5,7 @@ using Orleans;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots.WiredData;
+using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired;
 
@@ -21,6 +22,19 @@ public abstract class FurnitureWiredTriggerLogic(
 
     public abstract List<Type> SupportedEventTypes { get; }
     public abstract Task<bool> MatchesAsync(IWiredContext ctx);
+
+    public virtual Task<bool> MatchesEventAsync(RoomEvent evt) =>
+        Task.FromResult(SupportedEventTypes.Contains(evt.GetType()));
+
+    public virtual async Task<bool> CanTriggerAsync(IWiredContext ctx)
+    {
+        if (!await MatchesAsync(ctx))
+            return false;
+
+        _ = FlashActivationStateAsync();
+
+        return true;
+    }
 
     protected override WiredDataSnapshot BuildSnapshot() =>
         new WiredDataTriggerSnapshot()

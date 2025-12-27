@@ -8,7 +8,6 @@ namespace Turbo.Primitives.Rooms.Object.Logic.Furniture;
 
 public interface IFurnitureLogic : IRoomObjectLogic
 {
-    public StuffDataType StuffDataKey { get; }
     public IStuffData StuffData { get; }
     public FurnitureUsageType GetUsagePolicy();
     public bool CanToggle();

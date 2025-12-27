@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.WiredData;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -9,12 +8,6 @@ namespace Turbo.Furniture.WiredData;
 
 internal abstract class WiredDataBase : IWiredData
 {
-    [JsonIgnore]
-    public int WiredCode { get; set; }
-
-    [JsonIgnore]
-    public int FurniLimit { get; set; }
-
     public List<int> StuffIds { get; set; } = [];
 
     public List<int> IntParams { get; set; } = [];

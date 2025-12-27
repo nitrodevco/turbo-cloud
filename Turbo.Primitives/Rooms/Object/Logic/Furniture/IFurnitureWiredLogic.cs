@@ -19,5 +19,6 @@ public interface IFurnitureWiredLogic : IFurnitureFloorLogic
         UpdateWired update,
         CancellationToken ct
     );
+    public Task FlashActivationStateAsync();
     public WiredDataSnapshot GetSnapshot();
 }

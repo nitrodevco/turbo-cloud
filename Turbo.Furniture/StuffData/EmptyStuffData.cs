@@ -12,7 +12,9 @@ internal sealed class EmptyStuffData : StuffDataBase, IEmptyStuffData
 
     public override string GetLegacyString() => string.Empty;
 
-    public override Task SetStateAsync(string state) => Task.CompletedTask;
+    public override Task SetStateAsync(string state) => SetStateSilentlyAsync(state);
+
+    public override Task SetStateSilentlyAsync(string state) => Task.CompletedTask;
 
     protected override StuffDataSnapshot BuildSnapshot() =>
         new EmptyStuffSnapshot()

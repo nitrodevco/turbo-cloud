@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,6 +22,9 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 
 public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWiredLogic
 {
+    private const int WIRED_NOT_ACTIVE_STATE = 0;
+    private const int WIRED_ACTIVE_STATE = 1;
+
     protected readonly IWiredDataFactory _wiredDataFactory;
     protected readonly IGrainFactory _grainFactory;
 
@@ -31,10 +33,11 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
 
     public IWiredData WiredData { get; private set; }
 
-    protected int _furniLimit = 20;
-    protected Dictionary<string, string> _params = [];
+    protected override StuffPersistanceType _stuffPersistanceType => StuffPersistanceType.Internal;
 
-    protected Dictionary<int, WiredSourceType> _furniSources = [];
+    protected int _furniLimit = 20;
+    protected int _flashDelayMs = 1500;
+    protected int _lastFlashMs = 0;
 
     private WiredDataSnapshot? _snapshot;
 
@@ -50,8 +53,6 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
         _grainFactory = grainFactory;
 
         WiredData = _wiredDataFactory.CreateWiredDataFromExtraData(WiredType, ctx.Item.ExtraData);
-
-        WiredData.WiredCode = WiredCode;
 
         WiredData.SetAction(async () =>
         {
@@ -125,6 +126,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
     {
         var stuffIds = new List<int>();
         var furniSources = new Dictionary<int, WiredSourceType>();
+        var playerSources = new Dictionary<int, WiredSourceType>();
 
         if (update.StuffIds.Count > 0)
         {
@@ -152,6 +154,32 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
 
             foreach (var type in update.FurniSources)
             {
+                var souceType = (WiredSourceType)type;
+
+                var validSources = GetFurniSources();
+
+                if (!validSources.Any(x => x.Contains(souceType)))
+                    continue;
+
+                furniSources[index] = (WiredSourceType)type;
+
+                index++;
+            }
+        }
+
+        if (update.PlayerSources.Count > 0)
+        {
+            var index = 0;
+
+            foreach (var type in update.PlayerSources)
+            {
+                var souceType = (WiredSourceType)type;
+
+                var validSources = GetPlayerSources();
+
+                if (!validSources.Any(x => x.Contains(souceType)))
+                    continue;
+
                 furniSources[index] = (WiredSourceType)type;
 
                 index++;
@@ -160,6 +188,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
 
         WiredData.StuffIds = stuffIds;
         WiredData.FurniSources = furniSources;
+        WiredData.PlayerSources = playerSources;
 
         WiredData.MarkDirty();
 
@@ -180,6 +209,16 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
     {
         FillDefaultSources();
         FillInternalData();
+    }
+
+    public async Task FlashActivationStateAsync()
+    {
+        var state =
+            await GetStateAsync() == WIRED_ACTIVE_STATE
+                ? WIRED_NOT_ACTIVE_STATE
+                : WIRED_ACTIVE_STATE;
+
+        _ = SetStateAsync(state);
     }
 
     public virtual List<WiredSourceType[]> GetFurniSources() => [];

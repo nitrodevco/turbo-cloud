@@ -125,17 +125,32 @@ internal sealed class RoomAvatarTickSystem(
                 throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
             }
 
+            var prevHighestItemId = _state.TileHighestFloorItems[prevTileId];
+            var nextHighestItemId = _state.TileHighestFloorItems[nextTileId];
+
+            if (
+                prevHighestItemId > 0
+                && _state.FloorItemsById.TryGetValue(prevHighestItemId, out var prevFloorItem)
+            )
+            {
+                await prevFloorItem.Logic.OnWalkOffAsync(
+                    (IRoomAvatarContext)avatar.Logic.Context,
+                    ct
+                );
+            }
+
             _roomMap.RemoveAvatarAtIdx(avatar, prevTileId, false);
             _roomMap.AddAvatarAtIdx(avatar, nextTileId, false);
 
-            var highestItemId = _state.TileHighestFloorItems[nextTileId];
-
             if (
-                highestItemId > 0
-                && _state.FloorItemsById.TryGetValue(highestItemId, out var floorItem)
+                nextHighestItemId > 0
+                && _state.FloorItemsById.TryGetValue(nextHighestItemId, out var nextFloorItem)
             )
             {
-                await floorItem.Logic.OnWalkAsync((IRoomAvatarContext)avatar.Logic.Context, ct);
+                await nextFloorItem.Logic.OnWalkOnAsync(
+                    (IRoomAvatarContext)avatar.Logic.Context,
+                    ct
+                );
             }
 
             avatar.RemoveStatus(AvatarStatusType.Lay, AvatarStatusType.Sit);

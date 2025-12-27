@@ -17,14 +17,8 @@ internal abstract class StuffDataBase : IStuffData
     [JsonIgnore]
     public abstract StuffDataType StuffType { get; }
 
-    [JsonPropertyName("U_N")]
     public int UniqueNumber { get; set; } = 0;
-
-    [JsonPropertyName("U_S")]
     public int UniqueSeries { get; set; } = 0;
-
-    [JsonIgnore]
-    public bool IsDirty => _dirty;
 
     protected Func<Task>? _onSnapshotChanged;
     protected bool _dirty = true;
@@ -41,6 +35,8 @@ internal abstract class StuffDataBase : IStuffData
     public virtual int GetState() => int.Parse(GetLegacyString());
 
     public abstract Task SetStateAsync(string state);
+
+    public abstract Task SetStateSilentlyAsync(string state);
 
     public virtual string GetLegacyString() => string.Empty;
 

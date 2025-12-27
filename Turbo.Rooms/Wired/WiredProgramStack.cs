@@ -3,7 +3,7 @@ using Turbo.Primitives.Rooms.Wired;
 
 namespace Turbo.Rooms.Wired;
 
-internal sealed class WiredProgramStack
+internal sealed class WiredProgramStack : IWiredStack
 {
     public required int StackId { get; init; }
 

@@ -1,6 +1,6 @@
 using Turbo.Primitives.Rooms.Object;
 
-namespace Turbo.Primitives.Rooms.Events;
+namespace Turbo.Primitives.Rooms.Events.RoomItem;
 
 public abstract record RoomItemEvent : RoomEvent
 {

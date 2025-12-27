@@ -1,4 +1,4 @@
-namespace Turbo.Primitives.Rooms.Events;
+namespace Turbo.Primitives.Rooms.Events.RoomItem;
 
 public sealed record RoomItemMovedEvent : RoomItemEvent
 {

@@ -20,7 +20,9 @@ public class WiredTriggerWalksOffItem(
 ) : FurnitureWiredTriggerLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredTriggerType.AVATAR_WALKS_OFF_FURNI;
-    public override List<Type> SupportedEventTypes { get; } = [typeof(AvatarWalkOnFurniEvent)];
+    public override List<Type> SupportedEventTypes { get; } = [typeof(AvatarWalkOffFurniEvent)];
+
+    private WiredSourceType _itemSource;
 
     public override List<WiredSourceType[]> GetFurniSources() =>
         [
@@ -29,8 +31,15 @@ public class WiredTriggerWalksOffItem(
 
     public override Task<bool> MatchesAsync(IWiredContext ctx)
     {
-        var result = ctx.Event is AvatarWalkOnFurniEvent;
+        var result = ctx.Event is AvatarWalkOffFurniEvent;
 
         return Task.FromResult(result);
+    }
+
+    protected override void FillInternalData()
+    {
+        base.FillInternalData();
+
+        _itemSource = WiredData.FurniSources.GetValueOrDefault(0, WiredSourceType.SELECTED_ITEMS);
     }
 }

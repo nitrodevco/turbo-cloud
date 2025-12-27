@@ -7,8 +7,6 @@ namespace Turbo.Primitives.Furniture.WiredData;
 
 public interface IWiredData
 {
-    public int WiredCode { get; set; }
-    public int FurniLimit { get; set; }
     public List<int> StuffIds { get; set; }
     public List<int> IntParams { get; set; }
     public List<long> VariableIds { get; set; }
