@@ -1,8 +1,8 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
-using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
@@ -17,6 +17,8 @@ public class WiredActionMoveRotateFurni(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredActionLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
+    public override int WiredCode => (int)WiredActionType.MOVE_AND_ROTATE_FURNI;
+
     public override Task<bool> ExecuteAsync(IWiredContext ctx, CancellationToken ct)
     {
         return Task.FromResult(true);

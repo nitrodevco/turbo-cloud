@@ -30,6 +30,16 @@ public class ClickFurniMessageHandler(IRoomService roomService) : IMessageHandle
                 )
                 .ConfigureAwait(false);
         }
-        else if (isWallItemClicked) { }
+        else if (isWallItemClicked)
+        {
+            await _roomService
+                .ClickWallItemInRoomAsync(
+                    ctx.AsActionContext(),
+                    message.ObjectId,
+                    ct,
+                    message.Param
+                )
+                .ConfigureAwait(false);
+        }
     }
 }

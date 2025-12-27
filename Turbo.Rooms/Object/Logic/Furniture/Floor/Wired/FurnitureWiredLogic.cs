@@ -15,7 +15,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 
 public abstract class FurnitureWiredLogic : FurnitureFloorLogic
 {
-    public virtual WiredType WiredType => WiredType.None;
+    public abstract WiredType WiredType { get; }
+    public abstract int WiredCode { get; }
 
     protected readonly IWiredDataFactory _wiredDataFactory;
     protected readonly IGrainFactory _grainFactory;
@@ -34,6 +35,8 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic
         _grainFactory = grainFactory;
 
         WiredData = _wiredDataFactory.CreateWiredDataFromExtraData(WiredType, ctx.Item.ExtraData);
+
+        WiredData.WiredCode = WiredCode;
 
         WiredData.SetAction(async () =>
         {
@@ -91,16 +94,9 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic
 
     public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
     {
-        OpenWiredInterface(ctx);
-    }
-
-    private void OpenWiredInterface(ActionContext ctx)
-    {
-        if (ctx.Origin != ActionOrigin.Player)
-            return;
-
         _ = _grainFactory
             .GetPlayerPresenceGrain(ctx.PlayerId)
-            .SendComposerAsync(new OpenEventMessageComposer { ItemId = _ctx.ObjectId });
+            .SendComposerAsync(new OpenEventMessageComposer { ItemId = _ctx.ObjectId })
+            .ConfigureAwait(false);
     }
 }

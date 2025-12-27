@@ -1,0 +1,25 @@
+namespace Turbo.Primitives.Rooms.Enums.Wired;
+
+public enum WiredSelectorType
+{
+    FURNI_BY_TYPE = 0,
+    SELECTED_FURNIS = 1,
+    USERS_BY_TYPE = 2,
+    USERS_IN_TEAM = 3,
+    FURNI_ON_FURNI = 4,
+    FURNI_FROM_SIGNAL = 5,
+    FURNI_IN_NEIGHBORHOOD = 6,
+    FURNI_IN_AREA = 7,
+    USERS_ON_FURNI = 8,
+    USERS_PERFORMING_ACTION = 9,
+    USERS_FROM_SIGNAL = 10,
+    USERS_BY_NAME = 11,
+    USERS_IN_NEIGHBORHOOD = 12,
+    USERS_IN_AREA = 13,
+    USERS_WITH_HANDITEM = 14,
+    USERS_IN_GROUP = 15,
+    FURNI_WITH_ALTITUDE = 16,
+    var_4938 = 17,
+    USERS_WITH_VARIABLE = 18,
+    REMOTE_SELECTOR = 19,
+}

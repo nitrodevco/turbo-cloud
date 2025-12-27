@@ -3,11 +3,13 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture.Snapshots.WiredData;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 
 namespace Turbo.Rooms.Grains;
 
@@ -154,4 +156,16 @@ public sealed partial class RoomGrain
     public Task<ImmutableArray<RoomFloorItemSnapshot>> GetAllFloorItemSnapshotsAsync(
         CancellationToken ct
     ) => _furniModule.GetAllFloorItemSnapshotsAsync(ct);
+
+    public Task<WiredDataSnapshot?> GetWiredDataSnapshotByFloorItemIdAsync(
+        RoomObjectId itemId,
+        CancellationToken ct
+    ) =>
+        Task.FromResult(
+            _liveState.FloorItemsById.TryGetValue(itemId, out var item)
+                ? item.Logic is FurnitureWiredLogic wiredLogic
+                    ? wiredLogic.WiredData.GetSnapshot()
+                    : null
+                : null
+        );
 }

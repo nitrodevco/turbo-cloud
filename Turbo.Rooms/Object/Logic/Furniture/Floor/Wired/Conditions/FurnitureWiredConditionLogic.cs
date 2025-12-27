@@ -16,4 +16,6 @@ public abstract class FurnitureWiredConditionLogic(
     public override WiredType WiredType => WiredType.Condition;
 
     public abstract bool Evaluate(IWiredContext ctx);
+
+    public virtual bool IsNegative() => false;
 }

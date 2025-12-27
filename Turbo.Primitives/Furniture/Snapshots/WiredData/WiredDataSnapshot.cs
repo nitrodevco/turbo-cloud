@@ -5,7 +5,7 @@ using Turbo.Primitives.Rooms.Enums;
 namespace Turbo.Primitives.Furniture.Snapshots.WiredData;
 
 [GenerateSerializer, Immutable]
-public abstract record WiredDataSnapshot
+public record WiredDataSnapshot
 {
     [Id(0)]
     public required int FurniLimit { get; init; }
@@ -45,4 +45,16 @@ public abstract record WiredDataSnapshot
 
     [Id(12)]
     public required bool AllowWallFurni { get; init; }
+
+    [Id(13)]
+    public required List<List<int>> AllowedFurniSources { get; init; }
+
+    [Id(14)]
+    public required List<List<int>> AllowedUserSources { get; init; }
+
+    [Id(15)]
+    public required List<int> DefaultFurniSources { get; init; }
+
+    [Id(16)]
+    public required List<int> DefaultUserSources { get; init; }
 }
