@@ -13,7 +13,6 @@ public interface IFurnitureWiredLogic : IFurnitureFloorLogic
     public WiredType WiredType { get; }
     public int WiredCode { get; }
     public IWiredData WiredData { get; }
-    public Task RefreshWiredParamsAsync(CancellationToken ct);
     public Task LoadWiredAsync(CancellationToken ct);
     public Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,

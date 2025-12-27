@@ -22,6 +22,15 @@ public class WiredTriggerWalkOnFurni(
     public override int WiredCode => (int)WiredTriggerType.AVATAR_WALKS_ON_FURNI;
     public override List<Type> SupportedEventTypes { get; } = [typeof(AvatarWalkOnFurniEvent)];
 
+    private WiredSourceType _itemSource;
+
+    protected override void FillInternalData()
+    {
+        base.FillInternalData();
+
+        _itemSource = WiredData.FurniSources.GetValueOrDefault(0, WiredSourceType.SELECTED_ITEMS);
+    }
+
     public override List<WiredSourceType[]> GetFurniSources() =>
         [
             [WiredSourceType.SELECTED_ITEMS, WiredSourceType.SELECTOR_ITEMS],

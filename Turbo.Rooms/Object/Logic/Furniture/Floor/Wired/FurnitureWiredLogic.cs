@@ -176,53 +176,10 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
         return true;
     }
 
-    public async Task RefreshWiredParamsAsync(CancellationToken ct)
-    {
-        _params.Clear();
-
-        if (!string.IsNullOrEmpty(WiredData.StringParam))
-            _params[WiredParamType.WIRED_TEXT.ToString()] = WiredData.StringParam;
-
-        if (WiredData.StuffIds is not null && WiredData.StuffIds.Count > 0)
-            _params[WiredParamType.WIRED_SELECTED_ITEMS.ToString()] = string.Join(
-                ";",
-                WiredData.StuffIds
-            );
-
-        if (WiredData.FurniSources is not null && WiredData.FurniSources.Count > 0)
-        {
-            var sources = new List<string>();
-
-            foreach (var (key, value) in WiredData.FurniSources)
-                sources.Add($"{key}_{value}");
-
-            _params[WiredParamType.WIRED_FURNI_SOURCES.ToString()] = string.Join(";", sources);
-        }
-
-        if (WiredData.PlayerSources is not null && WiredData.PlayerSources.Count > 0)
-        {
-            var sources = new List<string>();
-
-            foreach (var (key, value) in WiredData.PlayerSources)
-                sources.Add($"{key}_{value}");
-
-            _params[WiredParamType.WIRED_USER_SOURCES.ToString()] = string.Join(";", sources);
-        }
-
-        _ = _ctx.PublishRoomEventAsync(
-            new RoomWiredStackChangedEvent
-            {
-                RoomId = _ctx.RoomId,
-                CausedBy = null,
-                StackIds = [_ctx.GetTileIdx()],
-            },
-            ct
-        );
-    }
-
     public async Task LoadWiredAsync(CancellationToken ct)
     {
         FillDefaultSources();
+        FillInternalData();
     }
 
     public virtual List<WiredSourceType[]> GetFurniSources() => [];
@@ -255,6 +212,8 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
             WiredData.PlayerSources.Add(index, source[0]);
         }
     }
+
+    protected virtual void FillInternalData() { }
 
     public WiredDataSnapshot GetSnapshot()
     {
