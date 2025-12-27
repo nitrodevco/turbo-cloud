@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using Turbo.Primitives.Furniture.Snapshots.WiredData;
 using Turbo.Primitives.Furniture.WiredData;
+using Turbo.Primitives.Rooms.Enums.Wired;
 
 namespace Turbo.Furniture.WiredData;
 
@@ -19,13 +19,12 @@ internal abstract class WiredDataBase : IWiredData
 
     public List<int> IntParams { get; set; } = [];
 
-    public List<int> VariableIds { get; set; } = [];
+    public List<long> VariableIds { get; set; } = [];
 
     public string StringParam { get; set; } = string.Empty;
-    public List<int> FurniSources { get; set; } = [];
-    public List<int> PlayerSources { get; set; } = [];
+    public Dictionary<int, WiredSourceType> FurniSources { get; set; } = [];
+    public Dictionary<int, WiredSourceType> PlayerSources { get; set; } = [];
 
-    private WiredDataSnapshot? _snapshot;
     private Func<Task>? _onSnapshotChanged;
     private bool _dirty = true;
 
@@ -37,17 +36,4 @@ internal abstract class WiredDataBase : IWiredData
 
         _ = _onSnapshotChanged?.Invoke();
     }
-
-    public virtual WiredDataSnapshot GetSnapshot()
-    {
-        if (_dirty || _snapshot is null)
-        {
-            _snapshot = BuildSnapshot();
-            _dirty = false;
-        }
-
-        return _snapshot;
-    }
-
-    protected abstract WiredDataSnapshot BuildSnapshot();
 }

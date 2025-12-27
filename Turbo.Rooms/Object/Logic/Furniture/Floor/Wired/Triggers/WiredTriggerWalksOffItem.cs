@@ -22,6 +22,11 @@ public class WiredTriggerWalksOffItem(
     public override int WiredCode => (int)WiredTriggerType.AVATAR_WALKS_OFF_FURNI;
     public override List<Type> SupportedEventTypes { get; } = [typeof(AvatarWalkOnFurniEvent)];
 
+    public override List<WiredSourceType[]> GetFurniSources() =>
+        [
+            [WiredSourceType.SELECTED_ITEMS, WiredSourceType.SELECTOR_ITEMS],
+        ];
+
     public override Task<bool> MatchesAsync(IWiredContext ctx)
     {
         var result = ctx.Event is AvatarWalkOnFurniEvent;

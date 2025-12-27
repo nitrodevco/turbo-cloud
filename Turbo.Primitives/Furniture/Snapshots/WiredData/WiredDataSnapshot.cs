@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Enums.Wired;
 
 namespace Turbo.Primitives.Furniture.Snapshots.WiredData;
 
@@ -29,10 +30,10 @@ public record WiredDataSnapshot
     public required List<long> VariableIds { get; init; }
 
     [Id(7)]
-    public required List<int> FurniSourceTypes { get; init; }
+    public required Dictionary<int, WiredSourceType> FurniSourceTypes { get; init; }
 
     [Id(8)]
-    public required List<int> UserSourceTypes { get; init; }
+    public required Dictionary<int, WiredSourceType> UserSourceTypes { get; init; }
 
     [Id(9)]
     public required int Code { get; init; }
@@ -47,14 +48,8 @@ public record WiredDataSnapshot
     public required bool AllowWallFurni { get; init; }
 
     [Id(13)]
-    public required List<List<int>> AllowedFurniSources { get; init; }
+    public required List<WiredSourceType[]> AllowedFurniSources { get; init; }
 
     [Id(14)]
-    public required List<List<int>> AllowedUserSources { get; init; }
-
-    [Id(15)]
-    public required List<int> DefaultFurniSources { get; init; }
-
-    [Id(16)]
-    public required List<int> DefaultUserSources { get; init; }
+    public required List<WiredSourceType[]> AllowedUserSources { get; init; }
 }

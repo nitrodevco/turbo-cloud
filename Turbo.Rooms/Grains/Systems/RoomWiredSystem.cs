@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
@@ -45,7 +46,7 @@ internal sealed class RoomWiredSystem(
         while (now >= _state.NextWiredBoundaryMs)
             _state.NextWiredBoundaryMs += _tickMs;
 
-        ComputeWiredStacks();
+        await ComputeDirtyWiredStacksAsync(ct);
 
         if (_stacksById.Count == 0)
             return;
@@ -209,36 +210,86 @@ internal sealed class RoomWiredSystem(
         }
     }
 
-    private void ComputeWiredStacks()
+    private async Task ComputeDirtyWiredStacksAsync(CancellationToken ct)
     {
         if (_dirtyStackIds.Count == 0 || !_state.IsFurniLoaded)
             return;
 
-        var compiled = new WiredCompiled();
-        var dirtyStackIds = _dirtyStackIds.ToList();
-
-        _dirtyStackIds.Clear();
-
-        foreach (var stackId in dirtyStackIds)
+        if (_dirtyStackIds.Count > 0)
         {
-            _stacksById.Remove(stackId);
+            var dirtyStackIds = _dirtyStackIds.ToList();
 
-            var wiredItems = _state
-                .TileFloorStacks[stackId]
-                .Select(x => _state.FloorItemsById[x])
-                .Where(x => x.Logic is FurnitureWiredLogic)
-                .ToList();
+            _dirtyStackIds.Clear();
 
-            if (wiredItems.Count == 0)
-                continue;
-
-            var program = new WiredProgramStack { StackId = stackId };
-
-            foreach (var item in wiredItems)
+            foreach (var stackId in dirtyStackIds)
             {
                 try
                 {
-                    switch (item.Logic)
+                    await ComputeWiredProgramForStackAsync(stackId, ct);
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+            }
+        }
+
+        var compiled = new WiredCompiled();
+
+        foreach (var (key, value) in _stacksById)
+        {
+            compiled.StacksById[key] = value;
+
+            foreach (var trigger in value.Triggers)
+            {
+                var eventTypes = trigger.SupportedEventTypes;
+
+                foreach (var eventType in eventTypes)
+                {
+                    if (!compiled.StackIdsByEventType.TryGetValue(eventType, out var list))
+                    {
+                        list = [];
+                        compiled.StackIdsByEventType[eventType] = list;
+                    }
+
+                    list.Add(key);
+                }
+            }
+        }
+
+        foreach (var list in compiled.StackIdsByEventType.Values)
+            list.Sort();
+
+        _wiredCompiled = compiled;
+    }
+
+    private async Task<WiredProgramStack?> ComputeWiredProgramForStackAsync(
+        int stackId,
+        CancellationToken ct
+    )
+    {
+        _stacksById.Remove(stackId);
+
+        var wiredItems = _state
+            .TileFloorStacks[stackId]
+            .Select(x => _state.FloorItemsById[x])
+            .Where(x => x.Logic is FurnitureWiredLogic)
+            .ToList();
+
+        if (wiredItems.Count == 0)
+            return null;
+
+        var program = new WiredProgramStack { StackId = stackId };
+
+        foreach (var item in wiredItems)
+        {
+            try
+            {
+                if (item.Logic is IFurnitureWiredLogic wiredLogic)
+                {
+                    await wiredLogic.ConfigureWiredAsync(ct);
+
+                    switch (wiredLogic)
                     {
                         case IWiredTrigger trigger:
                             program.Triggers.Add(trigger);
@@ -260,34 +311,15 @@ internal sealed class RoomWiredSystem(
                             break;
                     }
                 }
-                catch (Exception)
-                {
-                    continue;
-                }
             }
-
-            compiled.StacksById[stackId] = program;
-
-            foreach (var trigger in program.Triggers)
+            catch (Exception)
             {
-                var eventTypes = trigger.SupportedEventTypes;
-
-                foreach (var eventType in eventTypes)
-                {
-                    if (!compiled.StackIdsByEventType.TryGetValue(eventType, out var list))
-                    {
-                        list = [];
-                        compiled.StackIdsByEventType[eventType] = list;
-                    }
-
-                    list.Add(stackId);
-                }
+                continue;
             }
         }
 
-        foreach (var list in compiled.StackIdsByEventType.Values)
-            list.Sort();
+        _stacksById[stackId] = program;
 
-        _wiredCompiled = compiled;
+        return program;
     }
 }
