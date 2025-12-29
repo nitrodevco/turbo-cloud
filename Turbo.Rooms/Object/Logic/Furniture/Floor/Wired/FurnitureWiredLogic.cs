@@ -118,7 +118,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
 
     public async Task LoadWiredAsync(CancellationToken ct)
     {
-        FillInternalData();
+        await FillInternalDataAsync(ct);
     }
 
     public async Task FlashActivationStateAsync()
@@ -361,7 +361,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
         }
     }
 
-    protected virtual void FillInternalData() { }
+    protected virtual Task FillInternalDataAsync(CancellationToken ct) => Task.CompletedTask;
 
     public WiredDataSnapshot GetSnapshot()
     {

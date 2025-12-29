@@ -29,13 +29,13 @@ internal abstract class RoomItemContext<TItem>(
     public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
         RoomObjectId objectId,
         CancellationToken ct
-    ) => _roomGrain.GetFloorItemSnapshotByIdAsync(objectId, ct);
+    ) => _room.GetFloorItemSnapshotByIdAsync(objectId, ct);
 
     public Task PublishRoomEventAsync(RoomEvent evt, CancellationToken ct) =>
-        _roomGrain.PublishRoomEventAsync(evt, ct);
+        _room.PublishRoomEventAsync(evt, ct);
 
     public Task SendComposerToRoomAsync(IComposer composer) =>
-        _roomGrain.SendComposerToRoomAsync(composer);
+        _room.SendComposerToRoomAsync(composer);
 
     public abstract Task AddItemAsync();
 

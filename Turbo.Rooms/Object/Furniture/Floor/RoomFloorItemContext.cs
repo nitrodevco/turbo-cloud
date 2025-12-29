@@ -14,9 +14,9 @@ internal sealed class RoomFloorItemContext(
     IRoomFloorItem roomItem
 ) : RoomItemContext<IRoomFloorItem>(roomGrain, furniModule, roomItem), IRoomFloorItemContext
 {
-    public int GetTileIdx() => _roomGrain.ToIdx(Item.X, Item.Y);
+    public int GetTileIdx() => _room.ToIdx(Item.X, Item.Y);
 
-    public int GetTileIdx(int x, int y) => _roomGrain.ToIdx(x, y);
+    public int GetTileIdx(int x, int y) => _room.ToIdx(x, y);
 
     public override Task AddItemAsync() => SendComposerToRoomAsync(Item.GetAddComposer());
 
@@ -31,8 +31,8 @@ internal sealed class RoomFloorItemContext(
         int delay = 0
     ) => SendComposerToRoomAsync(Item.GetRemoveComposer(pickerId, isExpired, delay));
 
-    public void RefreshTile() => _roomGrain.ComputeTile(Item.X, Item.Y);
+    public void RefreshTile() => _room.ComputeTile(Item.X, Item.Y);
 
     public Task<RoomTileSnapshot> GetTileSnapshotAsync(CancellationToken ct) =>
-        _roomGrain.GetTileSnapshotAsync(Item.X, Item.Y, ct);
+        _room.GetTileSnapshotAsync(Item.X, Item.Y, ct);
 }

@@ -21,5 +21,5 @@ internal class RoomAvatarContext(
     public IRoomAvatar Avatar => roomAvatar;
 
     public virtual Task<RoomTileSnapshot> GetTileSnapshotAsync(CancellationToken ct) =>
-        _roomGrain.GetTileSnapshotAsync(Avatar.X, Avatar.Y, ct);
+        _room.GetTileSnapshotAsync(Avatar.X, Avatar.Y, ct);
 }

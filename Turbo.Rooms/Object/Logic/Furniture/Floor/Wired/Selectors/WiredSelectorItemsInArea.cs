@@ -37,30 +37,49 @@ public class WiredSelectorItemsInArea(
 
         foreach (var id in input.SelectedFurniIds)
         {
-            // filter the furni
-
             output.SelectedFurniIds.Add(id);
+        }
+
+        foreach (var tileId in _tileIds)
+        {
+            try
+            {
+                var snapshot = await ctx.Room.GetTileSnapshotAsync(tileId, ct);
+
+                if (snapshot is null)
+                    continue;
+
+                foreach (var item in snapshot.FloorObjectIds)
+                    output.SelectedFurniIds.Add(item.Value);
+            }
+            catch
+            {
+                continue;
+            }
         }
 
         return output;
     }
 
-    protected override void FillInternalData()
+    protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
-        base.FillInternalData();
+        await base.FillInternalDataAsync(ct);
 
         _tileIds.Clear();
 
+        var map = await _ctx.Room.GetMapSnapshotAsync(ct);
         var rootX = WiredData.IntParams[0];
         var rootY = WiredData.IntParams[1];
-        var width = WiredData.IntParams[2];
-        var height = WiredData.IntParams[3];
+        var areaW = WiredData.IntParams[2];
+        var areaH = WiredData.IntParams[3];
+        var mapW = map.Width;
+        var mapH = map.Height;
         var size = 0;
         var filled = false;
 
-        for (var dy = 0; dy < height; dy++)
+        for (var dy = 0; dy < areaH; dy++)
         {
-            for (var dx = 0; dx < width; dx++)
+            for (var dx = 0; dx < areaW; dx++)
             {
                 if (size >= _maxAreaSize)
                 {
@@ -72,13 +91,12 @@ public class WiredSelectorItemsInArea(
                 var x = rootX + dx;
                 var y = rootY + dy;
 
-                if (x < 0 || y < 0 || x >= width || y >= height)
+                if (x >= mapW || y >= mapH)
                     continue;
 
-                var tileId = (y * width) + x;
+                var tileId = (y * mapW) + x;
 
                 _tileIds.Add(tileId);
-
                 size++;
             }
 
