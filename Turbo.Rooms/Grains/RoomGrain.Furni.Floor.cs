@@ -2,6 +2,7 @@ using System;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Snapshots.WiredData;
 using Turbo.Primitives.Inventory.Snapshots;
@@ -18,19 +19,7 @@ public sealed partial class RoomGrain
 {
     public async Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
     {
-        try
-        {
-            if (!await _actionModule.AddFloorItemAsync(item, ct))
-                return false;
-
-            return true;
-        }
-        catch
-        {
-            // TODO handle exceptions
-
-            return false;
-        }
+        return await _actionModule.AddFloorItemAsync(item, ct);
     }
 
     public async Task<bool> PlaceFloorItemAsync(
@@ -42,19 +31,7 @@ public sealed partial class RoomGrain
         CancellationToken ct
     )
     {
-        try
-        {
-            if (!await _actionModule.PlaceFloorItemAsync(ctx, item, x, y, rot, ct))
-                return false;
-
-            return true;
-        }
-        catch (Exception)
-        {
-            // TODO handle exceptions
-
-            return false;
-        }
+        return await _actionModule.PlaceFloorItemAsync(ctx, item, x, y, rot, ct);
     }
 
     public async Task<bool> MoveFloorItemByIdAsync(
@@ -66,19 +43,7 @@ public sealed partial class RoomGrain
         CancellationToken ct
     )
     {
-        try
-        {
-            if (!await _actionModule.MoveFloorItemByIdAsync(ctx, itemId, x, y, rot, ct))
-                return false;
-
-            return true;
-        }
-        catch
-        {
-            // TODO handle exceptions
-
-            return false;
-        }
+        return await _actionModule.MoveFloorItemByIdAsync(ctx, itemId, x, y, rot, ct);
     }
 
     public async Task<bool> RemoveFloorItemByIdAsync(
@@ -87,19 +52,7 @@ public sealed partial class RoomGrain
         CancellationToken ct
     )
     {
-        try
-        {
-            if (!await _actionModule.RemoveFloorItemByIdAsync(ctx, itemId, ct))
-                return false;
-
-            return true;
-        }
-        catch
-        {
-            // TODO handle exceptions
-
-            return false;
-        }
+        return await _actionModule.RemoveFloorItemByIdAsync(ctx, itemId, ct);
     }
 
     public async Task<bool> UseFloorItemByIdAsync(
@@ -109,19 +62,7 @@ public sealed partial class RoomGrain
         int param = -1
     )
     {
-        try
-        {
-            if (!await _actionModule.UseFloorItemByIdAsync(ctx, itemId, ct, param))
-                return false;
-
-            return true;
-        }
-        catch
-        {
-            // TODO handle exceptions
-
-            return false;
-        }
+        return await _actionModule.UseFloorItemByIdAsync(ctx, itemId, ct, param);
     }
 
     public async Task<bool> ClickFloorItemByIdAsync(
@@ -131,19 +72,7 @@ public sealed partial class RoomGrain
         int param = -1
     )
     {
-        try
-        {
-            if (!await _actionModule.ClickFloorItemByIdAsync(ctx, itemId, ct, param))
-                return false;
-
-            return true;
-        }
-        catch
-        {
-            // TODO handle exceptions
-
-            return false;
-        }
+        return await _actionModule.ClickFloorItemByIdAsync(ctx, itemId, ct, param);
     }
 
     public async Task<bool> ApplyWiredUpdateAsync(
@@ -155,16 +84,11 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (!await _actionModule.ApplyWiredUpdateAsync(ctx, itemId, update, ct))
-                return false;
-
-            return true;
+            return await _actionModule.ApplyWiredUpdateAsync(ctx, itemId, update, ct);
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex);
-            // TODO handle exceptions
-
+            _logger.LogError(ex, "Failed to apply wired update for item {ItemId} in room {RoomId}", itemId, _roomId);
             return false;
         }
     }

@@ -68,7 +68,7 @@ internal sealed class WiredContext : IWiredContext
         {
             foreach (var sourceType in source)
             {
-                switch (sourceType) { }
+                // Player sources not yet implemented
             }
         }
 
@@ -108,7 +108,7 @@ internal sealed class WiredContext : IWiredContext
         {
             foreach (var sourceType in source)
             {
-                switch (sourceType) { }
+                // Player sources not yet implemented
             }
         }
 

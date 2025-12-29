@@ -14,19 +14,7 @@ public sealed partial class RoomGrain
 {
     public async Task<bool> AddWallItemAsync(IRoomWallItem item, CancellationToken ct)
     {
-        try
-        {
-            if (!await _actionModule.AddWallItemAsync(item, ct))
-                return false;
-
-            return true;
-        }
-        catch
-        {
-            // TODO handle exceptions
-
-            return false;
-        }
+        return await _actionModule.AddWallItemAsync(item, ct);
     }
 
     public async Task<bool> PlaceWallItemAsync(
@@ -40,19 +28,7 @@ public sealed partial class RoomGrain
         CancellationToken ct
     )
     {
-        try
-        {
-            if (!await _actionModule.PlaceWallItemAsync(ctx, item, x, y, z, wallOffset, rot, ct))
-                return false;
-
-            return true;
-        }
-        catch
-        {
-            // TODO handle exceptions
-
-            return false;
-        }
+        return await _actionModule.PlaceWallItemAsync(ctx, item, x, y, z, wallOffset, rot, ct);
     }
 
     public async Task<bool> MoveWallItemByIdAsync(
@@ -66,30 +42,16 @@ public sealed partial class RoomGrain
         CancellationToken ct
     )
     {
-        try
-        {
-            if (
-                !await _actionModule.MoveWallItemByIdAsync(
-                    ctx,
-                    itemId,
-                    newX,
-                    newY,
-                    newZ,
-                    wallOffset,
-                    newRot,
-                    ct
-                )
-            )
-                return false;
-
-            return true;
-        }
-        catch
-        {
-            // TODO handle exceptions
-
-            return false;
-        }
+        return await _actionModule.MoveWallItemByIdAsync(
+            ctx,
+            itemId,
+            newX,
+            newY,
+            newZ,
+            wallOffset,
+            newRot,
+            ct
+        );
     }
 
     public async Task<bool> RemoveWallItemByIdAsync(
@@ -98,19 +60,7 @@ public sealed partial class RoomGrain
         CancellationToken ct
     )
     {
-        try
-        {
-            if (!await _actionModule.RemoveWallItemByIdAsync(ctx, itemId, ct))
-                return false;
-
-            return true;
-        }
-        catch
-        {
-            // TODO handle exceptions
-
-            return false;
-        }
+        return await _actionModule.RemoveWallItemByIdAsync(ctx, itemId, ct);
     }
 
     public async Task<bool> UseWallItemByIdAsync(
@@ -120,19 +70,7 @@ public sealed partial class RoomGrain
         int param = -1
     )
     {
-        try
-        {
-            if (!await _actionModule.UseWallItemByIdAsync(ctx, itemId, ct, param))
-                return false;
-
-            return true;
-        }
-        catch
-        {
-            // TODO handle exceptions
-
-            return false;
-        }
+        return await _actionModule.UseWallItemByIdAsync(ctx, itemId, ct, param);
     }
 
     public async Task<bool> ClickWallItemByIdAsync(
@@ -142,19 +80,7 @@ public sealed partial class RoomGrain
         int param = -1
     )
     {
-        try
-        {
-            if (!await _actionModule.ClickWallItemByIdAsync(ctx, itemId, ct, param))
-                return false;
-
-            return true;
-        }
-        catch
-        {
-            // TODO handle exceptions
-
-            return false;
-        }
+        return await _actionModule.ClickWallItemByIdAsync(ctx, itemId, ct, param);
     }
 
     public Task<RoomWallItemSnapshot?> GetWallItemSnapshotByIdAsync(
