@@ -19,7 +19,7 @@ public sealed partial class RoomGrain
 {
     public async Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
     {
-        return await _actionModule.AddFloorItemAsync(item, ct);
+        return await _actionModule.AddFloorItemAsync(item, ct).ConfigureAwait(false);
     }
 
     public async Task<bool> PlaceFloorItemAsync(
@@ -31,7 +31,7 @@ public sealed partial class RoomGrain
         CancellationToken ct
     )
     {
-        return await _actionModule.PlaceFloorItemAsync(ctx, item, x, y, rot, ct);
+        return await _actionModule.PlaceFloorItemAsync(ctx, item, x, y, rot, ct).ConfigureAwait(false);
     }
 
     public async Task<bool> MoveFloorItemByIdAsync(
@@ -43,7 +43,7 @@ public sealed partial class RoomGrain
         CancellationToken ct
     )
     {
-        return await _actionModule.MoveFloorItemByIdAsync(ctx, itemId, x, y, rot, ct);
+        return await _actionModule.MoveFloorItemByIdAsync(ctx, itemId, x, y, rot, ct).ConfigureAwait(false);
     }
 
     public async Task<bool> RemoveFloorItemByIdAsync(
@@ -52,7 +52,7 @@ public sealed partial class RoomGrain
         CancellationToken ct
     )
     {
-        return await _actionModule.RemoveFloorItemByIdAsync(ctx, itemId, ct);
+        return await _actionModule.RemoveFloorItemByIdAsync(ctx, itemId, ct).ConfigureAwait(false);
     }
 
     public async Task<bool> UseFloorItemByIdAsync(
@@ -62,7 +62,7 @@ public sealed partial class RoomGrain
         int param = -1
     )
     {
-        return await _actionModule.UseFloorItemByIdAsync(ctx, itemId, ct, param);
+        return await _actionModule.UseFloorItemByIdAsync(ctx, itemId, ct, param).ConfigureAwait(false);
     }
 
     public async Task<bool> ClickFloorItemByIdAsync(
@@ -72,7 +72,7 @@ public sealed partial class RoomGrain
         int param = -1
     )
     {
-        return await _actionModule.ClickFloorItemByIdAsync(ctx, itemId, ct, param);
+        return await _actionModule.ClickFloorItemByIdAsync(ctx, itemId, ct, param).ConfigureAwait(false);
     }
 
     public async Task<bool> ApplyWiredUpdateAsync(
@@ -84,7 +84,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            return await _actionModule.ApplyWiredUpdateAsync(ctx, itemId, update, ct);
+            return await _actionModule.ApplyWiredUpdateAsync(ctx, itemId, update, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

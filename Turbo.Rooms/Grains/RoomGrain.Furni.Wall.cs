@@ -14,7 +14,7 @@ public sealed partial class RoomGrain
 {
     public async Task<bool> AddWallItemAsync(IRoomWallItem item, CancellationToken ct)
     {
-        return await _actionModule.AddWallItemAsync(item, ct);
+        return await _actionModule.AddWallItemAsync(item, ct).ConfigureAwait(false);
     }
 
     public async Task<bool> PlaceWallItemAsync(
@@ -28,7 +28,7 @@ public sealed partial class RoomGrain
         CancellationToken ct
     )
     {
-        return await _actionModule.PlaceWallItemAsync(ctx, item, x, y, z, wallOffset, rot, ct);
+        return await _actionModule.PlaceWallItemAsync(ctx, item, x, y, z, wallOffset, rot, ct).ConfigureAwait(false);
     }
 
     public async Task<bool> MoveWallItemByIdAsync(
@@ -51,7 +51,7 @@ public sealed partial class RoomGrain
             wallOffset,
             newRot,
             ct
-        );
+        ).ConfigureAwait(false);
     }
 
     public async Task<bool> RemoveWallItemByIdAsync(
@@ -60,7 +60,7 @@ public sealed partial class RoomGrain
         CancellationToken ct
     )
     {
-        return await _actionModule.RemoveWallItemByIdAsync(ctx, itemId, ct);
+        return await _actionModule.RemoveWallItemByIdAsync(ctx, itemId, ct).ConfigureAwait(false);
     }
 
     public async Task<bool> UseWallItemByIdAsync(
@@ -70,7 +70,7 @@ public sealed partial class RoomGrain
         int param = -1
     )
     {
-        return await _actionModule.UseWallItemByIdAsync(ctx, itemId, ct, param);
+        return await _actionModule.UseWallItemByIdAsync(ctx, itemId, ct, param).ConfigureAwait(false);
     }
 
     public async Task<bool> ClickWallItemByIdAsync(
@@ -80,7 +80,7 @@ public sealed partial class RoomGrain
         int param = -1
     )
     {
-        return await _actionModule.ClickWallItemByIdAsync(ctx, itemId, ct, param);
+        return await _actionModule.ClickWallItemByIdAsync(ctx, itemId, ct, param).ConfigureAwait(false);
     }
 
     public Task<RoomWallItemSnapshot?> GetWallItemSnapshotByIdAsync(
