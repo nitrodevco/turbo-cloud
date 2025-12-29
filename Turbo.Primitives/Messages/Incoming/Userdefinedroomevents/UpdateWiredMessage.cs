@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using Orleans;
-using Turbo.Primitives.Furniture.WiredData;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums.Wired;
 
