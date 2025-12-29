@@ -149,7 +149,7 @@ public sealed partial class RoomGrain
     public async Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,
         RoomObjectId itemId,
-        UpdateWired update,
+        UpdateWiredMessage update,
         CancellationToken ct
     )
     {
@@ -160,8 +160,9 @@ public sealed partial class RoomGrain
 
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine(ex);
             // TODO handle exceptions
 
             return false;

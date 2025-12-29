@@ -26,7 +26,7 @@ public class FurnitureRollerLogic(IStuffDataFactory stuffDataFactory, IRoomFloor
             {
                 RoomId = _ctx.RoomId,
                 CausedBy = null,
-                ItemId = _ctx.ObjectId,
+                FurniId = _ctx.ObjectId,
             },
             ct
         );
@@ -41,7 +41,7 @@ public class FurnitureRollerLogic(IStuffDataFactory stuffDataFactory, IRoomFloor
             {
                 RoomId = _ctx.RoomId,
                 CausedBy = null,
-                ItemId = _ctx.ObjectId,
+                FurniId = _ctx.ObjectId,
             },
             ct
         );
@@ -56,7 +56,7 @@ public class FurnitureRollerLogic(IStuffDataFactory stuffDataFactory, IRoomFloor
             {
                 RoomId = _ctx.RoomId,
                 CausedBy = ctx,
-                ItemId = _ctx.ObjectId,
+                FurniId = _ctx.ObjectId,
             },
             ct
         );

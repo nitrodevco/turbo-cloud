@@ -18,6 +18,4 @@ public class WiredSelectorEntitiesInTeam(
         IWiredSelector
 {
     public override int WiredCode => (int)WiredSelectorType.USERS_IN_TEAM;
-
-    public override void Select(IWiredContext ctx) { }
 }

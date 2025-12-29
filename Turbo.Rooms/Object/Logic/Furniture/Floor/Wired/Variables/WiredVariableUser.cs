@@ -18,6 +18,4 @@ public class WiredVariableUser(
         IWiredVariable
 {
     public override int WiredCode => (int)WiredVariableType.USER_VARIABLE;
-
-    public override void Apply(IWiredContext ctx) { }
 }

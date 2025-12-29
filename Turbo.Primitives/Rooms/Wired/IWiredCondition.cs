@@ -1,6 +1,6 @@
 namespace Turbo.Primitives.Rooms.Wired;
 
-public interface IWiredCondition
+public interface IWiredCondition : IWiredItem
 {
     public bool Evaluate(IWiredContext ctx);
 }

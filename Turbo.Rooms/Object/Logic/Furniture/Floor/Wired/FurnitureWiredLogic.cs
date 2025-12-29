@@ -22,15 +22,11 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 
 public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWiredLogic
 {
-    private const int WIRED_NOT_ACTIVE_STATE = 0;
-    private const int WIRED_ACTIVE_STATE = 1;
-
     protected readonly IWiredDataFactory _wiredDataFactory;
     protected readonly IGrainFactory _grainFactory;
 
     public abstract WiredType WiredType { get; }
     public abstract int WiredCode { get; }
-
     public IWiredData WiredData { get; private set; }
 
     protected override StuffPersistanceType _stuffPersistanceType => StuffPersistanceType.Internal;
@@ -38,8 +34,12 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
     protected int _furniLimit = 20;
     protected int _flashDelayMs = 1500;
     protected int _lastFlashMs = 0;
+    protected bool _advancedMode = true;
+    protected bool _allowWallFurni = false;
 
     private WiredDataSnapshot? _snapshot;
+
+    public int Id => _ctx.ObjectId.Value;
 
     public FurnitureWiredLogic(
         IWiredDataFactory wiredDataFactory,
@@ -66,8 +66,6 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
     public override async Task OnAttachAsync(CancellationToken ct)
     {
         await base.OnAttachAsync(ct);
-
-        //await RefreshWiredParamsAsync(ct);
 
         _ = _ctx.PublishRoomEventAsync(
             new RoomWiredStackChangedEvent
@@ -118,137 +116,248 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
             .ConfigureAwait(false);
     }
 
-    public virtual async Task<bool> ApplyWiredUpdateAsync(
-        ActionContext ctx,
-        UpdateWired update,
-        CancellationToken ct
-    )
-    {
-        var stuffIds = new List<int>();
-        var furniSources = new Dictionary<int, WiredSourceType>();
-        var playerSources = new Dictionary<int, WiredSourceType>();
-
-        if (update.StuffIds.Count > 0)
-        {
-            var count = 0;
-
-            foreach (var stuffId in update.StuffIds)
-            {
-                var snapshot = await _ctx.GetFloorItemSnapshotByIdAsync(stuffId, ct);
-
-                if (snapshot is null)
-                    continue;
-
-                stuffIds.Add(stuffId);
-
-                count++;
-
-                if (count >= _furniLimit)
-                    break;
-            }
-        }
-
-        if (update.FurniSources.Count > 0)
-        {
-            var index = 0;
-
-            foreach (var type in update.FurniSources)
-            {
-                var souceType = (WiredSourceType)type;
-
-                var validSources = GetFurniSources();
-
-                if (!validSources.Any(x => x.Contains(souceType)))
-                    continue;
-
-                furniSources[index] = (WiredSourceType)type;
-
-                index++;
-            }
-        }
-
-        if (update.PlayerSources.Count > 0)
-        {
-            var index = 0;
-
-            foreach (var type in update.PlayerSources)
-            {
-                var souceType = (WiredSourceType)type;
-
-                var validSources = GetPlayerSources();
-
-                if (!validSources.Any(x => x.Contains(souceType)))
-                    continue;
-
-                furniSources[index] = (WiredSourceType)type;
-
-                index++;
-            }
-        }
-
-        WiredData.StuffIds = stuffIds;
-        WiredData.FurniSources = furniSources;
-        WiredData.PlayerSources = playerSources;
-
-        WiredData.MarkDirty();
-
-        _ = _ctx.PublishRoomEventAsync(
-            new RoomWiredStackChangedEvent
-            {
-                RoomId = _ctx.RoomId,
-                CausedBy = ctx,
-                StackIds = [_ctx.GetTileIdx()],
-            },
-            ct
-        );
-
-        return true;
-    }
-
     public async Task LoadWiredAsync(CancellationToken ct)
     {
-        FillDefaultSources();
         FillInternalData();
     }
 
     public async Task FlashActivationStateAsync()
     {
-        var state =
-            await GetStateAsync() == WIRED_ACTIVE_STATE
-                ? WIRED_NOT_ACTIVE_STATE
-                : WIRED_ACTIVE_STATE;
+        var state = await GetStateAsync() == 1 ? 0 : 1;
 
         _ = SetStateAsync(state);
     }
 
-    public virtual List<WiredSourceType[]> GetFurniSources() => [];
-
-    public virtual List<WiredSourceType[]> GetPlayerSources() => [];
-
-    protected virtual void FillDefaultSources()
+    public virtual List<WiredFurniSourceType[]> GetFurniSources()
     {
-        var index = -1;
+        var sources = new List<WiredFurniSourceType[]>();
+        var index = 0;
 
-        foreach (var source in GetFurniSources())
+        foreach (var source in GetDefaultFurniSources())
         {
+            WiredFurniSourceType[] sourceTypes = source;
+
+            try
+            {
+                if (WiredData.FurniSources[index] is not null)
+                {
+                    sourceTypes = WiredData.FurniSources[index];
+                }
+            }
+            catch { }
+
+            sources.Add(sourceTypes);
             index++;
-
-            if (WiredData.FurniSources.ContainsKey(index))
-                continue;
-
-            WiredData.FurniSources.Add(index, source[0]);
         }
 
-        index = -1;
+        return sources;
+    }
 
-        foreach (var source in GetPlayerSources())
+    public virtual List<WiredPlayerSourceType[]> GetPlayerSources()
+    {
+        var sources = new List<WiredPlayerSourceType[]>();
+        var index = 0;
+
+        foreach (var source in GetDefaultPlayerSources())
         {
+            WiredPlayerSourceType[] sourceTypes = source;
+
+            try
+            {
+                if (WiredData.PlayerSources[index] is not null)
+                {
+                    sourceTypes = WiredData.PlayerSources[index];
+                }
+            }
+            catch { }
+
+            sources.Add(sourceTypes);
             index++;
+        }
 
-            if (WiredData.PlayerSources.ContainsKey(index))
-                continue;
+        return sources;
+    }
 
-            WiredData.PlayerSources.Add(index, source[0]);
+    public virtual List<WiredFurniSourceType[]> GetAllowedFurniSources() => [];
+
+    public virtual List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [];
+
+    public virtual List<WiredFurniSourceType[]> GetDefaultFurniSources() =>
+        [.. GetAllowedFurniSources().Select(x => new[] { x[0] })];
+
+    public virtual List<WiredPlayerSourceType[]> GetDefaultPlayerSources() =>
+        [.. GetAllowedPlayerSources().Select(x => new[] { x[0] })];
+
+    public virtual List<object> GetDefinitionSpecifics() => [];
+
+    public virtual List<object> GetTypeSpecifics() => [];
+
+    public virtual async Task<bool> ApplyWiredUpdateAsync(
+        ActionContext ctx,
+        UpdateWiredMessage update,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            var intParams = new List<int>();
+            var stringParam = update.StringParam;
+            var stuffIds = new List<int>();
+            var variableIds = new List<long>();
+            var furniSources = new List<WiredFurniSourceType[]>();
+            var playerSources = new List<WiredPlayerSourceType[]>();
+            var definitionSpecifics = new List<object>();
+            var typeSpecifics = new List<object>();
+
+            if (update.IntParams.Count > 0)
+            {
+                foreach (var intParam in update.IntParams)
+                    intParams.Add(intParam);
+            }
+
+            if (update.StuffIds.Count > 0)
+            {
+                var count = 0;
+
+                foreach (var id in update.StuffIds)
+                {
+                    var snapshot = await _ctx.GetFloorItemSnapshotByIdAsync(id, ct);
+
+                    if (snapshot is null)
+                        continue;
+
+                    stuffIds.Add(id);
+
+                    count++;
+
+                    if (count >= _furniLimit)
+                        break;
+                }
+            }
+
+            if (update.VariableIds.Count > 0)
+            {
+                foreach (var id in update.VariableIds)
+                    variableIds.Add(id);
+            }
+
+            var index = 0;
+            var validFurniSources = GetAllowedFurniSources();
+
+            foreach (var source in GetDefaultFurniSources())
+            {
+                WiredFurniSourceType[]? sourceTypes = source;
+
+                try
+                {
+                    if (update.FurniSources[index] is not null)
+                    {
+                        sourceTypes =
+                        [
+                            .. update
+                                .FurniSources[index]
+                                .Where(validFurniSources[index].Contains)
+                                .Take(source.Length),
+                        ];
+                    }
+                }
+                catch { }
+
+                furniSources.Add(sourceTypes);
+                index++;
+            }
+
+            index = 0;
+            var validPlayerSources = GetAllowedPlayerSources();
+
+            foreach (var source in GetDefaultPlayerSources())
+            {
+                WiredPlayerSourceType[]? sourceTypes = source;
+
+                try
+                {
+                    if (update.PlayerSources[index] is not null)
+                    {
+                        sourceTypes =
+                        [
+                            .. update
+                                .PlayerSources[index]
+                                .Where(validPlayerSources[index].Contains)
+                                .Take(source.Length),
+                        ];
+                    }
+                }
+                catch { }
+
+                playerSources.Add(sourceTypes);
+                index++;
+            }
+
+            index = 0;
+
+            foreach (var defSpecific in GetDefinitionSpecifics())
+            {
+                object specific = defSpecific;
+
+                try
+                {
+                    if (update.DefinitionSpecifics[index] is not null)
+                    {
+                        specific = update.DefinitionSpecifics[index];
+                    }
+                }
+                catch { }
+
+                definitionSpecifics.Add(specific);
+                index++;
+            }
+
+            index = 0;
+
+            foreach (var typeSpecific in GetTypeSpecifics())
+            {
+                object specific = typeSpecific;
+
+                try
+                {
+                    if (update.TypeSpecifics[index] is not null)
+                    {
+                        specific = update.TypeSpecifics[index];
+                    }
+                }
+                catch { }
+
+                typeSpecifics.Add(specific);
+                index++;
+            }
+
+            WiredData.IntParams = intParams;
+            WiredData.StringParam = stringParam;
+            WiredData.StuffIds = stuffIds;
+            WiredData.VariableIds = variableIds;
+            WiredData.FurniSources = furniSources;
+            WiredData.PlayerSources = playerSources;
+            WiredData.DefinitionSpecifics = definitionSpecifics;
+            WiredData.TypeSpecifics = typeSpecifics;
+
+            WiredData.MarkDirty();
+
+            _ = _ctx.PublishRoomEventAsync(
+                new RoomWiredStackChangedEvent
+                {
+                    RoomId = _ctx.RoomId,
+                    CausedBy = ctx,
+                    StackIds = [_ctx.GetTileIdx()],
+                },
+                ct
+            );
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+            return false;
         }
     }
 
@@ -261,5 +370,28 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
         return _snapshot;
     }
 
-    protected abstract WiredDataSnapshot BuildSnapshot();
+    protected virtual WiredDataSnapshot BuildSnapshot() =>
+        new()
+        {
+            WiredType = WiredType,
+            FurniLimit = _furniLimit,
+            StuffIds = WiredData.StuffIds,
+            StuffTypeId = _ctx.Definition.SpriteId,
+            Id = _ctx.ObjectId,
+            StringParam = WiredData.StringParam,
+            IntParams = WiredData.IntParams,
+            VariableIds = WiredData.VariableIds,
+            FurniSourceTypes = GetFurniSources(),
+            PlayerSourceTypes = GetPlayerSources(),
+            Code = WiredCode,
+            AdvancedMode = _advancedMode,
+            AmountFurniSelections = [],
+            AllowWallFurni = _allowWallFurni,
+            AllowedFurniSources = GetAllowedFurniSources(),
+            AllowedPlayerSources = GetAllowedPlayerSources(),
+            DefaultFurniSources = GetDefaultFurniSources(),
+            DefaultPlayerSources = GetDefaultPlayerSources(),
+            DefinitionSpecifics = GetDefinitionSpecifics(),
+            TypeSpecifics = GetTypeSpecifics(),
+        };
 }

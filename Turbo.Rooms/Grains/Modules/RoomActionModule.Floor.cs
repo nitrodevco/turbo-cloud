@@ -129,7 +129,7 @@ internal sealed partial class RoomActionModule
     public async Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,
         RoomObjectId itemId,
-        UpdateWired update,
+        UpdateWiredMessage update,
         CancellationToken ct
     )
     {

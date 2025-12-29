@@ -18,6 +18,4 @@ public class WiredSelectorItemsWithAltitude(
         IWiredSelector
 {
     public override int WiredCode => (int)WiredSelectorType.FURNI_WITH_ALTITUDE;
-
-    public override void Select(IWiredContext ctx) { }
 }

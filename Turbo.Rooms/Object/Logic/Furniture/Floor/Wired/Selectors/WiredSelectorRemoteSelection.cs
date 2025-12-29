@@ -18,6 +18,4 @@ public class WiredSelectorRemoteSelection(
         IWiredSelector
 {
     public override int WiredCode => (int)WiredSelectorType.REMOTE_SELECTOR;
-
-    public override void Select(IWiredContext ctx) { }
 }

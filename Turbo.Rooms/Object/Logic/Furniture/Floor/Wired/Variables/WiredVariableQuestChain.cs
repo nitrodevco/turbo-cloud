@@ -18,6 +18,4 @@ public class WiredVariableQuestChain(
         IWiredVariable
 {
     public override int WiredCode => (int)WiredVariableType.QUEST_CHAIN_VARIABLE;
-
-    public override void Apply(IWiredContext ctx) { }
 }

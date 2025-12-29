@@ -18,6 +18,4 @@ public class WiredSelectorEntitiesInNeighborhood(
         IWiredSelector
 {
     public override int WiredCode => (int)WiredSelectorType.USERS_IN_NEIGHBORHOOD;
-
-    public override void Select(IWiredContext ctx) { }
 }

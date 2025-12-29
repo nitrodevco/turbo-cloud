@@ -71,7 +71,7 @@ public abstract class FurnitureLogicBase<TItem, TContext>
             {
                 RoomId = _ctx.RoomId,
                 CausedBy = null,
-                ItemId = _ctx.ObjectId,
+                FurniId = _ctx.ObjectId,
             },
             ct
         );
@@ -82,7 +82,7 @@ public abstract class FurnitureLogicBase<TItem, TContext>
             {
                 RoomId = _ctx.RoomId,
                 CausedBy = null,
-                ItemId = _ctx.ObjectId,
+                FurniId = _ctx.ObjectId,
             },
             ct
         );
@@ -100,7 +100,7 @@ public abstract class FurnitureLogicBase<TItem, TContext>
             {
                 RoomId = _ctx.RoomId,
                 CausedBy = ctx,
-                ItemId = _ctx.ObjectId,
+                FurniId = _ctx.ObjectId,
             },
             ct
         );
@@ -111,7 +111,7 @@ public abstract class FurnitureLogicBase<TItem, TContext>
             {
                 RoomId = _ctx.RoomId,
                 CausedBy = ctx,
-                ItemId = _ctx.ObjectId,
+                FurniId = _ctx.ObjectId,
                 PrevIdx = prevIdx,
             },
             ct

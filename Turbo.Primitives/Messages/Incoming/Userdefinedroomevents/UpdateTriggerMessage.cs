@@ -4,4 +4,4 @@ using Turbo.Primitives.Networking;
 namespace Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 
 [GenerateSerializer, Immutable]
-public record UpdateTriggerMessage : UpdateWired, IMessageEvent { }
+public record UpdateTriggerMessage : UpdateWiredMessage, IMessageEvent { }

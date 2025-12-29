@@ -18,6 +18,4 @@ public class WiredSelectorItemsFromSignal(
         IWiredSelector
 {
     public override int WiredCode => (int)WiredSelectorType.FURNI_FROM_SIGNAL;
-
-    public override void Select(IWiredContext ctx) { }
 }

@@ -2,7 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
-using Turbo.Primitives.Furniture.Snapshots.WiredData;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Networking;
@@ -31,39 +31,28 @@ public class OpenMessageHandler(IGrainFactory grainFactory) : IMessageHandler<Op
         if (wiredData is null)
             return;
 
+        var wiredType = wiredData.WiredType;
         IComposer? composer = null;
 
-        switch (wiredData)
+        switch (wiredType)
         {
-            case WiredDataActionSnapshot actionSnapshot:
-                composer = new WiredFurniActionEventMessageComposer { WiredData = actionSnapshot };
+            case WiredType.Action:
+                composer = new WiredFurniActionEventMessageComposer { WiredData = wiredData };
                 break;
-            case WiredDataAddonSnapshot addonSnapshot:
-                composer = new WiredFurniAddonEventMessageComposer { WiredData = addonSnapshot };
+            case WiredType.Addon:
+                composer = new WiredFurniAddonEventMessageComposer { WiredData = wiredData };
                 break;
-            case WiredDataConditionSnapshot conditionSnapshot:
-                composer = new WiredFurniConditionEventMessageComposer
-                {
-                    WiredData = conditionSnapshot,
-                };
+            case WiredType.Condition:
+                composer = new WiredFurniConditionEventMessageComposer { WiredData = wiredData };
                 break;
-            case WiredDataSelectorSnapshot selectorSnapshot:
-                composer = new WiredFurniSelectorEventMessageComposer
-                {
-                    WiredData = selectorSnapshot,
-                };
+            case WiredType.Selector:
+                composer = new WiredFurniSelectorEventMessageComposer { WiredData = wiredData };
                 break;
-            case WiredDataTriggerSnapshot triggerSnapshot:
-                composer = new WiredFurniTriggerEventMessageComposer
-                {
-                    WiredData = triggerSnapshot,
-                };
+            case WiredType.Trigger:
+                composer = new WiredFurniTriggerEventMessageComposer { WiredData = wiredData };
                 break;
-            case WiredDataVariableSnapshot variableSnapshot:
-                composer = new WiredFurniVariableEventMessageComposer
-                {
-                    WiredData = variableSnapshot,
-                };
+            case WiredType.Variable:
+                composer = new WiredFurniVariableEventMessageComposer { WiredData = wiredData };
                 break;
         }
 

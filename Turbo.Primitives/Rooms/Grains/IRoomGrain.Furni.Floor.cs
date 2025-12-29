@@ -51,7 +51,7 @@ public partial interface IRoomGrain
     public Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,
         RoomObjectId itemId,
-        UpdateWired update,
+        UpdateWiredMessage update,
         CancellationToken ct
     );
     public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(

@@ -18,6 +18,4 @@ public class WiredVariableContext(
         IWiredVariable
 {
     public override int WiredCode => (int)WiredVariableType.CONTEXT_VARIABLE;
-
-    public override void Apply(IWiredContext ctx) { }
 }

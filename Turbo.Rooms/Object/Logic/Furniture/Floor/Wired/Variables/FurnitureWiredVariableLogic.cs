@@ -1,7 +1,8 @@
+using System.Threading;
+using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
-using Turbo.Primitives.Furniture.Snapshots.WiredData;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired;
 
@@ -16,25 +17,5 @@ public abstract class FurnitureWiredVariableLogic(
 {
     public override WiredType WiredType => WiredType.Variable;
 
-    public abstract void Apply(IWiredContext ctx);
-
-    protected override WiredDataSnapshot BuildSnapshot() =>
-        new WiredDataVariableSnapshot()
-        {
-            FurniLimit = _furniLimit,
-            StuffIds = WiredData.StuffIds,
-            StuffTypeId = _ctx.Definition.SpriteId,
-            Id = _ctx.ObjectId,
-            StringParam = WiredData.StringParam,
-            IntParams = WiredData.IntParams,
-            VariableIds = WiredData.VariableIds,
-            FurniSourceTypes = WiredData.FurniSources,
-            UserSourceTypes = WiredData.PlayerSources,
-            Code = WiredCode,
-            AdvancedMode = true,
-            AmountFurniSelections = [],
-            AllowWallFurni = false,
-            AllowedFurniSources = GetFurniSources(),
-            AllowedUserSources = GetPlayerSources(),
-        };
+    public virtual Task ApplyAsync(IWiredContext ctx, CancellationToken ct) => Task.CompletedTask;
 }

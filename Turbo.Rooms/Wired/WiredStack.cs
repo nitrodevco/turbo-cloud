@@ -3,10 +3,9 @@ using Turbo.Primitives.Rooms.Wired;
 
 namespace Turbo.Rooms.Wired;
 
-internal sealed class WiredProgramStack : IWiredStack
+internal sealed class WiredStack : IWiredStack
 {
     public required int StackId { get; init; }
-
     public List<IWiredTrigger> Triggers { get; init; } = [];
     public List<IWiredSelector> Selectors { get; init; } = [];
     public List<IWiredCondition> Conditions { get; init; } = [];

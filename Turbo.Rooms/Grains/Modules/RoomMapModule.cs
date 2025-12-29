@@ -256,6 +256,8 @@ internal sealed partial class RoomMapModule(
                 EncodedHeight = _state.TileEncodedHeights[id],
                 Flags = _state.TileFlags[id],
                 HighestObjectId = _state.TileHighestFloorItems[id],
+                FloorObjectIds = [.. _state.TileFloorStacks[id]],
+                AvatarObjectIds = [.. _state.TileAvatarStacks[id]],
             }
         );
 

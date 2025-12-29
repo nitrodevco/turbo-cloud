@@ -18,6 +18,4 @@ public class WiredSelectorSelectedItems(
         IWiredSelector
 {
     public override int WiredCode => (int)WiredSelectorType.SELECTED_FURNIS;
-
-    public override void Select(IWiredContext ctx) { }
 }

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -19,5 +20,13 @@ public class WiredSelectorItemsByType(
 {
     public override int WiredCode => (int)WiredSelectorType.FURNI_BY_TYPE;
 
-    public override void Select(IWiredContext ctx) { }
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
+        [
+            [
+                WiredFurniSourceType.SelectedItems,
+                WiredFurniSourceType.SignalItems,
+                WiredFurniSourceType.SelectorItems,
+                WiredFurniSourceType.TriggeredItem,
+            ],
+        ];
 }

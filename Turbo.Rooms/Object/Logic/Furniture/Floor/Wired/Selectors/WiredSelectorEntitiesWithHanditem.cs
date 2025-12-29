@@ -18,6 +18,4 @@ public class WiredSelectorEntitiesWithHanditem(
         IWiredSelector
 {
     public override int WiredCode => (int)WiredSelectorType.USERS_WITH_HANDITEM;
-
-    public override void Select(IWiredContext ctx) { }
 }

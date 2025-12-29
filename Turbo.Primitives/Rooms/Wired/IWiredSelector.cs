@@ -1,6 +1,9 @@
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace Turbo.Primitives.Rooms.Wired;
 
-public interface IWiredSelector
+public interface IWiredSelector : IWiredItem
 {
-    public void Select(IWiredContext ctx);
+    public Task<IWiredSelectionSet> SelectAsync(IWiredContext ctx, CancellationToken ct);
 }

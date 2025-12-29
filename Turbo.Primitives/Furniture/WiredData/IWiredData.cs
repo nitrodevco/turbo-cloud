@@ -7,12 +7,15 @@ namespace Turbo.Primitives.Furniture.WiredData;
 
 public interface IWiredData
 {
-    public List<int> StuffIds { get; set; }
+    public int Id { get; set; }
     public List<int> IntParams { get; set; }
-    public List<long> VariableIds { get; set; }
     public string StringParam { get; set; }
-    public Dictionary<int, WiredSourceType> FurniSources { get; set; }
-    public Dictionary<int, WiredSourceType> PlayerSources { get; set; }
+    public List<int> StuffIds { get; set; }
+    public List<long> VariableIds { get; set; }
+    public List<WiredFurniSourceType[]> FurniSources { get; set; }
+    public List<WiredPlayerSourceType[]> PlayerSources { get; set; }
+    public List<object> DefinitionSpecifics { get; set; }
+    public List<object> TypeSpecifics { get; set; }
     public void SetAction(Func<Task>? onSnapshotChanged);
     public void MarkDirty();
 }

@@ -19,6 +19,4 @@ public class WiredVariableFurni(
         IWiredVariable
 {
     public override int WiredCode => (int)WiredVariableType.FURNI_VARIABLE;
-
-    public override void Apply(IWiredContext ctx) { }
 }

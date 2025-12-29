@@ -18,6 +18,4 @@ public class WiredSelectorEntitiesOnItem(
         IWiredSelector
 {
     public override int WiredCode => (int)WiredSelectorType.USERS_ON_FURNI;
-
-    public override void Select(IWiredContext ctx) { }
 }

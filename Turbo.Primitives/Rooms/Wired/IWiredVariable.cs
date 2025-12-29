@@ -1,6 +1,9 @@
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace Turbo.Primitives.Rooms.Wired;
 
-public interface IWiredVariable
+public interface IWiredVariable : IWiredItem
 {
-    public void Apply(IWiredContext ctx);
+    public Task ApplyAsync(IWiredContext ctx, CancellationToken ct);
 }

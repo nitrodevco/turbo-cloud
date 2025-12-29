@@ -18,6 +18,4 @@ public class WiredVariableRoom(
         IWiredVariable
 {
     public override int WiredCode => (int)WiredVariableType.GLOBAL_VARIABLE;
-
-    public override void Apply(IWiredContext ctx) { }
 }

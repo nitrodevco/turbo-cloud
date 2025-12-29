@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
@@ -24,4 +25,10 @@ public sealed record RoomTileSnapshot
 
     [Id(5)]
     public required RoomObjectId HighestObjectId { get; init; }
+
+    [Id(6)]
+    public required IReadOnlyList<RoomObjectId> FloorObjectIds { get; init; }
+
+    [Id(7)]
+    public required IReadOnlyList<RoomObjectId> AvatarObjectIds { get; init; }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
@@ -22,24 +23,21 @@ public class WiredTriggerWalksOffItem(
     public override int WiredCode => (int)WiredTriggerType.AVATAR_WALKS_OFF_FURNI;
     public override List<Type> SupportedEventTypes { get; } = [typeof(AvatarWalkOffFurniEvent)];
 
-    private WiredSourceType _itemSource;
-
-    public override List<WiredSourceType[]> GetFurniSources() =>
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [
-            [WiredSourceType.SELECTED_ITEMS, WiredSourceType.SELECTOR_ITEMS],
+            [WiredFurniSourceType.SelectedItems, WiredFurniSourceType.SelectorItems],
         ];
 
-    public override Task<bool> MatchesAsync(IWiredContext ctx)
+    public override async Task<bool> CanTriggerAsync(IWiredContext ctx, CancellationToken ct)
     {
-        var result = ctx.Event is AvatarWalkOffFurniEvent;
+        if (ctx.Event is not AvatarWalkOffFurniEvent evt)
+            return false;
 
-        return Task.FromResult(result);
-    }
+        var selection = await ctx.GetEffectiveSelectionAsync(this, ct);
 
-    protected override void FillInternalData()
-    {
-        base.FillInternalData();
+        if (!selection.SelectedFurniIds.Contains(evt.FurniId))
+            return false;
 
-        _itemSource = WiredData.FurniSources.GetValueOrDefault(0, WiredSourceType.SELECTED_ITEMS);
+        return true;
     }
 }

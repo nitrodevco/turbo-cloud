@@ -18,6 +18,4 @@ public class WiredSelectorFilterItems(
         IWiredSelector
 {
     public override int WiredCode => (int)WiredSelectorType.var_4938; // TODO ?????
-
-    public override void Select(IWiredContext ctx) { }
 }

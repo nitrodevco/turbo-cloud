@@ -18,6 +18,4 @@ public class WiredSelectorEntitiesFromSignal(
         IWiredSelector
 {
     public override int WiredCode => (int)WiredSelectorType.USERS_FROM_SIGNAL;
-
-    public override void Select(IWiredContext ctx) { }
 }

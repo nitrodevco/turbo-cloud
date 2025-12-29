@@ -18,6 +18,4 @@ public class WiredSelectorEntitiesByAction(
         IWiredSelector
 {
     public override int WiredCode => (int)WiredSelectorType.USERS_PERFORMING_ACTION;
-
-    public override void Select(IWiredContext ctx) { }
 }

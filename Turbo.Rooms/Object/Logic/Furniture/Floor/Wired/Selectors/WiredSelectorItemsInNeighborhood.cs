@@ -18,6 +18,4 @@ public class WiredSelectorItemsInNeighborhood(
         IWiredSelector
 {
     public override int WiredCode => (int)WiredSelectorType.FURNI_IN_NEIGHBORHOOD;
-
-    public override void Select(IWiredContext ctx) { }
 }

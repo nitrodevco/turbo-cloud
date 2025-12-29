@@ -18,6 +18,4 @@ public class WiredVariableReference(
         IWiredVariable
 {
     public override int WiredCode => (int)WiredVariableType.REFERENCE_VARIABLE;
-
-    public override void Apply(IWiredContext ctx) { }
 }
