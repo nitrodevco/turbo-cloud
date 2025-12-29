@@ -235,10 +235,6 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
                 LastUpdatedUtc = DateTime.UtcNow,
             };
         }
-        catch (Exception)
-        {
-            throw;
-        }
         finally
         {
             await dbCtx.DisposeAsync();
