@@ -188,9 +188,73 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
     public virtual List<WiredPlayerSourceType[]> GetDefaultPlayerSources() =>
         [.. GetAllowedPlayerSources().Select(x => new[] { x[0] })];
 
-    public virtual List<object> GetDefinitionSpecifics() => [];
+    public virtual List<Type> GetDefinitionSpecificTypes() => [];
 
-    public virtual List<object> GetTypeSpecifics() => [];
+    public virtual List<Type> GetTypeSpecificTypes() => [];
+
+    public virtual List<object> GetDefinitionSpecifics()
+    {
+        var specifics = new List<object>();
+        var index = 0;
+
+        foreach (var specType in GetDefinitionSpecificTypes())
+        {
+            object specific = default!;
+
+            try
+            {
+                if (
+                    WiredData.DefinitionSpecifics[index] is not null
+                    && specType.IsAssignableFrom(WiredData.DefinitionSpecifics[index].GetType())
+                )
+                {
+                    specific = WiredData.DefinitionSpecifics[index];
+                }
+                else
+                {
+                    specific = Activator.CreateInstance(specType)!;
+                }
+            }
+            catch { }
+
+            specifics.Add(specific);
+            index++;
+        }
+
+        return specifics;
+    }
+
+    public virtual List<object> GetTypeSpecifics()
+    {
+        var specifics = new List<object>();
+        var index = 0;
+
+        foreach (var specType in GetTypeSpecificTypes())
+        {
+            object specific = default!;
+
+            try
+            {
+                if (
+                    WiredData.TypeSpecifics[index] is not null
+                    && specType.IsAssignableFrom(WiredData.TypeSpecifics[index].GetType())
+                )
+                {
+                    specific = WiredData.TypeSpecifics[index];
+                }
+                else
+                {
+                    specific = Activator.CreateInstance(specType)!;
+                }
+            }
+            catch { }
+
+            specifics.Add(specific);
+            index++;
+        }
+
+        return specifics;
+    }
 
     public virtual async Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,
@@ -295,15 +359,22 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
 
             index = 0;
 
-            foreach (var defSpecific in GetDefinitionSpecifics())
+            foreach (var specType in GetDefinitionSpecificTypes())
             {
-                object specific = defSpecific;
+                object specific = default!;
 
                 try
                 {
-                    if (update.DefinitionSpecifics[index] is not null)
+                    if (
+                        update.DefinitionSpecifics[index] is not null
+                        && specType.IsAssignableFrom(update.DefinitionSpecifics[index].GetType())
+                    )
                     {
                         specific = update.DefinitionSpecifics[index];
+                    }
+                    else
+                    {
+                        specific = Activator.CreateInstance(specType)!;
                     }
                 }
                 catch { }
@@ -314,15 +385,22 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
 
             index = 0;
 
-            foreach (var typeSpecific in GetTypeSpecifics())
+            foreach (var specType in GetTypeSpecificTypes())
             {
-                object specific = typeSpecific;
+                object specific = default!;
 
                 try
                 {
-                    if (update.TypeSpecifics[index] is not null)
+                    if (
+                        update.TypeSpecifics[index] is not null
+                        && specType.IsAssignableFrom(update.TypeSpecifics[index].GetType())
+                    )
                     {
                         specific = update.TypeSpecifics[index];
+                    }
+                    else
+                    {
+                        specific = Activator.CreateInstance(specType)!;
                     }
                 }
                 catch { }

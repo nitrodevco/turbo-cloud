@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Furniture.Enums;
@@ -16,15 +17,59 @@ public abstract class FurnitureWiredConditionLogic(
 {
     public override WiredType WiredType => WiredType.Condition;
 
-    private int _quantifierCode;
-    private byte _quantifierType;
-    private bool _isInvert;
+    public override List<Type> GetDefinitionSpecificTypes() =>
+        [.. base.GetDefinitionSpecificTypes(), typeof(int), typeof(bool)];
 
-    public override List<object> GetDefinitionSpecifics() =>
-        [.. base.GetDefinitionSpecifics(), _quantifierCode];
+    public override List<Type> GetTypeSpecificTypes() =>
+        [.. base.GetTypeSpecificTypes(), typeof(byte)];
 
-    public override List<object> GetTypeSpecifics() =>
-        [.. base.GetTypeSpecifics(), _quantifierType, _isInvert];
+    public int GetQuantifierCode()
+    {
+        var quantifierCode = 0;
+
+        try
+        {
+            if (WiredData.DefinitionSpecifics is not null)
+            {
+                quantifierCode = (int)WiredData.DefinitionSpecifics[0]!;
+            }
+        }
+        catch { }
+
+        return quantifierCode;
+    }
+
+    public bool GetIsInvert()
+    {
+        var isInvert = false;
+
+        try
+        {
+            if (WiredData.DefinitionSpecifics is not null)
+            {
+                isInvert = (bool)WiredData.DefinitionSpecifics[1]!;
+            }
+        }
+        catch { }
+
+        return isInvert;
+    }
+
+    public byte GetQuantifierType()
+    {
+        var quantifierType = (byte)0;
+
+        try
+        {
+            if (WiredData.TypeSpecifics is not null)
+            {
+                quantifierType = (byte)WiredData.TypeSpecifics[0]!;
+            }
+        }
+        catch { }
+
+        return quantifierType;
+    }
 
     public abstract bool Evaluate(IWiredContext ctx);
 

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,10 +19,24 @@ public abstract class FurnitureWiredActionLogic(
 {
     public override WiredType WiredType => WiredType.Action;
 
-    private int _delayInPulses = 0;
+    public override List<Type> GetDefinitionSpecificTypes() =>
+        [.. base.GetDefinitionSpecificTypes(), typeof(int)];
 
-    public override List<object> GetDefinitionSpecifics() =>
-        [.. base.GetDefinitionSpecifics(), _delayInPulses];
+    public int GetDelayMs()
+    {
+        var delay = 0;
+
+        try
+        {
+            if (WiredData.DefinitionSpecifics is not null)
+            {
+                delay = (int)WiredData.DefinitionSpecifics[0]!;
+            }
+        }
+        catch { }
+
+        return delay;
+    }
 
     public abstract Task<bool> ExecuteAsync(IWiredContext ctx, CancellationToken ct);
 }
