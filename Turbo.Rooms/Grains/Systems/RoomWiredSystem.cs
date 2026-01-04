@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
@@ -53,7 +54,7 @@ public sealed class RoomWiredSystem(
         while (now >= _state.NextWiredBoundaryMs)
             _state.NextWiredBoundaryMs += _tickMs;
 
-        await CompileLatestWiredAsync(ct);
+        await CompileLatestWiredAsync(now, ct);
         await RunDueScheduledStackExecutionsAsync(now, ct);
 
         if (_wiredCompiled is null || _wiredCompiled.StackIdsByEventType.Count == 0)
@@ -159,7 +160,7 @@ public sealed class RoomWiredSystem(
         foreach (var addon in ctx.Stack.Addons)
             await addon.BeforeEffectsAsync(ctx, ct);
 
-        await ScheduleStackExecutionAsync(stackId, ctx, now, ct);
+        ScheduleStackExecution(stackId, ctx, now, ct);
 
         foreach (var addon in ctx.Stack.Addons)
             await addon.AfterEffectsAsync(ctx, ct);
@@ -182,7 +183,22 @@ public sealed class RoomWiredSystem(
         };
     }
 
-    private async Task ScheduleStackExecutionAsync(
+    private void SchedulePeriodicStackRun(int stackId, WiredTriggerPeriodically trigger, long now)
+    {
+        var delayMs = trigger.GetDelayMs();
+
+        var ctx = new WiredProcessingContext
+        {
+            Room = _roomGrain,
+            Event = PeriodicRoomEvent.Instance,
+            Stack = _stacksById[stackId],
+            Trigger = trigger,
+        };
+
+        ScheduleStackExecution(stackId, ctx, now + delayMs, CancellationToken.None);
+    }
+
+    private void ScheduleStackExecution(
         int stackId,
         WiredProcessingContext ctx,
         long now,
@@ -308,20 +324,33 @@ public sealed class RoomWiredSystem(
 
             try
             {
-                await action.ExecuteAsync(
-                    new WiredExecutionContext
-                    {
-                        Room = _roomGrain,
-                        Variables = pending.Variables.ToDictionary(),
-                        Selected = new WiredSelectionSet().UnionWith(pending.Selected),
-                        SelectorPool = new WiredSelectionSet().UnionWith(pending.SelectorPool),
-                    },
-                    ct
-                );
+                var ctx = new WiredExecutionContext
+                {
+                    Room = _roomGrain,
+                    Variables = pending.Variables.ToDictionary(),
+                    Selected = new WiredSelectionSet().UnionWith(pending.Selected),
+                    SelectorPool = new WiredSelectionSet().UnionWith(pending.SelectorPool),
+                };
+
+                await action.ExecuteAsync(ctx, ct);
+
+                FlushWiredMovementsForContext(ctx);
             }
             catch { }
 
             pending.NextActionIndex = i + 1;
+
+            if (pending.Trigger is WiredTriggerPeriodically periodic)
+            {
+                var delayMs = periodic.GetDelayMs();
+
+                pending.NextActionIndex = 0;
+                pending.WaitingActionIndex = null;
+
+                RescheduleStack(key, pending, now + delayMs);
+
+                return false;
+            }
         }
 
         return true;
@@ -338,7 +367,28 @@ public sealed class RoomWiredSystem(
         _stackSchedule.Enqueue((key, pending.Version), pending.DueAtMs);
     }
 
-    private async Task CompileLatestWiredAsync(CancellationToken ct)
+    private void FlushWiredMovementsForContext(WiredExecutionContext ctx)
+    {
+        if (
+            ctx.UserMoves.Count == 0
+            && ctx.UserDirections.Count == 0
+            && ctx.FloorItemMoves.Count == 0
+            && ctx.WallItemMoves.Count == 0
+        )
+            return;
+
+        _ = ctx.SendComposerToRoomAsync(
+            new WiredMovementsMessageComposer
+            {
+                Users = ctx.UserMoves,
+                FloorItems = ctx.FloorItemMoves,
+                WallItems = ctx.WallItemMoves,
+                UserDirections = ctx.UserDirections,
+            }
+        );
+    }
+
+    private async Task CompileLatestWiredAsync(long now, CancellationToken ct)
     {
         if (_dirtyStackIds.Count == 0 && _wiredCompiled is not null)
             return;
@@ -371,6 +421,9 @@ public sealed class RoomWiredSystem(
 
                     list.Add(key);
                 }
+
+                if (trigger is WiredTriggerPeriodically periodic)
+                    SchedulePeriodicStackRun(key, periodic, now);
             }
         }
 

@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Avatar;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -18,5 +21,30 @@ public class WiredTriggerPeriodically(
 ) : FurnitureWiredTriggerLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredTriggerType.TRIGGER_PERIODICALLY;
-    public override List<Type> SupportedEventTypes { get; } = [typeof(AvatarWalkOnFurniEvent)];
+    public override List<Type> SupportedEventTypes { get; } = [typeof(PeriodicRoomEvent)];
+
+    public virtual WiredPeriodicTriggerType PeriodicType => WiredPeriodicTriggerType.Short;
+
+    private int _delayValue = 0;
+
+    public int GetDelayMs()
+    {
+        return PeriodicType switch
+        {
+            WiredPeriodicTriggerType.Short => Math.Clamp(_delayValue, 1, 10) * 50,
+            WiredPeriodicTriggerType.Long => Math.Clamp(_delayValue, 1, 120) * 5000,
+            _ => 50,
+        };
+    }
+
+    protected override async Task FillInternalDataAsync(CancellationToken ct)
+    {
+        await base.FillInternalDataAsync(ct);
+
+        try
+        {
+            _delayValue = WiredData.IntParams?[0] ?? 0;
+        }
+        catch { }
+    }
 }

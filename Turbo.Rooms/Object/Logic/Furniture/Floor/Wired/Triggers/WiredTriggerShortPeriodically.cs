@@ -15,8 +15,8 @@ public class WiredTriggerShortPeriodically(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredTriggerLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : WiredTriggerPeriodically(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredTriggerType.PERIODIC_SHORT;
-    public override List<Type> SupportedEventTypes { get; } = [typeof(AvatarWalkOnFurniEvent)];
+    public override WiredPeriodicTriggerType PeriodicType => WiredPeriodicTriggerType.Short;
 }

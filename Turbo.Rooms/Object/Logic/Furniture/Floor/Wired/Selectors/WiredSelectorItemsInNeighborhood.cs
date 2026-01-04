@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -15,4 +18,27 @@ public class WiredSelectorItemsInNeighborhood(
 ) : FurnitureWiredSelectorLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredSelectorType.FURNI_IN_NEIGHBORHOOD;
+
+    private WiredInputSourceType _inputSourceType;
+
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
+        [
+            [WiredFurniSourceType.TriggeredItem, WiredFurniSourceType.SignalItems],
+        ];
+
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
+        [
+            [WiredPlayerSourceType.TriggeredUser, WiredPlayerSourceType.SignalUsers],
+        ];
+
+    protected override async Task FillInternalDataAsync(CancellationToken ct)
+    {
+        await base.FillInternalDataAsync(ct);
+
+        try
+        {
+            _inputSourceType = (WiredInputSourceType)(WiredData.IntParams?[0] ?? 0);
+        }
+        catch { }
+    }
 }

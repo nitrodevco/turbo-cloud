@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Grains;
 
@@ -15,6 +16,11 @@ public sealed class WiredExecutionContext
     public required Dictionary<string, object?> Variables { get; init; }
     public required IWiredSelectionSet Selected { get; init; }
     public required IWiredSelectionSet SelectorPool { get; init; }
+
+    public List<WiredUserMovementSnapshot> UserMoves { get; } = [];
+    public List<WiredFloorItemMovementSnapshot> FloorItemMoves { get; } = [];
+    public List<WiredWallItemMovementSnapshot> WallItemMoves { get; } = [];
+    public List<WiredUserDirectionSnapshot> UserDirections { get; } = [];
 
     public async Task<IWiredSelectionSet> GetWiredSelectionSetAsync(
         IWiredItem wired,

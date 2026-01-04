@@ -42,7 +42,6 @@ public class WiredActionMoveRotateFurni(
     {
         var selection = await ctx.GetEffectiveSelectionAsync(this, ct);
         var actionCtx = ctx.AsActionContext();
-        var floorItemMoves = new List<WiredFloorItemMovementSnapshot>();
 
         foreach (var furniId in selection.SelectedFurniIds)
         {
@@ -78,7 +77,7 @@ public class WiredActionMoveRotateFurni(
 
             ctx.Room._mapModule.RollFloorItem(floorItem, nextIdx, targetZ);
 
-            floorItemMoves.Add(
+            ctx.FloorItemMoves.Add(
                 new()
                 {
                     ObjectId = floorItem.ObjectId,
@@ -93,16 +92,6 @@ public class WiredActionMoveRotateFurni(
                 }
             );
         }
-
-        _ = ctx.SendComposerToRoomAsync(
-            new WiredMovementsMessageComposer
-            {
-                Users = [],
-                FloorItems = floorItemMoves,
-                WallItems = [],
-                UserDirections = [],
-            }
-        );
 
         return true;
     }
