@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Crypto;
@@ -14,6 +15,7 @@ public interface ISessionContext
     public CancellationTokenSource HeartbeatCts { get; }
     public IRc4Engine? CryptoIn { get; }
     public IRc4Engine? CryptoOut { get; }
+    public ArrayBufferWriter<byte>? WsBuffer { get; }
     public Task CloseSessionAsync();
     public void Touch();
     public void SetRevisionId(string revisionId);

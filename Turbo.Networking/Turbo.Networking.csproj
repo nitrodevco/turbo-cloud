@@ -5,6 +5,7 @@
   <ItemGroup>
     <PackageReference Include="SuperSocket.ProtoBase" />
     <PackageReference Include="SuperSocket.Server" />
+    <PackageReference Include="SuperSocket.WebSocket.Server" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Turbo.Messages\Turbo.Messages.csproj" />

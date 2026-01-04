@@ -21,11 +21,7 @@ public sealed class PackageHandler(
     private readonly MessageSystem _messageSystem = messageSystem;
     private readonly ILogger<PackageHandler> _logger = logger;
 
-    public async ValueTask Handle(
-        IAppSession session,
-        IClientPacket packet,
-        CancellationToken cancellationToken
-    )
+    public async ValueTask Handle(IAppSession session, IClientPacket packet, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(packet);
 

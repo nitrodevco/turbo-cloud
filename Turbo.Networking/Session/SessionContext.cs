@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
 using SuperSocket.Connection;
@@ -25,6 +26,8 @@ public class SessionContext(IPackageEncoder<OutgoingPackage> packageEncoder)
     public CancellationTokenSource HeartbeatCts { get; } = new();
     public IRc4Engine? CryptoIn { get; private set; }
     public IRc4Engine? CryptoOut { get; private set; }
+
+    public ArrayBufferWriter<byte>? WsBuffer { get; } = new(4096);
 
     protected override async ValueTask OnSessionConnectedAsync()
     {

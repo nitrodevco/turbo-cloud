@@ -1,42 +1,36 @@
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
-using SuperSocket.ProtoBase;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Packets;
 
 namespace Turbo.Networking.Package;
 
-internal sealed class PackageFilter : PipelineFilterBase<IClientPacket>
+internal sealed class ClientPacketDecoder : IClientPacketDecoder
 {
-    public override IClientPacket Filter(ref SequenceReader<byte> reader)
+    public IClientPacket TryRead(ref SequenceReader<byte> reader, ISessionContext ctx)
     {
-        var r = reader;
-
-        if (Context is not ISessionContext ctx || r.Remaining < 4)
+        if (reader.Remaining < 4)
             return null!;
 
         Span<byte> hdr = stackalloc byte[4];
-        r.Sequence.Slice(r.Consumed, 4).CopyTo(hdr);
+        reader.Sequence.Slice(reader.Consumed, 4).CopyTo(hdr);
 
-        var length = BinaryPrimitives.ReadInt32BigEndian(
+        int length = BinaryPrimitives.ReadInt32BigEndian(
             ctx.CryptoIn is not null ? ctx.CryptoIn.Peek(hdr.ToArray()) : hdr
         );
 
-        if (r.Remaining < (length + 4))
+        if (reader.Remaining < (length + 4))
             return null!;
 
-        var unread = r.Sequence.Slice(r.Consumed, length + 4).ToArray();
-
+        var unread = reader.Sequence.Slice(reader.Consumed, length + 4).ToArray();
         var body = ctx.CryptoIn is not null ? ctx.CryptoIn.Process(unread) : unread;
         var packet = new ClientPacket(-1, body);
 
         length = packet.PopInt();
         packet.Header = packet.PopShort();
 
-        r.Advance(length + 4);
-
-        reader = r;
+        reader.Advance(length + 4);
 
         return packet;
     }
