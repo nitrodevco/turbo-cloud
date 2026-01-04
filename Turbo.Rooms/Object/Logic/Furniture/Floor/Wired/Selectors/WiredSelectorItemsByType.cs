@@ -17,9 +17,7 @@ public class WiredSelectorItemsByType(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-)
-    : FurnitureWiredSelectorLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx),
-        IWiredSelector
+) : FurnitureWiredSelectorLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredSelectorType.FURNI_BY_TYPE;
 
@@ -34,7 +32,7 @@ public class WiredSelectorItemsByType(
         ];
 
     public override async Task<IWiredSelectionSet> SelectAsync(
-        IWiredContext ctx,
+        WiredProcessingContext ctx,
         CancellationToken ct
     )
     {
@@ -46,10 +44,10 @@ public class WiredSelectorItemsByType(
         {
             try
             {
-                var snapshot = await ctx.Room.GetFloorItemSnapshotByIdAsync(id, ct);
+                if (!ctx.Room._liveState.FloorItemsById.TryGetValue(id, out var floorItem))
+                    continue;
 
-                if (snapshot is not null)
-                    allowedDefinitionIds.Add(snapshot.DefinitionId);
+                allowedDefinitionIds.Add(floorItem.Definition.Id);
             }
             catch
             {
@@ -57,9 +55,9 @@ public class WiredSelectorItemsByType(
             }
         }
 
-        foreach (var item in await ctx.Room.GetAllFloorItemSnapshotsAsync(ct))
+        foreach (var item in ctx.Room._liveState.FloorItemsById.Values)
         {
-            if (allowedDefinitionIds.Contains(item.DefinitionId))
+            if (allowedDefinitionIds.Contains(item.Definition.Id))
                 output.SelectedFurniIds.Add(item.ObjectId.Value);
         }
 

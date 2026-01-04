@@ -4,7 +4,7 @@ using Turbo.Primitives.Rooms.Wired;
 
 namespace Turbo.Rooms.Wired;
 
-internal sealed class WiredPolicy : IWiredPolicy
+public sealed class WiredPolicy : IWiredPolicy
 {
     public ConditionModeType ConditionMode { get; init; } = ConditionModeType.All;
 

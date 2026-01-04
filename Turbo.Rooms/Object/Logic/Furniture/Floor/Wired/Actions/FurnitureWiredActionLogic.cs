@@ -6,7 +6,7 @@ using Orleans;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
@@ -15,7 +15,7 @@ public abstract class FurnitureWiredActionLogic(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx), IWiredAction
+) : FurnitureWiredLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
     public override WiredType WiredType => WiredType.Action;
 
@@ -38,5 +38,6 @@ public abstract class FurnitureWiredActionLogic(
         return delay;
     }
 
-    public abstract Task<bool> ExecuteAsync(IWiredContext ctx, CancellationToken ct);
+    public virtual Task<bool> ExecuteAsync(WiredExecutionContext ctx, CancellationToken ct) =>
+        Task.FromResult(true);
 }

@@ -3,7 +3,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-internal sealed partial class RoomMapModule
+public sealed partial class RoomMapModule
 {
     public bool AddWallItem(IRoomWallItem item)
     {

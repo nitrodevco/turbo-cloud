@@ -16,7 +16,7 @@ public abstract class FurnitureWiredSelectorLogic(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx), IWiredSelector
+) : FurnitureWiredLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
     public override WiredType WiredType => WiredType.Selector;
 
@@ -55,6 +55,8 @@ public abstract class FurnitureWiredSelectorLogic(
         return isInvert;
     }
 
-    public virtual Task<IWiredSelectionSet> SelectAsync(IWiredContext ctx, CancellationToken ct) =>
-        Task.FromResult<IWiredSelectionSet>(new WiredSelectionSet());
+    public virtual Task<IWiredSelectionSet> SelectAsync(
+        WiredProcessingContext ctx,
+        CancellationToken ct
+    ) => Task.FromResult<IWiredSelectionSet>(new WiredSelectionSet());
 }

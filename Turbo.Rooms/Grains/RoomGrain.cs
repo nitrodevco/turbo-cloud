@@ -40,15 +40,15 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     internal IAsyncStream<RoomOutbound> _roomOutbound = default!;
 
-    private readonly RoomId _roomId;
-    private readonly RoomLiveState _liveState;
+    internal readonly RoomId _roomId;
+    internal readonly RoomLiveState _liveState;
 
-    private readonly RoomEventModule _eventModule;
-    private readonly RoomSecurityModule _securityModule;
-    private readonly RoomMapModule _mapModule;
-    private readonly RoomAvatarModule _avatarModule;
-    private readonly RoomFurniModule _furniModule;
-    private readonly RoomActionModule _actionModule;
+    internal readonly RoomEventModule _eventModule;
+    internal readonly RoomSecurityModule _securityModule;
+    internal readonly RoomMapModule _mapModule;
+    internal readonly RoomAvatarModule _avatarModule;
+    internal readonly RoomFurniModule _furniModule;
+    internal readonly RoomActionModule _actionModule;
 
     private readonly RoomPathingSystem _pathingSystem;
     private readonly RoomAvatarTickSystem _avatarTickSystem;

@@ -4,6 +4,7 @@ namespace Turbo.Primitives.Rooms.Enums;
 
 public enum Rotation
 {
+    None = -1,
     North = 0,
     NorthEast = 1,
     East = 2,
@@ -16,6 +17,14 @@ public enum Rotation
 
 public static class RotationExtensions
 {
+    public static readonly Rotation[] CARDINAL =
+    {
+        Rotation.North,
+        Rotation.East,
+        Rotation.South,
+        Rotation.West,
+    };
+
     public static Rotation FromDelta(int dx, int dy)
     {
         dx = Math.Clamp(dx, -1, 1);

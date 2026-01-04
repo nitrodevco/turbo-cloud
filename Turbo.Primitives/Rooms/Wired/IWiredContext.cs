@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Grains;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 
 namespace Turbo.Primitives.Rooms.Wired;
 
@@ -26,4 +27,5 @@ public interface IWiredContext
         IWiredItem wired,
         CancellationToken ct
     );
+    public WiredContextSnapshot GetSnapshot();
 }

@@ -8,7 +8,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Avatar;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
-using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
@@ -28,7 +28,10 @@ public class WiredTriggerWalksOffItem(
             [WiredFurniSourceType.SelectedItems, WiredFurniSourceType.SelectorItems],
         ];
 
-    public override async Task<bool> CanTriggerAsync(IWiredContext ctx, CancellationToken ct)
+    public override async Task<bool> CanTriggerAsync(
+        WiredProcessingContext ctx,
+        CancellationToken ct
+    )
     {
         if (ctx.Event is not AvatarWalkOffFurniEvent evt)
             return false;

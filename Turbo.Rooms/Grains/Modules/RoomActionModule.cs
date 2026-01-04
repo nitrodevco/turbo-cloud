@@ -2,7 +2,7 @@ using Turbo.Primitives.Rooms;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-internal sealed partial class RoomActionModule(
+public sealed partial class RoomActionModule(
     RoomGrain roomGrain,
     RoomLiveState liveState,
     RoomSecurityModule securityModule,

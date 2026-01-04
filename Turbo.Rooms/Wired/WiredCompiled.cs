@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Turbo.Rooms.Wired;
 
-internal sealed class WiredCompiled
+public sealed class WiredCompiled
 {
     public Dictionary<int, WiredStack> StacksById { get; } = [];
 

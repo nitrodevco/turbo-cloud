@@ -18,7 +18,7 @@ using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Systems;
 
-internal sealed class RoomRollerSystem(
+public sealed class RoomRollerSystem(
     RoomGrain roomGrain,
     RoomConfig roomConfig,
     RoomLiveState roomLiveState,

@@ -6,15 +6,20 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
-using Turbo.Primitives.Rooms.Object.Logic.Furniture;
-using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Grains.Systems;
 
-internal sealed class RoomWiredSystem(
+public sealed class RoomWiredSystem(
     RoomGrain roomGrain,
     RoomConfig roomConfig,
     RoomLiveState roomLiveState,
@@ -28,13 +33,15 @@ internal sealed class RoomWiredSystem(
     private readonly RoomAvatarModule _roomAvatarModule = roomAvatarModule;
     private readonly RoomMapModule _roomMapModule = roomMapModule;
 
-    private WiredCompiled? _wiredCompiled = null;
-    private Dictionary<int, WiredStack> _stacksById = [];
+    private WiredCompiled? _wiredCompiled;
+    private long _nextStackExecutionId = 0;
 
     private readonly HashSet<int> _dirtyStackIds = [];
-    private readonly Queue<RoomEvent> _queue = new();
-
-    private bool _isProcessingQueue = false;
+    private readonly Dictionary<int, WiredStack> _stacksById = [];
+    private readonly Queue<RoomEvent> _eventQueue = new();
+    private readonly Dictionary<StackExecKey, WiredPendingStackExecution> _pendingStackExecutions =
+    [];
+    private readonly PriorityQueue<(StackExecKey key, long version), long> _stackSchedule = new();
 
     private int _tickMs => _roomConfig.WiredTickMs;
 
@@ -46,78 +53,77 @@ internal sealed class RoomWiredSystem(
         while (now >= _state.NextWiredBoundaryMs)
             _state.NextWiredBoundaryMs += _tickMs;
 
-        if (_stacksById.Count == 0)
+        await CompileLatestWiredAsync(ct);
+        await RunDueScheduledStackExecutionsAsync(now, ct);
+
+        if (_wiredCompiled is null || _wiredCompiled.StackIdsByEventType.Count == 0)
             return;
 
-        while (_queue.Count > 0)
-        {
-            var payload = _queue.Dequeue();
+        var budget = _roomConfig.WiredMaxEventsPerTick;
 
-            await ProcessRoomEventAsync(payload, ct);
+        while (budget-- > 0 && _eventQueue.Count > 0)
+        {
+            var evt = _eventQueue.Dequeue();
+            await ProcessRoomEventAsync(evt, now, ct);
         }
     }
 
-    public Task OnRoomEventAsync(RoomEvent evt, CancellationToken ct) =>
-        ProcessRoomEventAsync(evt, ct);
-
-    private async Task ProcessRoomEventAsync(RoomEvent evt, CancellationToken ct)
+    public Task OnRoomEventAsync(RoomEvent evt, CancellationToken ct)
     {
-        if (evt is null)
-            return;
-
-        if (evt is RoomWiredStackChangedEvent stackChanged)
+        if (evt is not null)
         {
-            foreach (var stackId in stackChanged.StackIds)
-                _dirtyStackIds.Add(stackId);
-
-            return;
+            if (evt is RoomWiredStackChangedEvent stackChanged)
+            {
+                foreach (var stackId in stackChanged.StackIds)
+                    _dirtyStackIds.Add(stackId);
+            }
+            else
+            {
+                _eventQueue.Enqueue(evt);
+            }
         }
 
-        await CompileLatestWiredAsync(ct);
+        return Task.CompletedTask;
+    }
 
-        if (_wiredCompiled is null)
+    private async Task ProcessRoomEventAsync(RoomEvent evt, long now, CancellationToken ct)
+    {
+        if (
+            evt is null
+            || _wiredCompiled is null
+            || !_wiredCompiled.StackIdsByEventType.TryGetValue(evt.GetType(), out var stackIds)
+        )
             return;
-
-        if (!_wiredCompiled.StackIdsByEventType.TryGetValue(evt.GetType(), out var stackIds))
-            return;
-
-        var wiredContexts = new List<IWiredContext>();
 
         foreach (var stackId in stackIds)
         {
-            var stack = _stacksById[stackId];
-
-            if (stack is null)
+            if (!_stacksById.TryGetValue(stackId, out var stack) || stack is null)
                 continue;
 
             foreach (var trigger in stack.Triggers)
             {
-                if (await trigger.MatchesEventAsync(evt, ct))
+                if (!await trigger.MatchesEventAsync(evt, ct))
+                    continue;
+
+                var ctx = new WiredProcessingContext
                 {
-                    var ctx = new WiredContext
-                    {
-                        Room = _roomGrain,
-                        Event = evt,
-                        Stack = stack,
-                        Trigger = trigger,
-                    };
+                    Room = _roomGrain,
+                    Event = evt,
+                    Stack = stack,
+                    Trigger = trigger,
+                };
 
-                    wiredContexts.Add(ctx);
-
-                    if (ctx.Policy.ShortCircuitOnFirstEffectSuccess)
-                        break;
-                }
+                await ProcessWiredContextAsync(ctx, stackId, now, ct);
             }
         }
-
-        if (wiredContexts.Count == 0)
-            return;
-
-        foreach (var ctx in wiredContexts)
-            await ProcessWiredContextAsync(ctx, ct);
     }
 
-    private async Task ProcessWiredContextAsync(IWiredContext ctx, CancellationToken ct)
+    private async Task ProcessWiredContextAsync(
+        WiredProcessingContext ctx,
+        int stackId,
+        long now,
+        CancellationToken ct
+    )
     {
         if (ctx.Trigger is not null)
         {
@@ -130,8 +136,7 @@ internal sealed class RoomWiredSystem(
         {
             var produced = await selector.SelectAsync(ctx, ct);
 
-            ctx.SelectorPool.SelectedFurniIds.UnionWith(produced.SelectedFurniIds);
-            ctx.SelectorPool.SelectedAvatarIds.UnionWith(produced.SelectedAvatarIds);
+            ctx.SelectorPool.UnionWith(produced);
         }
 
         foreach (var variable in ctx.Stack.Variables)
@@ -154,16 +159,16 @@ internal sealed class RoomWiredSystem(
         foreach (var addon in ctx.Stack.Addons)
             await addon.BeforeEffectsAsync(ctx, ct);
 
-        if (ctx.Policy.Delay is { } delay)
-            await Task.Delay(delay, ct);
-
-        await ExecuteEffectsAsync(ctx.Stack.Effects, ctx, ct);
+        await ScheduleStackExecutionAsync(stackId, ctx, now, ct);
 
         foreach (var addon in ctx.Stack.Addons)
             await addon.AfterEffectsAsync(ctx, ct);
     }
 
-    private static bool EvaluateConditions(List<IWiredCondition> conditions, IWiredContext ctx)
+    private static bool EvaluateConditions(
+        List<FurnitureWiredConditionLogic> conditions,
+        WiredProcessingContext ctx
+    )
     {
         if (conditions.Count == 0)
             return true;
@@ -177,46 +182,146 @@ internal sealed class RoomWiredSystem(
         };
     }
 
-    private static async Task ExecuteEffectsAsync(
-        List<IWiredAction> effects,
-        IWiredContext ctx,
+    private async Task ScheduleStackExecutionAsync(
+        int stackId,
+        WiredProcessingContext ctx,
+        long now,
         CancellationToken ct
     )
     {
-        if (effects.Count == 0)
+        var actions = ChooseActions(ctx.Stack.Effects, ctx.Policy);
+
+        if (actions.Count == 0)
             return;
 
-        switch (ctx.Policy.EffectMode)
+        var key = new StackExecKey(stackId, Interlocked.Increment(ref _nextStackExecutionId));
+
+        var pending = new WiredPendingStackExecution
         {
-            case EffectModeType.FirstOnly:
-            {
-                await effects[0].ExecuteAsync(ctx, ct);
-                return;
-            }
+            Stack = ctx.Stack,
+            Actions = actions,
+            Trigger = ctx.Trigger,
+            Variables = ctx.Variables,
+            Selected = ctx.Selected,
+            SelectorPool = ctx.SelectorPool,
+            Version = 1,
+            DueAtMs = now,
+            EffectMode = ctx.Policy.EffectMode,
+            ShortCircuitOnFirstEffectSuccess = ctx.Policy.ShortCircuitOnFirstEffectSuccess,
+            NextActionIndex = 0,
+        };
 
-            case EffectModeType.Random:
-            {
-                var idx = Random.Shared.Next(effects.Count);
+        _pendingStackExecutions[key] = pending;
+        _stackSchedule.Enqueue((key, pending.Version), pending.DueAtMs);
+    }
 
-                await effects[idx].ExecuteAsync(ctx, ct);
+    private static List<FurnitureWiredActionLogic> ChooseActions(
+        List<FurnitureWiredActionLogic> actions,
+        WiredPolicy policy
+    )
+    {
+        if (actions.Count == 0)
+            return [];
 
-                return;
-            }
+        return policy.EffectMode switch
+        {
+            EffectModeType.FirstOnly => [actions[0]],
+            EffectModeType.Random => [actions[Random.Shared.Next(actions.Count)]],
+            _ => [.. actions],
+        };
+    }
 
-            default:
-            case EffectModeType.All:
-            {
-                foreach (var effect in effects)
-                {
-                    var ok = await effect.ExecuteAsync(ctx, ct);
+    private async Task RunDueScheduledStackExecutionsAsync(long now, CancellationToken ct)
+    {
+        var budget = _roomConfig.WiredMaxScheduledPerTick;
 
-                    if (ok && ctx.Policy.ShortCircuitOnFirstEffectSuccess)
-                        break;
-                }
+        while (budget-- > 0 && _stackSchedule.Count > 0)
+        {
+            var (entry, dueAtMs) = PeekSchedule();
 
-                return;
-            }
+            if (dueAtMs > now)
+                break;
+
+            _stackSchedule.Dequeue();
+
+            var (key, version) = entry;
+
+            if (
+                !_pendingStackExecutions.TryGetValue(key, out var pending)
+                || pending.Version != version
+            )
+                continue;
+
+            if (pending.DueAtMs > now)
+                continue;
+
+            var finished = await ExecuteStackChainAsync(key, pending, now, ct);
+
+            if (finished)
+                _pendingStackExecutions.Remove(key);
         }
+
+        ((StackExecKey key, long version) entry, long dueAtMs) PeekSchedule()
+        {
+            if (_stackSchedule.TryPeek(out var k, out var p))
+                return (k, p);
+
+            return (default, long.MaxValue);
+        }
+    }
+
+    private async Task<bool> ExecuteStackChainAsync(
+        StackExecKey key,
+        WiredPendingStackExecution pending,
+        long now,
+        CancellationToken ct
+    )
+    {
+        for (var i = pending.NextActionIndex; i < pending.Actions.Count; i++)
+        {
+            var action = pending.Actions[i];
+            var delayMs = Math.Max(0, action.GetDelayMs());
+
+            if (delayMs > 0)
+            {
+                pending.NextActionIndex = i;
+
+                RescheduleStack(key, pending, now + delayMs);
+
+                return false;
+            }
+
+            try
+            {
+                await action.ExecuteAsync(
+                    new WiredExecutionContext
+                    {
+                        Room = _roomGrain,
+                        Variables = pending.Variables,
+                        Selected = pending.Selected,
+                        SelectorPool = pending.SelectorPool,
+                    },
+                    ct
+                );
+            }
+            catch
+            {
+                // swallow or log - up to you
+            }
+
+            pending.NextActionIndex = i + 1;
+        }
+
+        return true;
+    }
+
+    private void RescheduleStack(StackExecKey key, WiredPendingStackExecution pending, long dueAtMs)
+    {
+        pending.Version++;
+        pending.DueAtMs = dueAtMs;
+
+        _pendingStackExecutions[key] = pending;
+        _stackSchedule.Enqueue((key, pending.Version), pending.DueAtMs);
     }
 
     private async Task CompileLatestWiredAsync(CancellationToken ct)
@@ -227,7 +332,6 @@ internal sealed class RoomWiredSystem(
         if (_dirtyStackIds.Count > 0)
         {
             var dirtyStackIds = _dirtyStackIds.ToList();
-
             _dirtyStackIds.Clear();
 
             foreach (var stackId in dirtyStackIds)
@@ -243,9 +347,7 @@ internal sealed class RoomWiredSystem(
         {
             foreach (var trigger in value.Triggers)
             {
-                var eventTypes = trigger.SupportedEventTypes;
-
-                foreach (var eventType in eventTypes)
+                foreach (var eventType in trigger.SupportedEventTypes)
                 {
                     if (!compile.StackIdsByEventType.TryGetValue(eventType, out var list))
                     {
@@ -271,7 +373,7 @@ internal sealed class RoomWiredSystem(
         var wiredItems = _state
             .TileFloorStacks[stackId]
             .Select(x => _state.FloorItemsById[x])
-            .Where(x => x.Logic is IFurnitureWiredLogic)
+            .Where(x => x.Logic is FurnitureWiredLogic)
             .ToList();
 
         if (wiredItems.Count == 0)
@@ -283,28 +385,27 @@ internal sealed class RoomWiredSystem(
         {
             try
             {
-                var wiredLogic = (IFurnitureWiredLogic)item.Logic!;
-
+                var wiredLogic = (FurnitureWiredLogic)item.Logic!;
                 await wiredLogic.LoadWiredAsync(ct);
 
                 switch (wiredLogic)
                 {
-                    case IWiredTrigger trigger:
+                    case FurnitureWiredTriggerLogic trigger:
                         stack.Triggers.Add(trigger);
                         break;
-                    case IWiredSelector selector:
+                    case FurnitureWiredSelectorLogic selector:
                         stack.Selectors.Add(selector);
                         break;
-                    case IWiredCondition condition:
+                    case FurnitureWiredConditionLogic condition:
                         stack.Conditions.Add(condition);
                         break;
-                    case IWiredAddon addon:
+                    case FurnitureWiredAddonLogic addon:
                         stack.Addons.Add(addon);
                         break;
-                    case IWiredVariable variable:
+                    case FurnitureWiredVariableLogic variable:
                         stack.Variables.Add(variable);
                         break;
-                    case IWiredAction effect:
+                    case FurnitureWiredActionLogic effect:
                         stack.Effects.Add(effect);
                         break;
                 }
@@ -313,12 +414,9 @@ internal sealed class RoomWiredSystem(
             {
                 continue;
             }
-
-            continue;
         }
 
         _stacksById[stackId] = stack;
-
         return stack;
     }
 }

@@ -17,7 +17,7 @@ using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-internal sealed partial class RoomFurniModule
+public sealed partial class RoomFurniModule
 {
     public async Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
     {

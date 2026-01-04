@@ -16,7 +16,7 @@ using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-internal sealed partial class RoomMapModule(
+public sealed partial class RoomMapModule(
     RoomGrain roomGrain,
     RoomConfig roomConfig,
     RoomLiveState roomLiveState

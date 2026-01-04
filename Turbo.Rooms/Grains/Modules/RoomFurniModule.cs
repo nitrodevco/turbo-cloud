@@ -7,7 +7,7 @@ using Turbo.Primitives.Rooms;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-internal sealed partial class RoomFurniModule(
+public sealed partial class RoomFurniModule(
     RoomGrain roomGrain,
     RoomLiveState roomLiveState,
     RoomMapModule roomMapModule

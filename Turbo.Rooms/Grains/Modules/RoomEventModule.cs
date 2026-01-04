@@ -7,7 +7,7 @@ using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-internal sealed class RoomEventModule(
+public sealed class RoomEventModule(
     RoomGrain roomGrain,
     RoomConfig roomConfig,
     RoomLiveState roomLiveState

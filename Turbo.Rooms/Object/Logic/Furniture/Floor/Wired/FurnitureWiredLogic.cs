@@ -199,7 +199,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
 
         foreach (var specType in GetDefinitionSpecificTypes())
         {
-            object specific = default!;
+            object specific = null!;
 
             try
             {
@@ -210,12 +210,10 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
                 {
                     specific = WiredData.DefinitionSpecifics[index];
                 }
-                else
-                {
-                    specific = Activator.CreateInstance(specType)!;
-                }
             }
             catch { }
+
+            specific ??= Activator.CreateInstance(specType)!;
 
             specifics.Add(specific);
             index++;
@@ -231,7 +229,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
 
         foreach (var specType in GetTypeSpecificTypes())
         {
-            object specific = default!;
+            object specific = null!;
 
             try
             {
@@ -242,12 +240,10 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
                 {
                     specific = WiredData.TypeSpecifics[index];
                 }
-                else
-                {
-                    specific = Activator.CreateInstance(specType)!;
-                }
             }
             catch { }
+
+            specific ??= Activator.CreateInstance(specType)!;
 
             specifics.Add(specific);
             index++;

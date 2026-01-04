@@ -5,7 +5,7 @@ using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-internal sealed class RoomSecurityModule(RoomGrain roomGrain, RoomLiveState liveState) : IRoomModule
+public sealed class RoomSecurityModule(RoomGrain roomGrain, RoomLiveState liveState) : IRoomModule
 {
     private readonly RoomGrain _roomGrain = roomGrain;
     private readonly RoomLiveState _state = liveState;

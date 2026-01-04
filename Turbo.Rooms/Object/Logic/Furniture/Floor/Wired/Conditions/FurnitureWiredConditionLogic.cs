@@ -4,7 +4,7 @@ using Orleans;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
@@ -13,7 +13,7 @@ public abstract class FurnitureWiredConditionLogic(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx), IWiredCondition
+) : FurnitureWiredLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
     public override WiredType WiredType => WiredType.Condition;
 
@@ -71,7 +71,7 @@ public abstract class FurnitureWiredConditionLogic(
         return quantifierType;
     }
 
-    public abstract bool Evaluate(IWiredContext ctx);
+    public virtual bool Evaluate(WiredProcessingContext ctx) => false;
 
     public virtual bool IsNegative() => false;
 }

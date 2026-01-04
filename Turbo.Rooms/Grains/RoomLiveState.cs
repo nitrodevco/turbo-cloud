@@ -11,10 +11,10 @@ using Turbo.Primitives.Rooms.Snapshots.Mapping;
 
 namespace Turbo.Rooms.Grains;
 
-internal sealed class RoomLiveState
+public sealed class RoomLiveState
 {
-    public required RoomId RoomId { get; internal init; }
-    public RoomSnapshot RoomSnapshot { get; internal set; } = default!;
+    public required RoomId RoomId { get; init; }
+    public RoomSnapshot RoomSnapshot { get; set; } = default!;
 
     public Dictionary<RoomObjectId, IRoomFloorItem> FloorItemsById { get; } = [];
     public Dictionary<RoomObjectId, IRoomWallItem> WallItemsById { get; } = [];

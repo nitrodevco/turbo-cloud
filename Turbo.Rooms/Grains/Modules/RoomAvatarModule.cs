@@ -20,7 +20,7 @@ using Turbo.Rooms.Object.Avatars;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-internal sealed partial class RoomAvatarModule(
+public sealed partial class RoomAvatarModule(
     RoomGrain roomGrain,
     RoomLiveState roomLiveState,
     RoomPathingSystem roomPathing,

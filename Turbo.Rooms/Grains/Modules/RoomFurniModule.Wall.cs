@@ -15,7 +15,7 @@ using Turbo.Rooms.Object.Furniture.Wall;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-internal sealed partial class RoomFurniModule
+public sealed partial class RoomFurniModule
 {
     public async Task<bool> AddWallItemAsync(IRoomWallItem item, CancellationToken ct)
     {

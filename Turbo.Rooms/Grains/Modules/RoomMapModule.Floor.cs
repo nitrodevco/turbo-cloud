@@ -5,7 +5,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-internal sealed partial class RoomMapModule
+public sealed partial class RoomMapModule
 {
     public bool AddFloorItem(IRoomFloorItem item)
     {

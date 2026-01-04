@@ -6,7 +6,7 @@ using Turbo.Primitives.Rooms.Object.Avatars;
 
 namespace Turbo.Rooms.Grains.Systems;
 
-internal sealed class RoomPathingSystem(int maxNodes = 4096)
+public sealed class RoomPathingSystem(int maxNodes = 4096)
 {
     private static readonly int CARDINAL_COST = 10;
     private static readonly int DIAGONAL_COST = 14;

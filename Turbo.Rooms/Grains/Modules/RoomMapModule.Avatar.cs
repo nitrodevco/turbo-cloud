@@ -8,7 +8,7 @@ using Turbo.Primitives.Rooms.Object.Avatars;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-internal sealed partial class RoomMapModule
+public sealed partial class RoomMapModule
 {
     public async Task InvokeAvatarAsync(IRoomAvatar avatar, CancellationToken ct)
     {

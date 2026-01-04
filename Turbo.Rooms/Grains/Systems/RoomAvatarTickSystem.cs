@@ -13,7 +13,7 @@ using Turbo.Rooms.Grains.Modules;
 
 namespace Turbo.Rooms.Grains.Systems;
 
-internal sealed class RoomAvatarTickSystem(
+public sealed class RoomAvatarTickSystem(
     RoomGrain roomGrain,
     RoomConfig roomConfig,
     RoomLiveState roomLiveState,

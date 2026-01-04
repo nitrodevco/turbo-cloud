@@ -1,36 +1,26 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Action;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Events;
-using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired;
 
-internal sealed class WiredContext : IWiredContext
+public sealed class WiredExecutionContext
 {
-    public required IRoomGrain Room { get; init; }
-    public required RoomEvent Event { get; init; }
-    public IWiredPolicy Policy { get; } = new WiredPolicy();
-
-    public required IWiredStack Stack { get; init; }
-    public IWiredTrigger? Trigger { get; init; } = null;
-    public Dictionary<string, object?> Variables { get; } = [];
-
-    public IWiredSelectionSet Selected { get; } = new WiredSelectionSet();
-    public IWiredSelectionSet SelectorPool { get; } = new WiredSelectionSet();
-
-    private readonly Dictionary<int, WiredSelectionSet> _wiredSelectionCache = [];
+    public required RoomGrain Room { get; init; }
+    public required Dictionary<string, object?> Variables { get; init; }
+    public required IWiredSelectionSet Selected { get; init; }
+    public required IWiredSelectionSet SelectorPool { get; init; }
 
     public async Task<IWiredSelectionSet> GetWiredSelectionSetAsync(
         IWiredItem wired,
         CancellationToken ct
     )
     {
-        if (_wiredSelectionCache.TryGetValue(wired.Id, out var cached))
-            return cached;
-
         var set = new WiredSelectionSet();
 
         foreach (var source in wired.GetFurniSources())
@@ -47,9 +37,7 @@ internal sealed class WiredContext : IWiredContext
                             {
                                 foreach (var id in stuffIds)
                                 {
-                                    var snapshot = await Room.GetFloorItemSnapshotByIdAsync(id, ct);
-
-                                    if (snapshot is null)
+                                    if (!Room._liveState.FloorItemsById.ContainsKey(id))
                                         continue;
 
                                     set.SelectedFurniIds.Add(id);
@@ -68,11 +56,9 @@ internal sealed class WiredContext : IWiredContext
         {
             foreach (var sourceType in source)
             {
-                switch (sourceType) { }
+                //switch (sourceType) { }
             }
         }
-
-        _wiredSelectionCache[wired.Id] = set;
 
         return set;
     }
@@ -98,7 +84,7 @@ internal sealed class WiredContext : IWiredContext
                         result.SelectedFurniIds.UnionWith(SelectorPool.SelectedFurniIds);
                         break;
                     case WiredFurniSourceType.TriggeredItem:
-                        set.SelectedFurniIds.UnionWith(Selected.SelectedFurniIds);
+                        result.SelectedFurniIds.UnionWith(Selected.SelectedFurniIds);
                         break;
                 }
             }
@@ -108,10 +94,16 @@ internal sealed class WiredContext : IWiredContext
         {
             foreach (var sourceType in source)
             {
-                switch (sourceType) { }
+                //switch (sourceType) { }
             }
         }
 
         return result;
     }
+
+    public ActionContext AsActionContext() =>
+        new() { Origin = ActionOrigin.Wired, RoomId = Room._roomId };
+
+    public Task SendComposerToRoomAsync(IComposer composer) =>
+        Room.SendComposerToRoomAsync(composer);
 }

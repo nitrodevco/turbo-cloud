@@ -5,7 +5,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
-using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
@@ -19,17 +19,17 @@ public class WiredAddonMovementPhysics(
 {
     public override int WiredCode => (int)WiredAddonType.MOVE_PHYSICS;
 
-    public override Task<bool> MutatePolicyAsync(IWiredContext ctx, CancellationToken ct)
+    public override Task<bool> MutatePolicyAsync(WiredProcessingContext ctx, CancellationToken ct)
     {
         return Task.FromResult(true);
     }
 
-    public override Task BeforeEffectsAsync(IWiredContext ctx, CancellationToken ct)
+    public override Task BeforeEffectsAsync(WiredProcessingContext ctx, CancellationToken ct)
     {
         return Task.CompletedTask;
     }
 
-    public override Task AfterEffectsAsync(IWiredContext ctx, CancellationToken ct)
+    public override Task AfterEffectsAsync(WiredProcessingContext ctx, CancellationToken ct)
     {
         return Task.CompletedTask;
     }

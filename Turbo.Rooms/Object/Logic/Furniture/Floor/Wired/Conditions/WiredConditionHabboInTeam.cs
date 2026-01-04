@@ -3,7 +3,6 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
-using Turbo.Primitives.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
@@ -16,9 +15,4 @@ public class WiredConditionHabboInTeam(
 ) : FurnitureWiredConditionLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredConditionType.ACTOR_IS_IN_TEAM;
-
-    public override bool Evaluate(IWiredContext ctx)
-    {
-        return false;
-    }
 }

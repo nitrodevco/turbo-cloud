@@ -17,9 +17,7 @@ public class WiredSelectorItemsInArea(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-)
-    : FurnitureWiredSelectorLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx),
-        IWiredSelector
+) : FurnitureWiredSelectorLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredSelectorType.FURNI_IN_AREA;
 
@@ -28,7 +26,7 @@ public class WiredSelectorItemsInArea(
     private int _maxAreaSize = 100;
 
     public override async Task<IWiredSelectionSet> SelectAsync(
-        IWiredContext ctx,
+        WiredProcessingContext ctx,
         CancellationToken ct
     )
     {
@@ -44,12 +42,9 @@ public class WiredSelectorItemsInArea(
         {
             try
             {
-                var snapshot = await ctx.Room.GetTileSnapshotAsync(tileId, ct);
+                var flooritems = ctx.Room._liveState.TileFloorStacks[tileId];
 
-                if (snapshot is null)
-                    continue;
-
-                foreach (var item in snapshot.FloorObjectIds)
+                foreach (var item in flooritems)
                     output.SelectedFurniIds.Add(item.Value);
             }
             catch
