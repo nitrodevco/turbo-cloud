@@ -12,10 +12,12 @@ public sealed class WiredSelectionSet : IWiredSelectionSet
     public bool HasFurni => SelectedFurniIds.Count > 0;
     public bool HasAvatars => SelectedAvatarIds.Count > 0;
 
-    public void UnionWith(IWiredSelectionSet other)
+    public IWiredSelectionSet UnionWith(IWiredSelectionSet other)
     {
         SelectedFurniIds.UnionWith(other.SelectedFurniIds);
         SelectedAvatarIds.UnionWith(other.SelectedAvatarIds);
+
+        return this;
     }
 
     public WiredSelectionSetSnapshot GetSnapshot() =>

@@ -11,6 +11,6 @@ public interface IWiredSelectionSet
     public bool HasFurni { get; }
     public bool HasAvatars { get; }
 
-    public void UnionWith(IWiredSelectionSet other);
+    public IWiredSelectionSet UnionWith(IWiredSelectionSet other);
     public WiredSelectionSetSnapshot GetSnapshot();
 }

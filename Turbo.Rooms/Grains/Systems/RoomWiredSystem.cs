@@ -280,15 +280,30 @@ public sealed class RoomWiredSystem(
         for (var i = pending.NextActionIndex; i < pending.Actions.Count; i++)
         {
             var action = pending.Actions[i];
-            var delayMs = Math.Max(0, action.GetDelayMs());
 
-            if (delayMs > 0)
+            if (pending.WaitingActionIndex == i)
             {
-                pending.NextActionIndex = i;
+                if (now < pending.DueAtMs)
+                {
+                    return false;
+                }
+                else
+                {
+                    pending.WaitingActionIndex = null;
+                }
+            }
+            else
+            {
+                var delayMs = Math.Max(0, action.GetDelayMs());
 
-                RescheduleStack(key, pending, now + delayMs);
+                if (delayMs > 0)
+                {
+                    pending.WaitingActionIndex = i;
 
-                return false;
+                    RescheduleStack(key, pending, now + delayMs);
+
+                    return false;
+                }
             }
 
             try
@@ -297,17 +312,14 @@ public sealed class RoomWiredSystem(
                     new WiredExecutionContext
                     {
                         Room = _roomGrain,
-                        Variables = pending.Variables,
-                        Selected = pending.Selected,
-                        SelectorPool = pending.SelectorPool,
+                        Variables = pending.Variables.ToDictionary(),
+                        Selected = new WiredSelectionSet().UnionWith(pending.Selected),
+                        SelectorPool = new WiredSelectionSet().UnionWith(pending.SelectorPool),
                     },
                     ct
                 );
             }
-            catch
-            {
-                // swallow or log - up to you
-            }
+            catch { }
 
             pending.NextActionIndex = i + 1;
         }
@@ -317,7 +329,9 @@ public sealed class RoomWiredSystem(
 
     private void RescheduleStack(StackExecKey key, WiredPendingStackExecution pending, long dueAtMs)
     {
-        pending.Version++;
+        if (pending.DueAtMs != dueAtMs)
+            pending.Version++;
+
         pending.DueAtMs = dueAtMs;
 
         _pendingStackExecutions[key] = pending;

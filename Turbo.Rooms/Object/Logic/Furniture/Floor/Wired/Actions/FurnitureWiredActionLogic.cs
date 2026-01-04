@@ -32,10 +32,12 @@ public abstract class FurnitureWiredActionLogic(
             {
                 delay = (int)WiredData.DefinitionSpecifics[0]!;
             }
+
+            delay = Math.Clamp(delay, 0, 20);
         }
         catch { }
 
-        return delay;
+        return delay * 500;
     }
 
     public virtual Task<bool> ExecuteAsync(WiredExecutionContext ctx, CancellationToken ct) =>

@@ -21,4 +21,5 @@ internal sealed class WiredPendingStackExecution
     public EffectModeType EffectMode { get; set; }
     public bool ShortCircuitOnFirstEffectSuccess { get; set; }
     public int NextActionIndex { get; set; }
+    public int? WaitingActionIndex { get; set; }
 }
