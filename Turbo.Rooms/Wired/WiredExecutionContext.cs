@@ -3,7 +3,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Grains;
@@ -14,6 +16,7 @@ public sealed class WiredExecutionContext
 {
     public required RoomGrain Room { get; init; }
     public required Dictionary<string, object?> Variables { get; init; }
+    public required WiredPolicy Policy { get; init; }
     public required IWiredSelectionSet Selected { get; init; }
     public required IWiredSelectionSet SelectorPool { get; init; }
 
@@ -105,6 +108,36 @@ public sealed class WiredExecutionContext
         }
 
         return result;
+    }
+
+    public void AddFloorItemMovement(IRoomFloorItem floorItem, int tileIdx, Rotation rotation)
+    {
+        if (floorItem is null)
+            return;
+
+        try
+        {
+            var (sourceX, sourceY, sourceZ) = (floorItem.X, floorItem.Y, floorItem.Z);
+
+            if (!Room._mapModule.MoveFloorItem(floorItem, tileIdx, rotation))
+                return;
+
+            FloorItemMoves.Add(
+                new()
+                {
+                    ObjectId = floorItem.ObjectId,
+                    SourceX = sourceX,
+                    SourceY = sourceY,
+                    SourceZ = sourceZ,
+                    TargetX = floorItem.X,
+                    TargetY = floorItem.Y,
+                    TargetZ = floorItem.Z,
+                    Rotation = rotation,
+                    AnimationTime = Policy.AnimationTimeMs,
+                }
+            );
+        }
+        catch { }
     }
 
     public ActionContext AsActionContext() =>

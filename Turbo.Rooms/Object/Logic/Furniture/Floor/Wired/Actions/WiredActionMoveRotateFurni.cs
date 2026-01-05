@@ -60,9 +60,7 @@ public class WiredActionMoveRotateFurni(
             )
                 continue;
 
-            var (sourceX, sourceY, sourceZ) = (floorItem.X, floorItem.Y, floorItem.Z);
             var (targetX, targetY) = ctx.Room._mapModule.GetTileXY(nextIdx);
-            var targetZ = ctx.Room._liveState.TileHeights[nextIdx];
 
             if (
                 !ctx.Room._furniModule.ValidateFloorItemPlacement(
@@ -75,22 +73,7 @@ public class WiredActionMoveRotateFurni(
             )
                 continue;
 
-            ctx.Room._mapModule.RollFloorItem(floorItem, nextIdx, targetZ);
-
-            ctx.FloorItemMoves.Add(
-                new()
-                {
-                    ObjectId = floorItem.ObjectId,
-                    SourceX = sourceX,
-                    SourceY = sourceY,
-                    SourceZ = sourceZ,
-                    TargetX = targetX,
-                    TargetY = targetY,
-                    TargetZ = targetZ,
-                    AnimationTime = 500,
-                    Rotation = moveRotation,
-                }
-            );
+            ctx.AddFloorItemMovement(floorItem, nextIdx, moveRotation);
         }
 
         return true;

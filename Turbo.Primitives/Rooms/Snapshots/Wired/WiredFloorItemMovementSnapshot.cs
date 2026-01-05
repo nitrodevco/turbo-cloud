@@ -29,8 +29,8 @@ public sealed record WiredFloorItemMovementSnapshot
     public required double TargetZ { get; init; }
 
     [Id(7)]
-    public required int AnimationTime { get; init; }
+    public required Rotation Rotation { get; init; }
 
     [Id(8)]
-    public required Rotation Rotation { get; init; }
+    public required int AnimationTime { get; init; }
 }

@@ -27,7 +27,7 @@ public class WiredTriggerPeriodically(
 
     private int _delayValue = 0;
 
-    public int GetDelayMs()
+    public int GetPeriodicDelayMs()
     {
         return PeriodicType switch
         {

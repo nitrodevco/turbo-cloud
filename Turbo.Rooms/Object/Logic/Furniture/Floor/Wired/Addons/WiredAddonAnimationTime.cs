@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -19,8 +20,12 @@ public class WiredAddonAnimationTime(
 {
     public override int WiredCode => (int)WiredAddonType.ANIMATION_TIME;
 
+    private int _animationTimeMs;
+
     public override Task<bool> MutatePolicyAsync(WiredProcessingContext ctx, CancellationToken ct)
     {
+        ctx.Policy.AnimationTimeMs = _animationTimeMs;
+
         return Task.FromResult(true);
     }
 
@@ -32,5 +37,16 @@ public class WiredAddonAnimationTime(
     public override Task AfterEffectsAsync(WiredProcessingContext ctx, CancellationToken ct)
     {
         return Task.CompletedTask;
+    }
+
+    protected override async Task FillInternalDataAsync(CancellationToken ct)
+    {
+        await base.FillInternalDataAsync(ct);
+
+        try
+        {
+            _animationTimeMs = Math.Clamp(WiredData.IntParams?[0] ?? 50, 50, 2000);
+        }
+        catch { }
     }
 }

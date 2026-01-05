@@ -55,6 +55,9 @@ dotnet_naming_symbols.private_fields.applicable_modifiers = !static
 dotnet_naming_style.underscore_prefix.required_prefix = _
 dotnet_naming_style.underscore_prefix.capitalization = camel_case
 
+# Prefer fields first
+dotnet_sort_system_directives_first = true
+
 # ConfigureAwait
 [*.cs]
 dotnet_diagnostic.CA2007.severity = warning
@@ -62,5 +65,14 @@ dotnet_diagnostic.CA2007.severity = warning
 [*Grain.cs]
 dotnet_diagnostic.CA2007.severity = none
 
-[**/Grains/**/*.cs]
+[Grains/**/*.cs]
+dotnet_diagnostic.CA2007.severity = none
+
+[Turbo.Rooms/**/*.cs]
+dotnet_diagnostic.CA2007.severity = none
+
+[Turbo.Inventory/**/*.cs]
+dotnet_diagnostic.CA2007.severity = none
+
+[Turbo.Players/**/*.cs]
 dotnet_diagnostic.CA2007.severity = none

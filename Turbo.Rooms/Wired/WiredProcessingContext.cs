@@ -14,12 +14,10 @@ public sealed class WiredProcessingContext
 {
     public required RoomGrain Room { get; init; }
     public required RoomEvent Event { get; init; }
-    public WiredPolicy Policy { get; } = new WiredPolicy();
-
     public required WiredStack Stack { get; init; }
-    public FurnitureWiredTriggerLogic? Trigger { get; init; } = null;
+    public required FurnitureWiredTriggerLogic Trigger { get; init; }
     public Dictionary<string, object?> Variables { get; } = [];
-
+    public WiredPolicy Policy { get; } = new WiredPolicy();
     public IWiredSelectionSet Selected { get; } = new WiredSelectionSet();
     public IWiredSelectionSet SelectorPool { get; } = new WiredSelectionSet();
 
