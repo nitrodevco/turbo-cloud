@@ -91,20 +91,20 @@
                 "command": "bash",
                 "args": [
                     "-c",
-                    "src='${workspaceFolder}/../turbo-sample-plugin/TurboSamplePlugin/bin/Debug/net9.0/TurboSamplePlugin.dll'; dst='${workspaceFolder}/Turbo.Main/bin/Debug/net9.0/plugins/sample-plugin'; mkdir -p \"$dst\"; cp -f \"$src\" \"$dst/\""
+                    "srcDll='${workspaceFolder}/../turbo-sample-plugin/TurboSamplePlugin/bin/Debug/net9.0/TurboSamplePlugin.dll'; srcManifest='${workspaceFolder}/../turbo-sample-plugin/TurboSamplePlugin/manifest.json'; dst='${workspaceFolder}/Turbo.Main/bin/Debug/net9.0/plugins/sample-plugin'; mkdir -p \"$dst\"; cp -f \"$srcDll\" \"$dst/\"; cp -f \"$srcManifest\" \"$dst/\""
                 ]
             },
             "linux": {
                 "command": "bash",
                 "args": [
                     "-c",
-                    "src='${workspaceFolder}/../turbo-sample-plugin/TurboSamplePlugin/bin/Debug/net9.0/TurboSamplePlugin.dll'; dst='${workspaceFolder}/Turbo.Main/bin/Debug/net9.0/plugins/sample-plugin'; mkdir -p \"$dst\"; cp -f \"$src\" \"$dst/\""
+                    "srcDll='${workspaceFolder}/../turbo-sample-plugin/TurboSamplePlugin/bin/Debug/net9.0/TurboSamplePlugin.dll'; srcManifest='${workspaceFolder}/../turbo-sample-plugin/TurboSamplePlugin/manifest.json'; dst='${workspaceFolder}/Turbo.Main/bin/Debug/net9.0/plugins/sample-plugin'; mkdir -p \"$dst\"; cp -f \"$srcDll\" \"$dst/\"; cp -f \"$srcManifest\" \"$dst/\""
                 ]
             },
             "windows": {
                 "command": "powershell",
                 "args": [
-                    "Copy-Item -Path \"${workspaceFolder}/../turbo-sample-plugin/TurboSamplePlugin/bin/Debug/net9.0/TurboSamplePlugin.dll\" -Destination \"${workspaceFolder}/Turbo.Main/bin/Debug/net9.0/plugins/sample-plugin/TurboSamplePlugin.dll\" -Force"
+                    "Copy-Item -Path \"${workspaceFolder}/../turbo-sample-plugin/TurboSamplePlugin/bin/Debug/net9.0/TurboSamplePlugin.dll\" -Destination \"${workspaceFolder}/Turbo.Main/bin/Debug/net9.0/plugins/sample-plugin/TurboSamplePlugin.dll\" -Force; Copy-Item -Path \"${workspaceFolder}/../turbo-sample-plugin/TurboSamplePlugin/manifest.json\" -Destination \"${workspaceFolder}/Turbo.Main/bin/Debug/net9.0/plugins/sample-plugin/manifest.json\" -Force"
                 ]
             }
         },
