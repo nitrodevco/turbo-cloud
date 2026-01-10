@@ -118,8 +118,8 @@ public class WiredActionMoveRotateFurni(
     public Rotation GetMoveRotation(Rotation currentRotation, int rotationType) =>
         rotationType switch
         {
-            1 => currentRotation + 2 % 8,
-            2 => currentRotation - 2 + 8 % 8,
+            1 => currentRotation.Rotate(+2),
+            2 => currentRotation.Rotate(-2),
             3 => GetMoveRotation(currentRotation, Random.Shared.Next(2) == 0 ? 1 : 2),
             _ => currentRotation,
         };
