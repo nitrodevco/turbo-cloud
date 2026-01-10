@@ -16,11 +16,11 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Object.Logic.Furniture;
+using Turbo.Rooms.Wired.IntParams;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 
-public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWiredLogic
+public abstract class FurnitureWiredLogic : FurnitureFloorLogic
 {
     protected readonly IWiredDataFactory _wiredDataFactory;
     protected readonly IGrainFactory _grainFactory;
@@ -32,14 +32,13 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
     protected override StuffPersistanceType _stuffPersistanceType => StuffPersistanceType.Internal;
 
     protected int _furniLimit = 20;
-    protected int _flashDelayMs = 1500;
-    protected int _lastFlashMs = 0;
     protected bool _advancedMode = true;
     protected bool _allowWallFurni = false;
 
-    private WiredDataSnapshot? _snapshot;
+    protected virtual int MinIntParams => GetIntParamRules().Count;
+    protected virtual int MaxIntParams => 16;
 
-    public int Id => _ctx.ObjectId.Value;
+    private WiredDataSnapshot? _snapshot;
 
     public FurnitureWiredLogic(
         IWiredDataFactory wiredDataFactory,
@@ -118,15 +117,21 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
 
     public async Task LoadWiredAsync(CancellationToken ct)
     {
+        FillIntParamsIfEmpty();
+
         await FillInternalDataAsync(ct);
     }
 
-    public async Task FlashActivationStateAsync()
+    public async Task FlashActivationStateAsync(CancellationToken ct)
     {
         var state = await GetStateAsync() == 1 ? 0 : 1;
 
         _ = SetStateAsync(state);
     }
+
+    public virtual List<WiredIntParamRule> GetIntParamRules() => [];
+
+    public virtual WiredIntParamRule? GetIntParamTailRule() => null;
 
     public virtual List<WiredFurniSourceType[]> GetFurniSources()
     {
@@ -260,7 +265,6 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
     {
         try
         {
-            var intParams = new List<int>();
             var stringParam = update.StringParam;
             var stuffIds = new List<int>();
             var variableIds = new List<long>();
@@ -269,10 +273,15 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
             var definitionSpecifics = new List<object>();
             var typeSpecifics = new List<object>();
 
-            if (update.IntParams.Count > 0)
+            if (TryNormalizeIntParams(update.IntParams, out var normalizedIntParams))
             {
-                foreach (var intParam in update.IntParams)
-                    intParams.Add(intParam);
+                WiredData.IntParams = normalizedIntParams;
+            }
+            else
+            {
+                Console.WriteLine("Failed to normalize int params");
+
+                return false;
             }
 
             if (update.StuffIds.Count > 0)
@@ -405,7 +414,6 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
                 index++;
             }
 
-            WiredData.IntParams = intParams;
             WiredData.StringParam = stringParam;
             WiredData.StuffIds = stuffIds;
             WiredData.VariableIds = variableIds;
@@ -435,7 +443,96 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
         }
     }
 
+    protected virtual bool TryNormalizeIntParams(List<int> proposed, out List<int> normalized)
+    {
+        normalized = [];
+
+        var fixedRules = GetIntParamRules();
+        var tailRule = GetIntParamTailRule();
+        var min = Math.Min(MinIntParams, MaxIntParams);
+        var max = Math.Min(MaxIntParams, MaxIntParams);
+
+        if (proposed.Count > max)
+            return false;
+
+        if (tailRule is null)
+        {
+            if (proposed.Count != fixedRules.Count)
+                return false;
+
+            for (var i = 0; i < fixedRules.Count; i++)
+            {
+                var rule = fixedRules[i];
+
+                try
+                {
+                    var v = proposed[i];
+
+                    if (!rule.IsValid(v))
+                        return false;
+
+                    normalized.Add(rule.Sanitize(v));
+                }
+                catch
+                {
+                    normalized.Add(fixedRules[i].DefaultValue);
+                }
+            }
+
+            return true;
+        }
+
+        if (proposed.Count < min)
+            return false;
+
+        for (int i = 0; i < fixedRules.Count; i++)
+        {
+            var rule = fixedRules[i];
+            var v = i < proposed.Count ? proposed[i] : rule.DefaultValue;
+
+            if (i < proposed.Count && !rule.IsValid(v))
+                return false;
+
+            normalized.Add(rule.Sanitize(v));
+        }
+
+        for (int i = fixedRules.Count; i < proposed.Count; i++)
+        {
+            var v = proposed[i];
+
+            if (!tailRule.IsValid(v))
+                return false;
+
+            normalized.Add(tailRule.Sanitize(v));
+        }
+
+        return true;
+    }
+
     protected virtual Task FillInternalDataAsync(CancellationToken ct) => Task.CompletedTask;
+
+    protected virtual void FillIntParamsIfEmpty()
+    {
+        if (WiredData.IntParams is { Count: > 0 })
+            return;
+
+        var fixedRules = GetIntParamRules();
+
+        if (fixedRules.Count == 0)
+        {
+            WiredData.IntParams = [];
+
+            return;
+        }
+
+        var defaults = new List<int>(fixedRules.Count);
+
+        foreach (var rule in fixedRules)
+            defaults.Add(rule.DefaultValue);
+
+        WiredData.IntParams = defaults;
+        WiredData.MarkDirty();
+    }
 
     public WiredDataSnapshot GetSnapshot()
     {

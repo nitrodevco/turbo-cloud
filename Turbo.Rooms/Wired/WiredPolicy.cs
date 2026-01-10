@@ -1,10 +1,9 @@
 using System;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Wired;
 
 namespace Turbo.Rooms.Wired;
 
-public sealed class WiredPolicy : IWiredPolicy
+public sealed class WiredPolicy
 {
     private int _animationTimeMs;
 

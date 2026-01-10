@@ -25,14 +25,4 @@ public class WiredAddonCancelAnimationTime(
 
         return Task.FromResult(true);
     }
-
-    public override Task BeforeEffectsAsync(WiredProcessingContext ctx, CancellationToken ct)
-    {
-        return Task.CompletedTask;
-    }
-
-    public override Task AfterEffectsAsync(WiredProcessingContext ctx, CancellationToken ct)
-    {
-        return Task.CompletedTask;
-    }
 }

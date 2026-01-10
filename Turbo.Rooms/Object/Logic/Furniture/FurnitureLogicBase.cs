@@ -21,10 +21,10 @@ public abstract class FurnitureLogicBase<TItem, TContext>
 {
     protected readonly IStuffDataFactory _stuffDataFactory;
 
-    public IStuffData StuffData { get; private set; }
-
     protected virtual StuffPersistanceType _stuffPersistanceType => StuffPersistanceType.External;
     protected virtual StuffDataType _stuffDataType => StuffDataType.LegacyKey;
+
+    public IStuffData StuffData { get; private set; }
 
     public FurnitureLogicBase(IStuffDataFactory stuffDataFactory, TContext ctx)
         : base(ctx)

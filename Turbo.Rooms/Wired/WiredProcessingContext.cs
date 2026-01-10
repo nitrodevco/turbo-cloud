@@ -4,8 +4,8 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
-using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Grains;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
 namespace Turbo.Rooms.Wired;
@@ -18,13 +18,13 @@ public sealed class WiredProcessingContext
     public required FurnitureWiredTriggerLogic Trigger { get; init; }
     public Dictionary<string, object?> Variables { get; } = [];
     public WiredPolicy Policy { get; } = new WiredPolicy();
-    public IWiredSelectionSet Selected { get; } = new WiredSelectionSet();
-    public IWiredSelectionSet SelectorPool { get; } = new WiredSelectionSet();
+    public WiredSelectionSet Selected { get; } = new WiredSelectionSet();
+    public WiredSelectionSet SelectorPool { get; } = new WiredSelectionSet();
 
     private readonly Dictionary<int, WiredSelectionSet> _wiredSelectionCache = [];
 
-    public async Task<IWiredSelectionSet> GetWiredSelectionSetAsync(
-        IWiredItem wired,
+    public async Task<WiredSelectionSet> GetWiredSelectionSetAsync(
+        FurnitureWiredLogic wired,
         CancellationToken ct
     )
     {
@@ -75,8 +75,8 @@ public sealed class WiredProcessingContext
         return set;
     }
 
-    public async Task<IWiredSelectionSet> GetEffectiveSelectionAsync(
-        IWiredItem wired,
+    public async Task<WiredSelectionSet> GetEffectiveSelectionAsync(
+        FurnitureWiredLogic wired,
         CancellationToken ct
     )
     {

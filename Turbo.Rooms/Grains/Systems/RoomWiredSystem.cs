@@ -155,7 +155,7 @@ public sealed class RoomWiredSystem(
         if (!await trigger.CanTriggerAsync(ctx, ct))
             return;
 
-        _ = ctx.Trigger.FlashActivationStateAsync();
+        _ = ctx.Trigger.FlashActivationStateAsync(ct);
 
         foreach (var addon in ctx.Stack.Addons)
             await addon.BeforeEffectsAsync(ctx, ct);
@@ -285,6 +285,8 @@ public sealed class RoomWiredSystem(
                 };
 
                 await action.ExecuteAsync(ctx, ct);
+
+                _ = action.FlashActivationStateAsync(ct);
 
                 FlushWiredMovementsForContext(ctx);
             }

@@ -18,6 +18,10 @@ public abstract class FurnitureWiredAddonLogic(
     public override WiredType WiredType => WiredType.Addon;
 
     public abstract Task<bool> MutatePolicyAsync(WiredProcessingContext ctx, CancellationToken ct);
-    public abstract Task BeforeEffectsAsync(WiredProcessingContext ctx, CancellationToken ct);
-    public abstract Task AfterEffectsAsync(WiredProcessingContext ctx, CancellationToken ct);
+
+    public virtual Task BeforeEffectsAsync(WiredProcessingContext ctx, CancellationToken ct) =>
+        Task.CompletedTask;
+
+    public virtual Task AfterEffectsAsync(WiredProcessingContext ctx, CancellationToken ct) =>
+        Task.CompletedTask;
 }

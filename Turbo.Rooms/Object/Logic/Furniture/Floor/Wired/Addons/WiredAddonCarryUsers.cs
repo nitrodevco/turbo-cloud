@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -6,6 +7,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Rooms.Wired;
+using Turbo.Rooms.Wired.IntParams;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
@@ -19,18 +21,24 @@ public class WiredAddonCarryUsers(
 {
     public override int WiredCode => (int)WiredAddonType.CARRY_USERS;
 
+    protected WiredCarryUserType _carryUserType = WiredCarryUserType.StandingOnFurni;
+
+    public override List<WiredIntParamRule> GetIntParamRules() =>
+        [new WiredIntEnumRule<WiredCarryUserType>(WiredCarryUserType.StandingOnFurni)];
+
     public override Task<bool> MutatePolicyAsync(WiredProcessingContext ctx, CancellationToken ct)
     {
         return Task.FromResult(true);
     }
 
-    public override Task BeforeEffectsAsync(WiredProcessingContext ctx, CancellationToken ct)
+    protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
-        return Task.CompletedTask;
-    }
+        await base.FillInternalDataAsync(ct);
 
-    public override Task AfterEffectsAsync(WiredProcessingContext ctx, CancellationToken ct)
-    {
-        return Task.CompletedTask;
+        try
+        {
+            _carryUserType = (WiredCarryUserType)WiredData.IntParams[0];
+        }
+        catch { }
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -7,6 +8,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Rooms.Wired;
+using Turbo.Rooms.Wired.IntParams;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
@@ -22,21 +24,16 @@ public class WiredAddonAnimationTime(
 
     private int _animationTimeMs;
 
+    public override List<WiredIntParamRule> GetIntParamRules() =>
+        [
+            new WiredIntRangeRule(50, 2000, 50), // Animation Time
+        ];
+
     public override Task<bool> MutatePolicyAsync(WiredProcessingContext ctx, CancellationToken ct)
     {
         ctx.Policy.AnimationTimeMs = _animationTimeMs;
 
         return Task.FromResult(true);
-    }
-
-    public override Task BeforeEffectsAsync(WiredProcessingContext ctx, CancellationToken ct)
-    {
-        return Task.CompletedTask;
-    }
-
-    public override Task AfterEffectsAsync(WiredProcessingContext ctx, CancellationToken ct)
-    {
-        return Task.CompletedTask;
     }
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)
@@ -45,7 +42,7 @@ public class WiredAddonAnimationTime(
 
         try
         {
-            _animationTimeMs = Math.Clamp(WiredData.IntParams?[0] ?? 50, 50, 2000);
+            _animationTimeMs = Math.Clamp(WiredData.IntParams[0], 50, 2000);
         }
         catch { }
     }

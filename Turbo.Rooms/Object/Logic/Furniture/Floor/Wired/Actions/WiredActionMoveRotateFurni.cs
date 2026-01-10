@@ -1,17 +1,15 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.Design;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
-using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
-using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Rooms.Wired;
+using Turbo.Rooms.Wired.IntParams;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
@@ -25,8 +23,14 @@ public class WiredActionMoveRotateFurni(
 {
     public override int WiredCode => (int)WiredActionType.MOVE_AND_ROTATE_FURNI;
 
-    private int _movementType = -1;
-    private int _rotationType = -1;
+    private int _movementType = 0;
+    private int _rotationType = 0;
+
+    public override List<WiredIntParamRule> GetIntParamRules() =>
+        [
+            new WiredIntRangeRule(0, 7, 0), // Movement Type
+            new WiredIntRangeRule(0, 3, 0), // Rotation Type
+        ];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [
@@ -45,35 +49,42 @@ public class WiredActionMoveRotateFurni(
 
         foreach (var furniId in selection.SelectedFurniIds)
         {
-            if (!ctx.Room._liveState.FloorItemsById.TryGetValue(furniId, out var floorItem))
-                continue;
+            try
+            {
+                if (!ctx.Room._liveState.FloorItemsById.TryGetValue(furniId, out var floorItem))
+                    continue;
 
-            var moveDirection = GetMoveDirection(_movementType);
-            var moveRotation = GetMoveRotation(floorItem.Rotation, _rotationType);
+                var moveDirection = GetMoveDirection(_movementType);
+                var moveRotation = GetMoveRotation(floorItem.Rotation, _rotationType);
 
-            if (
-                !ctx.Room._mapModule.TryGetTileInFront(
-                    ctx.Room._mapModule.ToIdx(floorItem.X, floorItem.Y),
-                    moveDirection,
-                    out var nextIdx
+                if (
+                    !ctx.Room._mapModule.TryGetTileInFront(
+                        ctx.Room._mapModule.ToIdx(floorItem.X, floorItem.Y),
+                        moveDirection,
+                        out var nextIdx
+                    )
                 )
-            )
-                continue;
+                    continue;
 
-            var (targetX, targetY) = ctx.Room._mapModule.GetTileXY(nextIdx);
+                var (targetX, targetY) = ctx.Room._mapModule.GetTileXY(nextIdx);
 
-            if (
-                !ctx.Room._furniModule.ValidateFloorItemPlacement(
-                    actionCtx,
-                    furniId,
-                    targetX,
-                    targetY,
-                    moveRotation
+                if (
+                    !ctx.Room._furniModule.ValidateFloorItemPlacement(
+                        actionCtx,
+                        furniId,
+                        targetX,
+                        targetY,
+                        moveRotation
+                    )
                 )
-            )
-                continue;
+                    continue;
 
-            ctx.AddFloorItemMovement(floorItem, nextIdx, moveRotation);
+                ctx.AddFloorItemMovement(floorItem, nextIdx, moveRotation);
+            }
+            catch
+            {
+                continue;
+            }
         }
 
         return true;
@@ -85,8 +96,8 @@ public class WiredActionMoveRotateFurni(
 
         try
         {
-            _movementType = WiredData.IntParams?[0] ?? -1;
-            _rotationType = WiredData.IntParams?[1] ?? -1;
+            _movementType = WiredData.IntParams[0];
+            _rotationType = WiredData.IntParams[1];
         }
         catch { }
     }

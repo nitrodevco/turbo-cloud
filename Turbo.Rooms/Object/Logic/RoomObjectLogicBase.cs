@@ -10,6 +10,8 @@ public abstract class RoomObjectLogicBase<TContext>(TContext ctx) : IRoomObjectL
 {
     protected readonly TContext _ctx = ctx;
 
+    public int Id => _ctx.ObjectId.Value;
+
     public IRoomObjectContext Context { get; } = ctx;
 
     public virtual Task OnAttachAsync(CancellationToken ct) => Task.CompletedTask;
