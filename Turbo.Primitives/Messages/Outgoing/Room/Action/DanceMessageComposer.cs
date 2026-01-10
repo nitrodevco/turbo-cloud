@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Action;
 
@@ -7,8 +8,8 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Action;
 public sealed record DanceMessageComposer : IComposer
 {
     [Id(0)]
-    public required int UserId { get; init; }
+    public required int ObjectId { get; init; }
 
     [Id(1)]
-    public required int DanceStyle { get; init; }
+    public required AvatarDanceType DanceType { get; init; }
 }

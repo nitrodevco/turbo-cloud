@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Rooms.Grains;
@@ -73,6 +74,33 @@ public sealed partial class RoomGrain
             _logger.LogError(
                 ex,
                 $"Failed to walk avatar for player {ctx.PlayerId} in room {_roomId} to ({targetX}, {targetY})."
+            );
+
+            return false;
+        }
+    }
+
+    public async Task<bool> SetAvatarDanceAsync(
+        ActionContext ctx,
+        AvatarDanceType danceType,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            if (
+                !_liveState.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
+                || !await _avatarModule.SetAvatarDanceAsync(objectId, danceType, ct)
+            )
+                return false;
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                $"Failed to dance:{danceType} avatar for player {ctx.PlayerId} in room {_roomId}"
             );
 
             return false;

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Messages.Outgoing.Room.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Players;
@@ -84,7 +85,8 @@ public sealed partial class RoomAvatarModule(
 
         await AttatchLogicIfNeededAsync(avatar, ct);
         await ProcessNextAvatarStepAsync(avatar, ct);
-        await _roomGrain.SendComposerToRoomAsync(
+
+        _ = _roomGrain.SendComposerToRoomAsync(
             new UsersMessageComposer { Avatars = [avatar.GetSnapshot()] }
         );
 
@@ -105,7 +107,7 @@ public sealed partial class RoomAvatarModule(
 
             _state.AvatarsByObjectId.Remove(objectId);
 
-            await _roomGrain.SendComposerToRoomAsync(
+            _ = _roomGrain.SendComposerToRoomAsync(
                 new UserRemoveMessageComposer { ObjectId = objectId }
             );
         }
@@ -150,16 +152,13 @@ public sealed partial class RoomAvatarModule(
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0)
+        if (
+            ctx.PlayerId <= 0
+            || !_state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectIdValue)
+            || !_state.AvatarsByObjectId.TryGetValue(objectIdValue, out var avatar)
+            || !await WalkAvatarToAsync(avatar, targetX, targetY, ct)
+        )
             return false;
-
-        if (!_state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectIdValue))
-            return false;
-
-        if (!_state.AvatarsByObjectId.TryGetValue(objectIdValue, out var avatar))
-            return false;
-
-        await WalkAvatarToAsync(avatar, targetX, targetY, ct);
 
         return true;
     }
@@ -171,10 +170,11 @@ public sealed partial class RoomAvatarModule(
         CancellationToken ct
     )
     {
-        if (!_state.AvatarsByObjectId.TryGetValue(objectId, out var avatar))
+        if (
+            !_state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+            || !await WalkAvatarToAsync(avatar, targetX, targetY, ct)
+        )
             return false;
-
-        await WalkAvatarToAsync(avatar, targetX, targetY, ct);
 
         return true;
     }
@@ -280,5 +280,25 @@ public sealed partial class RoomAvatarModule(
         {
             await StopWalkingAsync(avatar, ct);
         }
+    }
+
+    public async Task<bool> SetAvatarDanceAsync(
+        RoomObjectId objectId,
+        AvatarDanceType danceType,
+        CancellationToken ct
+    )
+    {
+        if (
+            objectId <= 0
+            || !_state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar)
+            || !avatar.SetDance(danceType)
+        )
+            return false;
+
+        _ = _roomGrain.SendComposerToRoomAsync(
+            new DanceMessageComposer { ObjectId = avatar.ObjectId, DanceType = avatar.DanceType }
+        );
+
+        return true;
     }
 }
