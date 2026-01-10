@@ -66,7 +66,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic
     {
         await base.OnAttachAsync(ct);
 
-        _ = _ctx.PublishRoomEventAsync(
+        await _ctx.PublishRoomEventAsync(
             new RoomWiredStackChangedEvent
             {
                 RoomId = _ctx.RoomId,
@@ -81,7 +81,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic
     {
         await base.OnDetachAsync(ct);
 
-        _ = _ctx.PublishRoomEventAsync(
+        await _ctx.PublishRoomEventAsync(
             new RoomWiredStackChangedEvent
             {
                 RoomId = _ctx.RoomId,
@@ -96,7 +96,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic
     {
         await base.OnMoveAsync(ctx, prevIdx, ct);
 
-        _ = _ctx.PublishRoomEventAsync(
+        await _ctx.PublishRoomEventAsync(
             new RoomWiredStackChangedEvent
             {
                 RoomId = _ctx.RoomId,
@@ -424,7 +424,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic
 
             WiredData.MarkDirty();
 
-            _ = _ctx.PublishRoomEventAsync(
+            await _ctx.PublishRoomEventAsync(
                 new RoomWiredStackChangedEvent
                 {
                     RoomId = _ctx.RoomId,

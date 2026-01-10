@@ -49,6 +49,16 @@ public abstract class FurnitureLogicBase<TItem, TContext>
 
                 if (_ctx is IRoomFloorItemContext floorCtx)
                     floorCtx.RefreshTile();
+
+                await _ctx.PublishRoomEventAsync(
+                    new RoomItemStateChangedEvent
+                    {
+                        RoomId = _ctx.RoomId,
+                        CausedBy = null,
+                        FurniId = _ctx.ObjectId,
+                    },
+                    CancellationToken.None
+                );
             }
         });
     }

@@ -9,7 +9,7 @@ using Turbo.Primitives.Rooms.Object.Logic;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
-[RoomObjectLogic("wf_trg_state_changed")]
+[RoomObjectLogic("wf_trg_stuff_state")]
 public class WiredTriggerHabboChangesItemState(
     IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
@@ -17,6 +17,6 @@ public class WiredTriggerHabboChangesItemState(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredTriggerLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
-    public override int WiredCode => (int)WiredTriggerType.STATE_CHANGE;
+    public override int WiredCode => (int)WiredTriggerType.USE_STUFF;
     public override List<Type> SupportedEventTypes { get; } = [typeof(AvatarWalkOnFurniEvent)];
 }

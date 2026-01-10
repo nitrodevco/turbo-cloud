@@ -40,9 +40,8 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
     public virtual Task OnInvokeAsync(IRoomAvatarContext ctx, CancellationToken ct) =>
         Task.CompletedTask;
 
-    public virtual Task OnWalkOnAsync(IRoomAvatarContext ctx, CancellationToken ct)
-    {
-        _ = _ctx.PublishRoomEventAsync(
+    public virtual Task OnWalkOnAsync(IRoomAvatarContext ctx, CancellationToken ct) =>
+        _ctx.PublishRoomEventAsync(
             new AvatarWalkOnFurniEvent
             {
                 RoomId = _ctx.RoomId,
@@ -53,12 +52,8 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
             ct
         );
 
-        return Task.CompletedTask;
-    }
-
-    public virtual Task OnWalkOffAsync(IRoomAvatarContext ctx, CancellationToken ct)
-    {
-        _ = _ctx.PublishRoomEventAsync(
+    public virtual Task OnWalkOffAsync(IRoomAvatarContext ctx, CancellationToken ct) =>
+        _ctx.PublishRoomEventAsync(
             new AvatarWalkOffFurniEvent
             {
                 RoomId = _ctx.RoomId,
@@ -68,7 +63,4 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
             },
             ct
         );
-
-        return Task.CompletedTask;
-    }
 }

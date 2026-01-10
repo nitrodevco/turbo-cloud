@@ -19,4 +19,9 @@ public class WiredTriggerBotReachesHabbo(
 {
     public override int WiredCode => (int)WiredTriggerType.BOT_AVATAR_REACHED;
     public override List<Type> SupportedEventTypes { get; } = [typeof(AvatarWalkOnFurniEvent)];
+
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
+        [
+            [WiredPlayerSourceType.BotByName, WiredPlayerSourceType.SelectorUsers],
+        ];
 }
