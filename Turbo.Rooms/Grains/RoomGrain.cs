@@ -50,10 +50,11 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly RoomFurniModule _furniModule;
     internal readonly RoomActionModule _actionModule;
 
-    private readonly RoomPathingSystem _pathingSystem;
-    private readonly RoomAvatarTickSystem _avatarTickSystem;
-    private readonly RoomRollerSystem _rollerSystem;
-    private readonly RoomWiredSystem _wiredSystem;
+    internal readonly RoomPathingSystem _pathingSystem;
+    internal readonly RoomAvatarTickSystem _avatarTickSystem;
+    internal readonly RoomRollerSystem _rollerSystem;
+    internal readonly RoomWiredVariableSystem _wiredVariableSystem;
+    internal readonly RoomWiredSystem _wiredSystem;
 
     public RoomGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
@@ -87,9 +88,11 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
         _avatarTickSystem = new(this, _roomConfig, _liveState, _avatarModule, _mapModule);
         _rollerSystem = new(this, _roomConfig, _liveState, _mapModule);
+        _wiredVariableSystem = new(this);
         _wiredSystem = new(this, _roomConfig, _liveState, _avatarModule, _mapModule);
 
         _eventModule.Register(_rollerSystem);
+        _eventModule.Register(_wiredVariableSystem);
         _eventModule.Register(_wiredSystem);
     }
 

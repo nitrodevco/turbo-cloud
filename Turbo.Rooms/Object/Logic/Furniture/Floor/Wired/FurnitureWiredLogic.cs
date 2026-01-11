@@ -66,45 +66,21 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic
     {
         await base.OnAttachAsync(ct);
 
-        await _ctx.PublishRoomEventAsync(
-            new RoomWiredStackChangedEvent
-            {
-                RoomId = _ctx.RoomId,
-                CausedBy = null,
-                StackIds = [_ctx.GetTileIdx()],
-            },
-            ct
-        );
+        await OnWiredChangedAsync(null, [], ct);
     }
 
     public override async Task OnDetachAsync(CancellationToken ct)
     {
         await base.OnDetachAsync(ct);
 
-        await _ctx.PublishRoomEventAsync(
-            new RoomWiredStackChangedEvent
-            {
-                RoomId = _ctx.RoomId,
-                CausedBy = null,
-                StackIds = [_ctx.GetTileIdx()],
-            },
-            ct
-        );
+        await OnWiredChangedAsync(null, [], ct);
     }
 
     public override async Task OnMoveAsync(ActionContext ctx, int prevIdx, CancellationToken ct)
     {
         await base.OnMoveAsync(ctx, prevIdx, ct);
 
-        await _ctx.PublishRoomEventAsync(
-            new RoomWiredStackChangedEvent
-            {
-                RoomId = _ctx.RoomId,
-                CausedBy = ctx,
-                StackIds = [_ctx.GetTileIdx(), prevIdx],
-            },
-            ct
-        );
+        await OnWiredChangedAsync(ctx, [prevIdx], ct);
     }
 
     public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
@@ -114,6 +90,21 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic
             .SendComposerAsync(new OpenEventMessageComposer { ItemId = _ctx.ObjectId })
             .ConfigureAwait(false);
     }
+
+    protected virtual Task OnWiredChangedAsync(
+        ActionContext? ctx,
+        List<int> ids,
+        CancellationToken ct
+    ) =>
+        _ctx.PublishRoomEventAsync(
+            new RoomWiredStackChangedEvent
+            {
+                RoomId = _ctx.RoomId,
+                CausedBy = ctx,
+                StackIds = [_ctx.GetTileIdx(), .. ids],
+            },
+            ct
+        );
 
     public async Task LoadWiredAsync(CancellationToken ct)
     {
@@ -424,15 +415,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic
 
             WiredData.MarkDirty();
 
-            await _ctx.PublishRoomEventAsync(
-                new RoomWiredStackChangedEvent
-                {
-                    RoomId = _ctx.RoomId,
-                    CausedBy = ctx,
-                    StackIds = [_ctx.GetTileIdx()],
-                },
-                ct
-            );
+            await OnWiredChangedAsync(ctx, [], ct);
 
             return true;
         }

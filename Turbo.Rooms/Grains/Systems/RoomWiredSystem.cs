@@ -57,6 +57,7 @@ public sealed class RoomWiredSystem(
         while (now >= _state.NextWiredBoundaryMs)
             _state.NextWiredBoundaryMs += _tickMs;
 
+        await _roomGrain._wiredVariableSystem.ProcessBoxesAsync(now, ct);
         await CompileLatestWiredAsync(now, ct);
         await RunDueScheduledStackExecutionsAsync(now, ct);
 
