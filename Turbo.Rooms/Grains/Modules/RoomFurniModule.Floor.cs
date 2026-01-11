@@ -21,7 +21,7 @@ public sealed partial class RoomFurniModule
 {
     public async Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
     {
-        if (!await AttatchFloorItemAsync(item, ct) || !_roomMap.AddFloorItem(item))
+        if (!await AttatchFloorItemAsync(item, ct) || !_roomGrain.MapModule.AddFloorItem(item))
             return false;
 
         return true;
@@ -36,12 +36,15 @@ public sealed partial class RoomFurniModule
         CancellationToken ct
     )
     {
-        var tileIdx = _roomMap.ToIdx(x, y);
+        var tileIdx = _roomGrain.MapModule.ToIdx(x, y);
 
-        if (!_roomMap.InBounds(tileIdx))
+        if (!_roomGrain.MapModule.InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
-        if (!await AttatchFloorItemAsync(item, ct) || !_roomMap.PlaceFloorItem(item, tileIdx, rot))
+        if (
+            !await AttatchFloorItemAsync(item, ct)
+            || !_roomGrain.MapModule.PlaceFloorItem(item, tileIdx, rot)
+        )
             return false;
 
         item.MarkDirty();
@@ -60,13 +63,12 @@ public sealed partial class RoomFurniModule
         CancellationToken ct
     )
     {
-        if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
+        if (!_roomGrain._state.FloorItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        var prevIdx = _roomMap.ToIdx(item.X, item.Y);
-        var nextIdx = _roomMap.ToIdx(x, y);
-
-        if (!_roomMap.MoveFloorItem(item, nextIdx, rot))
+        var prevIdx = _roomGrain.MapModule.ToIdx(item.X, item.Y);
+        var nextIdx = _roomGrain.MapModule.ToIdx(x, y);
+        if (!_roomGrain.MapModule.MoveFloorItem(item, nextIdx, rot))
             return false;
 
         await _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer());
@@ -83,13 +85,13 @@ public sealed partial class RoomFurniModule
         int pickerId = -1
     )
     {
-        if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
+        if (!_roomGrain._state.FloorItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         if (pickerId == -1)
             pickerId = item.OwnerId;
 
-        if (!_roomMap.RemoveFloorItem(item))
+        if (!_roomGrain.MapModule.RemoveFloorItem(item))
             return null;
 
         await _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(pickerId));
@@ -99,13 +101,13 @@ public sealed partial class RoomFurniModule
         item.SetOwnerId(pickerId);
         item.SetAction(null);
 
-        _state.FloorItemsById.Remove(itemId);
+        _roomGrain._state.FloorItemsById.Remove(itemId);
 
         var snapshot = item.GetSnapshot();
 
         await _roomGrain
-            ._grainFactory.GetRoomPersistenceGrain(_state.RoomId)
-            .EnqueueDirtyItemAsync(_state.RoomId, snapshot, ct, true);
+            ._grainFactory.GetRoomPersistenceGrain(_roomGrain._state.RoomId)
+            .EnqueueDirtyItemAsync(_roomGrain._state.RoomId, snapshot, ct, true);
 
         return snapshot;
     }
@@ -117,7 +119,7 @@ public sealed partial class RoomFurniModule
         int param = -1
     )
     {
-        if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
+        if (!_roomGrain._state.FloorItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         await item.Logic.OnUseAsync(ctx, param, ct);
@@ -132,7 +134,7 @@ public sealed partial class RoomFurniModule
         int param = -1
     )
     {
-        if (!_state.FloorItemsById.TryGetValue(itemId, out var item))
+        if (!_roomGrain._state.FloorItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         await item.Logic.OnClickAsync(ctx, param, ct);
@@ -148,11 +150,11 @@ public sealed partial class RoomFurniModule
         Rotation rot
     )
     {
-        if (!_state.FloorItemsById.TryGetValue(itemId, out var tItem))
+        if (!_roomGrain._state.FloorItemsById.TryGetValue(itemId, out var tItem))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         if (
-            _roomMap.GetTileIdForSize(
+            _roomGrain.MapModule.GetTileIdForSize(
                 x,
                 y,
                 rot,
@@ -164,12 +166,12 @@ public sealed partial class RoomFurniModule
         {
             foreach (var idx in tileIds)
             {
-                var tileFlags = _state.TileFlags[idx];
-                var tileHeight = _state.TileHeights[idx];
-                var highestItemId = _state.TileHighestFloorItems[idx];
+                var tileFlags = _roomGrain._state.TileFlags[idx];
+                var tileHeight = _roomGrain._state.TileHeights[idx];
+                var highestItemId = _roomGrain._state.TileHighestFloorItems[idx];
                 var isRotating = false;
 
-                if (_state.FloorItemsById.TryGetValue(highestItemId, out var bItem))
+                if (_roomGrain._state.FloorItemsById.TryGetValue(highestItemId, out var bItem))
                 {
                     if (bItem == tItem)
                     {
@@ -225,7 +227,7 @@ public sealed partial class RoomFurniModule
     )
     {
         if (
-            _roomMap.GetTileIdForSize(
+            _roomGrain.MapModule.GetTileIdForSize(
                 x,
                 y,
                 rot,
@@ -237,12 +239,12 @@ public sealed partial class RoomFurniModule
         {
             foreach (var id in tileIds)
             {
-                var tileFlags = _state.TileFlags[id];
-                var tileHeight = _state.TileHeights[id];
-                var highestItemId = _state.TileHighestFloorItems[id];
+                var tileFlags = _roomGrain._state.TileFlags[id];
+                var tileHeight = _roomGrain._state.TileHeights[id];
+                var highestItemId = _roomGrain._state.TileHighestFloorItems[id];
                 IRoomFloorItem? bItem = null;
 
-                if (_state.FloorItemsById.TryGetValue(highestItemId, out var floorItem))
+                if (_roomGrain._state.FloorItemsById.TryGetValue(highestItemId, out var floorItem))
                     bItem = floorItem;
 
                 if (
@@ -280,7 +282,7 @@ public sealed partial class RoomFurniModule
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _state.FloorItemsById.Values.Select(x => x.GetSnapshot()).ToImmutableArray()
+            _roomGrain._state.FloorItemsById.Values.Select(x => x.GetSnapshot()).ToImmutableArray()
         );
 
     public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
@@ -288,11 +290,13 @@ public sealed partial class RoomFurniModule
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _state.FloorItemsById.TryGetValue(objectId, out var item) ? item.GetSnapshot() : null
+            _roomGrain._state.FloorItemsById.TryGetValue(objectId, out var item)
+                ? item.GetSnapshot()
+                : null
         );
 
     public bool GetTileIdForFloorItem(IRoomFloorItem item, out List<int> tileIds) =>
-        _roomMap.GetTileIdForSize(
+        _roomGrain.MapModule.GetTileIdForSize(
             item.X,
             item.Y,
             item.Rotation,
@@ -303,21 +307,21 @@ public sealed partial class RoomFurniModule
 
     private async Task<bool> AttatchFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
     {
-        if (!_state.FloorItemsById.TryAdd(item.ObjectId, item))
+        if (!_roomGrain._state.FloorItemsById.TryAdd(item.ObjectId, item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        if (!_state.OwnerNamesById.TryGetValue(item.OwnerId, out string? value))
+        if (!_roomGrain._state.OwnerNamesById.TryGetValue(item.OwnerId, out string? value))
         {
             var ownerName = await _roomGrain
                 ._grainFactory.GetPlayerDirectoryGrain()
                 .GetPlayerNameAsync(item.OwnerId, ct);
 
             value = ownerName;
-            _state.OwnerNamesById[item.OwnerId] = value;
+            _roomGrain._state.OwnerNamesById[item.OwnerId] = value;
         }
 
         item.SetOwnerName(value ?? string.Empty);
-        item.SetAction(objectId => _state.DirtyFloorItemIds.Add(objectId));
+        item.SetAction(objectId => _roomGrain._state.DirtyFloorItemIds.Add(objectId));
 
         await AttatchFloorLogicIfNeededAsync(item, ct);
 
@@ -331,7 +335,7 @@ public sealed partial class RoomFurniModule
 
         var logicType = item.Definition.LogicName;
         var ctx = new RoomFloorItemContext(_roomGrain, this, item);
-        var logic = _roomGrain._logicFactory.CreateLogicInstance(logicType, ctx);
+        var logic = _roomGrain._logicProvider.CreateLogicInstance(logicType, ctx);
 
         if (logic is not IFurnitureFloorLogic floorLogic)
             throw new TurboException(TurboErrorCodeEnum.InvalidLogic);

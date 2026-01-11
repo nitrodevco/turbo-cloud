@@ -20,11 +20,11 @@ public sealed partial class RoomMapModule
                 return;
 
             var tileId = ToIdx(avatar.X, avatar.Y);
-            var highestItemId = _state.TileHighestFloorItems[tileId];
+            var highestItemId = _roomGrain._state.TileHighestFloorItems[tileId];
             var canSit = false;
             var canLay = false;
 
-            if (_state.FloorItemsById.TryGetValue(highestItemId, out var floorItem))
+            if (_roomGrain._state.FloorItemsById.TryGetValue(highestItemId, out var floorItem))
             {
                 canSit = floorItem.Logic.CanSit();
                 canLay = floorItem.Logic.CanLay();
@@ -58,17 +58,17 @@ public sealed partial class RoomMapModule
         if (!InBounds(tileIdx))
             return false;
 
-        var tileFlags = _state.TileFlags[tileIdx];
+        var tileFlags = _roomGrain._state.TileFlags[tileIdx];
 
         if (tileFlags.Has(RoomTileFlags.Disabled) || tileFlags.Has(RoomTileFlags.Closed))
             return false;
 
         if (tileFlags.Has(RoomTileFlags.AvatarOccupied))
         {
-            if (_state.TileAvatarStacks[tileIdx].Contains(avatar.ObjectId))
+            if (_roomGrain._state.TileAvatarStacks[tileIdx].Contains(avatar.ObjectId))
                 return true;
 
-            if (isGoal || _state.RoomSnapshot.AllowBlocking)
+            if (isGoal || _roomGrain._state.RoomSnapshot.AllowBlocking)
                 return false;
         }
 
@@ -94,7 +94,7 @@ public sealed partial class RoomMapModule
         var (fromX, fromY) = GetTileXY(pTileIdx);
         var (toX, toY) = GetTileXY(nTileIdx);
 
-        if (_roomConfig.EnableDiagonalChecking && IsDiagonal(pTileIdx, nTileIdx))
+        if (_roomGrain._roomConfig.EnableDiagonalChecking && IsDiagonal(pTileIdx, nTileIdx))
         {
             var left = CanAvatarWalk(avatar, ToIdx(toX, fromY), true, true);
             var right = CanAvatarWalk(avatar, ToIdx(fromX, toY), true, true);
@@ -134,7 +134,7 @@ public sealed partial class RoomMapModule
         if (!InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
-        _state.TileAvatarStacks[tileIdx].Add(avatar.ObjectId);
+        _roomGrain._state.TileAvatarStacks[tileIdx].Add(avatar.ObjectId);
 
         ComputeTile(tileIdx);
 
@@ -153,7 +153,7 @@ public sealed partial class RoomMapModule
         if (!InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
-        _state.TileAvatarStacks[tileIdx].Remove(avatar.ObjectId);
+        _roomGrain._state.TileAvatarStacks[tileIdx].Remove(avatar.ObjectId);
 
         ComputeTile(tileIdx);
 
@@ -165,13 +165,13 @@ public sealed partial class RoomMapModule
         try
         {
             var tileId = ToIdx(avatar.X, avatar.Y);
-            var height = _state.TileHeights[tileId];
-            var highestItemId = _state.TileHighestFloorItems[tileId];
+            var height = _roomGrain._state.TileHeights[tileId];
+            var highestItemId = _roomGrain._state.TileHighestFloorItems[tileId];
             var postureOffset = 0.0;
 
             if (highestItemId > 0)
             {
-                if (_state.FloorItemsById.TryGetValue(highestItemId, out var floorItem))
+                if (_roomGrain._state.FloorItemsById.TryGetValue(highestItemId, out var floorItem))
                 {
                     postureOffset = floorItem.Logic.GetPostureOffset();
                 }
@@ -188,13 +188,13 @@ public sealed partial class RoomMapModule
     {
         try
         {
-            var height = _state.TileHeights[tileId];
-            var highestItemId = _state.TileHighestFloorItems[tileId];
+            var height = _roomGrain._state.TileHeights[tileId];
+            var highestItemId = _roomGrain._state.TileHighestFloorItems[tileId];
             var postureOffset = 0.0;
 
             if (highestItemId > 0)
             {
-                if (_state.FloorItemsById.TryGetValue(highestItemId, out var floorItem))
+                if (_roomGrain._state.FloorItemsById.TryGetValue(highestItemId, out var floorItem))
                 {
                     postureOffset = floorItem.Logic.GetPostureOffset();
                 }

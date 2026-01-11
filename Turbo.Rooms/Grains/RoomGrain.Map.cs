@@ -9,28 +9,28 @@ namespace Turbo.Rooms.Grains;
 
 public sealed partial class RoomGrain
 {
-    public int ToIdx(int x, int y) => _mapModule.ToIdx(x, y);
+    public int ToIdx(int x, int y) => MapModule.ToIdx(x, y);
 
-    public void ComputeTile(int x, int y) => _mapModule.ComputeTile(x, y);
+    public void ComputeTile(int x, int y) => MapModule.ComputeTile(x, y);
 
-    public void ComputeTile(int id) => _mapModule.ComputeTile(id);
+    public void ComputeTile(int id) => MapModule.ComputeTile(id);
 
     public Task<RoomTileSnapshot> GetTileSnapshotAsync(int x, int y, CancellationToken ct) =>
-        _mapModule.GetTileSnapshotAsync(x, y, ct);
+        MapModule.GetTileSnapshotAsync(x, y, ct);
 
     public Task<RoomTileSnapshot> GetTileSnapshotAsync(int id, CancellationToken ct) =>
-        _mapModule.GetTileSnapshotAsync(id, ct);
+        MapModule.GetTileSnapshotAsync(id, ct);
 
     public Task<RoomMapSnapshot> GetMapSnapshotAsync(CancellationToken ct) =>
-        Task.FromResult(_mapModule.GetMapSnapshot(ct));
+        Task.FromResult(MapModule.GetMapSnapshot(ct));
 
     private async Task FlushDirtyTilesAsync(CancellationToken ct)
     {
-        if (_liveState.DirtyHeightTileIds.Count == 0)
+        if (_state.DirtyHeightTileIds.Count == 0)
             return;
 
-        var dirtyHeightTileIds = _liveState.DirtyHeightTileIds;
-        _liveState.DirtyHeightTileIds = [];
+        var dirtyHeightTileIds = _state.DirtyHeightTileIds;
+        _state.DirtyHeightTileIds = [];
 
         var heights = new List<(int X, int Y, short Height)>(
             Math.Min(dirtyHeightTileIds.Count, _roomConfig.MaxTileHeightsPerFlush)
@@ -38,7 +38,7 @@ public sealed partial class RoomGrain
 
         foreach (var x in dirtyHeightTileIds)
         {
-            heights.Add((_mapModule.GetX(x), _mapModule.GetY(x), _liveState.TileEncodedHeights[x]));
+            heights.Add((MapModule.GetX(x), MapModule.GetY(x), _state.TileEncodedHeights[x]));
 
             if (heights.Count == heights.Capacity)
             {

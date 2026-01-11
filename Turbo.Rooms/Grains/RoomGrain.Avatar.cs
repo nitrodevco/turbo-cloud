@@ -21,7 +21,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            var avatar = await _avatarModule.CreateAvatarFromPlayerAsync(ctx, snapshot, ct);
+            var avatar = await AvatarModule.CreateAvatarFromPlayerAsync(ctx, snapshot, ct);
 
             return true;
         }
@@ -29,7 +29,7 @@ public sealed partial class RoomGrain
         {
             _logger.LogError(
                 ex,
-                $"Failed to create avatar for player {snapshot.PlayerId} in room {_roomId}."
+                $"Failed to create avatar for player {snapshot.PlayerId} in room {_state.RoomId}."
             );
 
             return false;
@@ -40,7 +40,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            await _avatarModule.RemoveAvatarFromPlayerAsync(playerId, ct);
+            await AvatarModule.RemoveAvatarFromPlayerAsync(playerId, ct);
 
             return true;
         }
@@ -48,7 +48,7 @@ public sealed partial class RoomGrain
         {
             _logger.LogError(
                 ex,
-                $"Failed to remove avatar for player {playerId} in room {_roomId}."
+                $"Failed to remove avatar for player {playerId} in room {_state.RoomId}."
             );
 
             return false;
@@ -64,7 +64,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (!await _avatarModule.WalkAvatarToAsync(ctx, targetX, targetY, ct))
+            if (!await AvatarModule.WalkAvatarToAsync(ctx, targetX, targetY, ct))
                 return false;
 
             return true;
@@ -73,7 +73,7 @@ public sealed partial class RoomGrain
         {
             _logger.LogError(
                 ex,
-                $"Failed to walk avatar for player {ctx.PlayerId} in room {_roomId} to ({targetX}, {targetY})."
+                $"Failed to walk avatar for player {ctx.PlayerId} in room {_state.RoomId} to ({targetX}, {targetY})."
             );
 
             return false;
@@ -89,8 +89,8 @@ public sealed partial class RoomGrain
         try
         {
             if (
-                !_liveState.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
-                || !await _avatarModule.SetAvatarDanceAsync(objectId, danceType, ct)
+                !_state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
+                || !await AvatarModule.SetAvatarDanceAsync(objectId, danceType, ct)
             )
                 return false;
 
@@ -100,7 +100,7 @@ public sealed partial class RoomGrain
         {
             _logger.LogError(
                 ex,
-                $"Failed to dance:{danceType} avatar for player {ctx.PlayerId} in room {_roomId}"
+                $"Failed to dance:{danceType} avatar for player {ctx.PlayerId} in room {_state.RoomId}"
             );
 
             return false;
@@ -109,5 +109,5 @@ public sealed partial class RoomGrain
 
     public Task<ImmutableArray<RoomAvatarSnapshot>> GetAllAvatarSnapshotsAsync(
         CancellationToken ct
-    ) => _avatarModule.GetAllAvatarSnapshotsAsync(ct);
+    ) => AvatarModule.GetAllAvatarSnapshotsAsync(ct);
 }

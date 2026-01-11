@@ -22,6 +22,7 @@ public class RoomConfig
     public int DirtyItemsTickMs { get; init; } = 2000;
     public int MaxDirtyItemsPerFlush { get; init; } = 100;
     public int MaxTileHeightsPerFlush { get; init; } = 200;
+    public int MaxPathNodes { get; init; } = 4096;
 
     public int WiredMaxDepth { get; init; } = 20;
     public int WiredMaxScheduledPerTick { get; init; } = 64;

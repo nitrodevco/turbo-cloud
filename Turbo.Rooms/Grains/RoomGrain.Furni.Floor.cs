@@ -20,7 +20,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (!await _actionModule.AddFloorItemAsync(item, ct))
+            if (!await ActionModule.AddFloorItemAsync(item, ct))
                 return false;
 
             return true;
@@ -44,7 +44,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (!await _actionModule.PlaceFloorItemAsync(ctx, item, x, y, rot, ct))
+            if (!await ActionModule.PlaceFloorItemAsync(ctx, item, x, y, rot, ct))
                 return false;
 
             return true;
@@ -68,7 +68,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (!await _actionModule.MoveFloorItemByIdAsync(ctx, itemId, x, y, rot, ct))
+            if (!await ActionModule.MoveFloorItemByIdAsync(ctx, itemId, x, y, rot, ct))
                 return false;
 
             return true;
@@ -89,7 +89,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (!await _actionModule.RemoveFloorItemByIdAsync(ctx, itemId, ct))
+            if (!await ActionModule.RemoveFloorItemByIdAsync(ctx, itemId, ct))
                 return false;
 
             return true;
@@ -111,7 +111,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (!await _actionModule.UseFloorItemByIdAsync(ctx, itemId, ct, param))
+            if (!await ActionModule.UseFloorItemByIdAsync(ctx, itemId, ct, param))
                 return false;
 
             return true;
@@ -133,7 +133,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (!await _actionModule.ClickFloorItemByIdAsync(ctx, itemId, ct, param))
+            if (!await ActionModule.ClickFloorItemByIdAsync(ctx, itemId, ct, param))
                 return false;
 
             return true;
@@ -155,7 +155,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (!await _actionModule.ApplyWiredUpdateAsync(ctx, itemId, update, ct))
+            if (!await ActionModule.ApplyWiredUpdateAsync(ctx, itemId, update, ct))
                 return false;
 
             return true;
@@ -174,19 +174,19 @@ public sealed partial class RoomGrain
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _liveState.FloorItemsById.TryGetValue(itemId, out var item) ? item.GetSnapshot() : null
+            _state.FloorItemsById.TryGetValue(itemId, out var item) ? item.GetSnapshot() : null
         );
 
     public Task<ImmutableArray<RoomFloorItemSnapshot>> GetAllFloorItemSnapshotsAsync(
         CancellationToken ct
-    ) => _furniModule.GetAllFloorItemSnapshotsAsync(ct);
+    ) => FurniModule.GetAllFloorItemSnapshotsAsync(ct);
 
     public Task<WiredDataSnapshot?> GetWiredDataSnapshotByFloorItemIdAsync(
         RoomObjectId itemId,
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _liveState.FloorItemsById.TryGetValue(itemId, out var item)
+            _state.FloorItemsById.TryGetValue(itemId, out var item)
                 ? item.Logic is FurnitureWiredLogic wiredLogic
                     ? wiredLogic.GetSnapshot()
                     : null

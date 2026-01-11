@@ -46,7 +46,7 @@ public sealed class WiredExecutionContext
                             {
                                 foreach (var id in stuffIds)
                                 {
-                                    if (!Room._liveState.FloorItemsById.ContainsKey(id))
+                                    if (!Room._state.FloorItemsById.ContainsKey(id))
                                         continue;
 
                                     set.SelectedFurniIds.Add(id);
@@ -119,7 +119,7 @@ public sealed class WiredExecutionContext
         {
             var (sourceX, sourceY, sourceZ) = (floorItem.X, floorItem.Y, floorItem.Z);
 
-            if (!Room._mapModule.MoveFloorItem(floorItem, tileIdx, rotation))
+            if (!Room.MapModule.MoveFloorItem(floorItem, tileIdx, rotation))
                 return;
 
             FloorItemMoves.Add(
@@ -144,7 +144,7 @@ public sealed class WiredExecutionContext
     }
 
     public ActionContext AsActionContext() =>
-        new() { Origin = ActionOrigin.Wired, RoomId = Room._roomId };
+        new() { Origin = ActionOrigin.Wired, RoomId = Room._state.RoomId };
 
     public Task SendComposerToRoomAsync(IComposer composer) =>
         Room.SendComposerToRoomAsync(composer);

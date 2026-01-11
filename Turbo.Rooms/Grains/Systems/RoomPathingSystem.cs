@@ -1,15 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using Turbo.Primitives.Rooms.Mapping;
 using Turbo.Primitives.Rooms.Object.Avatars;
 
 namespace Turbo.Rooms.Grains.Systems;
 
-public sealed class RoomPathingSystem(int maxNodes = 4096)
+public sealed class RoomPathingSystem(RoomGrain roomGrain)
 {
+    private readonly RoomGrain _roomGrain = roomGrain;
+
     private static readonly int CARDINAL_COST = 10;
     private static readonly int DIAGONAL_COST = 14;
+
     private static readonly (int dx, int dy, int cost)[] DIRECTIONS =
     {
         (0, -1, 10), // N
@@ -21,8 +23,6 @@ public sealed class RoomPathingSystem(int maxNodes = 4096)
         (-1, 0, 10), // W
         (-1, -1, 14), // NW
     };
-
-    private readonly int _maxNodes = maxNodes;
 
     internal sealed class Node
     {
@@ -36,7 +36,6 @@ public sealed class RoomPathingSystem(int maxNodes = 4096)
 
     public IReadOnlyList<(int X, int Y)> FindPath(
         IRoomAvatar avatar,
-        IRoomMapViewer map,
         (int X, int Y) start,
         (int X, int Y) goal
     )
@@ -45,13 +44,13 @@ public sealed class RoomPathingSystem(int maxNodes = 4096)
         {
             var (startX, startY) = start;
             var (goalX, goalY) = goal;
-            var currentTileId = map.ToIdx(start.X, start.Y);
-            var goalTileId = map.ToIdx(goal.X, goal.Y);
+            var currentTileId = _roomGrain.MapModule.ToIdx(start.X, start.Y);
+            var goalTileId = _roomGrain.MapModule.ToIdx(goal.X, goal.Y);
 
             if (
                 currentTileId == goalTileId
-                || !map.CanAvatarWalk(avatar, currentTileId)
-                || !map.CanAvatarWalk(avatar, goalTileId)
+                || !_roomGrain.MapModule.CanAvatarWalk(avatar, currentTileId)
+                || !_roomGrain.MapModule.CanAvatarWalk(avatar, goalTileId)
             )
                 return [];
 
@@ -81,13 +80,13 @@ public sealed class RoomPathingSystem(int maxNodes = 4096)
 
             var closed = new HashSet<(int, int)>();
 
-            while (open.Count > 0 && allNodes.Count <= _maxNodes)
+            while (open.Count > 0 && allNodes.Count <= _roomGrain._roomConfig.MaxPathNodes)
             {
                 try
                 {
                     var current = open.Dequeue();
                     var cKey = (current.X, current.Y);
-                    var cTileId = map.ToIdx(current.X, current.Y);
+                    var cTileId = _roomGrain.MapModule.ToIdx(current.X, current.Y);
 
                     if (!closed.Add(cKey))
                         continue;
@@ -103,16 +102,21 @@ public sealed class RoomPathingSystem(int maxNodes = 4096)
                             var nx = current.X + dx;
                             var ny = current.Y + dy;
 
-                            if (nx < 0 || ny < 0 || nx >= map.Width || ny >= map.Height)
+                            if (
+                                nx < 0
+                                || ny < 0
+                                || nx >= _roomGrain.MapModule.Width
+                                || ny >= _roomGrain.MapModule.Height
+                            )
                                 continue;
 
                             if (closed.Contains((nx, ny)))
                                 continue;
 
-                            var nTileId = map.ToIdx(nx, ny);
+                            var nTileId = _roomGrain.MapModule.ToIdx(nx, ny);
 
                             if (
-                                !map.CanAvatarWalkBetween(
+                                !_roomGrain.MapModule.CanAvatarWalkBetween(
                                     avatar,
                                     cTileId,
                                     nTileId,

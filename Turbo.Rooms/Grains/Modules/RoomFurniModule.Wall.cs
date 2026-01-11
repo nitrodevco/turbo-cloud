@@ -19,7 +19,7 @@ public sealed partial class RoomFurniModule
 {
     public async Task<bool> AddWallItemAsync(IRoomWallItem item, CancellationToken ct)
     {
-        if (!await AttatchWallItemAsync(item, ct) || !_roomMap.AddWallItem(item))
+        if (!await AttatchWallItemAsync(item, ct) || !_roomGrain.MapModule.AddWallItem(item))
             return false;
 
         return true;
@@ -38,7 +38,7 @@ public sealed partial class RoomFurniModule
     {
         if (
             !await AttatchWallItemAsync(item, ct)
-            || !_roomMap.PlaceWallItem(item, x, y, z, rot, wallOffset)
+            || !_roomGrain.MapModule.PlaceWallItem(item, x, y, z, rot, wallOffset)
         )
             return false;
 
@@ -60,10 +60,10 @@ public sealed partial class RoomFurniModule
         CancellationToken ct
     )
     {
-        if (!_state.WallItemsById.TryGetValue(itemId, out var item))
+        if (!_roomGrain._state.WallItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
-        if (!_roomMap.MoveWallItemItem(item, x, y, z, rot, wallOffset))
+        if (!_roomGrain.MapModule.MoveWallItemItem(item, x, y, z, rot, wallOffset))
             return false;
 
         await _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer());
@@ -80,13 +80,13 @@ public sealed partial class RoomFurniModule
         int pickerId = -1
     )
     {
-        if (!_state.WallItemsById.TryGetValue(itemId, out var item))
+        if (!_roomGrain._state.WallItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
         if (pickerId == -1)
             pickerId = item.OwnerId;
 
-        if (!_roomMap.RemoveWallItem(item))
+        if (!_roomGrain.MapModule.RemoveWallItem(item))
             return null;
 
         await _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(pickerId));
@@ -96,13 +96,13 @@ public sealed partial class RoomFurniModule
         item.SetOwnerId(pickerId);
         item.SetAction(null);
 
-        _state.WallItemsById.Remove(itemId);
+        _roomGrain._state.WallItemsById.Remove(itemId);
 
         var snapshot = item.GetSnapshot();
 
         await _roomGrain
-            ._grainFactory.GetRoomPersistenceGrain(_state.RoomId)
-            .EnqueueDirtyItemAsync(_state.RoomId, snapshot, ct, true);
+            ._grainFactory.GetRoomPersistenceGrain(_roomGrain._state.RoomId)
+            .EnqueueDirtyItemAsync(_roomGrain._state.RoomId, snapshot, ct, true);
 
         return snapshot;
     }
@@ -114,7 +114,7 @@ public sealed partial class RoomFurniModule
         int param = -1
     )
     {
-        if (!_state.WallItemsById.TryGetValue(itemId, out var item))
+        if (!_roomGrain._state.WallItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
         await item.Logic.OnUseAsync(ctx, param, ct);
@@ -129,7 +129,7 @@ public sealed partial class RoomFurniModule
         int param = -1
     )
     {
-        if (!_state.WallItemsById.TryGetValue(itemId, out var item))
+        if (!_roomGrain._state.WallItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
         await item.Logic.OnClickAsync(ctx, param, ct);
@@ -161,7 +161,7 @@ public sealed partial class RoomFurniModule
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _state.WallItemsById.Values.Select(x => x.GetSnapshot()).ToImmutableArray()
+            _roomGrain._state.WallItemsById.Values.Select(x => x.GetSnapshot()).ToImmutableArray()
         );
 
     public Task<RoomWallItemSnapshot?> GetWallItemSnapshotByIdAsync(
@@ -169,27 +169,28 @@ public sealed partial class RoomFurniModule
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _state.WallItemsById.TryGetValue(objectId, out var item) ? item.GetSnapshot() : null
+            _roomGrain._state.WallItemsById.TryGetValue(objectId, out var item)
+                ? item.GetSnapshot()
+                : null
         );
 
     private async Task<bool> AttatchWallItemAsync(IRoomWallItem item, CancellationToken ct)
     {
-        if (!_state.WallItemsById.TryAdd(item.ObjectId, item))
+        if (!_roomGrain._state.WallItemsById.TryAdd(item.ObjectId, item))
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
-        if (!_state.OwnerNamesById.TryGetValue(item.OwnerId, out string? value))
+        if (!_roomGrain._state.OwnerNamesById.TryGetValue(item.OwnerId, out string? value))
         {
             var ownerName = await _roomGrain
                 ._grainFactory.GetPlayerDirectoryGrain()
                 .GetPlayerNameAsync(item.OwnerId, ct);
 
             value = ownerName;
-            _state.OwnerNamesById[item.OwnerId] = value;
+            _roomGrain._state.OwnerNamesById[item.OwnerId] = value;
         }
 
         item.SetOwnerName(value ?? string.Empty);
-        item.SetAction(objectId => _state.DirtyWallItemIds.Add(objectId));
-
+        item.SetAction(objectId => _roomGrain._state.DirtyWallItemIds.Add(objectId));
         await AttatchWallLogicIfNeededAsync(item, ct);
 
         return true;
@@ -202,7 +203,7 @@ public sealed partial class RoomFurniModule
 
         var logicType = item.Definition.LogicName;
         var ctx = new RoomWallItemContext(_roomGrain, this, item);
-        var logic = _roomGrain._logicFactory.CreateLogicInstance(logicType, ctx);
+        var logic = _roomGrain._logicProvider.CreateLogicInstance(logicType, ctx);
 
         if (logic is not IFurnitureWallLogic wallLogic)
             throw new TurboException(TurboErrorCodeEnum.InvalidLogic);

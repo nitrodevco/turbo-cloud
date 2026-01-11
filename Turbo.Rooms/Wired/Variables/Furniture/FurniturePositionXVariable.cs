@@ -1,50 +1,46 @@
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired.Variables.Furniture;
 
-public sealed class FurniturePositionXVariable : WiredVariableComputed
+[WiredVariable("furni.position.x")]
+public sealed class FurniturePositionXVariable(RoomGrain roomGrain) : WiredVariable(roomGrain)
 {
-    public override WiredVariableDefinition Definition =>
-        new()
+    public override IWiredVariableDefinition Definition =>
+        new WiredVariableDefinition()
         {
             Key = "position.x",
             Name = "x",
             Target = WiredVariableTargetType.Furni,
-            ValueKind = WiredValueType.Int,
             AvailabilityType = WiredAvailabilityType.Persistent,
             InputSourceType = WiredInputSourceType.FurniSource,
             Flags = WiredVariableFlags.CanWriteValue | WiredVariableFlags.AlwaysAvailable,
         };
 
-    public bool CanBind(in WiredVariableBinding binding) => binding.TargetId is not null;
+    public bool CanBind(in IWiredVariableBinding binding) => binding.TargetId is not null;
 
-    public WiredValue Get(in WiredVariableBinding binding, WiredExecutionContext ctx)
+    public WiredValue Get(in IWiredVariableBinding binding, WiredExecutionContext ctx)
     {
-        if (
-            !ctx.Room._liveState.FloorItemsById.TryGetValue(
-                binding.TargetId!.Value,
-                out var floorItem
-            )
-        )
+        if (!ctx.Room._state.FloorItemsById.TryGetValue(binding.TargetId!.Value, out var floorItem))
             return WiredValue.None();
 
         return WiredValue.Int(floorItem.X);
     }
 
-    public bool TrySet(in WiredVariableBinding binding, WiredExecutionContext ctx, WiredValue value)
+    public bool TrySet(
+        in IWiredVariableBinding binding,
+        WiredExecutionContext ctx,
+        WiredValue value
+    )
     {
-        if (
-            !ctx.Room._liveState.FloorItemsById.TryGetValue(
-                binding.TargetId!.Value,
-                out var floorItem
-            )
-        )
+        if (!ctx.Room._state.FloorItemsById.TryGetValue(binding.TargetId!.Value, out var floorItem))
             return false;
 
         var newX = value.AsInt();
 
         if (
-            !ctx.Room._furniModule.ValidateFloorItemPlacement(
+            !ctx.Room.FurniModule.ValidateFloorItemPlacement(
                 ctx.AsActionContext(),
                 floorItem.ObjectId.Value,
                 newX,
@@ -56,7 +52,7 @@ public sealed class FurniturePositionXVariable : WiredVariableComputed
 
         ctx.AddFloorItemMovement(
             floorItem,
-            ctx.Room._mapModule.ToIdx(newX, floorItem.Y),
+            ctx.Room.MapModule.ToIdx(newX, floorItem.Y),
             floorItem.Rotation
         );
 

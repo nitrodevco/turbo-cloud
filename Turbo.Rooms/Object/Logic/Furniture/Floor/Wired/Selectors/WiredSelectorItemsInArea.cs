@@ -41,7 +41,7 @@ public class WiredSelectorItemsInArea(
         {
             try
             {
-                var flooritems = ctx.Room._liveState.TileFloorStacks[tileId];
+                var flooritems = ctx.Room._state.TileFloorStacks[tileId];
 
                 foreach (var item in flooritems)
                     output.SelectedFurniIds.Add(item.Value);

@@ -47,7 +47,7 @@ public sealed class WiredProcessingContext
                             {
                                 foreach (var id in stuffIds)
                                 {
-                                    if (!Room._liveState.FloorItemsById.ContainsKey(id))
+                                    if (!Room._state.FloorItemsById.ContainsKey(id))
                                         continue;
 
                                     set.SelectedFurniIds.Add(id);

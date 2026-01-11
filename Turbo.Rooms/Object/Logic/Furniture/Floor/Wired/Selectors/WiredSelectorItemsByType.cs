@@ -43,7 +43,7 @@ public class WiredSelectorItemsByType(
         {
             try
             {
-                if (!ctx.Room._liveState.FloorItemsById.TryGetValue(id, out var floorItem))
+                if (!ctx.Room._state.FloorItemsById.TryGetValue(id, out var floorItem))
                     continue;
 
                 allowedDefinitionIds.Add(floorItem.Definition.Id);
@@ -54,7 +54,7 @@ public class WiredSelectorItemsByType(
             }
         }
 
-        foreach (var item in ctx.Room._liveState.FloorItemsById.Values)
+        foreach (var item in ctx.Room._state.FloorItemsById.Values)
         {
             if (allowedDefinitionIds.Contains(item.Definition.Id))
                 output.SelectedFurniIds.Add(item.ObjectId.Value);

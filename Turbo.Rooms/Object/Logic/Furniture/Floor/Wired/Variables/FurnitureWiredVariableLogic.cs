@@ -111,7 +111,6 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic
                     Key = key,
                     Name = key,
                     Target = GetVariableTargetType(),
-                    ValueKind = WiredValueType.Int,
                     AvailabilityType = StorageType,
                     InputSourceType = GetVariableTargetType() switch
                     {

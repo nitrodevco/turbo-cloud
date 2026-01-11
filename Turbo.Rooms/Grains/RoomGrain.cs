@@ -34,27 +34,26 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly ILogger<IRoomGrain> _logger;
     internal readonly IRoomModelProvider _roomModelProvider;
     internal readonly IRoomItemsProvider _itemsLoader;
-    internal readonly IRoomObjectLogicProvider _logicFactory;
-    internal readonly IRoomAvatarProvider _roomAvatarFactory;
+    internal readonly IRoomObjectLogicProvider _logicProvider;
+    internal readonly IRoomAvatarProvider _avatarProvider;
+    internal readonly IRoomWiredVariablesProvider _wiredVariablesProvider;
     internal readonly IGrainFactory _grainFactory;
 
     internal IAsyncStream<RoomOutbound> _roomOutbound = default!;
 
-    internal readonly RoomId _roomId;
-    internal readonly RoomLiveState _liveState;
+    internal readonly RoomLiveState _state;
 
-    internal readonly RoomEventModule _eventModule;
-    internal readonly RoomSecurityModule _securityModule;
-    internal readonly RoomMapModule _mapModule;
-    internal readonly RoomAvatarModule _avatarModule;
-    internal readonly RoomFurniModule _furniModule;
-    internal readonly RoomActionModule _actionModule;
+    public readonly RoomEventModule EventModule;
+    public readonly RoomSecurityModule SecurityModule;
+    public readonly RoomMapModule MapModule;
+    public readonly RoomAvatarModule AvatarModule;
+    public readonly RoomFurniModule FurniModule;
+    public readonly RoomActionModule ActionModule;
 
-    internal readonly RoomPathingSystem _pathingSystem;
-    internal readonly RoomAvatarTickSystem _avatarTickSystem;
-    internal readonly RoomRollerSystem _rollerSystem;
-    internal readonly RoomWiredVariableSystem _wiredVariableSystem;
-    internal readonly RoomWiredSystem _wiredSystem;
+    public readonly RoomPathingSystem PathingSystem;
+    public readonly RoomAvatarTickSystem AvatarTickSystem;
+    public readonly RoomRollerSystem RollerSystem;
+    public readonly RoomWiredSystem WiredSystem;
 
     public RoomGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
@@ -62,8 +61,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         ILogger<IRoomGrain> logger,
         IRoomModelProvider roomModelProvider,
         IRoomItemsProvider itemsLoader,
-        IRoomObjectLogicProvider logicFactory,
-        IRoomAvatarProvider roomAvatarFactory,
+        IRoomObjectLogicProvider logicProvider,
+        IRoomAvatarProvider avatarProvider,
+        IRoomWiredVariablesProvider wiredVariablesProvider,
         IGrainFactory grainFactory
     )
     {
@@ -72,45 +72,43 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _logger = logger;
         _roomModelProvider = roomModelProvider;
         _itemsLoader = itemsLoader;
-        _logicFactory = logicFactory;
-        _roomAvatarFactory = roomAvatarFactory;
+        _logicProvider = logicProvider;
+        _avatarProvider = avatarProvider;
+        _wiredVariablesProvider = wiredVariablesProvider;
         _grainFactory = grainFactory;
 
-        _roomId = (RoomId)this.GetPrimaryKeyLong();
-        _liveState = new() { RoomId = _roomId };
-        _pathingSystem = new();
-        _eventModule = new(this, _roomConfig, _liveState);
-        _securityModule = new(this, _liveState);
-        _mapModule = new(this, _roomConfig, _liveState);
-        _avatarModule = new(this, _liveState, _pathingSystem, _securityModule, _mapModule);
-        _furniModule = new(this, _liveState, _mapModule);
-        _actionModule = new(this, _liveState, _securityModule, _furniModule);
+        _state = new() { RoomId = (RoomId)this.GetPrimaryKeyLong() };
+        PathingSystem = new(this);
+        EventModule = new(this);
+        SecurityModule = new(this);
+        MapModule = new(this);
+        AvatarModule = new(this);
+        FurniModule = new(this);
+        ActionModule = new(this);
 
-        _avatarTickSystem = new(this, _roomConfig, _liveState, _avatarModule, _mapModule);
-        _rollerSystem = new(this, _roomConfig, _liveState, _mapModule);
-        _wiredVariableSystem = new(this);
-        _wiredSystem = new(this, _roomConfig, _liveState, _avatarModule, _mapModule);
+        AvatarTickSystem = new(this);
+        RollerSystem = new(this);
+        WiredSystem = new(this);
 
-        _eventModule.Register(_rollerSystem);
-        _eventModule.Register(_wiredVariableSystem);
-        _eventModule.Register(_wiredSystem);
+        EventModule.Register(RollerSystem);
+        EventModule.Register(WiredSystem);
     }
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
-        if (_liveState.EpochMs == 0)
+        if (_state.EpochMs == 0)
         {
             var now = NowMs();
 
-            _liveState.EpochMs = now;
-            _liveState.NextAvatarBoundaryMs = AlignToNextBoundary(now, _roomConfig.AvatarTickMs);
-            _liveState.NextRollerBoundaryMs = AlignToNextBoundary(now, _roomConfig.RollerTickMs);
-            _liveState.NextWiredBoundaryMs = AlignToNextBoundary(now, _roomConfig.WiredTickMs);
+            _state.EpochMs = now;
+            _state.NextAvatarBoundaryMs = AlignToNextBoundary(now, _roomConfig.AvatarTickMs);
+            _state.NextRollerBoundaryMs = AlignToNextBoundary(now, _roomConfig.RollerTickMs);
+            _state.NextWiredBoundaryMs = AlignToNextBoundary(now, _roomConfig.WiredTickMs);
         }
 
         await HydrateRoomStateAsync(ct);
 
-        await _grainFactory.GetRoomDirectoryGrain().UpsertActiveRoomAsync(_liveState.RoomSnapshot);
+        await _grainFactory.GetRoomDirectoryGrain().UpsertActiveRoomAsync(_state.RoomSnapshot);
 
         var provider = this.GetStreamProvider(OrleansStreamProviders.ROOM_STREAM_PROVIDER);
 
@@ -123,9 +121,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             {
                 var now = NowMs();
 
-                await _avatarTickSystem.ProcessAvatarsAsync(now, ct);
-                await _wiredSystem.ProcessWiredAsync(now, ct);
-                await _rollerSystem.ProcessRollersAsync(now, ct);
+                await AvatarTickSystem.ProcessAvatarsAsync(now, ct);
+                await WiredSystem.ProcessWiredAsync(now, ct);
+                await RollerSystem.ProcessRollersAsync(now, ct);
                 await FlushDirtyTilesAsync(ct);
                 await FlushDirtyItemsAsync(ct);
             },
@@ -141,7 +139,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         {
             await FlushDirtyItemsAsync(ct);
 
-            await _grainFactory.GetRoomDirectoryGrain().RemoveActiveRoomAsync(_roomId);
+            await _grainFactory.GetRoomDirectoryGrain().RemoveActiveRoomAsync(_state.RoomId);
         }
         catch (Exception)
         {
@@ -158,11 +156,11 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     {
         DelayRoomDeactivation();
 
-        await _mapModule.EnsureMapBuiltAsync(ct);
-        await _furniModule.EnsureFurniLoadedAsync(ct);
+        await MapModule.EnsureMapBuiltAsync(ct);
+        await FurniModule.EnsureFurniLoadedAsync(ct);
     }
 
-    public Task<RoomSnapshot> GetSnapshotAsync() => Task.FromResult(_liveState.RoomSnapshot);
+    public Task<RoomSnapshot> GetSnapshotAsync() => Task.FromResult(_state.RoomSnapshot);
 
     public async Task<RoomSummarySnapshot> GetSummaryAsync()
     {
@@ -170,24 +168,24 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
         return new RoomSummarySnapshot
         {
-            RoomId = _liveState.RoomSnapshot.RoomId,
-            Name = _liveState.RoomSnapshot.Name,
-            Description = _liveState.RoomSnapshot.Description,
-            OwnerId = _liveState.RoomSnapshot.OwnerId,
-            OwnerName = _liveState.RoomSnapshot.OwnerName,
+            RoomId = _state.RoomSnapshot.RoomId,
+            Name = _state.RoomSnapshot.Name,
+            Description = _state.RoomSnapshot.Description,
+            OwnerId = _state.RoomSnapshot.OwnerId,
+            OwnerName = _state.RoomSnapshot.OwnerName,
             Population = population,
             LastUpdatedUtc = DateTime.UtcNow,
         };
     }
 
     public async Task<int> GetRoomPopulationAsync() =>
-        await _grainFactory.GetRoomDirectoryGrain().GetRoomPopulationAsync(_roomId);
+        await _grainFactory.GetRoomDirectoryGrain().GetRoomPopulationAsync(_state.RoomId);
 
     public Task PublishRoomEventAsync(RoomEvent evt, CancellationToken ct) =>
-        _eventModule.PublishAsync(evt, ct);
+        EventModule.PublishAsync(evt, ct);
 
     public Task SendComposerToRoomAsync(IComposer composer) =>
-        _roomOutbound.OnNextAsync(new RoomOutbound { RoomId = _roomId, Composer = composer });
+        _roomOutbound.OnNextAsync(new RoomOutbound { RoomId = _state.RoomId, Composer = composer });
 
     private async Task HydrateRoomStateAsync(CancellationToken ct)
     {
@@ -196,12 +194,14 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         try
         {
             var entity =
-                await dbCtx.Rooms.AsNoTracking().SingleOrDefaultAsync(e => e.Id == (int)_roomId, ct)
+                await dbCtx
+                    .Rooms.AsNoTracking()
+                    .SingleOrDefaultAsync(e => e.Id == (int)_state.RoomId.Value, ct)
                 ?? throw new TurboException(TurboErrorCodeEnum.RoomNotFound);
 
-            _liveState.Model = _roomModelProvider.GetModelById(entity.RoomModelEntityId);
+            _state.Model = _roomModelProvider.GetModelById(entity.RoomModelEntityId);
 
-            _liveState.RoomSnapshot = new RoomSnapshot
+            _state.RoomSnapshot = new RoomSnapshot
             {
                 RoomId = entity.Id,
                 Name = entity.Name ?? string.Empty,
@@ -234,7 +234,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
                     FullHearRange = entity.ChatDistance,
                     FloodSensitivity = entity.ChatFloodType,
                 },
-                WorldType = _liveState.Model.Name,
+                WorldType = _state.Model.Name,
                 LastUpdatedUtc = DateTime.UtcNow,
             };
         }
@@ -252,7 +252,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     internal long AlignToNextBoundary(long now, int offset)
     {
-        var delta = now - _liveState.EpochMs;
+        var delta = now - _state.EpochMs;
         var mod = delta % offset;
 
         return mod == 0 ? now : now + (offset - mod);

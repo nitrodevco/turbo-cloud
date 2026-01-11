@@ -27,7 +27,7 @@ public sealed partial class RoomMapModule
         {
             foreach (var idx in tileIds)
             {
-                _state.TileFloorStacks[idx].Add(item.ObjectId);
+                _roomGrain._state.TileFloorStacks[idx].Add(item.ObjectId);
 
                 ComputeTile(idx);
             }
@@ -41,7 +41,7 @@ public sealed partial class RoomMapModule
         if (!InBounds(nTileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
-        item.SetPosition(GetX(nTileIdx), GetY(nTileIdx), _state.TileHeights[nTileIdx]);
+        item.SetPosition(GetX(nTileIdx), GetY(nTileIdx), _roomGrain._state.TileHeights[nTileIdx]);
         item.SetRotation(rot);
 
         return AddFloorItem(item);
@@ -54,7 +54,7 @@ public sealed partial class RoomMapModule
 
         RemoveFloorItem(item);
 
-        item.SetPosition(GetX(tileIdx), GetY(tileIdx), _state.TileHeights[tileIdx]);
+        item.SetPosition(GetX(tileIdx), GetY(tileIdx), _roomGrain._state.TileHeights[tileIdx]);
         item.SetRotation(rot);
 
         AddFloorItem(item);
@@ -96,7 +96,7 @@ public sealed partial class RoomMapModule
         {
             foreach (var idx in tileIds)
             {
-                _state.TileFloorStacks[idx].Remove(item.ObjectId);
+                _roomGrain._state.TileFloorStacks[idx].Remove(item.ObjectId);
 
                 ComputeTile(idx);
             }

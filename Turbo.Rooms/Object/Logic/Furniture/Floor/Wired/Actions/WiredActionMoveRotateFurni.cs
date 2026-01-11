@@ -51,25 +51,25 @@ public class WiredActionMoveRotateFurni(
         {
             try
             {
-                if (!ctx.Room._liveState.FloorItemsById.TryGetValue(furniId, out var floorItem))
+                if (!ctx.Room._state.FloorItemsById.TryGetValue(furniId, out var floorItem))
                     continue;
 
                 var moveDirection = GetMoveDirection(_movementType);
                 var moveRotation = GetMoveRotation(floorItem.Rotation, _rotationType);
 
                 if (
-                    !ctx.Room._mapModule.TryGetTileInFront(
-                        ctx.Room._mapModule.ToIdx(floorItem.X, floorItem.Y),
+                    !ctx.Room.MapModule.TryGetTileInFront(
+                        ctx.Room.MapModule.ToIdx(floorItem.X, floorItem.Y),
                         moveDirection,
                         out var nextIdx
                     )
                 )
                     continue;
 
-                var (targetX, targetY) = ctx.Room._mapModule.GetTileXY(nextIdx);
+                var (targetX, targetY) = ctx.Room.MapModule.GetTileXY(nextIdx);
 
                 if (
-                    !ctx.Room._furniModule.ValidateFloorItemPlacement(
+                    !ctx.Room.FurniModule.ValidateFloorItemPlacement(
                         actionCtx,
                         furniId,
                         targetX,

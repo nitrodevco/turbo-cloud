@@ -16,7 +16,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (!await _actionModule.AddWallItemAsync(item, ct))
+            if (!await ActionModule.AddWallItemAsync(item, ct))
                 return false;
 
             return true;
@@ -42,7 +42,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (!await _actionModule.PlaceWallItemAsync(ctx, item, x, y, z, wallOffset, rot, ct))
+            if (!await ActionModule.PlaceWallItemAsync(ctx, item, x, y, z, wallOffset, rot, ct))
                 return false;
 
             return true;
@@ -69,7 +69,7 @@ public sealed partial class RoomGrain
         try
         {
             if (
-                !await _actionModule.MoveWallItemByIdAsync(
+                !await ActionModule.MoveWallItemByIdAsync(
                     ctx,
                     itemId,
                     newX,
@@ -100,7 +100,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (!await _actionModule.RemoveWallItemByIdAsync(ctx, itemId, ct))
+            if (!await ActionModule.RemoveWallItemByIdAsync(ctx, itemId, ct))
                 return false;
 
             return true;
@@ -122,7 +122,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (!await _actionModule.UseWallItemByIdAsync(ctx, itemId, ct, param))
+            if (!await ActionModule.UseWallItemByIdAsync(ctx, itemId, ct, param))
                 return false;
 
             return true;
@@ -144,7 +144,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (!await _actionModule.ClickWallItemByIdAsync(ctx, itemId, ct, param))
+            if (!await ActionModule.ClickWallItemByIdAsync(ctx, itemId, ct, param))
                 return false;
 
             return true;
@@ -162,10 +162,10 @@ public sealed partial class RoomGrain
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _liveState.WallItemsById.TryGetValue(itemId, out var item) ? item.GetSnapshot() : null
+            _state.WallItemsById.TryGetValue(itemId, out var item) ? item.GetSnapshot() : null
         );
 
     public Task<ImmutableArray<RoomWallItemSnapshot>> GetAllWallItemSnapshotsAsync(
         CancellationToken ct
-    ) => _furniModule.GetAllWallItemSnapshotsAsync(ct);
+    ) => FurniModule.GetAllWallItemSnapshotsAsync(ct);
 }

@@ -3,19 +3,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Events;
-using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-public sealed class RoomEventModule(
-    RoomGrain roomGrain,
-    RoomConfig roomConfig,
-    RoomLiveState roomLiveState
-) : IRoomModule
+public sealed class RoomEventModule(RoomGrain roomGrain)
 {
     private readonly RoomGrain _roomGrain = roomGrain;
-    private readonly RoomConfig _roomConfig = roomConfig;
-    private readonly RoomLiveState _state = roomLiveState;
+
     private readonly List<IRoomEventListener> _listeners = [];
 
     public void Register(IRoomEventListener listener)

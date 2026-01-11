@@ -1,14 +1,12 @@
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-public sealed class RoomSecurityModule(RoomGrain roomGrain, RoomLiveState liveState) : IRoomModule
+public sealed class RoomSecurityModule(RoomGrain roomGrain)
 {
     private readonly RoomGrain _roomGrain = roomGrain;
-    private readonly RoomLiveState _state = liveState;
 
     public async Task<bool> CanManipulateFurniAsync(ActionContext ctx)
     {
@@ -74,7 +72,7 @@ public sealed class RoomSecurityModule(RoomGrain roomGrain, RoomLiveState liveSt
     {
         var isOwner = false;
 
-        if (ctx is not null && _state.RoomSnapshot.OwnerId == ctx.PlayerId)
+        if (ctx is not null && _roomGrain._state.RoomSnapshot.OwnerId == ctx.PlayerId)
             isOwner = true;
 
         // if has perm any_room_owner true
@@ -103,7 +101,7 @@ public sealed class RoomSecurityModule(RoomGrain roomGrain, RoomLiveState liveSt
         {
             // if has perm room_rights Rights
 
-            if (_state.PlayerIdsWithRights.Contains(ctx.PlayerId))
+            if (_roomGrain._state.PlayerIdsWithRights.Contains(ctx.PlayerId))
                 return RoomControllerType.Rights;
         }
 

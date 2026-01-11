@@ -7,8 +7,7 @@ using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
-using Turbo.Rooms.Configuration;
-using Turbo.Rooms.Grains.Modules;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
@@ -17,28 +16,27 @@ using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 using Turbo.Rooms.Wired;
+using Turbo.Rooms.Wired.Variables;
 
 namespace Turbo.Rooms.Grains.Systems;
 
-public sealed class RoomWiredSystem(
-    RoomGrain roomGrain,
-    RoomConfig roomConfig,
-    RoomLiveState roomLiveState,
-    RoomAvatarModule roomAvatarModule,
-    RoomMapModule roomMapModule
-) : IRoomEventListener
+public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
 {
     private readonly RoomGrain _roomGrain = roomGrain;
-    private readonly RoomConfig _roomConfig = roomConfig;
-    private readonly RoomLiveState _state = roomLiveState;
-    private readonly RoomAvatarModule _roomAvatarModule = roomAvatarModule;
-    private readonly RoomMapModule _roomMapModule = roomMapModule;
 
     private WiredCompiled? _wiredCompiled;
     private long _nextStackExecutionId = 0;
 
     private readonly HashSet<int> _dirtyStackIds = [];
+    private readonly HashSet<int> _dirtyVariableBoxIds = [];
     private readonly Dictionary<int, WiredStack> _stacksById = [];
+    private readonly Dictionary<int, HashSet<string>> _keysByVariableBoxId = [];
+    private readonly List<IWiredVariable> _computedVariables = [];
+
+    private readonly Dictionary<string, WiredVariableRegistration> _byKey = new(
+        StringComparer.OrdinalIgnoreCase
+    );
+
     private readonly Queue<RoomEvent> _eventQueue = new();
     private readonly Dictionary<
         WiredExecutionKey,
@@ -47,24 +45,35 @@ public sealed class RoomWiredSystem(
     private readonly PriorityQueue<(WiredExecutionKey key, long version), long> _stackSchedule =
         new();
 
-    private int _tickMs => _roomConfig.WiredTickMs;
+    private int _tickMs => _roomGrain._roomConfig.WiredTickMs;
+    private bool _firstRun;
 
     public async Task ProcessWiredAsync(long now, CancellationToken ct)
     {
-        if (now < _state.NextWiredBoundaryMs)
+        if (now < _roomGrain._state.NextWiredBoundaryMs)
             return;
 
-        while (now >= _state.NextWiredBoundaryMs)
-            _state.NextWiredBoundaryMs += _tickMs;
+        while (now >= _roomGrain._state.NextWiredBoundaryMs)
+            _roomGrain._state.NextWiredBoundaryMs += _tickMs;
 
-        await _roomGrain._wiredVariableSystem.ProcessBoxesAsync(now, ct);
+        if (_firstRun)
+        {
+            var variables = _roomGrain._wiredVariablesProvider.BuildAllVariables(_roomGrain);
+
+            foreach (var variable in variables)
+                _computedVariables.Add(variable);
+
+            _firstRun = false;
+        }
+
+        await ProcessVariableBoxesAsync(now, ct);
         await CompileLatestWiredAsync(now, ct);
         await RunDueScheduledStackExecutionsAsync(now, ct);
 
         if (_wiredCompiled is null || _wiredCompiled.StackIdsByEventType.Count == 0)
             return;
 
-        var budget = _roomConfig.WiredMaxEventsPerTick;
+        var budget = _roomGrain._roomConfig.WiredMaxEventsPerTick;
 
         while (budget-- > 0 && _eventQueue.Count > 0)
         {
@@ -78,14 +87,23 @@ public sealed class RoomWiredSystem(
     {
         if (evt is not null)
         {
-            if (evt is RoomWiredStackChangedEvent stackChanged)
+            switch (evt)
             {
-                foreach (var stackId in stackChanged.StackIds)
-                    _dirtyStackIds.Add(stackId);
-            }
-            else
-            {
-                _eventQueue.Enqueue(evt);
+                case RoomWiredStackChangedEvent stackEvt:
+                    {
+                        foreach (var stackId in stackEvt.StackIds)
+                            _dirtyStackIds.Add(stackId);
+                    }
+                    break;
+                case WiredVariableBoxChangedEvent boxEvt:
+                    {
+                        foreach (var boxId in boxEvt.BoxIds)
+                            _dirtyVariableBoxIds.Add(boxId);
+                    }
+                    break;
+                default:
+                    _eventQueue.Enqueue(evt);
+                    break;
             }
         }
 
@@ -203,7 +221,7 @@ public sealed class RoomWiredSystem(
 
     private async Task RunDueScheduledStackExecutionsAsync(long now, CancellationToken ct)
     {
-        var budget = _roomConfig.WiredMaxScheduledPerTick;
+        var budget = _roomGrain._roomConfig.WiredMaxScheduledPerTick;
 
         while (budget-- > 0 && _stackSchedule.Count > 0)
         {
@@ -381,9 +399,9 @@ public sealed class RoomWiredSystem(
     {
         _stacksById.Remove(stackId);
 
-        var wiredItems = _state
-            .TileFloorStacks[stackId]
-            .Select(x => _state.FloorItemsById[x])
+        var wiredItems = _roomGrain
+            ._state.TileFloorStacks[stackId]
+            .Select(x => _roomGrain._state.FloorItemsById[x])
             .Where(x => x.Logic is FurnitureWiredLogic)
             .ToList();
 
@@ -429,6 +447,64 @@ public sealed class RoomWiredSystem(
 
         _stacksById[stackId] = stack;
         return stack;
+    }
+
+    private async Task ProcessVariableBoxesAsync(long now, CancellationToken ct)
+    {
+        if (_dirtyVariableBoxIds.Count == 0)
+            return;
+
+        var dirtyVariableBoxIds = _dirtyVariableBoxIds.ToList();
+        _dirtyVariableBoxIds.Clear();
+
+        foreach (var boxId in dirtyVariableBoxIds)
+            await ProcessVariableBoxAsync(boxId, ct);
+    }
+
+    private async Task ProcessVariableBoxAsync(int boxId, CancellationToken ct)
+    {
+        if (
+            !_roomGrain._state.FloorItemsById.TryGetValue(boxId, out var floorItem)
+            || floorItem.Logic is not FurnitureWiredVariableLogic varLogic
+        )
+            return;
+
+        await varLogic.LoadWiredAsync(ct);
+
+        var regs = varLogic.GetVariableRegistrations();
+
+        ResetVariableBox(boxId, regs);
+    }
+
+    private void ResetVariableBox(int boxId, List<WiredVariableRegistration> regs)
+    {
+        if (_keysByVariableBoxId.TryGetValue(boxId, out var prevKeys))
+        {
+            foreach (var key in prevKeys)
+                _byKey.Remove(key);
+        }
+
+        var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var reg in regs)
+        {
+            _byKey[reg.Definition.Key] = reg;
+
+            keys.Add(reg.Definition.Key);
+        }
+
+        _keysByVariableBoxId[boxId] = keys;
+    }
+
+    private void RemoveVariableBox(int boxId)
+    {
+        if (!_keysByVariableBoxId.TryGetValue(boxId, out var keys))
+            return;
+
+        foreach (var key in keys)
+            _byKey.Remove(key);
+
+        _keysByVariableBoxId.Remove(boxId);
     }
 
     private static List<FurnitureWiredActionLogic> ChooseActions(

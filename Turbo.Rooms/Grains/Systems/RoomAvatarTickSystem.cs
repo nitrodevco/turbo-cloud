@@ -8,52 +8,38 @@ using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
-using Turbo.Rooms.Configuration;
-using Turbo.Rooms.Grains.Modules;
 
 namespace Turbo.Rooms.Grains.Systems;
 
-public sealed class RoomAvatarTickSystem(
-    RoomGrain roomGrain,
-    RoomConfig roomConfig,
-    RoomLiveState roomLiveState,
-    RoomAvatarModule roomAvatarModule,
-    RoomMapModule roomMapModule
-)
+public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
 {
     private readonly RoomGrain _roomGrain = roomGrain;
-    private readonly RoomConfig _roomConfig = roomConfig;
-    private readonly RoomLiveState _state = roomLiveState;
-    private readonly RoomAvatarModule _roomAvatar = roomAvatarModule;
-    private readonly RoomMapModule _roomMap = roomMapModule;
-
-    private int _tickMs => _roomConfig.AvatarTickMs;
 
     public async Task ProcessAvatarsAsync(long now, CancellationToken ct)
     {
-        if (now < _state.NextAvatarBoundaryMs)
+        if (now < _roomGrain._state.NextAvatarBoundaryMs)
             return;
 
-        while (now >= _state.NextAvatarBoundaryMs)
-            _state.NextAvatarBoundaryMs += _tickMs;
+        while (now >= _roomGrain._state.NextAvatarBoundaryMs)
+            _roomGrain._state.NextAvatarBoundaryMs += _roomGrain._roomConfig.AvatarTickMs;
 
         var dirtySnapshots = new List<RoomAvatarSnapshot>();
 
-        foreach (var avatar in _state.AvatarsByObjectId.Values)
+        foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
         {
             try
             {
-                await _roomAvatar.ProcessNextAvatarStepAsync(avatar, ct);
+                await _roomGrain.AvatarModule.ProcessNextAvatarStepAsync(avatar, ct);
 
                 if (avatar.TilePath.Count <= 0)
                 {
                     if (avatar.PendingStopAtMs > 0 && now < avatar.PendingStopAtMs)
                         continue;
 
-                    await _roomAvatar.StopWalkingAsync(avatar, ct);
+                    await _roomGrain.AvatarModule.StopWalkingAsync(avatar, ct);
 
                     if (avatar.NeedsInvoke)
-                        await _roomMap.InvokeAvatarAsync(avatar, ct);
+                        await _roomGrain.MapModule.InvokeAvatarAsync(avatar, ct);
                 }
                 else
                 {
@@ -85,7 +71,10 @@ public sealed class RoomAvatarTickSystem(
         avatar.TilePath.RemoveAt(0);
 
         if (avatar.TilePath.Count == 0)
-            avatar.PendingStopAtMs = _roomGrain.AlignToNextBoundary(now, _tickMs);
+            avatar.PendingStopAtMs = _roomGrain.AlignToNextBoundary(
+                now,
+                _roomGrain._roomConfig.AvatarTickMs
+            );
 
         await ValidateAvatarStepAsync(avatar, nextTileId, now, ct);
     }
@@ -100,21 +89,21 @@ public sealed class RoomAvatarTickSystem(
         try
         {
             var isGoal = avatar.TilePath.Count == 0;
-            var prevTileId = _roomMap.ToIdx(avatar.X, avatar.Y);
-            var (nextX, nextY) = _roomMap.GetTileXY(nextTileId);
-            var prevHeight = _roomMap.GetTileHeightForAvatar(prevTileId);
-            var nextHeight = _roomMap.GetTileHeightForAvatar(nextTileId);
+            var prevTileId = _roomGrain.MapModule.ToIdx(avatar.X, avatar.Y);
+            var (nextX, nextY) = _roomGrain.MapModule.GetTileXY(nextTileId);
+            var prevHeight = _roomGrain.MapModule.GetTileHeightForAvatar(prevTileId);
+            var nextHeight = _roomGrain.MapModule.GetTileHeightForAvatar(nextTileId);
 
-            if (Math.Abs(nextHeight - prevHeight) > Math.Abs(_roomConfig.MaxStepHeight))
+            if (Math.Abs(nextHeight - prevHeight) > Math.Abs(_roomGrain._roomConfig.MaxStepHeight))
                 throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
-            if (!_roomMap.CanAvatarWalkBetween(avatar, prevTileId, nextTileId, isGoal))
+            if (!_roomGrain.MapModule.CanAvatarWalkBetween(avatar, prevTileId, nextTileId, isGoal))
             {
                 if (!isGoal)
                 {
-                    var (goalX, goalY) = _roomMap.GetTileXY(avatar.GoalTileId);
+                    var (goalX, goalY) = _roomGrain.MapModule.GetTileXY(avatar.GoalTileId);
 
-                    if (await _roomAvatar.WalkAvatarToAsync(avatar, goalX, goalY, ct))
+                    if (await _roomGrain.AvatarModule.WalkAvatarToAsync(avatar, goalX, goalY, ct))
                     {
                         await ProcessAvatarAsync(avatar, now, ct);
 
@@ -125,12 +114,15 @@ public sealed class RoomAvatarTickSystem(
                 throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
             }
 
-            var prevHighestItemId = _state.TileHighestFloorItems[prevTileId];
-            var nextHighestItemId = _state.TileHighestFloorItems[nextTileId];
+            var prevHighestItemId = _roomGrain._state.TileHighestFloorItems[prevTileId];
+            var nextHighestItemId = _roomGrain._state.TileHighestFloorItems[nextTileId];
 
             if (
                 prevHighestItemId > 0
-                && _state.FloorItemsById.TryGetValue(prevHighestItemId, out var prevFloorItem)
+                && _roomGrain._state.FloorItemsById.TryGetValue(
+                    prevHighestItemId,
+                    out var prevFloorItem
+                )
             )
             {
                 await prevFloorItem.Logic.OnWalkOffAsync(
@@ -139,12 +131,15 @@ public sealed class RoomAvatarTickSystem(
                 );
             }
 
-            _roomMap.RemoveAvatarAtIdx(avatar, prevTileId, false);
-            _roomMap.AddAvatarAtIdx(avatar, nextTileId, false);
+            _roomGrain.MapModule.RemoveAvatarAtIdx(avatar, prevTileId, false);
+            _roomGrain.MapModule.AddAvatarAtIdx(avatar, nextTileId, false);
 
             if (
                 nextHighestItemId > 0
-                && _state.FloorItemsById.TryGetValue(nextHighestItemId, out var nextFloorItem)
+                && _roomGrain._state.FloorItemsById.TryGetValue(
+                    nextHighestItemId,
+                    out var nextFloorItem
+                )
             )
             {
                 await nextFloorItem.Logic.OnWalkOnAsync(
@@ -161,7 +156,7 @@ public sealed class RoomAvatarTickSystem(
         }
         catch (Exception)
         {
-            await _roomAvatar.StopWalkingAsync(avatar, ct);
+            await _roomGrain.AvatarModule.StopWalkingAsync(avatar, ct);
         }
     }
 }
