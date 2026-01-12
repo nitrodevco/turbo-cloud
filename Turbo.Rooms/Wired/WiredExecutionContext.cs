@@ -6,27 +6,28 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Grains;
-using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 
 namespace Turbo.Rooms.Wired;
 
-public sealed class WiredExecutionContext
+public sealed class WiredExecutionContext : IWiredExecutionContext
 {
     public required RoomGrain Room { get; init; }
     public required Dictionary<string, object?> Variables { get; init; }
-    public required WiredPolicy Policy { get; init; }
-    public required WiredSelectionSet Selected { get; init; }
-    public required WiredSelectionSet SelectorPool { get; init; }
+    public required IWiredPolicy Policy { get; init; }
+    public required IWiredSelectionSet Selected { get; init; }
+    public required IWiredSelectionSet SelectorPool { get; init; }
 
     public List<WiredUserMovementSnapshot> UserMoves { get; } = [];
     public List<WiredFloorItemMovementSnapshot> FloorItemMoves { get; } = [];
     public List<WiredWallItemMovementSnapshot> WallItemMoves { get; } = [];
     public List<WiredUserDirectionSnapshot> UserDirections { get; } = [];
 
-    public async Task<WiredSelectionSet> GetWiredSelectionSetAsync(
-        FurnitureWiredLogic wired,
+    public async Task<IWiredSelectionSet> GetWiredSelectionSetAsync(
+        IFurnitureWiredLogic wired,
         CancellationToken ct
     )
     {
@@ -72,8 +73,8 @@ public sealed class WiredExecutionContext
         return set;
     }
 
-    public async Task<WiredSelectionSet> GetEffectiveSelectionAsync(
-        FurnitureWiredLogic wired,
+    public async Task<IWiredSelectionSet> GetEffectiveSelectionAsync(
+        IFurnitureWiredLogic wired,
         CancellationToken ct
     )
     {

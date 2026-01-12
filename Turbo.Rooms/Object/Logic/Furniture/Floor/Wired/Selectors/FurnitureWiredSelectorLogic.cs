@@ -6,6 +6,7 @@ using Orleans;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
@@ -54,8 +55,8 @@ public abstract class FurnitureWiredSelectorLogic(
         return isInvert;
     }
 
-    public virtual Task<WiredSelectionSet> SelectAsync(
+    public virtual Task<IWiredSelectionSet> SelectAsync(
         WiredProcessingContext ctx,
         CancellationToken ct
-    ) => Task.FromResult<WiredSelectionSet>(new WiredSelectionSet());
+    ) => Task.FromResult<IWiredSelectionSet>(new WiredSelectionSet());
 }

@@ -1,6 +1,8 @@
+using Turbo.Primitives.Rooms.Wired;
+
 namespace Turbo.Rooms.Wired.IntParams;
 
-public class WiredIntParamRule(int defaultValue)
+public class WiredIntParamRule(int defaultValue) : IWiredIntParamRule
 {
     public int DefaultValue { get; } = defaultValue;
 

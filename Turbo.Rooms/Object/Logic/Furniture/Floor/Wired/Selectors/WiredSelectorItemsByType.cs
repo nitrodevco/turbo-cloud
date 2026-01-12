@@ -6,6 +6,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
@@ -30,7 +31,7 @@ public class WiredSelectorItemsByType(
             ],
         ];
 
-    public override async Task<WiredSelectionSet> SelectAsync(
+    public override async Task<IWiredSelectionSet> SelectAsync(
         WiredProcessingContext ctx,
         CancellationToken ct
     )

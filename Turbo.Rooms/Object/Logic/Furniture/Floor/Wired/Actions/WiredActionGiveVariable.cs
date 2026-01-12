@@ -6,6 +6,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.IntParams;
 
@@ -21,7 +22,7 @@ public class WiredActionGiveVariable(
 {
     public override int WiredCode => (int)WiredActionType.GIVE_VARIABLE;
 
-    public override List<WiredIntParamRule> GetIntParamRules() =>
+    public override List<IWiredIntParamRule> GetIntParamRules() =>
         [
             new WiredIntEnumRule<WiredVariableTargetType>(WiredVariableTargetType.User),
             new WiredIntRangeRule(-1, 0, 0),
@@ -43,13 +44,12 @@ public class WiredActionGiveVariable(
         [
             [
                 WiredPlayerSourceType.SelectorUsers,
-                WiredPlayerSourceType.SelectorUsers,
                 WiredPlayerSourceType.SignalUsers,
                 WiredPlayerSourceType.TriggeredUser,
             ],
         ];
 
-    public override async Task<bool> ExecuteAsync(WiredExecutionContext ctx, CancellationToken ct)
+    public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
         var selection = await ctx.GetEffectiveSelectionAsync(this, ct);
         var actionCtx = ctx.AsActionContext();

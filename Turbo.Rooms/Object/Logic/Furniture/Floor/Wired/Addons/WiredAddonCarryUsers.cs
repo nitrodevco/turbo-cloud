@@ -6,6 +6,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.IntParams;
 
@@ -23,7 +24,7 @@ public class WiredAddonCarryUsers(
 
     protected WiredCarryUserType _carryUserType = WiredCarryUserType.StandingOnFurni;
 
-    public override List<WiredIntParamRule> GetIntParamRules() =>
+    public override List<IWiredIntParamRule> GetIntParamRules() =>
         [new WiredIntEnumRule<WiredCarryUserType>(WiredCarryUserType.StandingOnFurni)];
 
     public override Task<bool> MutatePolicyAsync(WiredProcessingContext ctx, CancellationToken ct)

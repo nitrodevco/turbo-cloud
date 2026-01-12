@@ -6,6 +6,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired.IntParams;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
@@ -20,7 +21,7 @@ public class WiredVariableUser(
 {
     public override int WiredCode => (int)WiredVariableType.USER_VARIABLE;
 
-    public override List<WiredIntParamRule> GetIntParamRules() =>
+    public override List<IWiredIntParamRule> GetIntParamRules() =>
         [
             new WiredIntEnumRule<WiredAvailabilityType>(WiredAvailabilityType.Temporary),
             new WiredIntRangeRule(0, 1, 0),

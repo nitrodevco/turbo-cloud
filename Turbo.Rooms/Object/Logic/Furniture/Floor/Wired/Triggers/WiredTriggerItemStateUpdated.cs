@@ -8,6 +8,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.IntParams;
 
@@ -24,7 +25,7 @@ public class WiredTriggerItemStateUpdated(
     public override int WiredCode => (int)WiredTriggerType.STATE_CHANGE;
     public override List<Type> SupportedEventTypes { get; } = [typeof(RoomItemStateChangedEvent)];
 
-    public override List<WiredIntParamRule> GetIntParamRules() => [new WiredIntRangeRule(0, 1, 0)];
+    public override List<IWiredIntParamRule> GetIntParamRules() => [new WiredIntRangeRule(0, 1, 0)];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [

@@ -8,7 +8,7 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
-using Turbo.Rooms.Wired;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired.IntParams;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -26,7 +26,7 @@ public class WiredActionMoveRotateFurni(
     private int _movementType = 0;
     private int _rotationType = 0;
 
-    public override List<WiredIntParamRule> GetIntParamRules() =>
+    public override List<IWiredIntParamRule> GetIntParamRules() =>
         [
             new WiredIntRangeRule(0, 7, 0), // Movement Type
             new WiredIntRangeRule(0, 3, 0), // Rotation Type
@@ -42,7 +42,7 @@ public class WiredActionMoveRotateFurni(
             ],
         ];
 
-    public override async Task<bool> ExecuteAsync(WiredExecutionContext ctx, CancellationToken ct)
+    public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
         var selection = await ctx.GetEffectiveSelectionAsync(this, ct);
         var actionCtx = ctx.AsActionContext();
@@ -51,25 +51,25 @@ public class WiredActionMoveRotateFurni(
         {
             try
             {
-                if (!ctx.Room._state.FloorItemsById.TryGetValue(furniId, out var floorItem))
+                if (!_roomGrain._state.FloorItemsById.TryGetValue(furniId, out var floorItem))
                     continue;
 
                 var moveDirection = GetMoveDirection(_movementType);
                 var moveRotation = GetMoveRotation(floorItem.Rotation, _rotationType);
 
                 if (
-                    !ctx.Room.MapModule.TryGetTileInFront(
-                        ctx.Room.MapModule.ToIdx(floorItem.X, floorItem.Y),
+                    !_roomGrain.MapModule.TryGetTileInFront(
+                        _roomGrain.MapModule.ToIdx(floorItem.X, floorItem.Y),
                         moveDirection,
                         out var nextIdx
                     )
                 )
                     continue;
 
-                var (targetX, targetY) = ctx.Room.MapModule.GetTileXY(nextIdx);
+                var (targetX, targetY) = _roomGrain.MapModule.GetTileXY(nextIdx);
 
                 if (
-                    !ctx.Room.FurniModule.ValidateFloorItemPlacement(
+                    !_roomGrain.FurniModule.ValidateFloorItemPlacement(
                         actionCtx,
                         furniId,
                         targetX,

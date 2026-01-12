@@ -11,19 +11,21 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Variables;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 
-public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic
+public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredVariable
 {
     public override WiredType WiredType => WiredType.Variable;
 
+    public IWiredVariableDefinition VarDefinition { get; protected set; } = default!;
     public IStorageData StorageData { get; private set; }
+
     public WiredAvailabilityType StorageType { get; protected set; } =
         WiredAvailabilityType.Temporary;
-    public WiredVariableDefinition? VariableDefinition { get; protected set; }
 
     protected virtual bool _hasValue { get; set; } = false;
 
@@ -61,22 +63,34 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic
     {
         var result = new List<WiredVariableRegistration>();
 
-        if (VariableDefinition is not null)
+        if (VarDefinition is not null)
         {
-            result.Add(
-                new()
-                {
-                    Definition = VariableDefinition,
-                    Getter = (key) =>
-                        StorageData.TryGet(key, out var value) ? (true, value) : (false, default),
-                    Setter = StorageData.SetValue,
-                    Remover = StorageData.Remove,
-                }
-            );
+            result.Add(new() { Definition = VarDefinition, StorageData = StorageData });
         }
 
         return result;
     }
+
+    public virtual bool CanBind(in IWiredVariableBinding binding) => false;
+
+    public virtual bool TryGet(
+        in IWiredVariableBinding binding,
+        IWiredExecutionContext ctx,
+        out int value
+    )
+    {
+        value = 0;
+
+        return false;
+    }
+
+    public virtual bool SetValue(
+        in IWiredVariableBinding binding,
+        IWiredExecutionContext ctx,
+        int value
+    ) => false;
+
+    public virtual bool RemoveValue(string key) => false;
 
     public virtual Task ApplyAsync(WiredProcessingContext ctx, CancellationToken ct) =>
         Task.CompletedTask;
@@ -104,23 +118,20 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic
         {
             var key = WiredData.StringParam;
 
-            if (!string.IsNullOrWhiteSpace(key))
+            VarDefinition = new WiredVariableDefinition()
             {
-                VariableDefinition = new()
+                Key = key,
+                Name = key,
+                Target = GetVariableTargetType(),
+                AvailabilityType = StorageType,
+                InputSourceType = GetVariableTargetType() switch
                 {
-                    Key = key,
-                    Name = key,
-                    Target = GetVariableTargetType(),
-                    AvailabilityType = StorageType,
-                    InputSourceType = GetVariableTargetType() switch
-                    {
-                        WiredVariableTargetType.User => WiredInputSourceType.PlayerSource,
-                        WiredVariableTargetType.Furni => WiredInputSourceType.FurniSource,
-                        _ => WiredInputSourceType.MergedSource,
-                    },
-                    Flags = GetVariableFlags(),
-                };
-            }
+                    WiredVariableTargetType.User => WiredInputSourceType.PlayerSource,
+                    WiredVariableTargetType.Furni => WiredInputSourceType.FurniSource,
+                    _ => WiredInputSourceType.MergedSource,
+                },
+                Flags = GetVariableFlags(),
+            };
         }
         catch { }
     }

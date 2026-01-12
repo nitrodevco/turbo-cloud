@@ -43,7 +43,8 @@ public sealed class WiredVariableDefinition : IWiredVariableDefinition
     public WiredVariableSnapshot GetSnapshot() =>
         new()
         {
-            VariableId = Key.GetHashCode(),
+            HashCode = GetHashCode(),
+            VariableId = 0,
             VariableName = Name,
             AvailabilityType = AvailabilityType,
             VariableType = InputSourceType,

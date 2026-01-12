@@ -7,43 +7,57 @@ namespace Turbo.Rooms.Wired.Variables.Furniture;
 [WiredVariable("furni.position.x")]
 public sealed class FurniturePositionXVariable(RoomGrain roomGrain) : WiredVariable(roomGrain)
 {
-    public override IWiredVariableDefinition Definition =>
+    public override IWiredVariableDefinition VarDefinition =>
         new WiredVariableDefinition()
         {
-            Key = "position.x",
-            Name = "x",
+            Key = "furni.position.x",
+            Name = "position.x",
             Target = WiredVariableTargetType.Furni,
             AvailabilityType = WiredAvailabilityType.Persistent,
             InputSourceType = WiredInputSourceType.FurniSource,
             Flags = WiredVariableFlags.CanWriteValue | WiredVariableFlags.AlwaysAvailable,
         };
 
-    public bool CanBind(in IWiredVariableBinding binding) => binding.TargetId is not null;
+    public override bool CanBind(in IWiredVariableBinding binding) => binding.TargetId is not null;
 
-    public WiredValue Get(in IWiredVariableBinding binding, WiredExecutionContext ctx)
-    {
-        if (!ctx.Room._state.FloorItemsById.TryGetValue(binding.TargetId!.Value, out var floorItem))
-            return WiredValue.None();
-
-        return WiredValue.Int(floorItem.X);
-    }
-
-    public bool TrySet(
+    public override bool TryGet(
         in IWiredVariableBinding binding,
-        WiredExecutionContext ctx,
-        WiredValue value
+        IWiredExecutionContext ctx,
+        out int value
     )
     {
-        if (!ctx.Room._state.FloorItemsById.TryGetValue(binding.TargetId!.Value, out var floorItem))
-            return false;
-
-        var newX = value.AsInt();
-
         if (
-            !ctx.Room.FurniModule.ValidateFloorItemPlacement(
+            !_roomGrain._state.FloorItemsById.TryGetValue(
+                binding.TargetId!.Value,
+                out var floorItem
+            )
+        )
+        {
+            value = 0;
+
+            return false;
+        }
+
+        value = floorItem.X;
+
+        return true;
+    }
+
+    public override bool SetValue(
+        in IWiredVariableBinding binding,
+        IWiredExecutionContext ctx,
+        int value
+    )
+    {
+        if (
+            !_roomGrain._state.FloorItemsById.TryGetValue(
+                binding.TargetId!.Value,
+                out var floorItem
+            )
+            || !_roomGrain.FurniModule.ValidateFloorItemPlacement(
                 ctx.AsActionContext(),
                 floorItem.ObjectId.Value,
-                newX,
+                value,
                 floorItem.Y,
                 floorItem.Rotation
             )
@@ -52,10 +66,15 @@ public sealed class FurniturePositionXVariable(RoomGrain roomGrain) : WiredVaria
 
         ctx.AddFloorItemMovement(
             floorItem,
-            ctx.Room.MapModule.ToIdx(newX, floorItem.Y),
+            _roomGrain.MapModule.ToIdx(value, floorItem.Y),
             floorItem.Rotation
         );
 
         return true;
+    }
+
+    public override bool RemoveValue(string key)
+    {
+        return false;
     }
 }

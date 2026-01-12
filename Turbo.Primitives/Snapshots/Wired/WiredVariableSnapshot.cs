@@ -51,4 +51,7 @@ public record WiredVariableSnapshot
 
     [Id(14)]
     public required bool IsStored { get; init; }
+
+    [Id(15)]
+    public required int HashCode { get; init; }
 }

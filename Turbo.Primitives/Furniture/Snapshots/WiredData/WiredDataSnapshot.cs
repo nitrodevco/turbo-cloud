@@ -68,4 +68,7 @@ public record WiredDataSnapshot
 
     [Id(19)]
     public required List<object> TypeSpecifics { get; init; }
+
+    [Id(20)]
+    public required int GlobalHash { get; init; }
 }

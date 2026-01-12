@@ -16,11 +16,13 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Object.Logic.Furniture;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired.IntParams;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 
-public abstract class FurnitureWiredLogic : FurnitureFloorLogic
+public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWiredLogic
 {
     protected readonly IWiredDataFactory _wiredDataFactory;
     protected readonly IGrainFactory _grainFactory;
@@ -120,9 +122,9 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic
         _ = SetStateAsync(state);
     }
 
-    public virtual List<WiredIntParamRule> GetIntParamRules() => [];
+    public virtual List<IWiredIntParamRule> GetIntParamRules() => [];
 
-    public virtual WiredIntParamRule? GetIntParamTailRule() => null;
+    public virtual IWiredIntParamRule? GetIntParamTailRule() => null;
 
     public virtual List<WiredFurniSourceType[]> GetFurniSources()
     {
@@ -547,5 +549,6 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic
             DefaultPlayerSources = GetDefaultPlayerSources(),
             DefinitionSpecifics = GetDefinitionSpecifics(),
             TypeSpecifics = GetTypeSpecifics(),
+            GlobalHash = _roomGrain._state.GlobalVariableHash,
         };
 }
