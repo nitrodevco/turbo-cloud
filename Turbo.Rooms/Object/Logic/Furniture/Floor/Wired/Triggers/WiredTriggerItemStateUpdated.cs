@@ -9,7 +9,6 @@ using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.IntParams;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;

@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
-using Turbo.Primitives.Snapshots.Wired;
 
 namespace Turbo.Rooms.Wired.Variables;
 
@@ -20,22 +20,22 @@ public sealed class WiredVariableDefinition : IWiredVariableDefinition
     {
         long hashValue = 0;
 
-        hashValue ^= HashString(Key);
-        hashValue ^= HashEnum(InputSourceType);
-        hashValue ^= HashString(Name);
-        hashValue ^= HashEnum(AvailabilityType);
-        hashValue ^= HashEnum(Target);
+        hashValue ^= Key.GetHashCode();
+        hashValue ^= InputSourceType.GetHashCode();
+        hashValue ^= Name.GetHashCode();
+        hashValue ^= AvailabilityType.GetHashCode();
+        hashValue ^= Target.GetHashCode();
 
-        hashValue ^= HashInt(Flags.Has(WiredVariableFlags.AlwaysAvailable) ? 1 : 0);
-        hashValue ^= HashInt(Flags.Has(WiredVariableFlags.CanCreateAndDelete) ? 1 : 0);
-        hashValue ^= HashInt(Flags.Has(WiredVariableFlags.HasValue) ? 1 : 0);
-        hashValue ^= HashInt(Flags.Has(WiredVariableFlags.CanWriteValue) ? 1 : 0);
-        hashValue ^= HashInt(Flags.Has(WiredVariableFlags.CanInterceptChanges) ? 1 : 0);
-        hashValue ^= HashInt(Flags.Has(WiredVariableFlags.IsInvisible) ? 1 : 0);
-        hashValue ^= HashInt(Flags.Has(WiredVariableFlags.CanReadCreationTime) ? 1 : 0);
-        hashValue ^= HashInt(Flags.Has(WiredVariableFlags.CanReadLastUpdateTime) ? 1 : 0);
-        hashValue ^= HashInt(Flags.Has(WiredVariableFlags.HasTextConnector) ? 1 : 0);
-        hashValue ^= HashInt(TextConnectors.GetHashCode());
+        hashValue ^= (Flags.Has(WiredVariableFlags.AlwaysAvailable) ? 1 : 0).GetHashCode();
+        hashValue ^= (Flags.Has(WiredVariableFlags.CanCreateAndDelete) ? 1 : 0).GetHashCode();
+        hashValue ^= (Flags.Has(WiredVariableFlags.HasValue) ? 1 : 0).GetHashCode();
+        hashValue ^= (Flags.Has(WiredVariableFlags.CanWriteValue) ? 1 : 0).GetHashCode();
+        hashValue ^= (Flags.Has(WiredVariableFlags.CanInterceptChanges) ? 1 : 0).GetHashCode();
+        hashValue ^= (Flags.Has(WiredVariableFlags.IsInvisible) ? 1 : 0).GetHashCode();
+        hashValue ^= (Flags.Has(WiredVariableFlags.CanReadCreationTime) ? 1 : 0).GetHashCode();
+        hashValue ^= (Flags.Has(WiredVariableFlags.CanReadLastUpdateTime) ? 1 : 0).GetHashCode();
+        hashValue ^= (Flags.Has(WiredVariableFlags.HasTextConnector) ? 1 : 0).GetHashCode();
+        hashValue ^= TextConnectors.GetHashCode();
 
         return (int)hashValue;
     }
@@ -44,7 +44,7 @@ public sealed class WiredVariableDefinition : IWiredVariableDefinition
         new()
         {
             HashCode = GetHashCode(),
-            VariableId = 0,
+            VariableId = GetHashCode(),
             VariableName = Name,
             AvailabilityType = AvailabilityType,
             VariableType = InputSourceType,

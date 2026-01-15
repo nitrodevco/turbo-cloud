@@ -10,6 +10,7 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 
 namespace Turbo.Rooms.Grains;
@@ -192,4 +193,7 @@ public sealed partial class RoomGrain
                     : null
                 : null
         );
+
+    public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct) =>
+        WiredSystem.GetWiredVariablesSnapshotAsync(ct);
 }

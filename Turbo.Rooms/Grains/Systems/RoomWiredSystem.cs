@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,6 +8,7 @@ using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
@@ -23,8 +25,6 @@ namespace Turbo.Rooms.Grains.Systems;
 public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
 {
     private readonly RoomGrain _roomGrain = roomGrain;
-
-    private long _nextStackExecutionId = 0;
 
     private readonly HashSet<int> _dirtyStackIds = [];
     private readonly Dictionary<int, IWiredStack> _stacksById = [];
@@ -45,7 +45,8 @@ public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
         new();
 
     private int _tickMs => _roomGrain._roomConfig.WiredTickMs;
-    private bool _firstRun;
+    private bool _firstRun = true;
+    private long _nextStackExecutionId = 0;
 
     public async Task ProcessWiredAsync(long now, CancellationToken ct)
     {
@@ -109,6 +110,18 @@ public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
         return Task.CompletedTask;
     }
 
+    public void BuildCurrentHash()
+    {
+        var globalHash = 0;
+
+        foreach (var variable in _variableByKey.Values)
+        {
+            globalHash ^= variable.GetHashCode();
+        }
+
+        _roomGrain._state.GlobalVariableHash = globalHash;
+    }
+
     public bool TryGetVariable(
         string key,
         in IWiredVariableBinding binding,
@@ -123,6 +136,15 @@ public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
 
         return false;
     }
+
+    public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct) =>
+        Task.FromResult(
+            new WiredVariablesSnapshot()
+            {
+                GlobalHash = _roomGrain._state.GlobalVariableHash,
+                Variables = [.. _variableByKey.Values.Select(x => x.GetVarSnapshot())],
+            }
+        );
 
     private async Task ProcessRoomEventAsync(RoomEvent evt, long now, CancellationToken ct)
     {
@@ -454,12 +476,7 @@ public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
         foreach (var boxId in dirtyVariableBoxIds)
             await ProcessVariableBoxAsync(boxId, ct);
 
-        long globalHash = 0;
-
-        foreach (var variable in _variableByKey.Values)
-            globalHash ^= variable.GetHashCode();
-
-        _roomGrain._state.GlobalVariableHash = (int)globalHash;
+        BuildCurrentHash();
     }
 
     private async Task ProcessVariableBoxAsync(int boxId, CancellationToken ct)

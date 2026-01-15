@@ -6,5 +6,6 @@ namespace Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 [GenerateSerializer, Immutable]
 public sealed record WiredAllVariablesHashEventMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required int AllVariablesHash { get; init; }
 }

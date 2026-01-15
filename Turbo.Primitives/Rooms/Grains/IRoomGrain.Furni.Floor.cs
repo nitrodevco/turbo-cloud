@@ -9,6 +9,7 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 
 namespace Turbo.Primitives.Rooms.Grains;
 
@@ -65,4 +66,5 @@ public partial interface IRoomGrain
         RoomObjectId itemId,
         CancellationToken ct
     );
+    public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct);
 }

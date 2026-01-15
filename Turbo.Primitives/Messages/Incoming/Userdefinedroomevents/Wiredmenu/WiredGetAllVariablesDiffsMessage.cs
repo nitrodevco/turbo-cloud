@@ -8,5 +8,5 @@ namespace Turbo.Primitives.Messages.Incoming.Userdefinedroomevents.Wiredmenu;
 public record WiredGetAllVariablesDiffsMessage : IMessageEvent
 {
     [Id(0)]
-    public required List<(string Id, int Hash)> VariableHashes { get; init; } = [];
+    public required List<(long Id, int Hash)> VariableHashes { get; init; } = [];
 }

@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Snapshots.Wired;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 
 namespace Turbo.Primitives.Rooms.Wired.Variable;
 

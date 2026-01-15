@@ -1,6 +1,5 @@
-using System;
 using Turbo.Primitives.Furniture;
-using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains;
@@ -35,48 +34,7 @@ public abstract class WiredVariable(RoomGrain roomGrain) : IWiredVariable
 
     public virtual bool RemoveValue(string key) => false;
 
-    public override int GetHashCode()
-    {
-        long hashValue = 0;
+    public override int GetHashCode() => VarDefinition.GetHashCode();
 
-        hashValue ^= HashString(VarDefinition.Key);
-        hashValue ^= HashEnum(VarDefinition.InputSourceType);
-        hashValue ^= HashString(VarDefinition.Name);
-        hashValue ^= HashEnum(VarDefinition.AvailabilityType);
-        hashValue ^= HashEnum(VarDefinition.Target);
-
-        hashValue ^= HashInt(VarDefinition.Flags.Has(WiredVariableFlags.AlwaysAvailable) ? 1 : 0);
-        hashValue ^= HashInt(
-            VarDefinition.Flags.Has(WiredVariableFlags.CanCreateAndDelete) ? 1 : 0
-        );
-        hashValue ^= HashInt(VarDefinition.Flags.Has(WiredVariableFlags.HasValue) ? 1 : 0);
-        hashValue ^= HashInt(VarDefinition.Flags.Has(WiredVariableFlags.CanWriteValue) ? 1 : 0);
-        hashValue ^= HashInt(
-            VarDefinition.Flags.Has(WiredVariableFlags.CanInterceptChanges) ? 1 : 0
-        );
-        hashValue ^= HashInt(VarDefinition.Flags.Has(WiredVariableFlags.IsInvisible) ? 1 : 0);
-        hashValue ^= HashInt(
-            VarDefinition.Flags.Has(WiredVariableFlags.CanReadCreationTime) ? 1 : 0
-        );
-        hashValue ^= HashInt(
-            VarDefinition.Flags.Has(WiredVariableFlags.CanReadLastUpdateTime) ? 1 : 0
-        );
-        hashValue ^= HashInt(VarDefinition.Flags.Has(WiredVariableFlags.HasTextConnector) ? 1 : 0);
-        hashValue ^= HashInt(VarDefinition.TextConnectors.GetHashCode());
-
-        return (int)hashValue;
-    }
-
-    private static int HashInt(int value)
-    {
-        unchecked
-        {
-            return value * 397;
-        }
-    }
-
-    private static int HashString(string? value) => value?.GetHashCode() ?? 0;
-
-    private static int HashEnum<T>(T value)
-        where T : Enum => value.GetHashCode();
+    public WiredVariableSnapshot GetVarSnapshot() => VarDefinition.GetSnapshot();
 }
