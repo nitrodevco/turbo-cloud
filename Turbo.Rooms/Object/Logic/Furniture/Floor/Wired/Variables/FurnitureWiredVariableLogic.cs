@@ -12,6 +12,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Variables;
 
@@ -58,18 +59,6 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
     public virtual WiredVariableTargetType GetVariableTargetType() => WiredVariableTargetType.None;
 
     public virtual WiredVariableFlags GetVariableFlags() => WiredVariableFlags.None;
-
-    public virtual List<WiredVariableRegistration> GetVariableRegistrations()
-    {
-        var result = new List<WiredVariableRegistration>();
-
-        if (VarDefinition is not null)
-        {
-            result.Add(new() { Definition = VarDefinition, StorageData = StorageData });
-        }
-
-        return result;
-    }
 
     public virtual bool CanBind(in IWiredVariableBinding binding) => false;
 

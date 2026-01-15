@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Grains;
-using Turbo.Primitives.Rooms.Wired;
+using Turbo.Primitives.Rooms.Wired.Variable;
 
 namespace Turbo.Primitives.Rooms.Providers;
 

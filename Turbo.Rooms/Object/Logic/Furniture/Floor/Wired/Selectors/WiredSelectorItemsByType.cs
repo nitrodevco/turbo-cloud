@@ -32,7 +32,7 @@ public class WiredSelectorItemsByType(
         ];
 
     public override async Task<IWiredSelectionSet> SelectAsync(
-        WiredProcessingContext ctx,
+        IWiredProcessingContext ctx,
         CancellationToken ct
     )
     {
@@ -44,7 +44,7 @@ public class WiredSelectorItemsByType(
         {
             try
             {
-                if (!ctx.Room._state.FloorItemsById.TryGetValue(id, out var floorItem))
+                if (!_roomGrain._state.FloorItemsById.TryGetValue(id, out var floorItem))
                     continue;
 
                 allowedDefinitionIds.Add(floorItem.Definition.Id);
@@ -55,7 +55,7 @@ public class WiredSelectorItemsByType(
             }
         }
 
-        foreach (var item in ctx.Room._state.FloorItemsById.Values)
+        foreach (var item in _roomGrain._state.FloorItemsById.Values)
         {
             if (allowedDefinitionIds.Contains(item.Definition.Id))
                 output.SelectedFurniIds.Add(item.ObjectId.Value);

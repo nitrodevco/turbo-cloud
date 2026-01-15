@@ -1,6 +1,6 @@
 using Turbo.Primitives.Rooms.Enums.Wired;
 
-namespace Turbo.Primitives.Rooms.Wired;
+namespace Turbo.Primitives.Rooms.Wired.Variable;
 
 public interface IWiredVariableBinding
 {

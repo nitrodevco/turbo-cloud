@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Wired;
+using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Primitives.Snapshots.Wired;
 
 namespace Turbo.Rooms.Wired.Variables;

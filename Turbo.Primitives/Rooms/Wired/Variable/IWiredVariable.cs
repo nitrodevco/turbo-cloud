@@ -1,6 +1,6 @@
 using Turbo.Primitives.Furniture;
 
-namespace Turbo.Primitives.Rooms.Wired;
+namespace Turbo.Primitives.Rooms.Wired.Variable;
 
 public interface IWiredVariable
 {

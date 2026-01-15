@@ -4,7 +4,7 @@ using Orleans;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Rooms.Wired;
+using Turbo.Primitives.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
@@ -13,15 +13,18 @@ public abstract class FurnitureWiredAddonLogic(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx), IWiredAddon
 {
     public override WiredType WiredType => WiredType.Addon;
 
-    public abstract Task<bool> MutatePolicyAsync(WiredProcessingContext ctx, CancellationToken ct);
+    public virtual Task<bool> MutatePolicyAsync(
+        IWiredProcessingContext ctx,
+        CancellationToken ct
+    ) => Task.FromResult(true);
 
-    public virtual Task BeforeEffectsAsync(WiredProcessingContext ctx, CancellationToken ct) =>
+    public virtual Task BeforeEffectsAsync(IWiredProcessingContext ctx, CancellationToken ct) =>
         Task.CompletedTask;
 
-    public virtual Task AfterEffectsAsync(WiredProcessingContext ctx, CancellationToken ct) =>
+    public virtual Task AfterEffectsAsync(IWiredProcessingContext ctx, CancellationToken ct) =>
         Task.CompletedTask;
 }

@@ -33,7 +33,7 @@ public class WiredTriggerItemStateUpdated(
         ];
 
     public override async Task<bool> CanTriggerAsync(
-        WiredProcessingContext ctx,
+        IWiredProcessingContext ctx,
         CancellationToken ct
     )
     {

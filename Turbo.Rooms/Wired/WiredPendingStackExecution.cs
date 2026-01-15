@@ -1,15 +1,13 @@
 using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
-using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
 namespace Turbo.Rooms.Wired;
 
 internal sealed class WiredPendingStackExecution
 {
-    public required WiredStack Stack { get; init; }
-    public required List<FurnitureWiredActionLogic> Actions { get; init; }
-    public required FurnitureWiredTriggerLogic Trigger { get; init; }
+    public required IWiredStack Stack { get; init; }
+    public required List<IWiredAction> Actions { get; init; }
+    public required IWiredTrigger Trigger { get; init; }
     public required Dictionary<string, object?> Variables { get; init; }
     public required IWiredPolicy Policy { get; init; }
     public required IWiredSelectionSet Selected { get; init; }

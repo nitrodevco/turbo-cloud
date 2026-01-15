@@ -18,19 +18,4 @@ public class WiredAddonMovementPhysics(
 ) : FurnitureWiredAddonLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredAddonType.MOVE_PHYSICS;
-
-    public override Task<bool> MutatePolicyAsync(WiredProcessingContext ctx, CancellationToken ct)
-    {
-        return Task.FromResult(true);
-    }
-
-    public override Task BeforeEffectsAsync(WiredProcessingContext ctx, CancellationToken ct)
-    {
-        return Task.CompletedTask;
-    }
-
-    public override Task AfterEffectsAsync(WiredProcessingContext ctx, CancellationToken ct)
-    {
-        return Task.CompletedTask;
-    }
 }

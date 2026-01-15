@@ -2,6 +2,7 @@ using System;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired.Variables;

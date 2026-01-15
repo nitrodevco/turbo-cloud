@@ -1,20 +1,14 @@
 using System.Collections.Generic;
-using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
-using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
-using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
-using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
-using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
-using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
+using Turbo.Primitives.Rooms.Wired;
 
 namespace Turbo.Rooms.Wired;
 
-public sealed class WiredStack
+public sealed class WiredStack : IWiredStack
 {
     public required int StackId { get; init; }
-    public List<FurnitureWiredTriggerLogic> Triggers { get; init; } = [];
-    public List<FurnitureWiredSelectorLogic> Selectors { get; init; } = [];
-    public List<FurnitureWiredConditionLogic> Conditions { get; init; } = [];
-    public List<FurnitureWiredAddonLogic> Addons { get; init; } = [];
-    public List<FurnitureWiredVariableLogic> Variables { get; init; } = [];
-    public List<FurnitureWiredActionLogic> Effects { get; init; } = [];
+    public List<IWiredTrigger> Triggers { get; init; } = [];
+    public List<IWiredSelector> Selectors { get; init; } = [];
+    public List<IWiredCondition> Conditions { get; init; } = [];
+    public List<IWiredAddon> Addons { get; init; } = [];
+    public List<IWiredAction> Actions { get; init; } = [];
 }

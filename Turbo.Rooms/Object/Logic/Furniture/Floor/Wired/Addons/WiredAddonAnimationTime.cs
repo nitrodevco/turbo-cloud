@@ -30,7 +30,7 @@ public class WiredAddonAnimationTime(
             new WiredIntRangeRule(50, 2000, 50), // Animation Time
         ];
 
-    public override Task<bool> MutatePolicyAsync(WiredProcessingContext ctx, CancellationToken ct)
+    public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
         ctx.Policy.AnimationTimeMs = _animationTimeMs;
 

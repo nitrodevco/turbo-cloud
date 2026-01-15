@@ -26,7 +26,7 @@ public class WiredSelectorItemsInArea(
     private int _maxAreaSize = 100;
 
     public override async Task<IWiredSelectionSet> SelectAsync(
-        WiredProcessingContext ctx,
+        IWiredProcessingContext ctx,
         CancellationToken ct
     )
     {
@@ -42,7 +42,7 @@ public class WiredSelectorItemsInArea(
         {
             try
             {
-                var flooritems = ctx.Room._state.TileFloorStacks[tileId];
+                var flooritems = _roomGrain._state.TileFloorStacks[tileId];
 
                 foreach (var item in flooritems)
                     output.SelectedFurniIds.Add(item.Value);

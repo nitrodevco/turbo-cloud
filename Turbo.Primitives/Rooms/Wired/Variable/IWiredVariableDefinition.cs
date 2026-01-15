@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Snapshots.Wired;
 
-namespace Turbo.Primitives.Rooms.Wired;
+namespace Turbo.Primitives.Rooms.Wired.Variable;
 
 public interface IWiredVariableDefinition
 {

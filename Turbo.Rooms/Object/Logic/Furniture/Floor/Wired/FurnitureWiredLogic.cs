@@ -16,13 +16,11 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Wired.IntParams;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 
-public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWiredLogic
+public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
 {
     protected readonly IWiredDataFactory _wiredDataFactory;
     protected readonly IGrainFactory _grainFactory;
@@ -120,6 +118,28 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
         var state = await GetStateAsync() == 1 ? 0 : 1;
 
         _ = SetStateAsync(state);
+    }
+
+    public virtual List<int> GetValidStuffIds(List<int> stuffIds)
+    {
+        var validStuffIds = new List<int>();
+
+        foreach (var id in stuffIds)
+        {
+            if (!_roomGrain._state.FloorItemsById.TryGetValue(id, out var item))
+                continue;
+
+            validStuffIds.Add(id);
+        }
+
+        if (stuffIds.Count != validStuffIds.Count)
+        {
+            WiredData.StuffIds = validStuffIds;
+
+            WiredData.MarkDirty();
+        }
+
+        return validStuffIds;
     }
 
     public virtual List<IWiredIntParamRule> GetIntParamRules() => [];
@@ -531,7 +551,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IFurnitureWired
         {
             WiredType = WiredType,
             FurniLimit = _furniLimit,
-            StuffIds = WiredData.StuffIds,
+            StuffIds = GetValidStuffIds(WiredData.StuffIds),
             StuffTypeId = _ctx.Definition.SpriteId,
             Id = _ctx.ObjectId,
             StringParam = WiredData.StringParam,

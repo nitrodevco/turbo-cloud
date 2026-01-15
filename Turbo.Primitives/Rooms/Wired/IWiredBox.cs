@@ -8,15 +8,18 @@ using Turbo.Primitives.Furniture.Snapshots.WiredData;
 using Turbo.Primitives.Furniture.WiredData;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Wired;
 
-namespace Turbo.Primitives.Rooms.Object.Logic.Furniture;
+namespace Turbo.Primitives.Rooms.Wired;
 
-public interface IFurnitureWiredLogic : IFurnitureFloorLogic
+public interface IWiredBox
 {
     public WiredType WiredType { get; }
     public int WiredCode { get; }
     public IWiredData WiredData { get; }
+
+    public Task LoadWiredAsync(CancellationToken ct);
+    public Task FlashActivationStateAsync(CancellationToken ct);
+    public List<int> GetValidStuffIds(List<int> stuffIds);
 
     public List<IWiredIntParamRule> GetIntParamRules();
     public IWiredIntParamRule? GetIntParamTailRule();

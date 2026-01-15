@@ -27,7 +27,7 @@ public class WiredAddonCarryUsers(
     public override List<IWiredIntParamRule> GetIntParamRules() =>
         [new WiredIntEnumRule<WiredCarryUserType>(WiredCarryUserType.StandingOnFurni)];
 
-    public override Task<bool> MutatePolicyAsync(WiredProcessingContext ctx, CancellationToken ct)
+    public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
         return Task.FromResult(true);
     }

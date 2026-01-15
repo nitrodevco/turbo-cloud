@@ -8,6 +8,7 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
@@ -26,7 +27,7 @@ public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
     private long _nextStackExecutionId = 0;
 
     private readonly HashSet<int> _dirtyStackIds = [];
-    private readonly Dictionary<int, WiredStack> _stacksById = [];
+    private readonly Dictionary<int, IWiredStack> _stacksById = [];
     private readonly Dictionary<Type, List<int>> _stackIdsByEventType = [];
 
     private readonly HashSet<int> _dirtyVariableBoxIds = [];
@@ -139,9 +140,9 @@ public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
     }
 
     private async Task FireTriggerWithEventAsync(
-        FurnitureWiredTriggerLogic trigger,
+        IWiredTrigger trigger,
         RoomEvent evt,
-        WiredStack stack,
+        IWiredStack stack,
         long now,
         CancellationToken ct
     )
@@ -171,9 +172,6 @@ public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
             ctx.SelectorPool.UnionWith(set);
         }
 
-        foreach (var variable in ctx.Stack.Variables)
-            await variable.ApplyAsync(ctx, ct);
-
         foreach (var addon in ctx.Stack.Addons)
             await addon.MutatePolicyAsync(ctx, ct);
 
@@ -200,7 +198,7 @@ public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
         CancellationToken ct
     )
     {
-        var actions = ChooseActions(ctx.Stack.Effects, ctx.Policy);
+        var actions = ChooseActions(ctx.Stack.Actions, ctx.Policy);
 
         if (actions.Count == 0)
             return;
@@ -400,7 +398,9 @@ public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
         var wiredItems = _roomGrain
             ._state.TileFloorStacks[stackId]
             .Select(x => _roomGrain._state.FloorItemsById[x])
-            .Where(x => x.Logic is FurnitureWiredLogic)
+            .Where(x =>
+                x.Logic is FurnitureWiredLogic && x.Logic is not FurnitureWiredVariableLogic
+            )
             .ToList();
 
         if (wiredItems.Count == 0)
@@ -429,11 +429,8 @@ public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
                     case FurnitureWiredAddonLogic addon:
                         stack.Addons.Add(addon);
                         break;
-                    case FurnitureWiredVariableLogic variable:
-                        stack.Variables.Add(variable);
-                        break;
                     case FurnitureWiredActionLogic effect:
-                        stack.Effects.Add(effect);
+                        stack.Actions.Add(effect);
                         break;
                 }
             }
@@ -495,10 +492,7 @@ public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
         _variableKeyBoxId.Remove(boxId);
     }
 
-    private static List<FurnitureWiredActionLogic> ChooseActions(
-        List<FurnitureWiredActionLogic> actions,
-        IWiredPolicy policy
-    )
+    private static List<IWiredAction> ChooseActions(List<IWiredAction> actions, IWiredPolicy policy)
     {
         if (actions.Count == 0)
             return [];
@@ -512,7 +506,7 @@ public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
     }
 
     private static bool EvaluateConditions(
-        List<FurnitureWiredConditionLogic> conditions,
+        List<IWiredCondition> conditions,
         WiredProcessingContext ctx
     )
     {

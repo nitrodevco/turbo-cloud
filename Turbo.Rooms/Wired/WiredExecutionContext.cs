@@ -1,115 +1,21 @@
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired;
 
-public sealed class WiredExecutionContext : IWiredExecutionContext
+public sealed class WiredExecutionContext : WiredContext, IWiredExecutionContext
 {
-    public required RoomGrain Room { get; init; }
-    public required Dictionary<string, object?> Variables { get; init; }
-    public required IWiredPolicy Policy { get; init; }
-    public required IWiredSelectionSet Selected { get; init; }
-    public required IWiredSelectionSet SelectorPool { get; init; }
-
     public List<WiredUserMovementSnapshot> UserMoves { get; } = [];
     public List<WiredFloorItemMovementSnapshot> FloorItemMoves { get; } = [];
     public List<WiredWallItemMovementSnapshot> WallItemMoves { get; } = [];
     public List<WiredUserDirectionSnapshot> UserDirections { get; } = [];
-
-    public async Task<IWiredSelectionSet> GetWiredSelectionSetAsync(
-        IFurnitureWiredLogic wired,
-        CancellationToken ct
-    )
-    {
-        var set = new WiredSelectionSet();
-
-        foreach (var source in wired.GetFurniSources())
-        {
-            foreach (var sourceType in source)
-            {
-                switch (sourceType)
-                {
-                    case WiredFurniSourceType.SelectedItems:
-                        {
-                            var stuffIds = wired.WiredData?.StuffIds;
-
-                            if (stuffIds is not null && stuffIds.Count > 0)
-                            {
-                                foreach (var id in stuffIds)
-                                {
-                                    if (!Room._state.FloorItemsById.ContainsKey(id))
-                                        continue;
-
-                                    set.SelectedFurniIds.Add(id);
-                                }
-                            }
-                        }
-                        break;
-                    case WiredFurniSourceType.TriggeredItem:
-                        set.SelectedFurniIds.UnionWith(Selected.SelectedFurniIds);
-                        break;
-                }
-            }
-        }
-
-        foreach (var source in wired.GetPlayerSources())
-        {
-            foreach (var sourceType in source)
-            {
-                //switch (sourceType) { }
-            }
-        }
-
-        return set;
-    }
-
-    public async Task<IWiredSelectionSet> GetEffectiveSelectionAsync(
-        IFurnitureWiredLogic wired,
-        CancellationToken ct
-    )
-    {
-        var result = new WiredSelectionSet();
-        var set = await GetWiredSelectionSetAsync(wired, ct);
-
-        foreach (var source in wired.GetFurniSources())
-        {
-            foreach (var sourceType in source)
-            {
-                switch (sourceType)
-                {
-                    case WiredFurniSourceType.SelectedItems:
-                        result.SelectedFurniIds.UnionWith(set.SelectedFurniIds);
-                        break;
-                    case WiredFurniSourceType.SelectorItems:
-                        result.SelectedFurniIds.UnionWith(SelectorPool.SelectedFurniIds);
-                        break;
-                    case WiredFurniSourceType.TriggeredItem:
-                        result.SelectedFurniIds.UnionWith(Selected.SelectedFurniIds);
-                        break;
-                }
-            }
-        }
-
-        foreach (var source in wired.GetPlayerSources())
-        {
-            foreach (var sourceType in source)
-            {
-                //switch (sourceType) { }
-            }
-        }
-
-        return result;
-    }
 
     public void AddFloorItemMovement(IRoomFloorItem floorItem, int tileIdx, Rotation rotation)
     {
