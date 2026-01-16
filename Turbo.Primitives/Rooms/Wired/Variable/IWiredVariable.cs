@@ -1,5 +1,4 @@
 using Turbo.Primitives.Furniture;
-using Turbo.Primitives.Rooms.Snapshots.Wired;
 
 namespace Turbo.Primitives.Rooms.Wired.Variable;
 
@@ -12,6 +11,4 @@ public interface IWiredVariable
     public bool TryGet(in IWiredVariableBinding binding, IWiredExecutionContext ctx, out int value);
     public bool SetValue(in IWiredVariableBinding binding, IWiredExecutionContext ctx, int value);
     public bool RemoveValue(string key);
-    public int GetHashCode();
-    public WiredVariableSnapshot GetVarSnapshot();
 }

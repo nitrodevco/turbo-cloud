@@ -53,12 +53,13 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
 
         WiredData = _wiredDataFactory.CreateWiredDataFromExtraData(WiredType, ctx.Item.ExtraData);
 
-        WiredData.SetAction(async () =>
+        WiredData.SetAction(() =>
         {
             _ctx.Item.ExtraData.UpdateSection(
                 "wired",
                 JsonSerializer.SerializeToNode(WiredData, WiredData.GetType())
             );
+            return Task.CompletedTask;
         });
     }
 
@@ -83,12 +84,13 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
         await OnWiredChangedAsync(ctx, [prevIdx], ct);
     }
 
-    public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
+    public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
     {
         _ = _grainFactory
             .GetPlayerPresenceGrain(ctx.PlayerId)
             .SendComposerAsync(new OpenEventMessageComposer { ItemId = _ctx.ObjectId })
             .ConfigureAwait(false);
+        return Task.CompletedTask;
     }
 
     protected virtual Task OnWiredChangedAsync(

@@ -24,18 +24,16 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
 
     private bool _isDirtyRollers = true;
 
-    public async Task ProcessRollersAsync(long now, CancellationToken ct)
+    public Task ProcessRollersAsync(long now, CancellationToken ct)
     {
         if (now < _roomGrain._state.NextRollerBoundaryMs)
-            return;
-
+            return Task.CompletedTask;
         while (now >= _roomGrain._state.NextRollerBoundaryMs)
             _roomGrain._state.NextRollerBoundaryMs += _roomGrain._roomConfig.RollerTickMs;
         ComputeRollers();
 
         if (_rollerIdSets.Count == 0)
-            return;
-
+            return Task.CompletedTask;
         var currentPlans = new List<RollerMovePlan>();
         var reservedTileIdxs = new HashSet<int>();
         var nextAvatarTiles = new HashSet<int>(
@@ -170,8 +168,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
         }
 
         if (currentPlans.Count == 0)
-            return;
-
+            return Task.CompletedTask;
         var composers = new List<IComposer>();
 
         foreach (var plan in currentPlans)
@@ -273,6 +270,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
 
         foreach (var composer in composers)
             _ = _roomGrain.SendComposerToRoomAsync(composer);
+        return Task.CompletedTask;
     }
 
     private void ComputeRollers()

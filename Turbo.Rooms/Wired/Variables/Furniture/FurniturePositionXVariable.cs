@@ -5,14 +5,13 @@ using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired.Variables.Furniture;
 
-[WiredVariable("furni.position.x")]
+[WiredVariable("@furni.position.x")]
 public sealed class FurniturePositionXVariable(RoomGrain roomGrain) : WiredVariable(roomGrain)
 {
     public override IWiredVariableDefinition VarDefinition =>
         new WiredVariableDefinition()
         {
-            Key = "furni.position.x",
-            Name = "position.x",
+            Key = "@furni.position.x",
             Target = WiredVariableTargetType.Furni,
             AvailabilityType = WiredAvailabilityType.Persistent,
             InputSourceType = WiredInputSourceType.FurniSource,

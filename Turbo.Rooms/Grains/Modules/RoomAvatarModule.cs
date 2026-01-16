@@ -271,7 +271,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         }
     }
 
-    public async Task<bool> SetAvatarDanceAsync(
+    public Task<bool> SetAvatarDanceAsync(
         RoomObjectId objectId,
         AvatarDanceType danceType,
         CancellationToken ct
@@ -282,12 +282,12 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
             || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar)
             || !avatar.SetDance(danceType)
         )
-            return false;
+            return Task.FromResult(false);
 
         _ = _roomGrain.SendComposerToRoomAsync(
             new DanceMessageComposer { ObjectId = avatar.ObjectId, DanceType = avatar.DanceType }
         );
 
-        return true;
+        return Task.FromResult(true);
     }
 }

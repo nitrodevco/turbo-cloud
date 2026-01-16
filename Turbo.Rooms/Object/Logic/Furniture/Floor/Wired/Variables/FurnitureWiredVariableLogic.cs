@@ -11,7 +11,6 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Wired;
@@ -48,12 +47,13 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
             StorageData = new StorageData();
         }
 
-        StorageData.SetAction(async () =>
+        StorageData.SetAction(() =>
         {
             _ctx.Item.ExtraData.UpdateSection(
                 "storage",
                 JsonSerializer.SerializeToNode(StorageData, StorageData.GetType())
             );
+            return Task.CompletedTask;
         });
     }
 
@@ -111,7 +111,6 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
             VarDefinition = new WiredVariableDefinition()
             {
                 Key = key,
-                Name = key,
                 Target = GetVariableTargetType(),
                 AvailabilityType = StorageType,
                 InputSourceType = GetVariableTargetType() switch
@@ -125,8 +124,4 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
         }
         catch { }
     }
-
-    public override int GetHashCode() => VarDefinition.GetHashCode();
-
-    public WiredVariableSnapshot GetVarSnapshot() => VarDefinition.GetSnapshot();
 }

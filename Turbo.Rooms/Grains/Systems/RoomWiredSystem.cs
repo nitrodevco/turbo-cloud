@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -116,7 +115,7 @@ public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
 
         foreach (var variable in _variableByKey.Values)
         {
-            globalHash ^= variable.GetHashCode();
+            globalHash ^= variable.VarDefinition.GetHashCode();
         }
 
         _roomGrain._state.GlobalVariableHash = globalHash;
@@ -142,7 +141,7 @@ public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
             new WiredVariablesSnapshot()
             {
                 GlobalHash = _roomGrain._state.GlobalVariableHash,
-                Variables = [.. _variableByKey.Values.Select(x => x.GetVarSnapshot())],
+                Variables = [.. _variableByKey.Values.Select(x => x.VarDefinition.GetSnapshot())],
             }
         );
 

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
@@ -8,44 +7,114 @@ namespace Turbo.Rooms.Wired.Variables;
 
 public sealed class WiredVariableDefinition : IWiredVariableDefinition
 {
-    public required string Key { get; init; }
-    public required string Name { get; init; }
-    public required WiredVariableTargetType Target { get; init; }
-    public required WiredAvailabilityType AvailabilityType { get; init; }
-    public required WiredInputSourceType InputSourceType { get; init; }
-    public required WiredVariableFlags Flags { get; init; }
-    public List<string> TextConnectors { get; init; } = [];
+    private string _key = string.Empty;
+    private WiredVariableTargetType _target;
+    private WiredAvailabilityType _availabilityType;
+    private WiredInputSourceType _inputSourceType;
+    private WiredVariableFlags _flags;
+    private List<string> _textConnectors = [];
 
-    public override int GetHashCode()
+    private WiredVariableSnapshot? _snapshot;
+    private bool _isDirty = true;
+
+    public string Key
     {
-        long hashValue = 0;
+        get => _key;
+        set
+        {
+            if (_key == value)
+                return;
 
-        hashValue ^= Key.GetHashCode();
-        hashValue ^= InputSourceType.GetHashCode();
-        hashValue ^= Name.GetHashCode();
-        hashValue ^= AvailabilityType.GetHashCode();
-        hashValue ^= Target.GetHashCode();
-
-        hashValue ^= (Flags.Has(WiredVariableFlags.AlwaysAvailable) ? 1 : 0).GetHashCode();
-        hashValue ^= (Flags.Has(WiredVariableFlags.CanCreateAndDelete) ? 1 : 0).GetHashCode();
-        hashValue ^= (Flags.Has(WiredVariableFlags.HasValue) ? 1 : 0).GetHashCode();
-        hashValue ^= (Flags.Has(WiredVariableFlags.CanWriteValue) ? 1 : 0).GetHashCode();
-        hashValue ^= (Flags.Has(WiredVariableFlags.CanInterceptChanges) ? 1 : 0).GetHashCode();
-        hashValue ^= (Flags.Has(WiredVariableFlags.IsInvisible) ? 1 : 0).GetHashCode();
-        hashValue ^= (Flags.Has(WiredVariableFlags.CanReadCreationTime) ? 1 : 0).GetHashCode();
-        hashValue ^= (Flags.Has(WiredVariableFlags.CanReadLastUpdateTime) ? 1 : 0).GetHashCode();
-        hashValue ^= (Flags.Has(WiredVariableFlags.HasTextConnector) ? 1 : 0).GetHashCode();
-        hashValue ^= TextConnectors.GetHashCode();
-
-        return (int)hashValue;
+            _key = value;
+            _isDirty = true;
+        }
     }
 
-    public WiredVariableSnapshot GetSnapshot() =>
-        new()
+    public WiredVariableTargetType Target
+    {
+        get => _target;
+        set
         {
-            HashCode = GetHashCode(),
-            VariableId = GetHashCode(),
-            VariableName = Name,
+            if (_target == value)
+                return;
+
+            _target = value;
+            _isDirty = true;
+        }
+    }
+
+    public WiredAvailabilityType AvailabilityType
+    {
+        get => _availabilityType;
+        set
+        {
+            if (_availabilityType == value)
+                return;
+
+            _availabilityType = value;
+            _isDirty = true;
+        }
+    }
+
+    public WiredInputSourceType InputSourceType
+    {
+        get => _inputSourceType;
+        set
+        {
+            if (_inputSourceType == value)
+                return;
+
+            _inputSourceType = value;
+            _isDirty = true;
+        }
+    }
+
+    public WiredVariableFlags Flags
+    {
+        get => _flags;
+        set
+        {
+            if (_flags == value)
+                return;
+
+            _flags = value;
+            _isDirty = true;
+        }
+    }
+
+    public List<string> TextConnectors
+    {
+        get => _textConnectors;
+        set
+        {
+            if (_textConnectors == value)
+                return;
+
+            _textConnectors = value;
+            _isDirty = true;
+        }
+    }
+
+    public WiredVariableSnapshot GetSnapshot()
+    {
+        if (_snapshot is not null && !_isDirty)
+            return _snapshot;
+
+        _isDirty = false;
+
+        long hashCode = 0;
+
+        hashCode ^= Key.GetHashCode();
+        hashCode ^= Target.GetHashCode();
+        hashCode ^= AvailabilityType.GetHashCode();
+        hashCode ^= InputSourceType.GetHashCode();
+        hashCode ^= Flags.GetHashCode();
+        hashCode ^= TextConnectors.GetHashCode();
+
+        _snapshot = new()
+        {
+            VariableHash = hashCode,
+            VariableKey = Key,
             AvailabilityType = AvailabilityType,
             VariableType = InputSourceType,
             AlwaysAvailable = Flags.Has(WiredVariableFlags.AlwaysAvailable),
@@ -61,16 +130,8 @@ public sealed class WiredVariableDefinition : IWiredVariableDefinition
             IsStored = Flags.HasFlag(WiredVariableFlags.IsStored),
         };
 
-    private static int HashInt(int value)
-    {
-        unchecked
-        {
-            return value * 397;
-        }
+        return _snapshot;
     }
 
-    private static int HashString(string? value) => value?.GetHashCode() ?? 0;
-
-    private static int HashEnum<T>(T value)
-        where T : Enum => value.GetHashCode();
+    public override int GetHashCode() => (int)GetSnapshot().VariableHash;
 }

@@ -31,8 +31,8 @@ public class WiredGetAllVariablesDiffsMessageHandler(IGrainFactory grainFactory)
             .GetWiredVariablesSnapshotAsync(ct)
             .ConfigureAwait(false);
 
-        var removedVariables = new List<int>();
-        var checkedVariables = new List<int>();
+        var removedVariables = new List<long>();
+        var checkedVariables = new List<long>();
         var variableDiffs = new List<WiredVariableSnapshot>();
 
         if (message.VariableHashes.Count > 0)
@@ -41,7 +41,7 @@ public class WiredGetAllVariablesDiffsMessageHandler(IGrainFactory grainFactory)
             {
                 try
                 {
-                    var existing = variables.Variables.First(x => x.HashCode == hash);
+                    var existing = variables.Variables.First(x => x.VariableHash == hash);
 
                     variableDiffs.Add(existing);
                 }
@@ -54,7 +54,7 @@ public class WiredGetAllVariablesDiffsMessageHandler(IGrainFactory grainFactory)
 
         foreach (var variable in variables.Variables)
         {
-            if (checkedVariables.Contains(variable.HashCode))
+            if (checkedVariables.Contains(variable.VariableHash))
                 continue;
 
             variableDiffs.Add(variable);

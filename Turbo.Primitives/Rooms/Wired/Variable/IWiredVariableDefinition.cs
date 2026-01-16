@@ -7,7 +7,6 @@ namespace Turbo.Primitives.Rooms.Wired.Variable;
 public interface IWiredVariableDefinition
 {
     public string Key { get; }
-    public string Name { get; }
 
     public WiredVariableTargetType Target { get; }
     public WiredAvailabilityType AvailabilityType { get; }

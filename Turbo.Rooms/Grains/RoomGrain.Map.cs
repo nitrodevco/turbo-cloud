@@ -24,11 +24,10 @@ public sealed partial class RoomGrain
     public Task<RoomMapSnapshot> GetMapSnapshotAsync(CancellationToken ct) =>
         Task.FromResult(MapModule.GetMapSnapshot(ct));
 
-    private async Task FlushDirtyTilesAsync(CancellationToken ct)
+    private Task FlushDirtyTilesAsync(CancellationToken ct)
     {
         if (_state.DirtyHeightTileIds.Count == 0)
-            return;
-
+            return Task.CompletedTask;
         var dirtyHeightTileIds = _state.DirtyHeightTileIds;
         _state.DirtyHeightTileIds = [];
 
@@ -56,5 +55,7 @@ public sealed partial class RoomGrain
                 new HeightMapUpdateMessageComposer { TileHeights = [.. heights] }
             );
         }
+
+        return Task.CompletedTask;
     }
 }

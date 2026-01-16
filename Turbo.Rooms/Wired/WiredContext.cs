@@ -17,10 +17,7 @@ public abstract class WiredContext : IWiredContext
     public IWiredSelectionSet SelectorPool { get; init; } = new WiredSelectionSet();
     public Dictionary<string, object?> Variables { get; init; } = [];
 
-    public async Task<IWiredSelectionSet> GetWiredSelectionSetAsync(
-        IWiredBox wired,
-        CancellationToken ct
-    )
+    public Task<IWiredSelectionSet> GetWiredSelectionSetAsync(IWiredBox wired, CancellationToken ct)
     {
         var set = new WiredSelectionSet();
 
@@ -61,7 +58,7 @@ public abstract class WiredContext : IWiredContext
             }
         }
 
-        return set;
+        return Task.FromResult<IWiredSelectionSet>(set);
     }
 
     public async Task<IWiredSelectionSet> GetEffectiveSelectionAsync(
