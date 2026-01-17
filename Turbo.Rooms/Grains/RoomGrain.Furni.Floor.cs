@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,6 +12,7 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
+using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 
 namespace Turbo.Rooms.Grains;
@@ -196,4 +198,9 @@ public sealed partial class RoomGrain
 
     public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct) =>
         WiredSystem.GetWiredVariablesSnapshotAsync(ct);
+
+    public Task<List<(long id, int value)>> GetAllVariablesForBindingAsync(
+        IWiredVariableBinding binding,
+        CancellationToken ct
+    ) => WiredSystem.GetAllVariablesForBindingAsync(binding, ct);
 }

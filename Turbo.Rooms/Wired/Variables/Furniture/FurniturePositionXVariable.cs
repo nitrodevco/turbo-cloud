@@ -10,34 +10,35 @@ public sealed class FurniturePositionXVariable(RoomGrain roomGrain)
     : WiredVariable(roomGrain),
         IWiredInternalVariable
 {
-    protected override void Configure(IWiredVariableDefinition def)
+    public override string VariableName { get; set; } = "@position.x";
+
+    public override WiredVariableTargetType GetVariableTargetType() =>
+        WiredVariableTargetType.Furni;
+
+    public override WiredAvailabilityType GetVariableAvailabilityType() =>
+        WiredAvailabilityType.Internal;
+
+    public override WiredInputSourceType GetVariableInputSourceType() =>
+        WiredInputSourceType.FurniSource;
+
+    public override WiredVariableFlags GetVariableFlags()
     {
-        def.Name = "@position.x";
-        def.TargetType = WiredVariableTargetType.Furni;
-        def.AvailabilityType = WiredAvailabilityType.Internal;
-        def.InputSourceType = WiredInputSourceType.FurniSource;
-        def.Flags =
+        var flags = base.GetVariableFlags();
+
+        flags = flags.Add(
             WiredVariableFlags.HasValue
-            | WiredVariableFlags.CanWriteValue
-            | WiredVariableFlags.AlwaysAvailable;
+                | WiredVariableFlags.CanWriteValue
+                | WiredVariableFlags.AlwaysAvailable
+        );
+
+        return flags;
     }
 
-    public override bool CanBind(in IWiredVariableBinding binding) => binding.TargetId is not null;
-
-    public override bool TryGet(
-        in IWiredVariableBinding binding,
-        IWiredExecutionContext ctx,
-        out int value
-    )
+    public override bool TryGet(in IWiredVariableBinding binding, out int value)
     {
         value = 0;
 
-        if (
-            !_roomGrain._state.FloorItemsById.TryGetValue(
-                binding.TargetId!.Value,
-                out var floorItem
-            )
-        )
+        if (!_roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem))
             return false;
 
         value = floorItem.X;
@@ -52,10 +53,7 @@ public sealed class FurniturePositionXVariable(RoomGrain roomGrain)
     )
     {
         if (
-            !_roomGrain._state.FloorItemsById.TryGetValue(
-                binding.TargetId!.Value,
-                out var floorItem
-            )
+            !_roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem)
             || !_roomGrain.FurniModule.ValidateFloorItemPlacement(
                 ctx.AsActionContext(),
                 floorItem.ObjectId.Value,

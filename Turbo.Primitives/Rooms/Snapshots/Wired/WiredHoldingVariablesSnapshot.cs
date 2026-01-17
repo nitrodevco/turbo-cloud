@@ -1,12 +1,11 @@
 using System.Collections.Generic;
 using Orleans;
-using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums.Wired;
 
-namespace Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
+namespace Turbo.Primitives.Rooms.Snapshots.Wired;
 
 [GenerateSerializer, Immutable]
-public sealed record WiredVariablesForObjectEventMessageComposer : IComposer
+public sealed record WiredHoldingVariablesSnapshot
 {
     [Id(0)]
     public required WiredVariableTargetType TargetType { get; init; }

@@ -1,6 +1,4 @@
-using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains;
 
@@ -10,31 +8,30 @@ public sealed class UserIndexVariable(RoomGrain roomGrain)
     : WiredVariable(roomGrain),
         IWiredInternalVariable
 {
-    protected override void Configure(IWiredVariableDefinition def)
+    public override string VariableName { get; set; } = "@index";
+
+    public override WiredVariableTargetType GetVariableTargetType() => WiredVariableTargetType.User;
+
+    public override WiredAvailabilityType GetVariableAvailabilityType() =>
+        WiredAvailabilityType.Internal;
+
+    public override WiredInputSourceType GetVariableInputSourceType() =>
+        WiredInputSourceType.UserSource;
+
+    public override WiredVariableFlags GetVariableFlags()
     {
-        def.Name = "@index";
-        def.TargetType = WiredVariableTargetType.User;
-        def.AvailabilityType = WiredAvailabilityType.Internal;
-        def.InputSourceType = WiredInputSourceType.UserSource;
-        def.Flags = WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
+        var flags = base.GetVariableFlags();
+
+        flags = flags.Add(WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable);
+
+        return flags;
     }
 
-    public override bool CanBind(in IWiredVariableBinding binding) => binding.TargetId is not null;
-
-    public override bool TryGet(
-        in IWiredVariableBinding binding,
-        IWiredExecutionContext ctx,
-        out int value
-    )
+    public override bool TryGet(in IWiredVariableBinding binding, out int value)
     {
         value = 0;
 
-        if (
-            !_roomGrain._state.AvatarsByPlayerId.TryGetValue(
-                binding.TargetId!.Value,
-                out var objectId
-            )
-        )
+        if (!_roomGrain._state.AvatarsByPlayerId.TryGetValue(binding.TargetId, out var objectId))
             return false;
 
         value = objectId.Value;

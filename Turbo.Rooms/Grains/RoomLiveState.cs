@@ -37,6 +37,7 @@ public sealed class RoomLiveState
     public HashSet<RoomObjectId> DirtyWallItemIds { get; set; } = [];
 
     public long AllVariablesHash { get; internal set; } = 0;
+    public int NextVariableId { get; internal set; } = 1;
 
     public bool IsMapReady { get; internal set; } = false;
     public bool IsFurniLoaded { get; internal set; } = false;

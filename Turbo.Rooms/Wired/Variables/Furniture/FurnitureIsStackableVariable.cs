@@ -4,11 +4,11 @@ using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired.Variables.Furniture;
 
-public sealed class FurnitureCanStandOnVariable(RoomGrain roomGrain)
+public sealed class FurnitureIsStackableVariable(RoomGrain roomGrain)
     : WiredVariable(roomGrain),
         IWiredInternalVariable
 {
-    public override string VariableName { get; set; } = "@can_stand_on";
+    public override string VariableName { get; set; } = "@is_stackable";
 
     public override WiredVariableTargetType GetVariableTargetType() =>
         WiredVariableTargetType.Furni;
@@ -26,7 +26,7 @@ public sealed class FurnitureCanStandOnVariable(RoomGrain roomGrain)
         if (!_roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem))
             return false;
 
-        value = floorItem.Logic.CanWalk() ? 1 : 0;
+        value = floorItem.Logic.CanStack() ? 1 : 0;
 
         return true;
     }

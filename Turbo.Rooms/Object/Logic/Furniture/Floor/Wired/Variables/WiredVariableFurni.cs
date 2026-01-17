@@ -33,6 +33,9 @@ public class WiredVariableFurni(
     public override WiredAvailabilityType GetVariableAvailabilityType() =>
         (WiredAvailabilityType)WiredData.IntParams[1];
 
+    public override WiredInputSourceType GetVariableInputSourceType() =>
+        WiredInputSourceType.FurniSource;
+
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
         try

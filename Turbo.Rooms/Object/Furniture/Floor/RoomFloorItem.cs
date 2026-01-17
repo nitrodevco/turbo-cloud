@@ -19,7 +19,7 @@ internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
 
     public void SetPosition(int x, int y, double z)
     {
-        z = Math.Round(z, 3);
+        z = Math.Round(z, 2);
 
         if (X == x && Y == y && Z == z)
             return;

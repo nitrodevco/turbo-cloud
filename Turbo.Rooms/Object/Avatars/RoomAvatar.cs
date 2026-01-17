@@ -75,7 +75,7 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
 
     public void SetHeight(double z)
     {
-        z = Math.Round(z, 3);
+        z = Math.Round(z, 2);
 
         if (Z == z)
             return;

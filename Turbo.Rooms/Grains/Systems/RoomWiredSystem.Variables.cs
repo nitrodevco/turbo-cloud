@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -29,7 +28,7 @@ public sealed partial class RoomWiredSystem
         var variableKey = new WiredVariableKey(binding.Target, key);
 
         if (_variableByKey.TryGetValue(variableKey, out var variable))
-            return variable.TryGet(binding, ctx, out value);
+            return variable.TryGet(binding, out value);
 
         value = 0;
 
@@ -39,18 +38,40 @@ public sealed partial class RoomWiredSystem
     public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct) =>
         Task.FromResult(_variablesSnapshot ??= BuildVariablesSnapshot());
 
-    private async Task ProcessInternalVariablesAsync(long now, CancellationToken ct)
+    public Task<List<(long id, int value)>> GetAllVariablesForBindingAsync(
+        IWiredVariableBinding binding,
+        CancellationToken ct
+    )
+    {
+        var variableValues = new List<(long id, int value)>();
+
+        foreach (var variable in _variableByKey.Values)
+        {
+            if (!variable.CanBind(binding))
+                continue;
+
+            var snapshot = variable.GetVarSnapshot();
+
+            variableValues.Add(
+                (snapshot.VariableId, variable.TryGet(binding, out var val) ? val : 0)
+            );
+        }
+
+        return Task.FromResult(variableValues);
+    }
+
+    private Task ProcessInternalVariablesAsync(long now, CancellationToken ct)
     {
         var variables = _roomGrain._wiredVariablesProvider.BuildVariablesForRoom(_roomGrain);
 
         foreach (var variable in variables)
-            _variableByKey.Add(
-                new WiredVariableKey(
-                    variable.VarDefinition.TargetType,
-                    variable.VarDefinition.Name
-                ),
-                variable
-            );
+        {
+            var key = new WiredVariableKey(variable.GetVariableTargetType(), variable.VariableName);
+
+            _variableByKey[key] = variable;
+        }
+
+        return Task.CompletedTask;
     }
 
     private async Task ProcessVariableBoxesAsync(long now, CancellationToken ct)
@@ -79,7 +100,7 @@ public sealed partial class RoomWiredSystem
 
         await varLogic.LoadWiredAsync(ct);
 
-        var defKey = varLogic.VarDefinition.Name;
+        var defKey = varLogic.VariableName;
 
         if (string.IsNullOrWhiteSpace(defKey))
             return;
@@ -106,7 +127,7 @@ public sealed partial class RoomWiredSystem
 
         foreach (var variable in _variableByKey.Values)
         {
-            var snapshot = variable.VarDefinition.GetSnapshot();
+            var snapshot = variable.GetVarSnapshot();
 
             hash ^= snapshot.VariableHash;
 

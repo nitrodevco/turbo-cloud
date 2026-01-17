@@ -38,9 +38,11 @@ public class WiredGetAllVariablesDiffsMessageHandler(IGrainFactory grainFactory)
         {
             foreach (var (id, hash) in message.VariableHashes)
             {
+                checkedVariables.Add(id);
+
                 try
                 {
-                    var existing = variables.Variables.First(x => x.VariableHash == id);
+                    var existing = variables.Variables.First(x => x.VariableId == id);
 
                     variableDiffs.Add(existing);
                 }
@@ -53,7 +55,7 @@ public class WiredGetAllVariablesDiffsMessageHandler(IGrainFactory grainFactory)
 
         foreach (var variable in variables.Variables)
         {
-            if (checkedVariables.Contains(variable.VariableHash))
+            if (checkedVariables.Contains(variable.VariableId))
                 continue;
 
             variableDiffs.Add(variable);

@@ -32,6 +32,9 @@ public class WiredVariableUser(
     public override WiredAvailabilityType GetVariableAvailabilityType() =>
         (WiredAvailabilityType)WiredData.IntParams[0];
 
+    public override WiredInputSourceType GetVariableInputSourceType() =>
+        WiredInputSourceType.UserSource;
+
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
         try

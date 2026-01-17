@@ -177,9 +177,9 @@ public sealed partial class RoomMapModule
                 }
             }
 
-            avatar.PostureOffset = Math.Round(postureOffset, 3);
+            avatar.PostureOffset = Math.Round(postureOffset, 2);
 
-            avatar.SetHeight(Math.Round(height - postureOffset, 3));
+            avatar.SetHeight(Math.Round(height - postureOffset, 2));
         }
         catch (Exception) { }
     }
@@ -200,7 +200,7 @@ public sealed partial class RoomMapModule
                 }
             }
 
-            return Math.Round(height - postureOffset, 3);
+            return Math.Round(height - postureOffset, 2);
         }
         catch (Exception)
         {

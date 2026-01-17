@@ -11,6 +11,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Wired;
@@ -22,10 +23,12 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
 {
     public override WiredType WiredType => WiredType.Variable;
 
-    public IWiredVariableDefinition VarDefinition { get; protected set; } = default!;
+    public int VariableId { get; set; }
+    public string VariableName { get; protected set; } = string.Empty;
     public IStorageData StorageData { get; private set; }
 
     protected virtual bool _hasValue { get; set; } = false;
+    protected WiredVariableSnapshot? _varSnapshot;
 
     public FurnitureWiredVariableLogic(
         IWiredDataFactory wiredDataFactory,
@@ -59,6 +62,9 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
     public virtual WiredAvailabilityType GetVariableAvailabilityType() =>
         WiredAvailabilityType.Temporary;
 
+    public virtual WiredInputSourceType GetVariableInputSourceType() =>
+        WiredInputSourceType.MergedSource;
+
     public virtual WiredVariableFlags GetVariableFlags()
     {
         WiredVariableFlags flags = WiredVariableFlags.None;
@@ -69,13 +75,11 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
         return flags;
     }
 
+    public virtual Dictionary<int, string> GetTextConnectors() => [];
+
     public virtual bool CanBind(in IWiredVariableBinding binding) => false;
 
-    public virtual bool TryGet(
-        in IWiredVariableBinding binding,
-        IWiredExecutionContext ctx,
-        out int value
-    )
+    public virtual bool TryGet(in IWiredVariableBinding binding, out int value)
     {
         value = 0;
 
@@ -110,26 +114,92 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
-        await base.FillInternalDataAsync(ct);
+        _varSnapshot = null;
 
         try
         {
-            var key = WiredData.StringParam;
-
-            VarDefinition = new WiredVariableDefinition()
-            {
-                Name = key,
-                TargetType = GetVariableTargetType(),
-                AvailabilityType = GetVariableAvailabilityType(),
-                InputSourceType = GetVariableTargetType() switch
-                {
-                    WiredVariableTargetType.User => WiredInputSourceType.UserSource,
-                    WiredVariableTargetType.Furni => WiredInputSourceType.FurniSource,
-                    _ => WiredInputSourceType.MergedSource,
-                },
-                Flags = GetVariableFlags(),
-            };
+            VariableName = WiredData.StringParam;
         }
         catch { }
+
+        await base.FillInternalDataAsync(ct);
+    }
+
+    public WiredVariableSnapshot GetVarSnapshot() => _varSnapshot ??= BuildVarSnapshot();
+
+    private WiredVariableSnapshot BuildVarSnapshot()
+    {
+        var key = new WiredVariableKey(GetVariableTargetType(), VariableName).GetHashCode();
+        var flags = GetVariableFlags();
+
+        return new()
+        {
+            VariableId = key,
+            VariableName = VariableName,
+            AvailabilityType = GetVariableAvailabilityType(),
+            InputSourceType = GetVariableInputSourceType(),
+            AlwaysAvailable = flags.Has(WiredVariableFlags.AlwaysAvailable),
+            CanCreateAndDelete = flags.Has(WiredVariableFlags.CanCreateAndDelete),
+            HasValue = flags.Has(WiredVariableFlags.HasValue),
+            CanWriteValue = flags.Has(WiredVariableFlags.CanWriteValue),
+            CanInterceptChanges = flags.Has(WiredVariableFlags.CanInterceptChanges),
+            IsInvisible = flags.Has(WiredVariableFlags.IsInvisible),
+            CanReadCreationTime = flags.Has(WiredVariableFlags.CanReadCreationTime),
+            CanReadLastUpdateTime = flags.Has(WiredVariableFlags.CanReadLastUpdateTime),
+            HasTextConnector = flags.Has(WiredVariableFlags.HasTextConnector),
+            TextConnectors = GetTextConnectors(),
+            IsStored = flags.Has(WiredVariableFlags.IsStored),
+            VariableHash = BuildHash(),
+        };
+    }
+
+    private long BuildHash()
+    {
+        ulong hashCode = 0;
+
+        hashCode = CombineXor(hashCode, Fnv1a64(VariableName));
+        hashCode = CombineXor(hashCode, (ulong)GetVariableTargetType());
+        hashCode = CombineXor(hashCode, (ulong)GetVariableAvailabilityType());
+        hashCode = CombineXor(hashCode, (ulong)GetVariableInputSourceType());
+        hashCode = CombineXor(hashCode, (ulong)GetVariableFlags());
+
+        var textConnectors = GetTextConnectors();
+
+        if (textConnectors is not null)
+        {
+            foreach (var s in textConnectors.Values)
+                hashCode = CombineXor(hashCode, Fnv1a64(s ?? ""));
+        }
+
+        return unchecked((long)hashCode);
+    }
+
+    private static ulong Fnv1a64(string s)
+    {
+        const ulong offset = 14695981039346656037UL;
+        const ulong prime = 1099511628211UL;
+
+        ulong hash = offset;
+
+        foreach (var ch in s)
+        {
+            hash ^= (byte)ch;
+            hash *= prime;
+            hash ^= (byte)(ch >> 8);
+            hash *= prime;
+        }
+
+        return hash;
+    }
+
+    private static ulong CombineXor(ulong hash, ulong value)
+    {
+        value ^= value >> 33;
+        value *= 0xff51afd7ed558ccdUL;
+        value ^= value >> 33;
+        value *= 0xc4ceb9fe1a85ec53UL;
+        value ^= value >> 33;
+
+        return hash ^ value;
     }
 }

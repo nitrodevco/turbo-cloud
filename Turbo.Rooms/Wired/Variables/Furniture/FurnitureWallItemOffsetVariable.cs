@@ -10,26 +10,31 @@ public sealed class FurnitureWallItemOffsetVariable(RoomGrain roomGrain)
     : WiredVariable(roomGrain),
         IWiredInternalVariable
 {
-    protected override void Configure(IWiredVariableDefinition def)
+    public override string VariableName { get; set; } = "@wallitem_offset";
+
+    public override WiredVariableTargetType GetVariableTargetType() =>
+        WiredVariableTargetType.Furni;
+
+    public override WiredAvailabilityType GetVariableAvailabilityType() =>
+        WiredAvailabilityType.Internal;
+
+    public override WiredInputSourceType GetVariableInputSourceType() =>
+        WiredInputSourceType.FurniSource;
+
+    public override WiredVariableFlags GetVariableFlags()
     {
-        def.Name = "@wallitem_offset";
-        def.TargetType = WiredVariableTargetType.Furni;
-        def.AvailabilityType = WiredAvailabilityType.Internal;
-        def.InputSourceType = WiredInputSourceType.FurniSource;
-        def.Flags = WiredVariableFlags.HasValue | WiredVariableFlags.CanWriteValue;
+        var flags = base.GetVariableFlags();
+
+        flags = flags.Add(WiredVariableFlags.HasValue | WiredVariableFlags.CanWriteValue);
+
+        return flags;
     }
 
-    public override bool CanBind(in IWiredVariableBinding binding) => binding.TargetId is not null;
-
-    public override bool TryGet(
-        in IWiredVariableBinding binding,
-        IWiredExecutionContext ctx,
-        out int value
-    )
+    public override bool TryGet(in IWiredVariableBinding binding, out int value)
     {
         value = 0;
 
-        if (!_roomGrain._state.WallItemsById.TryGetValue(binding.TargetId!.Value, out var wallItem))
+        if (!_roomGrain._state.WallItemsById.TryGetValue(binding.TargetId, out var wallItem))
             return false;
 
         value = wallItem.WallOffset;
@@ -43,7 +48,7 @@ public sealed class FurnitureWallItemOffsetVariable(RoomGrain roomGrain)
         int value
     )
     {
-        if (!_roomGrain._state.WallItemsById.TryGetValue(binding.TargetId!.Value, out var wallItem))
+        if (!_roomGrain._state.WallItemsById.TryGetValue(binding.TargetId, out var wallItem))
             return Task.FromResult(false);
 
         return Task.FromResult(true);
