@@ -1,6 +1,4 @@
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -8,6 +6,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired.IntParams;
+using Turbo.Rooms.Wired.Variables;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 
@@ -27,23 +26,20 @@ public class WiredVariableFurni(
             new WiredIntEnumRule<WiredAvailabilityType>(WiredAvailabilityType.Temporary),
         ];
 
-    public override WiredVariableTargetType GetVariableTargetType() =>
-        WiredVariableTargetType.Furni;
-
-    public override WiredAvailabilityType GetVariableAvailabilityType() =>
-        (WiredAvailabilityType)WiredData.IntParams[1];
-
-    public override WiredInputSourceType GetVariableInputSourceType() =>
-        WiredInputSourceType.FurniSource;
-
-    protected override async Task FillInternalDataAsync(CancellationToken ct)
-    {
-        try
+    protected override WiredVariableDefinition BuildVariableDefinition() =>
+        new()
         {
-            _hasValue = WiredData.IntParams[0] == 1;
-        }
-        catch { }
-
-        await base.FillInternalDataAsync(ct);
-    }
+            VariableId = _variableId,
+            VariableName = WiredData.StringParam,
+            StorageData = StorageData,
+            AvailabilityType = (WiredAvailabilityType)WiredData.IntParams[1],
+            TargetType = WiredVariableTargetType.Furni,
+            Flags =
+                (
+                    WiredData.IntParams[0] == 1
+                        ? WiredVariableFlags.HasValue
+                        : WiredVariableFlags.None
+                ) | WiredVariableFlags.CanWriteValue,
+            TextConnectors = [],
+        };
 }

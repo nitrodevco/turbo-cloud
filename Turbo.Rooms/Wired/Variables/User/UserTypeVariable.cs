@@ -12,32 +12,21 @@ public sealed class UserTypeVariable(RoomGrain roomGrain)
     : WiredVariable(roomGrain),
         IWiredInternalVariable
 {
-    public override string VariableName { get; set; } = "@type";
-
-    public override WiredVariableTargetType GetVariableTargetType() => WiredVariableTargetType.User;
-
-    public override WiredAvailabilityType GetVariableAvailabilityType() =>
-        WiredAvailabilityType.Internal;
-
-    public override WiredInputSourceType GetVariableInputSourceType() =>
-        WiredInputSourceType.UserSource;
-
-    public override WiredVariableFlags GetVariableFlags()
-    {
-        var flags = base.GetVariableFlags();
-
-        flags = flags.Add(
-            WiredVariableFlags.HasValue
+    protected override WiredVariableDefinition BuildVariableDefinition() =>
+        new()
+        {
+            VariableId = _variableId,
+            VariableName = "@type",
+            StorageData = StorageData,
+            AvailabilityType = WiredAvailabilityType.Internal,
+            TargetType = WiredVariableTargetType.User,
+            Flags =
+                WiredVariableFlags.HasValue
                 | WiredVariableFlags.AlwaysAvailable
-                | WiredVariableFlags.HasTextConnector
-        );
-
-        return flags;
-    }
-
-    public override Dictionary<int, string> GetTextConnectors() =>
-        Enum.GetValues<RoomObjectType>()
-            .ToDictionary(v => (int)v, v => RoomObjectTypeExtensions.GetString(v));
+                | WiredVariableFlags.HasTextConnector,
+            TextConnectors = Enum.GetValues<RoomObjectType>()
+                .ToDictionary(v => (int)v, v => RoomObjectTypeExtensions.GetString(v)),
+        };
 
     public override bool TryGet(in IWiredVariableBinding binding, out int value)
     {

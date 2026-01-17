@@ -66,7 +66,8 @@ public sealed partial class RoomWiredSystem
 
         foreach (var variable in variables)
         {
-            var key = new WiredVariableKey(variable.GetVariableTargetType(), variable.VariableName);
+            var snapshot = variable.GetVarSnapshot();
+            var key = new WiredVariableKey(snapshot.TargetType, snapshot.VariableName);
 
             _variableByKey[key] = variable;
         }
@@ -94,20 +95,20 @@ public sealed partial class RoomWiredSystem
 
         if (
             !_roomGrain._state.FloorItemsById.TryGetValue(boxId, out var floorItem)
-            || floorItem.Logic is not FurnitureWiredVariableLogic varLogic
+            || floorItem.Logic is not FurnitureWiredVariableLogic variable
         )
             return;
 
-        await varLogic.LoadWiredAsync(ct);
+        await variable.LoadWiredAsync(ct);
 
-        var defKey = varLogic.VariableName;
+        var snapshot = variable.GetVarSnapshot();
 
-        if (string.IsNullOrWhiteSpace(defKey))
+        if (string.IsNullOrWhiteSpace(snapshot.VariableName))
             return;
 
-        var key = new WiredVariableKey(varLogic.GetVariableTargetType(), defKey);
+        var key = new WiredVariableKey(snapshot.TargetType, snapshot.VariableName);
 
-        _variableByKey[key] = varLogic;
+        _variableByKey[key] = variable;
         _variableKeyBoxId[boxId] = key;
     }
 
@@ -122,25 +123,24 @@ public sealed partial class RoomWiredSystem
 
     private WiredVariablesSnapshot BuildVariablesSnapshot()
     {
-        var hash = (long)0;
+        var hashes = new List<long>();
         var snapshots = new List<WiredVariableSnapshot>(_variableByKey.Count);
 
         foreach (var variable in _variableByKey.Values)
         {
             var snapshot = variable.GetVarSnapshot();
 
-            hash ^= snapshot.VariableHash;
-
+            hashes.Add(snapshot.VariableHash);
             snapshots.Add(snapshot);
         }
 
         var allVariablesSnapshot = new WiredVariablesSnapshot()
         {
-            AllVariablesHash = hash,
+            AllVariablesHash = WiredVariableHashBuilder.HashFromHashes(hashes),
             Variables = snapshots,
         };
 
-        _roomGrain._state.AllVariablesHash = hash;
+        _roomGrain._state.AllVariablesHash = allVariablesSnapshot.AllVariablesHash;
 
         return allVariablesSnapshot;
     }

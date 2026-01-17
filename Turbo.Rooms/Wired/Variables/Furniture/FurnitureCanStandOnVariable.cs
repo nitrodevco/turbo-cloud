@@ -8,16 +8,17 @@ public sealed class FurnitureCanStandOnVariable(RoomGrain roomGrain)
     : WiredVariable(roomGrain),
         IWiredInternalVariable
 {
-    public override string VariableName { get; set; } = "@can_stand_on";
-
-    public override WiredVariableTargetType GetVariableTargetType() =>
-        WiredVariableTargetType.Furni;
-
-    public override WiredAvailabilityType GetVariableAvailabilityType() =>
-        WiredAvailabilityType.Internal;
-
-    public override WiredInputSourceType GetVariableInputSourceType() =>
-        WiredInputSourceType.FurniSource;
+    protected override WiredVariableDefinition BuildVariableDefinition() =>
+        new()
+        {
+            VariableId = _variableId,
+            VariableName = "@can_stand_on",
+            StorageData = StorageData,
+            AvailabilityType = WiredAvailabilityType.Internal,
+            TargetType = WiredVariableTargetType.Furni,
+            Flags = WiredVariableFlags.None,
+            TextConnectors = [],
+        };
 
     public override bool TryGet(in IWiredVariableBinding binding, out int value)
     {

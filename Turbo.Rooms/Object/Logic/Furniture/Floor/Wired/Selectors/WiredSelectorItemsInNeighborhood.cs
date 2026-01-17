@@ -19,8 +19,6 @@ public class WiredSelectorItemsInNeighborhood(
 {
     public override int WiredCode => (int)WiredSelectorType.FURNI_IN_NEIGHBORHOOD;
 
-    private WiredInputSourceType _inputSourceType;
-
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [
             [WiredFurniSourceType.TriggeredItem, WiredFurniSourceType.SignalItems],
@@ -37,7 +35,7 @@ public class WiredSelectorItemsInNeighborhood(
 
         try
         {
-            _inputSourceType = (WiredInputSourceType)(WiredData.IntParams?[0] ?? 0);
+            //_inputSourceType = (WiredInputSourceType)(WiredData.IntParams?[0] ?? 0);
         }
         catch { }
     }

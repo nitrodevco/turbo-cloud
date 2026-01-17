@@ -10,25 +10,17 @@ public sealed class FurnitureWallItemOffsetVariable(RoomGrain roomGrain)
     : WiredVariable(roomGrain),
         IWiredInternalVariable
 {
-    public override string VariableName { get; set; } = "@wallitem_offset";
-
-    public override WiredVariableTargetType GetVariableTargetType() =>
-        WiredVariableTargetType.Furni;
-
-    public override WiredAvailabilityType GetVariableAvailabilityType() =>
-        WiredAvailabilityType.Internal;
-
-    public override WiredInputSourceType GetVariableInputSourceType() =>
-        WiredInputSourceType.FurniSource;
-
-    public override WiredVariableFlags GetVariableFlags()
-    {
-        var flags = base.GetVariableFlags();
-
-        flags = flags.Add(WiredVariableFlags.HasValue | WiredVariableFlags.CanWriteValue);
-
-        return flags;
-    }
+    protected override WiredVariableDefinition BuildVariableDefinition() =>
+        new()
+        {
+            VariableId = _variableId,
+            VariableName = "@wallitem_offset",
+            StorageData = StorageData,
+            AvailabilityType = WiredAvailabilityType.Internal,
+            TargetType = WiredVariableTargetType.Furni,
+            Flags = WiredVariableFlags.HasValue | WiredVariableFlags.CanWriteValue,
+            TextConnectors = [],
+        };
 
     public override bool TryGet(in IWiredVariableBinding binding, out int value)
     {

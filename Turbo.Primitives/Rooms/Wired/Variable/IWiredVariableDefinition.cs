@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 
@@ -6,12 +7,13 @@ namespace Turbo.Primitives.Rooms.Wired.Variable;
 
 public interface IWiredVariableDefinition
 {
-    public string Name { get; set; }
-    public WiredVariableTargetType TargetType { get; set; }
-    public WiredAvailabilityType AvailabilityType { get; set; }
-    public WiredInputSourceType InputSourceType { get; set; }
-    public WiredVariableFlags Flags { get; set; }
-    public Dictionary<int, string> TextConnectors { get; set; }
+    public int VariableId { get; }
+    public string VariableName { get; }
+    public IStorageData StorageData { get; }
+    public WiredAvailabilityType AvailabilityType { get; }
+    public WiredVariableTargetType TargetType { get; }
+    public WiredVariableFlags Flags { get; }
+    public Dictionary<int, string> TextConnectors { get; }
 
     public WiredVariableSnapshot GetSnapshot();
 }

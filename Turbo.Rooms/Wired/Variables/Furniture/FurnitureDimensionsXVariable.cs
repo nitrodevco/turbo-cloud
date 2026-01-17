@@ -8,25 +8,17 @@ public sealed class FurnitureDimensionsXVariable(RoomGrain roomGrain)
     : WiredVariable(roomGrain),
         IWiredInternalVariable
 {
-    public override string VariableName { get; set; } = "@dimensions.x";
-
-    public override WiredVariableTargetType GetVariableTargetType() =>
-        WiredVariableTargetType.Furni;
-
-    public override WiredAvailabilityType GetVariableAvailabilityType() =>
-        WiredAvailabilityType.Internal;
-
-    public override WiredInputSourceType GetVariableInputSourceType() =>
-        WiredInputSourceType.FurniSource;
-
-    public override WiredVariableFlags GetVariableFlags()
-    {
-        var flags = base.GetVariableFlags();
-
-        flags = flags.Add(WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable);
-
-        return flags;
-    }
+    protected override WiredVariableDefinition BuildVariableDefinition() =>
+        new()
+        {
+            VariableId = _variableId,
+            VariableName = "@dimensions.x",
+            StorageData = StorageData,
+            AvailabilityType = WiredAvailabilityType.Internal,
+            TargetType = WiredVariableTargetType.Furni,
+            Flags = WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable,
+            TextConnectors = [],
+        };
 
     public override bool TryGet(in IWiredVariableBinding binding, out int value)
     {

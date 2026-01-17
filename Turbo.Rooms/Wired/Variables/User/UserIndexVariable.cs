@@ -8,24 +8,17 @@ public sealed class UserIndexVariable(RoomGrain roomGrain)
     : WiredVariable(roomGrain),
         IWiredInternalVariable
 {
-    public override string VariableName { get; set; } = "@index";
-
-    public override WiredVariableTargetType GetVariableTargetType() => WiredVariableTargetType.User;
-
-    public override WiredAvailabilityType GetVariableAvailabilityType() =>
-        WiredAvailabilityType.Internal;
-
-    public override WiredInputSourceType GetVariableInputSourceType() =>
-        WiredInputSourceType.UserSource;
-
-    public override WiredVariableFlags GetVariableFlags()
-    {
-        var flags = base.GetVariableFlags();
-
-        flags = flags.Add(WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable);
-
-        return flags;
-    }
+    protected override WiredVariableDefinition BuildVariableDefinition() =>
+        new()
+        {
+            VariableId = _variableId,
+            VariableName = "@index",
+            StorageData = StorageData,
+            AvailabilityType = WiredAvailabilityType.Internal,
+            TargetType = WiredVariableTargetType.User,
+            Flags = WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable,
+            TextConnectors = [],
+        };
 
     public override bool TryGet(in IWiredVariableBinding binding, out int value)
     {

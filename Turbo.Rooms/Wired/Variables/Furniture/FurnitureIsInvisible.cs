@@ -8,16 +8,17 @@ public sealed class FurnitureIsInvisible(RoomGrain roomGrain)
     : WiredVariable(roomGrain),
         IWiredInternalVariable
 {
-    public override string VariableName { get; set; } = "@is_invisible";
-
-    public override WiredVariableTargetType GetVariableTargetType() =>
-        WiredVariableTargetType.Furni;
-
-    public override WiredAvailabilityType GetVariableAvailabilityType() =>
-        WiredAvailabilityType.Internal;
-
-    public override WiredInputSourceType GetVariableInputSourceType() =>
-        WiredInputSourceType.FurniSource;
+    protected override WiredVariableDefinition BuildVariableDefinition() =>
+        new()
+        {
+            VariableId = _variableId,
+            VariableName = "@is_invisible",
+            StorageData = StorageData,
+            AvailabilityType = WiredAvailabilityType.Internal,
+            TargetType = WiredVariableTargetType.Furni,
+            Flags = WiredVariableFlags.None,
+            TextConnectors = [],
+        };
 
     public override bool TryGet(in IWiredVariableBinding binding, out int value)
     {

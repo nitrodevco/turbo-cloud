@@ -1,6 +1,4 @@
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -8,6 +6,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired.IntParams;
+using Turbo.Rooms.Wired.Variables;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 
@@ -27,22 +26,20 @@ public class WiredVariableUser(
             new WiredIntRangeRule(0, 1, 0),
         ];
 
-    public override WiredVariableTargetType GetVariableTargetType() => WiredVariableTargetType.User;
-
-    public override WiredAvailabilityType GetVariableAvailabilityType() =>
-        (WiredAvailabilityType)WiredData.IntParams[0];
-
-    public override WiredInputSourceType GetVariableInputSourceType() =>
-        WiredInputSourceType.UserSource;
-
-    protected override async Task FillInternalDataAsync(CancellationToken ct)
-    {
-        try
+    protected override WiredVariableDefinition BuildVariableDefinition() =>
+        new()
         {
-            _hasValue = WiredData.IntParams[1] == 1;
-        }
-        catch { }
-
-        await base.FillInternalDataAsync(ct);
-    }
+            VariableId = _variableId,
+            VariableName = WiredData.StringParam,
+            StorageData = StorageData,
+            AvailabilityType = (WiredAvailabilityType)WiredData.IntParams[0],
+            TargetType = WiredVariableTargetType.User,
+            Flags =
+                (
+                    WiredData.IntParams[1] == 1
+                        ? WiredVariableFlags.HasValue
+                        : WiredVariableFlags.None
+                ) | WiredVariableFlags.CanWriteValue,
+            TextConnectors = [],
+        };
 }
