@@ -7,5 +7,5 @@ namespace Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 public sealed record WiredAllVariablesHashEventMessageComposer : IComposer
 {
     [Id(0)]
-    public required int AllVariablesHash { get; init; }
+    public required long AllVariablesHash { get; init; }
 }

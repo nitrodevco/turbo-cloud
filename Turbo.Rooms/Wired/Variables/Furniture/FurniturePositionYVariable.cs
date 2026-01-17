@@ -6,13 +6,13 @@ using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired.Variables.Furniture;
 
-public sealed class FurniturePositionXVariable(RoomGrain roomGrain)
+public sealed class FurniturePositionYVariable(RoomGrain roomGrain)
     : WiredVariable(roomGrain),
         IWiredInternalVariable
 {
     protected override void Configure(IWiredVariableDefinition def)
     {
-        def.Name = "@position.x";
+        def.Name = "@position.y";
         def.TargetType = WiredVariableTargetType.Furni;
         def.AvailabilityType = WiredAvailabilityType.Internal;
         def.InputSourceType = WiredInputSourceType.FurniSource;
@@ -40,7 +40,7 @@ public sealed class FurniturePositionXVariable(RoomGrain roomGrain)
         )
             return false;
 
-        value = floorItem.X;
+        value = floorItem.Y;
 
         return true;
     }
@@ -59,8 +59,8 @@ public sealed class FurniturePositionXVariable(RoomGrain roomGrain)
             || !_roomGrain.FurniModule.ValidateFloorItemPlacement(
                 ctx.AsActionContext(),
                 floorItem.ObjectId.Value,
+                floorItem.X,
                 value,
-                floorItem.Y,
                 floorItem.Rotation
             )
         )
@@ -68,7 +68,7 @@ public sealed class FurniturePositionXVariable(RoomGrain roomGrain)
 
         ctx.AddFloorItemMovement(
             floorItem,
-            _roomGrain.MapModule.ToIdx(value, floorItem.Y),
+            _roomGrain.MapModule.ToIdx(floorItem.X, value),
             floorItem.Rotation
         );
 

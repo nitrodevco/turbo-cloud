@@ -7,6 +7,7 @@ namespace Turbo.Primitives.Rooms.Object.Avatars;
 
 public interface IRoomAvatar : IRoomObject
 {
+    public RoomObjectType AvatarType { get; }
     public string Name { get; }
     public string Motto { get; }
     public string Figure { get; }

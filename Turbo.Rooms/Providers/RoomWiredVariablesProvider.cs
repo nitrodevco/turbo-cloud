@@ -12,27 +12,23 @@ namespace Turbo.Rooms.Providers;
 public sealed class RoomWiredVariablesProvider(IServiceProvider host) : IRoomWiredVariablesProvider
 {
     private readonly IServiceProvider _host = host;
-    private readonly ConcurrentDictionary<string, WiredVariableReg> _variables = [];
+    private readonly List<WiredVariableReg> _variables = [];
 
     public IDisposable RegisterVariable(
-        string key,
         IServiceProvider sp,
         Func<IServiceProvider, IRoomGrain, IWiredVariable> factory
     )
     {
         var reg = new WiredVariableReg(sp, factory);
 
-        _variables[key] = reg;
+        _variables.Add(reg);
 
-        return new ActionDisposable(() =>
-        {
-            _variables.TryRemove(new KeyValuePair<string, WiredVariableReg>(key, reg));
-        });
+        return new ActionDisposable(() => _variables.Remove(reg));
     }
 
-    public IEnumerable<IWiredVariable> BuildAllVariables(IRoomGrain roomGrain)
+    public IEnumerable<IWiredVariable> BuildVariablesForRoom(IRoomGrain roomGrain)
     {
-        foreach (var reg in _variables.Values)
+        foreach (var reg in _variables)
         {
             var sp = reg.ServiceProvider;
 

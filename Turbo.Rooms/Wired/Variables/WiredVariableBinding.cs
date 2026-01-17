@@ -3,8 +3,5 @@ using Turbo.Primitives.Rooms.Wired.Variable;
 
 namespace Turbo.Rooms.Wired.Variables;
 
-public sealed class WiredVariableBinding : IWiredVariableBinding
-{
-    public required WiredVariableTargetType Target { get; init; }
-    public int? TargetId { get; init; }
-}
+public readonly record struct WiredVariableBinding(WiredVariableTargetType Target, int? TargetId)
+    : IWiredVariableBinding;

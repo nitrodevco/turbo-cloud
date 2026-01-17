@@ -10,6 +10,8 @@ namespace Turbo.Rooms.Object.Avatars;
 
 internal abstract class RoomAvatar : RoomObject, IRoomAvatar
 {
+    public abstract RoomObjectType AvatarType { get; }
+
     public string Name { get; init; } = string.Empty;
     public string Motto { get; init; } = string.Empty;
     public string Figure { get; init; } = string.Empty;

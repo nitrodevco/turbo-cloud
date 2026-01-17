@@ -7,10 +7,9 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 using Turbo.Rooms.Wired.IntParams;
 
-namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
+namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 
 [RoomObjectLogic("wf_var_furni")]
 public class WiredVariableFurni(
@@ -31,15 +30,17 @@ public class WiredVariableFurni(
     public override WiredVariableTargetType GetVariableTargetType() =>
         WiredVariableTargetType.Furni;
 
+    public override WiredAvailabilityType GetVariableAvailabilityType() =>
+        (WiredAvailabilityType)WiredData.IntParams[1];
+
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
-        await base.FillInternalDataAsync(ct);
-
         try
         {
             _hasValue = WiredData.IntParams[0] == 1;
-            StorageType = (WiredAvailabilityType)WiredData.IntParams[1];
         }
         catch { }
+
+        await base.FillInternalDataAsync(ct);
     }
 }

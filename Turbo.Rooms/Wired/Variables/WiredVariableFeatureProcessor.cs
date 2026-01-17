@@ -4,7 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Turbo.Primitives.Rooms.Providers;
-using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
@@ -24,19 +23,15 @@ internal class WiredVariableFeatureProcessor(IRoomWiredVariablesProvider wiredVa
     {
         var batch = new CompositeDisposable();
 
-        foreach (var concrete in AssemblyExplorer.FindAssignees(asm, typeof(IWiredVariable)))
+        foreach (
+            var concrete in AssemblyExplorer.FindAssignees(asm, typeof(IWiredInternalVariable))
+        )
         {
             if (concrete is null)
                 continue;
 
-            var attribute = concrete.GetCustomAttribute<WiredVariableAttribute>(false);
-
-            if (attribute is null)
-                continue;
-
             batch.Add(
                 _wiredVariablesProvider.RegisterVariable(
-                    attribute.Key,
                     sp,
                     (sp, ctx) =>
                         (IWiredVariable)ActivatorUtilities.CreateInstance(sp, concrete, ctx)

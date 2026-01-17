@@ -6,5 +6,5 @@ public enum WiredAvailabilityType
     Temporary = 1,
     Persistent = 10,
     SharedPersistent = 11,
-    Dunno = 100,
+    Internal = 100,
 }

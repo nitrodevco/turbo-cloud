@@ -8,6 +8,8 @@ namespace Turbo.Rooms.Object.Avatars;
 
 internal sealed class RoomPlayerAvatar : RoomAvatar, IRoomPlayerAvatar
 {
+    public override RoomObjectType AvatarType { get; } = RoomObjectType.Player;
+
     public required PlayerId PlayerId { get; init; }
     public required AvatarGenderType Gender { get; init; }
 
@@ -27,7 +29,8 @@ internal sealed class RoomPlayerAvatar : RoomAvatar, IRoomPlayerAvatar
 
         return new()
         {
-            WebId = PlayerId,
+            AvatarType = AvatarType,
+            WebId = PlayerId.Value,
             Name = Name,
             Motto = Motto,
             Figure = Figure,

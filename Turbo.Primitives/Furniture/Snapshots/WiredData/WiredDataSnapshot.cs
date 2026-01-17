@@ -70,5 +70,5 @@ public record WiredDataSnapshot
     public required List<object> TypeSpecifics { get; init; }
 
     [Id(20)]
-    public required int GlobalHash { get; init; }
+    public required long AllVariablesHash { get; init; }
 }

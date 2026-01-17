@@ -6,20 +6,17 @@ using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired.Variables.Furniture;
 
-public sealed class FurniturePositionXVariable(RoomGrain roomGrain)
+public sealed class FurnitureWallItemOffsetVariable(RoomGrain roomGrain)
     : WiredVariable(roomGrain),
         IWiredInternalVariable
 {
     protected override void Configure(IWiredVariableDefinition def)
     {
-        def.Name = "@position.x";
+        def.Name = "@wallitem_offset";
         def.TargetType = WiredVariableTargetType.Furni;
         def.AvailabilityType = WiredAvailabilityType.Internal;
         def.InputSourceType = WiredInputSourceType.FurniSource;
-        def.Flags =
-            WiredVariableFlags.HasValue
-            | WiredVariableFlags.CanWriteValue
-            | WiredVariableFlags.AlwaysAvailable;
+        def.Flags = WiredVariableFlags.HasValue | WiredVariableFlags.CanWriteValue;
     }
 
     public override bool CanBind(in IWiredVariableBinding binding) => binding.TargetId is not null;
@@ -32,15 +29,10 @@ public sealed class FurniturePositionXVariable(RoomGrain roomGrain)
     {
         value = 0;
 
-        if (
-            !_roomGrain._state.FloorItemsById.TryGetValue(
-                binding.TargetId!.Value,
-                out var floorItem
-            )
-        )
+        if (!_roomGrain._state.WallItemsById.TryGetValue(binding.TargetId!.Value, out var wallItem))
             return false;
 
-        value = floorItem.X;
+        value = wallItem.WallOffset;
 
         return true;
     }
@@ -51,26 +43,8 @@ public sealed class FurniturePositionXVariable(RoomGrain roomGrain)
         int value
     )
     {
-        if (
-            !_roomGrain._state.FloorItemsById.TryGetValue(
-                binding.TargetId!.Value,
-                out var floorItem
-            )
-            || !_roomGrain.FurniModule.ValidateFloorItemPlacement(
-                ctx.AsActionContext(),
-                floorItem.ObjectId.Value,
-                value,
-                floorItem.Y,
-                floorItem.Rotation
-            )
-        )
+        if (!_roomGrain._state.WallItemsById.TryGetValue(binding.TargetId!.Value, out var wallItem))
             return Task.FromResult(false);
-
-        ctx.AddFloorItemMovement(
-            floorItem,
-            _roomGrain.MapModule.ToIdx(value, floorItem.Y),
-            floorItem.Rotation
-        );
 
         return Task.FromResult(true);
     }

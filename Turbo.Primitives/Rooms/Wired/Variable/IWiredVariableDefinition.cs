@@ -6,14 +6,12 @@ namespace Turbo.Primitives.Rooms.Wired.Variable;
 
 public interface IWiredVariableDefinition
 {
-    public string Key { get; }
+    public string Name { get; set; }
+    public WiredVariableTargetType TargetType { get; set; }
+    public WiredAvailabilityType AvailabilityType { get; set; }
+    public WiredInputSourceType InputSourceType { get; set; }
+    public WiredVariableFlags Flags { get; set; }
+    public Dictionary<int, string> TextConnectors { get; set; }
 
-    public WiredVariableTargetType Target { get; }
-    public WiredAvailabilityType AvailabilityType { get; }
-    public WiredInputSourceType InputSourceType { get; }
-    public WiredVariableFlags Flags { get; }
-    public List<string> TextConnectors { get; }
-
-    public int GetHashCode();
     public WiredVariableSnapshot GetSnapshot();
 }

@@ -29,15 +29,17 @@ public class WiredVariableUser(
 
     public override WiredVariableTargetType GetVariableTargetType() => WiredVariableTargetType.User;
 
+    public override WiredAvailabilityType GetVariableAvailabilityType() =>
+        (WiredAvailabilityType)WiredData.IntParams[0];
+
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
-        await base.FillInternalDataAsync(ct);
-
         try
         {
-            StorageType = (WiredAvailabilityType)WiredData.IntParams[0];
             _hasValue = WiredData.IntParams[1] == 1;
         }
         catch { }
+
+        await base.FillInternalDataAsync(ct);
     }
 }

@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
@@ -8,7 +9,9 @@ namespace Turbo.Rooms.Wired.Variables;
 public abstract class WiredVariable(RoomGrain roomGrain) : IWiredVariable
 {
     protected readonly RoomGrain _roomGrain = roomGrain;
-    public abstract IWiredVariableDefinition VarDefinition { get; }
+    protected IWiredVariableDefinition? _varDefinition;
+
+    public IWiredVariableDefinition VarDefinition => _varDefinition ??= BuildDefinition();
     public required IStorageData StorageData { get; init; }
 
     public virtual bool CanBind(in IWiredVariableBinding binding) => false;
@@ -24,14 +27,22 @@ public abstract class WiredVariable(RoomGrain roomGrain) : IWiredVariable
         return false;
     }
 
-    public virtual bool SetValue(
-        in IWiredVariableBinding binding,
+    public virtual Task<bool> SetValueAsync(
+        IWiredVariableBinding binding,
         IWiredExecutionContext ctx,
         int value
-    )
-    {
-        return false;
-    }
+    ) => Task.FromResult(false);
 
     public virtual bool RemoveValue(string key) => false;
+
+    protected abstract void Configure(IWiredVariableDefinition def);
+
+    private WiredVariableDefinition BuildDefinition()
+    {
+        var def = new WiredVariableDefinition();
+
+        Configure(def);
+
+        return def;
+    }
 }

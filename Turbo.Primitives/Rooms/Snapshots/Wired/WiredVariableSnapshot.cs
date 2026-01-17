@@ -8,16 +8,16 @@ namespace Turbo.Primitives.Rooms.Snapshots.Wired;
 public record WiredVariableSnapshot
 {
     [Id(0)]
-    public required long VariableHash { get; init; }
+    public required long VariableId { get; init; }
 
     [Id(1)]
-    public required string VariableKey { get; init; }
+    public required string VariableName { get; init; }
 
     [Id(2)]
     public required WiredAvailabilityType AvailabilityType { get; init; }
 
     [Id(3)]
-    public required WiredInputSourceType VariableType { get; init; }
+    public required WiredInputSourceType InputSourceType { get; init; }
 
     [Id(4)]
     public required bool AlwaysAvailable { get; init; }
@@ -47,8 +47,11 @@ public record WiredVariableSnapshot
     public required bool HasTextConnector { get; init; }
 
     [Id(13)]
-    public required List<string> TextConnector { get; init; }
+    public required Dictionary<int, string> TextConnectors { get; init; }
 
     [Id(14)]
     public required bool IsStored { get; init; }
+
+    [Id(15)]
+    public required long VariableHash { get; init; }
 }

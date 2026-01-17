@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -41,13 +40,13 @@ public class WiredGetAllVariablesDiffsMessageHandler(IGrainFactory grainFactory)
             {
                 try
                 {
-                    var existing = variables.Variables.First(x => x.VariableHash == hash);
+                    var existing = variables.Variables.First(x => x.VariableHash == id);
 
                     variableDiffs.Add(existing);
                 }
                 catch
                 {
-                    removedVariables.Add(hash);
+                    removedVariables.Add(id);
                 }
             }
         }
@@ -63,7 +62,7 @@ public class WiredGetAllVariablesDiffsMessageHandler(IGrainFactory grainFactory)
         _ = ctx.SendComposerAsync(
                 new WiredAllVariablesDiffsEventMessageComposer()
                 {
-                    AllVariablesHash = variables.GlobalHash,
+                    AllVariablesHash = variables.AllVariablesHash,
                     IsLastChunk = true,
                     RemovedVariables = removedVariables,
                     AddedOrUpdated = variableDiffs,

@@ -5,39 +5,39 @@ namespace Turbo.Primitives.Rooms.Snapshots.Avatars;
 [GenerateSerializer, Immutable]
 public sealed record RoomPetAvatarSnapshot : RoomAvatarSnapshot
 {
-    [Id(0)]
+    [Id(12)]
     public required int SubType { get; init; }
 
-    [Id(1)]
+    [Id(13)]
     public required int OwnerId { get; init; }
 
-    [Id(2)]
+    [Id(14)]
     public required string OwnerName { get; init; }
 
-    [Id(3)]
+    [Id(16)]
     public required int RarityLevel { get; init; }
 
-    [Id(4)]
+    [Id(17)]
     public required bool HasSaddle { get; init; }
 
-    [Id(5)]
+    [Id(18)]
     public required bool IsRiding { get; init; }
 
-    [Id(6)]
+    [Id(19)]
     public required bool CanBreed { get; init; }
 
-    [Id(7)]
+    [Id(20)]
     public required bool CanHarvest { get; init; }
 
-    [Id(8)]
+    [Id(21)]
     public required bool CanRevive { get; init; }
 
-    [Id(9)]
+    [Id(22)]
     public required bool HasBreedingPermission { get; init; }
 
-    [Id(10)]
+    [Id(23)]
     public required bool PetLevel { get; init; }
 
-    [Id(11)]
+    [Id(24)]
     public required bool PetPosture { get; init; }
 }

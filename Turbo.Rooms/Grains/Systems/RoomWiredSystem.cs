@@ -7,9 +7,7 @@ using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
-using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
@@ -21,19 +19,13 @@ using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Grains.Systems;
 
-public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
+public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
 {
     private readonly RoomGrain _roomGrain = roomGrain;
 
     private readonly HashSet<int> _dirtyStackIds = [];
     private readonly Dictionary<int, IWiredStack> _stacksById = [];
     private readonly Dictionary<Type, List<int>> _stackIdsByEventType = [];
-
-    private readonly HashSet<int> _dirtyVariableBoxIds = [];
-    private readonly Dictionary<int, string> _variableKeyBoxId = [];
-    private readonly Dictionary<string, IWiredVariable> _variableByKey = new(
-        StringComparer.OrdinalIgnoreCase
-    );
 
     private readonly Queue<RoomEvent> _eventQueue = new();
     private readonly Dictionary<
@@ -57,10 +49,7 @@ public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
 
         if (_firstRun)
         {
-            var variables = _roomGrain._wiredVariablesProvider.BuildAllVariables(_roomGrain);
-
-            foreach (var variable in variables)
-                _variableByKey.Add(variable.VarDefinition.Key, variable);
+            await ProcessInternalVariablesAsync(now, ct);
 
             _firstRun = false;
         }
@@ -109,42 +98,6 @@ public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
         return Task.CompletedTask;
     }
 
-    public void BuildCurrentHash()
-    {
-        var globalHash = 0;
-
-        foreach (var variable in _variableByKey.Values)
-        {
-            globalHash ^= variable.VarDefinition.GetHashCode();
-        }
-
-        _roomGrain._state.GlobalVariableHash = globalHash;
-    }
-
-    public bool TryGetVariable(
-        string key,
-        in IWiredVariableBinding binding,
-        WiredExecutionContext ctx,
-        out int value
-    )
-    {
-        if (_variableByKey.TryGetValue(key, out var variable) && variable is not null)
-            return variable.TryGet(binding, ctx, out value);
-
-        value = 0;
-
-        return false;
-    }
-
-    public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct) =>
-        Task.FromResult(
-            new WiredVariablesSnapshot()
-            {
-                GlobalHash = _roomGrain._state.GlobalVariableHash,
-                Variables = [.. _variableByKey.Values.Select(x => x.VarDefinition.GetSnapshot())],
-            }
-        );
-
     private async Task ProcessRoomEventAsync(RoomEvent evt, long now, CancellationToken ct)
     {
         if (evt is null || !_stackIdsByEventType.TryGetValue(evt.GetType(), out var stackIds))
@@ -168,10 +121,12 @@ public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
         CancellationToken ct
     )
     {
-        if (trigger is null || evt is null || stack is null)
-            return;
-
-        if (!await trigger.MatchesEventAsync(evt, ct))
+        if (
+            trigger is null
+            || evt is null
+            || stack is null
+            || !await trigger.MatchesEventAsync(evt, ct)
+        )
             return;
 
         var ctx = new WiredProcessingContext
@@ -462,50 +417,6 @@ public sealed class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
         }
 
         _stacksById[stackId] = stack;
-    }
-
-    private async Task ProcessVariableBoxesAsync(long now, CancellationToken ct)
-    {
-        if (_dirtyVariableBoxIds.Count == 0)
-            return;
-
-        var dirtyVariableBoxIds = _dirtyVariableBoxIds.ToList();
-        _dirtyVariableBoxIds.Clear();
-
-        foreach (var boxId in dirtyVariableBoxIds)
-            await ProcessVariableBoxAsync(boxId, ct);
-
-        BuildCurrentHash();
-    }
-
-    private async Task ProcessVariableBoxAsync(int boxId, CancellationToken ct)
-    {
-        RemoveVariableBox(boxId);
-
-        if (
-            !_roomGrain._state.FloorItemsById.TryGetValue(boxId, out var floorItem)
-            || floorItem.Logic is not FurnitureWiredVariableLogic varLogic
-        )
-            return;
-
-        await varLogic.LoadWiredAsync(ct);
-
-        var key = varLogic.VarDefinition.Key;
-
-        if (string.IsNullOrWhiteSpace(key))
-            return;
-
-        _variableByKey[key] = varLogic;
-        _variableKeyBoxId[boxId] = key;
-    }
-
-    private void RemoveVariableBox(int boxId)
-    {
-        if (!_variableKeyBoxId.TryGetValue(boxId, out var key))
-            return;
-
-        _variableByKey.Remove(key);
-        _variableKeyBoxId.Remove(boxId);
     }
 
     private static List<IWiredAction> ChooseActions(List<IWiredAction> actions, IWiredPolicy policy)

@@ -571,6 +571,6 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
             DefaultPlayerSources = GetDefaultPlayerSources(),
             DefinitionSpecifics = GetDefinitionSpecifics(),
             TypeSpecifics = GetTypeSpecifics(),
-            GlobalHash = _roomGrain._state.GlobalVariableHash,
+            AllVariablesHash = _roomGrain._state.AllVariablesHash,
         };
 }

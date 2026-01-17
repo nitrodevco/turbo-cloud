@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
@@ -7,39 +8,38 @@ namespace Turbo.Rooms.Wired.Variables;
 
 public sealed class WiredVariableDefinition : IWiredVariableDefinition
 {
-    private string _key = string.Empty;
-    private WiredVariableTargetType _target;
+    private string _name = string.Empty;
+    private WiredVariableTargetType _targetType;
     private WiredAvailabilityType _availabilityType;
     private WiredInputSourceType _inputSourceType;
     private WiredVariableFlags _flags;
-    private List<string> _textConnectors = [];
+    private Dictionary<int, string> _textConnectors = [];
 
     private WiredVariableSnapshot? _snapshot;
-    private bool _isDirty = true;
 
-    public string Key
+    public string Name
     {
-        get => _key;
+        get => _name;
         set
         {
-            if (_key == value)
+            if (_name == value)
                 return;
 
-            _key = value;
-            _isDirty = true;
+            _name = value;
+            _snapshot = null;
         }
     }
 
-    public WiredVariableTargetType Target
+    public WiredVariableTargetType TargetType
     {
-        get => _target;
+        get => _targetType;
         set
         {
-            if (_target == value)
+            if (_targetType == value)
                 return;
 
-            _target = value;
-            _isDirty = true;
+            _targetType = value;
+            _snapshot = null;
         }
     }
 
@@ -52,7 +52,7 @@ public sealed class WiredVariableDefinition : IWiredVariableDefinition
                 return;
 
             _availabilityType = value;
-            _isDirty = true;
+            _snapshot = null;
         }
     }
 
@@ -65,7 +65,7 @@ public sealed class WiredVariableDefinition : IWiredVariableDefinition
                 return;
 
             _inputSourceType = value;
-            _isDirty = true;
+            _snapshot = null;
         }
     }
 
@@ -78,11 +78,11 @@ public sealed class WiredVariableDefinition : IWiredVariableDefinition
                 return;
 
             _flags = value;
-            _isDirty = true;
+            _snapshot = null;
         }
     }
 
-    public List<string> TextConnectors
+    public Dictionary<int, string> TextConnectors
     {
         get => _textConnectors;
         set
@@ -91,32 +91,23 @@ public sealed class WiredVariableDefinition : IWiredVariableDefinition
                 return;
 
             _textConnectors = value;
-            _isDirty = true;
+            _snapshot = null;
         }
     }
 
-    public WiredVariableSnapshot GetSnapshot()
+    public WiredVariableSnapshot GetSnapshot() => _snapshot ??= BuildSnapshot();
+
+    private WiredVariableSnapshot BuildSnapshot()
     {
-        if (_snapshot is not null && !_isDirty)
-            return _snapshot;
+        var key = new WiredVariableKey(TargetType, Name).GetHashCode();
 
-        _isDirty = false;
-
-        long hashCode = 0;
-
-        hashCode ^= Key.GetHashCode();
-        hashCode ^= Target.GetHashCode();
-        hashCode ^= AvailabilityType.GetHashCode();
-        hashCode ^= InputSourceType.GetHashCode();
-        hashCode ^= Flags.GetHashCode();
-        hashCode ^= TextConnectors.GetHashCode();
-
-        _snapshot = new()
+        return new()
         {
-            VariableHash = hashCode,
-            VariableKey = Key,
+            VariableId = key,
+            VariableHash = BuildHash(this, key),
+            VariableName = Name,
             AvailabilityType = AvailabilityType,
-            VariableType = InputSourceType,
+            InputSourceType = InputSourceType,
             AlwaysAvailable = Flags.Has(WiredVariableFlags.AlwaysAvailable),
             CanCreateAndDelete = Flags.Has(WiredVariableFlags.CanCreateAndDelete),
             HasValue = Flags.Has(WiredVariableFlags.HasValue),
@@ -126,12 +117,56 @@ public sealed class WiredVariableDefinition : IWiredVariableDefinition
             CanReadCreationTime = Flags.Has(WiredVariableFlags.CanReadCreationTime),
             CanReadLastUpdateTime = Flags.Has(WiredVariableFlags.CanReadLastUpdateTime),
             HasTextConnector = Flags.Has(WiredVariableFlags.HasTextConnector),
-            TextConnector = Flags.Has(WiredVariableFlags.HasTextConnector) ? ["default"] : [],
-            IsStored = Flags.HasFlag(WiredVariableFlags.IsStored),
+            TextConnectors = TextConnectors,
+            IsStored = Flags.Has(WiredVariableFlags.IsStored),
         };
-
-        return _snapshot;
     }
 
-    public override int GetHashCode() => (int)GetSnapshot().VariableHash;
+    private static long BuildHash(WiredVariableDefinition definition, int key)
+    {
+        ulong hashCode = 0;
+
+        hashCode = CombineXor(hashCode, (ulong)key);
+        hashCode = CombineXor(hashCode, (ulong)(int)definition.TargetType);
+        hashCode = CombineXor(hashCode, (ulong)(int)definition.AvailabilityType);
+        hashCode = CombineXor(hashCode, (ulong)(int)definition.InputSourceType);
+        hashCode = CombineXor(hashCode, (ulong)definition.Flags);
+
+        if (definition.TextConnectors is not null)
+        {
+            foreach (var s in definition.TextConnectors.Values)
+                hashCode = CombineXor(hashCode, Fnv1a64(s ?? ""));
+        }
+
+        return unchecked((long)hashCode);
+    }
+
+    private static ulong Fnv1a64(string s)
+    {
+        const ulong offset = 14695981039346656037UL;
+        const ulong prime = 1099511628211UL;
+
+        ulong hash = offset;
+
+        foreach (var ch in s)
+        {
+            hash ^= (byte)ch;
+            hash *= prime;
+            hash ^= (byte)(ch >> 8);
+            hash *= prime;
+        }
+
+        return hash;
+    }
+
+    private static ulong CombineXor(ulong hash, ulong value)
+    {
+        value ^= value >> 33;
+        value *= 0xff51afd7ed558ccdUL;
+        value ^= value >> 33;
+        value *= 0xc4ceb9fe1a85ec53UL;
+        value ^= value >> 33;
+
+        return hash ^ value;
+    }
 }

@@ -25,9 +25,6 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
     public IWiredVariableDefinition VarDefinition { get; protected set; } = default!;
     public IStorageData StorageData { get; private set; }
 
-    public WiredAvailabilityType StorageType { get; protected set; } =
-        WiredAvailabilityType.Temporary;
-
     protected virtual bool _hasValue { get; set; } = false;
 
     public FurnitureWiredVariableLogic(
@@ -59,7 +56,18 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
 
     public virtual WiredVariableTargetType GetVariableTargetType() => WiredVariableTargetType.None;
 
-    public virtual WiredVariableFlags GetVariableFlags() => WiredVariableFlags.None;
+    public virtual WiredAvailabilityType GetVariableAvailabilityType() =>
+        WiredAvailabilityType.Temporary;
+
+    public virtual WiredVariableFlags GetVariableFlags()
+    {
+        WiredVariableFlags flags = WiredVariableFlags.None;
+
+        if (_hasValue)
+            flags = flags.Add(WiredVariableFlags.HasValue);
+
+        return flags;
+    }
 
     public virtual bool CanBind(in IWiredVariableBinding binding) => false;
 
@@ -74,11 +82,11 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
         return false;
     }
 
-    public virtual bool SetValue(
-        in IWiredVariableBinding binding,
+    public virtual Task<bool> SetValueAsync(
+        IWiredVariableBinding binding,
         IWiredExecutionContext ctx,
         int value
-    ) => false;
+    ) => Task.FromResult(false);
 
     public virtual bool RemoveValue(string key) => false;
 
@@ -110,12 +118,12 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
 
             VarDefinition = new WiredVariableDefinition()
             {
-                Key = key,
-                Target = GetVariableTargetType(),
-                AvailabilityType = StorageType,
+                Name = key,
+                TargetType = GetVariableTargetType(),
+                AvailabilityType = GetVariableAvailabilityType(),
                 InputSourceType = GetVariableTargetType() switch
                 {
-                    WiredVariableTargetType.User => WiredInputSourceType.PlayerSource,
+                    WiredVariableTargetType.User => WiredInputSourceType.UserSource,
                     WiredVariableTargetType.Furni => WiredInputSourceType.FurniSource,
                     _ => WiredInputSourceType.MergedSource,
                 },

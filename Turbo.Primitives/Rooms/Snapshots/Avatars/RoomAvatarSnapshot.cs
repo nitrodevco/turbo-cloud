@@ -8,35 +8,38 @@ namespace Turbo.Primitives.Rooms.Snapshots.Avatars;
 public record RoomAvatarSnapshot
 {
     [Id(0)]
-    public required int WebId { get; init; }
+    public required RoomObjectType AvatarType { get; init; }
 
     [Id(1)]
-    public required string Name { get; init; }
+    public required int WebId { get; init; }
 
     [Id(2)]
-    public required string Motto { get; init; }
+    public required string Name { get; init; }
 
     [Id(3)]
-    public required string Figure { get; init; }
+    public required string Motto { get; init; }
 
     [Id(4)]
-    public required RoomObjectId ObjectId { get; init; }
+    public required string Figure { get; init; }
 
     [Id(5)]
-    public required int X { get; init; }
+    public required RoomObjectId ObjectId { get; init; }
 
     [Id(6)]
-    public required int Y { get; init; }
+    public required int X { get; init; }
 
     [Id(7)]
-    public required double Z { get; init; }
+    public required int Y { get; init; }
 
     [Id(8)]
-    public required Rotation BodyRotation { get; init; }
+    public required double Z { get; init; }
 
     [Id(9)]
-    public required Rotation HeadRotation { get; init; }
+    public required Rotation BodyRotation { get; init; }
 
     [Id(10)]
+    public required Rotation HeadRotation { get; init; }
+
+    [Id(11)]
     public required string Status { get; init; }
 }

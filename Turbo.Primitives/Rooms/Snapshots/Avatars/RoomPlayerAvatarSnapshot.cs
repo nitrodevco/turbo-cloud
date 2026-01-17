@@ -6,24 +6,24 @@ namespace Turbo.Primitives.Rooms.Snapshots.Avatars;
 [GenerateSerializer, Immutable]
 public sealed record RoomPlayerAvatarSnapshot : RoomAvatarSnapshot
 {
-    [Id(0)]
+    [Id(12)]
     public required AvatarGenderType Gender { get; init; }
 
-    [Id(1)]
+    [Id(13)]
     public required int GroupId { get; init; }
 
-    [Id(2)]
+    [Id(14)]
     public required int GroupStatus { get; init; }
 
-    [Id(3)]
+    [Id(15)]
     public required string GroupName { get; init; }
 
-    [Id(4)]
+    [Id(16)]
     public required string SwimFigure { get; init; }
 
-    [Id(5)]
+    [Id(17)]
     public required int ActivityPoints { get; init; }
 
-    [Id(6)]
+    [Id(18)]
     public required bool IsModerator { get; init; }
 }

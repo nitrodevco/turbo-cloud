@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
@@ -6,13 +7,13 @@ using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired.Variables.Furniture;
 
-public sealed class FurniturePositionXVariable(RoomGrain roomGrain)
+public sealed class FurnitureRotationVariable(RoomGrain roomGrain)
     : WiredVariable(roomGrain),
         IWiredInternalVariable
 {
     protected override void Configure(IWiredVariableDefinition def)
     {
-        def.Name = "@position.x";
+        def.Name = "@rotation";
         def.TargetType = WiredVariableTargetType.Furni;
         def.AvailabilityType = WiredAvailabilityType.Internal;
         def.InputSourceType = WiredInputSourceType.FurniSource;
@@ -40,7 +41,7 @@ public sealed class FurniturePositionXVariable(RoomGrain roomGrain)
         )
             return false;
 
-        value = floorItem.X;
+        value = (int)floorItem.Rotation;
 
         return true;
     }
@@ -59,17 +60,17 @@ public sealed class FurniturePositionXVariable(RoomGrain roomGrain)
             || !_roomGrain.FurniModule.ValidateFloorItemPlacement(
                 ctx.AsActionContext(),
                 floorItem.ObjectId.Value,
-                value,
+                floorItem.X,
                 floorItem.Y,
-                floorItem.Rotation
+                (Rotation)value
             )
         )
             return Task.FromResult(false);
 
         ctx.AddFloorItemMovement(
             floorItem,
-            _roomGrain.MapModule.ToIdx(value, floorItem.Y),
-            floorItem.Rotation
+            _roomGrain.MapModule.ToIdx(floorItem.X, floorItem.Y),
+            (Rotation)value
         );
 
         return Task.FromResult(true);

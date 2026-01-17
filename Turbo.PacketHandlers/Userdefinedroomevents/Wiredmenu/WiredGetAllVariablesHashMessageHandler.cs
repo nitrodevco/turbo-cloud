@@ -30,7 +30,7 @@ public class WiredGetAllVariablesHashMessageHandler(IGrainFactory grainFactory)
         _ = ctx.SendComposerAsync(
                 new WiredAllVariablesHashEventMessageComposer()
                 {
-                    AllVariablesHash = variables.GlobalHash,
+                    AllVariablesHash = variables.AllVariablesHash,
                 },
                 ct
             )
