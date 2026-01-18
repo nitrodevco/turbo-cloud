@@ -1,6 +1,8 @@
+using System.Collections.Generic;
+
 namespace Turbo.Primitives.Rooms.Events;
 
 public sealed record WiredVariableBoxChangedEvent : RoomEvent
 {
-    public required int[] BoxIds { get; init; }
+    public required List<int> BoxIds { get; init; }
 }

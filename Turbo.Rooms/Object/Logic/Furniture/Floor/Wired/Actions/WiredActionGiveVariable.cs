@@ -68,8 +68,6 @@ public class WiredActionGiveVariable(
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
-        await base.FillInternalDataAsync(ct);
-
         try
         {
             if (WiredData.VariableIds is { Count: <= 0 })
@@ -80,5 +78,7 @@ public class WiredActionGiveVariable(
             }
         }
         catch { }
+
+        await base.FillInternalDataAsync(ct);
     }
 }

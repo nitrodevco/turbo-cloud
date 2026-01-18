@@ -36,7 +36,7 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
     {
         _variableId = WiredVariableIdBuilder.CreateDatabase(ctx.ObjectId.Value);
 
-        if (ctx.Item.ExtraData.TryGetSection("storage", out var storageElement))
+        if (ctx.Item.ExtraData.TryGetSection(ExtraDataSectionType.STORAGE, out var storageElement))
         {
             _storageData = storageElement.Deserialize<StorageData>()!;
         }
@@ -48,7 +48,7 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
         _storageData.SetAction(() =>
         {
             _ctx.Item.ExtraData.UpdateSection(
-                "storage",
+                ExtraDataSectionType.STORAGE,
                 JsonSerializer.SerializeToNode(_storageData, _storageData.GetType())
             );
             return Task.CompletedTask;
@@ -83,32 +83,6 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
 
     public virtual bool RemoveValue(string key) => false;
 
-    protected override Task OnWiredChangedAsync(
-        ActionContext? ctx,
-        List<int> ids,
-        CancellationToken ct
-    )
-    {
-        _varSnapshot = null;
-
-        _ = _ctx.PublishRoomEventAsync(
-            new WiredVariableBoxChangedEvent
-            {
-                RoomId = _ctx.RoomId,
-                CausedBy = ctx,
-                BoxIds = [_ctx.ObjectId.Value, .. ids],
-            },
-            ct
-        );
-
-        return Task.CompletedTask;
-    }
-
-    protected override async Task FillInternalDataAsync(CancellationToken ct)
-    {
-        await base.FillInternalDataAsync(ct);
-    }
-
     public WiredVariableKey GetVariableKey()
     {
         var snapshot = GetVarSnapshot();
@@ -118,4 +92,33 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
 
     public WiredVariableSnapshot GetVarSnapshot() =>
         _varSnapshot ??= BuildVariableDefinition().GetSnapshot();
+
+    protected override Task FillInternalDataAsync(CancellationToken ct)
+    {
+        _varSnapshot = null;
+
+        return base.FillInternalDataAsync(ct);
+    }
+
+    public override async Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
+    {
+        _ctx.Item.ExtraData.DeleteSection(ExtraDataSectionType.STORAGE);
+
+        await base.OnPickupAsync(ctx, ct);
+    }
+
+    protected override Task OnWiredStackChangedAsync(
+        ActionContext? ctx,
+        List<int> ids,
+        CancellationToken ct
+    ) =>
+        _ctx.PublishRoomEventAsync(
+            new WiredVariableBoxChangedEvent
+            {
+                RoomId = _ctx.RoomId,
+                CausedBy = ctx,
+                BoxIds = [_ctx.ObjectId.Value],
+            },
+            ct
+        );
 }

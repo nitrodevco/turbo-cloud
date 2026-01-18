@@ -8,7 +8,7 @@ namespace Turbo.Furniture;
 public sealed class ExtraData(string? extraData) : IExtraData
 {
     private ExtraDataReader _reader = new(extraData);
-    private ExtraDataWriter _writer = new(extraData);
+    private readonly ExtraDataWriter _writer = new(extraData);
 
     private string _snapshot = extraData ?? "{}";
     private Func<Task>? _onSnapshotChanged;
@@ -21,6 +21,16 @@ public sealed class ExtraData(string? extraData) : IExtraData
     public void UpdateSection<TSection>(string name, TSection section)
     {
         var updated = _writer.UpdateSection(name, section);
+
+        _snapshot = updated;
+        _reader = new ExtraDataReader(updated);
+
+        _ = _onSnapshotChanged?.Invoke();
+    }
+
+    public void DeleteSection(string name)
+    {
+        var updated = _writer.DeleteSection(name);
 
         _snapshot = updated;
         _reader = new ExtraDataReader(updated);

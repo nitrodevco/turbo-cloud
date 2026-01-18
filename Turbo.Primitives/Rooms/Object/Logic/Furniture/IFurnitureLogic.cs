@@ -13,7 +13,9 @@ public interface IFurnitureLogic : IRoomObjectLogic
     public bool CanToggle();
     public Task<int> GetStateAsync();
     public Task SetStateAsync(int state);
+    public Task OnMoveAsync(ActionContext ctx, int prevIdx, CancellationToken ct);
+    public Task OnPlaceAsync(ActionContext ctx, CancellationToken ct);
+    public Task OnPickupAsync(ActionContext ctx, CancellationToken ct);
     public Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct);
     public Task OnClickAsync(ActionContext ctx, int param, CancellationToken ct);
-    public Task OnMoveAsync(ActionContext ctx, int prevIdx, CancellationToken ct);
 }

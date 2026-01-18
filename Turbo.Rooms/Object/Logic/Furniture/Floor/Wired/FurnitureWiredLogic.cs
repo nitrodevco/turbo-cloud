@@ -57,57 +57,12 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
         WiredData.SetAction(() =>
         {
             _ctx.Item.ExtraData.UpdateSection(
-                "wired",
+                ExtraDataSectionType.WIRED,
                 JsonSerializer.SerializeToNode(WiredData, WiredData.GetType())
             );
             return Task.CompletedTask;
         });
     }
-
-    public override async Task OnAttachAsync(CancellationToken ct)
-    {
-        await base.OnAttachAsync(ct);
-
-        await OnWiredChangedAsync(null, [], ct);
-    }
-
-    public override async Task OnDetachAsync(CancellationToken ct)
-    {
-        await base.OnDetachAsync(ct);
-
-        await OnWiredChangedAsync(null, [], ct);
-    }
-
-    public override async Task OnMoveAsync(ActionContext ctx, int prevIdx, CancellationToken ct)
-    {
-        await base.OnMoveAsync(ctx, prevIdx, ct);
-
-        await OnWiredChangedAsync(ctx, [prevIdx], ct);
-    }
-
-    public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
-    {
-        _ = _grainFactory
-            .GetPlayerPresenceGrain(ctx.PlayerId)
-            .SendComposerAsync(new OpenEventMessageComposer { ItemId = _ctx.ObjectId })
-            .ConfigureAwait(false);
-        return Task.CompletedTask;
-    }
-
-    protected virtual Task OnWiredChangedAsync(
-        ActionContext? ctx,
-        List<int> ids,
-        CancellationToken ct
-    ) =>
-        _ctx.PublishRoomEventAsync(
-            new RoomWiredStackChangedEvent
-            {
-                RoomId = _ctx.RoomId,
-                CausedBy = ctx,
-                StackIds = [_ctx.GetTileIdx(), .. ids],
-            },
-            ct
-        );
 
     public async Task LoadWiredAsync(CancellationToken ct)
     {
@@ -123,7 +78,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
         _ = SetStateAsync(state);
     }
 
-    public virtual List<int> GetValidStuffIds(List<int> stuffIds)
+    public List<int> GetValidStuffIds(List<int> stuffIds)
     {
         var validStuffIds = new List<int>();
 
@@ -149,7 +104,17 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
 
     public virtual IWiredIntParamRule? GetIntParamTailRule() => null;
 
-    public virtual List<WiredFurniSourceType[]> GetFurniSources()
+    public virtual List<WiredFurniSourceType[]> GetAllowedFurniSources() => [];
+
+    public virtual List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [];
+
+    public virtual List<Type> GetDefinitionSpecificTypes() => [];
+
+    public virtual List<Type> GetTypeSpecificTypes() => [];
+
+    public virtual List<WiredVariableContextSnapshot> GetWiredContextSnapshots() => [];
+
+    public List<WiredFurniSourceType[]> GetFurniSources()
     {
         var sources = new List<WiredFurniSourceType[]>();
         var index = 0;
@@ -174,7 +139,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
         return sources;
     }
 
-    public virtual List<WiredPlayerSourceType[]> GetPlayerSources()
+    public List<WiredPlayerSourceType[]> GetPlayerSources()
     {
         var sources = new List<WiredPlayerSourceType[]>();
         var index = 0;
@@ -199,21 +164,13 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
         return sources;
     }
 
-    public virtual List<WiredFurniSourceType[]> GetAllowedFurniSources() => [];
-
-    public virtual List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [];
-
-    public virtual List<WiredFurniSourceType[]> GetDefaultFurniSources() =>
+    public List<WiredFurniSourceType[]> GetDefaultFurniSources() =>
         [.. GetAllowedFurniSources().Select(x => new[] { x[0] })];
 
-    public virtual List<WiredPlayerSourceType[]> GetDefaultPlayerSources() =>
+    public List<WiredPlayerSourceType[]> GetDefaultPlayerSources() =>
         [.. GetAllowedPlayerSources().Select(x => new[] { x[0] })];
 
-    public virtual List<Type> GetDefinitionSpecificTypes() => [];
-
-    public virtual List<Type> GetTypeSpecificTypes() => [];
-
-    public virtual List<object> GetDefinitionSpecifics()
+    public List<object> GetDefinitionSpecifics()
     {
         var specifics = new List<object>();
         var index = 0;
@@ -243,7 +200,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
         return specifics;
     }
 
-    public virtual List<object> GetTypeSpecifics()
+    public List<object> GetTypeSpecifics()
     {
         var specifics = new List<object>();
         var index = 0;
@@ -273,8 +230,6 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
         return specifics;
     }
 
-    public virtual List<WiredVariableContextSnapshot> GetWiredContextSnapshots() => [];
-
     public virtual async Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,
         UpdateWiredMessage update,
@@ -283,6 +238,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
     {
         try
         {
+            var intParams = new List<int>();
             var stringParam = update.StringParam;
             var stuffIds = new List<int>();
             var variableIds = new List<long>();
@@ -293,12 +249,10 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
 
             if (TryNormalizeIntParams(update.IntParams, out var normalizedIntParams))
             {
-                WiredData.IntParams = normalizedIntParams;
+                intParams = normalizedIntParams;
             }
             else
             {
-                Console.WriteLine("Failed to normalize int params");
-
                 return false;
             }
 
@@ -442,7 +396,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
 
             WiredData.MarkDirty();
 
-            await OnWiredChangedAsync(ctx, [], ct);
+            await OnWiredStackChangedAsync(ctx, [_ctx.GetTileIdx()], ct);
 
             return true;
         }
@@ -576,4 +530,59 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
             TypeSpecifics = GetTypeSpecifics(),
             ContextSnapshots = GetWiredContextSnapshots(),
         };
+
+    public override async Task OnAttachAsync(CancellationToken ct)
+    {
+        await base.OnAttachAsync(ct);
+
+        await OnWiredStackChangedAsync(null, [_ctx.GetTileIdx()], ct);
+    }
+
+    public override async Task OnDetachAsync(CancellationToken ct)
+    {
+        await base.OnDetachAsync(ct);
+
+        await OnWiredStackChangedAsync(null, [_ctx.GetTileIdx()], ct);
+    }
+
+    public override async Task OnMoveAsync(ActionContext ctx, int prevIdx, CancellationToken ct)
+    {
+        await base.OnMoveAsync(ctx, prevIdx, ct);
+
+        await OnWiredStackChangedAsync(ctx, [_ctx.GetTileIdx(), prevIdx], ct);
+    }
+
+    public override async Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
+    {
+        await base.OnPickupAsync(ctx, ct);
+
+        _ctx.Item.ExtraData.DeleteSection(ExtraDataSectionType.WIRED);
+
+        await OnWiredStackChangedAsync(ctx, [_ctx.GetTileIdx()], ct);
+    }
+
+    public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
+    {
+        _ = _grainFactory
+            .GetPlayerPresenceGrain(ctx.PlayerId)
+            .SendComposerAsync(new OpenEventMessageComposer { ItemId = _ctx.ObjectId })
+            .ConfigureAwait(false);
+
+        return Task.CompletedTask;
+    }
+
+    protected virtual Task OnWiredStackChangedAsync(
+        ActionContext? ctx,
+        List<int> ids,
+        CancellationToken ct
+    ) =>
+        _ctx.PublishRoomEventAsync(
+            new RoomWiredStackChangedEvent
+            {
+                RoomId = _ctx.RoomId,
+                CausedBy = ctx,
+                StackIds = ids,
+            },
+            ct
+        );
 }

@@ -43,7 +43,7 @@ public abstract class FurnitureLogicBase<TItem, TContext>
             if (_stuffPersistanceType == StuffPersistanceType.External)
             {
                 ctx.Item.ExtraData.UpdateSection(
-                    "stuff",
+                    ExtraDataSectionType.STUFF,
                     JsonSerializer.SerializeToNode(StuffData, StuffData.GetType())
                 );
 
@@ -97,6 +97,40 @@ public abstract class FurnitureLogicBase<TItem, TContext>
             ct
         );
 
+    public virtual Task OnMoveAsync(ActionContext ctx, int prevIdx, CancellationToken ct) =>
+        _ctx.PublishRoomEventAsync(
+            new RoomItemMovedEvent
+            {
+                RoomId = _ctx.RoomId,
+                CausedBy = ctx,
+                FurniId = _ctx.ObjectId,
+                PrevIdx = prevIdx,
+            },
+            ct
+        );
+
+    public virtual Task OnPlaceAsync(ActionContext ctx, CancellationToken ct) =>
+        _ctx.PublishRoomEventAsync(
+            new RoomItemPlacedEvent
+            {
+                RoomId = _ctx.RoomId,
+                CausedBy = ctx,
+                FurniId = _ctx.ObjectId,
+            },
+            ct
+        );
+
+    public virtual Task OnPickupAsync(ActionContext ctx, CancellationToken ct) =>
+        _ctx.PublishRoomEventAsync(
+            new RoomItemPickupEvent
+            {
+                RoomId = _ctx.RoomId,
+                CausedBy = ctx,
+                FurniId = _ctx.ObjectId,
+            },
+            ct
+        );
+
     public virtual async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
     {
         param = GetNextToggleableState();
@@ -111,18 +145,6 @@ public abstract class FurnitureLogicBase<TItem, TContext>
                 RoomId = _ctx.RoomId,
                 CausedBy = ctx,
                 FurniId = _ctx.ObjectId,
-            },
-            ct
-        );
-
-    public virtual Task OnMoveAsync(ActionContext ctx, int prevIdx, CancellationToken ct) =>
-        _ctx.PublishRoomEventAsync(
-            new RoomItemMovedEvent
-            {
-                RoomId = _ctx.RoomId,
-                CausedBy = ctx,
-                FurniId = _ctx.ObjectId,
-                PrevIdx = prevIdx,
             },
             ct
         );

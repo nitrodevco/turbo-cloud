@@ -47,6 +47,8 @@ public sealed partial class RoomFurniModule
         )
             return false;
 
+        await item.Logic.OnPlaceAsync(ctx, ct);
+
         item.MarkDirty();
 
         await _roomGrain.SendComposerToRoomAsync(item.GetAddComposer());
@@ -97,6 +99,7 @@ public sealed partial class RoomFurniModule
         await _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(pickerId));
 
         await item.Logic.OnDetachAsync(ct);
+        await item.Logic.OnPickupAsync(ctx, ct);
 
         item.SetOwnerId(pickerId);
         item.SetAction(null);

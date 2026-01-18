@@ -38,7 +38,7 @@ public sealed class WiredDataFactory : IWiredDataFactory
 
     public IWiredData CreateWiredDataFromExtraData(WiredType type, IExtraData extraData)
     {
-        if (extraData.TryGetSection("wired", out var wiredElement))
+        if (extraData.TryGetSection(ExtraDataSectionType.WIRED, out var wiredElement))
         {
             return type switch
             {

@@ -38,12 +38,12 @@ public class WiredAddonAnimationTime(
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
-        await base.FillInternalDataAsync(ct);
-
         try
         {
             _animationTimeMs = Math.Clamp(WiredData.IntParams[0], 50, 2000);
         }
         catch { }
+
+        await base.FillInternalDataAsync(ct);
     }
 }

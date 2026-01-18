@@ -58,8 +58,6 @@ public class WiredSelectorItemsInArea(
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
-        await base.FillInternalDataAsync(ct);
-
         _tileIds.Clear();
 
         var map = await _ctx.Room.GetMapSnapshotAsync(ct);
@@ -98,5 +96,7 @@ public class WiredSelectorItemsInArea(
             if (filled)
                 break;
         }
+
+        await base.FillInternalDataAsync(ct);
     }
 }

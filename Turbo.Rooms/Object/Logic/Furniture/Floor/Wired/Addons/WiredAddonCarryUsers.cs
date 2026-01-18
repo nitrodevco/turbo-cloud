@@ -33,12 +33,12 @@ public class WiredAddonCarryUsers(
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
-        await base.FillInternalDataAsync(ct);
-
         try
         {
             _carryUserType = (WiredCarryUserType)WiredData.IntParams[0];
         }
         catch { }
+
+        await base.FillInternalDataAsync(ct);
     }
 }

@@ -26,6 +26,13 @@ internal sealed class ExtraDataWriter
         return _root.ToJsonString(OPTIONS);
     }
 
+    public string DeleteSection(string name)
+    {
+        _root.Remove(name);
+
+        return _root.ToJsonString(OPTIONS);
+    }
+
     public string ToJsonString() => _root.ToJsonString(OPTIONS);
 
     private static readonly JsonSerializerOptions OPTIONS = new()

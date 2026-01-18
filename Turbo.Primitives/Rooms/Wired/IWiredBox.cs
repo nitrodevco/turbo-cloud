@@ -8,6 +8,7 @@ using Turbo.Primitives.Furniture.Snapshots.WiredData;
 using Turbo.Primitives.Furniture.WiredData;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 
 namespace Turbo.Primitives.Rooms.Wired;
 
@@ -20,17 +21,17 @@ public interface IWiredBox
     public Task LoadWiredAsync(CancellationToken ct);
     public Task FlashActivationStateAsync(CancellationToken ct);
     public List<int> GetValidStuffIds(List<int> stuffIds);
-
     public List<IWiredIntParamRule> GetIntParamRules();
     public IWiredIntParamRule? GetIntParamTailRule();
-    public List<WiredFurniSourceType[]> GetFurniSources();
-    public List<WiredPlayerSourceType[]> GetPlayerSources();
     public List<WiredFurniSourceType[]> GetAllowedFurniSources();
     public List<WiredPlayerSourceType[]> GetAllowedPlayerSources();
-    public List<WiredFurniSourceType[]> GetDefaultFurniSources();
-    public List<WiredPlayerSourceType[]> GetDefaultPlayerSources();
     public List<Type> GetDefinitionSpecificTypes();
     public List<Type> GetTypeSpecificTypes();
+    public List<WiredVariableContextSnapshot> GetWiredContextSnapshots();
+    public List<WiredFurniSourceType[]> GetFurniSources();
+    public List<WiredPlayerSourceType[]> GetPlayerSources();
+    public List<WiredFurniSourceType[]> GetDefaultFurniSources();
+    public List<WiredPlayerSourceType[]> GetDefaultPlayerSources();
     public List<object> GetDefinitionSpecifics();
     public List<object> GetTypeSpecifics();
     public Task<bool> ApplyWiredUpdateAsync(

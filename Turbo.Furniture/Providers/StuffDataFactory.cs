@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Text.Json;
 using Turbo.Furniture.StuffData;
 using Turbo.Primitives.Furniture;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
@@ -43,7 +44,7 @@ public sealed class StuffDataFactory : IStuffDataFactory
     {
         type = (StuffDataType)((int)type & StuffDataBase.TYPE_MASK);
 
-        if (extraData.TryGetSection("stuff", out var stuffElement))
+        if (extraData.TryGetSection(ExtraDataSectionType.STUFF, out var stuffElement))
         {
             return type switch
             {

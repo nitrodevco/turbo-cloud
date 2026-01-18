@@ -31,12 +31,12 @@ public class WiredSelectorItemsInNeighborhood(
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
-        await base.FillInternalDataAsync(ct);
-
         try
         {
             //_inputSourceType = (WiredInputSourceType)(WiredData.IntParams?[0] ?? 0);
         }
         catch { }
+
+        await base.FillInternalDataAsync(ct);
     }
 }

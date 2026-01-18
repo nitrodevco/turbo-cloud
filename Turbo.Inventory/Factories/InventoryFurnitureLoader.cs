@@ -11,6 +11,7 @@ using Turbo.Furniture;
 using Turbo.Inventory.Furniture;
 using Turbo.Logging;
 using Turbo.Primitives;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Inventory.Factories;
@@ -86,7 +87,7 @@ internal sealed class InventoryFurnitureLoader(
         // TODO we need to get the correct stuff data key
 
         var extraData = new ExtraData(entity.ExtraData);
-        var jsonData = extraData.TryGetSection("stuff", out var element)
+        var jsonData = extraData.TryGetSection(ExtraDataSectionType.STUFF, out var element)
             ? element.GetRawText()
             : "{}";
 

@@ -92,14 +92,14 @@ public class WiredActionMoveRotateFurni(
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
-        await base.FillInternalDataAsync(ct);
-
         try
         {
             _movementType = WiredData.IntParams[0];
             _rotationType = WiredData.IntParams[1];
         }
         catch { }
+
+        await base.FillInternalDataAsync(ct);
     }
 
     public Rotation GetMoveDirection(int movementType) =>
