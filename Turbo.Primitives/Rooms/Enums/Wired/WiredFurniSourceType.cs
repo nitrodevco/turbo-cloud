@@ -17,12 +17,12 @@ public static class WiredFurniSourceTypeExtensions
     {
         return source switch
         {
-            WiredFurniSourceType.TriggeredItem => WiredSourceType.TRIGGERED_ITEM,
-            WiredFurniSourceType.SelectedItems => WiredSourceType.SELECTED_ITEMS,
-            WiredFurniSourceType.SnapshotItems => WiredSourceType.SNAPSHOT_ITEMS,
-            WiredFurniSourceType.SelectorItems => WiredSourceType.SELECTOR_ITEMS,
-            WiredFurniSourceType.SignalItems => WiredSourceType.SIGNAL_ITEMS,
-            WiredFurniSourceType.AllRoomItems => WiredSourceType.ALL_ROOM_ITEMS,
+            WiredFurniSourceType.TriggeredItem => WiredSourceType.TriggeredItem,
+            WiredFurniSourceType.SelectedItems => WiredSourceType.SelectedItems,
+            WiredFurniSourceType.SnapshotItems => WiredSourceType.SnapshotItems,
+            WiredFurniSourceType.SelectorItems => WiredSourceType.SelectorItems,
+            WiredFurniSourceType.SignalItems => WiredSourceType.SignalItems,
+            WiredFurniSourceType.AllRoomItems => WiredSourceType.AllRoomItems,
             _ => WiredSourceType.__INTERNAL_SEPARATOR,
         };
     }
@@ -30,12 +30,12 @@ public static class WiredFurniSourceTypeExtensions
     public static WiredFurniSourceType FromProtocolId(WiredSourceType id) =>
         id switch
         {
-            WiredSourceType.TRIGGERED_ITEM => WiredFurniSourceType.TriggeredItem,
-            WiredSourceType.SELECTED_ITEMS => WiredFurniSourceType.SelectedItems,
-            WiredSourceType.SNAPSHOT_ITEMS => WiredFurniSourceType.SnapshotItems,
-            WiredSourceType.SELECTOR_ITEMS => WiredFurniSourceType.SelectorItems,
-            WiredSourceType.SIGNAL_ITEMS => WiredFurniSourceType.SignalItems,
-            WiredSourceType.ALL_ROOM_ITEMS => WiredFurniSourceType.AllRoomItems,
+            WiredSourceType.TriggeredItem => WiredFurniSourceType.TriggeredItem,
+            WiredSourceType.SelectedItems => WiredFurniSourceType.SelectedItems,
+            WiredSourceType.SnapshotItems => WiredFurniSourceType.SnapshotItems,
+            WiredSourceType.SelectorItems => WiredFurniSourceType.SelectorItems,
+            WiredSourceType.SignalItems => WiredFurniSourceType.SignalItems,
+            WiredSourceType.AllRoomItems => WiredFurniSourceType.AllRoomItems,
             _ => WiredFurniSourceType.None,
         };
 }

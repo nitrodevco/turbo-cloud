@@ -15,7 +15,6 @@ public sealed class FurnitureStateVariable(RoomGrain roomGrain)
         {
             VariableId = _variableId,
             VariableName = "@state",
-            StorageData = StorageData,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Furni,
             Flags =
@@ -32,7 +31,7 @@ public sealed class FurnitureStateVariable(RoomGrain roomGrain)
         if (!_roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem))
             return false;
 
-        value = floorItem?.Logic?.StuffData?.GetState() ?? 0;
+        value = floorItem.Logic.StuffData?.GetState() ?? 0;
 
         return true;
     }

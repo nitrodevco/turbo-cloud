@@ -17,7 +17,7 @@ public class WiredVariableRoom(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredVariableLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
-    public override int WiredCode => (int)WiredVariableType.GLOBAL_VARIABLE;
+    public override int WiredCode => (int)WiredVariableType.Global;
 
     public override List<IWiredIntParamRule> GetIntParamRules() =>
         [

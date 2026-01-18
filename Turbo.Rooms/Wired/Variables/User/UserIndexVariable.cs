@@ -13,7 +13,6 @@ public sealed class UserIndexVariable(RoomGrain roomGrain)
         {
             VariableId = _variableId,
             VariableName = "@index",
-            StorageData = StorageData,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.User,
             Flags = WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable,

@@ -1,6 +1,6 @@
 namespace Turbo.Primitives.Rooms.Enums.Wired;
 
-public enum EffectModeType
+public enum WiredEffectModeType
 {
     All = 0,
     Random = 1,

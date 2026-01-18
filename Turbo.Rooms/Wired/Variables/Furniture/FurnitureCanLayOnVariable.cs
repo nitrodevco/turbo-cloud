@@ -13,7 +13,6 @@ public sealed class FurnitureCanLayOnVariable(RoomGrain roomGrain)
         {
             VariableId = _variableId,
             VariableName = "@can_lay_on",
-            StorageData = StorageData,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Furni,
             Flags = WiredVariableFlags.None,

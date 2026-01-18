@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -17,7 +16,6 @@ public sealed class UserTypeVariable(RoomGrain roomGrain)
         {
             VariableId = _variableId,
             VariableName = "@type",
-            StorageData = StorageData,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.User,
             Flags =

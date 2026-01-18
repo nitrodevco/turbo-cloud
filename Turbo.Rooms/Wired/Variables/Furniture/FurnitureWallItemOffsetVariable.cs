@@ -15,12 +15,14 @@ public sealed class FurnitureWallItemOffsetVariable(RoomGrain roomGrain)
         {
             VariableId = _variableId,
             VariableName = "@wallitem_offset",
-            StorageData = StorageData,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Furni,
             Flags = WiredVariableFlags.HasValue | WiredVariableFlags.CanWriteValue,
             TextConnectors = [],
         };
+
+    public override bool CanBind(in IWiredVariableBinding binding) =>
+        base.CanBind(binding) && _roomGrain._state.WallItemsById.ContainsKey(binding.TargetId);
 
     public override bool TryGet(in IWiredVariableBinding binding, out int value)
     {

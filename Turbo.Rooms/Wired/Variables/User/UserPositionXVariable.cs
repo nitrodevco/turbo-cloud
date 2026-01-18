@@ -15,7 +15,6 @@ public sealed class UserPositionXVariable(RoomGrain roomGrain)
         {
             VariableId = _variableId,
             VariableName = "@position.x",
-            StorageData = StorageData,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.User,
             Flags =

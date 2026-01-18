@@ -21,7 +21,7 @@ public class WiredAddonCancelAnimationTime(
 
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
-        ctx.Policy.AnimationMode = AnimationModeType.Instant;
+        ctx.Policy.AnimationMode = WiredAnimationModeType.Instant;
 
         return Task.FromResult(true);
     }

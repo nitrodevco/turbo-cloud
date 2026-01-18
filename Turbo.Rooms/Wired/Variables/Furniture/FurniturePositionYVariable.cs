@@ -15,7 +15,6 @@ public sealed class FurniturePositionYVariable(RoomGrain roomGrain)
         {
             VariableId = _variableId,
             VariableName = "@position.y",
-            StorageData = StorageData,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Furni,
             Flags =

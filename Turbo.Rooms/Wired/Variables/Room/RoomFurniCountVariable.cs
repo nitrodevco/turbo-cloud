@@ -13,7 +13,6 @@ public sealed class RoomFurniCountVariable(RoomGrain roomGrain)
         {
             VariableId = _variableId,
             VariableName = "@furni_count",
-            StorageData = StorageData,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Global,
             Flags = WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable,

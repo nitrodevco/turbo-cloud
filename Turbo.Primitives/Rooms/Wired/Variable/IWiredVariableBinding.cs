@@ -4,6 +4,6 @@ namespace Turbo.Primitives.Rooms.Wired.Variable;
 
 public interface IWiredVariableBinding
 {
-    public WiredVariableTargetType Target { get; }
+    public WiredVariableTargetType TargetType { get; }
     public int TargetId { get; }
 }

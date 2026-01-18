@@ -18,7 +18,7 @@ public class WiredVariableFurni(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredVariableLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
-    public override int WiredCode => (int)WiredVariableType.FURNI_VARIABLE;
+    public override int WiredCode => (int)WiredVariableType.Furni;
 
     public override List<IWiredIntParamRule> GetIntParamRules() =>
         [
@@ -31,7 +31,6 @@ public class WiredVariableFurni(
         {
             VariableId = _variableId,
             VariableName = WiredData.StringParam,
-            StorageData = StorageData,
             AvailabilityType = (WiredAvailabilityType)WiredData.IntParams[1],
             TargetType = WiredVariableTargetType.Furni,
             Flags =

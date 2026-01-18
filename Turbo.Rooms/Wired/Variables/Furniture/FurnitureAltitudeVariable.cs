@@ -13,7 +13,6 @@ public sealed class FurnitureAltitudeVariable(RoomGrain roomGrain)
         {
             VariableId = _variableId,
             VariableName = "@altitude",
-            StorageData = StorageData,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Furni,
             Flags =

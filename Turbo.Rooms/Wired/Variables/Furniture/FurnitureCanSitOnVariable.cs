@@ -13,12 +13,16 @@ public sealed class FurnitureCanSitOnVariable(RoomGrain roomGrain)
         {
             VariableId = _variableId,
             VariableName = "@can_sit_on",
-            StorageData = StorageData,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Furni,
             Flags = WiredVariableFlags.None,
             TextConnectors = [],
         };
+
+    public override bool CanBind(in IWiredVariableBinding binding) =>
+        base.CanBind(binding)
+        && _roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem)
+        && floorItem.Logic.CanSit();
 
     public override bool TryGet(in IWiredVariableBinding binding, out int value)
     {

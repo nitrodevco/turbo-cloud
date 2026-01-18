@@ -1,6 +1,6 @@
 namespace Turbo.Primitives.Rooms.Enums.Wired;
 
-public enum ConditionModeType
+public enum WiredConditionModeType
 {
     None = 0,
     Any = 1,

@@ -41,7 +41,7 @@ public sealed class WiredExecutionContext : WiredContext, IWiredExecutionContext
                     TargetZ = floorItem.Z,
                     Rotation = rotation,
                     AnimationTime =
-                        Policy.AnimationMode == AnimationModeType.Instant
+                        Policy.AnimationMode == WiredAnimationModeType.Instant
                             ? 0
                             : Policy.AnimationTimeMs,
                 }

@@ -13,7 +13,6 @@ public sealed class FurnitureDimensionsXVariable(RoomGrain roomGrain)
         {
             VariableId = _variableId,
             VariableName = "@dimensions.x",
-            StorageData = StorageData,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Furni,
             Flags = WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable,

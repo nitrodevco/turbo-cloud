@@ -19,7 +19,7 @@ public abstract class WiredVariable(RoomGrain roomGrain) : IWiredVariable
     protected abstract WiredVariableDefinition BuildVariableDefinition();
 
     public virtual bool CanBind(in IWiredVariableBinding binding) =>
-        GetVarSnapshot().TargetType == binding.Target;
+        GetVarSnapshot().TargetType == binding.TargetType;
 
     public virtual bool TryGet(in IWiredVariableBinding binding, out int value)
     {
@@ -35,6 +35,13 @@ public abstract class WiredVariable(RoomGrain roomGrain) : IWiredVariable
     ) => Task.FromResult(false);
 
     public virtual bool RemoveValue(string key) => false;
+
+    public WiredVariableKey GetVariableKey()
+    {
+        var snapshot = GetVarSnapshot();
+
+        return new WiredVariableKey(snapshot.TargetType, snapshot.VariableName);
+    }
 
     public WiredVariableSnapshot GetVarSnapshot() =>
         _snapshot ??= BuildVariableDefinition().GetSnapshot();

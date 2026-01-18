@@ -13,12 +13,16 @@ public sealed class FurnitureIsStackableVariable(RoomGrain roomGrain)
         {
             VariableId = _variableId,
             VariableName = "@is_stackable",
-            StorageData = StorageData,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Furni,
             Flags = WiredVariableFlags.None,
             TextConnectors = [],
         };
+
+    public override bool CanBind(in IWiredVariableBinding binding) =>
+        base.CanBind(binding)
+        && _roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem)
+        && floorItem.Logic.CanStack();
 
     public override bool TryGet(in IWiredVariableBinding binding, out int value)
     {

@@ -16,5 +16,7 @@ public interface IWiredVariable
         int value
     );
     public bool RemoveValue(string key);
+
+    public WiredVariableKey GetVariableKey();
     public WiredVariableSnapshot GetVarSnapshot();
 }

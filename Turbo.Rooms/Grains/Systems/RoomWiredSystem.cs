@@ -426,8 +426,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
 
         return policy.EffectMode switch
         {
-            EffectModeType.FirstOnly => [actions[0]],
-            EffectModeType.Random => [actions[Random.Shared.Next(actions.Count)]],
+            WiredEffectModeType.FirstOnly => [actions[0]],
+            WiredEffectModeType.Random => [actions[Random.Shared.Next(actions.Count)]],
             _ => [.. actions],
         };
     }
@@ -442,9 +442,9 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
 
         return ctx.Policy.ConditionMode switch
         {
-            ConditionModeType.None => true,
-            ConditionModeType.Any => conditions.Exists(c => c.Evaluate(ctx)),
-            ConditionModeType.All => conditions.TrueForAll(c => c.Evaluate(ctx)),
+            WiredConditionModeType.None => true,
+            WiredConditionModeType.Any => conditions.Exists(c => c.Evaluate(ctx)),
+            WiredConditionModeType.All => conditions.TrueForAll(c => c.Evaluate(ctx)),
             _ => conditions.TrueForAll(c => c.Evaluate(ctx)),
         };
     }

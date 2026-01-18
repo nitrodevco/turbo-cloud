@@ -16,7 +16,6 @@ public sealed class FurnitureRotationVariable(RoomGrain roomGrain)
         {
             VariableId = _variableId,
             VariableName = "@rotation",
-            StorageData = StorageData,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Furni,
             Flags =

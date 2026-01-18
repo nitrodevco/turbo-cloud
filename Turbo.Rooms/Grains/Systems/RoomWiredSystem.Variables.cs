@@ -6,7 +6,6 @@ using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 using Turbo.Rooms.Wired;
-using Turbo.Rooms.Wired.Variables;
 
 namespace Turbo.Rooms.Grains.Systems;
 
@@ -25,7 +24,7 @@ public sealed partial class RoomWiredSystem
         out int value
     )
     {
-        var variableKey = new WiredVariableKey(binding.Target, key);
+        var variableKey = new WiredVariableKey(binding.TargetType, key);
 
         if (_variableByKey.TryGetValue(variableKey, out var variable))
             return variable.TryGet(binding, out value);
@@ -66,8 +65,10 @@ public sealed partial class RoomWiredSystem
 
         foreach (var variable in variables)
         {
-            var snapshot = variable.GetVarSnapshot();
-            var key = new WiredVariableKey(snapshot.TargetType, snapshot.VariableName);
+            var key = variable.GetVariableKey();
+
+            if (string.IsNullOrWhiteSpace(key.VariableName))
+                continue;
 
             _variableByKey[key] = variable;
         }
@@ -101,12 +102,10 @@ public sealed partial class RoomWiredSystem
 
         await variable.LoadWiredAsync(ct);
 
-        var snapshot = variable.GetVarSnapshot();
+        var key = variable.GetVariableKey();
 
-        if (string.IsNullOrWhiteSpace(snapshot.VariableName))
+        if (string.IsNullOrWhiteSpace(key.VariableName))
             return;
-
-        var key = new WiredVariableKey(snapshot.TargetType, snapshot.VariableName);
 
         _variableByKey[key] = variable;
         _variableKeyBoxId[boxId] = key;

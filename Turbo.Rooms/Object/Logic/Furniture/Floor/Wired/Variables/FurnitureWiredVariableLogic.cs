@@ -61,7 +61,6 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
         {
             VariableId = _variableId,
             VariableName = string.Empty,
-            StorageData = StorageData,
             AvailabilityType = WiredAvailabilityType.Temporary,
             TargetType = WiredVariableTargetType.None,
             Flags = WiredVariableFlags.None,
@@ -105,6 +104,13 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
         _varSnapshot = null;
 
         await base.FillInternalDataAsync(ct);
+    }
+
+    public WiredVariableKey GetVariableKey()
+    {
+        var snapshot = GetVarSnapshot();
+
+        return new WiredVariableKey(snapshot.TargetType, snapshot.VariableName);
     }
 
     public WiredVariableSnapshot GetVarSnapshot() =>

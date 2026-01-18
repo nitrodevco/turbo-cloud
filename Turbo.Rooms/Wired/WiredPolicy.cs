@@ -8,9 +8,9 @@ public sealed class WiredPolicy : IWiredPolicy
 {
     private int _animationTimeMs = 50;
 
-    public ConditionModeType ConditionMode { get; init; } = ConditionModeType.All;
-    public EffectModeType EffectMode { get; init; } = EffectModeType.All;
-    public AnimationModeType AnimationMode { get; set; } = AnimationModeType.Smooth;
+    public WiredConditionModeType ConditionMode { get; init; } = WiredConditionModeType.All;
+    public WiredEffectModeType EffectMode { get; init; } = WiredEffectModeType.All;
+    public WiredAnimationModeType AnimationMode { get; set; } = WiredAnimationModeType.Smooth;
     public int AnimationTimeMs { get; set; } = 50;
     public TimeSpan Delay { get; set; } = TimeSpan.Zero;
     public bool ShortCircuitOnFirstEffectSuccess { get; set; }

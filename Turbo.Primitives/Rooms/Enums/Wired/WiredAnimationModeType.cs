@@ -1,6 +1,6 @@
 namespace Turbo.Primitives.Rooms.Enums.Wired;
 
-public enum AnimationModeType
+public enum WiredAnimationModeType
 {
     Instant = 0,
     Smooth = 1,
