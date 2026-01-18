@@ -27,7 +27,7 @@ public class WiredVariableContext(
         {
             VariableId = _variableId,
             VariableName = WiredData.StringParam,
-            AvailabilityType = WiredAvailabilityType.None,
+            AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Context,
             Flags =
                 (

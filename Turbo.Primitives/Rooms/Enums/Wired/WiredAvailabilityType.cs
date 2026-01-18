@@ -2,9 +2,9 @@ namespace Turbo.Primitives.Rooms.Enums.Wired;
 
 public enum WiredAvailabilityType
 {
-    None = 0,
-    Temporary = 1,
+    UserActive = 0,
+    RoomActive = 1,
     Persistent = 10,
-    SharedPersistent = 11,
+    Shared = 11,
     Internal = 100,
 }

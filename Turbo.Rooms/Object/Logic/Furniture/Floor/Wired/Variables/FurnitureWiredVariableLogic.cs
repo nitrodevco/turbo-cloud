@@ -60,7 +60,7 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
         {
             VariableId = _variableId,
             VariableName = string.Empty,
-            AvailabilityType = WiredAvailabilityType.Temporary,
+            AvailabilityType = WiredAvailabilityType.RoomActive,
             TargetType = WiredVariableTargetType.None,
             Flags = WiredVariableFlags.None,
             TextConnectors = [],

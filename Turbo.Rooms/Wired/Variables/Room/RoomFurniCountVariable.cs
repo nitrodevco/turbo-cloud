@@ -2,9 +2,9 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains;
 
-namespace Turbo.Rooms.Wired.Variables.Global;
+namespace Turbo.Rooms.Wired.Variables.Room;
 
-public sealed class GlobalFurniCountVariable(RoomGrain roomGrain)
+public sealed class RoomFurniCountVariable(RoomGrain roomGrain)
     : WiredInternalVariable(roomGrain),
         IWiredInternalVariable
 {

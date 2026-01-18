@@ -386,6 +386,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
                 index++;
             }
 
+            WiredData.IntParams = intParams;
             WiredData.StringParam = stringParam;
             WiredData.StuffIds = stuffIds;
             WiredData.VariableIds = variableIds;

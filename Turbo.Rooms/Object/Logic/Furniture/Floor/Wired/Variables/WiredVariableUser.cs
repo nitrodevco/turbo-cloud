@@ -22,7 +22,12 @@ public class WiredVariableUser(
 
     public override List<IWiredIntParamRule> GetIntParamRules() =>
         [
-            new WiredIntEnumRule<WiredAvailabilityType>(WiredAvailabilityType.None),
+            new WiredIntEnumRule<WiredAvailabilityType>(
+                WiredAvailabilityType.UserActive,
+                WiredAvailabilityType.UserActive,
+                WiredAvailabilityType.Persistent,
+                WiredAvailabilityType.Shared
+            ),
             new WiredIntRangeRule(0, 1, 0),
         ];
 

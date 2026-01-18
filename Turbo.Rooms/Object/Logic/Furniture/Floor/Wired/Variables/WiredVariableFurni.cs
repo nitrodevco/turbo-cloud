@@ -23,7 +23,11 @@ public class WiredVariableFurni(
     public override List<IWiredIntParamRule> GetIntParamRules() =>
         [
             new WiredIntRangeRule(0, 1, 0),
-            new WiredIntEnumRule<WiredAvailabilityType>(WiredAvailabilityType.Temporary),
+            new WiredIntEnumRule<WiredAvailabilityType>(
+                WiredAvailabilityType.RoomActive,
+                WiredAvailabilityType.RoomActive,
+                WiredAvailabilityType.Persistent
+            ),
         ];
 
     protected override WiredVariableDefinition BuildVariableDefinition() =>
