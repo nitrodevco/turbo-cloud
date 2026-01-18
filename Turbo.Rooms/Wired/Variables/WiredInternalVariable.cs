@@ -1,5 +1,4 @@
 using System.Threading.Tasks;
-using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
@@ -7,12 +6,10 @@ using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired.Variables;
 
-public abstract class WiredVariable(RoomGrain roomGrain) : IWiredVariable
+public abstract class WiredInternalVariable(RoomGrain roomGrain) : IWiredVariable
 {
     protected readonly RoomGrain _roomGrain = roomGrain;
     protected readonly int _variableId = roomGrain._state.NextVariableId++;
-
-    public required IStorageData StorageData { get; set; }
 
     protected WiredVariableSnapshot? _snapshot;
 

@@ -22,9 +22,8 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
 {
     public override WiredType WiredType => WiredType.Variable;
 
-    public IStorageData StorageData { get; private set; }
-
     protected readonly int _variableId;
+    protected IStorageData _storageData;
     protected WiredVariableSnapshot? _varSnapshot;
 
     public FurnitureWiredVariableLogic(
@@ -39,18 +38,18 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
 
         if (ctx.Item.ExtraData.TryGetSection("storage", out var storageElement))
         {
-            StorageData = storageElement.Deserialize<StorageData>()!;
+            _storageData = storageElement.Deserialize<StorageData>()!;
         }
         else
         {
-            StorageData = new StorageData();
+            _storageData = new StorageData();
         }
 
-        StorageData.SetAction(() =>
+        _storageData.SetAction(() =>
         {
             _ctx.Item.ExtraData.UpdateSection(
                 "storage",
-                JsonSerializer.SerializeToNode(StorageData, StorageData.GetType())
+                JsonSerializer.SerializeToNode(_storageData, _storageData.GetType())
             );
             return Task.CompletedTask;
         });

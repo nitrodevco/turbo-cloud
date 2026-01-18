@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;

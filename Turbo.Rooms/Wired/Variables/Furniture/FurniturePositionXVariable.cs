@@ -7,7 +7,7 @@ using Turbo.Rooms.Grains;
 namespace Turbo.Rooms.Wired.Variables.Furniture;
 
 public sealed class FurniturePositionXVariable(RoomGrain roomGrain)
-    : WiredVariable(roomGrain),
+    : WiredInternalVariable(roomGrain),
         IWiredInternalVariable
 {
     protected override WiredVariableDefinition BuildVariableDefinition() =>

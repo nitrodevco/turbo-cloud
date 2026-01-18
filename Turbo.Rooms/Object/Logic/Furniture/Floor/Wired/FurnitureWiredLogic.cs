@@ -516,7 +516,12 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
         return true;
     }
 
-    protected virtual Task FillInternalDataAsync(CancellationToken ct) => Task.CompletedTask;
+    protected virtual Task FillInternalDataAsync(CancellationToken ct)
+    {
+        _snapshot = null;
+
+        return Task.CompletedTask;
+    }
 
     protected virtual void FillIntParamsIfEmpty()
     {
@@ -541,12 +546,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
         WiredData.MarkDirty();
     }
 
-    public WiredDataSnapshot GetSnapshot()
-    {
-        _snapshot = BuildSnapshot();
-
-        return _snapshot;
-    }
+    public WiredDataSnapshot GetSnapshot() => _snapshot ??= BuildSnapshot();
 
     protected virtual WiredDataSnapshot BuildSnapshot() =>
         new()

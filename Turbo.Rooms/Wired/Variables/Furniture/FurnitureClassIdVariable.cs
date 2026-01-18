@@ -5,7 +5,7 @@ using Turbo.Rooms.Grains;
 namespace Turbo.Rooms.Wired.Variables.Furniture;
 
 public sealed class FurnitureClassIdVariable(RoomGrain roomGrain)
-    : WiredVariable(roomGrain),
+    : WiredInternalVariable(roomGrain),
         IWiredInternalVariable
 {
     protected override WiredVariableDefinition BuildVariableDefinition() =>
