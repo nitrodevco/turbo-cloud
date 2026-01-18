@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -8,6 +9,7 @@ using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents.Wiredmenu;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
+using Turbo.Primitives.Rooms.Wired.Variable;
 
 namespace Turbo.PacketHandlers.Userdefinedroomevents.Wiredmenu;
 
@@ -30,34 +32,35 @@ public class WiredGetAllVariablesDiffsMessageHandler(IGrainFactory grainFactory)
             .GetWiredVariablesSnapshotAsync(ct)
             .ConfigureAwait(false);
 
-        var removedVariables = new List<long>();
-        var checkedVariables = new List<long>();
-        var variableDiffs = new List<WiredVariableSnapshot>();
+        var removedIds = new List<WiredVariableId>();
+        var checkedIds = new List<WiredVariableId>();
+        var diffs = new List<WiredVariableSnapshot>();
 
-        if (message.VariableHashes.Count > 0)
+        if (message.VariableIdsWithHash.Count > 0)
         {
-            foreach (var (id, hash) in message.VariableHashes)
+            foreach (var (id, hash) in message.VariableIdsWithHash)
             {
-                checkedVariables.Add(id);
+                checkedIds.Add(id);
 
                 try
                 {
-                    var existing = variables.Variables.First(x => x.VariableId.ToInt64() == id);
-                    variableDiffs.Add(existing);
+                    var existing = variables.Variables.First(x => x.VariableId == id);
+
+                    diffs.Add(existing);
                 }
                 catch
                 {
-                    removedVariables.Add(id);
+                    removedIds.Add(id);
                 }
             }
         }
 
         foreach (var variable in variables.Variables)
         {
-            if (checkedVariables.Contains((long)variable.VariableId))
+            if (checkedIds.Contains(variable.VariableId))
                 continue;
 
-            variableDiffs.Add(variable);
+            diffs.Add(variable);
         }
 
         _ = ctx.SendComposerAsync(
@@ -65,8 +68,8 @@ public class WiredGetAllVariablesDiffsMessageHandler(IGrainFactory grainFactory)
                 {
                     AllVariablesHash = variables.AllVariablesHash,
                     IsLastChunk = true,
-                    RemovedVariables = removedVariables,
-                    AddedOrUpdated = variableDiffs,
+                    RemovedVariableIds = removedIds,
+                    AddedOrUpdated = diffs,
                 },
                 ct
             )

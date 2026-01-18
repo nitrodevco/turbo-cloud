@@ -54,7 +54,7 @@ public class WiredActionGiveVariable(
             new WiredVariableAllInRoomSnapshot()
             {
                 ContextType = WiredContextType.AllVariablesInRoom,
-                VariableHash = _roomGrain._state.AllVariablesHash,
+                AllVariablesHash = _roomGrain._state.AllVariablesHash,
             },
         ];
 

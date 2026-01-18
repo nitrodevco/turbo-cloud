@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms.Wired.Variable;
 
 namespace Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 
@@ -7,5 +8,5 @@ namespace Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 public sealed record WiredAllVariablesHashEventMessageComposer : IComposer
 {
     [Id(0)]
-    public required long AllVariablesHash { get; init; }
+    public required WiredVariableHash AllVariablesHash { get; init; }
 }

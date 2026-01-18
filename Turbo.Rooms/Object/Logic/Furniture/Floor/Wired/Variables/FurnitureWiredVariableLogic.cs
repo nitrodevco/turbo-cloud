@@ -87,8 +87,11 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
         ActionContext? ctx,
         List<int> ids,
         CancellationToken ct
-    ) =>
-        _ctx.PublishRoomEventAsync(
+    )
+    {
+        _varSnapshot = null;
+
+        _ = _ctx.PublishRoomEventAsync(
             new WiredVariableBoxChangedEvent
             {
                 RoomId = _ctx.RoomId,
@@ -98,10 +101,11 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
             ct
         );
 
+        return Task.CompletedTask;
+    }
+
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
-        _varSnapshot = null;
-
         await base.FillInternalDataAsync(ct);
     }
 

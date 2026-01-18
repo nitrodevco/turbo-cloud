@@ -9,7 +9,6 @@ namespace Turbo.Rooms.Wired.Variables;
 public abstract class WiredInternalVariable(RoomGrain roomGrain) : IWiredVariable
 {
     protected readonly RoomGrain _roomGrain = roomGrain;
-    protected readonly int _variableId = roomGrain._state.NextVariableId++;
 
     protected WiredVariableSnapshot? _snapshot;
 

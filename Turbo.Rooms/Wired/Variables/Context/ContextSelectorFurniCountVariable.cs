@@ -16,7 +16,7 @@ public sealed class ContextSelectorFurniCountVariable(RoomGrain roomGrain)
                 "@selector_furni_count"
             ),
             VariableName = "@selector_furni_count",
-            AvailabilityType = WiredAvailabilityType.Internal,
+            AvailabilityType = WiredAvailabilityType.None,
             TargetType = WiredVariableTargetType.Context,
             Flags = WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable,
             TextConnectors = [],

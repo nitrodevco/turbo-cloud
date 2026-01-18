@@ -22,7 +22,7 @@ public class WiredVariableUser(
 
     public override List<IWiredIntParamRule> GetIntParamRules() =>
         [
-            new WiredIntEnumRule<WiredAvailabilityType>(WiredAvailabilityType.Temporary),
+            new WiredIntEnumRule<WiredAvailabilityType>(WiredAvailabilityType.None),
             new WiredIntRangeRule(0, 1, 0),
         ];
 
@@ -36,9 +36,12 @@ public class WiredVariableUser(
             Flags =
                 (
                     WiredData.IntParams[1] == 1
-                        ? WiredVariableFlags.HasValue
+                        ? WiredVariableFlags.HasValue | WiredVariableFlags.CanWriteValue
                         : WiredVariableFlags.None
-                ) | WiredVariableFlags.CanWriteValue,
+                )
+                | WiredVariableFlags.CanCreateAndDelete
+                | WiredVariableFlags.CanInterceptChanges
+                | WiredVariableFlags.CanReadCreationTime,
             TextConnectors = [],
         };
 }

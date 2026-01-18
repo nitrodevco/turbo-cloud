@@ -10,22 +10,25 @@ namespace Turbo.Rooms.Wired.Variables;
 
 public static class WiredVariableHashBuilder
 {
-    public static long HashFromValues(string variableName, WiredVariableTargetType targetType)
+    public static WiredVariableHash HashFromValues(
+        string variableName,
+        WiredVariableTargetType targetType
+    )
     {
-        var hasher = new XxHash64();
+        var hasher = new XxHash32();
 
         WriteString(ref hasher, variableName);
         WriteInt32(ref hasher, (int)targetType);
 
-        Span<byte> hashBytes = stackalloc byte[8];
+        Span<byte> hashBytes = stackalloc byte[4];
         hasher.GetHashAndReset(hashBytes);
 
-        return BinaryPrimitives.ReadInt64LittleEndian(hashBytes);
+        return new WiredVariableHash(BinaryPrimitives.ReadInt32LittleEndian(hashBytes));
     }
 
-    public static long HashVariableDefinition(IWiredVariableDefinition varDef)
+    public static WiredVariableHash HashVariableDefinition(IWiredVariableDefinition varDef)
     {
-        var hasher = new XxHash64();
+        var hasher = new XxHash32();
 
         WriteString(ref hasher, varDef.VariableName);
         WriteInt32(ref hasher, (int)varDef.AvailabilityType);
@@ -36,51 +39,43 @@ public static class WiredVariableHashBuilder
         foreach (var s in varDef.TextConnectors.Values)
             WriteString(ref hasher, s);
 
-        Span<byte> hashBytes = stackalloc byte[8];
+        Span<byte> hashBytes = stackalloc byte[4];
         hasher.GetHashAndReset(hashBytes);
 
-        return BinaryPrimitives.ReadInt64LittleEndian(hashBytes);
+        return new WiredVariableHash(BinaryPrimitives.ReadInt32LittleEndian(hashBytes));
     }
 
-    public static long HashFromHashes(IReadOnlyList<long> hashes)
+    public static WiredVariableHash HashFromHashes(IReadOnlyList<WiredVariableHash> hashes)
     {
-        var hasher = new XxHash64();
+        var hasher = new XxHash32();
 
         WriteInt32(ref hasher, hashes.Count);
 
         for (int i = 0; i < hashes.Count; i++)
-            WriteInt64(ref hasher, hashes[i]);
+            WriteInt32(ref hasher, hashes[i].Value);
 
-        Span<byte> out8 = stackalloc byte[8];
-        hasher.GetHashAndReset(out8);
+        Span<byte> hashBytes = stackalloc byte[4];
+        hasher.GetHashAndReset(hashBytes);
 
-        return BinaryPrimitives.ReadInt64LittleEndian(out8);
+        return new WiredVariableHash(BinaryPrimitives.ReadInt32LittleEndian(hashBytes));
     }
 
-    private static void WriteInt32(ref XxHash64 hasher, int value)
+    private static void WriteInt32(ref XxHash32 hasher, int value)
     {
         Span<byte> buf = stackalloc byte[4];
         BinaryPrimitives.WriteInt32BigEndian(buf, value);
-
         hasher.Append(buf);
     }
 
-    private static void WriteInt64(ref XxHash64 hasher, long value)
+    private static void WriteString(ref XxHash32 hasher, string value)
     {
-        Span<byte> b = stackalloc byte[8];
-        BinaryPrimitives.WriteInt64BigEndian(b, value);
-        hasher.Append(b);
-    }
-
-    private static void WriteString(ref XxHash64 hasher, string value)
-    {
-        var byteCount = Encoding.UTF8.GetByteCount(value);
+        int byteCount = Encoding.UTF8.GetByteCount(value);
 
         WriteInt32(ref hasher, byteCount);
 
         Span<byte> tmp = byteCount <= 256 ? stackalloc byte[byteCount] : new byte[byteCount];
-        Encoding.UTF8.GetBytes(value.AsSpan(), tmp);
 
+        Encoding.UTF8.GetBytes(value.AsSpan(), tmp);
         hasher.Append(tmp);
     }
 }

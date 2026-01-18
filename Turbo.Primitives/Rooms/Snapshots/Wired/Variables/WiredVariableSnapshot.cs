@@ -15,7 +15,7 @@ public record WiredVariableSnapshot
     public required string VariableName { get; init; }
 
     [Id(2)]
-    public required long VariableHash { get; init; }
+    public required WiredVariableHash VariableHash { get; init; }
 
     [Id(3)]
     public required WiredAvailabilityType AvailabilityType { get; init; }

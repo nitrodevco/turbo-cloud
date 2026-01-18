@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms.Wired.Variable;
 
 namespace Turbo.Primitives.Messages.Incoming.Userdefinedroomevents.Wiredmenu;
 
@@ -8,5 +9,8 @@ namespace Turbo.Primitives.Messages.Incoming.Userdefinedroomevents.Wiredmenu;
 public record WiredGetAllVariablesDiffsMessage : IMessageEvent
 {
     [Id(0)]
-    public required List<(long Id, int Hash)> VariableHashes { get; init; } = [];
+    public required List<(
+        WiredVariableId Id,
+        WiredVariableHash Hash
+    )> VariableIdsWithHash { get; init; } = [];
 }

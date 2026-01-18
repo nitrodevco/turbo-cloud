@@ -123,7 +123,7 @@ public sealed partial class RoomWiredSystem
 
     private WiredVariablesSnapshot BuildVariablesSnapshot()
     {
-        var hashes = new List<long>();
+        var hashes = new List<WiredVariableHash>();
         var snapshots = new List<WiredVariableSnapshot>(_variableByKey.Count);
 
         foreach (var variable in _variableByKey.Values)

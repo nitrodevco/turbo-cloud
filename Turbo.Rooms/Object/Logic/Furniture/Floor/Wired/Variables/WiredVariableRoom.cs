@@ -6,6 +6,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired.IntParams;
+using Turbo.Rooms.Wired.Variables;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 
@@ -20,8 +21,21 @@ public class WiredVariableRoom(
     public override int WiredCode => (int)WiredVariableType.Global;
 
     public override List<IWiredIntParamRule> GetIntParamRules() =>
-        [
-            new WiredIntRangeRule(0, 7, 0), // Movement Type
-            new WiredIntRangeRule(0, 3, 0), // Rotation Type
-        ];
+        [new WiredIntEnumRule<WiredAvailabilityType>(WiredAvailabilityType.Temporary)];
+
+    protected override WiredVariableDefinition BuildVariableDefinition() =>
+        new()
+        {
+            VariableId = _variableId,
+            VariableName = WiredData.StringParam,
+            AvailabilityType = (WiredAvailabilityType)WiredData.IntParams[0],
+            TargetType = WiredVariableTargetType.Global,
+            Flags =
+                WiredVariableFlags.HasValue
+                | WiredVariableFlags.CanWriteValue
+                | WiredVariableFlags.CanInterceptChanges
+                | WiredVariableFlags.AlwaysAvailable
+                | WiredVariableFlags.CanReadLastUpdateTime,
+            TextConnectors = [],
+        };
 }

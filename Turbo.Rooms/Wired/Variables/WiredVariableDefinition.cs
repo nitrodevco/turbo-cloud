@@ -7,7 +7,7 @@ namespace Turbo.Rooms.Wired.Variables;
 
 public readonly record struct WiredVariableDefinition : IWiredVariableDefinition
 {
-    public WiredVariableId VariableId { get; init; }
+    public required WiredVariableId VariableId { get; init; }
     public required string VariableName { get; init; }
     public required WiredAvailabilityType AvailabilityType { get; init; }
     public required WiredVariableTargetType TargetType { get; init; }

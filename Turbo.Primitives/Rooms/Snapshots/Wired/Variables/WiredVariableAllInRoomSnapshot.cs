@@ -1,4 +1,5 @@
 using Orleans;
+using Turbo.Primitives.Rooms.Wired.Variable;
 
 namespace Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 
@@ -6,5 +7,5 @@ namespace Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 public record WiredVariableAllInRoomSnapshot : WiredVariableContextSnapshot
 {
     [Id(1)]
-    public required long VariableHash { get; init; }
+    public required WiredVariableHash AllVariablesHash { get; init; }
 }
