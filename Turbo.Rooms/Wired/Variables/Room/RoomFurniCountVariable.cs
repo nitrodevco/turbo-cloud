@@ -11,7 +11,10 @@ public sealed class RoomFurniCountVariable(RoomGrain roomGrain)
     protected override WiredVariableDefinition BuildVariableDefinition() =>
         new()
         {
-            VariableId = _variableId,
+            VariableId = WiredVariableIdBuilder.CreateInternal(
+                WiredVariableTargetType.Global,
+                "@furni_count"
+            ),
             VariableName = "@furni_count",
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Global,

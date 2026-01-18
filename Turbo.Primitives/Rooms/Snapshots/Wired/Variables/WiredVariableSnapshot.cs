@@ -1,14 +1,15 @@
 using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Wired.Variable;
 
-namespace Turbo.Primitives.Rooms.Snapshots.Wired;
+namespace Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 
 [GenerateSerializer, Immutable]
 public record WiredVariableSnapshot
 {
     [Id(0)]
-    public required long VariableId { get; init; }
+    public required WiredVariableId VariableId { get; init; }
 
     [Id(1)]
     public required string VariableName { get; init; }

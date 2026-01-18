@@ -11,7 +11,10 @@ public sealed class UserIndexVariable(RoomGrain roomGrain)
     protected override WiredVariableDefinition BuildVariableDefinition() =>
         new()
         {
-            VariableId = _variableId,
+            VariableId = WiredVariableIdBuilder.CreateInternal(
+                WiredVariableTargetType.User,
+                "@index"
+            ),
             VariableName = "@index",
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.User,

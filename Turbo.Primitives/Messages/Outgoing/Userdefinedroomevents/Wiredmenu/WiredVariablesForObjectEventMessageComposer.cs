@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Wired.Variable;
 
 namespace Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 
@@ -15,5 +16,5 @@ public sealed record WiredVariablesForObjectEventMessageComposer : IComposer
     public required int TargetId { get; init; }
 
     [Id(2)]
-    public required List<(long id, int value)> VariableValues { get; init; }
+    public required List<(WiredVariableId id, int value)> VariableValues { get; init; }
 }

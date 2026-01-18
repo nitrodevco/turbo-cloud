@@ -16,6 +16,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
@@ -271,6 +272,8 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
 
         return specifics;
     }
+
+    public virtual List<WiredVariableContextSnapshot> GetWiredContextSnapshots() => [];
 
     public virtual async Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,
@@ -571,6 +574,6 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
             DefaultPlayerSources = GetDefaultPlayerSources(),
             DefinitionSpecifics = GetDefinitionSpecifics(),
             TypeSpecifics = GetTypeSpecifics(),
-            AllVariablesHash = _roomGrain._state.AllVariablesHash,
+            ContextSnapshots = GetWiredContextSnapshots(),
         };
 }

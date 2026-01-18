@@ -30,7 +30,7 @@ public record UpdateWiredMessage : IMessageEvent
     public required List<WiredPlayerSourceType[]> PlayerSources { get; init; }
 
     [Id(7)]
-    public required List<int> VariableIds { get; init; }
+    public required List<long> VariableIds { get; init; }
 
     [Id(8)]
     public required List<object> TypeSpecifics { get; init; }

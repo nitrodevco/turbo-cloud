@@ -11,7 +11,10 @@ public sealed class FurnitureIsInvisible(RoomGrain roomGrain)
     protected override WiredVariableDefinition BuildVariableDefinition() =>
         new()
         {
-            VariableId = _variableId,
+            VariableId = WiredVariableIdBuilder.CreateInternal(
+                WiredVariableTargetType.Furni,
+                "@is_invisible"
+            ),
             VariableName = "@is_invisible",
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Furni,

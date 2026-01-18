@@ -2,10 +2,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Rooms.Snapshots.Wired;
+using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 using Turbo.Rooms.Wired;
+using Turbo.Rooms.Wired.Variables;
 
 namespace Turbo.Rooms.Grains.Systems;
 
@@ -37,12 +38,12 @@ public sealed partial class RoomWiredSystem
     public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct) =>
         Task.FromResult(_variablesSnapshot ??= BuildVariablesSnapshot());
 
-    public Task<List<(long id, int value)>> GetAllVariablesForBindingAsync(
+    public Task<List<(WiredVariableId id, int value)>> GetAllVariablesForBindingAsync(
         IWiredVariableBinding binding,
         CancellationToken ct
     )
     {
-        var variableValues = new List<(long id, int value)>();
+        var variableValues = new List<(WiredVariableId id, int value)>();
 
         foreach (var variable in _variableByKey.Values)
         {

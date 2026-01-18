@@ -11,7 +11,10 @@ public sealed class FurnitureCanLayOnVariable(RoomGrain roomGrain)
     protected override WiredVariableDefinition BuildVariableDefinition() =>
         new()
         {
-            VariableId = _variableId,
+            VariableId = WiredVariableIdBuilder.CreateInternal(
+                WiredVariableTargetType.Furni,
+                "@can_lay_on"
+            ),
             VariableName = "@can_lay_on",
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Furni,

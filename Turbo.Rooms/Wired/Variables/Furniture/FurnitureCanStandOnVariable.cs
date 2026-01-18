@@ -11,7 +11,10 @@ public sealed class FurnitureCanStandOnVariable(RoomGrain roomGrain)
     protected override WiredVariableDefinition BuildVariableDefinition() =>
         new()
         {
-            VariableId = _variableId,
+            VariableId = WiredVariableIdBuilder.CreateInternal(
+                WiredVariableTargetType.Furni,
+                "@can_stand_on"
+            ),
             VariableName = "@can_stand_on",
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Furni,

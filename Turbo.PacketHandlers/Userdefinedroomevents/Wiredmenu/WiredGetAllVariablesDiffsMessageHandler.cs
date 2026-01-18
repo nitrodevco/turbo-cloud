@@ -7,7 +7,7 @@ using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents.Wiredmenu;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Rooms.Snapshots.Wired;
+using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 
 namespace Turbo.PacketHandlers.Userdefinedroomevents.Wiredmenu;
 
@@ -42,8 +42,7 @@ public class WiredGetAllVariablesDiffsMessageHandler(IGrainFactory grainFactory)
 
                 try
                 {
-                    var existing = variables.Variables.First(x => x.VariableId == id);
-
+                    var existing = variables.Variables.First(x => x.VariableId.ToInt64() == id);
                     variableDiffs.Add(existing);
                 }
                 catch
@@ -55,7 +54,7 @@ public class WiredGetAllVariablesDiffsMessageHandler(IGrainFactory grainFactory)
 
         foreach (var variable in variables.Variables)
         {
-            if (checkedVariables.Contains(variable.VariableId))
+            if (checkedVariables.Contains((long)variable.VariableId))
                 continue;
 
             variableDiffs.Add(variable);

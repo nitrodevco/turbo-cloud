@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Orleans;
 
-namespace Turbo.Primitives.Rooms.Snapshots.Wired;
+namespace Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 
 [GenerateSerializer, Immutable]
 public sealed record WiredVariablesSnapshot

@@ -11,7 +11,10 @@ public sealed class FurnitureDimensionsYVariable(RoomGrain roomGrain)
     protected override WiredVariableDefinition BuildVariableDefinition() =>
         new()
         {
-            VariableId = _variableId,
+            VariableId = WiredVariableIdBuilder.CreateInternal(
+                WiredVariableTargetType.Furni,
+                "@dimensions.y"
+            ),
             VariableName = "@dimensions.y",
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Furni,

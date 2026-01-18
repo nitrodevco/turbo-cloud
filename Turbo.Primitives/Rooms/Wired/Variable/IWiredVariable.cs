@@ -1,5 +1,5 @@
 using System.Threading.Tasks;
-using Turbo.Primitives.Rooms.Snapshots.Wired;
+using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 
 namespace Turbo.Primitives.Rooms.Wired.Variable;
 

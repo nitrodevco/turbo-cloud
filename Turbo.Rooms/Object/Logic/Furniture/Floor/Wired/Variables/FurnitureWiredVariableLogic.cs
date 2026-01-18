@@ -11,7 +11,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Snapshots.Wired;
+using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Wired.Variables;
@@ -22,7 +22,7 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
 {
     public override WiredType WiredType => WiredType.Variable;
 
-    protected readonly int _variableId;
+    protected readonly WiredVariableId _variableId;
     protected IStorageData _storageData;
     protected WiredVariableSnapshot? _varSnapshot;
 
@@ -34,7 +34,7 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
     )
         : base(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
     {
-        _variableId = _roomGrain._state.NextVariableId++;
+        _variableId = WiredVariableIdBuilder.CreateDatabase(ctx.ObjectId.Value);
 
         if (ctx.Item.ExtraData.TryGetSection("storage", out var storageElement))
         {

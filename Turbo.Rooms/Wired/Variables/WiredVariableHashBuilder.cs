@@ -3,12 +3,26 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO.Hashing;
 using System.Text;
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 
-namespace Turbo.Rooms.Wired;
+namespace Turbo.Rooms.Wired.Variables;
 
 public static class WiredVariableHashBuilder
 {
+    public static long HashFromValues(string variableName, WiredVariableTargetType targetType)
+    {
+        var hasher = new XxHash64();
+
+        WriteString(ref hasher, variableName);
+        WriteInt32(ref hasher, (int)targetType);
+
+        Span<byte> hashBytes = stackalloc byte[8];
+        hasher.GetHashAndReset(hashBytes);
+
+        return BinaryPrimitives.ReadInt64LittleEndian(hashBytes);
+    }
+
     public static long HashVariableDefinition(IWiredVariableDefinition varDef)
     {
         var hasher = new XxHash64();

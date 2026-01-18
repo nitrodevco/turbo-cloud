@@ -24,6 +24,7 @@ public static class WiredPlayerSourceTypeExtensions
             WiredPlayerSourceType.ClickedUser => WiredSourceType.ClickedUser,
             WiredPlayerSourceType.BotByName => WiredSourceType.BotByName,
             WiredPlayerSourceType.UserByName => WiredSourceType.UserByName,
+            WiredPlayerSourceType.SelectorUsers => WiredSourceType.SelectorUsers,
             WiredPlayerSourceType.SignalUsers => WiredSourceType.SignalUsers,
             WiredPlayerSourceType.AllRoomUsers => WiredSourceType.AllRoomUsers,
             _ => WiredSourceType.__INTERNAL_SEPARATOR,

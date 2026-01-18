@@ -1,13 +1,13 @@
 using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Snapshots.Wired;
+using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired.Variable;
 
 namespace Turbo.Rooms.Wired.Variables;
 
 public readonly record struct WiredVariableDefinition : IWiredVariableDefinition
 {
-    public required int VariableId { get; init; }
+    public WiredVariableId VariableId { get; init; }
     public required string VariableName { get; init; }
     public required WiredAvailabilityType AvailabilityType { get; init; }
     public required WiredVariableTargetType TargetType { get; init; }

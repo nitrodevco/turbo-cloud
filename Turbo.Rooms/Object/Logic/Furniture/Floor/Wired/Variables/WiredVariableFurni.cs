@@ -36,9 +36,12 @@ public class WiredVariableFurni(
             Flags =
                 (
                     WiredData.IntParams[0] == 1
-                        ? WiredVariableFlags.HasValue
+                        ? WiredVariableFlags.HasValue | WiredVariableFlags.CanWriteValue
                         : WiredVariableFlags.None
-                ) | WiredVariableFlags.CanWriteValue,
+                )
+                | WiredVariableFlags.CanCreateAndDelete
+                | WiredVariableFlags.CanInterceptChanges
+                | WiredVariableFlags.CanReadCreationTime,
             TextConnectors = [],
         };
 }

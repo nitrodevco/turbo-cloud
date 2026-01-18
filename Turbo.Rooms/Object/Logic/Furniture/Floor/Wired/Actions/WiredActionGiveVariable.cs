@@ -6,6 +6,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
+using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired.IntParams;
 
@@ -42,10 +43,19 @@ public class WiredActionGiveVariable(
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
         [
             [
+                WiredPlayerSourceType.TriggeredUser,
                 WiredPlayerSourceType.SelectorUsers,
                 WiredPlayerSourceType.SignalUsers,
-                WiredPlayerSourceType.TriggeredUser,
             ],
+        ];
+
+    public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
+        [
+            new WiredVariableAllInRoomSnapshot()
+            {
+                ContextType = WiredContextType.AllVariablesInRoom,
+                VariableHash = _roomGrain._state.AllVariablesHash,
+            },
         ];
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
