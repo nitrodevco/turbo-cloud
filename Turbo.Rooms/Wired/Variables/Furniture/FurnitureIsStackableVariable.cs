@@ -11,9 +11,11 @@ public sealed class FurnitureIsStackableVariable(RoomGrain roomGrain)
     protected override WiredVariableDefinition BuildVariableDefinition() =>
         new()
         {
-            VariableId = WiredVariableIdBuilder.CreateInternal(
+            VariableId = WiredVariableIdBuilder.CreateInternalOrdered(
                 WiredVariableTargetType.Furni,
-                "@is_stackable"
+                "@is_stackable",
+                WiredVariableIdBuilder.WiredVarSubBand.Meta,
+                60
             ),
             VariableName = "@is_stackable",
             AvailabilityType = WiredAvailabilityType.Internal,
@@ -22,12 +24,12 @@ public sealed class FurnitureIsStackableVariable(RoomGrain roomGrain)
             TextConnectors = [],
         };
 
-    public override bool CanBind(in IWiredVariableBinding binding) =>
+    public override bool CanBind(in WiredVariableBinding binding) =>
         base.CanBind(binding)
         && _roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem)
         && floorItem.Logic.CanStack();
 
-    public override bool TryGet(in IWiredVariableBinding binding, out int value)
+    public override bool TryGet(in WiredVariableBinding binding, out int value)
     {
         value = 0;
 

@@ -29,7 +29,7 @@ public sealed class UserTypeVariable(RoomGrain roomGrain)
                 .ToDictionary(v => (int)v, v => RoomObjectTypeExtensions.GetString(v)),
         };
 
-    public override bool TryGet(in IWiredVariableBinding binding, out int value)
+    public override bool TryGet(in WiredVariableBinding binding, out int value)
     {
         value = 0;
 

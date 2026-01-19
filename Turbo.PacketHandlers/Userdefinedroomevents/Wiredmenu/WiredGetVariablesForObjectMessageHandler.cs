@@ -6,6 +6,7 @@ using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents.Wiredmenu;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Wired.Variables;
 
 namespace Turbo.PacketHandlers.Userdefinedroomevents.Wiredmenu;
@@ -27,10 +28,11 @@ public class WiredGetVariablesForObjectMessageHandler(IGrainFactory grainFactory
         var variables = await _grainFactory
             .GetRoomGrain(ctx.RoomId)
             .GetAllVariablesForBindingAsync(
-                new WiredVariableBinding(
-                    (WiredVariableTargetType)message.SourceType,
-                    message.SourceId
-                ),
+                new WiredVariableBinding()
+                {
+                    TargetType = (WiredVariableTargetType)message.SourceType,
+                    TargetId = message.SourceId,
+                },
                 ct
             )
             .ConfigureAwait(false);

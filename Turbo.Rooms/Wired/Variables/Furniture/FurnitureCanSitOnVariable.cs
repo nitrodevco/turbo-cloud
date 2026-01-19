@@ -11,9 +11,11 @@ public sealed class FurnitureCanSitOnVariable(RoomGrain roomGrain)
     protected override WiredVariableDefinition BuildVariableDefinition() =>
         new()
         {
-            VariableId = WiredVariableIdBuilder.CreateInternal(
+            VariableId = WiredVariableIdBuilder.CreateInternalOrdered(
                 WiredVariableTargetType.Furni,
-                "@can_sit_on"
+                "@can_sit_on",
+                WiredVariableIdBuilder.WiredVarSubBand.Meta,
+                40
             ),
             VariableName = "@can_sit_on",
             AvailabilityType = WiredAvailabilityType.Internal,
@@ -22,12 +24,12 @@ public sealed class FurnitureCanSitOnVariable(RoomGrain roomGrain)
             TextConnectors = [],
         };
 
-    public override bool CanBind(in IWiredVariableBinding binding) =>
+    public override bool CanBind(in WiredVariableBinding binding) =>
         base.CanBind(binding)
         && _roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem)
         && floorItem.Logic.CanSit();
 
-    public override bool TryGet(in IWiredVariableBinding binding, out int value)
+    public override bool TryGet(in WiredVariableBinding binding, out int value)
     {
         value = 0;
 

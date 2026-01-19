@@ -20,8 +20,6 @@ public class WiredVariableRoom(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredVariableLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
-    private const string STORE_KEY = "value";
-
     public override int WiredCode => (int)WiredVariableType.Global;
 
     public override List<IWiredIntParamRule> GetIntParamRules() =>
@@ -41,7 +39,11 @@ public class WiredVariableRoom(
                 ContextType = WiredContextType.VariableInfoAndValue,
                 Variable = GetVarSnapshot(),
                 Value = TryGet(
-                    new WiredVariableBinding(WiredVariableTargetType.Global, -1),
+                    new WiredVariableBinding()
+                    {
+                        TargetType = WiredVariableTargetType.Global,
+                        TargetId = -1,
+                    },
                     out var value
                 )
                     ? value
@@ -65,14 +67,14 @@ public class WiredVariableRoom(
             TextConnectors = [],
         };
 
-    public override bool CanBind(in IWiredVariableBinding binding) =>
+    public override bool CanBind(in WiredVariableBinding binding) =>
         binding.TargetType == GetVarSnapshot().TargetType;
 
-    public override bool TryGet(in IWiredVariableBinding binding, out int value)
+    public override bool TryGet(in WiredVariableBinding binding, out int value)
     {
         value = 0;
 
-        if (_storageData.TryGet(STORE_KEY, out var stored))
+        if (_storageData.TryGet(binding.ToString(), out var stored))
             value = stored;
 
         return true;

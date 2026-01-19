@@ -13,9 +13,11 @@ public sealed class FurniturePositionXVariable(RoomGrain roomGrain)
     protected override WiredVariableDefinition BuildVariableDefinition() =>
         new()
         {
-            VariableId = WiredVariableIdBuilder.CreateInternal(
+            VariableId = WiredVariableIdBuilder.CreateInternalOrdered(
                 WiredVariableTargetType.Furni,
-                "@position.x"
+                "@position.x",
+                WiredVariableIdBuilder.WiredVarSubBand.Position,
+                40
             ),
             VariableName = "@position.x",
             AvailabilityType = WiredAvailabilityType.Internal,
@@ -27,7 +29,7 @@ public sealed class FurniturePositionXVariable(RoomGrain roomGrain)
             TextConnectors = [],
         };
 
-    public override bool TryGet(in IWiredVariableBinding binding, out int value)
+    public override bool TryGet(in WiredVariableBinding binding, out int value)
     {
         value = 0;
 
@@ -40,7 +42,7 @@ public sealed class FurniturePositionXVariable(RoomGrain roomGrain)
     }
 
     public override Task<bool> SetValueAsync(
-        IWiredVariableBinding binding,
+        WiredVariableBinding binding,
         IWiredExecutionContext ctx,
         int value
     )

@@ -11,9 +11,11 @@ public sealed class FurnitureHeightVariable(RoomGrain roomGrain)
     protected override WiredVariableDefinition BuildVariableDefinition() =>
         new()
         {
-            VariableId = WiredVariableIdBuilder.CreateInternal(
+            VariableId = WiredVariableIdBuilder.CreateInternalOrdered(
                 WiredVariableTargetType.Furni,
-                "@height"
+                "@height",
+                WiredVariableIdBuilder.WiredVarSubBand.Base,
+                20
             ),
             VariableName = "@height",
             AvailabilityType = WiredAvailabilityType.Internal,
@@ -22,7 +24,7 @@ public sealed class FurnitureHeightVariable(RoomGrain roomGrain)
             TextConnectors = [],
         };
 
-    public override bool TryGet(in IWiredVariableBinding binding, out int value)
+    public override bool TryGet(in WiredVariableBinding binding, out int value)
     {
         value = 0;
 

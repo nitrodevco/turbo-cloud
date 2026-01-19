@@ -11,9 +11,11 @@ public sealed class FurnitureDimensionsYVariable(RoomGrain roomGrain)
     protected override WiredVariableDefinition BuildVariableDefinition() =>
         new()
         {
-            VariableId = WiredVariableIdBuilder.CreateInternal(
+            VariableId = WiredVariableIdBuilder.CreateInternalOrdered(
                 WiredVariableTargetType.Furni,
-                "@dimensions.y"
+                "@dimensions.y",
+                WiredVariableIdBuilder.WiredVarSubBand.Meta,
+                10
             ),
             VariableName = "@dimensions.y",
             AvailabilityType = WiredAvailabilityType.Internal,
@@ -22,7 +24,7 @@ public sealed class FurnitureDimensionsYVariable(RoomGrain roomGrain)
             TextConnectors = [],
         };
 
-    public override bool TryGet(in IWiredVariableBinding binding, out int value)
+    public override bool TryGet(in WiredVariableBinding binding, out int value)
     {
         value = 0;
 

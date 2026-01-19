@@ -13,9 +13,11 @@ public sealed class FurnitureWallItemOffsetVariable(RoomGrain roomGrain)
     protected override WiredVariableDefinition BuildVariableDefinition() =>
         new()
         {
-            VariableId = WiredVariableIdBuilder.CreateInternal(
+            VariableId = WiredVariableIdBuilder.CreateInternalOrdered(
                 WiredVariableTargetType.Furni,
-                "@wallitem_offset"
+                "@wallitem_offset",
+                WiredVariableIdBuilder.WiredVarSubBand.Other,
+                10
             ),
             VariableName = "@wallitem_offset",
             AvailabilityType = WiredAvailabilityType.Internal,
@@ -24,10 +26,10 @@ public sealed class FurnitureWallItemOffsetVariable(RoomGrain roomGrain)
             TextConnectors = [],
         };
 
-    public override bool CanBind(in IWiredVariableBinding binding) =>
+    public override bool CanBind(in WiredVariableBinding binding) =>
         base.CanBind(binding) && _roomGrain._state.WallItemsById.ContainsKey(binding.TargetId);
 
-    public override bool TryGet(in IWiredVariableBinding binding, out int value)
+    public override bool TryGet(in WiredVariableBinding binding, out int value)
     {
         value = 0;
 
@@ -40,7 +42,7 @@ public sealed class FurnitureWallItemOffsetVariable(RoomGrain roomGrain)
     }
 
     public override Task<bool> SetValueAsync(
-        IWiredVariableBinding binding,
+        WiredVariableBinding binding,
         IWiredExecutionContext ctx,
         int value
     )

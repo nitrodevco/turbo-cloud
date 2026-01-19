@@ -70,7 +70,7 @@ public partial interface IRoomGrain
     );
     public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct);
     public Task<List<(WiredVariableId id, int value)>> GetAllVariablesForBindingAsync(
-        IWiredVariableBinding binding,
+        WiredVariableBinding binding,
         CancellationToken ct
     );
 }

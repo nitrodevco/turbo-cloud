@@ -20,7 +20,7 @@ public sealed partial class RoomWiredSystem
 
     public bool TryGetVariable(
         string key,
-        in IWiredVariableBinding binding,
+        in WiredVariableBinding binding,
         WiredExecutionContext ctx,
         out int value
     )
@@ -39,7 +39,7 @@ public sealed partial class RoomWiredSystem
         Task.FromResult(_variablesSnapshot ??= BuildVariablesSnapshot());
 
     public Task<List<(WiredVariableId id, int value)>> GetAllVariablesForBindingAsync(
-        IWiredVariableBinding binding,
+        WiredVariableBinding binding,
         CancellationToken ct
     )
     {

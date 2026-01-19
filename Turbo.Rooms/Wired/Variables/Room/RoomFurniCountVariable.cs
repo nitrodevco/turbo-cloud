@@ -22,7 +22,7 @@ public sealed class RoomFurniCountVariable(RoomGrain roomGrain)
             TextConnectors = [],
         };
 
-    public override bool TryGet(in IWiredVariableBinding binding, out int value)
+    public override bool TryGet(in WiredVariableBinding binding, out int value)
     {
         value = _roomGrain._state.FloorItemsById.Count;
 

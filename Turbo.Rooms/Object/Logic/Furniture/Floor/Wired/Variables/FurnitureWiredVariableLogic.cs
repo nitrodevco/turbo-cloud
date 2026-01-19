@@ -66,9 +66,9 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
             TextConnectors = [],
         };
 
-    public virtual bool CanBind(in IWiredVariableBinding binding) => false;
+    public virtual bool CanBind(in WiredVariableBinding binding) => false;
 
-    public virtual bool TryGet(in IWiredVariableBinding binding, out int value)
+    public virtual bool TryGet(in WiredVariableBinding binding, out int value)
     {
         value = 0;
 
@@ -76,7 +76,7 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
     }
 
     public virtual Task<bool> SetValueAsync(
-        IWiredVariableBinding binding,
+        WiredVariableBinding binding,
         IWiredExecutionContext ctx,
         int value
     ) => Task.FromResult(false);
