@@ -24,19 +24,18 @@ public sealed class FurnitureCanSitOnVariable(RoomGrain roomGrain)
             TextConnectors = [],
         };
 
-    public override bool CanBind(in WiredVariableBinding binding) =>
-        base.CanBind(binding)
-        && _roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem)
-        && floorItem.Logic.CanSit();
-
     public override bool TryGet(in WiredVariableBinding binding, out int value)
     {
         value = 0;
 
-        if (!_roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem))
+        if (
+            !CanBind(binding)
+            || !_roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem)
+            || !floorItem.Logic.CanSit()
+        )
             return false;
 
-        value = floorItem.Logic.CanSit() ? 1 : 0;
+        value = 1;
 
         return true;
     }

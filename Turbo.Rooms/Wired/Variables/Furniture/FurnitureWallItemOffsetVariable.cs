@@ -26,14 +26,14 @@ public sealed class FurnitureWallItemOffsetVariable(RoomGrain roomGrain)
             TextConnectors = [],
         };
 
-    public override bool CanBind(in WiredVariableBinding binding) =>
-        base.CanBind(binding) && _roomGrain._state.WallItemsById.ContainsKey(binding.TargetId);
-
     public override bool TryGet(in WiredVariableBinding binding, out int value)
     {
         value = 0;
 
-        if (!_roomGrain._state.WallItemsById.TryGetValue(binding.TargetId, out var wallItem))
+        if (
+            !CanBind(binding)
+            || !_roomGrain._state.WallItemsById.TryGetValue(binding.TargetId, out var wallItem)
+        )
             return false;
 
         value = wallItem.WallOffset;

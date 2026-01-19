@@ -24,6 +24,11 @@ public sealed class RoomFurniCountVariable(RoomGrain roomGrain)
 
     public override bool TryGet(in WiredVariableBinding binding, out int value)
     {
+        value = 0;
+
+        if (!CanBind(binding))
+            return false;
+
         value = _roomGrain._state.FloorItemsById.Count;
 
         return true;

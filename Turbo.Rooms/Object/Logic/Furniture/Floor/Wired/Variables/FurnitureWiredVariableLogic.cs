@@ -66,13 +66,19 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
             TextConnectors = [],
         };
 
-    public virtual bool CanBind(in WiredVariableBinding binding) => false;
+    public virtual bool CanBind(in WiredVariableBinding binding) =>
+        binding.TargetType == GetVarSnapshot().TargetType;
 
     public virtual bool TryGet(in WiredVariableBinding binding, out int value)
     {
         value = 0;
 
-        return false;
+        if (!CanBind(binding) || !_storageData.TryGet(binding.ToString(), out var stored))
+            return false;
+
+        value = stored;
+
+        return true;
     }
 
     public virtual Task<bool> SetValueAsync(

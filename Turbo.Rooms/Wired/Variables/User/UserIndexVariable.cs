@@ -26,7 +26,10 @@ public sealed class UserIndexVariable(RoomGrain roomGrain)
     {
         value = 0;
 
-        if (!_roomGrain._state.AvatarsByPlayerId.TryGetValue(binding.TargetId, out var objectId))
+        if (
+            !CanBind(binding)
+            || !_roomGrain._state.AvatarsByPlayerId.TryGetValue(binding.TargetId, out var objectId)
+        )
             return false;
 
         value = objectId.Value;

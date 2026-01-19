@@ -26,6 +26,9 @@ public sealed class ContextSelectorFurniCountVariable(RoomGrain roomGrain)
     {
         value = 0;
 
-        return true;
+        if (!CanBind(binding))
+            return false;
+
+        return false;
     }
 }

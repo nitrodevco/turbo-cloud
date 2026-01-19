@@ -24,19 +24,18 @@ public sealed class FurnitureIsStackableVariable(RoomGrain roomGrain)
             TextConnectors = [],
         };
 
-    public override bool CanBind(in WiredVariableBinding binding) =>
-        base.CanBind(binding)
-        && _roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem)
-        && floorItem.Logic.CanStack();
-
     public override bool TryGet(in WiredVariableBinding binding, out int value)
     {
         value = 0;
 
-        if (!_roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem))
+        if (
+            !CanBind(binding)
+            || !_roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem)
+            || !floorItem.Logic.CanStack()
+        )
             return false;
 
-        value = floorItem.Logic.CanStack() ? 1 : 0;
+        value = 1;
 
         return true;
     }

@@ -47,14 +47,12 @@ public sealed partial class RoomWiredSystem
 
         foreach (var variable in _variableByKey.Values)
         {
-            if (!variable.CanBind(binding))
+            if (!variable.TryGet(binding, out var value))
                 continue;
 
             var snapshot = variable.GetVarSnapshot();
 
-            variableValues.Add(
-                (snapshot.VariableId, variable.TryGet(binding, out var val) ? val : 0)
-            );
+            variableValues.Add((snapshot.VariableId, value));
         }
 
         return Task.FromResult(variableValues);

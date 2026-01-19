@@ -66,17 +66,4 @@ public class WiredVariableRoom(
                 | WiredVariableFlags.CanReadLastUpdateTime,
             TextConnectors = [],
         };
-
-    public override bool CanBind(in WiredVariableBinding binding) =>
-        binding.TargetType == GetVarSnapshot().TargetType;
-
-    public override bool TryGet(in WiredVariableBinding binding, out int value)
-    {
-        value = 0;
-
-        if (_storageData.TryGet(binding.ToString(), out var stored))
-            value = stored;
-
-        return true;
-    }
 }

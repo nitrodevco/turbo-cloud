@@ -5,7 +5,6 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Wired.IntParams;
 using Turbo.Rooms.Wired.Variables;
 
@@ -49,17 +48,4 @@ public class WiredVariableFurni(
                 | WiredVariableFlags.CanReadCreationTime,
             TextConnectors = [],
         };
-
-    public override bool CanBind(in WiredVariableBinding binding) =>
-        binding.TargetType == GetVarSnapshot().TargetType;
-
-    public override bool TryGet(in WiredVariableBinding binding, out int value)
-    {
-        value = 0;
-
-        if (_storageData.TryGet(binding.ToString(), out var stored))
-            value = stored;
-
-        return true;
-    }
 }

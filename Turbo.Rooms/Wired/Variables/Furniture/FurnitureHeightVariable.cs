@@ -28,7 +28,10 @@ public sealed class FurnitureHeightVariable(RoomGrain roomGrain)
     {
         value = 0;
 
-        if (!_roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem))
+        if (
+            !CanBind(binding)
+            || !_roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem)
+        )
             return false;
 
         value = (int)(floorItem.Logic.GetStackHeight() * 100);

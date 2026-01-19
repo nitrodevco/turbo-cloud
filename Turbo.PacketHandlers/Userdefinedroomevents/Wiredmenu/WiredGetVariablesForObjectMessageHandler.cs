@@ -7,7 +7,6 @@ using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
-using Turbo.Rooms.Wired.Variables;
 
 namespace Turbo.PacketHandlers.Userdefinedroomevents.Wiredmenu;
 

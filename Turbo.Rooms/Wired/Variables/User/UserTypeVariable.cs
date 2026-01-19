@@ -33,7 +33,11 @@ public sealed class UserTypeVariable(RoomGrain roomGrain)
     {
         value = 0;
 
-        if (!_roomGrain._state.AvatarsByObjectId.TryGetValue(binding.TargetId, out var avatar))
+        if (
+            !CanBind(binding)
+            || !_roomGrain._state.AvatarsByPlayerId.TryGetValue(binding.TargetId, out var objectId)
+            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+        )
             return false;
 
         value = (int)avatar.AvatarType;

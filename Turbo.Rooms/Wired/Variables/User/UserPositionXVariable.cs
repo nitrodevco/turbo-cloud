@@ -31,10 +31,14 @@ public sealed class UserPositionXVariable(RoomGrain roomGrain)
     {
         value = 0;
 
-        if (!_roomGrain._state.AvatarsByObjectId.TryGetValue(binding.TargetId, out var avatarItem))
+        if (
+            !CanBind(binding)
+            || !_roomGrain._state.AvatarsByPlayerId.TryGetValue(binding.TargetId, out var objectId)
+            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+        )
             return false;
 
-        value = avatarItem.X;
+        value = avatar.X;
 
         return true;
     }
