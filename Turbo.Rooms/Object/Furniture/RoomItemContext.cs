@@ -6,36 +6,36 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
+using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Grains;
-using Turbo.Rooms.Grains.Modules;
 
 namespace Turbo.Rooms.Object.Furniture;
 
-internal abstract class RoomItemContext<TItem>(
+public abstract class RoomItemContext<TObject, TLogic, TSelf>(
     RoomGrain roomGrain,
-    RoomFurniModule furniModule,
-    TItem roomItem
-) : RoomObjectContext(roomGrain), IRoomItemContext<TItem>
-    where TItem : IRoomItem
+    TObject roomObject
+)
+    : RoomObjectContext<TObject, TLogic, TSelf>(roomGrain, roomObject),
+        IRoomItemContext<TObject, TLogic, TSelf>
+    where TObject : IRoomItem<TObject, TLogic, TSelf>
+    where TSelf : IRoomItemContext<TObject, TLogic, TSelf>
+    where TLogic : IFurnitureLogic<TObject, TLogic, TSelf>
 {
-    protected readonly RoomFurniModule _furniModule = furniModule;
+    public FurnitureDefinitionSnapshot Definition => _roomObject.Definition;
 
-    public override RoomObjectId ObjectId => Item.ObjectId;
-
-    public TItem Item { get; } = roomItem;
-    public FurnitureDefinitionSnapshot Definition => Item.Definition;
+    IRoomItem IRoomItemContext.Object => Object;
 
     public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
         RoomObjectId objectId,
         CancellationToken ct
-    ) => _room.GetFloorItemSnapshotByIdAsync(objectId, ct);
+    ) => _roomGrain.GetFloorItemSnapshotByIdAsync(objectId, ct);
 
     public Task PublishRoomEventAsync(RoomEvent evt, CancellationToken ct) =>
-        _room.PublishRoomEventAsync(evt, ct);
+        _roomGrain.PublishRoomEventAsync(evt, ct);
 
     public Task SendComposerToRoomAsync(IComposer composer) =>
-        _room.SendComposerToRoomAsync(composer);
+        _roomGrain.SendComposerToRoomAsync(composer);
 
     public abstract Task AddItemAsync();
 

@@ -6,27 +6,16 @@ using System.Threading.Tasks;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
-using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
 
 public sealed partial class RoomFurniModule
 {
-    public async Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
-    {
-        if (!await AttatchFloorItemAsync(item, ct) || !_roomGrain.MapModule.AddFloorItem(item))
-            return false;
-
-        return true;
-    }
-
     public async Task<bool> PlaceFloorItemAsync(
         ActionContext ctx,
         IRoomFloorItem item,
@@ -42,7 +31,7 @@ public sealed partial class RoomFurniModule
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
         if (
-            !await AttatchFloorItemAsync(item, ct)
+            !await _roomGrain.ObjectModule.AttatchObjectAsync(item, ct)
             || !_roomGrain.MapModule.PlaceFloorItem(item, tileIdx, rot)
         )
             return false;
@@ -65,82 +54,21 @@ public sealed partial class RoomFurniModule
         CancellationToken ct
     )
     {
-        if (!_roomGrain._state.FloorItemsById.TryGetValue(itemId, out var item))
+        if (
+            !_roomGrain._state.ItemsById.TryGetValue(itemId, out var item)
+            || item is not IRoomFloorItem floor
+        )
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         var prevIdx = _roomGrain.MapModule.ToIdx(item.X, item.Y);
         var nextIdx = _roomGrain.MapModule.ToIdx(x, y);
-        if (!_roomGrain.MapModule.MoveFloorItem(item, nextIdx, rot))
+
+        if (!_roomGrain.MapModule.MoveFloorItem(floor, nextIdx, rot))
             return false;
 
         await _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer());
 
         await item.Logic.OnMoveAsync(ctx, prevIdx, ct);
-
-        return true;
-    }
-
-    public async Task<RoomFloorItemSnapshot?> RemoveFloorItemByIdAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        int pickerId = -1
-    )
-    {
-        if (!_roomGrain._state.FloorItemsById.TryGetValue(itemId, out var item))
-            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
-
-        if (pickerId == -1)
-            pickerId = item.OwnerId;
-
-        if (!_roomGrain.MapModule.RemoveFloorItem(item))
-            return null;
-
-        await _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(pickerId));
-
-        await item.Logic.OnDetachAsync(ct);
-        await item.Logic.OnPickupAsync(ctx, ct);
-
-        item.SetOwnerId(pickerId);
-        item.SetAction(null);
-
-        _roomGrain._state.FloorItemsById.Remove(itemId);
-
-        var snapshot = item.GetSnapshot();
-
-        await _roomGrain
-            ._grainFactory.GetRoomPersistenceGrain(_roomGrain._state.RoomId)
-            .EnqueueDirtyItemAsync(_roomGrain._state.RoomId, snapshot, ct, true);
-
-        return snapshot;
-    }
-
-    public async Task<bool> UseFloorItemByIdAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
-    )
-    {
-        if (!_roomGrain._state.FloorItemsById.TryGetValue(itemId, out var item))
-            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
-
-        await item.Logic.OnUseAsync(ctx, param, ct);
-
-        return true;
-    }
-
-    public async Task<bool> ClickFloorItemByIdAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
-    )
-    {
-        if (!_roomGrain._state.FloorItemsById.TryGetValue(itemId, out var item))
-            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
-
-        await item.Logic.OnClickAsync(ctx, param, ct);
 
         return true;
     }
@@ -153,7 +81,10 @@ public sealed partial class RoomFurniModule
         Rotation rot
     )
     {
-        if (!_roomGrain._state.FloorItemsById.TryGetValue(itemId, out var tItem))
+        if (
+            !_roomGrain._state.ItemsById.TryGetValue(itemId, out var item)
+            || item is not IRoomFloorItem tItem
+        )
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         if (
@@ -285,17 +216,10 @@ public sealed partial class RoomFurniModule
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _roomGrain._state.FloorItemsById.Values.Select(x => x.GetSnapshot()).ToImmutableArray()
-        );
-
-    public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
-        RoomObjectId objectId,
-        CancellationToken ct
-    ) =>
-        Task.FromResult(
-            _roomGrain._state.FloorItemsById.TryGetValue(objectId, out var item)
-                ? item.GetSnapshot()
-                : null
+            _roomGrain
+                ._state.ItemsById.Values.OfType<IRoomFloorItem>()
+                .Select(x => x.GetSnapshot())
+                .ToImmutableArray()
         );
 
     public bool GetTileIdForFloorItem(IRoomFloorItem item, out List<int> tileIds) =>
@@ -307,44 +231,4 @@ public sealed partial class RoomFurniModule
             item.Definition.Length,
             out tileIds
         );
-
-    private async Task<bool> AttatchFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
-    {
-        if (!_roomGrain._state.FloorItemsById.TryAdd(item.ObjectId, item))
-            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
-
-        if (!_roomGrain._state.OwnerNamesById.TryGetValue(item.OwnerId, out string? value))
-        {
-            var ownerName = await _roomGrain
-                ._grainFactory.GetPlayerDirectoryGrain()
-                .GetPlayerNameAsync(item.OwnerId, ct);
-
-            value = ownerName;
-            _roomGrain._state.OwnerNamesById[item.OwnerId] = value;
-        }
-
-        item.SetOwnerName(value ?? string.Empty);
-        item.SetAction(objectId => _roomGrain._state.DirtyFloorItemIds.Add(objectId));
-
-        await AttatchFloorLogicIfNeededAsync(item, ct);
-
-        return true;
-    }
-
-    private async Task AttatchFloorLogicIfNeededAsync(IRoomFloorItem item, CancellationToken ct)
-    {
-        if (item.Logic is not null)
-            return;
-
-        var logicType = item.Definition.LogicName;
-        var ctx = new RoomFloorItemContext(_roomGrain, this, item);
-        var logic = _roomGrain._logicProvider.CreateLogicInstance(logicType, ctx);
-
-        if (logic is not IFurnitureFloorLogic floorLogic)
-            throw new TurboException(TurboErrorCodeEnum.InvalidLogic);
-
-        item.SetLogic(floorLogic);
-
-        await logic.OnAttachAsync(ct);
-    }
 }

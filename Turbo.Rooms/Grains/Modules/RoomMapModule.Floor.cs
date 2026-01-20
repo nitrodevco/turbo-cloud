@@ -7,7 +7,7 @@ namespace Turbo.Rooms.Grains.Modules;
 
 public sealed partial class RoomMapModule
 {
-    public bool AddFloorItem(IRoomFloorItem item)
+    private bool AddFloorItem(IRoomFloorItem item)
     {
         var tileIdx = ToIdx(item.X, item.Y);
 

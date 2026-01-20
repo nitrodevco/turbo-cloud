@@ -1,25 +1,24 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 using Turbo.Rooms.Grains;
-using Turbo.Rooms.Grains.Modules;
 
 namespace Turbo.Rooms.Object.Avatars;
 
-internal class RoomAvatarContext(
+public abstract class RoomAvatarContext<TObject, TLogic, TSelf>(
     RoomGrain roomGrain,
-    RoomAvatarModule avatarModule,
-    IRoomAvatar roomAvatar
-) : RoomObjectContext(roomGrain), IRoomAvatarContext
+    TObject roomObject
+)
+    : RoomObjectContext<TObject, TLogic, TSelf>(roomGrain, roomObject),
+        IRoomAvatarContext<TObject, TLogic, TSelf>
+    where TObject : IRoomAvatar<TObject, TLogic, TSelf>
+    where TSelf : IRoomAvatarContext<TObject, TLogic, TSelf>
+    where TLogic : IRoomAvatarLogic<TObject, TLogic, TSelf>
 {
-    protected readonly RoomAvatarModule _avatarModule = avatarModule;
-
-    public override RoomObjectId ObjectId => Avatar.ObjectId;
-
-    public IRoomAvatar Avatar => roomAvatar;
+    IRoomAvatar IRoomAvatarContext.Object => Object;
 
     public virtual Task<RoomTileSnapshot> GetTileSnapshotAsync(CancellationToken ct) =>
-        _room.GetTileSnapshotAsync(Avatar.X, Avatar.Y, ct);
+        _roomGrain.GetTileSnapshotAsync(Object.X, Object.Y, ct);
 }

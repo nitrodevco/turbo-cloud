@@ -3,8 +3,10 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Rooms.Grains;
@@ -13,6 +15,71 @@ public sealed partial class RoomGrain
 {
     public Task<ImmutableDictionary<PlayerId, string>> GetAllOwnersAsync(CancellationToken ct) =>
         FurniModule.GetAllOwnersAsync(ct);
+
+    public async Task<bool> RemoveItemByIdAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            if (!await ActionModule.RemoveItemByIdAsync(ctx, itemId, ct))
+                return false;
+
+            return true;
+        }
+        catch
+        {
+            // TODO handle exceptions
+
+            return false;
+        }
+    }
+
+    public async Task<bool> UseItemByIdAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        CancellationToken ct,
+        int param = -1
+    )
+    {
+        try
+        {
+            if (!await ActionModule.UseItemByIdAsync(ctx, itemId, ct, param))
+                return false;
+
+            return true;
+        }
+        catch
+        {
+            // TODO handle exceptions
+
+            return false;
+        }
+    }
+
+    public async Task<bool> ClickItemByIdAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        CancellationToken ct,
+        int param = -1
+    )
+    {
+        try
+        {
+            if (!await ActionModule.ClickItemByIdAsync(ctx, itemId, ct, param))
+                return false;
+
+            return true;
+        }
+        catch
+        {
+            // TODO handle exceptions
+
+            return false;
+        }
+    }
 
     private async Task FlushDirtyItemsAsync(CancellationToken ct)
     {

@@ -52,11 +52,14 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
         _wiredDataFactory = wiredDataFactory;
         _grainFactory = grainFactory;
 
-        WiredData = _wiredDataFactory.CreateWiredDataFromExtraData(WiredType, ctx.Item.ExtraData);
+        WiredData = _wiredDataFactory.CreateWiredDataFromExtraData(
+            WiredType,
+            ctx.RoomObject.ExtraData
+        );
 
         WiredData.SetAction(() =>
         {
-            _ctx.Item.ExtraData.UpdateSection(
+            _ctx.RoomObject.ExtraData.UpdateSection(
                 ExtraDataSectionType.WIRED,
                 JsonSerializer.SerializeToNode(WiredData, WiredData.GetType())
             );
@@ -557,7 +560,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
     {
         await base.OnPickupAsync(ctx, ct);
 
-        _ctx.Item.ExtraData.DeleteSection(ExtraDataSectionType.WIRED);
+        _ctx.RoomObject.ExtraData.DeleteSection(ExtraDataSectionType.WIRED);
 
         await OnWiredStackChangedAsync(ctx, [_ctx.GetTileIdx()], ct);
     }

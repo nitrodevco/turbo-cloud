@@ -1,4 +1,6 @@
+using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains;
 
@@ -40,5 +42,33 @@ public sealed class FurnitureAltitudeVariable(RoomGrain roomGrain)
         value = (int)(floorItem.Z * 100);
 
         return true;
+    }
+
+    public override Task<bool> SetValueAsync(
+        WiredVariableBinding binding,
+        IWiredExecutionContext ctx,
+        int value
+    )
+    {
+        if (
+            !CanBind(binding)
+            || !_roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem)
+            || !_roomGrain.FurniModule.ValidateFloorItemPlacement(
+                ctx.AsActionContext(),
+                floorItem.ObjectId.Value,
+                value,
+                floorItem.Y,
+                floorItem.Rotation
+            )
+        )
+            return Task.FromResult(false);
+
+        ctx.AddFloorItemMovement(
+            floorItem,
+            _roomGrain.MapModule.ToIdx(value, floorItem.Y),
+            floorItem.Rotation
+        );
+
+        return Task.FromResult(true);
     }
 }

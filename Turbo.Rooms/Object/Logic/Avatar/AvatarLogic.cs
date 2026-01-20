@@ -1,17 +1,18 @@
 using Turbo.Primitives.Rooms.Object.Avatars;
-using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 
 namespace Turbo.Rooms.Object.Logic.Avatar;
 
-[RoomObjectLogic("default_avatar")]
-public class AvatarLogic(IRoomAvatarContext ctx)
-    : RoomObjectLogicBase<IRoomAvatarContext>(ctx),
-        IRoomAvatarLogic
+public abstract class AvatarLogic<TObject, TSelf, TContext>(TContext ctx)
+    : RoomObjectLogic<TObject, TSelf, TContext>(ctx),
+        IRoomAvatarLogic<TObject, TSelf, TContext>
+    where TObject : IRoomAvatar<TObject, TSelf, TContext>
+    where TContext : IRoomAvatarContext<TObject, TSelf, TContext>
+    where TSelf : IRoomAvatarLogic<TObject, TSelf, TContext>
 {
     public bool CanRoll()
     {
-        if (_ctx.Avatar.IsWalking)
+        if (_ctx.Object.IsWalking)
             return false;
 
         return true;

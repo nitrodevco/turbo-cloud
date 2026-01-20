@@ -36,7 +36,12 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
     {
         _variableId = WiredVariableIdBuilder.CreateDatabase(ctx.ObjectId.Value);
 
-        if (ctx.Item.ExtraData.TryGetSection(ExtraDataSectionType.STORAGE, out var storageElement))
+        if (
+            ctx.RoomObject.ExtraData.TryGetSection(
+                ExtraDataSectionType.STORAGE,
+                out var storageElement
+            )
+        )
         {
             _storageData = storageElement.Deserialize<StorageData>()!;
         }
@@ -47,7 +52,7 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
 
         _storageData.SetAction(() =>
         {
-            _ctx.Item.ExtraData.UpdateSection(
+            _ctx.RoomObject.ExtraData.UpdateSection(
                 ExtraDataSectionType.STORAGE,
                 JsonSerializer.SerializeToNode(_storageData, _storageData.GetType())
             );
@@ -108,7 +113,7 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
 
     public override async Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
     {
-        _ctx.Item.ExtraData.DeleteSection(ExtraDataSectionType.STORAGE);
+        _ctx.RoomObject.ExtraData.DeleteSection(ExtraDataSectionType.STORAGE);
 
         await base.OnPickupAsync(ctx, ct);
     }

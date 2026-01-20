@@ -34,23 +34,6 @@ public partial interface IRoomGrain
         Rotation rot,
         CancellationToken ct
     );
-    public Task<bool> RemoveFloorItemByIdAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct
-    );
-    public Task<bool> UseFloorItemByIdAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
-    );
-    public Task<bool> ClickFloorItemByIdAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
-    );
     public Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,
         RoomObjectId itemId,

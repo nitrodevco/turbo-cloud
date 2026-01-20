@@ -8,24 +8,11 @@ using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Rooms.Object.Furniture.Wall;
 
-internal sealed class RoomWallItem : RoomItem, IRoomWallItem
+public class RoomWallItem
+    : RoomItem<IRoomWallItem, IFurnitureWallLogic, IRoomWallItemContext>,
+        IRoomWallItem
 {
     public int WallOffset { get; private set; }
-    public IFurnitureWallLogic Logic { get; private set; } = default!;
-
-    private RoomWallItemSnapshot? _snapshot;
-
-    public void SetPosition(int x, int y, double z)
-    {
-        if (X == x && Y == y && Z == z)
-            return;
-
-        X = x;
-        Y = y;
-        Z = z;
-
-        MarkDirty();
-    }
 
     public void SetWallOffset(int wallOffset)
     {
@@ -47,42 +34,32 @@ internal sealed class RoomWallItem : RoomItem, IRoomWallItem
         MarkDirty();
     }
 
-    public void SetLogic(IFurnitureWallLogic logic)
-    {
-        Logic = logic;
-    }
+    public new RoomWallItemSnapshot GetSnapshot() => (RoomWallItemSnapshot)base.GetSnapshot();
 
-    public RoomWallItemSnapshot GetSnapshot()
-    {
-        if (_dirty || _snapshot is null)
-        {
-            _snapshot = BuildSnapshot();
-            _dirty = false;
-        }
+    public override IComposer GetAddComposer() =>
+        new ItemAddMessageComposer { WallItem = GetSnapshot() };
 
-        return _snapshot;
-    }
-
-    public IComposer GetAddComposer() => new ItemAddMessageComposer { WallItem = GetSnapshot() };
-
-    public IComposer GetUpdateComposer() =>
+    public override IComposer GetUpdateComposer() =>
         new ItemUpdateMessageComposer { WallItem = GetSnapshot() };
 
-    public IComposer GetRefreshStuffDataComposer() =>
+    public override IComposer GetRefreshStuffDataComposer() =>
         new ItemDataUpdateMessageComposer
         {
             ObjectId = ObjectId,
             State = Logic.StuffData.GetLegacyString(),
         };
 
-    public IComposer GetRemoveComposer(PlayerId pickerId) =>
-        new ItemRemoveMessageComposer { ObjectId = ObjectId, PickerId = pickerId };
+    public override IComposer GetRemoveComposer(
+        PlayerId pickerId,
+        bool isExpired = false,
+        int delay = 0
+    ) => new ItemRemoveMessageComposer { ObjectId = ObjectId, PickerId = pickerId };
 
     public string ConvertWallPositionToString() =>
         $":w={X},{Y} l={WallOffset},{Z} {(Rotation == Rotation.South ? "l" : "r")}";
 
-    private RoomWallItemSnapshot BuildSnapshot() =>
-        new()
+    protected override RoomItemSnapshot BuildSnapshot() =>
+        new RoomWallItemSnapshot()
         {
             ObjectId = ObjectId,
             OwnerId = OwnerId,

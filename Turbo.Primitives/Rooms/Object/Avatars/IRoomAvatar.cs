@@ -5,14 +5,24 @@ using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Primitives.Rooms.Object.Avatars;
 
+public interface IRoomAvatar<TSelf, out TLogic, out TContext>
+    : IRoomObject<TSelf, TLogic, TContext>,
+        IRoomAvatar
+    where TSelf : IRoomAvatar<TSelf, TLogic, TContext>
+    where TContext : IRoomAvatarContext<TSelf, TLogic, TContext>
+    where TLogic : IRoomAvatarLogic<TSelf, TLogic, TContext>
+{
+    new TLogic Logic { get; }
+}
+
 public interface IRoomAvatar : IRoomObject
 {
+    new IRoomAvatarLogic Logic { get; }
     public RoomObjectType AvatarType { get; }
     public string Name { get; }
     public string Motto { get; }
     public string Figure { get; }
     public Rotation HeadRotation { get; }
-    public IRoomAvatarLogic Logic { get; }
     public Dictionary<AvatarStatusType, string> Statuses { get; }
 
     public AvatarDanceType DanceType { get; }
@@ -34,7 +44,6 @@ public interface IRoomAvatar : IRoomObject
     public void SetRotation(Rotation rot);
     public void SetBodyRotation(Rotation rot);
     public void SetHeadRotation(Rotation rot);
-    public void SetLogic(IRoomAvatarLogic logic);
     public bool SetDance(AvatarDanceType danceType = AvatarDanceType.None);
     public void Sit(bool flag = true, double height = 0.5, Rotation? rot = null);
     public void Lay(bool flag = true, double height = 0.5, Rotation? rot = null);

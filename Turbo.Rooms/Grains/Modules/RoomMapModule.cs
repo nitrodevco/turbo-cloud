@@ -8,7 +8,9 @@ using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -132,6 +134,26 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
         }
 
         return true;
+    }
+
+    public bool AddItem(IRoomItem item)
+    {
+        return item switch
+        {
+            IRoomFloorItem floor => AddFloorItem(floor),
+            IRoomWallItem wall => AddWallItem(wall),
+            _ => false,
+        };
+    }
+
+    public bool RemoveItem(IRoomItem item)
+    {
+        return item switch
+        {
+            IRoomFloorItem floor => RemoveFloorItem(floor),
+            IRoomWallItem wall => RemoveWallItem(wall),
+            _ => false,
+        };
     }
 
     public void ComputeAllTiles()

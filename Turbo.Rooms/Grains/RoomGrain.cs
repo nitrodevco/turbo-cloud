@@ -46,6 +46,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public readonly RoomEventModule EventModule;
     public readonly RoomSecurityModule SecurityModule;
     public readonly RoomMapModule MapModule;
+    public readonly RoomObjectModule ObjectModule;
     public readonly RoomAvatarModule AvatarModule;
     public readonly RoomFurniModule FurniModule;
     public readonly RoomActionModule ActionModule;
@@ -82,6 +83,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         EventModule = new(this);
         SecurityModule = new(this);
         MapModule = new(this);
+        ObjectModule = new(this);
         AvatarModule = new(this);
         FurniModule = new(this);
         ActionModule = new(this);

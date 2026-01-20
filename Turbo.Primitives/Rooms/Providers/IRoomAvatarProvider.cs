@@ -6,7 +6,7 @@ namespace Turbo.Primitives.Rooms.Providers;
 
 public interface IRoomAvatarProvider
 {
-    public IRoomPlayerAvatar CreateAvatarFromPlayerSnapshot(
+    public IRoomPlayer CreateAvatarFromPlayerSnapshot(
         RoomObjectId objectId,
         PlayerSummarySnapshot snapshot
     );

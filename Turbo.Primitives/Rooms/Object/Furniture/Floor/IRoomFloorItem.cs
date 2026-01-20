@@ -1,23 +1,22 @@
-using Turbo.Primitives.Networking;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Primitives.Rooms.Object.Furniture.Floor;
 
-public interface IRoomFloorItem : IRoomItem
+public interface IRoomFloorItem<TSelf, out TLogic, out TContext>
+    : IRoomItem<TSelf, TLogic, TContext>
+    where TSelf : IRoomFloorItem<TSelf, TLogic, TContext>
+    where TContext : IRoomFloorItemContext<TSelf, TLogic, TContext>
+    where TLogic : IFurnitureFloorLogic<TSelf, TLogic, TContext>
 {
-    public IFurnitureFloorLogic Logic { get; }
-    public double GetStackHeight();
+    new TLogic Logic { get; }
+}
 
-    public void SetPosition(int x, int y, double z);
+public interface IRoomFloorItem
+    : IRoomItem<IRoomFloorItem, IFurnitureFloorLogic, IRoomFloorItemContext>
+{
     public void SetRotation(Rotation rotation);
-    public void SetLogic(IFurnitureFloorLogic logic);
-
-    public RoomFloorItemSnapshot GetSnapshot();
-    public IComposer GetAddComposer();
-    public IComposer GetUpdateComposer();
-    public IComposer GetRefreshStuffDataComposer();
-    public IComposer GetRemoveComposer(PlayerId pickerId, bool isExpired = false, int delay = 0);
+    public double GetStackHeight();
+    new RoomFloorItemSnapshot GetSnapshot();
 }

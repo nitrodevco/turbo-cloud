@@ -6,7 +6,6 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -17,7 +16,7 @@ namespace Turbo.Rooms.Grains.Modules;
 public sealed partial class RoomActionModule
 {
     public Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct) =>
-        _roomGrain.FurniModule.AddFloorItemAsync(item, ct);
+        _roomGrain.ObjectModule.AttatchObjectAsync(item, ct);
 
     public async Task<bool> PlaceFloorItemAsync(
         ActionContext ctx,
@@ -69,67 +68,6 @@ public sealed partial class RoomActionModule
 
         return true;
     }
-
-    public async Task<bool> RemoveFloorItemByIdAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct
-    )
-    {
-        var pickupType = await _roomGrain.SecurityModule.GetFurniPickupTypeAsync(ctx);
-
-        if (pickupType == FurniturePickupType.None)
-            throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
-
-        PlayerId pickerId = -1;
-
-        if (pickupType is not FurniturePickupType.SendToOwner)
-            pickerId = ctx.PlayerId;
-
-        var floorItem = await _roomGrain.FurniModule.RemoveFloorItemByIdAsync(
-            ctx,
-            itemId,
-            ct,
-            pickerId
-        );
-
-        if (floorItem is null)
-            return false;
-
-        var inventory = _roomGrain._grainFactory.GetInventoryGrain(floorItem.OwnerId);
-
-        await inventory.AddFurnitureFromRoomItemSnapshotAsync(floorItem, ct);
-
-        return true;
-    }
-
-    public async Task<bool> UseFloorItemByIdAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
-    )
-    {
-        if (!_roomGrain._state.FloorItemsById.TryGetValue(itemId, out var item))
-            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
-
-        var usagePolicy = item.Logic.GetUsagePolicy();
-
-        if (
-            !await _roomGrain.SecurityModule.CanUseFurniAsync(ctx, usagePolicy)
-            || !await _roomGrain.FurniModule.UseFloorItemByIdAsync(ctx, itemId, ct, param)
-        )
-            return false;
-
-        return true;
-    }
-
-    public Task<bool> ClickFloorItemByIdAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
-    ) => _roomGrain.FurniModule.ClickFloorItemByIdAsync(ctx, itemId, ct, param);
 
     public async Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,

@@ -1,18 +1,27 @@
-using Orleans;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Object;
 
-internal abstract class RoomObjectContext(RoomGrain room) : IRoomObjectContext
+public abstract class RoomObjectContext<TObject, TLogic, TSelf>(
+    RoomGrain roomGrain,
+    TObject roomObject
+) : IRoomObjectContext<TObject, TLogic, TSelf>
+    where TObject : IRoomObject<TObject, TLogic, TSelf>
+    where TSelf : IRoomObjectContext<TObject, TLogic, TSelf>
+    where TLogic : IRoomObjectLogic<TObject, TLogic, TSelf>
 {
-    protected RoomGrain _room = room;
+    protected readonly RoomGrain _roomGrain = roomGrain;
+    protected readonly TObject _roomObject = roomObject;
 
-    public IRoomGrain Room => _room;
+    public RoomId RoomId => _roomGrain._state.RoomId;
+    public IRoomGrain Room => _roomGrain;
 
-    public RoomId RoomId => (RoomId)Room.GetPrimaryKeyLong();
+    public RoomObjectId ObjectId => _roomObject.ObjectId;
+    public TObject Object => _roomObject;
 
-    public abstract RoomObjectId ObjectId { get; }
+    IRoomObject IRoomObjectContext.Object => Object;
 }

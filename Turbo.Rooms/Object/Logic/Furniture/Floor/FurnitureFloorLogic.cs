@@ -11,7 +11,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 [RoomObjectLogic("default_floor")]
 public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
-    : FurnitureLogicBase<IRoomFloorItem, IRoomFloorItemContext>(stuffDataFactory, ctx),
+    : FurnitureLogic<IRoomFloorItem, IFurnitureFloorLogic, IRoomFloorItemContext>(
+        stuffDataFactory,
+        ctx
+    ),
         IFurnitureFloorLogic
 {
     public virtual bool CanStack() => _ctx.Definition.CanStack;

@@ -1,4 +1,5 @@
 using System;
+using Orleans.Configuration.Overrides;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
@@ -9,26 +10,17 @@ using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Rooms.Object.Furniture.Floor;
 
-internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
+public sealed class RoomFloorItem
+    : RoomItem<IRoomFloorItem, IFurnitureFloorLogic, IRoomFloorItemContext>,
+        IRoomFloorItem
 {
-    public IFurnitureFloorLogic Logic { get; private set; } = default!;
-
-    private RoomFloorItemSnapshot? _snapshot;
-
     public double GetStackHeight() => Logic?.GetStackHeight() ?? Definition.StackHeight;
 
-    public void SetPosition(int x, int y, double z)
+    public override void SetPosition(int x, int y, double z)
     {
         z = Math.Round(z, 2);
 
-        if (X == x && Y == y && Z == z)
-            return;
-
-        X = x;
-        Y = y;
-        Z = z;
-
-        MarkDirty();
+        base.SetPosition(x, y, z);
     }
 
     public void SetRotation(Rotation rotation)
@@ -38,35 +30,26 @@ internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
         MarkDirty();
     }
 
-    public void SetLogic(IFurnitureFloorLogic logic)
-    {
-        Logic = logic;
-    }
+    public new RoomFloorItemSnapshot GetSnapshot() => (RoomFloorItemSnapshot)base.GetSnapshot();
 
-    public RoomFloorItemSnapshot GetSnapshot()
-    {
-        if (_dirty || _snapshot is null)
-        {
-            _snapshot = BuildSnapshot();
-            _dirty = false;
-        }
+    public override IComposer GetAddComposer() =>
+        new ObjectAddMessageComposer { FloorItem = GetSnapshot() };
 
-        return _snapshot;
-    }
-
-    public IComposer GetAddComposer() => new ObjectAddMessageComposer { FloorItem = GetSnapshot() };
-
-    public IComposer GetUpdateComposer() =>
+    public override IComposer GetUpdateComposer() =>
         new ObjectUpdateMessageComposer { FloorItem = GetSnapshot() };
 
-    public IComposer GetRefreshStuffDataComposer() =>
+    public override IComposer GetRefreshStuffDataComposer() =>
         new ObjectDataUpdateMessageComposer
         {
             ObjectId = ObjectId,
             StuffData = Logic.StuffData.GetSnapshot(),
         };
 
-    public IComposer GetRemoveComposer(PlayerId pickerId, bool isExpired = false, int delay = 0) =>
+    public override IComposer GetRemoveComposer(
+        PlayerId pickerId,
+        bool isExpired = false,
+        int delay = 0
+    ) =>
         new ObjectRemoveMessageComposer
         {
             ObjectId = ObjectId,
@@ -75,8 +58,8 @@ internal sealed class RoomFloorItem : RoomItem, IRoomFloorItem
             Delay = delay,
         };
 
-    private RoomFloorItemSnapshot BuildSnapshot() =>
-        new()
+    protected override RoomItemSnapshot BuildSnapshot() =>
+        new RoomFloorItemSnapshot()
         {
             ObjectId = ObjectId,
             OwnerId = OwnerId,

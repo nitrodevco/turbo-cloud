@@ -33,23 +33,6 @@ public partial interface IRoomGrain
         Rotation rot,
         CancellationToken ct
     );
-    public Task<bool> RemoveWallItemByIdAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct
-    );
-    public Task<bool> UseWallItemByIdAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
-    );
-    public Task<bool> ClickWallItemByIdAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
-    );
     public Task<RoomWallItemSnapshot?> GetWallItemSnapshotByIdAsync(
         RoomObjectId itemId,
         CancellationToken ct

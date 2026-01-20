@@ -8,8 +8,15 @@ using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Rooms.Object.Avatars;
 
-internal abstract class RoomAvatar : RoomObject, IRoomAvatar
+public abstract class RoomAvatar<TSelf, TLogic, TContext>
+    : RoomObject<TSelf, TLogic, TContext>,
+        IRoomAvatar<TSelf, TLogic, TContext>
+    where TSelf : IRoomAvatar<TSelf, TLogic, TContext>
+    where TContext : IRoomAvatarContext<TSelf, TLogic, TContext>
+    where TLogic : IRoomAvatarLogic<TSelf, TLogic, TContext>
 {
+    IRoomAvatarLogic IRoomAvatar.Logic => Logic;
+
     public abstract RoomObjectType AvatarType { get; }
 
     public string Name { get; init; } = string.Empty;
@@ -18,7 +25,6 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
 
     public Rotation HeadRotation { get; protected set; }
     public AvatarDanceType DanceType { get; private set; } = AvatarDanceType.None;
-    public IRoomAvatarLogic Logic { get; private set; } = default!;
     public Dictionary<AvatarStatusType, string> Statuses { get; } = [];
 
     public double PostureOffset { get; set; } = 0.0;
@@ -125,11 +131,6 @@ internal abstract class RoomAvatar : RoomObject, IRoomAvatar
         DanceType = danceType;
 
         return true;
-    }
-
-    public void SetLogic(IRoomAvatarLogic logic)
-    {
-        Logic = logic;
     }
 
     public void Sit(bool flag = true, double height = 0.5, Rotation? rot = null)

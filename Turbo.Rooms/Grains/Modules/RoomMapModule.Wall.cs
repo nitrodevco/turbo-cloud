@@ -5,7 +5,7 @@ namespace Turbo.Rooms.Grains.Modules;
 
 public sealed partial class RoomMapModule
 {
-    public bool AddWallItem(IRoomWallItem item)
+    private bool AddWallItem(IRoomWallItem item)
     {
         return true;
     }

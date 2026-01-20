@@ -92,77 +92,16 @@ public sealed partial class RoomGrain
         }
     }
 
-    public async Task<bool> RemoveWallItemByIdAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct
-    )
-    {
-        try
-        {
-            if (!await ActionModule.RemoveWallItemByIdAsync(ctx, itemId, ct))
-                return false;
-
-            return true;
-        }
-        catch
-        {
-            // TODO handle exceptions
-
-            return false;
-        }
-    }
-
-    public async Task<bool> UseWallItemByIdAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
-    )
-    {
-        try
-        {
-            if (!await ActionModule.UseWallItemByIdAsync(ctx, itemId, ct, param))
-                return false;
-
-            return true;
-        }
-        catch
-        {
-            // TODO handle exceptions
-
-            return false;
-        }
-    }
-
-    public async Task<bool> ClickWallItemByIdAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
-    )
-    {
-        try
-        {
-            if (!await ActionModule.ClickWallItemByIdAsync(ctx, itemId, ct, param))
-                return false;
-
-            return true;
-        }
-        catch
-        {
-            // TODO handle exceptions
-
-            return false;
-        }
-    }
-
     public Task<RoomWallItemSnapshot?> GetWallItemSnapshotByIdAsync(
         RoomObjectId itemId,
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _state.WallItemsById.TryGetValue(itemId, out var item) ? item.GetSnapshot() : null
+            _state.ItemsById.TryGetValue(itemId, out var item)
+                ? item is IRoomWallItem wall
+                    ? wall.GetSnapshot()
+                    : null
+                : null
         );
 
     public Task<ImmutableArray<RoomWallItemSnapshot>> GetAllWallItemSnapshotsAsync(

@@ -1,24 +1,23 @@
-using Turbo.Primitives.Networking;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Primitives.Rooms.Object.Furniture.Wall;
 
-public interface IRoomWallItem : IRoomItem
+public interface IRoomWallItem<TSelf, out TLogic, out TContext> : IRoomItem<TSelf, TLogic, TContext>
+    where TSelf : IRoomWallItem<TSelf, TLogic, TContext>
+    where TContext : IRoomWallItemContext<TSelf, TLogic, TContext>
+    where TLogic : IFurnitureWallLogic<TSelf, TLogic, TContext>
+{
+    new TLogic Logic { get; }
+}
+
+public interface IRoomWallItem : IRoomItem<IRoomWallItem, IFurnitureWallLogic, IRoomWallItemContext>
 {
     public int WallOffset { get; }
-    public IFurnitureWallLogic Logic { get; }
 
-    public void SetPosition(int x, int y, double z);
     public void SetWallOffset(int wallOffset);
     public void SetRotation(Rotation rot);
-    public void SetLogic(IFurnitureWallLogic logic);
-    public RoomWallItemSnapshot GetSnapshot();
-    public IComposer GetAddComposer();
-    public IComposer GetUpdateComposer();
-    public IComposer GetRefreshStuffDataComposer();
-    public IComposer GetRemoveComposer(PlayerId pickerId);
+    new RoomWallItemSnapshot GetSnapshot();
     public string ConvertWallPositionToString();
 }

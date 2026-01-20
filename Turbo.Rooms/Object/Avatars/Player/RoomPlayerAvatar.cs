@@ -2,11 +2,14 @@ using System.Text;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
-namespace Turbo.Rooms.Object.Avatars;
+namespace Turbo.Rooms.Object.Avatars.Player;
 
-internal sealed class RoomPlayerAvatar : RoomAvatar, IRoomPlayerAvatar
+public sealed class RoomPlayerAvatar
+    : RoomAvatar<IRoomPlayer, IRoomPlayerLogic, IRoomPlayerContext>,
+        IRoomPlayer
 {
     public override RoomObjectType AvatarType { get; } = RoomObjectType.Player;
 

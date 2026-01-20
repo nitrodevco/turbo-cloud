@@ -1,27 +1,28 @@
 using System.Threading.Tasks;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
+using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Rooms.Grains;
-using Turbo.Rooms.Grains.Modules;
 
 namespace Turbo.Rooms.Object.Furniture.Wall;
 
-internal sealed class RoomWallItemContext(
-    RoomGrain roomGrain,
-    RoomFurniModule furniModule,
-    IRoomWallItem roomItem
-) : RoomItemContext<IRoomWallItem>(roomGrain, furniModule, roomItem), IRoomWallItemContext
+public sealed class RoomWallItemContext(RoomGrain roomGrain, IRoomWallItem roomObject)
+    : RoomItemContext<IRoomWallItem, IFurnitureWallLogic, IRoomWallItemContext>(
+        roomGrain,
+        roomObject
+    ),
+        IRoomWallItemContext
 {
-    public override Task AddItemAsync() => SendComposerToRoomAsync(Item.GetAddComposer());
+    public override Task AddItemAsync() => SendComposerToRoomAsync(Object.GetAddComposer());
 
-    public override Task UpdateItemAsync() => SendComposerToRoomAsync(Item.GetUpdateComposer());
+    public override Task UpdateItemAsync() => SendComposerToRoomAsync(Object.GetUpdateComposer());
 
     public override Task RefreshStuffDataAsync() =>
-        SendComposerToRoomAsync(Item.GetRefreshStuffDataComposer());
+        SendComposerToRoomAsync(Object.GetRefreshStuffDataComposer());
 
     public override Task RemoveItemAsync(
         PlayerId pickerId,
         bool isExpired = false,
         int delay = 0
-    ) => SendComposerToRoomAsync(Item.GetRemoveComposer(pickerId));
+    ) => SendComposerToRoomAsync(Object.GetRemoveComposer(pickerId));
 }

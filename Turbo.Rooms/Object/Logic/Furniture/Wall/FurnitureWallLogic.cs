@@ -7,5 +7,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Wall;
 
 [RoomObjectLogic("default_wall")]
 public class FurnitureWallLogic(IStuffDataFactory stuffDataFactory, IRoomWallItemContext ctx)
-    : FurnitureLogicBase<IRoomWallItem, IRoomWallItemContext>(stuffDataFactory, ctx),
+    : FurnitureLogic<IRoomWallItem, IFurnitureWallLogic, IRoomWallItemContext>(
+        stuffDataFactory,
+        ctx
+    ),
         IFurnitureWallLogic { }

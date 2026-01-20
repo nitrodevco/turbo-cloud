@@ -13,11 +13,12 @@ using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 
 namespace Turbo.Rooms.Object.Logic.Furniture;
 
-public abstract class FurnitureLogicBase<TItem, TContext>
-    : RoomObjectLogicBase<TContext>,
-        IFurnitureLogic
-    where TItem : IRoomItem
-    where TContext : IRoomItemContext<TItem>
+public abstract class FurnitureLogic<TObject, TSelf, TContext>
+    : RoomObjectLogic<TObject, TSelf, TContext>,
+        IFurnitureLogic<TObject, TSelf, TContext>
+    where TObject : IRoomItem<TObject, TSelf, TContext>
+    where TContext : IRoomItemContext<TObject, TSelf, TContext>
+    where TSelf : IFurnitureLogic<TObject, TSelf, TContext>
 {
     protected readonly IStuffDataFactory _stuffDataFactory;
 
@@ -26,14 +27,14 @@ public abstract class FurnitureLogicBase<TItem, TContext>
 
     public IStuffData StuffData { get; private set; }
 
-    public FurnitureLogicBase(IStuffDataFactory stuffDataFactory, TContext ctx)
+    public FurnitureLogic(IStuffDataFactory stuffDataFactory, TContext ctx)
         : base(ctx)
     {
         _stuffDataFactory = stuffDataFactory;
 
         StuffData = _stuffDataFactory.CreateStuffDataFromExtraData(
             _stuffDataType,
-            ctx.Item.ExtraData
+            ctx.Object.ExtraData
         );
 
         StuffData.SetAction(async () =>
@@ -42,20 +43,20 @@ public abstract class FurnitureLogicBase<TItem, TContext>
 
             if (_stuffPersistanceType == StuffPersistanceType.External)
             {
-                ctx.Item.ExtraData.UpdateSection(
+                ctx.Object.ExtraData.UpdateSection(
                     ExtraDataSectionType.STUFF,
                     JsonSerializer.SerializeToNode(StuffData, StuffData.GetType())
                 );
 
-                if (_ctx is IRoomFloorItemContext floorCtx)
+                if (ctx is IRoomFloorItemContext floorCtx)
                     floorCtx.RefreshTile();
 
-                await _ctx.PublishRoomEventAsync(
+                await ctx.PublishRoomEventAsync(
                     new RoomItemStateChangedEvent
                     {
-                        RoomId = _ctx.RoomId,
+                        RoomId = ctx.RoomId,
                         CausedBy = null,
-                        FurniId = _ctx.ObjectId,
+                        FurniId = ctx.ObjectId,
                     },
                     CancellationToken.None
                 );
@@ -151,7 +152,7 @@ public abstract class FurnitureLogicBase<TItem, TContext>
 
     protected virtual int GetNextToggleableState()
     {
-        var totalStates = _ctx.Item.Definition.TotalStates;
+        var totalStates = _ctx.Object.Definition.TotalStates;
 
         if (totalStates == 0 || StuffData is null)
             return 0;

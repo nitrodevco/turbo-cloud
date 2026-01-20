@@ -7,15 +7,12 @@ using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Action;
-using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
-using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
-using Turbo.Rooms.Object.Avatars;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -52,7 +49,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
 
         avatar.NextTileId = _roomGrain.MapModule.ToIdx(startX, startY);
 
-        await AddAvatarAsync(avatar, ct);
+        await _roomGrain.ObjectModule.AttatchObjectAsync(avatar, ct);
 
         _roomGrain._state.AvatarsByPlayerId[snapshot.PlayerId] = avatar.ObjectId;
 
@@ -61,73 +58,25 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         return avatar;
     }
 
-    private async Task<IRoomAvatar> AddAvatarAsync(IRoomAvatar avatar, CancellationToken ct)
-    {
-        ArgumentNullException.ThrowIfNull(avatar);
-
-        if (!_roomGrain._state.AvatarsByObjectId.TryAdd(avatar.ObjectId, avatar))
-            throw new TurboException(TurboErrorCodeEnum.AvatarNotFound);
-
-        await AttatchLogicIfNeededAsync(avatar, ct);
-        await ProcessNextAvatarStepAsync(avatar, ct);
-
-        _ = _roomGrain.SendComposerToRoomAsync(
-            new UsersMessageComposer { Avatars = [avatar.GetSnapshot()] }
-        );
-
-        return avatar;
-    }
-
-    public async Task RemoveAvatarAsync(RoomObjectId objectId, CancellationToken ct)
+    public async Task RemoveAvatarFromPlayerAsync(
+        ActionContext ctx,
+        PlayerId playerId,
+        CancellationToken ct
+    )
     {
         try
         {
-            if (!_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar))
+            if (
+                !_roomGrain._state.AvatarsByPlayerId.TryGetValue(playerId, out var objectId)
+                || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+            )
                 return;
 
-            await StopWalkingAsync(avatar, ct);
-            await avatar.Logic.OnDetachAsync(ct);
-
-            _roomGrain.MapModule.RemoveAvatar(avatar, false);
-
-            _roomGrain._state.AvatarsByObjectId.Remove(objectId);
-
-            _ = _roomGrain.SendComposerToRoomAsync(
-                new UserRemoveMessageComposer { ObjectId = objectId }
-            );
-        }
-        catch (Exception) { }
-    }
-
-    public async Task RemoveAvatarFromPlayerAsync(PlayerId playerId, CancellationToken ct)
-    {
-        try
-        {
-            if (!_roomGrain._state.AvatarsByPlayerId.TryGetValue(playerId, out var objectId))
-                return;
-
-            await RemoveAvatarAsync(objectId, ct);
+            await _roomGrain.ObjectModule.RemoveObjectAsync(ctx, avatar, ct, -1);
 
             _roomGrain._state.AvatarsByPlayerId.Remove(playerId);
         }
         catch (Exception) { }
-    }
-
-    private async Task AttatchLogicIfNeededAsync(IRoomAvatar avatar, CancellationToken ct)
-    {
-        if (avatar.Logic is not null)
-            return;
-
-        var logicType = "default_avatar";
-        var ctx = new RoomAvatarContext(_roomGrain, this, avatar);
-        var logic = _roomGrain._logicProvider.CreateLogicInstance(logicType, ctx);
-
-        if (logic is not IRoomAvatarLogic avatarLogic)
-            throw new TurboException(TurboErrorCodeEnum.InvalidLogic);
-
-        avatar.SetLogic(avatarLogic);
-
-        await avatarLogic.OnAttachAsync(ct);
     }
 
     public async Task<bool> WalkAvatarToAsync(
