@@ -17,6 +17,6 @@ public interface IRoomAvatarContext<out TObject, out TLogic, out TSelf>
 
 public interface IRoomAvatarContext : IRoomObjectContext
 {
-    new IRoomAvatar Object { get; }
+    new IRoomAvatar RoomObject { get; }
     public Task<RoomTileSnapshot> GetTileSnapshotAsync(CancellationToken ct);
 }

@@ -24,7 +24,7 @@ public abstract class RoomItemContext<TObject, TLogic, TSelf>(
 {
     public FurnitureDefinitionSnapshot Definition => _roomObject.Definition;
 
-    IRoomItem IRoomItemContext.Object => RoomObject;
+    IRoomItem IRoomItemContext.RoomObject => RoomObject;
 
     public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
         RoomObjectId objectId,

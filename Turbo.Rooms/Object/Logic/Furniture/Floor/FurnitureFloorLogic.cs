@@ -18,6 +18,8 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
     ),
         IFurnitureFloorLogic
 {
+    IRoomFloorItemContext IFurnitureFloorLogic.Context => Context;
+
     public virtual bool CanStack() => _ctx.Definition.CanStack;
 
     public virtual bool CanWalk() => _ctx.Definition.CanWalk;

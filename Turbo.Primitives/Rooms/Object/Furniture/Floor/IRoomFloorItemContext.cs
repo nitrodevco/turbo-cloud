@@ -11,12 +11,13 @@ public interface IRoomFloorItemContext<out TObject, out TLogic, out TSelf>
     where TSelf : IRoomFloorItemContext<TObject, TLogic, TSelf>
     where TLogic : IFurnitureFloorLogic<TObject, TLogic, TSelf>
 {
-    new TObject Object { get; }
+    new TObject RoomObject { get; }
 }
 
 public interface IRoomFloorItemContext
     : IRoomItemContext<IRoomFloorItem, IFurnitureFloorLogic, IRoomFloorItemContext>
 {
+    new IRoomFloorItem RoomObject { get; }
     public int GetTileIdx();
     public int GetTileIdx(int x, int y);
     public void RefreshTile();

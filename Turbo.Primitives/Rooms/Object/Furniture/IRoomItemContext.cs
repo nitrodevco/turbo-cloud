@@ -21,7 +21,7 @@ public interface IRoomItemContext<out TObject, out TLogic, out TSelf>
 
 public interface IRoomItemContext : IRoomObjectContext
 {
-    new IRoomItem Object { get; }
+    new IRoomItem RoomObject { get; }
     public FurnitureDefinitionSnapshot Definition { get; }
     public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
         RoomObjectId objectId,

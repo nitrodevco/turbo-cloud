@@ -8,8 +8,11 @@ public interface IRoomWallItemContext<out TObject, out TLogic, out TSelf>
     where TSelf : IRoomWallItemContext<TObject, TLogic, TSelf>
     where TLogic : IFurnitureWallLogic<TObject, TLogic, TSelf>
 {
-    new TObject Object { get; }
+    new TObject RoomObject { get; }
 }
 
 public interface IRoomWallItemContext
-    : IRoomItemContext<IRoomWallItem, IFurnitureWallLogic, IRoomWallItemContext> { }
+    : IRoomItemContext<IRoomWallItem, IFurnitureWallLogic, IRoomWallItemContext>
+{
+    new IRoomWallItem RoomObject { get; }
+}

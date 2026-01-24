@@ -18,6 +18,7 @@ public interface IFurnitureFloorLogic
     : IFurnitureLogic<IRoomFloorItem, IFurnitureFloorLogic, IRoomFloorItemContext>,
         IRollableObject
 {
+    new IRoomFloorItemContext Context { get; }
     public bool CanStack();
     public bool CanWalk();
     public bool CanSit();

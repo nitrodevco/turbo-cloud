@@ -16,5 +16,6 @@ public interface IRoomFloorItem<TSelf, out TLogic, out TContext>
 public interface IRoomFloorItem
     : IRoomItem<IRoomFloorItem, IFurnitureFloorLogic, IRoomFloorItemContext>
 {
+    new IFurnitureFloorLogic Logic { get; }
     new RoomFloorItemSnapshot GetSnapshot();
 }

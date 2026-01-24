@@ -5,5 +5,6 @@ namespace Turbo.Primitives.Rooms.Object.Avatars;
 
 public interface IRoomPlayer : IRoomAvatar<IRoomPlayer, IRoomPlayerLogic, IRoomPlayerContext>
 {
+    new IRoomPlayerLogic Logic { get; }
     public PlayerId PlayerId { get; }
 }

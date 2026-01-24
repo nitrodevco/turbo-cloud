@@ -28,6 +28,8 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
 
     public IStuffData StuffData { get; private set; }
 
+    IRoomItemContext IFurnitureLogic.Context => Context;
+
     public FurnitureLogic(IStuffDataFactory stuffDataFactory, TContext ctx)
         : base(ctx)
     {

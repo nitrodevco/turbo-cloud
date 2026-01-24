@@ -14,6 +14,7 @@ public interface IRoomWallItem<TSelf, out TLogic, out TContext> : IRoomItem<TSel
 
 public interface IRoomWallItem : IRoomItem<IRoomWallItem, IFurnitureWallLogic, IRoomWallItemContext>
 {
+    new IFurnitureWallLogic Logic { get; }
     public int WallOffset { get; }
 
     public void SetWallOffset(int wallOffset);

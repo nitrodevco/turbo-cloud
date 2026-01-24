@@ -11,4 +11,7 @@ public class FurnitureWallLogic(IStuffDataFactory stuffDataFactory, IRoomWallIte
         stuffDataFactory,
         ctx
     ),
-        IFurnitureWallLogic { }
+        IFurnitureWallLogic
+{
+    IRoomWallItemContext IFurnitureWallLogic.Context => Context;
+}

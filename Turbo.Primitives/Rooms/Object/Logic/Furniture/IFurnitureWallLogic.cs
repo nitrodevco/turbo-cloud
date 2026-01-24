@@ -12,4 +12,7 @@ public interface IFurnitureWallLogic<out TObject, out TLogic, out TContext>
 }
 
 public interface IFurnitureWallLogic
-    : IFurnitureLogic<IRoomWallItem, IFurnitureWallLogic, IRoomWallItemContext> { }
+    : IFurnitureLogic<IRoomWallItem, IFurnitureWallLogic, IRoomWallItemContext>
+{
+    new IRoomWallItemContext Context { get; }
+}

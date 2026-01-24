@@ -19,7 +19,7 @@ public interface IFurnitureLogic<out TObject, out TLogic, out TContext>
 
 public interface IFurnitureLogic : IRoomObjectLogic, IRollableObject
 {
-    //new IRoomItemContext Context { get; }
+    new IRoomItemContext Context { get; }
     public IStuffData StuffData { get; }
     public FurnitureUsageType GetUsagePolicy();
     public bool CanToggle();

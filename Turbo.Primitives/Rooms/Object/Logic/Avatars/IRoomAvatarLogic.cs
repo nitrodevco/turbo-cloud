@@ -12,7 +12,4 @@ public interface IRoomAvatarLogic<out TObject, out TLogic, out TContext>
     new TContext Context { get; }
 }
 
-public interface IRoomAvatarLogic : IRoomObjectLogic, IRollableObject
-{
-    //new IRoomAvatarContext Context { get; }
-}
+public interface IRoomAvatarLogic : IRoomObjectLogic, IRollableObject { }
