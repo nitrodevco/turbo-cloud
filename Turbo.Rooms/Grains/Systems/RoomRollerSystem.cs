@@ -91,6 +91,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
                             || item.Definition.Length > 1
                             || item.Z < rollerHeight
                             || !item.Logic.CanRoll()
+                            || toTileState.Has(RoomTileFlags.StackBlocked)
                         )
                             continue;
 
@@ -108,7 +109,10 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
                         )
                             continue;
 
-                        if (!avatar.Logic.CanRoll())
+                        if (
+                            !avatar.Logic.CanRoll()
+                            || !_roomGrain.MapModule.CanAvatarWalk(avatar, toIdx)
+                        )
                         {
                             canAvatarMove = false;
 
@@ -118,14 +122,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
                         avatars.Add(avatar);
                     }
 
-                    if (!canAvatarMove)
-                        continue;
-
-                    if (
-                        (items.Count == 0 && avatars.Count == 0)
-                        || (items.Count > 0 && toTileState.Has(RoomTileFlags.StackBlocked))
-                        || (avatars.Count > 0 && toTileState.Has(RoomTileFlags.Closed))
-                    )
+                    if (!canAvatarMove || (items.Count == 0 && avatars.Count == 0))
                         continue;
 
                     currentPlans.Add(

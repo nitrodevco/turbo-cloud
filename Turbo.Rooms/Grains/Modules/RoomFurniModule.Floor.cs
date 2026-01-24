@@ -126,7 +126,14 @@ public sealed partial class RoomFurniModule
                         && tileFlags.Has(RoomTileFlags.AvatarOccupied)
                         && !isRotating
                     )
-                    || (tileFlags.Has(RoomTileFlags.AvatarOccupied) && !tItem.Logic.CanWalk())
+                    || (
+                        tileFlags.Has(RoomTileFlags.AvatarOccupied)
+                        && (
+                            !tileFlags.Has(RoomTileFlags.Walkable)
+                            && !tileFlags.Has(RoomTileFlags.Sittable)
+                            && !tileFlags.Has(RoomTileFlags.Layable)
+                        )
+                    )
                 )
                     return false;
 

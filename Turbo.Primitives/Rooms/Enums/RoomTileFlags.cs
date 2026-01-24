@@ -11,11 +11,12 @@ public enum RoomTileFlags : ushort
     Open = 1 << 1,
     Closed = 1 << 2,
     StackBlocked = 1 << 3,
-    Sittable = 1 << 4,
-    Layable = 1 << 5,
-    AvatarOccupied = 1 << 6,
-    FurnitureOccupied = 1 << 7,
-    FurnitureWithRollersOccupied = 1 << 8,
+    Walkable = 1 << 4,
+    Sittable = 1 << 5,
+    Layable = 1 << 6,
+    AvatarOccupied = 1 << 7,
+    FurnitureOccupied = 1 << 8,
+    FurnitureWithRollersOccupied = 1 << 9,
 }
 
 public static class RoomTileFlagsExtensions

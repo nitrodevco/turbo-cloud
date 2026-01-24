@@ -103,8 +103,7 @@ public sealed class RoomModelProvider(
                 if (ch.Equals('x'))
                 {
                     heights[idx] = 0.0;
-                    flags[idx] =
-                        RoomTileFlags.Disabled | RoomTileFlags.Closed | RoomTileFlags.StackBlocked;
+                    flags[idx] = RoomTileFlags.Disabled | RoomTileFlags.StackBlocked;
                 }
                 else
                 {

@@ -214,14 +214,11 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
 
         if (nextHighestItem is not null)
         {
-            if (!nextHighestItem.Logic.CanWalk())
-            {
-                nextFlags = nextFlags.Remove(RoomTileFlags.Open);
-                nextFlags = nextFlags.Add(RoomTileFlags.Closed);
-            }
-
             if (!nextHighestItem.Logic.CanStack())
                 nextFlags = nextFlags.Add(RoomTileFlags.StackBlocked);
+
+            if (nextHighestItem.Logic.CanWalk())
+                nextFlags = nextFlags.Add(RoomTileFlags.Walkable);
 
             if (nextHighestItem.Logic.CanSit())
                 nextFlags = nextFlags.Add(RoomTileFlags.Sittable);

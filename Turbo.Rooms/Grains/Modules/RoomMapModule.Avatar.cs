@@ -77,11 +77,24 @@ public sealed partial class RoomMapModule
                 return false;
         }
 
-        if (
-            (tileFlags.Has(RoomTileFlags.Sittable) || tileFlags.Has(RoomTileFlags.Layable))
-            && (isDiagonalCheck || !isGoal)
-        )
-            return false;
+        if (tileFlags.Has(RoomTileFlags.FurnitureOccupied))
+        {
+            if (
+                (tileFlags.Has(RoomTileFlags.Sittable) || tileFlags.Has(RoomTileFlags.Layable))
+                && (isDiagonalCheck || !isGoal)
+            )
+                return false;
+
+            if (
+                (tileFlags.Has(RoomTileFlags.Sittable) || tileFlags.Has(RoomTileFlags.Layable))
+                && !isDiagonalCheck
+                && isGoal
+            )
+                return true;
+
+            if (!tileFlags.Has(RoomTileFlags.Walkable))
+                return false;
+        }
 
         return true;
     }
