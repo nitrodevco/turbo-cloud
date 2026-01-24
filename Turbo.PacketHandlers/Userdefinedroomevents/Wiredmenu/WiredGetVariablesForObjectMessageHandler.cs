@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -30,7 +31,7 @@ public class WiredGetVariablesForObjectMessageHandler(IGrainFactory grainFactory
                 new WiredVariableBinding()
                 {
                     TargetType = (WiredVariableTargetType)message.SourceType,
-                    TargetId = message.SourceId,
+                    TargetId = Math.Abs(message.SourceId),
                 },
                 ct
             )

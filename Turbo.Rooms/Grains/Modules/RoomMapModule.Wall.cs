@@ -1,4 +1,5 @@
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -14,30 +15,32 @@ public sealed partial class RoomMapModule
         IRoomWallItem item,
         int x,
         int y,
-        double z,
+        Altitude z,
         Rotation rot,
         int wallOffset
     )
     {
-        item.SetPosition(x, y, z);
+        item.SetPosition(x, y);
+        item.SetPositionZ(z);
         item.SetRotation(rot);
         item.SetWallOffset(wallOffset);
 
         return AddWallItem(item);
     }
 
-    public bool MoveWallItemItem(
+    public bool MoveWallItem(
         IRoomWallItem item,
         int x,
         int y,
-        double z,
+        Altitude z,
         Rotation rot,
         int wallOffset
     )
     {
         RemoveWallItem(item);
 
-        item.SetPosition(x, y, z);
+        item.SetPosition(x, y);
+        item.SetPositionZ(z);
         item.SetRotation(rot);
         item.SetWallOffset(wallOffset);
 

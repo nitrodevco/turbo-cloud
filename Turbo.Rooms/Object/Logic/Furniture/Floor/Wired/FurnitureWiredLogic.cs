@@ -15,6 +15,7 @@ using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
@@ -54,7 +55,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
 
         WiredData = _wiredDataFactory.CreateWiredDataFromExtraData(
             WiredType,
-            ctx.RoomObject.ExtraData
+            _ctx.RoomObject.ExtraData
         );
 
         WiredData.SetAction(() =>
@@ -81,26 +82,19 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
         _ = SetStateAsync(state);
     }
 
-    public List<int> GetValidStuffIds(List<int> stuffIds)
+    public virtual List<int> GetStuffIds()
     {
-        var validStuffIds = new List<int>();
-
-        foreach (var id in stuffIds)
+        if (GetValidStuffIds(WiredData.StuffIds, out var stuffIds))
         {
-            if (!_roomGrain._state.FloorItemsById.TryGetValue(id, out var item))
-                continue;
+            if (!WiredData.StuffIds.SequenceEqual(stuffIds))
+            {
+                WiredData.StuffIds = stuffIds;
 
-            validStuffIds.Add(id);
+                WiredData.MarkDirty();
+            }
         }
 
-        if (stuffIds.Count != validStuffIds.Count)
-        {
-            WiredData.StuffIds = validStuffIds;
-
-            WiredData.MarkDirty();
-        }
-
-        return validStuffIds;
+        return stuffIds ?? [];
     }
 
     public virtual List<IWiredIntParamRule> GetIntParamRules() => [];
@@ -259,25 +253,8 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
                 return false;
             }
 
-            if (update.StuffIds.Count > 0)
-            {
-                var count = 0;
-
-                foreach (var id in update.StuffIds)
-                {
-                    var snapshot = await _ctx.GetFloorItemSnapshotByIdAsync(id, ct);
-
-                    if (snapshot is null)
-                        continue;
-
-                    stuffIds.Add(id);
-
-                    count++;
-
-                    if (count >= _furniLimit)
-                        break;
-                }
-            }
+            if (GetValidStuffIds(update.StuffIds, out var validStuffIds))
+                stuffIds = validStuffIds;
 
             if (update.VariableIds.Count > 0)
             {
@@ -477,9 +454,41 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
         return true;
     }
 
+    protected virtual bool GetValidStuffIds(List<int> proposed, out List<int> stuffIds)
+    {
+        stuffIds = [];
+
+        var count = 0;
+
+        foreach (var id in proposed)
+        {
+            if (!_roomGrain._state.ItemsById.TryGetValue(id, out var item))
+                continue;
+
+            stuffIds.Add(id);
+
+            count++;
+
+            if (count >= _furniLimit)
+                break;
+        }
+
+        return true;
+    }
+
     protected virtual Task FillInternalDataAsync(CancellationToken ct)
     {
         _snapshot = null;
+
+        if (GetValidStuffIds(WiredData.StuffIds, out var stuffIds))
+        {
+            if (!WiredData.StuffIds.SequenceEqual(stuffIds))
+            {
+                WiredData.StuffIds = stuffIds;
+
+                WiredData.MarkDirty();
+            }
+        }
 
         return Task.CompletedTask;
     }
@@ -514,7 +523,9 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
         {
             WiredType = WiredType,
             FurniLimit = _furniLimit,
-            StuffIds = GetValidStuffIds(WiredData.StuffIds),
+            StuffIds = GetValidStuffIds(WiredData.StuffIds, out var validStuffIds)
+                ? validStuffIds
+                : [],
             StuffTypeId = _ctx.Definition.SpriteId,
             Id = _ctx.ObjectId,
             StringParam = WiredData.StringParam,

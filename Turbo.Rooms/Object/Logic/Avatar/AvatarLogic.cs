@@ -12,7 +12,7 @@ public abstract class AvatarLogic<TObject, TSelf, TContext>(TContext ctx)
 {
     public bool CanRoll()
     {
-        if (_ctx.Object.IsWalking)
+        if (_ctx.RoomObject.IsWalking)
             return false;
 
         return true;

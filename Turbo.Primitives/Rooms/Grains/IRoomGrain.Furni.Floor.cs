@@ -8,7 +8,6 @@ using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired.Variable;
@@ -17,7 +16,6 @@ namespace Turbo.Primitives.Rooms.Grains;
 
 public partial interface IRoomGrain
 {
-    public Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct);
     public Task<bool> PlaceFloorItemAsync(
         ActionContext ctx,
         FurnitureItemSnapshot item,

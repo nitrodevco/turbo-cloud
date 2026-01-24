@@ -16,6 +16,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms;
@@ -179,11 +180,56 @@ internal sealed partial class RoomService(
         CancellationToken ct
     )
     {
-        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0)
+        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0)
             return;
 
         var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
 
         await roomGrain.WalkAvatarToAsync(ctx, targetX, targetY, ct).ConfigureAwait(false);
+    }
+
+    public async Task PickupItemInRoomAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        CancellationToken ct,
+        bool isConfirm = true
+    )
+    {
+        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || itemId <= 0)
+            return;
+
+        var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
+
+        await roomGrain.RemoveItemByIdAsync(ctx, itemId, ct).ConfigureAwait(false);
+    }
+
+    public async Task UseItemInRoomAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        CancellationToken ct,
+        int param = -1
+    )
+    {
+        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || itemId <= 0)
+            return;
+
+        var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
+
+        await roomGrain.UseItemByIdAsync(ctx, itemId, ct, param).ConfigureAwait(false);
+    }
+
+    public async Task ClickItemInRoomAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        CancellationToken ct,
+        int param = -1
+    )
+    {
+        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || itemId <= 0)
+            return;
+
+        var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
+
+        await roomGrain.ClickItemByIdAsync(ctx, itemId, ct, param).ConfigureAwait(false);
     }
 }

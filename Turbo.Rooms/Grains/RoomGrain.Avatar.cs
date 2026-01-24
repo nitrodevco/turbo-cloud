@@ -36,11 +36,15 @@ public sealed partial class RoomGrain
         }
     }
 
-    public async Task<bool> RemoveAvatarFromPlayerAsync(PlayerId playerId, CancellationToken ct)
+    public async Task<bool> RemoveAvatarFromPlayerAsync(
+        ActionContext ctx,
+        PlayerId playerId,
+        CancellationToken ct
+    )
     {
         try
         {
-            await AvatarModule.RemoveAvatarFromPlayerAsync(playerId, ct);
+            await AvatarModule.RemoveAvatarFromPlayerAsync(ctx, playerId, ct);
 
             return true;
         }

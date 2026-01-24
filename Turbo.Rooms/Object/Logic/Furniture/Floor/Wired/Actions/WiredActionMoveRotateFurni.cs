@@ -51,7 +51,10 @@ public class WiredActionMoveRotateFurni(
         {
             try
             {
-                if (!_roomGrain._state.FloorItemsById.TryGetValue(furniId, out var floorItem))
+                if (
+                    !_roomGrain._state.ItemsById.TryGetValue(furniId, out var item)
+                    || item is not IRoomFloorItem floorItem
+                )
                     continue;
 
                 var moveDirection = GetMoveDirection(_movementType);
@@ -69,7 +72,7 @@ public class WiredActionMoveRotateFurni(
                 var (targetX, targetY) = _roomGrain.MapModule.GetTileXY(nextIdx);
 
                 if (
-                    !_roomGrain.FurniModule.ValidateFloorItemPlacement(
+                    !await _roomGrain.FurniModule.ValidateFloorItemPlacementAsync(
                         actionCtx,
                         furniId,
                         targetX,
@@ -79,7 +82,7 @@ public class WiredActionMoveRotateFurni(
                 )
                     continue;
 
-                ctx.AddFloorItemMovement(floorItem, nextIdx, moveRotation);
+                ctx.AddFloorItemMovement(floorItem, nextIdx, null, moveRotation);
             }
             catch
             {

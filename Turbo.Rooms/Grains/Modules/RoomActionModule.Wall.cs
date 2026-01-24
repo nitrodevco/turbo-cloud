@@ -13,15 +13,12 @@ namespace Turbo.Rooms.Grains.Modules;
 
 public sealed partial class RoomActionModule
 {
-    public Task<bool> AddWallItemAsync(IRoomWallItem item, CancellationToken ct) =>
-        _roomGrain.ObjectModule.AttatchObjectAsync(item, ct);
-
     public async Task<bool> PlaceWallItemAsync(
         ActionContext ctx,
         FurnitureItemSnapshot snapshot,
         int x,
         int y,
-        double z,
+        Altitude z,
         int wallOffset,
         Rotation rot,
         CancellationToken ct
@@ -74,7 +71,7 @@ public sealed partial class RoomActionModule
         RoomObjectId itemId,
         int x,
         int y,
-        double z,
+        Altitude z,
         int wallOffset,
         Rotation rot,
         CancellationToken ct

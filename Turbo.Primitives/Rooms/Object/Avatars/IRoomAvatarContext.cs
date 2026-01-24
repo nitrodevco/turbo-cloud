@@ -12,7 +12,7 @@ public interface IRoomAvatarContext<out TObject, out TLogic, out TSelf>
     where TSelf : IRoomAvatarContext<TObject, TLogic, TSelf>
     where TLogic : IRoomAvatarLogic<TObject, TLogic, TSelf>
 {
-    new TObject Object { get; }
+    new TObject RoomObject { get; }
 }
 
 public interface IRoomAvatarContext : IRoomObjectContext

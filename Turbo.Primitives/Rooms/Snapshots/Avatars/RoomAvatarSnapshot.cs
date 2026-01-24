@@ -32,7 +32,7 @@ public record RoomAvatarSnapshot
     public required int Y { get; init; }
 
     [Id(8)]
-    public required double Z { get; init; }
+    public required Altitude Z { get; init; }
 
     [Id(9)]
     public required Rotation BodyRotation { get; init; }

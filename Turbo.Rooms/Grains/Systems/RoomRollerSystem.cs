@@ -10,6 +10,7 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
@@ -51,7 +52,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
             {
                 try
                 {
-                    if (!_roomGrain._state.FloorItemsById.TryGetValue(rollerId, out var roller))
+                    if (!_roomGrain._state.ItemsById.TryGetValue(rollerId, out var roller))
                         continue;
 
                     var fromIdx = _roomGrain.MapModule.ToIdx(roller.X, roller.Y);
@@ -70,7 +71,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
 
                     var toTileState = _roomGrain._state.TileFlags[toIdx];
                     var toTileHeight = _roomGrain._state.TileHeights[toIdx];
-                    var rollerHeight = roller.Z + roller.GetStackHeight();
+                    var rollerHeight = roller.Height;
 
                     if (
                         toTileHeight > rollerHeight
@@ -78,14 +79,14 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
                     )
                         continue;
 
-                    var floorItems = new List<IRoomFloorItem>();
+                    var items = new List<IRoomItem>();
                     var avatars = new List<IRoomAvatar>();
                     var canAvatarMove = true;
 
                     foreach (var itemId in _roomGrain._state.TileFloorStacks[fromIdx])
                     {
                         if (
-                            !_roomGrain._state.FloorItemsById.TryGetValue(itemId, out var item)
+                            !_roomGrain._state.ItemsById.TryGetValue(itemId, out var item)
                             || item.Definition.Width > 1
                             || item.Definition.Length > 1
                             || item.Z < rollerHeight
@@ -93,7 +94,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
                         )
                             continue;
 
-                        floorItems.Add(item);
+                        items.Add(item);
                     }
 
                     foreach (var avatarId in _roomGrain._state.TileAvatarStacks[fromIdx])
@@ -110,6 +111,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
                         if (!avatar.Logic.CanRoll())
                         {
                             canAvatarMove = false;
+
                             break;
                         }
 
@@ -120,8 +122,8 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
                         continue;
 
                     if (
-                        (floorItems.Count == 0 && avatars.Count == 0)
-                        || (floorItems.Count > 0 && toTileState.Has(RoomTileFlags.StackBlocked))
+                        (items.Count == 0 && avatars.Count == 0)
+                        || (items.Count > 0 && toTileState.Has(RoomTileFlags.StackBlocked))
                         || (avatars.Count > 0 && toTileState.Has(RoomTileFlags.Closed))
                     )
                         continue;
@@ -134,7 +136,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
                             ToIdx = toIdx,
                             MovedFloorItems =
                             [
-                                .. floorItems.Select(x => new RollerMovedObject
+                                .. items.Select(x => new RollerMovedObject
                                 {
                                     ObjectId = x.ObjectId,
                                     RoomObject = x,
@@ -281,7 +283,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
         _rollerIdSets.Clear();
 
         var rollers = _roomGrain
-            ._state.FloorItemsById.Values.Where(x => x.Logic is FurnitureRollerLogic)
+            ._state.ItemsById.Values.Where(x => x.Logic is FurnitureRollerLogic)
             .ToList();
 
         if (rollers.Count == 0)
@@ -314,9 +316,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
         return Task.CompletedTask;
     }
 
-    private static IEnumerable<IRoomFloorItem> OrderRollersFrontToBack(
-        IEnumerable<IRoomFloorItem> rollers
-    )
+    private static IEnumerable<IRoomItem> OrderRollersFrontToBack(IEnumerable<IRoomItem> rollers)
     {
         var list = rollers.ToList();
 

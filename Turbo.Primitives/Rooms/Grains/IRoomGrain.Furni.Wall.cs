@@ -5,20 +5,18 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Primitives.Rooms.Grains;
 
 public partial interface IRoomGrain
 {
-    public Task<bool> AddWallItemAsync(IRoomWallItem item, CancellationToken ct);
     public Task<bool> PlaceWallItemAsync(
         ActionContext ctx,
         FurnitureItemSnapshot item,
         int x,
         int y,
-        double z,
+        Altitude z,
         int wallOffset,
         Rotation rot,
         CancellationToken ct
@@ -28,7 +26,7 @@ public partial interface IRoomGrain
         RoomObjectId itemId,
         int x,
         int y,
-        double z,
+        Altitude z,
         int wallOffset,
         Rotation rot,
         CancellationToken ct

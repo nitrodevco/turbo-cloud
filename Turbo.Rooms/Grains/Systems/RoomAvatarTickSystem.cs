@@ -7,6 +7,7 @@ using Turbo.Primitives;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Rooms.Grains.Systems;
@@ -119,13 +120,10 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
 
             if (
                 prevHighestItemId > 0
-                && _roomGrain._state.FloorItemsById.TryGetValue(
-                    prevHighestItemId,
-                    out var prevFloorItem
-                )
+                && _roomGrain._state.ItemsById.TryGetValue(prevHighestItemId, out var prevFloorItem)
             )
             {
-                await prevFloorItem.Logic.OnWalkOffAsync(
+                await ((IRoomFloorItem)prevFloorItem).Logic.OnWalkOffAsync(
                     (IRoomAvatarContext)avatar.Logic.Context,
                     ct
                 );
@@ -136,13 +134,10 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
 
             if (
                 nextHighestItemId > 0
-                && _roomGrain._state.FloorItemsById.TryGetValue(
-                    nextHighestItemId,
-                    out var nextFloorItem
-                )
+                && _roomGrain._state.ItemsById.TryGetValue(nextHighestItemId, out var nextFloorItem)
             )
             {
-                await nextFloorItem.Logic.OnWalkOnAsync(
+                await ((IRoomFloorItem)nextFloorItem).Logic.OnWalkOnAsync(
                     (IRoomAvatarContext)avatar.Logic.Context,
                     ct
                 );

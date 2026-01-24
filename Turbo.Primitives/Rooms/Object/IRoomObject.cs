@@ -25,13 +25,15 @@ public interface IRoomObject
     public RoomObjectId ObjectId { get; }
     public int X { get; }
     public int Y { get; }
-    public double Z { get; }
+    public Altitude Z { get; }
     public Rotation Rotation { get; }
     public bool IsDirty { get; }
     public IRoomObjectLogic Logic { get; }
 
     public void SetAction(Action<RoomObjectId>? onSnapshotChanged);
     public void MarkDirty();
-    public void SetPosition(int x, int y, double z);
+    public void SetPosition(int x, int y);
+    public void SetPositionZ(Altitude z);
+    public void SetRotation(Rotation rot);
     public void SetLogic(IRoomObjectLogic logic);
 }

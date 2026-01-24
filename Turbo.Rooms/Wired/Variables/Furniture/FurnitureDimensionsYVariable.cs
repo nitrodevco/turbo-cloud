@@ -30,11 +30,11 @@ public sealed class FurnitureDimensionsYVariable(RoomGrain roomGrain)
 
         if (
             !CanBind(binding)
-            || !_roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem)
+            || !_roomGrain._state.ItemsById.TryGetValue(binding.TargetId, out var item)
         )
             return false;
 
-        value = floorItem.Definition.Length;
+        value = item.Definition.Length;
 
         return true;
     }

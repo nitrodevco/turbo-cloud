@@ -15,7 +15,7 @@ public sealed record RoomTileSnapshot
     public required byte Y { get; init; }
 
     [Id(2)]
-    public required double Height { get; init; }
+    public required Altitude Height { get; init; }
 
     [Id(3)]
     public required short EncodedHeight { get; init; }

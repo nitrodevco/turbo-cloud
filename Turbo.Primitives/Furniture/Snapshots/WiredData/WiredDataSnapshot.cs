@@ -3,6 +3,7 @@ using Orleans;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 
 namespace Turbo.Primitives.Furniture.Snapshots.WiredData;

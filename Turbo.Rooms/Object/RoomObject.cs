@@ -14,7 +14,7 @@ public abstract class RoomObject<TSelf, TLogic, TContext> : IRoomObject<TSelf, T
 
     public int X { get; protected set; }
     public int Y { get; protected set; }
-    public double Z { get; protected set; }
+    public Altitude Z { get; protected set; }
     public Rotation Rotation { get; protected set; }
     public bool IsDirty => _dirty;
 
@@ -36,16 +36,35 @@ public abstract class RoomObject<TSelf, TLogic, TContext> : IRoomObject<TSelf, T
         _onSnapshotChanged?.Invoke(ObjectId);
     }
 
-    public virtual void SetPosition(int x, int y, double z)
+    public virtual void SetPosition(int x, int y)
     {
-        z = Math.Round(z, 2);
-
-        if (X == x && Y == y && Z == z)
+        if (X == x && Y == y)
             return;
 
         X = x;
         Y = y;
+
+        MarkDirty();
+    }
+
+    public virtual void SetPositionZ(Altitude z)
+    {
+        z = Math.Round(z, 2);
+
+        if (Z == z)
+            return;
+
         Z = z;
+
+        MarkDirty();
+    }
+
+    public void SetRotation(Rotation rot)
+    {
+        if (Rotation == rot)
+            return;
+
+        Rotation = rot;
 
         MarkDirty();
     }

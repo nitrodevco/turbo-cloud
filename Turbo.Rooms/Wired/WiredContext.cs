@@ -35,7 +35,7 @@ public abstract class WiredContext : IWiredContext
                             {
                                 foreach (var id in stuffIds)
                                 {
-                                    if (!Room._state.FloorItemsById.ContainsKey(id))
+                                    if (!Room._state.ItemsById.ContainsKey(id))
                                         continue;
 
                                     set.SelectedFurniIds.Add(id);

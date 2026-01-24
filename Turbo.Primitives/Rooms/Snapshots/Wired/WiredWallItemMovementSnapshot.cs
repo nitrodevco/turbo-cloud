@@ -13,26 +13,26 @@ public sealed record WiredWallItemMovementSnapshot
     public required bool IsDirectionRight { get; init; }
 
     [Id(2)]
-    public required int OldWallX { get; init; }
+    public required int SourceX { get; init; }
 
     [Id(3)]
-    public required int OldWallY { get; init; }
+    public required int SourceY { get; init; }
 
     [Id(4)]
-    public required int OldOffsetX { get; init; }
+    public required int SourceWallOffset { get; init; }
 
     [Id(5)]
-    public required int OldOffsetY { get; init; }
+    public required int SourceZ { get; init; }
 
     [Id(6)]
-    public required int NewWallX { get; init; }
+    public required int TargetX { get; init; }
 
     [Id(7)]
-    public required int NewWallY { get; init; }
+    public required int TargetY { get; init; }
 
     [Id(8)]
-    public required int NewOffsetX { get; init; }
+    public required int TargetWallOffset { get; init; }
 
     [Id(9)]
-    public required int NewOffsetY { get; init; }
+    public required int TargetZ { get; init; }
 }

@@ -17,12 +17,13 @@ public interface IFurnitureLogic<out TObject, out TLogic, out TContext>
     new TContext Context { get; }
 }
 
-public interface IFurnitureLogic : IRoomObjectLogic
+public interface IFurnitureLogic : IRoomObjectLogic, IRollableObject
 {
     //new IRoomItemContext Context { get; }
     public IStuffData StuffData { get; }
     public FurnitureUsageType GetUsagePolicy();
     public bool CanToggle();
+    public Altitude GetStackHeight();
     public Task<int> GetStateAsync();
     public Task SetStateAsync(int state);
     public Task OnMoveAsync(ActionContext ctx, int prevIdx, CancellationToken ct);

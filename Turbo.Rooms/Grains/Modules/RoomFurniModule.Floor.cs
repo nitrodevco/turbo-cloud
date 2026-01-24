@@ -50,7 +50,8 @@ public sealed partial class RoomFurniModule
         RoomObjectId itemId,
         int x,
         int y,
-        Rotation rot,
+        Altitude? z,
+        Rotation? rot,
         CancellationToken ct
     )
     {
@@ -63,7 +64,7 @@ public sealed partial class RoomFurniModule
         var prevIdx = _roomGrain.MapModule.ToIdx(item.X, item.Y);
         var nextIdx = _roomGrain.MapModule.ToIdx(x, y);
 
-        if (!_roomGrain.MapModule.MoveFloorItem(floor, nextIdx, rot))
+        if (!_roomGrain.MapModule.MoveFloorItem(floor, nextIdx, z, rot))
             return false;
 
         await _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer());
@@ -73,7 +74,7 @@ public sealed partial class RoomFurniModule
         return true;
     }
 
-    public bool ValidateFloorItemPlacement(
+    public async Task<bool> ValidateFloorItemPlacementAsync(
         ActionContext ctx,
         RoomObjectId itemId,
         int x,
@@ -105,7 +106,7 @@ public sealed partial class RoomFurniModule
                 var highestItemId = _roomGrain._state.TileHighestFloorItems[idx];
                 var isRotating = false;
 
-                if (_roomGrain._state.FloorItemsById.TryGetValue(highestItemId, out var bItem))
+                if (_roomGrain._state.ItemsById.TryGetValue(highestItemId, out var bItem))
                 {
                     if (bItem == tItem)
                     {
@@ -152,9 +153,9 @@ public sealed partial class RoomFurniModule
         return true;
     }
 
-    public bool ValidateNewFloorItemPlacement(
+    public Task<bool> ValidateNewFloorItemPlacementAsync(
         ActionContext ctx,
-        IRoomFloorItem item,
+        IRoomFloorItem tItem,
         int x,
         int y,
         Rotation rot
@@ -165,8 +166,8 @@ public sealed partial class RoomFurniModule
                 x,
                 y,
                 rot,
-                item.Definition.Width,
-                item.Definition.Length,
+                tItem.Definition.Width,
+                tItem.Definition.Length,
                 out var tileIds
             )
         )
@@ -178,38 +179,41 @@ public sealed partial class RoomFurniModule
                 var highestItemId = _roomGrain._state.TileHighestFloorItems[id];
                 IRoomFloorItem? bItem = null;
 
-                if (_roomGrain._state.FloorItemsById.TryGetValue(highestItemId, out var floorItem))
+                if (
+                    _roomGrain._state.ItemsById.TryGetValue(highestItemId, out var item)
+                    && item is IRoomFloorItem floorItem
+                )
                     bItem = floorItem;
 
                 if (
                     tileFlags.Has(RoomTileFlags.Disabled)
-                    || (tileHeight + item.GetStackHeight()) > _roomGrain._roomConfig.MaxStackHeight
+                    || (tileHeight + tItem.GetStackHeight()) > _roomGrain._roomConfig.MaxStackHeight
                     || tileFlags.Has(RoomTileFlags.StackBlocked)
                     || (
                         !_roomGrain._roomConfig.PlaceItemsOnAvatars
                         && tileFlags.Has(RoomTileFlags.AvatarOccupied)
                     )
-                    || (tileFlags.Has(RoomTileFlags.AvatarOccupied) && !item.Logic.CanWalk())
+                    || (tileFlags.Has(RoomTileFlags.AvatarOccupied) && !tItem.Logic.CanWalk())
                 )
-                    return false;
+                    return Task.FromResult(false);
 
                 if (bItem is not null)
                 {
                     if (
                         bItem.Logic is FurnitureRollerLogic
                         && (
-                            item.Definition.Width > 1
-                            || item.Definition.Length > 1
-                            || item.Logic is FurnitureRollerLogic
+                            tItem.Definition.Width > 1
+                            || tItem.Definition.Length > 1
+                            || tItem.Logic is FurnitureRollerLogic
                         )
                     )
-                        return false;
+                        return Task.FromResult(false);
                     // if is a stack helper, allow placement
                 }
             }
         }
 
-        return true;
+        return Task.FromResult(true);
     }
 
     public Task<ImmutableArray<RoomFloorItemSnapshot>> GetAllFloorItemSnapshotsAsync(

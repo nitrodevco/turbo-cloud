@@ -90,7 +90,6 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
                 await item.Logic.OnDetachAsync(ct);
                 await item.Logic.OnPickupAsync(ctx, ct);
 
-                item.SetOwnerId(pickerId);
                 item.SetAction(null);
 
                 _roomGrain._state.ItemsById.Remove(item.ObjectId);

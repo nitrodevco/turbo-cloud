@@ -1,4 +1,5 @@
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains;
 
@@ -30,7 +31,8 @@ public sealed class FurnitureCanStandOnVariable(RoomGrain roomGrain)
 
         if (
             !CanBind(binding)
-            || !_roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem)
+            || !_roomGrain._state.ItemsById.TryGetValue(binding.TargetId, out var item)
+            || item is not IRoomFloorItem floorItem
             || !floorItem.Logic.CanWalk()
         )
             return false;

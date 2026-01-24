@@ -7,12 +7,16 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture;
 
 namespace Turbo.Rooms.Grains.Modules;
 
 public sealed partial class RoomActionModule(RoomGrain roomGrain)
 {
     private readonly RoomGrain _roomGrain = roomGrain;
+
+    public Task<bool> AddItemAsync(IRoomItem item, CancellationToken ct) =>
+        _roomGrain.ObjectModule.AttatchObjectAsync(item, ct);
 
     public async Task<bool> RemoveItemByIdAsync(
         ActionContext ctx,
@@ -28,10 +32,12 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain)
         if (pickupType == FurniturePickupType.None)
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
-        PlayerId pickerId = -1;
+        PlayerId pickerId = item.OwnerId;
 
-        if (pickupType is not FurniturePickupType.SendToOwner)
+        if (pickupType is FurniturePickupType.SendToCtx)
             pickerId = ctx.PlayerId;
+
+        item.SetOwnerId(pickerId);
 
         await _roomGrain.ObjectModule.RemoveObjectAsync(ctx, item, ct, pickerId);
 

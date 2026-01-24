@@ -6,17 +6,17 @@ using Turbo.Primitives.Rooms;
 namespace Turbo.Primitives.Action;
 
 [GenerateSerializer, Immutable]
-public class ActionContext
+public readonly record struct ActionContext
 {
     [Id(0)]
     public required ActionOrigin Origin { get; init; }
 
     [Id(1)]
-    public SessionKey SessionKey { get; init; } = string.Empty;
+    public required SessionKey SessionKey { get; init; }
 
     [Id(2)]
-    public PlayerId PlayerId { get; init; } = -1;
+    public required PlayerId PlayerId { get; init; }
 
     [Id(3)]
-    public RoomId RoomId { get; init; } = -1;
+    public required RoomId RoomId { get; init; }
 }

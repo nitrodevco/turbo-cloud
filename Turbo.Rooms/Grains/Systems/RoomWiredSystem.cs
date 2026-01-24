@@ -373,7 +373,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
 
         var wiredItems = _roomGrain
             ._state.TileFloorStacks[stackId]
-            .Select(x => _roomGrain._state.FloorItemsById[x])
+            .Select(x => _roomGrain._state.ItemsById[x])
             .Where(x =>
                 x.Logic is FurnitureWiredLogic && x.Logic is not FurnitureWiredVariableLogic
             )

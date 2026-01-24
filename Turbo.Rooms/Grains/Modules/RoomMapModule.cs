@@ -197,10 +197,10 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
 
             foreach (var itemId in floorStack)
             {
-                if (!_roomGrain._state.FloorItemsById.TryGetValue(itemId, out var item))
+                if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
                     continue;
 
-                var height = item.Z + item.GetStackHeight();
+                var height = item.Height;
 
                 // special logic if stack helper
 
@@ -208,7 +208,7 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
                     continue;
 
                 nextHeight = height;
-                nextHighestItem = item;
+                nextHighestItem = (IRoomFloorItem)item;
             }
         }
 

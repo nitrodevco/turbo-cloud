@@ -20,7 +20,6 @@ public interface IWiredBox
 
     public Task LoadWiredAsync(CancellationToken ct);
     public Task FlashActivationStateAsync(CancellationToken ct);
-    public List<int> GetValidStuffIds(List<int> stuffIds);
     public List<IWiredIntParamRule> GetIntParamRules();
     public IWiredIntParamRule? GetIntParamTailRule();
     public List<WiredFurniSourceType[]> GetAllowedFurniSources();

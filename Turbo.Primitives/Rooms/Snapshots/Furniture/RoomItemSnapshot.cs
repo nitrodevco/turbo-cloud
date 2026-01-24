@@ -31,17 +31,20 @@ public abstract record RoomItemSnapshot
     public required int Y { get; init; }
 
     [Id(7)]
-    public required double Z { get; init; }
+    public required Altitude Z { get; init; }
 
     [Id(8)]
     public required Rotation Rotation { get; init; }
 
     [Id(9)]
-    public required StuffDataSnapshot StuffData { get; init; }
+    public required Altitude StackHeight { get; init; }
 
     [Id(10)]
-    public required string ExtraData { get; init; }
+    public required StuffDataSnapshot StuffData { get; init; }
 
     [Id(11)]
+    public required string ExtraData { get; init; }
+
+    [Id(12)]
     public required FurnitureUsageType UsagePolicy { get; init; }
 }

@@ -19,23 +19,6 @@ namespace Turbo.Rooms.Grains;
 
 public sealed partial class RoomGrain
 {
-    public async Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct)
-    {
-        try
-        {
-            if (!await ActionModule.AddFloorItemAsync(item, ct))
-                return false;
-
-            return true;
-        }
-        catch
-        {
-            // TODO handle exceptions
-
-            return false;
-        }
-    }
-
     public async Task<bool> PlaceFloorItemAsync(
         ActionContext ctx,
         FurnitureItemSnapshot item,
@@ -112,7 +95,9 @@ public sealed partial class RoomGrain
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _state.FloorItemsById.TryGetValue(itemId, out var item) ? item.GetSnapshot() : null
+            _state.ItemsById.TryGetValue(itemId, out var item) && item is IRoomFloorItem floorItem
+                ? floorItem.GetSnapshot()
+                : null
         );
 
     public Task<ImmutableArray<RoomFloorItemSnapshot>> GetAllFloorItemSnapshotsAsync(
@@ -124,7 +109,7 @@ public sealed partial class RoomGrain
         CancellationToken ct
     ) =>
         Task.FromResult(
-            _state.FloorItemsById.TryGetValue(itemId, out var item)
+            _state.ItemsById.TryGetValue(itemId, out var item)
                 ? item.Logic is FurnitureWiredLogic wiredLogic
                     ? wiredLogic.GetSnapshot()
                     : null

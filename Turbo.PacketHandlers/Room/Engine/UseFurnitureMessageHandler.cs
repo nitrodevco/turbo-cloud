@@ -18,7 +18,7 @@ public class UseFurnitureMessageHandler(IRoomService roomService)
     )
     {
         await _roomService
-            .UseFloorItemInRoomAsync(ctx.AsActionContext(), message.ObjectId, ct, message.Param)
+            .UseItemInRoomAsync(ctx.AsActionContext(), message.ObjectId, ct, message.Param)
             .ConfigureAwait(false);
     }
 }

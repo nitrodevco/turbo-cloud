@@ -13,16 +13,17 @@ public sealed class RoomWallItemContext(RoomGrain roomGrain, IRoomWallItem roomO
     ),
         IRoomWallItemContext
 {
-    public override Task AddItemAsync() => SendComposerToRoomAsync(Object.GetAddComposer());
+    public override Task AddItemAsync() => SendComposerToRoomAsync(RoomObject.GetAddComposer());
 
-    public override Task UpdateItemAsync() => SendComposerToRoomAsync(Object.GetUpdateComposer());
+    public override Task UpdateItemAsync() =>
+        SendComposerToRoomAsync(RoomObject.GetUpdateComposer());
 
     public override Task RefreshStuffDataAsync() =>
-        SendComposerToRoomAsync(Object.GetRefreshStuffDataComposer());
+        SendComposerToRoomAsync(RoomObject.GetRefreshStuffDataComposer());
 
     public override Task RemoveItemAsync(
         PlayerId pickerId,
         bool isExpired = false,
         int delay = 0
-    ) => SendComposerToRoomAsync(Object.GetRemoveComposer(pickerId));
+    ) => SendComposerToRoomAsync(RoomObject.GetRemoveComposer(pickerId));
 }

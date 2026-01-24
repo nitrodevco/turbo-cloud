@@ -12,29 +12,12 @@ namespace Turbo.Rooms.Grains;
 
 public sealed partial class RoomGrain
 {
-    public async Task<bool> AddWallItemAsync(IRoomWallItem item, CancellationToken ct)
-    {
-        try
-        {
-            if (!await ActionModule.AddWallItemAsync(item, ct))
-                return false;
-
-            return true;
-        }
-        catch
-        {
-            // TODO handle exceptions
-
-            return false;
-        }
-    }
-
     public async Task<bool> PlaceWallItemAsync(
         ActionContext ctx,
         FurnitureItemSnapshot item,
         int x,
         int y,
-        double z,
+        Altitude z,
         int wallOffset,
         Rotation rot,
         CancellationToken ct
@@ -60,7 +43,7 @@ public sealed partial class RoomGrain
         RoomObjectId itemId,
         int newX,
         int newY,
-        double newZ,
+        Altitude newZ,
         int wallOffset,
         Rotation newRot,
         CancellationToken ct

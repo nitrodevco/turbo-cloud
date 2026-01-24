@@ -4,7 +4,9 @@ using System.Threading.Tasks;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -24,7 +26,10 @@ public sealed partial class RoomMapModule
             var canSit = false;
             var canLay = false;
 
-            if (_roomGrain._state.FloorItemsById.TryGetValue(highestItemId, out var floorItem))
+            if (
+                _roomGrain._state.ItemsById.TryGetValue(highestItemId, out var item)
+                && item is IRoomFloorItem floorItem
+            )
             {
                 canSit = floorItem.Logic.CanSit();
                 canLay = floorItem.Logic.CanLay();
@@ -106,7 +111,7 @@ public sealed partial class RoomMapModule
         return true;
     }
 
-    public bool RollAvatar(IRoomAvatar avatar, int tileIdx, double z)
+    public bool RollAvatar(IRoomAvatar avatar, int tileIdx, Altitude z)
     {
         if (!InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
@@ -167,44 +172,50 @@ public sealed partial class RoomMapModule
             var tileId = ToIdx(avatar.X, avatar.Y);
             var height = _roomGrain._state.TileHeights[tileId];
             var highestItemId = _roomGrain._state.TileHighestFloorItems[tileId];
-            var postureOffset = 0.0;
+            var postureOffset = Altitude.Zero;
 
             if (highestItemId > 0)
             {
-                if (_roomGrain._state.FloorItemsById.TryGetValue(highestItemId, out var floorItem))
+                if (
+                    _roomGrain._state.ItemsById.TryGetValue(highestItemId, out var item)
+                    && item is IRoomFloorItem floorItem
+                )
                 {
                     postureOffset = floorItem.Logic.GetPostureOffset();
                 }
             }
 
-            avatar.PostureOffset = Math.Round(postureOffset, 2);
+            avatar.PostureOffset = postureOffset;
 
-            avatar.SetHeight(Math.Round(height - postureOffset, 2));
+            avatar.SetHeight(height - postureOffset);
         }
         catch (Exception) { }
     }
 
-    public double GetTileHeightForAvatar(int tileId)
+    public Altitude GetTileHeightForAvatar(int tileId)
     {
         try
         {
             var height = _roomGrain._state.TileHeights[tileId];
             var highestItemId = _roomGrain._state.TileHighestFloorItems[tileId];
-            var postureOffset = 0.0;
+            var postureOffset = Altitude.Zero;
 
             if (highestItemId > 0)
             {
-                if (_roomGrain._state.FloorItemsById.TryGetValue(highestItemId, out var floorItem))
+                if (
+                    _roomGrain._state.ItemsById.TryGetValue(highestItemId, out var item)
+                    && item is IRoomFloorItem floorItem
+                )
                 {
                     postureOffset = floorItem.Logic.GetPostureOffset();
                 }
             }
 
-            return Math.Round(height - postureOffset, 2);
+            return height - postureOffset;
         }
         catch (Exception)
         {
-            return 0.0;
+            return Altitude.Zero;
         }
     }
 }

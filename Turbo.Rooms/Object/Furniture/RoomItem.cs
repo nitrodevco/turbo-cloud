@@ -1,8 +1,10 @@
+using System.Threading.Tasks;
 using Turbo.Furniture;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
@@ -25,17 +27,26 @@ public abstract class RoomItem<TSelf, TLogic, TContext>
     private IExtraData _extraData = null!;
     private RoomItemSnapshot? _snapshot;
 
+    public Altitude Height => Z + GetStackHeight();
     public IExtraData ExtraData => _extraData;
 
     public void SetExtraData(string? extraData)
     {
         _extraData = new ExtraData(extraData);
 
-        _extraData.SetAction(async () => MarkDirty());
+        _extraData.SetAction(() =>
+        {
+            MarkDirty();
+
+            return Task.CompletedTask;
+        });
     }
 
     public void SetOwnerId(PlayerId ownerId)
     {
+        if (ownerId == PlayerId.Invalid)
+            return;
+
         OwnerId = ownerId;
 
         MarkDirty();
@@ -45,6 +56,8 @@ public abstract class RoomItem<TSelf, TLogic, TContext>
     {
         OwnerName = ownerName;
     }
+
+    public Altitude GetStackHeight() => Logic?.GetStackHeight() ?? Definition.StackHeight;
 
     public RoomItemSnapshot GetSnapshot()
     {

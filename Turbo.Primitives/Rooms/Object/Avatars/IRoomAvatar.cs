@@ -27,7 +27,7 @@ public interface IRoomAvatar : IRoomObject
 
     public AvatarDanceType DanceType { get; }
 
-    public double PostureOffset { get; set; }
+    public Altitude PostureOffset { get; set; }
     public int GoalTileId { get; }
     public int NextTileId { get; set; }
     public bool IsWalking { get; set; }
@@ -39,14 +39,12 @@ public interface IRoomAvatar : IRoomObject
     public long PendingStopAtMs { get; set; }
 
     public bool SetGoalTileId(int tileId);
-    public void SetPosition(int x, int y);
-    public void SetHeight(double z);
-    public void SetRotation(Rotation rot);
+    public void SetHeight(Altitude z);
     public void SetBodyRotation(Rotation rot);
     public void SetHeadRotation(Rotation rot);
     public bool SetDance(AvatarDanceType danceType = AvatarDanceType.None);
-    public void Sit(bool flag = true, double height = 0.5, Rotation? rot = null);
-    public void Lay(bool flag = true, double height = 0.5, Rotation? rot = null);
+    public void Sit(bool flag = true, Altitude? height = null, Rotation? rot = null);
+    public void Lay(bool flag = true, Altitude? height = null, Rotation? rot = null);
 
     public void AddStatus(AvatarStatusType type, string value);
     public bool HasStatus(params AvatarStatusType[] types);

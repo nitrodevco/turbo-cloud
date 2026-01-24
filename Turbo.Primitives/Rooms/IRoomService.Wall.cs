@@ -13,7 +13,7 @@ public partial interface IRoomService
         RoomObjectId itemId,
         int x,
         int y,
-        double z,
+        Altitude z,
         int wallOffset,
         Rotation rot,
         CancellationToken ct
@@ -23,27 +23,9 @@ public partial interface IRoomService
         RoomObjectId itemId,
         int x,
         int y,
-        double z,
+        Altitude z,
         int wallOffset,
         Rotation rot,
         CancellationToken ct
-    );
-    public Task PickupWallItemInRoomAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        bool isConfirm = true
-    );
-    public Task UseWallItemInRoomAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
-    );
-    public Task ClickWallItemInRoomAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
     );
 }

@@ -94,8 +94,8 @@ public sealed partial class RoomWiredSystem
         RemoveVariableBox(boxId);
 
         if (
-            !_roomGrain._state.FloorItemsById.TryGetValue(boxId, out var floorItem)
-            || floorItem.Logic is not FurnitureWiredVariableLogic variable
+            !_roomGrain._state.ItemsById.TryGetValue(boxId, out var item)
+            || item.Logic is not FurnitureWiredVariableLogic variable
         )
             return;
 

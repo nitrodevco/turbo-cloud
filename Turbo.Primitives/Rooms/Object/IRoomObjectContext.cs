@@ -8,7 +8,7 @@ public interface IRoomObjectContext<out TObject, out TLogic, out TSelf> : IRoomO
     where TSelf : IRoomObjectContext<TObject, TLogic, TSelf>
     where TLogic : IRoomObjectLogic<TObject, TLogic, TSelf>
 {
-    new TObject Object { get; }
+    new TObject RoomObject { get; }
 }
 
 public interface IRoomObjectContext
@@ -17,5 +17,5 @@ public interface IRoomObjectContext
     public IRoomGrain Room { get; }
 
     public RoomObjectId ObjectId { get; }
-    public IRoomObject Object { get; }
+    public IRoomObject RoomObject { get; }
 }

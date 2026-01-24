@@ -15,25 +15,26 @@ public sealed class RoomFloorItemContext(RoomGrain roomGrain, IRoomFloorItem roo
     ),
         IRoomFloorItemContext
 {
-    public int GetTileIdx() => _roomGrain.ToIdx(Object.X, Object.Y);
+    public int GetTileIdx() => _roomGrain.ToIdx(RoomObject.X, RoomObject.Y);
 
     public int GetTileIdx(int x, int y) => _roomGrain.ToIdx(x, y);
 
-    public override Task AddItemAsync() => SendComposerToRoomAsync(Object.GetAddComposer());
+    public override Task AddItemAsync() => SendComposerToRoomAsync(RoomObject.GetAddComposer());
 
-    public override Task UpdateItemAsync() => SendComposerToRoomAsync(Object.GetUpdateComposer());
+    public override Task UpdateItemAsync() =>
+        SendComposerToRoomAsync(RoomObject.GetUpdateComposer());
 
     public override Task RefreshStuffDataAsync() =>
-        SendComposerToRoomAsync(Object.GetRefreshStuffDataComposer());
+        SendComposerToRoomAsync(RoomObject.GetRefreshStuffDataComposer());
 
     public override Task RemoveItemAsync(
         PlayerId pickerId,
         bool isExpired = false,
         int delay = 0
-    ) => SendComposerToRoomAsync(Object.GetRemoveComposer(pickerId, isExpired, delay));
+    ) => SendComposerToRoomAsync(RoomObject.GetRemoveComposer(pickerId, isExpired, delay));
 
-    public void RefreshTile() => _roomGrain.ComputeTile(Object.X, Object.Y);
+    public void RefreshTile() => _roomGrain.ComputeTile(RoomObject.X, RoomObject.Y);
 
     public Task<RoomTileSnapshot> GetTileSnapshotAsync(CancellationToken ct) =>
-        _roomGrain.GetTileSnapshotAsync(Object.X, Object.Y, ct);
+        _roomGrain.GetTileSnapshotAsync(RoomObject.X, RoomObject.Y, ct);
 }

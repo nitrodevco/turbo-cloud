@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 

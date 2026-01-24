@@ -75,18 +75,17 @@ internal sealed class RoomItemsProvider(
                         : string.Empty
                 );
 
+                item.SetPosition(entity.X, entity.Y);
+                item.SetPositionZ(entity.Z);
+                item.SetRotation(entity.Rotation);
+
                 if (item is IRoomFloorItem floorItem)
                 {
-                    floorItem.SetPosition(entity.X, entity.Y, entity.Z);
-                    floorItem.SetRotation(entity.Rotation);
-
                     floorItems.Add(floorItem);
                 }
                 else if (item is IRoomWallItem wallItem)
                 {
-                    wallItem.SetPosition(entity.X, entity.Y, entity.Z);
                     wallItem.SetWallOffset(entity.WallOffset);
-                    wallItem.SetRotation(entity.Rotation);
 
                     wallItems.Add(wallItem);
                 }

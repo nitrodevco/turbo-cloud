@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Events.Avatar;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -25,9 +26,9 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
 
     public virtual bool CanLay() => _ctx.Definition.CanLay;
 
-    public virtual bool CanRoll() => true;
+    public override bool CanRoll() => true;
 
-    public virtual double GetPostureOffset()
+    public virtual Altitude GetPostureOffset()
     {
         if (CanSit())
             return GetStackHeight();
@@ -35,10 +36,10 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
         if (CanLay())
             return GetStackHeight();
 
-        return 0.0;
+        return Altitude.Zero;
     }
 
-    public virtual double GetStackHeight() => _ctx.Definition.StackHeight;
+    public override Altitude GetStackHeight() => _ctx.Definition.StackHeight;
 
     public virtual Task OnInvokeAsync(IRoomAvatarContext ctx, CancellationToken ct) =>
         Task.CompletedTask;

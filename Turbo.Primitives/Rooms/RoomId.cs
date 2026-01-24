@@ -18,4 +18,6 @@ public readonly record struct RoomId
     public static implicit operator int(RoomId id) => id.Value;
 
     public static implicit operator RoomId(int value) => new(value);
+
+    public static RoomId Invalid => new(-1);
 }

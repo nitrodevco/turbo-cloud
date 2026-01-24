@@ -6,8 +6,6 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
-using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 using Turbo.Primitives.Rooms.Wired.Variable;
 
@@ -19,8 +17,6 @@ public sealed class RoomLiveState
     public RoomSnapshot RoomSnapshot { get; set; } = default!;
 
     public Dictionary<RoomObjectId, IRoomItem> ItemsById { get; } = [];
-    public Dictionary<RoomObjectId, IRoomFloorItem> FloorItemsById { get; } = [];
-    public Dictionary<RoomObjectId, IRoomWallItem> WallItemsById { get; } = [];
     public Dictionary<RoomObjectId, IRoomAvatar> AvatarsByObjectId { get; } = [];
     public Dictionary<PlayerId, RoomObjectId> AvatarsByPlayerId { get; } = [];
     public Dictionary<PlayerId, string> OwnerNamesById { get; } = [];

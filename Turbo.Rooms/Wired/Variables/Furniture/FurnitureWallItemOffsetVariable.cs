@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains;
@@ -32,7 +33,8 @@ public sealed class FurnitureWallItemOffsetVariable(RoomGrain roomGrain)
 
         if (
             !CanBind(binding)
-            || !_roomGrain._state.WallItemsById.TryGetValue(binding.TargetId, out var wallItem)
+            || !_roomGrain._state.ItemsById.TryGetValue(binding.TargetId, out var item)
+            || item is not IRoomWallItem wallItem
         )
             return false;
 
@@ -41,15 +43,37 @@ public sealed class FurnitureWallItemOffsetVariable(RoomGrain roomGrain)
         return true;
     }
 
-    public override Task<bool> SetValueAsync(
+    public override async Task<bool> SetValueAsync(
         WiredVariableBinding binding,
         IWiredExecutionContext ctx,
         int value
     )
     {
-        if (!_roomGrain._state.WallItemsById.TryGetValue(binding.TargetId, out var wallItem))
-            return Task.FromResult(false);
+        if (
+            !CanBind(binding)
+            || !_roomGrain._state.ItemsById.TryGetValue(binding.TargetId, out var item)
+            || item is not IRoomWallItem wallItem
+            || !await _roomGrain.FurniModule.ValidateWallItemPlacementAsync(
+                ctx.AsActionContext(),
+                wallItem.ObjectId.Value,
+                wallItem.X,
+                wallItem.Y,
+                wallItem.Z,
+                value,
+                wallItem.Rotation
+            )
+        )
+            return false;
 
-        return Task.FromResult(true);
+        ctx.AddWallItemMovement(
+            wallItem,
+            wallItem.X,
+            wallItem.Y,
+            wallItem.Z,
+            wallItem.Rotation,
+            value
+        );
+
+        return true;
     }
 }

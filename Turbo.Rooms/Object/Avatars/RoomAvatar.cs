@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
@@ -27,7 +28,7 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
     public AvatarDanceType DanceType { get; private set; } = AvatarDanceType.None;
     public Dictionary<AvatarStatusType, string> Statuses { get; } = [];
 
-    public double PostureOffset { get; set; } = 0.0;
+    public Altitude PostureOffset { get; set; } = Altitude.Zero;
     public int GoalTileId { get; private set; } = -1;
     public int NextTileId { get; set; } = -1;
     public bool IsWalking { get; set; } = false;
@@ -79,7 +80,7 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
         MarkDirty();
     }
 
-    public void SetHeight(double z)
+    public void SetHeight(Altitude z)
     {
         z = Math.Round(z, 2);
 
@@ -133,8 +134,10 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
         return true;
     }
 
-    public void Sit(bool flag = true, double height = 0.5, Rotation? rot = null)
+    public void Sit(bool flag = true, Altitude? height = null, Rotation? rot = null)
     {
+        var finalHeight = height ?? Altitude.FromValue(0.5);
+
         if (flag)
         {
             // remove dance
@@ -143,7 +146,7 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
             rot ??= Rotation;
 
             SetRotation(rot.Value.ToSitRotation());
-            AddStatus(AvatarStatusType.Sit, height.ToString());
+            AddStatus(AvatarStatusType.Sit, finalHeight.ToString());
         }
         else
         {
@@ -154,8 +157,10 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
         }
     }
 
-    public void Lay(bool flag = true, double height = 0.5, Rotation? rot = null)
+    public void Lay(bool flag = true, Altitude? height = null, Rotation? rot = null)
     {
+        var finalHeight = height ?? Altitude.FromValue(0.5);
+
         if (flag)
         {
             // remove dance
@@ -164,7 +169,7 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
             rot ??= Rotation;
 
             SetRotation(rot.Value.ToSitRotation());
-            AddStatus(AvatarStatusType.Sit, height.ToString());
+            AddStatus(AvatarStatusType.Lay, finalHeight.ToString());
         }
         else
         {

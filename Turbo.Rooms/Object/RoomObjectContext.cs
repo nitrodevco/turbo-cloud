@@ -21,7 +21,7 @@ public abstract class RoomObjectContext<TObject, TLogic, TSelf>(
     public IRoomGrain Room => _roomGrain;
 
     public RoomObjectId ObjectId => _roomObject.ObjectId;
-    public TObject Object => _roomObject;
+    public TObject RoomObject => _roomObject;
 
-    IRoomObject IRoomObjectContext.Object => Object;
+    IRoomObject IRoomObjectContext.RoomObject => RoomObject;
 }

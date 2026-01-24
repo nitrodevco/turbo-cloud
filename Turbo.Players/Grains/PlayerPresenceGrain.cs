@@ -138,6 +138,7 @@ internal sealed partial class PlayerPresenceGrain
         var ctx = new ActionContext
         {
             Origin = ActionOrigin.Player,
+            SessionKey = SessionKey.Invalid,
             PlayerId = (PlayerId)this.GetPrimaryKeyLong(),
             RoomId = roomId,
         };
@@ -157,9 +158,17 @@ internal sealed partial class PlayerPresenceGrain
 
         await _state.WriteStateAsync(ct);
 
+        var ctx = new ActionContext
+        {
+            Origin = ActionOrigin.Player,
+            SessionKey = SessionKey.Invalid,
+            PlayerId = (PlayerId)this.GetPrimaryKeyLong(),
+            RoomId = prev,
+        };
+
         await _grainFactory
             .GetRoomGrain(prev)
-            .RemoveAvatarFromPlayerAsync((PlayerId)this.GetPrimaryKeyLong(), ct);
+            .RemoveAvatarFromPlayerAsync(ctx, (PlayerId)this.GetPrimaryKeyLong(), ct);
 
         await _grainFactory
             .GetRoomDirectoryGrain()

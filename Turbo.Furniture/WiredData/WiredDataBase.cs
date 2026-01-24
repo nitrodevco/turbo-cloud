@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.WiredData;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Furniture.WiredData;
 
@@ -23,14 +24,11 @@ internal abstract class WiredDataBase : IWiredData
     public List<object> TypeSpecifics { get; set; } = [];
 
     private Func<Task>? _onSnapshotChanged;
-    private bool _dirty = true;
 
     public void SetAction(Func<Task>? onSnapshotChanged) => _onSnapshotChanged = onSnapshotChanged;
 
     public void MarkDirty()
     {
-        _dirty = true;
-
         _ = _onSnapshotChanged?.Invoke();
     }
 }

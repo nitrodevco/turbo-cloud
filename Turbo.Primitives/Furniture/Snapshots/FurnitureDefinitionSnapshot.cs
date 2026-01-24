@@ -1,6 +1,7 @@
 using Orleans;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Furniture.Snapshots;
 
@@ -35,7 +36,7 @@ public sealed record FurnitureDefinitionSnapshot
     public required int Length { get; init; }
 
     [Id(9)]
-    public required double StackHeight { get; init; }
+    public required Altitude StackHeight { get; init; }
 
     [Id(10)]
     public required bool CanStack { get; init; }

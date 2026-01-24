@@ -17,8 +17,8 @@ public abstract class RoomAvatarContext<TObject, TLogic, TSelf>(
     where TSelf : IRoomAvatarContext<TObject, TLogic, TSelf>
     where TLogic : IRoomAvatarLogic<TObject, TLogic, TSelf>
 {
-    IRoomAvatar IRoomAvatarContext.Object => Object;
+    IRoomAvatar IRoomAvatarContext.Object => RoomObject;
 
     public virtual Task<RoomTileSnapshot> GetTileSnapshotAsync(CancellationToken ct) =>
-        _roomGrain.GetTileSnapshotAsync(Object.X, Object.Y, ct);
+        _roomGrain.GetTileSnapshotAsync(RoomObject.X, RoomObject.Y, ct);
 }

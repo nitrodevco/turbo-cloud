@@ -7,6 +7,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.RoomItem;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
@@ -34,7 +35,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
 
         StuffData = _stuffDataFactory.CreateStuffDataFromExtraData(
             _stuffDataType,
-            ctx.Object.ExtraData
+            ctx.RoomObject.ExtraData
         );
 
         StuffData.SetAction(async () =>
@@ -43,7 +44,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
 
             if (_stuffPersistanceType == StuffPersistanceType.External)
             {
-                ctx.Object.ExtraData.UpdateSection(
+                ctx.RoomObject.ExtraData.UpdateSection(
                     ExtraDataSectionType.STUFF,
                     JsonSerializer.SerializeToNode(StuffData, StuffData.GetType())
                 );
@@ -68,6 +69,10 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
         _ctx.Definition.TotalStates == 0 ? FurnitureUsageType.Nobody : _ctx.Definition.UsagePolicy;
 
     public virtual bool CanToggle() => false;
+
+    public virtual bool CanRoll() => false;
+
+    public virtual Altitude GetStackHeight() => 0;
 
     public virtual Task<int> GetStateAsync() => Task.FromResult(StuffData.GetState());
 
@@ -152,7 +157,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
 
     protected virtual int GetNextToggleableState()
     {
-        var totalStates = _ctx.Object.Definition.TotalStates;
+        var totalStates = _ctx.RoomObject.Definition.TotalStates;
 
         if (totalStates == 0 || StuffData is null)
             return 0;

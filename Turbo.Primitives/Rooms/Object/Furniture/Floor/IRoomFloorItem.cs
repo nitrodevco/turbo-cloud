@@ -16,7 +16,5 @@ public interface IRoomFloorItem<TSelf, out TLogic, out TContext>
 public interface IRoomFloorItem
     : IRoomItem<IRoomFloorItem, IFurnitureFloorLogic, IRoomFloorItemContext>
 {
-    public void SetRotation(Rotation rotation);
-    public double GetStackHeight();
     new RoomFloorItemSnapshot GetSnapshot();
 }

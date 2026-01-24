@@ -24,16 +24,6 @@ public class RoomWallItem
         MarkDirty();
     }
 
-    public void SetRotation(Rotation rot)
-    {
-        if (Rotation == rot)
-            return;
-
-        Rotation = rot;
-
-        MarkDirty();
-    }
-
     public new RoomWallItemSnapshot GetSnapshot() => (RoomWallItemSnapshot)base.GetSnapshot();
 
     public override IComposer GetAddComposer() =>
@@ -70,6 +60,7 @@ public class RoomWallItem
             Y = Y,
             Z = Z,
             Rotation = Rotation,
+            StackHeight = Logic.GetStackHeight(),
             StuffData = Logic.StuffData.GetSnapshot(),
             ExtraData = ExtraData.GetJsonString(),
             UsagePolicy = Logic.GetUsagePolicy(),

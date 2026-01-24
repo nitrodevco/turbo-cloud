@@ -1,5 +1,7 @@
 using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains;
@@ -35,39 +37,76 @@ public sealed class FurniturePositionXVariable(RoomGrain roomGrain)
 
         if (
             !CanBind(binding)
-            || !_roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem)
+            || !_roomGrain._state.ItemsById.TryGetValue(binding.TargetId, out var item)
         )
             return false;
 
-        value = floorItem.X;
+        value = item.X;
 
         return true;
     }
 
-    public override Task<bool> SetValueAsync(
+    public override async Task<bool> SetValueAsync(
         WiredVariableBinding binding,
         IWiredExecutionContext ctx,
         int value
     )
     {
         if (
-            !_roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem)
-            || !_roomGrain.FurniModule.ValidateFloorItemPlacement(
-                ctx.AsActionContext(),
-                floorItem.ObjectId.Value,
-                value,
-                floorItem.Y,
-                floorItem.Rotation
-            )
+            !CanBind(binding)
+            || !_roomGrain._state.ItemsById.TryGetValue(binding.TargetId, out var item)
         )
-            return Task.FromResult(false);
+            return false;
 
-        ctx.AddFloorItemMovement(
-            floorItem,
-            _roomGrain.MapModule.ToIdx(value, floorItem.Y),
-            floorItem.Rotation
-        );
+        if (item is IRoomFloorItem floorItem)
+        {
+            if (
+                await _roomGrain.FurniModule.ValidateFloorItemPlacementAsync(
+                    ctx.AsActionContext(),
+                    floorItem.ObjectId.Value,
+                    value,
+                    floorItem.Y,
+                    floorItem.Rotation
+                )
+            )
+            {
+                ctx.AddFloorItemMovement(
+                    floorItem,
+                    _roomGrain.MapModule.ToIdx(value, floorItem.Y),
+                    floorItem.Z,
+                    floorItem.Rotation
+                );
 
-        return Task.FromResult(true);
+                return true;
+            }
+        }
+        else if (item is IRoomWallItem wallItem)
+        {
+            if (
+                await _roomGrain.FurniModule.ValidateWallItemPlacementAsync(
+                    ctx.AsActionContext(),
+                    wallItem.ObjectId.Value,
+                    value,
+                    wallItem.Y,
+                    wallItem.Z,
+                    wallItem.WallOffset,
+                    wallItem.Rotation
+                )
+            )
+            {
+                ctx.AddWallItemMovement(
+                    wallItem,
+                    value,
+                    wallItem.Y,
+                    wallItem.Z,
+                    wallItem.Rotation,
+                    wallItem.WallOffset
+                );
+
+                return true;
+            }
+        }
+
+        return false;
     }
 }

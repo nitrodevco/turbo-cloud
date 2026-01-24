@@ -18,4 +18,6 @@ public readonly record struct PlayerId
     public static implicit operator int(PlayerId id) => id.Value;
 
     public static implicit operator PlayerId(int value) => new(value);
+
+    public static PlayerId Invalid => new(-1);
 }

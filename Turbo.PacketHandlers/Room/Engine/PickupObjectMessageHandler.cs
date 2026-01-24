@@ -22,12 +22,7 @@ public class PickupObjectMessageHandler(IRoomService roomService)
         if (categoryId == 1)
         {
             await _roomService
-                .PickupWallItemInRoomAsync(
-                    ctx.AsActionContext(),
-                    message.ObjectId,
-                    ct,
-                    message.Confirm
-                )
+                .PickupItemInRoomAsync(ctx.AsActionContext(), message.ObjectId, ct, message.Confirm)
                 .ConfigureAwait(false);
             return;
         }
@@ -35,12 +30,7 @@ public class PickupObjectMessageHandler(IRoomService roomService)
         if (categoryId == 2)
         {
             await _roomService
-                .PickupFloorItemInRoomAsync(
-                    ctx.AsActionContext(),
-                    message.ObjectId,
-                    ct,
-                    message.Confirm
-                )
+                .PickupItemInRoomAsync(ctx.AsActionContext(), message.ObjectId, ct, message.Confirm)
                 .ConfigureAwait(false);
         }
     }

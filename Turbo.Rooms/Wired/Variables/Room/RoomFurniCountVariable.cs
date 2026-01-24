@@ -29,7 +29,7 @@ public sealed class RoomFurniCountVariable(RoomGrain roomGrain)
         if (!CanBind(binding))
             return false;
 
-        value = _roomGrain._state.FloorItemsById.Count;
+        value = _roomGrain._state.ItemsById.Count;
 
         return true;
     }

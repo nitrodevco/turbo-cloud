@@ -19,7 +19,7 @@ public sealed partial class RoomFurniModule
         IRoomWallItem item,
         int x,
         int y,
-        double z,
+        Altitude z,
         int wallOffset,
         Rotation rot,
         CancellationToken ct
@@ -45,7 +45,7 @@ public sealed partial class RoomFurniModule
         RoomObjectId itemId,
         int x,
         int y,
-        double z,
+        Altitude z,
         int wallOffset,
         Rotation rot,
         CancellationToken ct
@@ -57,7 +57,7 @@ public sealed partial class RoomFurniModule
         )
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
-        if (!_roomGrain.MapModule.MoveWallItemItem(wall, x, y, z, rot, wallOffset))
+        if (!_roomGrain.MapModule.MoveWallItem(wall, x, y, z, rot, wallOffset))
             return false;
 
         await _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer());
@@ -72,7 +72,7 @@ public sealed partial class RoomFurniModule
         RoomObjectId itemId,
         int x,
         int y,
-        double z,
+        Altitude z,
         int wallOffset,
         Rotation rot
     ) => Task.FromResult(true);
@@ -82,7 +82,7 @@ public sealed partial class RoomFurniModule
         IRoomWallItem item,
         int x,
         int y,
-        double z,
+        Altitude z,
         int wallOffset,
         Rotation rot
     ) => Task.FromResult(true);

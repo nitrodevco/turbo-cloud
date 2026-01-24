@@ -17,7 +17,7 @@ public sealed record WiredFloorItemMovementSnapshot
     public required int SourceY { get; init; }
 
     [Id(3)]
-    public required double SourceZ { get; init; }
+    public required Altitude SourceZ { get; init; }
 
     [Id(4)]
     public required int TargetX { get; init; }
@@ -26,7 +26,7 @@ public sealed record WiredFloorItemMovementSnapshot
     public required int TargetY { get; init; }
 
     [Id(6)]
-    public required double TargetZ { get; init; }
+    public required Altitude TargetZ { get; init; }
 
     [Id(7)]
     public required Rotation Rotation { get; init; }

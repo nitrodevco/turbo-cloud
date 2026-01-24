@@ -1,4 +1,5 @@
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Rooms.Configuration;
 
@@ -6,10 +7,10 @@ public class RoomConfig
 {
     public const string SECTION_NAME = "Turbo:Rooms";
 
-    public double MaxStackHeight { get; init; } = 40.0;
+    public Altitude MaxStackHeight { get; init; } = Altitude.FromInt(4000);
     public RoomScaleType DefaultRoomScale { get; init; } = RoomScaleType.Normal;
     public int DefaultWallHeight { get; init; } = 0;
-    public double MaxStepHeight { get; init; } = 2.0;
+    public Altitude MaxStepHeight { get; init; } = Altitude.FromInt(200);
     public bool PlaceItemsOnAvatars { get; init; } = true;
     public bool EnableDiagonalChecking { get; init; } = true;
 

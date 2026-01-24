@@ -22,11 +22,13 @@ public interface IRoomItem : IRoomObject
     new IFurnitureLogic Logic { get; }
     public PlayerId OwnerId { get; }
     public string OwnerName { get; }
+    public Altitude Height { get; }
     public IExtraData ExtraData { get; }
     public FurnitureDefinitionSnapshot Definition { get; }
     public void SetExtraData(string? extraData);
     public void SetOwnerId(PlayerId ownerId);
     public void SetOwnerName(string ownerName);
+    public Altitude GetStackHeight();
     public RoomItemSnapshot GetSnapshot();
     public IComposer GetAddComposer();
     public IComposer GetUpdateComposer();

@@ -24,22 +24,4 @@ public partial interface IRoomService
         Rotation rot,
         CancellationToken ct
     );
-    public Task PickupFloorItemInRoomAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        bool isConfirm = true
-    );
-    public Task UseFloorItemInRoomAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
-    );
-    public Task ClickFloorItemInRoomAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
-    );
 }

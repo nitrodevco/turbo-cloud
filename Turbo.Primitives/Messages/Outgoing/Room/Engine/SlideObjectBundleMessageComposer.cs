@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Orleans;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Engine;
 
@@ -24,8 +25,8 @@ public sealed record SlideObjectBundleMessageComposer : IComposer
     public required int RollerItemId { get; init; }
 
     [Id(5)]
-    public required ImmutableArray<(int, double, double)> FloorItemHeights { get; init; }
+    public required ImmutableArray<(int, Altitude, Altitude)> FloorItemHeights { get; init; }
 
     [Id(6)]
-    public (SlideAvatarMoveType, int, double, double)? Avatar { get; init; }
+    public (SlideAvatarMoveType, int, Altitude, Altitude)? Avatar { get; init; }
 }

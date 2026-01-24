@@ -35,11 +35,11 @@ public sealed class FurnitureStateVariable(RoomGrain roomGrain)
 
         if (
             !CanBind(binding)
-            || !_roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem)
+            || !_roomGrain._state.ItemsById.TryGetValue(binding.TargetId, out var item)
         )
             return false;
 
-        value = floorItem.Logic.StuffData?.GetState() ?? 0;
+        value = item.Logic.StuffData?.GetState() ?? 0;
 
         return true;
     }
@@ -50,16 +50,14 @@ public sealed class FurnitureStateVariable(RoomGrain roomGrain)
         int value
     )
     {
-        if (!_roomGrain._state.FloorItemsById.TryGetValue(binding.TargetId, out var floorItem))
+        if (
+            !CanBind(binding)
+            || !_roomGrain._state.ItemsById.TryGetValue(binding.TargetId, out var item)
+        )
             return false;
 
-        await floorItem.Logic.SetStateAsync(value);
+        await item.Logic.SetStateAsync(value);
 
         return true;
-    }
-
-    public override bool RemoveValue(string key)
-    {
-        return false;
     }
 }

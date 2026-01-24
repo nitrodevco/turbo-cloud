@@ -15,14 +15,14 @@ public interface IFurnitureFloorLogic<out TObject, out TLogic, out TContext>
 }
 
 public interface IFurnitureFloorLogic
-    : IFurnitureLogic<IRoomFloorItem, IFurnitureFloorLogic, IRoomFloorItemContext>
+    : IFurnitureLogic<IRoomFloorItem, IFurnitureFloorLogic, IRoomFloorItemContext>,
+        IRollableObject
 {
     public bool CanStack();
     public bool CanWalk();
     public bool CanSit();
     public bool CanLay();
-    public double GetPostureOffset();
-    public double GetStackHeight();
+    public Altitude GetPostureOffset();
     public Task OnInvokeAsync(IRoomAvatarContext ctx, CancellationToken ct);
     public Task OnWalkOnAsync(IRoomAvatarContext ctx, CancellationToken ct);
     public Task OnWalkOffAsync(IRoomAvatarContext ctx, CancellationToken ct);

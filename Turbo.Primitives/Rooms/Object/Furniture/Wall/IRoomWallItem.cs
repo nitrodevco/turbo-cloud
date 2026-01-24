@@ -17,7 +17,6 @@ public interface IRoomWallItem : IRoomItem<IRoomWallItem, IFurnitureWallLogic, I
     public int WallOffset { get; }
 
     public void SetWallOffset(int wallOffset);
-    public void SetRotation(Rotation rot);
     new RoomWallItemSnapshot GetSnapshot();
     public string ConvertWallPositionToString();
 }

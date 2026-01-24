@@ -72,7 +72,7 @@ public sealed class RoomSecurityModule(RoomGrain roomGrain)
     {
         var isOwner = false;
 
-        if (ctx is not null && _roomGrain._state.RoomSnapshot.OwnerId == ctx.PlayerId)
+        if (_roomGrain._state.RoomSnapshot.OwnerId == ctx.PlayerId)
             isOwner = true;
 
         // if has perm any_room_owner true

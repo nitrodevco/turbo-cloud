@@ -19,4 +19,6 @@ public readonly record struct SessionKey
     public static implicit operator string(SessionKey key) => key.Value;
 
     public static implicit operator SessionKey(string value) => new(value);
+
+    public static SessionKey Invalid => new(string.Empty);
 }

@@ -1,9 +1,7 @@
 using System;
-using Orleans.Configuration.Overrides;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
@@ -14,22 +12,6 @@ public sealed class RoomFloorItem
     : RoomItem<IRoomFloorItem, IFurnitureFloorLogic, IRoomFloorItemContext>,
         IRoomFloorItem
 {
-    public double GetStackHeight() => Logic?.GetStackHeight() ?? Definition.StackHeight;
-
-    public override void SetPosition(int x, int y, double z)
-    {
-        z = Math.Round(z, 2);
-
-        base.SetPosition(x, y, z);
-    }
-
-    public void SetRotation(Rotation rotation)
-    {
-        Rotation = rotation;
-
-        MarkDirty();
-    }
-
     public new RoomFloorItemSnapshot GetSnapshot() => (RoomFloorItemSnapshot)base.GetSnapshot();
 
     public override IComposer GetAddComposer() =>

@@ -22,8 +22,7 @@ internal sealed partial class RoomService
     )
     {
         if (
-            ctx is null
-            || ctx.Origin != ActionOrigin.Player
+            ctx.Origin != ActionOrigin.Player
             || ctx.PlayerId <= 0
             || ctx.RoomId <= 0
             || itemId <= 0
@@ -65,7 +64,7 @@ internal sealed partial class RoomService
         CancellationToken ct
     )
     {
-        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0 || itemId <= 0)
+        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || itemId <= 0)
             return;
 
         var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
@@ -86,50 +85,5 @@ internal sealed partial class RoomService
             await session
                 .SendComposerAsync(new ObjectUpdateMessageComposer { FloorItem = item }, ct)
                 .ConfigureAwait(false);
-    }
-
-    public async Task PickupFloorItemInRoomAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        bool isConfirm = true
-    )
-    {
-        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0 || itemId <= 0)
-            return;
-
-        var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
-
-        await roomGrain.RemoveFloorItemByIdAsync(ctx, itemId, ct).ConfigureAwait(false);
-    }
-
-    public async Task UseFloorItemInRoomAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
-    )
-    {
-        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0 || itemId <= 0)
-            return;
-
-        var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
-
-        await roomGrain.UseFloorItemByIdAsync(ctx, itemId, ct, param).ConfigureAwait(false);
-    }
-
-    public async Task ClickFloorItemInRoomAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
-    )
-    {
-        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0 || itemId <= 0)
-            return;
-
-        var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
-
-        await roomGrain.ClickFloorItemByIdAsync(ctx, itemId, ct, param).ConfigureAwait(false);
     }
 }

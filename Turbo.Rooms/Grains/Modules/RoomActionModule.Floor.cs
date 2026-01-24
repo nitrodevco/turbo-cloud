@@ -15,9 +15,6 @@ namespace Turbo.Rooms.Grains.Modules;
 
 public sealed partial class RoomActionModule
 {
-    public Task<bool> AddFloorItemAsync(IRoomFloorItem item, CancellationToken ct) =>
-        _roomGrain.ObjectModule.AttatchObjectAsync(item, ct);
-
     public async Task<bool> PlaceFloorItemAsync(
         ActionContext ctx,
         FurnitureItemSnapshot snapshot,
@@ -35,7 +32,15 @@ public sealed partial class RoomActionModule
         if (item is not IRoomFloorItem floorItem)
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        if (!_roomGrain.FurniModule.ValidateNewFloorItemPlacement(ctx, floorItem, x, y, rot))
+        if (
+            !await _roomGrain.FurniModule.ValidateNewFloorItemPlacementAsync(
+                ctx,
+                floorItem,
+                x,
+                y,
+                rot
+            )
+        )
             throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
         if (!await _roomGrain.FurniModule.PlaceFloorItemAsync(ctx, floorItem, x, y, rot, ct))
@@ -60,10 +65,10 @@ public sealed partial class RoomActionModule
         if (!await _roomGrain.SecurityModule.CanManipulateFurniAsync(ctx))
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
-        if (!_roomGrain.FurniModule.ValidateFloorItemPlacement(ctx, itemId, x, y, rot))
+        if (!await _roomGrain.FurniModule.ValidateFloorItemPlacementAsync(ctx, itemId, x, y, rot))
             throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
-        if (!await _roomGrain.FurniModule.MoveFloorItemByIdAsync(ctx, itemId, x, y, rot, ct))
+        if (!await _roomGrain.FurniModule.MoveFloorItemByIdAsync(ctx, itemId, x, y, null, rot, ct))
             return false;
 
         return true;
@@ -76,7 +81,7 @@ public sealed partial class RoomActionModule
         CancellationToken ct
     )
     {
-        if (!_roomGrain._state.FloorItemsById.TryGetValue(itemId, out var item))
+        if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
         if (item.Logic is not FurnitureWiredLogic wiredLogic)

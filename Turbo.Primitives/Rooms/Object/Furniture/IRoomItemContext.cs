@@ -16,7 +16,7 @@ public interface IRoomItemContext<out TObject, out TLogic, out TSelf>
     where TSelf : IRoomItemContext<TObject, TLogic, TSelf>
     where TLogic : IFurnitureLogic<TObject, TLogic, TSelf>
 {
-    new TObject Object { get; }
+    new TObject RoomObject { get; }
 }
 
 public interface IRoomItemContext : IRoomObjectContext
