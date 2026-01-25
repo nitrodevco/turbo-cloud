@@ -12,7 +12,7 @@ public interface IWiredVariable
         IWiredExecutionContext ctx,
         int value
     );
-    public bool RemoveValue(string key);
+    public bool RemoveValue(WiredVariableBinding binding);
 
     public WiredVariableKey GetVariableKey();
     public WiredVariableSnapshot GetVarSnapshot();

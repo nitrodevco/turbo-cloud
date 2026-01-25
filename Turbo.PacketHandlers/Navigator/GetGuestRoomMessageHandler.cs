@@ -5,12 +5,14 @@ using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.PacketHandlers.Navigator;
 
-public class GetGuestRoomMessageHandler(IGrainFactory grainFactory)
+public class GetGuestRoomMessageHandler(IRoomService roomService, IGrainFactory grainFactory)
     : IMessageHandler<GetGuestRoomMessage>
 {
+    private readonly IRoomService _roomService = roomService;
     private readonly IGrainFactory _grainFactory = grainFactory;
 
     public async ValueTask HandleAsync(
@@ -40,6 +42,10 @@ public class GetGuestRoomMessageHandler(IGrainFactory grainFactory)
                 },
                 ct
             )
+            .ConfigureAwait(false);
+
+        await _roomService
+            .OpenRoomForPlayerIdAsync(ctx.AsActionContext(), ctx.PlayerId, message.RoomId, ct)
             .ConfigureAwait(false);
     }
 }

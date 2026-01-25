@@ -129,9 +129,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
         )
             return;
 
-        var ctx = new WiredProcessingContext
+        var ctx = new WiredProcessingContext(_roomGrain)
         {
-            Room = _roomGrain,
             Event = evt,
             Stack = stack,
             Trigger = trigger,
@@ -277,13 +276,12 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
 
             try
             {
-                var ctx = new WiredExecutionContext
+                var ctx = new WiredExecutionContext(_roomGrain)
                 {
-                    Room = _roomGrain,
-                    Variables = pending.Variables.ToDictionary(),
                     Policy = pending.Policy,
                     Selected = new WiredSelectionSet().UnionWith(pending.Selected),
                     SelectorPool = new WiredSelectionSet().UnionWith(pending.SelectorPool),
+                    Variables = pending.Variables.ToDictionary(),
                 };
 
                 await action.ExecuteAsync(ctx, ct);

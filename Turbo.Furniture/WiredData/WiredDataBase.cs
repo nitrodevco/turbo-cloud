@@ -4,7 +4,6 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.WiredData;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Furniture.WiredData;
 
@@ -15,7 +14,8 @@ internal abstract class WiredDataBase : IWiredData
     public List<int> IntParams { get; set; } = [];
     public string StringParam { get; set; } = string.Empty;
     public List<int> StuffIds { get; set; } = [];
-    public List<long> VariableIds { get; set; } = [];
+    public List<int> StuffIds2 { get; set; } = [];
+    public List<string> VariableIds { get; set; } = [];
 
     public List<WiredFurniSourceType[]> FurniSources { get; set; } = [];
     public List<WiredPlayerSourceType[]> PlayerSources { get; set; } = [];

@@ -2,20 +2,45 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired;
 
-public abstract class WiredContext : IWiredContext
+public abstract class WiredContext(RoomGrain roomGrain) : IWiredContext
 {
-    public required RoomGrain Room { get; init; }
+    protected RoomGrain _roomGrain = roomGrain;
+
+    public IRoomGrain Room => _roomGrain;
 
     public IWiredPolicy Policy { get; init; } = new WiredPolicy();
     public IWiredSelectionSet Selected { get; init; } = new WiredSelectionSet();
     public IWiredSelectionSet SelectorPool { get; init; } = new WiredSelectionSet();
-    public Dictionary<string, object?> Variables { get; init; } = [];
+    public Dictionary<string, int> Variables { get; init; } = [];
+    public CancellationToken CancellationToken { get; init; }
+
+    public bool TryGetContextVariable(string key, out int value)
+    {
+        if (!Variables.TryGetValue(key, out var intValue))
+        {
+            value = intValue;
+
+            return true;
+        }
+
+        value = default;
+
+        return false;
+    }
+
+    public async Task<bool> SetContextVariableAsync(string key, int value)
+    {
+        Variables[key] = value;
+
+        return await Task.FromResult(true);
+    }
 
     public Task<IWiredSelectionSet> GetWiredSelectionSetAsync(IWiredBox wired, CancellationToken ct)
     {
@@ -35,7 +60,20 @@ public abstract class WiredContext : IWiredContext
                             {
                                 foreach (var id in stuffIds)
                                 {
-                                    if (!Room._state.ItemsById.ContainsKey(id))
+                                    if (!_roomGrain._state.ItemsById.ContainsKey(id))
+                                        continue;
+
+                                    set.SelectedFurniIds.Add(id);
+                                }
+                            }
+
+                            var stuffIds2 = wired.WiredData?.StuffIds2;
+
+                            if (stuffIds2 is not null && stuffIds2.Count > 0)
+                            {
+                                foreach (var id in stuffIds2)
+                                {
+                                    if (!_roomGrain._state.ItemsById.ContainsKey(id))
                                         continue;
 
                                     set.SelectedFurniIds.Add(id);
@@ -102,7 +140,7 @@ public abstract class WiredContext : IWiredContext
     public virtual WiredContextSnapshot GetSnapshot() =>
         new()
         {
-            Variables = new Dictionary<string, object?>(Variables),
+            Variables = new Dictionary<string, int>(Variables),
             Selected = Selected.GetSnapshot(),
         };
 }

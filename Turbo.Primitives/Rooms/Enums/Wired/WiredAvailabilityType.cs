@@ -6,5 +6,7 @@ public enum WiredAvailabilityType
     RoomActive = 1,
     Persistent = 10,
     Shared = 11,
-    Internal = 100,
+    Reference = 20,
+    Unknown = 21,
+    Internal = 999,
 }

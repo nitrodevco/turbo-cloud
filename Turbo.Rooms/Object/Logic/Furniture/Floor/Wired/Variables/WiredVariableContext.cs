@@ -18,7 +18,7 @@ public class WiredVariableContext(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredVariableLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
-    public override int WiredCode => (int)WiredVariableType.Context;
+    public override int WiredCode => (int)WiredVariableBoxType.Context;
 
     public override List<IWiredIntParamRule> GetIntParamRules() => [new WiredIntRangeRule(0, 1, 0)];
 
@@ -27,6 +27,7 @@ public class WiredVariableContext(
         {
             VariableId = _variableId,
             VariableName = WiredData.StringParam,
+            VariableType = WiredVariableType.Sub,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Context,
             Flags =

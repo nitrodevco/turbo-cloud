@@ -10,10 +10,13 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired;
 
-public sealed class WiredExecutionContext : WiredContext, IWiredExecutionContext
+public sealed class WiredExecutionContext(RoomGrain roomGrain)
+    : WiredContext(roomGrain),
+        IWiredExecutionContext
 {
     public List<WiredUserMovementSnapshot> UserMoves { get; } = [];
     public List<WiredFloorItemMovementSnapshot> FloorItemMoves { get; } = [];
@@ -37,7 +40,7 @@ public sealed class WiredExecutionContext : WiredContext, IWiredExecutionContext
             var finalZ = z ?? floorItem.Z;
             var finalRot = rot ?? floorItem.Rotation;
 
-            if (!Room.MapModule.MoveFloorItem(floorItem, tileIdx, z, rot))
+            if (!_roomGrain.MapModule.MoveFloorItem(floorItem, tileIdx, z, rot))
                 return;
 
             FloorItemMoves.Add(
@@ -83,7 +86,7 @@ public sealed class WiredExecutionContext : WiredContext, IWiredExecutionContext
                 wallItem.WallOffset
             );
 
-            if (!Room.MapModule.MoveWallItem(wallItem, x, y, z, rot, wallOffset))
+            if (!_roomGrain.MapModule.MoveWallItem(wallItem, x, y, z, rot, wallOffset))
                 return;
 
             WallItemMoves.Add(
@@ -111,7 +114,7 @@ public sealed class WiredExecutionContext : WiredContext, IWiredExecutionContext
             Origin = ActionOrigin.Wired,
             SessionKey = SessionKey.Invalid,
             PlayerId = PlayerId.Invalid,
-            RoomId = Room._state.RoomId,
+            RoomId = _roomGrain._state.RoomId,
         };
 
     public Task SendComposerToRoomAsync(IComposer composer) =>

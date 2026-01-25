@@ -20,6 +20,7 @@ public sealed class FurnitureStateVariable(RoomGrain roomGrain)
                 10
             ),
             VariableName = "@state",
+            VariableType = WiredVariableType.Internal,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Furni,
             Flags =

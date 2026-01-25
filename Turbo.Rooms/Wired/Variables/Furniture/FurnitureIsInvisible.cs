@@ -18,6 +18,7 @@ public sealed class FurnitureIsInvisible(RoomGrain roomGrain)
                 80
             ),
             VariableName = "@is_invisible",
+            VariableType = WiredVariableType.Internal,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Furni,
             Flags = WiredVariableFlags.None,

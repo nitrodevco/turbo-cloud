@@ -6,5 +6,5 @@ namespace Turbo.Primitives.Rooms.Wired.Variable;
 [GenerateSerializer, Immutable]
 public readonly record struct WiredVariableBinding(WiredVariableTargetType TargetType, int TargetId)
 {
-    public override string ToString() => $"{TargetId}";
+    public override string ToString() => $"{TargetType}:{TargetId}";
 }

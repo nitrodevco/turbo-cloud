@@ -13,11 +13,14 @@ public sealed class UserPositionXVariable(RoomGrain roomGrain)
     protected override WiredVariableDefinition BuildVariableDefinition() =>
         new()
         {
-            VariableId = WiredVariableIdBuilder.CreateInternal(
+            VariableId = WiredVariableIdBuilder.CreateInternalOrdered(
                 WiredVariableTargetType.User,
-                "@position.x"
+                "@position.x",
+                WiredVariableIdBuilder.WiredVarSubBand.Position,
+                20
             ),
             VariableName = "@position.x",
+            VariableType = WiredVariableType.Internal,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.User,
             Flags =

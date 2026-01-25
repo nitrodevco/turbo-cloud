@@ -19,6 +19,7 @@ public sealed class FurnitureCanStandOnVariable(RoomGrain roomGrain)
                 50
             ),
             VariableName = "@can_stand_on",
+            VariableType = WiredVariableType.Internal,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Furni,
             Flags = WiredVariableFlags.None,

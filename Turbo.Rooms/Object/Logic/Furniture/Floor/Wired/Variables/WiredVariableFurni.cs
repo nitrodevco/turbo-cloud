@@ -1,10 +1,12 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Wired.IntParams;
 using Turbo.Rooms.Wired.Variables;
 
@@ -18,7 +20,7 @@ public class WiredVariableFurni(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredVariableLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
-    public override int WiredCode => (int)WiredVariableType.Furni;
+    public override int WiredCode => (int)WiredVariableBoxType.Furni;
 
     public override List<IWiredIntParamRule> GetIntParamRules() =>
         [
@@ -35,6 +37,7 @@ public class WiredVariableFurni(
         {
             VariableId = _variableId,
             VariableName = WiredData.StringParam,
+            VariableType = WiredVariableType.Echo,
             AvailabilityType = (WiredAvailabilityType)WiredData.IntParams[1],
             TargetType = WiredVariableTargetType.Furni,
             Flags =
@@ -48,4 +51,21 @@ public class WiredVariableFurni(
                 | WiredVariableFlags.CanReadCreationTime,
             TextConnectors = [],
         };
+
+    public override Task<bool> SetValueAsync(
+        WiredVariableBinding binding,
+        IWiredExecutionContext ctx,
+        int value
+    )
+    {
+        if (
+            !CanBind(binding)
+            || !_roomGrain._state.ItemsById.TryGetValue(binding.TargetId, out var item)
+        )
+            return Task.FromResult(false);
+
+        _storageData.SetValue(binding.ToString(), value);
+
+        return Task.FromResult(true);
+    }
 }

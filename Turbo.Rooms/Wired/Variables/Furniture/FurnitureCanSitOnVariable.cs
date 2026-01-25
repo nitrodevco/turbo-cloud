@@ -19,6 +19,7 @@ public sealed class FurnitureCanSitOnVariable(RoomGrain roomGrain)
                 40
             ),
             VariableName = "@can_sit_on",
+            VariableType = WiredVariableType.Internal,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Furni,
             Flags = WiredVariableFlags.None,

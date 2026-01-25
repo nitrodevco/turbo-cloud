@@ -19,6 +19,7 @@ public sealed class FurnitureIsStackableVariable(RoomGrain roomGrain)
                 60
             ),
             VariableName = "@is_stackable",
+            VariableType = WiredVariableType.Internal,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Furni,
             Flags = WiredVariableFlags.None,

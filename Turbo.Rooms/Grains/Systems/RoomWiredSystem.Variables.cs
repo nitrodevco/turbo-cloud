@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -5,7 +6,6 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
-using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Variables;
 
 namespace Turbo.Rooms.Grains.Systems;
@@ -13,26 +13,17 @@ namespace Turbo.Rooms.Grains.Systems;
 public sealed partial class RoomWiredSystem
 {
     private readonly HashSet<int> _dirtyVariableBoxIds = [];
-    private readonly Dictionary<int, WiredVariableKey> _variableKeyBoxId = [];
-    private readonly Dictionary<WiredVariableKey, IWiredVariable> _variableByKey = [];
+    private readonly Dictionary<int, WiredVariableId> _variableIdBoxId = [];
+    private readonly Dictionary<WiredVariableId, IWiredVariable> _variableById = [];
 
     private WiredVariablesSnapshot? _variablesSnapshot = null;
 
-    public bool TryGetVariable(
-        string key,
-        in WiredVariableBinding binding,
-        WiredExecutionContext ctx,
-        out int value
-    )
+    public IWiredVariable? GetVariableById(WiredVariableId id)
     {
-        var variableKey = new WiredVariableKey(binding.TargetType, key);
+        if (_variableById.TryGetValue(id, out var variable))
+            return variable;
 
-        if (_variableByKey.TryGetValue(variableKey, out var variable))
-            return variable.TryGet(binding, out value);
-
-        value = 0;
-
-        return false;
+        return null;
     }
 
     public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct) =>
@@ -45,7 +36,7 @@ public sealed partial class RoomWiredSystem
     {
         var variableValues = new List<(WiredVariableId id, int value)>();
 
-        foreach (var variable in _variableByKey.Values)
+        foreach (var variable in _variableById.Values)
         {
             if (!variable.TryGet(binding, out var value))
                 continue;
@@ -63,14 +54,7 @@ public sealed partial class RoomWiredSystem
         var variables = _roomGrain._wiredVariablesProvider.BuildVariablesForRoom(_roomGrain);
 
         foreach (var variable in variables)
-        {
-            var key = variable.GetVariableKey();
-
-            if (string.IsNullOrWhiteSpace(key.VariableName))
-                continue;
-
-            _variableByKey[key] = variable;
-        }
+            ProcessVariable(variable);
 
         return Task.CompletedTask;
     }
@@ -101,30 +85,43 @@ public sealed partial class RoomWiredSystem
 
         await variable.LoadWiredAsync(ct);
 
+        if (!ProcessVariable(variable))
+            return;
+
+        var snapshot = variable.GetVarSnapshot();
+
+        _variableIdBoxId[boxId] = snapshot.VariableId;
+    }
+
+    private bool ProcessVariable(IWiredVariable variable)
+    {
         var key = variable.GetVariableKey();
 
         if (string.IsNullOrWhiteSpace(key.VariableName))
-            return;
+            return false;
 
-        _variableByKey[key] = variable;
-        _variableKeyBoxId[boxId] = key;
+        var snapshot = variable.GetVarSnapshot();
+
+        _variableById[snapshot.VariableId] = variable;
+
+        return true;
     }
 
     private void RemoveVariableBox(int boxId)
     {
-        if (!_variableKeyBoxId.TryGetValue(boxId, out var key))
+        if (!_variableIdBoxId.TryGetValue(boxId, out var variableId))
             return;
 
-        _variableByKey.Remove(key);
-        _variableKeyBoxId.Remove(boxId);
+        _variableIdBoxId.Remove(boxId);
+        _variableById.Remove(variableId);
     }
 
     private WiredVariablesSnapshot BuildVariablesSnapshot()
     {
         var hashes = new List<WiredVariableHash>();
-        var snapshots = new List<WiredVariableSnapshot>(_variableByKey.Count);
+        var snapshots = new List<WiredVariableSnapshot>(_variableById.Count);
 
-        foreach (var variable in _variableByKey.Values)
+        foreach (var variable in _variableById.Values)
         {
             var snapshot = variable.GetVarSnapshot();
 

@@ -14,11 +14,14 @@ public sealed class UserTypeVariable(RoomGrain roomGrain)
     protected override WiredVariableDefinition BuildVariableDefinition() =>
         new()
         {
-            VariableId = WiredVariableIdBuilder.CreateInternal(
+            VariableId = WiredVariableIdBuilder.CreateInternalOrdered(
                 WiredVariableTargetType.User,
-                "@type"
+                "@type",
+                WiredVariableIdBuilder.WiredVarSubBand.Base,
+                10
             ),
             VariableName = "@type",
+            VariableType = WiredVariableType.Internal,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.User,
             Flags =

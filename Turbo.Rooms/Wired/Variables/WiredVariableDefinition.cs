@@ -9,6 +9,7 @@ public readonly record struct WiredVariableDefinition : IWiredVariableDefinition
 {
     public required WiredVariableId VariableId { get; init; }
     public required string VariableName { get; init; }
+    public required WiredVariableType VariableType { get; init; }
     public required WiredAvailabilityType AvailabilityType { get; init; }
     public required WiredVariableTargetType TargetType { get; init; }
     public required WiredVariableFlags Flags { get; init; }
@@ -19,6 +20,7 @@ public readonly record struct WiredVariableDefinition : IWiredVariableDefinition
         {
             VariableId = VariableId,
             VariableName = VariableName,
+            VariableType = VariableType,
             VariableHash = WiredVariableHashBuilder.HashVariableDefinition(this),
             AvailabilityType = AvailabilityType,
             TargetType = TargetType,

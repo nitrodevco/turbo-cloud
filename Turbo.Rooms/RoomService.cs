@@ -58,19 +58,70 @@ internal sealed partial class RoomService(
             // if locked => reject (for now)
 
             var room = _grainFactory.GetRoomGrain(roomId);
+
+            await playerPresence
+                .SendComposerAsync(new OpenConnectionMessageComposer { RoomId = roomId })
+                .ConfigureAwait(false);
+
+            await room.EnsureRoomActiveAsync(ct).ConfigureAwait(false);
+
             var snapshot = await room.GetSnapshotAsync().ConfigureAwait(false);
+            var mapSnapshot = await room.GetMapSnapshotAsync(ct).ConfigureAwait(false);
+            var ownersSnapshot = await room.GetAllOwnersAsync(ct).ConfigureAwait(false);
+            var floorSnapshot = await room.GetAllFloorItemSnapshotsAsync(ct).ConfigureAwait(false);
+            var wallSnapshot = await room.GetAllWallItemSnapshotsAsync(ct).ConfigureAwait(false);
+            var avatarSnapshot = await room.GetAllAvatarSnapshotsAsync(ct).ConfigureAwait(false);
 
             await playerPresence
                 .SendComposerAsync(
-                    new OpenConnectionMessageComposer { RoomId = roomId },
                     new RoomReadyMessageComposer
                     {
                         WorldType = snapshot.WorldType,
                         RoomId = roomId,
                     },
-                    new RoomRatingMessageComposer { Rating = 0, CanRate = false }
+                    new RoomRatingMessageComposer { Rating = 0, CanRate = false },
+                    new RoomEntryTileMessageComposer
+                    {
+                        X = mapSnapshot.DoorX,
+                        Y = mapSnapshot.DoorY,
+                        Rotation = mapSnapshot.DoorRotation,
+                    },
+                    new HeightMapMessageComposer
+                    {
+                        Width = mapSnapshot.Width,
+                        Size = mapSnapshot.Size,
+                        Heights = mapSnapshot.TileEncodedHeights,
+                    },
+                    new FloorHeightMapMessageComposer
+                    {
+                        ScaleType = _roomConfig.DefaultRoomScale,
+                        FixedWallsHeight = _roomConfig.DefaultWallHeight,
+                        ModelData = mapSnapshot.ModelData,
+                        AreaHideData = [],
+                    },
+                    new ObjectsMessageComposer
+                    {
+                        OwnerNames = ownersSnapshot,
+                        FloorItems = floorSnapshot,
+                    },
+                    new ItemsMessageComposer
+                    {
+                        OwnerNames = ownersSnapshot,
+                        WallItems = wallSnapshot,
+                    },
+                    new UsersMessageComposer { Avatars = avatarSnapshot },
+                    new UserUpdateMessageComposer { Avatars = avatarSnapshot },
+                    new YouAreControllerMessageComposer
+                    {
+                        RoomId = roomId,
+                        ControllerLevel = RoomControllerType.Owner,
+                    },
+                    new WiredPermissionsEventMessageComposer { CanModify = true, CanRead = true },
+                    new YouAreOwnerMessageComposer { RoomId = roomId }
                 )
                 .ConfigureAwait(false);
+
+            await playerPresence.SetActiveRoomAsync(roomId, ct).ConfigureAwait(false);
         }
         catch (Exception)
         {

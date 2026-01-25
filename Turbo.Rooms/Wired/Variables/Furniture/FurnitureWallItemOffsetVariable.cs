@@ -21,6 +21,7 @@ public sealed class FurnitureWallItemOffsetVariable(RoomGrain roomGrain)
                 10
             ),
             VariableName = "@wallitem_offset",
+            VariableType = WiredVariableType.Internal,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Furni,
             Flags = WiredVariableFlags.HasValue | WiredVariableFlags.CanWriteValue,

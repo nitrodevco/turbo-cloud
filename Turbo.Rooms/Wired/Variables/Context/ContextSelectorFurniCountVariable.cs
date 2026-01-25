@@ -11,11 +11,14 @@ public sealed class ContextSelectorFurniCountVariable(RoomGrain roomGrain)
     protected override WiredVariableDefinition BuildVariableDefinition() =>
         new()
         {
-            VariableId = WiredVariableIdBuilder.CreateInternal(
+            VariableId = WiredVariableIdBuilder.CreateInternalOrdered(
                 WiredVariableTargetType.Context,
-                "@selector_furni_count"
+                "@selector_furni_count",
+                WiredVariableIdBuilder.WiredVarSubBand.Base,
+                10
             ),
             VariableName = "@selector_furni_count",
+            VariableType = WiredVariableType.Internal,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Context,
             Flags = WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable,

@@ -14,5 +14,5 @@ public class WiredVariableQuest(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredVariableLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
-    public override int WiredCode => (int)WiredVariableType.Quest;
+    public override int WiredCode => (int)WiredVariableBoxType.Quest;
 }

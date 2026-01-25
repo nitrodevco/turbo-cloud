@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 
@@ -22,17 +21,20 @@ public record UpdateWiredMessage : IMessageEvent
     public required List<int> StuffIds { get; init; }
 
     [Id(4)]
-    public required List<object> DefinitionSpecifics { get; init; }
+    public required List<int> StuffIds2 { get; init; }
 
     [Id(5)]
-    public required List<WiredFurniSourceType[]> FurniSources { get; init; }
+    public required List<object> DefinitionSpecifics { get; init; }
 
     [Id(6)]
-    public required List<WiredPlayerSourceType[]> PlayerSources { get; init; }
+    public required List<WiredFurniSourceType[]> FurniSources { get; init; }
 
     [Id(7)]
-    public required List<long> VariableIds { get; init; }
+    public required List<WiredPlayerSourceType[]> PlayerSources { get; init; }
 
     [Id(8)]
+    public required List<string> VariableIds { get; init; }
+
+    [Id(9)]
     public required List<object> TypeSpecifics { get; init; }
 }

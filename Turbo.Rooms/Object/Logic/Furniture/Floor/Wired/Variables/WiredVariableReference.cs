@@ -14,5 +14,5 @@ public class WiredVariableReference(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredVariableLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
-    public override int WiredCode => (int)WiredVariableType.Reference;
+    public override int WiredCode => (int)WiredVariableBoxType.Reference;
 }

@@ -23,6 +23,7 @@ public sealed class FurnitureAltitudeVariable(RoomGrain roomGrain)
                 10
             ),
             VariableName = "@altitude",
+            VariableType = WiredVariableType.Internal,
             AvailabilityType = WiredAvailabilityType.Internal,
             TargetType = WiredVariableTargetType.Furni,
             Flags =

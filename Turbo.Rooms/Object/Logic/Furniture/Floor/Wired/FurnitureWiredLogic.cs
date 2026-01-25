@@ -15,7 +15,6 @@ using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
-using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
@@ -89,6 +88,21 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
             if (!WiredData.StuffIds.SequenceEqual(stuffIds))
             {
                 WiredData.StuffIds = stuffIds;
+
+                WiredData.MarkDirty();
+            }
+        }
+
+        return stuffIds ?? [];
+    }
+
+    public virtual List<int> GetStuffIds2()
+    {
+        if (GetValidStuffIds(WiredData.StuffIds2, out var stuffIds))
+        {
+            if (!WiredData.StuffIds2.SequenceEqual(stuffIds))
+            {
+                WiredData.StuffIds2 = stuffIds;
 
                 WiredData.MarkDirty();
             }
@@ -227,6 +241,16 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
         return specifics;
     }
 
+    public List<int> GetDefaultIntParams()
+    {
+        var ints = new List<int>();
+
+        foreach (var rule in GetIntParamRules())
+            ints.Add(rule.DefaultValue);
+
+        return ints;
+    }
+
     public virtual async Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,
         UpdateWiredMessage update,
@@ -238,7 +262,8 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
             var intParams = new List<int>();
             var stringParam = update.StringParam;
             var stuffIds = new List<int>();
-            var variableIds = new List<long>();
+            var stuffIds2 = new List<int>();
+            var variableIds = new List<string>();
             var furniSources = new List<WiredFurniSourceType[]>();
             var playerSources = new List<WiredPlayerSourceType[]>();
             var definitionSpecifics = new List<object>();
@@ -255,6 +280,9 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
 
             if (GetValidStuffIds(update.StuffIds, out var validStuffIds))
                 stuffIds = validStuffIds;
+
+            if (GetValidStuffIds(update.StuffIds2, out var validStuffIds2))
+                stuffIds2 = validStuffIds2;
 
             if (update.VariableIds.Count > 0)
             {
@@ -369,6 +397,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
             WiredData.IntParams = intParams;
             WiredData.StringParam = stringParam;
             WiredData.StuffIds = stuffIds;
+            WiredData.StuffIds2 = stuffIds2;
             WiredData.VariableIds = variableIds;
             WiredData.FurniSources = furniSources;
             WiredData.PlayerSources = playerSources;
@@ -490,6 +519,16 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
             }
         }
 
+        if (GetValidStuffIds(WiredData.StuffIds2, out var stuffIds2))
+        {
+            if (!WiredData.StuffIds2.SequenceEqual(stuffIds2))
+            {
+                WiredData.StuffIds2 = stuffIds2;
+
+                WiredData.MarkDirty();
+            }
+        }
+
         return Task.CompletedTask;
     }
 
@@ -498,21 +537,9 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
         if (WiredData.IntParams is { Count: > 0 })
             return;
 
-        var fixedRules = GetIntParamRules();
+        var defaultInts = GetDefaultIntParams();
 
-        if (fixedRules.Count == 0)
-        {
-            WiredData.IntParams = [];
-
-            return;
-        }
-
-        var defaults = new List<int>(fixedRules.Count);
-
-        foreach (var rule in fixedRules)
-            defaults.Add(rule.DefaultValue);
-
-        WiredData.IntParams = defaults;
+        WiredData.IntParams = defaultInts;
         WiredData.MarkDirty();
     }
 
@@ -525,6 +552,9 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
             FurniLimit = _furniLimit,
             StuffIds = GetValidStuffIds(WiredData.StuffIds, out var validStuffIds)
                 ? validStuffIds
+                : [],
+            StuffIds2 = GetValidStuffIds(WiredData.StuffIds2, out var validStuffIds2)
+                ? validStuffIds2
                 : [],
             StuffTypeId = _ctx.Definition.SpriteId,
             Id = _ctx.ObjectId,
@@ -544,6 +574,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
             DefinitionSpecifics = GetDefinitionSpecifics(),
             TypeSpecifics = GetTypeSpecifics(),
             ContextSnapshots = GetWiredContextSnapshots(),
+            DefaultIntParams = GetDefaultIntParams(),
         };
 
     public override async Task OnAttachAsync(CancellationToken ct)

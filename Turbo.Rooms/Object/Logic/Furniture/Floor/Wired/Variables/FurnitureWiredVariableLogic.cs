@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading;
@@ -34,7 +35,7 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
     )
         : base(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
     {
-        _variableId = WiredVariableIdBuilder.CreateDatabase(ctx.ObjectId.Value);
+        _variableId = WiredVariableIdBuilder.CreateFromBoxId(ctx.ObjectId.Value);
 
         if (
             ctx.RoomObject.ExtraData.TryGetSection(
@@ -65,6 +66,7 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
         {
             VariableId = _variableId,
             VariableName = string.Empty,
+            VariableType = WiredVariableType.Sub,
             AvailabilityType = WiredAvailabilityType.RoomActive,
             TargetType = WiredVariableTargetType.None,
             Flags = WiredVariableFlags.None,
@@ -92,7 +94,7 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
         int value
     ) => Task.FromResult(false);
 
-    public virtual bool RemoveValue(string key) => false;
+    public virtual bool RemoveValue(WiredVariableBinding binding) => false;
 
     public WiredVariableKey GetVariableKey()
     {

@@ -7,7 +7,7 @@ namespace Turbo.Primitives.Rooms.Snapshots.Wired;
 public sealed record WiredContextSnapshot
 {
     [Id(0)]
-    public required Dictionary<string, object?> Variables { get; init; }
+    public required Dictionary<string, int> Variables { get; init; }
 
     [Id(1)]
     public required WiredSelectionSetSnapshot Selected { get; init; }

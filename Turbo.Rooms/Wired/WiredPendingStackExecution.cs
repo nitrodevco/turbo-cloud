@@ -8,7 +8,7 @@ internal sealed class WiredPendingStackExecution
     public required IWiredStack Stack { get; init; }
     public required List<IWiredAction> Actions { get; init; }
     public required IWiredTrigger Trigger { get; init; }
-    public required Dictionary<string, object?> Variables { get; init; }
+    public required Dictionary<string, int> Variables { get; init; }
     public required IWiredPolicy Policy { get; init; }
     public required IWiredSelectionSet Selected { get; init; }
     public required IWiredSelectionSet SelectorPool { get; init; }

@@ -18,7 +18,7 @@ public class WiredVariableUser(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredVariableLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
-    public override int WiredCode => (int)WiredVariableType.User;
+    public override int WiredCode => (int)WiredVariableBoxType.User;
 
     public override List<IWiredIntParamRule> GetIntParamRules() =>
         [
@@ -36,6 +36,7 @@ public class WiredVariableUser(
         {
             VariableId = _variableId,
             VariableName = WiredData.StringParam,
+            VariableType = WiredVariableType.Sub,
             AvailabilityType = (WiredAvailabilityType)WiredData.IntParams[0],
             TargetType = WiredVariableTargetType.User,
             Flags =

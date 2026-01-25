@@ -43,6 +43,7 @@ public class WiredGetVariablesForObjectMessageHandler(IGrainFactory grainFactory
                     TargetType = (WiredVariableTargetType)message.SourceType,
                     TargetId = message.SourceId,
                     VariableValues = variables,
+                    ConfiguredInWireds = [],
                 },
                 ct
             )

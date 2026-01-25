@@ -8,6 +8,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Wired.IntParams;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -63,6 +64,41 @@ public class WiredActionGiveVariable(
         var selection = await ctx.GetEffectiveSelectionAsync(this, ct);
         var actionCtx = ctx.AsActionContext();
 
+        var variableIds = WiredData.VariableIds;
+
+        foreach (var variableId in variableIds)
+        {
+            try
+            {
+                var variable = _roomGrain.WiredSystem.GetVariableById(
+                    WiredVariableId.Parse(variableId)
+                );
+
+                if (variable is null)
+                    continue;
+
+                int value = 0;
+
+                foreach (var furniId in selection.SelectedFurniIds)
+                {
+                    var binding = new WiredVariableBinding(WiredVariableTargetType.Furni, furniId);
+
+                    await variable.SetValueAsync(binding, ctx, value);
+                }
+
+                foreach (var avatarId in selection.SelectedAvatarIds)
+                {
+                    var binding = new WiredVariableBinding(WiredVariableTargetType.User, avatarId);
+
+                    await variable.SetValueAsync(binding, ctx, value);
+                }
+            }
+            catch
+            {
+                continue;
+            }
+        }
+
         return true;
     }
 
@@ -72,7 +108,7 @@ public class WiredActionGiveVariable(
         {
             if (WiredData.VariableIds is { Count: <= 0 })
             {
-                WiredData.VariableIds = [0];
+                WiredData.VariableIds = [];
 
                 WiredData.MarkDirty();
             }

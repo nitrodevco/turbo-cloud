@@ -30,7 +30,7 @@ public abstract class WiredInternalVariable(RoomGrain roomGrain) : IWiredVariabl
         int value
     ) => Task.FromResult(false);
 
-    public virtual bool RemoveValue(string key) => false;
+    public virtual bool RemoveValue(WiredVariableBinding binding) => false;
 
     public WiredVariableKey GetVariableKey()
     {
