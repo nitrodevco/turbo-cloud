@@ -14,15 +14,19 @@ public abstract class WiredInternalVariable(RoomGrain roomGrain) : IWiredVariabl
 
     protected abstract WiredVariableDefinition BuildVariableDefinition();
 
-    public virtual bool CanBind(in WiredVariableBinding binding) =>
-        GetVarSnapshot().TargetType == binding.TargetType;
-
     public virtual bool TryGet(in WiredVariableBinding binding, out int value)
     {
-        value = 0;
+        value = default;
 
         return false;
     }
+
+    public virtual Task<bool> GiveValueAsync(
+        WiredVariableBinding binding,
+        IWiredExecutionContext ctx,
+        int value,
+        bool replace = false
+    ) => Task.FromResult(false);
 
     public virtual Task<bool> SetValueAsync(
         WiredVariableBinding binding,

@@ -27,9 +27,11 @@ public sealed class ContextSelectorFurniCountVariable(RoomGrain roomGrain)
 
     public override bool TryGet(in WiredVariableBinding binding, out int value)
     {
-        value = 0;
+        value = default;
 
-        if (!CanBind(binding))
+        var snapshot = GetVarSnapshot();
+
+        if (binding.TargetType != snapshot.TargetType)
             return false;
 
         return false;

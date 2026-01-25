@@ -1,6 +1,8 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Events.Avatar;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -51,7 +53,13 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
             new AvatarWalkOnFurniEvent
             {
                 RoomId = _ctx.RoomId,
-                CausedBy = null,
+                CausedBy = new ActionContext()
+                {
+                    Origin = ActionOrigin.Player,
+                    PlayerId = ctx.ObjectId.Value,
+                    RoomId = ctx.RoomId,
+                    SessionKey = SessionKey.Invalid,
+                },
                 AvatarId = ctx.ObjectId,
                 FurniId = _ctx.ObjectId,
             },
@@ -63,7 +71,13 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
             new AvatarWalkOffFurniEvent
             {
                 RoomId = _ctx.RoomId,
-                CausedBy = null,
+                CausedBy = new ActionContext()
+                {
+                    Origin = ActionOrigin.Player,
+                    PlayerId = ctx.ObjectId.Value,
+                    RoomId = ctx.RoomId,
+                    SessionKey = SessionKey.Invalid,
+                },
                 AvatarId = ctx.ObjectId,
                 FurniId = _ctx.ObjectId,
             },

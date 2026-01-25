@@ -37,7 +37,7 @@ public class WiredVariableFurni(
         {
             VariableId = _variableId,
             VariableName = WiredData.StringParam,
-            VariableType = WiredVariableType.Echo,
+            VariableType = WiredVariableType.Created,
             AvailabilityType = (WiredAvailabilityType)WiredData.IntParams[1],
             TargetType = WiredVariableTargetType.Furni,
             Flags =
@@ -51,21 +51,4 @@ public class WiredVariableFurni(
                 | WiredVariableFlags.CanReadCreationTime,
             TextConnectors = [],
         };
-
-    public override Task<bool> SetValueAsync(
-        WiredVariableBinding binding,
-        IWiredExecutionContext ctx,
-        int value
-    )
-    {
-        if (
-            !CanBind(binding)
-            || !_roomGrain._state.ItemsById.TryGetValue(binding.TargetId, out var item)
-        )
-            return Task.FromResult(false);
-
-        _storageData.SetValue(binding.ToString(), value);
-
-        return Task.FromResult(true);
-    }
 }

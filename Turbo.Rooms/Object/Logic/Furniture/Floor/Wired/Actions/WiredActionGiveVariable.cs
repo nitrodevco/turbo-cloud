@@ -25,10 +25,15 @@ public class WiredActionGiveVariable(
 
     public override List<IWiredIntParamRule> GetIntParamRules() =>
         [
-            new WiredIntEnumRule<WiredVariableTargetType>(WiredVariableTargetType.User),
-            new WiredIntRangeRule(-1, 0, 0),
-            new WiredIntParamRule(0),
-            new WiredIntBoolRule(false),
+            new WiredIntEnumRule<WiredVariableTargetType>(
+                WiredVariableTargetType.User,
+                WiredVariableTargetType.User,
+                WiredVariableTargetType.Furni,
+                WiredVariableTargetType.Context
+            ),
+            new WiredIntRangeRule(0, 0, 0),
+            new WiredIntParamRule(0), // init value
+            new WiredIntBoolRule(false), // override
         ];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
@@ -77,20 +82,39 @@ public class WiredActionGiveVariable(
                 if (variable is null)
                     continue;
 
-                int value = 0;
+                int value = WiredData.IntParams[2];
+                bool replace = WiredData.IntParams[3] == 1;
 
-                foreach (var furniId in selection.SelectedFurniIds)
+                switch ((WiredVariableTargetType)WiredData.IntParams[0])
                 {
-                    var binding = new WiredVariableBinding(WiredVariableTargetType.Furni, furniId);
+                    case WiredVariableTargetType.Furni:
+                    {
+                        foreach (var furniId in selection.SelectedFurniIds)
+                        {
+                            var binding = new WiredVariableBinding(
+                                WiredVariableTargetType.Furni,
+                                furniId
+                            );
 
-                    await variable.SetValueAsync(binding, ctx, value);
-                }
+                            await variable.GiveValueAsync(binding, ctx, value, replace);
+                        }
 
-                foreach (var avatarId in selection.SelectedAvatarIds)
-                {
-                    var binding = new WiredVariableBinding(WiredVariableTargetType.User, avatarId);
+                        break;
+                    }
+                    case WiredVariableTargetType.User:
+                    {
+                        foreach (var avatarId in selection.SelectedAvatarIds)
+                        {
+                            var binding = new WiredVariableBinding(
+                                WiredVariableTargetType.User,
+                                avatarId
+                            );
 
-                    await variable.SetValueAsync(binding, ctx, value);
+                            await variable.GiveValueAsync(binding, ctx, value, replace);
+                        }
+
+                        break;
+                    }
                 }
             }
             catch
@@ -100,21 +124,5 @@ public class WiredActionGiveVariable(
         }
 
         return true;
-    }
-
-    protected override async Task FillInternalDataAsync(CancellationToken ct)
-    {
-        try
-        {
-            if (WiredData.VariableIds is { Count: <= 0 })
-            {
-                WiredData.VariableIds = [];
-
-                WiredData.MarkDirty();
-            }
-        }
-        catch { }
-
-        await base.FillInternalDataAsync(ct);
     }
 }

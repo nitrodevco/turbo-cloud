@@ -28,17 +28,17 @@ public sealed class FurnitureCanLayOnVariable(RoomGrain roomGrain)
 
     public override bool TryGet(in WiredVariableBinding binding, out int value)
     {
-        value = 0;
+        value = default;
+
+        var snapshot = GetVarSnapshot();
 
         if (
-            !CanBind(binding)
+            (binding.TargetType != snapshot.TargetType)
             || !_roomGrain._state.ItemsById.TryGetValue(binding.TargetId, out var item)
             || item is not IRoomFloorItem floorItem
             || !floorItem.Logic.CanLay()
         )
             return false;
-
-        value = 1;
 
         return true;
     }

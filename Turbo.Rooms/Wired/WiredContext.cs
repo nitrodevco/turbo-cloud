@@ -92,7 +92,12 @@ public abstract class WiredContext(RoomGrain roomGrain) : IWiredContext
         {
             foreach (var sourceType in source)
             {
-                //switch (sourceType) { }
+                switch (sourceType)
+                {
+                    case WiredPlayerSourceType.TriggeredUser:
+                        set.SelectedAvatarIds.UnionWith(Selected.SelectedAvatarIds);
+                        break;
+                }
             }
         }
 
@@ -130,7 +135,17 @@ public abstract class WiredContext(RoomGrain roomGrain) : IWiredContext
         {
             foreach (var sourceType in source)
             {
-                //switch (sourceType) { }
+                switch (sourceType)
+                {
+                    case WiredPlayerSourceType.TriggeredUser:
+                        result.SelectedAvatarIds.UnionWith(Selected.SelectedAvatarIds);
+                        break;
+                    case WiredPlayerSourceType.SelectorUsers:
+                        result.SelectedAvatarIds.UnionWith(SelectorPool.SelectedAvatarIds);
+                        break;
+                    case WiredPlayerSourceType.SignalUsers:
+                        break;
+                }
             }
         }
 

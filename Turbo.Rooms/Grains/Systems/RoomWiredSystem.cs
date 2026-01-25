@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -136,6 +137,14 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
             Trigger = trigger,
         };
 
+        if (evt.CausedBy?.Origin == ActionOrigin.Player)
+        {
+            var playerId = evt.CausedBy?.PlayerId.Value ?? -1;
+
+            if (playerId > 0)
+                ctx.Selected.SelectedAvatarIds.Add(playerId);
+        }
+
         var selection = await ctx.GetWiredSelectionSetAsync(trigger, ct);
 
         ctx.Selected.UnionWith(selection);
@@ -188,7 +197,6 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
             Stack = ctx.Stack,
             Actions = actions,
             Trigger = ctx.Trigger,
-            Variables = ctx.Variables,
             Policy = ctx.Policy,
             Selected = ctx.Selected,
             SelectorPool = ctx.SelectorPool,
@@ -281,7 +289,6 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
                     Policy = pending.Policy,
                     Selected = new WiredSelectionSet().UnionWith(pending.Selected),
                     SelectorPool = new WiredSelectionSet().UnionWith(pending.SelectorPool),
-                    Variables = pending.Variables.ToDictionary(),
                 };
 
                 await action.ExecuteAsync(ctx, ct);

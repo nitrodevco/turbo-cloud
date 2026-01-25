@@ -35,10 +35,12 @@ public sealed class FurnitureRotationVariable(RoomGrain roomGrain)
 
     public override bool TryGet(in WiredVariableBinding binding, out int value)
     {
-        value = 0;
+        value = default;
+
+        var snapshot = GetVarSnapshot();
 
         if (
-            !CanBind(binding)
+            (binding.TargetType != snapshot.TargetType)
             || !_roomGrain._state.ItemsById.TryGetValue(binding.TargetId, out var item)
         )
             return false;
@@ -54,8 +56,10 @@ public sealed class FurnitureRotationVariable(RoomGrain roomGrain)
         int value
     )
     {
+        var snapshot = GetVarSnapshot();
+
         if (
-            !CanBind(binding)
+            (binding.TargetType != snapshot.TargetType)
             || !_roomGrain._state.ItemsById.TryGetValue(binding.TargetId, out var item)
         )
             return false;

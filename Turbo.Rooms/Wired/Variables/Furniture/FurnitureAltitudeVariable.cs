@@ -37,13 +37,16 @@ public sealed class FurnitureAltitudeVariable(RoomGrain roomGrain)
     {
         value = 0;
 
+        var snapshot = GetVarSnapshot();
+
         if (
-            !CanBind(binding)
+            (binding.TargetType != snapshot.TargetType)
             || !_roomGrain._state.ItemsById.TryGetValue(binding.TargetId, out var item)
         )
             return false;
 
         value = item.Z.ToInt();
+
         return true;
     }
 
@@ -53,8 +56,11 @@ public sealed class FurnitureAltitudeVariable(RoomGrain roomGrain)
         int value
     )
     {
+        var snapshot = GetVarSnapshot();
+
         if (
-            !CanBind(binding)
+            (binding.TargetType != snapshot.TargetType)
+            || !snapshot.CanWriteValue
             || !_roomGrain._state.ItemsById.TryGetValue(binding.TargetId, out var item)
         )
             return false;

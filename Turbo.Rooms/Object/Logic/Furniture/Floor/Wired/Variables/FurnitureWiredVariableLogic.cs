@@ -53,10 +53,14 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
 
         _storageData.SetAction(() =>
         {
-            _ctx.RoomObject.ExtraData.UpdateSection(
-                ExtraDataSectionType.STORAGE,
-                JsonSerializer.SerializeToNode(_storageData, _storageData.GetType())
-            );
+            var snapshot = GetVarSnapshot();
+
+            if (snapshot.AvailabilityType == WiredAvailabilityType.Persistent)
+                _ctx.RoomObject.ExtraData.UpdateSection(
+                    ExtraDataSectionType.STORAGE,
+                    JsonSerializer.SerializeToNode(_storageData, _storageData.GetType())
+                );
+
             return Task.CompletedTask;
         });
     }
@@ -66,21 +70,18 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
         {
             VariableId = _variableId,
             VariableName = string.Empty,
-            VariableType = WiredVariableType.Sub,
+            VariableType = WiredVariableType.Created,
             AvailabilityType = WiredAvailabilityType.RoomActive,
             TargetType = WiredVariableTargetType.None,
             Flags = WiredVariableFlags.None,
             TextConnectors = [],
         };
 
-    public virtual bool CanBind(in WiredVariableBinding binding) =>
-        binding.TargetType == GetVarSnapshot().TargetType;
-
     public virtual bool TryGet(in WiredVariableBinding binding, out int value)
     {
-        value = 0;
+        value = default;
 
-        if (!CanBind(binding) || !_storageData.TryGet(binding.ToString(), out var stored))
+        if (!_storageData.TryGet(binding.ToString(), out var stored))
             return false;
 
         value = stored;
@@ -88,11 +89,47 @@ public abstract class FurnitureWiredVariableLogic : FurnitureWiredLogic, IWiredV
         return true;
     }
 
+    public virtual Task<bool> GiveValueAsync(
+        WiredVariableBinding binding,
+        IWiredExecutionContext ctx,
+        int value,
+        bool replace = false
+    )
+    {
+        var bindingKey = binding.ToString();
+        var snapshot = GetVarSnapshot();
+
+        if (
+            (binding.TargetType != snapshot.TargetType)
+            || !snapshot.CanCreateAndDelete
+            || (_storageData.HasKey(bindingKey) && !replace)
+        )
+            return Task.FromResult(false);
+
+        if (!snapshot.CanWriteValue)
+            value = default;
+
+        _storageData.SetValue(bindingKey, value);
+
+        return Task.FromResult(true);
+    }
+
     public virtual Task<bool> SetValueAsync(
         WiredVariableBinding binding,
         IWiredExecutionContext ctx,
         int value
-    ) => Task.FromResult(false);
+    )
+    {
+        var bindingKey = binding.ToString();
+        var snapshot = GetVarSnapshot();
+
+        if (!_storageData.HasKey(bindingKey) || !snapshot.CanWriteValue)
+            return Task.FromResult(false);
+
+        _storageData.SetValue(bindingKey, value);
+
+        return Task.FromResult(true);
+    }
 
     public virtual bool RemoveValue(WiredVariableBinding binding) => false;
 

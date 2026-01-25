@@ -27,10 +27,12 @@ public sealed class UserIndexVariable(RoomGrain roomGrain)
 
     public override bool TryGet(in WiredVariableBinding binding, out int value)
     {
-        value = 0;
+        value = default;
+
+        var snapshot = GetVarSnapshot();
 
         if (
-            !CanBind(binding)
+            (binding.TargetType != snapshot.TargetType)
             || !_roomGrain._state.AvatarsByPlayerId.TryGetValue(binding.TargetId, out var objectId)
         )
             return false;

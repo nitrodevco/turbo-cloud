@@ -11,11 +11,13 @@ public sealed class StorageData : IStorageData
 
     private Func<Task>? _onChanged;
 
+    public bool HasKey(string key) => Storage.ContainsKey(key);
+
     public bool TryGet(string key, out int value) => Storage.TryGetValue(key, out value);
 
     public void SetValue(string key, int value)
     {
-        Storage.Add(key, value);
+        Storage[key] = value;
 
         _ = _onChanged?.Invoke();
     }

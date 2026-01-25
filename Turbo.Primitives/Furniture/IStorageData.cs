@@ -7,6 +7,7 @@ namespace Turbo.Primitives.Furniture;
 public interface IStorageData
 {
     public Dictionary<string, int> Storage { get; set; }
+    public bool HasKey(string key);
     public bool TryGet(string key, out int value);
     public void SetValue(string key, int value);
     public void Remove(string key);
