@@ -42,24 +42,24 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
 
         StuffData.SetAction(async () =>
         {
-            _ = ctx.RefreshStuffDataAsync();
+            _ = _ctx.RefreshStuffDataAsync();
 
             if (_stuffPersistanceType == StuffPersistanceType.External)
             {
-                ctx.RoomObject.ExtraData.UpdateSection(
+                _ctx.RoomObject.ExtraData.UpdateSection(
                     ExtraDataSectionType.STUFF,
                     JsonSerializer.SerializeToNode(StuffData, StuffData.GetType())
                 );
 
-                if (ctx is IRoomFloorItemContext floorCtx)
+                if (_ctx is IRoomFloorItemContext floorCtx)
                     floorCtx.RefreshTile();
 
-                await ctx.PublishRoomEventAsync(
+                await _ctx.PublishRoomEventAsync(
                     new RoomItemStateChangedEvent
                     {
-                        RoomId = ctx.RoomId,
-                        CausedBy = null,
-                        FurniId = ctx.ObjectId,
+                        RoomId = _ctx.RoomId,
+                        CausedBy = ActionContext.CreateForSystem(_ctx.RoomId),
+                        FurniId = _ctx.ObjectId,
                     },
                     CancellationToken.None
                 );
@@ -88,7 +88,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
             new RoomItemAttatchedEvent
             {
                 RoomId = _ctx.RoomId,
-                CausedBy = null,
+                CausedBy = ActionContext.CreateForSystem(_ctx.RoomId),
                 FurniId = _ctx.ObjectId,
             },
             ct
@@ -99,7 +99,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
             new RoomItemDetachedEvent
             {
                 RoomId = _ctx.RoomId,
-                CausedBy = null,
+                CausedBy = ActionContext.CreateForSystem(_ctx.RoomId),
                 FurniId = _ctx.ObjectId,
             },
             ct

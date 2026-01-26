@@ -25,6 +25,7 @@ public interface IRoomItem : IRoomObject
     public Altitude Height { get; }
     public IExtraData ExtraData { get; }
     public FurnitureDefinitionSnapshot Definition { get; }
+    public bool IsInvisible { get; }
     public void SetExtraData(string? extraData);
     public void SetOwnerId(PlayerId ownerId);
     public void SetOwnerName(string ownerName);

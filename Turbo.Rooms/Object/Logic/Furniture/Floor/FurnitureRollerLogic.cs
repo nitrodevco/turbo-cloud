@@ -25,7 +25,7 @@ public class FurnitureRollerLogic(IStuffDataFactory stuffDataFactory, IRoomFloor
             new RoomRollerChangedEvent
             {
                 RoomId = _ctx.RoomId,
-                CausedBy = null,
+                CausedBy = ActionContext.CreateForSystem(_ctx.RoomId),
                 FurniId = _ctx.ObjectId,
             },
             ct
@@ -40,7 +40,7 @@ public class FurnitureRollerLogic(IStuffDataFactory stuffDataFactory, IRoomFloor
             new RoomRollerChangedEvent
             {
                 RoomId = _ctx.RoomId,
-                CausedBy = null,
+                CausedBy = ActionContext.CreateForSystem(_ctx.RoomId),
                 FurniId = _ctx.ObjectId,
             },
             ct

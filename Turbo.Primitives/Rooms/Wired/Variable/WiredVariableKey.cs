@@ -3,6 +3,10 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 namespace Turbo.Primitives.Rooms.Wired.Variable;
 
 public readonly record struct WiredVariableKey(
+    WiredVariableId VariableId,
     WiredVariableTargetType TargetType,
-    string VariableName
-);
+    int TargetId
+)
+{
+    public string ToStorageKey() => $":{VariableId}:{(int)TargetType}:{TargetId}";
+}

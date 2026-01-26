@@ -75,9 +75,8 @@ public class WiredActionGiveVariable(
         {
             try
             {
-                var variable = _roomGrain.WiredSystem.GetVariableById(
-                    WiredVariableId.Parse(variableId)
-                );
+                var id = WiredVariableId.Parse(variableId);
+                var variable = _roomGrain.WiredSystem.GetVariableById(id);
 
                 if (variable is null)
                     continue;
@@ -91,12 +90,13 @@ public class WiredActionGiveVariable(
                     {
                         foreach (var furniId in selection.SelectedFurniIds)
                         {
-                            var binding = new WiredVariableBinding(
+                            var key = new WiredVariableKey(
+                                id,
                                 WiredVariableTargetType.Furni,
                                 furniId
                             );
 
-                            await variable.GiveValueAsync(binding, ctx, value, replace);
+                            await variable.GiveValueAsync(key, value, replace);
                         }
 
                         break;
@@ -105,12 +105,13 @@ public class WiredActionGiveVariable(
                     {
                         foreach (var avatarId in selection.SelectedAvatarIds)
                         {
-                            var binding = new WiredVariableBinding(
+                            var key = new WiredVariableKey(
+                                id,
                                 WiredVariableTargetType.User,
                                 avatarId
                             );
 
-                            await variable.GiveValueAsync(binding, ctx, value, replace);
+                            await variable.GiveValueAsync(key, value, replace);
                         }
 
                         break;

@@ -8,76 +8,44 @@ using Turbo.Rooms.Grains;
 namespace Turbo.Rooms.Wired.Variables.Furniture;
 
 public sealed class FurnitureWallItemOffsetVariable(RoomGrain roomGrain)
-    : WiredInternalVariable(roomGrain),
-        IWiredInternalVariable
+    : FurnitureWallVariable(roomGrain)
 {
-    protected override WiredVariableDefinition BuildVariableDefinition() =>
-        new()
-        {
-            VariableId = WiredVariableIdBuilder.CreateInternalOrdered(
-                WiredVariableTargetType.Furni,
-                "@wallitem_offset",
-                WiredVariableIdBuilder.WiredVarSubBand.Other,
-                10
-            ),
-            VariableName = "@wallitem_offset",
-            VariableType = WiredVariableType.Internal,
-            AvailabilityType = WiredAvailabilityType.Internal,
-            TargetType = WiredVariableTargetType.Furni,
-            Flags = WiredVariableFlags.HasValue | WiredVariableFlags.CanWriteValue,
-            TextConnectors = [],
-        };
+    protected override string VariableName => "@wallitem_offset";
+    protected override WiredVariableGroupSubBandType SubBandType =>
+        WiredVariableGroupSubBandType.Other;
+    protected override ushort Order => 10;
+    protected override WiredVariableFlags Flags =>
+        WiredVariableFlags.HasValue | WiredVariableFlags.CanWriteValue;
 
-    public override bool TryGet(in WiredVariableBinding binding, out int value)
-    {
-        value = default;
-
-        var snapshot = GetVarSnapshot();
-
-        if (
-            (binding.TargetType != snapshot.TargetType)
-            || !_roomGrain._state.ItemsById.TryGetValue(binding.TargetId, out var item)
-            || item is not IRoomWallItem wallItem
-        )
-            return false;
-
-        value = wallItem.WallOffset;
-
-        return true;
-    }
+    protected override WiredVariableValue GetValueForItem(IRoomWallItem item) =>
+        WiredVariableValue.Parse(item.WallOffset);
 
     public override async Task<bool> SetValueAsync(
-        WiredVariableBinding binding,
         IWiredExecutionContext ctx,
-        int value
+        WiredVariableKey key,
+        WiredVariableValue value
     )
     {
         var snapshot = GetVarSnapshot();
 
         if (
-            (binding.TargetType != snapshot.TargetType)
-            || !_roomGrain._state.ItemsById.TryGetValue(binding.TargetId, out var item)
-            || item is not IRoomWallItem wallItem
+            !snapshot.Flags.Has(WiredVariableFlags.CanWriteValue)
+            || !CanBind(key)
+            || !TryGetItemForKey(key, out var item)
+            || item is null
             || !await _roomGrain.FurniModule.ValidateWallItemPlacementAsync(
                 ctx.AsActionContext(),
-                wallItem.ObjectId.Value,
-                wallItem.X,
-                wallItem.Y,
-                wallItem.Z,
+                item.ObjectId,
+                item.X,
+                item.Y,
+                item.Z,
                 value,
-                wallItem.Rotation
+                item.Rotation
             )
         )
             return false;
 
-        ctx.AddWallItemMovement(
-            wallItem,
-            wallItem.X,
-            wallItem.Y,
-            wallItem.Z,
-            wallItem.Rotation,
-            value
-        );
+        ctx.AddWallItemMovement(item, item.X, item.Y, item.Z, item.Rotation, value);
 
         return true;
     }

@@ -32,39 +32,57 @@ public class WiredVariableRoom(
             ),
         ];
 
-    public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
+    public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots()
+    {
+        var snapshot = GetVarSnapshot();
+
+        return
         [
             new WiredVariableInfoAndValueSnapshot()
             {
                 ContextType = WiredContextType.VariableInfoAndValue,
-                Variable = GetVarSnapshot(),
-                Value = TryGet(
-                    new WiredVariableBinding()
-                    {
-                        TargetType = WiredVariableTargetType.Global,
-                        TargetId = -1,
-                    },
+                Variable = snapshot,
+                Value = TryGetValue(
+                    new WiredVariableKey(snapshot.VariableId, snapshot.TargetType, 0),
                     out var value
                 )
                     ? value
-                    : 0,
+                    : WiredVariableValue.Default,
             },
         ];
+    }
 
-    protected override WiredVariableDefinition BuildVariableDefinition() =>
-        new()
+    protected override WiredVariableSnapshot BuildVarSnapshot()
+    {
+        var variableName = WiredData.StringParam;
+        var variableType = WiredVariableType.Created;
+        var availabilityType = (WiredAvailabilityType)WiredData.IntParams[0];
+        var targetType = WiredVariableTargetType.Global;
+        var flags =
+            WiredVariableFlags.HasValue
+            | WiredVariableFlags.CanWriteValue
+            | WiredVariableFlags.CanInterceptChanges
+            | WiredVariableFlags.AlwaysAvailable
+            | WiredVariableFlags.CanReadLastUpdateTime;
+        var textConnectors = GetTextConnectors();
+        var variableHash = WiredVariableHashBuilder.HashValues(
+            variableName,
+            availabilityType,
+            targetType,
+            flags,
+            textConnectors
+        );
+
+        return new()
         {
             VariableId = _variableId,
-            VariableName = WiredData.StringParam,
-            VariableType = WiredVariableType.Sub,
-            AvailabilityType = (WiredAvailabilityType)WiredData.IntParams[0],
-            TargetType = WiredVariableTargetType.Global,
-            Flags =
-                WiredVariableFlags.HasValue
-                | WiredVariableFlags.CanWriteValue
-                | WiredVariableFlags.CanInterceptChanges
-                | WiredVariableFlags.AlwaysAvailable
-                | WiredVariableFlags.CanReadLastUpdateTime,
-            TextConnectors = [],
+            VariableName = variableName,
+            VariableType = variableType,
+            VariableHash = variableHash,
+            AvailabilityType = availabilityType,
+            TargetType = targetType,
+            Flags = flags,
+            TextConnectors = textConnectors,
         };
+    }
 }

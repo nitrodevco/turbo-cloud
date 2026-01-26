@@ -8,6 +8,7 @@ using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -90,6 +91,9 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
                             _dirtyVariableBoxIds.Add(boxId);
                     }
                     break;
+                case PlayerLeftEvent playerLeftEvt:
+                    _playerActiveStore.RemovePlayerStore(playerLeftEvt.PlayerId);
+                    break;
                 default:
                     _eventQueue.Enqueue(evt);
                     break;
@@ -137,13 +141,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
             Trigger = trigger,
         };
 
-        if (evt.CausedBy?.Origin == ActionOrigin.Player)
-        {
-            var playerId = evt.CausedBy?.PlayerId.Value ?? -1;
-
-            if (playerId > 0)
-                ctx.Selected.SelectedAvatarIds.Add(playerId);
-        }
+        if (evt.CausedBy.Origin == ActionOrigin.Player && evt.CausedBy.PlayerId > 0)
+            ctx.Selected.SelectedAvatarIds.Add(evt.CausedBy.PlayerId);
 
         var selection = await ctx.GetWiredSelectionSetAsync(trigger, ct);
 

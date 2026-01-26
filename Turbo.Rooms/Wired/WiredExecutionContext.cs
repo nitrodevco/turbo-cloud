@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
@@ -109,13 +108,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
     }
 
     public ActionContext AsActionContext() =>
-        new()
-        {
-            Origin = ActionOrigin.Wired,
-            SessionKey = SessionKey.Invalid,
-            PlayerId = PlayerId.Invalid,
-            RoomId = _roomGrain._state.RoomId,
-        };
+        ActionContext.CreateForWired(_roomGrain._state.RoomId);
 
     public Task SendComposerToRoomAsync(IComposer composer) =>
         Room.SendComposerToRoomAsync(composer);

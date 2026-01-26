@@ -7,6 +7,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Rooms.Grains;
@@ -22,6 +23,16 @@ public sealed partial class RoomGrain
         try
         {
             var avatar = await AvatarModule.CreateAvatarFromPlayerAsync(ctx, snapshot, ct);
+
+            await PublishRoomEventAsync(
+                new PlayerEnterEvent
+                {
+                    RoomId = _state.RoomId,
+                    CausedBy = ctx,
+                    PlayerId = snapshot.PlayerId,
+                },
+                ct
+            );
 
             return true;
         }
@@ -45,6 +56,16 @@ public sealed partial class RoomGrain
         try
         {
             await AvatarModule.RemoveAvatarFromPlayerAsync(ctx, playerId, ct);
+
+            await PublishRoomEventAsync(
+                new PlayerLeftEvent
+                {
+                    RoomId = _state.RoomId,
+                    CausedBy = ctx,
+                    PlayerId = playerId,
+                },
+                ct
+            );
 
             return true;
         }

@@ -56,6 +56,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public readonly RoomRollerSystem RollerSystem;
     public readonly RoomWiredSystem WiredSystem;
 
+    public RoomId RoomId => _state.RoomId;
+
     public RoomGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IOptions<RoomConfig> roomConfig,

@@ -5,35 +5,24 @@ using Turbo.Rooms.Grains;
 namespace Turbo.Rooms.Wired.Variables.Context;
 
 public sealed class ContextSelectorFurniCountVariable(RoomGrain roomGrain)
-    : WiredInternalVariable(roomGrain),
-        IWiredInternalVariable
+    : ContextVariable(roomGrain)
 {
-    protected override WiredVariableDefinition BuildVariableDefinition() =>
-        new()
-        {
-            VariableId = WiredVariableIdBuilder.CreateInternalOrdered(
-                WiredVariableTargetType.Context,
-                "@selector_furni_count",
-                WiredVariableIdBuilder.WiredVarSubBand.Base,
-                10
-            ),
-            VariableName = "@selector_furni_count",
-            VariableType = WiredVariableType.Internal,
-            AvailabilityType = WiredAvailabilityType.Internal,
-            TargetType = WiredVariableTargetType.Context,
-            Flags = WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable,
-            TextConnectors = [],
-        };
+    protected override string VariableName => "@selector_furni_count";
+    protected override WiredVariableGroupSubBandType SubBandType =>
+        WiredVariableGroupSubBandType.Base;
+    protected override ushort Order => 10;
+    protected override WiredVariableFlags Flags =>
+        WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 
-    public override bool TryGet(in WiredVariableBinding binding, out int value)
+    public override bool TryGetValue(in WiredVariableKey key, out WiredVariableValue value)
     {
-        value = default;
+        value = WiredVariableValue.Default;
 
-        var snapshot = GetVarSnapshot();
-
-        if (binding.TargetType != snapshot.TargetType)
+        if (!CanBind(key))
             return false;
 
-        return false;
+        //value = GetValueForRoom(_roomGrain);
+
+        return true;
     }
 }

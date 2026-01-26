@@ -1,44 +1,20 @@
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains;
+using Turbo.Rooms.Wired.Variables.Room;
 
 namespace Turbo.Rooms.Wired.Variables.User;
 
-public sealed class UserIndexVariable(RoomGrain roomGrain)
-    : WiredInternalVariable(roomGrain),
-        IWiredInternalVariable
+public sealed class UserIndexVariable(RoomGrain roomGrain) : UserVariable<IRoomAvatar>(roomGrain)
 {
-    protected override WiredVariableDefinition BuildVariableDefinition() =>
-        new()
-        {
-            VariableId = WiredVariableIdBuilder.CreateInternalOrdered(
-                WiredVariableTargetType.User,
-                "@index",
-                WiredVariableIdBuilder.WiredVarSubBand.Base,
-                20
-            ),
-            VariableName = "@index",
-            VariableType = WiredVariableType.Internal,
-            AvailabilityType = WiredAvailabilityType.Internal,
-            TargetType = WiredVariableTargetType.User,
-            Flags = WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable,
-            TextConnectors = [],
-        };
+    protected override string VariableName => "@index";
+    protected override WiredVariableGroupSubBandType SubBandType =>
+        WiredVariableGroupSubBandType.Base;
+    protected override ushort Order => 20;
+    protected override WiredVariableFlags Flags =>
+        WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 
-    public override bool TryGet(in WiredVariableBinding binding, out int value)
-    {
-        value = default;
-
-        var snapshot = GetVarSnapshot();
-
-        if (
-            (binding.TargetType != snapshot.TargetType)
-            || !_roomGrain._state.AvatarsByPlayerId.TryGetValue(binding.TargetId, out var objectId)
-        )
-            return false;
-
-        value = objectId.Value;
-
-        return true;
-    }
+    protected override WiredVariableValue GetValueForAvatar(IRoomAvatar avatar) =>
+        WiredVariableValue.Parse(avatar.ObjectId);
 }

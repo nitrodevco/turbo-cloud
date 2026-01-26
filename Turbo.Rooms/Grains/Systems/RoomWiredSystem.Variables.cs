@@ -1,10 +1,11 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Rooms.Grains.Storage;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 using Turbo.Rooms.Wired.Variables;
 
@@ -16,6 +17,10 @@ public sealed partial class RoomWiredSystem
     private readonly Dictionary<int, WiredVariableId> _variableIdBoxId = [];
     private readonly Dictionary<WiredVariableId, IWiredVariable> _variableById = [];
 
+    private readonly FurnitureActiveStore _furnitureActiveStore = new();
+    private readonly PlayerActiveStore _playerActiveStore = new();
+    private readonly RoomActiveStore _roomActiveStore = new();
+
     private WiredVariablesSnapshot? _variablesSnapshot = null;
 
     public IWiredVariable? GetVariableById(WiredVariableId id)
@@ -26,24 +31,40 @@ public sealed partial class RoomWiredSystem
         return null;
     }
 
+    public bool TryGetStoreForKey(
+        WiredVariableKey key,
+        out Dictionary<WiredVariableKey, WiredVariableValue> store
+    )
+    {
+        return key.TargetType switch
+        {
+            WiredVariableTargetType.Furni => _furnitureActiveStore.TryGetStore(key, out store),
+            WiredVariableTargetType.User => _playerActiveStore.TryGetStore(key, out store),
+            WiredVariableTargetType.Global => _roomActiveStore.TryGetStore(key, out store),
+            _ => throw new System.ArgumentOutOfRangeException(
+                nameof(key.TargetType),
+                $"Unsupported target type: {key.TargetType}"
+            ),
+        };
+    }
+
     public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct) =>
         Task.FromResult(_variablesSnapshot ??= BuildVariablesSnapshot());
 
-    public Task<List<(WiredVariableId id, int value)>> GetAllVariablesForBindingAsync(
-        WiredVariableBinding binding,
-        CancellationToken ct
-    )
+    public Task<
+        List<(WiredVariableId id, WiredVariableValue value)>
+    > GetAllVariablesForBindingAsync(WiredVariableBinding binding, CancellationToken ct)
     {
-        var variableValues = new List<(WiredVariableId id, int value)>();
+        var variableValues = new List<(WiredVariableId id, WiredVariableValue value)>();
 
-        foreach (var variable in _variableById.Values)
+        foreach (var (id, variable) in _variableById)
         {
-            if (!variable.TryGet(binding, out var value))
+            var key = new WiredVariableKey(id, binding.TargetType, binding.TargetId);
+
+            if (!variable.TryGetValue(key, out var value))
                 continue;
 
-            var snapshot = variable.GetVarSnapshot();
-
-            variableValues.Add((snapshot.VariableId, value));
+            variableValues.Add((id, value));
         }
 
         return Task.FromResult(variableValues);
@@ -95,12 +116,10 @@ public sealed partial class RoomWiredSystem
 
     private bool ProcessVariable(IWiredVariable variable)
     {
-        var key = variable.GetVariableKey();
-
-        if (string.IsNullOrWhiteSpace(key.VariableName))
-            return false;
-
         var snapshot = variable.GetVarSnapshot();
+
+        if (string.IsNullOrWhiteSpace(snapshot.VariableName))
+            return false;
 
         _variableById[snapshot.VariableId] = variable;
 

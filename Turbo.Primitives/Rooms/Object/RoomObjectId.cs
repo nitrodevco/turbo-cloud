@@ -1,19 +1,17 @@
+using System;
+using System.Globalization;
 using Orleans;
 
 namespace Turbo.Primitives.Rooms.Object;
 
 [GenerateSerializer, Immutable]
-public readonly record struct RoomObjectId
+public readonly record struct RoomObjectId(int Value) : IComparable<RoomObjectId>
 {
-    [Id(0)]
-    public int Value { get; init; }
+    public override string ToString() => Value.ToString(CultureInfo.InvariantCulture);
 
-    public RoomObjectId(int value)
-    {
-        Value = value;
-    }
+    public int CompareTo(RoomObjectId other) => Value.CompareTo(other.Value);
 
-    public override string ToString() => Value.ToString();
+    public static RoomObjectId Parse(int value) => new(value);
 
     public static implicit operator int(RoomObjectId id) => id.Value;
 

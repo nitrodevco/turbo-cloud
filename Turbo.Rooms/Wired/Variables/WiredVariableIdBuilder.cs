@@ -9,29 +9,6 @@ namespace Turbo.Rooms.Wired.Variables;
 
 public static class WiredVariableIdBuilder
 {
-    private enum InternalPayloadKind : byte
-    {
-        Hashed = 0,
-        Ordered = 1,
-    }
-
-    public enum WiredVarGroupBand : byte
-    {
-        Context = 0xF8,
-        Furni = 0xF0,
-        User = 0xE0,
-        Global = 0xD0,
-        Other = 0xC0,
-    }
-
-    public enum WiredVarSubBand : byte
-    {
-        Base = 0xE0,
-        Position = 0xD0,
-        Meta = 0xC0,
-        Other = 0x80,
-    }
-
     public static WiredVariableId CreateFromBoxId(int boxId) =>
         new(
             ((ulong)((int)WiredVariableIdSourceType.Database & 0b1_1111) << 48) | HashBoxId48(boxId)
@@ -40,25 +17,25 @@ public static class WiredVariableIdBuilder
     public static WiredVariableId CreateInternalOrdered(
         WiredVariableTargetType targetType,
         string name,
-        WiredVarSubBand subBand,
+        WiredVariableGroupSubBandType subBand,
         ushort order
     ) => new(CreateOrdered(targetType, name, MapGroupBand(targetType), subBand, order));
 
-    private static WiredVarGroupBand MapGroupBand(WiredVariableTargetType targetType) =>
+    private static WiredVariableGroupBandType MapGroupBand(WiredVariableTargetType targetType) =>
         targetType switch
         {
-            WiredVariableTargetType.Furni => WiredVarGroupBand.Furni,
-            WiredVariableTargetType.User => WiredVarGroupBand.User,
-            WiredVariableTargetType.Global => WiredVarGroupBand.Global,
-            WiredVariableTargetType.Context => WiredVarGroupBand.Context,
-            _ => WiredVarGroupBand.Other,
+            WiredVariableTargetType.Furni => WiredVariableGroupBandType.Furni,
+            WiredVariableTargetType.User => WiredVariableGroupBandType.User,
+            WiredVariableTargetType.Global => WiredVariableGroupBandType.Global,
+            WiredVariableTargetType.Context => WiredVariableGroupBandType.Context,
+            _ => WiredVariableGroupBandType.Other,
         };
 
     public static ulong CreateOrdered(
         WiredVariableTargetType targetType,
         string name,
-        WiredVarGroupBand groupBand,
-        WiredVarSubBand subBand,
+        WiredVariableGroupBandType groupBand,
+        WiredVariableGroupSubBandType subBand,
         ushort order
     )
     {
@@ -75,8 +52,8 @@ public static class WiredVariableIdBuilder
 
     private static ushort HashTie16(
         WiredVariableTargetType targetType,
-        WiredVarGroupBand groupBand,
-        WiredVarSubBand subBand,
+        WiredVariableGroupBandType groupBand,
+        WiredVariableGroupSubBandType subBand,
         ushort order,
         string name
     )

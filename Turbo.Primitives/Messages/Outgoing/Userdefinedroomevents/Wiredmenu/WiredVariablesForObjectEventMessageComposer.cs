@@ -16,7 +16,10 @@ public sealed record WiredVariablesForObjectEventMessageComposer : IComposer
     public required int TargetId { get; init; }
 
     [Id(2)]
-    public required List<(WiredVariableId id, int value)> VariableValues { get; init; }
+    public required List<(
+        WiredVariableId id,
+        WiredVariableValue value
+    )> VariableValues { get; init; }
 
     [Id(3)]
     public required List<int> ConfiguredInWireds { get; init; }

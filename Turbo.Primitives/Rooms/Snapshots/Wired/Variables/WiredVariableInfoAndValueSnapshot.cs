@@ -1,4 +1,5 @@
 using Orleans;
+using Turbo.Primitives.Rooms.Wired.Variable;
 
 namespace Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 
@@ -9,5 +10,5 @@ public record WiredVariableInfoAndValueSnapshot : WiredVariableContextSnapshot
     public required WiredVariableSnapshot Variable { get; init; }
 
     [Id(2)]
-    public required int Value { get; init; }
+    public required WiredVariableValue Value { get; init; }
 }

@@ -6,17 +6,22 @@ using Turbo.Primitives.Rooms;
 namespace Turbo.Primitives.Action;
 
 [GenerateSerializer, Immutable]
-public readonly record struct ActionContext
+public readonly record struct ActionContext(
+    ActionOrigin Origin,
+    SessionKey SessionKey,
+    PlayerId PlayerId,
+    RoomId RoomId
+)
 {
-    [Id(0)]
-    public required ActionOrigin Origin { get; init; }
+    public static ActionContext CreateForSystem(RoomId roomId) =>
+        new(ActionOrigin.System, SessionKey.Invalid, PlayerId.Invalid, roomId);
 
-    [Id(1)]
-    public required SessionKey SessionKey { get; init; }
+    public static ActionContext CreateForWired(RoomId roomId) =>
+        new(ActionOrigin.Wired, SessionKey.Invalid, PlayerId.Invalid, roomId);
 
-    [Id(2)]
-    public required PlayerId PlayerId { get; init; }
+    public static ActionContext CreateForPlayer(PlayerId playerId, RoomId roomId) =>
+        new(ActionOrigin.Player, SessionKey.Invalid, playerId, roomId);
 
-    [Id(3)]
-    public required RoomId RoomId { get; init; }
+    public static ActionContext Invalid =>
+        new(ActionOrigin.System, SessionKey.Invalid, PlayerId.Invalid, RoomId.Invalid);
 }

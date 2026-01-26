@@ -1,59 +1,23 @@
-using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Wired;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains;
+using Turbo.Rooms.Wired.Variables.Room;
 
 namespace Turbo.Rooms.Wired.Variables.User;
 
 public sealed class UserPositionXVariable(RoomGrain roomGrain)
-    : WiredInternalVariable(roomGrain),
-        IWiredInternalVariable
+    : UserVariable<IRoomAvatar>(roomGrain)
 {
-    protected override WiredVariableDefinition BuildVariableDefinition() =>
-        new()
-        {
-            VariableId = WiredVariableIdBuilder.CreateInternalOrdered(
-                WiredVariableTargetType.User,
-                "@position.x",
-                WiredVariableIdBuilder.WiredVarSubBand.Position,
-                20
-            ),
-            VariableName = "@position.x",
-            VariableType = WiredVariableType.Internal,
-            AvailabilityType = WiredAvailabilityType.Internal,
-            TargetType = WiredVariableTargetType.User,
-            Flags =
-                WiredVariableFlags.HasValue
-                | WiredVariableFlags.CanWriteValue
-                | WiredVariableFlags.AlwaysAvailable,
-            TextConnectors = [],
-        };
+    protected override string VariableName => "@position.x";
+    protected override WiredVariableGroupSubBandType SubBandType =>
+        WiredVariableGroupSubBandType.Position;
+    protected override ushort Order => 20;
+    protected override WiredVariableFlags Flags =>
+        WiredVariableFlags.HasValue
+        | WiredVariableFlags.CanWriteValue
+        | WiredVariableFlags.AlwaysAvailable;
 
-    public override bool TryGet(in WiredVariableBinding binding, out int value)
-    {
-        value = default;
-
-        var snapshot = GetVarSnapshot();
-
-        if (
-            (binding.TargetType != snapshot.TargetType)
-            || !_roomGrain._state.AvatarsByPlayerId.TryGetValue(binding.TargetId, out var objectId)
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
-        )
-            return false;
-
-        value = avatar.X;
-
-        return true;
-    }
-
-    public override Task<bool> SetValueAsync(
-        WiredVariableBinding binding,
-        IWiredExecutionContext ctx,
-        int value
-    )
-    {
-        return Task.FromResult(true);
-    }
+    protected override WiredVariableValue GetValueForAvatar(IRoomAvatar avatar) =>
+        WiredVariableValue.Parse(avatar.X);
 }

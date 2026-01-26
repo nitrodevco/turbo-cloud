@@ -29,6 +29,7 @@ public abstract class RoomItem<TSelf, TLogic, TContext>
 
     public Altitude Height => Z + GetStackHeight();
     public IExtraData ExtraData => _extraData;
+    public bool IsInvisible => false;
 
     public void SetExtraData(string? extraData)
     {

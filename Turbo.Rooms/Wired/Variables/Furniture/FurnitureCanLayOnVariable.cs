@@ -6,40 +6,14 @@ using Turbo.Rooms.Grains;
 namespace Turbo.Rooms.Wired.Variables.Furniture;
 
 public sealed class FurnitureCanLayOnVariable(RoomGrain roomGrain)
-    : WiredInternalVariable(roomGrain),
-        IWiredInternalVariable
+    : FurnitureFloorVariable(roomGrain)
 {
-    protected override WiredVariableDefinition BuildVariableDefinition() =>
-        new()
-        {
-            VariableId = WiredVariableIdBuilder.CreateInternalOrdered(
-                WiredVariableTargetType.Furni,
-                "@can_lay_on",
-                WiredVariableIdBuilder.WiredVarSubBand.Meta,
-                30
-            ),
-            VariableName = "@can_lay_on",
-            VariableType = WiredVariableType.Internal,
-            AvailabilityType = WiredAvailabilityType.Internal,
-            TargetType = WiredVariableTargetType.Furni,
-            Flags = WiredVariableFlags.None,
-            TextConnectors = [],
-        };
+    protected override string VariableName => "@can_lay_on";
+    protected override WiredVariableGroupSubBandType SubBandType =>
+        WiredVariableGroupSubBandType.Meta;
+    protected override ushort Order => 30;
+    protected override WiredVariableFlags Flags => WiredVariableFlags.None;
 
-    public override bool TryGet(in WiredVariableBinding binding, out int value)
-    {
-        value = default;
-
-        var snapshot = GetVarSnapshot();
-
-        if (
-            (binding.TargetType != snapshot.TargetType)
-            || !_roomGrain._state.ItemsById.TryGetValue(binding.TargetId, out var item)
-            || item is not IRoomFloorItem floorItem
-            || !floorItem.Logic.CanLay()
-        )
-            return false;
-
-        return true;
-    }
+    protected override WiredVariableValue GetValueForItem(IRoomFloorItem item) =>
+        WiredVariableValue.Parse(item.Logic.CanLay() ? 1 : 0);
 }

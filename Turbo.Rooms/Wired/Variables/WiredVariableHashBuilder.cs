@@ -26,17 +26,43 @@ public static class WiredVariableHashBuilder
         return new WiredVariableHash(BinaryPrimitives.ReadInt32LittleEndian(hashBytes));
     }
 
-    public static WiredVariableHash HashVariableDefinition(IWiredVariableDefinition varDef)
+    public static WiredVariableHash HashVariable(IWiredVariable varDef)
+    {
+        var snapshot = varDef.GetVarSnapshot();
+        var hasher = new XxHash32();
+
+        WriteString(ref hasher, snapshot.VariableName);
+        WriteInt32(ref hasher, (int)snapshot.AvailabilityType);
+        WriteInt32(ref hasher, (int)snapshot.TargetType);
+        WriteInt32(ref hasher, (int)snapshot.Flags);
+        WriteInt32(ref hasher, snapshot.TextConnectors.Count);
+
+        foreach (var s in snapshot.TextConnectors.Values)
+            WriteString(ref hasher, s);
+
+        Span<byte> hashBytes = stackalloc byte[4];
+        hasher.GetHashAndReset(hashBytes);
+
+        return new WiredVariableHash(BinaryPrimitives.ReadInt32LittleEndian(hashBytes));
+    }
+
+    public static WiredVariableHash HashValues(
+        string name,
+        WiredAvailabilityType availabilityType,
+        WiredVariableTargetType targetType,
+        WiredVariableFlags flags,
+        Dictionary<WiredVariableValue, string> textConnectors
+    )
     {
         var hasher = new XxHash32();
 
-        WriteString(ref hasher, varDef.VariableName);
-        WriteInt32(ref hasher, (int)varDef.AvailabilityType);
-        WriteInt32(ref hasher, (int)varDef.TargetType);
-        WriteInt32(ref hasher, (int)varDef.Flags);
-        WriteInt32(ref hasher, varDef.TextConnectors.Count);
+        WriteString(ref hasher, name);
+        WriteInt32(ref hasher, (int)availabilityType);
+        WriteInt32(ref hasher, (int)targetType);
+        WriteInt32(ref hasher, (int)flags);
+        WriteInt32(ref hasher, textConnectors.Count);
 
-        foreach (var s in varDef.TextConnectors.Values)
+        foreach (var s in textConnectors.Values)
             WriteString(ref hasher, s);
 
         Span<byte> hashBytes = stackalloc byte[4];

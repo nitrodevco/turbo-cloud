@@ -4,6 +4,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
+using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired.IntParams;
 using Turbo.Rooms.Wired.Variables;
@@ -31,23 +32,40 @@ public class WiredVariableUser(
             new WiredIntRangeRule(0, 1, 0),
         ];
 
-    protected override WiredVariableDefinition BuildVariableDefinition() =>
-        new()
+    protected override WiredVariableSnapshot BuildVarSnapshot()
+    {
+        var variableName = WiredData.StringParam;
+        var variableType = WiredVariableType.Created;
+        var availabilityType = (WiredAvailabilityType)WiredData.IntParams[0];
+        var targetType = WiredVariableTargetType.User;
+        var flags =
+            (
+                WiredData.IntParams[0] == 1
+                    ? WiredVariableFlags.HasValue | WiredVariableFlags.CanWriteValue
+                    : WiredVariableFlags.None
+            )
+            | WiredVariableFlags.CanCreateAndDelete
+            | WiredVariableFlags.CanInterceptChanges
+            | WiredVariableFlags.CanReadCreationTime;
+        var textConnectors = GetTextConnectors();
+        var variableHash = WiredVariableHashBuilder.HashValues(
+            variableName,
+            availabilityType,
+            targetType,
+            flags,
+            textConnectors
+        );
+
+        return new()
         {
             VariableId = _variableId,
-            VariableName = WiredData.StringParam,
-            VariableType = WiredVariableType.Sub,
-            AvailabilityType = (WiredAvailabilityType)WiredData.IntParams[0],
-            TargetType = WiredVariableTargetType.User,
-            Flags =
-                (
-                    WiredData.IntParams[1] == 1
-                        ? WiredVariableFlags.HasValue | WiredVariableFlags.CanWriteValue
-                        : WiredVariableFlags.None
-                )
-                | WiredVariableFlags.CanCreateAndDelete
-                | WiredVariableFlags.CanInterceptChanges
-                | WiredVariableFlags.CanReadCreationTime,
-            TextConnectors = [],
+            VariableName = variableName,
+            VariableType = variableType,
+            VariableHash = variableHash,
+            AvailabilityType = availabilityType,
+            TargetType = targetType,
+            Flags = flags,
+            TextConnectors = textConnectors,
         };
+    }
 }

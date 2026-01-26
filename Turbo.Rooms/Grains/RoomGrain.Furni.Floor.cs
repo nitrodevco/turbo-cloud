@@ -119,8 +119,8 @@ public sealed partial class RoomGrain
     public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct) =>
         WiredSystem.GetWiredVariablesSnapshotAsync(ct);
 
-    public Task<List<(WiredVariableId id, int value)>> GetAllVariablesForBindingAsync(
-        WiredVariableBinding binding,
-        CancellationToken ct
-    ) => WiredSystem.GetAllVariablesForBindingAsync(binding, ct);
+    public Task<
+        List<(WiredVariableId id, WiredVariableValue value)>
+    > GetAllVariablesForBindingAsync(WiredVariableBinding binding, CancellationToken ct) =>
+        WiredSystem.GetAllVariablesForBindingAsync(binding, ct);
 }

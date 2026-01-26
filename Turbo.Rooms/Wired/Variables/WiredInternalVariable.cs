@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
@@ -6,43 +8,79 @@ using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired.Variables;
 
-public abstract class WiredInternalVariable(RoomGrain roomGrain) : IWiredVariable
+public abstract class WiredInternalVariable(RoomGrain roomGrain) : IWiredInternalVariable
 {
     protected readonly RoomGrain _roomGrain = roomGrain;
 
-    protected WiredVariableSnapshot? _snapshot;
+    protected abstract string VariableName { get; }
 
-    protected abstract WiredVariableDefinition BuildVariableDefinition();
+    protected virtual WiredVariableGroupSubBandType SubBandType =>
+        WiredVariableGroupSubBandType.Base;
+    protected virtual ushort Order => 10;
+    protected virtual WiredVariableType VariableType => WiredVariableType.Internal;
+    protected virtual WiredVariableTargetType TargetType => WiredVariableTargetType.None;
+    protected virtual WiredAvailabilityType AvailabilityType => WiredAvailabilityType.Internal;
+    protected virtual WiredVariableFlags Flags => WiredVariableFlags.None;
 
-    public virtual bool TryGet(in WiredVariableBinding binding, out int value)
+    protected virtual Dictionary<WiredVariableValue, string> GetTextConnectors() => [];
+
+    private WiredVariableSnapshot? _snapshot;
+
+    public virtual bool CanBind(in WiredVariableKey key)
     {
-        value = default;
+        var snapshot = GetVarSnapshot();
+
+        return key.VariableId == snapshot.VariableId && key.TargetType == snapshot.TargetType;
+    }
+
+    public virtual bool TryGetValue(in WiredVariableKey key, out WiredVariableValue value)
+    {
+        value = WiredVariableValue.Default;
 
         return false;
     }
 
     public virtual Task<bool> GiveValueAsync(
-        WiredVariableBinding binding,
-        IWiredExecutionContext ctx,
-        int value,
+        WiredVariableKey key,
+        WiredVariableValue value,
         bool replace = false
     ) => Task.FromResult(false);
 
     public virtual Task<bool> SetValueAsync(
-        WiredVariableBinding binding,
         IWiredExecutionContext ctx,
-        int value
+        WiredVariableKey key,
+        WiredVariableValue value
     ) => Task.FromResult(false);
 
-    public virtual bool RemoveValue(WiredVariableBinding binding) => false;
+    public virtual bool RemoveValue(WiredVariableKey key) => false;
 
-    public WiredVariableKey GetVariableKey()
+    public WiredVariableSnapshot GetVarSnapshot() => _snapshot ??= BuildSnapshot();
+
+    private WiredVariableSnapshot BuildSnapshot()
     {
-        var snapshot = GetVarSnapshot();
+        var variableHash = WiredVariableHashBuilder.HashValues(
+            VariableName,
+            AvailabilityType,
+            TargetType,
+            Flags,
+            GetTextConnectors()
+        );
 
-        return new WiredVariableKey(snapshot.TargetType, snapshot.VariableName);
+        return new()
+        {
+            VariableId = WiredVariableIdBuilder.CreateInternalOrdered(
+                TargetType,
+                VariableName,
+                SubBandType,
+                Order
+            ),
+            VariableName = VariableName,
+            VariableType = VariableType,
+            VariableHash = variableHash,
+            AvailabilityType = AvailabilityType,
+            TargetType = TargetType,
+            Flags = Flags,
+            TextConnectors = GetTextConnectors(),
+        };
     }
-
-    public WiredVariableSnapshot GetVarSnapshot() =>
-        _snapshot ??= BuildVariableDefinition().GetSnapshot();
 }

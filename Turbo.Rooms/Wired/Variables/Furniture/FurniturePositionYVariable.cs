@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Wired;
@@ -9,107 +10,87 @@ using Turbo.Rooms.Grains;
 namespace Turbo.Rooms.Wired.Variables.Furniture;
 
 public sealed class FurniturePositionYVariable(RoomGrain roomGrain)
-    : WiredInternalVariable(roomGrain),
-        IWiredInternalVariable
+    : FurnitureVariable<IRoomItem>(roomGrain)
 {
-    protected override WiredVariableDefinition BuildVariableDefinition() =>
-        new()
-        {
-            VariableId = WiredVariableIdBuilder.CreateInternalOrdered(
-                WiredVariableTargetType.Furni,
-                "@position.y",
-                WiredVariableIdBuilder.WiredVarSubBand.Position,
-                30
-            ),
-            VariableName = "@position.y",
-            VariableType = WiredVariableType.Internal,
-            AvailabilityType = WiredAvailabilityType.Internal,
-            TargetType = WiredVariableTargetType.Furni,
-            Flags =
-                WiredVariableFlags.HasValue
-                | WiredVariableFlags.CanWriteValue
-                | WiredVariableFlags.AlwaysAvailable,
-            TextConnectors = [],
-        };
+    protected override string VariableName => "@position.y";
+    protected override WiredVariableGroupSubBandType SubBandType =>
+        WiredVariableGroupSubBandType.Position;
+    protected override ushort Order => 30;
+    protected override WiredVariableFlags Flags =>
+        WiredVariableFlags.HasValue
+        | WiredVariableFlags.CanWriteValue
+        | WiredVariableFlags.AlwaysAvailable;
 
-    public override bool TryGet(in WiredVariableBinding binding, out int value)
-    {
-        value = default;
-
-        var snapshot = GetVarSnapshot();
-
-        if (
-            (binding.TargetType != snapshot.TargetType)
-            || !_roomGrain._state.ItemsById.TryGetValue(binding.TargetId, out var item)
-        )
-            return false;
-
-        value = item.Y;
-
-        return true;
-    }
+    protected override WiredVariableValue GetValueForItem(IRoomItem item) =>
+        WiredVariableValue.Parse(item.Y);
 
     public override async Task<bool> SetValueAsync(
-        WiredVariableBinding binding,
         IWiredExecutionContext ctx,
-        int value
+        WiredVariableKey key,
+        WiredVariableValue value
     )
     {
         var snapshot = GetVarSnapshot();
 
         if (
-            (binding.TargetType != snapshot.TargetType)
-            || !_roomGrain._state.ItemsById.TryGetValue(binding.TargetId, out var item)
+            !snapshot.Flags.Has(WiredVariableFlags.CanWriteValue)
+            || !CanBind(key)
+            || !TryGetItemForKey(key, out var item)
         )
             return false;
 
-        if (item is IRoomFloorItem floorItem)
+        switch (item)
         {
-            if (
-                await _roomGrain.FurniModule.ValidateFloorItemPlacementAsync(
-                    ctx.AsActionContext(),
-                    floorItem.ObjectId.Value,
-                    floorItem.X,
-                    value,
-                    floorItem.Rotation
-                )
-            )
-            {
-                ctx.AddFloorItemMovement(
-                    floorItem,
-                    _roomGrain.MapModule.ToIdx(floorItem.X, value),
-                    floorItem.Z,
-                    floorItem.Rotation
-                );
+            case IRoomFloorItem floorItem:
+                {
+                    if (
+                        await _roomGrain.FurniModule.ValidateFloorItemPlacementAsync(
+                            ctx.AsActionContext(),
+                            floorItem.ObjectId,
+                            floorItem.X,
+                            value,
+                            floorItem.Rotation
+                        )
+                    )
+                    {
+                        ctx.AddFloorItemMovement(
+                            floorItem,
+                            _roomGrain.MapModule.ToIdx(floorItem.X, value),
+                            floorItem.Z,
+                            floorItem.Rotation
+                        );
 
-                return true;
-            }
-        }
-        else if (item is IRoomWallItem wallItem)
-        {
-            if (
-                await _roomGrain.FurniModule.ValidateWallItemPlacementAsync(
-                    ctx.AsActionContext(),
-                    wallItem.ObjectId.Value,
-                    wallItem.X,
-                    value,
-                    wallItem.Z,
-                    wallItem.WallOffset,
-                    wallItem.Rotation
-                )
-            )
-            {
-                ctx.AddWallItemMovement(
-                    wallItem,
-                    wallItem.X,
-                    value,
-                    wallItem.Z,
-                    wallItem.Rotation,
-                    wallItem.WallOffset
-                );
+                        return true;
+                    }
+                }
+                break;
+            case IRoomWallItem wallItem:
+                {
+                    if (
+                        await _roomGrain.FurniModule.ValidateWallItemPlacementAsync(
+                            ctx.AsActionContext(),
+                            wallItem.ObjectId,
+                            wallItem.X,
+                            value,
+                            wallItem.Z,
+                            wallItem.WallOffset,
+                            wallItem.Rotation
+                        )
+                    )
+                    {
+                        ctx.AddWallItemMovement(
+                            wallItem,
+                            wallItem.X,
+                            value,
+                            wallItem.Z,
+                            wallItem.Rotation,
+                            wallItem.WallOffset
+                        );
 
-                return true;
-            }
+                        return true;
+                    }
+                }
+                break;
         }
 
         return false;

@@ -14,6 +14,7 @@ using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Players.Grains;
@@ -162,13 +163,13 @@ internal sealed partial class PlayerPresenceGrain
         {
             Origin = ActionOrigin.Player,
             SessionKey = SessionKey.Invalid,
-            PlayerId = (PlayerId)this.GetPrimaryKeyLong(),
+            PlayerId = PlayerId.Parse((int)this.GetPrimaryKeyLong()),
             RoomId = prev,
         };
 
-        await _grainFactory
-            .GetRoomGrain(prev)
-            .RemoveAvatarFromPlayerAsync(ctx, (PlayerId)this.GetPrimaryKeyLong(), ct);
+        var roomGrain = _grainFactory.GetRoomGrain(prev);
+
+        await roomGrain.RemoveAvatarFromPlayerAsync(ctx, ctx.PlayerId, ct);
 
         await _grainFactory
             .GetRoomDirectoryGrain()

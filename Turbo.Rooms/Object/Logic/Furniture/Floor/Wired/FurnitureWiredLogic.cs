@@ -581,14 +581,22 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
     {
         await base.OnAttachAsync(ct);
 
-        await OnWiredStackChangedAsync(null, [_ctx.GetTileIdx()], ct);
+        await OnWiredStackChangedAsync(
+            ActionContext.CreateForSystem(_roomGrain.RoomId),
+            [_ctx.GetTileIdx()],
+            ct
+        );
     }
 
     public override async Task OnDetachAsync(CancellationToken ct)
     {
         await base.OnDetachAsync(ct);
 
-        await OnWiredStackChangedAsync(null, [_ctx.GetTileIdx()], ct);
+        await OnWiredStackChangedAsync(
+            ActionContext.CreateForSystem(_roomGrain.RoomId),
+            [_ctx.GetTileIdx()],
+            ct
+        );
     }
 
     public override async Task OnMoveAsync(ActionContext ctx, int prevIdx, CancellationToken ct)
@@ -618,7 +626,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
     }
 
     protected virtual Task OnWiredStackChangedAsync(
-        ActionContext? ctx,
+        ActionContext ctx,
         List<int> ids,
         CancellationToken ct
     ) =>
