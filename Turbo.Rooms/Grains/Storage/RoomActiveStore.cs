@@ -1,16 +1,12 @@
-using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Wired.Variable;
 
 namespace Turbo.Rooms.Grains.Storage;
 
-public sealed class RoomActiveStore : VariableStore
+public sealed class RoomActiveStore : ActiveStore
 {
-    private readonly Dictionary<WiredVariableKey, WiredVariableValue> _vars = [];
+    private readonly KeyValueStore _vars = new();
 
-    public override bool TryGetStore(
-        WiredVariableKey key,
-        out Dictionary<WiredVariableKey, WiredVariableValue> store
-    )
+    public override bool TryGetStore(WiredVariableKey key, out KeyValueStore? store)
     {
         store = _vars;
 

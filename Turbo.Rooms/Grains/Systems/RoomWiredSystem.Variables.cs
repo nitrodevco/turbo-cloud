@@ -31,10 +31,7 @@ public sealed partial class RoomWiredSystem
         return null;
     }
 
-    public bool TryGetStoreForKey(
-        WiredVariableKey key,
-        out Dictionary<WiredVariableKey, WiredVariableValue> store
-    )
+    public bool TryGetStoreForKey(WiredVariableKey key, out KeyValueStore? store)
     {
         return key.TargetType switch
         {

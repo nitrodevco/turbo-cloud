@@ -5,21 +5,15 @@ using Turbo.Primitives.Rooms.Wired.Variable;
 
 namespace Turbo.Rooms.Grains.Storage;
 
-public sealed class PlayerActiveStore : VariableStore
+public sealed class PlayerActiveStore : ActiveStore
 {
-    private readonly Dictionary<
-        PlayerId,
-        Dictionary<WiredVariableKey, WiredVariableValue>
-    > _byPlayerId = [];
+    private readonly Dictionary<PlayerId, KeyValueStore> _byPlayerId = [];
 
     public bool RemovePlayerStore(PlayerId playerId) => _byPlayerId.Remove(playerId);
 
-    public override bool TryGetStore(
-        WiredVariableKey key,
-        out Dictionary<WiredVariableKey, WiredVariableValue> store
-    )
+    public override bool TryGetStore(WiredVariableKey key, out KeyValueStore? store)
     {
-        store = [];
+        store = null;
 
         if (key.TargetType != WiredVariableTargetType.User)
             return false;
@@ -28,7 +22,7 @@ public sealed class PlayerActiveStore : VariableStore
 
         if (!_byPlayerId.TryGetValue(targetId, out var found))
         {
-            found = [];
+            found = new KeyValueStore();
 
             _byPlayerId[targetId] = found;
         }

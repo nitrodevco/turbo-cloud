@@ -12,6 +12,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Rooms.Grains.Storage;
 using Turbo.Rooms.Wired.Variables;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
@@ -25,7 +26,7 @@ public abstract class FurnitureWiredVariableLogic
 
     protected readonly WiredVariableId _variableId;
 
-    protected Dictionary<WiredVariableKey, WiredVariableValue>? _storage = null;
+    protected KeyValueStore? _storage = null;
     protected WiredVariableSnapshot? _varSnapshot;
 
     public FurnitureWiredVariableLogic(
@@ -50,7 +51,7 @@ public abstract class FurnitureWiredVariableLogic
     {
         value = WiredVariableValue.Default;
 
-        if (!CanBind(key) || !TryGetStore(key, out var store))
+        if (!CanBind(key) || !TryGetStore(key, out var store) || store is null)
             return false;
 
         return store.TryGetValue(key, out value);
@@ -68,13 +69,12 @@ public abstract class FurnitureWiredVariableLogic
             !snapshot.Flags.Has(WiredVariableFlags.CanCreateAndDelete)
             || !CanBind(key)
             || !TryGetStore(key, out var store)
+            || store is null
             || (store.ContainsKey(key) && !replace)
         )
             return Task.FromResult(false);
 
-        store[key] = value;
-
-        return Task.FromResult(true);
+        return store.GiveValueAsync(key, value, replace);
     }
 
     public virtual Task<bool> SetValueAsync(
@@ -83,20 +83,18 @@ public abstract class FurnitureWiredVariableLogic
         WiredVariableValue value
     )
     {
-        if (!TryGetStore(key, out var store) || !store.ContainsKey(key))
+        if (!TryGetStore(key, out var store) || store is null || !store.ContainsKey(key))
             return Task.FromResult(false);
 
-        store[key] = value;
-
-        return Task.FromResult(true);
+        return store.SetValueAsync(ctx, key, value);
     }
 
     public virtual bool RemoveValue(WiredVariableKey key)
     {
-        if (!TryGetStore(key, out var store))
+        if (!TryGetStore(key, out var store) || store is null)
             return false;
 
-        return store.Remove(key);
+        return store.RemoveValue(key);
     }
 
     public virtual Dictionary<WiredVariableValue, string> GetTextConnectors() => [];
@@ -120,22 +118,25 @@ public abstract class FurnitureWiredVariableLogic
                     )
                 )
                 {
-                    _storage = storageElement.Deserialize<
-                        Dictionary<WiredVariableKey, WiredVariableValue>
-                    >();
+                    _storage = storageElement.Deserialize<KeyValueStore>();
                 }
                 else
                 {
-                    _storage = [];
+                    _storage = new();
                 }
+
+                _storage?.SetAction(async () =>
+                {
+                    _ctx.RoomObject.ExtraData.UpdateSection(
+                        ExtraDataSectionType.STORAGE,
+                        JsonSerializer.SerializeToNode(_storage, _storage.GetType())
+                    );
+                });
             }
         }
     }
 
-    private bool TryGetStore(
-        WiredVariableKey key,
-        out Dictionary<WiredVariableKey, WiredVariableValue> store
-    )
+    private bool TryGetStore(WiredVariableKey key, out KeyValueStore? store)
     {
         if (_storage is not null)
         {

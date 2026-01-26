@@ -5,21 +5,15 @@ using Turbo.Primitives.Rooms.Wired.Variable;
 
 namespace Turbo.Rooms.Grains.Storage;
 
-public sealed class FurnitureActiveStore : VariableStore
+public sealed class FurnitureActiveStore : ActiveStore
 {
-    private readonly Dictionary<
-        RoomObjectId,
-        Dictionary<WiredVariableKey, WiredVariableValue>
-    > _byItemId = [];
+    private readonly Dictionary<RoomObjectId, KeyValueStore> _byItemId = [];
 
     public bool RemoveFurnitureStore(RoomObjectId objectId) => _byItemId.Remove(objectId);
 
-    public override bool TryGetStore(
-        WiredVariableKey key,
-        out Dictionary<WiredVariableKey, WiredVariableValue> store
-    )
+    public override bool TryGetStore(WiredVariableKey key, out KeyValueStore? store)
     {
-        store = [];
+        store = null;
 
         if (key.TargetType != WiredVariableTargetType.Furni)
             return false;
@@ -28,7 +22,7 @@ public sealed class FurnitureActiveStore : VariableStore
 
         if (!_byItemId.TryGetValue(targetId, out var found))
         {
-            found = [];
+            found = new KeyValueStore();
 
             _byItemId[targetId] = found;
         }
