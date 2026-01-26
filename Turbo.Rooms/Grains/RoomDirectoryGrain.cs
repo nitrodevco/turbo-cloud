@@ -7,12 +7,10 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
-using Turbo.Primitives.Action;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
-using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Rooms.Configuration;
 

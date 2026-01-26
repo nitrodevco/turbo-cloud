@@ -14,6 +14,10 @@ public sealed class FurnitureIsInvisibleVariable(RoomGrain roomGrain)
     protected override ushort Order => 80;
     protected override WiredVariableFlags Flags => WiredVariableFlags.None;
 
-    protected override WiredVariableValue GetValueForItem(IRoomItem item) =>
-        WiredVariableValue.Parse(item.IsInvisible ? 1 : 0);
+    protected override bool TryGetValueForItem(IRoomItem item, out WiredVariableValue value)
+    {
+        value = WiredVariableValue.Default;
+
+        return item.IsInvisible;
+    }
 }

@@ -1,9 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.Snapshots;
-using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
@@ -30,12 +28,6 @@ public abstract class RoomItemContext<TObject, TLogic, TSelf>(
         RoomObjectId objectId,
         CancellationToken ct
     ) => _roomGrain.GetFloorItemSnapshotByIdAsync(objectId, ct);
-
-    public Task PublishRoomEventAsync(RoomEvent evt, CancellationToken ct) =>
-        _roomGrain.PublishRoomEventAsync(evt, ct);
-
-    public Task SendComposerToRoomAsync(IComposer composer) =>
-        _roomGrain.SendComposerToRoomAsync(composer);
 
     public abstract Task AddItemAsync();
 

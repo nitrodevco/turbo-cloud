@@ -15,6 +15,10 @@ public sealed class FurnitureTypeVariable(RoomGrain roomGrain)
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 
-    protected override WiredVariableValue GetValueForItem(IRoomItem item) =>
-        WiredVariableValue.Parse(0);
+    protected override bool TryGetValueForItem(IRoomItem item, out WiredVariableValue value)
+    {
+        value = WiredVariableValue.Default;
+
+        return true;
+    }
 }

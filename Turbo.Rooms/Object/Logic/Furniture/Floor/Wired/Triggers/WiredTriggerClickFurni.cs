@@ -38,7 +38,7 @@ public class WiredTriggerClickFurni(
 
         var selection = await ctx.GetEffectiveSelectionAsync(this, ct);
 
-        if (!selection.SelectedFurniIds.Contains(evt.FurniId))
+        if (!selection.SelectedFurniIds.Contains((int)evt.ObjectId))
             return false;
 
         return true;

@@ -1,4 +1,8 @@
+using System.Threading;
+using System.Threading.Tasks;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -24,4 +28,10 @@ public abstract class RoomObjectContext<TObject, TLogic, TSelf>(
     public TObject RoomObject => _roomObject;
 
     IRoomObject IRoomObjectContext.RoomObject => RoomObject;
+
+    public Task PublishRoomEventAsync(RoomEvent evt, CancellationToken ct) =>
+        _roomGrain.PublishRoomEventAsync(evt, ct);
+
+    public Task SendComposerToRoomAsync(IComposer composer) =>
+        _roomGrain.SendComposerToRoomAsync(composer);
 }

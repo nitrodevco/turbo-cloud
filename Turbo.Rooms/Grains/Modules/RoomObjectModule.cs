@@ -97,8 +97,8 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
                 var snapshot = item.GetSnapshot();
 
                 await _roomGrain
-                    ._grainFactory.GetRoomPersistenceGrain(_roomGrain._state.RoomId)
-                    .EnqueueDirtyItemAsync(_roomGrain._state.RoomId, snapshot, ct, true);
+                    ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
+                    .EnqueueDirtyItemAsync(_roomGrain.RoomId, snapshot, ct, true);
                 break;
             }
             case IRoomAvatar avatar:

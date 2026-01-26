@@ -19,8 +19,12 @@ public sealed class FurnitureStateVariable(RoomGrain roomGrain)
         | WiredVariableFlags.CanWriteValue
         | WiredVariableFlags.AlwaysAvailable;
 
-    protected override WiredVariableValue GetValueForItem(IRoomItem item) =>
-        WiredVariableValue.Parse(item.Logic.StuffData.GetState());
+    protected override bool TryGetValueForItem(IRoomItem item, out WiredVariableValue value)
+    {
+        value = item.Logic.StuffData.GetState();
+
+        return true;
+    }
 
     public override async Task<bool> SetValueAsync(
         IWiredExecutionContext ctx,

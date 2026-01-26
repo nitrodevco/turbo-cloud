@@ -15,6 +15,10 @@ public sealed class FurnitureHeightVariable(RoomGrain roomGrain)
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 
-    protected override WiredVariableValue GetValueForItem(IRoomItem item) =>
-        WiredVariableValue.Parse(item.Logic.GetStackHeight().ToInt());
+    protected override bool TryGetValueForItem(IRoomItem item, out WiredVariableValue value)
+    {
+        value = item.Logic.GetStackHeight().ToInt();
+
+        return true;
+    }
 }

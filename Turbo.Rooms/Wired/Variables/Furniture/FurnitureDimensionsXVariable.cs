@@ -15,6 +15,10 @@ public sealed class FurnitureDimensionsXVariable(RoomGrain roomGrain)
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 
-    protected override WiredVariableValue GetValueForItem(IRoomItem item) =>
-        WiredVariableValue.Parse(item.Definition.Width);
+    protected override bool TryGetValueForItem(IRoomItem item, out WiredVariableValue value)
+    {
+        value = item.Definition.Width;
+
+        return true;
+    }
 }

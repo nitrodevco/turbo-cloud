@@ -7,7 +7,7 @@ using Turbo.Rooms.Grains;
 namespace Turbo.Rooms.Wired.Variables.Furniture;
 
 public sealed class FurnitureIsStackableVariable(RoomGrain roomGrain)
-    : FurnitureVariable<IRoomItem>(roomGrain)
+    : FurnitureFloorVariable(roomGrain)
 {
     protected override string VariableName => "@is_stackable";
     protected override WiredVariableGroupSubBandType SubBandType =>
@@ -15,8 +15,10 @@ public sealed class FurnitureIsStackableVariable(RoomGrain roomGrain)
     protected override ushort Order => 60;
     protected override WiredVariableFlags Flags => WiredVariableFlags.None;
 
-    protected override WiredVariableValue GetValueForItem(IRoomItem item) =>
-        WiredVariableValue.Parse(
-            item is IRoomFloorItem floorItem && floorItem.Logic.CanStack() ? 1 : 0
-        );
+    protected override bool TryGetValueForItem(IRoomFloorItem item, out WiredVariableValue value)
+    {
+        value = WiredVariableValue.Default;
+
+        return item.Logic.CanStack();
+    }
 }

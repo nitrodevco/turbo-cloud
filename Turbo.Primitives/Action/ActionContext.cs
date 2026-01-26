@@ -1,7 +1,10 @@
+using System;
 using Orleans;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Avatars;
 
 namespace Turbo.Primitives.Action;
 
@@ -21,6 +24,16 @@ public readonly record struct ActionContext(
 
     public static ActionContext CreateForPlayer(PlayerId playerId, RoomId roomId) =>
         new(ActionOrigin.Player, SessionKey.Invalid, playerId, roomId);
+
+    public static ActionContext CreateForObjectContext(IRoomObjectContext ctx) =>
+        ctx switch
+        {
+            IRoomPlayerContext playerCtx => CreateForPlayer(
+                playerCtx.RoomObject.PlayerId,
+                ctx.RoomId
+            ),
+            _ => throw new Exception("Cannot create ActionContext for object context"),
+        };
 
     public static ActionContext Invalid =>
         new(ActionOrigin.System, SessionKey.Invalid, PlayerId.Invalid, RoomId.Invalid);

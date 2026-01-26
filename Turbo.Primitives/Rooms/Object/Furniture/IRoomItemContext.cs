@@ -1,9 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.Snapshots;
-using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
@@ -27,8 +25,6 @@ public interface IRoomItemContext : IRoomObjectContext
         RoomObjectId objectId,
         CancellationToken ct
     );
-    public Task PublishRoomEventAsync(RoomEvent evt, CancellationToken ct);
-    public Task SendComposerToRoomAsync(IComposer composer);
     public Task AddItemAsync();
     public Task UpdateItemAsync();
     public Task RefreshStuffDataAsync();

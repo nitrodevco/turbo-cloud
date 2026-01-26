@@ -1,3 +1,7 @@
+using System.Threading;
+using System.Threading.Tasks;
+using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object.Logic;
 
@@ -18,4 +22,7 @@ public interface IRoomObjectContext
 
     public RoomObjectId ObjectId { get; }
     public IRoomObject RoomObject { get; }
+
+    public Task PublishRoomEventAsync(RoomEvent evt, CancellationToken ct);
+    public Task SendComposerToRoomAsync(IComposer composer);
 }

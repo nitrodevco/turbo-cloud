@@ -15,6 +15,10 @@ public sealed class FurnitureClassIdVariable(RoomGrain roomGrain)
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 
-    protected override WiredVariableValue GetValueForItem(IRoomItem item) =>
-        WiredVariableValue.Parse(item.Definition.SpriteId);
+    protected override bool TryGetValueForItem(IRoomItem item, out WiredVariableValue value)
+    {
+        value = item.Definition.SpriteId;
+
+        return true;
+    }
 }

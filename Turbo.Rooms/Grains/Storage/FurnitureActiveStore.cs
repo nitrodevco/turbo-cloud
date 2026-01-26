@@ -12,6 +12,8 @@ public sealed class FurnitureActiveStore : VariableStore
         Dictionary<WiredVariableKey, WiredVariableValue>
     > _byItemId = [];
 
+    public bool RemoveFurnitureStore(RoomObjectId objectId) => _byItemId.Remove(objectId);
+
     public override bool TryGetStore(
         WiredVariableKey key,
         out Dictionary<WiredVariableKey, WiredVariableValue> store

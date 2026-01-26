@@ -53,14 +53,8 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
             new AvatarWalkOnFurniEvent
             {
                 RoomId = _ctx.RoomId,
-                CausedBy = new ActionContext()
-                {
-                    Origin = ActionOrigin.Player,
-                    PlayerId = ctx.ObjectId.Value,
-                    RoomId = ctx.RoomId,
-                    SessionKey = SessionKey.Invalid,
-                },
-                AvatarId = ctx.ObjectId,
+                CausedBy = ActionContext.CreateForObjectContext(ctx),
+                ObjectId = ctx.ObjectId,
                 FurniId = _ctx.ObjectId,
             },
             ct
@@ -71,14 +65,8 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
             new AvatarWalkOffFurniEvent
             {
                 RoomId = _ctx.RoomId,
-                CausedBy = new ActionContext()
-                {
-                    Origin = ActionOrigin.Player,
-                    PlayerId = ctx.ObjectId.Value,
-                    RoomId = ctx.RoomId,
-                    SessionKey = SessionKey.Invalid,
-                },
-                AvatarId = ctx.ObjectId,
+                CausedBy = ActionContext.CreateForObjectContext(ctx),
+                ObjectId = ctx.ObjectId,
                 FurniId = _ctx.ObjectId,
             },
             ct

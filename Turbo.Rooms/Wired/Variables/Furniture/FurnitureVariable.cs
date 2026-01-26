@@ -18,12 +18,10 @@ public abstract class FurnitureVariable<TItem>(RoomGrain roomGrain)
         if (!CanBind(key) || !TryGetItemForKey(key, out var item) || item is null)
             return false;
 
-        value = GetValueForItem(item);
-
-        return true;
+        return TryGetValueForItem(item, out value);
     }
 
-    protected abstract WiredVariableValue GetValueForItem(TItem item);
+    protected abstract bool TryGetValueForItem(TItem item, out WiredVariableValue value);
 
     protected virtual bool TryGetItemForKey(in WiredVariableKey key, out TItem? item)
     {

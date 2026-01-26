@@ -59,7 +59,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
                     {
                         RoomId = _ctx.RoomId,
                         CausedBy = ActionContext.CreateForSystem(_ctx.RoomId),
-                        FurniId = _ctx.ObjectId,
+                        ObjectId = _ctx.ObjectId,
                     },
                     CancellationToken.None
                 );
@@ -89,7 +89,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
             {
                 RoomId = _ctx.RoomId,
                 CausedBy = ActionContext.CreateForSystem(_ctx.RoomId),
-                FurniId = _ctx.ObjectId,
+                ObjectId = _ctx.ObjectId,
             },
             ct
         );
@@ -100,7 +100,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
             {
                 RoomId = _ctx.RoomId,
                 CausedBy = ActionContext.CreateForSystem(_ctx.RoomId),
-                FurniId = _ctx.ObjectId,
+                ObjectId = _ctx.ObjectId,
             },
             ct
         );
@@ -111,7 +111,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
             {
                 RoomId = _ctx.RoomId,
                 CausedBy = ctx,
-                FurniId = _ctx.ObjectId,
+                ObjectId = _ctx.ObjectId,
                 PrevIdx = prevIdx,
             },
             ct
@@ -123,7 +123,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
             {
                 RoomId = _ctx.RoomId,
                 CausedBy = ctx,
-                FurniId = _ctx.ObjectId,
+                ObjectId = _ctx.ObjectId,
             },
             ct
         );
@@ -134,7 +134,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
             {
                 RoomId = _ctx.RoomId,
                 CausedBy = ctx,
-                FurniId = _ctx.ObjectId,
+                ObjectId = _ctx.ObjectId,
             },
             ct
         );
@@ -152,7 +152,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
             {
                 RoomId = _ctx.RoomId,
                 CausedBy = ctx,
-                FurniId = _ctx.ObjectId,
+                ObjectId = _ctx.ObjectId,
             },
             ct
         );

@@ -1,8 +1,5 @@
-using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Events.RoomObject;
 
 namespace Turbo.Primitives.Rooms.Events.RoomItem;
 
-public abstract record RoomItemEvent : RoomEvent
-{
-    public required RoomObjectId FurniId { get; init; }
-}
+public abstract record RoomItemEvent : RoomObjectEvent;

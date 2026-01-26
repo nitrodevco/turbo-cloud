@@ -9,6 +9,7 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Player;
+using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -93,6 +94,9 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
                     break;
                 case PlayerLeftEvent playerLeftEvt:
                     _playerActiveStore.RemovePlayerStore(playerLeftEvt.PlayerId);
+                    break;
+                case RoomItemDetachedEvent detatchedEvt:
+                    _furnitureActiveStore.RemoveFurnitureStore(detatchedEvt.ObjectId);
                     break;
                 default:
                     _eventQueue.Enqueue(evt);

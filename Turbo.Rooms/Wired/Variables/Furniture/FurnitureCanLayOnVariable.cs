@@ -14,6 +14,10 @@ public sealed class FurnitureCanLayOnVariable(RoomGrain roomGrain)
     protected override ushort Order => 30;
     protected override WiredVariableFlags Flags => WiredVariableFlags.None;
 
-    protected override WiredVariableValue GetValueForItem(IRoomFloorItem item) =>
-        WiredVariableValue.Parse(item.Logic.CanLay() ? 1 : 0);
+    protected override bool TryGetValueForItem(IRoomFloorItem item, out WiredVariableValue value)
+    {
+        value = WiredVariableValue.Default;
+
+        return item.Logic.CanLay();
+    }
 }

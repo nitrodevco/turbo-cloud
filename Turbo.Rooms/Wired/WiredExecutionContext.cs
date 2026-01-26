@@ -107,8 +107,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         catch { }
     }
 
-    public ActionContext AsActionContext() =>
-        ActionContext.CreateForWired(_roomGrain._state.RoomId);
+    public ActionContext AsActionContext() => ActionContext.CreateForWired(_roomGrain.RoomId);
 
     public Task SendComposerToRoomAsync(IComposer composer) =>
         Room.SendComposerToRoomAsync(composer);

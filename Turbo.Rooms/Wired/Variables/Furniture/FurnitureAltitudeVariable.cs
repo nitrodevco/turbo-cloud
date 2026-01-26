@@ -22,8 +22,12 @@ public sealed class FurnitureAltitudeVariable(RoomGrain roomGrain)
         | WiredVariableFlags.CanWriteValue
         | WiredVariableFlags.AlwaysAvailable;
 
-    protected override WiredVariableValue GetValueForItem(IRoomItem item) =>
-        WiredVariableValue.Parse(item.Z.ToInt());
+    protected override bool TryGetValueForItem(IRoomItem item, out WiredVariableValue value)
+    {
+        value = item.Z.ToInt();
+
+        return true;
+    }
 
     public override async Task<bool> SetValueAsync(
         IWiredExecutionContext ctx,

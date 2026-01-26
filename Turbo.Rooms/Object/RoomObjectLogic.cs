@@ -1,5 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Action;
+using Turbo.Primitives.Rooms.Events.RoomObject;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Rooms.Grains;
@@ -19,7 +21,25 @@ public abstract class RoomObjectLogic<TObject, TSelf, TContext>(TContext ctx)
 
     IRoomObjectContext IRoomObjectLogic.Context => Context;
 
-    public virtual Task OnAttachAsync(CancellationToken ct) => Task.CompletedTask;
+    public virtual Task OnAttachAsync(CancellationToken ct) =>
+        _ctx.PublishRoomEventAsync(
+            new RoomObjectAttatchedEvent
+            {
+                RoomId = _ctx.RoomId,
+                CausedBy = ActionContext.CreateForSystem(_ctx.RoomId),
+                ObjectId = _ctx.ObjectId,
+            },
+            ct
+        );
 
-    public virtual Task OnDetachAsync(CancellationToken ct) => Task.CompletedTask;
+    public virtual Task OnDetachAsync(CancellationToken ct) =>
+        _ctx.PublishRoomEventAsync(
+            new RoomObjectDetatchedEvent
+            {
+                RoomId = _ctx.RoomId,
+                CausedBy = ActionContext.CreateForSystem(_ctx.RoomId),
+                ObjectId = _ctx.ObjectId,
+            },
+            ct
+        );
 }
