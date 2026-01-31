@@ -24,8 +24,12 @@ public interface IFurnitureLogic : IRoomObjectLogic, IRollableObject
     public FurnitureUsageType GetUsagePolicy();
     public bool CanToggle();
     public Altitude GetStackHeight();
-    public Task<int> GetStateAsync();
-    public Task SetStateAsync(int state);
+    public int GetState();
+    public string GetLegacyString();
+    public int GetNextToggleableState();
+    public int GetPrevToggleableState();
+    public Task SetStateAsync(int state, bool refresh = true);
+    public Task OnStateChangedAsync(CancellationToken ct);
     public Task OnMoveAsync(ActionContext ctx, int prevIdx, CancellationToken ct);
     public Task OnPlaceAsync(ActionContext ctx, CancellationToken ct);
     public Task OnPickupAsync(ActionContext ctx, CancellationToken ct);

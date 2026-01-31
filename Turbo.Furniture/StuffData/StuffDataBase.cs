@@ -34,9 +34,7 @@ internal abstract class StuffDataBase : IStuffData
 
     public virtual int GetState() => int.Parse(GetLegacyString());
 
-    public abstract Task SetStateAsync(string state);
-
-    public abstract Task SetStateSilentlyAsync(string state);
+    public virtual void SetState(string state) { }
 
     public virtual string GetLegacyString() => string.Empty;
 

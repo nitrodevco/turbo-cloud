@@ -29,11 +29,14 @@ public abstract class RoomItemContext<TObject, TLogic, TSelf>(
         CancellationToken ct
     ) => _roomGrain.GetFloorItemSnapshotByIdAsync(objectId, ct);
 
-    public abstract Task AddItemAsync();
+    public virtual Task AddItemAsync() => SendComposerToRoomAsync(RoomObject.GetAddComposer());
 
-    public abstract Task UpdateItemAsync();
+    public virtual Task UpdateItemAsync() =>
+        SendComposerToRoomAsync(RoomObject.GetUpdateComposer());
 
-    public abstract Task RefreshStuffDataAsync();
+    public virtual Task RefreshStuffDataAsync() =>
+        SendComposerToRoomAsync(RoomObject.GetRefreshStuffDataComposer());
 
-    public abstract Task RemoveItemAsync(PlayerId pickerId, bool isExpired = false, int delay = 0);
+    public virtual Task RemoveItemAsync(PlayerId pickerId, bool isExpired = false, int delay = 0) =>
+        SendComposerToRoomAsync(RoomObject.GetRemoveComposer(pickerId));
 }

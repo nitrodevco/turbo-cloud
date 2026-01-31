@@ -1,6 +1,5 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
@@ -18,20 +17,6 @@ public sealed class RoomFloorItemContext(RoomGrain roomGrain, IRoomFloorItem roo
     public int GetTileIdx() => _roomGrain.ToIdx(RoomObject.X, RoomObject.Y);
 
     public int GetTileIdx(int x, int y) => _roomGrain.ToIdx(x, y);
-
-    public override Task AddItemAsync() => SendComposerToRoomAsync(RoomObject.GetAddComposer());
-
-    public override Task UpdateItemAsync() =>
-        SendComposerToRoomAsync(RoomObject.GetUpdateComposer());
-
-    public override Task RefreshStuffDataAsync() =>
-        SendComposerToRoomAsync(RoomObject.GetRefreshStuffDataComposer());
-
-    public override Task RemoveItemAsync(
-        PlayerId pickerId,
-        bool isExpired = false,
-        int delay = 0
-    ) => SendComposerToRoomAsync(RoomObject.GetRemoveComposer(pickerId, isExpired, delay));
 
     public void RefreshTile() => _roomGrain.ComputeTile(RoomObject.X, RoomObject.Y);
 

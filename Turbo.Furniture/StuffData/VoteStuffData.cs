@@ -15,21 +15,14 @@ internal sealed class VoteStuffData : StuffDataBase, IVoteStuffData
 
     public override string GetLegacyString() => Data;
 
-    public override async Task SetStateAsync(string state)
-    {
-        await SetStateSilentlyAsync(state);
-
-        MarkDirty();
-    }
-
-    public override Task SetStateSilentlyAsync(string state)
+    public override void SetState(string state)
     {
         if (string.IsNullOrEmpty(state))
             state = DEFAULT_STATE;
 
         Data = state;
 
-        return Task.CompletedTask;
+        MarkDirty();
     }
 
     public int GetResult() => Result;

@@ -19,21 +19,14 @@ internal sealed class HighscoreStuffData : StuffDataBase, IHighscoreStuffData
 
     public override string GetLegacyString() => Data;
 
-    public override async Task SetStateAsync(string state)
-    {
-        await SetStateSilentlyAsync(state);
-
-        MarkDirty();
-    }
-
-    public override Task SetStateSilentlyAsync(string state)
+    public override void SetState(string state)
     {
         if (string.IsNullOrEmpty(state))
             state = "0";
 
         Data = state;
 
-        return Task.CompletedTask;
+        MarkDirty();
     }
 
     public int GetScoreType() => ScoreType;

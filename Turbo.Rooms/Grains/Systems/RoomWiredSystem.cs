@@ -72,36 +72,38 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
 
             await ProcessRoomEventAsync(evt, now, ct);
         }
+
+        //await RunDueScheduledStackExecutionsAsync(now, ct);
     }
 
     public Task OnRoomEventAsync(RoomEvent evt, CancellationToken ct)
     {
-        if (evt is not null)
+        if (evt is null)
+            return Task.CompletedTask;
+
+        switch (evt)
         {
-            switch (evt)
-            {
-                case RoomWiredStackChangedEvent stackEvt:
-                    {
-                        foreach (var stackId in stackEvt.StackIds)
-                            _dirtyStackIds.Add(stackId);
-                    }
-                    break;
-                case WiredVariableBoxChangedEvent boxEvt:
-                    {
-                        foreach (var boxId in boxEvt.BoxIds)
-                            _dirtyVariableBoxIds.Add(boxId);
-                    }
-                    break;
-                case PlayerLeftEvent playerLeftEvt:
-                    _playerActiveStore.RemovePlayerStore(playerLeftEvt.PlayerId);
-                    break;
-                case RoomItemDetachedEvent detatchedEvt:
-                    _furnitureActiveStore.RemoveFurnitureStore(detatchedEvt.ObjectId);
-                    break;
-                default:
-                    _eventQueue.Enqueue(evt);
-                    break;
-            }
+            case RoomWiredStackChangedEvent stackEvt:
+                {
+                    foreach (var stackId in stackEvt.StackIds)
+                        _dirtyStackIds.Add(stackId);
+                }
+                break;
+            case WiredVariableBoxChangedEvent boxEvt:
+                {
+                    foreach (var boxId in boxEvt.BoxIds)
+                        _dirtyVariableBoxIds.Add(boxId);
+                }
+                break;
+            case PlayerLeftEvent playerLeftEvt:
+                _playerActiveStore.RemovePlayerStore(playerLeftEvt.PlayerId);
+                break;
+            case RoomItemDetachedEvent detatchedEvt:
+                _furnitureActiveStore.RemoveFurnitureStore(detatchedEvt.ObjectId);
+                break;
+            default:
+                _eventQueue.Enqueue(evt);
+                break;
         }
 
         return Task.CompletedTask;
@@ -294,11 +296,11 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
                     SelectorPool = new WiredSelectionSet().UnionWith(pending.SelectorPool),
                 };
 
-                await action.ExecuteAsync(ctx, ct);
-
                 _ = action.FlashActivationStateAsync(ct);
 
-                FlushWiredMovementsForContext(ctx);
+                await action.ExecuteAsync(ctx, ct);
+
+                _ = FlushWiredContextAsync(ctx);
             }
             catch { }
 
@@ -323,25 +325,35 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
         _stackSchedule.Enqueue((key, pending.Version), pending.DueAtMs);
     }
 
-    private void FlushWiredMovementsForContext(WiredExecutionContext ctx)
+    private Task FlushWiredContextAsync(WiredExecutionContext ctx)
     {
         if (
-            ctx.UserMoves.Count == 0
-            && ctx.UserDirections.Count == 0
-            && ctx.FloorItemMoves.Count == 0
-            && ctx.WallItemMoves.Count == 0
+            ctx.UserMoves.Count > 0
+            || ctx.UserDirections.Count > 0
+            || ctx.FloorItemMoves.Count > 0
+            || ctx.WallItemMoves.Count > 0
         )
-            return;
+            _ = ctx.SendComposerToRoomAsync(
+                new WiredMovementsMessageComposer
+                {
+                    Users = ctx.UserMoves,
+                    FloorItems = ctx.FloorItemMoves,
+                    WallItems = ctx.WallItemMoves,
+                    UserDirections = ctx.UserDirections,
+                }
+            );
 
-        _ = ctx.SendComposerToRoomAsync(
-            new WiredMovementsMessageComposer
-            {
-                Users = ctx.UserMoves,
-                FloorItems = ctx.FloorItemMoves,
-                WallItems = ctx.WallItemMoves,
-                UserDirections = ctx.UserDirections,
-            }
-        );
+        if (ctx.FloorItemStateUpdates.Count > 0)
+            _ = ctx.SendComposerToRoomAsync(
+                new ObjectsDataUpdateMessageComposer { StuffDatas = ctx.FloorItemStateUpdates }
+            );
+
+        if (ctx.WallItemStateUpdates.Count > 0)
+            _ = ctx.SendComposerToRoomAsync(
+                new ItemsStateUpdateMessageComposer { ObjectStates = ctx.WallItemStateUpdates }
+            );
+
+        return Task.CompletedTask;
     }
 
     private async Task ProcessWiredStacksAsync(long now, CancellationToken ct)

@@ -12,8 +12,7 @@ public interface IStuffData
     public int GetBitmask();
     public bool IsUnique();
     public int GetState();
-    public Task SetStateAsync(string state);
-    public Task SetStateSilentlyAsync(string state);
+    public void SetState(string state);
     public string GetLegacyString();
     public void SetAction(Func<Task>? onSnapshotChanged);
     public void MarkDirty();

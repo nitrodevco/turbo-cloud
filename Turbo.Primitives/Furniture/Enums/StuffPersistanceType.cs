@@ -2,6 +2,6 @@ namespace Turbo.Primitives.Furniture.Enums;
 
 public enum StuffPersistanceType
 {
-    Internal = 0,
-    External = 1,
+    RoomActive = 0,
+    Persistent = 1,
 }

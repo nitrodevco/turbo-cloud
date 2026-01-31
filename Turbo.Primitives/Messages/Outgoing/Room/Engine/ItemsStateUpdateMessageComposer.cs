@@ -1,6 +1,7 @@
-using System.Collections.Immutable;
+using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Engine;
 
@@ -8,5 +9,5 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Engine;
 public sealed record ItemsStateUpdateMessageComposer : IComposer
 {
     [Id(0)]
-    public required ImmutableDictionary<long, string> ObjectStates { get; init; }
+    public required List<(RoomObjectId, string)> ObjectStates { get; init; }
 }

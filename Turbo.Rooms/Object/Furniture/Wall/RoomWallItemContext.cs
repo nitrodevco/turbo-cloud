@@ -1,5 +1,3 @@
-using System.Threading.Tasks;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Rooms.Grains;
@@ -11,19 +9,4 @@ public sealed class RoomWallItemContext(RoomGrain roomGrain, IRoomWallItem roomO
         roomGrain,
         roomObject
     ),
-        IRoomWallItemContext
-{
-    public override Task AddItemAsync() => SendComposerToRoomAsync(RoomObject.GetAddComposer());
-
-    public override Task UpdateItemAsync() =>
-        SendComposerToRoomAsync(RoomObject.GetUpdateComposer());
-
-    public override Task RefreshStuffDataAsync() =>
-        SendComposerToRoomAsync(RoomObject.GetRefreshStuffDataComposer());
-
-    public override Task RemoveItemAsync(
-        PlayerId pickerId,
-        bool isExpired = false,
-        int delay = 0
-    ) => SendComposerToRoomAsync(RoomObject.GetRemoveComposer(pickerId));
-}
+        IRoomWallItemContext { }

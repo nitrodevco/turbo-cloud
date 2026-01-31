@@ -57,7 +57,7 @@ public sealed class FurniturePositionXVariable(RoomGrain roomGrain)
                         )
                     )
                     {
-                        ctx.AddFloorItemMovement(
+                        await ctx.ProcessFloorItemMovementAsync(
                             floorItem,
                             _roomGrain.MapModule.ToIdx(value, floorItem.Y),
                             floorItem.Z,
@@ -82,7 +82,7 @@ public sealed class FurniturePositionXVariable(RoomGrain roomGrain)
                         )
                     )
                     {
-                        ctx.AddWallItemMovement(
+                        await ctx.ProcessWallItemMovementAsync(
                             wallItem,
                             value,
                             wallItem.Y,

@@ -9,7 +9,6 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
-using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 
 namespace Turbo.Rooms.Object.Logic.Furniture;
@@ -23,7 +22,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
 {
     protected readonly IStuffDataFactory _stuffDataFactory;
 
-    protected virtual StuffPersistanceType _stuffPersistanceType => StuffPersistanceType.External;
+    protected virtual StuffPersistanceType _stuffPersistanceType => StuffPersistanceType.Persistent;
     protected virtual StuffDataType _stuffDataType => StuffDataType.LegacyKey;
 
     public IStuffData StuffData { get; private set; }
@@ -39,32 +38,6 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
             _stuffDataType,
             ctx.RoomObject.ExtraData
         );
-
-        StuffData.SetAction(async () =>
-        {
-            _ = _ctx.RefreshStuffDataAsync();
-
-            if (_stuffPersistanceType == StuffPersistanceType.External)
-            {
-                _ctx.RoomObject.ExtraData.UpdateSection(
-                    ExtraDataSectionType.STUFF,
-                    JsonSerializer.SerializeToNode(StuffData, StuffData.GetType())
-                );
-
-                if (_ctx is IRoomFloorItemContext floorCtx)
-                    floorCtx.RefreshTile();
-
-                await _ctx.PublishRoomEventAsync(
-                    new RoomItemStateChangedEvent
-                    {
-                        RoomId = _ctx.RoomId,
-                        CausedBy = ActionContext.CreateForSystem(_ctx.RoomId),
-                        ObjectId = _ctx.ObjectId,
-                    },
-                    CancellationToken.None
-                );
-            }
-        });
     }
 
     public virtual FurnitureUsageType GetUsagePolicy() =>
@@ -76,19 +49,52 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
 
     public virtual Altitude GetStackHeight() => 0;
 
-    public virtual Task<int> GetStateAsync() => Task.FromResult(StuffData.GetState());
+    public virtual int GetState() => StuffData.GetState();
 
-    public virtual Task SetStateAsync(int state) => StuffData.SetStateAsync(state.ToString());
+    public virtual string GetLegacyString() => StuffData.GetLegacyString();
 
-    public virtual Task SetStateSilentlyAsync(int state) =>
-        StuffData.SetStateSilentlyAsync(state.ToString());
+    public virtual int GetNextToggleableState()
+    {
+        var totalStates = _ctx.RoomObject.Definition.TotalStates;
+
+        if (totalStates == 0 || StuffData is null)
+            return 0;
+
+        return (StuffData.GetState() + 1) % totalStates;
+    }
+
+    public virtual int GetPrevToggleableState()
+    {
+        var totalStates = _ctx.RoomObject.Definition.TotalStates;
+
+        if (totalStates == 0 || StuffData is null)
+            return 0;
+
+        return (StuffData.GetState() - 1 + totalStates) % totalStates;
+    }
+
+    public virtual async Task SetStateAsync(int state, bool refresh = true)
+    {
+        StuffData.SetState(state.ToString());
+
+        if (_stuffPersistanceType == StuffPersistanceType.Persistent)
+            _ctx.RoomObject.ExtraData.UpdateSection(
+                ExtraDataSectionType.STUFF,
+                JsonSerializer.SerializeToNode(StuffData, StuffData.GetType())
+            );
+
+        if (refresh)
+            _ = _ctx.RefreshStuffDataAsync();
+
+        await OnStateChangedAsync(CancellationToken.None);
+    }
 
     public override Task OnAttachAsync(CancellationToken ct) =>
         _ctx.PublishRoomEventAsync(
             new RoomItemAttatchedEvent
             {
                 RoomId = _ctx.RoomId,
-                CausedBy = ActionContext.CreateForSystem(_ctx.RoomId),
+                CausedBy = ActionContext.System,
                 ObjectId = _ctx.ObjectId,
             },
             ct
@@ -99,7 +105,18 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
             new RoomItemDetachedEvent
             {
                 RoomId = _ctx.RoomId,
-                CausedBy = ActionContext.CreateForSystem(_ctx.RoomId),
+                CausedBy = ActionContext.System,
+                ObjectId = _ctx.ObjectId,
+            },
+            ct
+        );
+
+    public virtual Task OnStateChangedAsync(CancellationToken ct) =>
+        _ctx.PublishRoomEventAsync(
+            new RoomItemStateChangedEvent
+            {
+                RoomId = _ctx.RoomId,
+                CausedBy = ActionContext.System,
                 ObjectId = _ctx.ObjectId,
             },
             ct
@@ -156,14 +173,4 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
             },
             ct
         );
-
-    protected virtual int GetNextToggleableState()
-    {
-        var totalStates = _ctx.RoomObject.Definition.TotalStates;
-
-        if (totalStates == 0 || StuffData is null)
-            return 0;
-
-        return (StuffData.GetState() + 1) % totalStates;
-    }
 }

@@ -49,7 +49,7 @@ public sealed class FurnitureWallItemOffsetVariable(RoomGrain roomGrain)
         )
             return false;
 
-        ctx.AddWallItemMovement(item, item.X, item.Y, item.Z, item.Rotation, value);
+        await ctx.ProcessWallItemMovementAsync(item, item.X, item.Y, item.Z, item.Rotation, value);
 
         return true;
     }

@@ -30,7 +30,8 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
     public abstract int WiredCode { get; }
     public IWiredData WiredData { get; private set; }
 
-    protected override StuffPersistanceType _stuffPersistanceType => StuffPersistanceType.Internal;
+    protected override StuffPersistanceType _stuffPersistanceType =>
+        StuffPersistanceType.RoomActive;
 
     protected int _furniLimit = 20;
     protected bool _advancedMode = true;
@@ -74,12 +75,8 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
         await FillInternalDataAsync(ct);
     }
 
-    public async Task FlashActivationStateAsync(CancellationToken ct)
-    {
-        var state = await GetStateAsync() == 1 ? 0 : 1;
-
-        _ = SetStateAsync(state);
-    }
+    public Task FlashActivationStateAsync(CancellationToken ct) =>
+        SetStateAsync(GetState() == 1 ? 0 : 1);
 
     public virtual List<int> GetStuffIds()
     {
@@ -598,6 +595,8 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
             ct
         );
     }
+
+    public override Task OnStateChangedAsync(CancellationToken ct) => Task.CompletedTask;
 
     public override async Task OnMoveAsync(ActionContext ctx, int prevIdx, CancellationToken ct)
     {

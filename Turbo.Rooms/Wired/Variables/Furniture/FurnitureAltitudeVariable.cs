@@ -58,7 +58,7 @@ public sealed class FurnitureAltitudeVariable(RoomGrain roomGrain)
                         )
                     )
                     {
-                        ctx.AddFloorItemMovement(
+                        await ctx.ProcessFloorItemMovementAsync(
                             floorItem,
                             _roomGrain.MapModule.ToIdx(floorItem.X, floorItem.Y),
                             Altitude.FromInt(value),
@@ -83,7 +83,7 @@ public sealed class FurnitureAltitudeVariable(RoomGrain roomGrain)
                         )
                     )
                     {
-                        ctx.AddWallItemMovement(
+                        await ctx.ProcessWallItemMovementAsync(
                             wallItem,
                             wallItem.X,
                             wallItem.Y,

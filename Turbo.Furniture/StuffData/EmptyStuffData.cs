@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
 
@@ -11,10 +10,6 @@ internal sealed class EmptyStuffData : StuffDataBase, IEmptyStuffData
     public override StuffDataType StuffType => StuffDataType.EmptyKey;
 
     public override string GetLegacyString() => string.Empty;
-
-    public override Task SetStateAsync(string state) => SetStateSilentlyAsync(state);
-
-    public override Task SetStateSilentlyAsync(string state) => Task.CompletedTask;
 
     protected override StuffDataSnapshot BuildSnapshot() =>
         new EmptyStuffSnapshot()

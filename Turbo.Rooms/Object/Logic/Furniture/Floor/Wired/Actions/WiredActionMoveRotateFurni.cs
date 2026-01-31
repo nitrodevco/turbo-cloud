@@ -82,7 +82,7 @@ public class WiredActionMoveRotateFurni(
                 )
                     continue;
 
-                ctx.AddFloorItemMovement(floorItem, nextIdx, null, moveRotation);
+                await ctx.ProcessFloorItemMovementAsync(floorItem, nextIdx, null, moveRotation);
             }
             catch
             {

@@ -32,6 +32,13 @@ public class RoomWallItem
     public override IComposer GetUpdateComposer() =>
         new ItemUpdateMessageComposer { WallItem = GetSnapshot() };
 
+    public virtual IComposer GetRefreshStateComposer() =>
+        new ItemStateUpdateMessageComposer
+        {
+            ObjectId = ObjectId,
+            State = Logic.StuffData.GetLegacyString(),
+        };
+
     public override IComposer GetRefreshStuffDataComposer() =>
         new ItemDataUpdateMessageComposer
         {

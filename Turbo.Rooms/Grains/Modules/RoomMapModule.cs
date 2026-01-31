@@ -35,6 +35,10 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
     public int GetY(int idx) => idx / Width;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public int GetDistanceBetween(int a, int b) =>
+        Math.Abs((a % Width) - (b % Width)) + Math.Abs(a / Width - b / Width);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool InBounds(int x, int y) => (uint)x < (uint)Width && (uint)y < (uint)Height;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
