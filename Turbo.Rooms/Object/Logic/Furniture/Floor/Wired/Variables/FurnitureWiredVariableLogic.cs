@@ -26,6 +26,10 @@ public abstract class FurnitureWiredVariableLogic
 
     protected readonly WiredVariableId _variableId;
 
+    protected virtual WiredVariableType VariableType => WiredVariableType.Created;
+    protected abstract WiredVariableTargetType TargetType { get; }
+    protected abstract WiredAvailabilityType AvailabilityType { get; }
+    protected virtual WiredVariableFlags Flags => WiredVariableFlags.None;
     protected KeyValueStore? _storage = null;
     protected WiredVariableSnapshot? _varSnapshot;
 
@@ -125,12 +129,13 @@ public abstract class FurnitureWiredVariableLogic
                     _storage = new();
                 }
 
-                _storage?.SetAction(async () =>
+                _storage?.SetAction(() =>
                 {
                     _ctx.RoomObject.ExtraData.UpdateSection(
                         ExtraDataSectionType.STORAGE,
                         JsonSerializer.SerializeToNode(_storage, _storage.GetType())
                     );
+                    return Task.CompletedTask;
                 });
             }
         }
@@ -150,7 +155,29 @@ public abstract class FurnitureWiredVariableLogic
 
     public WiredVariableSnapshot GetVarSnapshot() => _varSnapshot ??= BuildVarSnapshot();
 
-    protected abstract WiredVariableSnapshot BuildVarSnapshot();
+    protected virtual WiredVariableSnapshot BuildVarSnapshot()
+    {
+        var textConnectors = GetTextConnectors();
+        var variableHash = WiredVariableHashBuilder.HashValues(
+            WiredData.StringParam,
+            AvailabilityType,
+            TargetType,
+            Flags,
+            textConnectors
+        );
+
+        return new()
+        {
+            VariableId = _variableId,
+            VariableName = WiredData.StringParam,
+            VariableType = WiredVariableType.Created,
+            VariableHash = variableHash,
+            AvailabilityType = AvailabilityType,
+            TargetType = TargetType,
+            Flags = Flags,
+            TextConnectors = textConnectors,
+        };
+    }
 
     public override async Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
     {

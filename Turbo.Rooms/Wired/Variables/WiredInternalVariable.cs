@@ -66,14 +66,16 @@ public abstract class WiredInternalVariable(RoomGrain roomGrain) : IWiredInterna
             GetTextConnectors()
         );
 
+        var variableId = WiredVariableIdBuilder.CreateInternalOrdered(
+            TargetType,
+            VariableName,
+            SubBandType,
+            Order
+        );
+
         return new()
         {
-            VariableId = WiredVariableIdBuilder.CreateInternalOrdered(
-                TargetType,
-                VariableName,
-                SubBandType,
-                Order
-            ),
+            VariableId = variableId,
             VariableName = VariableName,
             VariableType = VariableType,
             VariableHash = variableHash,

@@ -8,7 +8,6 @@ using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Wired.IntParams;
-using Turbo.Rooms.Wired.Variables;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 
@@ -21,6 +20,16 @@ public class WiredVariableRoom(
 ) : FurnitureWiredVariableLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredVariableBoxType.Global;
+
+    protected override WiredVariableTargetType TargetType => WiredVariableTargetType.Global;
+    protected override WiredAvailabilityType AvailabilityType =>
+        (WiredAvailabilityType)WiredData.IntParams[0];
+    protected override WiredVariableFlags Flags =>
+        WiredVariableFlags.HasValue
+        | WiredVariableFlags.CanWriteValue
+        | WiredVariableFlags.CanInterceptChanges
+        | WiredVariableFlags.AlwaysAvailable
+        | WiredVariableFlags.CanReadLastUpdateTime;
 
     public override List<IWiredIntParamRule> GetIntParamRules() =>
         [
@@ -50,39 +59,5 @@ public class WiredVariableRoom(
                     : WiredVariableValue.Default,
             },
         ];
-    }
-
-    protected override WiredVariableSnapshot BuildVarSnapshot()
-    {
-        var variableName = WiredData.StringParam;
-        var variableType = WiredVariableType.Created;
-        var availabilityType = (WiredAvailabilityType)WiredData.IntParams[0];
-        var targetType = WiredVariableTargetType.Global;
-        var flags =
-            WiredVariableFlags.HasValue
-            | WiredVariableFlags.CanWriteValue
-            | WiredVariableFlags.CanInterceptChanges
-            | WiredVariableFlags.AlwaysAvailable
-            | WiredVariableFlags.CanReadLastUpdateTime;
-        var textConnectors = GetTextConnectors();
-        var variableHash = WiredVariableHashBuilder.HashValues(
-            variableName,
-            availabilityType,
-            targetType,
-            flags,
-            textConnectors
-        );
-
-        return new()
-        {
-            VariableId = _variableId,
-            VariableName = variableName,
-            VariableType = variableType,
-            VariableHash = variableHash,
-            AvailabilityType = availabilityType,
-            TargetType = targetType,
-            Flags = flags,
-            TextConnectors = textConnectors,
-        };
     }
 }

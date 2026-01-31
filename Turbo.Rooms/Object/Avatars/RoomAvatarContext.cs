@@ -1,6 +1,5 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;

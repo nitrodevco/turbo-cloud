@@ -74,7 +74,7 @@ public sealed partial class RoomFurniModule
         return true;
     }
 
-    public async Task<bool> ValidateFloorItemPlacementAsync(
+    public Task<bool> ValidateFloorItemPlacementAsync(
         ActionContext ctx,
         RoomObjectId itemId,
         int x,
@@ -135,7 +135,7 @@ public sealed partial class RoomFurniModule
                         )
                     )
                 )
-                    return false;
+                    return Task.FromResult(false);
 
                 if (bItem == tItem)
                     continue;
@@ -150,14 +150,14 @@ public sealed partial class RoomFurniModule
                             || tItem.Logic is FurnitureRollerLogic
                         )
                     )
-                        return false;
+                        return Task.FromResult(false);
 
                     // if is a stack helper, allow placement
                 }
             }
         }
 
-        return true;
+        return Task.FromResult(true);
     }
 
     public Task<bool> ValidateNewFloorItemPlacementAsync(

@@ -69,17 +69,6 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
         return true;
     }
 
-    public void SetPosition(int x, int y)
-    {
-        if (X == x && Y == y)
-            return;
-
-        X = x;
-        Y = y;
-
-        MarkDirty();
-    }
-
     public void SetHeight(Altitude z)
     {
         z = Math.Round(z, 2);
@@ -92,7 +81,7 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
         MarkDirty();
     }
 
-    public void SetRotation(Rotation rot)
+    public new void SetRotation(Rotation rot)
     {
         SetBodyRotation(rot);
         SetHeadRotation(rot);
