@@ -20,12 +20,7 @@ public partial interface IRoomService
         CancellationToken ct
     );
     public Task CloseRoomForPlayerAsync(PlayerId playerId, CancellationToken ct);
-    public Task WalkAvatarToAsync(
-        ActionContext ctx,
-        int targetX,
-        int targetY,
-        CancellationToken ct
-    );
+    public Task ClickTileAsync(ActionContext ctx, int targetX, int targetY, CancellationToken ct);
     public Task PickupItemInRoomAsync(
         ActionContext ctx,
         RoomObjectId itemId,

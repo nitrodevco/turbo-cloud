@@ -17,6 +17,7 @@ public enum RoomTileFlags : ushort
     AvatarOccupied = 1 << 7,
     FurnitureOccupied = 1 << 8,
     FurnitureWithRollersOccupied = 1 << 9,
+    TileClickListener = 1 << 10,
 }
 
 public static class RoomTileFlagsExtensions

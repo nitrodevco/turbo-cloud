@@ -89,10 +89,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (!await AvatarModule.WalkAvatarToAsync(ctx, targetX, targetY, ct))
-                return false;
-
-            return true;
+            return await AvatarModule.WalkAvatarToAsync(ctx, targetX, targetY, ct);
         }
         catch (Exception ex)
         {

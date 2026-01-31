@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 
@@ -14,6 +15,9 @@ public sealed partial class RoomGrain
     public void ComputeTile(int x, int y) => MapModule.ComputeTile(x, y);
 
     public void ComputeTile(int id) => MapModule.ComputeTile(id);
+
+    public Task ClickTileAsync(ActionContext ctx, int x, int y, CancellationToken ct) =>
+        MapModule.ClickTileAsync(ctx, x, y, ct);
 
     public Task<RoomTileSnapshot> GetTileSnapshotAsync(int x, int y, CancellationToken ct) =>
         MapModule.GetTileSnapshotAsync(x, y, ct);

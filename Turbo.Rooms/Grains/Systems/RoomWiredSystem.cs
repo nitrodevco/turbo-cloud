@@ -97,6 +97,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
                 break;
             case PlayerLeftEvent playerLeftEvt:
                 _playerActiveStore.RemovePlayerStore(playerLeftEvt.PlayerId);
+                _eventQueue.Enqueue(evt);
                 break;
             case RoomItemDetachedEvent detatchedEvt:
                 _furnitureActiveStore.RemoveFurnitureStore(detatchedEvt.ObjectId);

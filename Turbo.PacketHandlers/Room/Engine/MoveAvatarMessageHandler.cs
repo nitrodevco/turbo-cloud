@@ -17,7 +17,7 @@ public class MoveAvatarMessageHandler(IRoomService roomService) : IMessageHandle
     )
     {
         await _roomService
-            .WalkAvatarToAsync(ctx.AsActionContext(), message.TargetX, message.TargetY, ct)
+            .ClickTileAsync(ctx.AsActionContext(), message.TargetX, message.TargetY, ct)
             .ConfigureAwait(false);
     }
 }

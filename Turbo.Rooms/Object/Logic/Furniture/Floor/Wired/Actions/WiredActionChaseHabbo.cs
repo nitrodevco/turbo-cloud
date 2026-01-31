@@ -5,8 +5,8 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Events.Avatar;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -38,7 +38,6 @@ public class WiredActionChaseHabbo(
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
         var selection = await ctx.GetEffectiveSelectionAsync(this, ct);
-        var actionCtx = ctx.AsActionContext();
 
         foreach (var furniId in selection.SelectedFurniIds)
         {
@@ -53,6 +52,7 @@ public class WiredActionChaseHabbo(
                 var didCollide = false;
                 var bestTileIdx = -1;
                 var bestDistance = int.MaxValue;
+                var targetIdx = -1;
                 var floorIdx = _roomGrain.MapModule.ToIdx(floorItem.X, floorItem.Y);
 
                 foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
@@ -98,32 +98,44 @@ public class WiredActionChaseHabbo(
 
                 if (bestTileIdx > -1)
                 {
-                    var targetIdx = GetTargetTileIdx(floorIdx, bestTileIdx);
-                    var (targetX, targetY) = _roomGrain.MapModule.GetTileXY(targetIdx);
+                    targetIdx = GetTargetTileIdx(floorIdx, bestTileIdx);
+                }
+                else
+                {
+                    var direction = RotationExtensions.CARDINAL[Random.Shared.Next(0, 4)];
 
                     if (
-                        await _roomGrain.FurniModule.ValidateFloorItemPlacementAsync(
-                            ActionContext.Wired,
-                            floorItem.ObjectId,
-                            targetX,
-                            targetY,
-                            floorItem.Rotation
+                        _roomGrain.MapModule.TryGetTileInFront(
+                            _roomGrain.MapModule.ToIdx(floorItem.X, floorItem.Y),
+                            direction,
+                            out var nextIdx
                         )
                     )
                     {
-                        await ctx.ProcessFloorItemMovementAsync(
-                            floorItem,
-                            targetIdx,
-                            floorItem.Z,
-                            floorItem.Rotation
-                        );
-
-                        continue;
+                        targetIdx = nextIdx;
                     }
                 }
 
-                // random
-                continue;
+                if (targetIdx == -1)
+                    continue;
+
+                var (targetX, targetY) = _roomGrain.MapModule.GetTileXY(targetIdx);
+
+                if (
+                    await _roomGrain.FurniModule.ValidateFloorItemPlacementAsync(
+                        ActionContext.Wired,
+                        floorItem.ObjectId,
+                        targetX,
+                        targetY,
+                        floorItem.Rotation
+                    )
+                )
+                    await ctx.ProcessFloorItemMovementAsync(
+                        floorItem,
+                        targetIdx,
+                        floorItem.Z,
+                        floorItem.Rotation
+                    );
             }
             catch
             {

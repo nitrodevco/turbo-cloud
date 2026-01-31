@@ -5,12 +5,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Logging;
 using Turbo.Primitives;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
+using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -159,6 +162,27 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
         };
     }
 
+    public Task ClickTileAsync(ActionContext ctx, int x, int y, CancellationToken ct)
+    {
+        var idx = ToIdx(x, y);
+        var tile = _roomGrain._state.TileFlags[idx];
+
+        if (!tile.Has(RoomTileFlags.TileClickListener))
+            return Task.CompletedTask;
+
+        return _roomGrain.PublishRoomEventAsync(
+            new PlayerClickedTileEvent()
+            {
+                PlayerId = ctx.PlayerId,
+                TileX = x,
+                TileY = y,
+                RoomId = _roomGrain.RoomId,
+                CausedBy = ctx,
+            },
+            ct
+        );
+    }
+
     public void ComputeAllTiles()
     {
         for (int idx = 0; idx < Size; idx++)
@@ -204,6 +228,11 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
                     continue;
 
                 var height = item.Height;
+
+                if (item.Logic is FurnitureInvisibleClickTileLogic invisLogic)
+                {
+                    nextFlags = nextFlags.Add(RoomTileFlags.TileClickListener);
+                }
 
                 // special logic if stack helper
 

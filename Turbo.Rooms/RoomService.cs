@@ -224,7 +224,7 @@ internal sealed partial class RoomService(
             .ConfigureAwait(false);
     }
 
-    public async Task WalkAvatarToAsync(
+    public async Task ClickTileAsync(
         ActionContext ctx,
         int targetX,
         int targetY,
@@ -236,6 +236,7 @@ internal sealed partial class RoomService(
 
         var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
 
+        await roomGrain.ClickTileAsync(ctx, targetX, targetY, ct).ConfigureAwait(false);
         await roomGrain.WalkAvatarToAsync(ctx, targetX, targetY, ct).ConfigureAwait(false);
     }
 
