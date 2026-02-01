@@ -7,7 +7,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Wired.IntParams;
+using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
@@ -20,9 +20,9 @@ public class WiredActionToggleItemState(
 {
     public override int WiredCode => (int)WiredActionType.TOGGLE_FURNI_STATE;
 
-    public override List<IWiredIntParamRule> GetIntParamRules() =>
+    public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredIntBoolRule(false), // Toggle type
+            new WiredBoolParamRule(false), // Toggle type
         ];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>

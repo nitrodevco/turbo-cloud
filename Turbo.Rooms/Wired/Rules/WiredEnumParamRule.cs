@@ -2,16 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Turbo.Rooms.Wired.IntParams;
+namespace Turbo.Rooms.Wired.Rules;
 
-public sealed class WiredIntEnumRule<TEnum> : WiredIntParamRule
+public sealed class WiredEnumParamRule<TEnum> : WiredParamRule
     where TEnum : struct, Enum
 {
     public override Type? ValueType { get; }
 
     private readonly HashSet<int> _allowed;
 
-    public WiredIntEnumRule(TEnum defaultValue, params TEnum[] allowed)
+    public WiredEnumParamRule(TEnum defaultValue, params TEnum[] allowed)
         : base(Convert.ToInt32(defaultValue))
     {
         ValueType = typeof(TEnum);

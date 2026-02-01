@@ -1,6 +1,6 @@
 using Orleans;
-using Turbo.Primitives.Furniture.Snapshots.WiredData;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 
 namespace Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 

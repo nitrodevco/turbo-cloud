@@ -8,7 +8,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Wired.IntParams;
+using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
@@ -23,9 +23,9 @@ public class WiredAddonAnimationTime(
 
     private int _animationTimeMs;
 
-    public override List<IWiredIntParamRule> GetIntParamRules() =>
+    public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredIntRangeRule(50, 2000, 50), // Animation Time
+            new WiredRangeParamRule(50, 2000, 50), // Animation Time
         ];
 
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)

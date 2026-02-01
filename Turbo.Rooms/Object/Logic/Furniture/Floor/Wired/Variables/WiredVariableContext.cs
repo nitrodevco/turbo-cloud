@@ -5,7 +5,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Wired.IntParams;
+using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 
@@ -29,5 +29,5 @@ public class WiredVariableContext(
         | WiredVariableFlags.CanCreateAndDelete
         | WiredVariableFlags.CanReadCreationTime;
 
-    public override List<IWiredIntParamRule> GetIntParamRules() => [new WiredIntBoolRule(false)];
+    public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(false)];
 }

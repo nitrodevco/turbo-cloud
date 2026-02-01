@@ -1,9 +1,9 @@
 using System;
 using Turbo.Primitives.Rooms.Wired;
 
-namespace Turbo.Rooms.Wired.IntParams;
+namespace Turbo.Rooms.Wired.Rules;
 
-public class WiredIntParamRule(int defaultValue) : IWiredIntParamRule
+public class WiredParamRule(int defaultValue) : IWiredParamRule
 {
     public int DefaultValue { get; } = defaultValue;
 

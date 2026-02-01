@@ -2,9 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Wired;
 
-namespace Turbo.Primitives.Furniture.WiredData;
+namespace Turbo.Primitives.Rooms.Wired;
 
 public interface IWiredData
 {
@@ -20,7 +19,11 @@ public interface IWiredData
     public List<object> TypeSpecifics { get; set; }
     public T GetIntParam<T>(int index);
     public void SetIntParam<T>(int index, T value);
-    public void AttatchRules(IReadOnlyList<IWiredIntParamRule> rules);
+    public T GetDefinitionParam<T>(int index);
+    public void SetDefinitionParam<T>(int index, T value);
+    public T GetTypeParam<T>(int index);
+    public void SetTypeParam<T>(int index, T value);
+    public void AttatchRules(IReadOnlyList<IWiredParamRule> rules);
     public void SetAction(Func<Task>? onSnapshotChanged);
     public void MarkDirty();
 }

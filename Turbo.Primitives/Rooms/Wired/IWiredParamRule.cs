@@ -2,7 +2,7 @@ using System;
 
 namespace Turbo.Primitives.Rooms.Wired;
 
-public interface IWiredIntParamRule
+public interface IWiredParamRule
 {
     public int DefaultValue { get; }
     public Type? ValueType { get; }

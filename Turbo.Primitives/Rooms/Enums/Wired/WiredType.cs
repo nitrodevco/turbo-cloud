@@ -1,4 +1,4 @@
-namespace Turbo.Primitives.Furniture.Enums;
+namespace Turbo.Primitives.Rooms.Enums.Wired;
 
 public enum WiredType
 {

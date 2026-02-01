@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
-using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
@@ -19,40 +19,27 @@ public abstract class FurnitureWiredSelectorLogic(
 {
     public override WiredType WiredType => WiredType.Selector;
 
+    private bool _isFilter = false;
+    private bool _isInvert = false;
+
     public override List<Type> GetDefinitionSpecificTypes() =>
         [.. base.GetDefinitionSpecificTypes(), typeof(bool), typeof(bool)];
 
-    public bool GetIsFilter()
+    protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
-        var isFilter = false;
+        await base.FillInternalDataAsync(ct);
 
         try
         {
-            if (_wiredData.DefinitionSpecifics is not null)
-            {
-                isFilter = (bool)_wiredData.DefinitionSpecifics[0]!;
-            }
+            _isFilter = _wiredData.GetDefinitionParam<bool>(0);
+            _isInvert = _wiredData.GetDefinitionParam<bool>(1);
         }
         catch { }
-
-        return isFilter;
     }
 
-    public bool GetIsInvert()
-    {
-        var isInvert = false;
+    public bool GetIsFilter() => _isFilter;
 
-        try
-        {
-            if (_wiredData.DefinitionSpecifics is not null)
-            {
-                isInvert = (bool)_wiredData.DefinitionSpecifics[1]!;
-            }
-        }
-        catch { }
-
-        return isInvert;
-    }
+    public bool GetIsInvert() => _isInvert;
 
     public virtual Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,

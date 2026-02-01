@@ -8,7 +8,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
-using Turbo.Rooms.Wired.IntParams;
+using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
@@ -21,7 +21,7 @@ public class WiredSelectorItemsByType(
 {
     public override int WiredCode => (int)WiredSelectorType.FURNI_BY_TYPE;
 
-    public override List<IWiredIntParamRule> GetIntParamRules() => [new WiredIntBoolRule(false)];
+    public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(false)];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [

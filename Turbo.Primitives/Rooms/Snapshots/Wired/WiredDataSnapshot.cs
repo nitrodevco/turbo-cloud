@@ -1,11 +1,10 @@
 using System.Collections.Generic;
 using Orleans;
-using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 
-namespace Turbo.Primitives.Furniture.Snapshots.WiredData;
+namespace Turbo.Primitives.Rooms.Snapshots.Wired;
 
 [GenerateSerializer, Immutable]
 public record WiredDataSnapshot

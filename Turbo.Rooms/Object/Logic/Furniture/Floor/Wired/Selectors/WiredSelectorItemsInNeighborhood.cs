@@ -7,7 +7,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Wired.IntParams;
+using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
@@ -30,12 +30,12 @@ public class WiredSelectorItemsInNeighborhood(
             [WiredPlayerSourceType.TriggeredUser, WiredPlayerSourceType.SignalUsers],
         ];
 
-    public override List<IWiredIntParamRule> GetIntParamRules() =>
+    public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredIntBoolRule(false),
-            new WiredIntParamRule(0),
-            new WiredIntParamRule(0),
-            new WiredIntParamRule(0),
+            new WiredBoolParamRule(false),
+            new WiredParamRule(0),
+            new WiredParamRule(0),
+            new WiredParamRule(0),
         ];
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)

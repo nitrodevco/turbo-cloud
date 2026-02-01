@@ -5,7 +5,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Wired.IntParams;
+using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 
@@ -31,10 +31,10 @@ public class WiredVariableFurni(
         | WiredVariableFlags.CanInterceptChanges
         | WiredVariableFlags.CanReadCreationTime;
 
-    public override List<IWiredIntParamRule> GetIntParamRules() =>
+    public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredIntBoolRule(false),
-            new WiredIntEnumRule<WiredAvailabilityType>(
+            new WiredBoolParamRule(false),
+            new WiredEnumParamRule<WiredAvailabilityType>(
                 WiredAvailabilityType.RoomActive,
                 WiredAvailabilityType.RoomActive,
                 WiredAvailabilityType.Persistent

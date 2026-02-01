@@ -8,14 +8,13 @@ using Orleans;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
-using Turbo.Primitives.Furniture.Snapshots.WiredData;
-using Turbo.Primitives.Furniture.WiredData;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
@@ -78,9 +77,9 @@ public abstract class FurnitureWiredLogic(
         return stuffIds ?? [];
     }
 
-    public virtual List<IWiredIntParamRule> GetIntParamRules() => [];
+    public virtual List<IWiredParamRule> GetIntParamRules() => [];
 
-    public virtual IWiredIntParamRule? GetIntParamTailRule() => null;
+    public virtual IWiredParamRule? GetIntParamTailRule() => null;
 
     public virtual List<WiredFurniSourceType[]> GetAllowedFurniSources() => [];
 

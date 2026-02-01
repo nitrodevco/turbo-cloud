@@ -3,10 +3,9 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Furniture.Enums;
-using Turbo.Primitives.Furniture.Snapshots.WiredData;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 
 namespace Turbo.Primitives.Rooms.Wired;
@@ -20,8 +19,8 @@ public interface IWiredBox
     public Task FlashActivationStateAsync(CancellationToken ct);
     public List<int> GetStuffIds();
     public List<int> GetStuffIds2();
-    public List<IWiredIntParamRule> GetIntParamRules();
-    public IWiredIntParamRule? GetIntParamTailRule();
+    public List<IWiredParamRule> GetIntParamRules();
+    public IWiredParamRule? GetIntParamTailRule();
     public List<WiredFurniSourceType[]> GetAllowedFurniSources();
     public List<WiredPlayerSourceType[]> GetAllowedPlayerSources();
     public List<Type> GetDefinitionSpecificTypes();
@@ -31,8 +30,6 @@ public interface IWiredBox
     public List<WiredPlayerSourceType[]> GetPlayerSources();
     public List<WiredFurniSourceType[]> GetDefaultFurniSources();
     public List<WiredPlayerSourceType[]> GetDefaultPlayerSources();
-    public List<object> GetDefinitionSpecifics();
-    public List<object> GetTypeSpecifics();
     public Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,
         UpdateWiredMessage update,

@@ -1,7 +1,7 @@
-namespace Turbo.Rooms.Wired.IntParams;
+namespace Turbo.Rooms.Wired.Rules;
 
-public sealed class WiredIntRangeRule(int min, int max, int defaultValue)
-    : WiredIntParamRule(defaultValue)
+public sealed class WiredRangeParamRule(int min, int max, int defaultValue)
+    : WiredParamRule(defaultValue)
 {
     private readonly int _min = min;
     private readonly int _max = max;

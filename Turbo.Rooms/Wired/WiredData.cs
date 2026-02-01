@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using Turbo.Primitives.Furniture.WiredData;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Wired;
 
@@ -24,13 +23,13 @@ public class WiredData : IWiredData
     public List<object> DefinitionSpecifics { get; set; } = [];
     public List<object> TypeSpecifics { get; set; } = [];
 
-    private IReadOnlyList<IWiredIntParamRule> _rules = [];
+    private IReadOnlyList<IWiredParamRule> _intRules = [];
 
     private Func<Task>? _onSnapshotChanged;
 
     public T GetIntParam<T>(int index)
     {
-        var rule = _rules[index];
+        var rule = _intRules[index];
 
         if (rule.ValueType != typeof(T))
             throw new InvalidOperationException(
@@ -42,7 +41,7 @@ public class WiredData : IWiredData
 
     public void SetIntParam<T>(int index, T value)
     {
-        var rule = _rules[index];
+        var rule = _intRules[index];
 
         if (rule.ValueType != typeof(T))
             throw new InvalidOperationException(
@@ -54,7 +53,25 @@ public class WiredData : IWiredData
         MarkDirty();
     }
 
-    public void AttatchRules(IReadOnlyList<IWiredIntParamRule> rules) => _rules = rules;
+    public T GetDefinitionParam<T>(int index) => (T)DefinitionSpecifics[index];
+
+    public void SetDefinitionParam<T>(int index, T value)
+    {
+        DefinitionSpecifics[index] = value!;
+
+        MarkDirty();
+    }
+
+    public T GetTypeParam<T>(int index) => (T)TypeSpecifics[index];
+
+    public void SetTypeParam<T>(int index, T value)
+    {
+        TypeSpecifics[index] = value!;
+
+        MarkDirty();
+    }
+
+    public void AttatchRules(IReadOnlyList<IWiredParamRule> rules) => _intRules = rules;
 
     public void SetAction(Func<Task>? onSnapshotChanged) => _onSnapshotChanged = onSnapshotChanged;
 

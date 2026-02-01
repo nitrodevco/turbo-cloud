@@ -9,7 +9,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
-using Turbo.Rooms.Wired.IntParams;
+using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
@@ -22,10 +22,10 @@ public class WiredSelectorItemsWithAltitude(
 {
     public override int WiredCode => (int)WiredSelectorType.FURNI_WITH_ALTITUDE;
 
-    public override List<IWiredIntParamRule> GetIntParamRules() =>
+    public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredIntRangeRule(0, 8000, 0),
-            new WiredIntEnumRule<WiredComparisonType>(WiredComparisonType.LessThan),
+            new WiredRangeParamRule(0, 8000, 0),
+            new WiredEnumParamRule<WiredComparisonType>(WiredComparisonType.LessThan),
         ];
 
     public override Task<IWiredSelectionSet> SelectAsync(

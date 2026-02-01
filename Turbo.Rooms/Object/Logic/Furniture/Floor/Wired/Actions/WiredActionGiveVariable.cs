@@ -9,7 +9,7 @@ using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
-using Turbo.Rooms.Wired.IntParams;
+using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
@@ -22,17 +22,17 @@ public class WiredActionGiveVariable(
 {
     public override int WiredCode => (int)WiredActionType.GIVE_VARIABLE;
 
-    public override List<IWiredIntParamRule> GetIntParamRules() =>
+    public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredIntEnumRule<WiredVariableTargetType>(
+            new WiredEnumParamRule<WiredVariableTargetType>(
                 WiredVariableTargetType.User,
                 WiredVariableTargetType.User,
                 WiredVariableTargetType.Furni,
                 WiredVariableTargetType.Context
             ),
-            new WiredIntRangeRule(0, 0, 0),
-            new WiredIntParamRule(0), // init value
-            new WiredIntBoolRule(false), // override
+            new WiredRangeParamRule(0, 0, 0),
+            new WiredParamRule(0), // init value
+            new WiredBoolParamRule(false), // override
         ];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>

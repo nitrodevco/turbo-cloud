@@ -9,7 +9,7 @@ using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Wired.IntParams;
+using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
@@ -27,8 +27,7 @@ public class WiredTriggerPeriodically(
 
     private int _delayValue = 0;
 
-    public override List<IWiredIntParamRule> GetIntParamRules() =>
-        [new WiredIntRangeRule(1, 10, 1)];
+    public override List<IWiredParamRule> GetIntParamRules() => [new WiredRangeParamRule(1, 10, 1)];
 
     public int GetPeriodicDelayMs()
     {

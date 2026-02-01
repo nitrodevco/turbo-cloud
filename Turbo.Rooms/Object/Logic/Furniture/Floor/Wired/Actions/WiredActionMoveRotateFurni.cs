@@ -9,7 +9,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Wired.IntParams;
+using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
@@ -25,10 +25,10 @@ public class WiredActionMoveRotateFurni(
     private int _movementType = 0;
     private int _rotationType = 0;
 
-    public override List<IWiredIntParamRule> GetIntParamRules() =>
+    public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredIntRangeRule(0, 7, 0), // Movement Type
-            new WiredIntRangeRule(0, 3, 0), // Rotation Type
+            new WiredRangeParamRule(0, 7, 0), // Movement Type
+            new WiredRangeParamRule(0, 3, 0), // Rotation Type
         ];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>

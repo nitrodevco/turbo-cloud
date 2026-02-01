@@ -1,8 +1,8 @@
 using System;
 
-namespace Turbo.Rooms.Wired.IntParams;
+namespace Turbo.Rooms.Wired.Rules;
 
-public sealed class WiredIntBoolRule(bool defaultValue) : WiredIntParamRule(defaultValue ? 1 : 0)
+public sealed class WiredBoolParamRule(bool defaultValue) : WiredParamRule(defaultValue ? 1 : 0)
 {
     public override Type? ValueType { get; } = typeof(bool);
 
