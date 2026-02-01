@@ -23,7 +23,7 @@ public abstract class WiredContext(RoomGrain roomGrain) : IWiredContext
 
     public bool TryGetContextVariable(string key, out int value)
     {
-        if (!Variables.TryGetValue(key, out var intValue))
+        if (Variables.TryGetValue(key, out var intValue))
         {
             value = intValue;
 

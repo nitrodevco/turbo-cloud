@@ -23,7 +23,7 @@ public class WiredActionToggleItemState(
 
     public override List<IWiredIntParamRule> GetIntParamRules() =>
         [
-            new WiredIntRangeRule(0, 1, 0), // Toggle type
+            new WiredIntEnumRule<WiredBooleanType>(WiredBooleanType.False), // Toggle type
         ];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>

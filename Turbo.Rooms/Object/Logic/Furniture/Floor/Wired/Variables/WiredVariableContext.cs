@@ -30,5 +30,6 @@ public class WiredVariableContext(
         | WiredVariableFlags.CanCreateAndDelete
         | WiredVariableFlags.CanReadCreationTime;
 
-    public override List<IWiredIntParamRule> GetIntParamRules() => [new WiredIntRangeRule(0, 1, 0)];
+    public override List<IWiredIntParamRule> GetIntParamRules() =>
+        [new WiredIntEnumRule<WiredBooleanType>(WiredBooleanType.False)];
 }

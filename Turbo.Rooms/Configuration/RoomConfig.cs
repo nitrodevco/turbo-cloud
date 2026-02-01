@@ -28,4 +28,5 @@ public class RoomConfig
     public int WiredMaxDepth { get; init; } = 20;
     public int WiredMaxScheduledPerTick { get; init; } = 64;
     public int WiredMaxEventsPerTick { get; init; } = 64;
+    public int WiredSelectorMaxAreaSize { get; init; } = 100;
 }

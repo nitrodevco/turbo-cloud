@@ -23,14 +23,11 @@ public class WiredTriggerClickTile(
     public override int WiredCode => (int)WiredTriggerType.USER_CLICKS_TILE;
     public override List<Type> SupportedEventTypes { get; } = [typeof(PlayerClickedTileEvent)];
 
-    public override async Task<bool> CanTriggerAsync(
-        IWiredProcessingContext ctx,
-        CancellationToken ct
-    )
+    public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
         if (ctx.Event is not PlayerClickedTileEvent evt)
-            return false;
+            return Task.FromResult(false);
 
-        return true;
+        return Task.FromResult(true);
     }
 }

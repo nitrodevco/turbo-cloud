@@ -8,6 +8,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
+using Turbo.Rooms.Wired.IntParams;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
@@ -21,12 +22,14 @@ public class WiredSelectorItemsByType(
 {
     public override int WiredCode => (int)WiredSelectorType.FURNI_BY_TYPE;
 
+    public override List<IWiredIntParamRule> GetIntParamRules() =>
+        [new WiredIntEnumRule<WiredBooleanType>(WiredBooleanType.False)];
+
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [
             [
                 WiredFurniSourceType.SelectedItems,
                 WiredFurniSourceType.SignalItems,
-                WiredFurniSourceType.SelectorItems,
                 WiredFurniSourceType.TriggeredItem,
             ],
         ];
@@ -58,7 +61,7 @@ public class WiredSelectorItemsByType(
         foreach (var item in _roomGrain._state.ItemsById.Values)
         {
             if (allowedDefinitionIds.Contains(item.Definition.Id))
-                output.SelectedFurniIds.Add(item.ObjectId.Value);
+                output.SelectedFurniIds.Add((int)item.ObjectId);
         }
 
         return output;

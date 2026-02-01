@@ -24,7 +24,8 @@ public class WiredTriggerItemStateUpdated(
     public override int WiredCode => (int)WiredTriggerType.STATE_CHANGE;
     public override List<Type> SupportedEventTypes { get; } = [typeof(RoomItemStateChangedEvent)];
 
-    public override List<IWiredIntParamRule> GetIntParamRules() => [new WiredIntRangeRule(0, 1, 0)];
+    public override List<IWiredIntParamRule> GetIntParamRules() =>
+        [new WiredIntEnumRule<WiredBooleanType>(WiredBooleanType.False)];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [

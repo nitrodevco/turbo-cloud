@@ -23,14 +23,11 @@ public class WiredTriggerHabboCollision(
     public override int WiredCode => (int)WiredTriggerType.AVATAR_CAUGHT;
     public override List<Type> SupportedEventTypes { get; } = [typeof(RoomItemCollisionEvent)];
 
-    public override async Task<bool> CanTriggerAsync(
-        IWiredProcessingContext ctx,
-        CancellationToken ct
-    )
+    public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
         if (ctx.Event is not RoomItemCollisionEvent evt)
-            return false;
+            return Task.FromResult(false);
 
-        return true;
+        return Task.FromResult(true);
     }
 }

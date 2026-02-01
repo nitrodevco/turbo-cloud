@@ -34,7 +34,7 @@ public class WiredVariableFurni(
 
     public override List<IWiredIntParamRule> GetIntParamRules() =>
         [
-            new WiredIntRangeRule(0, 1, 0),
+            new WiredIntEnumRule<WiredBooleanType>(WiredBooleanType.False),
             new WiredIntEnumRule<WiredAvailabilityType>(
                 WiredAvailabilityType.RoomActive,
                 WiredAvailabilityType.RoomActive,

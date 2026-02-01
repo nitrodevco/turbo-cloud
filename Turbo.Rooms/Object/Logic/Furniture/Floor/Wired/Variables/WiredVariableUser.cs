@@ -40,6 +40,6 @@ public class WiredVariableUser(
                 WiredAvailabilityType.Persistent,
                 WiredAvailabilityType.Shared
             ),
-            new WiredIntRangeRule(0, 1, 0),
+            new WiredIntEnumRule<WiredBooleanType>(WiredBooleanType.False),
         ];
 }

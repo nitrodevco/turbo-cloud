@@ -120,6 +120,8 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
 
     public virtual List<Type> GetTypeSpecificTypes() => [];
 
+    public virtual bool SupportsAdvancedMode() => true;
+
     public virtual List<WiredVariableContextSnapshot> GetWiredContextSnapshots() => [];
 
     public List<WiredFurniSourceType[]> GetFurniSources()
@@ -561,7 +563,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
             FurniSourceTypes = GetFurniSources(),
             PlayerSourceTypes = GetPlayerSources(),
             Code = WiredCode,
-            AdvancedMode = _advancedMode,
+            AdvancedMode = SupportsAdvancedMode(),
             AmountFurniSelections = [],
             AllowWallFurni = _allowWallFurni,
             AllowedFurniSources = GetAllowedFurniSources(),

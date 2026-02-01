@@ -8,6 +8,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
+using Turbo.Rooms.Wired.IntParams;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
@@ -23,29 +24,29 @@ public class WiredSelectorItemsInArea(
 
     private readonly HashSet<int> _tileIds = [];
 
-    private int _maxAreaSize = 100;
+    public override List<IWiredIntParamRule> GetIntParamRules() =>
+        [
+            new WiredIntParamRule(0),
+            new WiredIntParamRule(0),
+            new WiredIntParamRule(0),
+            new WiredIntParamRule(0),
+        ];
 
-    public override async Task<IWiredSelectionSet> SelectAsync(
+    public override Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,
         CancellationToken ct
     )
     {
-        var input = await ctx.GetWiredSelectionSetAsync(this, ct);
         var output = new WiredSelectionSet();
-
-        foreach (var id in input.SelectedFurniIds)
-        {
-            output.SelectedFurniIds.Add(id);
-        }
 
         foreach (var tileId in _tileIds)
         {
             try
             {
-                var flooritems = _roomGrain._state.TileFloorStacks[tileId];
+                var itemIds = _roomGrain._state.TileFloorStacks[tileId];
 
-                foreach (var item in flooritems)
-                    output.SelectedFurniIds.Add(item.Value);
+                foreach (var itemId in itemIds)
+                    output.SelectedFurniIds.Add((int)itemId);
             }
             catch
             {
@@ -53,7 +54,7 @@ public class WiredSelectorItemsInArea(
             }
         }
 
-        return output;
+        return Task.FromResult((IWiredSelectionSet)output);
     }
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)
@@ -74,7 +75,7 @@ public class WiredSelectorItemsInArea(
         {
             for (var dx = 0; dx < areaW; dx++)
             {
-                if (size >= _maxAreaSize)
+                if (size >= _roomGrain._roomConfig.WiredSelectorMaxAreaSize)
                 {
                     filled = true;
 
