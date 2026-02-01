@@ -7,7 +7,6 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
@@ -35,8 +34,7 @@ public abstract class FurnitureWiredActionLogic(
 
         try
         {
-            _delayMs =
-                Math.Clamp(Math.Clamp(_wiredData.GetIntParam<int>(0), 50, 2000), 0, 20) * 500;
+            _delayMs = Math.Clamp(_wiredData.GetDefinitionParam<int>(0), 0, 20) * 500;
         }
         catch { }
     }

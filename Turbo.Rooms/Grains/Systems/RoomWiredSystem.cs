@@ -149,7 +149,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
         };
 
         if (evt.CausedBy.Origin == ActionOrigin.Player && evt.CausedBy.PlayerId > 0)
-            ctx.Selected.SelectedAvatarIds.Add(evt.CausedBy.PlayerId);
+            ctx.Selected.SelectedPlayerIds.Add(evt.CausedBy.PlayerId);
 
         var selection = await ctx.GetWiredSelectionSetAsync(trigger, ct);
 

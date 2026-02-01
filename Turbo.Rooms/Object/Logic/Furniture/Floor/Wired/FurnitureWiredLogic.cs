@@ -392,7 +392,7 @@ public abstract class FurnitureWiredLogic(
         var fixedRules = GetIntParamRules();
         var tailRule = GetIntParamTailRule();
         var min = fixedRules.Count;
-        var max = Math.Min(fixedRules.Count, _roomGrain._roomConfig.WiredMaxIntParams);
+        var max = Math.Max(min, _roomGrain._roomConfig.WiredMaxIntParams);
 
         if (proposed.Count > max)
             return false;

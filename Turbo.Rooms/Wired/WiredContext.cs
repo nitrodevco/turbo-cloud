@@ -52,6 +52,9 @@ public abstract class WiredContext(RoomGrain roomGrain) : IWiredContext
             {
                 switch (sourceType)
                 {
+                    case WiredFurniSourceType.TriggeredItem:
+                        set.SelectedFurniIds.UnionWith(Selected.SelectedFurniIds);
+                        break;
                     case WiredFurniSourceType.SelectedItems:
                         {
                             var stuffIds = wired.GetStuffIds();
@@ -81,8 +84,13 @@ public abstract class WiredContext(RoomGrain roomGrain) : IWiredContext
                             }
                         }
                         break;
-                    case WiredFurniSourceType.TriggeredItem:
-                        set.SelectedFurniIds.UnionWith(Selected.SelectedFurniIds);
+                    case WiredFurniSourceType.AllRoomItems:
+                        {
+                            foreach (var item in _roomGrain._state.ItemsById.Values)
+                            {
+                                set.SelectedFurniIds.Add((int)item.ObjectId);
+                            }
+                        }
                         break;
                 }
             }
@@ -95,7 +103,7 @@ public abstract class WiredContext(RoomGrain roomGrain) : IWiredContext
                 switch (sourceType)
                 {
                     case WiredPlayerSourceType.TriggeredUser:
-                        set.SelectedAvatarIds.UnionWith(Selected.SelectedAvatarIds);
+                        set.SelectedPlayerIds.UnionWith(Selected.SelectedPlayerIds);
                         break;
                 }
             }
@@ -138,10 +146,10 @@ public abstract class WiredContext(RoomGrain roomGrain) : IWiredContext
                 switch (sourceType)
                 {
                     case WiredPlayerSourceType.TriggeredUser:
-                        result.SelectedAvatarIds.UnionWith(Selected.SelectedAvatarIds);
+                        result.SelectedPlayerIds.UnionWith(Selected.SelectedPlayerIds);
                         break;
                     case WiredPlayerSourceType.SelectorUsers:
-                        result.SelectedAvatarIds.UnionWith(SelectorPool.SelectedAvatarIds);
+                        result.SelectedPlayerIds.UnionWith(SelectorPool.SelectedPlayerIds);
                         break;
                     case WiredPlayerSourceType.SignalUsers:
                         break;

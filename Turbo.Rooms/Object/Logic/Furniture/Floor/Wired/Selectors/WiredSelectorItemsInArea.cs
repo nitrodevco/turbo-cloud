@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -22,16 +23,6 @@ public class WiredSelectorItemsInArea(
     public override int WiredCode => (int)WiredSelectorType.FURNI_IN_AREA;
 
     private readonly HashSet<int> _tileIds = [];
-
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [
-            [WiredFurniSourceType.TriggeredItem, WiredFurniSourceType.SignalItems],
-        ];
-
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
-        [
-            [WiredPlayerSourceType.TriggeredUser, WiredPlayerSourceType.SignalUsers],
-        ];
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
@@ -72,13 +63,12 @@ public class WiredSelectorItemsInArea(
 
         await base.FillInternalDataAsync(ct);
 
-        var map = await _ctx.Room.GetMapSnapshotAsync(ct);
         var rootX = _wiredData.GetIntParam<int>(0);
         var rootY = _wiredData.GetIntParam<int>(1);
         var areaW = _wiredData.GetIntParam<int>(2);
         var areaH = _wiredData.GetIntParam<int>(3);
-        var mapW = map.Width;
-        var mapH = map.Height;
+        var mapW = _roomGrain.MapModule.Width;
+        var mapH = _roomGrain.MapModule.Height;
         var size = 0;
         var filled = false;
 
@@ -107,6 +97,40 @@ public class WiredSelectorItemsInArea(
 
             if (filled)
                 break;
+        }
+
+        size = 0;
+        filled = false;
+
+        if (GetIsInvert())
+        {
+            var selectedTiles = _tileIds.ToHashSet();
+
+            _tileIds.Clear();
+
+            for (var y = 0; y < mapH; y++)
+            {
+                for (var x = 0; x < mapW; x++)
+                {
+                    if (size >= _roomGrain._roomConfig.WiredSelectorMaxAreaSize)
+                    {
+                        filled = true;
+
+                        break;
+                    }
+
+                    var tileId = (y * mapW) + x;
+
+                    if (selectedTiles.Contains(tileId))
+                        continue;
+
+                    _tileIds.Add(tileId);
+                    size++;
+                }
+
+                if (filled)
+                    break;
+            }
         }
     }
 }

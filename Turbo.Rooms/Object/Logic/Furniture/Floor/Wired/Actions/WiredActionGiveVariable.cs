@@ -100,12 +100,12 @@ public class WiredActionGiveVariable(
                     }
                     case WiredVariableTargetType.User:
                     {
-                        foreach (var avatarId in selection.SelectedAvatarIds)
+                        foreach (var playerId in selection.SelectedPlayerIds)
                         {
                             var key = new WiredVariableKey(
                                 id,
                                 WiredVariableTargetType.User,
-                                avatarId
+                                playerId
                             );
 
                             await variable.GiveValueAsync(key, value, replace);

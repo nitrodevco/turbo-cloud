@@ -31,11 +31,10 @@ public class WiredSelectorEntitiesByName(
 
         foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
         {
-            if (avatar is not IRoomPlayer roomPlayer)
+            if (avatar is not IRoomPlayer roomPlayer || !names.Contains(roomPlayer.Name.ToLower()))
                 continue;
 
-            if (names.Contains(roomPlayer.Name.ToLower()))
-                output.SelectedAvatarIds.Add((int)avatar.ObjectId);
+            output.SelectedPlayerIds.Add((int)roomPlayer.PlayerId);
         }
 
         return Task.FromResult((IWiredSelectionSet)output);

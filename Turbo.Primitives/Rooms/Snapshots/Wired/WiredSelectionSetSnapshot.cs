@@ -10,5 +10,5 @@ public sealed record WiredSelectionSetSnapshot
     public required HashSet<int> SelectedFurniIds { get; init; }
 
     [Id(1)]
-    public required HashSet<int> SelectedAvatarIds { get; init; }
+    public required HashSet<int> SelectedPlayerIds { get; init; }
 }
