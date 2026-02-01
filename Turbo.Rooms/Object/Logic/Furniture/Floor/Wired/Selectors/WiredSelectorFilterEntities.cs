@@ -8,11 +8,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
 [RoomObjectLogic("wf_xtra_filter_users")]
 public class WiredSelectorFilterEntities(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredSelectorLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredSelectorLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredSelectorType.var_4938; // TODO ?????
 }

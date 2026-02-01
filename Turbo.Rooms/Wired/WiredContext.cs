@@ -54,7 +54,7 @@ public abstract class WiredContext(RoomGrain roomGrain) : IWiredContext
                 {
                     case WiredFurniSourceType.SelectedItems:
                         {
-                            var stuffIds = wired.WiredData?.StuffIds;
+                            var stuffIds = wired.GetStuffIds();
 
                             if (stuffIds is not null && stuffIds.Count > 0)
                             {
@@ -67,7 +67,7 @@ public abstract class WiredContext(RoomGrain roomGrain) : IWiredContext
                                 }
                             }
 
-                            var stuffIds2 = wired.WiredData?.StuffIds2;
+                            var stuffIds2 = wired.GetStuffIds2();
 
                             if (stuffIds2 is not null && stuffIds2.Count > 0)
                             {

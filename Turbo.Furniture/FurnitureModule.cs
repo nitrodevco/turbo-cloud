@@ -21,6 +21,5 @@ public sealed class FurnitureModule : IHostPluginModule
         services.AddSingleton<IFurnitureService, FurnitureService>();
         services.AddSingleton<IFurnitureDefinitionProvider, FurnitureDefinitionProvider>();
         services.AddSingleton<IStuffDataFactory, StuffDataFactory>();
-        services.AddSingleton<IWiredDataFactory, WiredDataFactory>();
     }
 }

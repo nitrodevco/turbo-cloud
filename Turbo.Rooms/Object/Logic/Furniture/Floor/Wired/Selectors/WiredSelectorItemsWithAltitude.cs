@@ -15,11 +15,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
 [RoomObjectLogic("wf_slc_furni_altitude")]
 public class WiredSelectorItemsWithAltitude(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredSelectorLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredSelectorLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredSelectorType.FURNI_WITH_ALTITUDE;
 
@@ -34,7 +33,7 @@ public class WiredSelectorItemsWithAltitude(
         CancellationToken ct
     )
     {
-        var altitude = Altitude.FromInt(WiredData.IntParams[0]);
+        var altitude = Altitude.FromInt(_wiredData.GetIntParam<int>(0));
         var output = new WiredSelectionSet();
 
         foreach (var item in _roomGrain._state.ItemsById.Values)
@@ -42,7 +41,7 @@ public class WiredSelectorItemsWithAltitude(
             if (item is not IRoomFloorItem floorItem)
                 continue;
 
-            switch ((WiredComparisonType)WiredData.IntParams[1])
+            switch (_wiredData.GetIntParam<WiredComparisonType>(1))
             {
                 case WiredComparisonType.LessThan:
                     if (floorItem.Z < altitude)

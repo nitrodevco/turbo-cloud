@@ -14,11 +14,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
 [RoomObjectLogic("wf_xtra_anim_time")]
 public class WiredAddonAnimationTime(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredAddonLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredAddonLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredAddonType.ANIMATION_TIME;
 
@@ -38,12 +37,12 @@ public class WiredAddonAnimationTime(
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
+        await base.FillInternalDataAsync(ct);
+
         try
         {
-            _animationTimeMs = Math.Clamp(WiredData.IntParams[0], 50, 2000);
+            _animationTimeMs = Math.Clamp(_wiredData.GetIntParam<int>(0), 50, 2000);
         }
         catch { }
-
-        await base.FillInternalDataAsync(ct);
     }
 }

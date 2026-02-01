@@ -9,11 +9,10 @@ using Turbo.Primitives.Rooms.Wired;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
 public abstract class FurnitureWiredConditionLogic(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx), IWiredCondition
+) : FurnitureWiredLogic(grainFactory, stuffDataFactory, ctx), IWiredCondition
 {
     public override WiredType WiredType => WiredType.Condition;
 
@@ -29,9 +28,9 @@ public abstract class FurnitureWiredConditionLogic(
 
         try
         {
-            if (WiredData.DefinitionSpecifics is not null)
+            if (_wiredData.DefinitionSpecifics is not null)
             {
-                quantifierCode = (int)WiredData.DefinitionSpecifics[0]!;
+                quantifierCode = (int)_wiredData.DefinitionSpecifics[0]!;
             }
         }
         catch { }
@@ -45,9 +44,9 @@ public abstract class FurnitureWiredConditionLogic(
 
         try
         {
-            if (WiredData.DefinitionSpecifics is not null)
+            if (_wiredData.DefinitionSpecifics is not null)
             {
-                isInvert = (bool)WiredData.DefinitionSpecifics[1]!;
+                isInvert = (bool)_wiredData.DefinitionSpecifics[1]!;
             }
         }
         catch { }
@@ -61,9 +60,9 @@ public abstract class FurnitureWiredConditionLogic(
 
         try
         {
-            if (WiredData.TypeSpecifics is not null)
+            if (_wiredData.TypeSpecifics is not null)
             {
-                quantifierType = (byte)WiredData.TypeSpecifics[0]!;
+                quantifierType = (byte)_wiredData.TypeSpecifics[0]!;
             }
         }
         catch { }

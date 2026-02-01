@@ -8,11 +8,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 
 [RoomObjectLogic("wf_var_quest")]
 public class WiredVariableQuest(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredVariableLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredVariableLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredVariableBoxType.Quest;
 

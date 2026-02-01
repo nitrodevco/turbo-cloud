@@ -8,11 +8,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
 [RoomObjectLogic("wf_cnd_wearing_effect")]
 public class WiredConditionHabboHasEffect(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredConditionLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredConditionLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredConditionType.ACTOR_IS_WEARING_EFFECT;
 }

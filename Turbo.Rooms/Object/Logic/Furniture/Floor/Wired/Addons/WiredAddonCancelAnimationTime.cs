@@ -11,11 +11,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
 [RoomObjectLogic("wf_xtra_mov_no_animation")]
 public class WiredAddonCancelAnimationTime(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredAddonLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredAddonLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredAddonType.NO_MOVE_ANIMATION;
 

@@ -15,11 +15,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
 [RoomObjectLogic("wf_act_give_var")]
 public class WiredActionGiveVariable(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredActionLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredActionType.GIVE_VARIABLE;
 
@@ -67,9 +66,7 @@ public class WiredActionGiveVariable(
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
         var selection = await ctx.GetEffectiveSelectionAsync(this, ct);
-        var actionCtx = ctx.AsActionContext();
-
-        var variableIds = WiredData.VariableIds;
+        var variableIds = _wiredData.VariableIds;
 
         foreach (var variableId in variableIds)
         {
@@ -81,10 +78,10 @@ public class WiredActionGiveVariable(
                 if (variable is null)
                     continue;
 
-                int value = WiredData.IntParams[2];
-                bool replace = WiredData.IntParams[3] == 1;
+                int value = _wiredData.GetIntParam<int>(2);
+                bool replace = _wiredData.GetIntParam<bool>(3);
 
-                switch ((WiredVariableTargetType)WiredData.IntParams[0])
+                switch (_wiredData.GetIntParam<WiredVariableTargetType>(0))
                 {
                     case WiredVariableTargetType.Furni:
                     {

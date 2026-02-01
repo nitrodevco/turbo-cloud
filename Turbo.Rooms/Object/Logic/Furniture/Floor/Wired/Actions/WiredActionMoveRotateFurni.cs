@@ -15,11 +15,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
 [RoomObjectLogic("wf_act_move_rotate")]
 public class WiredActionMoveRotateFurni(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredActionLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredActionType.MOVE_AND_ROTATE_FURNI;
 
@@ -95,17 +94,17 @@ public class WiredActionMoveRotateFurni(
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
+        await base.FillInternalDataAsync(ct);
+
         try
         {
-            _movementType = WiredData.IntParams[0];
-            _rotationType = WiredData.IntParams[1];
+            _movementType = _wiredData.GetIntParam<int>(0);
+            _rotationType = _wiredData.GetIntParam<int>(1);
         }
         catch { }
-
-        await base.FillInternalDataAsync(ct);
     }
 
-    public Rotation GetMoveDirection(int movementType) =>
+    public static Rotation GetMoveDirection(int movementType) =>
         movementType switch
         {
             1 => RotationExtensions.CARDINAL[Random.Shared.Next(0, 4)],
@@ -118,7 +117,7 @@ public class WiredActionMoveRotateFurni(
             _ => Rotation.None,
         };
 
-    public Rotation GetMoveRotation(Rotation currentRotation, int rotationType) =>
+    public static Rotation GetMoveRotation(Rotation currentRotation, int rotationType) =>
         rotationType switch
         {
             1 => currentRotation.Rotate(+2),

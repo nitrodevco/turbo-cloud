@@ -8,11 +8,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
 [RoomObjectLogic("wf_slc_furni_signal")]
 public class WiredSelectorItemsFromSignal(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredSelectorLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredSelectorLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredSelectorType.FURNI_FROM_SIGNAL;
 }

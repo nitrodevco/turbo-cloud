@@ -14,15 +14,24 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
 [RoomObjectLogic("wf_slc_furni_area")]
 public class WiredSelectorItemsInArea(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredSelectorLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredSelectorLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredSelectorType.FURNI_IN_AREA;
 
     private readonly HashSet<int> _tileIds = [];
+
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
+        [
+            [WiredFurniSourceType.TriggeredItem, WiredFurniSourceType.SignalItems],
+        ];
+
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
+        [
+            [WiredPlayerSourceType.TriggeredUser, WiredPlayerSourceType.SignalUsers],
+        ];
 
     public override List<IWiredIntParamRule> GetIntParamRules() =>
         [
@@ -61,11 +70,13 @@ public class WiredSelectorItemsInArea(
     {
         _tileIds.Clear();
 
+        await base.FillInternalDataAsync(ct);
+
         var map = await _ctx.Room.GetMapSnapshotAsync(ct);
-        var rootX = WiredData.IntParams[0];
-        var rootY = WiredData.IntParams[1];
-        var areaW = WiredData.IntParams[2];
-        var areaH = WiredData.IntParams[3];
+        var rootX = _wiredData.GetIntParam<int>(0);
+        var rootY = _wiredData.GetIntParam<int>(1);
+        var areaW = _wiredData.GetIntParam<int>(2);
+        var areaH = _wiredData.GetIntParam<int>(3);
         var mapW = map.Width;
         var mapH = map.Height;
         var size = 0;
@@ -97,7 +108,5 @@ public class WiredSelectorItemsInArea(
             if (filled)
                 break;
         }
-
-        await base.FillInternalDataAsync(ct);
     }
 }

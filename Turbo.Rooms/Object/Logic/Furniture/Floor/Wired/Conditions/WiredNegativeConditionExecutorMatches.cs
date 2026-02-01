@@ -8,11 +8,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
 [RoomObjectLogic("wf_cnd_not_triggerer_match")]
 public class WiredNegativeConditionExecutorMatches(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : WiredConditionExecutorMatches(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : WiredConditionExecutorMatches(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredConditionType.NOT_TRIGGERER_MATCHES;
 

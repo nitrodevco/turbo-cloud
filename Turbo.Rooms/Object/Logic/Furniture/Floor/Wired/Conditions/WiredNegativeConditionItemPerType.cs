@@ -8,11 +8,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
 [RoomObjectLogic("wf_cnd_not_stuff_is")]
 public class WiredNegativeConditionItemPerType(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : WiredConditionItemPerType(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : WiredConditionItemPerType(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredConditionType.NOT_STUFF_TYPE_MATCHES;
 

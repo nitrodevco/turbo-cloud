@@ -8,11 +8,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
 [RoomObjectLogic("wf_trg_period_short")]
 public class WiredTriggerShortPeriodically(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : WiredTriggerPeriodically(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : WiredTriggerPeriodically(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredTriggerType.PERIODIC_SHORT;
     public override WiredPeriodicTriggerType PeriodicType => WiredPeriodicTriggerType.Short;

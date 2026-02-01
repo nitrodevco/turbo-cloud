@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Wired;
 
 namespace Turbo.Primitives.Furniture.WiredData;
 
@@ -17,6 +18,9 @@ public interface IWiredData
     public List<WiredPlayerSourceType[]> PlayerSources { get; set; }
     public List<object> DefinitionSpecifics { get; set; }
     public List<object> TypeSpecifics { get; set; }
+    public T GetIntParam<T>(int index);
+    public void SetIntParam<T>(int index, T value);
+    public void AttatchRules(IReadOnlyList<IWiredIntParamRule> rules);
     public void SetAction(Func<Task>? onSnapshotChanged);
     public void MarkDirty();
 }

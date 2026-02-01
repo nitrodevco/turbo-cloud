@@ -11,20 +11,19 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 
 [RoomObjectLogic("wf_var_user")]
 public class WiredVariableUser(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredVariableLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredVariableLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredVariableBoxType.User;
 
     protected override WiredVariableTargetType TargetType => WiredVariableTargetType.User;
     protected override WiredAvailabilityType AvailabilityType =>
-        (WiredAvailabilityType)WiredData.IntParams[0];
+        _wiredData.GetIntParam<WiredAvailabilityType>(0);
     protected override WiredVariableFlags Flags =>
         (
-            WiredData.IntParams[1] == 1
+            _wiredData.GetIntParam<bool>(1)
                 ? WiredVariableFlags.HasValue | WiredVariableFlags.CanWriteValue
                 : WiredVariableFlags.None
         )
@@ -40,6 +39,6 @@ public class WiredVariableUser(
                 WiredAvailabilityType.Persistent,
                 WiredAvailabilityType.Shared
             ),
-            new WiredIntEnumRule<WiredBooleanType>(WiredBooleanType.False),
+            new WiredIntBoolRule(false),
         ];
 }

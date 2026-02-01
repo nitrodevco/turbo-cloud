@@ -8,11 +8,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
 [RoomObjectLogic("wf_cnd_not_habbo_owns_badge")]
 public class WiredNegativeConditionHabboHasWearingBadge(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : WiredConditionHabboHasWearingBadge(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : WiredConditionHabboHasWearingBadge(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredConditionType.ACTOR_IS_WEARING_BADGE;
 

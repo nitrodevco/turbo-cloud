@@ -11,11 +11,10 @@ using Turbo.Primitives.Rooms.Wired;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
 public abstract class FurnitureWiredActionLogic(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx), IWiredAction
+) : FurnitureWiredLogic(grainFactory, stuffDataFactory, ctx), IWiredAction
 {
     public override WiredType WiredType => WiredType.Action;
 
@@ -28,9 +27,9 @@ public abstract class FurnitureWiredActionLogic(
 
         try
         {
-            if (WiredData.DefinitionSpecifics is not null)
+            if (_wiredData.DefinitionSpecifics is not null)
             {
-                delay = (int)WiredData.DefinitionSpecifics[0]!;
+                delay = (int)_wiredData.DefinitionSpecifics[0]!;
             }
 
             delay = Math.Clamp(delay, 0, 20);

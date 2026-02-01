@@ -8,11 +8,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
 [RoomObjectLogic("wf_cnd_not_user_performs_action")]
 public class WiredNegativeConditionHabboPerformsAction(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : WiredConditionHabboPerformsAction(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : WiredConditionHabboPerformsAction(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredConditionType.NOT_PERFORMING_ACTION;
 

@@ -12,11 +12,10 @@ using Turbo.Primitives.Rooms.Wired;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
 public abstract class FurnitureWiredTriggerLogic(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx), IWiredTrigger
+) : FurnitureWiredLogic(grainFactory, stuffDataFactory, ctx), IWiredTrigger
 {
     public override WiredType WiredType => WiredType.Trigger;
 

@@ -8,11 +8,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
 [RoomObjectLogic("wf_cnd_not_user_count")]
 public class WiredNegativeConditionRoomHabboCount(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : WiredConditionRoomHabboCount(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : WiredConditionRoomHabboCount(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredConditionType.NOT_USER_COUNT_IN;
 

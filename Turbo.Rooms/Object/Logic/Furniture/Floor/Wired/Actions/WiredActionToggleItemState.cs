@@ -13,17 +13,16 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
 [RoomObjectLogic("wf_act_toggle_state")]
 public class WiredActionToggleItemState(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredActionLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredActionType.TOGGLE_FURNI_STATE;
 
     public override List<IWiredIntParamRule> GetIntParamRules() =>
         [
-            new WiredIntEnumRule<WiredBooleanType>(WiredBooleanType.False), // Toggle type
+            new WiredIntBoolRule(false), // Toggle type
         ];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
@@ -47,11 +46,10 @@ public class WiredActionToggleItemState(
                 if (!_roomGrain._state.ItemsById.TryGetValue(furniId, out var item))
                     continue;
 
-                var state = WiredData.IntParams[0] switch
+                var state = _wiredData.GetIntParam<bool>(0) switch
                 {
-                    0 => item.Logic.GetNextToggleableState(),
-                    1 => item.Logic.GetPrevToggleableState(),
-                    _ => item.Logic.GetNextToggleableState(),
+                    false => item.Logic.GetNextToggleableState(),
+                    true => item.Logic.GetPrevToggleableState(),
                 };
 
                 await ctx.ProcessItemStateUpdateAsync(item, state);

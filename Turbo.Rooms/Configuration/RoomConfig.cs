@@ -29,4 +29,7 @@ public class RoomConfig
     public int WiredMaxScheduledPerTick { get; init; } = 64;
     public int WiredMaxEventsPerTick { get; init; } = 64;
     public int WiredSelectorMaxAreaSize { get; init; } = 100;
+    public int WiredSelectedItemsLimit { get; init; } = 20;
+    public bool WiredAllowWallFurni { get; init; } = true;
+    public int WiredMaxIntParams { get; init; } = 16;
 }

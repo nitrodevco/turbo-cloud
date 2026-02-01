@@ -8,11 +8,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
 [RoomObjectLogic("wf_cnd_not_actor_in_group")]
 public class WiredNegativeConditionGroupMember(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : WiredConditionGroupMember(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : WiredConditionGroupMember(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredConditionType.NOT_ACTOR_IS_GROUP_MEMBER;
 

@@ -13,17 +13,18 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 
 [RoomObjectLogic("wf_var_room")]
 public class WiredVariableRoom(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredVariableLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredVariableLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredVariableBoxType.Global;
 
     protected override WiredVariableTargetType TargetType => WiredVariableTargetType.Global;
+
     protected override WiredAvailabilityType AvailabilityType =>
-        (WiredAvailabilityType)WiredData.IntParams[0];
+        _wiredData.GetIntParam<WiredAvailabilityType>(0);
+
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue
         | WiredVariableFlags.CanWriteValue

@@ -8,11 +8,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
 [RoomObjectLogic("wf_cnd_not_hv_avtrs")]
 public class WiredNegativeConditionItemHasHabbo(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : WiredConditionItemHasHabbo(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : WiredConditionItemHasHabbo(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredConditionType.NOT_FURNIS_HAVE_AVATARS;
 

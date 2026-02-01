@@ -8,11 +8,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
 [RoomObjectLogic("wf_cnd_not_in_team")]
 public class WiredNegativeConditionHabboInTeam(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : WiredConditionHabboInTeam(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : WiredConditionHabboInTeam(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredConditionType.NOT_ACTOR_IS_IN_TEAM;
 

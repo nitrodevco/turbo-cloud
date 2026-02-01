@@ -8,11 +8,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
 [RoomObjectLogic("wf_xtra_random")]
 public class WiredAddonRandomActions(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredAddonLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredAddonLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredAddonType.RANDOM_ACTION;
 }

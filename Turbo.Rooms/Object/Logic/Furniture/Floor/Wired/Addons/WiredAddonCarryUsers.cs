@@ -13,11 +13,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
 [RoomObjectLogic("wf_xtra_mov_carry_users")]
 public class WiredAddonCarryUsers(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredAddonLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredAddonLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredAddonType.CARRY_USERS;
 
@@ -33,12 +32,12 @@ public class WiredAddonCarryUsers(
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
+        await base.FillInternalDataAsync(ct);
+
         try
         {
-            _carryUserType = (WiredCarryUserType)WiredData.IntParams[0];
+            _carryUserType = _wiredData.GetIntParam<WiredCarryUserType>(0);
         }
         catch { }
-
-        await base.FillInternalDataAsync(ct);
     }
 }

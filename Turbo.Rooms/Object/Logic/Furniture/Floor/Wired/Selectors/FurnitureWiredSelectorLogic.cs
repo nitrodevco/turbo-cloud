@@ -12,11 +12,10 @@ using Turbo.Rooms.Wired;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
 public abstract class FurnitureWiredSelectorLogic(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx), IWiredSelector
+) : FurnitureWiredLogic(grainFactory, stuffDataFactory, ctx), IWiredSelector
 {
     public override WiredType WiredType => WiredType.Selector;
 
@@ -29,9 +28,9 @@ public abstract class FurnitureWiredSelectorLogic(
 
         try
         {
-            if (WiredData.DefinitionSpecifics is not null)
+            if (_wiredData.DefinitionSpecifics is not null)
             {
-                isFilter = (bool)WiredData.DefinitionSpecifics[0]!;
+                isFilter = (bool)_wiredData.DefinitionSpecifics[0]!;
             }
         }
         catch { }
@@ -45,9 +44,9 @@ public abstract class FurnitureWiredSelectorLogic(
 
         try
         {
-            if (WiredData.DefinitionSpecifics is not null)
+            if (_wiredData.DefinitionSpecifics is not null)
             {
-                isInvert = (bool)WiredData.DefinitionSpecifics[1]!;
+                isInvert = (bool)_wiredData.DefinitionSpecifics[1]!;
             }
         }
         catch { }

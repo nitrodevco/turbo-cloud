@@ -18,60 +18,30 @@ using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 
-public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
+public abstract class FurnitureWiredLogic(
+    IGrainFactory grainFactory,
+    IStuffDataFactory stuffDataFactory,
+    IRoomFloorItemContext ctx
+) : FurnitureFloorLogic(stuffDataFactory, ctx), IWiredBox
 {
-    protected readonly IWiredDataFactory _wiredDataFactory;
-    protected readonly IGrainFactory _grainFactory;
+    protected readonly IGrainFactory _grainFactory = grainFactory;
 
     public abstract WiredType WiredType { get; }
     public abstract int WiredCode { get; }
-    public IWiredData WiredData { get; private set; }
 
     protected override StuffPersistanceType _stuffPersistanceType =>
         StuffPersistanceType.RoomActive;
 
-    protected int _furniLimit = 20;
-    protected bool _advancedMode = true;
-    protected bool _allowWallFurni = false;
-
-    protected virtual int MinIntParams => GetIntParamRules().Count;
-    protected virtual int MaxIntParams => 16;
+    protected IWiredData _wiredData = null!;
 
     private WiredDataSnapshot? _snapshot;
 
-    public FurnitureWiredLogic(
-        IWiredDataFactory wiredDataFactory,
-        IGrainFactory grainFactory,
-        IStuffDataFactory stuffDataFactory,
-        IRoomFloorItemContext ctx
-    )
-        : base(stuffDataFactory, ctx)
-    {
-        _wiredDataFactory = wiredDataFactory;
-        _grainFactory = grainFactory;
-
-        WiredData = _wiredDataFactory.CreateWiredDataFromExtraData(
-            WiredType,
-            _ctx.RoomObject.ExtraData
-        );
-
-        WiredData.SetAction(() =>
-        {
-            _ctx.RoomObject.ExtraData.UpdateSection(
-                ExtraDataSectionType.WIRED,
-                JsonSerializer.SerializeToNode(WiredData, WiredData.GetType())
-            );
-            return Task.CompletedTask;
-        });
-    }
-
     public async Task LoadWiredAsync(CancellationToken ct)
     {
-        FillIntParamsIfEmpty();
-
         await FillInternalDataAsync(ct);
     }
 
@@ -80,13 +50,13 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
 
     public virtual List<int> GetStuffIds()
     {
-        if (GetValidStuffIds(WiredData.StuffIds, out var stuffIds))
+        if (GetValidStuffIds(_wiredData.StuffIds, out var stuffIds))
         {
-            if (!WiredData.StuffIds.SequenceEqual(stuffIds))
+            if (!_wiredData.StuffIds.SequenceEqual(stuffIds))
             {
-                WiredData.StuffIds = stuffIds;
+                _wiredData.StuffIds = stuffIds;
 
-                WiredData.MarkDirty();
+                _wiredData.MarkDirty();
             }
         }
 
@@ -95,13 +65,13 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
 
     public virtual List<int> GetStuffIds2()
     {
-        if (GetValidStuffIds(WiredData.StuffIds2, out var stuffIds))
+        if (GetValidStuffIds(_wiredData.StuffIds2, out var stuffIds))
         {
-            if (!WiredData.StuffIds2.SequenceEqual(stuffIds))
+            if (!_wiredData.StuffIds2.SequenceEqual(stuffIds))
             {
-                WiredData.StuffIds2 = stuffIds;
+                _wiredData.StuffIds2 = stuffIds;
 
-                WiredData.MarkDirty();
+                _wiredData.MarkDirty();
             }
         }
 
@@ -135,9 +105,9 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
 
             try
             {
-                if (WiredData.FurniSources[index] is not null)
+                if (_wiredData.FurniSources[index] is not null)
                 {
-                    sourceTypes = WiredData.FurniSources[index];
+                    sourceTypes = _wiredData.FurniSources[index];
                 }
             }
             catch { }
@@ -160,9 +130,9 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
 
             try
             {
-                if (WiredData.PlayerSources[index] is not null)
+                if (_wiredData.PlayerSources[index] is not null)
                 {
-                    sourceTypes = WiredData.PlayerSources[index];
+                    sourceTypes = _wiredData.PlayerSources[index];
                 }
             }
             catch { }
@@ -192,11 +162,11 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
             try
             {
                 if (
-                    WiredData.DefinitionSpecifics[index] is not null
-                    && specType.IsAssignableFrom(WiredData.DefinitionSpecifics[index].GetType())
+                    _wiredData.DefinitionSpecifics[index] is not null
+                    && specType.IsAssignableFrom(_wiredData.DefinitionSpecifics[index].GetType())
                 )
                 {
-                    specific = WiredData.DefinitionSpecifics[index];
+                    specific = _wiredData.DefinitionSpecifics[index];
                 }
             }
             catch { }
@@ -222,11 +192,11 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
             try
             {
                 if (
-                    WiredData.TypeSpecifics[index] is not null
-                    && specType.IsAssignableFrom(WiredData.TypeSpecifics[index].GetType())
+                    _wiredData.TypeSpecifics[index] is not null
+                    && specType.IsAssignableFrom(_wiredData.TypeSpecifics[index].GetType())
                 )
                 {
-                    specific = WiredData.TypeSpecifics[index];
+                    specific = _wiredData.TypeSpecifics[index];
                 }
             }
             catch { }
@@ -393,17 +363,17 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
                 index++;
             }
 
-            WiredData.IntParams = intParams;
-            WiredData.StringParam = stringParam;
-            WiredData.StuffIds = stuffIds;
-            WiredData.StuffIds2 = stuffIds2;
-            WiredData.VariableIds = variableIds;
-            WiredData.FurniSources = furniSources;
-            WiredData.PlayerSources = playerSources;
-            WiredData.DefinitionSpecifics = definitionSpecifics;
-            WiredData.TypeSpecifics = typeSpecifics;
+            _wiredData.IntParams = intParams;
+            _wiredData.StringParam = stringParam;
+            _wiredData.StuffIds = stuffIds;
+            _wiredData.StuffIds2 = stuffIds2;
+            _wiredData.VariableIds = variableIds;
+            _wiredData.FurniSources = furniSources;
+            _wiredData.PlayerSources = playerSources;
+            _wiredData.DefinitionSpecifics = definitionSpecifics;
+            _wiredData.TypeSpecifics = typeSpecifics;
 
-            WiredData.MarkDirty();
+            _wiredData.MarkDirty();
 
             await OnWiredStackChangedAsync(ctx, [_ctx.GetTileIdx()], ct);
 
@@ -422,8 +392,8 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
 
         var fixedRules = GetIntParamRules();
         var tailRule = GetIntParamTailRule();
-        var min = Math.Min(MinIntParams, MaxIntParams);
-        var max = Math.Min(MaxIntParams, MaxIntParams);
+        var min = fixedRules.Count;
+        var max = Math.Min(fixedRules.Count, _roomGrain._roomConfig.WiredMaxIntParams);
 
         if (proposed.Count > max)
             return false;
@@ -497,7 +467,7 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
 
             count++;
 
-            if (count >= _furniLimit)
+            if (count >= _roomGrain._roomConfig.WiredSelectedItemsLimit)
                 break;
         }
 
@@ -508,38 +478,65 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
     {
         _snapshot = null;
 
-        if (GetValidStuffIds(WiredData.StuffIds, out var stuffIds))
+        if (_wiredData is null)
         {
-            if (!WiredData.StuffIds.SequenceEqual(stuffIds))
+            if (
+                _ctx.RoomObject.ExtraData.TryGetSection(
+                    ExtraDataSectionType.WIRED,
+                    out var wiredDataElement
+                )
+            )
             {
-                WiredData.StuffIds = stuffIds;
+                _wiredData = wiredDataElement.Deserialize<WiredData>() ?? new WiredData();
+            }
+            else
+            {
+                _wiredData = new WiredData();
+            }
 
-                WiredData.MarkDirty();
+            _wiredData.AttatchRules(GetIntParamRules());
+        }
+
+        if (TryNormalizeIntParams(_wiredData.IntParams, out var normalizedIntParams))
+        {
+            if (!_wiredData.IntParams.SequenceEqual(normalizedIntParams))
+            {
+                _wiredData.IntParams = normalizedIntParams;
+                _wiredData.MarkDirty();
             }
         }
 
-        if (GetValidStuffIds(WiredData.StuffIds2, out var stuffIds2))
+        if (GetValidStuffIds(_wiredData.StuffIds, out var stuffIds))
         {
-            if (!WiredData.StuffIds2.SequenceEqual(stuffIds2))
+            if (!_wiredData.StuffIds.SequenceEqual(stuffIds))
             {
-                WiredData.StuffIds2 = stuffIds2;
+                _wiredData.StuffIds = stuffIds;
 
-                WiredData.MarkDirty();
+                _wiredData.MarkDirty();
             }
         }
+
+        if (GetValidStuffIds(_wiredData.StuffIds2, out var stuffIds2))
+        {
+            if (!_wiredData.StuffIds2.SequenceEqual(stuffIds2))
+            {
+                _wiredData.StuffIds2 = stuffIds2;
+
+                _wiredData.MarkDirty();
+            }
+        }
+
+        _wiredData.SetAction(() =>
+        {
+            _ctx.RoomObject.ExtraData.UpdateSection(
+                ExtraDataSectionType.WIRED,
+                JsonSerializer.SerializeToNode(_wiredData, _wiredData.GetType())
+            );
+
+            return Task.CompletedTask;
+        });
 
         return Task.CompletedTask;
-    }
-
-    protected virtual void FillIntParamsIfEmpty()
-    {
-        if (WiredData.IntParams is { Count: > 0 })
-            return;
-
-        var defaultInts = GetDefaultIntParams();
-
-        WiredData.IntParams = defaultInts;
-        WiredData.MarkDirty();
     }
 
     public WiredDataSnapshot GetSnapshot() => _snapshot ??= BuildSnapshot();
@@ -548,24 +545,24 @@ public abstract class FurnitureWiredLogic : FurnitureFloorLogic, IWiredBox
         new()
         {
             WiredType = WiredType,
-            FurniLimit = _furniLimit,
-            StuffIds = GetValidStuffIds(WiredData.StuffIds, out var validStuffIds)
+            FurniLimit = _roomGrain._roomConfig.WiredSelectedItemsLimit,
+            StuffIds = GetValidStuffIds(_wiredData.StuffIds, out var validStuffIds)
                 ? validStuffIds
                 : [],
-            StuffIds2 = GetValidStuffIds(WiredData.StuffIds2, out var validStuffIds2)
+            StuffIds2 = GetValidStuffIds(_wiredData.StuffIds2, out var validStuffIds2)
                 ? validStuffIds2
                 : [],
             StuffTypeId = _ctx.Definition.SpriteId,
             Id = _ctx.ObjectId,
-            StringParam = WiredData.StringParam,
-            IntParams = WiredData.IntParams,
-            VariableIds = WiredData.VariableIds,
+            StringParam = _wiredData.StringParam,
+            IntParams = _wiredData.IntParams,
+            VariableIds = _wiredData.VariableIds,
             FurniSourceTypes = GetFurniSources(),
             PlayerSourceTypes = GetPlayerSources(),
             Code = WiredCode,
             AdvancedMode = SupportsAdvancedMode(),
             AmountFurniSelections = [],
-            AllowWallFurni = _allowWallFurni,
+            AllowWallFurni = _roomGrain._roomConfig.WiredAllowWallFurni,
             AllowedFurniSources = GetAllowedFurniSources(),
             AllowedPlayerSources = GetAllowedPlayerSources(),
             DefaultFurniSources = GetDefaultFurniSources(),

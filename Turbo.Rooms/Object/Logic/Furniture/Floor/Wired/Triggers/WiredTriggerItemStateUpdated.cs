@@ -15,17 +15,15 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
 [RoomObjectLogic("wf_trg_state_changed")]
 public class WiredTriggerItemStateUpdated(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredTriggerLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredTriggerLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredTriggerType.STATE_CHANGE;
     public override List<Type> SupportedEventTypes { get; } = [typeof(RoomItemStateChangedEvent)];
 
-    public override List<IWiredIntParamRule> GetIntParamRules() =>
-        [new WiredIntEnumRule<WiredBooleanType>(WiredBooleanType.False)];
+    public override List<IWiredIntParamRule> GetIntParamRules() => [new WiredIntBoolRule(false)];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [

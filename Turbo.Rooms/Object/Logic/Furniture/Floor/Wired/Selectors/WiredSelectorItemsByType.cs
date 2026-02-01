@@ -14,16 +14,14 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
 [RoomObjectLogic("wf_slc_furni_bytype")]
 public class WiredSelectorItemsByType(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredSelectorLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredSelectorLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredSelectorType.FURNI_BY_TYPE;
 
-    public override List<IWiredIntParamRule> GetIntParamRules() =>
-        [new WiredIntEnumRule<WiredBooleanType>(WiredBooleanType.False)];
+    public override List<IWiredIntParamRule> GetIntParamRules() => [new WiredIntBoolRule(false)];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [

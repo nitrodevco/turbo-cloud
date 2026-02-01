@@ -1,35 +1,10 @@
-using System;
-
 namespace Turbo.Rooms.Wired.IntParams;
 
-public sealed class WiredIntRangeRule : WiredIntParamRule
+public sealed class WiredIntRangeRule(int min, int max, int defaultValue)
+    : WiredIntParamRule(defaultValue)
 {
-    public int Min { get; }
-    public int Max { get; }
+    private readonly int _min = min;
+    private readonly int _max = max;
 
-    public WiredIntRangeRule(int min, int max, int defaultValue)
-        : base(defaultValue)
-    {
-        if (min > max)
-            throw new ArgumentException("min > max");
-
-        if (defaultValue < min || defaultValue > max)
-            throw new ArgumentOutOfRangeException(nameof(defaultValue));
-
-        Min = min;
-        Max = max;
-    }
-
-    public override bool IsValid(int value) => value >= Min && value <= Max;
-
-    public override int Sanitize(int value)
-    {
-        if (value < Min)
-            return Min;
-
-        if (value > Max)
-            return Max;
-
-        return value;
-    }
+    public override bool IsValid(int value) => value >= _min && value <= _max;
 }

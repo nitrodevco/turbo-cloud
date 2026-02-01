@@ -34,12 +34,11 @@ public abstract class FurnitureWiredVariableLogic
     protected WiredVariableSnapshot? _varSnapshot;
 
     public FurnitureWiredVariableLogic(
-        IWiredDataFactory wiredDataFactory,
         IGrainFactory grainFactory,
         IStuffDataFactory stuffDataFactory,
         IRoomFloorItemContext ctx
     )
-        : base(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+        : base(grainFactory, stuffDataFactory, ctx)
     {
         _variableId = WiredVariableIdBuilder.CreateFromBoxId(ctx.ObjectId.Value);
     }
@@ -159,7 +158,7 @@ public abstract class FurnitureWiredVariableLogic
     {
         var textConnectors = GetTextConnectors();
         var variableHash = WiredVariableHashBuilder.HashValues(
-            WiredData.StringParam,
+            _wiredData.StringParam,
             AvailabilityType,
             TargetType,
             Flags,
@@ -169,7 +168,7 @@ public abstract class FurnitureWiredVariableLogic
         return new()
         {
             VariableId = _variableId,
-            VariableName = WiredData.StringParam,
+            VariableName = _wiredData.StringParam,
             VariableType = WiredVariableType.Created,
             VariableHash = variableHash,
             AvailabilityType = AvailabilityType,

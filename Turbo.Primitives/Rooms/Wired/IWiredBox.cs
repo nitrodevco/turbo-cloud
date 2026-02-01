@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Snapshots.WiredData;
-using Turbo.Primitives.Furniture.WiredData;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
@@ -16,10 +15,11 @@ public interface IWiredBox
 {
     public WiredType WiredType { get; }
     public int WiredCode { get; }
-    public IWiredData WiredData { get; }
 
     public Task LoadWiredAsync(CancellationToken ct);
     public Task FlashActivationStateAsync(CancellationToken ct);
+    public List<int> GetStuffIds();
+    public List<int> GetStuffIds2();
     public List<IWiredIntParamRule> GetIntParamRules();
     public IWiredIntParamRule? GetIntParamTailRule();
     public List<WiredFurniSourceType[]> GetAllowedFurniSources();

@@ -8,11 +8,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
 [RoomObjectLogic("wf_cnd_not_furni_on")]
 public class WiredNegativeConditionItemHasItems(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : WiredConditionItemHasItems(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : WiredConditionItemHasItems(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredConditionType.NOT_HAS_STACKED_FURNIS;
 

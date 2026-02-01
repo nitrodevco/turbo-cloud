@@ -14,11 +14,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
 [RoomObjectLogic("wf_slc_users_byname")]
 public class WiredSelectorEntitiesByName(
-    IWiredDataFactory wiredDataFactory,
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredSelectorLogic(wiredDataFactory, grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredSelectorLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredSelectorType.USERS_BY_NAME;
 
@@ -28,7 +27,7 @@ public class WiredSelectorEntitiesByName(
     )
     {
         var output = new WiredSelectionSet();
-        var names = WiredData.StringParam.Split('/').Select(n => n.Trim().ToLower()).ToHashSet();
+        var names = _wiredData.StringParam.Split('/').Select(n => n.Trim().ToLower()).ToHashSet();
 
         foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
         {
