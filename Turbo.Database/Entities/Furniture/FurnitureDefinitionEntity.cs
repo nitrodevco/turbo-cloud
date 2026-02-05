@@ -29,7 +29,7 @@ public class FurnitureDefinitionEntity : TurboEntity
     public required FurnitureCategory FurniCategory { get; set; }
 
     [Column("logic")]
-    [MaxLength(30)]
+    [MaxLength(50)]
     [DefaultValue("none")] // RoomObjectLogicType.FurnitureDefault
     public required string Logic { get; set; }
 
