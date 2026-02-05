@@ -107,4 +107,32 @@ internal class PlayerDirectoryGrain(IDbContextFactory<TurboDbContext> dbCtxFacto
 
         return Task.CompletedTask;
     }
+
+    public async Task<PlayerId?> GetPlayerIdAsync(string userName, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(userName))
+            return null;
+
+        // Check cache first (reverse lookup)
+        var cached = _idToName.FirstOrDefault(x => x.Value.Equals(userName, System.StringComparison.OrdinalIgnoreCase));
+        if (cached.Key != default)
+            return cached.Key;
+
+        // Not in cache, query database
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        var playerId = await dbCtx
+            .Players.AsNoTracking()
+            .Where(x => x.Name == userName)
+            .Select(x => (long?)x.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (playerId is null or <= 0)
+            return null;
+
+        // Cache the name for future lookups
+        _idToName[(PlayerId)playerId.Value] = userName;
+
+        return (PlayerId)playerId.Value;
+    }
 }

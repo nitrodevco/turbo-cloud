@@ -1,12 +1,12 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using Orleans;
-using Turbo.Database.Context;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Users;
 using Turbo.Primitives.Messages.Outgoing.Users;
+using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Grains;
 
 namespace Turbo.PacketHandlers.Users;
 
@@ -14,15 +14,10 @@ public class GetExtendedProfileByNameMessageHandler
     : IMessageHandler<GetExtendedProfileByNameMessage>
 {
     private readonly IGrainFactory _grainFactory;
-    private readonly IDbContextFactory<TurboDbContext> _dbContextFactory;
 
-    public GetExtendedProfileByNameMessageHandler(
-        IGrainFactory grainFactory,
-        IDbContextFactory<TurboDbContext> dbContextFactory
-    )
+    public GetExtendedProfileByNameMessageHandler(IGrainFactory grainFactory)
     {
         _grainFactory = grainFactory;
-        _dbContextFactory = dbContextFactory;
     }
 
     public async ValueTask HandleAsync(
@@ -36,38 +31,40 @@ public class GetExtendedProfileByNameMessageHandler
 
         try
         {
-            // Get player data from database by username
-            await using var dbCtx = await _dbContextFactory.CreateDbContextAsync(ct);
+            // Resolve username to player ID using the directory grain
+            var directoryGrain = _grainFactory.GetGrain<IPlayerDirectoryGrain>(
+                "default"  // PlayerDirectoryGrain uses a static key
+            );
+            var playerId = await directoryGrain.GetPlayerIdAsync(message.UserName, ct).ConfigureAwait(false);
 
-            var player = await dbCtx.Players
-                .AsNoTracking()
-                .Include(p => p.PlayerCurrencies)
-                .FirstOrDefaultAsync(p => p.Name == message.UserName, ct);
-
-            if (player == null)
+            if (playerId is null or <= 0)
                 return;
+
+            // Get player data from the grain
+            var grain = _grainFactory.GetGrain<IPlayerGrain>(playerId.Value);
+            var snapshot = await grain.GetExtendedProfileSnapshotAsync(ct).ConfigureAwait(false);
 
             var response = new ExtendedProfileMessageComposer
             {
-                UserId = player.Id,
-                UserName = player.Name ?? "Unknown",
-                Figure = player.Figure ?? "hr-115-42.hd-195-19.ch-3030-82.lg-275-1408.fa-1201.ca-1804-64",
-                Motto = player.Motto ?? "",
-                CreationDate = player.CreatedAt.ToString("yyyy-MM-dd"),
-                AchievementScore = 0,
-                FriendCount = 0, // TODO: Query from messenger_friends when available
-                IsFriend = false, // TODO: Check friendship when messenger_friends is available
-                IsFriendRequestSent = false, // TODO: Check messenger_requests when available
-                IsOnline = true, // TODO: Check if player has active room or session
-                Guilds = new List<GuildInfo>(), // TODO: Fetch guilds from database when guild system is implemented
-                LastAccessSinceInSeconds = 0,
-                OpenProfileWindow = true,
-                IsHidden = false,
-                AccountLevel = 1, // TODO: Get from database when account level is implemented
-                IntegerField24 = 0,
-                StarGemCount = 0,
-                BooleanField26 = false,
-                BooleanField27 = false
+                UserId = (int)snapshot.UserId,
+                UserName = snapshot.UserName,
+                Figure = snapshot.Figure,
+                Motto = snapshot.Motto,
+                CreationDate = snapshot.CreationDate,
+                AchievementScore = snapshot.AchievementScore,
+                FriendCount = snapshot.FriendCount,
+                IsFriend = snapshot.IsFriend,
+                IsFriendRequestSent = snapshot.IsFriendRequestSent,
+                IsOnline = snapshot.IsOnline,
+                Guilds = new List<GuildInfo>(), // TODO: Convert snapshot.Guilds when guild system is ready
+                LastAccessSinceInSeconds = snapshot.LastAccessSinceInSeconds,
+                OpenProfileWindow = snapshot.OpenProfileWindow,
+                IsHidden = snapshot.IsHidden,
+                AccountLevel = snapshot.AccountLevel,
+                IntegerField24 = snapshot.IntegerField24,
+                StarGemCount = snapshot.StarGemCount,
+                BooleanField26 = snapshot.BooleanField26,
+                BooleanField27 = snapshot.BooleanField27
             };
 
             await ctx.SendComposerAsync(response, ct).ConfigureAwait(false);
@@ -78,3 +75,4 @@ public class GetExtendedProfileByNameMessageHandler
         }
     }
 }
+
