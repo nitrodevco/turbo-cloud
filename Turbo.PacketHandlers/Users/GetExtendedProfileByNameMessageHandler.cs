@@ -37,7 +37,7 @@ public class GetExtendedProfileByNameMessageHandler
             );
             var playerId = await directoryGrain.GetPlayerIdAsync(message.UserName, ct).ConfigureAwait(false);
 
-            if (playerId is null or <= 0)
+            if (playerId is null)
                 return;
 
             // Get player data from the grain
