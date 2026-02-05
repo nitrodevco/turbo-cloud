@@ -93,4 +93,33 @@ internal sealed class PlayerGrain(
                 CreatedAt = state.State.CreatedAt,
             }
         );
+
+    public Task<PlayerExtendedProfileSnapshot> GetExtendedProfileSnapshotAsync(CancellationToken ct)
+    {
+        var s = state.State;
+        return Task.FromResult(
+            new PlayerExtendedProfileSnapshot
+            {
+                UserId = (PlayerId)this.GetPrimaryKeyLong(),
+                UserName = s.Name,
+                Figure = s.Figure,
+                Motto = s.Motto,
+                CreationDate = s.CreatedAt.ToString("yyyy-MM-dd"),
+                AchievementScore = 0,
+                FriendCount = 0,
+                IsFriend = false,
+                IsFriendRequestSent = false,
+                IsOnline = true,
+                Guilds = new(),
+                LastAccessSinceInSeconds = 0,
+                OpenProfileWindow = true,
+                IsHidden = false,
+                AccountLevel = 1,
+                IntegerField24 = 0,
+                StarGemCount = 0,
+                BooleanField26 = false,
+                BooleanField27 = false
+            }
+        );
+    }
 }
