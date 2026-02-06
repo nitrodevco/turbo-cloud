@@ -9,4 +9,8 @@ public class PluginConfig
 
     public string PluginFolderPath { get; init; } =
         Path.Combine(AppContext.BaseDirectory, "plugins");
+
+    public int DebounceMs { get; init; } = 500;
+
+    public string[] DevPluginPaths { get; init; } = [];
 }
