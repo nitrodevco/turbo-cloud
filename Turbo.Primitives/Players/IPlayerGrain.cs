@@ -8,6 +8,5 @@ namespace Turbo.Primitives.Players;
 public interface IPlayerGrain : IGrainWithIntegerKey
 {
     public Task<PlayerSummarySnapshot> GetSummaryAsync(CancellationToken ct);
-    
     public Task<PlayerExtendedProfileSnapshot> GetExtendedProfileSnapshotAsync(CancellationToken ct);
 }
