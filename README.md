@@ -151,8 +151,10 @@ Canonical AI context files:
 - `CONTEXT.md` (architecture boundaries and placement rules)
 - `docs/patterns/` (golden implementation examples)
 
-Tool-specific adapter:
-- `.github/copilot-instructions.md` (points back to canonical files)
+Tool-specific adapters:
+- `.github/copilot-instructions.md` (GitHub Copilot)
+- `CLAUDE.md` (Claude)
+- `CODEX.md` (Codex)
 
 Prompt recipe for any AI tool:
 1. Include task + exact target file paths.
@@ -163,4 +165,4 @@ Prompt recipe for any AI tool:
 Boost-style prompting pack:
 - portable prompt contract + task recipes live in `AGENTS.md`
 - architecture invariants live in `CONTEXT.md`
-- tool adapter lives in `.github/copilot-instructions.md`
+- tool adapters live in `.github/copilot-instructions.md`, `CLAUDE.md`, and `CODEX.md`
