@@ -26,10 +26,6 @@
       Text="Missing .github/copilot-instructions.md."
     />
     <Error
-      Condition="!Exists('$(MSBuildThisFileDirectory).github/pull_request_template.md')"
-      Text="Missing .github/pull_request_template.md."
-    />
-    <Error
       Condition="!Exists('$(MSBuildThisFileDirectory)docs/patterns/ServicePattern.cs')"
       Text="Missing docs/patterns/ServicePattern.cs."
     />
