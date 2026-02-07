@@ -19,7 +19,6 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-          cache: true
 
       - name: Run quality gate
         run: dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudQualityGate -p:TurboAIPolicyPhase=1
