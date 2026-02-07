@@ -1,0 +1,60 @@
+<Project>
+  <Target Name="TurboCloudFastCheck" Condition="'$(MSBuildProjectName)' == 'Turbo.Main'">
+    <Exec Command="dotnet tool restore" WorkingDirectory="$(MSBuildThisFileDirectory)" />
+    <Exec Command="dotnet csharpier check ." WorkingDirectory="$(MSBuildThisFileDirectory)" />
+    <Exec
+      Command="dotnet build Turbo.Main/Turbo.Main.csproj --no-restore"
+      WorkingDirectory="$(MSBuildThisFileDirectory)"
+    />
+  </Target>
+
+  <Target Name="TurboCloudAiGovernanceCheck" Condition="'$(MSBuildProjectName)' == 'Turbo.Main'">
+    <Message
+      Text="Validating AI governance files (phase $(TurboAIPolicyPhase))."
+      Importance="high"
+    />
+    <Error
+      Condition="!Exists('$(MSBuildThisFileDirectory)AGENTS.md')"
+      Text="Missing AGENTS.md at repository root."
+    />
+    <Error
+      Condition="!Exists('$(MSBuildThisFileDirectory)CONTEXT.md')"
+      Text="Missing CONTEXT.md at repository root."
+    />
+    <Error
+      Condition="!Exists('$(MSBuildThisFileDirectory).github/copilot-instructions.md')"
+      Text="Missing .github/copilot-instructions.md."
+    />
+    <Error
+      Condition="!Exists('$(MSBuildThisFileDirectory).github/pull_request_template.md')"
+      Text="Missing .github/pull_request_template.md."
+    />
+    <Error
+      Condition="!Exists('$(MSBuildThisFileDirectory)docs/patterns/ServicePattern.cs')"
+      Text="Missing docs/patterns/ServicePattern.cs."
+    />
+    <Error
+      Condition="!Exists('$(MSBuildThisFileDirectory)docs/patterns/HandlerPattern.cs')"
+      Text="Missing docs/patterns/HandlerPattern.cs."
+    />
+    <Error
+      Condition="!Exists('$(MSBuildThisFileDirectory)docs/patterns/UnitTestPattern.cs')"
+      Text="Missing docs/patterns/UnitTestPattern.cs."
+    />
+  </Target>
+
+  <Target
+    Name="TurboCloudQualityGate"
+    Condition="'$(MSBuildProjectName)' == 'Turbo.Main'"
+    DependsOnTargets="TurboCloudFastCheck;TurboCloudAiGovernanceCheck"
+  >
+    <Exec
+      Command="dotnet format Turbo.Main/Turbo.Main.csproj style --verify-no-changes --no-restore"
+      WorkingDirectory="$(MSBuildThisFileDirectory)"
+    />
+    <Exec
+      Command="dotnet format Turbo.Main/Turbo.Main.csproj analyzers --verify-no-changes --no-restore"
+      WorkingDirectory="$(MSBuildThisFileDirectory)"
+    />
+  </Target>
+</Project>

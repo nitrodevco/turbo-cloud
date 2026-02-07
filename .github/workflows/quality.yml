@@ -1,0 +1,25 @@
+name: Code Quality
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality:
+    name: quality-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          cache: true
+
+      - name: Run quality gate
+        run: dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudQualityGate -p:TurboAIPolicyPhase=1

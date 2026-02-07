@@ -7,6 +7,13 @@
 *.props        text eol=lf
 *.targets      text eol=lf
 *.tt           text eol=lf
+*.md           text eol=lf
+*.json         text eol=lf
+*.yml          text eol=lf
+*.yaml         text eol=lf
+*.sh           text eol=lf
+*.ps1          text eol=lf
+.githooks/*    text eol=lf
 
 # Keep Windows endings for Windows-specific stuff
 *.sln          text eol=crlf

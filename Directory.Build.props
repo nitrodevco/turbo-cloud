@@ -3,6 +3,14 @@
     <AnalysisLevel>latest</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <!-- Phase 1 is warn-first. Move to phase 2 in CI after stabilization to hard-fail additional diagnostics. -->
+    <TurboAIPolicyPhase Condition="'$(TurboAIPolicyPhase)' == ''">1</TurboAIPolicyPhase>
+    <TurboAIWarningsAsErrors>CS8602;CS8604;CS8618;CA2000;CA2012;CA2201;IDE0005;IDE0058</TurboAIWarningsAsErrors>
+    <!-- Enforce critical Orleans serialization diagnostics for contributor safety. -->
+    <WarningsAsErrors>$(WarningsAsErrors);ORLEANS0012;ORLEANS0013</WarningsAsErrors>
+    <WarningsAsErrors Condition="'$(TurboAIPolicyPhase)' == '2'"
+      >$(WarningsAsErrors);$(TurboAIWarningsAsErrors)</WarningsAsErrors
+    >
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
