@@ -65,6 +65,8 @@ Default output format:
 - Preserve cancellation and async flow where it already exists.
 - Handle failure paths explicitly; do not ship happy-path-only changes.
 - Avoid dead code, unused allocations, and broad catch blocks that hide errors.
+- For revision compatibility work, prefer restoring/adding missing incoming message contracts in `Turbo.Primitives/Messages/Incoming/**` before mutating serializer/composer payload behavior.
+- Do not alter serializer/composer behavior by replacing real payload writes with placeholder constants (for example, unconditional `WriteInteger(0)`) unless explicitly requested.
 - If work references `Revision<id>` parsers/serializers, edit the plugin repo path:
   - `../turbo-sample-plugin/TurboSamplePlugin/Revision/**`
   - Do not hallucinate those trees into `turbo-cloud`.

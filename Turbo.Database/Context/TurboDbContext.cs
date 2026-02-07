@@ -14,6 +14,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 {
     public required DbSet<CatalogOfferEntity> CatalogOffers { get; init; }
 
+    public required DbSet<CurrencyTypeEntity> CurrencyTypes { get; init; }
+
     public required DbSet<CatalogPageEntity> CatalogPages { get; init; }
 
     public required DbSet<CatalogProductEntity> CatalogProducts { get; init; }
@@ -55,4 +57,12 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public required DbSet<PerformanceLogEntity> PerformanceLogs { get; init; }
 
     public required DbSet<PlayerFavoriteRoomsEntity> PlayerFavouriteRooms { get; init; }
+
+    protected override void OnModelCreating(ModelBuilder mb)
+    {
+        base.OnModelCreating(mb);
+
+        // currency_type ids are protocol identifiers (0, 5, 101...), not auto-generated keys
+        mb.Entity<CurrencyTypeEntity>().Property(x => x.Id).ValueGeneratedNever();
+    }
 }

@@ -1,10 +1,9 @@
 using Orleans;
-using Turbo.Primitives.Networking;
 
-namespace Turbo.Primitives.Messages.Outgoing.Catalog;
+namespace Turbo.Primitives.Catalog;
 
 [GenerateSerializer, Immutable]
-public sealed record NotEnoughBalanceMessageComposer : IComposer
+public sealed record CatalogBalanceFailure
 {
     [Id(0)]
     public required bool NotEnoughCredits { get; init; }

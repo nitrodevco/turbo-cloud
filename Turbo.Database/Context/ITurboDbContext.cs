@@ -14,6 +14,8 @@ public interface ITurboDbContext : IDisposable
 {
     public DbSet<CatalogOfferEntity>? CatalogOffers { get; set; }
 
+    public DbSet<CurrencyTypeEntity>? CurrencyTypes { get; set; }
+
     public DbSet<CatalogPageEntity>? CatalogPages { get; set; }
 
     public DbSet<CatalogProductEntity>? CatalogProducts { get; set; }

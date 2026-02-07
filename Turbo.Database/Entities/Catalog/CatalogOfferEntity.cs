@@ -43,5 +43,8 @@ public class CatalogOfferEntity : TurboEntity
     [ForeignKey(nameof(CatalogPageEntityId))]
     public required CatalogPageEntity Page { get; set; }
 
+    [ForeignKey(nameof(CurrencyType))]
+    public CurrencyTypeEntity? CurrencyTypeEntity { get; set; }
+
     public IList<CatalogProductEntity>? Products { get; set; }
 }

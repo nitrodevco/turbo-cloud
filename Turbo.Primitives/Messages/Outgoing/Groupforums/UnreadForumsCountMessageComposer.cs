@@ -6,5 +6,6 @@ namespace Turbo.Primitives.Messages.Outgoing.Groupforums;
 [GenerateSerializer, Immutable]
 public sealed record UnreadForumsCountMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required int UnreadForumsCount { get; init; }
 }

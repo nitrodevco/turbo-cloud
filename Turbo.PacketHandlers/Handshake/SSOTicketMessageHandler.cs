@@ -2,6 +2,7 @@ using System;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
+using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Authentication;
 using Turbo.Primitives.Messages.Incoming.Handshake;
@@ -14,18 +15,22 @@ using Turbo.Primitives.Messages.Outgoing.Inventory.Clothing;
 using Turbo.Primitives.Messages.Outgoing.Mysterybox;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
+using Turbo.Primitives.Messages.Outgoing.Perk;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.PacketHandlers.Handshake;
 
 public class SSOTicketMessageHandler(
     IAuthenticationService authService,
-    ISessionGateway sessionGateway
+    ISessionGateway sessionGateway,
+    IGrainFactory grainFactory
 ) : IMessageHandler<SSOTicketMessage>
 {
     private readonly IAuthenticationService _authService = authService;
     private readonly ISessionGateway _sessionGateway = sessionGateway;
+    private readonly IGrainFactory _grainFactory = grainFactory;
 
     public async ValueTask HandleAsync(
         SSOTicketMessage message,
@@ -49,6 +54,11 @@ public class SSOTicketMessageHandler(
 
             await _sessionGateway
                 .AddSessionToPlayerAsync(ctx.SessionKey, playerId)
+                .ConfigureAwait(false);
+
+            var wallet = await _grainFactory
+                .GetPlayerGrain(playerId)
+                .GetWalletAsync(ct)
                 .ConfigureAwait(false);
 
             await ctx.SendComposerAsync(
@@ -113,7 +123,7 @@ public class SSOTicketMessageHandler(
             await ctx.SendComposerAsync(
                     new ActivityPointsMessageComposer
                     {
-                        PointsByCategoryId = ImmutableDictionary<int, int>.Empty,
+                        PointsByCategoryId = wallet.ActivityPointsByCategoryId,
                     },
                     ct
                 )
@@ -141,6 +151,88 @@ public class SSOTicketMessageHandler(
                         FurniLimit = 0,
                         MaxFurniLimit = 0,
                         SecondsLeftWithGrace = 0,
+                    },
+                    ct
+                )
+                .ConfigureAwait(false);
+            await ctx.SendComposerAsync(
+                    new PerkAllowancesMessageComposer
+                    {
+                        Perks =
+                        [
+                            new PerkAllowanceItem
+                            {
+                                Code = "NAVIGATOR_ROOM_THUMBNAIL_CAMERA",
+                                ErrorMessage = string.Empty,
+                                IsAllowed = true,
+                            },
+                            new PerkAllowanceItem
+                            {
+                                Code = "JUDGE_CHAT_REVIEWS",
+                                ErrorMessage = "requirement.unfulfilled.helper_level_6",
+                                IsAllowed = false,
+                            },
+                            new PerkAllowanceItem
+                            {
+                                Code = "MOUSE_ZOOM",
+                                ErrorMessage = string.Empty,
+                                IsAllowed = true,
+                            },
+                            new PerkAllowanceItem
+                            {
+                                Code = "HABBO_CLUB_OFFER_BETA",
+                                ErrorMessage = string.Empty,
+                                IsAllowed = true,
+                            },
+                            new PerkAllowanceItem
+                            {
+                                Code = "TRADE",
+                                ErrorMessage = "requirement.unfulfilled.citizenship_level_3",
+                                IsAllowed = true,
+                            },
+                            new PerkAllowanceItem
+                            {
+                                Code = "CAMERA",
+                                ErrorMessage = string.Empty,
+                                IsAllowed = true,
+                            },
+                            new PerkAllowanceItem
+                            {
+                                Code = "NAVIGATOR_PHASE_TWO_2014",
+                                ErrorMessage = string.Empty,
+                                IsAllowed = true,
+                            },
+                            new PerkAllowanceItem
+                            {
+                                Code = "BUILDER_AT_WORK",
+                                ErrorMessage = "requirement.unfulfilled.group_membership",
+                                IsAllowed = false,
+                            },
+                            new PerkAllowanceItem
+                            {
+                                Code = "CALL_ON_HELPERS",
+                                ErrorMessage = string.Empty,
+                                IsAllowed = true,
+                            },
+                            new PerkAllowanceItem
+                            {
+                                Code = "CITIZEN",
+                                ErrorMessage = string.Empty,
+                                IsAllowed = true,
+                            },
+                            new PerkAllowanceItem
+                            {
+                                Code = "USE_GUIDE_TOOL",
+                                ErrorMessage = "requirement.unfulfilled.helper_level_4",
+                                IsAllowed = false,
+                            },
+                            new PerkAllowanceItem
+                            {
+                                Code = "VOTE_IN_COMPETITIONS",
+                                ErrorMessage = "requirement.unfulfilled.helper_level_2",
+                                IsAllowed = false,
+                            },
+                        ],
                     },
                     ct
                 )

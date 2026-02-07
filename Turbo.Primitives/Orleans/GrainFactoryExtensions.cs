@@ -37,6 +37,16 @@ public static class GrainFactoryExtensions
     public static IPlayerDirectoryGrain GetPlayerDirectoryGrain(this IGrainFactory factory) =>
         factory.GetGrain<IPlayerDirectoryGrain>(SingletonGrainId.GLOBAL);
 
+    public static IPlayerWalletGrain GetPlayerWalletGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerWalletGrain>(playerId.Value);
+
+    public static IPlayerWalletGrain GetPlayerWalletGrain(
+        this IGrainFactory factory,
+        long playerId
+    ) => factory.GetGrain<IPlayerWalletGrain>(playerId);
+
     public static IInventoryGrain GetInventoryGrain(
         this IGrainFactory factory,
         PlayerId playerId
