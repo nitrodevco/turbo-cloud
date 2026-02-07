@@ -110,6 +110,39 @@ Example:
 
 If the same plugin key exists in both places, `DevPluginPaths` wins and a warning is logged.
 
+### Plugin project setup
+Your plugin's `.csproj` must copy `manifest.json` to the build output:
+
+```xml
+<ItemGroup>
+  <Content Include="manifest.json">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </Content>
+</ItemGroup>
+```
+
+You can list multiple plugin paths in `DevPluginPaths` when developing several plugins at once.
+
+### Two-terminal dev workflow
+Terminal 1 (run emulator):
+
+```bash
+dotnet run --project Turbo.Main
+```
+
+Terminal 2 (watch plugin):
+
+```bash
+cd C:/path/to/your-plugin
+dotnet watch build
+```
+
+When `dotnet watch` rebuilds your plugin, Turbo Cloud detects the new DLL and hot-reloads the plugin in-process.
+
+### Plugin hot-reload limitations
+- Grain types cannot be hot-reloaded because Orleans grain type registration happens at silo startup.
+- Memory may grow over many reloads if assembly references are retained; restart periodically during long sessions.
+
 ### Integrated plugin dev loop (single terminal flow)
 Canonical integrated workflow lives in the plugin repo:
 - Guide: `../turbo-sample-plugin/README.md`
