@@ -29,9 +29,8 @@ public abstract class UserVariable<TAvatar>(RoomGrain roomGrain) : WiredInternal
         avatar = default;
 
         if (
-            !_roomGrain._state.AvatarsByPlayerId.TryGetValue(key.TargetId, out var found)
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(found, out var avatarObj)
-            || avatarObj is not TAvatar typed
+            !_roomGrain._state.AvatarsByObjectId.TryGetValue(key.TargetId, out var found)
+            || found is not TAvatar typed
         )
             return false;
 
