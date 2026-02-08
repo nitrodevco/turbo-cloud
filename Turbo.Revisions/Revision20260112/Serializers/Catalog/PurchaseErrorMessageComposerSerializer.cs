@@ -8,6 +8,6 @@ internal class PurchaseErrorMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, PurchaseErrorMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.ErrorCode);
     }
 }

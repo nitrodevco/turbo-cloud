@@ -1795,6 +1795,18 @@ public class Revision20260112 : IRevision
                     MessageComposer.UserNftChatStylesMessageComposer
                 )
             },
+            {
+                typeof(LtdRaffleEnteredMessageComposer),
+                new LtdRaffleEnteredMessageComposerSerializer(
+                    MessageComposer.LtdRaffleEnteredMessageComposer
+                )
+            },
+            {
+                typeof(LtdRaffleResultMessageComposer),
+                new LtdRaffleResultMessageComposerSerializer(
+                    MessageComposer.LtdRaffleResultMessageComposer
+                )
+            },
             #endregion
 
             #region FriendList

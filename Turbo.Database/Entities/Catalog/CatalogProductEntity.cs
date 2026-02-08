@@ -25,14 +25,6 @@ public class CatalogProductEntity : TurboEntity
     [DefaultValue(1)]
     public required int Quantity { get; set; }
 
-    [Column("unique_size")]
-    [DefaultValue(0)]
-    public required int UniqueSize { get; set; }
-
-    [Column("unique_remaining")]
-    [DefaultValue(0)]
-    public required int UniqueRemaining { get; set; }
-
     [ForeignKey(nameof(CatalogOfferEntityId))]
     public required CatalogOfferEntity Offer { get; set; }
 

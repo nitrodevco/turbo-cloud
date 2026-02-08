@@ -58,6 +58,10 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<PlayerFavoriteRoomsEntity> PlayerFavouriteRooms { get; init; }
 
+    public DbSet<LtdSeriesEntity> LtdSeries { get; init; }
+
+    public DbSet<LtdRaffleEntryEntity> LtdRaffleEntries { get; init; }
+
     protected override void OnModelCreating(ModelBuilder mb)
     {
         base.OnModelCreating(mb);

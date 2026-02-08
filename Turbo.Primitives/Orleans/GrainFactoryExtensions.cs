@@ -65,4 +65,7 @@ public static class GrainFactoryExtensions
         this IGrainFactory factory,
         long playerId
     ) => factory.GetGrain<ICatalogPurchaseGrain>(playerId);
+
+    public static ILtdRaffleGrain GetLtdRaffleGrain(this IGrainFactory factory, int ltdSeriesId) =>
+        factory.GetGrain<ILtdRaffleGrain>(ltdSeriesId);
 }
