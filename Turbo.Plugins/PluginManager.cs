@@ -75,7 +75,8 @@ public sealed class PluginManager(
             }
         }
 
-        if (!Directory.Exists(_config.PluginFolderPath)) return list;
+        if (!Directory.Exists(_config.PluginFolderPath))
+            return list;
         {
             foreach (var dir in Directory.EnumerateDirectories(_config.PluginFolderPath))
             {
@@ -253,7 +254,8 @@ public sealed class PluginManager(
                 if (current is not null)
                     await StopAndTearDownAsync(current, ct).ConfigureAwait(false);
 
-                var next = await BuildEnvelopeAsync(asm, manifest, folder, ct).ConfigureAwait(false);
+                var next = await BuildEnvelopeAsync(asm, manifest, folder, ct)
+                    .ConfigureAwait(false);
                 _live[key] = next;
 
                 var disp = await processor
@@ -267,7 +269,6 @@ public sealed class PluginManager(
             {
                 gate.Release();
             }
-
         }
         finally
         {

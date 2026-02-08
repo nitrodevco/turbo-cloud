@@ -18,7 +18,13 @@ public sealed class PluginHotReloadService(
     ILogger<PluginHotReloadService> logger
 ) : IHostedService, IDisposable
 {
-    private static readonly string[] WATCH_GLOBS = ["manifest.json", "*.dll", "*.pdb", "*.deps.json"];
+    private static readonly string[] WATCH_GLOBS =
+    [
+        "manifest.json",
+        "*.dll",
+        "*.pdb",
+        "*.deps.json",
+    ];
 
     private readonly PluginManager _pluginManager = pluginManager;
     private readonly PluginConfig _config = config.Value;
@@ -126,10 +132,7 @@ public sealed class PluginHotReloadService(
         {
             _pendingReload = true;
             _lastPath = fullPath;
-            _debounceTimer?.Change(
-                Math.Max(100, _config.DebounceMs),
-                Timeout.Infinite
-            );
+            _debounceTimer?.Change(Math.Max(100, _config.DebounceMs), Timeout.Infinite);
         }
 
         _logger.LogDebug(
@@ -159,7 +162,10 @@ public sealed class PluginHotReloadService(
         {
             await _reloadGate.WaitAsync(_cts.Token).ConfigureAwait(false);
 
-            _logger.LogInformation("Plugin reload started (trigger: {Path})", changedPath ?? "<unknown>");
+            _logger.LogInformation(
+                "Plugin reload started (trigger: {Path})",
+                changedPath ?? "<unknown>"
+            );
 
             const int maxAttempts = 3;
 
@@ -172,10 +178,7 @@ public sealed class PluginHotReloadService(
                     return;
                 }
                 catch (Exception ex)
-                    when (
-                        attempt < maxAttempts
-                        && ex is IOException or InvalidDataException
-                    )
+                    when (attempt < maxAttempts && ex is IOException or InvalidDataException)
                 {
                     _logger.LogWarning(
                         ex,
@@ -206,7 +209,10 @@ public sealed class PluginHotReloadService(
     {
         var fileName = Path.GetFileName(path);
 
-        return !string.IsNullOrWhiteSpace(fileName) && WATCH_GLOBS.Any(glob => FileSystemName.MatchesSimpleExpression(glob, fileName, ignoreCase: true));
+        return !string.IsNullOrWhiteSpace(fileName)
+            && WATCH_GLOBS.Any(glob =>
+                FileSystemName.MatchesSimpleExpression(glob, fileName, ignoreCase: true)
+            );
     }
 
     private void DisposeWatchers()
