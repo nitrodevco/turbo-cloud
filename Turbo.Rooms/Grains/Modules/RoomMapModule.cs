@@ -320,14 +320,14 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
         };
     }
 
-    private static short EncodeHeight(double height, bool stackingBlocked)
+    private static short EncodeHeight(Altitude height, bool stackingBlocked)
     {
-        if (height < 0 || stackingBlocked)
+        if (height < Altitude.Zero || stackingBlocked)
             return -1;
 
         int stackingMask = 1 << 14;
         int heightMask = stackingMask - 1;
-        int raw = (int)Math.Round(height * 256.0);
+        int raw = (int)Math.Round(height.Value * 256.0);
 
         if (raw < 0)
             raw = 0;
@@ -348,7 +348,7 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
         {
             var size = _roomGrain._state.Model?.Size ?? 0;
 
-            var tileHeights = new double[size];
+            var tileHeights = new Altitude[size];
             var tileEncodedHeights = new short[size];
             var tileFlags = new RoomTileFlags[size];
             var tileHighestFloorItems = new RoomObjectId[size];
@@ -357,7 +357,7 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
 
             for (int id = 0; id < size; id++)
             {
-                var height = _roomGrain._state.Model?.BaseHeights[id] ?? 0.0;
+                var height = _roomGrain._state.Model?.BaseHeights[id] ?? Altitude.Zero;
                 var flags =
                     _roomGrain._state.Model?.BaseFlags[id]
                     ?? (RoomTileFlags.Disabled | RoomTileFlags.Closed | RoomTileFlags.StackBlocked);

@@ -17,6 +17,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
@@ -80,6 +81,8 @@ public abstract class FurnitureWiredLogic(
     public virtual List<IWiredParamRule> GetIntParamRules() => [];
 
     public virtual IWiredParamRule? GetIntParamTailRule() => null;
+
+    public virtual int GetMaxVariableIds() => 0;
 
     public virtual List<WiredFurniSourceType[]> GetAllowedFurniSources() => [];
 
@@ -252,11 +255,8 @@ public abstract class FurnitureWiredLogic(
             if (GetValidStuffIds(update.StuffIds2, out var validStuffIds2))
                 stuffIds2 = validStuffIds2;
 
-            if (update.VariableIds.Count > 0)
-            {
-                foreach (var id in update.VariableIds)
-                    variableIds.Add(id);
-            }
+            if (GetValidVariableIds(update.VariableIds, out var validVariableIds))
+                variableIds = [.. validVariableIds.Select(x => x.ToString())];
 
             var index = 0;
             var validFurniSources = GetAllowedFurniSources();
@@ -473,6 +473,42 @@ public abstract class FurnitureWiredLogic(
         return true;
     }
 
+    protected virtual bool GetValidVariableIds(
+        List<string> proposed,
+        out List<WiredVariableId> variableIds
+    )
+    {
+        variableIds = [];
+
+        var count = 0;
+        var max = GetMaxVariableIds();
+
+        foreach (var id in proposed)
+        {
+            try
+            {
+                var variableId = WiredVariableId.Parse(id);
+                var variable = _roomGrain.WiredSystem.GetVariableById(variableId);
+
+                if (variable is null)
+                    continue;
+
+                variableIds.Add(variableId);
+
+                count++;
+
+                if (count >= max)
+                    break;
+            }
+            catch
+            {
+                continue;
+            }
+        }
+
+        return true;
+    }
+
     protected virtual Task FillInternalDataAsync(CancellationToken ct)
     {
         _snapshot = null;
@@ -525,6 +561,18 @@ public abstract class FurnitureWiredLogic(
             }
         }
 
+        if (GetValidVariableIds(_wiredData.VariableIds, out var variableIds))
+        {
+            var variableIdStrings = variableIds.Select(x => x.ToString()).ToList();
+
+            if (!_wiredData.VariableIds.SequenceEqual(variableIdStrings))
+            {
+                _wiredData.VariableIds = variableIdStrings;
+
+                _wiredData.MarkDirty();
+            }
+        }
+
         _wiredData.SetAction(() =>
         {
             _ctx.RoomObject.ExtraData.UpdateSection(
@@ -555,7 +603,9 @@ public abstract class FurnitureWiredLogic(
             Id = _ctx.ObjectId,
             StringParam = _wiredData.StringParam,
             IntParams = _wiredData.IntParams,
-            VariableIds = _wiredData.VariableIds,
+            VariableIds = GetValidVariableIds(_wiredData.VariableIds, out var validVariableIds)
+                ? validVariableIds
+                : [],
             FurniSourceTypes = GetFurniSources(),
             PlayerSourceTypes = GetPlayerSources(),
             Code = WiredCode,

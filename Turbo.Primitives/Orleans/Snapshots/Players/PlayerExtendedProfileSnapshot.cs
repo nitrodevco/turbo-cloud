@@ -1,15 +1,15 @@
 using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Groups.Snapshots;
-using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players;
 
-namespace Turbo.Primitives.Messages.Outgoing.Users;
+namespace Turbo.Primitives.Orleans.Snapshots.Players;
 
 [GenerateSerializer, Immutable]
-public sealed record ExtendedProfileMessageComposer : IComposer
+public sealed record PlayerExtendedProfileSnapshot
 {
     [Id(0)]
-    public required int UserId { get; init; }
+    public required PlayerId UserId { get; init; }
 
     [Id(1)]
     public required string UserName { get; init; }

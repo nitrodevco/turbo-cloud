@@ -19,7 +19,7 @@ public enum WiredSelectorType
     USERS_WITH_HANDITEM = 14,
     USERS_IN_GROUP = 15,
     FURNI_WITH_ALTITUDE = 16,
-    var_4938 = 17,
+    FURNI_WITH_VARIABLE = 17,
     USERS_WITH_VARIABLE = 18,
     REMOTE_SELECTOR = 19,
 }

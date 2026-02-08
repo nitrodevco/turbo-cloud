@@ -12,7 +12,7 @@ namespace Turbo.Database.Context;
 public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     : DbContextBase<TurboDbContext>(options)
 {
-    public required DbSet<CatalogOfferEntity> CatalogOffers { get; init; }
+    public DbSet<CatalogOfferEntity> CatalogOffers { get; init; }
 
     public required DbSet<CurrencyTypeEntity> CurrencyTypes { get; init; }
 

@@ -9,11 +9,11 @@ using Turbo.Database.Context;
 
 #nullable disable
 
-namespace Turbo.Main.Migrations
+namespace Turbo.Database.Migrations
 {
     [DbContext(typeof(TurboDbContext))]
-    [Migration("20250907051021_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260205185839_AddedModels")]
+    partial class AddedModels
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -88,7 +88,8 @@ namespace Turbo.Main.Migrations
 
                     b.Property<string>("LocalizationId")
                         .IsRequired()
-                        .HasColumnType("longtext")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("localization_id");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -167,6 +168,12 @@ namespace Turbo.Main.Migrations
                         .HasColumnType("int")
                         .HasColumnName("parent_id");
 
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("sort_order");
+
                     b.PrimitiveCollection<string>("TextData")
                         .HasColumnType("longtext")
                         .HasColumnName("text_data");
@@ -219,7 +226,8 @@ namespace Turbo.Main.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
 
                     b.Property<string>("ExtraParam")
-                        .HasColumnType("longtext")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("extra_param");
 
                     b.Property<int?>("FurnitureDefinitionEntityId")
@@ -338,8 +346,20 @@ namespace Turbo.Main.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
 
                     b.Property<string>("ExtraData")
-                        .HasColumnType("longtext")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("extra_data");
+
+                    b.Property<int>("FurniCategory")
+                        .HasColumnType("int")
+                        .HasDefaultValue(1)
+                        .HasColumnName("category");
+
+                    b.Property<int>("Length")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1)
+                        .HasColumnName("length");
 
                     b.Property<string>("Logic")
                         .IsRequired()
@@ -349,31 +369,32 @@ namespace Turbo.Main.Migrations
                         .HasDefaultValue("none")
                         .HasColumnName("logic");
 
-                    b.Property<string>("ProductName")
+                    b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("product_name");
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("name");
 
-                    b.Property<string>("PublicName")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("public_name");
+                    b.Property<int>("ProductType")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("type");
 
                     b.Property<int>("SpriteId")
                         .HasColumnType("int")
                         .HasColumnName("sprite_id");
+
+                    b.Property<double>("StackHeight")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("double(10,3)")
+                        .HasDefaultValue(0.0)
+                        .HasColumnName("stack_height");
 
                     b.Property<int>("TotalStates")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("total_states");
-
-                    b.Property<int>("Type")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("type");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAddOrUpdate()
@@ -387,27 +408,15 @@ namespace Turbo.Main.Migrations
                         .HasDefaultValue(1)
                         .HasColumnName("usage_policy");
 
-                    b.Property<int>("X")
+                    b.Property<int>("Width")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
-                        .HasColumnName("x");
-
-                    b.Property<int>("Y")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(1)
-                        .HasColumnName("y");
-
-                    b.Property<double>("Z")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("double(10,3)")
-                        .HasDefaultValue(0.0)
-                        .HasColumnName("z");
+                        .HasColumnName("width");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SpriteId", "Type")
+                    b.HasIndex("SpriteId", "ProductType", "FurniCategory")
                         .IsUnique();
 
                     b.ToTable("furniture_definitions");
@@ -436,6 +445,11 @@ namespace Turbo.Main.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
 
+                    b.Property<string>("ExtraData")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("extra_data");
+
                     b.Property<int>("FurnitureDefinitionEntityId")
                         .HasColumnType("int")
                         .HasColumnName("definition_id");
@@ -452,10 +466,6 @@ namespace Turbo.Main.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("direction");
-
-                    b.Property<string>("StuffData")
-                        .HasColumnType("longtext")
-                        .HasColumnName("stuff_data");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAddOrUpdate()
@@ -573,7 +583,8 @@ namespace Turbo.Main.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("varchar(255)")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("name");
 
                     b.Property<int>("PlayerEntityId")
@@ -728,7 +739,8 @@ namespace Turbo.Main.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("longtext")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("name");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -763,7 +775,8 @@ namespace Turbo.Main.Migrations
                         .HasColumnName("automatic");
 
                     b.Property<string>("AutomaticCategory")
-                        .HasColumnType("longtext")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("automatic_category");
 
                     b.Property<DateTime>("CreatedAt")
@@ -781,7 +794,8 @@ namespace Turbo.Main.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
 
                     b.Property<string>("GlobalCategory")
-                        .HasColumnType("longtext")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("global_category");
 
                     b.Property<int>("MinRank")
@@ -792,7 +806,8 @@ namespace Turbo.Main.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("longtext")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("name");
 
                     b.Property<int>("OrderNum")
@@ -856,7 +871,8 @@ namespace Turbo.Main.Migrations
 
                     b.Property<string>("SearchCode")
                         .IsRequired()
-                        .HasColumnType("varchar(255)")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("search_code");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -891,7 +907,8 @@ namespace Turbo.Main.Migrations
 
                     b.Property<string>("BadgeCode")
                         .IsRequired()
-                        .HasColumnType("varchar(255)")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("badge_code");
 
                     b.Property<DateTime>("CreatedAt")
@@ -1060,7 +1077,8 @@ namespace Turbo.Main.Migrations
 
                     b.Property<string>("Type")
                         .IsRequired()
-                        .HasColumnType("varchar(255)")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("type");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -1115,12 +1133,14 @@ namespace Turbo.Main.Migrations
                         .HasColumnName("gender");
 
                     b.Property<string>("Motto")
-                        .HasColumnType("longtext")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("motto");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("varchar(255)")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("name");
 
                     b.Property<int>("PlayerPerks")
@@ -1320,11 +1340,11 @@ namespace Turbo.Main.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<bool?>("AllowEditing")
+                    b.Property<bool>("AllowBlocking")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true)
-                        .HasColumnName("allow_editing");
+                        .HasDefaultValue(false)
+                        .HasColumnName("allow_blocking");
 
                     b.Property<bool>("AllowPets")
                         .ValueGeneratedOnAdd()
@@ -1338,16 +1358,15 @@ namespace Turbo.Main.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("allow_pets_eat");
 
-                    b.Property<bool>("AllowWalkThrough")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true)
-                        .HasColumnName("allow_blocking");
-
                     b.Property<int>("BanType")
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("ban_type");
+
+                    b.Property<int>("ChatBubbleType")
+                        .HasColumnType("int")
+                        .HasDefaultValue(1)
+                        .HasColumnName("chat_bubble_type");
 
                     b.Property<int>("ChatDistance")
                         .ValueGeneratedOnAdd()
@@ -1355,25 +1374,20 @@ namespace Turbo.Main.Migrations
                         .HasDefaultValue(50)
                         .HasColumnName("chat_distance");
 
+                    b.Property<int>("ChatFloodType")
+                        .HasColumnType("int")
+                        .HasDefaultValue(2)
+                        .HasColumnName("chat_flood_type");
+
                     b.Property<int>("ChatModeType")
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("chat_mode_type");
 
-                    b.Property<int>("ChatProtectionType")
-                        .HasColumnType("int")
-                        .HasDefaultValue(2)
-                        .HasColumnName("chat_protection_type");
-
                     b.Property<int>("ChatSpeedType")
                         .HasColumnType("int")
                         .HasDefaultValue(1)
                         .HasColumnName("chat_speed_type");
-
-                    b.Property<int>("ChatWeightType")
-                        .HasColumnType("int")
-                        .HasDefaultValue(1)
-                        .HasColumnName("chat_weight_type");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -1390,8 +1404,14 @@ namespace Turbo.Main.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
 
                     b.Property<string>("Description")
-                        .HasColumnType("longtext")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("description");
+
+                    b.Property<int>("DoorMode")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("door_mode");
 
                     b.Property<bool>("HideWalls")
                         .ValueGeneratedOnAdd()
@@ -1418,7 +1438,8 @@ namespace Turbo.Main.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("longtext")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("name");
 
                     b.Property<int?>("NavigatorCategoryEntityId")
@@ -1444,21 +1465,23 @@ namespace Turbo.Main.Migrations
                         .HasColumnName("paint_wall");
 
                     b.Property<string>("Password")
-                        .HasColumnType("longtext")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("password");
 
                     b.Property<int>("PlayerEntityId")
                         .HasColumnType("int")
                         .HasColumnName("player_id");
 
+                    b.Property<int>("PlayersMax")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(25)
+                        .HasColumnName("players_max");
+
                     b.Property<int>("RoomModelEntityId")
                         .HasColumnType("int")
                         .HasColumnName("model_id");
-
-                    b.Property<int>("RoomState")
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("state");
 
                     b.Property<int>("ThicknessFloor")
                         .HasColumnType("int")
@@ -1481,12 +1504,6 @@ namespace Turbo.Main.Migrations
                         .HasColumnName("updated_at");
 
                     MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime>("UpdatedAt"));
-
-                    b.Property<int>("UsersMax")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(25)
-                        .HasColumnName("users_max");
 
                     b.Property<int>("UsersNow")
                         .ValueGeneratedOnAdd()
@@ -1612,12 +1629,14 @@ namespace Turbo.Main.Migrations
 
                     b.Property<string>("Model")
                         .IsRequired()
-                        .HasColumnType("longtext")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("model");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("varchar(255)")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("name");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -1760,7 +1779,8 @@ namespace Turbo.Main.Migrations
 
                     b.Property<string>("IpAddress")
                         .IsRequired()
-                        .HasColumnType("longtext")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("ip_address");
 
                     b.Property<bool>("IsLocked")
@@ -1775,7 +1795,8 @@ namespace Turbo.Main.Migrations
 
                     b.Property<string>("Ticket")
                         .IsRequired()
-                        .HasColumnType("varchar(255)")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("ticket");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -1811,7 +1832,8 @@ namespace Turbo.Main.Migrations
 
                     b.Property<string>("Browser")
                         .IsRequired()
-                        .HasColumnType("longtext")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("browser");
 
                     b.Property<int>("ElapsedTime")
@@ -1820,7 +1842,8 @@ namespace Turbo.Main.Migrations
 
                     b.Property<string>("FlashVersion")
                         .IsRequired()
-                        .HasColumnType("longtext")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("flash_version");
 
                     b.Property<int>("GarbageCollections")
@@ -1843,12 +1866,14 @@ namespace Turbo.Main.Migrations
 
                     b.Property<string>("OS")
                         .IsRequired()
-                        .HasColumnType("longtext")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("os");
 
                     b.Property<string>("UserAgent")
                         .IsRequired()
-                        .HasColumnType("longtext")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("user_agent");
 
                     b.HasKey("Id");

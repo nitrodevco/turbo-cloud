@@ -10,4 +10,7 @@ public interface IPlayerGrain : IGrainWithIntegerKey
     public Task<PlayerSummarySnapshot> GetSummaryAsync(CancellationToken ct);
 
     public Task<PlayerWalletSnapshot> GetWalletAsync(CancellationToken ct);
+    public Task<PlayerExtendedProfileSnapshot> GetExtendedProfileSnapshotAsync(
+        CancellationToken ct
+    );
 }

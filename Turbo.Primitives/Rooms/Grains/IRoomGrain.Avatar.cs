@@ -33,6 +33,12 @@ public partial interface IRoomGrain
         CancellationToken ct
     );
 
+    public Task<bool> SetAvatarExpressionAsync(
+        ActionContext ctx,
+        AvatarExpressionType expressionType,
+        CancellationToken ct
+    );
+
     public Task<ImmutableArray<RoomAvatarSnapshot>> GetAllAvatarSnapshotsAsync(
         CancellationToken ct
     );

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Turbo.Main.Migrations
+namespace Turbo.Database.Migrations
 {
     /// <inheritdoc />
     public partial class LinkPlayerCurrenciesToCurrencyType : Migration

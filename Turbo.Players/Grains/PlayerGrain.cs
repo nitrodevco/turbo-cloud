@@ -47,7 +47,7 @@ internal sealed class PlayerGrain(
         var entity =
             await dbCtx
                 .Players.AsNoTracking()
-                .SingleOrDefaultAsync(e => e.Id == this.GetPrimaryKeyLong(), ct)
+                .SingleOrDefaultAsync(x => x.Id == (int)this.GetPrimaryKeyLong(), ct)
             ?? throw new TurboException(TurboErrorCodeEnum.PlayerNotFound);
 
         state.State.Name = entity.Name ?? string.Empty;
@@ -55,12 +55,16 @@ internal sealed class PlayerGrain(
         state.State.Figure = entity.Figure ?? string.Empty;
         state.State.Gender = entity.Gender;
         state.State.CreatedAt = entity.CreatedAt;
-        state.State.IsLoaded = true;
         state.State.LastUpdated = DateTime.UtcNow;
+        state.State.IsLoaded = true;
 
         await _grainFactory
             .GetPlayerDirectoryGrain()
-            .SetPlayerNameAsync((PlayerId)this.GetPrimaryKeyLong(), state.State.Name, ct);
+            .SetPlayerNameAsync(
+                PlayerId.Parse((int)this.GetPrimaryKeyLong()),
+                state.State.Name,
+                ct
+            );
 
         await state.WriteStateAsync(ct);
     }
@@ -72,7 +76,7 @@ internal sealed class PlayerGrain(
         var snapshot = await GetSummaryAsync(ct);
 
         await dbCtx
-            .Players.Where(p => p.Id == this.GetPrimaryKeyLong())
+            .Players.Where(p => p.Id == (int)this.GetPrimaryKeyLong())
             .ExecuteUpdateAsync(
                 up =>
                     up.SetProperty(p => p.Name, snapshot.Name)
@@ -87,7 +91,7 @@ internal sealed class PlayerGrain(
         Task.FromResult(
             new PlayerSummarySnapshot
             {
-                PlayerId = (PlayerId)this.GetPrimaryKeyLong(),
+                PlayerId = PlayerId.Parse((int)this.GetPrimaryKeyLong()),
                 Name = state.State.Name,
                 Motto = state.State.Motto,
                 Figure = state.State.Figure,
@@ -169,5 +173,34 @@ internal sealed class PlayerGrain(
         return WalletCurrencyKeyMapper.TryGetActivityPointType(type, out var categoryId)
             ? categoryId
             : null;
+    }
+
+    public Task<PlayerExtendedProfileSnapshot> GetExtendedProfileSnapshotAsync(CancellationToken ct)
+    {
+        var s = state.State;
+        return Task.FromResult(
+            new PlayerExtendedProfileSnapshot
+            {
+                UserId = PlayerId.Parse((int)this.GetPrimaryKeyLong()),
+                UserName = s.Name,
+                Figure = s.Figure,
+                Motto = s.Motto,
+                CreationDate = s.CreatedAt.ToString("yyyy-MM-dd"),
+                AchievementScore = 0,
+                FriendCount = 0,
+                IsFriend = false,
+                IsFriendRequestSent = false,
+                IsOnline = true,
+                Guilds = [],
+                LastAccessSinceInSeconds = 0,
+                OpenProfileWindow = true,
+                IsHidden = false,
+                AccountLevel = 1,
+                IntegerField24 = 0,
+                StarGemCount = 0,
+                BooleanField26 = false,
+                BooleanField27 = false,
+            }
+        );
     }
 }
