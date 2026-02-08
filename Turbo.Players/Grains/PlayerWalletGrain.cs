@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Turbo.Database.Context;
-using Turbo.Primitives.Orleans.Snapshots.Players;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Providers;
@@ -18,11 +17,13 @@ namespace Turbo.Players.Grains;
 
 internal sealed class PlayerWalletGrain(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
-    ICurrencyTypeProvider currencyTypeProvider
+    ICurrencyTypeProvider currencyTypeProvider,
+    IGrainFactory grainFactory
 ) : Grain, IPlayerWalletGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
     private readonly ICurrencyTypeProvider _currencyTypeProvider = currencyTypeProvider;
+    private readonly IGrainFactory _grainFactory = grainFactory;
 
     private readonly Dictionary<CurrencyKind, WalletCurrencySnapshot> _currenciesByKind = [];
 
@@ -48,16 +49,23 @@ internal sealed class PlayerWalletGrain(
                 .Database.BeginTransactionAsync(ct)
                 .ConfigureAwait(false);
 
+            var updates = new List<WalletCurrencyUpdateSnapshot>(normalizedRequests.Count);
+
             foreach (var request in normalizedRequests)
             {
                 try
                 {
-                    if (!await ProcessDebitRequestAsync(dbCtx, request, ct))
+                    var update = await ProcessDebitRequestAsync(dbCtx, request, ct);
+
+                    if (update.ChangedBy != request.Amount)
                         throw new Exception("Failed to process debit request");
+
+                    updates.Add(update);
                 }
                 catch
                 {
                     await tx.RollbackAsync(ct);
+                    await RollbackUpdatesAsync(updates, ct);
 
                     return WalletDebitResult.InsufficientBalance(
                         new WalletDebitFailure
@@ -69,24 +77,47 @@ internal sealed class PlayerWalletGrain(
                 }
             }
 
+            await dbCtx.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
+
+            var playerPresence = _grainFactory.GetPlayerPresenceGrain(
+                (int)this.GetPrimaryKeyLong()
+            );
+
+            foreach (var update in updates)
+                await playerPresence.OnCurrencyUpdateAsync(update, ct);
         }
 
         return WalletDebitResult.Success();
     }
 
-    public Task RefundAsync(ImmutableArray<WalletDebitRequest> requests, CancellationToken ct)
+    public async Task RollbackUpdatesAsync(
+        List<WalletCurrencyUpdateSnapshot> updates,
+        CancellationToken ct
+    )
     {
-        return Task.CompletedTask;
+        if (updates.Count == 0)
+            return;
+
+        foreach (var update in updates)
+        {
+            if (update is null || update.ChangedBy == 0)
+                continue;
+
+            if (_currenciesByKind.TryGetValue(update.CurrencyKind, out var snapshot))
+            {
+                _currenciesByKind[update.CurrencyKind] = snapshot with
+                {
+                    Amount = snapshot.Amount + update.ChangedBy,
+                };
+            }
+        }
     }
 
-    public async Task<int> GetAmountForCurrencyAsync(CurrencyKind kind, CancellationToken ct)
-    {
-        if (_currenciesByKind.TryGetValue(kind, out var snapshot))
-            return snapshot.Amount;
-
-        return 0;
-    }
+    public Task<int> GetAmountForCurrencyAsync(CurrencyKind kind, CancellationToken ct) =>
+        Task.FromResult(
+            _currenciesByKind.TryGetValue(kind, out var snapshot) ? snapshot.Amount : 0
+        );
 
     public async Task<Dictionary<int, int>> GetActivityPointsAsync(CancellationToken ct)
     {
@@ -94,38 +125,17 @@ internal sealed class PlayerWalletGrain(
 
         foreach (var currency in _currenciesByKind.Values)
         {
-            if (currency is null || currency.CurrencyType != CurrencyType.ActivityPoints)
+            if (
+                currency is null
+                || currency.CurrencyKind.CurrencyType != CurrencyType.ActivityPoints
+            )
                 continue;
 
-            result[currency.ActivityPointType ?? -1] = currency.Amount;
+            result[currency.CurrencyKind.ActivityPointType ?? -1] = currency.Amount;
         }
 
         return result;
     }
-
-    public async Task<PlayerWalletSnapshot> GetSnapshotAsync(CancellationToken ct) =>
-        new()
-        {
-            Credits = _currenciesByKind.TryGetValue(
-                new CurrencyKind { CurrencyType = CurrencyType.Credits },
-                out var credits
-            )
-                ? credits.Amount
-                : 0,
-            Emeralds = _currenciesByKind.TryGetValue(
-                new CurrencyKind { CurrencyType = CurrencyType.Emeralds },
-                out var emeralds
-            )
-                ? emeralds.Amount
-                : 0,
-            Silver = _currenciesByKind.TryGetValue(
-                new CurrencyKind { CurrencyType = CurrencyType.Silver },
-                out var silver
-            )
-                ? silver.Amount
-                : 0,
-            ActivityPointsByCategoryId = await GetActivityPointsAsync(ct),
-        };
 
     private static bool TryNormalizeRequests(
         List<WalletDebitRequest> proposed,
@@ -160,38 +170,45 @@ internal sealed class PlayerWalletGrain(
         return true;
     }
 
-    private async Task<bool> ProcessDebitRequestAsync(
+    private async Task<WalletCurrencyUpdateSnapshot> ProcessDebitRequestAsync(
         TurboDbContext dbCtx,
         WalletDebitRequest request,
         CancellationToken ct
     )
     {
-        // TODO when a currency updates we need to send the packet
+        var changedBy = 0;
+        var currentAmount = 0;
+        var cost = request.Amount;
 
-        if (request.Amount <= 0)
-            return true;
+        if (_currenciesByKind.TryGetValue(request.CurrencyKind, out var snapshot))
+        {
+            var entity = await dbCtx
+                .PlayerCurrencies.Where(x =>
+                    x.Id == snapshot.Id && x.PlayerEntityId == (int)this.GetPrimaryKeyLong()
+                )
+                .FirstOrDefaultAsync(ct);
 
-        if (
-            !_currenciesByKind.TryGetValue(request.CurrencyKind, out var currency)
-            || currency.Amount < request.Amount
-        )
-            return false;
+            if (entity is not null)
+            {
+                currentAmount = entity.Amount;
 
-        var affectedRows = await dbCtx
-            .PlayerCurrencies.Where(x =>
-                x.Id == currency.Id
-                && x.PlayerEntityId == (int)this.GetPrimaryKeyLong()
-                && x.Amount >= request.Amount
-            )
-            .ExecuteUpdateAsync(
-                update => update.SetProperty(x => x.Amount, x => x.Amount - request.Amount),
-                ct
-            );
+                if ((cost > 0) && (currentAmount >= cost))
+                {
+                    changedBy = cost;
+                    entity.Amount -= changedBy;
+                    currentAmount = entity.Amount;
+                }
+            }
 
-        if (affectedRows != 1)
-            return false;
+            _currenciesByKind[request.CurrencyKind] = snapshot with { Amount = currentAmount };
+        }
 
-        return true;
+        return new()
+        {
+            CurrencyKind = request.CurrencyKind,
+            ChangedBy = changedBy,
+            Amount = currentAmount,
+        };
     }
 
     private async Task HydrateAsync(CancellationToken ct)
@@ -215,17 +232,15 @@ internal sealed class PlayerWalletGrain(
             var snapshot = new WalletCurrencySnapshot
             {
                 Id = entity.Id,
-                CurrencyType = currencyType.CurrencyType,
-                ActivityPointType = currencyType.ActivityPointType,
+                CurrencyKind = new CurrencyKind
+                {
+                    CurrencyType = currencyType.CurrencyType,
+                    ActivityPointType = currencyType.ActivityPointType,
+                },
                 Amount = entity.Amount,
             };
-            var kind = new CurrencyKind
-            {
-                CurrencyType = snapshot.CurrencyType,
-                ActivityPointType = snapshot.ActivityPointType,
-            };
 
-            _currenciesByKind[kind] = snapshot;
+            _currenciesByKind[snapshot.CurrencyKind] = snapshot;
         }
     }
 }

@@ -1,25 +1,12 @@
 using System;
-using Orleans;
-using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms;
 
 namespace Turbo.Players.Grains;
 
-[GenerateSerializer]
-internal sealed class PlayerPresenceState
+public sealed class PlayerPresenceLiveState
 {
-    [Id(0)]
-    public required SessionKey SessionKey { get; set; } = string.Empty;
-
-    [Id(1)]
-    public required RoomId ActiveRoomId { get; set; } = -1;
-
-    [Id(2)]
-    public required RoomId PendingRoomId { get; set; } = -1;
-
-    [Id(3)]
-    public required bool PendingRoomApproved { get; set; } = false;
-
-    [Id(4)]
-    public required DateTime ActiveRoomSinceUtc { get; set; } = DateTime.UtcNow;
+    public RoomId ActiveRoomId { get; set; } = -1;
+    public RoomId PendingRoomId { get; set; } = -1;
+    public bool PendingRoomApproved { get; set; } = false;
+    public DateTime ActiveRoomSinceUtc { get; set; } = DateTime.UtcNow;
 }

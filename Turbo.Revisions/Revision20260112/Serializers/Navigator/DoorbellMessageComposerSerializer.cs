@@ -8,6 +8,6 @@ internal class DoorbellMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, DoorbellMessageComposer message)
     {
-        packet.WriteString(message.Username);
+        packet.WriteString(message.Username ?? string.Empty);
     }
 }

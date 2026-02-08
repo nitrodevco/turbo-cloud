@@ -103,7 +103,7 @@ internal abstract class UpdateWiredDataParser : IParser
             }
         }
 
-        var message = (UpdateWiredMessage)Activator.CreateInstance(UpdateMessageType);
+        var message = (UpdateWiredMessage)Activator.CreateInstance(UpdateMessageType)!;
 
         return message with
         {
