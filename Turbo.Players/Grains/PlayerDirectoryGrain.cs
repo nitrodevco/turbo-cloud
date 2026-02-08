@@ -19,6 +19,9 @@ internal class PlayerDirectoryGrain(IDbContextFactory<TurboDbContext> dbCtxFacto
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
 
     private readonly Dictionary<PlayerId, string> _idToName = [];
+    private readonly Dictionary<string, PlayerId> _nameToId = new(
+        System.StringComparer.OrdinalIgnoreCase
+    );
 
     public async Task<string> GetPlayerNameAsync(PlayerId playerId, CancellationToken ct)
     {
@@ -36,7 +39,7 @@ internal class PlayerDirectoryGrain(IDbContextFactory<TurboDbContext> dbCtxFacto
         if (string.IsNullOrWhiteSpace(dbName))
             return string.Empty;
 
-        _idToName[playerId] = dbName;
+        SetCache(playerId, dbName);
 
         return dbName;
     }
@@ -84,7 +87,7 @@ internal class PlayerDirectoryGrain(IDbContextFactory<TurboDbContext> dbCtxFacto
 
                 foreach (var player in players)
                 {
-                    _idToName[player.Key] = player.Value;
+                    SetCache(player.Key, player.Value);
 
                     names.TryAdd(player.Key, player.Value);
                 }
@@ -96,15 +99,52 @@ internal class PlayerDirectoryGrain(IDbContextFactory<TurboDbContext> dbCtxFacto
 
     public Task SetPlayerNameAsync(PlayerId playerId, string name, CancellationToken ct)
     {
-        _idToName[playerId] = name;
+        SetCache(playerId, name);
 
         return Task.CompletedTask;
     }
 
     public Task InvalidatePlayerNameAsync(PlayerId playerId, CancellationToken ct)
     {
-        _idToName.Remove(playerId);
+        if (_idToName.Remove(playerId, out var oldName))
+            _nameToId.Remove(oldName);
 
         return Task.CompletedTask;
+    }
+
+    public async Task<PlayerId?> GetPlayerIdAsync(string userName, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(userName))
+            return null;
+
+        var normalizedUserName = userName.Trim();
+        if (_nameToId.TryGetValue(normalizedUserName, out var cachedPlayerId))
+            return cachedPlayerId;
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        var loweredUserName = normalizedUserName.ToLowerInvariant();
+        var player = await dbCtx
+            .Players.AsNoTracking()
+            .Where(x => x.Name != null && x.Name.ToLower() == loweredUserName)
+            .Select(x => new { x.Id, x.Name })
+            .FirstOrDefaultAsync(ct);
+
+        if (player is null or { Id: <= 0 })
+            return null;
+
+        var playerId = (PlayerId)player.Id;
+        SetCache(playerId, player.Name ?? normalizedUserName);
+
+        return playerId;
+    }
+
+    private void SetCache(PlayerId playerId, string name)
+    {
+        if (_idToName.TryGetValue(playerId, out var existingName))
+            _nameToId.Remove(existingName);
+
+        _idToName[playerId] = name;
+        _nameToId[name] = playerId;
     }
 }

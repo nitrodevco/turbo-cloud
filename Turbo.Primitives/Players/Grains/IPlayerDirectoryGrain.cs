@@ -13,6 +13,7 @@ public interface IPlayerDirectoryGrain : IGrainWithStringKey
         List<PlayerId> playerIds,
         CancellationToken ct
     );
+    public Task<PlayerId?> GetPlayerIdAsync(string userName, CancellationToken ct);
     public Task SetPlayerNameAsync(PlayerId playerId, string name, CancellationToken ct);
     public Task InvalidatePlayerNameAsync(PlayerId playerId, CancellationToken ct);
 }
