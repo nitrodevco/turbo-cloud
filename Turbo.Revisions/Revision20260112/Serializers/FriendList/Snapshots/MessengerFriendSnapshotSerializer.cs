@@ -15,6 +15,7 @@ internal class MessengerFriendSnapshotSerializer
         packet.WriteString(message.Figure);
         packet.WriteInteger(message.CategoryId);
         packet.WriteString(message.Motto);
+        packet.WriteString(message.RealName);
         packet.WriteString(message.FacebookId);
         packet.WriteBoolean(message.PersistedMessageUser);
         packet.WriteBoolean(message.VipMember);

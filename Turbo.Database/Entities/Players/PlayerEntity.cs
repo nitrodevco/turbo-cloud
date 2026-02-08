@@ -86,4 +86,16 @@ public class PlayerEntity : TurboEntity
 
     [InverseProperty("PlayerEntity")]
     public List<RoomChatlogEntity>? RoomChatlogs { get; set; }
+
+    [InverseProperty("PlayerEntity")]
+    public List<MessengerBlockedEntity>? MessengerBlocked { get; set; }
+
+    [InverseProperty("PlayerEntity")]
+    public List<MessengerIgnoredEntity>? MessengerIgnored { get; set; }
+
+    [InverseProperty("SenderPlayerEntity")]
+    public List<MessengerMessageEntity>? MessengerMessagesSent { get; set; }
+
+    [InverseProperty("ReceiverPlayerEntity")]
+    public List<MessengerMessageEntity>? MessengerMessagesReceived { get; set; }
 }

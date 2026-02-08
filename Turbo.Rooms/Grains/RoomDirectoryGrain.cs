@@ -122,6 +122,20 @@ public class RoomDirectoryGrain(
     public Task<int> GetRoomPopulationAsync(RoomId roomId) =>
         Task.FromResult(_roomPopulations.TryGetValue(roomId, out var pop) ? pop : 0);
 
+    public Task<RoomId?> GetRandomPopulatedRoomAsync(CancellationToken ct)
+    {
+        var populated = _roomPopulations
+            .Where(kv => kv.Value > 0)
+            .Select(kv => kv.Key)
+            .ToArray();
+
+        if (populated.Length == 0)
+            return Task.FromResult<RoomId?>(null);
+
+        var random = Random.Shared.Next(populated.Length);
+        return Task.FromResult<RoomId?>(populated[random]);
+    }
+
     private Task UpdatePopulationAsync(RoomId roomId)
     {
         _roomPopulations[roomId] = _roomPlayers.TryGetValue(roomId, out var players)

@@ -611,6 +611,54 @@ namespace Turbo.Database.Migrations
                     b.ToTable("furniture_teleport_links");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Messenger.MessengerBlockedEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BlockedPlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("blocked_player_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("deleted_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime>("UpdatedAt"));
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BlockedPlayerEntityId");
+
+                    b.HasIndex("PlayerEntityId", "BlockedPlayerEntityId")
+                        .IsUnique();
+
+                    b.ToTable("messenger_blocked");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Messenger.MessengerCategoryEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -717,6 +765,115 @@ namespace Turbo.Database.Migrations
                         .IsUnique();
 
                     b.ToTable("messenger_friends");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Messenger.MessengerIgnoredEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("deleted_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
+
+                    b.Property<int>("IgnoredPlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("ignored_player_id");
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime>("UpdatedAt"));
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IgnoredPlayerEntityId");
+
+                    b.HasIndex("PlayerEntityId", "IgnoredPlayerEntityId")
+                        .IsUnique();
+
+                    b.ToTable("messenger_ignored");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Messenger.MessengerMessageEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("deleted_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
+
+                    b.Property<bool>("Delivered")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("delivered");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("message");
+
+                    b.Property<int>("ReceiverPlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("receiver_id");
+
+                    b.Property<int>("SenderPlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("sender_id");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("timestamp");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime>("UpdatedAt"));
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceiverPlayerEntityId", "SenderPlayerEntityId", "Timestamp");
+
+                    b.HasIndex("SenderPlayerEntityId", "ReceiverPlayerEntityId", "Timestamp");
+
+                    b.ToTable("messenger_messages");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Messenger.MessengerRequestEntity", b =>
@@ -2025,6 +2182,25 @@ namespace Turbo.Database.Migrations
                     b.Navigation("FurnitureEntityTwo");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Messenger.MessengerBlockedEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "BlockedPlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("BlockedPlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany("MessengerBlocked")
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BlockedPlayerEntity");
+
+                    b.Navigation("PlayerEntity");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Messenger.MessengerCategoryEntity", b =>
                 {
                     b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
@@ -2059,6 +2235,44 @@ namespace Turbo.Database.Migrations
                     b.Navigation("MessengerCategoryEntity");
 
                     b.Navigation("PlayerEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Messenger.MessengerIgnoredEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "IgnoredPlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("IgnoredPlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany("MessengerIgnored")
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("IgnoredPlayerEntity");
+
+                    b.Navigation("PlayerEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Messenger.MessengerMessageEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "ReceiverPlayerEntity")
+                        .WithMany("MessengerMessagesReceived")
+                        .HasForeignKey("ReceiverPlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "SenderPlayerEntity")
+                        .WithMany("MessengerMessagesSent")
+                        .HasForeignKey("SenderPlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ReceiverPlayerEntity");
+
+                    b.Navigation("SenderPlayerEntity");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Messenger.MessengerRequestEntity", b =>
@@ -2318,9 +2532,17 @@ namespace Turbo.Database.Migrations
                 {
                     b.Navigation("Furniture");
 
+                    b.Navigation("MessengerBlocked");
+
                     b.Navigation("MessengerCategories");
 
                     b.Navigation("MessengerFriends");
+
+                    b.Navigation("MessengerIgnored");
+
+                    b.Navigation("MessengerMessagesReceived");
+
+                    b.Navigation("MessengerMessagesSent");
 
                     b.Navigation("MessengerRequests");
 

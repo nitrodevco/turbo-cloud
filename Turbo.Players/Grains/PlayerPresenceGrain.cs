@@ -96,6 +96,11 @@ internal sealed partial class PlayerPresenceGrain
 
         await _inventoryModule.OnSessionDetachedAsync(ct);
 
+        // Notify friends that we went offline
+        var playerId = (PlayerId)this.GetPrimaryKeyLong();
+        var messengerGrain = _grainFactory.GetMessengerGrain(playerId);
+        messengerGrain.NotifyOfflineAsync(ct).Ignore();
+
         _sessionObserver = null;
 
         _state.State.SessionKey = string.Empty;
