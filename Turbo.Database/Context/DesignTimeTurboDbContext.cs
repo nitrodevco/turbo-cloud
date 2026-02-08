@@ -20,7 +20,7 @@ namespace Turbo.Database.Context
                 .Build();
 
             var connectionString = configuration["Turbo:Database:ConnectionString"];
-            
+
             optionsBuilder.UseMySql(
                 connectionString,
                 ServerVersion.AutoDetect(connectionString),

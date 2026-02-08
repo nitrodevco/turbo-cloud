@@ -94,6 +94,21 @@ Default output format:
 - Active-room membership/discovery belongs to `RoomDirectoryGrain`; do not bypass it with ad-hoc room tracking.
 - Grain lifetime remains Orleans-managed by default; use `[KeepAlive]` only for explicitly justified directory/manager grains.
 
+## Packet addition checklist (revision work)
+When adding packet mappings in `Turbo.Revisions/Revision20260112`:
+1. Update `Turbo.Revisions/Revision20260112/Headers.cs`:
+   - add/update incoming `MessageEvent` id constants
+   - add/update outgoing `MessageComposer` id constants
+2. Add parser class under:
+   - `Turbo.Revisions/Revision20260112/Parsers/<Domain>/*MessageParser.cs`
+3. Add serializer class under:
+   - `Turbo.Revisions/Revision20260112/Serializers/<Domain>/*MessageComposerSerializer.cs`
+4. Register mappings in:
+   - `Turbo.Revisions/Revision20260112/Revision20260112.cs`
+   - incoming: `Parsers` dictionary with `MessageEvent` key
+   - outgoing: `Serializers` dictionary with composer type + `MessageComposer` id
+5. Ensure the required `using` directives are present in `Revision20260112.cs` for new parser/serializer namespaces.
+
 ## Task recipes
 
 ### Add packet handler

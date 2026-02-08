@@ -53,6 +53,7 @@
     <ProjectReference Include="..\Turbo.Players\Turbo.Players.csproj" />
     <ProjectReference Include="..\Turbo.Plugins\Turbo.Plugins.csproj" />
     <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
+    <ProjectReference Include="..\Turbo.Revisions\Turbo.Revisions.csproj" />
     <ProjectReference Include="..\Turbo.Rooms\Turbo.Rooms.csproj" />
     <ProjectReference Include="..\Turbo.Runtime\Turbo.Runtime.csproj" />
   </ItemGroup>

@@ -13,4 +13,5 @@ public class PluginConfig
     public int DebounceMs { get; init; } = 500;
 
     public string[] DevPluginPaths { get; init; } = [];
+    public bool HotReloadEnabled { get; init; } = true;
 }

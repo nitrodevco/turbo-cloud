@@ -7,7 +7,9 @@ namespace Turbo.Networking.Revisions;
 public sealed class RevisionManager(ILogger<RevisionManager> logger) : IRevisionManager
 {
     private readonly ILogger<RevisionManager> _logger = logger;
+
     public IDictionary<string, IRevision> Revisions { get; } = new Dictionary<string, IRevision>();
+    public string DefaultRevisionId { get; private set; } = string.Empty;
 
     public IRevision? GetRevision(string revisionId) =>
         Revisions.TryGetValue(revisionId, out var revision) ? revision : null;
@@ -22,5 +24,10 @@ public sealed class RevisionManager(ILogger<RevisionManager> logger) : IRevision
         _logger.LogInformation("Revision Registered: {Revision}", revision.Revision);
 
         Revisions[revision.Revision] = revision;
+
+        if (string.IsNullOrEmpty(DefaultRevisionId))
+        {
+            DefaultRevisionId = revision.Revision;
+        }
     }
 }

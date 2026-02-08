@@ -5,7 +5,7 @@ using Turbo.Primitives.Messages.Incoming.Handshake;
 
 namespace Turbo.PacketHandlers.Handshake;
 
-public class ClientHelloMessageHandler : IMessageHandler<ClientHelloMessage>
+public class ClientHelloMessageHandler() : IMessageHandler<ClientHelloMessage>
 {
     public async ValueTask HandleAsync(
         ClientHelloMessage message,
@@ -13,6 +13,13 @@ public class ClientHelloMessageHandler : IMessageHandler<ClientHelloMessage>
         CancellationToken ct
     )
     {
+        if (message.Production is null)
+        {
+            await ctx.CloseSessionAsync().ConfigureAwait(false);
+
+            return;
+        }
+
         await ValueTask.CompletedTask.ConfigureAwait(false);
     }
 }

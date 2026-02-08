@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
@@ -19,7 +20,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<PluginManager>();
         services.AddHostedService<PluginBootstrapper>();
 
-        if (builder.Environment.IsDevelopment())
+        if (builder.Environment.IsDevelopment() && pluginSection.GetValue<bool>("HotReloadEnabled"))
             services.AddHostedService<PluginHotReloadService>();
 
         return services;

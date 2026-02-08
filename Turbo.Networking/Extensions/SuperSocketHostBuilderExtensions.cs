@@ -6,6 +6,7 @@ using SuperSocket.Server;
 using SuperSocket.Server.Abstractions.Host;
 using Turbo.Networking.Configuration;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Networking.Revisions;
 
 namespace Turbo.Networking.Extensions;
 
@@ -21,15 +22,20 @@ public static class SuperSocketHostBuilderExtensions
                 services.AddSingleton(sp =>
                 {
                     var gateway = sp.GetRequiredService<ISessionGateway>();
+                    var revisionManager = sp.GetRequiredService<IRevisionManager>();
 
                     return new SessionHandlers
                     {
                         Connected = async session =>
                         {
                             if (session is ISessionContext ctx)
+                            {
+                                ctx.SetRevisionId(revisionManager.DefaultRevisionId);
+
                                 await gateway
                                     .AddSessionAsync(ctx.SessionKey, ctx)
                                     .ConfigureAwait(false);
+                            }
                         },
                         Closed = async (session, e) =>
                         {

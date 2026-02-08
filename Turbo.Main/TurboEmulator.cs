@@ -8,7 +8,9 @@ using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Networking.Revisions;
 using Turbo.Primitives.Rooms.Providers;
+using Turbo.Revisions.Revision20260112;
 
 namespace Turbo.Main;
 
@@ -18,7 +20,8 @@ public class TurboEmulator(
     ICatalogSnapshotProvider<NormalCatalog> catalogProvider,
     INavigatorProvider topLevelContextProvider,
     IRoomModelProvider roomModelProvider,
-    INetworkManager networkManager
+    INetworkManager networkManager,
+    IRevisionManager revisionManager
 ) : IHostedService
 {
     private readonly ILogger<TurboEmulator> _logger = logger;
@@ -27,11 +30,13 @@ public class TurboEmulator(
     private readonly INavigatorProvider _topLevelContextProvider = topLevelContextProvider;
     private readonly IRoomModelProvider _roomModelProvider = roomModelProvider;
     private readonly INetworkManager _networkManager = networkManager;
+    private readonly IRevisionManager _revisionManager = revisionManager;
 
     public async Task StartAsync(CancellationToken ct)
     {
         try
         {
+            _revisionManager.RegisterRevision(new Revision20260112());
             await _furnitureProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _catalogProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _topLevelContextProvider.ReloadAsync(ct).ConfigureAwait(false);
