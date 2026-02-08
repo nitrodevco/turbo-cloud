@@ -4,13 +4,13 @@ using Turbo.Primitives.Players.Wallet;
 namespace Turbo.Primitives.Players.Snapshots;
 
 [GenerateSerializer, Immutable]
-public sealed record WalletCurrencySnapshot
+public sealed record WalletCurrencyUpdateSnapshot
 {
     [Id(0)]
-    public required int Id { get; init; }
+    public required CurrencyKind CurrencyKind { get; init; }
 
     [Id(1)]
-    public required CurrencyKind CurrencyKind { get; init; }
+    public required int ChangedBy { get; init; }
 
     [Id(2)]
     public required int Amount { get; init; }

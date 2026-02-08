@@ -11,6 +11,9 @@ internal class HabboActivityPointNotificationMessageComposerSerializer(int heade
         HabboActivityPointNotificationMessageComposer message
     )
     {
-        //
+        packet
+            .WriteInteger(message.Amount)
+            .WriteInteger(message.Change)
+            .WriteInteger(message.ActivityPointType);
     }
 }

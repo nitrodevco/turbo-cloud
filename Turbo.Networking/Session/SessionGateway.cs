@@ -80,7 +80,7 @@ public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
         _sessionToPlayer[key] = playerId;
         _playerToSession[playerId] = key;
 
-        await playerPresence.RegisterSessionAsync(key, observer).ConfigureAwait(false);
+        await playerPresence.RegisterSessionObserverAsync(observer).ConfigureAwait(false);
     }
 
     public async Task RemoveSessionFromPlayerAsync(PlayerId playerId, CancellationToken ct)
@@ -92,6 +92,6 @@ public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
 
         var playerPresence = _grainFactory.GetPlayerPresenceGrain(playerId);
 
-        await playerPresence.UnregisterSessionAsync(sessionKey, ct).ConfigureAwait(false);
+        await playerPresence.UnregisterSessionObserverAsync(ct).ConfigureAwait(false);
     }
 }

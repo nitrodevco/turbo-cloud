@@ -14,9 +14,6 @@ public interface IPlayerWalletGrain : IGrainWithIntegerKey
         List<WalletDebitRequest> requests,
         CancellationToken ct
     );
-
-    public Task RefundAsync(ImmutableArray<WalletDebitRequest> requests, CancellationToken ct);
     public Task<int> GetAmountForCurrencyAsync(CurrencyKind kind, CancellationToken ct);
     public Task<Dictionary<int, int>> GetActivityPointsAsync(CancellationToken ct);
-    public Task<PlayerWalletSnapshot> GetSnapshotAsync(CancellationToken ct);
 }
