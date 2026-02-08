@@ -239,4 +239,27 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
 
         return Task.FromResult(true);
     }
+
+    public Task<bool> SetAvatarExpressionAsync(
+        RoomObjectId objectId,
+        AvatarExpressionType expressionType,
+        CancellationToken ct
+    )
+    {
+        if (
+            objectId <= 0
+            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar)
+        )
+            return Task.FromResult(false);
+
+        _ = _roomGrain.SendComposerToRoomAsync(
+            new ExpressionMessageComposer
+            {
+                ObjectId = avatar.ObjectId,
+                ExpressionType = expressionType,
+            }
+        );
+
+        return Task.FromResult(true);
+    }
 }

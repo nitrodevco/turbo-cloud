@@ -22,7 +22,7 @@ public sealed class RoomLiveState
     public Dictionary<PlayerId, string> OwnerNamesById { get; } = [];
 
     public RoomModelSnapshot? Model { get; internal set; } = null;
-    public double[] TileHeights { get; internal set; } = [];
+    public Altitude[] TileHeights { get; internal set; } = [];
     public short[] TileEncodedHeights { get; internal set; } = [];
     public RoomTileFlags[] TileFlags { get; internal set; } = [];
     public RoomObjectId[] TileHighestFloorItems { get; internal set; } = [];

@@ -3,6 +3,7 @@ using Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
+using Turbo.Primitives.Rooms.Wired.Variable;
 
 namespace Turbo.Primitives.Rooms.Snapshots.Wired;
 
@@ -34,7 +35,7 @@ public record WiredDataSnapshot
     public required List<int> IntParams { get; init; }
 
     [Id(8)]
-    public required List<string> VariableIds { get; init; }
+    public required List<WiredVariableId> VariableIds { get; init; }
 
     [Id(9)]
     public required List<WiredFurniSourceType[]> FurniSourceTypes { get; init; }

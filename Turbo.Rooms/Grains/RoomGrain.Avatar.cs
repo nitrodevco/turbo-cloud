@@ -129,6 +129,33 @@ public sealed partial class RoomGrain
         }
     }
 
+    public async Task<bool> SetAvatarExpressionAsync(
+        ActionContext ctx,
+        AvatarExpressionType expressionType,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            if (
+                !_state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
+                || !await AvatarModule.SetAvatarExpressionAsync(objectId, expressionType, ct)
+            )
+                return false;
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                $"Failed to set expression:{expressionType} avatar for player {ctx.PlayerId} in room {_state.RoomId}"
+            );
+
+            return false;
+        }
+    }
+
     public Task<ImmutableArray<RoomAvatarSnapshot>> GetAllAvatarSnapshotsAsync(
         CancellationToken ct
     ) => AvatarModule.GetAllAvatarSnapshotsAsync(ct);
