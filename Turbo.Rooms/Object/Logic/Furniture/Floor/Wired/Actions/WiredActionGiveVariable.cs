@@ -35,6 +35,8 @@ public class WiredActionGiveVariable(
             new WiredBoolParamRule(false), // override
         ];
 
+    public override int GetMaxVariableIds() => 1;
+
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [
             [

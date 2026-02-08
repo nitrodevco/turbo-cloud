@@ -33,7 +33,7 @@ public static class ServiceCollectionExtensions
                     ServerVersion.AutoDetect(connectionString),
                     options =>
                     {
-                        options.MigrationsAssembly("Turbo.Main");
+                        options.MigrationsAssembly("Turbo.Database");
                     }
                 );
             }

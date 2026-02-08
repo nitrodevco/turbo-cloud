@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 
@@ -88,7 +89,7 @@ public sealed class RoomModelProvider(
         var height = rows.Count;
         var width = rows.Max(x => x.Length);
         var size = width * height;
-        var heights = new double[size];
+        var heights = new Altitude[size];
         var flags = new RoomTileFlags[size];
 
         for (var y = 0; y < height; y++)
@@ -102,14 +103,16 @@ public sealed class RoomModelProvider(
 
                 if (ch.Equals('x'))
                 {
-                    heights[idx] = 0.0;
+                    heights[idx] = Altitude.Zero;
                     flags[idx] = RoomTileFlags.Disabled | RoomTileFlags.StackBlocked;
                 }
                 else
                 {
                     var heightIndex = "abcdefghijklmnopqrstuvwxyz".IndexOf(ch);
                     var tileHeight =
-                        heightIndex == -1 ? int.Parse(ch.ToString()) : heightIndex + 10;
+                        heightIndex == -1
+                            ? Altitude.FromInt(int.Parse(ch.ToString()))
+                            : Altitude.FromInt(heightIndex + 10);
 
                     heights[idx] = tileHeight;
                     flags[idx] = RoomTileFlags.Open;

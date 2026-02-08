@@ -6,5 +6,6 @@ namespace Turbo.Primitives.Messages.Outgoing.Users;
 [GenerateSerializer, Immutable]
 public sealed record ExtendedProfileChangedMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required int UserId { get; init; }
 }

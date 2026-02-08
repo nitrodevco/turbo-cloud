@@ -25,7 +25,12 @@ public class WiredSelectorItemsWithAltitude(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredRangeParamRule(0, 8000, 0),
-            new WiredEnumParamRule<WiredComparisonType>(WiredComparisonType.LessThan),
+            new WiredEnumParamRule<WiredComparisonType>(
+                WiredComparisonType.LessThan,
+                WiredComparisonType.LessThan,
+                WiredComparisonType.Equals,
+                WiredComparisonType.GreaterThan
+            ),
         ];
 
     public override Task<IWiredSelectionSet> SelectAsync(

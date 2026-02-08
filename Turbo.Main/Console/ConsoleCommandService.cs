@@ -54,7 +54,7 @@ public class ConsoleCommandService(IServiceProvider services)
         }
     }
 
-    private Task HandleCommandAsync(string input, CancellationToken ct)
+    private async Task HandleCommandAsync(string input, CancellationToken ct)
     {
         var parts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var cmd = parts[0].ToLowerInvariant();
@@ -63,7 +63,9 @@ public class ConsoleCommandService(IServiceProvider services)
         switch (cmd)
         {
             case "help":
-                System.Console.WriteLine("Available commands: help, quit, reload-plugins");
+                System.Console.WriteLine(
+                    "Available commands: help, quit, reload-plugins, reload-plugin <key>"
+                );
                 break;
 
             case "quit":
@@ -73,22 +75,42 @@ public class ConsoleCommandService(IServiceProvider services)
                 break;
 
             case "reload-plugins":
-                var pluginMgr = _services.GetRequiredService<PluginManager>();
-                //await pluginMgr.LoadAll(true, false, ct);
+                try
+                {
+                    var pluginMgr = _services.GetRequiredService<PluginManager>();
+                    await pluginMgr.LoadAllAsync(true, ct).ConfigureAwait(false);
+                    System.Console.WriteLine("Plugins reloaded.");
+                }
+                catch (Exception ex)
+                {
+                    System.Console.WriteLine($"Reload failed: {ex.Message}");
+                }
                 break;
 
             case "reload-plugin":
             {
-                pluginMgr = _services.GetRequiredService<PluginManager>();
-                //await pluginMgr.Reload(args[0], ct);
+                if (args.Length == 0)
+                {
+                    System.Console.WriteLine("Usage: reload-plugin <key>");
+                    break;
+                }
+
+                try
+                {
+                    var pluginMgr = _services.GetRequiredService<PluginManager>();
+                    await pluginMgr.ReloadAsync(args[0], ct).ConfigureAwait(false);
+                    System.Console.WriteLine($"Plugin '{args[0]}' reloaded.");
+                }
+                catch (Exception ex)
+                {
+                    System.Console.WriteLine($"Reload failed for '{args[0]}': {ex.Message}");
+                }
                 break;
             }
 
             default:
-                System.Console.WriteLine("Unknown command: {Command}", cmd);
+                System.Console.WriteLine($"Unknown command: {cmd}");
                 break;
         }
-
-        return Task.CompletedTask;
     }
 }

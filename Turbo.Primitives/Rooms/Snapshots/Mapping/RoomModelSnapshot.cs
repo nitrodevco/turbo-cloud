@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Rooms.Snapshots.Mapping;
 
@@ -34,7 +35,7 @@ public sealed record RoomModelSnapshot
     public required int Size { get; init; }
 
     [Id(9)]
-    public required double[] BaseHeights { get; init; }
+    public required Altitude[] BaseHeights { get; init; }
 
     [Id(10)]
     public required RoomTileFlags[] BaseFlags { get; init; }
