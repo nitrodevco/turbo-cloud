@@ -23,8 +23,8 @@ public sealed class PlayerState
     public required DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     [Id(5)]
-    public required bool IsLoaded { get; set; } = false;
+    public required DateTime LastUpdated { get; set; } = DateTime.UtcNow;
 
     [Id(6)]
-    public required DateTime LastUpdated { get; set; } = DateTime.UtcNow;
+    public required bool IsLoaded { get; set; } = false;
 }
