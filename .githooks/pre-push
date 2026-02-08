@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+set -eu
+
+echo "Running full quality gate before push..."
+dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudQualityGate

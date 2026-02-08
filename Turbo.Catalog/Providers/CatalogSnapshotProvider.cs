@@ -86,7 +86,8 @@ public sealed class CatalogSnapshotProvider<TTag>(
                         x.FurnitureDefinitionEntityId != null
                             ? _furnitureProvider
                                 .TryGetDefinition(x.FurnitureDefinitionEntityId.Value)
-                                ?.SpriteId ?? -1
+                                ?.SpriteId
+                                ?? -1
                             : -1,
                     ExtraParam = x.ExtraParam,
                     Quantity = x.Quantity,

@@ -34,7 +34,9 @@ public class ConsoleCommandService(IServiceProvider services)
         await _cts.CancelAsync().ConfigureAwait(false);
 
         if (_loopTask is not null)
+#pragma warning disable VSTHRD003
             await _loopTask.ConfigureAwait(false);
+#pragma warning restore VSTHRD003
 
         _cts.Dispose();
     }

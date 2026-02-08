@@ -6,8 +6,6 @@ namespace Turbo.Rooms.Wired;
 
 public sealed class WiredPolicy : IWiredPolicy
 {
-    private int _animationTimeMs = 50;
-
     public WiredConditionModeType ConditionMode { get; init; } = WiredConditionModeType.All;
     public WiredEffectModeType EffectMode { get; init; } = WiredEffectModeType.All;
     public WiredAnimationModeType AnimationMode { get; set; } = WiredAnimationModeType.Smooth;
