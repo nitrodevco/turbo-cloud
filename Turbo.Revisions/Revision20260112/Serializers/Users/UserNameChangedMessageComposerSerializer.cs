@@ -8,6 +8,6 @@ internal class UserNameChangedMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, UserNameChangedMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.WebId).WriteInteger(message.Id).WriteString(message.Name);
     }
 }

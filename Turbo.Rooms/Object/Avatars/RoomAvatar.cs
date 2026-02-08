@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -20,9 +21,9 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
 
     public abstract RoomObjectType AvatarType { get; }
 
-    public string Name { get; init; } = string.Empty;
-    public string Motto { get; init; } = string.Empty;
-    public string Figure { get; init; } = string.Empty;
+    public string Name { get; protected set; } = string.Empty;
+    public string Motto { get; protected set; } = string.Empty;
+    public string Figure { get; protected set; } = string.Empty;
 
     public Rotation HeadRotation { get; protected set; }
     public AvatarDanceType DanceType { get; private set; } = AvatarDanceType.None;

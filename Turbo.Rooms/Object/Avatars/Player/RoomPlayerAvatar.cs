@@ -1,4 +1,5 @@
 using System.Text;
+using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -14,7 +15,7 @@ public sealed class RoomPlayerAvatar
     public override RoomObjectType AvatarType { get; } = RoomObjectType.Player;
 
     public required PlayerId PlayerId { get; init; }
-    public required AvatarGenderType Gender { get; init; }
+    public AvatarGenderType Gender { get; private set; } = AvatarGenderType.Male;
 
     public int GroupId { get; init; } = -1;
     public int GroupStatus { get; init; } = -1;
@@ -22,6 +23,16 @@ public sealed class RoomPlayerAvatar
     public string SwimFigure { get; init; } = string.Empty;
     public int ActivityPoints { get; init; } = 0;
     public bool IsModerator { get; init; } = false;
+
+    public bool UpdateWithPlayer(PlayerSummarySnapshot snapshot)
+    {
+        Name = snapshot.Name;
+        Motto = snapshot.Motto;
+        Figure = snapshot.Figure;
+        Gender = snapshot.Gender;
+
+        return true;
+    }
 
     protected override RoomPlayerAvatarSnapshot BuildSnapshot()
     {

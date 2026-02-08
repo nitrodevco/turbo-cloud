@@ -27,6 +27,10 @@ public partial interface IRoomGrain
         int targetY,
         CancellationToken ct
     );
+    public Task<bool> UpdateAvatarWithPlayerAsync(
+        PlayerSummarySnapshot snapshot,
+        CancellationToken ct
+    );
     public Task<bool> SetAvatarDanceAsync(
         ActionContext ctx,
         AvatarDanceType danceType,

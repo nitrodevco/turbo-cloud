@@ -102,6 +102,26 @@ public sealed partial class RoomGrain
         }
     }
 
+    public async Task<bool> UpdateAvatarWithPlayerAsync(
+        PlayerSummarySnapshot snapshot,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return await AvatarModule.UpdateAvatarWithPlayerAsync(snapshot, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                $"Failed to update avatar for player {snapshot.PlayerId} in room {_state.RoomId}"
+            );
+
+            return false;
+        }
+    }
+
     public async Task<bool> SetAvatarDanceAsync(
         ActionContext ctx,
         AvatarDanceType danceType,

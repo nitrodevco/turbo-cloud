@@ -7,6 +7,7 @@ using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Action;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
@@ -218,6 +219,34 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         {
             await StopWalkingAsync(avatar, ct);
         }
+    }
+
+    public Task<bool> UpdateAvatarWithPlayerAsync(
+        PlayerSummarySnapshot snapshot,
+        CancellationToken ct
+    )
+    {
+        if (
+            snapshot.PlayerId <= 0
+            || !_roomGrain._state.AvatarsByPlayerId.TryGetValue(snapshot.PlayerId, out var objectId)
+            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+            || avatar is not IRoomPlayer avatarPlayer
+            || !avatarPlayer.UpdateWithPlayer(snapshot)
+        )
+            return Task.FromResult(false);
+
+        _ = _roomGrain.SendComposerToRoomAsync(
+            new UserChangeMessageComposer
+            {
+                ObjectId = avatarPlayer.ObjectId,
+                Figure = avatarPlayer.Figure,
+                Gender = avatarPlayer.Gender,
+                CustomInfo = avatarPlayer.Motto,
+                AchievementScore = snapshot.AchievementScore,
+            }
+        );
+
+        return Task.FromResult(true);
     }
 
     public Task<bool> SetAvatarDanceAsync(

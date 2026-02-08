@@ -20,11 +20,14 @@ public sealed class PlayerState
     public required AvatarGenderType Gender { get; set; } = AvatarGenderType.Male;
 
     [Id(4)]
-    public required DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public required int AchievementScore { get; set; } = 0;
 
     [Id(5)]
-    public required DateTime LastUpdated { get; set; } = DateTime.UtcNow;
+    public required DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     [Id(6)]
+    public required DateTime LastUpdated { get; set; } = DateTime.UtcNow;
+
+    [Id(7)]
     public required bool IsLoaded { get; set; } = false;
 }

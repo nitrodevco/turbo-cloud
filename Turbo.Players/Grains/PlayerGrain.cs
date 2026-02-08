@@ -13,6 +13,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Orleans.States.Players;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Players.Grains;
 
@@ -36,6 +37,21 @@ internal sealed class PlayerGrain(
         await WriteToDatabaseAsync(ct);
     }
 
+    public async Task SetFigureAsync(string figure, AvatarGenderType gender, CancellationToken ct)
+    {
+        state.State.Figure = figure;
+        state.State.Gender = gender;
+        state.State.LastUpdated = DateTime.UtcNow;
+
+        await state.WriteStateAsync(ct);
+
+        var summary = await GetSummaryAsync(ct);
+
+        var playerPresence = _grainFactory.GetPlayerPresenceGrain((int)this.GetPrimaryKeyLong());
+
+        await playerPresence.OnFigureUpdatedAsync(summary, ct);
+    }
+
     private async Task HydrateAsync(CancellationToken ct)
     {
         if (state.State.IsLoaded)
@@ -53,6 +69,7 @@ internal sealed class PlayerGrain(
         state.State.Motto = entity.Motto ?? string.Empty;
         state.State.Figure = entity.Figure ?? string.Empty;
         state.State.Gender = entity.Gender;
+        state.State.AchievementScore = 0;
         state.State.CreatedAt = entity.CreatedAt;
         state.State.LastUpdated = DateTime.UtcNow;
         state.State.IsLoaded = true;
@@ -95,6 +112,7 @@ internal sealed class PlayerGrain(
                 Motto = state.State.Motto,
                 Figure = state.State.Figure,
                 Gender = state.State.Gender,
+                AchievementScore = state.State.AchievementScore,
                 CreatedAt = state.State.CreatedAt,
             }
         );
@@ -110,7 +128,7 @@ internal sealed class PlayerGrain(
                 Figure = s.Figure,
                 Motto = s.Motto,
                 CreationDate = s.CreatedAt.ToString("yyyy-MM-dd"),
-                AchievementScore = 0,
+                AchievementScore = s.AchievementScore,
                 FriendCount = 0,
                 IsFriend = false,
                 IsFriendRequestSent = false,
