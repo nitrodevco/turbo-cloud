@@ -12,11 +12,14 @@ internal class RoomInviteErrorMessageSerializer(int header)
 
         if (message.ErrorCode is 1)
         {
-            packet.WriteInteger(message.FailedRecipients.Count);
+            packet.WriteInteger(message.FailedRecipients?.Count ?? 0);
 
-            foreach (var recipient in message.FailedRecipients)
+            if (message.FailedRecipients is not null)
             {
-                packet.WriteInteger(recipient);
+                foreach (var recipient in message.FailedRecipients)
+                {
+                    packet.WriteInteger(recipient);
+                }
             }
         }
     }

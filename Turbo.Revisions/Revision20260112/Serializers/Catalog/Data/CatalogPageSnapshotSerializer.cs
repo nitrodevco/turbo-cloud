@@ -11,7 +11,7 @@ internal class CatalogPageSnapshotSerializer
             .WriteBoolean(message.Visible)
             .WriteInteger(message.Icon)
             .WriteInteger(message.Id)
-            .WriteString(message.Name)
-            .WriteString(message.Localization);
+            .WriteString(message.Name ?? string.Empty)
+            .WriteString(message.Localization ?? string.Empty);
     }
 }

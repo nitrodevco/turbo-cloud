@@ -8,6 +8,6 @@ internal class FlatAccessDeniedMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, FlatAccessDeniedMessageComposer message)
     {
-        packet.WriteInteger(message.RoomId).WriteString(message.Username);
+        packet.WriteInteger(message.RoomId).WriteString(message.Username ?? string.Empty);
     }
 }
