@@ -12,7 +12,7 @@ public class RoomModelEntity : TurboEntity
     [Column("name")]
     public required string Name { get; set; }
 
-    [Column("model")]
+    [Column("model", TypeName = "longtext")]
     public required string Model { get; set; }
 
     [Column("door_x")]
