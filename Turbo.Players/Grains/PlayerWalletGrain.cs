@@ -7,6 +7,10 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Turbo.Database.Context;
+using Turbo.Primitives.Messages.Outgoing.Collectibles;
+using Turbo.Primitives.Messages.Outgoing.Inventory.Purse;
+using Turbo.Primitives.Messages.Outgoing.Notifications;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Grains;
@@ -18,11 +22,13 @@ namespace Turbo.Players.Grains;
 
 internal sealed class PlayerWalletGrain(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
-    ICurrencyTypeProvider currencyTypeProvider
+    ICurrencyTypeProvider currencyTypeProvider,
+    IGrainFactory grainFactory
 ) : Grain, IPlayerWalletGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
     private readonly ICurrencyTypeProvider _currencyTypeProvider = currencyTypeProvider;
+    private readonly IGrainFactory _grainFactory = grainFactory;
 
     private readonly Dictionary<CurrencyKind, WalletCurrencySnapshot> _currenciesByKind = [];
 
@@ -48,12 +54,31 @@ internal sealed class PlayerWalletGrain(
                 .Database.BeginTransactionAsync(ct)
                 .ConfigureAwait(false);
 
+            var updatedCurrencies = new List<CurrencyType>(normalizedRequests.Count);
+
             foreach (var request in normalizedRequests)
             {
                 try
                 {
+                    var prevAmount = _currenciesByKind.TryGetValue(
+                        request.CurrencyKind,
+                        out var snapshot
+                    )
+                        ? snapshot.Amount
+                        : 0;
+
                     if (!await ProcessDebitRequestAsync(dbCtx, request, ct))
                         throw new Exception("Failed to process debit request");
+
+                    var newAmount = _currenciesByKind.TryGetValue(
+                        request.CurrencyKind,
+                        out snapshot
+                    )
+                        ? snapshot.Amount
+                        : 0;
+
+                    if (newAmount != prevAmount)
+                        updatedCurrencies.Add(request.CurrencyKind.CurrencyType);
                 }
                 catch
                 {
@@ -70,6 +95,7 @@ internal sealed class PlayerWalletGrain(
             }
 
             await tx.CommitAsync(ct);
+            await SyncCurrenciesAsync(updatedCurrencies, ct);
         }
 
         return WalletDebitResult.Success();
@@ -80,13 +106,10 @@ internal sealed class PlayerWalletGrain(
         return Task.CompletedTask;
     }
 
-    public async Task<int> GetAmountForCurrencyAsync(CurrencyKind kind, CancellationToken ct)
-    {
-        if (_currenciesByKind.TryGetValue(kind, out var snapshot))
-            return snapshot.Amount;
-
-        return 0;
-    }
+    public Task<int> GetAmountForCurrencyAsync(CurrencyKind kind, CancellationToken ct) =>
+        Task.FromResult(
+            _currenciesByKind.TryGetValue(kind, out var snapshot) ? snapshot.Amount : 0
+        );
 
     public async Task<Dictionary<int, int>> GetActivityPointsAsync(CancellationToken ct)
     {
@@ -166,8 +189,6 @@ internal sealed class PlayerWalletGrain(
         CancellationToken ct
     )
     {
-        // TODO when a currency updates we need to send the packet
-
         if (request.Amount <= 0)
             return true;
 
@@ -177,21 +198,77 @@ internal sealed class PlayerWalletGrain(
         )
             return false;
 
+        var newAmount = currency.Amount - request.Amount;
+
         var affectedRows = await dbCtx
             .PlayerCurrencies.Where(x =>
                 x.Id == currency.Id
                 && x.PlayerEntityId == (int)this.GetPrimaryKeyLong()
                 && x.Amount >= request.Amount
             )
-            .ExecuteUpdateAsync(
-                update => update.SetProperty(x => x.Amount, x => x.Amount - request.Amount),
-                ct
-            );
+            .ExecuteUpdateAsync(update => update.SetProperty(x => x.Amount, x => newAmount), ct);
 
         if (affectedRows != 1)
             return false;
 
+        _currenciesByKind[request.CurrencyKind] = currency with { Amount = newAmount };
+
         return true;
+    }
+
+    private async Task SyncCurrenciesAsync(
+        List<CurrencyType> updatedCurrencies,
+        CancellationToken ct
+    )
+    {
+        var playerPresence = _grainFactory.GetPlayerPresenceGrain((int)this.GetPrimaryKeyLong());
+
+        foreach (var currencyType in updatedCurrencies)
+        {
+            var kind = new CurrencyKind { CurrencyType = currencyType };
+
+            switch (kind.CurrencyType)
+            {
+                case CurrencyType.Credits:
+                    await playerPresence.SendComposerAsync(
+                        new CreditBalanceEventMessageComposer
+                        {
+                            Balance = _currenciesByKind.TryGetValue(kind, out var credits)
+                                ? credits.Amount.ToString()
+                                : "0",
+                        }
+                    );
+                    break;
+                case CurrencyType.Emeralds:
+                    await playerPresence.SendComposerAsync(
+                        new EmeraldBalanceMessageComposer
+                        {
+                            EmeraldBalance = _currenciesByKind.TryGetValue(kind, out var emeralds)
+                                ? emeralds.Amount
+                                : 0,
+                        }
+                    );
+                    break;
+                case CurrencyType.Silver:
+                    await playerPresence.SendComposerAsync(
+                        new SilverBalanceMessageComposer
+                        {
+                            SilverBalance = _currenciesByKind.TryGetValue(kind, out var silver)
+                                ? silver.Amount
+                                : 0,
+                        }
+                    );
+                    break;
+                case CurrencyType.ActivityPoints:
+                    await playerPresence.SendComposerAsync(
+                        new ActivityPointsMessageComposer
+                        {
+                            PointsByCategoryId = await GetActivityPointsAsync(ct),
+                        }
+                    );
+                    break;
+            }
+        }
     }
 
     private async Task HydrateAsync(CancellationToken ct)
