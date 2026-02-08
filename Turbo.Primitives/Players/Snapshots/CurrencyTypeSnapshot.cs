@@ -1,18 +1,19 @@
 using Orleans;
+using Turbo.Primitives.Players.Enums.Wallet;
 
-namespace Turbo.Primitives.Catalog.Snapshots;
+namespace Turbo.Primitives.Players.Snapshots;
 
 [GenerateSerializer, Immutable]
-public sealed record CatalogCurrencyTypeSnapshot
+public sealed record CurrencyTypeSnapshot
 {
     [Id(0)]
     public required int Id { get; init; }
 
     [Id(1)]
-    public required string CurrencyKey { get; init; }
+    public required string Name { get; init; }
 
     [Id(2)]
-    public required bool IsActivityPoints { get; init; }
+    public required CurrencyType CurrencyType { get; init; }
 
     [Id(3)]
     public int? ActivityPointType { get; init; }

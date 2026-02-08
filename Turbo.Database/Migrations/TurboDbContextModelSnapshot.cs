@@ -72,9 +72,9 @@ namespace Turbo.Database.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
 
-                    b.Property<int?>("CurrencyType")
+                    b.Property<int?>("CurrencyTypeId")
                         .HasColumnType("int")
-                        .HasColumnName("currency_type");
+                        .HasColumnName("currency_type_id");
 
                     b.Property<DateTime?>("DeletedAt")
                         .ValueGeneratedOnAddOrUpdate()
@@ -106,77 +106,9 @@ namespace Turbo.Database.Migrations
 
                     b.HasIndex("CatalogPageEntityId");
 
-                    b.HasIndex("CurrencyType");
+                    b.HasIndex("CurrencyTypeId");
 
                     b.ToTable("catalog_offers");
-                });
-
-            modelBuilder.Entity("Turbo.Database.Entities.Catalog.CurrencyTypeEntity", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    b.Property<int?>("ActivityPointType")
-                        .HasColumnType("int")
-                        .HasColumnName("activity_point_type");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(
-                        b.Property<DateTime>("CreatedAt")
-                    );
-
-                    b.Property<string>("CurrencyKey")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("currency_key");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("deleted_at");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(
-                        b.Property<DateTime?>("DeletedAt")
-                    );
-
-                    b.Property<bool>("Enabled")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true)
-                        .HasColumnName("enabled");
-
-                    b.Property<bool>("IsActivityPoints")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_activity_points");
-
-                    b.Property<string>("Name")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("name");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(
-                        b.Property<DateTime>("UpdatedAt")
-                    );
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CurrencyKey")
-                        .IsUnique();
-
-                    b.ToTable("currency_type");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.CatalogPageEntity", b =>
@@ -194,10 +126,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("created_at");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
-
-                    b.Property<int?>("CurrencyTypeEntityId")
-                        .HasColumnType("int")
-                        .HasColumnName("currency_type_id");
 
                     b.Property<DateTime?>("DeletedAt")
                         .ValueGeneratedOnAddOrUpdate()
@@ -343,6 +271,60 @@ namespace Turbo.Database.Migrations
                     b.HasIndex("FurnitureDefinitionEntityId");
 
                     b.ToTable("catalog_products");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Catalog.CurrencyTypeEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ActivityPointType")
+                        .HasColumnType("int")
+                        .HasColumnName("activity_point_type");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("CurrencyType")
+                        .HasColumnType("int")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("deleted_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
+
+                    b.Property<bool>("Enabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("enabled");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime>("UpdatedAt"));
+
+                    b.HasKey("Id");
+
+                    b.ToTable("currency_types");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Furniture.FurnitureDefinitionEntity", b =>
@@ -1135,6 +1117,10 @@ namespace Turbo.Database.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
 
+                    b.Property<int>("CurrencyTypeEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("currency_type_id");
+
                     b.Property<DateTime?>("DeletedAt")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("datetime(6)")
@@ -1146,12 +1132,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("int")
                         .HasColumnName("player_id");
 
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("varchar(512)")
-                        .HasColumnName("type");
-
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("datetime(6)")
@@ -1160,9 +1140,6 @@ namespace Turbo.Database.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime>("UpdatedAt"));
 
                     b.HasKey("Id");
-
-                    b.HasIndex("PlayerEntityId", "Type")
-                        .IsUnique();
 
                     b.HasIndex("CurrencyTypeEntityId");
 
@@ -1971,11 +1948,11 @@ namespace Turbo.Database.Migrations
 
                     b.HasOne("Turbo.Database.Entities.Catalog.CurrencyTypeEntity", "CurrencyTypeEntity")
                         .WithMany("CatalogOffers")
-                        .HasForeignKey("CurrencyType");
-
-                    b.Navigation("Page");
+                        .HasForeignKey("CurrencyTypeId");
 
                     b.Navigation("CurrencyTypeEntity");
+
+                    b.Navigation("Page");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.CatalogPageEntity", b =>
@@ -2137,7 +2114,9 @@ namespace Turbo.Database.Migrations
                 {
                     b.HasOne("Turbo.Database.Entities.Catalog.CurrencyTypeEntity", "CurrencyTypeEntity")
                         .WithMany("PlayerCurrencies")
-                        .HasForeignKey("CurrencyTypeEntityId");
+                        .HasForeignKey("CurrencyTypeEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
                         .WithMany("PlayerCurrencies")
@@ -2308,16 +2287,7 @@ namespace Turbo.Database.Migrations
 
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.CatalogOfferEntity", b =>
                 {
-                    b.Navigation("CurrencyTypeEntity");
-
                     b.Navigation("Products");
-                });
-
-            modelBuilder.Entity("Turbo.Database.Entities.Catalog.CurrencyTypeEntity", b =>
-                {
-                    b.Navigation("CatalogOffers");
-
-                    b.Navigation("PlayerCurrencies");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.CatalogPageEntity", b =>
@@ -2325,6 +2295,13 @@ namespace Turbo.Database.Migrations
                     b.Navigation("Children");
 
                     b.Navigation("Offers");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Catalog.CurrencyTypeEntity", b =>
+                {
+                    b.Navigation("CatalogOffers");
+
+                    b.Navigation("PlayerCurrencies");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Furniture.FurnitureDefinitionEntity", b =>

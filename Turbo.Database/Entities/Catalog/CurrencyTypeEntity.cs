@@ -1,34 +1,28 @@
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Turbo.Database.Entities.Players;
+using Turbo.Primitives.Players.Enums.Wallet;
 
 namespace Turbo.Database.Entities.Catalog;
 
-[Table("currency_type")]
+[Table("currency_types")]
 public class CurrencyTypeEntity : TurboEntity
 {
-    [Column("currency_key")]
-    [MaxLength(255)]
-    public required string CurrencyKey { get; set; }
+    [Column("name")]
+    public required string? Name { get; set; }
 
-    [Column("is_activity_points")]
-    [DefaultValue(false)]
-    public required bool IsActivityPoints { get; set; }
+    [Column("type")]
+    public required CurrencyType CurrencyType { get; set; }
 
     [Column("activity_point_type")]
     public int? ActivityPointType { get; set; }
-
-    [Column("name")]
-    [MaxLength(255)]
-    public string? Name { get; set; }
 
     [Column("enabled")]
     [DefaultValue(true)]
     public required bool Enabled { get; set; }
 
-    public IList<CatalogOfferEntity>? CatalogOffers { get; set; }
+    public List<CatalogOfferEntity>? CatalogOffers { get; set; }
 
-    public IList<PlayerCurrencyEntity>? PlayerCurrencies { get; set; }
+    public List<PlayerCurrencyEntity>? PlayerCurrencies { get; set; }
 }

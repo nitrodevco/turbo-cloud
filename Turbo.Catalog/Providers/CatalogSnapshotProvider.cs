@@ -112,7 +112,7 @@ public sealed class CatalogSnapshotProvider<TTag>(
                         Rentable = false,
                         CostCredits = x.CostCredits,
                         CostCurrency = x.CostCurrency,
-                        CurrencyType = x.CurrencyType,
+                        CurrencyTypeId = x.CurrencyTypeId,
                         CostSilver = 0,
                         CanGift = x.CanGift,
                         CanBundle = x.CanBundle,

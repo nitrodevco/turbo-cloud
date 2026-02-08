@@ -25,7 +25,6 @@ public sealed class CatalogModule : IHostPluginModule
         );
 
         services.AddSingleton<ICatalogService, CatalogService>();
-        services.AddSingleton<ICatalogCurrencyTypeProvider, CatalogCurrencyTypeProvider>();
         services.AddSingleton<ICatalogSnapshotProvider<NormalCatalog>>(
             sp => new CatalogSnapshotProvider<NormalCatalog>(
                 sp.GetRequiredService<IDbContextFactory<TurboDbContext>>(),

@@ -61,8 +61,5 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     protected override void OnModelCreating(ModelBuilder mb)
     {
         base.OnModelCreating(mb);
-
-        // currency_type ids are protocol identifiers (0, 5, 101...), not auto-generated keys
-        mb.Entity<CurrencyTypeEntity>().Property(x => x.Id).ValueGeneratedNever();
     }
 }

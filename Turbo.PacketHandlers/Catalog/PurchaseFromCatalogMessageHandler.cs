@@ -6,8 +6,6 @@ using Turbo.Messages.Registry;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Messages.Incoming.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
-using Turbo.Primitives.Messages.Outgoing.Inventory.Purse;
-using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Catalog;
@@ -41,30 +39,6 @@ public class PurchaseFromCatalogMessageHandler(IGrainFactory grainFactory)
 
             await ctx.SendComposerAsync(new PurchaseOKMessageComposer { Offer = offer }, ct)
                 .ConfigureAwait(false);
-
-            var playerGrain = _grainFactory.GetPlayerGrain(ctx.PlayerId);
-            var wallet = await playerGrain.GetWalletAsync(ct).ConfigureAwait(false);
-
-            if (offer.CostCredits > 0)
-            {
-                await ctx.SendComposerAsync(
-                        new CreditBalanceEventMessageComposer { Balance = $"{wallet.Credits}.0" },
-                        ct
-                    )
-                    .ConfigureAwait(false);
-            }
-
-            if (offer.CostCurrency > 0 && offer.CurrencyType.HasValue)
-            {
-                await ctx.SendComposerAsync(
-                        new ActivityPointsMessageComposer
-                        {
-                            PointsByCategoryId = wallet.ActivityPointsByCategoryId,
-                        },
-                        ct
-                    )
-                    .ConfigureAwait(false);
-            }
         }
         catch (CatalogPurchaseException ex)
         {

@@ -9,6 +9,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Networking.Revisions;
+using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Revisions.Revision20260112;
 
@@ -18,6 +19,7 @@ public class TurboEmulator(
     ILogger<TurboEmulator> logger,
     IFurnitureDefinitionProvider furnitureProvider,
     ICatalogSnapshotProvider<NormalCatalog> catalogProvider,
+    ICurrencyTypeProvider currencyTypeProvider,
     INavigatorProvider topLevelContextProvider,
     IRoomModelProvider roomModelProvider,
     INetworkManager networkManager,
@@ -27,6 +29,7 @@ public class TurboEmulator(
     private readonly ILogger<TurboEmulator> _logger = logger;
     private readonly IFurnitureDefinitionProvider _furnitureProvider = furnitureProvider;
     private readonly ICatalogSnapshotProvider<NormalCatalog> _catalogProvider = catalogProvider;
+    private readonly ICurrencyTypeProvider _currencyTypeProvider = currencyTypeProvider;
     private readonly INavigatorProvider _topLevelContextProvider = topLevelContextProvider;
     private readonly IRoomModelProvider _roomModelProvider = roomModelProvider;
     private readonly INetworkManager _networkManager = networkManager;
@@ -39,6 +42,7 @@ public class TurboEmulator(
             _revisionManager.RegisterRevision(new Revision20260112());
             await _furnitureProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _catalogProvider.ReloadAsync(ct).ConfigureAwait(false);
+            await _currencyTypeProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _topLevelContextProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _roomModelProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _networkManager.StartAsync(ct).ConfigureAwait(false);

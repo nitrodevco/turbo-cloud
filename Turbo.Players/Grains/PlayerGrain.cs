@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,11 +8,11 @@ using Orleans.Runtime;
 using Turbo.Database.Context;
 using Turbo.Logging;
 using Turbo.Primitives;
+using Turbo.Primitives.Grains.Players;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Orleans.States.Players;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Players.Wallet;
 
 namespace Turbo.Players.Grains;
 
@@ -99,81 +98,6 @@ internal sealed class PlayerGrain(
                 CreatedAt = state.State.CreatedAt,
             }
         );
-
-    public async Task<PlayerWalletSnapshot> GetWalletAsync(CancellationToken ct)
-    {
-        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
-
-        var playerId = (int)this.GetPrimaryKeyLong();
-        var currencies = await dbCtx
-            .PlayerCurrencies.AsNoTracking()
-            .Where(x => x.PlayerEntityId == playerId)
-            .Include(x => x.CurrencyTypeEntity)
-            .ToListAsync(ct);
-
-        var credits = currencies
-            .Where(x =>
-                IsCurrencyKey(
-                    x.CurrencyTypeEntity?.CurrencyKey,
-                    WalletCurrencyKeyMapper.Credits,
-                    "credit"
-                ) || WalletCurrencyKeyMapper.IsCreditsKey(x.Type)
-            )
-            .Sum(x => x.Amount);
-
-        var activityPoints = currencies
-            .Select(x => new
-            {
-                CategoryId = ResolveActivityPointCategory(
-                    x.CurrencyTypeEntity?.IsActivityPoints,
-                    x.CurrencyTypeEntity?.ActivityPointType,
-                    x.Type
-                ),
-                x.Amount,
-            })
-            .Where(x => x.CategoryId.HasValue)
-            .GroupBy(x => x.CategoryId!.Value)
-            .ToImmutableDictionary(g => g.Key, g => g.Sum(x => x.Amount));
-
-        var emeralds = currencies
-            .Where(x =>
-                IsCurrencyKey(x.CurrencyTypeEntity?.CurrencyKey, "emerald", "emeralds")
-                || string.Equals(x.Type, "emerald", StringComparison.OrdinalIgnoreCase)
-            )
-            .Sum(x => x.Amount);
-        var silver = currencies
-            .Where(x =>
-                IsCurrencyKey(x.CurrencyTypeEntity?.CurrencyKey, "silver")
-                || string.Equals(x.Type, "silver", StringComparison.OrdinalIgnoreCase)
-            )
-            .Sum(x => x.Amount);
-
-        return new PlayerWalletSnapshot
-        {
-            Credits = credits,
-            ActivityPointsByCategoryId = activityPoints,
-            Emeralds = emeralds,
-            Silver = silver,
-        };
-    }
-
-    private static bool IsCurrencyKey(string? value, params string[] keys) =>
-        !string.IsNullOrWhiteSpace(value)
-        && keys.Any(x => string.Equals(value, x, StringComparison.OrdinalIgnoreCase));
-
-    private static int? ResolveActivityPointCategory(
-        bool? isActivityPoints,
-        int? activityPointType,
-        string type
-    )
-    {
-        if (isActivityPoints == true && activityPointType.HasValue && activityPointType.Value >= 0)
-            return activityPointType.Value;
-
-        return WalletCurrencyKeyMapper.TryGetActivityPointType(type, out var categoryId)
-            ? categoryId
-            : null;
-    }
 
     public Task<PlayerExtendedProfileSnapshot> GetExtendedProfileSnapshotAsync(CancellationToken ct)
     {

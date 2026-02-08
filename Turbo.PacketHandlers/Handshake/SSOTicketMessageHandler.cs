@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -17,7 +16,6 @@ using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Messages.Outgoing.Perk;
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.PacketHandlers.Handshake;
@@ -54,11 +52,6 @@ public class SSOTicketMessageHandler(
 
             await _sessionGateway
                 .AddSessionToPlayerAsync(ctx.SessionKey, playerId)
-                .ConfigureAwait(false);
-
-            var wallet = await _grainFactory
-                .GetPlayerGrain(playerId)
-                .GetWalletAsync(ct)
                 .ConfigureAwait(false);
 
             await ctx.SendComposerAsync(
@@ -119,14 +112,6 @@ public class SSOTicketMessageHandler(
                 )
                 .ConfigureAwait(false);
             await ctx.SendComposerAsync(new InfoFeedEnableMessageComposer { Enabled = true }, ct)
-                .ConfigureAwait(false);
-            await ctx.SendComposerAsync(
-                    new ActivityPointsMessageComposer
-                    {
-                        PointsByCategoryId = wallet.ActivityPointsByCategoryId,
-                    },
-                    ct
-                )
                 .ConfigureAwait(false);
             await ctx.SendComposerAsync(new AchievementsScoreEventMessageComposer { Score = 0 }, ct)
                 .ConfigureAwait(false);

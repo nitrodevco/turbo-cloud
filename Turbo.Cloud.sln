@@ -31,8 +31,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Authentication", "Tur
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Players", "Turbo.Players\Turbo.Players.csproj", "{DD53E4D6-08AB-41BD-B4A6-0348CCFCFCD8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TurboSamplePlugin", "..\turbo-sample-plugin\TurboSamplePlugin\TurboSamplePlugin.csproj", "{114FE65C-E75D-4271-9CA7-99E7E1E0C4DA}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.PacketHandlers", "Turbo.PacketHandlers\Turbo.PacketHandlers.csproj", "{3DD89E1D-E53C-414D-9C4F-73615A9FE0DB}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Catalog", "Turbo.Catalog\Turbo.Catalog.csproj", "{373D52A2-DCA3-41BF-A7DE-8B464E03ED6A}"

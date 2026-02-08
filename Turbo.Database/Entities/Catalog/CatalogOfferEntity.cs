@@ -21,8 +21,8 @@ public class CatalogOfferEntity : TurboEntity
     [DefaultValue(0)]
     public required int CostCurrency { get; set; }
 
-    [Column("currency_type")]
-    public int? CurrencyType { get; set; }
+    [Column("currency_type_id")]
+    public int? CurrencyTypeId { get; set; }
 
     [Column("can_gift")]
     [DefaultValue(true)]
@@ -43,7 +43,7 @@ public class CatalogOfferEntity : TurboEntity
     [ForeignKey(nameof(CatalogPageEntityId))]
     public required CatalogPageEntity Page { get; set; }
 
-    [ForeignKey(nameof(CurrencyType))]
+    [ForeignKey(nameof(CurrencyTypeId))]
     public CurrencyTypeEntity? CurrencyTypeEntity { get; set; }
 
     public IList<CatalogProductEntity>? Products { get; set; }

@@ -2,6 +2,20 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Debug Turbo.Cloud",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-debug-turbo-cloud",
+            "program": "${workspaceFolder}/Turbo.Main/bin/Debug/net9.0/Turbo.Main.dll",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "stopAtEntry": false,
+            "justMyCode": true,
+            "env": {
+                "DOTNET_ENVIRONMENT": "Development"
+            }
+        },
+        {
             "name": "Debug Turbo.Cloud & TurboSamplePlugin",
             "type": "coreclr",
             "request": "launch",

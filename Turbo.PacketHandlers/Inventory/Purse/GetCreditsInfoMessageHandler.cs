@@ -23,18 +23,18 @@ public class GetCreditsInfoMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0)
             return;
 
-        var player = _grainFactory.GetPlayerGrain(ctx.PlayerId);
-        var wallet = await player.GetWalletAsync(ct).ConfigureAwait(false);
+        var wallet = _grainFactory.GetPlayerWalletGrain(ctx.PlayerId);
+        var snapshot = await wallet.GetSnapshotAsync(ct).ConfigureAwait(false);
 
         await ctx.SendComposerAsync(
-                new CreditBalanceEventMessageComposer { Balance = $"{wallet.Credits}.0" },
+                new CreditBalanceEventMessageComposer { Balance = $"{snapshot.Credits}.0" },
                 ct
             )
             .ConfigureAwait(false);
         await ctx.SendComposerAsync(
                 new ActivityPointsMessageComposer
                 {
-                    PointsByCategoryId = wallet.ActivityPointsByCategoryId,
+                    PointsByCategoryId = snapshot.ActivityPointsByCategoryId,
                 },
                 ct
             )

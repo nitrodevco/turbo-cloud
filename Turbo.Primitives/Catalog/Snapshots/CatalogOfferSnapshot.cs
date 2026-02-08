@@ -25,7 +25,7 @@ public sealed record CatalogOfferSnapshot
     public required int CostCurrency { get; init; }
 
     [Id(6)]
-    public required int? CurrencyType { get; init; }
+    public required int? CurrencyTypeId { get; init; }
 
     [Id(7)]
     public required int CostSilver { get; init; }

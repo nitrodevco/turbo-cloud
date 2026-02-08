@@ -5,325 +5,227 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Database.Context;
-using Turbo.Database.Entities.Players;
+using Turbo.Primitives.Orleans.Snapshots.Players;
+using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Grains;
+using Turbo.Primitives.Players.Providers;
+using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Wallet;
 
 namespace Turbo.Players.Grains;
 
 internal sealed class PlayerWalletGrain(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
-    ILogger<PlayerWalletGrain> logger
+    ICurrencyTypeProvider currencyTypeProvider
 ) : Grain, IPlayerWalletGrain
 {
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
+    private readonly ICurrencyTypeProvider _currencyTypeProvider = currencyTypeProvider;
+
+    private readonly Dictionary<CurrencyKind, WalletCurrencySnapshot> _currenciesByKind = [];
+
+    public override async Task OnActivateAsync(CancellationToken ct)
+    {
+        await HydrateAsync(ct);
+    }
+
     public async Task<WalletDebitResult> TryDebitAsync(
-        ImmutableArray<WalletDebitRequest> requests,
+        List<WalletDebitRequest> requests,
         CancellationToken ct
     )
     {
-        var normalizedRequests = NormalizeRequests(requests);
-        if (normalizedRequests.Length == 0)
-            return WalletDebitResult.Success();
-
-        await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var tx = await dbCtx.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
-
-        var playerId = (int)this.GetPrimaryKeyLong();
-
-        foreach (var request in normalizedRequests)
+        if (
+            TryNormalizeRequests(requests, out var normalizedRequests)
+            && normalizedRequests.Count > 0
+        )
         {
-            var targetCurrency = await FindDebitCurrencyAsync(dbCtx, playerId, request, ct)
+            await using var dbCtx = await _dbCtxFactory
+                .CreateDbContextAsync(ct)
                 .ConfigureAwait(false);
-            if (targetCurrency is null)
-            {
-                await tx.RollbackAsync(ct).ConfigureAwait(false);
-
-                return WalletDebitResult.InsufficientBalance(
-                    new WalletDebitFailure
-                    {
-                        CurrencyType = request.CurrencyType,
-                        CurrencyKind = request.CurrencyKind,
-                        ActivityPointType = request.ActivityPointType,
-                    }
-                );
-            }
-
-            var rowsAffected = await dbCtx
-                .PlayerCurrencies.Where(x =>
-                    x.Id == targetCurrency.Value.Id && x.Amount >= request.Amount
-                )
-                .ExecuteUpdateAsync(
-                    update => update.SetProperty(x => x.Amount, x => x.Amount - request.Amount),
-                    ct
-                )
+            await using var tx = await dbCtx
+                .Database.BeginTransactionAsync(ct)
                 .ConfigureAwait(false);
 
-            if (rowsAffected != 1)
+            foreach (var request in normalizedRequests)
             {
-                await tx.RollbackAsync(ct).ConfigureAwait(false);
+                try
+                {
+                    if (!await ProcessDebitRequestAsync(dbCtx, request, ct))
+                        throw new Exception("Failed to process debit request");
+                }
+                catch
+                {
+                    await tx.RollbackAsync(ct);
 
-                return WalletDebitResult.InsufficientBalance(
-                    new WalletDebitFailure
-                    {
-                        CurrencyType = request.CurrencyType,
-                        CurrencyKind = request.CurrencyKind,
-                        ActivityPointType = request.ActivityPointType,
-                    }
-                );
+                    return WalletDebitResult.InsufficientBalance(
+                        new WalletDebitFailure
+                        {
+                            CurrencyKind = request.CurrencyKind,
+                            Amount = request.Amount,
+                        }
+                    );
+                }
             }
+
+            await tx.CommitAsync(ct);
         }
 
-        await tx.CommitAsync(ct).ConfigureAwait(false);
         return WalletDebitResult.Success();
     }
 
-    public async Task RefundAsync(ImmutableArray<WalletDebitRequest> requests, CancellationToken ct)
+    public Task RefundAsync(ImmutableArray<WalletDebitRequest> requests, CancellationToken ct)
     {
-        var normalizedRequests = NormalizeRequests(requests);
-        if (normalizedRequests.Length == 0)
-            return;
-
-        await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var tx = await dbCtx.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
-
-        var playerId = (int)this.GetPrimaryKeyLong();
-
-        foreach (var request in normalizedRequests)
-        {
-            var targetCurrency = await FindRefundCurrencyAsync(dbCtx, playerId, request, ct)
-                .ConfigureAwait(false);
-            if (targetCurrency is null)
-            {
-                targetCurrency = await EnsureRefundCurrencyAsync(dbCtx, playerId, request, ct)
-                    .ConfigureAwait(false);
-                if (targetCurrency is null)
-                {
-                    logger.LogError(
-                        "Wallet refund failed: playerId={PlayerId}, currencyType={CurrencyType}, amount={Amount}",
-                        playerId,
-                        request.CurrencyType,
-                        request.Amount
-                    );
-
-                    throw new InvalidOperationException(
-                        $"Unable to refund currency '{request.CurrencyType}' for player {playerId}."
-                    );
-                }
-            }
-
-            var rowsAffected = await dbCtx
-                .PlayerCurrencies.Where(x => x.Id == targetCurrency.Value.Id)
-                .ExecuteUpdateAsync(
-                    update => update.SetProperty(x => x.Amount, x => x.Amount + request.Amount),
-                    ct
-                )
-                .ConfigureAwait(false);
-
-            if (rowsAffected != 1)
-            {
-                logger.LogError(
-                    "Wallet refund failed: playerId={PlayerId}, currencyType={CurrencyType}, amount={Amount}",
-                    playerId,
-                    request.CurrencyType,
-                    request.Amount
-                );
-
-                throw new InvalidOperationException(
-                    $"Unable to refund currency '{request.CurrencyType}' for player {playerId}."
-                );
-            }
-        }
-
-        await tx.CommitAsync(ct).ConfigureAwait(false);
+        return Task.CompletedTask;
     }
 
-    private static ImmutableArray<WalletDebitRequest> NormalizeRequests(
-        ImmutableArray<WalletDebitRequest> requests
-    )
+    public async Task<int> GetAmountForCurrencyAsync(CurrencyKind kind, CancellationToken ct)
     {
-        if (requests.IsDefaultOrEmpty)
-            return [];
+        if (_currenciesByKind.TryGetValue(kind, out var snapshot))
+            return snapshot.Amount;
 
-        var totals = new Dictionary<
-            (
-                string CurrencyType,
-                WalletCurrencyKind Kind,
-                int ActivityPointType,
-                int? CurrencyTypeId
-            ),
-            long
-        >(
-            capacity: requests.Length,
-            comparer: EqualityComparer<(string, WalletCurrencyKind, int, int?)>.Default
-        );
+        return 0;
+    }
 
-        foreach (var request in requests)
+    public async Task<Dictionary<int, int>> GetActivityPointsAsync(CancellationToken ct)
+    {
+        var result = new Dictionary<int, int>();
+
+        foreach (var currency in _currenciesByKind.Values)
         {
-            if (string.IsNullOrWhiteSpace(request.CurrencyType) || request.Amount <= 0)
+            if (currency is null || currency.CurrencyType != CurrencyType.ActivityPoints)
                 continue;
 
-            var canonicalType = WalletCurrencyKeyMapper.ToCanonicalKey(
-                request.CurrencyType,
-                request.CurrencyKind,
-                request.ActivityPointType
-            );
-            var key = (
-                CurrencyType: canonicalType,
-                Kind: request.CurrencyKind,
-                request.ActivityPointType,
-                request.CurrencyTypeId
-            );
-
-            if (!totals.TryAdd(key, request.Amount))
-                totals[key] += request.Amount;
+            result[currency.ActivityPointType ?? -1] = currency.Amount;
         }
 
-        var builder = ImmutableArray.CreateBuilder<WalletDebitRequest>(totals.Count);
-        foreach (var (key, amount) in totals)
-        {
-            if (amount > int.MaxValue)
-                throw new ArgumentOutOfRangeException(
-                    nameof(requests),
-                    $"Requested debit for '{key.CurrencyType}' exceeds int range."
-                );
-
-            builder.Add(
-                new WalletDebitRequest
-                {
-                    CurrencyType = key.CurrencyType,
-                    CurrencyKind = key.Kind,
-                    ActivityPointType = key.ActivityPointType,
-                    CurrencyTypeId = key.CurrencyTypeId,
-                    Amount = (int)amount,
-                }
-            );
-        }
-
-        return builder.MoveToImmutable();
+        return result;
     }
 
-    private static async Task<(int Id, string Type)?> FindDebitCurrencyAsync(
-        TurboDbContext dbCtx,
-        int playerId,
-        WalletDebitRequest request,
-        CancellationToken ct
-    )
-    {
-        if (request.CurrencyTypeId.HasValue)
+    public async Task<PlayerWalletSnapshot> GetSnapshotAsync(CancellationToken ct) =>
+        new()
         {
-            var currencyTypeId = request.CurrencyTypeId.Value;
-            var byTypeId = await dbCtx
-                .PlayerCurrencies.Where(x =>
-                    x.PlayerEntityId == playerId
-                    && x.CurrencyTypeEntityId.HasValue
-                    && x.CurrencyTypeEntityId.Value == currencyTypeId
-                    && x.Amount >= request.Amount
-                )
-                .Select(x => new { x.Id, x.Type })
-                .OrderBy(x => x.Id)
-                .FirstOrDefaultAsync(ct)
-                .ConfigureAwait(false);
-
-            if (byTypeId is not null)
-                return (byTypeId.Id, byTypeId.Type);
-        }
-
-        var keys = WalletCurrencyKeyMapper
-            .GetEquivalentKeys(
-                request.CurrencyType,
-                request.CurrencyKind,
-                request.ActivityPointType
+            Credits = _currenciesByKind.TryGetValue(
+                new CurrencyKind { CurrencyType = CurrencyType.Credits },
+                out var credits
             )
-            .ToArray();
-
-        var targetCurrency = await dbCtx
-            .PlayerCurrencies.Where(x =>
-                x.PlayerEntityId == playerId && keys.Contains(x.Type) && x.Amount >= request.Amount
+                ? credits.Amount
+                : 0,
+            Emeralds = _currenciesByKind.TryGetValue(
+                new CurrencyKind { CurrencyType = CurrencyType.Emeralds },
+                out var emeralds
             )
-            .Select(x => new { x.Id, x.Type })
-            .OrderByDescending(x => x.Type == request.CurrencyType)
-            .ThenBy(x => x.Id)
-            .FirstOrDefaultAsync(ct)
-            .ConfigureAwait(false);
-
-        return targetCurrency is null ? null : (targetCurrency.Id, targetCurrency.Type);
-    }
-
-    private static async Task<(int Id, string Type)?> FindRefundCurrencyAsync(
-        TurboDbContext dbCtx,
-        int playerId,
-        WalletDebitRequest request,
-        CancellationToken ct
-    )
-    {
-        if (request.CurrencyTypeId.HasValue)
-        {
-            var currencyTypeId = request.CurrencyTypeId.Value;
-            var byTypeId = await dbCtx
-                .PlayerCurrencies.Where(x =>
-                    x.PlayerEntityId == playerId
-                    && x.CurrencyTypeEntityId.HasValue
-                    && x.CurrencyTypeEntityId.Value == currencyTypeId
-                )
-                .Select(x => new { x.Id, x.Type })
-                .OrderBy(x => x.Id)
-                .FirstOrDefaultAsync(ct)
-                .ConfigureAwait(false);
-
-            if (byTypeId is not null)
-                return (byTypeId.Id, byTypeId.Type);
-        }
-
-        var keys = WalletCurrencyKeyMapper
-            .GetEquivalentKeys(
-                request.CurrencyType,
-                request.CurrencyKind,
-                request.ActivityPointType
+                ? emeralds.Amount
+                : 0,
+            Silver = _currenciesByKind.TryGetValue(
+                new CurrencyKind { CurrencyType = CurrencyType.Silver },
+                out var silver
             )
-            .ToArray();
-
-        var targetCurrency = await dbCtx
-            .PlayerCurrencies.Where(x => x.PlayerEntityId == playerId && keys.Contains(x.Type))
-            .Select(x => new { x.Id, x.Type })
-            .OrderByDescending(x => x.Type == request.CurrencyType)
-            .ThenBy(x => x.Id)
-            .FirstOrDefaultAsync(ct)
-            .ConfigureAwait(false);
-
-        return targetCurrency is null ? null : (targetCurrency.Id, targetCurrency.Type);
-    }
-
-    private static async Task<(int Id, string Type)?> EnsureRefundCurrencyAsync(
-        TurboDbContext dbCtx,
-        int playerId,
-        WalletDebitRequest request,
-        CancellationToken ct
-    )
-    {
-        var createdCurrency = new PlayerCurrencyEntity
-        {
-            PlayerEntityId = playerId,
-            Type = request.CurrencyType,
-            Amount = 0,
-            CurrencyTypeEntityId = request.CurrencyTypeId,
-            PlayerEntity = null!,
+                ? silver.Amount
+                : 0,
+            ActivityPointsByCategoryId = await GetActivityPointsAsync(ct),
         };
 
-        dbCtx.PlayerCurrencies.Add(createdCurrency);
+    private static bool TryNormalizeRequests(
+        List<WalletDebitRequest> proposed,
+        out List<WalletDebitRequest> normalized
+    )
+    {
+        normalized = [];
 
-        try
+        var totals = new Dictionary<CurrencyKind, int>(proposed.Count);
+
+        foreach (var request in proposed)
         {
-            await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
-            return (createdCurrency.Id, createdCurrency.Type);
+            if (request is null || request.Amount <= 0)
+                continue;
+
+            var cost = request.Amount;
+
+            if (totals.TryGetValue(request.CurrencyKind, out var total))
+                cost += total;
+
+            totals[request.CurrencyKind] = cost;
         }
-        catch (DbUpdateException)
+
+        foreach (var (kind, total) in totals)
         {
-            dbCtx.Entry(createdCurrency).State = EntityState.Detached;
-            return await FindRefundCurrencyAsync(dbCtx, playerId, request, ct)
-                .ConfigureAwait(false);
+            if (total <= 0)
+                continue;
+
+            normalized.Add(new WalletDebitRequest { CurrencyKind = kind, Amount = total });
+        }
+
+        return true;
+    }
+
+    private async Task<bool> ProcessDebitRequestAsync(
+        TurboDbContext dbCtx,
+        WalletDebitRequest request,
+        CancellationToken ct
+    )
+    {
+        // TODO when a currency updates we need to send the packet
+
+        if (request.Amount <= 0)
+            return true;
+
+        if (
+            !_currenciesByKind.TryGetValue(request.CurrencyKind, out var currency)
+            || currency.Amount < request.Amount
+        )
+            return false;
+
+        var affectedRows = await dbCtx
+            .PlayerCurrencies.Where(x =>
+                x.Id == currency.Id
+                && x.PlayerEntityId == (int)this.GetPrimaryKeyLong()
+                && x.Amount >= request.Amount
+            )
+            .ExecuteUpdateAsync(
+                update => update.SetProperty(x => x.Amount, x => x.Amount - request.Amount),
+                ct
+            );
+
+        if (affectedRows != 1)
+            return false;
+
+        return true;
+    }
+
+    private async Task HydrateAsync(CancellationToken ct)
+    {
+        _currenciesByKind.Clear();
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        var entities = await dbCtx
+            .PlayerCurrencies.AsNoTracking()
+            .Where(x => x.PlayerEntityId == (int)this.GetPrimaryKeyLong())
+            .ToListAsync(ct);
+
+        foreach (var entity in entities)
+        {
+            var currencyType = _currencyTypeProvider.GetCurrencyType(entity.CurrencyTypeEntityId);
+
+            if (currencyType is null || !currencyType.Enabled)
+                continue;
+
+            var snapshot = new WalletCurrencySnapshot
+            {
+                Id = entity.Id,
+                CurrencyType = currencyType.CurrencyType,
+                ActivityPointType = currencyType.ActivityPointType,
+                Amount = entity.Amount,
+            };
+            var kind = new CurrencyKind
+            {
+                CurrencyType = snapshot.CurrencyType,
+                ActivityPointType = snapshot.ActivityPointType,
+            };
+
+            _currenciesByKind[kind] = snapshot;
         }
     }
 }
