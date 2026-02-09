@@ -30,10 +30,6 @@ public sealed class LtdRaffleGrain(
     IOptions<CatalogConfig> config
 ) : Grain, ILtdRaffleGrain
 {
-    private readonly IGrainFactory _grainFactory = grainFactory;
-    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
-    private readonly ILogger<LtdRaffleGrain> _logger = logger;
-    private readonly ICatalogService _catalogService = catalogService;
     private readonly CatalogConfig _config = config.Value;
 
     private readonly Dictionary<int, double> _currentBatchEntries = [];
@@ -63,13 +59,13 @@ public sealed class LtdRaffleGrain(
             );
         }
 
-        var snap = _catalogService.GetCatalogSnapshot(CatalogType.Normal);
+        var snap = catalogService.GetCatalogSnapshot(CatalogType.Normal);
         var product = snap.ProductsById.Values.FirstOrDefault(p => p.LtdSeriesId == _series.Id);
 
         if (product == null || !snap.OffersById.TryGetValue(product.OfferId, out var offer))
             return LtdRaffleEntryResult.Failed(LtdRaffleEntryError.None);
 
-        var walletGrain = _grainFactory.GetPlayerWalletGrain(playerId);
+        var walletGrain = grainFactory.GetPlayerWalletGrain(playerId);
         var credits = await walletGrain.GetAmountForCurrencyAsync(
             new CurrencyKind { CurrencyType = CurrencyType.Credits },
             ct
@@ -109,7 +105,7 @@ public sealed class LtdRaffleGrain(
 
         if (_config.LtdRaffle.LimitOnePerCustomer)
         {
-            await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+            await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct);
 
             var alreadyWon = await dbCtx.LtdRaffleEntries.AnyAsync(
                 e =>
@@ -144,7 +140,7 @@ public sealed class LtdRaffleGrain(
         _currentBatchEntries[playerId] = await CalculateWeightAsync(playerId, ct);
         await PersistEntryAsync(playerId, _currentBatchId, ct);
 
-        await _grainFactory
+        await grainFactory
             .GetPlayerPresenceGrain(playerId)
             .SendComposerAsync(
                 new LtdRaffleEnteredMessageComposer { ClassName = product.ClassName ?? "LTD" }
@@ -191,7 +187,7 @@ public sealed class LtdRaffleGrain(
 
     private async Task<bool> TryFinalizeWinnerAsync(int playerId, string? batchId, bool isRaffle)
     {
-        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync();
+        await using var dbCtx = await dbCtxFactory.CreateDbContextAsync();
         await using var tx = await dbCtx.Database.BeginTransactionAsync();
 
         try
@@ -204,14 +200,14 @@ public sealed class LtdRaffleGrain(
                 .OrderBy(x => x.Id)
                 .FirstOrDefaultAsync();
 
-            if (series == null || series.RemainingQuantity <= 0)
+            if (series is not { RemainingQuantity: > 0 })
                 return false;
 
-            var snap = _catalogService.GetCatalogSnapshot(CatalogType.Normal);
+            var snap = catalogService.GetCatalogSnapshot(CatalogType.Normal);
             var prod = snap.ProductsById.Values.First(p => p.LtdSeriesId == series.Id);
             var offer = snap.OffersById[prod.OfferId];
 
-            var debitResult = await _grainFactory
+            var debitResult = await grainFactory
                 .GetPlayerWalletGrain(playerId)
                 .TryDebitAsync(BuildDebits(offer), CancellationToken.None);
 
@@ -246,7 +242,7 @@ public sealed class LtdRaffleGrain(
             await dbCtx.SaveChangesAsync();
             await tx.CommitAsync();
 
-            await _grainFactory
+            await grainFactory
                 .GetInventoryGrain(playerId)
                 .GrantLtdFurnitureAsync(
                     series.CatalogProductEntityId,
@@ -257,7 +253,7 @@ public sealed class LtdRaffleGrain(
 
             if (isRaffle)
             {
-                await _grainFactory
+                await grainFactory
                     .GetPlayerPresenceGrain(playerId)
                     .SendComposerAsync(
                         new LtdRaffleResultMessageComposer
@@ -272,7 +268,7 @@ public sealed class LtdRaffleGrain(
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            logger.LogError(
                 ex,
                 "Failed to finalize LTD raffle winner for player {PlayerId} in series {SeriesId}",
                 playerId,
@@ -331,7 +327,7 @@ public sealed class LtdRaffleGrain(
 
     private async Task<double> CalculateWeightAsync(int playerId, CancellationToken ct)
     {
-        var playerGrain = _grainFactory.GetPlayerGrain(PlayerId.Parse(playerId));
+        var playerGrain = grainFactory.GetPlayerGrain(PlayerId.Parse(playerId));
         var summary = await playerGrain.GetSummaryAsync(ct);
         var profile = await playerGrain.GetExtendedProfileSnapshotAsync(ct);
 
@@ -345,7 +341,7 @@ public sealed class LtdRaffleGrain(
 
         if (needsDbQuery)
         {
-            await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
+            await using var db = await dbCtxFactory.CreateDbContextAsync(ct);
 
             if (cfg.BadgeCount.Enabled)
             {
@@ -435,7 +431,7 @@ public sealed class LtdRaffleGrain(
 
     public async Task ReloadSeriesAsync(CancellationToken ct)
     {
-        await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
+        await using var db = await dbCtxFactory.CreateDbContextAsync(ct);
 
         var entity = await db
             .LtdSeries.AsNoTracking()
@@ -461,7 +457,7 @@ public sealed class LtdRaffleGrain(
 
     private async Task PersistFinishedAsync()
     {
-        await using var db = await _dbCtxFactory.CreateDbContextAsync();
+        await using var db = await dbCtxFactory.CreateDbContextAsync();
 
         await db
             .LtdSeries.Where(s => s.Id == (int)this.GetPrimaryKeyLong())
@@ -470,11 +466,11 @@ public sealed class LtdRaffleGrain(
 
     private async Task NotifyLoserAsync(int playerId, LtdRaffleResultCode resultCode)
     {
-        var product = _catalogService
+        var product = catalogService
             .GetCatalogSnapshot(CatalogType.Normal)
             .ProductsById.Values.FirstOrDefault(p => p.LtdSeriesId == _series?.Id);
 
-        await _grainFactory
+        await grainFactory
             .GetPlayerPresenceGrain(playerId)
             .SendComposerAsync(
                 new LtdRaffleResultMessageComposer
@@ -487,7 +483,7 @@ public sealed class LtdRaffleGrain(
 
     private async Task PersistEntryAsync(int playerId, string batchId, CancellationToken ct)
     {
-        await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
+        await using var db = await dbCtxFactory.CreateDbContextAsync(ct);
 
         db.LtdRaffleEntries.Add(
             new LtdRaffleEntryEntity
