@@ -116,6 +116,27 @@ Still fire-and-forget, but failures are visible in production logs.
 Any in-memory collection that grows per-message (e.g. conversation history) must have a configurable cap.
 Without a cap, long-running sessions leak memory.
 
+### One grain per responsibility — isolate heavy I/O
+Each major domain component should operate in its own grain. When a grain needs heavy I/O (DB writes, persistence flushes), delegate that work to a dedicated secondary grain so it does not block the primary grain's turn.
+- Example: `RoomGrain` delegates furniture saves to `RoomPersistenceGrain`. The room grain stays responsive while persistence queues and flushes.
+- Do not combine domain logic and persistence flushing in the same grain.
+
+### Use grain boundaries for thread safety
+Orleans grains are single-threaded by design. Use this for concurrency-sensitive operations by giving each user their own grain for the operation.
+- Example: each player gets a `PurchaseGrain` so catalog purchases are serialized per-player with no locks needed.
+- Example: limited-edition items should use a dedicated grain (e.g. `LimitedItemGrain`) so concurrent buyers are safely serialized.
+- Do not add manual locking (`lock`, `SemaphoreSlim`) inside grains — that fights the actor model.
+
+### Grains orchestrate their own outbound communication
+When grain state changes (e.g. wallet balance updates), the grain itself sends the snapshot to `PlayerPresenceGrain.SendComposerAsync`. The caller that triggered the change does not pass or send the composer — the grain owns that responsibility.
+- **Correct**: handler calls `grain.UpdateWalletAsync(...)` → grain updates state → grain calls `PlayerPresenceGrain.SendComposerAsync(...)`.
+- **Wrong**: handler calls `grain.UpdateWalletAsync(...)` → handler builds composer → handler sends composer to player.
+
+### Do not mutate the database directly for grain-owned state
+Grains may hold cached or in-memory state that will not reflect direct DB changes. All mutations to grain-owned data must go through the grain's methods, even when the player is offline.
+- If a grain uses `[PersistentState]`, state is hydrated from the configured store (not DB) on activation. Direct DB edits will be overwritten by stale store data.
+- Admin tools and external systems must call grain methods, not issue raw SQL/DB updates, for data that grains own.
+
 ## Profile and grain flow constraints
 - Keep packet handlers orchestration-only:
   - validate input

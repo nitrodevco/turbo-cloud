@@ -61,6 +61,10 @@
 - When a delete + insert must be atomic, use EF tracked operations (`Remove` + `SaveChangesAsync`), not `ExecuteDeleteAsync`.
 - Replace `.Ignore()` on grain tasks with a `LogAndForget` helper that logs faulted continuations.
 - In-memory collections that grow per-event (message history, queues) must have a configurable cap.
+- One grain per responsibility: isolate heavy I/O (DB writes, persistence) into secondary grains so the primary domain grain stays responsive (e.g. `RoomGrain` → `RoomPersistenceGrain`).
+- Use grain single-threading for concurrency safety: per-player `PurchaseGrain` for catalog buys, dedicated grains for limited-edition items. Do not add manual locks inside grains.
+- Grains orchestrate their own outbound: when state changes, the grain sends the composer via `PlayerPresenceGrain.SendComposerAsync`. Callers do not build or send composers after calling a grain method.
+- All mutations to grain-owned data must go through grain methods. Do not update the database directly — grains may hold cached state that will not reflect raw DB changes.
 
 ## Placement rules
 - New host startup/wiring behavior:
