@@ -15,15 +15,14 @@ namespace Turbo.Database.Migrations
                 table: "messenger_messages",
                 type: "tinyint(1)",
                 nullable: false,
-                defaultValue: false);
+                defaultValue: false
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "delivered",
-                table: "messenger_messages");
+            migrationBuilder.DropColumn(name: "delivered", table: "messenger_messages");
         }
     }
 }

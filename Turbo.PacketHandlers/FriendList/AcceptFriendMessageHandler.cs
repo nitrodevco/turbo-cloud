@@ -9,10 +9,8 @@ using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.FriendList;
 
-public class AcceptFriendMessageHandler(
-    IGrainFactory grainFactory,
-    IConfiguration configuration
-) : IMessageHandler<AcceptFriendMessage>
+public class AcceptFriendMessageHandler(IGrainFactory grainFactory, IConfiguration configuration)
+    : IMessageHandler<AcceptFriendMessage>
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
     private readonly IConfiguration _configuration = configuration;

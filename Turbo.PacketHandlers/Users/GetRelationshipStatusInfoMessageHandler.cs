@@ -23,9 +23,7 @@ public class GetRelationshipStatusInfoMessageHandler(IGrainFactory grainFactory)
             return;
 
         var targetGrain = _grainFactory.GetMessengerGrain(message.PlayerId);
-        var entries = await targetGrain
-            .GetRelationshipStatusInfoAsync(ct)
-            .ConfigureAwait(false);
+        var entries = await targetGrain.GetRelationshipStatusInfoAsync(ct).ConfigureAwait(false);
 
         await ctx.SendComposerAsync(
                 new RelationshipStatusInfoEventMessageComposer

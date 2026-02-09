@@ -77,6 +77,7 @@ internal sealed class MessengerGrain(
                 Figure = entity.FriendPlayerEntity.Figure,
                 CategoryId = entity.MessengerCategoryEntityId ?? 0,
                 Motto = entity.FriendPlayerEntity.Motto ?? string.Empty,
+                LastAccess = entity.FriendPlayerEntity.UpdatedAt.ToString("dd-MM-yyyy HH:mm:ss"),
                 RealName = string.Empty,
                 FacebookId = string.Empty,
                 PersistedMessageUser = true,
@@ -132,9 +133,7 @@ internal sealed class MessengerGrain(
 
         foreach (var entity in categoryEntities)
         {
-            _categories.Add(
-                new FriendCategorySnapshot { Id = entity.Id, Name = entity.Name }
-            );
+            _categories.Add(new FriendCategorySnapshot { Id = entity.Id, Name = entity.Name });
         }
 
         _isLoaded = true;
@@ -257,11 +256,7 @@ internal sealed class MessengerGrain(
     public async Task<(
         List<AcceptFriendFailureSnapshot> Failures,
         List<FriendListUpdateSnapshot> Updates
-    )> AcceptFriendRequestsAsync(
-        List<int> requestIds,
-        int friendLimit,
-        CancellationToken ct
-    )
+    )> AcceptFriendRequestsAsync(List<int> requestIds, int friendLimit, CancellationToken ct)
     {
         var failures = new List<AcceptFriendFailureSnapshot>();
         var updates = new List<FriendListUpdateSnapshot>();
@@ -364,6 +359,7 @@ internal sealed class MessengerGrain(
                 Figure = requesterSummary.Figure,
                 CategoryId = 0,
                 Motto = requesterSummary.Motto,
+                LastAccess = requesterSummary.CreatedAt.ToString("dd-MM-yyyy HH:mm:ss"),
                 RealName = string.Empty,
                 FacebookId = string.Empty,
                 PersistedMessageUser = true,
@@ -397,6 +393,7 @@ internal sealed class MessengerGrain(
                 Figure = mySummary.Figure,
                 CategoryId = 0,
                 Motto = mySummary.Motto,
+                LastAccess = mySummary.CreatedAt.ToString("dd-MM-yyyy HH:mm:ss"),
                 RealName = string.Empty,
                 FacebookId = string.Empty,
                 PersistedMessageUser = true,
@@ -434,8 +431,7 @@ internal sealed class MessengerGrain(
         {
             await dbCtx
                 .MessengerRequests.Where(r =>
-                    r.RequestedPlayerEntityId == myId
-                    && requestIds.Contains(r.PlayerEntityId)
+                    r.RequestedPlayerEntityId == myId && requestIds.Contains(r.PlayerEntityId)
                 )
                 .ExecuteDeleteAsync(ct);
 
@@ -513,10 +509,7 @@ internal sealed class MessengerGrain(
             .MessengerFriends.Where(f =>
                 f.PlayerEntityId == myId && f.FriendPlayerEntityId == friendId
             )
-            .ExecuteUpdateAsync(
-                up => up.SetProperty(f => f.RelationType, relationType),
-                ct
-            );
+            .ExecuteUpdateAsync(up => up.SetProperty(f => f.RelationType, relationType), ct);
 
         // Update local cache
         if (_friends.TryGetValue(friendId, out var existing))
@@ -625,7 +618,6 @@ internal sealed class MessengerGrain(
         // This checks if the OTHER player has blocked US
         // We need to ask the other player's grain
         Task.FromResult(false); // Handled via grain-to-grain call
-
     #endregion
 
     #region Ignoring
@@ -849,10 +841,7 @@ internal sealed class MessengerGrain(
         IEnumerable<MessageHistoryEntrySnapshot> result = entries;
 
         // Cursor-based pagination: return entries before the given messageId
-        if (
-            !string.IsNullOrEmpty(lastMessageId)
-            && int.TryParse(lastMessageId, out var lastId)
-        )
+        if (!string.IsNullOrEmpty(lastMessageId) && int.TryParse(lastMessageId, out var lastId))
         {
             // Session message IDs are sequential ints starting from 1
             // Find the index of the entry with this messageId and return entries before it
@@ -945,6 +934,10 @@ internal sealed class MessengerGrain(
         }
 
         list.Add(entry);
+
+        // Evict oldest entries when conversation exceeds the limit (memory safeguard)
+        if (list.Count > 200)
+            list.RemoveAt(0);
     }
 
     #endregion
@@ -970,10 +963,11 @@ internal sealed class MessengerGrain(
 
     #region Follow
 
-    public async Task<(bool Success, int RoomId, FollowFriendErrorCodeType? Error)> FollowFriendAsync(
-        PlayerId targetId,
-        CancellationToken ct
-    )
+    public async Task<(
+        bool Success,
+        int RoomId,
+        FollowFriendErrorCodeType? Error
+    )> FollowFriendAsync(PlayerId targetId, CancellationToken ct)
     {
         if (!_friends.ContainsKey((int)targetId))
             return (false, 0, FollowFriendErrorCodeType.NotFriend);
@@ -1018,6 +1012,7 @@ internal sealed class MessengerGrain(
             Figure = mySummary.Figure,
             CategoryId = 0,
             Motto = mySummary.Motto,
+            LastAccess = mySummary.CreatedAt.ToString("dd-MM-yyyy HH:mm:ss"),
             RealName = string.Empty,
             FacebookId = string.Empty,
             PersistedMessageUser = true,
@@ -1068,6 +1063,7 @@ internal sealed class MessengerGrain(
             Figure = mySummary.Figure,
             CategoryId = 0,
             Motto = mySummary.Motto,
+            LastAccess = mySummary.CreatedAt.ToString("dd-MM-yyyy HH:mm:ss"),
             RealName = string.Empty,
             FacebookId = string.Empty,
             PersistedMessageUser = true,
@@ -1124,11 +1120,7 @@ internal sealed class MessengerGrain(
         {
             var presence = _grainFactory.GetPlayerPresenceGrain(_playerId);
             await presence.SendComposerAsync(
-                new FriendListUpdateMessageComposer
-                {
-                    FriendCategories = [],
-                    Updates = [update],
-                }
+                new FriendListUpdateMessageComposer { FriendCategories = [], Updates = [update] }
             );
         }
         catch
@@ -1196,9 +1188,10 @@ internal sealed class MessengerGrain(
 
     #region Habbo Search
 
-    public async Task<
-        (List<MessengerSearchResultSnapshot> Friends, List<MessengerSearchResultSnapshot> Others)
-    > SearchPlayersAsync(string query, CancellationToken ct)
+    public async Task<(
+        List<MessengerSearchResultSnapshot> Friends,
+        List<MessengerSearchResultSnapshot> Others
+    )> SearchPlayersAsync(string query, CancellationToken ct)
     {
         var friends = new List<MessengerSearchResultSnapshot>();
         var others = new List<MessengerSearchResultSnapshot>();

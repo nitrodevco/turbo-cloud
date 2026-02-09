@@ -25,11 +25,7 @@ public class FriendListUpdateMessageHandler(IGrainFactory grainFactory)
         // The client sends this as a periodic poll.
         // We respond with an empty update (real updates are pushed via grain notifications).
         await ctx.SendComposerAsync(
-                new FriendListUpdateMessageComposer
-                {
-                    FriendCategories = [],
-                    Updates = [],
-                },
+                new FriendListUpdateMessageComposer { FriendCategories = [], Updates = [] },
                 ct
             )
             .ConfigureAwait(false);

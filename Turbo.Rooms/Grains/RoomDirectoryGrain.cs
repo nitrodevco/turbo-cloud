@@ -124,10 +124,7 @@ public class RoomDirectoryGrain(
 
     public Task<RoomId?> GetRandomPopulatedRoomAsync(CancellationToken ct)
     {
-        var populated = _roomPopulations
-            .Where(kv => kv.Value > 0)
-            .Select(kv => kv.Key)
-            .ToArray();
+        var populated = _roomPopulations.Where(kv => kv.Value > 0).Select(kv => kv.Key).ToArray();
 
         if (populated.Length == 0)
             return Task.FromResult<RoomId?>(null);

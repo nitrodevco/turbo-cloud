@@ -72,8 +72,6 @@ public static class GrainFactoryExtensions
         PlayerId playerId
     ) => factory.GetGrain<IMessengerGrain>(playerId.Value);
 
-    public static IMessengerGrain GetMessengerGrain(
-        this IGrainFactory factory,
-        long playerId
-    ) => factory.GetGrain<IMessengerGrain>(playerId);
+    public static IMessengerGrain GetMessengerGrain(this IGrainFactory factory, long playerId) =>
+        factory.GetGrain<IMessengerGrain>(playerId);
 }

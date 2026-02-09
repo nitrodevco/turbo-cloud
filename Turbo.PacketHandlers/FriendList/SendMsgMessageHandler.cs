@@ -10,8 +10,7 @@ using Turbo.Primitives.Players;
 
 namespace Turbo.PacketHandlers.FriendList;
 
-public class SendMsgMessageHandler(IGrainFactory grainFactory)
-    : IMessageHandler<SendMsgMessage>
+public class SendMsgMessageHandler(IGrainFactory grainFactory) : IMessageHandler<SendMsgMessage>
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
 

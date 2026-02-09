@@ -23,9 +23,7 @@ public class UnblockUserMessageHandler(IGrainFactory grainFactory)
             return;
 
         var messengerGrain = _grainFactory.GetMessengerGrain(ctx.PlayerId);
-        await messengerGrain
-            .UnblockUserAsync(message.PlayerId, ct)
-            .ConfigureAwait(false);
+        await messengerGrain.UnblockUserAsync(message.PlayerId, ct).ConfigureAwait(false);
 
         await ctx.SendComposerAsync(
                 new BlockUserUpdateMessageComposer

@@ -31,18 +31,16 @@ public interface IMessengerGrain : IGrainWithIntegerKey
     Task<(
         List<AcceptFriendFailureSnapshot> Failures,
         List<FriendListUpdateSnapshot> Updates
-    )> AcceptFriendRequestsAsync(
-        List<int> requestIds,
-        int friendLimit,
-        CancellationToken ct
-    );
+    )> AcceptFriendRequestsAsync(List<int> requestIds, int friendLimit, CancellationToken ct);
 
     Task DeclineFriendRequestsAsync(List<int>? requestIds, bool declineAll, CancellationToken ct);
 
     // Friend Management
     Task RemoveFriendsAsync(List<int> friendIds, CancellationToken ct);
     Task SetRelationshipStatusAsync(int friendId, int status, CancellationToken ct);
-    Task<List<RelationshipStatusEntrySnapshot>> GetRelationshipStatusInfoAsync(CancellationToken ct);
+    Task<List<RelationshipStatusEntrySnapshot>> GetRelationshipStatusInfoAsync(
+        CancellationToken ct
+    );
 
     // Friend state queries
     Task<bool> IsFriendAsync(PlayerId playerId);
@@ -107,10 +105,10 @@ public interface IMessengerGrain : IGrainWithIntegerKey
     Task ReceiveFriendUpdateAsync(FriendListUpdateSnapshot update);
 
     // Habbo search
-    Task<(List<MessengerSearchResultSnapshot> Friends, List<MessengerSearchResultSnapshot> Others)> SearchPlayersAsync(
-        string query,
-        CancellationToken ct
-    );
+    Task<(
+        List<MessengerSearchResultSnapshot> Friends,
+        List<MessengerSearchResultSnapshot> Others
+    )> SearchPlayersAsync(string query, CancellationToken ct);
 
     // Remove friendship (called by the other side)
     Task OnFriendRemovedAsync(PlayerId friendId);

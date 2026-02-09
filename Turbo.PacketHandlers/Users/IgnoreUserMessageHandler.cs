@@ -26,16 +26,10 @@ public class IgnoreUserMessageHandler(IGrainFactory grainFactory)
         var targetId = PlayerId.Parse(message.PlayerId);
 
         var messengerGrain = _grainFactory.GetMessengerGrain(ctx.PlayerId);
-        var result = await messengerGrain
-            .IgnoreUserAsync(targetId, ct)
-            .ConfigureAwait(false);
+        var result = await messengerGrain.IgnoreUserAsync(targetId, ct).ConfigureAwait(false);
 
         await ctx.SendComposerAsync(
-                new IgnoreResultMessageComposer
-                {
-                    Result = result,
-                    PlayerName = string.Empty,
-                },
+                new IgnoreResultMessageComposer { Result = result, PlayerName = string.Empty },
                 ct
             )
             .ConfigureAwait(false);

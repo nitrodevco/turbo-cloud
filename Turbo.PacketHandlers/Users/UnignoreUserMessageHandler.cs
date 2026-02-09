@@ -26,9 +26,7 @@ public class UnignoreUserMessageHandler(IGrainFactory grainFactory)
         var targetId = PlayerId.Parse(message.PlayerId);
 
         var messengerGrain = _grainFactory.GetMessengerGrain(ctx.PlayerId);
-        await messengerGrain
-            .UnignoreUserAsync(targetId, ct)
-            .ConfigureAwait(false);
+        await messengerGrain.UnignoreUserAsync(targetId, ct).ConfigureAwait(false);
 
         await ctx.SendComposerAsync(
                 new IgnoreResultMessageComposer

@@ -8,8 +8,7 @@ using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Users;
 
-public class BlockUserMessageHandler(IGrainFactory grainFactory)
-    : IMessageHandler<BlockUserMessage>
+public class BlockUserMessageHandler(IGrainFactory grainFactory) : IMessageHandler<BlockUserMessage>
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
 
@@ -23,9 +22,7 @@ public class BlockUserMessageHandler(IGrainFactory grainFactory)
             return;
 
         var messengerGrain = _grainFactory.GetMessengerGrain(ctx.PlayerId);
-        await messengerGrain
-            .BlockUserAsync(message.PlayerId, ct)
-            .ConfigureAwait(false);
+        await messengerGrain.BlockUserAsync(message.PlayerId, ct).ConfigureAwait(false);
 
         await ctx.SendComposerAsync(
                 new BlockUserUpdateMessageComposer

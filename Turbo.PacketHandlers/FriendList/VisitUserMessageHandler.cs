@@ -8,8 +8,7 @@ using Turbo.Primitives.Players;
 
 namespace Turbo.PacketHandlers.FriendList;
 
-public class VisitUserMessageHandler(IGrainFactory grainFactory)
-    : IMessageHandler<VisitUserMessage>
+public class VisitUserMessageHandler(IGrainFactory grainFactory) : IMessageHandler<VisitUserMessage>
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
 
@@ -40,8 +39,6 @@ public class VisitUserMessageHandler(IGrainFactory grainFactory)
 
         // Forward the requester to that room
         var myPresence = _grainFactory.GetPlayerPresenceGrain(ctx.PlayerId);
-        await myPresence
-            .SetPendingRoomAsync(activeRoom.RoomId, true)
-            .ConfigureAwait(false);
+        await myPresence.SetPendingRoomAsync(activeRoom.RoomId, true).ConfigureAwait(false);
     }
 }

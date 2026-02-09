@@ -11,10 +11,8 @@ using Turbo.Primitives.Snapshots.FriendList;
 
 namespace Turbo.PacketHandlers.FriendList;
 
-public class MessengerInitMessageHandler(
-    IConfiguration configuration,
-    IGrainFactory grainFactory
-) : IMessageHandler<MessengerInitMessage>
+public class MessengerInitMessageHandler(IConfiguration configuration, IGrainFactory grainFactory)
+    : IMessageHandler<MessengerInitMessage>
 {
     private readonly IConfiguration _configuration = configuration;
     private readonly IGrainFactory _grainFactory = grainFactory;
@@ -53,7 +51,8 @@ public class MessengerInitMessageHandler(
 
         // Send friend list as fragments (max 500 per fragment)
         const int fragmentSize = 500;
-        var totalFragments = friends.Count == 0 ? 1 : (friends.Count + fragmentSize - 1) / fragmentSize;
+        var totalFragments =
+            friends.Count == 0 ? 1 : (friends.Count + fragmentSize - 1) / fragmentSize;
 
         for (var i = 0; i < totalFragments; i++)
         {

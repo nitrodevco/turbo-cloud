@@ -3189,9 +3189,7 @@ public class Revision20260112 : IRevision
             },
             {
                 typeof(BlockListMessageComposer),
-                new BlockListMessageComposerSerializer(
-                    MessageComposer.BlockListMessageComposer
-                )
+                new BlockListMessageComposerSerializer(MessageComposer.BlockListMessageComposer)
             },
             {
                 typeof(BlockUserUpdateMessageComposer),
