@@ -20,12 +20,11 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
 
     public abstract RoomObjectType AvatarType { get; }
 
-    public string Name { get; init; } = string.Empty;
-    public string Motto { get; init; } = string.Empty;
-    public string Figure { get; init; } = string.Empty;
+    public string Name { get; protected set; } = string.Empty;
+    public string Motto { get; protected set; } = string.Empty;
+    public string Figure { get; protected set; } = string.Empty;
 
     public Rotation HeadRotation { get; protected set; }
-    public AvatarDanceType DanceType { get; private set; } = AvatarDanceType.None;
     public Dictionary<AvatarStatusType, string> Statuses { get; } = [];
 
     public Altitude PostureOffset { get; set; } = Altitude.Zero;
@@ -41,7 +40,7 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
 
     private int _goalTries = 0;
 
-    private RoomAvatarSnapshot? _snapshot;
+    protected RoomAvatarSnapshot? _snapshot;
 
     public bool SetGoalTileId(int tileId)
     {
@@ -105,22 +104,6 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
         HeadRotation = rot;
 
         MarkDirty();
-    }
-
-    public bool SetDance(AvatarDanceType danceType = AvatarDanceType.None)
-    {
-        if (DanceType == danceType)
-            return false;
-
-        if (HasStatus(AvatarStatusType.Sit, AvatarStatusType.Lay))
-            return false;
-
-        // check if dance valid
-        // check if dance is hc only / validate hc
-
-        DanceType = danceType;
-
-        return true;
     }
 
     public void Sit(bool flag = true, Altitude? height = null, Rotation? rot = null)

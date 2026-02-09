@@ -25,8 +25,6 @@ public interface IRoomAvatar : IRoomObject
     public Rotation HeadRotation { get; }
     public Dictionary<AvatarStatusType, string> Statuses { get; }
 
-    public AvatarDanceType DanceType { get; }
-
     public Altitude PostureOffset { get; set; }
     public int GoalTileId { get; }
     public int NextTileId { get; set; }
@@ -42,7 +40,6 @@ public interface IRoomAvatar : IRoomObject
     public void SetHeight(Altitude z);
     public void SetBodyRotation(Rotation rot);
     public void SetHeadRotation(Rotation rot);
-    public bool SetDance(AvatarDanceType danceType = AvatarDanceType.None);
     public void Sit(bool flag = true, Altitude? height = null, Rotation? rot = null);
     public void Lay(bool flag = true, Altitude? height = null, Rotation? rot = null);
 

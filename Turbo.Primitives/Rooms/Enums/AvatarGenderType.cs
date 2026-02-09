@@ -18,13 +18,13 @@ public static class AvatarGenderTypeExtensions
             _ => throw new ArgumentOutOfRangeException(nameof(gender), gender, null),
         };
 
-    public static AvatarGenderType? FromLegacyString(string genderString) =>
+    public static AvatarGenderType FromLegacyString(string genderString) =>
         genderString switch
         {
             "M" => AvatarGenderType.Male,
             "Male" => AvatarGenderType.Male,
             "F" => AvatarGenderType.Female,
             "Female" => AvatarGenderType.Female,
-            _ => null,
+            _ => AvatarGenderType.Male,
         };
 }

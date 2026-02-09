@@ -24,5 +24,8 @@ public sealed record PlayerSummarySnapshot
     public required AvatarGenderType Gender { get; init; }
 
     [Id(5)]
+    public required int AchievementScore { get; init; }
+
+    [Id(6)]
     public required DateTime CreatedAt { get; init; }
 }

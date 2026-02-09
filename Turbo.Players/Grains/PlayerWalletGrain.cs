@@ -91,14 +91,13 @@ internal sealed class PlayerWalletGrain(
         return WalletDebitResult.Success();
     }
 
-    public async Task RollbackUpdatesAsync(
+    public Task RollbackUpdatesAsync(
         List<WalletCurrencyUpdateSnapshot> updates,
         CancellationToken ct
     )
     {
         if (updates.Count == 0)
-            return;
-
+            return Task.CompletedTask;
         foreach (var update in updates)
         {
             if (update is null || update.ChangedBy == 0)
@@ -112,6 +111,8 @@ internal sealed class PlayerWalletGrain(
                 };
             }
         }
+
+        return Task.CompletedTask;
     }
 
     public Task<int> GetAmountForCurrencyAsync(CurrencyKind kind, CancellationToken ct) =>
@@ -119,7 +120,7 @@ internal sealed class PlayerWalletGrain(
             _currenciesByKind.TryGetValue(kind, out var snapshot) ? snapshot.Amount : 0
         );
 
-    public async Task<Dictionary<int, int>> GetActivityPointsAsync(CancellationToken ct)
+    public Task<Dictionary<int, int>> GetActivityPointsAsync(CancellationToken ct)
     {
         var result = new Dictionary<int, int>();
 
@@ -134,7 +135,7 @@ internal sealed class PlayerWalletGrain(
             result[currency.CurrencyKind.ActivityPointType ?? -1] = currency.Amount;
         }
 
-        return result;
+        return Task.FromResult(result);
     }
 
     private static bool TryNormalizeRequests(

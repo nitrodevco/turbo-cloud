@@ -11,14 +11,12 @@ public sealed class RoomAvatarProvider : IRoomAvatarProvider
     public IRoomPlayer CreateAvatarFromPlayerSnapshot(
         RoomObjectId objectId,
         PlayerSummarySnapshot snapshot
-    ) =>
-        new RoomPlayerAvatar
-        {
-            Name = snapshot.Name,
-            Motto = snapshot.Motto,
-            Figure = snapshot.Figure,
-            ObjectId = objectId,
-            PlayerId = snapshot.PlayerId,
-            Gender = snapshot.Gender,
-        };
+    )
+    {
+        var avatar = new RoomPlayerAvatar { ObjectId = objectId, PlayerId = snapshot.PlayerId };
+
+        avatar.UpdateWithPlayer(snapshot);
+
+        return avatar;
+    }
 }

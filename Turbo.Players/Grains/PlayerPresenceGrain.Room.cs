@@ -108,9 +108,11 @@ internal sealed partial class PlayerPresenceGrain
         }
     }
 
-    public async Task SetPendingRoomAsync(RoomId roomId, bool approved)
+    public Task SetPendingRoomAsync(RoomId roomId, bool approved)
     {
         _state.PendingRoomId = roomId;
         _state.PendingRoomApproved = approved;
+
+        return Task.CompletedTask;
     }
 }

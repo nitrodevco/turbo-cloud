@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
@@ -27,16 +28,27 @@ public partial interface IRoomGrain
         int targetY,
         CancellationToken ct
     );
+    public Task<bool> UpdateAvatarWithPlayerAsync(
+        PlayerSummarySnapshot snapshot,
+        CancellationToken ct
+    );
     public Task<bool> SetAvatarDanceAsync(
         ActionContext ctx,
         AvatarDanceType danceType,
         CancellationToken ct
     );
-
     public Task<bool> SetAvatarExpressionAsync(
         ActionContext ctx,
         AvatarExpressionType expressionType,
         CancellationToken ct
+    );
+    public Task SendChatFromPlayerAsync(
+        PlayerId playerId,
+        string text,
+        AvatarGestureType gesture,
+        int styleId,
+        List<(string, string, bool)> links,
+        int trackingId
     );
 
     public Task<ImmutableArray<RoomAvatarSnapshot>> GetAllAvatarSnapshotsAsync(

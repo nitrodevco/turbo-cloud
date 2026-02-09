@@ -30,6 +30,9 @@ internal class FriendListUpdateMessageSerializer(int header)
                 continue;
             }
 
+            if (update.Friend is null)
+                continue;
+
             MessengerFriendSnapshotSerializer.Serialize(packet, update.Friend);
         }
     }

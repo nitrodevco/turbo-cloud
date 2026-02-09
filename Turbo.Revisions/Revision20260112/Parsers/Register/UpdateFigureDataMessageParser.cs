@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260112.Parsers.Register;
 
 internal class UpdateFigureDataMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new UpdateFigureDataMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new UpdateFigureDataMessage { Gender = packet.PopString(), Figure = packet.PopString() };
 }

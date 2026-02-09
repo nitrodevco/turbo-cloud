@@ -8,6 +8,6 @@ internal class FloodControlMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, FloodControlMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.Seconds);
     }
 }
