@@ -48,6 +48,28 @@ public sealed class LtdRaffleGrain(
             _raffleFinished = _series.IsRaffleFinished;
     }
 
+    public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
+    {
+        _raffleTimer?.Dispose();
+        _raffleTimer = null;
+
+        if (_currentBatchEntries.Count > 0)
+        {
+            try
+            {
+                await ExecuteRaffleAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(
+                    ex,
+                    "Failed to execute raffle during deactivation for series {SeriesId}",
+                    this.GetPrimaryKeyLong()
+                );
+            }
+        }
+    }
+
     public async Task<LtdRaffleEntryResult> EnterRaffleAsync(int playerId, CancellationToken ct)
     {
         if (_series is not { IsAvailable: true })
@@ -164,6 +186,7 @@ public sealed class LtdRaffleGrain(
         _currentBatchEntries.Clear();
         _isInBufferPeriod = false;
         _raffleFinished = true;
+        _raffleTimer?.Dispose();
         _raffleTimer = null;
 
         await PersistFinishedAsync();
@@ -174,12 +197,31 @@ public sealed class LtdRaffleGrain(
             ? [.. entries.OrderBy(_ => Random.Shared.Next()).Take(winnersCount).Select(e => e.Key)]
             : SelectWeighted(entries, winnersCount);
 
+        var loserIds = new List<int>();
+
         foreach (var entry in entries)
         {
             if (winners.Contains(entry.Key))
                 await TryFinalizeWinnerAsync(entry.Key, batchId, true);
             else
+            {
+                loserIds.Add(entry.Key);
                 await NotifyLoserAsync(entry.Key, LtdRaffleResultCode.Lost);
+            }
+        }
+
+        if (loserIds.Count > 0)
+        {
+            await using var db = await dbCtxFactory.CreateDbContextAsync(CancellationToken.None);
+
+            await db
+                .LtdRaffleEntries.Where(e =>
+                    e.BatchId == batchId && loserIds.Contains(e.PlayerEntityId)
+                )
+                .ExecuteUpdateAsync(u =>
+                    u.SetProperty(e => e.Result, "lost")
+                        .SetProperty(e => e.ProcessedAt, DateTime.UtcNow)
+                );
         }
 
         await ReloadSeriesAsync(CancellationToken.None);

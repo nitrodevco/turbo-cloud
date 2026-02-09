@@ -116,7 +116,7 @@ public class PurchaseFromCatalogMessageHandler(
     {
         // Use the series ID if available (Perfect Design), otherwise fallback to Product ID
         var seriesId = ltdProduct.LtdSeriesId ?? ltdProduct.Id;
-        var ltdRaffleGrain = _grainFactory.GetGrain<ILtdRaffleGrain>(seriesId);
+        var ltdRaffleGrain = _grainFactory.GetLtdRaffleGrain(seriesId);
 
         var result = await ltdRaffleGrain.EnterRaffleAsync(ctx.PlayerId, ct).ConfigureAwait(false);
 
