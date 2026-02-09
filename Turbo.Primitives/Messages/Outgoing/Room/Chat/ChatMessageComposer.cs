@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Chat;
 
@@ -9,7 +10,7 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Chat;
 public record ChatMessageComposer : IComposer
 {
     [Id(0)]
-    public required int UserId { get; init; }
+    public required RoomObjectId ObjectId { get; init; }
 
     [Id(1)]
     public required string Text { get; init; }

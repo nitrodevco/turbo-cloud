@@ -9,7 +9,7 @@ internal class ChatMessageComposerSerializer(int header)
     protected override void Serialize(IServerPacket packet, ChatMessageComposer message)
     {
         packet
-            .WriteInteger(message.UserId)
+            .WriteInteger(message.ObjectId)
             .WriteString(message.Text)
             .WriteInteger((int)message.Gesture)
             .WriteInteger(message.StyleId)

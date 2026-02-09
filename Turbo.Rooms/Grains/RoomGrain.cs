@@ -55,6 +55,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public readonly RoomAvatarTickSystem AvatarTickSystem;
     public readonly RoomRollerSystem RollerSystem;
     public readonly RoomWiredSystem WiredSystem;
+    public readonly RoomChatSystem ChatSystem;
 
     public RoomId RoomId => _state.RoomId;
 
@@ -93,6 +94,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         AvatarTickSystem = new(this);
         RollerSystem = new(this);
         WiredSystem = new(this);
+        ChatSystem = new(this);
 
         EventModule.Register(RollerSystem);
         EventModule.Register(WiredSystem);
