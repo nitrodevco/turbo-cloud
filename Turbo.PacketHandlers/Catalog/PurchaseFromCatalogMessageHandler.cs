@@ -121,19 +121,7 @@ public class PurchaseFromCatalogMessageHandler(
         var result = await ltdRaffleGrain.EnterRaffleAsync(ctx.PlayerId, ct).ConfigureAwait(false);
 
         if (result.Success)
-        {
-            // If it was an instant buy (FCFS), send standard PurchaseOK
-            if (result.BatchId == "instant")
-            {
-                var snapshot = _catalogService.GetCatalogSnapshot(CatalogType.Normal);
-                if (snapshot.OffersById.TryGetValue(ltdProduct.OfferId, out var offer))
-                {
-                    await ctx.SendComposerAsync(new PurchaseOKMessageComposer { Offer = offer }, ct)
-                        .ConfigureAwait(false);
-                }
-            }
             return;
-        }
 
         // 1. Check for specialized balance alerts first
         if (result.BalanceFailure != null)

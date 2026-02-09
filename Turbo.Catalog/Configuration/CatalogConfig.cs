@@ -47,6 +47,12 @@ public class LtdRaffleWeightConfig
     public bool LimitOnePerCustomer { get; set; } = true;
 
     /// <summary>
+    /// Maximum number of entries accepted per raffle batch.
+    /// Prevents unbounded memory growth during the buffer window.
+    /// </summary>
+    public int MaxEntriesPerBatch { get; set; } = 5000;
+
+    /// <summary>
     /// Badge count weighting configuration.
     /// </summary>
     public WeightCriterion BadgeCount { get; set; } =

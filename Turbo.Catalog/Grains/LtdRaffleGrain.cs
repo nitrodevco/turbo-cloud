@@ -14,6 +14,7 @@ using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Catalog.Snapshots;
+using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Collectibles;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -159,6 +160,9 @@ public sealed class LtdRaffleGrain(
         if (!_isInBufferPeriod)
             return LtdRaffleEntryResult.Failed(LtdRaffleEntryError.RaffleProcessing);
 
+        if (_currentBatchEntries.Count >= _config.LtdRaffle.MaxEntriesPerBatch)
+            return LtdRaffleEntryResult.Failed(LtdRaffleEntryError.RaffleProcessing);
+
         _currentBatchEntries[playerId] = await CalculateWeightAsync(playerId, ct);
         await PersistEntryAsync(playerId, _currentBatchId, ct);
 
@@ -199,15 +203,21 @@ public sealed class LtdRaffleGrain(
 
         var loserIds = new List<int>();
 
+        // Winners must be sequential (row lock + quantity decrement per winner)
         foreach (var entry in entries)
         {
             if (winners.Contains(entry.Key))
                 await TryFinalizeWinnerAsync(entry.Key, batchId, true);
             else
-            {
                 loserIds.Add(entry.Key);
-                await NotifyLoserAsync(entry.Key, LtdRaffleResultCode.Lost);
-            }
+        }
+
+        // Loser notifications go to different presence grains — parallelize
+        if (loserIds.Count > 0)
+        {
+            await Task.WhenAll(
+                loserIds.Select(id => NotifyLoserAsync(id, LtdRaffleResultCode.Lost))
+            );
         }
 
         if (loserIds.Count > 0)
@@ -293,17 +303,21 @@ public sealed class LtdRaffleGrain(
                     CancellationToken.None
                 );
 
+            var presence = grainFactory.GetPlayerPresenceGrain(playerId);
+
             if (isRaffle)
             {
-                await grainFactory
-                    .GetPlayerPresenceGrain(playerId)
-                    .SendComposerAsync(
-                        new LtdRaffleResultMessageComposer
-                        {
-                            ClassName = prod.ClassName ?? "LTD",
-                            ResultCode = LtdRaffleResultCode.Won,
-                        }
-                    );
+                await presence.SendComposerAsync(
+                    new LtdRaffleResultMessageComposer
+                    {
+                        ClassName = prod.ClassName ?? "LTD",
+                        ResultCode = LtdRaffleResultCode.Won,
+                    }
+                );
+            }
+            else
+            {
+                await presence.SendComposerAsync(new PurchaseOKMessageComposer { Offer = offer });
             }
 
             return true;
