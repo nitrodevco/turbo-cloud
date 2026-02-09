@@ -14,18 +14,13 @@ internal sealed class PlayerInventoryModule(PlayerPresenceGrain presenceGrain)
 {
     private readonly PlayerPresenceGrain _presenceGrain = presenceGrain;
 
-    private bool _isFurnitureInventoryPrimed = false;
-
     public Task OnSessionAttachedAsync(CancellationToken ct)
     {
-        _isFurnitureInventoryPrimed = false;
         return Task.CompletedTask;
     }
 
     public async Task OnSessionDetachedAsync(CancellationToken ct)
     {
-        _isFurnitureInventoryPrimed = false;
-
         await _presenceGrain.SendComposerAsync(new FurniListInvalidateEventMessageComposer());
     }
 
@@ -77,27 +72,13 @@ internal sealed class PlayerInventoryModule(PlayerPresenceGrain presenceGrain)
                 Items = [.. fragmentItems],
             }
         );
-
-        _isFurnitureInventoryPrimed = true;
     }
 
-    public async Task OnFurnitureAddedAsync(FurnitureItemSnapshot snapshot, CancellationToken ct)
-    {
-        if (!_isFurnitureInventoryPrimed)
-            return;
+    public Task OnFurnitureAddedAsync(FurnitureItemSnapshot snapshot, CancellationToken ct) =>
+        _presenceGrain.SendComposerAsync(new FurniListInvalidateEventMessageComposer());
 
-        await _presenceGrain.SendComposerAsync(
-            new FurniListAddOrUpdateEventMessageComposer { Item = snapshot }
-        );
-    }
-
-    public async Task OnFurnitureRemovedAsync(RoomObjectId itemId, CancellationToken ct)
-    {
-        if (!_isFurnitureInventoryPrimed)
-            return;
-
-        await _presenceGrain.SendComposerAsync(
+    public Task OnFurnitureRemovedAsync(RoomObjectId itemId, CancellationToken ct) =>
+        _presenceGrain.SendComposerAsync(
             new FurniListRemoveEventMessageComposer { ItemId = itemId }
         );
-    }
 }
