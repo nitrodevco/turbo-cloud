@@ -54,7 +54,7 @@ public interface IMessengerGrain : IGrainWithIntegerKey
     Task<bool> IsBlockedByAsync(PlayerId targetId);
 
     // Ignoring
-    Task<int> IgnoreUserAsync(PlayerId targetId, CancellationToken ct);
+    Task<int> IgnoreUserAsync(PlayerId targetId, int maxIgnoreCapacity, CancellationToken ct);
     Task UnignoreUserAsync(PlayerId targetId, CancellationToken ct);
 
     // Messaging
@@ -82,6 +82,7 @@ public interface IMessengerGrain : IGrainWithIntegerKey
     Task<List<MessageHistoryEntrySnapshot>> GetMessageHistoryAsync(
         int chatPartnerId,
         string lastMessageId,
+        int pageSize,
         CancellationToken ct
     );
 
@@ -108,7 +109,7 @@ public interface IMessengerGrain : IGrainWithIntegerKey
     Task<(
         List<MessengerSearchResultSnapshot> Friends,
         List<MessengerSearchResultSnapshot> Others
-    )> SearchPlayersAsync(string query, CancellationToken ct);
+    )> SearchPlayersAsync(string query, int searchLimit, CancellationToken ct);
 
     // Remove friendship (called by the other side)
     Task OnFriendRemovedAsync(PlayerId friendId);
