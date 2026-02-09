@@ -42,6 +42,17 @@ Include in every request:
   - keep active-room indexing and keepalive behavior in `RoomDirectoryGrain`
   - treat `[KeepAlive]` as explicit infrastructure-only usage
 
+## Orleans grain constraints
+- Never use bare `catch { }` — always `catch (Exception ex)` with `ILogger<T>`.
+- Parallelize independent grain calls with `Task.WhenAll`, not sequential `await` in loops.
+- Hoist repeated grain calls out of loops.
+- Batch DB deletes with `WHERE ... IN (...)`, not per-entity `ExecuteDeleteAsync`.
+- Use timer-flush for housekeeping writes (see `RoomPersistenceGrain`).
+- No hardcoded limits in grains — pass from handlers via `IConfiguration`.
+- Use tracked EF deletes when atomicity with inserts is required.
+- Replace `.Ignore()` with a `LogAndForget` helper that logs faulted tasks.
+- Cap in-memory per-event collections (message history, queues).
+
 ## Task routing hints
 - Handler task: use neighboring handler + `Turbo.Primitives/Orleans/GrainFactoryExtensions.cs`.
 - Grain task: use grain interface + snapshot/state types as primary references.

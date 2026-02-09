@@ -20,6 +20,7 @@ Activate the relevant skill checklist before editing code in that domain:
 - `grain-development`
   - Trigger: editing files under `Turbo.*\\Grains\\**` or `Turbo.Primitives/**/Grains/*.cs`.
   - Enforce: keep ownership boundaries, lifecycle rules, and snapshot/state coherence.
+  - Enforce: all rules in the **Orleans grain development rules** section below.
 - `session-presence-routing`
   - Trigger: touching session gateway, presence flow, room routing, outbound composer fan-out.
   - Enforce: player outbound via `PlayerPresenceGrain.SendComposerAsync`; no direct handler socket sends.
@@ -64,12 +65,56 @@ Default output format:
 - Prefer deterministic handlers/services with clear guard clauses.
 - Preserve cancellation and async flow where it already exists.
 - Handle failure paths explicitly; do not ship happy-path-only changes.
-- Avoid dead code, unused allocations, and broad catch blocks that hide errors.
+- Avoid dead code, unused allocations, and broad catch blocks that hide errors (see **Orleans grain development rules** for specifics).
 - For revision compatibility work, prefer restoring/adding missing incoming message contracts in `Turbo.Primitives/Messages/Incoming/**` before mutating serializer/composer payload behavior.
 - Do not alter serializer/composer behavior by replacing real payload writes with placeholder constants (for example, unconditional `WriteInteger(0)`) unless explicitly requested.
 - If work references `Revision<id>` parsers/serializers, edit the plugin repo path:
   - `../turbo-sample-plugin/TurboSamplePlugin/Revision/**`
   - Do not hallucinate those trees into `turbo-cloud`.
+
+## Orleans grain development rules
+These rules exist because every one of these mistakes has shipped and caused real issues.
+
+### Never swallow exceptions silently
+Every bare `catch { }` hides a real bug path. Always use `catch (Exception ex)` and log it.
+If a cross-grain notification fails silently, state goes asymmetric and nobody knows why.
+- **Required**: inject `ILogger<T>` into every grain that does cross-grain calls or DB work.
+- **Forbidden**: bare `catch { }`, `catch (Exception) { }` without logging.
+
+### Parallelize independent grain calls
+When checking status on N grains (e.g. online status for a friend list), do not `await` each one in a `foreach`.
+Grain calls to different grains can run concurrently with `Task.WhenAll`.
+- Sequential = O(n) round-trips. Parallel = O(1) wall time.
+- Apply everywhere: activation hydration, search results, batch accept/deny.
+
+### Do not repeat identical grain calls in loops
+If a grain method calls its own player's `GetSummaryAsync` inside a loop, hoist the call before the loop.
+Same result every iteration = wasted round-trips.
+
+### Batch DB operations
+Do not loop `ExecuteDeleteAsync` per entity. Use a single `WHERE ... IN (...)` query.
+Same for composer fan-out: collect all updates, send once.
+
+### Use timer-based flush for housekeeping writes
+Follow the `RoomPersistenceGrain` pattern: queue dirty state, flush with `RegisterGrainTimer` on interval, and flush on `OnDeactivateAsync`.
+Do not issue per-event DB writes that block the grain turn.
+
+### Do not hardcode limits in grains
+Handlers already read configuration values (e.g. `Turbo:FriendList:UserFriendLimit`) from `IConfiguration` and pass them to grains.
+Magic numbers like `Take(50)`, `Take(20)`, or `maxIgnoreCapacity = 100` must come from configuration parameters on the grain interface method.
+A 10,000 user hotel needs different tuning than a 10 player dev server.
+
+### Use tracked deletes for atomicity
+`ExecuteDeleteAsync` commits immediately and bypasses the EF change tracker.
+If a delete + insert must succeed or fail together, use `FirstOrDefaultAsync` + `Remove` so both go through one `SaveChangesAsync`.
+
+### Replace .Ignore() with a LogAndForget helper
+Orleans `.Ignore()` makes cross-grain failures invisible. Use a `LogAndForget` extension that calls `ContinueWith(OnlyOnFaulted)` to log the exception.
+Still fire-and-forget, but failures are visible in production logs.
+
+### Bound session/history collections
+Any in-memory collection that grows per-message (e.g. conversation history) must have a configurable cap.
+Without a cap, long-running sessions leak memory.
 
 ## Profile and grain flow constraints
 - Keep packet handlers orchestration-only:

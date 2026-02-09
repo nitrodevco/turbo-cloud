@@ -51,6 +51,17 @@
 - Lifecycle:
   - inactive grains are Orleans-managed and can deactivate automatically unless explicitly marked `[KeepAlive]`.
 
+## Grain runtime patterns
+- Every grain that does cross-grain calls or DB work must inject `ILogger<T>` and log caught exceptions. No bare `catch { }`.
+- Independent grain calls (e.g. checking online status for N friends) must use `Task.WhenAll`, not sequential `await` in a loop.
+- Identical grain calls must not repeat inside loops — hoist before the loop.
+- DB batch operations use single `WHERE ... IN (...)` queries, not per-entity `ExecuteDeleteAsync` loops.
+- Housekeeping writes (e.g. delivered flags) follow the timer-flush pattern: queue dirty state, flush with `RegisterGrainTimer`, flush on `OnDeactivateAsync`. See `RoomPersistenceGrain` for reference.
+- Do not hardcode limits (`Take(N)`, capacity constants) in grains. Pass them from handlers via `IConfiguration`.
+- When a delete + insert must be atomic, use EF tracked operations (`Remove` + `SaveChangesAsync`), not `ExecuteDeleteAsync`.
+- Replace `.Ignore()` on grain tasks with a `LogAndForget` helper that logs faulted continuations.
+- In-memory collections that grow per-event (message history, queues) must have a configurable cap.
+
 ## Placement rules
 - New host startup/wiring behavior:
   - `Turbo.Main/` (usually `Program.cs`, `Extensions/`, or `Console/`)
