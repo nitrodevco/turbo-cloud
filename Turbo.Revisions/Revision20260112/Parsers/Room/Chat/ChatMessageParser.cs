@@ -6,5 +6,11 @@ namespace Turbo.Revisions.Revision20260112.Parsers.Room.Chat;
 
 internal class ChatMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new ChatMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new ChatMessage
+        {
+            Text = packet.PopString(),
+            StyleId = packet.PopInt(),
+            TrackingId = packet.PopInt(),
+        };
 }

@@ -8,6 +8,16 @@ internal class ChatMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, ChatMessageComposer message)
     {
-        //
+        packet
+            .WriteInteger(message.UserId)
+            .WriteString(message.Text)
+            .WriteInteger((int)message.Gesture)
+            .WriteInteger(message.StyleId)
+            .WriteInteger(message.Links.Count);
+
+        foreach (var (one, two, three) in message.Links)
+            packet.WriteString(one).WriteString(two).WriteBoolean(three);
+
+        packet.WriteInteger(message.TrackingId);
     }
 }

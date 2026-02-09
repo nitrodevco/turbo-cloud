@@ -6,5 +6,6 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Chat;
 [GenerateSerializer, Immutable]
 public sealed record RemainingMutePeriodMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required int SecondsRemaining { get; init; }
 }

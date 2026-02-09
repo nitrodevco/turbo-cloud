@@ -6,5 +6,6 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Chat;
 [GenerateSerializer, Immutable]
 public sealed record FloodControlMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required int Seconds { get; init; }
 }

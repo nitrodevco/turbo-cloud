@@ -11,6 +11,6 @@ internal class RemainingMutePeriodMessageComposerSerializer(int header)
         RemainingMutePeriodMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.SecondsRemaining);
     }
 }
