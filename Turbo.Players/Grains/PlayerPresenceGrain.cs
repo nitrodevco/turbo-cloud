@@ -50,18 +50,16 @@ internal sealed partial class PlayerPresenceGrain
         return Task.CompletedTask;
     }
 
-    public async Task RegisterSessionObserverAsync(ISessionContextObserver observer)
+    public Task RegisterSessionObserverAsync(ISessionContextObserver observer)
     {
         _sessionObserver = observer;
 
-        await _inventoryModule.OnSessionAttachedAsync(CancellationToken.None);
+        return Task.CompletedTask;
     }
 
     public async Task UnregisterSessionObserverAsync(CancellationToken ct)
     {
         await ClearActiveRoomAsync(ct);
-
-        await _inventoryModule.OnSessionDetachedAsync(ct);
 
         _sessionObserver = null;
     }

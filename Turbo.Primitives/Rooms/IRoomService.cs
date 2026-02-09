@@ -14,11 +14,6 @@ public partial interface IRoomService
         RoomId roomId,
         CancellationToken ct
     );
-    public Task EnterPendingRoomForPlayerIdAsync(
-        ActionContext ctx,
-        PlayerId playerId,
-        CancellationToken ct
-    );
     public Task CloseRoomForPlayerAsync(PlayerId playerId, CancellationToken ct);
     public Task ClickTileAsync(ActionContext ctx, int targetX, int targetY, CancellationToken ct);
     public Task PickupItemInRoomAsync(

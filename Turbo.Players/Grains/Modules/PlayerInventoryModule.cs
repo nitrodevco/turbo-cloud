@@ -14,16 +14,6 @@ internal sealed class PlayerInventoryModule(PlayerPresenceGrain presenceGrain)
 {
     private readonly PlayerPresenceGrain _presenceGrain = presenceGrain;
 
-    public Task OnSessionAttachedAsync(CancellationToken ct)
-    {
-        return Task.CompletedTask;
-    }
-
-    public async Task OnSessionDetachedAsync(CancellationToken ct)
-    {
-        await _presenceGrain.SendComposerAsync(new FurniListInvalidateEventMessageComposer());
-    }
-
     public async Task OpenFurnitureInventoryAsync(CancellationToken ct)
     {
         var inventoryGrain = _presenceGrain._grainFactory.GetInventoryGrain(

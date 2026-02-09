@@ -142,19 +142,6 @@ internal sealed partial class RoomService(
         }
     }
 
-    public async Task EnterPendingRoomForPlayerIdAsync(
-        ActionContext ctx,
-        PlayerId playerId,
-        CancellationToken ct
-    )
-    {
-        try { }
-        catch (Exception)
-        {
-            throw;
-        }
-    }
-
     public async Task CloseRoomForPlayerAsync(PlayerId playerId, CancellationToken ct)
     {
         if (playerId <= 0)
