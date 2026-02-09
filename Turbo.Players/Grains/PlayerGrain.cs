@@ -4,28 +4,31 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Orleans;
-using Orleans.Runtime;
 using Turbo.Database.Context;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Grains.Players;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Orleans.Snapshots.Players;
-using Turbo.Primitives.Orleans.States.Players;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Players.Grains;
 
-internal sealed class PlayerGrain(
-    [PersistentState(OrleansStateNames.PLAYER_STATE, OrleansStorageNames.PLAYER_STORE)]
-        IPersistentState<PlayerState> state,
-    IDbContextFactory<TurboDbContext> dbCtxFactory,
-    IGrainFactory grainFactory
-) : Grain, IPlayerGrain
+internal sealed class PlayerGrain : Grain, IPlayerGrain
 {
-    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
-    private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
+    private readonly IGrainFactory _grainFactory;
+
+    private readonly PlayerLiveState _state;
+
+    public PlayerGrain(IDbContextFactory<TurboDbContext> dbCtxFactory, IGrainFactory grainFactory)
+    {
+        _dbCtxFactory = dbCtxFactory;
+        _grainFactory = grainFactory;
+
+        _state = new() { PlayerId = PlayerId.Parse((int)this.GetPrimaryKeyLong()) };
+    }
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
@@ -39,68 +42,52 @@ internal sealed class PlayerGrain(
 
     public async Task SetFigureAsync(string figure, AvatarGenderType gender, CancellationToken ct)
     {
-        state.State.Figure = figure;
-        state.State.Gender = gender;
-        state.State.LastUpdated = DateTime.UtcNow;
+        _state.Figure = figure;
+        _state.Gender = gender;
 
-        await state.WriteStateAsync(ct);
-
-        var summary = await GetSummaryAsync(ct);
+        await WriteToDatabaseAsync(ct);
 
         var playerPresence = _grainFactory.GetPlayerPresenceGrain((int)this.GetPrimaryKeyLong());
 
-        await playerPresence.OnFigureUpdatedAsync(summary, ct);
+        await playerPresence.OnFigureUpdatedAsync(await GetSummaryAsync(ct), ct);
 
         await WriteToDatabaseAsync(ct);
     }
 
     public async Task SetMottoAsync(string text, CancellationToken ct)
     {
-        state.State.Motto = text;
-        state.State.LastUpdated = DateTime.UtcNow;
+        _state.Motto = text;
 
-        await state.WriteStateAsync(ct);
-
-        var summary = await GetSummaryAsync(ct);
+        await WriteToDatabaseAsync(ct);
 
         var playerPresence = _grainFactory.GetPlayerPresenceGrain((int)this.GetPrimaryKeyLong());
 
-        await playerPresence.OnPlayerUpdatedAsync(summary, ct);
+        await playerPresence.OnPlayerUpdatedAsync(await GetSummaryAsync(ct), ct);
 
         await WriteToDatabaseAsync(ct);
     }
 
     private async Task HydrateAsync(CancellationToken ct)
     {
-        if (state.State.IsLoaded)
-            return;
-
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         var entity =
             await dbCtx
                 .Players.AsNoTracking()
-                .SingleOrDefaultAsync(x => x.Id == (int)this.GetPrimaryKeyLong(), ct)
+                .SingleOrDefaultAsync(x => x.Id == (int)_state.PlayerId, ct)
             ?? throw new TurboException(TurboErrorCodeEnum.PlayerNotFound);
 
-        state.State.Name = entity.Name ?? string.Empty;
-        state.State.Motto = entity.Motto ?? string.Empty;
-        state.State.Figure = entity.Figure ?? string.Empty;
-        state.State.Gender = entity.Gender;
-        state.State.AchievementScore = 0;
-        state.State.CreatedAt = entity.CreatedAt;
-        state.State.LastUpdated = DateTime.UtcNow;
-        state.State.IsLoaded = true;
+        _state.Name = entity.Name;
+        _state.Motto = entity.Motto ?? string.Empty;
+        _state.Figure = entity.Figure;
+        _state.Gender = entity.Gender;
+        _state.AchievementScore = 0;
+        _state.CreatedAt = entity.CreatedAt;
+        _state.LastUpdated = entity.UpdatedAt;
 
         await _grainFactory
             .GetPlayerDirectoryGrain()
-            .SetPlayerNameAsync(
-                PlayerId.Parse((int)this.GetPrimaryKeyLong()),
-                state.State.Name,
-                ct
-            );
-
-        await state.WriteStateAsync(ct);
+            .SetPlayerNameAsync(PlayerId.Parse((int)this.GetPrimaryKeyLong()), _state.Name, ct);
     }
 
     private async Task WriteToDatabaseAsync(CancellationToken ct)
@@ -110,7 +97,7 @@ internal sealed class PlayerGrain(
         var snapshot = await GetSummaryAsync(ct);
 
         await dbCtx
-            .Players.Where(p => p.Id == (int)this.GetPrimaryKeyLong())
+            .Players.Where(x => x.Id == (int)_state.PlayerId)
             .ExecuteUpdateAsync(
                 up =>
                     up.SetProperty(p => p.Name, snapshot.Name)
@@ -119,34 +106,35 @@ internal sealed class PlayerGrain(
                         .SetProperty(p => p.Gender, snapshot.Gender),
                 ct
             );
+
+        _state.LastUpdated = DateTime.Now;
     }
 
     public Task<PlayerSummarySnapshot> GetSummaryAsync(CancellationToken ct) =>
         Task.FromResult(
             new PlayerSummarySnapshot
             {
-                PlayerId = PlayerId.Parse((int)this.GetPrimaryKeyLong()),
-                Name = state.State.Name,
-                Motto = state.State.Motto,
-                Figure = state.State.Figure,
-                Gender = state.State.Gender,
-                AchievementScore = state.State.AchievementScore,
-                CreatedAt = state.State.CreatedAt,
+                PlayerId = _state.PlayerId,
+                Name = _state.Name,
+                Motto = _state.Motto,
+                Figure = _state.Figure,
+                Gender = _state.Gender,
+                AchievementScore = _state.AchievementScore,
+                CreatedAt = _state.CreatedAt,
             }
         );
 
     public Task<PlayerExtendedProfileSnapshot> GetExtendedProfileSnapshotAsync(CancellationToken ct)
     {
-        var s = state.State;
         return Task.FromResult(
             new PlayerExtendedProfileSnapshot
             {
-                UserId = PlayerId.Parse((int)this.GetPrimaryKeyLong()),
-                UserName = s.Name,
-                Figure = s.Figure,
-                Motto = s.Motto,
-                CreationDate = s.CreatedAt.ToString("yyyy-MM-dd"),
-                AchievementScore = s.AchievementScore,
+                UserId = _state.PlayerId,
+                UserName = _state.Name,
+                Figure = _state.Figure,
+                Motto = _state.Motto,
+                CreationDate = _state.CreatedAt.ToString("yyyy-MM-dd"),
+                AchievementScore = _state.AchievementScore,
                 FriendCount = 0,
                 IsFriend = false,
                 IsFriendRequestSent = false,

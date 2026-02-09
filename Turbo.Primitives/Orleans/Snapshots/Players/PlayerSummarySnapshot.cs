@@ -15,7 +15,7 @@ public sealed record PlayerSummarySnapshot
     public required string Name { get; init; }
 
     [Id(2)]
-    public required string Motto { get; init; }
+    public required string? Motto { get; init; }
 
     [Id(3)]
     public required string Figure { get; init; }
