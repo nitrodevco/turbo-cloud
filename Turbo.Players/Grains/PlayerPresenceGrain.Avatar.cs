@@ -9,16 +9,8 @@ namespace Turbo.Players.Grains;
 
 internal sealed partial class PlayerPresenceGrain
 {
-    public async Task OnFigureUpdatedAsync(PlayerSummarySnapshot snapshot, CancellationToken ct)
+    public async Task OnPlayerUpdatedAsync(PlayerSummarySnapshot snapshot, CancellationToken ct)
     {
-        await SendComposerAsync(
-            new FigureUpdateEventMessageComposer
-            {
-                Figure = snapshot.Figure,
-                Gender = snapshot.Gender,
-            }
-        );
-
         if (_state.ActiveRoomId > 0)
         {
             await SendComposerAsync(
@@ -36,5 +28,18 @@ internal sealed partial class PlayerPresenceGrain
 
             await room.UpdateAvatarWithPlayerAsync(snapshot, ct);
         }
+    }
+
+    public async Task OnFigureUpdatedAsync(PlayerSummarySnapshot snapshot, CancellationToken ct)
+    {
+        await SendComposerAsync(
+            new FigureUpdateEventMessageComposer
+            {
+                Figure = snapshot.Figure,
+                Gender = snapshot.Gender,
+            }
+        );
+
+        await OnPlayerUpdatedAsync(snapshot, ct);
     }
 }

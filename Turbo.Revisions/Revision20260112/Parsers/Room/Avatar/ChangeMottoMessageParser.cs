@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260112.Parsers.Room.Avatar;
 
 internal class ChangeMottoMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new ChangeMottoMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new ChangeMottoMessage { Text = packet.PopString() };
 }

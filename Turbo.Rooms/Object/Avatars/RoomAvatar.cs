@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -26,7 +25,6 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
     public string Figure { get; protected set; } = string.Empty;
 
     public Rotation HeadRotation { get; protected set; }
-    public AvatarDanceType DanceType { get; private set; } = AvatarDanceType.None;
     public Dictionary<AvatarStatusType, string> Statuses { get; } = [];
 
     public Altitude PostureOffset { get; set; } = Altitude.Zero;
@@ -42,7 +40,7 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
 
     private int _goalTries = 0;
 
-    private RoomAvatarSnapshot? _snapshot;
+    protected RoomAvatarSnapshot? _snapshot;
 
     public bool SetGoalTileId(int tileId)
     {
@@ -106,22 +104,6 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
         HeadRotation = rot;
 
         MarkDirty();
-    }
-
-    public bool SetDance(AvatarDanceType danceType = AvatarDanceType.None)
-    {
-        if (DanceType == danceType)
-            return false;
-
-        if (HasStatus(AvatarStatusType.Sit, AvatarStatusType.Lay))
-            return false;
-
-        // check if dance valid
-        // check if dance is hc only / validate hc
-
-        DanceType = danceType;
-
-        return true;
     }
 
     public void Sit(bool flag = true, Altitude? height = null, Rotation? rot = null)

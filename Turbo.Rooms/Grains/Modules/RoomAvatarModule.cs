@@ -258,12 +258,13 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         if (
             objectId <= 0
             || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar)
-            || !avatar.SetDance(danceType)
+            || avatar is not IRoomPlayer player
+            || !player.SetDance(danceType)
         )
             return Task.FromResult(false);
 
         _ = _roomGrain.SendComposerToRoomAsync(
-            new DanceMessageComposer { ObjectId = avatar.ObjectId, DanceType = avatar.DanceType }
+            new DanceMessageComposer { ObjectId = avatar.ObjectId, DanceType = player.DanceType }
         );
 
         return Task.FromResult(true);

@@ -50,6 +50,24 @@ internal sealed class PlayerGrain(
         var playerPresence = _grainFactory.GetPlayerPresenceGrain((int)this.GetPrimaryKeyLong());
 
         await playerPresence.OnFigureUpdatedAsync(summary, ct);
+
+        await WriteToDatabaseAsync(ct);
+    }
+
+    public async Task SetMottoAsync(string text, CancellationToken ct)
+    {
+        state.State.Motto = text;
+        state.State.LastUpdated = DateTime.UtcNow;
+
+        await state.WriteStateAsync(ct);
+
+        var summary = await GetSummaryAsync(ct);
+
+        var playerPresence = _grainFactory.GetPlayerPresenceGrain((int)this.GetPrimaryKeyLong());
+
+        await playerPresence.OnPlayerUpdatedAsync(summary, ct);
+
+        await WriteToDatabaseAsync(ct);
     }
 
     private async Task HydrateAsync(CancellationToken ct)

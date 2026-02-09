@@ -15,10 +15,5 @@ public class GetHeightMapMessageHandler(IRoomService roomService)
         GetHeightMapMessage message,
         MessageContext ctx,
         CancellationToken ct
-    )
-    {
-        await _roomService
-            .EnterPendingRoomForPlayerIdAsync(ctx.AsActionContext(), ctx.PlayerId, ct)
-            .ConfigureAwait(false);
-    }
+    ) { }
 }

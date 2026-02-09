@@ -16,6 +16,7 @@ public sealed class RoomPlayerAvatar
 
     public required PlayerId PlayerId { get; init; }
     public AvatarGenderType Gender { get; private set; } = AvatarGenderType.Male;
+    public AvatarDanceType DanceType { get; private set; } = AvatarDanceType.None;
 
     public int GroupId { get; init; } = -1;
     public int GroupStatus { get; init; } = -1;
@@ -30,6 +31,24 @@ public sealed class RoomPlayerAvatar
         Motto = snapshot.Motto;
         Figure = snapshot.Figure;
         Gender = snapshot.Gender;
+
+        return true;
+    }
+
+    public bool SetDance(AvatarDanceType danceType = AvatarDanceType.None)
+    {
+        if (DanceType == danceType)
+            return false;
+
+        if (HasStatus(AvatarStatusType.Sit, AvatarStatusType.Lay))
+            return false;
+
+        // check if dance valid
+        // check if dance is hc only / validate hc
+
+        DanceType = danceType;
+
+        _snapshot = null;
 
         return true;
     }
@@ -56,6 +75,7 @@ public sealed class RoomPlayerAvatar
             HeadRotation = HeadRotation,
             Status = statusString.ToString(),
             Gender = Gender,
+            DanceType = DanceType,
             GroupId = GroupId,
             GroupStatus = GroupStatus,
             GroupName = GroupName,
