@@ -43,13 +43,12 @@ internal sealed class MessengerGrain(
 
     // Batched delivered-flag queue — flushed periodically to avoid per-message DB writes
     private readonly HashSet<int> _pendingDeliveredIds = [];
-    private IDisposable? _deliveredFlushTimer;
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
         _playerId = PlayerId.Parse((int)this.GetPrimaryKeyLong());
 
-        _deliveredFlushTimer = this.RegisterGrainTimer<object?>(
+        this.RegisterGrainTimer<object?>(
             static async (self, ct) =>
                 await ((MessengerGrain)self!).FlushDeliveredMessagesAsync(ct),
             this,
