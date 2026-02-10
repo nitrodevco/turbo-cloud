@@ -14,4 +14,9 @@ public sealed class PlayerLiveState
     public int AchievementScore { get; set; } = 0;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
+    public int RespectTotal { get; set; } = 0;
+    public int RespectLeft { get; set; } = 0;
+    public int PetRespectLeft { get; set; } = 0;
+    public int RespectReplenishesLeft { get; set; } = 0;
+    public DateTime LastRespectReset { get; set; } = DateTime.MinValue;
 }

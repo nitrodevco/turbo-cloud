@@ -115,4 +115,13 @@ internal sealed partial class PlayerPresenceGrain
 
         return Task.CompletedTask;
     }
+
+    public async Task SendComposerToActiveRoomAsync(IComposer composer)
+    {
+        if (_state.ActiveRoomId <= 0)
+            return;
+
+        var roomGrain = _grainFactory.GetRoomGrain(_state.ActiveRoomId);
+        await roomGrain.SendComposerToRoomAsync(composer);
+    }
 }

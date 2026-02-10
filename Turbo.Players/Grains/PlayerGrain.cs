@@ -3,11 +3,14 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Orleans;
 using Turbo.Database.Context;
+using Turbo.Database.Entities.Players;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Grains.Players;
+using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Players;
@@ -19,13 +22,19 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly IGrainFactory _grainFactory;
+    private readonly IConfiguration _configuration;
 
     private readonly PlayerLiveState _state;
 
-    public PlayerGrain(IDbContextFactory<TurboDbContext> dbCtxFactory, IGrainFactory grainFactory)
+    public PlayerGrain(
+        IDbContextFactory<TurboDbContext> dbCtxFactory,
+        IGrainFactory grainFactory,
+        IConfiguration configuration
+    )
     {
         _dbCtxFactory = dbCtxFactory;
         _grainFactory = grainFactory;
+        _configuration = configuration;
 
         _state = new() { PlayerId = PlayerId.Parse((int)this.GetPrimaryKeyLong()) };
     }
@@ -33,6 +42,7 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
     public override async Task OnActivateAsync(CancellationToken ct)
     {
         await HydrateAsync(ct);
+        await TryResetDailyRespectIfNeededAsync(ct);
     }
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
@@ -85,6 +95,19 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         _state.CreatedAt = entity.CreatedAt;
         _state.LastUpdated = entity.UpdatedAt;
 
+        var respectEntity = await dbCtx
+            .PlayerRespects.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.PlayerEntityId == (int)_state.PlayerId, ct);
+
+        if (respectEntity is not null)
+        {
+            _state.RespectTotal = respectEntity.RespectTotal;
+            _state.RespectLeft = respectEntity.RespectLeft;
+            _state.PetRespectLeft = respectEntity.PetRespectLeft;
+            _state.RespectReplenishesLeft = respectEntity.RespectReplenishesLeft;
+            _state.LastRespectReset = respectEntity.LastRespectReset ?? DateTime.MinValue;
+        }
+
         await _grainFactory
             .GetPlayerDirectoryGrain()
             .SetPlayerNameAsync(PlayerId.Parse((int)this.GetPrimaryKeyLong()), _state.Name, ct);
@@ -107,6 +130,8 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
                 ct
             );
 
+        await WriteRespectToDatabaseAsync(dbCtx, ct);
+
         _state.LastUpdated = DateTime.Now;
     }
 
@@ -121,6 +146,10 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
                 Gender = _state.Gender,
                 AchievementScore = _state.AchievementScore,
                 CreatedAt = _state.CreatedAt,
+                RespectTotal = _state.RespectTotal,
+                RespectLeft = _state.RespectLeft,
+                PetRespectLeft = _state.PetRespectLeft,
+                RespectReplenishesLeft = _state.RespectReplenishesLeft,
             }
         );
 
@@ -146,9 +175,137 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
                 AccountLevel = 1,
                 IntegerField24 = 0,
                 StarGemCount = 0,
+                RespectTotal = _state.RespectTotal,
                 BooleanField26 = false,
                 BooleanField27 = false,
             }
         );
+    }
+
+    public async Task<int> ReceiveRespectAsync(PlayerId giverId, CancellationToken ct)
+    {
+        _state.RespectTotal++;
+        await WriteToDatabaseAsync(ct);
+
+        var presence = _grainFactory.GetPlayerPresenceGrain((int)this.GetPrimaryKeyLong());
+        await presence.SendComposerToActiveRoomAsync(
+            new RespectNotificationMessageComposer
+            {
+                UserId = (int)_state.PlayerId,
+                RespectTotal = _state.RespectTotal,
+            }
+        );
+
+        return _state.RespectTotal;
+    }
+
+    public async Task<bool> TryConsumeRespectAsync(CancellationToken ct)
+    {
+        await TryResetDailyRespectIfNeededAsync(ct);
+
+        if (_state.RespectLeft <= 0)
+            return false;
+
+        _state.RespectLeft--;
+        await WriteToDatabaseAsync(ct);
+        return true;
+    }
+
+    public async Task<bool> TryReplenishRespectAsync(int maxRespectPerDay, CancellationToken ct)
+    {
+        await TryResetDailyRespectIfNeededAsync(ct);
+
+        if (_state.RespectReplenishesLeft <= 0)
+            return false;
+
+        _state.RespectReplenishesLeft--;
+        _state.RespectLeft = maxRespectPerDay;
+        await WriteToDatabaseAsync(ct);
+
+        return true;
+    }
+
+    public async Task ResetDailyRespectAsync(
+        int dailyRespectAmount,
+        int dailyPetRespectAmount,
+        int dailyReplenishLimit,
+        CancellationToken ct
+    )
+    {
+        _state.RespectLeft = dailyRespectAmount;
+        _state.PetRespectLeft = dailyPetRespectAmount;
+        _state.RespectReplenishesLeft = dailyReplenishLimit;
+        _state.LastRespectReset = DateTime.UtcNow;
+        await WriteToDatabaseAsync(ct);
+    }
+
+    /// <summary>
+    /// Lazy daily reset: if the last reset was before today's midnight (UTC),
+    /// automatically replenish daily respect allowances from configuration.
+    /// This avoids the need for a global scheduled task to iterate all players.
+    /// </summary>
+    private async Task TryResetDailyRespectIfNeededAsync(CancellationToken ct)
+    {
+        var todayMidnight = DateTime.UtcNow.Date;
+
+        if (_state.LastRespectReset >= todayMidnight)
+            return;
+
+        var dailyRespect = _configuration.GetValue("Turbo:Respect:DailyRespectAmount", 3);
+        var dailyPetRespect = _configuration.GetValue("Turbo:Respect:DailyPetRespectAmount", 3);
+        var dailyReplenish = _configuration.GetValue("Turbo:Respect:DailyReplenishLimit", 1);
+
+        await ResetDailyRespectAsync(dailyRespect, dailyPetRespect, dailyReplenish, ct);
+    }
+
+    private async Task WriteRespectToDatabaseAsync(TurboDbContext dbCtx, CancellationToken ct)
+    {
+        var playerId = (int)_state.PlayerId;
+
+        var existing = await dbCtx
+            .PlayerRespects.Where(x => x.PlayerEntityId == playerId)
+            .CountAsync(ct);
+
+        if (existing > 0)
+        {
+            await dbCtx
+                .PlayerRespects.Where(x => x.PlayerEntityId == playerId)
+                .ExecuteUpdateAsync(
+                    up =>
+                        up.SetProperty(r => r.RespectTotal, _state.RespectTotal)
+                            .SetProperty(r => r.RespectLeft, _state.RespectLeft)
+                            .SetProperty(r => r.PetRespectLeft, _state.PetRespectLeft)
+                            .SetProperty(
+                                r => r.RespectReplenishesLeft,
+                                _state.RespectReplenishesLeft
+                            )
+                            .SetProperty(
+                                r => r.LastRespectReset,
+                                _state.LastRespectReset == DateTime.MinValue
+                                    ? null
+                                    : (DateTime?)_state.LastRespectReset
+                            ),
+                    ct
+                );
+        }
+        else
+        {
+            dbCtx.PlayerRespects.Add(
+                new PlayerRespectEntity
+                {
+                    PlayerEntityId = playerId,
+                    RespectTotal = _state.RespectTotal,
+                    RespectLeft = _state.RespectLeft,
+                    PetRespectLeft = _state.PetRespectLeft,
+                    RespectReplenishesLeft = _state.RespectReplenishesLeft,
+                    LastRespectReset =
+                        _state.LastRespectReset == DateTime.MinValue
+                            ? null
+                            : _state.LastRespectReset,
+                }
+            );
+
+            await dbCtx.SaveChangesAsync(ct);
+        }
     }
 }

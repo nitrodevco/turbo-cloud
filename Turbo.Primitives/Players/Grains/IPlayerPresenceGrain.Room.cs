@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Rooms;
 
@@ -12,4 +13,5 @@ public partial interface IPlayerPresenceGrain
     public Task SetActiveRoomAsync(RoomId roomId, CancellationToken ct);
     public Task ClearActiveRoomAsync(CancellationToken ct);
     public Task SetPendingRoomAsync(RoomId roomId, bool approved);
+    public Task SendComposerToActiveRoomAsync(IComposer composer);
 }

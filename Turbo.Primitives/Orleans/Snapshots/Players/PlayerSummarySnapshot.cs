@@ -28,4 +28,16 @@ public sealed record PlayerSummarySnapshot
 
     [Id(6)]
     public required DateTime CreatedAt { get; init; }
+
+    [Id(7)]
+    public required int RespectTotal { get; init; }
+
+    [Id(8)]
+    public required int RespectLeft { get; init; }
+
+    [Id(9)]
+    public required int PetRespectLeft { get; init; }
+
+    [Id(10)]
+    public required int RespectReplenishesLeft { get; init; }
 }

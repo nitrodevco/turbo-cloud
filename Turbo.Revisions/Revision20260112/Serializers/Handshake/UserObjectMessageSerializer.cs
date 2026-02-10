@@ -16,12 +16,16 @@ internal class UserObjectMessageSerializer(int header)
         packet.WriteString(message.Player.Motto);
         packet.WriteString(message.Player.Name); // real name
         packet.WriteBoolean(false); // direct mail
-        packet.WriteInteger(0); // respect total
-        packet.WriteInteger(0); // respect left
-        packet.WriteInteger(0); // pet respect left
+        packet.WriteInteger(message.Player.RespectTotal);
+        packet.WriteInteger(message.Player.RespectLeft);
+        packet.WriteInteger(message.Player.PetRespectLeft);
         packet.WriteBoolean(false); // stream publishing enabled
         packet.WriteString(message.Player.CreatedAt.ToString()); // last online
         packet.WriteBoolean(false); // can name change
         packet.WriteBoolean(false); // account safety locked
+        packet.WriteBoolean(false); // account trade locked
+        packet.WriteString(string.Empty); // name color
+        packet.WriteInteger(message.Player.RespectReplenishesLeft);
+        packet.WriteInteger(message.MaxRespectPerDay);
     }
 }

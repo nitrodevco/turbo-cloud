@@ -30,6 +30,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<PlayerCurrencyEntity> PlayerCurrencies { get; init; }
     public DbSet<PlayerEntity> Players { get; init; }
+    public DbSet<PlayerRespectEntity> PlayerRespects { get; init; }
 
     public DbSet<RoomBanEntity> RoomBans { get; init; }
 

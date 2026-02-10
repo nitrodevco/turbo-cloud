@@ -46,6 +46,9 @@ public class PlayerEntity : TurboEntity
     public int? RoomChatStyleId { get; set; }
 
     [InverseProperty("PlayerEntity")]
+    public PlayerRespectEntity? PlayerRespect { get; set; }
+
+    [InverseProperty("PlayerEntity")]
     public List<PlayerBadgeEntity>? PlayerBadges { get; set; }
 
     [InverseProperty("PlayerEntity")]

@@ -32,6 +32,8 @@ public interface ITurboDbContext : IDisposable
 
     public DbSet<PlayerEntity>? Players { get; set; }
 
+    public DbSet<PlayerRespectEntity>? PlayerRespects { get; set; }
+
     public DbSet<RoomBanEntity>? RoomBans { get; set; }
 
     public DbSet<RoomChatlogEntity>? Chatlogs { get; set; }

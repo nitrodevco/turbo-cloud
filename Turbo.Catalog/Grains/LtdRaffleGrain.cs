@@ -451,7 +451,7 @@ public sealed class LtdRaffleGrain(
 
         if (cfg.RespectsReceived.Enabled)
             weight += Math.Min(
-                profile.StarGemCount * cfg.RespectsReceived.BonusPerUnit,
+                profile.RespectTotal * cfg.RespectsReceived.BonusPerUnit,
                 cfg.RespectsReceived.MaxBonus
             );
 

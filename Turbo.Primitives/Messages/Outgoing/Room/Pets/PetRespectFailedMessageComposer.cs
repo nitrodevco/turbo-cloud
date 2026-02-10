@@ -6,5 +6,9 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Pets;
 [GenerateSerializer, Immutable]
 public sealed record PetRespectFailedMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required int RequiredDays { get; init; }
+
+    [Id(1)]
+    public required int AvatarAgeInDays { get; init; }
 }
