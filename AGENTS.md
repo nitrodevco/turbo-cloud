@@ -27,9 +27,9 @@ Activate the relevant skill checklist before editing code in that domain:
 - `message-contracts`
   - Trigger: editing `Turbo.Primitives/Messages/Incoming/**` or outgoing composer payload mappings.
   - Enforce: explicit mandatory fields, no placeholder payloads when source data exists.
-- `revision-protocol` (cross-repo)
+- `revision-protocol`
   - Trigger: changes referencing `Revision<id>` packet mappings.
-  - Enforce: edit plugin revision tree in `../turbo-sample-plugin/TurboSamplePlugin/Revision/**`.
+  - Enforce: edit `Turbo.Revisions/Revision<id>/**` in `turbo-cloud`.
 
 ## Priority order
 1. Build and quality checks in repo files (`Directory.Build.props`, `Directory.Build.targets`, `.editorconfig`)
@@ -68,9 +68,7 @@ Default output format:
 - Avoid dead code, unused allocations, and broad catch blocks that hide errors (see **Orleans grain development rules** for specifics).
 - For revision compatibility work, prefer restoring/adding missing incoming message contracts in `Turbo.Primitives/Messages/Incoming/**` before mutating serializer/composer payload behavior.
 - Do not alter serializer/composer behavior by replacing real payload writes with placeholder constants (for example, unconditional `WriteInteger(0)`) unless explicitly requested.
-- If work references `Revision<id>` parsers/serializers, edit the plugin repo path:
-  - `../turbo-sample-plugin/TurboSamplePlugin/Revision/**`
-  - Do not hallucinate those trees into `turbo-cloud`.
+- If work references `Revision<id>` parsers/serializers, edit `Turbo.Revisions/Revision<id>/**` in `turbo-cloud`.
 
 ## Orleans grain development rules
 These rules exist because every one of these mistakes has shipped and caused real issues.
