@@ -921,10 +921,12 @@ internal sealed class MessengerGrain(
                 .Reverse()
                 .Take(pageSize)
                 .Reverse()
-                .Select(e => e with
-                {
-                    SecondsSinceSent = Math.Max(0, (int)(now - e.SentAtUtc).TotalSeconds),
-                })
+                .Select(e =>
+                    e with
+                    {
+                        SecondsSinceSent = Math.Max(0, (int)(now - e.SentAtUtc).TotalSeconds),
+                    }
+                )
                 .ToList()
         );
     }
