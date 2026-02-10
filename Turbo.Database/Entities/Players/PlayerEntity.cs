@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
@@ -46,24 +45,8 @@ public class PlayerEntity : TurboEntity
     [Column("room_chat_style_id")]
     public int? RoomChatStyleId { get; set; }
 
-    [Column("respect_total")]
-    [DefaultValue(0)]
-    public int RespectTotal { get; set; }
-
-    [Column("respect_left")]
-    [DefaultValue(0)]
-    public int RespectLeft { get; set; }
-
-    [Column("pet_respect_left")]
-    [DefaultValue(0)]
-    public int PetRespectLeft { get; set; }
-
-    [Column("respect_replenishes_left")]
-    [DefaultValue(1)]
-    public int RespectReplenishesLeft { get; set; }
-
-    [Column("last_respect_reset")]
-    public DateTime? LastRespectReset { get; set; }
+    [InverseProperty("PlayerEntity")]
+    public PlayerRespectEntity? PlayerRespect { get; set; }
 
     [InverseProperty("PlayerEntity")]
     public List<PlayerBadgeEntity>? PlayerBadges { get; set; }

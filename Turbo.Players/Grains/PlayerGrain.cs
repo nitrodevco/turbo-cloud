@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Orleans;
 using Turbo.Database.Context;
+using Turbo.Database.Entities.Players;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Grains.Players;
@@ -93,11 +94,19 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         _state.AchievementScore = 0;
         _state.CreatedAt = entity.CreatedAt;
         _state.LastUpdated = entity.UpdatedAt;
-        _state.RespectTotal = entity.RespectTotal;
-        _state.RespectLeft = entity.RespectLeft;
-        _state.PetRespectLeft = entity.PetRespectLeft;
-        _state.RespectReplenishesLeft = entity.RespectReplenishesLeft;
-        _state.LastRespectReset = entity.LastRespectReset ?? DateTime.MinValue;
+
+        var respectEntity = await dbCtx
+            .PlayerRespects.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.PlayerEntityId == (int)_state.PlayerId, ct);
+
+        if (respectEntity is not null)
+        {
+            _state.RespectTotal = respectEntity.RespectTotal;
+            _state.RespectLeft = respectEntity.RespectLeft;
+            _state.PetRespectLeft = respectEntity.PetRespectLeft;
+            _state.RespectReplenishesLeft = respectEntity.RespectReplenishesLeft;
+            _state.LastRespectReset = respectEntity.LastRespectReset ?? DateTime.MinValue;
+        }
 
         await _grainFactory
             .GetPlayerDirectoryGrain()
@@ -117,19 +126,11 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
                     up.SetProperty(p => p.Name, snapshot.Name)
                         .SetProperty(p => p.Motto, snapshot.Motto)
                         .SetProperty(p => p.Figure, snapshot.Figure)
-                        .SetProperty(p => p.Gender, snapshot.Gender)
-                        .SetProperty(p => p.RespectTotal, _state.RespectTotal)
-                        .SetProperty(p => p.RespectLeft, _state.RespectLeft)
-                        .SetProperty(p => p.PetRespectLeft, _state.PetRespectLeft)
-                        .SetProperty(p => p.RespectReplenishesLeft, _state.RespectReplenishesLeft)
-                        .SetProperty(
-                            p => p.LastRespectReset,
-                            _state.LastRespectReset == DateTime.MinValue
-                                ? null
-                                : (DateTime?)_state.LastRespectReset
-                        ),
+                        .SetProperty(p => p.Gender, snapshot.Gender),
                 ct
             );
+
+        await WriteRespectToDatabaseAsync(dbCtx, ct);
 
         _state.LastUpdated = DateTime.Now;
     }
@@ -255,5 +256,56 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         var dailyReplenish = _configuration.GetValue("Turbo:Respect:DailyReplenishLimit", 1);
 
         await ResetDailyRespectAsync(dailyRespect, dailyPetRespect, dailyReplenish, ct);
+    }
+
+    private async Task WriteRespectToDatabaseAsync(TurboDbContext dbCtx, CancellationToken ct)
+    {
+        var playerId = (int)_state.PlayerId;
+
+        var existing = await dbCtx
+            .PlayerRespects.Where(x => x.PlayerEntityId == playerId)
+            .CountAsync(ct);
+
+        if (existing > 0)
+        {
+            await dbCtx
+                .PlayerRespects.Where(x => x.PlayerEntityId == playerId)
+                .ExecuteUpdateAsync(
+                    up =>
+                        up.SetProperty(r => r.RespectTotal, _state.RespectTotal)
+                            .SetProperty(r => r.RespectLeft, _state.RespectLeft)
+                            .SetProperty(r => r.PetRespectLeft, _state.PetRespectLeft)
+                            .SetProperty(
+                                r => r.RespectReplenishesLeft,
+                                _state.RespectReplenishesLeft
+                            )
+                            .SetProperty(
+                                r => r.LastRespectReset,
+                                _state.LastRespectReset == DateTime.MinValue
+                                    ? null
+                                    : (DateTime?)_state.LastRespectReset
+                            ),
+                    ct
+                );
+        }
+        else
+        {
+            dbCtx.PlayerRespects.Add(
+                new PlayerRespectEntity
+                {
+                    PlayerEntityId = playerId,
+                    RespectTotal = _state.RespectTotal,
+                    RespectLeft = _state.RespectLeft,
+                    PetRespectLeft = _state.PetRespectLeft,
+                    RespectReplenishesLeft = _state.RespectReplenishesLeft,
+                    LastRespectReset =
+                        _state.LastRespectReset == DateTime.MinValue
+                            ? null
+                            : _state.LastRespectReset,
+                }
+            );
+
+            await dbCtx.SaveChangesAsync(ct);
+        }
     }
 }

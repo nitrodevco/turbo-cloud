@@ -1478,10 +1478,6 @@ namespace Turbo.Database.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("gender");
 
-                    b.Property<DateTime?>("LastRespectReset")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("last_respect_reset");
-
                     b.Property<string>("Motto")
                         .HasMaxLength(512)
                         .HasColumnType("varchar(512)")
@@ -1493,12 +1489,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("varchar(512)")
                         .HasColumnName("name");
 
-                    b.Property<int>("PetRespectLeft")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("pet_respect_left");
-
                     b.Property<int>("PlayerPerks")
                         .HasColumnType("int")
                         .HasDefaultValue(0)
@@ -1508,24 +1498,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("status");
-
-                    b.Property<int>("RespectLeft")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("respect_left");
-
-                    b.Property<int>("RespectReplenishesLeft")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(1)
-                        .HasColumnName("respect_replenishes_left");
-
-                    b.Property<int>("RespectTotal")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("respect_total");
 
                     b.Property<int?>("RoomChatStyleId")
                         .HasColumnType("int")
@@ -1592,6 +1564,76 @@ namespace Turbo.Database.Migrations
                         .IsUnique();
 
                     b.ToTable("player_favorite_rooms");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerRespectEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("deleted_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
+
+                    b.Property<DateTime?>("LastRespectReset")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("last_respect_reset");
+
+                    b.Property<int>("PetRespectLeft")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("pet_respect_left");
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<int>("RespectLeft")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("respect_left");
+
+                    b.Property<int>("RespectReplenishesLeft")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1)
+                        .HasColumnName("respect_replenishes_left");
+
+                    b.Property<int>("RespectTotal")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("respect_total");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime>("UpdatedAt"));
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerEntityId")
+                        .IsUnique();
+
+                    b.ToTable("player_respects");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Room.RoomBanEntity", b =>
@@ -2556,6 +2598,17 @@ namespace Turbo.Database.Migrations
                     b.Navigation("RoomEntity");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerRespectEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithOne("PlayerRespect")
+                        .HasForeignKey("Turbo.Database.Entities.Players.PlayerRespectEntity", "PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PlayerEntity");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Room.RoomBanEntity", b =>
                 {
                     b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
@@ -2747,6 +2800,8 @@ namespace Turbo.Database.Migrations
                     b.Navigation("PlayerCurrencies");
 
                     b.Navigation("PlayerOwnedChatStyles");
+
+                    b.Navigation("PlayerRespect");
 
                     b.Navigation("RoomBans");
 
