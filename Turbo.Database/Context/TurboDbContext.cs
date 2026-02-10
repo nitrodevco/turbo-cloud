@@ -59,6 +59,10 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<PlayerFavoriteRoomsEntity> PlayerFavouriteRooms { get; init; }
 
+    public DbSet<LtdSeriesEntity> LtdSeries { get; init; }
+
+    public DbSet<LtdRaffleEntryEntity> LtdRaffleEntries { get; init; }
+      
     public DbSet<MessengerFriendEntity> MessengerFriends { get; init; }
 
     public DbSet<MessengerRequestEntity> MessengerRequests { get; init; }
