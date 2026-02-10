@@ -31,6 +31,9 @@ public record MessengerFriendSnapshot
     [Id(7)]
     public required string Motto { get; init; }
 
+    [Id(14)]
+    public required string LastAccess { get; init; }
+
     [Id(8)]
     public required string RealName { get; init; }
 

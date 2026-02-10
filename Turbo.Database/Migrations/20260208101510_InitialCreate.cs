@@ -12,1290 +12,2127 @@ namespace Turbo.Database.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterDatabase()
+            migrationBuilder.AlterDatabase().Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder
+                .CreateTable(
+                    name: "catalog_pages",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        parent_id = table.Column<int>(type: "int", nullable: true),
+                        localization = table
+                            .Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        name = table
+                            .Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        icon = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                        layout = table
+                            .Column<string>(
+                                type: "varchar(50)",
+                                maxLength: 50,
+                                nullable: false,
+                                defaultValue: "default_3x3"
+                            )
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        image_data = table
+                            .Column<string>(type: "longtext", nullable: true)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        text_data = table
+                            .Column<string>(type: "longtext", nullable: true)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        sort_order = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        visible = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: true
+                        ),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_catalog_pages", x => x.id);
+                        table.ForeignKey(
+                            name: "FK_catalog_pages_catalog_pages_parent_id",
+                            column: x => x.parent_id,
+                            principalTable: "catalog_pages",
+                            principalColumn: "id"
+                        );
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "catalog_pages",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    parent_id = table.Column<int>(type: "int", nullable: true),
-                    localization = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    name = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    icon = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    layout = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false, defaultValue: "default_3x3")
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    image_data = table.Column<string>(type: "longtext", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    text_data = table.Column<string>(type: "longtext", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    sort_order = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    visible = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_catalog_pages", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_catalog_pages_catalog_pages_parent_id",
-                        column: x => x.parent_id,
-                        principalTable: "catalog_pages",
-                        principalColumn: "id");
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "currency_types",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        name = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: true)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        type = table.Column<int>(type: "int", nullable: false),
+                        activity_point_type = table.Column<int>(type: "int", nullable: true),
+                        enabled = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: true
+                        ),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_currency_types", x => x.id);
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "currency_types",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    name = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    type = table.Column<int>(type: "int", nullable: false),
-                    activity_point_type = table.Column<int>(type: "int", nullable: true),
-                    enabled = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_currency_types", x => x.id);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "furniture_definitions",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        sprite_id = table.Column<int>(type: "int", nullable: false),
+                        name = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        type = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                        category = table.Column<int>(type: "int", nullable: false, defaultValue: 1),
+                        logic = table
+                            .Column<string>(
+                                type: "varchar(50)",
+                                maxLength: 50,
+                                nullable: false,
+                                defaultValue: "none"
+                            )
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        total_states = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        width = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                        length = table.Column<int>(type: "int", nullable: false, defaultValue: 1),
+                        stack_height = table.Column<double>(
+                            type: "double(10,3)",
+                            nullable: false,
+                            defaultValue: 0.0
+                        ),
+                        can_stack = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: true
+                        ),
+                        can_walk = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: false
+                        ),
+                        can_sit = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: false
+                        ),
+                        can_lay = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: false
+                        ),
+                        can_recycle = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: false
+                        ),
+                        can_trade = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: true
+                        ),
+                        can_group = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: true
+                        ),
+                        can_sell = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: true
+                        ),
+                        usage_policy = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 1
+                        ),
+                        extra_data = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: true)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_furniture_definitions", x => x.id);
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "furniture_definitions",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    sprite_id = table.Column<int>(type: "int", nullable: false),
-                    name = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    type = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    category = table.Column<int>(type: "int", nullable: false, defaultValue: 1),
-                    logic = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false, defaultValue: "none")
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    total_states = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    width = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    length = table.Column<int>(type: "int", nullable: false, defaultValue: 1),
-                    stack_height = table.Column<double>(type: "double(10,3)", nullable: false, defaultValue: 0.0),
-                    can_stack = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    can_walk = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
-                    can_sit = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
-                    can_lay = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
-                    can_recycle = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
-                    can_trade = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    can_group = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    can_sell = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    usage_policy = table.Column<int>(type: "int", nullable: false, defaultValue: 1),
-                    extra_data = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_furniture_definitions", x => x.id);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "navigator_eventcats",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        name = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        visible = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_navigator_eventcats", x => x.id);
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "navigator_eventcats",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    name = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    visible = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_navigator_eventcats", x => x.id);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "navigator_flatcats",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        name = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        visible = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: true
+                        ),
+                        automatic = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: true
+                        ),
+                        automatic_category = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: true)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        global_category = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: true)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        staff_only = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: false
+                        ),
+                        min_rank = table.Column<int>(type: "int", nullable: false, defaultValue: 1),
+                        order_num = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_navigator_flatcats", x => x.id);
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "navigator_flatcats",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    name = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    visible = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    automatic = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    automatic_category = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    global_category = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    staff_only = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
-                    min_rank = table.Column<int>(type: "int", nullable: false, defaultValue: 1),
-                    order_num = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_navigator_flatcats", x => x.id);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "navigator_top_level_contexts",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        search_code = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        visible = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: true
+                        ),
+                        order_num = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_navigator_top_level_contexts", x => x.id);
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "navigator_top_level_contexts",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    search_code = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    visible = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    order_num = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_navigator_top_level_contexts", x => x.id);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "performance_logs",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        elapsed_time = table.Column<int>(type: "int", nullable: false),
+                        user_agent = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        flash_version = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        os = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        browser = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        is_debugger = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                        memory_usage = table.Column<int>(type: "int", nullable: false),
+                        garbage_collections = table.Column<int>(type: "int", nullable: false),
+                        average_frame_rate = table.Column<int>(type: "int", nullable: false),
+                        ip_address = table
+                            .Column<string>(type: "varchar(45)", maxLength: 45, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_performance_logs", x => x.id);
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "performance_logs",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    elapsed_time = table.Column<int>(type: "int", nullable: false),
-                    user_agent = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    flash_version = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    os = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    browser = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    is_debugger = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    memory_usage = table.Column<int>(type: "int", nullable: false),
-                    garbage_collections = table.Column<int>(type: "int", nullable: false),
-                    average_frame_rate = table.Column<int>(type: "int", nullable: false),
-                    ip_address = table.Column<string>(type: "varchar(45)", maxLength: 45, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_performance_logs", x => x.id);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "player_chat_styles",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        client_style_id = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_player_chat_styles", x => x.id);
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "player_chat_styles",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    client_style_id = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_player_chat_styles", x => x.id);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "players",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        name = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        motto = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: true)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        figure = table
+                            .Column<string>(
+                                type: "varchar(100)",
+                                maxLength: 100,
+                                nullable: false,
+                                defaultValue: "hr-115-42.hd-195-19.ch-3030-82.lg-275-1408.fa-1201.ca-1804-64"
+                            )
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        gender = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                        status = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                        perk_flags = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        room_chat_style_id = table.Column<int>(type: "int", nullable: true),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_players", x => x.id);
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "players",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    name = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    motto = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    figure = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false, defaultValue: "hr-115-42.hd-195-19.ch-3030-82.lg-275-1408.fa-1201.ca-1804-64")
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    gender = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    status = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    perk_flags = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    room_chat_style_id = table.Column<int>(type: "int", nullable: true),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_players", x => x.id);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "room_models",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        name = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        model = table
+                            .Column<string>(type: "longtext", maxLength: 512, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        door_x = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                        door_y = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                        door_rotation = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        enabled = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: true
+                        ),
+                        custom = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: false
+                        ),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_room_models", x => x.id);
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "room_models",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    name = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    model = table.Column<string>(type: "longtext", maxLength: 512, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    door_x = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    door_y = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    door_rotation = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    enabled = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    custom = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_room_models", x => x.id);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "catalog_offers",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        page_id = table.Column<int>(type: "int", nullable: false),
+                        localization_id = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        cost_credits = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        cost_currency = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        currency_type_id = table.Column<int>(type: "int", nullable: true),
+                        can_gift = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: true
+                        ),
+                        can_bundle = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: true
+                        ),
+                        club_level = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        visible = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: true
+                        ),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_catalog_offers", x => x.id);
+                        table.ForeignKey(
+                            name: "FK_catalog_offers_catalog_pages_page_id",
+                            column: x => x.page_id,
+                            principalTable: "catalog_pages",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                        table.ForeignKey(
+                            name: "FK_catalog_offers_currency_types_currency_type_id",
+                            column: x => x.currency_type_id,
+                            principalTable: "currency_types",
+                            principalColumn: "id"
+                        );
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "catalog_offers",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    page_id = table.Column<int>(type: "int", nullable: false),
-                    localization_id = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    cost_credits = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    cost_currency = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    currency_type_id = table.Column<int>(type: "int", nullable: true),
-                    can_gift = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    can_bundle = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    club_level = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    visible = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_catalog_offers", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_catalog_offers_catalog_pages_page_id",
-                        column: x => x.page_id,
-                        principalTable: "catalog_pages",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_catalog_offers_currency_types_currency_type_id",
-                        column: x => x.currency_type_id,
-                        principalTable: "currency_types",
-                        principalColumn: "id");
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "messenger_categories",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        player_id = table.Column<int>(type: "int", nullable: false),
+                        name = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_messenger_categories", x => x.id);
+                        table.ForeignKey(
+                            name: "FK_messenger_categories_players_player_id",
+                            column: x => x.player_id,
+                            principalTable: "players",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "messenger_categories",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    player_id = table.Column<int>(type: "int", nullable: false),
-                    name = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_messenger_categories", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_messenger_categories_players_player_id",
-                        column: x => x.player_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "messenger_requests",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        player_id = table.Column<int>(type: "int", nullable: false),
+                        requested_id = table.Column<int>(type: "int", nullable: false),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_messenger_requests", x => x.id);
+                        table.ForeignKey(
+                            name: "FK_messenger_requests_players_player_id",
+                            column: x => x.player_id,
+                            principalTable: "players",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                        table.ForeignKey(
+                            name: "FK_messenger_requests_players_requested_id",
+                            column: x => x.requested_id,
+                            principalTable: "players",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "messenger_requests",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    player_id = table.Column<int>(type: "int", nullable: false),
-                    requested_id = table.Column<int>(type: "int", nullable: false),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_messenger_requests", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_messenger_requests_players_player_id",
-                        column: x => x.player_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_messenger_requests_players_requested_id",
-                        column: x => x.requested_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "player_badges",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        player_id = table.Column<int>(type: "int", nullable: false),
+                        badge_code = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        slot_id = table.Column<int>(type: "int", nullable: true, defaultValue: 0),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_player_badges", x => x.id);
+                        table.ForeignKey(
+                            name: "FK_player_badges_players_player_id",
+                            column: x => x.player_id,
+                            principalTable: "players",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "player_badges",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    player_id = table.Column<int>(type: "int", nullable: false),
-                    badge_code = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    slot_id = table.Column<int>(type: "int", nullable: true, defaultValue: 0),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_player_badges", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_player_badges_players_player_id",
-                        column: x => x.player_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "player_chat_styles_owned",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        player_id = table.Column<int>(type: "int", nullable: false),
+                        chat_style_id = table.Column<int>(type: "int", nullable: false),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_player_chat_styles_owned", x => x.id);
+                        table.ForeignKey(
+                            name: "FK_player_chat_styles_owned_player_chat_styles_chat_style_id",
+                            column: x => x.chat_style_id,
+                            principalTable: "player_chat_styles",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                        table.ForeignKey(
+                            name: "FK_player_chat_styles_owned_players_player_id",
+                            column: x => x.player_id,
+                            principalTable: "players",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "player_chat_styles_owned",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    player_id = table.Column<int>(type: "int", nullable: false),
-                    chat_style_id = table.Column<int>(type: "int", nullable: false),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_player_chat_styles_owned", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_player_chat_styles_owned_player_chat_styles_chat_style_id",
-                        column: x => x.chat_style_id,
-                        principalTable: "player_chat_styles",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_player_chat_styles_owned_players_player_id",
-                        column: x => x.player_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "player_currencies",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        player_id = table.Column<int>(type: "int", nullable: false),
+                        currency_type_id = table.Column<int>(type: "int", nullable: false),
+                        amount = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_player_currencies", x => x.id);
+                        table.ForeignKey(
+                            name: "FK_player_currencies_currency_types_currency_type_id",
+                            column: x => x.currency_type_id,
+                            principalTable: "currency_types",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                        table.ForeignKey(
+                            name: "FK_player_currencies_players_player_id",
+                            column: x => x.player_id,
+                            principalTable: "players",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "player_currencies",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    player_id = table.Column<int>(type: "int", nullable: false),
-                    currency_type_id = table.Column<int>(type: "int", nullable: false),
-                    amount = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_player_currencies", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_player_currencies_currency_types_currency_type_id",
-                        column: x => x.currency_type_id,
-                        principalTable: "currency_types",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_player_currencies_players_player_id",
-                        column: x => x.player_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "security_tickets",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        player_id = table.Column<int>(type: "int", nullable: false),
+                        ticket = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        ip_address = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        is_locked = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: false
+                        ),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_security_tickets", x => x.id);
+                        table.ForeignKey(
+                            name: "FK_security_tickets_players_player_id",
+                            column: x => x.player_id,
+                            principalTable: "players",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "security_tickets",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    player_id = table.Column<int>(type: "int", nullable: false),
-                    ticket = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    ip_address = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    is_locked = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_security_tickets", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_security_tickets_players_player_id",
-                        column: x => x.player_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "rooms",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        name = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        description = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: true)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        player_id = table.Column<int>(type: "int", nullable: false),
+                        door_mode = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        password = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: true)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        model_id = table.Column<int>(type: "int", nullable: false),
+                        category_id = table.Column<int>(type: "int", nullable: true),
+                        users_now = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        players_max = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 25
+                        ),
+                        paint_wall = table.Column<double>(
+                            type: "double",
+                            nullable: false,
+                            defaultValue: 0.0
+                        ),
+                        paint_floor = table.Column<double>(
+                            type: "double",
+                            nullable: false,
+                            defaultValue: 0.0
+                        ),
+                        paint_landscape = table.Column<double>(
+                            type: "double",
+                            nullable: false,
+                            defaultValue: 0.0
+                        ),
+                        wall_height = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: -1
+                        ),
+                        hide_walls = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: false
+                        ),
+                        thickness_wall = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        thickness_floor = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        allow_blocking = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: false
+                        ),
+                        allow_pets = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: false
+                        ),
+                        allow_pets_eat = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: false
+                        ),
+                        trade_type = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        mute_type = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        kick_type = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        ban_type = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                        chat_mode_type = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        chat_bubble_type = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 1
+                        ),
+                        chat_speed_type = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 1
+                        ),
+                        chat_flood_type = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 2
+                        ),
+                        chat_distance = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 50
+                        ),
+                        last_active = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_rooms", x => x.id);
+                        table.ForeignKey(
+                            name: "FK_rooms_navigator_flatcats_category_id",
+                            column: x => x.category_id,
+                            principalTable: "navigator_flatcats",
+                            principalColumn: "id"
+                        );
+                        table.ForeignKey(
+                            name: "FK_rooms_players_player_id",
+                            column: x => x.player_id,
+                            principalTable: "players",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                        table.ForeignKey(
+                            name: "FK_rooms_room_models_model_id",
+                            column: x => x.model_id,
+                            principalTable: "room_models",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "rooms",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    name = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    description = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    player_id = table.Column<int>(type: "int", nullable: false),
-                    door_mode = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    password = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    model_id = table.Column<int>(type: "int", nullable: false),
-                    category_id = table.Column<int>(type: "int", nullable: true),
-                    users_now = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    players_max = table.Column<int>(type: "int", nullable: false, defaultValue: 25),
-                    paint_wall = table.Column<double>(type: "double", nullable: false, defaultValue: 0.0),
-                    paint_floor = table.Column<double>(type: "double", nullable: false, defaultValue: 0.0),
-                    paint_landscape = table.Column<double>(type: "double", nullable: false, defaultValue: 0.0),
-                    wall_height = table.Column<int>(type: "int", nullable: false, defaultValue: -1),
-                    hide_walls = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
-                    thickness_wall = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    thickness_floor = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    allow_blocking = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
-                    allow_pets = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
-                    allow_pets_eat = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
-                    trade_type = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    mute_type = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    kick_type = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    ban_type = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    chat_mode_type = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    chat_bubble_type = table.Column<int>(type: "int", nullable: false, defaultValue: 1),
-                    chat_speed_type = table.Column<int>(type: "int", nullable: false, defaultValue: 1),
-                    chat_flood_type = table.Column<int>(type: "int", nullable: false, defaultValue: 2),
-                    chat_distance = table.Column<int>(type: "int", nullable: false, defaultValue: 50),
-                    last_active = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_rooms", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_rooms_navigator_flatcats_category_id",
-                        column: x => x.category_id,
-                        principalTable: "navigator_flatcats",
-                        principalColumn: "id");
-                    table.ForeignKey(
-                        name: "FK_rooms_players_player_id",
-                        column: x => x.player_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_rooms_room_models_model_id",
-                        column: x => x.model_id,
-                        principalTable: "room_models",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "catalog_products",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        offer_id = table.Column<int>(type: "int", nullable: false),
+                        product_type = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        definition_id = table.Column<int>(type: "int", nullable: true),
+                        extra_param = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: true)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        quantity = table.Column<int>(type: "int", nullable: false, defaultValue: 1),
+                        unique_size = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        unique_remaining = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_catalog_products", x => x.id);
+                        table.ForeignKey(
+                            name: "FK_catalog_products_catalog_offers_offer_id",
+                            column: x => x.offer_id,
+                            principalTable: "catalog_offers",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                        table.ForeignKey(
+                            name: "FK_catalog_products_furniture_definitions_definition_id",
+                            column: x => x.definition_id,
+                            principalTable: "furniture_definitions",
+                            principalColumn: "id"
+                        );
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "catalog_products",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    offer_id = table.Column<int>(type: "int", nullable: false),
-                    product_type = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    definition_id = table.Column<int>(type: "int", nullable: true),
-                    extra_param = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    quantity = table.Column<int>(type: "int", nullable: false, defaultValue: 1),
-                    unique_size = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    unique_remaining = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_catalog_products", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_catalog_products_catalog_offers_offer_id",
-                        column: x => x.offer_id,
-                        principalTable: "catalog_offers",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_catalog_products_furniture_definitions_definition_id",
-                        column: x => x.definition_id,
-                        principalTable: "furniture_definitions",
-                        principalColumn: "id");
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "messenger_friends",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        player_id = table.Column<int>(type: "int", nullable: false),
+                        requested_id = table.Column<int>(type: "int", nullable: false),
+                        category_id = table.Column<int>(type: "int", nullable: true),
+                        relation = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_messenger_friends", x => x.id);
+                        table.ForeignKey(
+                            name: "FK_messenger_friends_messenger_categories_category_id",
+                            column: x => x.category_id,
+                            principalTable: "messenger_categories",
+                            principalColumn: "id"
+                        );
+                        table.ForeignKey(
+                            name: "FK_messenger_friends_players_player_id",
+                            column: x => x.player_id,
+                            principalTable: "players",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                        table.ForeignKey(
+                            name: "FK_messenger_friends_players_requested_id",
+                            column: x => x.requested_id,
+                            principalTable: "players",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "messenger_friends",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    player_id = table.Column<int>(type: "int", nullable: false),
-                    requested_id = table.Column<int>(type: "int", nullable: false),
-                    category_id = table.Column<int>(type: "int", nullable: true),
-                    relation = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_messenger_friends", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_messenger_friends_messenger_categories_category_id",
-                        column: x => x.category_id,
-                        principalTable: "messenger_categories",
-                        principalColumn: "id");
-                    table.ForeignKey(
-                        name: "FK_messenger_friends_players_player_id",
-                        column: x => x.player_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_messenger_friends_players_requested_id",
-                        column: x => x.requested_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "furniture",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        player_id = table.Column<int>(type: "int", nullable: false),
+                        definition_id = table.Column<int>(type: "int", nullable: false),
+                        room_id = table.Column<int>(type: "int", nullable: true),
+                        x = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                        y = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                        z = table.Column<double>(
+                            type: "double(10,3)",
+                            nullable: false,
+                            defaultValue: 0.0
+                        ),
+                        direction = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        wall_offset = table.Column<int>(
+                            type: "int",
+                            nullable: false,
+                            defaultValue: 0
+                        ),
+                        extra_data = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: true)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_furniture", x => x.id);
+                        table.ForeignKey(
+                            name: "FK_furniture_furniture_definitions_definition_id",
+                            column: x => x.definition_id,
+                            principalTable: "furniture_definitions",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                        table.ForeignKey(
+                            name: "FK_furniture_players_player_id",
+                            column: x => x.player_id,
+                            principalTable: "players",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                        table.ForeignKey(
+                            name: "FK_furniture_rooms_room_id",
+                            column: x => x.room_id,
+                            principalTable: "rooms",
+                            principalColumn: "id"
+                        );
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "furniture",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    player_id = table.Column<int>(type: "int", nullable: false),
-                    definition_id = table.Column<int>(type: "int", nullable: false),
-                    room_id = table.Column<int>(type: "int", nullable: true),
-                    x = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    y = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    z = table.Column<double>(type: "double(10,3)", nullable: false, defaultValue: 0.0),
-                    direction = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    wall_offset = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    extra_data = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_furniture", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_furniture_furniture_definitions_definition_id",
-                        column: x => x.definition_id,
-                        principalTable: "furniture_definitions",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_furniture_players_player_id",
-                        column: x => x.player_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_furniture_rooms_room_id",
-                        column: x => x.room_id,
-                        principalTable: "rooms",
-                        principalColumn: "id");
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "player_favorite_rooms",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        player_id = table.Column<int>(type: "int", nullable: false),
+                        room_id = table.Column<int>(type: "int", nullable: false),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_player_favorite_rooms", x => x.id);
+                        table.ForeignKey(
+                            name: "FK_player_favorite_rooms_players_player_id",
+                            column: x => x.player_id,
+                            principalTable: "players",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                        table.ForeignKey(
+                            name: "FK_player_favorite_rooms_rooms_room_id",
+                            column: x => x.room_id,
+                            principalTable: "rooms",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "player_favorite_rooms",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    player_id = table.Column<int>(type: "int", nullable: false),
-                    room_id = table.Column<int>(type: "int", nullable: false),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_player_favorite_rooms", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_player_favorite_rooms_players_player_id",
-                        column: x => x.player_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_player_favorite_rooms_rooms_room_id",
-                        column: x => x.room_id,
-                        principalTable: "rooms",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "room_bans",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        room_id = table.Column<int>(type: "int", nullable: false),
+                        player_id = table.Column<int>(type: "int", nullable: false),
+                        date_expires = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_room_bans", x => x.id);
+                        table.ForeignKey(
+                            name: "FK_room_bans_players_player_id",
+                            column: x => x.player_id,
+                            principalTable: "players",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                        table.ForeignKey(
+                            name: "FK_room_bans_rooms_room_id",
+                            column: x => x.room_id,
+                            principalTable: "rooms",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "room_bans",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    room_id = table.Column<int>(type: "int", nullable: false),
-                    player_id = table.Column<int>(type: "int", nullable: false),
-                    date_expires = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_room_bans", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_room_bans_players_player_id",
-                        column: x => x.player_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_room_bans_rooms_room_id",
-                        column: x => x.room_id,
-                        principalTable: "rooms",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "room_chatlogs",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        room_id = table.Column<int>(type: "int", nullable: false),
+                        player_id = table.Column<int>(type: "int", nullable: false),
+                        target_player_id = table.Column<int>(type: "int", nullable: true),
+                        message = table
+                            .Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_room_chatlogs", x => x.id);
+                        table.ForeignKey(
+                            name: "FK_room_chatlogs_players_player_id",
+                            column: x => x.player_id,
+                            principalTable: "players",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                        table.ForeignKey(
+                            name: "FK_room_chatlogs_players_target_player_id",
+                            column: x => x.target_player_id,
+                            principalTable: "players",
+                            principalColumn: "id"
+                        );
+                        table.ForeignKey(
+                            name: "FK_room_chatlogs_rooms_room_id",
+                            column: x => x.room_id,
+                            principalTable: "rooms",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "room_chatlogs",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    room_id = table.Column<int>(type: "int", nullable: false),
-                    player_id = table.Column<int>(type: "int", nullable: false),
-                    target_player_id = table.Column<int>(type: "int", nullable: true),
-                    message = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_room_chatlogs", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_room_chatlogs_players_player_id",
-                        column: x => x.player_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_room_chatlogs_players_target_player_id",
-                        column: x => x.target_player_id,
-                        principalTable: "players",
-                        principalColumn: "id");
-                    table.ForeignKey(
-                        name: "FK_room_chatlogs_rooms_room_id",
-                        column: x => x.room_id,
-                        principalTable: "rooms",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "room_entry_logs",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        room_id = table.Column<int>(type: "int", nullable: false),
+                        player_id = table.Column<int>(type: "int", nullable: false),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_room_entry_logs", x => x.id);
+                        table.ForeignKey(
+                            name: "FK_room_entry_logs_players_player_id",
+                            column: x => x.player_id,
+                            principalTable: "players",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                        table.ForeignKey(
+                            name: "FK_room_entry_logs_rooms_room_id",
+                            column: x => x.room_id,
+                            principalTable: "rooms",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "room_entry_logs",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    room_id = table.Column<int>(type: "int", nullable: false),
-                    player_id = table.Column<int>(type: "int", nullable: false),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_room_entry_logs", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_room_entry_logs_players_player_id",
-                        column: x => x.player_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_room_entry_logs_rooms_room_id",
-                        column: x => x.room_id,
-                        principalTable: "rooms",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "room_mutes",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        room_id = table.Column<int>(type: "int", nullable: false),
+                        player_id = table.Column<int>(type: "int", nullable: false),
+                        date_expires = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_room_mutes", x => x.id);
+                        table.ForeignKey(
+                            name: "FK_room_mutes_players_player_id",
+                            column: x => x.player_id,
+                            principalTable: "players",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                        table.ForeignKey(
+                            name: "FK_room_mutes_rooms_room_id",
+                            column: x => x.room_id,
+                            principalTable: "rooms",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "room_mutes",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    room_id = table.Column<int>(type: "int", nullable: false),
-                    player_id = table.Column<int>(type: "int", nullable: false),
-                    date_expires = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_room_mutes", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_room_mutes_players_player_id",
-                        column: x => x.player_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_room_mutes_rooms_room_id",
-                        column: x => x.room_id,
-                        principalTable: "rooms",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "room_rights",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        room_id = table.Column<int>(type: "int", nullable: false),
+                        player_id = table.Column<int>(type: "int", nullable: false),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_room_rights", x => x.id);
+                        table.ForeignKey(
+                            name: "FK_room_rights_players_player_id",
+                            column: x => x.player_id,
+                            principalTable: "players",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                        table.ForeignKey(
+                            name: "FK_room_rights_rooms_room_id",
+                            column: x => x.room_id,
+                            principalTable: "rooms",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "room_rights",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    room_id = table.Column<int>(type: "int", nullable: false),
-                    player_id = table.Column<int>(type: "int", nullable: false),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_room_rights", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_room_rights_players_player_id",
-                        column: x => x.player_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_room_rights_rooms_room_id",
-                        column: x => x.room_id,
-                        principalTable: "rooms",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "furniture_teleport_links",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    furniture_one_id = table.Column<int>(type: "int", nullable: false),
-                    furniture_two_id = table.Column<int>(type: "int", nullable: false),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
-                    deleted_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_furniture_teleport_links", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_furniture_teleport_links_furniture_furniture_one_id",
-                        column: x => x.furniture_one_id,
-                        principalTable: "furniture",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_furniture_teleport_links_furniture_furniture_two_id",
-                        column: x => x.furniture_two_id,
-                        principalTable: "furniture",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                })
+            migrationBuilder
+                .CreateTable(
+                    name: "furniture_teleport_links",
+                    columns: table => new
+                    {
+                        id = table
+                            .Column<int>(type: "int", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        furniture_one_id = table.Column<int>(type: "int", nullable: false),
+                        furniture_two_id = table.Column<int>(type: "int", nullable: false),
+                        created_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.IdentityColumn
+                            ),
+                        updated_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: false)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                        deleted_at = table
+                            .Column<DateTime>(type: "datetime(6)", nullable: true)
+                            .Annotation(
+                                "MySql:ValueGenerationStrategy",
+                                MySqlValueGenerationStrategy.ComputedColumn
+                            ),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey("PK_furniture_teleport_links", x => x.id);
+                        table.ForeignKey(
+                            name: "FK_furniture_teleport_links_furniture_furniture_one_id",
+                            column: x => x.furniture_one_id,
+                            principalTable: "furniture",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                        table.ForeignKey(
+                            name: "FK_furniture_teleport_links_furniture_furniture_two_id",
+                            column: x => x.furniture_two_id,
+                            principalTable: "furniture",
+                            principalColumn: "id",
+                            onDelete: ReferentialAction.Cascade
+                        );
+                    }
+                )
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateIndex(
                 name: "IX_catalog_offers_currency_type_id",
                 table: "catalog_offers",
-                column: "currency_type_id");
+                column: "currency_type_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_catalog_offers_page_id",
                 table: "catalog_offers",
-                column: "page_id");
+                column: "page_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_catalog_pages_parent_id",
                 table: "catalog_pages",
-                column: "parent_id");
+                column: "parent_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_catalog_products_definition_id",
                 table: "catalog_products",
-                column: "definition_id");
+                column: "definition_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_catalog_products_offer_id",
                 table: "catalog_products",
-                column: "offer_id");
+                column: "offer_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_furniture_definition_id",
                 table: "furniture",
-                column: "definition_id");
+                column: "definition_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_furniture_player_id",
                 table: "furniture",
-                column: "player_id");
+                column: "player_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_furniture_room_id",
                 table: "furniture",
-                column: "room_id");
+                column: "room_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_furniture_definitions_sprite_id_type_category",
                 table: "furniture_definitions",
                 columns: new[] { "sprite_id", "type", "category" },
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_furniture_teleport_links_furniture_one_id",
                 table: "furniture_teleport_links",
                 column: "furniture_one_id",
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_furniture_teleport_links_furniture_two_id",
                 table: "furniture_teleport_links",
                 column: "furniture_two_id",
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_messenger_categories_player_id_name",
                 table: "messenger_categories",
                 columns: new[] { "player_id", "name" },
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_messenger_friends_category_id",
                 table: "messenger_friends",
-                column: "category_id");
+                column: "category_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_messenger_friends_player_id_requested_id",
                 table: "messenger_friends",
                 columns: new[] { "player_id", "requested_id" },
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_messenger_friends_requested_id",
                 table: "messenger_friends",
-                column: "requested_id");
+                column: "requested_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_messenger_requests_player_id_requested_id",
                 table: "messenger_requests",
                 columns: new[] { "player_id", "requested_id" },
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_messenger_requests_requested_id",
                 table: "messenger_requests",
-                column: "requested_id");
+                column: "requested_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_navigator_top_level_contexts_search_code",
                 table: "navigator_top_level_contexts",
                 column: "search_code",
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_performance_logs_elapsed_time",
                 table: "performance_logs",
-                column: "elapsed_time");
+                column: "elapsed_time"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_performance_logs_ip_address",
                 table: "performance_logs",
-                column: "ip_address");
+                column: "ip_address"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_player_badges_player_id_badge_code",
                 table: "player_badges",
                 columns: new[] { "player_id", "badge_code" },
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_player_chat_styles_client_style_id",
                 table: "player_chat_styles",
                 column: "client_style_id",
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_player_chat_styles_owned_chat_style_id",
                 table: "player_chat_styles_owned",
-                column: "chat_style_id");
+                column: "chat_style_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_player_chat_styles_owned_player_id_chat_style_id",
                 table: "player_chat_styles_owned",
                 columns: new[] { "player_id", "chat_style_id" },
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_player_currencies_currency_type_id",
                 table: "player_currencies",
-                column: "currency_type_id");
+                column: "currency_type_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_player_currencies_player_id_currency_type_id",
                 table: "player_currencies",
                 columns: new[] { "player_id", "currency_type_id" },
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_player_favorite_rooms_player_id_room_id",
                 table: "player_favorite_rooms",
                 columns: new[] { "player_id", "room_id" },
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_player_favorite_rooms_room_id",
                 table: "player_favorite_rooms",
-                column: "room_id");
+                column: "room_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_players_name",
                 table: "players",
                 column: "name",
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_room_bans_player_id",
                 table: "room_bans",
-                column: "player_id");
+                column: "player_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_room_bans_room_id_player_id",
                 table: "room_bans",
                 columns: new[] { "room_id", "player_id" },
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_room_chatlogs_player_id",
                 table: "room_chatlogs",
-                column: "player_id");
+                column: "player_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_room_chatlogs_room_id",
                 table: "room_chatlogs",
-                column: "room_id");
+                column: "room_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_room_chatlogs_target_player_id",
                 table: "room_chatlogs",
-                column: "target_player_id");
+                column: "target_player_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_room_entry_logs_player_id",
                 table: "room_entry_logs",
-                column: "player_id");
+                column: "player_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_room_entry_logs_room_id",
                 table: "room_entry_logs",
-                column: "room_id");
+                column: "room_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_room_models_name",
                 table: "room_models",
                 column: "name",
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_room_mutes_player_id",
                 table: "room_mutes",
-                column: "player_id");
+                column: "player_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_room_mutes_room_id_player_id",
                 table: "room_mutes",
                 columns: new[] { "room_id", "player_id" },
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_room_rights_player_id",
                 table: "room_rights",
-                column: "player_id");
+                column: "player_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_room_rights_room_id_player_id",
                 table: "room_rights",
                 columns: new[] { "room_id", "player_id" },
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_rooms_category_id",
                 table: "rooms",
-                column: "category_id");
+                column: "category_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_rooms_model_id",
                 table: "rooms",
-                column: "model_id");
+                column: "model_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_rooms_player_id",
                 table: "rooms",
-                column: "player_id");
+                column: "player_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_security_tickets_player_id",
                 table: "security_tickets",
                 column: "player_id",
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_security_tickets_ticket",
                 table: "security_tickets",
                 column: "ticket",
-                unique: true);
+                unique: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "catalog_products");
+            migrationBuilder.DropTable(name: "catalog_products");
 
-            migrationBuilder.DropTable(
-                name: "furniture_teleport_links");
+            migrationBuilder.DropTable(name: "furniture_teleport_links");
 
-            migrationBuilder.DropTable(
-                name: "messenger_friends");
+            migrationBuilder.DropTable(name: "messenger_friends");
 
-            migrationBuilder.DropTable(
-                name: "messenger_requests");
+            migrationBuilder.DropTable(name: "messenger_requests");
 
-            migrationBuilder.DropTable(
-                name: "navigator_eventcats");
+            migrationBuilder.DropTable(name: "navigator_eventcats");
 
-            migrationBuilder.DropTable(
-                name: "navigator_top_level_contexts");
+            migrationBuilder.DropTable(name: "navigator_top_level_contexts");
 
-            migrationBuilder.DropTable(
-                name: "performance_logs");
+            migrationBuilder.DropTable(name: "performance_logs");
 
-            migrationBuilder.DropTable(
-                name: "player_badges");
+            migrationBuilder.DropTable(name: "player_badges");
 
-            migrationBuilder.DropTable(
-                name: "player_chat_styles_owned");
+            migrationBuilder.DropTable(name: "player_chat_styles_owned");
 
-            migrationBuilder.DropTable(
-                name: "player_currencies");
+            migrationBuilder.DropTable(name: "player_currencies");
 
-            migrationBuilder.DropTable(
-                name: "player_favorite_rooms");
+            migrationBuilder.DropTable(name: "player_favorite_rooms");
 
-            migrationBuilder.DropTable(
-                name: "room_bans");
+            migrationBuilder.DropTable(name: "room_bans");
 
-            migrationBuilder.DropTable(
-                name: "room_chatlogs");
+            migrationBuilder.DropTable(name: "room_chatlogs");
 
-            migrationBuilder.DropTable(
-                name: "room_entry_logs");
+            migrationBuilder.DropTable(name: "room_entry_logs");
 
-            migrationBuilder.DropTable(
-                name: "room_mutes");
+            migrationBuilder.DropTable(name: "room_mutes");
 
-            migrationBuilder.DropTable(
-                name: "room_rights");
+            migrationBuilder.DropTable(name: "room_rights");
 
-            migrationBuilder.DropTable(
-                name: "security_tickets");
+            migrationBuilder.DropTable(name: "security_tickets");
 
-            migrationBuilder.DropTable(
-                name: "catalog_offers");
+            migrationBuilder.DropTable(name: "catalog_offers");
 
-            migrationBuilder.DropTable(
-                name: "furniture");
+            migrationBuilder.DropTable(name: "furniture");
 
-            migrationBuilder.DropTable(
-                name: "messenger_categories");
+            migrationBuilder.DropTable(name: "messenger_categories");
 
-            migrationBuilder.DropTable(
-                name: "player_chat_styles");
+            migrationBuilder.DropTable(name: "player_chat_styles");
 
-            migrationBuilder.DropTable(
-                name: "catalog_pages");
+            migrationBuilder.DropTable(name: "catalog_pages");
 
-            migrationBuilder.DropTable(
-                name: "currency_types");
+            migrationBuilder.DropTable(name: "currency_types");
 
-            migrationBuilder.DropTable(
-                name: "furniture_definitions");
+            migrationBuilder.DropTable(name: "furniture_definitions");
 
-            migrationBuilder.DropTable(
-                name: "rooms");
+            migrationBuilder.DropTable(name: "rooms");
 
-            migrationBuilder.DropTable(
-                name: "navigator_flatcats");
+            migrationBuilder.DropTable(name: "navigator_flatcats");
 
-            migrationBuilder.DropTable(
-                name: "players");
+            migrationBuilder.DropTable(name: "players");
 
-            migrationBuilder.DropTable(
-                name: "room_models");
+            migrationBuilder.DropTable(name: "room_models");
         }
     }
 }
