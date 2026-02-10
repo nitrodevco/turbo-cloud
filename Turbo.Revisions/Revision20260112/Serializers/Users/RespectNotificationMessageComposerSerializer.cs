@@ -11,6 +11,7 @@ internal class RespectNotificationMessageComposerSerializer(int header)
         RespectNotificationMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.UserId);
+        packet.WriteInteger(message.RespectTotal);
     }
 }

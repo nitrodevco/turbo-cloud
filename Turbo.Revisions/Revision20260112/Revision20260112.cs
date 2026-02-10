@@ -1379,6 +1379,8 @@ public class Revision20260112 : IRevision
             { MessageEvent.UnblockGroupMemberMessageEvent, new UnblockGroupMemberMessageParser() },
             { MessageEvent.UnblockUserMessageEvent, new UnblockUserMessageParser() },
             { MessageEvent.UnignoreUserMessageEvent, new UnignoreUserMessageParser() },
+            { MessageEvent.ReplenishRespectMessageEvent, new ReplenishRespectMessageParser() },
+            { MessageEvent.RespectUserMessageEvent, new RespectUserMessageParser() },
             { MessageEvent.UpdateGuildBadgeMessageEvent, new UpdateGuildBadgeMessageParser() },
             { MessageEvent.UpdateGuildColorsMessageEvent, new UpdateGuildColorsMessageParser() },
             {
@@ -3213,6 +3215,12 @@ public class Revision20260112 : IRevision
                 typeof(RelationshipStatusInfoEventMessageComposer),
                 new RelationshipStatusInfoEventMessageComposerSerializer(
                     MessageComposer.RelationshipStatusInfoComposer
+                )
+            },
+            {
+                typeof(RespectNotificationMessageComposer),
+                new RespectNotificationMessageComposerSerializer(
+                    MessageComposer.RespectNotificationMessageComposer
                 )
             },
             {

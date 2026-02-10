@@ -64,4 +64,7 @@ public sealed record PlayerExtendedProfileSnapshot
 
     [Id(18)]
     public required bool BooleanField27 { get; init; }
+
+    [Id(19)]
+    public required int RespectTotal { get; init; }
 }
