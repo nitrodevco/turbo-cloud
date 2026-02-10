@@ -6,7 +6,9 @@ using Orleans;
 using Orleans.Streams;
 using Turbo.Players.Grains.Modules;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Orleans.Observers;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms.Snapshots;
 
@@ -61,8 +63,15 @@ internal sealed partial class PlayerPresenceGrain
     {
         await ClearActiveRoomAsync(ct);
 
+        // Notify friends that we went offline
+        var playerId = (PlayerId)this.GetPrimaryKeyLong();
+        var messengerGrain = _grainFactory.GetMessengerGrain(playerId);
+        messengerGrain.NotifyOfflineAsync(ct).Ignore();
+
         _sessionObserver = null;
     }
+
+    public Task<bool> HasActiveSessionAsync() => Task.FromResult(_sessionObserver is not null);
 
     public Task SendComposerAsync(IComposer composer)
     {

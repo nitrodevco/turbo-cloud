@@ -15,4 +15,5 @@ public interface IRoomDirectoryGrain : IGrainWithStringKey
     public Task RemoveActiveRoomAsync(RoomId roomId);
     public Task AddPlayerToRoomAsync(PlayerId playerId, RoomId roomId, CancellationToken ct);
     public Task RemovePlayerFromRoomAsync(PlayerId playerId, RoomId roomId, CancellationToken ct);
+    public Task<RoomId?> GetRandomPopulatedRoomAsync(CancellationToken ct);
 }
