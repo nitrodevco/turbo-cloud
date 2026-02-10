@@ -1,3 +1,4 @@
+using System;
 using Orleans;
 using Turbo.Primitives.Players;
 
@@ -23,4 +24,11 @@ public record MessageHistoryEntrySnapshot
 
     [Id(5)]
     public required string MessageId { get; init; }
+
+    /// <summary>
+    /// The actual UTC time at which the message was originally sent.
+    /// Used to recompute <see cref="SecondsSinceSent"/> when history is fetched later.
+    /// </summary>
+    [Id(6)]
+    public required DateTime SentAtUtc { get; init; }
 }
