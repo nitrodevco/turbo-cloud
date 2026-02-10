@@ -4,7 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Logging;
@@ -21,7 +20,6 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly IGrainFactory _grainFactory;
-    private readonly ILogger<PlayerGrain> _logger;
     private readonly IConfiguration _configuration;
 
     private readonly PlayerLiveState _state;
@@ -29,13 +27,11 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
     public PlayerGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IGrainFactory grainFactory,
-        ILogger<PlayerGrain> logger,
         IConfiguration configuration
     )
     {
         _dbCtxFactory = dbCtxFactory;
         _grainFactory = grainFactory;
-        _logger = logger;
         _configuration = configuration;
 
         _state = new() { PlayerId = PlayerId.Parse((int)this.GetPrimaryKeyLong()) };
@@ -189,13 +185,6 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         _state.RespectTotal++;
         await WriteToDatabaseAsync(ct);
 
-        _logger.LogDebug(
-            "Player {PlayerId} received respect from {GiverId}. Total: {Total}",
-            _state.PlayerId,
-            giverId,
-            _state.RespectTotal
-        );
-
         return _state.RespectTotal;
     }
 
@@ -221,13 +210,6 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         _state.RespectReplenishesLeft--;
         _state.RespectLeft = maxRespectPerDay;
         await WriteToDatabaseAsync(ct);
-
-        _logger.LogDebug(
-            "Player {PlayerId} replenished respect. RespectLeft: {Left}, ReplenishesLeft: {Replenishes}",
-            _state.PlayerId,
-            _state.RespectLeft,
-            _state.RespectReplenishesLeft
-        );
 
         return true;
     }
@@ -263,13 +245,5 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         var dailyReplenish = _configuration.GetValue("Turbo:Respect:DailyReplenishLimit", 1);
 
         await ResetDailyRespectAsync(dailyRespect, dailyPetRespect, dailyReplenish, ct);
-
-        _logger.LogDebug(
-            "Player {PlayerId} daily respect reset. Respect: {Respect}, PetRespect: {PetRespect}, Replenishes: {Replenishes}",
-            _state.PlayerId,
-            dailyRespect,
-            dailyPetRespect,
-            dailyReplenish
-        );
     }
 }
