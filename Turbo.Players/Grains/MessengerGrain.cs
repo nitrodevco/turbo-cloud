@@ -800,6 +800,7 @@ internal sealed class MessengerGrain(
                 Message = message,
                 SecondsSinceSent = 0,
                 MessageId = sessionMsgId,
+                SentAtUtc = now,
             }
         );
 
@@ -857,6 +858,7 @@ internal sealed class MessengerGrain(
                 Message = messageText,
                 SecondsSinceSent = secondsSinceSent,
                 MessageId = sessionMsgId,
+                SentAtUtc = DateTime.UtcNow.AddSeconds(-secondsSinceSent),
             }
         );
 
@@ -911,7 +913,20 @@ internal sealed class MessengerGrain(
         }
 
         // Return up to pageSize entries, newest first (reverse order from the end)
-        return Task.FromResult(result.Reverse().Take(pageSize).Reverse().ToList());
+        // Recompute SecondsSinceSent based on actual SentAtUtc so timestamps are accurate
+        // when the client fetches history later (not frozen at the value from creation time).
+        var now = DateTime.UtcNow;
+        return Task.FromResult(
+            result
+                .Reverse()
+                .Take(pageSize)
+                .Reverse()
+                .Select(e => e with
+                {
+                    SecondsSinceSent = Math.Max(0, (int)(now - e.SentAtUtc).TotalSeconds),
+                })
+                .ToList()
+        );
     }
 
     /// <summary>
@@ -952,6 +967,7 @@ internal sealed class MessengerGrain(
                     Message = msg.Message,
                     SecondsSinceSent = secondsSince,
                     MessageId = sessionMsgId,
+                    SentAtUtc = msg.Timestamp,
                 }
             );
 
