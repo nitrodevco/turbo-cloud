@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Users;
-using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 
@@ -34,27 +33,14 @@ public class RespectUserMessageHandler(IGrainFactory grainFactory)
         if (!consumed)
             return;
 
-        // Give respect to the target player
+        // Give respect to the target player (grain sends room notification)
         var targetGrain = _grainFactory.GetPlayerGrain(message.UserId);
-        var newTotal = await targetGrain
-            .ReceiveRespectAsync(ctx.PlayerId, ct)
-            .ConfigureAwait(false);
+        await targetGrain.ReceiveRespectAsync(ctx.PlayerId, ct).ConfigureAwait(false);
 
         // Play the thumbs-up expression on the giver
         var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
         await roomGrain
             .SetAvatarExpressionAsync(ctx.AsActionContext(), AvatarExpressionType.Respect, ct)
-            .ConfigureAwait(false);
-
-        // Broadcast the respect notification to the entire room
-        await roomGrain
-            .SendComposerToRoomAsync(
-                new RespectNotificationMessageComposer
-                {
-                    UserId = message.UserId,
-                    RespectTotal = newTotal,
-                }
-            )
             .ConfigureAwait(false);
     }
 }

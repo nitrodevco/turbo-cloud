@@ -9,6 +9,7 @@ using Turbo.Database.Context;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Grains.Players;
+using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Players;
@@ -184,6 +185,15 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
     {
         _state.RespectTotal++;
         await WriteToDatabaseAsync(ct);
+
+        var presence = _grainFactory.GetPlayerPresenceGrain((int)this.GetPrimaryKeyLong());
+        await presence.SendComposerToActiveRoomAsync(
+            new RespectNotificationMessageComposer
+            {
+                UserId = (int)_state.PlayerId,
+                RespectTotal = _state.RespectTotal,
+            }
+        );
 
         return _state.RespectTotal;
     }
