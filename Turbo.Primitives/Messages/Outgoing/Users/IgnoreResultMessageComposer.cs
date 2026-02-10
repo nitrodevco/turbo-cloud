@@ -10,5 +10,5 @@ public sealed record IgnoreResultMessageComposer : IComposer
     public required int Result { get; init; }
 
     [Id(1)]
-    public required string PlayerName { get; init; }
+    public required int IgnoredUserId { get; init; }
 }
