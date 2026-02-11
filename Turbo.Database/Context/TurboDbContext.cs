@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
+using Turbo.Database.Entities.Messenger;
 using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
@@ -57,6 +58,22 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PerformanceLogEntity> PerformanceLogs { get; init; }
 
     public DbSet<PlayerFavoriteRoomsEntity> PlayerFavouriteRooms { get; init; }
+
+    public DbSet<LtdSeriesEntity> LtdSeries { get; init; }
+
+    public DbSet<LtdRaffleEntryEntity> LtdRaffleEntries { get; init; }
+
+    public DbSet<MessengerFriendEntity> MessengerFriends { get; init; }
+
+    public DbSet<MessengerRequestEntity> MessengerRequests { get; init; }
+
+    public DbSet<MessengerCategoryEntity> MessengerCategories { get; init; }
+
+    public DbSet<MessengerMessageEntity> MessengerMessages { get; init; }
+
+    public DbSet<MessengerBlockedEntity> MessengerBlocked { get; init; }
+
+    public DbSet<MessengerIgnoredEntity> MessengerIgnored { get; init; }
 
     protected override void OnModelCreating(ModelBuilder mb)
     {

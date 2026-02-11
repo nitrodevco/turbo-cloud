@@ -12,7 +12,7 @@ This adapter points Claude to the canonical AI contract for this repository.
 - Keep packet handlers orchestration-only.
 - Do not query database contexts/repositories from packet handlers.
 - Do not send composers directly to sockets/sessions from handlers; route via `PlayerPresenceGrain.SendComposerAsync`.
-- For `Revision<id>` parser/serializer work, edit `../turbo-sample-plugin/TurboSamplePlugin/Revision/**`, not `turbo-cloud`.
+- For `Revision<id>` parser/serializer work, edit `./turbo-cloud/Turbo.Revisions/Revision**`.
 
 ## Validation commands
 ```bash

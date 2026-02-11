@@ -373,6 +373,10 @@ public class Revision20260112 : IRevision
             { MessageEvent.RequestFriendMessageEvent, new RequestFriendMessageParser() },
             { MessageEvent.SendMsgMessageEvent, new SendMsgMessageParser() },
             { MessageEvent.SendRoomInviteMessageEvent, new SendRoomInviteMessageParser() },
+            {
+                MessageEvent.SetRelationshipStatusMessageEvent,
+                new SetRelationshipStatusMessageParser()
+            },
             { MessageEvent.VisitUserMessageEvent, new VisitUserMessageParser() },
             #endregion
 
@@ -1339,6 +1343,7 @@ public class Revision20260112 : IRevision
                 new GetHabboGroupDetailsMessageParser()
             },
             { MessageEvent.BlockListInitEvent, new BlockListInitMessageParser() },
+            { MessageEvent.BlockUserMessageEvent, new BlockUserMessageParser() },
             { MessageEvent.GetIgnoredUsersMessageEvent, new GetIgnoredUsersMessageParser() },
             {
                 MessageEvent.GetMemberGuildItemCountMessageEvent,
@@ -1372,6 +1377,7 @@ public class Revision20260112 : IRevision
                 new SelectFavouriteHabboGroupMessageParser()
             },
             { MessageEvent.UnblockGroupMemberMessageEvent, new UnblockGroupMemberMessageParser() },
+            { MessageEvent.UnblockUserMessageEvent, new UnblockUserMessageParser() },
             { MessageEvent.UnignoreUserMessageEvent, new UnignoreUserMessageParser() },
             { MessageEvent.UpdateGuildBadgeMessageEvent, new UpdateGuildBadgeMessageParser() },
             { MessageEvent.UpdateGuildColorsMessageEvent, new UpdateGuildColorsMessageParser() },
@@ -1795,6 +1801,18 @@ public class Revision20260112 : IRevision
                     MessageComposer.UserNftChatStylesMessageComposer
                 )
             },
+            {
+                typeof(LtdRaffleEnteredMessageComposer),
+                new LtdRaffleEnteredMessageComposerSerializer(
+                    MessageComposer.LtdRaffleEnteredMessageComposer
+                )
+            },
+            {
+                typeof(LtdRaffleResultMessageComposer),
+                new LtdRaffleResultMessageComposerSerializer(
+                    MessageComposer.LtdRaffleResultMessageComposer
+                )
+            },
             #endregion
 
             #region FriendList
@@ -1873,6 +1891,12 @@ public class Revision20260112 : IRevision
             {
                 typeof(RoomInviteMessageComposer),
                 new RoomInviteMessageSerializer(MessageComposer.RoomInviteComposer)
+            },
+            {
+                typeof(FindFriendsProcessResultMessageComposer),
+                new FindFriendsProcessResultMessageSerializer(
+                    MessageComposer.FindFriendsProcessResultComposer
+                )
             },
             #endregion
 
@@ -3167,6 +3191,28 @@ public class Revision20260112 : IRevision
                 typeof(IgnoredUsersMessageComposer),
                 new IgnoredUsersMessageComposerSerializer(
                     MessageComposer.IgnoredUsersMessageComposer
+                )
+            },
+            {
+                typeof(IgnoreResultMessageComposer),
+                new IgnoreResultMessageComposerSerializer(
+                    MessageComposer.IgnoreResultMessageComposer
+                )
+            },
+            {
+                typeof(BlockListMessageComposer),
+                new BlockListMessageComposerSerializer(MessageComposer.BlockListMessageComposer)
+            },
+            {
+                typeof(BlockUserUpdateMessageComposer),
+                new BlockUserUpdateMessageComposerSerializer(
+                    MessageComposer.BlockUserUpdateMessageComposer
+                )
+            },
+            {
+                typeof(RelationshipStatusInfoEventMessageComposer),
+                new RelationshipStatusInfoEventMessageComposerSerializer(
+                    MessageComposer.RelationshipStatusInfoComposer
                 )
             },
             {

@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260112.Parsers.Users;
 
 internal class GetRelationshipStatusInfoMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetRelationshipStatusInfoMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetRelationshipStatusInfoMessage { PlayerId = packet.PopInt() };
 }

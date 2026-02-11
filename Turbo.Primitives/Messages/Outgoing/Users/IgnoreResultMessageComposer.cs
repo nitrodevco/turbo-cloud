@@ -6,5 +6,9 @@ namespace Turbo.Primitives.Messages.Outgoing.Users;
 [GenerateSerializer, Immutable]
 public sealed record IgnoreResultMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required int Result { get; init; }
+
+    [Id(1)]
+    public required int IgnoredUserId { get; init; }
 }
