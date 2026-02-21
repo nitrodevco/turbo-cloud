@@ -1,4 +1,4 @@
-namespace Turbo.Primitives.FriendList.Enums;
+namespace Turbo.Primitives.Players.Enums.Messenger;
 
 public enum InstantMessageErrorCodeType
 {

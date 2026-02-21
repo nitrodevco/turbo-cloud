@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Players;
-using Turbo.Primitives.FriendList.Enums;
+using Turbo.Primitives.Players.Enums.Messenger;
 
 namespace Turbo.Database.Entities.Messenger;
 

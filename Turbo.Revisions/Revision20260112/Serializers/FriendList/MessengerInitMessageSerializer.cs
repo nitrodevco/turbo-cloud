@@ -9,14 +9,13 @@ internal class MessengerInitMessageSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, MessengerInitMessageComposer message)
     {
-        packet.WriteInteger(message.UserFriendLimit);
-        packet.WriteInteger(message.NormalFriendLimit);
-        packet.WriteInteger(message.ExtendedFriendLimit);
-        packet.WriteInteger(message.FriendCategories.Count);
+        packet
+            .WriteInteger(message.UserFriendLimit)
+            .WriteInteger(message.NormalFriendLimit)
+            .WriteInteger(message.ExtendedFriendLimit)
+            .WriteInteger(message.FriendCategories.Count);
 
         foreach (var category in message.FriendCategories)
-        {
             FriendCategorySnapshotSerializer.Serialize(packet, category);
-        }
     }
 }

@@ -1,6 +1,6 @@
-using Turbo.Primitives.FriendList.Enums;
 using Turbo.Primitives.Messages.Outgoing.FriendList;
 using Turbo.Primitives.Packets;
+using Turbo.Primitives.Players.Enums.Messenger;
 using Turbo.Revisions.Revision20260112.Serializers.FriendList.Snapshots;
 
 namespace Turbo.Revisions.Revision20260112.Serializers.FriendList;
@@ -10,12 +10,10 @@ internal class FriendListUpdateMessageSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, FriendListUpdateMessageComposer message)
     {
-        packet.WriteInteger(message.FriendCategories.Count);
+        packet.WriteInteger(message.Categories.Count);
 
-        foreach (var category in message.FriendCategories)
-        {
+        foreach (var category in message.Categories)
             FriendCategorySnapshotSerializer.Serialize(packet, category);
-        }
 
         packet.WriteInteger(message.Updates.Count);
 
@@ -30,10 +28,8 @@ internal class FriendListUpdateMessageSerializer(int header)
                 continue;
             }
 
-            if (update.Friend is null)
-                continue;
-
-            MessengerFriendSnapshotSerializer.Serialize(packet, update.Friend);
+            if (update.Friend is not null)
+                MessengerFriendSnapshotSerializer.Serialize(packet, update.Friend);
         }
     }
 }

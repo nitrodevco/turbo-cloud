@@ -14,9 +14,6 @@ internal class AcceptFriendResultMessageSerializer(int header)
         packet.WriteInteger(message.Failures.Count);
 
         foreach (var failure in message.Failures)
-        {
-            packet.WriteInteger(failure.SenderId);
-            packet.WriteInteger((int)failure.ErrorCode);
-        }
+            packet.WriteInteger(failure.SenderId).WriteInteger((int)failure.ErrorCode);
     }
 }

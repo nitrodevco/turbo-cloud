@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 using Orleans;
+using Orleans.Runtime;
 using Orleans.Streams;
-using Turbo.Players.Grains.Modules;
+using Turbo.Players.Configuration;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Orleans.Observers;
@@ -19,25 +21,24 @@ internal sealed partial class PlayerPresenceGrain
         IPlayerPresenceGrain,
         IAsyncObserver<RoomOutbound>
 {
+    internal readonly PlayerConfig _playerConfig;
     internal readonly IGrainFactory _grainFactory;
     internal readonly PlayerPresenceLiveState _state;
-
-    private readonly PlayerInventoryModule _inventoryModule;
-    private readonly PlayerWalletModule _walletModule;
 
     private ISessionContextObserver? _sessionObserver = null;
     private StreamSubscriptionHandle<RoomOutbound>? _roomOutboundSub = null;
 
     private readonly Queue<IComposer> _outgoingQueue = new();
+
+    private IGrainTimer? _timer;
     private bool _isProcessingQueue = false;
 
-    public PlayerPresenceGrain(IGrainFactory grainFactory)
+    public PlayerPresenceGrain(IOptions<PlayerConfig> playerConfig, IGrainFactory grainFactory)
     {
+        _playerConfig = playerConfig.Value;
         _grainFactory = grainFactory;
 
-        _state = new();
-        _inventoryModule = new(this);
-        _walletModule = new(this);
+        _state = new() { PlayerId = PlayerId.Parse((int)this.GetPrimaryKeyLong()) };
     }
 
     public override Task OnActivateAsync(CancellationToken ct)
@@ -56,6 +57,29 @@ internal sealed partial class PlayerPresenceGrain
     {
         _sessionObserver = observer;
 
+        _grainFactory
+            .GetPlayerGrain(_state.PlayerId)
+            .SetOnlineStatusAsync(true, CancellationToken.None)
+            .Ignore();
+
+        _timer = this.RegisterGrainTimer<object?>(
+            async (state, ct) =>
+            {
+                var messengerGrain = _grainFactory.GetPlayerMessengerGrain(_state.PlayerId);
+                var messengerUpdates = await messengerGrain.GetPendingUpdatesAsync(ct);
+
+                if (messengerUpdates.Count > 0)
+                {
+                    var categories = await messengerGrain.GetCategoriesAsync(ct);
+
+                    await FlushMessengerUpdatesAsync(categories, messengerUpdates, ct);
+                }
+            },
+            null,
+            TimeSpan.FromMilliseconds(_playerConfig.PlayerPresenceTickMs),
+            TimeSpan.FromMilliseconds(_playerConfig.PlayerPresenceTickMs)
+        );
+
         return Task.CompletedTask;
     }
 
@@ -63,10 +87,13 @@ internal sealed partial class PlayerPresenceGrain
     {
         await ClearActiveRoomAsync(ct);
 
-        // Notify friends that we went offline
-        var playerId = (PlayerId)this.GetPrimaryKeyLong();
-        var messengerGrain = _grainFactory.GetMessengerGrain(playerId);
-        messengerGrain.NotifyOfflineAsync(ct).Ignore();
+        _grainFactory
+            .GetPlayerGrain(_state.PlayerId)
+            .SetOnlineStatusAsync(false, CancellationToken.None)
+            .Ignore();
+
+        _timer?.Dispose();
+        _timer = null;
 
         _sessionObserver = null;
     }

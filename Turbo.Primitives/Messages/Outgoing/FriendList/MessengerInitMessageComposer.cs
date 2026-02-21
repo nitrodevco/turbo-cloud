@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Snapshots.FriendList;
+using Turbo.Primitives.Players.Messenger;
 
 namespace Turbo.Primitives.Messages.Outgoing.FriendList;
 
@@ -18,5 +18,5 @@ public sealed record MessengerInitMessageComposer : IComposer
     public required int ExtendedFriendLimit { get; init; }
 
     [Id(3)]
-    public required List<FriendCategorySnapshot> FriendCategories { get; init; }
+    public required List<MessengerCategoryDto> FriendCategories { get; init; }
 }

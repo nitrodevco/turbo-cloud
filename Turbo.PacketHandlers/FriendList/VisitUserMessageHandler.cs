@@ -4,7 +4,6 @@ using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Players;
 
 namespace Turbo.PacketHandlers.FriendList;
 

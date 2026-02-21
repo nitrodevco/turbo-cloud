@@ -1,8 +1,7 @@
 using System;
 using Orleans;
-using Turbo.Primitives.Players;
 
-namespace Turbo.Primitives.Snapshots.FriendList;
+namespace Turbo.Primitives.Players.Snapshots.Messenger;
 
 [GenerateSerializer, Immutable]
 public record MessageHistoryEntrySnapshot
@@ -20,15 +19,8 @@ public record MessageHistoryEntrySnapshot
     public required string Message { get; init; } = string.Empty;
 
     [Id(4)]
-    public required int SecondsSinceSent { get; init; }
-
-    [Id(5)]
     public required string MessageId { get; init; }
 
-    /// <summary>
-    /// The actual UTC time at which the message was originally sent.
-    /// Used to recompute <see cref="SecondsSinceSent"/> when history is fetched later.
-    /// </summary>
-    [Id(6)]
+    [Id(5)]
     public required DateTime SentAtUtc { get; init; }
 }

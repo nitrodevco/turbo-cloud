@@ -4,8 +4,6 @@ using Microsoft.Extensions.Configuration;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
-using Turbo.Primitives.Messages.Outgoing.FriendList;
-using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.FriendList;
 
@@ -26,7 +24,7 @@ public class GetMessengerHistoryMessageHandler(
         if (ctx.PlayerId <= 0)
             return;
 
-        var pageSize = _configuration.GetValue<int>("Turbo:Messenger:MessageHistoryPageSize");
+        /* var pageSize = _configuration.GetValue<int>("Turbo:Messenger:MessageHistoryPageSize");
 
         var messengerGrain = _grainFactory.GetMessengerGrain(ctx.PlayerId);
         var history = await messengerGrain
@@ -41,6 +39,6 @@ public class GetMessengerHistoryMessageHandler(
                 },
                 ct
             )
-            .ConfigureAwait(false);
+            .ConfigureAwait(false); */
     }
 }

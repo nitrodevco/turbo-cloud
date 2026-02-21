@@ -1,8 +1,7 @@
 using Orleans;
-using Turbo.Primitives.FriendList.Enums;
-using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums.Messenger;
 
-namespace Turbo.Primitives.Snapshots.FriendList;
+namespace Turbo.Primitives.Players.Snapshots.Messenger;
 
 [GenerateSerializer, Immutable]
 public record AcceptFriendFailureSnapshot

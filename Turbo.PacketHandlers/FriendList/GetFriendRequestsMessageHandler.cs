@@ -22,8 +22,10 @@ public class GetFriendRequestsMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0)
             return;
 
-        var messengerGrain = _grainFactory.GetMessengerGrain(ctx.PlayerId);
-        var requests = await messengerGrain.GetFriendRequestsAsync(ct).ConfigureAwait(false);
+        var requests = await _grainFactory
+            .GetPlayerMessengerGrain(ctx.PlayerId)
+            .GetRequestsAsync(ct)
+            .ConfigureAwait(false);
 
         await ctx.SendComposerAsync(new FriendRequestsMessageComposer { Requests = requests }, ct)
             .ConfigureAwait(false);

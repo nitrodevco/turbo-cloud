@@ -3,8 +3,6 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Users;
-using Turbo.Primitives.Messages.Outgoing.Users;
-using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Users;
 
@@ -22,13 +20,13 @@ public class BlockListInitMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0)
             return;
 
-        var messengerGrain = _grainFactory.GetMessengerGrain(ctx.PlayerId);
+        /* var messengerGrain = _grainFactory.GetMessengerGrain(ctx.PlayerId);
         var blockedIds = await messengerGrain.GetBlockedUserIdsAsync(ct).ConfigureAwait(false);
 
         await ctx.SendComposerAsync(
                 new BlockListMessageComposer { BlockedUserIds = blockedIds },
                 ct
             )
-            .ConfigureAwait(false);
+            .ConfigureAwait(false); */
     }
 }

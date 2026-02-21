@@ -6,7 +6,6 @@ using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Users;
 using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Players;
 
 namespace Turbo.PacketHandlers.Users;
 
@@ -25,25 +24,17 @@ public class IgnoreUserMessageHandler(IGrainFactory grainFactory, IConfiguration
         if (ctx.PlayerId <= 0)
             return;
 
-        var targetId = PlayerId.Parse(message.PlayerId);
-
-        var maxIgnoreCapacity = _configuration.GetValue<int>("Turbo:Messenger:IgnoreListLimit");
-
-        var messengerGrain = _grainFactory.GetMessengerGrain(ctx.PlayerId);
-        var result = await messengerGrain
-            .IgnoreUserAsync(targetId, maxIgnoreCapacity, ct)
+        var result = await _grainFactory
+            .GetPlayerMessengerGrain(ctx.PlayerId)
+            .IgnorePlayerAsync(message.PlayerId, ct)
             .ConfigureAwait(false);
 
         await ctx.SendComposerAsync(
-                new IgnoreResultMessageComposer { Result = result, IgnoredUserId = targetId },
-                ct
-            )
-            .ConfigureAwait(false);
-
-        var ignoredIds = await messengerGrain.GetIgnoredUserIdsAsync(ct).ConfigureAwait(false);
-
-        await ctx.SendComposerAsync(
-                new IgnoredUsersMessageComposer { IgnoredUserIds = ignoredIds },
+                new IgnoreResultMessageComposer
+                {
+                    Result = result,
+                    IgnoredUserId = message.PlayerId,
+                },
                 ct
             )
             .ConfigureAwait(false);

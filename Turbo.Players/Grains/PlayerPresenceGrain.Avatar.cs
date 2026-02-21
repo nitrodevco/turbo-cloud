@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Orleans;
 using Turbo.Primitives.Messages.Outgoing.Avatar;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans;
@@ -28,6 +29,11 @@ internal sealed partial class PlayerPresenceGrain
 
             await room.UpdateAvatarWithPlayerAsync(snapshot, ct);
         }
+
+        _grainFactory
+            .GetPlayerMessengerGrain(_state.PlayerId)
+            .UpdateFriendsAsync(snapshot, ct)
+            .Ignore();
     }
 
     public async Task OnFigureUpdatedAsync(PlayerSummarySnapshot snapshot, CancellationToken ct)

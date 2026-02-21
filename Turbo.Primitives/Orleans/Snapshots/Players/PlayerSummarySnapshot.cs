@@ -27,5 +27,11 @@ public sealed record PlayerSummarySnapshot
     public required int AchievementScore { get; init; }
 
     [Id(6)]
+    public required bool IsOnline { get; init; }
+
+    [Id(7)]
     public required DateTime CreatedAt { get; init; }
+
+    [Id(8)]
+    public required DateTime LastUpdated { get; init; }
 }

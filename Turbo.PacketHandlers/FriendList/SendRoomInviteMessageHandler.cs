@@ -1,12 +1,8 @@
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
-using Turbo.Primitives.Messages.Outgoing.FriendList;
-using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Players;
 
 namespace Turbo.PacketHandlers.FriendList;
 
@@ -24,7 +20,7 @@ public class SendRoomInviteMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0 || ctx.RoomId <= 0)
             return;
 
-        var messengerGrain = _grainFactory.GetMessengerGrain(ctx.PlayerId);
+        /* var messengerGrain = _grainFactory.GetMessengerGrain(ctx.PlayerId);
         var failedRecipients = new List<int>();
 
         foreach (var friendId in message.FriendIds)
@@ -56,6 +52,6 @@ public class SendRoomInviteMessageHandler(IGrainFactory grainFactory)
                     ct
                 )
                 .ConfigureAwait(false);
-        }
+        } */
     }
 }

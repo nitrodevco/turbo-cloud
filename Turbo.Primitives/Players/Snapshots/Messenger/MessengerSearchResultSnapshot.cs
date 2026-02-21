@@ -1,8 +1,7 @@
 using Orleans;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 
-namespace Turbo.Primitives.Snapshots.FriendList;
+namespace Turbo.Primitives.Players.Snapshots.Messenger;
 
 [GenerateSerializer, Immutable]
 public record MessengerSearchResultSnapshot
