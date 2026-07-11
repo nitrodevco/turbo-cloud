@@ -6,5 +6,9 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Engine;
 [GenerateSerializer, Immutable]
 public sealed record RoomPropertyMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required string Key { get; init; }
+
+    [Id(1)]
+    public required string Value { get; init; }
 }

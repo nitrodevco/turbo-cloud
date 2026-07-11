@@ -8,6 +8,6 @@ internal class RoomPropertyMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, RoomPropertyMessageComposer message)
     {
-        //
+        packet.WriteString(message.Key).WriteString(message.Value);
     }
 }
