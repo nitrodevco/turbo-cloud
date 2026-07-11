@@ -10,9 +10,7 @@ using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Room.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Layout;
-using Turbo.Primitives.Messages.Outgoing.Room.Permissions;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
-using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -84,13 +82,23 @@ internal sealed partial class RoomService(
                 })
                 .ToArray();
 
+            var roomProperties = await room.GetRoomPropertiesAsync().ConfigureAwait(false);
+            var roomPropertyComposers = roomProperties
+                .Select(x => new RoomPropertyMessageComposer
+                {
+                    Key = RoomPropertyTypeExtensions.GetString(x.Key),
+                    Value = x.Value,
+                })
+                .ToArray();
+
             await playerPresence
                 .SendComposerAsync(
-                    new RoomReadyMessageComposer
-                    {
-                        WorldType = snapshot.WorldType,
-                        RoomId = roomId,
-                    },
+                    new RoomReadyMessageComposer { WorldType = snapshot.WorldType, RoomId = roomId }
+                )
+                .ConfigureAwait(false);
+
+            await playerPresence
+                .SendComposerAsync(
                     new RoomRatingMessageComposer { Rating = 0, CanRate = false },
                     new RoomEntryTileMessageComposer
                     {
@@ -111,6 +119,19 @@ internal sealed partial class RoomService(
                         ModelData = mapSnapshot.ModelData,
                         AreaHideData = [],
                     },
+                    new RoomVisualizationSettingsMessageComposer
+                    {
+                        WallsHidden = _roomConfig.DefaultWallsHidden,
+                        WallThickness = _roomConfig.DefaultWallThickness,
+                        FloorThickness = _roomConfig.DefaultFloorThickness,
+                    }
+                )
+                .ConfigureAwait(false);
+
+            await playerPresence.SendComposerAsync(roomPropertyComposers).ConfigureAwait(false);
+
+            await playerPresence
+                .SendComposerAsync(
                     new ObjectsMessageComposer
                     {
                         OwnerNames = ownersSnapshot,
@@ -122,19 +143,14 @@ internal sealed partial class RoomService(
                         WallItems = wallSnapshot,
                     },
                     new UsersMessageComposer { Avatars = avatarSnapshots },
-                    new UserUpdateMessageComposer { Avatars = avatarSnapshots },
-                    new YouAreControllerMessageComposer
-                    {
-                        RoomId = roomId,
-                        ControllerLevel = RoomControllerType.Owner,
-                    },
-                    new WiredPermissionsEventMessageComposer { CanModify = true, CanRead = true },
-                    new YouAreOwnerMessageComposer { RoomId = roomId }
+                    new UserUpdateMessageComposer { Avatars = avatarSnapshots }
                 )
                 .ConfigureAwait(false);
 
             await playerPresence.SendComposerAsync(danceComposers).ConfigureAwait(false);
             await playerPresence.SetActiveRoomAsync(roomId, ct).ConfigureAwait(false);
+
+            await room.RefreshControllerLevelForPlayerAsync(ctx, ct).ConfigureAwait(false);
         }
         catch (Exception)
         {

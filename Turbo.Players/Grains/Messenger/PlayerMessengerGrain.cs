@@ -778,6 +778,8 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         if (!_state.Friends.TryGetValue(friendId, out var friendDto))
             return;
 
+        _pendingUpdates.Remove(friendId);
+
         _pendingUpdates.Add(
             friendDto.PlayerId,
             new MessengerUpdateSnapshot

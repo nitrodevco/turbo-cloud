@@ -1,5 +1,8 @@
+using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -106,5 +109,18 @@ public sealed class RoomSecurityModule(RoomGrain roomGrain)
         }
 
         return RoomControllerType.None;
+    }
+
+    public async Task RefreshControllerLevelForPlayerAsync(PlayerId playerId, CancellationToken ct)
+    {
+        var controllerLevel = await GetControllerLevelAsync(
+            new ActionContext { PlayerId = playerId, Origin = ActionOrigin.Player }
+        );
+
+        var playerPresence = _roomGrain._grainFactory.GetPlayerPresenceGrain(playerId);
+
+        await playerPresence
+            .OnControllerLevelUpdatedAsync(_roomGrain.RoomId, controllerLevel, ct)
+            .ConfigureAwait(false);
     }
 }
