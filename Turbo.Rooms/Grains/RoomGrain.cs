@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +20,7 @@ using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room.Settings;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Providers;
@@ -187,6 +191,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public async Task<int> GetRoomPopulationAsync() =>
         await _grainFactory.GetRoomDirectoryGrain().GetRoomPopulationAsync(_state.RoomId);
 
+    public Task<ImmutableArray<KeyValuePair<RoomPropertyType, string>>> GetRoomPropertiesAsync() =>
+        Task.FromResult(_state.RoomProperties.ToImmutableArray());
+
     public Task PublishRoomEventAsync(RoomEvent evt, CancellationToken ct) =>
         EventModule.PublishAsync(evt, ct);
 
@@ -206,6 +213,21 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
                 ?? throw new TurboException(TurboErrorCodeEnum.RoomNotFound);
 
             _state.Model = _roomModelProvider.GetModelById(entity.RoomModelEntityId);
+
+            if (!string.IsNullOrEmpty(entity.PaintWall))
+            {
+                _state.RoomProperties[RoomPropertyType.Wall] = entity.PaintWall;
+            }
+
+            if (!string.IsNullOrEmpty(entity.PaintFloor))
+            {
+                _state.RoomProperties[RoomPropertyType.Floor] = entity.PaintFloor;
+            }
+
+            if (!string.IsNullOrEmpty(entity.PaintLandscape))
+            {
+                _state.RoomProperties[RoomPropertyType.Landscape] = entity.PaintLandscape;
+            }
 
             _state.RoomSnapshot = new RoomSnapshot
             {

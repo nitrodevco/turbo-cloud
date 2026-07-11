@@ -38,6 +38,8 @@ public sealed class RoomLiveState
 
     public WiredVariableHash AllVariablesHash { get; internal set; } = new WiredVariableHash(0);
 
+    public Dictionary<RoomPropertyType, string> RoomProperties { get; } = [];
+
     public bool IsMapReady { get; internal set; } = false;
     public bool IsFurniLoaded { get; internal set; } = false;
     public bool IsTileComputationPaused { get; internal set; } = false;

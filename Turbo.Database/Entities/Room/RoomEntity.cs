@@ -44,16 +44,13 @@ public class RoomEntity : TurboEntity
     public required int PlayersMax { get; set; }
 
     [Column("paint_wall")]
-    [DefaultValue(0.0d)]
-    public required double PaintWall { get; set; }
+    public string? PaintWall { get; set; }
 
     [Column("paint_floor")]
-    [DefaultValue(0.0d)]
-    public required double PaintFloor { get; set; }
+    public string? PaintFloor { get; set; }
 
     [Column("paint_landscape")]
-    [DefaultValue(0.0d)]
-    public required double PaintLandscape { get; set; }
+    public string? PaintLandscape { get; set; }
 
     [Column("wall_height")]
     [DefaultValue(-1)]

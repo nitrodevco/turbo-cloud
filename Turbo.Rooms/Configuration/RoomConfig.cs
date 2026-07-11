@@ -13,6 +13,9 @@ public class RoomConfig
     public Altitude MaxStepHeight { get; init; } = Altitude.FromInt(200);
     public bool PlaceItemsOnAvatars { get; init; } = true;
     public bool EnableDiagonalChecking { get; init; } = true;
+    public bool DefaultWallsHidden { get; init; } = false;
+    public RoomThicknessType DefaultWallThickness { get; init; } = RoomThicknessType.Normal;
+    public RoomThicknessType DefaultFloorThickness { get; init; } = RoomThicknessType.Normal;
 
     public int RoomCheckMs { get; init; } = 300000;
     public int RoomDeactivationDelayMs { get; init; } = 1800000;
