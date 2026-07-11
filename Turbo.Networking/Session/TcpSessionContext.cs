@@ -2,7 +2,6 @@ using System;
 using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
-using SuperSocket.Connection;
 using SuperSocket.ProtoBase;
 using SuperSocket.Server;
 using Turbo.Crypto;
@@ -12,13 +11,14 @@ using Turbo.Runtime;
 
 namespace Turbo.Networking.Session;
 
-public class SessionContext(IPackageEncoder<OutgoingPackage> packageEncoder)
+public class TcpSessionContext(IPackageEncoder<OutgoingPackage> packageEncoder)
     : AppSession(),
         ISessionContext
 {
     private readonly IPackageEncoder<OutgoingPackage> _packageEncoder = packageEncoder;
+    private readonly SemaphoreSlim _sendSemaphore = new(1, 1);
 
-    public SessionKey SessionKey { get; private set; } = string.Empty;
+    public SessionKey SessionKey => this.SessionID;
     public bool PolicyDone { get; set; } = true;
     public string RevisionId { get; private set; } = "Default";
     public DateTime LastActivityUtc { get; private set; } = DateTime.UtcNow;
@@ -27,19 +27,7 @@ public class SessionContext(IPackageEncoder<OutgoingPackage> packageEncoder)
     public IRc4Engine? CryptoIn { get; private set; }
     public IRc4Engine? CryptoOut { get; private set; }
 
-    public ArrayBufferWriter<byte>? WsBuffer { get; } = new(4096);
-
-    protected override async ValueTask OnSessionConnectedAsync()
-    {
-        SessionKey = this.SessionID;
-
-        await base.OnSessionConnectedAsync().ConfigureAwait(false);
-    }
-
-    protected override async ValueTask OnSessionClosedAsync(CloseEventArgs e)
-    {
-        await base.OnSessionClosedAsync(e).ConfigureAwait(false);
-    }
+    public ArrayBufferWriter<byte>? WsBuffer { get; } = null;
 
     public async Task CloseSessionAsync() => await this.CloseAsync().ConfigureAwait(false);
 
@@ -63,15 +51,29 @@ public class SessionContext(IPackageEncoder<OutgoingPackage> packageEncoder)
 
     public async Task SendComposerAsync(IComposer composer, CancellationToken ct)
     {
+        await _sendSemaphore.WaitAsync(ct).ConfigureAwait(false);
+
         try
         {
+            if (Connection.IsClosed)
+                return;
+
             await Connection
                 .SendAsync(_packageEncoder, new OutgoingPackage(this, composer), ct)
                 .ConfigureAwait(false);
         }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Writing is not allowed"))
+        {
+            // Session was closed, ignore
+            return;
+        }
         catch
         {
             return;
+        }
+        finally
+        {
+            _sendSemaphore.Release();
         }
     }
 }

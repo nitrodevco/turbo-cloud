@@ -7,11 +7,13 @@ using Turbo.Primitives.Networking.Revisions;
 
 namespace Turbo.Networking.Package;
 
-public sealed class PackageEncoder(IRevisionManager revisionManager, ILogger<PackageEncoder> logger)
-    : IPackageEncoder<OutgoingPackage>
+public sealed class PackageEncoderWs(
+    IRevisionManager revisionManager,
+    ILogger<PackageEncoderWs> logger
+) : IPackageEncoder<OutgoingPackage>
 {
     private readonly IRevisionManager _revisionManager = revisionManager;
-    private readonly ILogger<PackageEncoder> _logger = logger;
+    private readonly ILogger<PackageEncoderWs> _logger = logger;
 
     public int Encode(IBufferWriter<byte> writer, OutgoingPackage pack)
     {

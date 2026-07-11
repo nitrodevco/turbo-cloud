@@ -46,11 +46,11 @@ internal sealed partial class PlayerPresenceGrain
         return Task.CompletedTask;
     }
 
-    public override Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
+    public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
         _outgoingQueue.Clear();
 
-        return Task.CompletedTask;
+        await UnregisterSessionObserverAsync(ct).ConfigureAwait(false);
     }
 
     public Task RegisterSessionObserverAsync(ISessionContextObserver observer)
