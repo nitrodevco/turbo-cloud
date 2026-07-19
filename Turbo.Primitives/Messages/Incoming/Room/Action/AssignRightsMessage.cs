@@ -2,4 +2,7 @@ using Turbo.Primitives.Networking;
 
 namespace Turbo.Primitives.Messages.Incoming.Room.Action;
 
-public record AssignRightsMessage : IMessageEvent { }
+public record AssignRightsMessage : IMessageEvent
+{
+    public int UserId { get; init; }
+}

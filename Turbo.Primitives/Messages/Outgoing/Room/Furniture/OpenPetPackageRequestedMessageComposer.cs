@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 
@@ -7,5 +8,5 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 public sealed record OpenPetPackageRequestedMessageComposer : IComposer
 {
     [Id(0)]
-    public required int ObjectId { get; init; }
+    public required RoomObjectId ObjectId { get; init; }
 }

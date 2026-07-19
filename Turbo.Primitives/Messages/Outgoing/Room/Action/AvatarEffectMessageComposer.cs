@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Action;
 
@@ -7,7 +8,7 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Action;
 public sealed record AvatarEffectMessageComposer : IComposer
 {
     [Id(0)]
-    public required int UserId { get; init; }
+    public required RoomObjectId ObjectId { get; init; }
 
     [Id(1)]
     public required int EffectId { get; init; }
