@@ -81,6 +81,16 @@ internal sealed partial class RoomService(
                     DanceType = x.DanceType,
                 })
                 .ToArray();
+            var effectComposers = avatarSnapshots
+                .OfType<RoomPlayerAvatarSnapshot>()
+                .Where(x => x.EffectId > 0)
+                .Select(x => new AvatarEffectMessageComposer
+                {
+                    ObjectId = x.ObjectId,
+                    EffectId = x.EffectId,
+                    DelayMilliseconds = 0,
+                })
+                .ToArray();
 
             var roomProperties = await room.GetRoomPropertiesAsync().ConfigureAwait(false);
             var roomPropertyComposers = roomProperties
@@ -128,7 +138,8 @@ internal sealed partial class RoomService(
                 )
                 .ConfigureAwait(false);
 
-            await playerPresence.SendComposerAsync(roomPropertyComposers).ConfigureAwait(false);
+            if (roomPropertyComposers.Length > 0)
+                await playerPresence.SendComposerAsync(roomPropertyComposers).ConfigureAwait(false);
 
             await playerPresence
                 .SendComposerAsync(
@@ -147,7 +158,11 @@ internal sealed partial class RoomService(
                 )
                 .ConfigureAwait(false);
 
-            await playerPresence.SendComposerAsync(danceComposers).ConfigureAwait(false);
+            if (danceComposers.Length > 0)
+                await playerPresence.SendComposerAsync(danceComposers).ConfigureAwait(false);
+            if (effectComposers.Length > 0)
+                await playerPresence.SendComposerAsync(effectComposers).ConfigureAwait(false);
+
             await playerPresence.SetActiveRoomAsync(roomId, ct).ConfigureAwait(false);
 
             await room.RefreshControllerLevelForPlayerAsync(ctx, ct).ConfigureAwait(false);

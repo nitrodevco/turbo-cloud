@@ -11,6 +11,8 @@ public interface IRoomPlayer : IRoomAvatar<IRoomPlayer, IRoomPlayerLogic, IRoomP
     public PlayerId PlayerId { get; }
     public AvatarGenderType Gender { get; }
     public AvatarDanceType DanceType { get; }
+    public int EffectId { get; }
     public bool UpdateWithPlayer(PlayerSummarySnapshot snapshot);
     public bool SetDance(AvatarDanceType danceType = AvatarDanceType.None);
+    public bool SetEffect(int effectId = 0);
 }

@@ -51,6 +51,9 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
                     continue;
 
                 dirtySnapshots.Add(avatar.GetSnapshot());
+
+                if (avatar.HasStatus(AvatarStatusType.Sign))
+                    avatar.RemoveStatus(AvatarStatusType.Sign);
             }
             catch (Exception)
             {

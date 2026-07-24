@@ -270,6 +270,32 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         return Task.FromResult(true);
     }
 
+    public Task<bool> SetAvatarEffectAsync(
+        RoomObjectId objectId,
+        int effectId,
+        CancellationToken ct
+    )
+    {
+        if (
+            objectId <= 0
+            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar)
+            || avatar is not IRoomPlayer player
+            || !player.SetEffect(effectId)
+        )
+            return Task.FromResult(false);
+
+        _ = _roomGrain.SendComposerToRoomAsync(
+            new AvatarEffectMessageComposer
+            {
+                ObjectId = avatar.ObjectId,
+                EffectId = player.EffectId,
+                DelayMilliseconds = 0,
+            }
+        );
+
+        return Task.FromResult(true);
+    }
+
     public Task<bool> SetAvatarExpressionAsync(
         RoomObjectId objectId,
         AvatarExpressionType expressionType,
@@ -289,6 +315,44 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
                 ExpressionType = expressionType,
             }
         );
+
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> SetAvatarSignAsync(RoomObjectId objectId, int signType, CancellationToken ct)
+    {
+        if (
+            objectId <= 0
+            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar)
+        )
+            return Task.FromResult(false);
+
+        avatar.AddStatus(AvatarStatusType.Sign, signType.ToString());
+
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> SetAvatarPostureAsync(
+        RoomObjectId objectId,
+        AvatarPostureType postureType,
+        CancellationToken ct
+    )
+    {
+        if (
+            objectId <= 0
+            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar)
+        )
+            return Task.FromResult(false);
+
+        switch (postureType)
+        {
+            case AvatarPostureType.Sit:
+                avatar.Sit(true);
+                break;
+            case AvatarPostureType.Stand:
+                avatar.Sit(false);
+                break;
+        }
 
         return Task.FromResult(true);
     }
