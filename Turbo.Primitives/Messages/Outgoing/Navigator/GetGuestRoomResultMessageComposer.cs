@@ -1,6 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Orleans.Snapshots.Room;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Primitives.Messages.Outgoing.Navigator;
 

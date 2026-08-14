@@ -1,6 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Snapshots.FriendList;
+using Turbo.Primitives.Players.Messenger;
 
 namespace Turbo.Primitives.Messages.Outgoing.FriendList;
 
@@ -8,5 +8,5 @@ namespace Turbo.Primitives.Messages.Outgoing.FriendList;
 public sealed record NewFriendRequestMessageComposer : IComposer
 {
     [Id(0)]
-    public required FriendRequestSnapshot Request { get; init; }
+    public required MessengerRequestDto Request { get; init; }
 }

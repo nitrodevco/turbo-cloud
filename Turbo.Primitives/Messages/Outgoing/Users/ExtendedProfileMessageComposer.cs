@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using Orleans;
-using Turbo.Primitives.Groups.Snapshots;
+using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Networking;
 
 namespace Turbo.Primitives.Messages.Outgoing.Users;

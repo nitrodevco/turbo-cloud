@@ -1,15 +1,16 @@
 using Turbo.Primitives.Packets;
-using Turbo.Primitives.Snapshots.FriendList;
+using Turbo.Primitives.Players.Messenger;
 
 namespace Turbo.Revisions.Revision20260112.Serializers.FriendList.Snapshots;
 
 internal class FriendRequestSnapshotSerializer
 {
-    public static void Serialize(IServerPacket packet, FriendRequestSnapshot message)
+    public static void Serialize(IServerPacket packet, MessengerRequestDto message)
     {
-        packet.WriteInteger(message.RequestId);
-        packet.WriteString(message.RequesterName);
-        packet.WriteString(message.FigureString);
-        packet.WriteInteger(message.RequesterUserId);
+        packet
+            .WriteInteger(message.RequesterPlayerId)
+            .WriteString(message.RequesterName)
+            .WriteString(message.RequesterFigure)
+            .WriteInteger(message.RequesterPlayerId);
     }
 }

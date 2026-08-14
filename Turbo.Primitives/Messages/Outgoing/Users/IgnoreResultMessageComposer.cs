@@ -1,5 +1,7 @@
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums.Messenger;
 
 namespace Turbo.Primitives.Messages.Outgoing.Users;
 
@@ -7,8 +9,8 @@ namespace Turbo.Primitives.Messages.Outgoing.Users;
 public sealed record IgnoreResultMessageComposer : IComposer
 {
     [Id(0)]
-    public required int Result { get; init; }
+    public required MessengerIgnoreResultType Result { get; init; }
 
     [Id(1)]
-    public required int IgnoredUserId { get; init; }
+    public required PlayerId IgnoredUserId { get; init; }
 }

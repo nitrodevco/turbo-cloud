@@ -22,11 +22,13 @@ public class GetIgnoredUsersMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0)
             return;
 
-        var messengerGrain = _grainFactory.GetMessengerGrain(ctx.PlayerId);
-        var ignoredIds = await messengerGrain.GetIgnoredUserIdsAsync(ct).ConfigureAwait(false);
+        var ignoredPlayerIds = await _grainFactory
+            .GetPlayerMessengerGrain(ctx.PlayerId)
+            .GetIgnoredAsync(ct)
+            .ConfigureAwait(false);
 
         await ctx.SendComposerAsync(
-                new IgnoredUsersMessageComposer { IgnoredUserIds = ignoredIds },
+                new IgnoredUsersMessageComposer { IgnoredUserIds = ignoredPlayerIds },
                 ct
             )
             .ConfigureAwait(false);

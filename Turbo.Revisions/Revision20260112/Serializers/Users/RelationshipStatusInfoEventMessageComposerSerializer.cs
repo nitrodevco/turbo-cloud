@@ -15,7 +15,7 @@ internal class RelationshipStatusInfoEventMessageComposerSerializer(int header)
         packet.WriteInteger(message.Entries.Count);
         foreach (var entry in message.Entries)
         {
-            packet.WriteInteger(entry.RelationshipStatusType);
+            packet.WriteInteger((int)entry.RelationshipStatusType);
             packet.WriteInteger(entry.FriendCount);
             packet.WriteInteger(entry.RandomFriendId);
             packet.WriteString(entry.RandomFriendName);

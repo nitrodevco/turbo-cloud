@@ -3,10 +3,6 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
-using Turbo.Primitives.Messages.Outgoing.FriendList;
-using Turbo.Primitives.Messages.Outgoing.Room.Session;
-using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Rooms;
 
 namespace Turbo.PacketHandlers.FriendList;
 
@@ -24,7 +20,7 @@ public class FollowFriendMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0)
             return;
 
-        var messengerGrain = _grainFactory.GetMessengerGrain(ctx.PlayerId);
+        /* var messengerGrain = _grainFactory.GetMessengerGrain(ctx.PlayerId);
         var (success, roomId, error) = await messengerGrain
             .FollowFriendAsync(message.PlayerId, ct)
             .ConfigureAwait(false);
@@ -47,6 +43,6 @@ public class FollowFriendMessageHandler(IGrainFactory grainFactory)
                     ct
                 )
                 .ConfigureAwait(false);
-        }
+        } */
     }
 }

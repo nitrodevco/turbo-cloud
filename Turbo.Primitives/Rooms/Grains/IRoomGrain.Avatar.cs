@@ -3,8 +3,8 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
@@ -37,9 +37,16 @@ public partial interface IRoomGrain
         AvatarDanceType danceType,
         CancellationToken ct
     );
+    public Task<bool> SetAvatarEffectAsync(ActionContext ctx, int effectId, CancellationToken ct);
     public Task<bool> SetAvatarExpressionAsync(
         ActionContext ctx,
         AvatarExpressionType expressionType,
+        CancellationToken ct
+    );
+    public Task<bool> SetAvatarSignAsync(ActionContext ctx, int signType, CancellationToken ct);
+    public Task<bool> SetAvatarPostureAsync(
+        ActionContext ctx,
+        AvatarPostureType postureType,
         CancellationToken ct
     );
     public Task SendChatFromPlayerAsync(

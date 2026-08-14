@@ -13,10 +13,10 @@ public sealed record LtdRaffleEntryResult
     public required bool Success { get; init; }
 
     [Id(1)]
-    public string? BatchId { get; init; }
+    public required string BatchId { get; init; }
 
     [Id(2)]
-    public LtdRaffleEntryError? Error { get; init; }
+    public required LtdRaffleEntryErrorType Error { get; init; }
 
     [Id(3)]
     public CatalogBalanceFailure? BalanceFailure { get; init; }
@@ -26,18 +26,18 @@ public sealed record LtdRaffleEntryResult
         {
             Success = true,
             BatchId = batchId,
-            Error = null,
+            Error = LtdRaffleEntryErrorType.None,
             BalanceFailure = null,
         };
 
     public static LtdRaffleEntryResult Failed(
-        LtdRaffleEntryError error,
+        LtdRaffleEntryErrorType error,
         CatalogBalanceFailure? balanceFailure = null
     ) =>
         new()
         {
             Success = false,
-            BatchId = null,
+            BatchId = "",
             Error = error,
             BalanceFailure = balanceFailure,
         };

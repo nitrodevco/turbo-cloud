@@ -2,11 +2,12 @@ using System;
 using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
+using SuperSocket.Server.Abstractions.Session;
 using Turbo.Primitives.Crypto;
 
 namespace Turbo.Primitives.Networking;
 
-public interface ISessionContext
+public interface ISessionContext : IAppSession
 {
     public SessionKey SessionKey { get; }
     public bool PolicyDone { get; set; }

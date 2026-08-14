@@ -1,5 +1,3 @@
-using System;
-
 namespace Turbo.Catalog.Configuration;
 
 public class CatalogConfig

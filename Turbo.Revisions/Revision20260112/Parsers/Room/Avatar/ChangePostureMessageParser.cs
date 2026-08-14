@@ -1,10 +1,12 @@
 using Turbo.Primitives.Messages.Incoming.Room.Avatar;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Packets;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Revisions.Revision20260112.Parsers.Room.Avatar;
 
 internal class ChangePostureMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new ChangePostureMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new ChangePostureMessage { PostureType = (AvatarPostureType)packet.PopInt() };
 }

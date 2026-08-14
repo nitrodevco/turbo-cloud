@@ -6,5 +6,11 @@ namespace Turbo.Revisions.Revision20260112.Parsers.Room.Action;
 
 internal class BanUserWithDurationMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new BanUserWithDurationMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new BanUserWithDurationMessage
+        {
+            UserId = packet.PopInt(),
+            RoomId = packet.PopInt(),
+            BanType = packet.PopString(),
+        };
 }

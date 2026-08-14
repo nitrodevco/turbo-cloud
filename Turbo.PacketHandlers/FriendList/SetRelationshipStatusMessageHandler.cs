@@ -4,6 +4,7 @@ using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players.Enums.Messenger;
 
 namespace Turbo.PacketHandlers.FriendList;
 
@@ -21,9 +22,13 @@ public class SetRelationshipStatusMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0)
             return;
 
-        var messengerGrain = _grainFactory.GetMessengerGrain(ctx.PlayerId);
-        await messengerGrain
-            .SetRelationshipStatusAsync(message.FriendUserId, message.RelationType, ct)
+        await _grainFactory
+            .GetPlayerMessengerGrain(ctx.PlayerId)
+            .SetRelationshipStatusAsync(
+                message.FriendUserId,
+                (MessengerFriendRelationType)message.RelationType,
+                ct
+            )
             .ConfigureAwait(false);
     }
 }

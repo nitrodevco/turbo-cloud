@@ -1,7 +1,8 @@
 using System.Text;
-using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
@@ -17,6 +18,7 @@ public sealed class RoomPlayerAvatar
     public required PlayerId PlayerId { get; init; }
     public AvatarGenderType Gender { get; private set; } = AvatarGenderType.Male;
     public AvatarDanceType DanceType { get; private set; } = AvatarDanceType.None;
+    public int EffectId { get; private set; } = 0;
 
     public int GroupId { get; init; } = -1;
     public int GroupStatus { get; init; } = -1;
@@ -35,6 +37,22 @@ public sealed class RoomPlayerAvatar
         return true;
     }
 
+    public override void Sit(bool flag = true, Altitude? height = null, Rotation? rot = null)
+    {
+        if (flag)
+            SetDance(AvatarDanceType.None);
+
+        base.Sit(flag, height, rot);
+    }
+
+    public override void Lay(bool flag = true, Altitude? height = null, Rotation? rot = null)
+    {
+        if (flag)
+            SetDance(AvatarDanceType.None);
+
+        base.Lay(flag, height, rot);
+    }
+
     public bool SetDance(AvatarDanceType danceType = AvatarDanceType.None)
     {
         if (DanceType == danceType)
@@ -47,6 +65,18 @@ public sealed class RoomPlayerAvatar
         // check if dance is hc only / validate hc
 
         DanceType = danceType;
+
+        _snapshot = null;
+
+        return true;
+    }
+
+    public bool SetEffect(int effectId = 0)
+    {
+        if (EffectId == effectId)
+            return false;
+
+        EffectId = effectId;
 
         _snapshot = null;
 
@@ -76,6 +106,7 @@ public sealed class RoomPlayerAvatar
             Status = statusString.ToString(),
             Gender = Gender,
             DanceType = DanceType,
+            EffectId = EffectId,
             GroupId = GroupId,
             GroupStatus = GroupStatus,
             GroupName = GroupName,

@@ -6,6 +6,8 @@ using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
 using Turbo.Primitives.Messages.Outgoing.FriendList;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums.Messenger;
 
 namespace Turbo.PacketHandlers.FriendList;
 
@@ -24,43 +26,28 @@ public class RequestFriendMessageHandler(IGrainFactory grainFactory, IConfigurat
         if (ctx.PlayerId <= 0)
             return;
 
-        // Resolve target player ID by name
-        var playerDirectory = _grainFactory.GetPlayerDirectoryGrain();
-        var targetId = await playerDirectory
+        var targetId = await _grainFactory
+            .GetPlayerDirectoryGrain()
             .GetPlayerIdAsync(message.PlayerName, ct)
             .ConfigureAwait(false);
 
-        if (targetId is null)
+        if (targetId is not PlayerId playerId)
             return;
 
-        var friendLimit = _configuration.GetValue<int>("Turbo:FriendList:UserFriendLimit");
-
-        // Get sender info
-        var senderGrain = _grainFactory.GetPlayerGrain(ctx.PlayerId);
-        var senderSummary = await senderGrain.GetSummaryAsync(ct).ConfigureAwait(false);
-
-        var messengerGrain = _grainFactory.GetMessengerGrain(ctx.PlayerId);
-        var error = await messengerGrain
-            .SendFriendRequestAsync(
-                targetId.Value,
-                senderSummary.Name,
-                senderSummary.Figure,
-                friendLimit,
-                ct
-            )
+        var result = await _grainFactory
+            .GetPlayerMessengerGrain(ctx.PlayerId)
+            .SendFriendRequestAsync(playerId, ct)
             .ConfigureAwait(false);
 
-        if (error is not null)
-        {
+        if (!result.Success)
             await ctx.SendComposerAsync(
                     new MessengerErrorMessageComposer
                     {
                         ClientMessageId = 0,
-                        ErrorCode = error.Value,
+                        ErrorCode = result.ErrorType ?? FriendListErrorCodeType.None,
                     },
                     ct
                 )
                 .ConfigureAwait(false);
-        }
     }
 }

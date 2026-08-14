@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Snapshots.FriendList;
+using Turbo.Primitives.Players.Messenger;
 
 namespace Turbo.Primitives.Messages.Outgoing.FriendList;
 
@@ -15,5 +15,5 @@ public sealed record FriendListFragmentMessageComposer : IComposer
     public required int FragmentIndex { get; init; }
 
     [Id(2)]
-    public required List<MessengerFriendSnapshot> Fragment { get; init; }
+    public required List<MessengerFriendDto> Fragment { get; init; }
 }

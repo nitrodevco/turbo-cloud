@@ -24,11 +24,9 @@ public class HabboSearchMessageHandler(IGrainFactory grainFactory, IConfiguratio
         if (ctx.PlayerId <= 0)
             return;
 
-        var searchLimit = _configuration.GetValue<int>("Turbo:Messenger:SearchResultLimit");
-
-        var messengerGrain = _grainFactory.GetMessengerGrain(ctx.PlayerId);
-        var (friends, others) = await messengerGrain
-            .SearchPlayersAsync(message.SearchQuery, searchLimit, ct)
+        var (friends, others) = await _grainFactory
+            .GetPlayerMessengerGrain(ctx.PlayerId)
+            .SearchPlayersAsync(message.SearchQuery, ct)
             .ConfigureAwait(false);
 
         await ctx.SendComposerAsync(

@@ -2,4 +2,7 @@ using Turbo.Primitives.Networking;
 
 namespace Turbo.Primitives.Messages.Incoming.Room.Avatar;
 
-public record SignMessage : IMessageEvent { }
+public record SignMessage : IMessageEvent
+{
+    public int SignType { get; init; }
+}

@@ -34,6 +34,7 @@ public sealed partial class CatalogPurchaseGrain(
     )
     {
         quantity = Math.Max(1, quantity);
+        // TODO validate quantity
 
         var snapshot = _catalogService.GetCatalogSnapshot(catalogType);
 

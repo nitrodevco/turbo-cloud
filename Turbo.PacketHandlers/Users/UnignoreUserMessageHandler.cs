@@ -5,7 +5,6 @@ using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Users;
 using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Players;
 
 namespace Turbo.PacketHandlers.Users;
 
@@ -23,25 +22,17 @@ public class UnignoreUserMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0)
             return;
 
-        var targetId = PlayerId.Parse(message.PlayerId);
-
-        var messengerGrain = _grainFactory.GetMessengerGrain(ctx.PlayerId);
-        await messengerGrain.UnignoreUserAsync(targetId, ct).ConfigureAwait(false);
+        var result = await _grainFactory
+            .GetPlayerMessengerGrain(ctx.PlayerId)
+            .UnignorePlayerAsync(message.PlayerId, ct)
+            .ConfigureAwait(false);
 
         await ctx.SendComposerAsync(
                 new IgnoreResultMessageComposer
                 {
-                    Result = 3, // Unignored
-                    IgnoredUserId = targetId,
+                    Result = result,
+                    IgnoredUserId = message.PlayerId,
                 },
-                ct
-            )
-            .ConfigureAwait(false);
-
-        var ignoredIds = await messengerGrain.GetIgnoredUserIdsAsync(ct).ConfigureAwait(false);
-
-        await ctx.SendComposerAsync(
-                new IgnoredUsersMessageComposer { IgnoredUserIds = ignoredIds },
                 ct
             )
             .ConfigureAwait(false);

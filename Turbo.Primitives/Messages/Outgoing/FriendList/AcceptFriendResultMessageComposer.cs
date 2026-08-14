@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Snapshots.FriendList;
+using Turbo.Primitives.Players.Messenger;
 
 namespace Turbo.Primitives.Messages.Outgoing.FriendList;
 
@@ -9,5 +9,5 @@ namespace Turbo.Primitives.Messages.Outgoing.FriendList;
 public sealed record AcceptFriendResultMessageComposer : IComposer
 {
     [Id(0)]
-    public required List<AcceptFriendFailureSnapshot> Failures { get; init; }
+    public required List<MessengerAcceptFriendFailure> Failures { get; init; }
 }

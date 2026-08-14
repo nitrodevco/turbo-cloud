@@ -8,8 +8,8 @@ using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
-using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -29,7 +29,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
-        var objectId = _nextObjectId += 1;
+        var objectId = GetNextObjectId();
         var startX = _roomGrain._state.Model?.DoorX ?? 0;
         var startY = _roomGrain._state.Model?.DoorY ?? 0;
         var startRot = _roomGrain._state.Model?.DoorRotation ?? Rotation.North;
@@ -43,10 +43,6 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         }
 
         var avatar = _roomGrain._avatarProvider.CreateAvatarFromPlayerSnapshot(objectId, snapshot);
-
-        var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx);
-
-        avatar.AddStatus(AvatarStatusType.FlatControl, ((int)controllerLevel).ToString());
 
         avatar.NextTileId = _roomGrain.MapModule.ToIdx(startX, startY);
 
@@ -270,6 +266,32 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         return Task.FromResult(true);
     }
 
+    public Task<bool> SetAvatarEffectAsync(
+        RoomObjectId objectId,
+        int effectId,
+        CancellationToken ct
+    )
+    {
+        if (
+            objectId <= 0
+            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar)
+            || avatar is not IRoomPlayer player
+            || !player.SetEffect(effectId)
+        )
+            return Task.FromResult(false);
+
+        _ = _roomGrain.SendComposerToRoomAsync(
+            new AvatarEffectMessageComposer
+            {
+                ObjectId = avatar.ObjectId,
+                EffectId = player.EffectId,
+                DelayMilliseconds = 0,
+            }
+        );
+
+        return Task.FromResult(true);
+    }
+
     public Task<bool> SetAvatarExpressionAsync(
         RoomObjectId objectId,
         AvatarExpressionType expressionType,
@@ -291,5 +313,50 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         );
 
         return Task.FromResult(true);
+    }
+
+    public Task<bool> SetAvatarSignAsync(RoomObjectId objectId, int signType, CancellationToken ct)
+    {
+        if (
+            objectId <= 0
+            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar)
+        )
+            return Task.FromResult(false);
+
+        avatar.AddStatus(AvatarStatusType.Sign, signType.ToString());
+
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> SetAvatarPostureAsync(
+        RoomObjectId objectId,
+        AvatarPostureType postureType,
+        CancellationToken ct
+    )
+    {
+        if (
+            objectId <= 0
+            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar)
+        )
+            return Task.FromResult(false);
+
+        switch (postureType)
+        {
+            case AvatarPostureType.Sit:
+                avatar.Sit(true);
+                break;
+            case AvatarPostureType.Stand:
+                avatar.Sit(false);
+                break;
+        }
+
+        return Task.FromResult(true);
+    }
+
+    private int GetNextObjectId()
+    {
+        var objectId = _nextObjectId += 1;
+
+        return objectId;
     }
 }

@@ -11,6 +11,9 @@ internal class RoomVisualizationSettingsMessageComposerSerializer(int header)
         RoomVisualizationSettingsMessageComposer message
     )
     {
-        //
+        packet
+            .WriteBoolean(message.WallsHidden)
+            .WriteInteger((int)message.WallThickness)
+            .WriteInteger((int)message.FloorThickness);
     }
 }

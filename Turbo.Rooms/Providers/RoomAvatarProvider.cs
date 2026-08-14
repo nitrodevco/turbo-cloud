@@ -1,4 +1,4 @@
-using Turbo.Primitives.Orleans.Snapshots.Players;
+using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Providers;

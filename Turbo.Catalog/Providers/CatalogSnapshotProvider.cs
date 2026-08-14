@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
-using Turbo.Database.Entities.Catalog;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Providers;
@@ -139,9 +138,9 @@ public sealed class CatalogSnapshotProvider<TTag>(
                         LocalizationId = x.LocalizationId ?? string.Empty,
                         Rentable = false,
                         CostCredits = x.CostCredits,
+                        CostSilver = 0,
                         CostCurrency = x.CostCurrency,
                         CurrencyTypeId = x.CurrencyTypeId,
-                        CostSilver = 0,
                         CanGift = x.CanGift,
                         CanBundle = x.CanBundle,
                         ClubLevel = x.ClubLevel,

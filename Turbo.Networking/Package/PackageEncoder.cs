@@ -17,6 +17,9 @@ public sealed class PackageEncoder(IRevisionManager revisionManager, ILogger<Pac
     {
         try
         {
+            if (pack.Session.Connection?.IsClosed ?? true)
+                return 0;
+
             var revision = _revisionManager.GetRevision(pack.Session.RevisionId);
 
             if (revision is not null)

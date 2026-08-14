@@ -21,7 +21,9 @@ public class RemoveFriendMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0)
             return;
 
-        var messengerGrain = _grainFactory.GetMessengerGrain(ctx.PlayerId);
-        await messengerGrain.RemoveFriendsAsync(message.FriendIds, ct).ConfigureAwait(false);
+        await _grainFactory
+            .GetPlayerMessengerGrain(ctx.PlayerId)
+            .RemoveFriendsAsync(message.FriendIds, ct)
+            .ConfigureAwait(false);
     }
 }

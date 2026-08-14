@@ -2,9 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
-using Turbo.Primitives.FriendList.Enums;
 using Turbo.Primitives.Messages.Incoming.FriendList;
-using Turbo.Primitives.Messages.Outgoing.FriendList;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 
@@ -23,7 +21,24 @@ public class SendMsgMessageHandler(IGrainFactory grainFactory) : IMessageHandler
         if (ctx.PlayerId <= 0)
             return;
 
-        var recipientId = PlayerId.Parse(message.ChatId);
+        var senderSummary = await _grainFactory
+            .GetPlayerGrain(ctx.PlayerId)
+            .GetSummaryAsync(ct)
+            .ConfigureAwait(false);
+
+        await _grainFactory
+            .GetPlayerMessengerGrain(ctx.PlayerId)
+            .SendMessageAsync(
+                PlayerId.Parse(message.ChatId),
+                message.Message,
+                message.ConfirmationId,
+                senderSummary.Name,
+                senderSummary.Figure,
+                ct
+            )
+            .ConfigureAwait(false);
+
+        /* var recipientId = PlayerId.Parse(message.ChatId);
         var messengerGrain = _grainFactory.GetMessengerGrain(ctx.PlayerId);
 
         // Validate friendship
@@ -104,6 +119,6 @@ public class SendMsgMessageHandler(IGrainFactory grainFactory) : IMessageHandler
                 },
                 ct
             )
-            .ConfigureAwait(false);
+            .ConfigureAwait(false); */
     }
 }

@@ -122,12 +122,16 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
                         IsDirectionRight = wallItem.Rotation != Rotation.South,
                         SourceX = sourceX,
                         SourceY = sourceY,
-                        SourceWallOffset = sourceOffset,
-                        SourceZ = (int)sourceZ,
+                        SourceOffsetX = sourceOffset,
+                        SourceOffsetY = (int)sourceZ,
                         TargetX = wallItem.X,
                         TargetY = wallItem.Y,
-                        TargetWallOffset = wallItem.WallOffset,
-                        TargetZ = (int)wallItem.Z,
+                        TargetOffsetX = wallItem.WallOffset,
+                        TargetOffsetY = (int)wallItem.Z,
+                        AnimationTime =
+                            Policy.AnimationMode == WiredAnimationModeType.Instant
+                                ? 0
+                                : Policy.AnimationTimeMs,
                     }
                 );
             }

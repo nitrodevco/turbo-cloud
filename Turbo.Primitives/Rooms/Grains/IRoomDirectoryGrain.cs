@@ -2,8 +2,8 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
-using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Primitives.Rooms.Grains;
 

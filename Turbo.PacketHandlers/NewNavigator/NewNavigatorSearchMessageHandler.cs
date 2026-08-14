@@ -5,7 +5,7 @@ using Turbo.Primitives.Messages.Incoming.NewNavigator;
 using Turbo.Primitives.Messages.Outgoing.NewNavigator;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Navigator.Enums;
-using Turbo.Primitives.Orleans.Snapshots.Navigator;
+using Turbo.Primitives.Navigator.Snapshots;
 
 namespace Turbo.PacketHandlers.NewNavigator;
 

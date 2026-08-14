@@ -19,10 +19,10 @@ public sealed record WiredWallItemMovementSnapshot
     public required int SourceY { get; init; }
 
     [Id(4)]
-    public required int SourceWallOffset { get; init; }
+    public required int SourceOffsetX { get; init; }
 
     [Id(5)]
-    public required int SourceZ { get; init; }
+    public required int SourceOffsetY { get; init; }
 
     [Id(6)]
     public required int TargetX { get; init; }
@@ -31,8 +31,11 @@ public sealed record WiredWallItemMovementSnapshot
     public required int TargetY { get; init; }
 
     [Id(8)]
-    public required int TargetWallOffset { get; init; }
+    public required int TargetOffsetX { get; init; }
 
     [Id(9)]
-    public required int TargetZ { get; init; }
+    public required int TargetOffsetY { get; init; }
+
+    [Id(10)]
+    public required int AnimationTime { get; init; }
 }

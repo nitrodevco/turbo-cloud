@@ -13,20 +13,23 @@ public sealed record RoomPlayerAvatarSnapshot : RoomAvatarSnapshot
     public required AvatarDanceType DanceType { get; init; }
 
     [Id(14)]
-    public required int GroupId { get; init; }
+    public required int EffectId { get; init; }
 
     [Id(15)]
-    public required int GroupStatus { get; init; }
+    public required int GroupId { get; init; }
 
     [Id(16)]
-    public required string GroupName { get; init; }
+    public required int GroupStatus { get; init; }
 
     [Id(17)]
-    public required string SwimFigure { get; init; }
+    public required string GroupName { get; init; }
 
     [Id(18)]
-    public required int ActivityPoints { get; init; }
+    public required string SwimFigure { get; init; }
 
     [Id(19)]
+    public required int ActivityPoints { get; init; }
+
+    [Id(20)]
     public required bool IsModerator { get; init; }
 }

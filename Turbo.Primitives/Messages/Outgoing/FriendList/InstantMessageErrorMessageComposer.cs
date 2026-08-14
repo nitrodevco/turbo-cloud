@@ -1,7 +1,7 @@
 using Orleans;
-using Turbo.Primitives.FriendList.Enums;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums.Messenger;
 
 namespace Turbo.Primitives.Messages.Outgoing.FriendList;
 

@@ -8,6 +8,6 @@ internal class OneWayDoorStatusMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, OneWayDoorStatusMessageComposer message)
     {
-        packet.WriteInteger(message.FurniId).WriteBoolean(message.Status);
+        packet.WriteInteger(message.FurniId).WriteInteger(message.Status);
     }
 }
