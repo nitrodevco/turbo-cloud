@@ -29,7 +29,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
-        var objectId = _nextObjectId += 1;
+        var objectId = GetNextObjectId();
         var startX = _roomGrain._state.Model?.DoorX ?? 0;
         var startY = _roomGrain._state.Model?.DoorY ?? 0;
         var startRot = _roomGrain._state.Model?.DoorRotation ?? Rotation.North;
@@ -43,10 +43,6 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         }
 
         var avatar = _roomGrain._avatarProvider.CreateAvatarFromPlayerSnapshot(objectId, snapshot);
-
-        var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx);
-
-        avatar.AddStatus(AvatarStatusType.FlatControl, ((int)controllerLevel).ToString());
 
         avatar.NextTileId = _roomGrain.MapModule.ToIdx(startX, startY);
 
@@ -355,5 +351,12 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         }
 
         return Task.FromResult(true);
+    }
+
+    private int GetNextObjectId()
+    {
+        var objectId = _nextObjectId += 1;
+
+        return objectId;
     }
 }

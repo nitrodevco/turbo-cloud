@@ -6,7 +6,7 @@ using Turbo.Primitives.Players;
 namespace Turbo.Primitives.Rooms.Snapshots;
 
 [GenerateSerializer, Immutable]
-public sealed record RoomOutbound
+public sealed record RoomOutboundSnapshot
 {
     [Id(0)]
     public required RoomId RoomId { get; init; }

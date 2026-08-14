@@ -2,22 +2,23 @@ using System.Collections.Generic;
 using Turbo.Primitives.Messages.Incoming.Room.Action;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Packets;
+using Turbo.Primitives.Players;
 
 namespace Turbo.Revisions.Revision20260112.Parsers.Room.Action;
 
 internal class RemoveRightsMessageParser : IParser
 {
     public IMessageEvent Parse(IClientPacket packet) =>
-        new RemoveRightsMessage { UserIds = ParseUserIds(packet) };
+        new RemoveRightsMessage { PlayerIds = ParsePlayerIds(packet) };
 
-    private static List<int> ParseUserIds(IClientPacket packet)
+    private static List<PlayerId> ParsePlayerIds(IClientPacket packet)
     {
         var count = packet.PopInt();
-        var userIds = new List<int>();
+        var playerIds = new List<PlayerId>();
 
         for (var i = 0; i < count; i++)
-            userIds.Add(packet.PopInt());
+            playerIds.Add(PlayerId.Parse(packet.PopInt()));
 
-        return userIds;
+        return playerIds;
     }
 }

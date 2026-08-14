@@ -35,7 +35,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
 
         if (_rollerIdSets.Count == 0)
             return Task.CompletedTask;
-        var currentPlans = new List<RollerMovePlan>();
+        var currentPlans = new List<RollerMovePlanSnapshot>();
         var reservedTileIdxs = new HashSet<int>();
         var nextAvatarTiles = new HashSet<int>(
             _roomGrain
@@ -126,14 +126,14 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
                         continue;
 
                     currentPlans.Add(
-                        new RollerMovePlan
+                        new RollerMovePlanSnapshot
                         {
                             RollerId = roller.ObjectId,
                             FromIdx = fromIdx,
                             ToIdx = toIdx,
                             MovedFloorItems =
                             [
-                                .. items.Select(x => new RollerMovedObject
+                                .. items.Select(x => new RollerMovedObjectSnapshot
                                 {
                                     ObjectId = x.ObjectId,
                                     RoomObject = x,
@@ -145,7 +145,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
                             [
                                 .. avatars.Select(x =>
                                 {
-                                    return new RollerMovedObject
+                                    return new RollerMovedObjectSnapshot
                                     {
                                         ObjectId = x.ObjectId,
                                         RoomObject = x,

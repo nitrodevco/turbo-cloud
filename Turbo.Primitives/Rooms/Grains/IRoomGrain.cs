@@ -17,6 +17,7 @@ public partial interface IRoomGrain : IGrainWithIntegerKey
     public Task EnsureRoomActiveAsync(CancellationToken ct);
     public Task<RoomSnapshot> GetSnapshotAsync();
     public Task<RoomSummarySnapshot> GetSummaryAsync();
+    public Task<bool> GetIsGroupRoomAsync();
     public Task<int> GetRoomPopulationAsync();
     public Task<ImmutableArray<KeyValuePair<RoomPropertyType, string>>> GetRoomPropertiesAsync();
     public Task PublishRoomEventAsync(RoomEvent evt, CancellationToken ct);

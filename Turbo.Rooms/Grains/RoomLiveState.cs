@@ -43,6 +43,7 @@ public sealed class RoomLiveState
     public bool IsMapReady { get; internal set; } = false;
     public bool IsFurniLoaded { get; internal set; } = false;
     public bool IsTileComputationPaused { get; internal set; } = false;
+    public bool IsRightsLoaded { get; internal set; } = false;
 
     public long EpochMs { get; set; } = 0;
     public long NextAvatarBoundaryMs { get; set; } = 0;

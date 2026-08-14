@@ -1,12 +1,12 @@
 using Orleans;
 
-namespace Turbo.Primitives.Groups.Snapshots;
+namespace Turbo.Primitives.Guilds.Snapshots;
 
 [GenerateSerializer, Immutable]
 public sealed record GuildInfoSnapshot
 {
     [Id(0)]
-    public required int GroupId { get; init; }
+    public required GuildId GroupId { get; init; }
 
     [Id(1)]
     public required string GroupName { get; init; }

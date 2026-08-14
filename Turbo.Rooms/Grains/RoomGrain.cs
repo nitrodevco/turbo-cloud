@@ -43,7 +43,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly IRoomWiredVariablesProvider _wiredVariablesProvider;
     internal readonly IGrainFactory _grainFactory;
 
-    internal IAsyncStream<RoomOutbound> _roomOutbound = default!;
+    internal IAsyncStream<RoomOutboundSnapshot> _roomOutbound = default!;
 
     internal readonly RoomLiveState _state;
 
@@ -88,7 +88,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _state = new() { RoomId = (RoomId)this.GetPrimaryKeyLong() };
         PathingSystem = new(this);
         EventModule = new(this);
-        SecurityModule = new(this);
+        SecurityModule = new(this, _dbCtxFactory);
         MapModule = new(this);
         ObjectModule = new(this);
         AvatarModule = new(this);
@@ -124,7 +124,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
         var streamId = StreamId.Create(OrleansStreamNames.ROOM_STREAM, this.GetPrimaryKeyLong());
 
-        _roomOutbound = provider.GetStream<RoomOutbound>(streamId);
+        _roomOutbound = provider.GetStream<RoomOutboundSnapshot>(streamId);
 
         this.RegisterGrainTimer<object?>(
             async (state, ct) =>
@@ -168,6 +168,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
         await MapModule.EnsureMapBuiltAsync(ct);
         await FurniModule.EnsureFurniLoadedAsync(ct);
+        await SecurityModule.EnsureRightsLoadedAsync(ct);
     }
 
     public Task<RoomSnapshot> GetSnapshotAsync() => Task.FromResult(_state.RoomSnapshot);
@@ -188,6 +189,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         };
     }
 
+    public Task<bool> GetIsGroupRoomAsync() => Task.FromResult(false);
+
     public async Task<int> GetRoomPopulationAsync() =>
         await _grainFactory.GetRoomDirectoryGrain().GetRoomPopulationAsync(_state.RoomId);
 
@@ -198,7 +201,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         EventModule.PublishAsync(evt, ct);
 
     public Task SendComposerToRoomAsync(IComposer composer) =>
-        _roomOutbound.OnNextAsync(new RoomOutbound { RoomId = _state.RoomId, Composer = composer });
+        _roomOutbound.OnNextAsync(
+            new RoomOutboundSnapshot { RoomId = _state.RoomId, Composer = composer }
+        );
 
     private async Task HydrateRoomStateAsync(CancellationToken ct)
     {

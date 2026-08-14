@@ -50,27 +50,25 @@ internal sealed partial class PlayerPresenceGrain
         _state.PendingRoomApproved = false;
         _state.ActiveRoomSinceUtc = DateTime.UtcNow;
 
-        await _grainFactory
-            .GetRoomDirectoryGrain()
-            .AddPlayerToRoomAsync((int)this.GetPrimaryKeyLong(), next, ct);
+        await _grainFactory.GetRoomDirectoryGrain().AddPlayerToRoomAsync(_state.PlayerId, next, ct);
 
         var provider = this.GetStreamProvider(OrleansStreamProviders.ROOM_STREAM_PROVIDER);
         var streamId = StreamId.Create(OrleansStreamNames.ROOM_STREAM, roomId.Value);
-        var stream = provider.GetStream<RoomOutbound>(streamId);
+        var stream = provider.GetStream<RoomOutboundSnapshot>(streamId);
 
         _roomOutboundSub = await stream.SubscribeAsync(this);
 
         var room = _grainFactory.GetRoomGrain(roomId);
 
         var playerSnapshot = await _grainFactory
-            .GetPlayerGrain((PlayerId)this.GetPrimaryKeyLong())
+            .GetPlayerGrain(_state.PlayerId)
             .GetSummaryAsync(ct);
 
         var ctx = new ActionContext
         {
             Origin = ActionOrigin.Player,
             SessionKey = SessionKey.Invalid,
-            PlayerId = (PlayerId)this.GetPrimaryKeyLong(),
+            PlayerId = _state.PlayerId,
             RoomId = roomId,
         };
 
@@ -91,7 +89,7 @@ internal sealed partial class PlayerPresenceGrain
         {
             Origin = ActionOrigin.Player,
             SessionKey = SessionKey.Invalid,
-            PlayerId = PlayerId.Parse((int)this.GetPrimaryKeyLong()),
+            PlayerId = _state.PlayerId,
             RoomId = prev,
         };
 
@@ -101,7 +99,7 @@ internal sealed partial class PlayerPresenceGrain
 
         await _grainFactory
             .GetRoomDirectoryGrain()
-            .RemovePlayerFromRoomAsync((PlayerId)this.GetPrimaryKeyLong(), prev, ct);
+            .RemovePlayerFromRoomAsync(ctx.PlayerId, prev, ct);
 
         if (_roomOutboundSub is not null)
         {
@@ -127,8 +125,6 @@ internal sealed partial class PlayerPresenceGrain
     {
         if (_state.ActiveRoomId != roomId)
             return;
-
-        var room = _grainFactory.GetRoomGrain(roomId);
 
         if (controllerType >= RoomControllerType.Rights)
         {

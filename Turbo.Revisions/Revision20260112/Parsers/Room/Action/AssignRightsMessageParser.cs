@@ -7,5 +7,5 @@ namespace Turbo.Revisions.Revision20260112.Parsers.Room.Action;
 internal class AssignRightsMessageParser : IParser
 {
     public IMessageEvent Parse(IClientPacket packet) =>
-        new AssignRightsMessage { UserId = packet.PopInt() };
+        new AssignRightsMessage { PlayerId = packet.PopInt() };
 }
