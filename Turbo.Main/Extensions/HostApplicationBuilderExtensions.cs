@@ -22,7 +22,7 @@ public static class HostApplicationBuilderExtensions
                         "127.0.0.1",
                         siloPort: 11111,
                         gatewayPort: 3000,
-                        listenOnAnyHostAddress: true
+                        listenOnAnyHostAddress: false
                     );
 
                     silo.UseLocalhostClustering()
