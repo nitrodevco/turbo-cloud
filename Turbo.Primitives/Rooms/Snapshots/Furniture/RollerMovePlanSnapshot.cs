@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Turbo.Primitives.Rooms.Snapshots;
+namespace Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 public sealed record RollerMovePlanSnapshot
 {

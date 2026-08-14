@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 using Orleans;
 using Turbo.Primitives.Navigator.Enums;
 
-namespace Turbo.Primitives.Orleans.Snapshots.Navigator;
+namespace Turbo.Primitives.Navigator.Snapshots;
 
 [GenerateSerializer, Immutable]
 public record NavigatorSearchResultBlockSnapshot

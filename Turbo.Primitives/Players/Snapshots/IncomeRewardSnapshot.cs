@@ -1,7 +1,7 @@
 using Orleans;
 using Turbo.Primitives.Vault.Enums;
 
-namespace Turbo.Primitives.Orleans.Snapshots.Vault;
+namespace Turbo.Primitives.Players.Snapshots;
 
 [GenerateSerializer, Immutable]
 public sealed record IncomeRewardSnapshot

@@ -1,9 +1,8 @@
 using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Guilds.Snapshots;
-using Turbo.Primitives.Players;
 
-namespace Turbo.Primitives.Orleans.Snapshots.Players;
+namespace Turbo.Primitives.Players.Snapshots;
 
 [GenerateSerializer, Immutable]
 public sealed record PlayerExtendedProfileSnapshot

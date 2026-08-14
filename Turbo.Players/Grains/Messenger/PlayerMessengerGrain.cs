@@ -12,11 +12,11 @@ using Turbo.Database.Entities.Messenger;
 using Turbo.Players.Configuration;
 using Turbo.Primitives.Messages.Outgoing.FriendList;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums.Messenger;
 using Turbo.Primitives.Players.Grains.Messenger;
 using Turbo.Primitives.Players.Messenger;
+using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Snapshots.Messenger;
 
 namespace Turbo.Players.Grains.Messenger;

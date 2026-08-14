@@ -1,7 +1,7 @@
 using Orleans;
 using Turbo.Primitives.Navigator.Enums;
 
-namespace Turbo.Primitives.Orleans.Snapshots.Room.Settings;
+namespace Turbo.Primitives.Rooms.Snapshots.Settings;
 
 [GenerateSerializer, Immutable]
 public sealed record ChatSettingsSnapshot

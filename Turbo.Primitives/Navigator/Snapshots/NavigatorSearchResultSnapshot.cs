@@ -1,7 +1,7 @@
 using Orleans;
-using Turbo.Primitives.Orleans.Snapshots.Room;
+using Turbo.Primitives.Rooms.Snapshots;
 
-namespace Turbo.Primitives.Orleans.Snapshots.Navigator;
+namespace Turbo.Primitives.Navigator.Snapshots;
 
 [GenerateSerializer, Immutable]
 public record NavigatorSearchResultSnapshot : RoomInfoSnapshot { }

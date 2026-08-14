@@ -1,11 +1,11 @@
 using System.Collections.Generic;
-using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 using Turbo.Primitives.Rooms.Wired.Variable;
 

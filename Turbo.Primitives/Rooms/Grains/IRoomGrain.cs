@@ -4,9 +4,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Primitives.Rooms.Grains;
 

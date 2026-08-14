@@ -1,7 +1,7 @@
 using Orleans;
 using Turbo.Primitives.Rooms.Object;
 
-namespace Turbo.Primitives.Rooms.Snapshots;
+namespace Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 [GenerateSerializer, Immutable]
 public sealed record RollerMovedObjectSnapshot

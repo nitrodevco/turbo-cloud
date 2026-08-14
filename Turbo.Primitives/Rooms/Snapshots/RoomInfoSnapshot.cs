@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 using Orleans;
 using Turbo.Primitives.Rooms.Enums;
 
-namespace Turbo.Primitives.Orleans.Snapshots.Room;
+namespace Turbo.Primitives.Rooms.Snapshots;
 
 [GenerateSerializer, Immutable]
 public record RoomInfoSnapshot : RoomSummarySnapshot

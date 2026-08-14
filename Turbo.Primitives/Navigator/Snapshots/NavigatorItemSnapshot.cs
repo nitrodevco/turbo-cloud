@@ -1,6 +1,6 @@
 using Orleans;
 
-namespace Turbo.Primitives.Orleans.Snapshots.Navigator;
+namespace Turbo.Primitives.Navigator.Snapshots;
 
 [GenerateSerializer, Immutable]
 public record NavigatorItemSnapshot

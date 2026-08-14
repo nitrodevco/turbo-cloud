@@ -1,9 +1,8 @@
 using System;
 using Orleans;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 
-namespace Turbo.Primitives.Orleans.Snapshots.Players;
+namespace Turbo.Primitives.Players.Snapshots;
 
 [GenerateSerializer, Immutable]
 public sealed record PlayerSummarySnapshot
