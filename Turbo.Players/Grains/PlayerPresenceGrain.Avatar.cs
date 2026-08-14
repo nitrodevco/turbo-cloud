@@ -4,7 +4,7 @@ using Orleans;
 using Turbo.Primitives.Messages.Outgoing.Avatar;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Orleans.Snapshots.Players;
+using Turbo.Primitives.Players.Snapshots;
 
 namespace Turbo.Players.Grains;
 

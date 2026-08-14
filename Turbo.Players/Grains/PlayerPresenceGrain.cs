@@ -19,14 +19,14 @@ namespace Turbo.Players.Grains;
 internal sealed partial class PlayerPresenceGrain
     : Grain,
         IPlayerPresenceGrain,
-        IAsyncObserver<RoomOutbound>
+        IAsyncObserver<RoomOutboundSnapshot>
 {
     internal readonly PlayerConfig _playerConfig;
     internal readonly IGrainFactory _grainFactory;
     internal readonly PlayerPresenceLiveState _state;
 
     private ISessionContextObserver? _sessionObserver = null;
-    private StreamSubscriptionHandle<RoomOutbound>? _roomOutboundSub = null;
+    private StreamSubscriptionHandle<RoomOutboundSnapshot>? _roomOutboundSub = null;
 
     private readonly Queue<IComposer> _outgoingQueue = new();
 
@@ -125,7 +125,7 @@ internal sealed partial class PlayerPresenceGrain
         return Task.CompletedTask;
     }
 
-    public Task OnNextAsync(RoomOutbound item, StreamSequenceToken? token = null)
+    public Task OnNextAsync(RoomOutboundSnapshot item, StreamSequenceToken? token = null)
     {
         if (
             _sessionObserver is null

@@ -937,10 +937,10 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("int")
                         .HasColumnName("player_id");
 
-                    b.Property<int>("RelationType")
+                    b.Property<short>("RelationType")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)0)
                         .HasColumnName("relation");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -1851,22 +1851,19 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("int")
                         .HasColumnName("category_id");
 
-                    b.Property<double>("PaintFloor")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("double")
-                        .HasDefaultValue(0.0)
+                    b.Property<string>("PaintFloor")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("paint_floor");
 
-                    b.Property<double>("PaintLandscape")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("double")
-                        .HasDefaultValue(0.0)
+                    b.Property<string>("PaintLandscape")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("paint_landscape");
 
-                    b.Property<double>("PaintWall")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("double")
-                        .HasDefaultValue(0.0)
+                    b.Property<string>("PaintWall")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
                         .HasColumnName("paint_wall");
 
                     b.Property<string>("Password")

@@ -1,6 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Orleans.Snapshots.Players;
+using Turbo.Primitives.Players.Snapshots;
 
 namespace Turbo.Primitives.Players.Grains;
 

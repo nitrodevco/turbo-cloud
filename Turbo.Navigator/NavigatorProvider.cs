@@ -8,9 +8,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
 using Turbo.Primitives.Navigator;
-using Turbo.Primitives.Orleans.Snapshots.Navigator;
-using Turbo.Primitives.Orleans.Snapshots.Room;
+using Turbo.Primitives.Navigator.Snapshots;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Navigator;
 
