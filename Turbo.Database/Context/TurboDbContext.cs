@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Turbo.Database.Entities.Admin;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Messenger;
@@ -13,6 +14,8 @@ namespace Turbo.Database.Context;
 public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     : DbContextBase<TurboDbContext>(options)
 {
+    public DbSet<AdminUserEntity> AdminUsers { get; init; }
+
     public DbSet<CatalogOfferEntity> CatalogOffers { get; init; }
 
     public DbSet<CurrencyTypeEntity> CurrencyTypes { get; init; }

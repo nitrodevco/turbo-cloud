@@ -39,3 +39,8 @@ msbuild.wrn
 
 plugins/*
 plugins-shadow/*
+
+# Turbo.Admin.Web (frontend)
+Turbo.Admin.Web/node_modules/
+Turbo.Admin.Web/dist/
+Turbo.Admin.Web/.vite/

@@ -11,6 +11,7 @@ using Turbo.Primitives.Grains.Players;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Players.Grains;
@@ -72,6 +73,17 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         await playerPresence.OnPlayerUpdatedAsync(await GetSummaryAsync(ct), ct);
     }
 
+    public async Task SetPlayerPerksAsync(PlayerPerkFlags perks, CancellationToken ct)
+    {
+        _state.PlayerPerks = perks;
+
+        await WriteToDatabaseAsync(ct);
+
+        var playerPresence = _grainFactory.GetPlayerPresenceGrain((int)this.GetPrimaryKeyLong());
+
+        await playerPresence.OnPlayerUpdatedAsync(await GetSummaryAsync(ct), ct);
+    }
+
     private async Task HydrateAsync(CancellationToken ct)
     {
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
@@ -86,6 +98,7 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         _state.Motto = entity.Motto ?? string.Empty;
         _state.Figure = entity.Figure;
         _state.Gender = entity.Gender;
+        _state.PlayerPerks = entity.PlayerPerks;
         _state.AchievementScore = 0;
         _state.CreatedAt = entity.CreatedAt;
         _state.LastUpdated = entity.UpdatedAt;
@@ -108,7 +121,8 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
                     up.SetProperty(p => p.Name, snapshot.Name)
                         .SetProperty(p => p.Motto, snapshot.Motto)
                         .SetProperty(p => p.Figure, snapshot.Figure)
-                        .SetProperty(p => p.Gender, snapshot.Gender),
+                        .SetProperty(p => p.Gender, snapshot.Gender)
+                        .SetProperty(p => p.PlayerPerks, snapshot.PlayerPerks),
                 ct
             );
 
@@ -128,6 +142,7 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
                 IsOnline = _state.IsOnline,
                 CreatedAt = _state.CreatedAt,
                 LastUpdated = _state.LastUpdated,
+                PlayerPerks = _state.PlayerPerks,
             }
         );
 

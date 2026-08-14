@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Snapshots.Room;
+using Turbo.Primitives.Rooms.Admin;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events;
 
@@ -21,4 +22,5 @@ public partial interface IRoomGrain : IGrainWithIntegerKey
     public Task<ImmutableArray<KeyValuePair<RoomPropertyType, string>>> GetRoomPropertiesAsync();
     public Task PublishRoomEventAsync(RoomEvent evt, CancellationToken ct);
     public Task SendComposerToRoomAsync(IComposer composer);
+    public Task AdminUpdateSettingsAsync(RoomAdminSettingsUpdate update, CancellationToken ct);
 }

@@ -1,6 +1,7 @@
 using System;
 using Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Primitives.Orleans.Snapshots.Players;
@@ -34,4 +35,7 @@ public sealed record PlayerSummarySnapshot
 
     [Id(8)]
     public required DateTime LastUpdated { get; init; }
+
+    [Id(9)]
+    public required PlayerPerkFlags PlayerPerks { get; init; }
 }

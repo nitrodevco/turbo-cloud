@@ -1,5 +1,6 @@
 using System;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Players.Grains;
@@ -11,6 +12,7 @@ public sealed class PlayerLiveState
     public string Motto { get; set; } = string.Empty;
     public string Figure { get; set; } = string.Empty;
     public AvatarGenderType Gender { get; set; } = AvatarGenderType.Male;
+    public PlayerPerkFlags PlayerPerks { get; set; } = PlayerPerkFlags.None;
     public int AchievementScore { get; set; } = 0;
     public bool IsOnline { get; set; } = false;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

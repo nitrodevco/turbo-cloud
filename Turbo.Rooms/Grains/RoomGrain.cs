@@ -20,6 +20,7 @@ using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Orleans.Snapshots.Room.Settings;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Admin;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Grains;
@@ -199,6 +200,48 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     public Task SendComposerToRoomAsync(IComposer composer) =>
         _roomOutbound.OnNextAsync(new RoomOutbound { RoomId = _state.RoomId, Composer = composer });
+
+    public async Task AdminUpdateSettingsAsync(RoomAdminSettingsUpdate update, CancellationToken ct)
+    {
+        _state.RoomSnapshot = _state.RoomSnapshot with
+        {
+            Name = update.Name,
+            Description = update.Description,
+            DoorMode = update.DoorMode,
+            Password = update.Password,
+            PlayersMax = update.PlayersMax,
+            ModSettings = _state.RoomSnapshot.ModSettings with
+            {
+                WhoCanMute = update.WhoCanMute,
+                WhoCanKick = update.WhoCanKick,
+                WhoCanBan = update.WhoCanBan,
+            },
+            LastUpdatedUtc = DateTime.UtcNow,
+        };
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        await dbCtx
+            .Rooms.Where(x => x.Id == (int)_state.RoomId.Value)
+            .ExecuteUpdateAsync(
+                up =>
+                    up.SetProperty(r => r.Name, update.Name)
+                        .SetProperty(r => r.Description, update.Description)
+                        .SetProperty(r => r.DoorMode, update.DoorMode)
+                        .SetProperty(r => r.Password, update.Password)
+                        .SetProperty(r => r.PlayersMax, update.PlayersMax)
+                        .SetProperty(r => r.MuteType, update.WhoCanMute)
+                        .SetProperty(r => r.KickType, update.WhoCanKick)
+                        .SetProperty(r => r.BanType, update.WhoCanBan),
+                ct
+            )
+            .ConfigureAwait(false);
+
+        await _grainFactory
+            .GetRoomDirectoryGrain()
+            .UpsertActiveRoomAsync(_state.RoomSnapshot)
+            .ConfigureAwait(false);
+    }
 
     private async Task HydrateRoomStateAsync(CancellationToken ct)
     {

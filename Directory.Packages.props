@@ -37,5 +37,7 @@
     <PackageVersion Include="SuperSocket.WebSocket.Server" Version="2.1.0" />
     <PackageVersion Include="Scrutor" Version="6.1.0" />
     <PackageVersion Include="BouncyCastle.Cryptography" Version="2.4.0" />
+    <PackageVersion Include="BCrypt.Net-Next" Version="4.0.3" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.8" />
   </ItemGroup>
 </Project>
