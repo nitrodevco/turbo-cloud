@@ -4,7 +4,7 @@ using Orleans;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 
-namespace Turbo.Primitives.Grains.Players;
+namespace Turbo.Primitives.Players.Grains;
 
 public interface IPlayerGrain : IGrainWithIntegerKey
 {
