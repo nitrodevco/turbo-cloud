@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260112.Parsers.Room.Action;
 
 internal class RemoveAllRightsMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new RemoveAllRightsMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new RemoveAllRightsMessage { RoomId = packet.PopInt() };
 }

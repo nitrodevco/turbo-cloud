@@ -22,13 +22,13 @@ public sealed record CatalogOfferSnapshot
     public required int CostCredits { get; init; }
 
     [Id(5)]
-    public required int CostCurrency { get; init; }
+    public required int CostSilver { get; init; }
 
     [Id(6)]
-    public required int? CurrencyTypeId { get; init; }
+    public required int CostCurrency { get; init; }
 
     [Id(7)]
-    public required int CostSilver { get; init; }
+    public required int? CurrencyTypeId { get; init; }
 
     [Id(8)]
     public required bool CanGift { get; init; }

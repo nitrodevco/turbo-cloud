@@ -8,6 +8,6 @@ internal class IgnoreResultMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, IgnoreResultMessageComposer message)
     {
-        //
+        packet.WriteInteger((int)message.Result).WriteInteger(message.IgnoredUserId);
     }
 }

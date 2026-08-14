@@ -9,8 +9,8 @@ using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Grains.Players;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Players.Grains;
@@ -40,6 +40,15 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         await WriteToDatabaseAsync(ct);
     }
 
+    public async Task SetOnlineStatusAsync(bool flag, CancellationToken ct)
+    {
+        _state.IsOnline = flag;
+
+        var playerPresence = _grainFactory.GetPlayerPresenceGrain((int)this.GetPrimaryKeyLong());
+
+        await playerPresence.OnPlayerUpdatedAsync(await GetSummaryAsync(ct), ct);
+    }
+
     public async Task SetFigureAsync(string figure, AvatarGenderType gender, CancellationToken ct)
     {
         _state.Figure = figure;
@@ -50,8 +59,6 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         var playerPresence = _grainFactory.GetPlayerPresenceGrain((int)this.GetPrimaryKeyLong());
 
         await playerPresence.OnFigureUpdatedAsync(await GetSummaryAsync(ct), ct);
-
-        await WriteToDatabaseAsync(ct);
     }
 
     public async Task SetMottoAsync(string text, CancellationToken ct)
@@ -63,8 +70,6 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         var playerPresence = _grainFactory.GetPlayerPresenceGrain((int)this.GetPrimaryKeyLong());
 
         await playerPresence.OnPlayerUpdatedAsync(await GetSummaryAsync(ct), ct);
-
-        await WriteToDatabaseAsync(ct);
     }
 
     private async Task HydrateAsync(CancellationToken ct)
@@ -120,7 +125,9 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
                 Figure = _state.Figure,
                 Gender = _state.Gender,
                 AchievementScore = _state.AchievementScore,
+                IsOnline = _state.IsOnline,
                 CreatedAt = _state.CreatedAt,
+                LastUpdated = _state.LastUpdated,
             }
         );
 
@@ -138,7 +145,7 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
                 FriendCount = 0,
                 IsFriend = false,
                 IsFriendRequestSent = false,
-                IsOnline = true,
+                IsOnline = _state.IsOnline,
                 Guilds = [],
                 LastAccessSinceInSeconds = 0,
                 OpenProfileWindow = true,

@@ -1,8 +1,9 @@
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Messages.Incoming.Room.Engine;
 
 public record ClickCharacterMessage : IMessageEvent
 {
-    public required int UserId { get; init; }
+    public required RoomObjectId ObjectId { get; init; }
 }

@@ -15,8 +15,6 @@ internal class FriendRequestsMessageSerializer(int header)
         packet.WriteInteger(totalRequests);
 
         foreach (var request in message.Requests)
-        {
             FriendRequestSnapshotSerializer.Serialize(packet, request);
-        }
     }
 }

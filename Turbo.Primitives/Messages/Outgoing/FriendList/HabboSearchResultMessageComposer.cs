@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Snapshots.FriendList;
+using Turbo.Primitives.Players.Snapshots.Messenger;
 
 namespace Turbo.Primitives.Messages.Outgoing.FriendList;
 

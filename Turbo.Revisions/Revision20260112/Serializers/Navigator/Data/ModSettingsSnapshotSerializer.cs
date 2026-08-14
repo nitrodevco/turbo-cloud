@@ -1,5 +1,5 @@
-using Turbo.Primitives.Orleans.Snapshots.Room.Settings;
 using Turbo.Primitives.Packets;
+using Turbo.Primitives.Rooms.Snapshots.Settings;
 
 namespace Turbo.Revisions.Revision20260112.Serializers.Navigator.Data;
 

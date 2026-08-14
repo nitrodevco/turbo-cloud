@@ -5,8 +5,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Orleans.Snapshots.Players;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
@@ -150,6 +150,33 @@ public sealed partial class RoomGrain
         }
     }
 
+    public async Task<bool> SetAvatarEffectAsync(
+        ActionContext ctx,
+        int effectId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            if (
+                !_state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
+                || !await AvatarModule.SetAvatarEffectAsync(objectId, effectId, ct)
+            )
+                return false;
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                $"Failed to effect:{effectId} avatar for player {ctx.PlayerId} in room {_state.RoomId}"
+            );
+
+            return false;
+        }
+    }
+
     public async Task<bool> SetAvatarExpressionAsync(
         ActionContext ctx,
         AvatarExpressionType expressionType,
@@ -171,6 +198,60 @@ public sealed partial class RoomGrain
             _logger.LogError(
                 ex,
                 $"Failed to set expression:{expressionType} avatar for player {ctx.PlayerId} in room {_state.RoomId}"
+            );
+
+            return false;
+        }
+    }
+
+    public async Task<bool> SetAvatarSignAsync(
+        ActionContext ctx,
+        int signType,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            if (
+                !_state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
+                || !await AvatarModule.SetAvatarSignAsync(objectId, signType, ct)
+            )
+                return false;
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                $"Failed to set sign:{signType} avatar for player {ctx.PlayerId} in room {_state.RoomId}"
+            );
+
+            return false;
+        }
+    }
+
+    public async Task<bool> SetAvatarPostureAsync(
+        ActionContext ctx,
+        AvatarPostureType postureType,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            if (
+                !_state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
+                || !await AvatarModule.SetAvatarPostureAsync(objectId, postureType, ct)
+            )
+                return false;
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                $"Failed to set posture:{postureType} avatar for player {ctx.PlayerId} in room {_state.RoomId}"
             );
 
             return false;

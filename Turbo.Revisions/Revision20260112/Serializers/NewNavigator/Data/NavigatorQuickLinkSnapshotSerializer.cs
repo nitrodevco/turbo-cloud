@@ -1,4 +1,4 @@
-using Turbo.Primitives.Orleans.Snapshots.Navigator;
+using Turbo.Primitives.Navigator.Snapshots;
 using Turbo.Primitives.Packets;
 
 namespace Turbo.Revisions.Revision20260112.Serializers.NewNavigator.Data;

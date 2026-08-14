@@ -23,6 +23,21 @@ public partial interface IInventoryGrain
         int quantity,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// Grant an LTD furniture item with serial number to the player's inventory.
+    /// </summary>
+    /// <param name="catalogProductId">The catalog product ID.</param>
+    /// <param name="serialNumber">The unique serial number (e.g., 123).</param>
+    /// <param name="seriesSize">The total series size (e.g., 500).</param>
+    /// <param name="ct">Cancellation token.</param>
+    public Task GrantLtdFurnitureAsync(
+        int catalogProductId,
+        int serialNumber,
+        int seriesSize,
+        CancellationToken ct
+    );
+
     public Task<FurnitureItemSnapshot?> GetItemSnapshotAsync(
         RoomObjectId itemId,
         CancellationToken ct

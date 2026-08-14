@@ -32,4 +32,10 @@ public sealed record CatalogProductSnapshot
 
     [Id(8)]
     public required int UniqueRemaining { get; init; }
+
+    [Id(9)]
+    public int? LtdSeriesId { get; init; }
+
+    [Id(10)]
+    public required string? ClassName { get; init; }
 }

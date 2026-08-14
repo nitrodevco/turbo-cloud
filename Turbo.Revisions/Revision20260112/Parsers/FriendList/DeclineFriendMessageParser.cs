@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Turbo.Primitives.Messages.Incoming.FriendList;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Packets;
+using Turbo.Primitives.Players;
 
 namespace Turbo.Revisions.Revision20260112.Parsers.FriendList;
 
@@ -13,22 +14,19 @@ public class DeclineFriendMessageParser : IParser
 
         if (declineAll)
         {
-            return new DeclineFriendMessage { DeclineAll = declineAll };
+            return new DeclineFriendMessage { DeclineAll = declineAll, Friends = [] };
         }
-        else
+
+        var playerIds = new List<PlayerId>();
+        var count = packet.PopInt();
+
+        while (count > 0)
         {
-            var friendsCount = packet.PopInt();
+            playerIds.Add(packet.PopInt());
 
-            var friends = new List<int>(friendsCount);
-
-            for (var i = 0; i < friendsCount; i++)
-            {
-                var userId = packet.PopInt();
-
-                friends.Add(userId);
-            }
-
-            return new DeclineFriendMessage { DeclineAll = declineAll, Friends = friends };
+            count--;
         }
+
+        return new DeclineFriendMessage { DeclineAll = false, Friends = playerIds };
     }
 }

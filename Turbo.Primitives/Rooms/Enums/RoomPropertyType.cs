@@ -1,9 +1,22 @@
 namespace Turbo.Primitives.Rooms.Enums;
 
-public static class RoomPropertyType
+public enum RoomPropertyType
 {
-    public const string FLOOR = "floor";
-    public const string WALLPAPER = "wallpaper";
-    public const string LANDSCAPE = "landscape";
-    public const string LANSDSCAPEANIM = "landscapeanim";
+    Floor = 1,
+    Wall = 2,
+    Landscape = 3,
+    LandscapeAnimated = 4,
+}
+
+public static class RoomPropertyTypeExtensions
+{
+    public static string GetString(RoomPropertyType objectType) =>
+        objectType switch
+        {
+            RoomPropertyType.Floor => "floor",
+            RoomPropertyType.Wall => "wallpaper",
+            RoomPropertyType.Landscape => "landscape",
+            RoomPropertyType.LandscapeAnimated => "landscapeanim",
+            _ => throw new System.NotImplementedException(),
+        };
 }

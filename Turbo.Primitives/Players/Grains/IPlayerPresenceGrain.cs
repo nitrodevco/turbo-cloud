@@ -12,4 +12,5 @@ public partial interface IPlayerPresenceGrain : IGrainWithIntegerKey
     public Task UnregisterSessionObserverAsync(CancellationToken ct);
     public Task SendComposerAsync(IComposer composer);
     public Task SendComposerAsync(params IComposer[] composers);
+    public Task<bool> HasActiveSessionAsync();
 }

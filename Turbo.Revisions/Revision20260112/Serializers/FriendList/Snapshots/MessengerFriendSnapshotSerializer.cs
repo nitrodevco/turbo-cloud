@@ -1,24 +1,26 @@
 using Turbo.Primitives.Packets;
-using Turbo.Primitives.Snapshots.FriendList;
+using Turbo.Primitives.Players.Messenger;
 
 namespace Turbo.Revisions.Revision20260112.Serializers.FriendList.Snapshots;
 
 internal class MessengerFriendSnapshotSerializer
 {
-    public static void Serialize(IServerPacket packet, MessengerFriendSnapshot message)
+    public static void Serialize(IServerPacket packet, MessengerFriendDto message)
     {
-        packet.WriteInteger(message.PlayerId);
-        packet.WriteString(message.Name);
-        packet.WriteInteger((int)message.Gender);
-        packet.WriteBoolean(message.Online);
-        packet.WriteBoolean(message.FollowingAllowed);
-        packet.WriteString(message.Figure);
-        packet.WriteInteger(message.CategoryId);
-        packet.WriteString(message.Motto);
-        packet.WriteString(message.FacebookId);
-        packet.WriteBoolean(message.PersistedMessageUser);
-        packet.WriteBoolean(message.VipMember);
-        packet.WriteBoolean(message.PocketHabboUser);
-        packet.WriteShort(message.RelationshipStatus);
+        packet
+            .WriteInteger(message.PlayerId)
+            .WriteString(message.Name)
+            .WriteInteger((int)message.Gender)
+            .WriteBoolean(message.Online)
+            .WriteBoolean(message.FollowingAllowed)
+            .WriteString(message.Figure)
+            .WriteInteger(message.CategoryId)
+            .WriteString(message.Motto)
+            .WriteString(message.RealName)
+            .WriteString(message.FacebookId)
+            .WriteBoolean(message.PersistedMessageUser)
+            .WriteBoolean(message.VipMember)
+            .WriteBoolean(message.PocketHabboUser)
+            .WriteShort((short)message.RelationshipStatus);
     }
 }

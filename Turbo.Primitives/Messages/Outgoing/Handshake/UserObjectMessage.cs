@@ -1,5 +1,5 @@
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Orleans.Snapshots.Players;
+using Turbo.Primitives.Players.Snapshots;
 
 namespace Turbo.Primitives.Messages.Outgoing.Handshake;
 

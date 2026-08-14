@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -55,6 +56,21 @@ public sealed class CatalogSnapshotProvider<TTag>(
                 .CatalogProducts.AsNoTracking()
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
+            var allSeries = await dbCtx
+                .LtdSeries.AsNoTracking()
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
+
+            // Group by product and pick the most relevant series (Active > Newest)
+            var series = allSeries
+                .GroupBy(s => s.CatalogProductEntityId)
+                .ToDictionary(
+                    g => g.Key,
+                    g =>
+                        g.OrderByDescending(s => s.IsActive)
+                            .ThenByDescending(s => s.StartsAt ?? s.CreatedAt)
+                            .First()
+                );
 
             var pageChildrenIds = pages
                 .GroupBy(p => p.ParentEntityId ?? -1)
@@ -76,23 +92,34 @@ public sealed class CatalogSnapshotProvider<TTag>(
                 .ToImmutableDictionary(g => g.Key, g => g.Select(x => x.Id).ToImmutableArray());
 
             var productsById = products
-                .Select(x => new CatalogProductSnapshot
+                .Select(x =>
                 {
-                    Id = x.Id,
-                    OfferId = x.CatalogOfferEntityId,
-                    ProductType = x.ProductType,
-                    FurniDefinitionId = x.FurnitureDefinitionEntityId ?? -1,
-                    SpriteId =
-                        x.FurnitureDefinitionEntityId != null
-                            ? _furnitureProvider
-                                .TryGetDefinition(x.FurnitureDefinitionEntityId.Value)
-                                ?.SpriteId
-                                ?? -1
-                            : -1,
-                    ExtraParam = x.ExtraParam,
-                    Quantity = x.Quantity,
-                    UniqueSize = x.UniqueSize,
-                    UniqueRemaining = x.UniqueRemaining,
+                    var productSeries = series.GetValueOrDefault(x.Id);
+                    return new CatalogProductSnapshot
+                    {
+                        Id = x.Id,
+                        OfferId = x.CatalogOfferEntityId,
+                        ProductType = x.ProductType,
+                        FurniDefinitionId = x.FurnitureDefinitionEntityId ?? -1,
+                        SpriteId =
+                            x.FurnitureDefinitionEntityId != null
+                                ? _furnitureProvider
+                                    .TryGetDefinition(x.FurnitureDefinitionEntityId.Value)
+                                    ?.SpriteId
+                                    ?? -1
+                                : -1,
+                        ExtraParam = x.ExtraParam,
+                        Quantity = x.Quantity,
+                        UniqueSize = productSeries?.TotalQuantity ?? 0,
+                        UniqueRemaining = productSeries?.RemainingQuantity ?? 0,
+                        LtdSeriesId = productSeries?.Id,
+                        ClassName =
+                            x.FurnitureDefinitionEntityId != null
+                                ? _furnitureProvider
+                                    .TryGetDefinition(x.FurnitureDefinitionEntityId.Value)
+                                    ?.Name
+                                : null,
+                    };
                 })
                 .ToImmutableDictionary(x => x.Id);
 
@@ -111,9 +138,9 @@ public sealed class CatalogSnapshotProvider<TTag>(
                         LocalizationId = x.LocalizationId ?? string.Empty,
                         Rentable = false,
                         CostCredits = x.CostCredits,
+                        CostSilver = 0,
                         CostCurrency = x.CostCurrency,
                         CurrencyTypeId = x.CurrencyTypeId,
-                        CostSilver = 0,
                         CanGift = x.CanGift,
                         CanBundle = x.CanBundle,
                         ClubLevel = x.ClubLevel,

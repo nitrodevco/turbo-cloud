@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,7 +18,6 @@ using Turbo.Networking.Extensions;
 using Turbo.Networking.Package;
 using Turbo.Networking.Session;
 using Turbo.Networking.Tcp;
-using Turbo.Networking.Ws;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Networking.Revisions;
 using Turbo.Primitives.Packets;
@@ -101,8 +101,15 @@ public sealed class NetworkManager(
 
         builder.ConfigureServerOptions((ctx, config) => config.GetSection("TcpServer"));
         builder.ConfigureLogging((ctx, logging) => logging.ClearProviders());
-        builder.ConfigureServices((ctx, services) => ConfigureCommonServices(services));
-        builder.UseSession<SessionContext>();
+        builder.ConfigureServices(
+            (ctx, services) =>
+            {
+                ConfigureCommonServices(services);
+
+                services.AddSingleton<IPackageEncoder<OutgoingPackage>, PackageEncoder>();
+            }
+        );
+        builder.UseSession<TcpSessionContext>();
         builder.UsePipelineFilter<TcpFilter>();
         builder.UseSessionGateway();
         //builder.UsePingPong();
@@ -116,19 +123,62 @@ public sealed class NetworkManager(
 
         builder.ConfigureServerOptions((ctx, config) => config.GetSection("WebSocketServer"));
         builder.ConfigureLogging((ctx, logging) => logging.ClearProviders());
-
         builder.ConfigureServices(
             (ctx, services) =>
             {
                 ConfigureCommonServices(services);
 
-                services.AddSingleton<IPackageHandler<WebSocketPackage>, WsPackageHandler>();
+                services.AddSingleton<IPackageEncoder<OutgoingPackage>, PackageEncoderWs>();
             }
         );
+        builder.UseWebSocketMessageHandler(
+            async (session, package) =>
+            {
+                ArgumentNullException.ThrowIfNull(package);
 
-        builder.UseSession<SessionContext>();
+                if (session is not ISessionContext ctx || package.OpCode != OpCode.Binary)
+                    return;
+
+                var sp = session.Server?.ServiceProvider;
+                var decoder = sp?.GetService<IClientPacketDecoder>();
+                var handler = sp?.GetService<IPackageHandler<IClientPacket>>();
+
+                if (decoder is null || handler is null)
+                    return;
+
+                foreach (var segment in package.Data)
+                    ctx.WsBuffer?.Write(segment.Span);
+
+                while (true)
+                {
+                    if (ctx.WsBuffer is null)
+                        break;
+
+                    var memory = ctx.WsBuffer.WrittenMemory;
+
+                    if (memory.Length == 0)
+                        break;
+
+                    var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
+
+                    var packet = decoder.TryRead(ref reader, ctx);
+
+                    if (packet is null)
+                        break;
+
+                    var remaining = memory.Span[(int)reader.Consumed..].ToArray();
+
+                    ctx.WsBuffer?.Clear();
+                    ctx.WsBuffer?.Write(remaining);
+
+                    await handler
+                        .Handle(session, packet, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+            }
+        );
+        builder.UseSession<WebSocketSessionContext>();
         builder.UseSessionGateway();
-        //builder.UsePingPong();
 
         _wsHost = builder.Build();
     }
@@ -140,7 +190,6 @@ public sealed class NetworkManager(
         services.AddSingleton(_messageSystem);
         services.AddSingleton(_loggerFactory);
         services.AddSingleton(_grainFactory);
-        services.AddSingleton<IPackageEncoder<OutgoingPackage>, PackageEncoder>();
         services.AddSingleton<IPackageHandler<IClientPacket>, PackageHandler>();
         services.AddSingleton<IClientPacketDecoder, ClientPacketDecoder>();
     }

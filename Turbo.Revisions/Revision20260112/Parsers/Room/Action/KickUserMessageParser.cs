@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260112.Parsers.Room.Action;
 
 internal class KickUserMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new KickUserMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new KickUserMessage { UserId = packet.PopInt() };
 }

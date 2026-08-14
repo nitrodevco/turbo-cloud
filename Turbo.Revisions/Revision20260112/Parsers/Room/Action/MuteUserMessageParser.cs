@@ -6,5 +6,11 @@ namespace Turbo.Revisions.Revision20260112.Parsers.Room.Action;
 
 internal class MuteUserMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new MuteUserMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new MuteUserMessage
+        {
+            UserId = packet.PopInt(),
+            RoomId = packet.PopInt(),
+            DurationInMinutes = packet.PopInt(),
+        };
 }

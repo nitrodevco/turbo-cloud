@@ -4,5 +4,6 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Orleans.Core.Abstractions" />
+    <PackageReference Include="SuperSocket.Server" />
   </ItemGroup>
 </Project>

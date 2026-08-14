@@ -4,6 +4,7 @@ using Turbo.Primitives.Grains.Players;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains;
+using Turbo.Primitives.Players.Grains.Messenger;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Grains;
 
@@ -65,4 +66,14 @@ public static class GrainFactoryExtensions
         this IGrainFactory factory,
         long playerId
     ) => factory.GetGrain<ICatalogPurchaseGrain>(playerId);
+
+    public static ICatalogLtdRaffleGrain GetLtdRaffleGrain(
+        this IGrainFactory factory,
+        int ltdSeriesId
+    ) => factory.GetGrain<ICatalogLtdRaffleGrain>(ltdSeriesId);
+
+    public static IPlayerMessengerGrain GetPlayerMessengerGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerMessengerGrain>(playerId.Value);
 }

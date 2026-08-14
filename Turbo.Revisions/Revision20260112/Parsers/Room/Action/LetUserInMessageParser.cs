@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260112.Parsers.Room.Action;
 
 internal class LetUserInMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new LetUserInMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new LetUserInMessage { Name = packet.PopString(), CanEnter = packet.PopBoolean() };
 }

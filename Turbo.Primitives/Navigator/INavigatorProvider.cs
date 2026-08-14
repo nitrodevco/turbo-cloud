@@ -2,8 +2,8 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Orleans.Snapshots.Navigator;
-using Turbo.Primitives.Orleans.Snapshots.Room;
+using Turbo.Primitives.Navigator.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Primitives.Navigator;
 

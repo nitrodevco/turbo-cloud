@@ -11,6 +11,6 @@ internal class SpecialRoomEffectMessageComposerSerializer(int header)
         SpecialRoomEffectMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.EffectId);
     }
 }

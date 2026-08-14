@@ -4,8 +4,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Primitives.Navigator;
+using Turbo.Primitives.Navigator.Snapshots;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Orleans.Snapshots.Navigator;
 using Turbo.Primitives.Rooms;
 
 namespace Turbo.Navigator;

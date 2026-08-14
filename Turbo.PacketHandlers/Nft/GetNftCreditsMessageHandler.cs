@@ -31,11 +31,17 @@ public class GetNftCreditsMessageHandler(IGrainFactory grainFactory)
                 ct
             )
             .ConfigureAwait(false);
+        var silver = await wallet
+            .GetAmountForCurrencyAsync(new CurrencyKind { CurrencyType = CurrencyType.Silver }, ct)
+            .ConfigureAwait(false);
 
         await ctx.SendComposerAsync(
                 new EmeraldBalanceMessageComposer { EmeraldBalance = emeralds },
                 ct
             )
+            .ConfigureAwait(false);
+
+        await ctx.SendComposerAsync(new SilverBalanceMessageComposer { SilverBalance = silver }, ct)
             .ConfigureAwait(false);
     }
 }

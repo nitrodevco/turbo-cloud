@@ -8,10 +8,10 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Grains;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms.Grains;
@@ -121,6 +121,17 @@ public class RoomDirectoryGrain(
 
     public Task<int> GetRoomPopulationAsync(RoomId roomId) =>
         Task.FromResult(_roomPopulations.TryGetValue(roomId, out var pop) ? pop : 0);
+
+    public Task<RoomId?> GetRandomPopulatedRoomAsync(CancellationToken ct)
+    {
+        var populated = _roomPopulations.Where(kv => kv.Value > 0).Select(kv => kv.Key).ToArray();
+
+        if (populated.Length == 0)
+            return Task.FromResult<RoomId?>(null);
+
+        var random = Random.Shared.Next(populated.Length);
+        return Task.FromResult<RoomId?>(populated[random]);
+    }
 
     private Task UpdatePopulationAsync(RoomId roomId)
     {

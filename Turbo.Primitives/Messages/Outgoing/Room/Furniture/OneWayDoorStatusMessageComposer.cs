@@ -10,5 +10,5 @@ public sealed record OneWayDoorStatusMessageComposer : IComposer
     public required int FurniId { get; init; }
 
     [Id(1)]
-    public required bool Status { get; init; }
+    public required int Status { get; init; }
 }

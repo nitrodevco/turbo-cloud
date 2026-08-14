@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 using System.Threading.Tasks;
-using Turbo.Primitives.Orleans.Snapshots.Navigator;
+using Turbo.Primitives.Navigator.Snapshots;
 
 namespace Turbo.Primitives.Navigator;
 

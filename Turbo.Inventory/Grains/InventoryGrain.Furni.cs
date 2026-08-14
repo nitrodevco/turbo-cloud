@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -9,6 +11,7 @@ using Turbo.Furniture;
 using Turbo.Inventory.Furniture;
 using Turbo.Logging;
 using Turbo.Primitives;
+using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.StuffData;
@@ -143,4 +146,77 @@ public sealed partial class InventoryGrain
     public Task<ImmutableArray<FurnitureItemSnapshot>> GetAllItemSnapshotsAsync(
         CancellationToken ct
     ) => _furniModule.GetAllItemSnapshotsAsync(ct);
+
+    public async Task GrantLtdFurnitureAsync(
+        int catalogProductId,
+        int serialNumber,
+        int seriesSize,
+        CancellationToken ct
+    )
+    {
+        // Find the product in the catalog snapshot
+        var snapshot = _catalogService.GetCatalogSnapshot(CatalogType.Normal);
+        var product = snapshot.ProductsById.Values.FirstOrDefault(p => p.Id == catalogProductId);
+
+        if (product == null)
+            throw new TurboException(TurboErrorCodeEnum.CatalogProductNotFound);
+
+        var def =
+            _furnitureDefinitionProvider.TryGetDefinition(product.FurniDefinitionId)
+            ?? throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
+
+        // Build ExtraData JSON with LTD serial info in the stuff section
+        var extraDataJson = JsonSerializer.Serialize(
+            new
+            {
+                stuff = new
+                {
+                    UniqueNumber = serialNumber,
+                    UniqueSeries = seriesSize,
+                    Data = "0",
+                },
+            }
+        );
+
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+
+        try
+        {
+            // Create furniture entity - LTD data is stored in ExtraData JSON
+            var entity = new FurnitureEntity
+            {
+                PlayerEntityId = (int)this.GetPrimaryKeyLong(),
+                FurnitureDefinitionEntityId = def.Id,
+                ExtraData = extraDataJson,
+            };
+
+            dbCtx.Add(entity);
+            await dbCtx.SaveChangesAsync(ct);
+
+            // Create stuff data from the ExtraData - this properly loads the UniqueNumber/UniqueSeries
+            var extraData = new ExtraData(extraDataJson);
+            var stuffData = _stuffDataFactory.CreateStuffDataFromExtraData(
+                StuffDataType.LegacyKey,
+                extraData
+            );
+
+            // Add to inventory
+            await AddFurnitureAsync(
+                new FurnitureItem()
+                {
+                    ItemId = entity.Id,
+                    OwnerId = entity.PlayerEntityId,
+                    OwnerName = string.Empty,
+                    Definition = def,
+                    ExtraData = extraData,
+                    StuffData = stuffData,
+                },
+                ct
+            );
+        }
+        finally
+        {
+            await dbCtx.DisposeAsync().ConfigureAwait(false);
+        }
+    }
 }

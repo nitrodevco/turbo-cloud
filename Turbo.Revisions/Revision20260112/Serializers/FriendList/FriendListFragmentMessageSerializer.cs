@@ -12,13 +12,12 @@ internal class FriendListFragmentMessageSerializer(int header)
         FriendListFragmentMessageComposer message
     )
     {
-        packet.WriteInteger(message.TotalFragments);
-        packet.WriteInteger(message.FragmentIndex);
-        packet.WriteInteger(message.Fragment.Count);
+        packet
+            .WriteInteger(message.TotalFragments)
+            .WriteInteger(message.FragmentIndex)
+            .WriteInteger(message.Fragment.Count);
 
         foreach (var friend in message.Fragment)
-        {
             MessengerFriendSnapshotSerializer.Serialize(packet, friend);
-        }
     }
 }

@@ -1,11 +1,11 @@
 using System.Collections.Generic;
-using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 using Turbo.Primitives.Rooms.Wired.Variable;
 
@@ -38,9 +38,12 @@ public sealed class RoomLiveState
 
     public WiredVariableHash AllVariablesHash { get; internal set; } = new WiredVariableHash(0);
 
+    public Dictionary<RoomPropertyType, string> RoomProperties { get; } = [];
+
     public bool IsMapReady { get; internal set; } = false;
     public bool IsFurniLoaded { get; internal set; } = false;
     public bool IsTileComputationPaused { get; internal set; } = false;
+    public bool IsRightsLoaded { get; internal set; } = false;
 
     public long EpochMs { get; set; } = 0;
     public long NextAvatarBoundaryMs { get; set; } = 0;

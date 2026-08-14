@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260112.Parsers.Room.Avatar;
 
 internal class SignMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new SignMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new SignMessage { SignType = packet.PopInt() };
 }

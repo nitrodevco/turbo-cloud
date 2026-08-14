@@ -20,15 +20,16 @@ Activate the relevant skill checklist before editing code in that domain:
 - `grain-development`
   - Trigger: editing files under `Turbo.*\\Grains\\**` or `Turbo.Primitives/**/Grains/*.cs`.
   - Enforce: keep ownership boundaries, lifecycle rules, and snapshot/state coherence.
+  - Enforce: all rules in the **Orleans grain development rules** section below.
 - `session-presence-routing`
   - Trigger: touching session gateway, presence flow, room routing, outbound composer fan-out.
   - Enforce: player outbound via `PlayerPresenceGrain.SendComposerAsync`; no direct handler socket sends.
 - `message-contracts`
   - Trigger: editing `Turbo.Primitives/Messages/Incoming/**` or outgoing composer payload mappings.
   - Enforce: explicit mandatory fields, no placeholder payloads when source data exists.
-- `revision-protocol` (cross-repo)
+- `revision-protocol`
   - Trigger: changes referencing `Revision<id>` packet mappings.
-  - Enforce: edit plugin revision tree in `../turbo-sample-plugin/TurboSamplePlugin/Revision/**`.
+  - Enforce: edit `Turbo.Revisions/Revision<id>/**` in `turbo-cloud`.
 
 ## Priority order
 1. Build and quality checks in repo files (`Directory.Build.props`, `Directory.Build.targets`, `.editorconfig`)
@@ -64,12 +65,75 @@ Default output format:
 - Prefer deterministic handlers/services with clear guard clauses.
 - Preserve cancellation and async flow where it already exists.
 - Handle failure paths explicitly; do not ship happy-path-only changes.
-- Avoid dead code, unused allocations, and broad catch blocks that hide errors.
+- Avoid dead code, unused allocations, and broad catch blocks that hide errors (see **Orleans grain development rules** for specifics).
 - For revision compatibility work, prefer restoring/adding missing incoming message contracts in `Turbo.Primitives/Messages/Incoming/**` before mutating serializer/composer payload behavior.
 - Do not alter serializer/composer behavior by replacing real payload writes with placeholder constants (for example, unconditional `WriteInteger(0)`) unless explicitly requested.
-- If work references `Revision<id>` parsers/serializers, edit the plugin repo path:
-  - `../turbo-sample-plugin/TurboSamplePlugin/Revision/**`
-  - Do not hallucinate those trees into `turbo-cloud`.
+- If work references `Revision<id>` parsers/serializers, edit `Turbo.Revisions/Revision<id>/**` in `turbo-cloud`.
+
+## Orleans grain development rules
+These rules exist because every one of these mistakes has shipped and caused real issues.
+
+### Never swallow exceptions silently
+Every bare `catch { }` hides a real bug path. Always use `catch (Exception ex)` and log it.
+If a cross-grain notification fails silently, state goes asymmetric and nobody knows why.
+- **Required**: inject `ILogger<T>` into every grain that does cross-grain calls or DB work.
+- **Forbidden**: bare `catch { }`, `catch (Exception) { }` without logging.
+
+### Parallelize independent grain calls
+When checking status on N grains (e.g. online status for a friend list), do not `await` each one in a `foreach`.
+Grain calls to different grains can run concurrently with `Task.WhenAll`.
+- Sequential = O(n) round-trips. Parallel = O(1) wall time.
+- Apply everywhere: activation hydration, search results, batch accept/deny.
+
+### Do not repeat identical grain calls in loops
+If a grain method calls its own player's `GetSummaryAsync` inside a loop, hoist the call before the loop.
+Same result every iteration = wasted round-trips.
+
+### Batch DB operations
+Do not loop `ExecuteDeleteAsync` per entity. Use a single `WHERE ... IN (...)` query.
+Same for composer fan-out: collect all updates, send once.
+
+### Use timer-based flush for housekeeping writes
+Follow the `RoomPersistenceGrain` pattern: queue dirty state, flush with `RegisterGrainTimer` on interval, and flush on `OnDeactivateAsync`.
+Do not issue per-event DB writes that block the grain turn.
+
+### Do not hardcode limits in grains
+Handlers already read configuration values (e.g. `Turbo:FriendList:UserFriendLimit`) from `IConfiguration` and pass them to grains.
+Magic numbers like `Take(50)`, `Take(20)`, or `maxIgnoreCapacity = 100` must come from configuration parameters on the grain interface method.
+A 10,000 user hotel needs different tuning than a 10 player dev server.
+
+### Use tracked deletes for atomicity
+`ExecuteDeleteAsync` commits immediately and bypasses the EF change tracker.
+If a delete + insert must succeed or fail together, use `FirstOrDefaultAsync` + `Remove` so both go through one `SaveChangesAsync`.
+
+### Replace .Ignore() with a LogAndForget helper
+Orleans `.Ignore()` makes cross-grain failures invisible. Use a `LogAndForget` extension that calls `ContinueWith(OnlyOnFaulted)` to log the exception.
+Still fire-and-forget, but failures are visible in production logs.
+
+### Bound session/history collections
+Any in-memory collection that grows per-message (e.g. conversation history) must have a configurable cap.
+Without a cap, long-running sessions leak memory.
+
+### One grain per responsibility — isolate heavy I/O
+Each major domain component should operate in its own grain. When a grain needs heavy I/O (DB writes, persistence flushes), delegate that work to a dedicated secondary grain so it does not block the primary grain's turn.
+- Example: `RoomGrain` delegates furniture saves to `RoomPersistenceGrain`. The room grain stays responsive while persistence queues and flushes.
+- Do not combine domain logic and persistence flushing in the same grain.
+
+### Use grain boundaries for thread safety
+Orleans grains are single-threaded by design. Use this for concurrency-sensitive operations by giving each user their own grain for the operation.
+- Example: each player gets a `PurchaseGrain` so catalog purchases are serialized per-player with no locks needed.
+- Example: limited-edition items should use a dedicated grain (e.g. `LimitedItemGrain`) so concurrent buyers are safely serialized.
+- Do not add manual locking (`lock`, `SemaphoreSlim`) inside grains — that fights the actor model.
+
+### Grains orchestrate their own outbound communication
+When grain state changes (e.g. wallet balance updates), the grain itself sends the snapshot to `PlayerPresenceGrain.SendComposerAsync`. The caller that triggered the change does not pass or send the composer — the grain owns that responsibility.
+- **Correct**: handler calls `grain.UpdateWalletAsync(...)` → grain updates state → grain calls `PlayerPresenceGrain.SendComposerAsync(...)`.
+- **Wrong**: handler calls `grain.UpdateWalletAsync(...)` → handler builds composer → handler sends composer to player.
+
+### Do not mutate the database directly for grain-owned state
+Grains may hold cached or in-memory state that will not reflect direct DB changes. All mutations to grain-owned data must go through the grain's methods, even when the player is offline.
+- If a grain uses `[PersistentState]`, state is hydrated from the configured store (not DB) on activation. Direct DB edits will be overwritten by stale store data.
+- Admin tools and external systems must call grain methods, not issue raw SQL/DB updates, for data that grains own.
 
 ## Profile and grain flow constraints
 - Keep packet handlers orchestration-only:

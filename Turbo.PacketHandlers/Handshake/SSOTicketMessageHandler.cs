@@ -95,7 +95,7 @@ public class SSOTicketMessageHandler(
                     new UserRightsMessage
                     {
                         ClubLevel = ClubLevelType.Vip,
-                        SecurityLevel = SecurityLevelType.Administrator,
+                        SecurityLevel = SecurityLevelType.None,
                         IsAmbassador = false,
                     },
                     ct
