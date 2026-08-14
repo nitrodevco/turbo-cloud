@@ -1,9 +1,6 @@
 ﻿namespace Turbo.Primitives.Catalog.Enums;
 
-/// <summary>
-/// Error codes for LTD raffle entry failures.
-/// </summary>
-public enum LtdRaffleEntryError
+public enum LtdRaffleEntryErrorType
 {
     None = 0,
     SeriesNotFound = 1,

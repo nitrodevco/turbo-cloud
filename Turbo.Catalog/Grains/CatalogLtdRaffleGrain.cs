@@ -23,13 +23,13 @@ using Turbo.Primitives.Players.Wallet;
 
 namespace Turbo.Catalog.Grains;
 
-public sealed class LtdRaffleGrain(
+public sealed class CatalogLtdRaffleGrain(
     IGrainFactory grainFactory,
     IDbContextFactory<TurboDbContext> dbCtxFactory,
-    ILogger<LtdRaffleGrain> logger,
+    ILogger<CatalogLtdRaffleGrain> logger,
     ICatalogService catalogService,
     IOptions<CatalogConfig> config
-) : Grain, ILtdRaffleGrain
+) : Grain, ICatalogLtdRaffleGrain
 {
     private readonly CatalogConfig _config = config.Value;
 
@@ -71,14 +71,17 @@ public sealed class LtdRaffleGrain(
         }
     }
 
-    public async Task<LtdRaffleEntryResult> EnterRaffleAsync(int playerId, CancellationToken ct)
+    public async Task<LtdRaffleEntryResult> EnterRaffleAsync(
+        PlayerId playerId,
+        CancellationToken ct
+    )
     {
         if (_series is not { IsAvailable: true })
         {
             return LtdRaffleEntryResult.Failed(
                 _series?.RemainingQuantity <= 0
-                    ? LtdRaffleEntryError.SoldOut
-                    : LtdRaffleEntryError.SeriesNotFound
+                    ? LtdRaffleEntryErrorType.SoldOut
+                    : LtdRaffleEntryErrorType.SeriesNotFound
             );
         }
 
@@ -86,7 +89,7 @@ public sealed class LtdRaffleGrain(
         var product = snap.ProductsById.Values.FirstOrDefault(p => p.LtdSeriesId == _series.Id);
 
         if (product == null || !snap.OffersById.TryGetValue(product.OfferId, out var offer))
-            return LtdRaffleEntryResult.Failed(LtdRaffleEntryError.None);
+            return LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.None);
 
         var walletGrain = grainFactory.GetPlayerWalletGrain(playerId);
         var credits = await walletGrain.GetAmountForCurrencyAsync(
@@ -103,7 +106,7 @@ public sealed class LtdRaffleGrain(
         if (hasInsufficientCredits || hasInsufficientActivityPoints)
         {
             return LtdRaffleEntryResult.Failed(
-                LtdRaffleEntryError.InsufficientFunds,
+                LtdRaffleEntryErrorType.InsufficientFunds,
                 new CatalogBalanceFailure
                 {
                     NotEnoughCredits = hasInsufficientCredits,
@@ -123,7 +126,7 @@ public sealed class LtdRaffleGrain(
             var instantWin = await TryFinalizeWinnerAsync(playerId, null, false);
             return instantWin
                 ? LtdRaffleEntryResult.Succeeded("instant")
-                : LtdRaffleEntryResult.Failed(LtdRaffleEntryError.SoldOut);
+                : LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.SoldOut);
         }
 
         if (_config.LtdRaffle.LimitOnePerCustomer)
@@ -139,11 +142,11 @@ public sealed class LtdRaffleGrain(
             );
 
             if (alreadyWon)
-                return LtdRaffleEntryResult.Failed(LtdRaffleEntryError.AlreadyWon);
+                return LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.AlreadyWon);
         }
 
         if (_currentBatchEntries.ContainsKey(playerId))
-            return LtdRaffleEntryResult.Failed(LtdRaffleEntryError.AlreadyInQueue);
+            return LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.AlreadyInQueue);
 
         if (_currentBatchId == null)
         {
@@ -158,10 +161,10 @@ public sealed class LtdRaffleGrain(
         }
 
         if (!_isInBufferPeriod)
-            return LtdRaffleEntryResult.Failed(LtdRaffleEntryError.RaffleProcessing);
+            return LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.RaffleProcessing);
 
         if (_currentBatchEntries.Count >= _config.LtdRaffle.MaxEntriesPerBatch)
-            return LtdRaffleEntryResult.Failed(LtdRaffleEntryError.RaffleProcessing);
+            return LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.RaffleProcessing);
 
         _currentBatchEntries[playerId] = await CalculateWeightAsync(playerId, ct);
         await PersistEntryAsync(playerId, _currentBatchId, ct);
@@ -216,7 +219,7 @@ public sealed class LtdRaffleGrain(
         if (loserIds.Count > 0)
         {
             await Task.WhenAll(
-                loserIds.Select(id => NotifyLoserAsync(id, LtdRaffleResultCode.Lost))
+                loserIds.Select(id => NotifyLoserAsync(id, LtdRaffleResultType.Lost))
             );
         }
 
@@ -265,7 +268,7 @@ public sealed class LtdRaffleGrain(
 
             if (!debitResult.Succeeded)
             {
-                await NotifyLoserAsync(playerId, LtdRaffleResultCode.Lost);
+                await NotifyLoserAsync(playerId, LtdRaffleResultType.Lost);
                 return false;
             }
 
@@ -311,7 +314,7 @@ public sealed class LtdRaffleGrain(
                     new LtdRaffleResultMessageComposer
                     {
                         ClassName = prod.ClassName ?? "LTD",
-                        ResultCode = LtdRaffleResultCode.Won,
+                        ResultCode = LtdRaffleResultType.Won,
                     }
                 );
             }
@@ -520,7 +523,7 @@ public sealed class LtdRaffleGrain(
             .ExecuteUpdateAsync(u => u.SetProperty(s => s.IsRaffleFinished, true));
     }
 
-    private async Task NotifyLoserAsync(int playerId, LtdRaffleResultCode resultCode)
+    private async Task NotifyLoserAsync(int playerId, LtdRaffleResultType resultCode)
     {
         var product = catalogService
             .GetCatalogSnapshot(CatalogType.Normal)
