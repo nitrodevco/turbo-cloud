@@ -390,6 +390,8 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
             )
             .ExecuteDeleteAsync(ct);
 
+        _state.BlockedPlayerIds.Remove(targetId);
+
         await _grainFactory
             .GetPlayerPresenceGrain(_state.PlayerId)
             .OnBlockPlayerUpdatedAsync(targetId, 0, ct);
