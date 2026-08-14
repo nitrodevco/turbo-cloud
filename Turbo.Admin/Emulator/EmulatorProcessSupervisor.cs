@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -38,13 +39,37 @@ public sealed partial class EmulatorProcessSupervisor(
             }
 
             Status = EmulatorStatus.Starting;
-            Publish($"Starting emulator process ({_config.ExecutablePath} {_config.Arguments})…");
+
+            // A relative WorkingDirectory resolves against the OS-level directory this process was
+            // launched from, which varies by launch method (dotnet run vs. running the built exe vs.
+            // an IDE's configured working directory) and can silently point at a stale build output
+            // with its own leftover appsettings.json - resolve and surface the absolute path up front
+            // so a wrong config is obvious immediately instead of showing up as a mysterious runtime
+            // failure downstream (e.g. the emulator loading unexpected ports/settings).
+            var workingDirectory = Path.GetFullPath(_config.WorkingDirectory);
+
+            Publish(
+                $"Starting emulator process ({_config.ExecutablePath} {_config.Arguments}) in {workingDirectory}…"
+            );
+
+            if (!Directory.Exists(workingDirectory))
+            {
+                _logger.LogError(
+                    "Emulator working directory does not exist: {WorkingDirectory}",
+                    workingDirectory
+                );
+                Publish(
+                    $"Failed to start emulator process: working directory not found ({workingDirectory})."
+                );
+                Status = EmulatorStatus.Stopped;
+                return;
+            }
 
             var startInfo = new ProcessStartInfo
             {
                 FileName = _config.ExecutablePath,
                 Arguments = _config.Arguments,
-                WorkingDirectory = _config.WorkingDirectory,
+                WorkingDirectory = workingDirectory,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
