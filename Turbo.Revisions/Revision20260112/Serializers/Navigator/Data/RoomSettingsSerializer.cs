@@ -1,6 +1,6 @@
-using Turbo.Primitives.Orleans.Snapshots.Room;
 using Turbo.Primitives.Packets;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Revisions.Revision20260112.Serializers.Navigator.Data;
 

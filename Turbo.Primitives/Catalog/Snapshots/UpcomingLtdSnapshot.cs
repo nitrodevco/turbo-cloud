@@ -2,9 +2,6 @@ using Orleans;
 
 namespace Turbo.Primitives.Catalog.Snapshots;
 
-/// <summary>
-/// Data required for the Landing View LTD countdown.
-/// </summary>
 [GenerateSerializer, Immutable]
 public sealed record UpcomingLtdSnapshot
 {

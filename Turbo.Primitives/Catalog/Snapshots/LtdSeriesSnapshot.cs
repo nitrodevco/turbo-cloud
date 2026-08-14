@@ -3,9 +3,6 @@ using Orleans;
 
 namespace Turbo.Primitives.Catalog.Snapshots;
 
-/// <summary>
-/// Snapshot of an LTD (Limited Edition) series configuration.
-/// </summary>
 [GenerateSerializer, Immutable]
 public sealed record LtdSeriesSnapshot
 {
@@ -36,9 +33,6 @@ public sealed record LtdSeriesSnapshot
     [Id(10)]
     public DateTime? EndsAt { get; init; }
 
-    /// <summary>
-    /// Whether this LTD series is currently available for purchase.
-    /// </summary>
     public bool IsAvailable =>
         IsActive
         && RemainingQuantity > 0

@@ -30,17 +30,16 @@ public class PurchaseFromCatalogMessageHandler(
         if (ctx.PlayerId <= 0)
             return;
 
-        // 1. Get current catalog snapshot to check for LTDs
         var snapshot = _catalogService.GetCatalogSnapshot(CatalogType.Normal);
 
         if (snapshot.OffersById.TryGetValue(message.OfferId, out var offer))
         {
-            // Detect if any product in this offer is an LTD (UniqueSize > 0)
             var ltdProduct = offer.Products.FirstOrDefault(p => p.UniqueSize > 0);
 
             if (ltdProduct != null)
             {
                 await HandleLtdPurchaseAsync(ctx, ltdProduct, ct).ConfigureAwait(false);
+
                 return;
             }
         }
@@ -78,7 +77,6 @@ public class PurchaseFromCatalogMessageHandler(
                 return;
             }
 
-            // If error code is < 100, it belongs to the dynamic "PurchaseError" (930) packet
             if ((int)ex.ErrorType < 100)
             {
                 await ctx.SendComposerAsync(
@@ -89,8 +87,6 @@ public class PurchaseFromCatalogMessageHandler(
             }
             else
             {
-                // Otherwise use the static "NotAllowed" (1872) packet
-                // Map internal RequiresHabboClub (101) to client code 1
                 var errorCode =
                     ex.ErrorType == CatalogPurchaseErrorType.RequiresHabboClub
                         ? 1
@@ -113,16 +109,13 @@ public class PurchaseFromCatalogMessageHandler(
         CancellationToken ct
     )
     {
-        // Use the series ID if available (Perfect Design), otherwise fallback to Product ID
         var seriesId = ltdProduct.LtdSeriesId ?? ltdProduct.Id;
         var ltdRaffleGrain = _grainFactory.GetLtdRaffleGrain(seriesId);
-
         var result = await ltdRaffleGrain.EnterRaffleAsync(ctx.PlayerId, ct).ConfigureAwait(false);
 
         if (result.Success)
             return;
 
-        // 1. Check for specialized balance alerts first
         if (result.BalanceFailure != null)
         {
             await ctx.SendComposerAsync(
@@ -138,11 +131,9 @@ public class PurchaseFromCatalogMessageHandler(
             return;
         }
 
-        // 2. Map other errors to correct packet types
         switch (result.Error)
         {
-            case LtdRaffleEntryError.AlreadyWon:
-                // Error 6: "LTD item purchases are limited..." needs PurchaseErrorMessage (930)
+            case LtdRaffleEntryErrorType.AlreadyWon:
                 await ctx.SendComposerAsync(
                         new PurchaseErrorMessageComposer
                         {
@@ -153,8 +144,7 @@ public class PurchaseFromCatalogMessageHandler(
                     .ConfigureAwait(false);
                 break;
 
-            case LtdRaffleEntryError.RaffleProcessing:
-                // Error 12: "Frank is handling..." needs PurchaseErrorMessage (930)
+            case LtdRaffleEntryErrorType.RaffleProcessing:
                 await ctx.SendComposerAsync(
                         new PurchaseErrorMessageComposer
                         {
@@ -165,8 +155,7 @@ public class PurchaseFromCatalogMessageHandler(
                     .ConfigureAwait(false);
                 break;
 
-            case LtdRaffleEntryError.AlreadyInQueue:
-                // Silent failure or generic error
+            case LtdRaffleEntryErrorType.AlreadyInQueue:
                 await ctx.SendComposerAsync(
                         new PurchaseNotAllowedMessageComposer
                         {
@@ -177,8 +166,7 @@ public class PurchaseFromCatalogMessageHandler(
                     .ConfigureAwait(false);
                 break;
 
-            case LtdRaffleEntryError.SoldOut:
-                // Map to static PurchaseNotAllowed (1872) using internal ID for OfferNotFound
+            case LtdRaffleEntryErrorType.SoldOut:
                 await ctx.SendComposerAsync(
                         new PurchaseNotAllowedMessageComposer
                         {
@@ -190,9 +178,7 @@ public class PurchaseFromCatalogMessageHandler(
                     .ConfigureAwait(false);
                 break;
 
-            case LtdRaffleEntryError.InsufficientFunds:
-                // Fallback: If 3883 failed or balancefailure null, send standard NotEnoughCredits via 1872 logic
-                // Map to client case 102 internally
+            case LtdRaffleEntryErrorType.InsufficientFunds:
                 await ctx.SendComposerAsync(
                         new PurchaseNotAllowedMessageComposer
                         {

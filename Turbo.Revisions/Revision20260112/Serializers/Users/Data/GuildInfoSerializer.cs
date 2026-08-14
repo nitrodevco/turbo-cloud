@@ -1,4 +1,4 @@
-using Turbo.Primitives.Groups.Snapshots;
+using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Packets;
 
 namespace Turbo.Revisions.Revision20260112.Serializers.Users.Data;

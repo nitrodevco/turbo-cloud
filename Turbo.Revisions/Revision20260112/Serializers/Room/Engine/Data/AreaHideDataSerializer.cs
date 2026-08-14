@@ -1,5 +1,5 @@
-using Turbo.Primitives.Orleans.Snapshots.Room.Furniture;
 using Turbo.Primitives.Packets;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Revisions.Revision20260112.Serializers.Room.Engine.Data;
 
