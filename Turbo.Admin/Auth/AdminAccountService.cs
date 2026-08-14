@@ -9,7 +9,7 @@ using Turbo.Database.Entities.Admin;
 
 namespace Turbo.Admin.Auth;
 
-internal sealed class AdminAccountService(
+public sealed class AdminAccountService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IPasswordHasher passwordHasher,
     ILogger<AdminAccountService> logger

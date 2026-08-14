@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Turbo.Admin.Auth.Endpoints;
 
-internal static class AuthEndpoints
+public static class AuthEndpoints
 {
     public static IEndpointRouteBuilder MapAdminAuthEndpoints(this IEndpointRouteBuilder app)
     {

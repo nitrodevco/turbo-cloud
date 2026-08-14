@@ -1,6 +1,6 @@
 namespace Turbo.Admin.Auth;
 
-internal sealed class BCryptPasswordHasher : IPasswordHasher
+public sealed class BCryptPasswordHasher : IPasswordHasher
 {
     public string Hash(string password) => BCrypt.Net.BCrypt.EnhancedHashPassword(password);
 

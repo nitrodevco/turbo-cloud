@@ -6,8 +6,6 @@ using Microsoft.Extensions.Configuration.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Turbo.Admin;
-using Turbo.Admin.Terminal;
 using Turbo.Authentication;
 using Turbo.Catalog;
 using Turbo.Crypto.Extensions;
@@ -91,12 +89,11 @@ internal class Program
         builder.Services.AddTurboLogging(builder);
         builder.Services.AddTurboNetworking(builder);
         builder.Services.AddTurboPlugins(builder);
-        builder.Services.AddTurboDatabaseContext(builder);
+        builder.Services.AddTurboDatabaseContext(builder.Configuration);
         builder.Services.AddTurboEventSystem();
         builder.Services.AddTurboMessageSystem();
         builder.Services.AddTurboCrypto(builder);
 
-        builder.Services.AddHostPlugin<AdminModule>(builder);
         builder.Services.AddHostPlugin<AuthenticationModule>(builder);
         builder.Services.AddHostPlugin<FurnitureModule>(builder);
         builder.Services.AddHostPlugin<CatalogModule>(builder);
@@ -108,9 +105,6 @@ internal class Program
 
         builder.Services.AddSingleton<AssemblyProcessor>();
         builder.Services.AddSingleton<ConsoleCommandService>();
-        builder.Services.AddSingleton<IConsoleCommandExecutor>(sp =>
-            sp.GetRequiredService<ConsoleCommandService>()
-        );
 
         builder.Services.AddHostedService<TurboEmulator>();
 

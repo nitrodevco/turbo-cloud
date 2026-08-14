@@ -1,5 +1,6 @@
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -14,12 +15,10 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddTurboDatabaseContext(
         this IServiceCollection services,
-        HostApplicationBuilder builder
+        IConfiguration configuration
     )
     {
-        services.Configure<DatabaseConfig>(
-            builder.Configuration.GetSection(DatabaseConfig.SECTION_NAME)
-        );
+        services.Configure<DatabaseConfig>(configuration.GetSection(DatabaseConfig.SECTION_NAME));
 
         services.AddDbContextFactory<TurboDbContext>(
             (sp, options) =>

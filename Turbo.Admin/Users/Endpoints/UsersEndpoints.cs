@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,7 +20,7 @@ using Turbo.Primitives.Players;
 
 namespace Turbo.Admin.Users.Endpoints;
 
-internal static class UsersEndpoints
+public static class UsersEndpoints
 {
     public static IEndpointRouteBuilder MapAdminUserEndpoints(this IEndpointRouteBuilder app)
     {
@@ -32,7 +33,7 @@ internal static class UsersEndpoints
                 int page,
                 int pageSize,
                 IDbContextFactory<TurboDbContext> dbCtxFactory,
-                IGrainFactory grainFactory,
+                GrainClientHolder grainClientHolder,
                 IOptions<AdminConfig> config,
                 CancellationToken ct
             ) =>
@@ -67,15 +68,30 @@ internal static class UsersEndpoints
                     .ToListAsync(ct)
                     .ConfigureAwait(false);
 
-                var onlineFlags = await Task.WhenAll(
-                        rows.Select(async row =>
-                        {
-                            var presence = grainFactory.GetPlayerPresenceGrain(row.Id);
+                var onlineFlags = new bool[rows.Count];
+                var grainFactory = grainClientHolder.Current;
 
-                            return await presence.HasActiveSessionAsync().ConfigureAwait(false);
-                        })
-                    )
-                    .ConfigureAwait(false);
+                if (grainFactory is not null)
+                {
+                    try
+                    {
+                        onlineFlags = await Task.WhenAll(
+                                rows.Select(async row =>
+                                {
+                                    var presence = grainFactory.GetPlayerPresenceGrain(row.Id);
+
+                                    return await presence
+                                        .HasActiveSessionAsync()
+                                        .ConfigureAwait(false);
+                                })
+                            )
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception)
+                    {
+                        onlineFlags = new bool[rows.Count];
+                    }
+                }
 
                 var items = rows.Zip(
                     onlineFlags,

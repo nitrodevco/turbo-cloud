@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -23,7 +25,7 @@ using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Admin.Rooms.Endpoints;
 
-internal static class RoomsEndpoints
+public static class RoomsEndpoints
 {
     public static IEndpointRouteBuilder MapAdminRoomEndpoints(this IEndpointRouteBuilder app)
     {
@@ -36,7 +38,7 @@ internal static class RoomsEndpoints
                 int page,
                 int pageSize,
                 IDbContextFactory<TurboDbContext> dbCtxFactory,
-                IGrainFactory grainFactory,
+                GrainClientHolder grainClientHolder,
                 IOptions<AdminConfig> config,
                 CancellationToken ct
             ) =>
@@ -71,12 +73,25 @@ internal static class RoomsEndpoints
                     .ToListAsync(ct)
                     .ConfigureAwait(false);
 
-                var activeRooms = await grainFactory
-                    .GetRoomDirectoryGrain()
-                    .GetActiveRoomsAsync()
-                    .ConfigureAwait(false);
+                var activeIds = new HashSet<int>();
+                var grainFactory = grainClientHolder.Current;
 
-                var activeIds = activeRooms.Select(x => x.RoomId.Value).ToHashSet();
+                if (grainFactory is not null)
+                {
+                    try
+                    {
+                        var activeRooms = await grainFactory
+                            .GetRoomDirectoryGrain()
+                            .GetActiveRoomsAsync()
+                            .ConfigureAwait(false);
+
+                        activeIds = [.. activeRooms.Select(x => x.RoomId.Value)];
+                    }
+                    catch (Exception)
+                    {
+                        // leave activeIds empty; rooms just show as inactive
+                    }
+                }
 
                 var items = rows.Select(row => new RoomListItem(
                     row.Id,

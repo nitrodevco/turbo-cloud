@@ -7,7 +7,7 @@ using Turbo.Admin.Common;
 
 namespace Turbo.Admin.Terminal;
 
-internal sealed class ConsoleBroadcastBridge(
+public sealed class ConsoleBroadcastBridge(
     ConsoleBroadcastService broadcastService,
     IHubContext<ConsoleHub> hubContext,
     ILogger<ConsoleBroadcastBridge> logger

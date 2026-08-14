@@ -36,7 +36,6 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Turbo.Admin\Turbo.Admin.csproj" />
     <ProjectReference Include="..\Turbo.Authentication\Turbo.Authentication.csproj" />
     <ProjectReference Include="..\Turbo.Catalog\Turbo.Catalog.csproj" />
     <ProjectReference Include="..\Turbo.Contracts\Turbo.Contracts.csproj" />

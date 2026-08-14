@@ -1,17 +1,18 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Turbo.Admin.Emulator;
 
 namespace Turbo.Admin.Terminal;
 
 [Authorize]
 public sealed class ConsoleHub(
     ConsoleBroadcastService broadcastService,
-    IConsoleCommandExecutor executor
+    IEmulatorProcessSupervisor supervisor
 ) : Hub
 {
     private readonly ConsoleBroadcastService _broadcastService = broadcastService;
-    private readonly IConsoleCommandExecutor _executor = executor;
+    private readonly IEmulatorProcessSupervisor _supervisor = supervisor;
 
     public override async Task OnConnectedAsync()
     {
@@ -23,5 +24,5 @@ public sealed class ConsoleHub(
     }
 
     public Task SendCommandAsync(string input) =>
-        _executor.HandleCommandAsync(input, Context.ConnectionAborted);
+        _supervisor.SendInputAsync(input, Context.ConnectionAborted);
 }

@@ -10,7 +10,7 @@ using Turbo.Database.Entities.Admin;
 
 namespace Turbo.Admin.Auth;
 
-internal sealed class JwtTokenService(IOptions<AdminConfig> config) : IJwtTokenService
+public sealed class JwtTokenService(IOptions<AdminConfig> config) : IJwtTokenService
 {
     private readonly AdminConfig _config = config.Value;
 

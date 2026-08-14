@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Turbo.Admin.Hosting;
 using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Furniture.Providers;
@@ -24,8 +23,7 @@ public class TurboEmulator(
     INavigatorProvider topLevelContextProvider,
     IRoomModelProvider roomModelProvider,
     INetworkManager networkManager,
-    IRevisionManager revisionManager,
-    IAdminWebHost adminWebHost
+    IRevisionManager revisionManager
 ) : IHostedService
 {
     private readonly ILogger<TurboEmulator> _logger = logger;
@@ -36,7 +34,6 @@ public class TurboEmulator(
     private readonly IRoomModelProvider _roomModelProvider = roomModelProvider;
     private readonly INetworkManager _networkManager = networkManager;
     private readonly IRevisionManager _revisionManager = revisionManager;
-    private readonly IAdminWebHost _adminWebHost = adminWebHost;
 
     public async Task StartAsync(CancellationToken ct)
     {
@@ -49,7 +46,6 @@ public class TurboEmulator(
             await _topLevelContextProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _roomModelProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _networkManager.StartAsync(ct).ConfigureAwait(false);
-            await _adminWebHost.StartAsync(ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
