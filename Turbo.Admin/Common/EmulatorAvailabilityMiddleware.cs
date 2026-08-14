@@ -14,9 +14,8 @@ public static class EmulatorAvailabilityMiddleware
         app.Use(
             async (context, next) =>
             {
-                var connectionState = context.RequestServices.GetRequiredService<
-                    OrleansConnectionState
-                >();
+                var connectionState =
+                    context.RequestServices.GetRequiredService<OrleansConnectionState>();
 
                 try
                 {

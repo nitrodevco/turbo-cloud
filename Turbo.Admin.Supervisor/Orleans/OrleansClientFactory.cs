@@ -12,7 +12,8 @@ namespace Turbo.Admin.Supervisor.Orleans;
 /// disconnected) - the client itself exposes no disposal surface, but its backing services (connection
 /// retry timers, sockets, etc.) are only released when the provider is.
 /// </summary>
-internal sealed record OrleansClientHandle(IClusterClient Client, ServiceProvider Provider) : IDisposable
+internal sealed record OrleansClientHandle(IClusterClient Client, ServiceProvider Provider)
+    : IDisposable
 {
     public void Dispose() => Provider.Dispose();
 }
