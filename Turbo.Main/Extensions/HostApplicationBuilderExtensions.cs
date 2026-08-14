@@ -25,7 +25,11 @@ public static class HostApplicationBuilderExtensions
                         listenOnAnyHostAddress: false
                     );
 
-                    silo.UseLocalhostClustering()
+                    // UseLocalhostClustering() also configures endpoints internally, using its own
+                    // defaults (siloPort 11111, gatewayPort 30000) unless told otherwise - its default
+                    // gateway port collides with the game TCP socket (also 30000, see NetworkManager),
+                    // so the ports above must be passed through explicitly here too.
+                    silo.UseLocalhostClustering(siloPort: 11111, gatewayPort: 3000)
                         .AddMemoryGrainStorage(OrleansStorageNames.PUB_SUB_STORE)
                         .AddMemoryGrainStorage(OrleansStorageNames.PLAYER_STORE)
                         .AddMemoryGrainStorage(OrleansStorageNames.ROOM_STORE)
