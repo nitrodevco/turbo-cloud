@@ -43,7 +43,14 @@ internal class Program
         _ = typeof(Turbo.Players.PlayerModule).Assembly;
         _ = typeof(Turbo.Rooms.RoomModule).Assembly;
 
-        var builder = WebApplication.CreateBuilder(args);
+        // WebApplication.CreateBuilder defaults its content root (and therefore where it looks for
+        // appsettings.json) to the process's current working directory, which varies by launch method
+        // and can silently pick up a different/stale appsettings.json than the one sitting next to this
+        // executable. Pin it to this assembly's own directory instead, matching RunCreateAdminAsync
+        // below, so both code paths always resolve configuration the same, deterministic way.
+        var builder = WebApplication.CreateBuilder(
+            new WebApplicationOptions { Args = args, ContentRootPath = AppContext.BaseDirectory }
+        );
 
         builder.Configuration.AddEnvironmentVariables(prefix: "TURBO__");
 

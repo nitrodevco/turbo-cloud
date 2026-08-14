@@ -50,6 +50,7 @@ export function useUsers(search: string, page: number, pageSize = 25) {
         `/api/admin/users/?search=${encodeURIComponent(search)}&page=${page}&pageSize=${pageSize}`,
       ),
     placeholderData: (prev) => prev,
+    refetchInterval: 4000,
   })
 }
 
