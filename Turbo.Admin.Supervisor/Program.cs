@@ -14,6 +14,7 @@ using Microsoft.IdentityModel.Tokens;
 using Orleans;
 using Turbo.Admin.Auth;
 using Turbo.Admin.Auth.Endpoints;
+using Turbo.Admin.Catalog.Endpoints;
 using Turbo.Admin.Common;
 using Turbo.Admin.Configuration;
 using Turbo.Admin.Emulator;
@@ -154,6 +155,7 @@ internal class Program
         app.MapAdminAuthEndpoints();
         app.MapAdminUserEndpoints();
         app.MapAdminRoomEndpoints();
+        app.MapAdminCatalogEndpoints();
         app.MapAdminEmulatorEndpoints();
         app.MapHub<ConsoleHub>("/hubs/console");
 

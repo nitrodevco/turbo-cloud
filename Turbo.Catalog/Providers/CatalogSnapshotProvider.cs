@@ -171,7 +171,7 @@ public sealed class CatalogSnapshotProvider<TTag>(
             var snapshot = new CatalogSnapshot
             {
                 CatalogType = CatalogType,
-                RootPageId = pages.First(x => x.ParentEntityId == null)?.Id ?? -1,
+                RootPageId = pages.FirstOrDefault(x => x.ParentEntityId == null)?.Id ?? -1,
                 PagesById = pagesById,
                 OffersById = offersById,
                 ProductsById = productsById,

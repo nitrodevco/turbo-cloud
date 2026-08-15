@@ -4,6 +4,7 @@ import { useAuth } from '../lib/auth'
 const NAV_ITEMS = [
   { to: '/users', label: 'Users' },
   { to: '/rooms', label: 'Rooms' },
+  { to: '/catalog', label: 'Catalog' },
   { to: '/terminal', label: 'Terminal' },
 ]
 

@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { RequireAuth } from './components/RequireAuth'
+import { CatalogEditorPage } from './pages/Catalog/CatalogEditor'
 import { LoginPage } from './pages/Login'
 import { RoomDetailPage } from './pages/Rooms/RoomDetail'
 import { RoomsListPage } from './pages/Rooms/RoomsList'
@@ -18,6 +19,7 @@ function App() {
         <Route path="/users/:id" element={<UserDetailPage />} />
         <Route path="/rooms" element={<RoomsListPage />} />
         <Route path="/rooms/:id" element={<RoomDetailPage />} />
+        <Route path="/catalog" element={<CatalogEditorPage />} />
         <Route path="/terminal" element={<TerminalPage />} />
       </Route>
 
