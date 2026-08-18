@@ -31,6 +31,12 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerCurrencyEntity> PlayerCurrencies { get; init; }
     public DbSet<PlayerEntity> Players { get; init; }
 
+    public DbSet<AchievementEntity> Achievements { get; init; }
+
+    public DbSet<AchievementLevelEntity> AchievementLevels { get; init; }
+
+    public DbSet<PlayerAchievementEntity> PlayerAchievements { get; init; }
+
     public DbSet<RoomBanEntity> RoomBans { get; init; }
 
     public DbSet<RoomEntity> Rooms { get; init; }

@@ -19,6 +19,7 @@ public sealed class PlayerModule : IHostPluginModule
         );
 
         services.AddSingleton<ICurrencyTypeProvider, CurrencyTypeProvider>();
+        services.AddSingleton<IAchievementProvider, AchievementProvider>();
         services.AddSingleton<IPlayerService, PlayerService>();
     }
 }

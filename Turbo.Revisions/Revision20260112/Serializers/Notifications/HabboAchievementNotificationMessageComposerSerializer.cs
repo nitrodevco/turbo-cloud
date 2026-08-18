@@ -11,6 +11,10 @@ internal class HabboAchievementNotificationMessageComposerSerializer(int header)
         HabboAchievementNotificationMessageComposer message
     )
     {
-        //
+        packet
+            .WriteString(message.Code)
+            .WriteInteger(message.Level)
+            .WriteInteger(message.Progress)
+            .WriteInteger(message.LevelGoal);
     }
 }

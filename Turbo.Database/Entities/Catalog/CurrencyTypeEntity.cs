@@ -25,4 +25,6 @@ public class CurrencyTypeEntity : TurboEntity
     public List<CatalogOfferEntity>? CatalogOffers { get; set; }
 
     public List<PlayerCurrencyEntity>? PlayerCurrencies { get; set; }
+
+    public List<AchievementLevelEntity>? AchievementLevels { get; set; }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Orleans.Runtime;
@@ -24,6 +25,7 @@ internal sealed partial class PlayerPresenceGrain
     internal readonly PlayerConfig _playerConfig;
     internal readonly IGrainFactory _grainFactory;
     internal readonly PlayerPresenceLiveState _state;
+    internal readonly ILogger<IPlayerPresenceGrain> _logger;
 
     private ISessionContextObserver? _sessionObserver = null;
     private StreamSubscriptionHandle<RoomOutboundSnapshot>? _roomOutboundSub = null;
@@ -33,10 +35,15 @@ internal sealed partial class PlayerPresenceGrain
     private IGrainTimer? _timer;
     private bool _isProcessingQueue = false;
 
-    public PlayerPresenceGrain(IOptions<PlayerConfig> playerConfig, IGrainFactory grainFactory)
+    public PlayerPresenceGrain(
+        IOptions<PlayerConfig> playerConfig,
+        IGrainFactory grainFactory,
+        ILogger<IPlayerPresenceGrain> logger
+    )
     {
         _playerConfig = playerConfig.Value;
         _grainFactory = grainFactory;
+        _logger = logger;
 
         _state = new() { PlayerId = PlayerId.Parse((int)this.GetPrimaryKeyLong()) };
     }

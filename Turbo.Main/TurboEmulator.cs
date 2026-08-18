@@ -20,6 +20,7 @@ public class TurboEmulator(
     IFurnitureDefinitionProvider furnitureProvider,
     ICatalogSnapshotProvider<NormalCatalog> catalogProvider,
     ICurrencyTypeProvider currencyTypeProvider,
+    IAchievementProvider achievementProvider,
     INavigatorProvider topLevelContextProvider,
     IRoomModelProvider roomModelProvider,
     INetworkManager networkManager,
@@ -30,6 +31,7 @@ public class TurboEmulator(
     private readonly IFurnitureDefinitionProvider _furnitureProvider = furnitureProvider;
     private readonly ICatalogSnapshotProvider<NormalCatalog> _catalogProvider = catalogProvider;
     private readonly ICurrencyTypeProvider _currencyTypeProvider = currencyTypeProvider;
+    private readonly IAchievementProvider _achievementProvider = achievementProvider;
     private readonly INavigatorProvider _topLevelContextProvider = topLevelContextProvider;
     private readonly IRoomModelProvider _roomModelProvider = roomModelProvider;
     private readonly INetworkManager _networkManager = networkManager;
@@ -43,6 +45,7 @@ public class TurboEmulator(
             await _furnitureProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _catalogProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _currencyTypeProvider.ReloadAsync(ct).ConfigureAwait(false);
+            await _achievementProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _topLevelContextProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _roomModelProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _networkManager.StartAsync(ct).ConfigureAwait(false);
