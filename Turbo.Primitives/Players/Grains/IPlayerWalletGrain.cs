@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Wallet;
 
 namespace Turbo.Primitives.Players.Grains;
@@ -14,4 +15,10 @@ public interface IPlayerWalletGrain : IGrainWithIntegerKey
     );
     public Task<int> GetAmountForCurrencyAsync(CurrencyKind kind, CancellationToken ct);
     public Task<Dictionary<int, int>> GetActivityPointsAsync(CancellationToken ct);
+
+    public Task<WalletCurrencyUpdateSnapshot?> CreditAsync(
+        CurrencyKind kind,
+        int amount,
+        CancellationToken ct
+    );
 }

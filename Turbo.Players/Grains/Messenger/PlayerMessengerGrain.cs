@@ -116,6 +116,22 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         _state.IncomingRequests.Remove(snapshot.PlayerId);
 
         ForceUpdate(friendDto.PlayerId);
+
+        try
+        {
+            await _grainFactory
+                .GetPlayerAchievementGrain(_state.PlayerId)
+                .ProgressAsync("MadeFriends", 1, ct)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to progress MadeFriends achievement for player {PlayerId}",
+                _state.PlayerId
+            );
+        }
     }
 
     public Task<FriendListErrorCodeType> CanAddFriendAsync(PlayerId playerId, CancellationToken ct)

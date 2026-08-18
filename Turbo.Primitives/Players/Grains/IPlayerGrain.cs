@@ -11,6 +11,7 @@ public interface IPlayerGrain : IGrainWithIntegerKey
     public Task SetOnlineStatusAsync(bool flag, CancellationToken ct);
     public Task SetFigureAsync(string figure, AvatarGenderType gender, CancellationToken ct);
     public Task SetMottoAsync(string text, CancellationToken ct);
+    public Task RefreshAchievementScoreAsync(int score, CancellationToken ct);
     public Task<PlayerSummarySnapshot> GetSummaryAsync(CancellationToken ct);
 
     public Task<PlayerExtendedProfileSnapshot> GetExtendedProfileSnapshotAsync(

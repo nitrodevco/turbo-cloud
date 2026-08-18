@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Turbo.Database.Context;
+using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Grains;
@@ -113,6 +114,70 @@ internal sealed class PlayerWalletGrain(
         }
 
         return Task.CompletedTask;
+    }
+
+    public async Task<WalletCurrencyUpdateSnapshot?> CreditAsync(
+        CurrencyKind kind,
+        int amount,
+        CancellationToken ct
+    )
+    {
+        if (amount <= 0)
+            return null;
+
+        var currencyTypeId = _currencyTypeProvider.GetCurrencyTypeId(kind);
+
+        if (currencyTypeId is null)
+            return null;
+
+        var playerId = (int)this.GetPrimaryKeyLong();
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+
+        var entity = await dbCtx
+            .PlayerCurrencies.FirstOrDefaultAsync(
+                x => x.PlayerEntityId == playerId && x.CurrencyTypeEntityId == currencyTypeId.Value,
+                ct
+            )
+            .ConfigureAwait(false);
+
+        if (entity is null)
+        {
+            entity = new PlayerCurrencyEntity
+            {
+                PlayerEntityId = playerId,
+                CurrencyTypeEntityId = currencyTypeId.Value,
+                Amount = amount,
+            };
+
+            dbCtx.PlayerCurrencies.Add(entity);
+        }
+        else
+        {
+            entity.Amount += amount;
+        }
+
+        await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        var update = new WalletCurrencyUpdateSnapshot
+        {
+            CurrencyKind = kind,
+            ChangedBy = amount,
+            Amount = entity.Amount,
+        };
+
+        _currenciesByKind[kind] = new WalletCurrencySnapshot
+        {
+            Id = entity.Id,
+            CurrencyKind = kind,
+            Amount = entity.Amount,
+        };
+
+        var playerPresence = _grainFactory.GetPlayerPresenceGrain(playerId);
+
+        await playerPresence.OnCurrencyUpdateAsync(update, ct).ConfigureAwait(false);
+
+        return update;
     }
 
     public Task<int> GetAmountForCurrencyAsync(CurrencyKind kind, CancellationToken ct) =>

@@ -11,4 +11,6 @@ public class PlayerConfig
     public required int MessengerSearchLimit { get; init; } = 25;
     public required int MessengerMaxIgnore { get; init; } = 100;
     public required int MaxSessionMessagesPerConversation { get; init; } = 20;
+    public required int AchievementProgressFlushTickMs { get; init; } = 10000;
+    public required int MaxDirtyAchievementsPerFlush { get; init; } = 100;
 }

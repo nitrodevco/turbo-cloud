@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Orleans;
 using Orleans.Runtime;
 using Turbo.Primitives.Action;
@@ -71,6 +72,22 @@ internal sealed partial class PlayerPresenceGrain
         };
 
         await room.CreateAvatarFromPlayerAsync(ctx, playerSnapshot, ct);
+
+        try
+        {
+            await _grainFactory
+                .GetPlayerAchievementGrain(_state.PlayerId)
+                .ProgressAsync("RoomEntry", 1, ct)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to progress RoomEntry achievement for player {PlayerId}",
+                _state.PlayerId
+            );
+        }
     }
 
     public async Task ClearActiveRoomAsync(CancellationToken ct)

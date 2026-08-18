@@ -48,6 +48,16 @@ public static class GrainFactoryExtensions
         long playerId
     ) => factory.GetGrain<IPlayerWalletGrain>(playerId);
 
+    public static IPlayerAchievementGrain GetPlayerAchievementGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerAchievementGrain>(playerId.Value);
+
+    public static IPlayerAchievementGrain GetPlayerAchievementGrain(
+        this IGrainFactory factory,
+        long playerId
+    ) => factory.GetGrain<IPlayerAchievementGrain>(playerId);
+
     public static IInventoryGrain GetInventoryGrain(
         this IGrainFactory factory,
         PlayerId playerId

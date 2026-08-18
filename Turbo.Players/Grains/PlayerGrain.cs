@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Logging;
@@ -19,13 +20,19 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly IGrainFactory _grainFactory;
+    private readonly ILogger<IPlayerGrain> _logger;
 
     private readonly PlayerLiveState _state;
 
-    public PlayerGrain(IDbContextFactory<TurboDbContext> dbCtxFactory, IGrainFactory grainFactory)
+    public PlayerGrain(
+        IDbContextFactory<TurboDbContext> dbCtxFactory,
+        IGrainFactory grainFactory,
+        ILogger<IPlayerGrain> logger
+    )
     {
         _dbCtxFactory = dbCtxFactory;
         _grainFactory = grainFactory;
+        _logger = logger;
 
         _state = new() { PlayerId = PlayerId.Parse((int)this.GetPrimaryKeyLong()) };
     }
@@ -72,6 +79,18 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         await playerPresence.OnPlayerUpdatedAsync(await GetSummaryAsync(ct), ct);
     }
 
+    public async Task RefreshAchievementScoreAsync(int score, CancellationToken ct)
+    {
+        if (_state.AchievementScore == score)
+            return;
+
+        _state.AchievementScore = score;
+
+        var playerPresence = _grainFactory.GetPlayerPresenceGrain((int)this.GetPrimaryKeyLong());
+
+        await playerPresence.OnPlayerUpdatedAsync(await GetSummaryAsync(ct), ct);
+    }
+
     private async Task HydrateAsync(CancellationToken ct)
     {
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
@@ -86,9 +105,26 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         _state.Motto = entity.Motto ?? string.Empty;
         _state.Figure = entity.Figure;
         _state.Gender = entity.Gender;
-        _state.AchievementScore = 0;
         _state.CreatedAt = entity.CreatedAt;
         _state.LastUpdated = entity.UpdatedAt;
+
+        try
+        {
+            _state.AchievementScore = await _grainFactory
+                .GetPlayerAchievementGrain((int)_state.PlayerId)
+                .GetTotalScoreAsync(ct)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to load achievement score for player {PlayerId}",
+                _state.PlayerId
+            );
+
+            _state.AchievementScore = 0;
+        }
 
         await _grainFactory
             .GetPlayerDirectoryGrain()
