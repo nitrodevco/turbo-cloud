@@ -1,0 +1,16 @@
+using Turbo.Primitives.Messages.Incoming.Room.Action;
+using Turbo.Primitives.Networking;
+using Turbo.Primitives.Packets;
+
+namespace Turbo.Revisions.Revision20260701.Parsers.Room.Action;
+
+internal class MuteUserMessageParser : IParser
+{
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new MuteUserMessage
+        {
+            UserId = packet.PopInt(),
+            RoomId = packet.PopInt(),
+            DurationInMinutes = packet.PopInt(),
+        };
+}

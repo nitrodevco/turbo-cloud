@@ -62,6 +62,9 @@ dotnet_sort_system_directives_first = true
 [*.cs]
 dotnet_diagnostic.CA2007.severity = warning
 
+# IDE1006: Naming Styles
+dotnet_diagnostic.IDE1006.severity = none
+
 [*Grain.cs]
 dotnet_diagnostic.CA2007.severity = none
 

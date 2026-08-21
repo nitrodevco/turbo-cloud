@@ -10,7 +10,6 @@ internal class FriendRequestSnapshotSerializer
         packet
             .WriteInteger(message.RequesterPlayerId)
             .WriteString(message.RequesterName)
-            .WriteString(message.RequesterFigure)
-            .WriteInteger(message.RequesterPlayerId);
+            .WriteString(message.RequesterFigure);
     }
 }

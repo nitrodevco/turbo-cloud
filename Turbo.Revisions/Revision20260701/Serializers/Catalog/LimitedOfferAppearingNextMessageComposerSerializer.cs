@@ -1,0 +1,19 @@
+using Turbo.Primitives.Messages.Outgoing.Catalog;
+using Turbo.Primitives.Packets;
+
+namespace Turbo.Revisions.Revision20260701.Serializers.Catalog;
+
+internal class LimitedOfferAppearingNextMessageComposerSerializer(int header)
+    : AbstractSerializer<LimitedOfferAppearingNextMessageComposer>(header)
+{
+    protected override void Serialize(
+        IServerPacket packet,
+        LimitedOfferAppearingNextMessageComposer message
+    )
+    {
+        packet.WriteInteger(message.AppearsInSeconds);
+        packet.WriteInteger(message.PageId);
+        packet.WriteInteger(message.OfferId);
+        packet.WriteString(message.ProductClassName);
+    }
+}

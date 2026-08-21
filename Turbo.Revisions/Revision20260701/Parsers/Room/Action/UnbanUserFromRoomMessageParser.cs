@@ -1,0 +1,11 @@
+using Turbo.Primitives.Messages.Incoming.Room.Action;
+using Turbo.Primitives.Networking;
+using Turbo.Primitives.Packets;
+
+namespace Turbo.Revisions.Revision20260701.Parsers.Room.Action;
+
+internal class UnbanUserFromRoomMessageParser : IParser
+{
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new UnbanUserFromRoomMessage { UserId = packet.PopInt(), RoomId = packet.PopInt() };
+}
