@@ -239,6 +239,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
                 Gender = avatarPlayer.Gender,
                 CustomInfo = avatarPlayer.Motto,
                 AchievementScore = snapshot.AchievementScore,
+                BadgesRank = snapshot.BadgesRank,
             }
         );
 

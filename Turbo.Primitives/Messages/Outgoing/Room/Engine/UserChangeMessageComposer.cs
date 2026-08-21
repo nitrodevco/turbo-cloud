@@ -22,4 +22,7 @@ public sealed record UserChangeMessageComposer : IComposer
 
     [Id(4)]
     public required int AchievementScore { get; init; }
+
+    [Id(5)]
+    public required int BadgesRank { get; init; }
 }

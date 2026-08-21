@@ -103,6 +103,7 @@ public sealed class RoomPlayerAvatar
             Z = Z,
             BodyRotation = Rotation,
             HeadRotation = HeadRotation,
+            JumpPower = JumpPower,
             Status = statusString.ToString(),
             Gender = Gender,
             DanceType = DanceType,

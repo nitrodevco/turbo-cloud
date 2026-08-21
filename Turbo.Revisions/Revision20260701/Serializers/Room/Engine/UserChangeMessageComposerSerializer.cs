@@ -14,6 +14,9 @@ internal class UserChangeMessageComposerSerializer(int header)
             .WriteString(message.Figure)
             .WriteString(message.Gender.ToLegacyString())
             .WriteString(message.CustomInfo)
-            .WriteInteger(message.AchievementScore);
+            .WriteInteger(message.AchievementScore)
+            .WriteString("")
+            .WriteInteger(0)
+            .WriteInteger(message.BadgesRank);
     }
 }

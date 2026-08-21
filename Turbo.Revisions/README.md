@@ -4,8 +4,7 @@ This folder is the source of truth for plugin protocol revision mappings.
 
 ## What lives here
 - Revision definitions:
-  - `RevisionDefault/RevisionDefault.cs`
-  - `Revision20260112/Revision20260112.cs`
+  - `Revision20260701/Revision20260701.cs`
 - Incoming packet parsers:
   - `Revision<id>/Parsers/<Domain>/*MessageParser.cs`
 - Outgoing message serializers:
@@ -26,15 +25,3 @@ This folder is the source of truth for plugin protocol revision mappings.
 3. Register header/parser/serializer mapping in the relevant `Revision<id>.cs`.
 4. Keep naming consistent: `*MessageParser.cs` and `*MessageComposerSerializer.cs`.
 5. Keep parsers/serializers deterministic and side-effect free.
-
-## Revision20260112 packet checklist
-For changes under `TurboSamplePlugin/Revision/Revision20260112`:
-1. Update `Headers.cs`:
-   - incoming ids in `MessageEvent`
-   - outgoing ids in `MessageComposer`
-2. Add parser class in `Parsers/<Domain>/`.
-3. Add serializer class in `Serializers/<Domain>/` for outgoing packets.
-4. Register mappings in `Revision20260112.cs`:
-   - `Parsers` dictionary for incoming events
-   - `Serializers` dictionary for outgoing composers
-5. Add/adjust `using` directives in `Revision20260112.cs` for new parser/serializer namespaces.

@@ -41,5 +41,8 @@ public record RoomAvatarSnapshot
     public required Rotation HeadRotation { get; init; }
 
     [Id(11)]
+    public required int JumpPower { get; init; }
+
+    [Id(12)]
     public required string Status { get; init; }
 }

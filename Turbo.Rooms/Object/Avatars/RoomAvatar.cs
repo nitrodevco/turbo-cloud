@@ -25,6 +25,7 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
     public string Figure { get; protected set; } = string.Empty;
 
     public Rotation HeadRotation { get; protected set; }
+    public int JumpPower { get; protected set; }
     public Dictionary<AvatarStatusType, string> Statuses { get; } = [];
 
     public Altitude PostureOffset { get; set; } = Altitude.Zero;

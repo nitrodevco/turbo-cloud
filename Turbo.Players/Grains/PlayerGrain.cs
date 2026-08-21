@@ -125,6 +125,7 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
                 Figure = _state.Figure,
                 Gender = _state.Gender,
                 AchievementScore = _state.AchievementScore,
+                BadgesRank = _state.BadgesRank,
                 IsOnline = _state.IsOnline,
                 CreatedAt = _state.CreatedAt,
                 LastUpdated = _state.LastUpdated,

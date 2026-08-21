@@ -2,7 +2,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Messages.Outgoing.Avatar;
-using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Snapshots;
 
@@ -14,17 +13,6 @@ internal sealed partial class PlayerPresenceGrain
     {
         if (_state.ActiveRoomId > 0)
         {
-            await SendComposerAsync(
-                new UserChangeMessageComposer
-                {
-                    ObjectId = -1,
-                    Figure = snapshot.Figure,
-                    Gender = snapshot.Gender,
-                    CustomInfo = snapshot.Motto,
-                    AchievementScore = snapshot.AchievementScore,
-                }
-            );
-
             var room = _grainFactory.GetRoomGrain(_state.ActiveRoomId);
 
             await room.UpdateAvatarWithPlayerAsync(snapshot, ct);

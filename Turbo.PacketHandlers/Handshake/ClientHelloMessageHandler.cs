@@ -20,6 +20,8 @@ public class ClientHelloMessageHandler() : IMessageHandler<ClientHelloMessage>
             return;
         }
 
+        ctx.SetRevisionId(message.Production);
+
         await ValueTask.CompletedTask.ConfigureAwait(false);
     }
 }

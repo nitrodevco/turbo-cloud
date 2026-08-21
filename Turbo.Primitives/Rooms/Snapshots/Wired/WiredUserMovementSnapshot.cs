@@ -39,4 +39,7 @@ public sealed record WiredUserMovementSnapshot
 
     [Id(10)]
     public required Rotation HeadDirection { get; init; }
+
+    [Id(11)]
+    public required int JumpPower { get; init; }
 }

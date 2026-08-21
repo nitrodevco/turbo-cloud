@@ -18,7 +18,8 @@ internal class WiredMovementSerializer
             .WriteInteger((int)item.MoveType)
             .WriteInteger(item.AnimationTime)
             .WriteInteger((int)item.BodyDirection)
-            .WriteInteger((int)item.HeadDirection);
+            .WriteInteger((int)item.HeadDirection)
+            .WriteInteger(item.JumpPower);
     }
 
     public static void SerializeFloorItemMovement(

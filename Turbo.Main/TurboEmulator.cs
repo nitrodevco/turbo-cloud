@@ -11,7 +11,6 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Networking.Revisions;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Rooms.Providers;
-using Turbo.Revisions.Revision20260112;
 using Turbo.Revisions.Revision20260701;
 
 namespace Turbo.Main;
@@ -40,7 +39,6 @@ public class TurboEmulator(
     {
         try
         {
-            _revisionManager.RegisterRevision(new Revision20260112());
             _revisionManager.RegisterRevision(new Revision20260701());
             await _furnitureProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _catalogProvider.ReloadAsync(ct).ConfigureAwait(false);

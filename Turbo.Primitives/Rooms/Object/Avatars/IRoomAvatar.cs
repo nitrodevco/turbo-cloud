@@ -23,6 +23,7 @@ public interface IRoomAvatar : IRoomObject
     public string Motto { get; }
     public string Figure { get; }
     public Rotation HeadRotation { get; }
+    public int JumpPower { get; }
     public Dictionary<AvatarStatusType, string> Statuses { get; }
 
     public Altitude PostureOffset { get; set; }
