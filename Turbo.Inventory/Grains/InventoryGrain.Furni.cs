@@ -101,40 +101,32 @@ public sealed partial class InventoryGrain
             }
         }
 
-        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-        try
+        dbCtx.AddRange(entities);
+
+        await dbCtx.SaveChangesAsync(ct);
+
+        foreach (var entity in entities)
         {
-            dbCtx.AddRange(entities);
+            var def =
+                _furnitureDefinitionProvider.TryGetDefinition(entity.FurnitureDefinitionEntityId)
+                ?? throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
 
-            await dbCtx.SaveChangesAsync(ct);
+            // TODO need to batch these
 
-            foreach (var entity in entities)
-            {
-                var def =
-                    _furnitureDefinitionProvider.TryGetDefinition(
-                        entity.FurnitureDefinitionEntityId
-                    ) ?? throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
-
-                // TODO need to batch these
-
-                await AddFurnitureAsync(
-                    new FurnitureItem()
-                    {
-                        ItemId = entity.Id,
-                        OwnerId = entity.PlayerEntityId,
-                        OwnerName = string.Empty,
-                        Definition = def,
-                        ExtraData = new ExtraData("{}"),
-                        StuffData = _stuffDataFactory.CreateStuffData((int)StuffDataType.LegacyKey),
-                    },
-                    ct
-                );
-            }
-        }
-        finally
-        {
-            await dbCtx.DisposeAsync().ConfigureAwait(false);
+            await AddFurnitureAsync(
+                new FurnitureItem()
+                {
+                    ItemId = entity.Id,
+                    OwnerId = entity.PlayerEntityId,
+                    OwnerName = string.Empty,
+                    Definition = def,
+                    ExtraData = new ExtraData("{}"),
+                    StuffData = _stuffDataFactory.CreateStuffData((int)StuffDataType.LegacyKey),
+                },
+                ct
+            );
         }
     }
 
