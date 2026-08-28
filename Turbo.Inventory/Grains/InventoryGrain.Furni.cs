@@ -170,45 +170,38 @@ public sealed partial class InventoryGrain
             }
         );
 
-        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-        try
+        // Create furniture entity - LTD data is stored in ExtraData JSON
+        var entity = new FurnitureEntity
         {
-            // Create furniture entity - LTD data is stored in ExtraData JSON
-            var entity = new FurnitureEntity
+            PlayerEntityId = (int)this.GetPrimaryKeyLong(),
+            FurnitureDefinitionEntityId = def.Id,
+            ExtraData = extraDataJson,
+        };
+
+        dbCtx.Add(entity);
+        await dbCtx.SaveChangesAsync(ct);
+
+        // Create stuff data from the ExtraData - this properly loads the UniqueNumber/UniqueSeries
+        var extraData = new ExtraData(extraDataJson);
+        var stuffData = _stuffDataFactory.CreateStuffDataFromExtraData(
+            StuffDataType.LegacyKey,
+            extraData
+        );
+
+        // Add to inventory
+        await AddFurnitureAsync(
+            new FurnitureItem()
             {
-                PlayerEntityId = (int)this.GetPrimaryKeyLong(),
-                FurnitureDefinitionEntityId = def.Id,
-                ExtraData = extraDataJson,
-            };
-
-            dbCtx.Add(entity);
-            await dbCtx.SaveChangesAsync(ct);
-
-            // Create stuff data from the ExtraData - this properly loads the UniqueNumber/UniqueSeries
-            var extraData = new ExtraData(extraDataJson);
-            var stuffData = _stuffDataFactory.CreateStuffDataFromExtraData(
-                StuffDataType.LegacyKey,
-                extraData
-            );
-
-            // Add to inventory
-            await AddFurnitureAsync(
-                new FurnitureItem()
-                {
-                    ItemId = entity.Id,
-                    OwnerId = entity.PlayerEntityId,
-                    OwnerName = string.Empty,
-                    Definition = def,
-                    ExtraData = extraData,
-                    StuffData = stuffData,
-                },
-                ct
-            );
-        }
-        finally
-        {
-            await dbCtx.DisposeAsync().ConfigureAwait(false);
-        }
+                ItemId = entity.Id,
+                OwnerId = entity.PlayerEntityId,
+                OwnerName = string.Empty,
+                Definition = def,
+                ExtraData = extraData,
+                StuffData = stuffData,
+            },
+            ct
+        );
     }
 }

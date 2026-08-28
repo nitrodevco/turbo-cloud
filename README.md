@@ -44,7 +44,7 @@ DOTNET_ENVIRONMENT=Development dotnet run --project Turbo.Main/Turbo.Main.csproj
 It includes the host executable (`Turbo.Main`), domain modules (`Turbo.Rooms`, `Turbo.Players`, `Turbo.Database`, and others), networking/message layers, and plugin infrastructure.
 
 ## Tooling Baseline
-- .NET SDK 9.x (pinned via `global.json`)
+- .NET SDK 10.x (pinned via `global.json`)
 - Git
 - MySQL running locally (or reachable dev instance)
 
@@ -101,7 +101,7 @@ Example:
   "Turbo": {
     "Plugin": {
       "DevPluginPaths": [
-        "C:/Users/you/RiderProjects/turbo-sample-plugin/TurboSamplePlugin/bin/Debug/net9.0"
+        "C:/Users/you/RiderProjects/turbo-sample-plugin/TurboSamplePlugin/bin/Debug/net10.0"
       ]
     }
   }

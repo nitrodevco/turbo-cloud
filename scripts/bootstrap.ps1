@@ -21,12 +21,12 @@ Require-File "appsettings.json" "base appsettings file"
 
 Write-Step "Checking .NET SDK"
 if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
-    throw "dotnet is not installed. Install .NET SDK 9.x and rerun."
+    throw "dotnet is not installed. Install .NET SDK 10.x and rerun."
 }
 
 $dotnetVersion = (dotnet --version).Trim()
-if (-not $dotnetVersion.StartsWith("9.")) {
-    throw ".NET SDK 9.x is required. Found '$dotnetVersion'."
+if (-not $dotnetVersion.StartsWith("10.")) {
+    throw ".NET SDK 10.x is required. Found '$dotnetVersion'."
 }
 Write-Host "Using dotnet SDK $dotnetVersion"
 
