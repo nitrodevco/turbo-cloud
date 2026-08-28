@@ -50,7 +50,7 @@ internal sealed partial class PlayerPresenceGrain
     {
         _outgoingQueue.Clear();
 
-        await UnregisterSessionObserverAsync(ct).ConfigureAwait(false);
+        await UnregisterSessionObserverAsync(ct);
     }
 
     public Task RegisterSessionObserverAsync(ISessionContextObserver observer)

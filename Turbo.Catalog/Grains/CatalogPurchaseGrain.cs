@@ -53,8 +53,7 @@ public sealed partial class CatalogPurchaseGrain(
 
         await _grainFactory
             .GetInventoryGrain((int)this.GetPrimaryKeyLong())
-            .GrantCatalogOfferAsync(offer, extraParam, quantity, ct)
-            .ConfigureAwait(false);
+            .GrantCatalogOfferAsync(offer, extraParam, quantity, ct);
 
         return offer;
     }

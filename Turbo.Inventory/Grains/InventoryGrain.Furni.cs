@@ -101,7 +101,7 @@ public sealed partial class InventoryGrain
             }
         }
 
-        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         try
         {
@@ -134,7 +134,7 @@ public sealed partial class InventoryGrain
         }
         finally
         {
-            await dbCtx.DisposeAsync().ConfigureAwait(false);
+            await dbCtx.DisposeAsync();
         }
     }
 
@@ -178,7 +178,7 @@ public sealed partial class InventoryGrain
             }
         );
 
-        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         try
         {
@@ -216,7 +216,7 @@ public sealed partial class InventoryGrain
         }
         finally
         {
-            await dbCtx.DisposeAsync().ConfigureAwait(false);
+            await dbCtx.DisposeAsync();
         }
     }
 }

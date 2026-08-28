@@ -42,12 +42,8 @@ internal sealed class PlayerWalletGrain(
             && normalizedRequests.Count > 0
         )
         {
-            await using var dbCtx = await _dbCtxFactory
-                .CreateDbContextAsync(ct)
-                .ConfigureAwait(false);
-            await using var tx = await dbCtx
-                .Database.BeginTransactionAsync(ct)
-                .ConfigureAwait(false);
+            await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+            await using var tx = await dbCtx.Database.BeginTransactionAsync(ct);
 
             var updates = new List<WalletCurrencyUpdateSnapshot>(normalizedRequests.Count);
 
