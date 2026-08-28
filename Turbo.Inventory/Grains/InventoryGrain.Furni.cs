@@ -101,40 +101,32 @@ public sealed partial class InventoryGrain
             }
         }
 
-        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-        try
+        dbCtx.AddRange(entities);
+
+        await dbCtx.SaveChangesAsync(ct);
+
+        foreach (var entity in entities)
         {
-            dbCtx.AddRange(entities);
+            var def =
+                _furnitureDefinitionProvider.TryGetDefinition(entity.FurnitureDefinitionEntityId)
+                ?? throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
 
-            await dbCtx.SaveChangesAsync(ct);
+            // TODO need to batch these
 
-            foreach (var entity in entities)
-            {
-                var def =
-                    _furnitureDefinitionProvider.TryGetDefinition(
-                        entity.FurnitureDefinitionEntityId
-                    ) ?? throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
-
-                // TODO need to batch these
-
-                await AddFurnitureAsync(
-                    new FurnitureItem()
-                    {
-                        ItemId = entity.Id,
-                        OwnerId = entity.PlayerEntityId,
-                        OwnerName = string.Empty,
-                        Definition = def,
-                        ExtraData = new ExtraData("{}"),
-                        StuffData = _stuffDataFactory.CreateStuffData((int)StuffDataType.LegacyKey),
-                    },
-                    ct
-                );
-            }
-        }
-        finally
-        {
-            await dbCtx.DisposeAsync();
+            await AddFurnitureAsync(
+                new FurnitureItem()
+                {
+                    ItemId = entity.Id,
+                    OwnerId = entity.PlayerEntityId,
+                    OwnerName = string.Empty,
+                    Definition = def,
+                    ExtraData = new ExtraData("{}"),
+                    StuffData = _stuffDataFactory.CreateStuffData((int)StuffDataType.LegacyKey),
+                },
+                ct
+            );
         }
     }
 
@@ -178,45 +170,38 @@ public sealed partial class InventoryGrain
             }
         );
 
-        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-        try
+        // Create furniture entity - LTD data is stored in ExtraData JSON
+        var entity = new FurnitureEntity
         {
-            // Create furniture entity - LTD data is stored in ExtraData JSON
-            var entity = new FurnitureEntity
+            PlayerEntityId = (int)this.GetPrimaryKeyLong(),
+            FurnitureDefinitionEntityId = def.Id,
+            ExtraData = extraDataJson,
+        };
+
+        dbCtx.Add(entity);
+        await dbCtx.SaveChangesAsync(ct);
+
+        // Create stuff data from the ExtraData - this properly loads the UniqueNumber/UniqueSeries
+        var extraData = new ExtraData(extraDataJson);
+        var stuffData = _stuffDataFactory.CreateStuffDataFromExtraData(
+            StuffDataType.LegacyKey,
+            extraData
+        );
+
+        // Add to inventory
+        await AddFurnitureAsync(
+            new FurnitureItem()
             {
-                PlayerEntityId = (int)this.GetPrimaryKeyLong(),
-                FurnitureDefinitionEntityId = def.Id,
-                ExtraData = extraDataJson,
-            };
-
-            dbCtx.Add(entity);
-            await dbCtx.SaveChangesAsync(ct);
-
-            // Create stuff data from the ExtraData - this properly loads the UniqueNumber/UniqueSeries
-            var extraData = new ExtraData(extraDataJson);
-            var stuffData = _stuffDataFactory.CreateStuffDataFromExtraData(
-                StuffDataType.LegacyKey,
-                extraData
-            );
-
-            // Add to inventory
-            await AddFurnitureAsync(
-                new FurnitureItem()
-                {
-                    ItemId = entity.Id,
-                    OwnerId = entity.PlayerEntityId,
-                    OwnerName = string.Empty,
-                    Definition = def,
-                    ExtraData = extraData,
-                    StuffData = stuffData,
-                },
-                ct
-            );
-        }
-        finally
-        {
-            await dbCtx.DisposeAsync();
-        }
+                ItemId = entity.Id,
+                OwnerId = entity.PlayerEntityId,
+                OwnerName = string.Empty,
+                Definition = def,
+                ExtraData = extraData,
+                StuffData = stuffData,
+            },
+            ct
+        );
     }
 }
