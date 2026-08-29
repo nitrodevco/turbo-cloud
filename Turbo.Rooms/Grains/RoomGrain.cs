@@ -43,6 +43,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     internal IAsyncStream<RoomOutboundSnapshot> _roomOutbound = default!;
 
+    private IGrainTimer? _roomTimer;
+
     internal readonly RoomLiveState _state;
 
     public readonly RoomEventModule EventModule;
@@ -124,21 +126,46 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
         _roomOutbound = provider.GetStream<RoomOutboundSnapshot>(streamId);
 
-        this.RegisterGrainTimer<object?>(
+        // One-shot timer re-armed to the next epoch-aligned boundary after each tick.
+        // A periodic grain timer measures its period from the end of the previous callback,
+        // so tick phase would drift by the callback's execution time and the avatar/wired/roller
+        // boundaries (all multiples of RoomTickMs from EpochMs) would be crossed late by a
+        // varying amount each cycle.
+        _roomTimer = this.RegisterGrainTimer<object?>(
             async (state, ct) =>
             {
-                var now = NowMs();
+                try
+                {
+                    var now = NowMs();
 
-                await AvatarTickSystem.ProcessAvatarsAsync(now, ct);
-                await WiredSystem.ProcessWiredAsync(now, ct);
-                await RollerSystem.ProcessRollersAsync(now, ct);
-                await FlushDirtyTilesAsync(ct);
-                await FlushDirtyItemsAsync(ct);
+                    await AvatarTickSystem.ProcessAvatarsAsync(now, ct);
+                    await WiredSystem.ProcessWiredAsync(now, ct);
+                    await RollerSystem.ProcessRollersAsync(now, ct);
+                    await FlushDirtyTilesAsync(ct);
+                    await FlushDirtyItemsAsync(ct);
+                }
+                finally
+                {
+                    RearmRoomTimer();
+                }
             },
             null,
             TimeSpan.FromMilliseconds(_roomConfig.RoomTickMs),
-            TimeSpan.FromMilliseconds(_roomConfig.RoomTickMs)
+            Timeout.InfiniteTimeSpan
         );
+    }
+
+    private void RearmRoomTimer()
+    {
+        var now = NowMs();
+        var next = AlignToNextBoundary(now, _roomConfig.RoomTickMs);
+
+        // AlignToNextBoundary returns `now` when it lands exactly on a boundary; firing again
+        // with a zero due time would double-tick the same boundary.
+        if (next <= now)
+            next = now + _roomConfig.RoomTickMs;
+
+        _roomTimer?.Change(TimeSpan.FromMilliseconds(next - now), Timeout.InfiniteTimeSpan);
     }
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
