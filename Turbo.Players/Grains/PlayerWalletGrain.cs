@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Turbo.Database.Context;
+using Turbo.Players.Exceptions;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Grains;
@@ -54,7 +55,11 @@ internal sealed class PlayerWalletGrain(
                     var update = await ProcessDebitRequestAsync(dbCtx, request, ct);
 
                     if (update.ChangedBy != request.Amount)
-                        throw new Exception("Failed to process debit request");
+                        throw new WalletDebitFailedException(
+                            request.CurrencyKind,
+                            request.Amount,
+                            update.ChangedBy
+                        );
 
                     updates.Add(update);
                 }

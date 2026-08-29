@@ -1,4 +1,3 @@
-using System;
 using Orleans;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
@@ -38,7 +37,7 @@ public readonly record struct ActionContext(
                 playerCtx.RoomObject.PlayerId,
                 ctx.RoomId
             ),
-            _ => throw new Exception("Cannot create ActionContext for object context"),
+            _ => throw new InvalidActionContextException(ctx.GetType()),
         };
 
     public static ActionContext Invalid =>

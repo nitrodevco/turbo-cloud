@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Turbo.Catalog.Exceptions;
 using Turbo.Database.Context;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
@@ -29,10 +30,8 @@ public sealed class CatalogService(
         return catalogType switch
         {
             CatalogType.Normal => _normalCatalogProvider.Current,
-            CatalogType.BuildersClub => throw new NotSupportedException(
-                $"Catalog type {catalogType} is not supported."
-            ),
-            _ => throw new NotSupportedException($"Catalog type {catalogType} is not supported."),
+            CatalogType.BuildersClub => throw new CatalogTypeNotSupportedException(catalogType),
+            _ => throw new CatalogTypeNotSupportedException(catalogType),
         };
     }
 

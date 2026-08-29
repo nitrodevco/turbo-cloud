@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using Turbo.Contracts.Plugins;
+using Turbo.Plugins.Exceptions;
 
 namespace Turbo.Plugins;
 
@@ -21,41 +22,45 @@ internal static partial class PluginHelpers
         var path = Path.Combine(dir, "manifest.json");
 
         if (!File.Exists(path))
-            throw new FileNotFoundException($"Plugin manifest not found: {path}");
+            throw new PluginManifestException(PluginManifestErrorType.NotFound, path);
 
         try
         {
             var manifest =
-                (
-                    JsonSerializer.Deserialize<PluginManifest>(
-                        File.ReadAllText(path),
-                        _jsonSerializerOptions
-                    ) ?? throw new InvalidOperationException("Invalid manifest.json")
-                )
-                ?? throw new InvalidDataException($"manifest.json at {path} deserialized to null");
+                JsonSerializer.Deserialize<PluginManifest>(
+                    File.ReadAllText(path),
+                    _jsonSerializerOptions
+                ) ?? throw new PluginManifestException(PluginManifestErrorType.Unreadable, path);
 
             if (string.IsNullOrWhiteSpace(manifest.Name))
-                throw new InvalidDataException(
-                    $"Plugin manifest missing required 'Name' in {path}"
+                throw new PluginManifestException(
+                    PluginManifestErrorType.MissingField,
+                    path,
+                    nameof(manifest.Name)
                 );
 
             if (string.IsNullOrWhiteSpace(manifest.Version))
-                throw new InvalidDataException(
-                    $"Plugin manifest missing required 'Version' in {path}"
+                throw new PluginManifestException(
+                    PluginManifestErrorType.MissingField,
+                    path,
+                    nameof(manifest.Version)
                 );
 
             if (string.IsNullOrWhiteSpace(manifest.AssemblyFile))
-                throw new InvalidDataException(
-                    $"Plugin manifest missing required 'AssemblyFile' in {path}"
+                throw new PluginManifestException(
+                    PluginManifestErrorType.MissingField,
+                    path,
+                    nameof(manifest.AssemblyFile)
                 );
 
             return manifest;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not PluginManifestException)
         {
-            throw new InvalidDataException(
-                $"Failed to parse manifest.json for plugin at {dir}: {ex.Message}",
-                ex
+            throw new PluginManifestException(
+                PluginManifestErrorType.Unreadable,
+                path,
+                innerException: ex
             );
         }
     }
@@ -80,7 +85,11 @@ internal static partial class PluginHelpers
             {
                 if (!byKey.ContainsKey(d.Key))
                 {
-                    throw new InvalidOperationException($"{m.Key} is missing dependency {d.Key}");
+                    throw new PluginDependencyException(
+                        PluginDependencyErrorType.Missing,
+                        m.Key,
+                        [d.Key]
+                    );
                 }
 
                 graph[d.Key].Add(m.Key);
@@ -102,7 +111,7 @@ internal static partial class PluginHelpers
         }
 
         if (order.Count != manifests.Count)
-            throw new InvalidOperationException("Cyclic plugin dependencies.");
+            throw new PluginDependencyException(PluginDependencyErrorType.Cycle);
 
         return [.. order.Select(k => byKey[k])];
     }
@@ -123,8 +132,10 @@ internal static partial class PluginHelpers
                         Path.GetFileNameWithoutExtension(f)
                             .Contains(manifest.Key, StringComparison.OrdinalIgnoreCase)
                     )
-                ?? throw new FileNotFoundException(
-                    $"No assembly for plugin {manifest.Key} in {pluginDir}"
+                ?? throw new PluginAssemblyException(
+                    PluginAssemblyErrorType.NotFound,
+                    manifest.Key,
+                    pluginDir
                 );
             asmPath = alt;
         }

@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Exceptions;
 
 namespace Turbo.Rooms.Wired;
 
@@ -32,9 +33,7 @@ public class WiredData : IWiredData
         var rule = _intRules[index];
 
         if (rule.ValueType != typeof(T))
-            throw new InvalidOperationException(
-                $"Param {index} is {rule.ValueType?.Name}, not {typeof(T).Name}"
-            );
+            throw new WiredParamTypeMismatchException(index, rule.ValueType, typeof(T));
 
         return (T)rule.FromInt(IntParams[index]);
     }
@@ -44,9 +43,7 @@ public class WiredData : IWiredData
         var rule = _intRules[index];
 
         if (rule.ValueType != typeof(T))
-            throw new InvalidOperationException(
-                $"Param {index} is {rule.ValueType?.Name}, not {typeof(T).Name}"
-            );
+            throw new WiredParamTypeMismatchException(index, rule.ValueType, typeof(T));
 
         IntParams[index] = rule.Sanitize(rule.ToInt(value!));
 

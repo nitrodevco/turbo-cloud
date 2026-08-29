@@ -13,6 +13,7 @@ using Microsoft.Extensions.Options;
 using Turbo.Contracts.Plugins;
 using Turbo.Logging.Extensions;
 using Turbo.Plugins.Configuration;
+using Turbo.Plugins.Exceptions;
 using Turbo.Plugins.Exports;
 using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
@@ -152,8 +153,10 @@ public sealed class PluginManager(
                             _dependents.TryGetValue(m.Key, out var deps)
                             && deps.Any(_live.ContainsKey)
                         )
-                            throw new InvalidOperationException(
-                                $"Cannot reload {m.Key} while dependents are active: {string.Join(",", deps.Where(_live.ContainsKey))}"
+                            throw new PluginDependencyException(
+                                PluginDependencyErrorType.DependentsActive,
+                                m.Key,
+                                deps.Where(_live.ContainsKey)
                             );
 
                         await StopAndTearDownAsync(current, ct).ConfigureAwait(false);
@@ -238,14 +241,18 @@ public sealed class PluginManager(
             {
                 foreach (var dep in manifest.Dependencies.Where(dep => !_live.ContainsKey(dep.Key)))
                 {
-                    throw new InvalidOperationException(
-                        $"Cannot reload {key}; dependency {dep.Key} is not active."
+                    throw new PluginDependencyException(
+                        PluginDependencyErrorType.DependencyInactive,
+                        key,
+                        [dep.Key]
                     );
                 }
 
                 if (_dependents.TryGetValue(key, out var deps) && deps.Any(_live.ContainsKey))
-                    throw new InvalidOperationException(
-                        $"Cannot reload {key} while dependents are active: {string.Join(",", deps.Where(_live.ContainsKey))}"
+                    throw new PluginDependencyException(
+                        PluginDependencyErrorType.DependentsActive,
+                        key,
+                        deps.Where(_live.ContainsKey)
                     );
 
                 var asm = GetLoadedPluginAssembly(manifest, folder);
@@ -285,8 +292,10 @@ public sealed class PluginManager(
         try
         {
             if (_dependents.TryGetValue(key, out var deps) && deps.Any(_live.ContainsKey))
-                throw new InvalidOperationException(
-                    $"Cannot unload {key}; dependents active: {string.Join(",", deps.Where(_live.ContainsKey))}"
+                throw new PluginDependencyException(
+                    PluginDependencyErrorType.DependentsActive,
+                    key,
+                    deps.Where(_live.ContainsKey)
                 );
 
             if (_live.TryRemove(key, out var env))
@@ -356,8 +365,10 @@ public sealed class PluginManager(
         var inst = CreatePluginInstance(asm.Assembly);
 
         if (!string.Equals(inst.Key, m.Key, StringComparison.Ordinal))
-            throw new InvalidOperationException(
-                $"Plugin key mismatch: manifest={m.Key} entry={inst.Key}"
+            throw new PluginAssemblyException(
+                PluginAssemblyErrorType.KeyMismatch,
+                m.Key,
+                entryPointKey: inst.Key
             );
 
         var sp = CreatePluginServiceProvider(inst, m);
@@ -400,8 +411,9 @@ public sealed class PluginManager(
     {
         var pluginType =
             AssemblyExplorer.FindType(asm, typeof(ITurboPlugin))
-            ?? throw new InvalidOperationException(
-                $"Failed to find ITurboPlugin in assembly '{asm.GetName().Name}'."
+            ?? throw new PluginAssemblyException(
+                PluginAssemblyErrorType.EntryPointNotFound,
+                assemblyLocation: asm.GetName().Name
             );
 
         return (ITurboPlugin)Activator.CreateInstance(pluginType)!;

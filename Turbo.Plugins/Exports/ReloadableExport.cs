@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Plugins.Exports;
+using Turbo.Plugins.Exceptions;
 
 namespace Turbo.Plugins.Exports;
 
@@ -12,8 +13,7 @@ public sealed class ReloadableExport<T> : IExport<T>
     private volatile T? _current;
     private ImmutableArray<Action<T>> _subs = [];
 
-    public T Current =>
-        _current ?? throw new InvalidOperationException($"Export {typeof(T).Name} not bound yet.");
+    public T Current => _current ?? throw new PluginExportNotBoundException(typeof(T));
 
     public async Task SwapAsync(T value)
     {

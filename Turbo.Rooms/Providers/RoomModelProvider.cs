@@ -11,6 +11,7 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
+using Turbo.Rooms.Exceptions;
 
 namespace Turbo.Rooms.Providers;
 
@@ -29,7 +30,7 @@ public sealed class RoomModelProvider(
     public RoomModelSnapshot GetModelById(int modelId) =>
         _modelsById.TryGetValue(modelId, out var model)
             ? model
-            : throw new KeyNotFoundException($"Room model not found: ModelId={modelId}");
+            : throw new RoomModelNotFoundException(modelId);
 
     public async Task ReloadAsync(CancellationToken ct = default)
     {
@@ -84,7 +85,7 @@ public sealed class RoomModelProvider(
         var rows = SplitLines(model);
 
         if (rows.Count == 0)
-            throw new InvalidDataException("Room model data is empty.");
+            throw new RoomModelDataInvalidException("the model contains no rows");
 
         var height = rows.Count;
         var width = rows.Max(x => x.Length);

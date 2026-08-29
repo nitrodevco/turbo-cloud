@@ -117,7 +117,7 @@ public class WiredSelectorItemsWithVariable(
                     WiredComparisonType.LessThan => comparisonResult < 0,
                     WiredComparisonType.Equals => comparisonResult == 0,
                     WiredComparisonType.GreaterThan => comparisonResult > 0,
-                    _ => throw new InvalidOperationException("Invalid comparison type."),
+                    _ => throw new TurboException(TurboErrorCodeEnum.InvalidWired),
                 };
 
             if (!isMatch)
