@@ -8,6 +8,6 @@ internal class InterstitialMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, InterstitialMessageComposer message)
     {
-        //
+        packet.WriteBoolean(message.CanShowInterstitial);
     }
 }

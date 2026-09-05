@@ -1,12 +1,17 @@
-using System;
-using Turbo.Primitives.Networking;
+using Orleans;
 using Turbo.Primitives.Rooms.Enums;
 
-namespace Turbo.Primitives.Messages.Incoming.Avatar;
+namespace Turbo.Primitives.Players.Snapshots.Wardrobe;
 
-public record SaveWardrobeOutfitMessage : IMessageEvent
+[GenerateSerializer, Immutable]
+public sealed record OutfitDataSnapshot
 {
+    [Id(0)]
     public required int SlotId { get; init; }
+
+    [Id(1)]
     public required string Figure { get; init; }
+
+    [Id(2)]
     public required AvatarGenderType Gender { get; init; }
 }

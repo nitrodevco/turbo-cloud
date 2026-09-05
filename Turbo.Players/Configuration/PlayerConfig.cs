@@ -11,4 +11,5 @@ public class PlayerConfig
     public required int MessengerSearchLimit { get; init; } = 25;
     public required int MessengerMaxIgnore { get; init; } = 100;
     public required int MaxSessionMessagesPerConversation { get; init; } = 20;
+    public required int WardrobeMaxSlots { get; init; } = 10;
 }

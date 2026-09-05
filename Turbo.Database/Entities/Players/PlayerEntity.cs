@@ -52,6 +52,9 @@ public class PlayerEntity : TurboEntity
     public List<PlayerCurrencyEntity>? PlayerCurrencies { get; set; }
 
     [InverseProperty("PlayerEntity")]
+    public List<PlayerOutfitEntity>? PlayerOutfits { get; set; }
+
+    [InverseProperty("PlayerEntity")]
     public List<PlayerChatStyleOwnedEntity>? PlayerOwnedChatStyles { get; set; }
 
     [InverseProperty("PlayerEntity")]

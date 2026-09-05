@@ -19,6 +19,7 @@ internal class UserUpdateMessageComposerSerializer(int header)
                 .WriteString(avatar.Z.ToString())
                 .WriteInteger((int)avatar.HeadRotation)
                 .WriteInteger((int)avatar.BodyRotation)
+                .WriteInteger((int)avatar.JumpPower)
                 .WriteString(avatar.Status);
         }
     }

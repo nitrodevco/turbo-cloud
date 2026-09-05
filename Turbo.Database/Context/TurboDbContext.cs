@@ -29,6 +29,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerBadgeEntity> PlayerBadges { get; init; }
 
     public DbSet<PlayerCurrencyEntity> PlayerCurrencies { get; init; }
+
+    public DbSet<PlayerOutfitEntity> PlayerOutfits { get; init; }
     public DbSet<PlayerEntity> Players { get; init; }
 
     public DbSet<RoomBanEntity> RoomBans { get; init; }
