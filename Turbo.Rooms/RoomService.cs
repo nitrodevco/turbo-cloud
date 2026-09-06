@@ -128,6 +128,9 @@ internal sealed partial class RoomService(
                         FixedWallsHeight = _roomConfig.DefaultWallHeight,
                         ModelData = mapSnapshot.ModelData,
                         AreaHideData = [],
+                        CameraInitX = 0, // TODO
+                        CameraInitY = 0, // TODO
+                        CameraInitZ = 0, // TODO
                     },
                     new RoomVisualizationSettingsMessageComposer
                     {

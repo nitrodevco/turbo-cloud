@@ -5,6 +5,7 @@ using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Users;
 using Turbo.Primitives.Messages.Outgoing.Preferences;
 using Turbo.Primitives.Messages.Outgoing.Users;
+using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
 
@@ -58,6 +59,13 @@ public class ScrGetUserInfoMessageHandler(IGrainFactory grainFactory)
                     WiredInspectButton = false,
                     PlayTestMode = false,
                     VariableSyntaxMode = 1,
+                    WiredWhisperDisabled = false,
+                    ShowAllNotifications = true,
+                    WiredUIStyle = "",
+                    ChatSizePreference = 0,
+                    ChatMode = 0,
+                    ChatBubbleWidth = ChatBubbleWidthType.Normal,
+                    ChatScrollSpeed = ChatScrollSpeedType.Normal,
                 },
                 ct
             )

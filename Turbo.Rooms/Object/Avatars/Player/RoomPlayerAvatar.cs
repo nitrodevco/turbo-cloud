@@ -114,6 +114,7 @@ public sealed class RoomPlayerAvatar
             SwimFigure = SwimFigure,
             ActivityPoints = ActivityPoints,
             IsModerator = IsModerator,
+            BadgesRank = 0, // TODO
         };
     }
 }

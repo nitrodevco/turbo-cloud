@@ -141,6 +141,6 @@ internal sealed partial class PlayerPresenceGrain
             return;
         }
 
-        await SendComposerAsync(new YouAreNotControllerMessageComposer { });
+        await SendComposerAsync(new YouAreNotControllerMessageComposer { RoomId = roomId });
     }
 }

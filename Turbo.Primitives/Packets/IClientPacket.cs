@@ -12,6 +12,7 @@ public interface IClientPacket : ITurboPacket
     public short PopShort();
     public ushort PopUShort();
     public int PopInt();
+    public float PopFloat();
     public long PopLong();
     public string PopString(Encoding? encoding = null);
 }

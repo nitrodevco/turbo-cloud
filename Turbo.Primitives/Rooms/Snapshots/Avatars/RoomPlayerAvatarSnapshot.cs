@@ -32,4 +32,7 @@ public sealed record RoomPlayerAvatarSnapshot : RoomAvatarSnapshot
 
     [Id(20)]
     public required bool IsModerator { get; init; }
+
+    [Id(21)]
+    public required int BadgesRank { get; init; }
 }

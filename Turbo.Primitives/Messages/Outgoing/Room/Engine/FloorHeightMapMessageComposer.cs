@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Engine;
@@ -20,4 +21,13 @@ public sealed record FloorHeightMapMessageComposer : IComposer
 
     [Id(3)]
     public required List<AreaHideDataSnapshot> AreaHideData { get; init; }
+
+    [Id(4)]
+    public required int CameraInitX { get; init; }
+
+    [Id(5)]
+    public required int CameraInitY { get; init; }
+
+    [Id(6)]
+    public required Altitude CameraInitZ { get; init; }
 }

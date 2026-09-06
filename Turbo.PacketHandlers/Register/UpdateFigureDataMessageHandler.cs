@@ -4,7 +4,6 @@ using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Register;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.PacketHandlers.Register;
 
@@ -24,12 +23,6 @@ public class UpdateFigureDataMessageHandler(IGrainFactory grainFactory)
 
         var player = _grainFactory.GetPlayerGrain(ctx.PlayerId);
 
-        await player
-            .SetFigureAsync(
-                message.Figure,
-                AvatarGenderTypeExtensions.FromLegacyString(message.Gender),
-                ct
-            )
-            .ConfigureAwait(false);
+        await player.SetFigureAsync(message.Figure, message.Gender, ct).ConfigureAwait(false);
     }
 }

@@ -58,6 +58,14 @@ public class ClientPacket(int header, ReadOnlyMemory<byte> payload)
         return v;
     }
 
+    public float PopFloat()
+    {
+        Ensure(4);
+        float v = BinaryPrimitives.ReadSingleBigEndian(_payload.Span.Slice(_pos, 4));
+        _pos += 4;
+        return v;
+    }
+
     public long PopLong()
     {
         Ensure(8);

@@ -14,6 +14,8 @@ public interface IServerPacket : ITurboPacket
 
     IServerPacket WriteShort(short s);
 
+    IServerPacket WriteFloat(float f);
+
     IServerPacket WriteDouble(double d);
 
     IServerPacket WriteLong(long l);

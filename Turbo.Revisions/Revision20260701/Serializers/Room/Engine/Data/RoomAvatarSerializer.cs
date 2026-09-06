@@ -36,6 +36,7 @@ internal class RoomAvatarSerializer
             .WriteString(snapshot.GroupName)
             .WriteString(snapshot.SwimFigure)
             .WriteInteger(snapshot.ActivityPoints)
-            .WriteBoolean(snapshot.IsModerator);
+            .WriteBoolean(snapshot.IsModerator)
+            .WriteInteger(snapshot.BadgesRank);
     }
 }

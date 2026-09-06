@@ -36,6 +36,17 @@ public class ServerPacket(int header) : TurboPacket(header), IServerPacket
         return this;
     }
 
+    public IServerPacket WriteFloat(float f)
+    {
+        Span<byte> b = stackalloc byte[4];
+        BinaryPrimitives.WriteSingleBigEndian(b, f);
+
+        Writer.Write(b);
+        _logger.Append($"{{f:{f}}}");
+
+        return this;
+    }
+
     public IServerPacket WriteDouble(double d)
     {
         Span<byte> b = stackalloc byte[8];
