@@ -28,6 +28,7 @@ public class GetGuestRoomMessageHandler(IRoomService roomService, IGrainFactory 
         var groupMember = false;
         var allInRoomMuted = false;
         var canMute = false;
+        var isOpening = true;
 
         await ctx.SendComposerAsync(
                 new GetGuestRoomResultMessageComposer
@@ -39,13 +40,15 @@ public class GetGuestRoomMessageHandler(IRoomService roomService, IGrainFactory 
                     IsGroupMember = groupMember,
                     AllInRoomMuted = allInRoomMuted,
                     CanMute = canMute,
+                    OpeningConnection = isOpening,
                 },
                 ct
             )
             .ConfigureAwait(false);
 
-        await _roomService
-            .OpenRoomForPlayerIdAsync(ctx.AsActionContext(), ctx.PlayerId, message.RoomId, ct)
-            .ConfigureAwait(false);
+        if (isOpening)
+            await _roomService
+                .OpenRoomForPlayerIdAsync(ctx.AsActionContext(), ctx.PlayerId, message.RoomId, ct)
+                .ConfigureAwait(false);
     }
 }

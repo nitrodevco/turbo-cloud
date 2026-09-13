@@ -4,6 +4,7 @@ using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Room.Chat;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.PacketHandlers.Room.Chat;
 
@@ -17,19 +18,18 @@ public class ChatMessageHandler(IGrainFactory grainFactory) : IMessageHandler<Ch
         CancellationToken ct
     )
     {
-        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0)
+        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || string.IsNullOrWhiteSpace(message.Text))
             return;
 
-        var roomChatGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
-
-        await roomChatGrain
+        await _grainFactory
+            .GetRoomGrain(ctx.RoomId)
             .SendChatFromPlayerAsync(
-                ctx.PlayerId,
+                ctx.AsActionContext(),
+                RoomChatType.Chat,
                 message.Text,
-                0,
                 message.StyleId,
-                [],
-                message.TrackingId
+                ct,
+                trackingId: message.TrackingId
             )
             .ConfigureAwait(false);
     }

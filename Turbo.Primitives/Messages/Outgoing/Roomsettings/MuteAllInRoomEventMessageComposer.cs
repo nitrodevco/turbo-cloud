@@ -6,5 +6,6 @@ namespace Turbo.Primitives.Messages.Outgoing.Roomsettings;
 [GenerateSerializer, Immutable]
 public sealed record MuteAllInRoomEventMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required bool IsMuted { get; init; }
 }

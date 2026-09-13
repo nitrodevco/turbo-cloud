@@ -27,4 +27,7 @@ public sealed record GetGuestRoomResultMessageComposer : IComposer
 
     [Id(6)]
     public required bool CanMute { get; init; }
+
+    [Id(7)]
+    public required bool OpeningConnection { get; init; }
 }

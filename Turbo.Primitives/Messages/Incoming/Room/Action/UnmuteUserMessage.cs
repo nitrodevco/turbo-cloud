@@ -1,10 +1,11 @@
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 
 namespace Turbo.Primitives.Messages.Incoming.Room.Action;
 
 public record UnmuteUserMessage : IMessageEvent
 {
-    public int UserId { get; init; }
-    public RoomId RoomId { get; init; }
+    public required PlayerId PlayerId { get; init; }
+    public required RoomId RoomId { get; init; }
 }

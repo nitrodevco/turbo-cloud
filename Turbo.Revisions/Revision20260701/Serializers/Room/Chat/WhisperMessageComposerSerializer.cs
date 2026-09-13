@@ -6,8 +6,6 @@ namespace Turbo.Revisions.Revision20260701.Serializers.Room.Chat;
 internal class WhisperMessageComposerSerializer(int header)
     : AbstractSerializer<WhisperMessageComposer>(header)
 {
-    protected override void Serialize(IServerPacket packet, WhisperMessageComposer message)
-    {
-        //
-    }
+    protected override void Serialize(IServerPacket packet, WhisperMessageComposer message) =>
+        ChatMessagePayloadSerializer.Serialize(packet, message);
 }

@@ -1,4 +1,5 @@
 using Orleans;
+using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Rooms.Snapshots.Settings;
 
 namespace Turbo.Primitives.Rooms.Snapshots;
@@ -13,7 +14,7 @@ public sealed record RoomSnapshot : RoomInfoSnapshot
     public required ModSettingsSnapshot ModSettings { get; init; }
 
     [Id(2)]
-    public required ChatSettingsSnapshot ChatSettings { get; init; }
+    public required ChatFloodSensitivityType ChatProtection { get; init; }
 
     [Id(3)]
     public required string WorldType { get; init; } = string.Empty;

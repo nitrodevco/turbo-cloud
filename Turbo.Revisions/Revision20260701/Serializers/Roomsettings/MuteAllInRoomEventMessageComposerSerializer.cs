@@ -11,6 +11,6 @@ internal class MuteAllInRoomEventMessageComposerSerializer(int header)
         MuteAllInRoomEventMessageComposer message
     )
     {
-        //
+        packet.WriteBoolean(message.IsMuted);
     }
 }

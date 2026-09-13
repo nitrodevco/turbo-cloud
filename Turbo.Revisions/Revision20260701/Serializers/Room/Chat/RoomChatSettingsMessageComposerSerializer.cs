@@ -8,6 +8,6 @@ internal class RoomChatSettingsMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, RoomChatSettingsMessageComposer message)
     {
-        //
+        packet.WriteInteger((int)message.ChatProtection);
     }
 }

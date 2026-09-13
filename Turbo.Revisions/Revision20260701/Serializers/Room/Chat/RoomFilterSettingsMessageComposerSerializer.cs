@@ -11,6 +11,9 @@ internal class RoomFilterSettingsMessageComposerSerializer(int header)
         RoomFilterSettingsMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.BadWords.Count);
+
+        foreach (var word in message.BadWords)
+            packet.WriteString(word);
     }
 }

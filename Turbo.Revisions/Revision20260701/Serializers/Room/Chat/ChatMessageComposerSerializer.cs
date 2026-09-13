@@ -6,18 +6,6 @@ namespace Turbo.Revisions.Revision20260701.Serializers.Room.Chat;
 internal class ChatMessageComposerSerializer(int header)
     : AbstractSerializer<ChatMessageComposer>(header)
 {
-    protected override void Serialize(IServerPacket packet, ChatMessageComposer message)
-    {
-        packet
-            .WriteInteger(message.ObjectId)
-            .WriteString(message.Text)
-            .WriteInteger((int)message.Gesture)
-            .WriteInteger(message.StyleId)
-            .WriteInteger(message.Links.Count);
-
-        foreach (var (one, two, three) in message.Links)
-            packet.WriteString(one).WriteString(two).WriteBoolean(three);
-
-        packet.WriteInteger(message.TrackingId);
-    }
+    protected override void Serialize(IServerPacket packet, ChatMessageComposer message) =>
+        ChatMessagePayloadSerializer.Serialize(packet, message);
 }

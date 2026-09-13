@@ -9,7 +9,7 @@ internal class MuteUserMessageParser : IParser
     public IMessageEvent Parse(IClientPacket packet) =>
         new MuteUserMessage
         {
-            UserId = packet.PopInt(),
+            PlayerId = packet.PopInt(),
             RoomId = packet.PopInt(),
             DurationInMinutes = packet.PopInt(),
         };
