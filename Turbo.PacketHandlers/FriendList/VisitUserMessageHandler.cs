@@ -3,16 +3,18 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
+using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Rooms;
 
 namespace Turbo.PacketHandlers.FriendList;
 
-public class VisitUserMessageHandler(IGrainFactory grainFactory, IRoomService roomService)
-    : IMessageHandler<VisitUserMessage>
+/// <summary>
+/// Forwards the client to the target player's room. The client then runs the normal navigator
+/// entry flow (GetGuestRoom with roomForward), so door checks and prompts apply as usual.
+/// </summary>
+public class VisitUserMessageHandler(IGrainFactory grainFactory) : IMessageHandler<VisitUserMessage>
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
-    private readonly IRoomService _roomService = roomService;
 
     public async ValueTask HandleAsync(
         VisitUserMessage message,
@@ -37,8 +39,10 @@ public class VisitUserMessageHandler(IGrainFactory grainFactory, IRoomService ro
         if (activeRoom.RoomId <= 0)
             return;
 
-        await _roomService
-            .OpenRoomForPlayerIdAsync(ctx.AsActionContext(), ctx.PlayerId, activeRoom.RoomId, ct)
+        await ctx.SendComposerAsync(
+                new RoomForwardMessageComposer { RoomId = activeRoom.RoomId },
+                ct
+            )
             .ConfigureAwait(false);
     }
 }

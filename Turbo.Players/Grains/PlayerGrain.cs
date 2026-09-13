@@ -22,6 +22,8 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
 
     private readonly PlayerLiveState _state;
 
+    public PlayerId PlayerId => _state.PlayerId;
+
     public PlayerGrain(IDbContextFactory<TurboDbContext> dbCtxFactory, IGrainFactory grainFactory)
     {
         _dbCtxFactory = dbCtxFactory;
@@ -44,7 +46,7 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
     {
         _state.IsOnline = flag;
 
-        var playerPresence = _grainFactory.GetPlayerPresenceGrain((int)this.GetPrimaryKeyLong());
+        var playerPresence = _grainFactory.GetPlayerPresenceGrain(PlayerId);
 
         await playerPresence.OnPlayerUpdatedAsync(await GetSummaryAsync(ct), ct);
     }
@@ -56,7 +58,7 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
 
         await WriteToDatabaseAsync(ct);
 
-        var playerPresence = _grainFactory.GetPlayerPresenceGrain((int)this.GetPrimaryKeyLong());
+        var playerPresence = _grainFactory.GetPlayerPresenceGrain(PlayerId);
 
         await playerPresence.OnFigureUpdatedAsync(await GetSummaryAsync(ct), ct);
     }
@@ -67,7 +69,7 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
 
         await WriteToDatabaseAsync(ct);
 
-        var playerPresence = _grainFactory.GetPlayerPresenceGrain((int)this.GetPrimaryKeyLong());
+        var playerPresence = _grainFactory.GetPlayerPresenceGrain(PlayerId);
 
         await playerPresence.OnPlayerUpdatedAsync(await GetSummaryAsync(ct), ct);
     }
@@ -90,9 +92,7 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         _state.CreatedAt = entity.CreatedAt;
         _state.LastUpdated = entity.UpdatedAt;
 
-        await _grainFactory
-            .GetPlayerDirectoryGrain()
-            .SetPlayerNameAsync(PlayerId.Parse((int)this.GetPrimaryKeyLong()), _state.Name, ct);
+        await _grainFactory.GetPlayerDirectoryGrain().SetPlayerNameAsync(PlayerId, _state.Name, ct);
     }
 
     private async Task WriteToDatabaseAsync(CancellationToken ct)

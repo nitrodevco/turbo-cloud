@@ -11,6 +11,7 @@ using Orleans;
 using Orleans.Runtime;
 using Orleans.Streams;
 using Turbo.Database.Context;
+using Turbo.Events;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Networking;
@@ -40,6 +41,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly IRoomAvatarProvider _avatarProvider;
     internal readonly IRoomWiredVariablesProvider _wiredVariablesProvider;
     internal readonly IGrainFactory _grainFactory;
+    internal readonly EventSystem _eventSystem;
 
     internal IAsyncStream<RoomOutboundSnapshot> _roomOutbound = default!;
 
@@ -49,6 +51,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     public readonly RoomEventModule EventModule;
     public readonly RoomSecurityModule SecurityModule;
+    public readonly RoomModerationModule ModerationModule;
+    public readonly RoomEntryModule EntryModule;
     public readonly RoomMapModule MapModule;
     public readonly RoomObjectModule ObjectModule;
     public readonly RoomAvatarModule AvatarModule;
@@ -72,7 +76,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IRoomObjectLogicProvider logicProvider,
         IRoomAvatarProvider avatarProvider,
         IRoomWiredVariablesProvider wiredVariablesProvider,
-        IGrainFactory grainFactory
+        IGrainFactory grainFactory,
+        EventSystem eventSystem
     )
     {
         _dbCtxFactory = dbCtxFactory;
@@ -84,11 +89,14 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _avatarProvider = avatarProvider;
         _wiredVariablesProvider = wiredVariablesProvider;
         _grainFactory = grainFactory;
+        _eventSystem = eventSystem;
 
-        _state = new() { RoomId = (RoomId)this.GetPrimaryKeyLong() };
+        _state = new() { RoomId = RoomId.Parse((int)this.GetPrimaryKeyLong()) };
         PathingSystem = new(this);
         EventModule = new(this);
         SecurityModule = new(this, _dbCtxFactory);
+        ModerationModule = new(this, _dbCtxFactory);
+        EntryModule = new(this, _dbCtxFactory);
         MapModule = new(this);
         ObjectModule = new(this);
         AvatarModule = new(this);
@@ -102,6 +110,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
         EventModule.Register(RollerSystem);
         EventModule.Register(WiredSystem);
+        EventModule.Register(ChatSystem);
     }
 
     public override async Task OnActivateAsync(CancellationToken ct)
@@ -194,6 +203,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         await MapModule.EnsureMapBuiltAsync(ct);
         await FurniModule.EnsureFurniLoadedAsync(ct);
         await SecurityModule.EnsureRightsLoadedAsync(ct);
+        await ModerationModule.EnsureMutesLoadedAsync(ct);
+        await EntryModule.EnsureBansLoadedAsync(ct);
     }
 
     public Task<RoomSnapshot> GetSnapshotAsync() => Task.FromResult(_state.RoomSnapshot);
@@ -264,7 +275,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
                 RoomId = entity.Id,
                 Name = entity.Name ?? string.Empty,
                 Description = entity.Description ?? string.Empty,
-                OwnerId = (PlayerId)entity.PlayerEntityId,
+                OwnerId = PlayerId.Parse(entity.PlayerEntityId),
                 OwnerName = string.Empty,
                 Population = 0,
                 DoorMode = entity.DoorMode,
@@ -284,17 +295,16 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
                     WhoCanKick = entity.KickType,
                     WhoCanBan = entity.BanType,
                 },
-                ChatSettings = new ChatSettingsSnapshot
-                {
-                    ChatMode = entity.ChatModeType,
-                    BubbleWidth = entity.ChatBubbleType,
-                    ScrollSpeed = entity.ChatSpeedType,
-                    FullHearRange = entity.ChatDistance,
-                    FloodSensitivity = entity.ChatFloodType,
-                },
+                ChatProtection = entity.ChatFloodType,
                 WorldType = _state.Model.Name,
+                HideWalls = entity.HideWalls,
+                WallThickness = entity.ThicknessWall,
+                FloorThickness = entity.ThicknessFloor,
                 LastUpdatedUtc = DateTime.UtcNow,
             };
+
+            await SecurityModule.EnsureRightsLoadedAsync(ct);
+            await EntryModule.EnsureBansLoadedAsync(ct);
         }
         catch (Exception)
         {

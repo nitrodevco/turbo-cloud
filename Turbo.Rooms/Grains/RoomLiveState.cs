@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
@@ -30,6 +31,11 @@ public sealed class RoomLiveState
     public HashSet<RoomObjectId>[] TileAvatarStacks { get; internal set; } = [];
 
     public HashSet<PlayerId> PlayerIdsWithRights { get; } = [];
+    public Dictionary<PlayerId, DateTime> MutedUntilByPlayerId { get; } = [];
+    public Dictionary<PlayerId, DateTime> BannedUntilByPlayerId { get; } = [];
+    public Dictionary<string, PlayerId> DoorbellRingersByName { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
+    public bool IsRoomMuted { get; internal set; } = false;
 
     public HashSet<int> DirtyHeightTileIds { get; set; } = [];
     public HashSet<RoomObjectId> DirtyItemIds { get; set; } = [];
@@ -44,6 +50,8 @@ public sealed class RoomLiveState
     public bool IsFurniLoaded { get; internal set; } = false;
     public bool IsTileComputationPaused { get; internal set; } = false;
     public bool IsRightsLoaded { get; internal set; } = false;
+    public bool IsMutesLoaded { get; internal set; } = false;
+    public bool IsBansLoaded { get; internal set; } = false;
 
     public long EpochMs { get; set; } = 0;
     public long NextAvatarBoundaryMs { get; set; } = 0;

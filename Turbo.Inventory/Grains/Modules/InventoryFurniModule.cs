@@ -72,10 +72,7 @@ internal sealed class InventoryFurniModule(
     {
         _state.FurnitureById.Clear();
 
-        var items = await _furnitureItemsLoader.LoadByPlayerIdAsync(
-            (PlayerId)_inventoryGrain.GetPrimaryKeyLong(),
-            ct
-        );
+        var items = await _furnitureItemsLoader.LoadByPlayerIdAsync(_inventoryGrain.PlayerId, ct);
 
         foreach (var item in items)
             await AddFurnitureAsync(item, ct);

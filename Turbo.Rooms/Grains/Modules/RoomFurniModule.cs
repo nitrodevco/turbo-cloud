@@ -25,7 +25,7 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain)
             return;
 
         var (floorItems, wallItems, ownerNames) = await _roomGrain._itemsLoader.LoadByRoomIdAsync(
-            (RoomId)_roomGrain.GetPrimaryKeyLong(),
+            _roomGrain.RoomId,
             ct
         );
 

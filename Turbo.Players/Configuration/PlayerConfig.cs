@@ -13,4 +13,5 @@ public class PlayerConfig
     public required int MaxSessionMessagesPerConversation { get; init; } = 20;
     public required int WardrobeMaxSlots { get; init; } = 10;
     public required int SettingsFlushMs { get; init; } = 5000;
+    public required int MaxPendingComposers { get; init; } = 500;
 }

@@ -2,11 +2,20 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Rooms.Grains;
 
 public sealed partial class RoomGrain
 {
+    public async Task<RoomControllerType> GetControllerLevelAsync(
+        PlayerId playerId,
+        CancellationToken ct
+    )
+    {
+        return await SecurityModule.GetControllerLevelAsync(playerId);
+    }
+
     public async Task RefreshControllerLevelForPlayerAsync(ActionContext ctx, CancellationToken ct)
     {
         try

@@ -33,7 +33,7 @@ public sealed partial class InventoryGrain
         if (!await _furniModule.AddFurnitureAsync(item, ct))
             return false;
 
-        var presence = _grainFactory.GetPlayerPresenceGrain(this.GetPrimaryKeyLong());
+        var presence = _grainFactory.GetPlayerPresenceGrain(PlayerId);
 
         await presence.OnFurnitureAddedAsync(item.GetSnapshot(), ct);
 
@@ -50,7 +50,7 @@ public sealed partial class InventoryGrain
         if (!await _furniModule.AddFurnitureAsync(item, ct))
             return false;
 
-        var presence = _grainFactory.GetPlayerPresenceGrain(this.GetPrimaryKeyLong());
+        var presence = _grainFactory.GetPlayerPresenceGrain(PlayerId);
 
         await presence.OnFurnitureAddedAsync(item.GetSnapshot(), ct);
 
@@ -62,7 +62,7 @@ public sealed partial class InventoryGrain
         if (!await _furniModule.RemoveFurnitureAsync(itemId, ct))
             return false;
 
-        var presence = _grainFactory.GetPlayerPresenceGrain(this.GetPrimaryKeyLong());
+        var presence = _grainFactory.GetPlayerPresenceGrain(PlayerId);
 
         await presence.OnFurnitureRemovedAsync(itemId, ct);
 
@@ -92,7 +92,7 @@ public sealed partial class InventoryGrain
                     entities.Add(
                         new FurnitureEntity
                         {
-                            PlayerEntityId = (int)this.GetPrimaryKeyLong(),
+                            PlayerEntityId = (int)PlayerId,
                             FurnitureDefinitionEntityId = def.Id,
                         }
                     );
@@ -175,7 +175,7 @@ public sealed partial class InventoryGrain
         // Create furniture entity - LTD data is stored in ExtraData JSON
         var entity = new FurnitureEntity
         {
-            PlayerEntityId = (int)this.GetPrimaryKeyLong(),
+            PlayerEntityId = (int)PlayerId,
             FurnitureDefinitionEntityId = def.Id,
             ExtraData = extraDataJson,
         };

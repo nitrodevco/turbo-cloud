@@ -2,12 +2,14 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Turbo.Primitives.Rooms.Snapshots.Chat;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Primitives.Rooms.Grains;
 
 public interface IRoomPersistenceGrain : IGrainWithIntegerKey
 {
+    public Task EnqueueChatlogAsync(RoomChatlogSnapshot snapshot, CancellationToken ct);
     public Task EnqueueDirtyItemAsync(
         RoomId roomId,
         RoomItemSnapshot snapshot,

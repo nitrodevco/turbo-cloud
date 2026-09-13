@@ -28,6 +28,19 @@ public class RoomConfig
     public int MaxTileHeightsPerFlush { get; init; } = 200;
     public int MaxPathNodes { get; init; } = 4096;
 
+    public int ChatMaxLength { get; init; } = 100;
+    public int ChatLookAtRange { get; init; } = 6;
+    public int ChatFloodMaxMessagesExtraSensitivity { get; init; } = 4;
+    public int ChatFloodMaxMessagesNormalSensitivity { get; init; } = 6;
+    public int ChatFloodMaxMessagesMinimalSensitivity { get; init; } = 8;
+    public int ChatFloodWindowMs { get; init; } = 4000;
+    public int ChatFloodMuteMs { get; init; } = 30000;
+    public int ChatMuteMaxDurationMinutes { get; init; } = 60;
+    public bool ChatlogEnabled { get; init; } = true;
+    public int ChatlogTickMs { get; init; } = 5000;
+    public int MaxChatlogsPerFlush { get; init; } = 200;
+    public int MaxPendingChatlogs { get; init; } = 2000;
+
     public int WiredMaxDepth { get; init; } = 20;
     public int WiredMaxScheduledPerTick { get; init; } = 64;
     public int WiredMaxEventsPerTick { get; init; } = 64;

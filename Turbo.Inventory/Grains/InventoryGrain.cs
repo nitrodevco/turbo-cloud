@@ -10,6 +10,7 @@ using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Grains;
+using Turbo.Primitives.Players;
 
 namespace Turbo.Inventory.Grains;
 
@@ -25,6 +26,8 @@ public sealed partial class InventoryGrain : Grain, IInventoryGrain
 
     private readonly InventoryLiveState _state;
     private readonly InventoryFurniModule _furniModule;
+
+    public PlayerId PlayerId => _state.PlayerId;
 
     public InventoryGrain(
         IDbContextFactory<TurboDbContext> dbContextFactory,
@@ -44,7 +47,7 @@ public sealed partial class InventoryGrain : Grain, IInventoryGrain
         _stuffDataFactory = stuffDataFactory;
         _catalogService = catalogService;
 
-        _state = new();
+        _state = new() { PlayerId = PlayerId.Parse((int)this.GetPrimaryKeyLong()) };
         _furniModule = new InventoryFurniModule(this, _state, _furnitureItemsLoader);
     }
 

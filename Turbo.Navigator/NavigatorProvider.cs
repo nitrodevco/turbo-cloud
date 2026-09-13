@@ -45,7 +45,7 @@ public sealed class NavigatorProvider(
                     RoomId = x.Id,
                     Name = x.Name ?? string.Empty,
                     Description = x.Description ?? string.Empty,
-                    OwnerId = (PlayerId)x.PlayerEntityId,
+                    OwnerId = PlayerId.Parse(x.PlayerEntityId),
                     OwnerName = string.Empty,
                     Population = 0,
                     DoorMode = x.DoorMode,
