@@ -12,7 +12,7 @@ internal class AccountPreferencesEventMessageComposerSerializer(int header)
     )
     {
         packet
-            .WriteInteger(message.UIVolume)
+            .WriteInteger(message.GenericVolume)
             .WriteInteger(message.FurniVolume)
             .WriteInteger(message.TraxVolume)
             .WriteBoolean(message.FreeFlowChatDisabled)
@@ -27,9 +27,10 @@ internal class AccountPreferencesEventMessageComposerSerializer(int header)
             .WriteBoolean(message.WiredWhisperDisabled)
             .WriteBoolean(message.ShowAllNotifications)
             .WriteString(message.WiredUIStyle)
-            .WriteInteger(message.ChatSizePreference)
+            .WriteInteger((int)message.ChatSizePreference)
             .WriteInteger((int)message.ChatMode)
             .WriteInteger((int)message.ChatBubbleWidth)
-            .WriteInteger((int)message.ChatScrollSpeed);
+            .WriteInteger((int)message.ChatScrollSpeed)
+            .WriteInteger(message.OnlineIndicatorPreference);
     }
 }

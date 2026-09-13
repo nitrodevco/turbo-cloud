@@ -6,5 +6,15 @@ namespace Turbo.Revisions.Revision20260701.Parsers.Userdefinedroomevents.Wiredme
 
 internal class WiredSetPreferencesMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new WiredSetPreferencesMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new WiredSetPreferencesMessage
+        {
+            WiredMenuButton = packet.PopBoolean(),
+            WiredInspectButton = packet.PopBoolean(),
+            WiredPlayTestMode = packet.PopBoolean(),
+            VariableSyntaxMode = packet.PopInt(),
+            WiredWhisperDisabled = packet.PopBoolean(),
+            ShowAllNotifications = packet.PopBoolean(),
+            UIStyle = packet.PopString(),
+        };
 }

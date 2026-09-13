@@ -9,7 +9,7 @@ namespace Turbo.Primitives.Messages.Outgoing.Preferences;
 public sealed record AccountPreferencesEventMessageComposer : IComposer
 {
     [Id(0)]
-    public required int UIVolume { get; init; }
+    public required int GenericVolume { get; init; }
 
     [Id(1)]
     public required int FurniVolume { get; init; }
@@ -54,7 +54,7 @@ public sealed record AccountPreferencesEventMessageComposer : IComposer
     public required string WiredUIStyle { get; init; }
 
     [Id(15)]
-    public required int ChatSizePreference { get; init; }
+    public required ChatSizeType ChatSizePreference { get; init; }
 
     [Id(16)]
     public required ChatModeType ChatMode { get; init; }
@@ -64,4 +64,7 @@ public sealed record AccountPreferencesEventMessageComposer : IComposer
 
     [Id(18)]
     public required ChatScrollSpeedType ChatScrollSpeed { get; init; }
+
+    [Id(19)]
+    public required int OnlineIndicatorPreference { get; init; }
 }

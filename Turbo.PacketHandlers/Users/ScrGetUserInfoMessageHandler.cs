@@ -7,7 +7,6 @@ using Turbo.Primitives.Messages.Outgoing.Preferences;
 using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.PacketHandlers.Users;
 
@@ -22,8 +21,13 @@ public class ScrGetUserInfoMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        var player = _grainFactory.GetPlayerGrain(ctx.PlayerId);
-        var snapshot = await player.GetSummaryAsync(ct).ConfigureAwait(false);
+        if (ctx.PlayerId <= 0)
+            return;
+
+        var settings = await _grainFactory
+            .GetPlayerSettingsGrain(ctx.PlayerId)
+            .GetSettingsAsync(ct)
+            .ConfigureAwait(false);
 
         await ctx.SendComposerAsync(
                 new ScrSendUserInfoMessageComposer
@@ -47,25 +51,26 @@ public class ScrGetUserInfoMessageHandler(IGrainFactory grainFactory)
         await ctx.SendComposerAsync(
                 new AccountPreferencesEventMessageComposer
                 {
-                    UIVolume = 0,
-                    FurniVolume = 0,
-                    TraxVolume = 0,
-                    FreeFlowChatDisabled = false,
-                    RoomInvitesIgnored = false,
-                    RoomCameraFollowDisabled = false,
-                    UIFlags = UIFlags.FriendBarExpanded | UIFlags.RoomToolsExpanded,
-                    PreferedChatStyle = 1,
-                    WiredMenuButton = false,
-                    WiredInspectButton = false,
-                    PlayTestMode = false,
-                    VariableSyntaxMode = 1,
-                    WiredWhisperDisabled = false,
-                    ShowAllNotifications = true,
-                    WiredUIStyle = "",
-                    ChatSizePreference = 0,
-                    ChatMode = 0,
-                    ChatBubbleWidth = ChatBubbleWidthType.Normal,
-                    ChatScrollSpeed = ChatScrollSpeedType.Normal,
+                    GenericVolume = settings.GenericVolume,
+                    FurniVolume = settings.FurniVolume,
+                    TraxVolume = settings.TraxVolume,
+                    FreeFlowChatDisabled = settings.ChatMode == ChatModeType.Old,
+                    RoomInvitesIgnored = settings.RoomInvitesIgnored,
+                    RoomCameraFollowDisabled = settings.RoomCameraFollowDisabled,
+                    UIFlags = settings.UIFlags,
+                    PreferedChatStyle = settings.ChatStyleId,
+                    WiredMenuButton = settings.WiredMenuButton,
+                    WiredInspectButton = settings.WiredInspectButton,
+                    PlayTestMode = settings.WiredPlayTestMode,
+                    VariableSyntaxMode = settings.WiredVariableSyntaxMode,
+                    WiredWhisperDisabled = settings.WiredWhisperDisabled,
+                    ShowAllNotifications = settings.WiredShowAllNotifications,
+                    WiredUIStyle = settings.WiredUIStyle,
+                    ChatSizePreference = settings.ChatFontSize,
+                    ChatMode = settings.ChatMode,
+                    ChatBubbleWidth = settings.ChatBubbleWidth,
+                    ChatScrollSpeed = settings.ChatScrollSpeed,
+                    OnlineIndicatorPreference = 0,
                 },
                 ct
             )

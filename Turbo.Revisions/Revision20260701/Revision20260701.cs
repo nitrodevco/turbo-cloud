@@ -36,6 +36,7 @@ using Turbo.Primitives.Messages.Outgoing.Room.Layout;
 using Turbo.Primitives.Messages.Outgoing.Room.Permissions;
 using Turbo.Primitives.Messages.Outgoing.Room.Pets;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
+using Turbo.Primitives.Messages.Outgoing.Roomsettings;
 using Turbo.Primitives.Messages.Outgoing.Tracking;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
@@ -140,6 +141,7 @@ using Turbo.Revisions.Revision20260701.Serializers.Room.Layout;
 using Turbo.Revisions.Revision20260701.Serializers.Room.Permissions;
 using Turbo.Revisions.Revision20260701.Serializers.Room.Pets;
 using Turbo.Revisions.Revision20260701.Serializers.Room.Session;
+using Turbo.Revisions.Revision20260701.Serializers.Roomsettings;
 using Turbo.Revisions.Revision20260701.Serializers.Tracking;
 using Turbo.Revisions.Revision20260701.Serializers.Userdefinedroomevents;
 using Turbo.Revisions.Revision20260701.Serializers.Userdefinedroomevents.Wiredmenu;
@@ -3328,6 +3330,15 @@ public class Revision20260701 : IRevision
             {
                 typeof(ScrSendUserInfoMessageComposer),
                 new ScrSendUserInfoMessageSerializer(MessageComposer.ScrSendUserInfoMessageComposer)
+            },
+            #endregion
+
+            #region Room Settings
+            {
+                typeof(MuteAllInRoomEventMessageComposer),
+                new MuteAllInRoomEventMessageComposerSerializer(
+                    MessageComposer.MuteAllInRoomMessageComposer
+                )
             },
             #endregion
 

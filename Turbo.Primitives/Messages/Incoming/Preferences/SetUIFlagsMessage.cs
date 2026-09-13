@@ -2,4 +2,7 @@ using Turbo.Primitives.Networking;
 
 namespace Turbo.Primitives.Messages.Incoming.Preferences;
 
-public record SetUIFlagsMessage : IMessageEvent { }
+public record SetUIFlagsMessage : IMessageEvent
+{
+    public int UIFlags { get; init; }
+}

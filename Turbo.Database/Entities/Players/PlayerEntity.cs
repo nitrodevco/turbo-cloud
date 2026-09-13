@@ -42,9 +42,6 @@ public class PlayerEntity : TurboEntity
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public required PlayerPerkFlags PlayerPerks { get; set; }
 
-    [Column("room_chat_style_id")]
-    public int? RoomChatStyleId { get; set; }
-
     [InverseProperty("PlayerEntity")]
     public List<PlayerBadgeEntity>? PlayerBadges { get; set; }
 

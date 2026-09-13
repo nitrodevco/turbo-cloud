@@ -102,29 +102,10 @@ public class RoomEntity : TurboEntity
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public required ModSettingType BanType { get; set; }
 
-    [Column("chat_mode_type")]
-    [DefaultValue(ChatModeType.FreeFlow)]
-    [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public required ChatModeType ChatModeType { get; set; }
-
-    [Column("chat_bubble_type")]
-    [DefaultValue(ChatBubbleWidthType.Normal)]
-    [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public required ChatBubbleWidthType ChatBubbleType { get; set; }
-
-    [Column("chat_speed_type")]
-    [DefaultValue(ChatScrollSpeedType.Normal)]
-    [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public required ChatScrollSpeedType ChatSpeedType { get; set; }
-
     [Column("chat_flood_type")]
     [DefaultValue(ChatFloodSensitivityType.Minimal)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public required ChatFloodSensitivityType ChatFloodType { get; set; }
-
-    [Column("chat_distance")]
-    [DefaultValue(50)]
-    public required int ChatDistance { get; set; }
 
     [Column("last_active")]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]

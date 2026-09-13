@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260701.Parsers.Preferences;
 
 internal class SetIgnoreRoomInvitesMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new SetIgnoreRoomInvitesMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new SetIgnoreRoomInvitesMessage { IgnoreRoomInvites = packet.PopBoolean() };
 }
