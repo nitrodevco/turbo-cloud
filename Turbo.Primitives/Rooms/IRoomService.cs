@@ -10,17 +10,28 @@ namespace Turbo.Primitives.Rooms;
 public partial interface IRoomService
 {
     /// <summary>
-    /// Attempts to put the player into the room. <paramref name="entryType"/> controls which door
-    /// checks apply and how failures are reported; <paramref name="password"/> is only consulted
-    /// for password-protected doors.
+    /// Activates the room and decides whether the player may enter. <paramref name="password"/>
+    /// is only consulted for password doors; <paramref name="bypassDoor"/> is for server-driven
+    /// moves (teleporters) that ignore the door mode but still honour bans and capacity.
+    /// </summary>
+    public Task<RoomEntryAccessType> CheckRoomEntryAccessAsync(
+        PlayerId playerId,
+        RoomId roomId,
+        string? password,
+        bool bypassDoor,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Acts on an access decision from <see cref="CheckRoomEntryAccessAsync"/>: opens the
+    /// connection, then either streams the room, rings the doorbell, or reports the rejection.
     /// </summary>
     public Task OpenRoomForPlayerIdAsync(
         ActionContext ctx,
         PlayerId playerId,
         RoomId roomId,
-        RoomEntryType entryType,
-        CancellationToken ct,
-        string? password = null
+        RoomEntryAccessType access,
+        CancellationToken ct
     );
 
     /// <summary>

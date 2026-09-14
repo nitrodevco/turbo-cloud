@@ -107,6 +107,34 @@ public class RoomEntity : TurboEntity
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public required ChatFloodSensitivityType ChatFloodType { get; set; }
 
+    [Column("leave_on_door_tile")]
+    [DefaultValue(false)]
+    public bool LeaveOnDoorTile { get; set; }
+
+    [Column("idle_sleep_enabled")]
+    [DefaultValue(false)]
+    public bool IdleSleepEnabled { get; set; }
+
+    [Column("idle_sleep_timeout_seconds")]
+    [DefaultValue(0)]
+    public int IdleSleepTimeoutSeconds { get; set; }
+
+    [Column("idle_autokick_enabled")]
+    [DefaultValue(false)]
+    public bool IdleAutokickEnabled { get; set; }
+
+    [Column("idle_autokick_timeout_seconds")]
+    [DefaultValue(0)]
+    public int IdleAutokickTimeoutSeconds { get; set; }
+
+    [Column("mute_all_pets")]
+    [DefaultValue(false)]
+    public bool MuteAllPets { get; set; }
+
+    [Column("hidden_by_bc")]
+    [DefaultValue(false)]
+    public bool HiddenByBc { get; set; }
+
     [Column("last_active")]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public DateTime LastActive { get; set; }

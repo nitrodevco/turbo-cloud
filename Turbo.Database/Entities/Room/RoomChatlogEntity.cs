@@ -7,6 +7,8 @@ namespace Turbo.Database.Entities.Room;
 [Table("room_chatlogs")]
 public class RoomChatlogEntity : TurboEntity
 {
+    public const int MESSAGE_MAX_LENGTH = 100;
+
     [Column("room_id")]
     public required int RoomEntityId { get; set; }
 
@@ -17,7 +19,7 @@ public class RoomChatlogEntity : TurboEntity
     public int? TargetPlayerEntityId { get; set; }
 
     [Column("message")]
-    [StringLength(100)]
+    [StringLength(MESSAGE_MAX_LENGTH)]
     public required string Message { get; set; }
 
     [ForeignKey(nameof(RoomEntityId))]

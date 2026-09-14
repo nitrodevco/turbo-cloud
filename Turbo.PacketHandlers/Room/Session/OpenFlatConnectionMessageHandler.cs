@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Room.Session;
 using Turbo.Primitives.Rooms;
-using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.PacketHandlers.Room.Session;
 
@@ -24,14 +23,23 @@ public class OpenFlatConnectionMessageHandler(IRoomService roomService)
         if (ctx.PlayerId <= 0 || message.RoomId <= 0)
             return;
 
+        var access = await _roomService
+            .CheckRoomEntryAccessAsync(
+                ctx.PlayerId,
+                message.RoomId,
+                message.Password,
+                bypassDoor: false,
+                ct
+            )
+            .ConfigureAwait(false);
+
         await _roomService
             .OpenRoomForPlayerIdAsync(
                 ctx.AsActionContext(),
                 ctx.PlayerId,
                 message.RoomId,
-                RoomEntryType.Direct,
-                ct,
-                message.Password
+                access,
+                ct
             )
             .ConfigureAwait(false);
     }

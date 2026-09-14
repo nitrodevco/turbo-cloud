@@ -70,7 +70,7 @@ public class ScrGetUserInfoMessageHandler(IGrainFactory grainFactory)
                     ChatMode = settings.ChatMode,
                     ChatBubbleWidth = settings.ChatBubbleWidth,
                     ChatScrollSpeed = settings.ChatScrollSpeed,
-                    OnlineIndicatorPreference = 0,
+                    OnlineIndicatorPreference = settings.OnlineIndicatorPreference,
                 },
                 ct
             )

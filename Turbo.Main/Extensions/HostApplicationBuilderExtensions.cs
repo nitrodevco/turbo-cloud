@@ -1,7 +1,9 @@
 using System;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Orleans.Configuration;
 using Orleans.Hosting;
+using Turbo.Main.Configuration;
 using Turbo.Primitives.Orleans;
 
 namespace Turbo.Main.Extensions;
@@ -10,18 +12,24 @@ public static class HostApplicationBuilderExtensions
 {
     public static HostApplicationBuilder AddOrleans(this HostApplicationBuilder builder)
     {
+        var orleansConfig =
+            builder.Configuration.GetSection(OrleansConfig.SECTION_NAME).Get<OrleansConfig>()
+            ?? new OrleansConfig();
+
         builder.UseOrleans(
             (System.Action<ISiloBuilder>)(
                 silo =>
                 {
                     silo.Configure<GrainCollectionOptions>(options =>
                     {
-                        options.CollectionAge = TimeSpan.FromMinutes(2);
+                        options.CollectionAge = TimeSpan.FromMinutes(
+                            orleansConfig.GrainCollectionAgeMinutes
+                        );
                     });
                     silo.ConfigureEndpoints(
-                        "127.0.0.1",
-                        siloPort: 11111,
-                        gatewayPort: 3000,
+                        orleansConfig.SiloAddress,
+                        siloPort: orleansConfig.SiloPort,
+                        gatewayPort: orleansConfig.GatewayPort,
                         listenOnAnyHostAddress: true
                     );
 
@@ -40,7 +48,7 @@ public static class HostApplicationBuilderExtensions
                                         // adds up to 100ms of jitter to every room packet, which
                                         // is visible in the avatar walk cadence.
                                         options.GetQueueMsgsTimerPeriod = TimeSpan.FromMilliseconds(
-                                            10
+                                            orleansConfig.RoomStreamPollMs
                                         );
                                     })
                                 )

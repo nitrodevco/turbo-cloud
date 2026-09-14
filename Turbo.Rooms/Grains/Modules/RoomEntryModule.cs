@@ -76,7 +76,7 @@ public sealed class RoomEntryModule(
 
         _roomGrain._state.DoorbellRingersByName[playerName] = playerId;
 
-        await SendToPlayersAsync(
+        await _roomGrain.SendComposerToPlayersAsync(
             controllerIds,
             new DoorbellMessageComposer { Username = playerName }
         );
@@ -117,7 +117,7 @@ public sealed class RoomEntryModule(
                 Username = playerName,
             };
 
-        await SendToPlayersAsync(controllerIds, composer);
+        await _roomGrain.SendComposerToPlayersAsync(controllerIds, composer);
 
         return ringerId;
     }
@@ -191,13 +191,4 @@ public sealed class RoomEntryModule(
 
         return result;
     }
-
-    private Task SendToPlayersAsync(List<PlayerId> playerIds, IComposer composer) =>
-        Task.WhenAll(
-            playerIds.Select(playerId =>
-                _roomGrain
-                    ._grainFactory.GetPlayerPresenceGrain(playerId)
-                    .SendComposerAsync(composer)
-            )
-        );
 }

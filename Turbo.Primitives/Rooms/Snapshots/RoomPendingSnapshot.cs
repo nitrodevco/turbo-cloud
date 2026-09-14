@@ -1,4 +1,5 @@
 using Orleans;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Primitives.Rooms.Snapshots;
 
@@ -9,5 +10,5 @@ public sealed record RoomPendingSnapshot
     public required RoomId RoomId { get; init; } = -1;
 
     [Id(1)]
-    public required bool Approved { get; init; } = false;
+    public required RoomEntryState State { get; init; } = RoomEntryState.None;
 }

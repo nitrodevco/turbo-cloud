@@ -6,11 +6,17 @@ namespace Turbo.Revisions.Revision20260701.Parsers.Room.Session;
 
 internal class OpenFlatConnectionMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) =>
-        new OpenFlatConnectionMessage
+    public IMessageEvent Parse(IClientPacket packet)
+    {
+        var message = new OpenFlatConnectionMessage
         {
             RoomId = packet.PopInt(),
             Password = packet.PopString(),
-            Unknown1 = packet.PopInt(),
         };
+
+        // Trailing int the client always sends as -1 and never populates.
+        packet.PopInt();
+
+        return message;
+    }
 }

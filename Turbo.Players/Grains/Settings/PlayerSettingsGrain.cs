@@ -17,9 +17,10 @@ using Turbo.Primitives.Players.Snapshots.Settings;
 namespace Turbo.Players.Grains.Settings;
 
 /// <summary>
-/// Owns a player's account preferences (sound, chat, UI flags, room invite/camera toggles).
-/// Mutations are applied in memory immediately and flushed to the database on a timer and on
-/// deactivation, so bursts of preference changes do not each block the grain turn on a DB write.
+/// Owns a player's account preferences (sound, chat, UI flags, room invite/camera toggles, wired
+/// editor preferences). Mutations are applied in memory immediately and flushed to the database
+/// on a timer and on deactivation, so bursts of preference changes do not each block the grain
+/// turn on a DB write.
 /// </summary>
 internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
 {
@@ -28,7 +29,9 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
     private readonly ILogger<IPlayerSettingsGrain> _logger;
 
     private readonly PlayerId _playerId;
-    private PlayerSettingsSnapshot _settings = CreateDefaultSettings();
+    private PlayerSettingsSnapshot _settings = FromEntity(
+        new PlayerSettingsEntity { PlayerEntityId = 0 }
+    );
     private bool _isDirty;
     private IDisposable? _flushTimer;
 
@@ -77,7 +80,7 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
     public Task<PlayerSettingsSnapshot> GetSettingsAsync(CancellationToken ct) =>
         Task.FromResult(_settings);
 
-    public Task<bool> SetSoundSettingsAsync(
+    public Task SetSoundSettingsAsync(
         int genericVolume,
         int furniVolume,
         int traxVolume,
@@ -100,7 +103,7 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
                 PlayerSettingsEntity.VOLUME_MAX
             );
 
-            return Task.FromResult(false);
+            return Task.CompletedTask;
         }
 
         Apply(
@@ -112,10 +115,10 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
             }
         );
 
-        return Task.FromResult(true);
+        return Task.CompletedTask;
     }
 
-    public Task<bool> SetChatPreferencesAsync(
+    public Task SetChatPreferencesAsync(
         ChatModeType chatMode,
         ChatBubbleWidthType bubbleWidth,
         ChatScrollSpeedType scrollSpeed,
@@ -136,7 +139,7 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
                 scrollSpeed
             );
 
-            return Task.FromResult(false);
+            return Task.CompletedTask;
         }
 
         Apply(
@@ -148,14 +151,10 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
             }
         );
 
-        return Task.FromResult(true);
+        return Task.CompletedTask;
     }
 
-    public Task<bool> SetChatStyleAsync(
-        int chatStyleId,
-        ChatSizeType fontSize,
-        CancellationToken ct
-    )
+    public Task SetChatStyleAsync(int chatStyleId, ChatSizeType fontSize, CancellationToken ct)
     {
         if (chatStyleId < 0 || !Enum.IsDefined(fontSize))
         {
@@ -166,39 +165,36 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
                 fontSize
             );
 
-            return Task.FromResult(false);
+            return Task.CompletedTask;
         }
 
         Apply(_settings with { ChatStyleId = chatStyleId, ChatFontSize = fontSize });
 
-        return Task.FromResult(true);
+        return Task.CompletedTask;
     }
 
-    public Task<bool> SetIgnoreRoomInvitesAsync(bool ignoreRoomInvites, CancellationToken ct)
+    public Task SetIgnoreRoomInvitesAsync(bool ignoreRoomInvites, CancellationToken ct)
     {
         Apply(_settings with { RoomInvitesIgnored = ignoreRoomInvites });
 
-        return Task.FromResult(true);
+        return Task.CompletedTask;
     }
 
-    public Task<bool> SetRoomCameraFollowDisabledAsync(
-        bool cameraFollowDisabled,
-        CancellationToken ct
-    )
+    public Task SetRoomCameraFollowDisabledAsync(bool cameraFollowDisabled, CancellationToken ct)
     {
         Apply(_settings with { RoomCameraFollowDisabled = cameraFollowDisabled });
 
-        return Task.FromResult(true);
+        return Task.CompletedTask;
     }
 
-    public Task<bool> SetUIFlagsAsync(UIFlags uiFlags, CancellationToken ct)
+    public Task SetUIFlagsAsync(UIFlags uiFlags, CancellationToken ct)
     {
         Apply(_settings with { UIFlags = uiFlags });
 
-        return Task.FromResult(true);
+        return Task.CompletedTask;
     }
 
-    public Task<bool> SetWiredPreferencesAsync(
+    public Task SetWiredPreferencesAsync(
         bool menuButton,
         bool inspectButton,
         bool playTestMode,
@@ -223,7 +219,7 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
                 PlayerSettingsEntity.WIRED_UI_STYLE_MAX_LENGTH
             );
 
-            return Task.FromResult(false);
+            return Task.CompletedTask;
         }
 
         Apply(
@@ -239,7 +235,7 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
             }
         );
 
-        return Task.FromResult(true);
+        return Task.CompletedTask;
     }
 
     private static bool IsValidVolume(int volume) =>
@@ -262,30 +258,11 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
             .PlayerSettings.AsNoTracking()
             .FirstOrDefaultAsync(x => x.PlayerEntityId == _playerId.Value, ct);
 
-        _settings = entity is null
-            ? CreateDefaultSettings()
-            : new PlayerSettingsSnapshot
-            {
-                GenericVolume = entity.GenericVolume,
-                FurniVolume = entity.FurniVolume,
-                TraxVolume = entity.TraxVolume,
-                RoomInvitesIgnored = entity.RoomInvitesIgnored,
-                RoomCameraFollowDisabled = entity.RoomCameraFollowDisabled,
-                UIFlags = entity.UIFlags,
-                ChatStyleId = entity.ChatStyleId,
-                ChatFontSize = entity.ChatFontSize,
-                ChatMode = entity.ChatMode,
-                ChatBubbleWidth = entity.ChatBubbleWidth,
-                ChatScrollSpeed = entity.ChatScrollSpeed,
-                WiredMenuButton = entity.WiredMenuButton,
-                WiredInspectButton = entity.WiredInspectButton,
-                WiredPlayTestMode = entity.WiredPlayTestMode,
-                WiredVariableSyntaxMode = entity.WiredVariableSyntaxMode,
-                WiredWhisperDisabled = entity.WiredWhisperDisabled,
-                WiredShowAllNotifications = entity.WiredShowAllNotifications,
-                WiredUIStyle = entity.WiredUIStyle,
-            };
-
+        // A missing row means the player has never changed anything; the entity's property
+        // initializers are the single source of the defaults.
+        _settings = FromEntity(
+            entity ?? new PlayerSettingsEntity { PlayerEntityId = _playerId.Value }
+        );
         _isDirty = false;
     }
 
@@ -307,52 +284,12 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
 
             if (entity is null)
             {
-                entity = new PlayerSettingsEntity
-                {
-                    PlayerEntityId = _playerId.Value,
-                    GenericVolume = settings.GenericVolume,
-                    FurniVolume = settings.FurniVolume,
-                    TraxVolume = settings.TraxVolume,
-                    RoomInvitesIgnored = settings.RoomInvitesIgnored,
-                    RoomCameraFollowDisabled = settings.RoomCameraFollowDisabled,
-                    UIFlags = settings.UIFlags,
-                    ChatStyleId = settings.ChatStyleId,
-                    ChatFontSize = settings.ChatFontSize,
-                    ChatMode = settings.ChatMode,
-                    ChatBubbleWidth = settings.ChatBubbleWidth,
-                    ChatScrollSpeed = settings.ChatScrollSpeed,
-                    WiredMenuButton = settings.WiredMenuButton,
-                    WiredInspectButton = settings.WiredInspectButton,
-                    WiredPlayTestMode = settings.WiredPlayTestMode,
-                    WiredVariableSyntaxMode = settings.WiredVariableSyntaxMode,
-                    WiredWhisperDisabled = settings.WiredWhisperDisabled,
-                    WiredShowAllNotifications = settings.WiredShowAllNotifications,
-                    WiredUIStyle = settings.WiredUIStyle,
-                };
+                entity = new PlayerSettingsEntity { PlayerEntityId = _playerId.Value };
 
                 dbCtx.PlayerSettings.Add(entity);
             }
-            else
-            {
-                entity.GenericVolume = settings.GenericVolume;
-                entity.FurniVolume = settings.FurniVolume;
-                entity.TraxVolume = settings.TraxVolume;
-                entity.RoomInvitesIgnored = settings.RoomInvitesIgnored;
-                entity.RoomCameraFollowDisabled = settings.RoomCameraFollowDisabled;
-                entity.UIFlags = settings.UIFlags;
-                entity.ChatStyleId = settings.ChatStyleId;
-                entity.ChatFontSize = settings.ChatFontSize;
-                entity.ChatMode = settings.ChatMode;
-                entity.ChatBubbleWidth = settings.ChatBubbleWidth;
-                entity.ChatScrollSpeed = settings.ChatScrollSpeed;
-                entity.WiredMenuButton = settings.WiredMenuButton;
-                entity.WiredInspectButton = settings.WiredInspectButton;
-                entity.WiredPlayTestMode = settings.WiredPlayTestMode;
-                entity.WiredVariableSyntaxMode = settings.WiredVariableSyntaxMode;
-                entity.WiredWhisperDisabled = settings.WiredWhisperDisabled;
-                entity.WiredShowAllNotifications = settings.WiredShowAllNotifications;
-                entity.WiredUIStyle = settings.WiredUIStyle;
-            }
+
+            ApplyTo(entity, settings);
 
             await dbCtx.SaveChangesAsync(ct);
 
@@ -366,26 +303,50 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         }
     }
 
-    private static PlayerSettingsSnapshot CreateDefaultSettings() =>
+    private static PlayerSettingsSnapshot FromEntity(PlayerSettingsEntity entity) =>
         new()
         {
-            GenericVolume = PlayerSettingsEntity.DEFAULT_VOLUME,
-            FurniVolume = PlayerSettingsEntity.DEFAULT_VOLUME,
-            TraxVolume = PlayerSettingsEntity.DEFAULT_VOLUME,
-            RoomInvitesIgnored = false,
-            RoomCameraFollowDisabled = false,
-            UIFlags = PlayerSettingsEntity.DEFAULT_UI_FLAGS,
-            ChatStyleId = PlayerSettingsEntity.DEFAULT_CHAT_STYLE_ID,
-            ChatFontSize = PlayerSettingsEntity.DEFAULT_CHAT_FONT_SIZE,
-            ChatMode = PlayerSettingsEntity.DEFAULT_CHAT_MODE,
-            ChatBubbleWidth = PlayerSettingsEntity.DEFAULT_CHAT_BUBBLE_WIDTH,
-            ChatScrollSpeed = PlayerSettingsEntity.DEFAULT_CHAT_SCROLL_SPEED,
-            WiredMenuButton = false,
-            WiredInspectButton = false,
-            WiredPlayTestMode = false,
-            WiredVariableSyntaxMode = PlayerSettingsEntity.DEFAULT_WIRED_VARIABLE_SYNTAX_MODE,
-            WiredWhisperDisabled = false,
-            WiredShowAllNotifications = PlayerSettingsEntity.DEFAULT_WIRED_SHOW_ALL_NOTIFICATIONS,
-            WiredUIStyle = PlayerSettingsEntity.DEFAULT_WIRED_UI_STYLE,
+            GenericVolume = entity.GenericVolume,
+            FurniVolume = entity.FurniVolume,
+            TraxVolume = entity.TraxVolume,
+            RoomInvitesIgnored = entity.RoomInvitesIgnored,
+            RoomCameraFollowDisabled = entity.RoomCameraFollowDisabled,
+            UIFlags = entity.UIFlags,
+            ChatStyleId = entity.ChatStyleId,
+            ChatFontSize = entity.ChatFontSize,
+            ChatMode = entity.ChatMode,
+            ChatBubbleWidth = entity.ChatBubbleWidth,
+            ChatScrollSpeed = entity.ChatScrollSpeed,
+            OnlineIndicatorPreference = entity.OnlineIndicatorPreference,
+            WiredMenuButton = entity.WiredMenuButton,
+            WiredInspectButton = entity.WiredInspectButton,
+            WiredPlayTestMode = entity.WiredPlayTestMode,
+            WiredVariableSyntaxMode = entity.WiredVariableSyntaxMode,
+            WiredWhisperDisabled = entity.WiredWhisperDisabled,
+            WiredShowAllNotifications = entity.WiredShowAllNotifications,
+            WiredUIStyle = entity.WiredUIStyle,
         };
+
+    private static void ApplyTo(PlayerSettingsEntity entity, PlayerSettingsSnapshot settings)
+    {
+        entity.GenericVolume = settings.GenericVolume;
+        entity.FurniVolume = settings.FurniVolume;
+        entity.TraxVolume = settings.TraxVolume;
+        entity.RoomInvitesIgnored = settings.RoomInvitesIgnored;
+        entity.RoomCameraFollowDisabled = settings.RoomCameraFollowDisabled;
+        entity.UIFlags = settings.UIFlags;
+        entity.ChatStyleId = settings.ChatStyleId;
+        entity.ChatFontSize = settings.ChatFontSize;
+        entity.ChatMode = settings.ChatMode;
+        entity.ChatBubbleWidth = settings.ChatBubbleWidth;
+        entity.ChatScrollSpeed = settings.ChatScrollSpeed;
+        entity.OnlineIndicatorPreference = settings.OnlineIndicatorPreference;
+        entity.WiredMenuButton = settings.WiredMenuButton;
+        entity.WiredInspectButton = settings.WiredInspectButton;
+        entity.WiredPlayTestMode = settings.WiredPlayTestMode;
+        entity.WiredVariableSyntaxMode = settings.WiredVariableSyntaxMode;
+        entity.WiredWhisperDisabled = settings.WiredWhisperDisabled;
+        entity.WiredShowAllNotifications = settings.WiredShowAllNotifications;
+        entity.WiredUIStyle = settings.WiredUIStyle;
+    }
 }

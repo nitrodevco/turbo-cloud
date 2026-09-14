@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -241,6 +242,17 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             new RoomOutboundSnapshot { RoomId = _state.RoomId, Composer = composer }
         );
 
+    /// <summary>
+    /// Targets a subset of players directly instead of the room stream. Independent presence
+    /// grains, so the sends run concurrently.
+    /// </summary>
+    internal Task SendComposerToPlayersAsync(IEnumerable<PlayerId> playerIds, IComposer composer) =>
+        Task.WhenAll(
+            playerIds.Select(playerId =>
+                _grainFactory.GetPlayerPresenceGrain(playerId).SendComposerAsync(composer)
+            )
+        );
+
     private async Task HydrateRoomStateAsync(CancellationToken ct)
     {
         var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
@@ -300,6 +312,13 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
                 HideWalls = entity.HideWalls,
                 WallThickness = entity.ThicknessWall,
                 FloorThickness = entity.ThicknessFloor,
+                LeaveOnDoorTile = entity.LeaveOnDoorTile,
+                IdleSleepEnabled = entity.IdleSleepEnabled,
+                IdleSleepTimeoutSeconds = entity.IdleSleepTimeoutSeconds,
+                IdleAutokickEnabled = entity.IdleAutokickEnabled,
+                IdleAutokickTimeoutSeconds = entity.IdleAutokickTimeoutSeconds,
+                MuteAllPets = entity.MuteAllPets,
+                HiddenByBc = entity.HiddenByBc,
                 LastUpdatedUtc = DateTime.UtcNow,
             };
 

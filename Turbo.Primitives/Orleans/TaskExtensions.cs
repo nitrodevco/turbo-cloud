@@ -2,9 +2,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-namespace Turbo.Players.Extensions;
+namespace Turbo.Primitives.Orleans;
 
-internal static class TaskExtensions
+public static class TaskExtensions
 {
     /// <summary>
     /// Fire-and-forget that still surfaces failures: a faulted task is logged instead of vanishing

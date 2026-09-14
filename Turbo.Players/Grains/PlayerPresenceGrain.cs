@@ -8,7 +8,6 @@ using Orleans;
 using Orleans.Runtime;
 using Orleans.Streams;
 using Turbo.Players.Configuration;
-using Turbo.Players.Extensions;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Orleans.Observers;

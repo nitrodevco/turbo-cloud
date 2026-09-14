@@ -12,7 +12,8 @@ public partial interface IPlayerPresenceGrain
     public Task<RoomPendingSnapshot> GetPendingRoomAsync();
     public Task SetActiveRoomAsync(RoomId roomId, CancellationToken ct);
     public Task ClearActiveRoomAsync(CancellationToken ct);
-    public Task SetPendingRoomAsync(RoomId roomId, bool approved);
+    public Task SetPendingRoomAsync(RoomId roomId, RoomEntryState state);
+    public Task ClearPendingRoomAsync();
     public Task OnControllerLevelUpdatedAsync(
         RoomId roomId,
         RoomControllerType controllerType,

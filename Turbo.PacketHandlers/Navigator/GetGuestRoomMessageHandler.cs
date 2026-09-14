@@ -38,16 +38,20 @@ public class GetGuestRoomMessageHandler(IRoomService roomService, IGrainFactory 
         var allInRoomMuted = await roomGrain.GetIsRoomMutedAsync().ConfigureAwait(false);
 
         var isNavigatorForward = !message.EnterRoom && message.RoomForward;
-        var isOpening = false;
+        var access = RoomEntryAccessType.Allowed;
 
         if (isNavigatorForward)
-        {
-            var access = await roomGrain
-                .CheckEntryAccessAsync(ctx.PlayerId, null, bypassDoor: false, ct)
+            access = await _roomService
+                .CheckRoomEntryAccessAsync(
+                    ctx.PlayerId,
+                    message.RoomId,
+                    password: null,
+                    bypassDoor: false,
+                    ct
+                )
                 .ConfigureAwait(false);
 
-            isOpening = access == RoomEntryAccessType.Allowed;
-        }
+        var isOpening = isNavigatorForward && access == RoomEntryAccessType.Allowed;
 
         var staffPick = false;
         var groupMember = false;
@@ -75,7 +79,7 @@ public class GetGuestRoomMessageHandler(IRoomService roomService, IGrainFactory 
                     ctx.AsActionContext(),
                     ctx.PlayerId,
                     message.RoomId,
-                    RoomEntryType.Navigator,
+                    access,
                     ct
                 )
                 .ConfigureAwait(false);

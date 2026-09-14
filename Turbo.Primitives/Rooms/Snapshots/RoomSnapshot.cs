@@ -28,4 +28,25 @@ public sealed record RoomSnapshot : RoomInfoSnapshot
 
     [Id(6)]
     public required RoomThicknessType FloorThickness { get; init; } = RoomThicknessType.Normal;
+
+    [Id(7)]
+    public required bool LeaveOnDoorTile { get; init; } = false;
+
+    [Id(8)]
+    public required bool IdleSleepEnabled { get; init; } = false;
+
+    [Id(9)]
+    public required int IdleSleepTimeoutSeconds { get; init; } = 0;
+
+    [Id(10)]
+    public required bool IdleAutokickEnabled { get; init; } = false;
+
+    [Id(11)]
+    public required int IdleAutokickTimeoutSeconds { get; init; } = 0;
+
+    [Id(12)]
+    public required bool MuteAllPets { get; init; } = false;
+
+    [Id(13)]
+    public required bool HiddenByBc { get; init; } = false;
 }

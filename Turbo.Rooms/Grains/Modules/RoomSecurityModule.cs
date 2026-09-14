@@ -80,10 +80,7 @@ public sealed class RoomSecurityModule(
         return FurniturePickupType.None;
     }
 
-    public Task<bool> GetIsRoomOwnerAsync(ActionContext ctx)
-    {
-        return GetIsRoomOwnerAsync(ctx.PlayerId);
-    }
+    public Task<bool> GetIsRoomOwnerAsync(ActionContext ctx) => GetIsRoomOwnerAsync(ctx.PlayerId);
 
     public Task<bool> GetIsRoomOwnerAsync(PlayerId playerId)
     {
@@ -97,33 +94,13 @@ public sealed class RoomSecurityModule(
         return Task.FromResult(isOwner);
     }
 
-    public async Task<RoomControllerType> GetControllerLevelAsync(ActionContext ctx)
-    {
-        if (ctx.Origin == ActionOrigin.System)
-            return RoomControllerType.Moderator;
-
-        if (await GetIsRoomOwnerAsync(ctx))
-            return RoomControllerType.Owner;
-
-        var isGroupRoom = await _roomGrain.GetIsGroupRoomAsync();
-
-        if (isGroupRoom)
-        {
-            // if has perm group_admin GroupAdmin
-            // if has perm group_member GroupMember
-
-            // check if belongs to group
-        }
-        else
-        {
-            // if has perm room_rights Rights
-
-            if (_roomGrain._state.PlayerIdsWithRights.Contains(ctx.PlayerId))
-                return RoomControllerType.Rights;
-        }
-
-        return RoomControllerType.None;
-    }
+    /// <summary>
+    /// System-originated actions act as a moderator; everything else resolves by player id.
+    /// </summary>
+    public Task<RoomControllerType> GetControllerLevelAsync(ActionContext ctx) =>
+        ctx.Origin == ActionOrigin.System
+            ? Task.FromResult(RoomControllerType.Moderator)
+            : GetControllerLevelAsync(ctx.PlayerId);
 
     public async Task<RoomControllerType> GetControllerLevelAsync(PlayerId playerId)
     {

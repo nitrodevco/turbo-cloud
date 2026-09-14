@@ -7,33 +7,30 @@ using Turbo.Primitives.Players.Snapshots.Settings;
 
 namespace Turbo.Primitives.Players.Grains.Settings;
 
+/// <summary>
+/// Owns a player's account preferences. Setters validate and log rejections themselves; the
+/// client never expects a response, so callers have nothing to act on.
+/// </summary>
 public interface IPlayerSettingsGrain : IGrainWithIntegerKey
 {
     public Task<PlayerSettingsSnapshot> GetSettingsAsync(CancellationToken ct);
-    public Task<bool> SetSoundSettingsAsync(
+    public Task SetSoundSettingsAsync(
         int genericVolume,
         int furniVolume,
         int traxVolume,
         CancellationToken ct
     );
-    public Task<bool> SetChatPreferencesAsync(
+    public Task SetChatPreferencesAsync(
         ChatModeType chatMode,
         ChatBubbleWidthType bubbleWidth,
         ChatScrollSpeedType scrollSpeed,
         CancellationToken ct
     );
-    public Task<bool> SetChatStyleAsync(
-        int chatStyleId,
-        ChatSizeType fontSize,
-        CancellationToken ct
-    );
-    public Task<bool> SetIgnoreRoomInvitesAsync(bool ignoreRoomInvites, CancellationToken ct);
-    public Task<bool> SetRoomCameraFollowDisabledAsync(
-        bool cameraFollowDisabled,
-        CancellationToken ct
-    );
-    public Task<bool> SetUIFlagsAsync(UIFlags uiFlags, CancellationToken ct);
-    public Task<bool> SetWiredPreferencesAsync(
+    public Task SetChatStyleAsync(int chatStyleId, ChatSizeType fontSize, CancellationToken ct);
+    public Task SetIgnoreRoomInvitesAsync(bool ignoreRoomInvites, CancellationToken ct);
+    public Task SetRoomCameraFollowDisabledAsync(bool cameraFollowDisabled, CancellationToken ct);
+    public Task SetUIFlagsAsync(UIFlags uiFlags, CancellationToken ct);
+    public Task SetWiredPreferencesAsync(
         bool menuButton,
         bool inspectButton,
         bool playTestMode,

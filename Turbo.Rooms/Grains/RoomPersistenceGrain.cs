@@ -9,9 +9,11 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
+using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Snapshots.Chat;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Configuration;
 
@@ -29,7 +31,9 @@ public sealed class RoomPersistenceGrain(
 
     private Dictionary<long, RoomItemSnapshot> _dirtyItems = [];
     private readonly HashSet<RoomObjectId> _removedItemIds = [];
+    private readonly Queue<RoomChatlogSnapshot> _pendingChatlogs = new();
     private IDisposable? _timer;
+    private IDisposable? _chatlogTimer;
 
     public override Task OnActivateAsync(CancellationToken ct)
     {
@@ -40,12 +44,88 @@ public sealed class RoomPersistenceGrain(
             TimeSpan.FromMilliseconds(_roomConfig.DirtyItemsTickMs)
         );
 
+        _chatlogTimer = this.RegisterGrainTimer<object?>(
+            static async (self, ct) => await ((RoomPersistenceGrain)self!).FlushChatlogsAsync(ct),
+            this,
+            TimeSpan.FromMilliseconds(_roomConfig.ChatlogTickMs),
+            TimeSpan.FromMilliseconds(_roomConfig.ChatlogTickMs)
+        );
+
         return Task.CompletedTask;
     }
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
         await FlushDirtyItemsAsync(ct);
+
+        while (_pendingChatlogs.Count > 0)
+            await FlushChatlogsAsync(ct);
+    }
+
+    public Task EnqueueChatlogAsync(RoomChatlogSnapshot snapshot, CancellationToken ct)
+    {
+        if (_pendingChatlogs.Count >= _roomConfig.MaxPendingChatlogs)
+        {
+            _logger.LogWarning(
+                "Chatlog queue for room {RoomId} is full ({Max}); dropping oldest entry",
+                this.GetPrimaryKeyLong(),
+                _roomConfig.MaxPendingChatlogs
+            );
+
+            _pendingChatlogs.Dequeue();
+        }
+
+        _pendingChatlogs.Enqueue(snapshot);
+
+        return Task.CompletedTask;
+    }
+
+    private async Task FlushChatlogsAsync(CancellationToken ct)
+    {
+        if (_pendingChatlogs.Count == 0)
+            return;
+
+        var batchSize = Math.Min(_pendingChatlogs.Count, _roomConfig.MaxChatlogsPerFlush);
+        var batch = new List<RoomChatlogEntity>(batchSize);
+
+        for (var i = 0; i < batchSize; i++)
+        {
+            var snapshot = _pendingChatlogs.Dequeue();
+            var message =
+                snapshot.Text.Length > RoomChatlogEntity.MESSAGE_MAX_LENGTH
+                    ? snapshot.Text[..RoomChatlogEntity.MESSAGE_MAX_LENGTH]
+                    : snapshot.Text;
+
+            batch.Add(
+                new RoomChatlogEntity
+                {
+                    RoomEntityId = snapshot.RoomId.Value,
+                    PlayerEntityId = snapshot.PlayerId.Value,
+                    TargetPlayerEntityId = snapshot.TargetPlayerId?.Value,
+                    Message = message,
+                    RoomEntity = null!,
+                    PlayerEntity = null!,
+                }
+            );
+        }
+
+        try
+        {
+            await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+            dbCtx.Chatlogs.AddRange(batch);
+
+            await dbCtx.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to flush {Count} chatlog entries for room {RoomId}",
+                batch.Count,
+                this.GetPrimaryKeyLong()
+            );
+        }
     }
 
     public Task EnqueueDirtyItemAsync(

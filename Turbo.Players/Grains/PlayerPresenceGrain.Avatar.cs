@@ -1,6 +1,5 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Orleans;
 using Turbo.Primitives.Messages.Outgoing.Avatar;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Snapshots;
@@ -21,7 +20,7 @@ internal sealed partial class PlayerPresenceGrain
         _grainFactory
             .GetPlayerMessengerGrain(_state.PlayerId)
             .UpdateFriendsAsync(snapshot, ct)
-            .Ignore();
+            .LogAndForget(_logger, $"update friends of player {_state.PlayerId}");
     }
 
     public async Task OnFigureUpdatedAsync(PlayerSummarySnapshot snapshot, CancellationToken ct)

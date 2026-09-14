@@ -60,4 +60,7 @@ public sealed record PlayerSettingsSnapshot
 
     [Id(17)]
     public required string WiredUIStyle { get; init; }
+
+    [Id(18)]
+    public required int OnlineIndicatorPreference { get; init; }
 }
