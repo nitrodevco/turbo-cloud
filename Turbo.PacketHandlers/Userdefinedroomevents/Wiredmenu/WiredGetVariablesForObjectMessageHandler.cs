@@ -28,6 +28,7 @@ public class WiredGetVariablesForObjectMessageHandler(IGrainFactory grainFactory
         var variables = await _grainFactory
             .GetRoomGrain(ctx.RoomId)
             .GetAllVariablesForBindingAsync(
+                ctx.AsActionContext(),
                 new WiredVariableBinding()
                 {
                     TargetType = (WiredVariableTargetType)message.SourceType,
@@ -36,6 +37,9 @@ public class WiredGetVariablesForObjectMessageHandler(IGrainFactory grainFactory
                 ct
             )
             .ConfigureAwait(false);
+
+        if (variables is null)
+            return;
 
         _ = ctx.SendComposerAsync(
                 new WiredVariablesForObjectEventMessageComposer()

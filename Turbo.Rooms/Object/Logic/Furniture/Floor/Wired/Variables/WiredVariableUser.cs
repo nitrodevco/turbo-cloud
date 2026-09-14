@@ -19,6 +19,7 @@ public class WiredVariableUser(
     public override int WiredCode => (int)WiredVariableBoxType.User;
 
     protected override WiredVariableTargetType TargetType => WiredVariableTargetType.User;
+    protected override int? AvailabilityParamIndex => 0;
     protected override WiredAvailabilityType AvailabilityType =>
         _wiredData.GetIntParam<WiredAvailabilityType>(0);
     protected override WiredVariableFlags Flags =>

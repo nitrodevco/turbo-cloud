@@ -19,6 +19,7 @@ public class WiredVariableFurni(
     public override int WiredCode => (int)WiredVariableBoxType.Furni;
 
     protected override WiredVariableTargetType TargetType => WiredVariableTargetType.Furni;
+    protected override int? AvailabilityParamIndex => 1;
     protected override WiredAvailabilityType AvailabilityType =>
         _wiredData.GetIntParam<WiredAvailabilityType>(1);
     protected override WiredVariableFlags Flags =>

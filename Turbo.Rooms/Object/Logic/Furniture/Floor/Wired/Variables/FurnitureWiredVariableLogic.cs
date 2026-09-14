@@ -3,9 +3,12 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Turbo.Logging;
+using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -29,6 +32,35 @@ public abstract class FurnitureWiredVariableLogic
     protected virtual WiredVariableType VariableType => WiredVariableType.Created;
     protected abstract WiredVariableTargetType TargetType { get; }
     protected abstract WiredAvailabilityType AvailabilityType { get; }
+
+    /// <summary>
+    /// Index of the availability choice in the box's int params, or null when the box has a
+    /// fixed availability the player cannot change.
+    /// </summary>
+    protected virtual int? AvailabilityParamIndex => null;
+
+    /// <summary>
+    /// Turning a box permanent consumes one of the room's permanent variable slots for its
+    /// target type, so the switch is refused once the configured cap is reached.
+    /// </summary>
+    public override async Task<bool> ApplyWiredUpdateAsync(
+        ActionContext ctx,
+        UpdateWiredMessage update,
+        CancellationToken ct
+    )
+    {
+        if (
+            AvailabilityParamIndex is int index
+            && index < update.IntParams.Count
+            && (WiredAvailabilityType)update.IntParams[index] == WiredAvailabilityType.Persistent
+            && GetVarSnapshot().AvailabilityType != WiredAvailabilityType.Persistent
+            && await _roomGrain.WiredSystem.IsPermanentVariableCapReachedAsync(TargetType, ct)
+        )
+            throw new TurboException(TurboErrorCodeEnum.WiredPermanentVariableLimitReached);
+
+        return await base.ApplyWiredUpdateAsync(ctx, update, ct);
+    }
+
     protected virtual WiredVariableFlags Flags => WiredVariableFlags.None;
     protected KeyValueStore? _storage = null;
     protected WiredVariableSnapshot? _varSnapshot;

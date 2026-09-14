@@ -1,17 +1,23 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Enums.Wired;
 
 namespace Turbo.Database.Entities.Room;
 
 [Table("rooms")]
 public class RoomEntity : TurboEntity
 {
+    public const WiredPermissionFlags DEFAULT_WIRED_PERMISSION_MASK = WiredPermissionFlags.Rights;
+    public const string DEFAULT_WIRED_TIMEZONE = "UTC";
+    public const int WIRED_TIMEZONE_MAX_LENGTH = 64;
+
     [Column("name")]
     public required string Name { get; set; }
 
@@ -134,6 +140,23 @@ public class RoomEntity : TurboEntity
     [Column("hidden_by_bc")]
     [DefaultValue(false)]
     public bool HiddenByBc { get; set; }
+
+    [Column("wired_modify_permission_mask")]
+    [DefaultValue(DEFAULT_WIRED_PERMISSION_MASK)]
+    [DatabaseGenerated(DatabaseGeneratedOption.None)]
+    public WiredPermissionFlags WiredModifyPermissionMask { get; set; } =
+        DEFAULT_WIRED_PERMISSION_MASK;
+
+    [Column("wired_read_permission_mask")]
+    [DefaultValue(DEFAULT_WIRED_PERMISSION_MASK)]
+    [DatabaseGenerated(DatabaseGeneratedOption.None)]
+    public WiredPermissionFlags WiredReadPermissionMask { get; set; } =
+        DEFAULT_WIRED_PERMISSION_MASK;
+
+    [Column("wired_timezone")]
+    [MaxLength(WIRED_TIMEZONE_MAX_LENGTH)]
+    [DefaultValue(DEFAULT_WIRED_TIMEZONE)]
+    public string WiredTimezone { get; set; } = DEFAULT_WIRED_TIMEZONE;
 
     [Column("last_active")]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]

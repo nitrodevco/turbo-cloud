@@ -1,6 +1,7 @@
 using Orleans;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Settings;
 
 namespace Turbo.Primitives.Rooms.Snapshots;
@@ -49,4 +50,13 @@ public sealed record RoomSnapshot : RoomInfoSnapshot
 
     [Id(13)]
     public required bool HiddenByBc { get; init; } = false;
+
+    [Id(14)]
+    public required WiredPermissionFlags WiredModifyPermissionMask { get; init; }
+
+    [Id(15)]
+    public required WiredPermissionFlags WiredReadPermissionMask { get; init; }
+
+    [Id(16)]
+    public required string WiredTimezone { get; init; } = string.Empty;
 }

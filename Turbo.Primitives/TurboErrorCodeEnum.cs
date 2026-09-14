@@ -20,6 +20,11 @@ public enum TurboErrorCodeEnum
     InvalidMoveTarget,
     NoPermissionToPlaceFurni,
     NoPermissionToManipulateFurni,
+    NoPermissionToReadWired,
+    NoPermissionToModifyWired,
+    WiredFloorItemLimitReached,
+    WiredWallItemLimitReached,
+    WiredPermanentVariableLimitReached,
 }
 
 public static class ErrorCodeExtensions
@@ -49,6 +54,16 @@ public static class ErrorCodeExtensions
                 "You do not have permission to place furniture.",
             TurboErrorCodeEnum.NoPermissionToManipulateFurni =>
                 "You do not have permission to manipulate furniture.",
+            TurboErrorCodeEnum.NoPermissionToReadWired =>
+                "You do not have permission to read wired in this room.",
+            TurboErrorCodeEnum.NoPermissionToModifyWired =>
+                "You do not have permission to modify wired in this room.",
+            TurboErrorCodeEnum.WiredFloorItemLimitReached =>
+                "This room has reached its wired floor furniture limit.",
+            TurboErrorCodeEnum.WiredWallItemLimitReached =>
+                "This room has reached its wired wall furniture limit.",
+            TurboErrorCodeEnum.WiredPermanentVariableLimitReached =>
+                "This room has reached its permanent wired variable limit.",
             _ => "An unknown error occurred.",
         };
 }

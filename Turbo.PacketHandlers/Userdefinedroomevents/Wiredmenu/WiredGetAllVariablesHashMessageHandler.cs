@@ -24,8 +24,11 @@ public class WiredGetAllVariablesHashMessageHandler(IGrainFactory grainFactory)
 
         var variables = await _grainFactory
             .GetRoomGrain(ctx.RoomId)
-            .GetWiredVariablesSnapshotAsync(ct)
+            .GetWiredVariablesSnapshotAsync(ctx.AsActionContext(), ct)
             .ConfigureAwait(false);
+
+        if (variables is null)
+            return;
 
         _ = ctx.SendComposerAsync(
                 new WiredAllVariablesHashEventMessageComposer()

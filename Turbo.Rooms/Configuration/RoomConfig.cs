@@ -47,4 +47,12 @@ public class RoomConfig
     public bool WiredAllowWallFurni { get; init; } = true;
     public int WiredMaxIntParams { get; init; } = 16;
     public int WiredNeighborhoodRadius { get; init; } = 5;
+    public int WiredMaxFloorItems { get; init; } = 200;
+    public int WiredMaxWallItems { get; init; } = 50;
+    public int WiredMaxPermanentFurniVariables { get; init; } = 50;
+    public int WiredMaxPermanentUserVariables { get; init; } = 50;
+    public int WiredMaxPermanentGlobalVariables { get; init; } = 50;
+    public int WiredExecutionCostWindowMs { get; init; } = 1000;
+    public int WiredExecutionCostCap { get; init; } = 500;
+    public int WiredMaxErrorLogEntries { get; init; } = 50;
 }

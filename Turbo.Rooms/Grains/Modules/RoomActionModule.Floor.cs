@@ -9,6 +9,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -31,6 +32,13 @@ public sealed partial class RoomActionModule
 
         if (item is not IRoomFloorItem floorItem)
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
+
+        if (
+            item.Logic is IWiredBox
+            && _roomGrain.WiredSystem.CountWiredItems().floor
+                >= _roomGrain._roomConfig.WiredMaxFloorItems
+        )
+            throw new TurboException(TurboErrorCodeEnum.WiredFloorItemLimitReached);
 
         if (
             !await _roomGrain.FurniModule.ValidateNewFloorItemPlacementAsync(
@@ -86,6 +94,13 @@ public sealed partial class RoomActionModule
 
         if (item.Logic is not FurnitureWiredLogic wiredLogic)
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
+
+        var (canModify, _) = _roomGrain.SecurityModule.GetWiredPermissions(
+            await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx)
+        );
+
+        if (!canModify)
+            throw new TurboException(TurboErrorCodeEnum.NoPermissionToModifyWired);
 
         if (!await wiredLogic.ApplyWiredUpdateAsync(ctx, update, ct))
             return false;

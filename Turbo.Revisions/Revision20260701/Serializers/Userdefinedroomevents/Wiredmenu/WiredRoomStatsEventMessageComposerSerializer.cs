@@ -11,6 +11,21 @@ internal class WiredRoomStatsEventMessageComposerSerializer(int header)
         WiredRoomStatsEventMessageComposer message
     )
     {
-        //
+        var stats = message.Stats;
+
+        packet
+            .WriteDouble(stats.ExecutionCost)
+            .WriteDouble(stats.ExecutionCostCap)
+            .WriteBoolean(stats.IsHeavy)
+            .WriteInteger(stats.FloorItemCount)
+            .WriteInteger(stats.FloorItemCap)
+            .WriteInteger(stats.WallItemCount)
+            .WriteInteger(stats.WallItemCap)
+            .WriteInteger(stats.PermanentFurniVariables)
+            .WriteInteger(stats.MaxPermanentFurniVariables)
+            .WriteInteger(stats.PermanentUserVariables)
+            .WriteInteger(stats.MaxPermanentUserVariables)
+            .WriteInteger(stats.PermanentGlobalVariables)
+            .WriteInteger(stats.MaxPermanentGlobalVariables);
     }
 }

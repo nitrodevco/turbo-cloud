@@ -1,11 +1,10 @@
 using Orleans;
-using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Enums.Wired;
 
-namespace Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
+namespace Turbo.Primitives.Rooms.Snapshots.Wired;
 
 [GenerateSerializer, Immutable]
-public sealed record WiredRoomSettingsEventMessageComposer : IComposer
+public sealed record WiredRoomSettingsSnapshot
 {
     [Id(0)]
     public required WiredPermissionFlags ModifyPermissionMask { get; init; }

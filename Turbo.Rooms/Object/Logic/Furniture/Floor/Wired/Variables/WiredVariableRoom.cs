@@ -22,6 +22,7 @@ public class WiredVariableRoom(
 
     protected override WiredVariableTargetType TargetType => WiredVariableTargetType.Global;
 
+    protected override int? AvailabilityParamIndex => 0;
     protected override WiredAvailabilityType AvailabilityType =>
         _wiredData.GetIntParam<WiredAvailabilityType>(0);
 

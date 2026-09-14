@@ -25,7 +25,7 @@ public class OpenMessageHandler(IGrainFactory grainFactory) : IMessageHandler<Op
 
         var wiredData = await _grainFactory
             .GetRoomGrain(ctx.RoomId)
-            .GetWiredDataSnapshotByFloorItemIdAsync(message.Id, ct)
+            .GetWiredDataSnapshotByFloorItemIdAsync(ctx.AsActionContext(), message.Id, ct)
             .ConfigureAwait(false);
 
         if (wiredData is null)

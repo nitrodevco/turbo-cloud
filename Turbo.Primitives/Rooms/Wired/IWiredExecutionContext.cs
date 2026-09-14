@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
@@ -14,6 +15,11 @@ namespace Turbo.Primitives.Rooms.Wired;
 
 public interface IWiredExecutionContext : IWiredContext
 {
+    /// <summary>
+    /// Now, in the room's wired timezone. Time and date based wired should read this.
+    /// </summary>
+    public DateTimeOffset RoomLocalTime { get; }
+
     public List<WiredUserMovementSnapshot> UserMoves { get; }
     public List<WiredFloorItemMovementSnapshot> FloorItemMoves { get; }
     public List<WiredWallItemMovementSnapshot> WallItemMoves { get; }

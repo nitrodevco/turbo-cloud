@@ -319,6 +319,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
                 IdleAutokickTimeoutSeconds = entity.IdleAutokickTimeoutSeconds,
                 MuteAllPets = entity.MuteAllPets,
                 HiddenByBc = entity.HiddenByBc,
+                WiredModifyPermissionMask = entity.WiredModifyPermissionMask,
+                WiredReadPermissionMask = entity.WiredReadPermissionMask,
+                WiredTimezone = entity.WiredTimezone,
                 LastUpdatedUtc = DateTime.UtcNow,
             };
 

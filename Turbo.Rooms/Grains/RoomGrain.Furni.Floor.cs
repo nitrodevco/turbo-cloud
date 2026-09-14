@@ -104,23 +104,45 @@ public sealed partial class RoomGrain
         CancellationToken ct
     ) => FurniModule.GetAllFloorItemSnapshotsAsync(ct);
 
-    public Task<WiredDataSnapshot?> GetWiredDataSnapshotByFloorItemIdAsync(
+    public async Task<WiredDataSnapshot?> GetWiredDataSnapshotByFloorItemIdAsync(
+        ActionContext ctx,
         RoomObjectId itemId,
         CancellationToken ct
-    ) =>
-        Task.FromResult(
+    )
+    {
+        if (!await CanReadWiredAsync(ctx, ct))
+            return null;
+
+        return
             _state.ItemsById.TryGetValue(itemId, out var item)
-                ? item.Logic is FurnitureWiredLogic wiredLogic
-                    ? wiredLogic.GetSnapshot()
-                    : null
-                : null
-        );
+            && item.Logic is FurnitureWiredLogic wiredLogic
+            ? wiredLogic.GetSnapshot()
+            : null;
+    }
 
-    public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct) =>
-        WiredSystem.GetWiredVariablesSnapshotAsync(ct);
+    public async Task<WiredVariablesSnapshot?> GetWiredVariablesSnapshotAsync(
+        ActionContext ctx,
+        CancellationToken ct
+    )
+    {
+        if (!await CanReadWiredAsync(ctx, ct))
+            return null;
 
-    public Task<
-        List<(WiredVariableId id, WiredVariableValue value)>
-    > GetAllVariablesForBindingAsync(WiredVariableBinding binding, CancellationToken ct) =>
-        WiredSystem.GetAllVariablesForBindingAsync(binding, ct);
+        return await WiredSystem.GetWiredVariablesSnapshotAsync(ct);
+    }
+
+    public async Task<List<(
+        WiredVariableId id,
+        WiredVariableValue value
+    )>?> GetAllVariablesForBindingAsync(
+        ActionContext ctx,
+        WiredVariableBinding binding,
+        CancellationToken ct
+    )
+    {
+        if (!await CanReadWiredAsync(ctx, ct))
+            return null;
+
+        return await WiredSystem.GetAllVariablesForBindingAsync(binding, ct);
+    }
 }

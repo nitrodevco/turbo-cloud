@@ -28,8 +28,11 @@ public class WiredGetAllVariablesDiffsMessageHandler(IGrainFactory grainFactory)
 
         var variables = await _grainFactory
             .GetRoomGrain(ctx.RoomId)
-            .GetWiredVariablesSnapshotAsync(ct)
+            .GetWiredVariablesSnapshotAsync(ctx.AsActionContext(), ct)
             .ConfigureAwait(false);
+
+        if (variables is null)
+            return;
 
         var removedIds = new List<WiredVariableId>();
         var checkedIds = new List<WiredVariableId>();

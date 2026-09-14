@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
@@ -19,6 +20,8 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
     : WiredContext(roomGrain),
         IWiredExecutionContext
 {
+    public DateTimeOffset RoomLocalTime => _roomGrain.WiredSystem.GetRoomLocalTime();
+
     public List<WiredUserMovementSnapshot> UserMoves { get; } = [];
     public List<WiredFloorItemMovementSnapshot> FloorItemMoves { get; } = [];
     public List<WiredWallItemMovementSnapshot> WallItemMoves { get; } = [];

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms;
@@ -49,6 +50,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
 
         while (now >= _roomGrain._state.NextWiredBoundaryMs)
             _roomGrain._state.NextWiredBoundaryMs += _tickMs;
+
+        RollExecutionWindow(now);
 
         if (_firstRun)
         {
@@ -218,9 +221,15 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
     private async Task RunDueScheduledStackExecutionsAsync(long now, CancellationToken ct)
     {
         var budget = _roomGrain._roomConfig.WiredMaxScheduledPerTick;
+        var costCap = _roomGrain._roomConfig.WiredExecutionCostCap;
 
         while (budget-- > 0 && _stackSchedule.Count > 0)
         {
+            // A room that has spent its execution budget for the current cost window is
+            // throttled: due executions stay queued and resume once the window rolls over.
+            if (costCap > 0 && _executionsInWindow >= costCap)
+                break;
+
             var (entry, dueAtMs) = PeekSchedule();
 
             if (dueAtMs > now)
@@ -301,9 +310,22 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
 
                 await action.ExecuteAsync(ctx, ct);
 
+                CountExecution();
+
                 _ = FlushWiredContextAsync(ctx);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                RecordError(ex.GetType().Name, GetErrorCategory(action), now);
+
+                _roomGrain._logger.LogWarning(
+                    ex,
+                    "Wired action {WiredType} {WiredCode} failed in room {RoomId}",
+                    action.WiredType,
+                    action.WiredCode,
+                    _roomGrain.RoomId
+                );
+            }
 
             pending.NextActionIndex = i + 1;
         }
@@ -431,9 +453,20 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
                         break;
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                continue;
+                var box = (IWiredBox)item.Logic!;
+
+                RecordError(ex.GetType().Name, GetErrorCategory(box), _roomGrain.NowMs());
+
+                _roomGrain._logger.LogWarning(
+                    ex,
+                    "Failed to load wired item {ObjectId} ({WiredType} {WiredCode}) in room {RoomId}",
+                    item.ObjectId,
+                    box.WiredType,
+                    box.WiredCode,
+                    _roomGrain.RoomId
+                );
             }
         }
 

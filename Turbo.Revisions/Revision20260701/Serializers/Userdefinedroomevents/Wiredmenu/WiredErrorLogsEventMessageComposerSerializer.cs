@@ -11,6 +11,14 @@ internal class WiredErrorLogsEventMessageComposerSerializer(int header)
         WiredErrorLogsEventMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.Errors.Length);
+
+        foreach (var error in message.Errors)
+            packet
+                .WriteInteger(error.ErrorId)
+                .WriteString(error.ErrorName)
+                .WriteString(error.Category)
+                .WriteInteger(error.ThrowCount)
+                .WriteLong(error.MsSinceLastOccurrence);
     }
 }

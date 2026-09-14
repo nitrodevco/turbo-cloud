@@ -45,12 +45,35 @@ public partial interface IRoomGrain
     public Task<ImmutableArray<RoomFloorItemSnapshot>> GetAllFloorItemSnapshotsAsync(
         CancellationToken ct
     );
+
+    /// <summary>
+    /// A wired box's editor data, or null when the item is not wired or the caller may not read
+    /// the room's wired.
+    /// </summary>
     public Task<WiredDataSnapshot?> GetWiredDataSnapshotByFloorItemIdAsync(
+        ActionContext ctx,
         RoomObjectId itemId,
         CancellationToken ct
     );
-    public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct);
-    public Task<
-        List<(WiredVariableId id, WiredVariableValue value)>
-    > GetAllVariablesForBindingAsync(WiredVariableBinding binding, CancellationToken ct);
+
+    /// <summary>
+    /// All variables in the room, or null when the caller may not read the room's wired.
+    /// </summary>
+    public Task<WiredVariablesSnapshot?> GetWiredVariablesSnapshotAsync(
+        ActionContext ctx,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Variable values bound to one target, or null when the caller may not read the room's
+    /// wired.
+    /// </summary>
+    public Task<List<(
+        WiredVariableId id,
+        WiredVariableValue value
+    )>?> GetAllVariablesForBindingAsync(
+        ActionContext ctx,
+        WiredVariableBinding binding,
+        CancellationToken ct
+    );
 }

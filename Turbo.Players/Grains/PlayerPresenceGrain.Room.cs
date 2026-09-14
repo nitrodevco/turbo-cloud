@@ -140,6 +140,8 @@ internal sealed partial class PlayerPresenceGrain
     public async Task OnControllerLevelUpdatedAsync(
         RoomId roomId,
         RoomControllerType controllerType,
+        bool canModifyWired,
+        bool canReadWired,
         CancellationToken ct
     )
     {
@@ -153,17 +155,37 @@ internal sealed partial class PlayerPresenceGrain
                 {
                     RoomId = roomId,
                     ControllerLevel = controllerType,
-                },
-                new WiredPermissionsEventMessageComposer { CanModify = true, CanRead = true }
+                }
             );
 
             if (controllerType >= RoomControllerType.Owner)
                 await SendComposerAsync(new YouAreOwnerMessageComposer { RoomId = roomId });
-
-            return;
+        }
+        else
+        {
+            await SendComposerAsync(new YouAreNotControllerMessageComposer { RoomId = roomId });
         }
 
-        await SendComposerAsync(new YouAreNotControllerMessageComposer { RoomId = roomId });
+        await OnWiredPermissionsUpdatedAsync(roomId, canModifyWired, canReadWired, ct);
+    }
+
+    public async Task OnWiredPermissionsUpdatedAsync(
+        RoomId roomId,
+        bool canModifyWired,
+        bool canReadWired,
+        CancellationToken ct
+    )
+    {
+        if (_state.ActiveRoomId != roomId)
+            return;
+
+        await SendComposerAsync(
+            new WiredPermissionsEventMessageComposer
+            {
+                CanModify = canModifyWired,
+                CanRead = canReadWired,
+            }
+        );
     }
 
     private IAsyncStream<RoomOutboundSnapshot> GetRoomStream(RoomId roomId)

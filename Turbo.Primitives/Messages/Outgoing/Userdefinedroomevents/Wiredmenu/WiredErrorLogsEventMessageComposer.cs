@@ -1,10 +1,13 @@
+using System.Collections.Immutable;
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 
 namespace Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 
 [GenerateSerializer, Immutable]
 public sealed record WiredErrorLogsEventMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required ImmutableArray<WiredErrorLogSnapshot> Errors { get; init; }
 }

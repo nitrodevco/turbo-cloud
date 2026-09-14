@@ -11,6 +11,9 @@ internal class WiredRoomSettingsEventMessageComposerSerializer(int header)
         WiredRoomSettingsEventMessageComposer message
     )
     {
-        //
+        packet
+            .WriteInteger((int)message.ModifyPermissionMask)
+            .WriteInteger((int)message.ReadPermissionMask)
+            .WriteString(message.Timezone);
     }
 }

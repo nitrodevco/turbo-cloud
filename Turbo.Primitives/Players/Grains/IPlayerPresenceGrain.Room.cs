@@ -17,6 +17,14 @@ public partial interface IPlayerPresenceGrain
     public Task OnControllerLevelUpdatedAsync(
         RoomId roomId,
         RoomControllerType controllerType,
+        bool canModifyWired,
+        bool canReadWired,
+        CancellationToken ct
+    );
+    public Task OnWiredPermissionsUpdatedAsync(
+        RoomId roomId,
+        bool canModifyWired,
+        bool canReadWired,
         CancellationToken ct
     );
 }
