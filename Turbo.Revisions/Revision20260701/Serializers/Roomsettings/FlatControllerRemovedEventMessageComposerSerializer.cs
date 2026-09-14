@@ -11,6 +11,6 @@ internal class FlatControllerRemovedEventMessageComposerSerializer(int header)
         FlatControllerRemovedEventMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.RoomId).WriteInteger(message.PlayerId);
     }
 }

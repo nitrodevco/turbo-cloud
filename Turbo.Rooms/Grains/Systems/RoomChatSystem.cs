@@ -145,23 +145,12 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
             return;
         }
 
-        var sendToSpeaker = _roomGrain
-            ._grainFactory.GetPlayerPresenceGrain(speaker.PlayerId)
-            .SendComposerAsync(composer);
+        var targets = new HashSet<PlayerId> { speaker.PlayerId };
 
-        if (recipient is null || recipient.PlayerId == speaker.PlayerId)
-        {
-            await sendToSpeaker;
+        if (recipient is not null)
+            targets.Add(recipient.PlayerId);
 
-            return;
-        }
-
-        await Task.WhenAll(
-            sendToSpeaker,
-            _roomGrain
-                ._grainFactory.GetPlayerPresenceGrain(recipient.PlayerId)
-                .SendComposerAsync(composer)
-        );
+        await _roomGrain.SendComposerToPlayersAsync(targets, composer);
     }
 
     private static IComposer CreateComposer(PlayerChatEvent evt) =>

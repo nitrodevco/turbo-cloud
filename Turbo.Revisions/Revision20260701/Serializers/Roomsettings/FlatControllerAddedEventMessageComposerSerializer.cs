@@ -11,6 +11,9 @@ internal class FlatControllerAddedEventMessageComposerSerializer(int header)
         FlatControllerAddedEventMessageComposer message
     )
     {
-        //
+        packet
+            .WriteInteger(message.RoomId)
+            .WriteInteger(message.Controller.PlayerId)
+            .WriteString(message.Controller.Name);
     }
 }

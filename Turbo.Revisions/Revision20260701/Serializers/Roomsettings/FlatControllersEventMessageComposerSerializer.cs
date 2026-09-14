@@ -11,6 +11,9 @@ internal class FlatControllersEventMessageComposerSerializer(int header)
         FlatControllersEventMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.RoomId).WriteInteger(message.Controllers.Length);
+
+        foreach (var controller in message.Controllers)
+            packet.WriteInteger(controller.PlayerId).WriteString(controller.Name);
     }
 }

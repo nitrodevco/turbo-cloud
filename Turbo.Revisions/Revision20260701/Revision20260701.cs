@@ -8,9 +8,21 @@ using Turbo.Primitives.Messages.Outgoing.Camera;
 using Turbo.Primitives.Messages.Outgoing.Campaign;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Collectibles;
+using Turbo.Primitives.Messages.Outgoing.Competition;
+using Turbo.Primitives.Messages.Outgoing.Crafting;
+using Turbo.Primitives.Messages.Outgoing.Error;
+using Turbo.Primitives.Messages.Outgoing.Friendfurni;
 using Turbo.Primitives.Messages.Outgoing.FriendList;
+using Turbo.Primitives.Messages.Outgoing.Game.Directory;
+using Turbo.Primitives.Messages.Outgoing.Game.Lobby;
+using Turbo.Primitives.Messages.Outgoing.Game.Score;
+using Turbo.Primitives.Messages.Outgoing.Game.Snowwar.Arena;
+using Turbo.Primitives.Messages.Outgoing.Game.Snowwar.Ingame;
+using Turbo.Primitives.Messages.Outgoing.Gifts;
 using Turbo.Primitives.Messages.Outgoing.Groupforums;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
+using Turbo.Primitives.Messages.Outgoing.Help;
+using Turbo.Primitives.Messages.Outgoing.Hotlooks;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Achievements;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Avatareffect;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Badges;
@@ -20,13 +32,20 @@ using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Pets;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Purse;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Trading;
+using Turbo.Primitives.Messages.Outgoing.Landingview;
+using Turbo.Primitives.Messages.Outgoing.Landingview.Votes;
+using Turbo.Primitives.Messages.Outgoing.Marketplace;
+using Turbo.Primitives.Messages.Outgoing.Moderation;
 using Turbo.Primitives.Messages.Outgoing.Mysterybox;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.NewNavigator;
 using Turbo.Primitives.Messages.Outgoing.Nft;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
+using Turbo.Primitives.Messages.Outgoing.Nux;
 using Turbo.Primitives.Messages.Outgoing.Perk;
+using Turbo.Primitives.Messages.Outgoing.Poll;
 using Turbo.Primitives.Messages.Outgoing.Preferences;
+using Turbo.Primitives.Messages.Outgoing.Quest;
 using Turbo.Primitives.Messages.Outgoing.Room.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Bots;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
@@ -37,7 +56,10 @@ using Turbo.Primitives.Messages.Outgoing.Room.Permissions;
 using Turbo.Primitives.Messages.Outgoing.Room.Pets;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Messages.Outgoing.Roomsettings;
+using Turbo.Primitives.Messages.Outgoing.Sound;
+using Turbo.Primitives.Messages.Outgoing.Talent;
 using Turbo.Primitives.Messages.Outgoing.Tracking;
+using Turbo.Primitives.Messages.Outgoing.Userclassification;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 using Turbo.Primitives.Messages.Outgoing.Users;
@@ -113,9 +135,21 @@ using Turbo.Revisions.Revision20260701.Serializers.Camera;
 using Turbo.Revisions.Revision20260701.Serializers.Campaign;
 using Turbo.Revisions.Revision20260701.Serializers.Catalog;
 using Turbo.Revisions.Revision20260701.Serializers.Collectibles;
+using Turbo.Revisions.Revision20260701.Serializers.Competition;
+using Turbo.Revisions.Revision20260701.Serializers.Crafting;
+using Turbo.Revisions.Revision20260701.Serializers.Error;
+using Turbo.Revisions.Revision20260701.Serializers.Friendfurni;
 using Turbo.Revisions.Revision20260701.Serializers.FriendList;
+using Turbo.Revisions.Revision20260701.Serializers.Game.Directory;
+using Turbo.Revisions.Revision20260701.Serializers.Game.Lobby;
+using Turbo.Revisions.Revision20260701.Serializers.Game.Score;
+using Turbo.Revisions.Revision20260701.Serializers.Game.Snowwar.Arena;
+using Turbo.Revisions.Revision20260701.Serializers.Game.Snowwar.Ingame;
+using Turbo.Revisions.Revision20260701.Serializers.Gifts;
 using Turbo.Revisions.Revision20260701.Serializers.Groupforums;
 using Turbo.Revisions.Revision20260701.Serializers.Handshake;
+using Turbo.Revisions.Revision20260701.Serializers.Help;
+using Turbo.Revisions.Revision20260701.Serializers.Hotlooks;
 using Turbo.Revisions.Revision20260701.Serializers.Inventory.Achievements;
 using Turbo.Revisions.Revision20260701.Serializers.Inventory.Avatareffect;
 using Turbo.Revisions.Revision20260701.Serializers.Inventory.Badges;
@@ -125,13 +159,20 @@ using Turbo.Revisions.Revision20260701.Serializers.Inventory.Furni;
 using Turbo.Revisions.Revision20260701.Serializers.Inventory.Pets;
 using Turbo.Revisions.Revision20260701.Serializers.Inventory.Purse;
 using Turbo.Revisions.Revision20260701.Serializers.Inventory.Trading;
+using Turbo.Revisions.Revision20260701.Serializers.Landingview;
+using Turbo.Revisions.Revision20260701.Serializers.Landingview.Votes;
+using Turbo.Revisions.Revision20260701.Serializers.Marketplace;
+using Turbo.Revisions.Revision20260701.Serializers.Moderation;
 using Turbo.Revisions.Revision20260701.Serializers.Mysterybox;
 using Turbo.Revisions.Revision20260701.Serializers.Navigator;
 using Turbo.Revisions.Revision20260701.Serializers.NewNavigator;
 using Turbo.Revisions.Revision20260701.Serializers.Nft;
 using Turbo.Revisions.Revision20260701.Serializers.Notifications;
+using Turbo.Revisions.Revision20260701.Serializers.Nux;
 using Turbo.Revisions.Revision20260701.Serializers.Perk;
+using Turbo.Revisions.Revision20260701.Serializers.Poll;
 using Turbo.Revisions.Revision20260701.Serializers.Preferences;
+using Turbo.Revisions.Revision20260701.Serializers.Quest;
 using Turbo.Revisions.Revision20260701.Serializers.Room.Action;
 using Turbo.Revisions.Revision20260701.Serializers.Room.Bots;
 using Turbo.Revisions.Revision20260701.Serializers.Room.Chat;
@@ -142,7 +183,10 @@ using Turbo.Revisions.Revision20260701.Serializers.Room.Permissions;
 using Turbo.Revisions.Revision20260701.Serializers.Room.Pets;
 using Turbo.Revisions.Revision20260701.Serializers.Room.Session;
 using Turbo.Revisions.Revision20260701.Serializers.Roomsettings;
+using Turbo.Revisions.Revision20260701.Serializers.Sound;
+using Turbo.Revisions.Revision20260701.Serializers.Talent;
 using Turbo.Revisions.Revision20260701.Serializers.Tracking;
+using Turbo.Revisions.Revision20260701.Serializers.Userclassification;
 using Turbo.Revisions.Revision20260701.Serializers.Userdefinedroomevents;
 using Turbo.Revisions.Revision20260701.Serializers.Userdefinedroomevents.Wiredmenu;
 using Turbo.Revisions.Revision20260701.Serializers.Users;
@@ -1599,12 +1643,6 @@ public class Revision20260701 : IRevision
                     MessageComposer.CampaignCalendarDataMessageComposer
                 )
             },
-            {
-                typeof(CampaignCalendarDoorOpenedMessageComposer),
-                new CampaignCalendarDataMessageComposerSerializer(
-                    MessageComposer.CampaignCalendarDoorOpenedMessageComposer
-                )
-            },
             #endregion
 
             #region Catalog
@@ -2577,12 +2615,6 @@ public class Revision20260701 : IRevision
                     MessageComposer.RestoreClientMessageComposer
                 )
             },
-            {
-                typeof(UnseenItemsEventMessageComposer),
-                new AccountPreferencesEventMessageComposerSerializer(
-                    MessageComposer.UnseenItemsMessageComposer
-                )
-            },
             #endregion
 
             #region Perk
@@ -3353,6 +3385,1188 @@ public class Revision20260701 : IRevision
                 typeof(IncomeRewardStatusMessageComposer),
                 new IncomeRewardStatusMessageComposerSerializer(
                     MessageComposer.IncomeRewardStatusMessageComposer
+                )
+            },
+            #endregion
+            #region Campaign
+            {
+                typeof(CampaignCalendarDoorOpenedMessageComposer),
+                new CampaignCalendarDoorOpenedMessageComposerSerializer(
+                    MessageComposer.CampaignCalendarDoorOpenedMessageComposer
+                )
+            },
+            #endregion
+
+            #region Catalog
+            {
+                typeof(FigureSetIdsMessage),
+                new FigureSetIdsMessageSerializer(MessageComposer.FigureSetIdsMessageComposer)
+            },
+            #endregion
+
+            #region Competition
+            {
+                typeof(CompetitionEntrySubmitResultMessageComposer),
+                new CompetitionEntrySubmitResultMessageComposerSerializer(
+                    MessageComposer.CompetitionEntrySubmitResultMessageComposer
+                )
+            },
+            {
+                typeof(CompetitionVotingInfoMessageComposer),
+                new CompetitionVotingInfoMessageComposerSerializer(
+                    MessageComposer.CompetitionVotingInfoMessageComposer
+                )
+            },
+            {
+                typeof(CurrentTimingCodeMessageComposer),
+                new CurrentTimingCodeMessageComposerSerializer(
+                    MessageComposer.CurrentTimingCodeMessageComposer
+                )
+            },
+            {
+                typeof(IsUserPartOfCompetitionMessageComposer),
+                new IsUserPartOfCompetitionMessageComposerSerializer(
+                    MessageComposer.IsUserPartOfCompetitionMessageComposer
+                )
+            },
+            {
+                typeof(NoOwnedRoomsAlertMessageComposer),
+                new NoOwnedRoomsAlertMessageComposerSerializer(
+                    MessageComposer.NoOwnedRoomsAlertMessageComposer
+                )
+            },
+            {
+                typeof(SecondsUntilMessageComposer),
+                new SecondsUntilMessageComposerSerializer(
+                    MessageComposer.SecondsUntilMessageComposer
+                )
+            },
+            #endregion
+
+            #region Crafting
+            {
+                typeof(CraftableProductsMessageComposer),
+                new CraftableProductsMessageComposerSerializer(
+                    MessageComposer.CraftableProductsMessageComposer
+                )
+            },
+            {
+                typeof(CraftingRecipeMessageComposer),
+                new CraftingRecipeMessageComposerSerializer(
+                    MessageComposer.CraftingRecipeMessageComposer
+                )
+            },
+            {
+                typeof(CraftingRecipesAvailableMessageComposer),
+                new CraftingRecipesAvailableMessageComposerSerializer(
+                    MessageComposer.CraftingRecipesAvailableMessageComposer
+                )
+            },
+            {
+                typeof(CraftingResultMessageComposer),
+                new CraftingResultMessageComposerSerializer(
+                    MessageComposer.CraftingResultMessageComposer
+                )
+            },
+            #endregion
+
+            #region Error
+            {
+                typeof(ErrorReportEventMessageComposer),
+                new ErrorReportEventMessageComposerSerializer(
+                    MessageComposer.ErrorReportMessageComposer
+                )
+            },
+            #endregion
+
+            #region Friendfurni
+            {
+                typeof(FriendFurniCancelLockMessageComposer),
+                new FriendFurniCancelLockMessageComposerSerializer(
+                    MessageComposer.FriendFurniCancelLockMessageComposer
+                )
+            },
+            {
+                typeof(FriendFurniOtherLockConfirmedMessageComposer),
+                new FriendFurniOtherLockConfirmedMessageComposerSerializer(
+                    MessageComposer.FriendFurniOtherLockConfirmedMessageComposer
+                )
+            },
+            {
+                typeof(FriendFurniStartConfirmationMessageComposer),
+                new FriendFurniStartConfirmationMessageComposerSerializer(
+                    MessageComposer.FriendFurniStartConfirmationMessageComposer
+                )
+            },
+            #endregion
+
+            #region Game Directory
+            {
+                typeof(Game2GameNotFoundMessageMessageComposer),
+                new Game2GameNotFoundMessageMessageComposerSerializer(
+                    MessageComposer.Game2GameNotFoundMessageComposer
+                )
+            },
+            {
+                typeof(Game2AccountGameStatusMessageMessageComposer),
+                new Game2AccountGameStatusMessageMessageComposerSerializer(
+                    MessageComposer.Game2AccountGameStatusMessageComposer
+                )
+            },
+            {
+                typeof(Game2GameCancelledMessageMessageComposer),
+                new Game2GameCancelledMessageMessageComposerSerializer(
+                    MessageComposer.Game2GameCancelledMessageComposer
+                )
+            },
+            {
+                typeof(Game2GameCreatedMessageComposer),
+                new Game2GameCreatedMessageComposerSerializer(
+                    MessageComposer.Game2GameCreatedMessageComposer
+                )
+            },
+            {
+                typeof(Game2GameDirectoryStatusMessageMessageComposer),
+                new Game2GameDirectoryStatusMessageMessageComposerSerializer(
+                    MessageComposer.Game2GameDirectoryStatusMessageComposer
+                )
+            },
+            {
+                typeof(Game2GameLongDataMessageComposer),
+                new Game2GameLongDataMessageComposerSerializer(
+                    MessageComposer.Game2GameLongDataMessageComposer
+                )
+            },
+            {
+                typeof(Game2GameStartedMessageComposer),
+                new Game2GameStartedMessageComposerSerializer(
+                    MessageComposer.Game2GameStartedMessageComposer
+                )
+            },
+            {
+                typeof(Game2InArenaQueueMessageMessageComposer),
+                new Game2InArenaQueueMessageMessageComposerSerializer(
+                    MessageComposer.Game2InArenaQueueMessageComposer
+                )
+            },
+            {
+                typeof(Game2JoiningGameFailedMessageMessageComposer),
+                new Game2JoiningGameFailedMessageMessageComposerSerializer(
+                    MessageComposer.Game2JoiningGameFailedMessageComposer
+                )
+            },
+            {
+                typeof(Game2StartCounterMessageMessageComposer),
+                new Game2StartCounterMessageMessageComposerSerializer(
+                    MessageComposer.Game2StartCounterMessageComposer
+                )
+            },
+            {
+                typeof(Game2StartingGameFailedMessageMessageComposer),
+                new Game2StartingGameFailedMessageMessageComposerSerializer(
+                    MessageComposer.Game2StartingGameFailedMessageComposer
+                )
+            },
+            {
+                typeof(Game2StopCounterMessageMessageComposer),
+                new Game2StopCounterMessageMessageComposerSerializer(
+                    MessageComposer.Game2StopCounterMessageComposer
+                )
+            },
+            {
+                typeof(Game2UserBlockedMessageMessageComposer),
+                new Game2UserBlockedMessageMessageComposerSerializer(
+                    MessageComposer.Game2UserBlockedMessageComposer
+                )
+            },
+            {
+                typeof(Game2UserJoinedGameMessageComposer),
+                new Game2UserJoinedGameMessageComposerSerializer(
+                    MessageComposer.Game2UserJoinedGameMessageComposer
+                )
+            },
+            {
+                typeof(Game2UserLeftGameMessageMessageComposer),
+                new Game2UserLeftGameMessageMessageComposerSerializer(
+                    MessageComposer.Game2UserLeftGameMessageComposer
+                )
+            },
+            #endregion
+
+            #region Game Lobby
+            {
+                typeof(UserGameAchievementsMessageMessageComposer),
+                new UserGameAchievementsMessageMessageComposerSerializer(
+                    MessageComposer.UserGameAchievementsMessageComposer
+                )
+            },
+            {
+                typeof(AchievementResolutionCompletedMessageComposer),
+                new AchievementResolutionCompletedMessageComposerSerializer(
+                    MessageComposer.AchievementResolutionCompletedMessageComposer
+                )
+            },
+            {
+                typeof(AchievementResolutionProgressMessageComposer),
+                new AchievementResolutionProgressMessageComposerSerializer(
+                    MessageComposer.AchievementResolutionProgressMessageComposer
+                )
+            },
+            {
+                typeof(AchievementResolutionsMessageComposer),
+                new AchievementResolutionsMessageComposerSerializer(
+                    MessageComposer.AchievementResolutionsMessageComposer
+                )
+            },
+            #endregion
+
+            #region Game Snowwar Arena
+            {
+                typeof(Game2ArenaEnteredMessageComposer),
+                new Game2ArenaEnteredMessageComposerSerializer(
+                    MessageComposer.Game2ArenaEnteredMessageComposer
+                )
+            },
+            {
+                typeof(Game2EnterArenaFailedMessageComposer),
+                new Game2EnterArenaFailedMessageComposerSerializer(
+                    MessageComposer.Game2EnterArenaFailedMessageComposer
+                )
+            },
+            {
+                typeof(Game2EnterArenaMessageComposer),
+                new Game2EnterArenaMessageComposerSerializer(
+                    MessageComposer.Game2EnterArenaMessageComposer
+                )
+            },
+            {
+                typeof(Game2GameChatFromPlayerMessageComposer),
+                new Game2GameChatFromPlayerMessageComposerSerializer(
+                    MessageComposer.Game2GameChatFromPlayerMessageComposer
+                )
+            },
+            {
+                typeof(Game2GameEndingMessageComposer),
+                new Game2GameEndingMessageComposerSerializer(
+                    MessageComposer.Game2GameEndingMessageComposer
+                )
+            },
+            {
+                typeof(Game2GameRejoinMessageComposer),
+                new Game2GameRejoinMessageComposerSerializer(
+                    MessageComposer.Game2GameRejoinMessageComposer
+                )
+            },
+            {
+                typeof(Game2PlayerExitedGameArenaMessageComposer),
+                new Game2PlayerExitedGameArenaMessageComposerSerializer(
+                    MessageComposer.Game2PlayerExitedGameArenaMessageComposer
+                )
+            },
+            {
+                typeof(Game2PlayerRematchesMessageComposer),
+                new Game2PlayerRematchesMessageComposerSerializer(
+                    MessageComposer.Game2PlayerRematchesMessageComposer
+                )
+            },
+            {
+                typeof(Game2StageEndingMessageComposer),
+                new Game2StageEndingMessageComposerSerializer(
+                    MessageComposer.Game2StageEndingMessageComposer
+                )
+            },
+            {
+                typeof(Game2StageLoadMessageComposer),
+                new Game2StageLoadMessageComposerSerializer(
+                    MessageComposer.Game2StageLoadMessageComposer
+                )
+            },
+            {
+                typeof(Game2StageRunningMessageComposer),
+                new Game2StageRunningMessageComposerSerializer(
+                    MessageComposer.Game2StageRunningMessageComposer
+                )
+            },
+            {
+                typeof(Game2StageStartingMessageComposer),
+                new Game2StageStartingMessageComposerSerializer(
+                    MessageComposer.Game2StageStartingMessageComposer
+                )
+            },
+            {
+                typeof(Game2StageStillLoadingMessageComposer),
+                new Game2StageStillLoadingMessageComposerSerializer(
+                    MessageComposer.Game2StageStillLoadingMessageComposer
+                )
+            },
+            #endregion
+
+            #region Game Snowwar Ingame
+            {
+                typeof(Game2FullGameStatusMessageComposer),
+                new Game2FullGameStatusMessageComposerSerializer(
+                    MessageComposer.Game2FullGameStatusMessageComposer
+                )
+            },
+            {
+                typeof(Game2GameStatusMessageComposer),
+                new Game2GameStatusMessageComposerSerializer(
+                    MessageComposer.Game2GameStatusMessageComposer
+                )
+            },
+            #endregion
+
+            #region Gifts
+            {
+                typeof(PhoneCollectionStateMessageComposer),
+                new PhoneCollectionStateMessageComposerSerializer(
+                    MessageComposer.PhoneCollectionStateMessageComposer
+                )
+            },
+            {
+                typeof(TryPhoneNumberResultMessageComposer),
+                new TryPhoneNumberResultMessageComposerSerializer(
+                    MessageComposer.TryPhoneNumberResultMessageComposer
+                )
+            },
+            {
+                typeof(TryVerificationCodeResultMessageComposer),
+                new TryVerificationCodeResultMessageComposerSerializer(
+                    MessageComposer.TryVerificationCodeResultMessageComposer
+                )
+            },
+            #endregion
+
+            #region Groupforums
+            {
+                typeof(ForumDataMessageComposer),
+                new ForumDataMessageComposerSerializer(MessageComposer.ForumDataMessageComposer)
+            },
+            {
+                typeof(ForumThreadsMessageComposer),
+                new ForumThreadsMessageComposerSerializer(
+                    MessageComposer.ForumThreadsMessageComposer
+                )
+            },
+            {
+                typeof(ForumsListMessageComposer),
+                new ForumsListMessageComposerSerializer(MessageComposer.ForumsListMessageComposer)
+            },
+            {
+                typeof(PostMessageMessageComposer),
+                new PostMessageMessageComposerSerializer(MessageComposer.PostMessageMessageComposer)
+            },
+            {
+                typeof(PostThreadMessageComposer),
+                new PostThreadMessageComposerSerializer(MessageComposer.PostThreadMessageComposer)
+            },
+            {
+                typeof(ThreadMessagesMessageComposer),
+                new ThreadMessagesMessageComposerSerializer(
+                    MessageComposer.ThreadMessagesMessageComposer
+                )
+            },
+            {
+                typeof(UpdateMessageMessageComposer),
+                new UpdateMessageMessageComposerSerializer(
+                    MessageComposer.UpdateMessageMessageComposer
+                )
+            },
+            {
+                typeof(UpdateThreadMessageComposer),
+                new UpdateThreadMessageComposerSerializer(
+                    MessageComposer.UpdateThreadMessageComposer
+                )
+            },
+            #endregion
+
+            #region Handshake
+            {
+                typeof(DisconnectReasonEventMessageComposer),
+                new DisconnectReasonEventMessageComposerSerializer(
+                    MessageComposer.DisconnectReasonMessageComposer
+                )
+            },
+            {
+                typeof(IdentityAccountsEventMessageComposer),
+                new IdentityAccountsEventMessageComposerSerializer(
+                    MessageComposer.IdentityAccountsMessageComposer
+                )
+            },
+            #endregion
+
+            #region Help
+            {
+                typeof(CallForHelpDisabledNotifyMessageComposer),
+                new CallForHelpDisabledNotifyMessageComposerSerializer(
+                    MessageComposer.CallForHelpDisabledNotifyMessageComposer
+                )
+            },
+            {
+                typeof(CallForHelpPendingCallsDeletedMessageComposer),
+                new CallForHelpPendingCallsDeletedMessageComposerSerializer(
+                    MessageComposer.CallForHelpPendingCallsDeletedMessageComposer
+                )
+            },
+            {
+                typeof(CallForHelpPendingCallsMessageComposer),
+                new CallForHelpPendingCallsMessageComposerSerializer(
+                    MessageComposer.CallForHelpPendingCallsMessageComposer
+                )
+            },
+            {
+                typeof(CallForHelpReplyMessageComposer),
+                new CallForHelpReplyMessageComposerSerializer(
+                    MessageComposer.CallForHelpReplyMessageComposer
+                )
+            },
+            {
+                typeof(CallForHelpResultMessageComposer),
+                new CallForHelpResultMessageComposerSerializer(
+                    MessageComposer.CallForHelpResultMessageComposer
+                )
+            },
+            {
+                typeof(ChatReviewSessionDetachedMessageComposer),
+                new ChatReviewSessionDetachedMessageComposerSerializer(
+                    MessageComposer.ChatReviewSessionDetachedMessageComposer
+                )
+            },
+            {
+                typeof(ChatReviewSessionOfferedToGuideMessageComposer),
+                new ChatReviewSessionOfferedToGuideMessageComposerSerializer(
+                    MessageComposer.ChatReviewSessionOfferedToGuideMessageComposer
+                )
+            },
+            {
+                typeof(ChatReviewSessionResultsMessageComposer),
+                new ChatReviewSessionResultsMessageComposerSerializer(
+                    MessageComposer.ChatReviewSessionResultsMessageComposer
+                )
+            },
+            {
+                typeof(ChatReviewSessionStartedMessageComposer),
+                new ChatReviewSessionStartedMessageComposerSerializer(
+                    MessageComposer.ChatReviewSessionStartedMessageComposer
+                )
+            },
+            {
+                typeof(ChatReviewSessionVotingStatusMessageComposer),
+                new ChatReviewSessionVotingStatusMessageComposerSerializer(
+                    MessageComposer.ChatReviewSessionVotingStatusMessageComposer
+                )
+            },
+            {
+                typeof(GuideOnDutyStatusMessageComposer),
+                new GuideOnDutyStatusMessageComposerSerializer(
+                    MessageComposer.GuideOnDutyStatusMessageComposer
+                )
+            },
+            {
+                typeof(GuideReportingStatusMessageComposer),
+                new GuideReportingStatusMessageComposerSerializer(
+                    MessageComposer.GuideReportingStatusMessageComposer
+                )
+            },
+            {
+                typeof(GuideSessionAttachedMessageComposer),
+                new GuideSessionAttachedMessageComposerSerializer(
+                    MessageComposer.GuideSessionAttachedMessageComposer
+                )
+            },
+            {
+                typeof(GuideSessionDetachedMessageComposer),
+                new GuideSessionDetachedMessageComposerSerializer(
+                    MessageComposer.GuideSessionDetachedMessageComposer
+                )
+            },
+            {
+                typeof(GuideSessionEndedMessageComposer),
+                new GuideSessionEndedMessageComposerSerializer(
+                    MessageComposer.GuideSessionEndedMessageComposer
+                )
+            },
+            {
+                typeof(GuideSessionErrorMessageComposer),
+                new GuideSessionErrorMessageComposerSerializer(
+                    MessageComposer.GuideSessionErrorMessageComposer
+                )
+            },
+            {
+                typeof(GuideSessionInvitedToGuideRoomMessageComposer),
+                new GuideSessionInvitedToGuideRoomMessageComposerSerializer(
+                    MessageComposer.GuideSessionInvitedToGuideRoomMessageComposer
+                )
+            },
+            {
+                typeof(GuideSessionMessageMessageComposer),
+                new GuideSessionMessageMessageComposerSerializer(
+                    MessageComposer.GuideSessionMessageMessageComposer
+                )
+            },
+            {
+                typeof(GuideSessionPartnerIsTypingMessageComposer),
+                new GuideSessionPartnerIsTypingMessageComposerSerializer(
+                    MessageComposer.GuideSessionPartnerIsTypingMessageComposer
+                )
+            },
+            {
+                typeof(GuideSessionRequesterRoomMessageComposer),
+                new GuideSessionRequesterRoomMessageComposerSerializer(
+                    MessageComposer.GuideSessionRequesterRoomMessageComposer
+                )
+            },
+            {
+                typeof(GuideSessionStartedMessageComposer),
+                new GuideSessionStartedMessageComposerSerializer(
+                    MessageComposer.GuideSessionStartedMessageComposer
+                )
+            },
+            {
+                typeof(GuideTicketCreationResultMessageComposer),
+                new GuideTicketCreationResultMessageComposerSerializer(
+                    MessageComposer.GuideTicketCreationResultMessageComposer
+                )
+            },
+            {
+                typeof(GuideTicketResolutionMessageComposer),
+                new GuideTicketResolutionMessageComposerSerializer(
+                    MessageComposer.GuideTicketResolutionMessageComposer
+                )
+            },
+            {
+                typeof(IssueCloseNotificationMessageComposer),
+                new IssueCloseNotificationMessageComposerSerializer(
+                    MessageComposer.IssueCloseNotificationMessageComposer
+                )
+            },
+            {
+                typeof(QuizDataMessageComposer),
+                new QuizDataMessageComposerSerializer(MessageComposer.QuizDataMessageComposer)
+            },
+            {
+                typeof(QuizResultsMessageComposer),
+                new QuizResultsMessageComposerSerializer(MessageComposer.QuizResultsMessageComposer)
+            },
+            #endregion
+
+            #region Hotlooks
+            {
+                typeof(HotLooksMessageComposer),
+                new HotLooksMessageComposerSerializer(MessageComposer.HotLooksMessageComposer)
+            },
+            #endregion
+
+            #region Landingview
+            {
+                typeof(PromoArticlesMessageComposer),
+                new PromoArticlesMessageComposerSerializer(
+                    MessageComposer.PromoArticlesMessageComposer
+                )
+            },
+            #endregion
+
+            #region Landingview Votes
+            {
+                typeof(CommunityVoteReceivedEventMessageComposer),
+                new CommunityVoteReceivedEventMessageComposerSerializer(
+                    MessageComposer.CommunityVoteReceivedMessageComposer
+                )
+            },
+            #endregion
+
+            #region Marketplace
+            {
+                typeof(MarketplaceCanMakeOfferResultMessageComposer),
+                new MarketplaceCanMakeOfferResultMessageComposerSerializer(
+                    MessageComposer.MarketplaceCanMakeOfferResultMessageComposer
+                )
+            },
+            {
+                typeof(MarketplaceMakeOfferResultMessageComposer),
+                new MarketplaceMakeOfferResultMessageComposerSerializer(
+                    MessageComposer.MarketplaceMakeOfferResultMessageComposer
+                )
+            },
+            {
+                typeof(MarketPlaceOffersEventMessageComposer),
+                new MarketPlaceOffersEventMessageComposerSerializer(
+                    MessageComposer.MarketPlaceOffersMessageComposer
+                )
+            },
+            {
+                typeof(MarketPlaceOwnOffersEventMessageComposer),
+                new MarketPlaceOwnOffersEventMessageComposerSerializer(
+                    MessageComposer.MarketPlaceOwnOffersMessageComposer
+                )
+            },
+            {
+                typeof(MarketplaceBuyOfferResultEventMessageComposer),
+                new MarketplaceBuyOfferResultEventMessageComposerSerializer(
+                    MessageComposer.MarketplaceBuyOfferResultMessageComposer
+                )
+            },
+            {
+                typeof(MarketplaceCancelOfferResultEventMessageComposer),
+                new MarketplaceCancelOfferResultEventMessageComposerSerializer(
+                    MessageComposer.MarketplaceCancelOfferResultMessageComposer
+                )
+            },
+            {
+                typeof(MarketplaceConfigurationEventMessageComposer),
+                new MarketplaceConfigurationEventMessageComposerSerializer(
+                    MessageComposer.MarketplaceConfigurationMessageComposer
+                )
+            },
+            {
+                typeof(MarketplaceItemStatsEventMessageComposer),
+                new MarketplaceItemStatsEventMessageComposerSerializer(
+                    MessageComposer.MarketplaceItemStatsMessageComposer
+                )
+            },
+            #endregion
+
+            #region Moderation
+            {
+                typeof(CfhChatlogEventMessageComposer),
+                new CfhChatlogEventMessageComposerSerializer(
+                    MessageComposer.CfhChatlogMessageComposer
+                )
+            },
+            {
+                typeof(IssueDeletedMessageComposer),
+                new IssueDeletedMessageComposerSerializer(
+                    MessageComposer.IssueDeletedMessageComposer
+                )
+            },
+            {
+                typeof(IssueInfoMessageComposer),
+                new IssueInfoMessageComposerSerializer(MessageComposer.IssueInfoMessageComposer)
+            },
+            {
+                typeof(IssuePickFailedMessageComposer),
+                new IssuePickFailedMessageComposerSerializer(
+                    MessageComposer.IssuePickFailedMessageComposer
+                )
+            },
+            {
+                typeof(ModeratorActionResultMessageComposer),
+                new ModeratorActionResultMessageComposerSerializer(
+                    MessageComposer.ModeratorActionResultMessageComposer
+                )
+            },
+            {
+                typeof(ModeratorCautionEventMessageComposer),
+                new ModeratorCautionEventMessageComposerSerializer(
+                    MessageComposer.ModeratorCautionMessageComposer
+                )
+            },
+            {
+                typeof(ModeratorInitMessageComposer),
+                new ModeratorInitMessageComposerSerializer(
+                    MessageComposer.ModeratorInitMessageComposer
+                )
+            },
+            {
+                typeof(ModeratorMessageComposer),
+                new ModeratorMessageComposerSerializer(MessageComposer.ModeratorMessageComposer)
+            },
+            {
+                typeof(ModeratorRoomInfoEventMessageComposer),
+                new ModeratorRoomInfoEventMessageComposerSerializer(
+                    MessageComposer.ModeratorRoomInfoMessageComposer
+                )
+            },
+            {
+                typeof(ModeratorToolPreferencesEventMessageComposer),
+                new ModeratorToolPreferencesEventMessageComposerSerializer(
+                    MessageComposer.ModeratorToolPreferencesMessageComposer
+                )
+            },
+            {
+                typeof(ModeratorUserInfoEventMessageComposer),
+                new ModeratorUserInfoEventMessageComposerSerializer(
+                    MessageComposer.ModeratorUserInfoMessageComposer
+                )
+            },
+            {
+                typeof(RoomChatlogEventMessageComposer),
+                new RoomChatlogEventMessageComposerSerializer(
+                    MessageComposer.RoomChatlogMessageComposer
+                )
+            },
+            {
+                typeof(RoomVisitsEventMessageComposer),
+                new RoomVisitsEventMessageComposerSerializer(
+                    MessageComposer.RoomVisitsMessageComposer
+                )
+            },
+            {
+                typeof(UserBannedMessageComposer),
+                new UserBannedMessageComposerSerializer(MessageComposer.UserBannedMessageComposer)
+            },
+            {
+                typeof(UserChatlogEventMessageComposer),
+                new UserChatlogEventMessageComposerSerializer(
+                    MessageComposer.UserChatlogMessageComposer
+                )
+            },
+            #endregion
+
+            #region Nft
+            {
+                typeof(UserNftWardrobeMessageComposer),
+                new UserNftWardrobeMessageComposerSerializer(
+                    MessageComposer.UserNftWardrobeMessageComposer
+                )
+            },
+            {
+                typeof(UserNftWardrobeSelectionMessageComposer),
+                new UserNftWardrobeSelectionMessageComposerSerializer(
+                    MessageComposer.UserNftWardrobeSelectionMessageComposer
+                )
+            },
+            #endregion
+
+            #region Notifications
+            {
+                typeof(UnseenItemsEventMessageComposer),
+                new UnseenItemsEventMessageComposerSerializer(
+                    MessageComposer.UnseenItemsMessageComposer
+                )
+            },
+            #endregion
+
+            #region Nux
+            {
+                typeof(NewUserExperienceGiftOfferEventMessageComposer),
+                new NewUserExperienceGiftOfferEventMessageComposerSerializer(
+                    MessageComposer.NewUserExperienceGiftOfferMessageComposer
+                )
+            },
+            {
+                typeof(NewUserExperienceNotCompleteEventMessageComposer),
+                new NewUserExperienceNotCompleteEventMessageComposerSerializer(
+                    MessageComposer.NewUserExperienceNotCompleteMessageComposer
+                )
+            },
+            {
+                typeof(SelectInitialRoomEventMessageComposer),
+                new SelectInitialRoomEventMessageComposerSerializer(
+                    MessageComposer.SelectInitialRoomMessageComposer
+                )
+            },
+            #endregion
+
+            #region Perk
+            {
+                typeof(CitizenshipVipOfferPromoEnabledEventMessageComposer),
+                new CitizenshipVipOfferPromoEnabledEventMessageComposerSerializer(
+                    MessageComposer.CitizenshipVipOfferPromoEnabledMessageComposer
+                )
+            },
+            #endregion
+
+            #region Poll
+            {
+                typeof(PollContentsEventMessageComposer),
+                new PollContentsEventMessageComposerSerializer(
+                    MessageComposer.PollContentsMessageComposer
+                )
+            },
+            {
+                typeof(PollErrorEventMessageComposer),
+                new PollErrorEventMessageComposerSerializer(
+                    MessageComposer.PollErrorMessageComposer
+                )
+            },
+            {
+                typeof(PollOfferEventMessageComposer),
+                new PollOfferEventMessageComposerSerializer(
+                    MessageComposer.PollOfferMessageComposer
+                )
+            },
+            {
+                typeof(QuestionAnsweredEventMessageComposer),
+                new QuestionAnsweredEventMessageComposerSerializer(
+                    MessageComposer.QuestionAnsweredMessageComposer
+                )
+            },
+            {
+                typeof(QuestionEventMessageComposer),
+                new QuestionEventMessageComposerSerializer(MessageComposer.QuestionMessageComposer)
+            },
+            {
+                typeof(QuestionFinishedEventMessageComposer),
+                new QuestionFinishedEventMessageComposerSerializer(
+                    MessageComposer.QuestionFinishedMessageComposer
+                )
+            },
+            #endregion
+
+            #region Quest
+            {
+                typeof(CommunityGoalHallOfFameMessageComposer),
+                new CommunityGoalHallOfFameMessageComposerSerializer(
+                    MessageComposer.CommunityGoalHallOfFameMessageComposer
+                )
+            },
+            {
+                typeof(CommunityGoalProgressMessageComposer),
+                new CommunityGoalProgressMessageComposerSerializer(
+                    MessageComposer.CommunityGoalProgressMessageComposer
+                )
+            },
+            {
+                typeof(ConcurrentUsersGoalProgressMessageComposer),
+                new ConcurrentUsersGoalProgressMessageComposerSerializer(
+                    MessageComposer.ConcurrentUsersGoalProgressMessageComposer
+                )
+            },
+            {
+                typeof(EpicPopupMessageComposer),
+                new EpicPopupMessageComposerSerializer(MessageComposer.EpicPopupMessageComposer)
+            },
+            {
+                typeof(QuestCancelledMessageComposer),
+                new QuestCancelledMessageComposerSerializer(
+                    MessageComposer.QuestCancelledMessageComposer
+                )
+            },
+            {
+                typeof(QuestCompletedMessageComposer),
+                new QuestCompletedMessageComposerSerializer(
+                    MessageComposer.QuestCompletedMessageComposer
+                )
+            },
+            {
+                typeof(QuestDailyMessageComposer),
+                new QuestDailyMessageComposerSerializer(MessageComposer.QuestDailyMessageComposer)
+            },
+            {
+                typeof(QuestMessageComposer),
+                new QuestMessageComposerSerializer(MessageComposer.QuestMessageComposer)
+            },
+            {
+                typeof(QuestsMessageComposer),
+                new QuestsMessageComposerSerializer(MessageComposer.QuestsMessageComposer)
+            },
+            {
+                typeof(SeasonalQuestsMessageComposer),
+                new SeasonalQuestsMessageComposerSerializer(
+                    MessageComposer.SeasonalQuestsMessageComposer
+                )
+            },
+            #endregion
+
+            #region Roomsettings
+            {
+                typeof(BannedUsersFromRoomEventMessageComposer),
+                new BannedUsersFromRoomEventMessageComposerSerializer(
+                    MessageComposer.BannedUsersFromRoomMessageComposer
+                )
+            },
+            {
+                typeof(FlatControllerAddedEventMessageComposer),
+                new FlatControllerAddedEventMessageComposerSerializer(
+                    MessageComposer.FlatControllerAddedMessageComposer
+                )
+            },
+            {
+                typeof(FlatControllerRemovedEventMessageComposer),
+                new FlatControllerRemovedEventMessageComposerSerializer(
+                    MessageComposer.FlatControllerRemovedMessageComposer
+                )
+            },
+            {
+                typeof(FlatControllersEventMessageComposer),
+                new FlatControllersEventMessageComposerSerializer(
+                    MessageComposer.FlatControllersMessageComposer
+                )
+            },
+            {
+                typeof(NoSuchFlatEventMessageComposer),
+                new NoSuchFlatEventMessageComposerSerializer(
+                    MessageComposer.NoSuchFlatMessageComposer
+                )
+            },
+            {
+                typeof(RoomSettingsDataEventMessageComposer),
+                new RoomSettingsDataEventMessageComposerSerializer(
+                    MessageComposer.RoomSettingsDataMessageComposer
+                )
+            },
+            {
+                typeof(RoomSettingsErrorEventMessageComposer),
+                new RoomSettingsErrorEventMessageComposerSerializer(
+                    MessageComposer.RoomSettingsErrorMessageComposer
+                )
+            },
+            {
+                typeof(RoomSettingsSaveErrorEventMessageComposer),
+                new RoomSettingsSaveErrorEventMessageComposerSerializer(
+                    MessageComposer.RoomSettingsSaveErrorMessageComposer
+                )
+            },
+            {
+                typeof(RoomSettingsSavedEventMessageComposer),
+                new RoomSettingsSavedEventMessageComposerSerializer(
+                    MessageComposer.RoomSettingsSavedMessageComposer
+                )
+            },
+            {
+                typeof(ShowEnforceRoomCategoryDialogEventMessageComposer),
+                new ShowEnforceRoomCategoryDialogEventMessageComposerSerializer(
+                    MessageComposer.ShowEnforceRoomCategoryDialogMessageComposer
+                )
+            },
+            {
+                typeof(UserUnbannedFromRoomEventMessageComposer),
+                new UserUnbannedFromRoomEventMessageComposerSerializer(
+                    MessageComposer.UserUnbannedFromRoomMessageComposer
+                )
+            },
+            #endregion
+
+            #region Sound
+            {
+                typeof(JukeboxPlayListFullMessageComposer),
+                new JukeboxPlayListFullMessageComposerSerializer(
+                    MessageComposer.JukeboxPlayListFullMessageComposer
+                )
+            },
+            {
+                typeof(JukeboxSongDisksMessageComposer),
+                new JukeboxSongDisksMessageComposerSerializer(
+                    MessageComposer.JukeboxSongDisksMessageComposer
+                )
+            },
+            {
+                typeof(NowPlayingMessageComposer),
+                new NowPlayingMessageComposerSerializer(MessageComposer.NowPlayingMessageComposer)
+            },
+            {
+                typeof(OfficialSongIdMessageComposer),
+                new OfficialSongIdMessageComposerSerializer(
+                    MessageComposer.OfficialSongIdMessageComposer
+                )
+            },
+            {
+                typeof(PlayListMessageComposer),
+                new PlayListMessageComposerSerializer(MessageComposer.PlayListMessageComposer)
+            },
+            {
+                typeof(PlayListSongAddedMessageComposer),
+                new PlayListSongAddedMessageComposerSerializer(
+                    MessageComposer.PlayListSongAddedMessageComposer
+                )
+            },
+            {
+                typeof(TraxSongInfoMessageComposer),
+                new TraxSongInfoMessageComposerSerializer(
+                    MessageComposer.TraxSongInfoMessageComposer
+                )
+            },
+            {
+                typeof(UserSongDisksInventoryMessageComposer),
+                new UserSongDisksInventoryMessageComposerSerializer(
+                    MessageComposer.UserSongDisksInventoryMessageComposer
+                )
+            },
+            #endregion
+
+            #region Talent
+            {
+                typeof(TalentLevelUpMessageComposer),
+                new TalentLevelUpMessageComposerSerializer(
+                    MessageComposer.TalentLevelUpMessageComposer
+                )
+            },
+            {
+                typeof(TalentTrackLevelMessageComposer),
+                new TalentTrackLevelMessageComposerSerializer(
+                    MessageComposer.TalentTrackLevelMessageComposer
+                )
+            },
+            {
+                typeof(TalentTrackMessageComposer),
+                new TalentTrackMessageComposerSerializer(MessageComposer.TalentTrackMessageComposer)
+            },
+            #endregion
+
+            #region Userclassification
+            {
+                typeof(UserClassificationMessageComposer),
+                new UserClassificationMessageComposerSerializer(
+                    MessageComposer.UserClassificationMessageComposer
+                )
+            },
+            #endregion
+
+            #region Users
+            {
+                typeof(GroupDetailsChangedMessageComposer),
+                new GroupDetailsChangedMessageComposerSerializer(
+                    MessageComposer.GroupDetailsChangedMessageComposer
+                )
+            },
+            {
+                typeof(GroupMembershipRequestedMessageComposer),
+                new GroupMembershipRequestedMessageComposerSerializer(
+                    MessageComposer.GroupMembershipRequestedMessageComposer
+                )
+            },
+            {
+                typeof(GuildCreatedMessageComposer),
+                new GuildCreatedMessageComposerSerializer(
+                    MessageComposer.GuildCreatedMessageComposer
+                )
+            },
+            {
+                typeof(GuildCreationInfoMessageComposer),
+                new GuildCreationInfoMessageComposerSerializer(
+                    MessageComposer.GuildCreationInfoMessageComposer
+                )
+            },
+            {
+                typeof(GuildEditFailedMessageComposer),
+                new GuildEditFailedMessageComposerSerializer(
+                    MessageComposer.GuildEditFailedMessageComposer
+                )
+            },
+            {
+                typeof(GuildEditInfoMessageComposer),
+                new GuildEditInfoMessageComposerSerializer(
+                    MessageComposer.GuildEditInfoMessageComposer
+                )
+            },
+            {
+                typeof(GuildEditorDataMessageComposer),
+                new GuildEditorDataMessageComposerSerializer(
+                    MessageComposer.GuildEditorDataMessageComposer
+                )
+            },
+            {
+                typeof(GuildMemberFurniCountInHQMessageComposer),
+                new GuildMemberFurniCountInHQMessageComposerSerializer(
+                    MessageComposer.GuildMemberFurniCountInHQMessageComposer
+                )
+            },
+            {
+                typeof(GuildMemberMgmtFailedMessageComposer),
+                new GuildMemberMgmtFailedMessageComposerSerializer(
+                    MessageComposer.GuildMemberMgmtFailedMessageComposer
+                )
+            },
+            {
+                typeof(GuildMembersMessageComposer),
+                new GuildMembersMessageComposerSerializer(
+                    MessageComposer.GuildMembersMessageComposer
+                )
+            },
+            {
+                typeof(GuildMembershipRejectedMessageComposer),
+                new GuildMembershipRejectedMessageComposerSerializer(
+                    MessageComposer.GuildMembershipRejectedMessageComposer
+                )
+            },
+            {
+                typeof(GuildMembershipUpdatedMessageComposer),
+                new GuildMembershipUpdatedMessageComposerSerializer(
+                    MessageComposer.GuildMembershipUpdatedMessageComposer
+                )
+            },
+            {
+                typeof(GuildMembershipsMessageComposer),
+                new GuildMembershipsMessageComposerSerializer(
+                    MessageComposer.GuildMembershipsMessageComposer
+                )
+            },
+            {
+                typeof(HabboGroupBadgesMessageComposer),
+                new HabboGroupBadgesMessageComposerSerializer(
+                    MessageComposer.HabboGroupBadgesMessageComposer
+                )
+            },
+            {
+                typeof(HabboGroupDeactivatedMessageComposer),
+                new HabboGroupDeactivatedMessageComposerSerializer(
+                    MessageComposer.HabboGroupDeactivatedMessageComposer
+                )
+            },
+            {
+                typeof(HabboGroupDetailsMessageComposer),
+                new HabboGroupDetailsMessageComposerSerializer(
+                    MessageComposer.HabboGroupDetailsMessageComposer
+                )
+            },
+            {
+                typeof(HabboGroupJoinFailedMessageComposer),
+                new HabboGroupJoinFailedMessageComposerSerializer(
+                    MessageComposer.HabboGroupJoinFailedMessageComposer
+                )
+            },
+            {
+                typeof(HabboUserBadgesMessageComposer),
+                new HabboUserBadgesMessageComposerSerializer(
+                    MessageComposer.HabboUserBadgesMessageComposer
+                )
+            },
+            {
+                typeof(HandItemReceivedMessageComposer),
+                new HandItemReceivedMessageComposerSerializer(
+                    MessageComposer.HandItemReceivedMessageComposer
+                )
+            },
+            {
+                typeof(InClientLinkMessageComposer),
+                new InClientLinkMessageComposerSerializer(
+                    MessageComposer.InClientLinkMessageComposer
+                )
+            },
+            {
+                typeof(PetRespectNotificationEventMessageComposer),
+                new PetRespectNotificationEventMessageComposerSerializer(
+                    MessageComposer.PetRespectNotificationMessageComposer
+                )
+            },
+            {
+                typeof(PetSupplementedNotificationEventMessageComposer),
+                new PetSupplementedNotificationEventMessageComposerSerializer(
+                    MessageComposer.PetSupplementedNotificationMessageComposer
+                )
+            },
+            {
+                typeof(RespectNotificationMessageComposer),
+                new RespectNotificationMessageComposerSerializer(
+                    MessageComposer.RespectNotificationMessageComposer
+                )
+            },
+            {
+                typeof(ScrSendKickbackInfoMessageComposer),
+                new ScrSendKickbackInfoMessageComposerSerializer(
+                    MessageComposer.ScrSendKickbackInfoMessageComposer
+                )
+            },
+            {
+                typeof(UserNameChangedMessageComposer),
+                new UserNameChangedMessageComposerSerializer(
+                    MessageComposer.UserNameChangedMessageComposer
+                )
+            },
+            #endregion
+
+            #region Game Score
+            {
+                typeof(WeeklyGameRewardEventMessageComposer),
+                new WeeklyGameRewardEventMessageComposerSerializer(
+                    MessageComposer.WeeklyGameRewardMessageComposer
+                )
+            },
+            {
+                typeof(WeeklyGameRewardWinnersEventMessageComposer),
+                new WeeklyGameRewardWinnersEventMessageComposerSerializer(
+                    MessageComposer.WeeklyGameRewardWinnersMessageComposer
                 )
             },
             #endregion

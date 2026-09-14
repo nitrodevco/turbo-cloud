@@ -8,7 +8,6 @@ using Orleans.Streams;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Permissions;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
-using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -32,7 +31,7 @@ internal sealed partial class PlayerPresenceGrain
             new RoomPendingSnapshot
             {
                 RoomId = _state.PendingRoomId,
-                Approved = _state.PendingRoomApproved,
+                State = _state.PendingRoomState,
             }
         );
 
@@ -42,15 +41,14 @@ internal sealed partial class PlayerPresenceGrain
             return;
 
         await ClearActiveRoomAsync(ct);
+        await ClearPendingRoomAsync();
 
-        var next = roomId;
-
-        _state.ActiveRoomId = next;
-        _state.PendingRoomId = -1;
-        _state.PendingRoomApproved = false;
+        _state.ActiveRoomId = roomId;
         _state.ActiveRoomSinceUtc = DateTime.UtcNow;
 
-        await _grainFactory.GetRoomDirectoryGrain().AddPlayerToRoomAsync(_state.PlayerId, next, ct);
+        await _grainFactory
+            .GetRoomDirectoryGrain()
+            .AddPlayerToRoomAsync(_state.PlayerId, roomId, ct);
 
         var stream = GetRoomStream(roomId);
 
@@ -58,21 +56,17 @@ internal sealed partial class PlayerPresenceGrain
 
         _roomOutboundSub = await stream.SubscribeAsync(this);
 
-        var room = _grainFactory.GetRoomGrain(roomId);
-
         var playerSnapshot = await _grainFactory
             .GetPlayerGrain(_state.PlayerId)
             .GetSummaryAsync(ct);
 
-        var ctx = new ActionContext
-        {
-            Origin = ActionOrigin.Player,
-            SessionKey = SessionKey.Invalid,
-            PlayerId = _state.PlayerId,
-            RoomId = roomId,
-        };
-
-        await room.CreateAvatarFromPlayerAsync(ctx, playerSnapshot, ct);
+        await _grainFactory
+            .GetRoomGrain(roomId)
+            .CreateAvatarFromPlayerAsync(
+                ActionContext.CreateForPlayer(_state.PlayerId, roomId),
+                playerSnapshot,
+                ct
+            );
     }
 
     /// <summary>
@@ -92,13 +86,7 @@ internal sealed partial class PlayerPresenceGrain
         _state.ActiveRoomId = -1;
         _state.ActiveRoomSinceUtc = DateTime.UtcNow;
 
-        var ctx = new ActionContext
-        {
-            Origin = ActionOrigin.Player,
-            SessionKey = SessionKey.Invalid,
-            PlayerId = _state.PlayerId,
-            RoomId = prev,
-        };
+        var ctx = ActionContext.CreateForPlayer(_state.PlayerId, prev);
 
         try
         {
@@ -133,10 +121,18 @@ internal sealed partial class PlayerPresenceGrain
         }
     }
 
-    public Task SetPendingRoomAsync(RoomId roomId, bool approved)
+    public Task SetPendingRoomAsync(RoomId roomId, RoomEntryState state)
     {
         _state.PendingRoomId = roomId;
-        _state.PendingRoomApproved = approved;
+        _state.PendingRoomState = state;
+
+        return Task.CompletedTask;
+    }
+
+    public Task ClearPendingRoomAsync()
+    {
+        _state.PendingRoomId = -1;
+        _state.PendingRoomState = RoomEntryState.None;
 
         return Task.CompletedTask;
     }

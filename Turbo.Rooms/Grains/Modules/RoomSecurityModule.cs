@@ -5,9 +5,12 @@ using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Messages.Outgoing.Roomsettings;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Snapshots.Settings;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -179,6 +182,21 @@ public sealed class RoomSecurityModule(
         _roomGrain._state.PlayerIdsWithRights.Add(playerId);
 
         await RefreshControllerLevelForPlayerAsync(playerId, ct);
+
+        // Keeps the actor's open room settings rights list in sync.
+        var name = await _roomGrain
+            ._grainFactory.GetPlayerDirectoryGrain()
+            .GetPlayerNameAsync(playerId, ct);
+
+        await _roomGrain
+            ._grainFactory.GetPlayerPresenceGrain(ctx.PlayerId)
+            .SendComposerAsync(
+                new FlatControllerAddedEventMessageComposer
+                {
+                    RoomId = _roomGrain.RoomId,
+                    Controller = new RoomControllerSnapshot { PlayerId = playerId, Name = name },
+                }
+            );
     }
 
     public async Task RemoveRightsFromPlayerAsync(
@@ -212,6 +230,55 @@ public sealed class RoomSecurityModule(
         _roomGrain._state.PlayerIdsWithRights.Remove(playerId);
 
         await RefreshControllerLevelForPlayerAsync(playerId, ct);
+
+        await _roomGrain
+            ._grainFactory.GetPlayerPresenceGrain(ctx.PlayerId)
+            .SendComposerAsync(
+                new FlatControllerRemovedEventMessageComposer
+                {
+                    RoomId = _roomGrain.RoomId,
+                    PlayerId = playerId,
+                }
+            );
+    }
+
+    public async Task RemoveAllRightsAsync(ActionContext ctx, CancellationToken ct)
+    {
+        await EnsureRightsLoadedAsync(ct);
+
+        var isGroupRoom = await _roomGrain.GetIsGroupRoomAsync();
+
+        if (!await GetIsRoomOwnerAsync(ctx) || isGroupRoom)
+            return;
+
+        var playerIds = _roomGrain._state.PlayerIdsWithRights.ToList();
+
+        if (playerIds.Count == 0)
+            return;
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        await dbCtx
+            .Set<RoomRightEntity>()
+            .Where(x => x.RoomEntityId == _roomGrain.RoomId.Value)
+            .ExecuteDeleteAsync(ct);
+
+        _roomGrain._state.PlayerIdsWithRights.Clear();
+
+        foreach (var playerId in playerIds)
+            await RefreshControllerLevelForPlayerAsync(playerId, ct);
+
+        var removedComposers = playerIds
+            .Select(playerId => new FlatControllerRemovedEventMessageComposer
+            {
+                RoomId = _roomGrain.RoomId,
+                PlayerId = playerId,
+            })
+            .ToArray<IComposer>();
+
+        await _roomGrain
+            ._grainFactory.GetPlayerPresenceGrain(ctx.PlayerId)
+            .SendComposerAsync(removedComposers);
     }
 
     internal async Task EnsureRightsLoadedAsync(CancellationToken ct)

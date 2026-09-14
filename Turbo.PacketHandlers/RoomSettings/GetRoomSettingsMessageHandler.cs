@@ -1,28 +1,22 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.RoomSettings;
 using Turbo.Primitives.Messages.Outgoing.Roomsettings;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.PacketHandlers.RoomSettings;
 
 /// <summary>
 /// Sent when the owner opens the room settings window. The client only shows the window once the
-/// settings data for the requested room id arrives, so nothing is sent when the player may not
-/// edit the room.
+/// settings data for the requested room id arrives, so nothing is sent when the room grain
+/// refuses the request.
 /// </summary>
-public class GetRoomSettingsMessageHandler(IGrainFactory grainFactory, IConfiguration configuration)
+public class GetRoomSettingsMessageHandler(IGrainFactory grainFactory)
     : IMessageHandler<GetRoomSettingsMessage>
 {
-    private const string MAX_PLAYERS_LIMIT_KEY = "Turbo:Rooms:MaxPlayersLimit";
-    private const int DEFAULT_MAX_PLAYERS_LIMIT = 50;
-
     private readonly IGrainFactory _grainFactory = grainFactory;
-    private readonly IConfiguration _configuration = configuration;
 
     public async ValueTask HandleAsync(
         GetRoomSettingsMessage message,
@@ -33,46 +27,43 @@ public class GetRoomSettingsMessageHandler(IGrainFactory grainFactory, IConfigur
         if (ctx.PlayerId <= 0 || message.RoomId <= 0)
             return;
 
-        var roomGrain = _grainFactory.GetRoomGrain(message.RoomId);
-        var controllerLevel = await roomGrain
-            .GetControllerLevelAsync(ctx.PlayerId, ct)
+        var settings = await _grainFactory
+            .GetRoomGrain(message.RoomId)
+            .GetRoomSettingsAsync(ctx.AsActionContext(), ct)
             .ConfigureAwait(false);
 
-        if (controllerLevel < RoomControllerType.Owner)
+        if (settings is null)
             return;
 
-        var snapshot = await roomGrain.GetSnapshotAsync().ConfigureAwait(false);
-
-        if (!int.TryParse(_configuration[MAX_PLAYERS_LIMIT_KEY], out var maxPlayersLimit))
-            maxPlayersLimit = DEFAULT_MAX_PLAYERS_LIMIT;
+        var room = settings.Room;
 
         await ctx.SendComposerAsync(
                 new RoomSettingsDataEventMessageComposer
                 {
-                    RoomId = snapshot.RoomId,
-                    Name = snapshot.Name,
-                    Description = snapshot.Description,
-                    DoorMode = snapshot.DoorMode,
-                    CategoryId = snapshot.CategoryId,
-                    MaximumVisitors = snapshot.PlayersMax,
-                    MaximumVisitorsLimit = maxPlayersLimit,
-                    Tags = snapshot.Tags,
-                    TradeMode = snapshot.TradeType,
-                    AllowPets = snapshot.AllowPets,
-                    AllowFoodConsume = snapshot.AllowPetsEat,
-                    AllowWalkThrough = snapshot.AllowBlocking,
-                    HideWalls = snapshot.HideWalls,
-                    WallThickness = snapshot.WallThickness,
-                    FloorThickness = snapshot.FloorThickness,
-                    ChatProtection = snapshot.ChatProtection,
-                    LeaveOnDoorTileEnabled = false,
-                    IdleSleepEnabled = false,
-                    IdleSleepTimeoutSeconds = 0,
-                    IdleAutokickEnabled = false,
-                    IdleAutokickTimeoutSeconds = 0,
-                    MuteAllPets = false,
-                    ModSettings = snapshot.ModSettings,
-                    HiddenByBc = false,
+                    RoomId = room.RoomId,
+                    Name = room.Name,
+                    Description = room.Description,
+                    DoorMode = room.DoorMode,
+                    CategoryId = room.CategoryId,
+                    MaximumVisitors = room.PlayersMax,
+                    MaximumVisitorsLimit = settings.MaximumVisitorsLimit,
+                    Tags = room.Tags,
+                    TradeMode = room.TradeType,
+                    AllowPets = room.AllowPets,
+                    AllowFoodConsume = room.AllowPetsEat,
+                    AllowWalkThrough = room.AllowBlocking,
+                    HideWalls = room.HideWalls,
+                    WallThickness = room.WallThickness,
+                    FloorThickness = room.FloorThickness,
+                    ChatProtection = room.ChatProtection,
+                    LeaveOnDoorTileEnabled = room.LeaveOnDoorTile,
+                    IdleSleepEnabled = room.IdleSleepEnabled,
+                    IdleSleepTimeoutSeconds = room.IdleSleepTimeoutSeconds,
+                    IdleAutokickEnabled = room.IdleAutokickEnabled,
+                    IdleAutokickTimeoutSeconds = room.IdleAutokickTimeoutSeconds,
+                    MuteAllPets = room.MuteAllPets,
+                    ModSettings = room.ModSettings,
+                    HiddenByBc = room.HiddenByBc,
                 },
                 ct
             )

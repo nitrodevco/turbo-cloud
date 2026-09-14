@@ -38,26 +38,34 @@ internal sealed partial class RoomService(
     private readonly ISessionGateway _sessionGateway = sessionGateway;
     private readonly IGrainFactory _grainFactory = grainFactory;
 
+    public async Task<RoomEntryAccessType> CheckRoomEntryAccessAsync(
+        PlayerId playerId,
+        RoomId roomId,
+        string? password,
+        bool bypassDoor,
+        CancellationToken ct
+    )
+    {
+        var room = _grainFactory.GetRoomGrain(roomId);
+
+        await room.EnsureRoomActiveAsync(ct).ConfigureAwait(false);
+
+        return await room.CheckEntryAccessAsync(playerId, password, bypassDoor, ct)
+            .ConfigureAwait(false);
+    }
+
     /// <summary>
-    /// Entry flow, as seen by the client:
-    /// <list type="bullet">
-    /// <item>Navigator: GetGuestRoom(roomForward) already answered; enter only if the door does
-    /// not need the client to prompt (locked/password), otherwise stay silent.</item>
-    /// <item>Direct: OpenFlatConnection. OpenConnection is sent first so the client leaves the
-    /// hotel view, then the door is checked: banned/full → CantConnect + CloseConnection,
-    /// wrong or missing password → GenericError + CloseConnection, locked → doorbell ring
-    /// (FlatAccessDenied when nobody can answer), otherwise the room is loaded.</item>
-    /// <item>Forced: server-driven (teleporter etc.). Same as Direct but the door mode is
-    /// ignored.</item>
-    /// </list>
+    /// OpenConnection is sent first so the client leaves the hotel view, then the decision is
+    /// applied: banned/full → CantConnect + CloseConnection, wrong or missing password →
+    /// GenericError + CloseConnection, locked → doorbell ring (FlatAccessDenied when nobody can
+    /// answer), allowed → the room is streamed.
     /// </summary>
     public async Task OpenRoomForPlayerIdAsync(
         ActionContext ctx,
         PlayerId playerId,
         RoomId roomId,
-        RoomEntryType entryType,
-        CancellationToken ct,
-        string? password = null
+        RoomEntryAccessType access,
+        CancellationToken ct
     )
     {
         if (playerId <= 0 || roomId <= 0)
@@ -70,35 +78,13 @@ internal sealed partial class RoomService(
             return;
 
         await LeavePendingDoorbellAsync(playerPresence, playerId, roomId, ct).ConfigureAwait(false);
-
-        var room = _grainFactory.GetRoomGrain(roomId);
-
-        await room.EnsureRoomActiveAsync(ct).ConfigureAwait(false);
-
-        var access = await room.CheckEntryAccessAsync(
-                playerId,
-                password,
-                bypassDoor: entryType == RoomEntryType.Forced,
-                ct
-            )
-            .ConfigureAwait(false);
-
-        // The navigator result already told the client the door mode; it will show the doorbell
-        // or password prompt itself and come back through OpenFlatConnection.
-        if (
-            entryType == RoomEntryType.Navigator
-            && access
-                is RoomEntryAccessType.Doorbell
-                    or RoomEntryAccessType.PasswordRequired
-                    or RoomEntryAccessType.InvalidPassword
-        )
-            return;
-
         await playerPresence.ClearActiveRoomAsync(ct).ConfigureAwait(false);
 
         await playerPresence
             .SendComposerAsync(new OpenConnectionMessageComposer { RoomId = roomId })
             .ConfigureAwait(false);
+
+        var room = _grainFactory.GetRoomGrain(roomId);
 
         switch (access)
         {
@@ -140,7 +126,9 @@ internal sealed partial class RoomService(
                 return;
 
             case RoomEntryAccessType.Allowed:
-                await playerPresence.SetPendingRoomAsync(roomId, true).ConfigureAwait(false);
+                await playerPresence
+                    .SetPendingRoomAsync(roomId, RoomEntryState.Approved)
+                    .ConfigureAwait(false);
                 await EnterRoomAsync(ctx, playerPresence, room, roomId, ct).ConfigureAwait(false);
                 return;
 
@@ -186,18 +174,18 @@ internal sealed partial class RoomService(
         // The ringer moved on (entered elsewhere, quit, or disconnected) while waiting.
         if (
             pendingRoom.RoomId != ctx.RoomId
-            || pendingRoom.Approved
+            || pendingRoom.State != RoomEntryState.RingingDoorbell
             || !await ringerPresence.HasActiveSessionAsync().ConfigureAwait(false)
         )
         {
-            await ringerPresence.SetPendingRoomAsync(-1, false).ConfigureAwait(false);
+            await ringerPresence.ClearPendingRoomAsync().ConfigureAwait(false);
 
             return;
         }
 
         if (!accepted)
         {
-            await ringerPresence.SetPendingRoomAsync(-1, false).ConfigureAwait(false);
+            await ringerPresence.ClearPendingRoomAsync().ConfigureAwait(false);
             await ringerPresence
                 .SendComposerAsync(
                     new FlatAccessDeniedMessageComposer
@@ -211,7 +199,9 @@ internal sealed partial class RoomService(
             return;
         }
 
-        await ringerPresence.SetPendingRoomAsync(ctx.RoomId, true).ConfigureAwait(false);
+        await ringerPresence
+            .SetPendingRoomAsync(ctx.RoomId, RoomEntryState.Approved)
+            .ConfigureAwait(false);
 
         await EnterRoomAsync(
                 ActionContext.CreateForPlayer(ringerId.Value, ctx.RoomId),
@@ -252,7 +242,9 @@ internal sealed partial class RoomService(
             .GetSummaryAsync(ct)
             .ConfigureAwait(false);
 
-        await playerPresence.SetPendingRoomAsync(roomId, false).ConfigureAwait(false);
+        await playerPresence
+            .SetPendingRoomAsync(roomId, RoomEntryState.RingingDoorbell)
+            .ConfigureAwait(false);
 
         var notified = await room.RingDoorbellAsync(playerId, player.Name, ct)
             .ConfigureAwait(false);
@@ -260,7 +252,7 @@ internal sealed partial class RoomService(
         if (notified)
             return;
 
-        await playerPresence.SetPendingRoomAsync(-1, false).ConfigureAwait(false);
+        await playerPresence.ClearPendingRoomAsync().ConfigureAwait(false);
         await playerPresence
             .SendComposerAsync(
                 new FlatAccessDeniedMessageComposer { RoomId = roomId, Username = string.Empty }
@@ -284,18 +276,18 @@ internal sealed partial class RoomService(
         if (pendingRoom.RoomId <= 0 || pendingRoom.RoomId == exceptRoomId)
             return;
 
-        if (!pendingRoom.Approved)
+        if (pendingRoom.State == RoomEntryState.RingingDoorbell)
             await _grainFactory
                 .GetRoomGrain(pendingRoom.RoomId)
                 .RemoveDoorbellRingerAsync(playerId, ct)
                 .ConfigureAwait(false);
 
-        await playerPresence.SetPendingRoomAsync(-1, false).ConfigureAwait(false);
+        await playerPresence.ClearPendingRoomAsync().ConfigureAwait(false);
     }
 
     private static async Task RejectEntryAsync(IPlayerPresenceGrain playerPresence, IComposer error)
     {
-        await playerPresence.SetPendingRoomAsync(-1, false).ConfigureAwait(false);
+        await playerPresence.ClearPendingRoomAsync().ConfigureAwait(false);
         await playerPresence
             .SendComposerAsync(error, new CloseConnectionMessageComposer())
             .ConfigureAwait(false);
@@ -350,6 +342,13 @@ internal sealed partial class RoomService(
             })
             .ToArray();
 
+        // The client's initial camera target is the door tile.
+        var doorTileIndex = mapSnapshot.DoorY * mapSnapshot.Width + mapSnapshot.DoorX;
+        var doorAltitude =
+            doorTileIndex >= 0 && doorTileIndex < mapSnapshot.TileEncodedHeights.Length
+                ? Altitude.FromInt(mapSnapshot.TileEncodedHeights[doorTileIndex])
+                : Altitude.Zero;
+
         await playerPresence
             .SendComposerAsync(
                 new RoomReadyMessageComposer { WorldType = snapshot.WorldType, RoomId = roomId }
@@ -358,7 +357,7 @@ internal sealed partial class RoomService(
 
         await playerPresence
             .SendComposerAsync(
-                new RoomRatingMessageComposer { Rating = 0, CanRate = false },
+                new RoomRatingMessageComposer { Rating = snapshot.Score, CanRate = false },
                 new RoomEntryTileMessageComposer
                 {
                     X = mapSnapshot.DoorX,
@@ -377,9 +376,9 @@ internal sealed partial class RoomService(
                     FixedWallsHeight = _roomConfig.DefaultWallHeight,
                     ModelData = mapSnapshot.ModelData,
                     AreaHideData = [],
-                    CameraInitX = 0, // TODO
-                    CameraInitY = 0, // TODO
-                    CameraInitZ = 0, // TODO
+                    CameraInitX = mapSnapshot.DoorX,
+                    CameraInitY = mapSnapshot.DoorY,
+                    CameraInitZ = doorAltitude,
                 },
                 new RoomVisualizationSettingsMessageComposer
                 {
@@ -421,6 +420,8 @@ internal sealed partial class RoomService(
 
         await room.RefreshControllerLevelForPlayerAsync(roomCtx, ct).ConfigureAwait(false);
 
+        // The client answers this with GetGuestRoom(enterRoom: true), which is what populates its
+        // in-room info window and the owner-only settings buttons.
         var controllerLevel = await room.GetControllerLevelAsync(ctx.PlayerId, ct)
             .ConfigureAwait(false);
 

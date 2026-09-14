@@ -708,10 +708,10 @@ internal static class MessageComposer
     public const int TradingYouAreNotAllowedMessageComposer = 2294;
     public const int MarketplaceBuyOfferResultMessageComposer = 2249;
     public const int MarketplaceCancelOfferResultMessageComposer = 2448;
-    public const int MarketplaceCanMakeOfferResult = 789;
+    public const int MarketplaceCanMakeOfferResultMessageComposer = 789;
     public const int MarketplaceConfigurationMessageComposer = 1397;
     public const int MarketplaceItemStatsMessageComposer = 2821;
-    public const int MarketplaceMakeOfferResult = 2954;
+    public const int MarketplaceMakeOfferResultMessageComposer = 2954;
     public const int MarketPlaceOffersMessageComposer = 2442;
     public const int MarketPlaceOwnOffersMessageComposer = 88;
     public const int CitizenshipVipOfferPromoEnabledMessageComposer = 1584;
@@ -949,6 +949,10 @@ internal static class MessageComposer
     public const int Game2WeeklyFriendsLeaderboardMessageComposer = 2802;
     public const int Game2WeeklyGroupLeaderboardMessageComposer = 2876;
     public const int Game2WeeklyLeaderboardMessageComposer = 273;
+    public const int Game2GameNotFoundMessageComposer = 37;
+    public const int UserGameAchievementsMessageComposer = 3949;
+    public const int WeeklyGameRewardMessageComposer = 2085;
+    public const int WeeklyGameRewardWinnersMessageComposer = 3060;
     public const int CfhSanctionMessageComposer = 1634;
     public const int CfhTopicsInitMessageComposer = 1762;
     public const int SanctionStatusMessageComposer = 1746;
