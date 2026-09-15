@@ -4,7 +4,7 @@ This folder is the source of truth for plugin protocol revision mappings.
 
 ## What lives here
 - Revision definitions:
-  - `Revision20260701/Revision20260701.cs`
+  - `Revision20260909/Revision20260909.cs`
 - Incoming packet parsers:
   - `Revision<id>/Parsers/<Domain>/*MessageParser.cs`
 - Outgoing message serializers:

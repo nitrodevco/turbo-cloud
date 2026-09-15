@@ -1,0 +1,16 @@
+using Turbo.Primitives.Messages.Incoming.Preferences;
+using Turbo.Primitives.Navigator.Enums;
+using Turbo.Primitives.Networking;
+using Turbo.Primitives.Packets;
+
+namespace Turbo.Revisions.Revision20260909.Parsers.Preferences;
+
+internal class SetChatStylePreferenceMessageParser : IParser
+{
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new SetChatStylePreferenceMessage
+        {
+            ChatStyle = packet.PopInt(),
+            FontSize = (ChatSizeType)packet.PopInt(),
+        };
+}
