@@ -141,6 +141,18 @@ If a cross-grain notification fails silently, state goes asymmetric and nobody k
 - A tick that can fail catches, logs and keeps the schedule alive; one bad tick must not stop the
   grain from ticking again.
 
+### Attribute every type that crosses a grain call
+- Orleans deep-copies each argument and return value of a grain method. A type without
+  `[GenerateSerializer]` throws `CodecNotFoundException` the first time it crosses a grain call —
+  at runtime only; the build says nothing.
+- New composer: `[GenerateSerializer, Immutable]` on the record and `[Id(n)]` on every member,
+  numbered from zero and never renumbered afterwards. `Immutable` is correct for composers because
+  they are built once and sent; it lets Orleans skip the copy.
+- Same for snapshots and any DTO named in a grain interface. Events keep `[GenerateSerializer]`
+  without `Immutable`, since handlers mutate them (`PlayerChatEvent` rewrites `Text`).
+- A composer that is only ever sent from inside the grain that built it still needs this: the next
+  caller to route it through `IPlayerPresenceGrain.SendComposerAsync` crosses a proxy.
+
 ### Declare grain implementations `internal sealed`
 - A grain implementation is an implementation detail: only its interface is public. Declare it
   `internal sealed` (`internal sealed partial` when split across files) and keep the interface in

@@ -1,5 +1,5 @@
+using Turbo.Primitives.Navigator.Snapshots;
 using Turbo.Primitives.Packets;
-using Turbo.Primitives.Snapshots.Navigator;
 
 namespace Turbo.Revisions.Revision20260909.Serializers.Navigator.Data;
 

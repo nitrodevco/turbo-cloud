@@ -1,5 +1,5 @@
+using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Packets;
-using Turbo.Primitives.Snapshots.Catalog;
 
 namespace Turbo.Revisions.Revision20260909.Serializers.Catalog.Data;
 
