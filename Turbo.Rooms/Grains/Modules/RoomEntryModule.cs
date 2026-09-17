@@ -36,12 +36,18 @@ public sealed class RoomEntryModule(
         var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(playerId);
         var snapshot = _roomGrain._state.RoomSnapshot;
 
+        // A player with an avatar here is reloading the room they are already standing in. They
+        // already hold a slot and are already past the door, so counting them against capacity or
+        // sending them back to the doorbell would eject them from a room they legitimately
+        // occupy. Bans still apply, so a ban placed while they are inside takes effect.
+        var isReentering = _roomGrain._state.AvatarsByPlayerId.ContainsKey(playerId);
+
         if (controllerLevel < RoomControllerType.Owner)
         {
             if (GetIsBanned(playerId))
                 return RoomEntryAccessType.Banned;
 
-            if (snapshot.PlayersMax > 0)
+            if (!isReentering && snapshot.PlayersMax > 0)
             {
                 var population = await _roomGrain.GetRoomPopulationAsync(CancellationToken.None);
 
@@ -50,7 +56,7 @@ public sealed class RoomEntryModule(
             }
         }
 
-        if (bypassDoor || controllerLevel >= RoomControllerType.Rights)
+        if (isReentering || bypassDoor || controllerLevel >= RoomControllerType.Rights)
             return RoomEntryAccessType.Allowed;
 
         return snapshot.DoorMode switch

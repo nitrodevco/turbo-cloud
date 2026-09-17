@@ -73,11 +73,10 @@ internal sealed partial class RoomService(
             return;
 
         var playerPresence = _grainFactory.GetPlayerPresenceGrain(playerId);
-        var activeRoom = await playerPresence.GetActiveRoomAsync(ct).ConfigureAwait(false);
 
-        if (activeRoom.RoomId == roomId)
-            return;
-
+        // Re-entering the room the player is already in is a full reload, not a no-op: by the time
+        // this arrives the client has already torn its room view down and is waiting for the entry
+        // sequence. Returning early here leaves it on a black screen forever.
         await LeavePendingDoorbellAsync(playerPresence, playerId, roomId, ct).ConfigureAwait(false);
         await playerPresence.ClearActiveRoomAsync(ct).ConfigureAwait(false);
 

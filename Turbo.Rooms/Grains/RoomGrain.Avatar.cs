@@ -40,7 +40,9 @@ public sealed partial class RoomGrain
         {
             _logger.LogError(
                 ex,
-                $"Failed to create avatar for player {snapshot.PlayerId} in room {_state.RoomId}."
+                "Failed to create avatar for player {PlayerId} in room {RoomId}.",
+                snapshot.PlayerId,
+                _state.RoomId
             );
 
             return false;
@@ -73,7 +75,9 @@ public sealed partial class RoomGrain
         {
             _logger.LogError(
                 ex,
-                $"Failed to remove avatar for player {playerId} in room {_state.RoomId}."
+                "Failed to remove avatar for player {PlayerId} in room {RoomId}.",
+                playerId,
+                _state.RoomId
             );
 
             return false;
@@ -95,7 +99,11 @@ public sealed partial class RoomGrain
         {
             _logger.LogError(
                 ex,
-                $"Failed to walk avatar for player {ctx.PlayerId} in room {_state.RoomId} to ({targetX}, {targetY})."
+                "Failed to walk avatar for player {PlayerId} in room {RoomId} to ({TargetX}, {TargetY}).",
+                ctx.PlayerId,
+                _state.RoomId,
+                targetX,
+                targetY
             );
 
             return false;
@@ -115,7 +123,9 @@ public sealed partial class RoomGrain
         {
             _logger.LogError(
                 ex,
-                $"Failed to update avatar for player {snapshot.PlayerId} in room {_state.RoomId}"
+                "Failed to update avatar for player {PlayerId} in room {RoomId}",
+                snapshot.PlayerId,
+                _state.RoomId
             );
 
             return false;
@@ -142,7 +152,10 @@ public sealed partial class RoomGrain
         {
             _logger.LogError(
                 ex,
-                $"Failed to dance:{danceType} avatar for player {ctx.PlayerId} in room {_state.RoomId}"
+                "Failed to dance:{DanceType} avatar for player {PlayerId} in room {RoomId}",
+                danceType,
+                ctx.PlayerId,
+                _state.RoomId
             );
 
             return false;
@@ -169,7 +182,10 @@ public sealed partial class RoomGrain
         {
             _logger.LogError(
                 ex,
-                $"Failed to effect:{effectId} avatar for player {ctx.PlayerId} in room {_state.RoomId}"
+                "Failed to effect:{EffectId} avatar for player {PlayerId} in room {RoomId}",
+                effectId,
+                ctx.PlayerId,
+                _state.RoomId
             );
 
             return false;
@@ -196,7 +212,10 @@ public sealed partial class RoomGrain
         {
             _logger.LogError(
                 ex,
-                $"Failed to set expression:{expressionType} avatar for player {ctx.PlayerId} in room {_state.RoomId}"
+                "Failed to set expression:{ExpressionType} avatar for player {PlayerId} in room {RoomId}",
+                expressionType,
+                ctx.PlayerId,
+                _state.RoomId
             );
 
             return false;
@@ -223,7 +242,10 @@ public sealed partial class RoomGrain
         {
             _logger.LogError(
                 ex,
-                $"Failed to set sign:{signType} avatar for player {ctx.PlayerId} in room {_state.RoomId}"
+                "Failed to set sign:{SignType} avatar for player {PlayerId} in room {RoomId}",
+                signType,
+                ctx.PlayerId,
+                _state.RoomId
             );
 
             return false;
@@ -250,7 +272,10 @@ public sealed partial class RoomGrain
         {
             _logger.LogError(
                 ex,
-                $"Failed to set posture:{postureType} avatar for player {ctx.PlayerId} in room {_state.RoomId}"
+                "Failed to set posture:{PostureType} avatar for player {PlayerId} in room {RoomId}",
+                postureType,
+                ctx.PlayerId,
+                _state.RoomId
             );
 
             return false;
