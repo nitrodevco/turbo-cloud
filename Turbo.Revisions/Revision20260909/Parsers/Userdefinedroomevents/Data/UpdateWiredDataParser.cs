@@ -14,7 +14,7 @@ internal abstract class UpdateWiredDataParser : IParser
         var id = packet.PopInt();
 
         var intParams = new List<int>();
-        var intParamCount = packet.PopInt();
+        var intParamCount = packet.PopCount(bytesPerItem: 4);
 
         if (intParamCount > 0)
         {
@@ -29,7 +29,7 @@ internal abstract class UpdateWiredDataParser : IParser
         var stringParam = packet.PopString();
 
         var stuffIds = new List<int>();
-        var stuffIdCount = packet.PopInt();
+        var stuffIdCount = packet.PopCount(bytesPerItem: 4);
 
         if (stuffIdCount > 0)
         {
@@ -44,7 +44,7 @@ internal abstract class UpdateWiredDataParser : IParser
         var definitionSpecifics = ParseSpecifics(packet, GetRequiredDefinitionSpecifics());
 
         var furniSources = new List<WiredFurniSourceType[]>();
-        var furniSourceCount = packet.PopInt();
+        var furniSourceCount = packet.PopCount(bytesPerItem: 4);
 
         if (furniSourceCount > 0)
         {
@@ -59,7 +59,7 @@ internal abstract class UpdateWiredDataParser : IParser
         }
 
         var userSources = new List<WiredPlayerSourceType[]>();
-        var userSourceCount = packet.PopInt();
+        var userSourceCount = packet.PopCount(bytesPerItem: 4);
 
         if (userSourceCount > 0)
         {
@@ -76,7 +76,7 @@ internal abstract class UpdateWiredDataParser : IParser
         }
 
         var variableIds = new List<string>();
-        var variableIdCount = packet.PopInt();
+        var variableIdCount = packet.PopCount(bytesPerItem: 2);
 
         if (variableIdCount > 0)
         {
@@ -91,7 +91,7 @@ internal abstract class UpdateWiredDataParser : IParser
         var typeSpecifics = ParseSpecifics(packet, GetRequiredTypeSpecifics());
 
         var stuffIds2 = new List<int>();
-        var stuffId2Count = packet.PopInt();
+        var stuffId2Count = packet.PopCount(bytesPerItem: 4);
 
         if (stuffId2Count > 0)
         {

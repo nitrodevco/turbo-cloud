@@ -55,6 +55,10 @@ public class GetExtendedProfileMessageHandler : IMessageHandler<GetExtendedProfi
                     StarGemCount = snapshot.StarGemCount,
                     BooleanField26 = snapshot.BooleanField26,
                     BooleanField27 = snapshot.BooleanField27,
+                    TotalBadges = snapshot.TotalBadges,
+                    AchievementLevel = snapshot.AchievementLevel,
+                    BadgeRarityCounts = snapshot.BadgeRarityCounts,
+                    TotalBadgesRank = snapshot.TotalBadgesRank,
                 },
                 ct
             )

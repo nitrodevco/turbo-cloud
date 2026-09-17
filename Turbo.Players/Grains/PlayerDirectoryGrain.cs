@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Primitives.Players;
@@ -13,11 +14,13 @@ using Turbo.Primitives.Players.Grains;
 namespace Turbo.Players.Grains;
 
 [KeepAlive]
-internal class PlayerDirectoryGrain(IDbContextFactory<TurboDbContext> dbCtxFactory)
-    : Grain,
-        IPlayerDirectoryGrain
+internal sealed class PlayerDirectoryGrain(
+    IDbContextFactory<TurboDbContext> dbCtxFactory,
+    ILogger<IPlayerDirectoryGrain> logger
+) : Grain, IPlayerDirectoryGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
+    private readonly ILogger<IPlayerDirectoryGrain> _logger = logger;
 
     private readonly Dictionary<PlayerId, string> _idToName = [];
     private readonly Dictionary<string, PlayerId> _nameToId = new(StringComparer.OrdinalIgnoreCase);
@@ -33,10 +36,15 @@ internal class PlayerDirectoryGrain(IDbContextFactory<TurboDbContext> dbCtxFacto
             .Players.AsNoTracking()
             .Where(x => x.Id == (int)playerId)
             .Select(x => x.Name)
-            .FirstAsync(ct);
+            .FirstOrDefaultAsync(ct);
 
         if (string.IsNullOrWhiteSpace(dbName))
+        {
+            // Asking for a player who is not there is a caller bug, not an outage.
+            _logger.LogWarning("No name found for player {PlayerId}", playerId);
+
             return string.Empty;
+        }
 
         SetNameCache(playerId, dbName);
 

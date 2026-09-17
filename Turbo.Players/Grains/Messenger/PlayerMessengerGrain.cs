@@ -21,6 +21,12 @@ using Turbo.Primitives.Players.Snapshots.Messenger;
 
 namespace Turbo.Players.Grains.Messenger;
 
+/// <summary>
+/// Owns a player's friend list, requests, ignore list and console conversations. Friend and
+/// request mutations write through to the database as they happen; only the delivered flags of
+/// received messages are buffered, and those are flushed on a timer and on deactivation so a
+/// busy conversation does not issue one write per message.
+/// </summary>
 internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
@@ -30,8 +36,10 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
 
     private readonly PlayerMessengerLiveState _state;
     private readonly Dictionary<PlayerId, MessengerUpdateSnapshot> _pendingUpdates = [];
+    private readonly HashSet<int> _pendingDeliveredIds = [];
 
     private int _nextSessionMessageId = 1;
+    private IDisposable? _deliveredFlushTimer;
 
     public PlayerMessengerGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
@@ -45,19 +53,41 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         _playerConfig = playerConfig.Value;
         _logger = logger;
 
-        _state = new() { PlayerId = PlayerId.Parse((int)this.GetPrimaryKeyLong()) };
+        _state = new() { PlayerId = this.GetPlayerId() };
     }
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
-        await HydrateFromDatabaseAsync(ct);
+        try
+        {
+            await HydrateFromDatabaseAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to hydrate messenger for player {PlayerId}",
+                _state.PlayerId
+            );
+
+            throw;
+        }
+
+        _deliveredFlushTimer = this.RegisterGrainTimer<object?>(
+            static async (self, ct) =>
+                await ((PlayerMessengerGrain)self!).FlushDeliveredMessagesAsync(ct),
+            this,
+            TimeSpan.FromMilliseconds(_playerConfig.MessengerDeliveredFlushMs),
+            TimeSpan.FromMilliseconds(_playerConfig.MessengerDeliveredFlushMs)
+        );
     }
 
-    public override Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
+    public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
-        //await FlushDeliveredMessagesAsync(ct);
+        _deliveredFlushTimer?.Dispose();
+        _deliveredFlushTimer = null;
 
-        return Task.CompletedTask;
+        await FlushDeliveredMessagesAsync(ct);
     }
 
     public async Task<FriendListErrorCodeType> AddFriendAsync(
@@ -565,7 +595,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
                 .Select(async x =>
                 {
                     var presence = _grainFactory.GetPlayerPresenceGrain(PlayerId.Parse(x.Id));
-                    var isOnline = await presence.HasActiveSessionAsync();
+                    var isOnline = await presence.HasActiveSessionAsync(ct);
 
                     return (x, isOnline);
                 })
@@ -655,6 +685,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
                 _state.PlayerId,
                 senderName,
                 senderFigure,
+                ct,
                 messageEntity.Id
             );
     }
@@ -668,6 +699,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         PlayerId senderId,
         string senderName,
         string senderFigure,
+        CancellationToken ct,
         int dbMessageId = 0
     )
     {
@@ -702,15 +734,55 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
                     SenderId = senderId,
                     SenderName = senderName,
                     SenderFigure = senderFigure,
-                }
+                },
+                ct
             );
 
         // Queue delivered-flag update — flushed periodically by timer to avoid per-message DB writes
-        // if (dbMessageId > 0)
-        //     _pendingDeliveredIds.Add(dbMessageId);
-        // TODO what
+        if (dbMessageId > 0)
+            _pendingDeliveredIds.Add(dbMessageId);
 
         return true;
+    }
+
+    /// <summary>
+    /// Marks buffered messages delivered. Failures are logged and the ids are put back so the
+    /// next tick retries them; the flag is cosmetic, so a lost batch never blocks the grain.
+    /// </summary>
+    private async Task FlushDeliveredMessagesAsync(CancellationToken ct)
+    {
+        if (_pendingDeliveredIds.Count == 0)
+            return;
+
+        var messageIds = _pendingDeliveredIds.ToList();
+
+        _pendingDeliveredIds.Clear();
+
+        try
+        {
+            await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+            await dbCtx
+                .MessengerMessages.Where(x => messageIds.Contains(x.Id))
+                .ExecuteUpdateAsync(x => x.SetProperty(m => m.Delivered, true), ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to flag {MessageCount} messages delivered for player {PlayerId}",
+                messageIds.Count,
+                _state.PlayerId
+            );
+
+            foreach (var messageId in messageIds)
+            {
+                if (_pendingDeliveredIds.Count >= _playerConfig.MessengerMaxPendingDelivered)
+                    break;
+
+                _pendingDeliveredIds.Add(messageId);
+            }
+        }
     }
 
     public async Task FlushUpdatesAsync(CancellationToken ct)

@@ -31,6 +31,13 @@ using Turbo.Rooms.Grains.Systems;
 
 namespace Turbo.Rooms.Grains;
 
+/// <summary>
+/// Owns a live room. Unlike every other grain implementation this type is public rather than
+/// internal: room object logic and wired variables name it in their constructors, and those are
+/// discovered by <c>AssemblyExplorer</c>, which skips non-public types. Internalising this class
+/// compiles once those are internal too, but they then go undiscovered and silently register
+/// nothing at startup.
+/// </summary>
 public sealed partial class RoomGrain : Grain, IRoomGrain
 {
     internal readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
@@ -92,7 +99,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _grainFactory = grainFactory;
         _eventSystem = eventSystem;
 
-        _state = new() { RoomId = RoomId.Parse((int)this.GetPrimaryKeyLong()) };
+        _state = new() { RoomId = this.GetRoomId() };
         PathingSystem = new(this);
         EventModule = new(this);
         SecurityModule = new(this, _dbCtxFactory);
@@ -128,7 +135,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
         await HydrateRoomStateAsync(ct);
 
-        await _grainFactory.GetRoomDirectoryGrain().UpsertActiveRoomAsync(_state.RoomSnapshot);
+        await _grainFactory.GetRoomDirectoryGrain().UpsertActiveRoomAsync(_state.RoomSnapshot, ct);
 
         var provider = this.GetStreamProvider(OrleansStreamProviders.ROOM_STREAM_PROVIDER);
 
@@ -142,27 +149,34 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         // boundaries (all multiples of RoomTickMs from EpochMs) would be crossed late by a
         // varying amount each cycle.
         _roomTimer = this.RegisterGrainTimer<object?>(
-            async (state, ct) =>
-            {
-                try
-                {
-                    var now = NowMs();
-
-                    await AvatarTickSystem.ProcessAvatarsAsync(now, ct);
-                    await WiredSystem.ProcessWiredAsync(now, ct);
-                    await RollerSystem.ProcessRollersAsync(now, ct);
-                    await FlushDirtyTilesAsync(ct);
-                    await FlushDirtyItemsAsync(ct);
-                }
-                finally
-                {
-                    RearmRoomTimer();
-                }
-            },
-            null,
+            static async (self, ct) => await ((RoomGrain)self!).ProcessRoomTickAsync(ct),
+            this,
             TimeSpan.FromMilliseconds(_roomConfig.RoomTickMs),
             Timeout.InfiniteTimeSpan
         );
+    }
+
+    private async Task ProcessRoomTickAsync(CancellationToken ct)
+    {
+        try
+        {
+            var now = NowMs();
+
+            await AvatarTickSystem.ProcessAvatarsAsync(now, ct);
+            await WiredSystem.ProcessWiredAsync(now, ct);
+            await RollerSystem.ProcessRollersAsync(now, ct);
+            await FlushDirtyTilesAsync(ct);
+            await FlushDirtyItemsAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Room {RoomId} failed to process a tick", _state.RoomId);
+        }
+        finally
+        {
+            // Always re-arm: a failed tick must not stop the room.
+            RearmRoomTimer();
+        }
     }
 
     private void RearmRoomTimer()
@@ -180,15 +194,36 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
+        _roomTimer?.Dispose();
+        _roomTimer = null;
+
+        // Each step is isolated: a failed flush must not leave the room listed as active.
         try
         {
             await FlushDirtyItemsAsync(ct);
-
-            await _grainFactory.GetRoomDirectoryGrain().RemoveActiveRoomAsync(_state.RoomId);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            return;
+            _logger.LogError(
+                ex,
+                "Failed to flush dirty items of room {RoomId} on deactivation",
+                _state.RoomId
+            );
+        }
+
+        try
+        {
+            await _grainFactory
+                .GetRoomDirectoryGrain()
+                .RemoveActiveRoomAsync(_state.RoomId, _state.IsListingChanged, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to remove room {RoomId} from the directory on deactivation",
+                _state.RoomId
+            );
         }
     }
 
@@ -208,11 +243,12 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         await EntryModule.EnsureBansLoadedAsync(ct);
     }
 
-    public Task<RoomSnapshot> GetSnapshotAsync() => Task.FromResult(_state.RoomSnapshot);
+    public Task<RoomSnapshot> GetSnapshotAsync(CancellationToken ct) =>
+        Task.FromResult(_state.RoomSnapshot);
 
-    public async Task<RoomSummarySnapshot> GetSummaryAsync()
+    public async Task<RoomSummarySnapshot> GetSummaryAsync(CancellationToken ct)
     {
-        var population = await GetRoomPopulationAsync();
+        var population = await GetRoomPopulationAsync(ct);
 
         return new RoomSummarySnapshot
         {
@@ -226,18 +262,19 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         };
     }
 
-    public Task<bool> GetIsGroupRoomAsync() => Task.FromResult(false);
+    public Task<bool> GetIsGroupRoomAsync(CancellationToken ct) => Task.FromResult(false);
 
-    public async Task<int> GetRoomPopulationAsync() =>
-        await _grainFactory.GetRoomDirectoryGrain().GetRoomPopulationAsync(_state.RoomId);
+    public async Task<int> GetRoomPopulationAsync(CancellationToken ct) =>
+        await _grainFactory.GetRoomDirectoryGrain().GetRoomPopulationAsync(_state.RoomId, ct);
 
-    public Task<ImmutableArray<KeyValuePair<RoomPropertyType, string>>> GetRoomPropertiesAsync() =>
-        Task.FromResult(_state.RoomProperties.ToImmutableArray());
+    public Task<ImmutableArray<KeyValuePair<RoomPropertyType, string>>> GetRoomPropertiesAsync(
+        CancellationToken ct
+    ) => Task.FromResult(_state.RoomProperties.ToImmutableArray());
 
     public Task PublishRoomEventAsync(RoomEvent evt, CancellationToken ct) =>
         EventModule.PublishAsync(evt, ct);
 
-    public Task SendComposerToRoomAsync(IComposer composer) =>
+    public Task SendComposerToRoomAsync(IComposer composer, CancellationToken ct) =>
         _roomOutbound.OnNextAsync(
             new RoomOutboundSnapshot { RoomId = _state.RoomId, Composer = composer }
         );
@@ -246,16 +283,20 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     /// Targets a subset of players directly instead of the room stream. Independent presence
     /// grains, so the sends run concurrently.
     /// </summary>
-    internal Task SendComposerToPlayersAsync(IEnumerable<PlayerId> playerIds, IComposer composer) =>
+    internal Task SendComposerToPlayersAsync(
+        IEnumerable<PlayerId> playerIds,
+        IComposer composer,
+        CancellationToken ct
+    ) =>
         Task.WhenAll(
             playerIds.Select(playerId =>
-                _grainFactory.GetPlayerPresenceGrain(playerId).SendComposerAsync(composer)
+                _grainFactory.GetPlayerPresenceGrain(playerId).SendComposerAsync(composer, ct)
             )
         );
 
     private async Task HydrateRoomStateAsync(CancellationToken ct)
     {
-        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         try
         {
@@ -266,6 +307,30 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
                 ?? throw new TurboException(TurboErrorCodeEnum.RoomNotFound);
 
             _state.Model = _roomModelProvider.GetModelById(entity.RoomModelEntityId);
+
+            var ownerName =
+                await dbCtx
+                    .Players.AsNoTracking()
+                    .Where(x => x.Id == entity.PlayerEntityId)
+                    .Select(x => x.Name)
+                    .FirstOrDefaultAsync(ct)
+                ?? string.Empty;
+
+            var raterIds = await dbCtx
+                .RoomRatings.AsNoTracking()
+                .Where(x => x.RoomEntityId == entity.Id)
+                .Select(x => x.PlayerEntityId)
+                .ToListAsync(ct);
+
+            _state.PlayerIdsWhoRated.Clear();
+            _state.PlayerIdsWhoRated.UnionWith(raterIds.Select(PlayerId.Parse));
+
+            var now = DateTime.UtcNow;
+            var eventEntity = await dbCtx
+                .RoomEvents.AsNoTracking()
+                .Where(x => x.RoomEntityId == entity.Id && x.ExpiresAt > now)
+                .OrderByDescending(x => x.Id)
+                .FirstOrDefaultAsync(ct);
 
             if (!string.IsNullOrEmpty(entity.PaintWall))
             {
@@ -288,15 +353,30 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
                 Name = entity.Name ?? string.Empty,
                 Description = entity.Description ?? string.Empty,
                 OwnerId = PlayerId.Parse(entity.PlayerEntityId),
-                OwnerName = string.Empty,
+                OwnerName = ownerName,
                 Population = 0,
                 DoorMode = entity.DoorMode,
                 PlayersMax = entity.PlayersMax,
                 TradeType = entity.TradeType,
-                Score = 0,
+                Score = entity.Score,
                 Ranking = 0,
                 CategoryId = entity.NavigatorCategoryEntityId ?? -1,
-                Tags = [],
+                Tags = RoomTags.Parse(entity.Tags),
+                StaffPick = entity.StaffPick,
+                ActiveEvent = eventEntity is null
+                    ? null
+                    : new RoomEventSnapshot
+                    {
+                        EventId = eventEntity.Id,
+                        RoomId = entity.Id,
+                        OwnerId = PlayerId.Parse(eventEntity.PlayerEntityId),
+                        OwnerName = ownerName,
+                        CategoryId = eventEntity.NavigatorEventCategoryEntityId,
+                        Name = eventEntity.Name,
+                        Description = eventEntity.Description,
+                        CreatedAtUtc = eventEntity.CreatedAt,
+                        ExpiresAtUtc = eventEntity.ExpiresAt,
+                    },
                 AllowBlocking = entity.AllowBlocking,
                 AllowPets = entity.AllowPets,
                 AllowPetsEat = entity.AllowPetsEat,
@@ -328,13 +408,11 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             await SecurityModule.EnsureRightsLoadedAsync(ct);
             await EntryModule.EnsureBansLoadedAsync(ct);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to hydrate room {RoomId}", _state.RoomId);
+
             throw;
-        }
-        finally
-        {
-            await dbCtx.DisposeAsync();
         }
     }
 

@@ -75,6 +75,7 @@ public interface IPlayerMessengerGrain : IGrainWithIntegerKey
         PlayerId senderId,
         string senderName,
         string senderFigure,
+        CancellationToken ct,
         int dbMessageId = 0
     );
     public Task FlushUpdatesAsync(CancellationToken ct);

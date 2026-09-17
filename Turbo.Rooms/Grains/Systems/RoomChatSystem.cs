@@ -48,7 +48,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
         if (text.Length == 0)
             return false;
 
-        if (await IsMutedAsync(ctx.PlayerId))
+        if (await IsMutedAsync(ctx.PlayerId, ct))
             return false;
 
         if (await IsFloodingAsync(ctx.PlayerId, ct))
@@ -83,7 +83,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
         if (evt.IsCancelled)
             return true;
 
-        await BroadcastAsync(evt, speaker, recipient);
+        await BroadcastAsync(evt, speaker, recipient, ct);
 
         if (chatType != RoomChatType.Whisper)
             TurnHeadsTowards(speaker, chatType);
@@ -107,13 +107,14 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
         return true;
     }
 
-    public Task<bool> SetAvatarTypingAsync(ActionContext ctx, bool isTyping)
+    public Task<bool> SetAvatarTypingAsync(ActionContext ctx, bool isTyping, CancellationToken ct)
     {
         if (!TryGetPlayerAvatar(ctx.PlayerId, out var avatar))
             return Task.FromResult(false);
 
         _ = _roomGrain.SendComposerToRoomAsync(
-            new UserTypingMessageComposer { UserId = avatar.ObjectId, IsTyping = isTyping }
+            new UserTypingMessageComposer { UserId = avatar.ObjectId, IsTyping = isTyping },
+            ct
         );
 
         return Task.FromResult(true);
@@ -133,14 +134,15 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
     private async Task BroadcastAsync(
         PlayerChatEvent evt,
         IRoomPlayer speaker,
-        IRoomPlayer? recipient
+        IRoomPlayer? recipient,
+        CancellationToken ct
     )
     {
         var composer = CreateComposer(evt);
 
         if (evt.ChatType != RoomChatType.Whisper)
         {
-            await _roomGrain.SendComposerToRoomAsync(composer);
+            await _roomGrain.SendComposerToRoomAsync(composer, ct);
 
             return;
         }
@@ -150,7 +152,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
         if (recipient is not null)
             targets.Add(recipient.PlayerId);
 
-        await _roomGrain.SendComposerToPlayersAsync(targets, composer);
+        await _roomGrain.SendComposerToPlayersAsync(targets, composer, ct);
     }
 
     private static IComposer CreateComposer(PlayerChatEvent evt) =>
@@ -211,7 +213,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
         }
     }
 
-    private async Task<bool> IsMutedAsync(PlayerId playerId)
+    private async Task<bool> IsMutedAsync(PlayerId playerId, CancellationToken ct)
     {
         var remainingSeconds = _roomGrain.ModerationModule.GetRemainingMuteSeconds(playerId);
 
@@ -220,7 +222,8 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
             await _roomGrain
                 ._grainFactory.GetPlayerPresenceGrain(playerId)
                 .SendComposerAsync(
-                    new RemainingMutePeriodMessageComposer { SecondsRemaining = remainingSeconds }
+                    new RemainingMutePeriodMessageComposer { SecondsRemaining = remainingSeconds },
+                    ct
                 );
 
             return true;
@@ -279,7 +282,8 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
                     new FloodControlMessageComposer
                     {
                         Seconds = (int)Math.Ceiling(config.ChatFloodMuteMs / 1000d),
-                    }
+                    },
+                    ct
                 );
 
             return true;

@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Navigator;
 
 internal class RemoveOwnRoomRightsRoomMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new RemoveOwnRoomRightsRoomMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new RemoveOwnRoomRightsRoomMessage { RoomId = packet.PopInt() };
 }

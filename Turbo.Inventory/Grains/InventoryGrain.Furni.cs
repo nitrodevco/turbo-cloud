@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Furniture;
@@ -14,6 +15,7 @@ using Turbo.Primitives;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Snapshots;
@@ -23,7 +25,7 @@ using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Inventory.Grains;
 
-public sealed partial class InventoryGrain
+internal sealed partial class InventoryGrain
 {
     public Task EnsureFurnitureReadyAsync(CancellationToken ct) =>
         _furniModule.EnsureFurnitureReadyAsync(ct);
@@ -84,9 +86,7 @@ public sealed partial class InventoryGrain
         {
             if (product.ProductType is ProductType.Floor || product.ProductType is ProductType.Wall)
             {
-                var def =
-                    _furnitureDefinitionProvider.TryGetDefinition(product.FurniDefinitionId)
-                    ?? throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
+                var def = GetDefinitionOrThrow(product.FurniDefinitionId);
 
                 for (int i = 0; i < quantity; i++)
                     entities.Add(
@@ -109,9 +109,7 @@ public sealed partial class InventoryGrain
 
         foreach (var entity in entities)
         {
-            var def =
-                _furnitureDefinitionProvider.TryGetDefinition(entity.FurnitureDefinitionEntityId)
-                ?? throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
+            var def = GetDefinitionOrThrow(entity.FurnitureDefinitionEntityId);
 
             // TODO need to batch these
 
@@ -151,11 +149,17 @@ public sealed partial class InventoryGrain
         var product = snapshot.ProductsById.Values.FirstOrDefault(p => p.Id == catalogProductId);
 
         if (product == null)
-            throw new TurboException(TurboErrorCodeEnum.CatalogProductNotFound);
+        {
+            _logger.LogError(
+                "Catalog product {CatalogProductId} is missing; cannot grant the limited item to player {PlayerId}",
+                catalogProductId,
+                PlayerId
+            );
 
-        var def =
-            _furnitureDefinitionProvider.TryGetDefinition(product.FurniDefinitionId)
-            ?? throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
+            throw new TurboException(TurboErrorCodeEnum.CatalogProductNotFound);
+        }
+
+        var def = GetDefinitionOrThrow(product.FurniDefinitionId);
 
         // Build ExtraData JSON with LTD serial info in the stuff section
         var extraDataJson = JsonSerializer.Serialize(
@@ -203,5 +207,25 @@ public sealed partial class InventoryGrain
             },
             ct
         );
+    }
+
+    /// <summary>
+    /// The definition a grant needs. A missing one means the catalog and the furniture data no
+    /// longer agree, so it is logged with the id before the purchase is failed.
+    /// </summary>
+    private FurnitureDefinitionSnapshot GetDefinitionOrThrow(int definitionId)
+    {
+        var definition = _furnitureDefinitionProvider.TryGetDefinition(definitionId);
+
+        if (definition is not null)
+            return definition;
+
+        _logger.LogError(
+            "Furniture definition {DefinitionId} is missing; cannot grant it to player {PlayerId}",
+            definitionId,
+            PlayerId
+        );
+
+        throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
     }
 }

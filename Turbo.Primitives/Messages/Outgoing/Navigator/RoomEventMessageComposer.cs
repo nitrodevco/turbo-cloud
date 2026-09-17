@@ -1,5 +1,7 @@
+using System;
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Primitives.Messages.Outgoing.Navigator;
 
@@ -7,5 +9,9 @@ namespace Turbo.Primitives.Messages.Outgoing.Navigator;
 public sealed record RoomEventMessageComposer : IComposer
 {
     [Id(0)]
-    public object? Data { get; init; }
+    public required RoomEventSnapshot Event { get; init; }
+
+    /// <summary>The time the relative minute fields are computed against.</summary>
+    [Id(1)]
+    public required DateTime SentAtUtc { get; init; }
 }

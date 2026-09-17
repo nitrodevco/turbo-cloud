@@ -26,11 +26,12 @@ internal sealed partial class PlayerPresenceGrain
                 NormalFriendLimit = _playerConfig.MessengerNormalFriendLimit,
                 ExtendedFriendLimit = _playerConfig.MessengerExtendedFriendLimit,
                 FriendCategories = categories,
-            }
+            },
+            ct
         );
 
         var friends = await messengerGrain.GetFriendsAsync(ct);
-        var fragmentSize = 100;
+        var fragmentSize = _playerConfig.FriendListFragmentSize;
         var totalFragments =
             friends.Count == 0 ? 1 : (friends.Count + fragmentSize - 1) / fragmentSize;
 
@@ -47,7 +48,8 @@ internal sealed partial class PlayerPresenceGrain
                     TotalFragments = totalFragments,
                     FragmentIndex = i,
                     Fragment = fragment,
-                }
+                },
+                ct
             );
         }
 
@@ -61,15 +63,17 @@ internal sealed partial class PlayerPresenceGrain
         CancellationToken ct
     ) =>
         SendComposerAsync(
-            new FriendListUpdateMessageComposer { Categories = categories, Updates = updates }
+            new FriendListUpdateMessageComposer { Categories = categories, Updates = updates },
+            ct
         );
 
     public Task OnReceiveFriendRequestAsync(MessengerRequestDto requestDto, CancellationToken ct) =>
-        SendComposerAsync(new NewFriendRequestMessageComposer { Request = requestDto });
+        SendComposerAsync(new NewFriendRequestMessageComposer { Request = requestDto }, ct);
 
     public Task OnBlockPlayerUpdatedAsync(PlayerId playerId, int result, CancellationToken ct) =>
         SendComposerAsync(
-            new BlockUserUpdateMessageComposer { Result = result, UserId = playerId }
+            new BlockUserUpdateMessageComposer { Result = result, UserId = playerId },
+            ct
         );
 
     public Task OnIgnorePlayerUpdatedAsync(
@@ -78,9 +82,13 @@ internal sealed partial class PlayerPresenceGrain
         CancellationToken ct
     ) =>
         SendComposerAsync(
-            new IgnoreResultMessageComposer { Result = result, IgnoredUserId = playerId }
+            new IgnoreResultMessageComposer { Result = result, IgnoredUserId = playerId },
+            ct
         );
 
     public Task OnIgnoredUpdatedAsync(List<PlayerId> ignoredPlayerIds, CancellationToken ct) =>
-        SendComposerAsync(new IgnoredUsersMessageComposer { IgnoredUserIds = ignoredPlayerIds });
+        SendComposerAsync(
+            new IgnoredUsersMessageComposer { IgnoredUserIds = ignoredPlayerIds },
+            ct
+        );
 }

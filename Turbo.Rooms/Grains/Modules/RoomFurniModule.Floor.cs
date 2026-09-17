@@ -40,7 +40,7 @@ public sealed partial class RoomFurniModule
 
         item.MarkDirty();
 
-        await _roomGrain.SendComposerToRoomAsync(item.GetAddComposer());
+        await _roomGrain.SendComposerToRoomAsync(item.GetAddComposer(), ct);
 
         return true;
     }
@@ -67,7 +67,7 @@ public sealed partial class RoomFurniModule
         if (!_roomGrain.MapModule.MoveFloorItem(floor, nextIdx, z, rot))
             return false;
 
-        await _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer());
+        await _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer(), ct);
 
         await item.Logic.OnMoveAsync(ctx, prevIdx, ct);
 

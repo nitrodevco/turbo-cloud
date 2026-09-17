@@ -10,6 +10,7 @@ using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Room;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object;
@@ -19,7 +20,7 @@ using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms.Grains;
 
-public sealed class RoomPersistenceGrain(
+internal sealed class RoomPersistenceGrain(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IOptions<RoomConfig> roomConfig,
     ILogger<IRoomPersistenceGrain> logger
@@ -56,6 +57,12 @@ public sealed class RoomPersistenceGrain(
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
+        _timer?.Dispose();
+        _timer = null;
+
+        _chatlogTimer?.Dispose();
+        _chatlogTimer = null;
+
         await FlushDirtyItemsAsync(ct);
 
         while (_pendingChatlogs.Count > 0)
@@ -214,7 +221,7 @@ public sealed class RoomPersistenceGrain(
                 }
                 else
                 {
-                    dbEntity.RoomEntityId = (int)this.GetPrimaryKeyLong();
+                    dbEntity.RoomEntityId = this.GetRoomId().Value;
 
                     e.Property(x => x.RoomEntityId).IsModified = true;
                 }

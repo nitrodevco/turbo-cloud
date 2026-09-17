@@ -30,7 +30,8 @@ internal sealed partial class PlayerPresenceGrain
             {
                 Figure = snapshot.Figure,
                 Gender = snapshot.Gender,
-            }
+            },
+            ct
         );
 
         await OnPlayerUpdatedAsync(snapshot, ct);

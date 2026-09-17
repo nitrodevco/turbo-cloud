@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Navigator;
 
 internal class RoomAdSearchMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new RoomAdSearchMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new RoomAdSearchMessage { AdIndex = packet.PopInt(), TabId = packet.PopInt() };
 }

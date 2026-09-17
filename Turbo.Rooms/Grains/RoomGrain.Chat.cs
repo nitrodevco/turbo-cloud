@@ -53,7 +53,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            return await ChatSystem.SetAvatarTypingAsync(ctx, isTyping);
+            return await ChatSystem.SetAvatarTypingAsync(ctx, isTyping, ct);
         }
         catch (Exception ex)
         {

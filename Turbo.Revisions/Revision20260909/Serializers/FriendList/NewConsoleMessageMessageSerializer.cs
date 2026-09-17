@@ -1,5 +1,6 @@
 using Turbo.Primitives.Messages.Outgoing.FriendList;
 using Turbo.Primitives.Packets;
+using Turbo.Primitives.Players.Enums.Messenger;
 
 namespace Turbo.Revisions.Revision20260909.Serializers.FriendList;
 
@@ -12,6 +13,7 @@ internal class NewConsoleMessageMessageSerializer(int header)
     )
     {
         packet.WriteInteger(message.ChatId);
+        packet.WriteInteger((int)MessengerMessageContentType.Text);
         packet.WriteString(message.Message);
         packet.WriteInteger(message.SecondsSinceSent);
         packet.WriteString(message.MessageId);

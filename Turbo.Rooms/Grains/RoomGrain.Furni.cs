@@ -1,8 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -23,9 +25,9 @@ public sealed partial class RoomGrain
 
             return true;
         }
-        catch
+        catch (Exception ex)
         {
-            // TODO handle exceptions
+            _logger.LogError(ex, "Failed to add an item to room {RoomId}", _state.RoomId);
 
             return false;
         }
@@ -44,9 +46,15 @@ public sealed partial class RoomGrain
 
             return true;
         }
-        catch
+        catch (Exception ex)
         {
-            // TODO handle exceptions
+            _logger.LogError(
+                ex,
+                "Failed to remove item {ItemId} from room {RoomId} for player {PlayerId}",
+                itemId,
+                _state.RoomId,
+                ctx.PlayerId
+            );
 
             return false;
         }
@@ -66,9 +74,15 @@ public sealed partial class RoomGrain
 
             return true;
         }
-        catch
+        catch (Exception ex)
         {
-            // TODO handle exceptions
+            _logger.LogError(
+                ex,
+                "Failed to use item {ItemId} in room {RoomId} for player {PlayerId}",
+                itemId,
+                _state.RoomId,
+                ctx.PlayerId
+            );
 
             return false;
         }
@@ -88,9 +102,15 @@ public sealed partial class RoomGrain
 
             return true;
         }
-        catch
+        catch (Exception ex)
         {
-            // TODO handle exceptions
+            _logger.LogError(
+                ex,
+                "Failed to click item {ItemId} in room {RoomId} for player {PlayerId}",
+                itemId,
+                _state.RoomId,
+                ctx.PlayerId
+            );
 
             return false;
         }

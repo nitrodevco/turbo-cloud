@@ -53,7 +53,7 @@ public class WiredTriggerHabboSaysKeyword(
         if (!GetIsOwnerOnly())
             return true;
 
-        var snapshot = await _ctx.Room.GetSnapshotAsync();
+        var snapshot = await _ctx.Room.GetSnapshotAsync(ct);
 
         return snapshot.OwnerId == chatEvt.PlayerId;
     }

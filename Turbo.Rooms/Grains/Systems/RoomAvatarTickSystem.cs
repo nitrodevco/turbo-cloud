@@ -65,7 +65,8 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
             return;
 
         _ = _roomGrain.SendComposerToRoomAsync(
-            new UserUpdateMessageComposer { Avatars = [.. dirtySnapshots] }
+            new UserUpdateMessageComposer { Avatars = [.. dirtySnapshots] },
+            ct
         );
     }
 

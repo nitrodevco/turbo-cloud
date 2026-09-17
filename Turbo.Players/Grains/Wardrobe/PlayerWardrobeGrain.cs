@@ -10,6 +10,7 @@ using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Players;
 using Turbo.Players.Configuration;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains.Wardrobe;
 using Turbo.Primitives.Players.Snapshots.Wardrobe;
@@ -17,6 +18,10 @@ using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Players.Grains.Wardrobe;
 
+/// <summary>
+/// Owns a player's saved outfits. Each save writes through to the database before the in-memory
+/// slot is updated, so there is nothing to flush on deactivation.
+/// </summary>
 internal sealed class PlayerWardrobeGrain : Grain, IPlayerWardrobeGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
@@ -36,7 +41,7 @@ internal sealed class PlayerWardrobeGrain : Grain, IPlayerWardrobeGrain
         _playerConfig = playerConfig.Value;
         _logger = logger;
 
-        _playerId = PlayerId.Parse((int)this.GetPrimaryKeyLong());
+        _playerId = this.GetPlayerId();
     }
 
     public override async Task OnActivateAsync(CancellationToken ct)

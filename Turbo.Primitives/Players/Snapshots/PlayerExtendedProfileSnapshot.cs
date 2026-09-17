@@ -63,4 +63,16 @@ public sealed record PlayerExtendedProfileSnapshot
 
     [Id(18)]
     public required bool BooleanField27 { get; init; }
+
+    [Id(19)]
+    public required int TotalBadges { get; init; }
+
+    [Id(20)]
+    public required int AchievementLevel { get; init; }
+
+    [Id(21)]
+    public required List<BadgeRarityCountSnapshot> BadgeRarityCounts { get; init; }
+
+    [Id(22)]
+    public required int TotalBadgesRank { get; init; }
 }

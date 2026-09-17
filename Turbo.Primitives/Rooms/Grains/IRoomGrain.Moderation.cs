@@ -15,5 +15,5 @@ public partial interface IRoomGrain
     );
     public Task<bool> UnmutePlayerAsync(ActionContext ctx, PlayerId playerId, CancellationToken ct);
     public Task<bool> ToggleRoomMuteAsync(ActionContext ctx, CancellationToken ct);
-    public Task<bool> GetIsRoomMutedAsync();
+    public Task<bool> GetIsRoomMutedAsync(CancellationToken ct);
 }

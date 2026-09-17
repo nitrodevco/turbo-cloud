@@ -23,10 +23,10 @@ public abstract class FurnitureWiredConditionLogic(
     private byte _quantifierType = 0;
 
     public override List<Type> GetDefinitionSpecificTypes() =>
-        [.. base.GetDefinitionSpecificTypes(), typeof(int), typeof(bool)];
+        [.. base.GetDefinitionSpecificTypes(), typeof(int)];
 
     public override List<Type> GetTypeSpecificTypes() =>
-        [.. base.GetTypeSpecificTypes(), typeof(byte)];
+        [.. base.GetTypeSpecificTypes(), typeof(byte), typeof(bool)];
 
     public int GetQuantifierCode() => _quantifierCode;
 
@@ -45,8 +45,8 @@ public abstract class FurnitureWiredConditionLogic(
         try
         {
             _quantifierCode = _wiredData.GetDefinitionParam<int>(0);
-            _isInvert = _wiredData.GetDefinitionParam<bool>(1);
             _quantifierType = _wiredData.GetTypeParam<byte>(0);
+            _isInvert = _wiredData.GetTypeParam<bool>(1);
         }
         catch { }
     }

@@ -79,6 +79,16 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<MessengerIgnoredEntity> MessengerIgnored { get; init; }
 
+    public DbSet<PlayerNavigatorSavedSearchEntity> PlayerNavigatorSavedSearches { get; init; }
+
+    public DbSet<PlayerNavigatorCollapsedCategoryEntity> PlayerNavigatorCollapsedCategories { get; init; }
+
+    public DbSet<PlayerNavigatorViewModeEntity> PlayerNavigatorViewModes { get; init; }
+
+    public DbSet<RoomRatingEntity> RoomRatings { get; init; }
+
+    public DbSet<RoomEventEntity> RoomEvents { get; init; }
+
     protected override void OnModelCreating(ModelBuilder mb)
     {
         base.OnModelCreating(mb);

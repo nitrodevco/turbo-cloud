@@ -666,7 +666,7 @@ public abstract class FurnitureWiredLogic(
     {
         _ = _grainFactory
             .GetPlayerPresenceGrain(ctx.PlayerId)
-            .SendComposerAsync(new OpenEventMessageComposer { ItemId = _ctx.ObjectId })
+            .SendComposerAsync(new OpenEventMessageComposer { ItemId = _ctx.ObjectId }, ct)
             .ConfigureAwait(false);
 
         return Task.CompletedTask;

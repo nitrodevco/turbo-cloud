@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Rooms.Enums;
@@ -50,7 +51,15 @@ public sealed partial class RoomMapModule
 
             UpdateHeightForAvatar(avatar);
         }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            _roomGrain._logger.LogError(
+                ex,
+                "Failed to update the tile state of avatar {ObjectId} in room {RoomId}",
+                avatar.ObjectId,
+                _roomGrain.RoomId
+            );
+        }
     }
 
     public bool CanAvatarWalk(
@@ -202,7 +211,15 @@ public sealed partial class RoomMapModule
 
             avatar.SetHeight(height - postureOffset);
         }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            _roomGrain._logger.LogError(
+                ex,
+                "Failed to update the height of avatar {ObjectId} in room {RoomId}",
+                avatar.ObjectId,
+                _roomGrain.RoomId
+            );
+        }
     }
 
     public Altitude GetTileHeightForAvatar(int tileId)

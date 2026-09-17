@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -72,7 +73,7 @@ internal sealed partial class RoomService(
             return;
 
         var playerPresence = _grainFactory.GetPlayerPresenceGrain(playerId);
-        var activeRoom = await playerPresence.GetActiveRoomAsync().ConfigureAwait(false);
+        var activeRoom = await playerPresence.GetActiveRoomAsync(ct).ConfigureAwait(false);
 
         if (activeRoom.RoomId == roomId)
             return;
@@ -81,7 +82,7 @@ internal sealed partial class RoomService(
         await playerPresence.ClearActiveRoomAsync(ct).ConfigureAwait(false);
 
         await playerPresence
-            .SendComposerAsync(new OpenConnectionMessageComposer { RoomId = roomId })
+            .SendComposerAsync(new OpenConnectionMessageComposer { RoomId = roomId }, ct)
             .ConfigureAwait(false);
 
         var room = _grainFactory.GetRoomGrain(roomId);
@@ -95,7 +96,8 @@ internal sealed partial class RoomService(
                         {
                             ErrorType = RoomConnectionErrorType.Banned,
                             AdditionalInfo = string.Empty,
-                        }
+                        },
+                        ct
                     )
                     .ConfigureAwait(false);
                 return;
@@ -106,7 +108,8 @@ internal sealed partial class RoomService(
                         new CantConnectMessageComposer
                         {
                             ErrorType = RoomConnectionErrorType.RoomFull,
-                        }
+                        },
+                        ct
                     )
                     .ConfigureAwait(false);
                 return;
@@ -115,7 +118,11 @@ internal sealed partial class RoomService(
             case RoomEntryAccessType.InvalidPassword:
                 await RejectEntryAsync(
                         playerPresence,
-                        new GenericErrorMessage { ErrorCode = RoomGenericErrorType.InvalidPassword }
+                        new GenericErrorMessage
+                        {
+                            ErrorCode = RoomGenericErrorType.InvalidPassword,
+                        },
+                        ct
                     )
                     .ConfigureAwait(false);
                 return;
@@ -127,7 +134,7 @@ internal sealed partial class RoomService(
 
             case RoomEntryAccessType.Allowed:
                 await playerPresence
-                    .SetPendingRoomAsync(roomId, RoomEntryState.Approved)
+                    .SetPendingRoomAsync(roomId, RoomEntryState.Approved, ct)
                     .ConfigureAwait(false);
                 await EnterRoomAsync(ctx, playerPresence, room, roomId, ct).ConfigureAwait(false);
                 return;
@@ -144,7 +151,8 @@ internal sealed partial class RoomService(
                         new CantConnectMessageComposer
                         {
                             ErrorType = RoomConnectionErrorType.NoEntry,
-                        }
+                        },
+                        ct
                     )
                     .ConfigureAwait(false);
                 return;
@@ -169,30 +177,31 @@ internal sealed partial class RoomService(
             return;
 
         var ringerPresence = _grainFactory.GetPlayerPresenceGrain(ringerId.Value);
-        var pendingRoom = await ringerPresence.GetPendingRoomAsync().ConfigureAwait(false);
+        var pendingRoom = await ringerPresence.GetPendingRoomAsync(ct).ConfigureAwait(false);
 
         // The ringer moved on (entered elsewhere, quit, or disconnected) while waiting.
         if (
             pendingRoom.RoomId != ctx.RoomId
             || pendingRoom.State != RoomEntryState.RingingDoorbell
-            || !await ringerPresence.HasActiveSessionAsync().ConfigureAwait(false)
+            || !await ringerPresence.HasActiveSessionAsync(ct).ConfigureAwait(false)
         )
         {
-            await ringerPresence.ClearPendingRoomAsync().ConfigureAwait(false);
+            await ringerPresence.ClearPendingRoomAsync(ct).ConfigureAwait(false);
 
             return;
         }
 
         if (!accepted)
         {
-            await ringerPresence.ClearPendingRoomAsync().ConfigureAwait(false);
+            await ringerPresence.ClearPendingRoomAsync(ct).ConfigureAwait(false);
             await ringerPresence
                 .SendComposerAsync(
                     new FlatAccessDeniedMessageComposer
                     {
                         RoomId = ctx.RoomId,
                         Username = string.Empty,
-                    }
+                    },
+                    ct
                 )
                 .ConfigureAwait(false);
 
@@ -200,7 +209,7 @@ internal sealed partial class RoomService(
         }
 
         await ringerPresence
-            .SetPendingRoomAsync(ctx.RoomId, RoomEntryState.Approved)
+            .SetPendingRoomAsync(ctx.RoomId, RoomEntryState.Approved, ct)
             .ConfigureAwait(false);
 
         await EnterRoomAsync(
@@ -225,7 +234,7 @@ internal sealed partial class RoomService(
         await playerPresence.ClearActiveRoomAsync(ct).ConfigureAwait(false);
 
         await playerPresence
-            .SendComposerAsync(new CloseConnectionMessageComposer())
+            .SendComposerAsync(new CloseConnectionMessageComposer(), ct)
             .ConfigureAwait(false);
     }
 
@@ -243,7 +252,7 @@ internal sealed partial class RoomService(
             .ConfigureAwait(false);
 
         await playerPresence
-            .SetPendingRoomAsync(roomId, RoomEntryState.RingingDoorbell)
+            .SetPendingRoomAsync(roomId, RoomEntryState.RingingDoorbell, ct)
             .ConfigureAwait(false);
 
         var notified = await room.RingDoorbellAsync(playerId, player.Name, ct)
@@ -252,10 +261,11 @@ internal sealed partial class RoomService(
         if (notified)
             return;
 
-        await playerPresence.ClearPendingRoomAsync().ConfigureAwait(false);
+        await playerPresence.ClearPendingRoomAsync(ct).ConfigureAwait(false);
         await playerPresence
             .SendComposerAsync(
-                new FlatAccessDeniedMessageComposer { RoomId = roomId, Username = string.Empty }
+                new FlatAccessDeniedMessageComposer { RoomId = roomId, Username = string.Empty },
+                ct
             )
             .ConfigureAwait(false);
     }
@@ -271,7 +281,7 @@ internal sealed partial class RoomService(
         CancellationToken ct
     )
     {
-        var pendingRoom = await playerPresence.GetPendingRoomAsync().ConfigureAwait(false);
+        var pendingRoom = await playerPresence.GetPendingRoomAsync(ct).ConfigureAwait(false);
 
         if (pendingRoom.RoomId <= 0 || pendingRoom.RoomId == exceptRoomId)
             return;
@@ -282,14 +292,18 @@ internal sealed partial class RoomService(
                 .RemoveDoorbellRingerAsync(playerId, ct)
                 .ConfigureAwait(false);
 
-        await playerPresence.ClearPendingRoomAsync().ConfigureAwait(false);
+        await playerPresence.ClearPendingRoomAsync(ct).ConfigureAwait(false);
     }
 
-    private static async Task RejectEntryAsync(IPlayerPresenceGrain playerPresence, IComposer error)
+    private static async Task RejectEntryAsync(
+        IPlayerPresenceGrain playerPresence,
+        IComposer error,
+        CancellationToken ct
+    )
     {
-        await playerPresence.ClearPendingRoomAsync().ConfigureAwait(false);
+        await playerPresence.ClearPendingRoomAsync(ct).ConfigureAwait(false);
         await playerPresence
-            .SendComposerAsync(error, new CloseConnectionMessageComposer())
+            .SendComposerAsync([error, new CloseConnectionMessageComposer()], ct)
             .ConfigureAwait(false);
     }
 
@@ -307,7 +321,7 @@ internal sealed partial class RoomService(
     {
         var roomCtx = ctx with { RoomId = roomId };
 
-        var snapshot = await room.GetSnapshotAsync().ConfigureAwait(false);
+        var snapshot = await room.GetSnapshotAsync(ct).ConfigureAwait(false);
         var mapSnapshot = await room.GetMapSnapshotAsync(ct).ConfigureAwait(false);
         var ownersSnapshot = await room.GetAllOwnersAsync(ct).ConfigureAwait(false);
         var floorSnapshot = await room.GetAllFloorItemSnapshotsAsync(ct).ConfigureAwait(false);
@@ -333,7 +347,7 @@ internal sealed partial class RoomService(
             })
             .ToArray();
 
-        var roomProperties = await room.GetRoomPropertiesAsync().ConfigureAwait(false);
+        var roomProperties = await room.GetRoomPropertiesAsync(ct).ConfigureAwait(false);
         var roomPropertyComposers = roomProperties
             .Select(x => new RoomPropertyMessageComposer
             {
@@ -351,70 +365,100 @@ internal sealed partial class RoomService(
 
         await playerPresence
             .SendComposerAsync(
-                new RoomReadyMessageComposer { WorldType = snapshot.WorldType, RoomId = roomId }
+                new RoomReadyMessageComposer { WorldType = snapshot.WorldType, RoomId = roomId },
+                ct
             )
             .ConfigureAwait(false);
+
+        var canRate = await room.GetCanRateAsync(ctx.PlayerId, ct).ConfigureAwait(false);
 
         await playerPresence
             .SendComposerAsync(
-                new RoomRatingMessageComposer { Rating = snapshot.Score, CanRate = false },
-                new RoomEntryTileMessageComposer
-                {
-                    X = mapSnapshot.DoorX,
-                    Y = mapSnapshot.DoorY,
-                    Rotation = mapSnapshot.DoorRotation,
-                },
-                new HeightMapMessageComposer
-                {
-                    Width = mapSnapshot.Width,
-                    Size = mapSnapshot.Size,
-                    Heights = mapSnapshot.TileEncodedHeights,
-                },
-                new FloorHeightMapMessageComposer
-                {
-                    ScaleType = _roomConfig.DefaultRoomScale,
-                    FixedWallsHeight = _roomConfig.DefaultWallHeight,
-                    ModelData = mapSnapshot.ModelData,
-                    AreaHideData = [],
-                    CameraInitX = mapSnapshot.DoorX,
-                    CameraInitY = mapSnapshot.DoorY,
-                    CameraInitZ = doorAltitude,
-                },
-                new RoomVisualizationSettingsMessageComposer
-                {
-                    WallsHidden = snapshot.HideWalls,
-                    WallThickness = snapshot.WallThickness,
-                    FloorThickness = snapshot.FloorThickness,
-                },
-                new RoomChatSettingsMessageComposer { ChatProtection = snapshot.ChatProtection }
+                [
+                    new RoomRatingMessageComposer { Rating = snapshot.Score, CanRate = canRate },
+                    new RoomEntryTileMessageComposer
+                    {
+                        X = mapSnapshot.DoorX,
+                        Y = mapSnapshot.DoorY,
+                        Rotation = mapSnapshot.DoorRotation,
+                    },
+                    new HeightMapMessageComposer
+                    {
+                        Width = mapSnapshot.Width,
+                        Size = mapSnapshot.Size,
+                        Heights = mapSnapshot.TileEncodedHeights,
+                    },
+                    new FloorHeightMapMessageComposer
+                    {
+                        ScaleType = _roomConfig.DefaultRoomScale,
+                        FixedWallsHeight = _roomConfig.DefaultWallHeight,
+                        ModelData = mapSnapshot.ModelData,
+                        AreaHideData = [],
+                        CameraInitX = mapSnapshot.DoorX,
+                        CameraInitY = mapSnapshot.DoorY,
+                        CameraInitZ = doorAltitude,
+                    },
+                    new RoomVisualizationSettingsMessageComposer
+                    {
+                        WallsHidden = snapshot.HideWalls,
+                        WallThickness = snapshot.WallThickness,
+                        FloorThickness = snapshot.FloorThickness,
+                    },
+                    new RoomChatSettingsMessageComposer
+                    {
+                        ChatProtection = snapshot.ChatProtection,
+                    },
+                ],
+                ct
             )
             .ConfigureAwait(false);
 
-        if (await room.GetIsRoomMutedAsync().ConfigureAwait(false))
+        var activeEvent = await room.GetActiveEventAsync(ct).ConfigureAwait(false);
+
+        if (activeEvent is not null)
             await playerPresence
-                .SendComposerAsync(new MuteAllInRoomEventMessageComposer { IsMuted = true })
+                .SendComposerAsync(
+                    new RoomEventMessageComposer
+                    {
+                        Event = activeEvent,
+                        SentAtUtc = DateTime.UtcNow,
+                    },
+                    ct
+                )
+                .ConfigureAwait(false);
+
+        if (await room.GetIsRoomMutedAsync(ct).ConfigureAwait(false))
+            await playerPresence
+                .SendComposerAsync(new MuteAllInRoomEventMessageComposer { IsMuted = true }, ct)
                 .ConfigureAwait(false);
 
         if (roomPropertyComposers.Length > 0)
-            await playerPresence.SendComposerAsync(roomPropertyComposers).ConfigureAwait(false);
+            await playerPresence.SendComposerAsync(roomPropertyComposers, ct).ConfigureAwait(false);
 
         await playerPresence
             .SendComposerAsync(
-                new ObjectsMessageComposer
-                {
-                    OwnerNames = ownersSnapshot,
-                    FloorItems = floorSnapshot,
-                },
-                new ItemsMessageComposer { OwnerNames = ownersSnapshot, WallItems = wallSnapshot },
-                new UsersMessageComposer { Avatars = avatarSnapshots },
-                new UserUpdateMessageComposer { Avatars = avatarSnapshots }
+                [
+                    new ObjectsMessageComposer
+                    {
+                        OwnerNames = ownersSnapshot,
+                        FloorItems = floorSnapshot,
+                    },
+                    new ItemsMessageComposer
+                    {
+                        OwnerNames = ownersSnapshot,
+                        WallItems = wallSnapshot,
+                    },
+                    new UsersMessageComposer { Avatars = avatarSnapshots },
+                    new UserUpdateMessageComposer { Avatars = avatarSnapshots },
+                ],
+                ct
             )
             .ConfigureAwait(false);
 
         if (danceComposers.Length > 0)
-            await playerPresence.SendComposerAsync(danceComposers).ConfigureAwait(false);
+            await playerPresence.SendComposerAsync(danceComposers, ct).ConfigureAwait(false);
         if (effectComposers.Length > 0)
-            await playerPresence.SendComposerAsync(effectComposers).ConfigureAwait(false);
+            await playerPresence.SendComposerAsync(effectComposers, ct).ConfigureAwait(false);
 
         await playerPresence.SetActiveRoomAsync(roomId, ct).ConfigureAwait(false);
 
@@ -431,7 +475,8 @@ internal sealed partial class RoomService(
                 {
                     RoomId = roomId,
                     IsOwner = controllerLevel >= RoomControllerType.Owner,
-                }
+                },
+                ct
             )
             .ConfigureAwait(false);
     }

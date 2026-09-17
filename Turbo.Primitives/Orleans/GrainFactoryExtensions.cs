@@ -4,6 +4,7 @@ using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Grains.Messenger;
+using Turbo.Primitives.Players.Grains.Navigator;
 using Turbo.Primitives.Players.Grains.Settings;
 using Turbo.Primitives.Players.Grains.Wardrobe;
 using Turbo.Primitives.Rooms;
@@ -87,4 +88,9 @@ public static class GrainFactoryExtensions
         this IGrainFactory factory,
         PlayerId playerId
     ) => factory.GetGrain<IPlayerSettingsGrain>(playerId.Value);
+
+    public static IPlayerNavigatorGrain GetPlayerNavigatorGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerNavigatorGrain>(playerId.Value);
 }

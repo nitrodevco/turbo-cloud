@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
@@ -73,7 +74,15 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
 
             _roomGrain._state.AvatarsByPlayerId.Remove(playerId);
         }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            _roomGrain._logger.LogError(
+                ex,
+                "Failed to remove the avatar of player {PlayerId} from room {RoomId}",
+                playerId,
+                _roomGrain.RoomId
+            );
+        }
     }
 
     public async Task<bool> WalkAvatarToAsync(
@@ -184,7 +193,15 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
             avatar.RemoveStatus(AvatarStatusType.Move);
             avatar.NeedsInvoke = true;
         }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            _roomGrain._logger.LogError(
+                ex,
+                "Failed to stop the avatar {ObjectId} in room {RoomId}",
+                avatar.ObjectId,
+                _roomGrain.RoomId
+            );
+        }
     }
 
     public async Task ProcessNextAvatarStepAsync(IRoomAvatar avatar, CancellationToken ct)
@@ -240,7 +257,8 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
                 CustomInfo = avatarPlayer.Motto,
                 AchievementScore = snapshot.AchievementScore,
                 BadgesRank = snapshot.BadgesRank,
-            }
+            },
+            ct
         );
 
         return Task.FromResult(true);
@@ -261,7 +279,8 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
             return Task.FromResult(false);
 
         _ = _roomGrain.SendComposerToRoomAsync(
-            new DanceMessageComposer { ObjectId = avatar.ObjectId, DanceType = player.DanceType }
+            new DanceMessageComposer { ObjectId = avatar.ObjectId, DanceType = player.DanceType },
+            ct
         );
 
         return Task.FromResult(true);
@@ -287,7 +306,8 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
                 ObjectId = avatar.ObjectId,
                 EffectId = player.EffectId,
                 DelayMilliseconds = 0,
-            }
+            },
+            ct
         );
 
         return Task.FromResult(true);
@@ -310,7 +330,8 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
             {
                 ObjectId = avatar.ObjectId,
                 ExpressionType = expressionType,
-            }
+            },
+            ct
         );
 
         return Task.FromResult(true);

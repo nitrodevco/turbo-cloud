@@ -11,12 +11,8 @@ internal class WallItemSerializer
         packet
             .WriteString(item.ObjectId.ToString())
             .WriteInteger(item.SpriteId)
-            .WriteString(item.WallPosition);
-
-        if (item.StuffData is LegacyStuffSnapshot legacy)
-            packet.WriteString(legacy.Data);
-
-        packet
+            .WriteString(item.WallPosition)
+            .WriteString(item.StuffData is LegacyStuffSnapshot legacy ? legacy.Data : string.Empty)
             .WriteInteger(-1) // expiration
             .WriteInteger((int)item.UsagePolicy)
             .WriteInteger(item.OwnerId);

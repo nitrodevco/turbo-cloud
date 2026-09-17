@@ -13,6 +13,7 @@ public class RoomAdEventTabViewedMessageHandler : IMessageHandler<RoomAdEventTab
         CancellationToken ct
     )
     {
+        // Client-side analytics for the events tab; nothing is recorded server-side.
         await ValueTask.CompletedTask.ConfigureAwait(false);
     }
 }

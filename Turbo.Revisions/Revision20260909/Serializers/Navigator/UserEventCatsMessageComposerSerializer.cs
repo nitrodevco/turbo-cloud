@@ -8,6 +8,14 @@ internal class UserEventCatsMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, UserEventCatsMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.EventCategories.Length);
+
+        foreach (var category in message.EventCategories)
+        {
+            packet
+                .WriteInteger(category.Id)
+                .WriteString(category.Name)
+                .WriteBoolean(category.Visible);
+        }
     }
 }

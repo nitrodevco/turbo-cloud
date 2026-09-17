@@ -46,7 +46,8 @@ public sealed partial class RoomGrain
             if (heights.Count == heights.Capacity)
             {
                 _ = SendComposerToRoomAsync(
-                    new HeightMapUpdateMessageComposer { TileHeights = [.. heights] }
+                    new HeightMapUpdateMessageComposer { TileHeights = [.. heights] },
+                    ct
                 );
 
                 heights.Clear();
@@ -56,7 +57,8 @@ public sealed partial class RoomGrain
         if (heights.Count > 0)
         {
             _ = SendComposerToRoomAsync(
-                new HeightMapUpdateMessageComposer { TileHeights = [.. heights] }
+                new HeightMapUpdateMessageComposer { TileHeights = [.. heights] },
+                ct
             );
         }
 

@@ -13,7 +13,7 @@ public sealed record RoomRentableBotAvatarSnapshot : RoomAvatarSnapshot
     public required int OwnerId { get; init; }
 
     [Id(14)]
-    public required int OwnerName { get; init; }
+    public required string OwnerName { get; init; }
 
     [Id(15)]
     public required short[] BotSkills { get; init; }

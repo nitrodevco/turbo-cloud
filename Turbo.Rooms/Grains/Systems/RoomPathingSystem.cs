@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Rooms.Object.Avatars;
 
 namespace Turbo.Rooms.Grains.Systems;
@@ -142,19 +143,40 @@ public sealed class RoomPathingSystem(RoomGrain roomGrain)
                                 open.Enqueue(neighbor, neighbor.F);
                             }
                         }
-                        catch (Exception)
+                        catch (Exception ex)
                         {
+                            // Logged at debug: one bad neighbour must not flood the log while a
+                            // path is searched, but it still has to be visible.
+                            _roomGrain._logger.LogDebug(
+                                ex,
+                                "Failed to evaluate a path neighbour in room {RoomId}",
+                                _roomGrain.RoomId
+                            );
+
                             continue;
                         }
                     }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    _roomGrain._logger.LogDebug(
+                        ex,
+                        "Failed to evaluate a path tile in room {RoomId}",
+                        _roomGrain.RoomId
+                    );
+
                     continue;
                 }
             }
         }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            _roomGrain._logger.LogError(
+                ex,
+                "Failed to find a path in room {RoomId}",
+                _roomGrain.RoomId
+            );
+        }
 
         return [];
     }

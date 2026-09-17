@@ -42,7 +42,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            return await EntryModule.RingDoorbellAsync(playerId, playerName);
+            return await EntryModule.RingDoorbellAsync(playerId, playerName, ct);
         }
         catch (Exception ex)
         {
@@ -66,7 +66,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            return await EntryModule.AnswerDoorbellAsync(ctx, playerName, accepted);
+            return await EntryModule.AnswerDoorbellAsync(ctx, playerName, accepted, ct);
         }
         catch (Exception ex)
         {

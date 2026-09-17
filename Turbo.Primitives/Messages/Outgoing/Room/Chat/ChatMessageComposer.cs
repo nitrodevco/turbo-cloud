@@ -26,4 +26,10 @@ public record ChatMessageComposer : IComposer
 
     [Id(5)]
     public required int TrackingId { get; init; }
+
+    [Id(6)]
+    public int? ReceiverRoomIndex { get; init; }
+
+    [Id(7)]
+    public int? ChatBubbleWidthOverride { get; init; }
 }

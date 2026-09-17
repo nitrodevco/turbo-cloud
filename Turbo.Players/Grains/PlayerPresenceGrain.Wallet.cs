@@ -22,17 +22,20 @@ internal sealed partial class PlayerPresenceGrain
         {
             case CurrencyType.Credits:
                 await SendComposerAsync(
-                    new CreditBalanceEventMessageComposer { Balance = snapshot.Amount.ToString() }
+                    new CreditBalanceEventMessageComposer { Balance = snapshot.Amount.ToString() },
+                    ct
                 );
                 break;
             case CurrencyType.Emeralds:
                 await SendComposerAsync(
-                    new EmeraldBalanceMessageComposer { EmeraldBalance = snapshot.Amount }
+                    new EmeraldBalanceMessageComposer { EmeraldBalance = snapshot.Amount },
+                    ct
                 );
                 break;
             case CurrencyType.Silver:
                 await SendComposerAsync(
-                    new SilverBalanceMessageComposer { SilverBalance = snapshot.Amount }
+                    new SilverBalanceMessageComposer { SilverBalance = snapshot.Amount },
+                    ct
                 );
                 break;
             case CurrencyType.ActivityPoints:
@@ -42,7 +45,8 @@ internal sealed partial class PlayerPresenceGrain
                         Amount = snapshot.Amount,
                         Change = snapshot.ChangedBy,
                         ActivityPointType = snapshot.CurrencyKind.ActivityPointType ?? -1,
-                    }
+                    },
+                    ct
                 );
                 break;
         }

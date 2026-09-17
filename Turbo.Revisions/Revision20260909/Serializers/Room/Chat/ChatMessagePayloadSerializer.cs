@@ -18,5 +18,14 @@ internal static class ChatMessagePayloadSerializer
             packet.WriteString(url).WriteString(title).WriteBoolean(isInternal);
 
         packet.WriteInteger(message.TrackingId);
+
+        // optional trailing fields; the client reads each only if bytes remain
+        if (message.ReceiverRoomIndex is null)
+            return;
+
+        packet.WriteInteger(message.ReceiverRoomIndex.Value);
+
+        if (message.ChatBubbleWidthOverride is not null)
+            packet.WriteInteger(message.ChatBubbleWidthOverride.Value);
     }
 }

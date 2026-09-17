@@ -11,7 +11,7 @@ public class RemoveFriendMessageParser : IParser
     public IMessageEvent Parse(IClientPacket packet)
     {
         var friendIds = new List<PlayerId>();
-        var count = packet.PopInt();
+        var count = packet.PopCount(bytesPerItem: 4);
 
         while (count > 0)
         {

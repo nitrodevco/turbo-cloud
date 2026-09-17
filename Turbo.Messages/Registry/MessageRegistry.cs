@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans;
 using Turbo.Logging;
@@ -28,7 +29,7 @@ public sealed class MessageRegistry(IServiceProvider sp)
                 {
                     var playerPresence = grainFactory.GetPlayerPresenceGrain(playerId);
                     var activeRoom = await playerPresence
-                        .GetActiveRoomAsync()
+                        .GetActiveRoomAsync(CancellationToken.None)
                         .ConfigureAwait(false);
 
                     roomId = activeRoom.RoomId;

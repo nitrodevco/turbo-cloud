@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Database.Context;
@@ -10,11 +11,18 @@ using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Grains;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 
 namespace Turbo.Inventory.Grains;
 
-public sealed partial class InventoryGrain : Grain, IInventoryGrain
+/// <summary>
+/// Owns a player's inventory. Furniture is hydrated lazily rather than on activation: the grain
+/// is activated for cheap lookups too, and loading a full furniture list on every activation is
+/// far more expensive than the first call that actually needs it. Every mutation writes through
+/// to the database, so there is nothing to flush on deactivation.
+/// </summary>
+internal sealed partial class InventoryGrain : Grain, IInventoryGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly InventoryConfig _inventoryConfig;
@@ -23,6 +31,7 @@ public sealed partial class InventoryGrain : Grain, IInventoryGrain
     private readonly IInventoryFurnitureLoader _furnitureItemsLoader;
     private readonly IStuffDataFactory _stuffDataFactory;
     private readonly ICatalogService _catalogService;
+    private readonly ILogger<IInventoryGrain> _logger;
 
     private readonly InventoryLiveState _state;
     private readonly InventoryFurniModule _furniModule;
@@ -36,7 +45,8 @@ public sealed partial class InventoryGrain : Grain, IInventoryGrain
         IFurnitureDefinitionProvider furnitureDefinitionProvider,
         IInventoryFurnitureLoader furnitureItemsLoader,
         IStuffDataFactory stuffDataFactory,
-        ICatalogService catalogService
+        ICatalogService catalogService,
+        ILogger<IInventoryGrain> logger
     )
     {
         _dbCtxFactory = dbContextFactory;
@@ -46,18 +56,9 @@ public sealed partial class InventoryGrain : Grain, IInventoryGrain
         _furnitureItemsLoader = furnitureItemsLoader;
         _stuffDataFactory = stuffDataFactory;
         _catalogService = catalogService;
+        _logger = logger;
 
-        _state = new() { PlayerId = PlayerId.Parse((int)this.GetPrimaryKeyLong()) };
+        _state = new() { PlayerId = this.GetPlayerId() };
         _furniModule = new InventoryFurniModule(this, _state, _furnitureItemsLoader);
-    }
-
-    public override Task OnActivateAsync(CancellationToken ct)
-    {
-        return Task.CompletedTask;
-    }
-
-    public override Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
-    {
-        return Task.CompletedTask;
     }
 }

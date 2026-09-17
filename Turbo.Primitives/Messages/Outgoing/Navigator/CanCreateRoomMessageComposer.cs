@@ -1,4 +1,5 @@
 using Orleans;
+using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Networking;
 
 namespace Turbo.Primitives.Messages.Outgoing.Navigator;
@@ -7,7 +8,7 @@ namespace Turbo.Primitives.Messages.Outgoing.Navigator;
 public sealed record CanCreateRoomMessageComposer : IComposer
 {
     [Id(0)]
-    public int ResultCode { get; init; }
+    public required RoomCreationResultType Result { get; init; }
 
     [Id(1)]
     public int RoomLimit { get; init; }

@@ -33,6 +33,14 @@ internal class ExtendedProfileMessageComposerSerializer(int header)
             .WriteInteger(message.IntegerField24)
             .WriteInteger(message.StarGemCount)
             .WriteBoolean(message.BooleanField26)
-            .WriteBoolean(message.BooleanField27);
+            .WriteBoolean(message.BooleanField27)
+            .WriteInteger(message.TotalBadges)
+            .WriteInteger(message.AchievementLevel)
+            .WriteInteger(message.BadgeRarityCounts.Count);
+
+        foreach (var rarity in message.BadgeRarityCounts)
+            packet.WriteByte(rarity.RarityId).WriteInteger(rarity.Count);
+
+        packet.WriteInteger(message.TotalBadgesRank);
     }
 }

@@ -4,10 +4,12 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Players.Exceptions;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Providers;
@@ -16,21 +18,39 @@ using Turbo.Primitives.Players.Wallet;
 
 namespace Turbo.Players.Grains;
 
+/// <summary>
+/// Owns a player's currency balances. Credits and debits are written through inside a database
+/// transaction before the in-memory balances move, so an activation can be collected at any time
+/// without a flush on deactivation.
+/// </summary>
 internal sealed class PlayerWalletGrain(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     ICurrencyTypeProvider currencyTypeProvider,
-    IGrainFactory grainFactory
+    IGrainFactory grainFactory,
+    ILogger<IPlayerWalletGrain> logger
 ) : Grain, IPlayerWalletGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
     private readonly ICurrencyTypeProvider _currencyTypeProvider = currencyTypeProvider;
     private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly ILogger<IPlayerWalletGrain> _logger = logger;
 
     private readonly Dictionary<CurrencyKind, WalletCurrencySnapshot> _currenciesByKind = [];
 
+    private PlayerId PlayerId => this.GetPlayerId();
+
     public override async Task OnActivateAsync(CancellationToken ct)
     {
-        await HydrateAsync(ct);
+        try
+        {
+            await HydrateAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to hydrate the wallet of player {PlayerId}", PlayerId);
+
+            throw;
+        }
     }
 
     public async Task<WalletDebitResult> TryDebitAsync(
@@ -63,8 +83,25 @@ internal sealed class PlayerWalletGrain(
 
                     updates.Add(update);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    // An insufficient balance is expected; anything else is a real failure.
+                    if (ex is WalletDebitFailedException)
+                        _logger.LogWarning(
+                            "Player {PlayerId} could not be debited {Amount} of {CurrencyKind}",
+                            PlayerId,
+                            request.Amount,
+                            request.CurrencyKind
+                        );
+                    else
+                        _logger.LogError(
+                            ex,
+                            "Failed to debit {Amount} of {CurrencyKind} from player {PlayerId}",
+                            request.Amount,
+                            request.CurrencyKind,
+                            PlayerId
+                        );
+
                     await tx.RollbackAsync(ct);
                     await RollbackUpdatesAsync(updates, ct);
 
@@ -81,9 +118,7 @@ internal sealed class PlayerWalletGrain(
             await dbCtx.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
 
-            var playerPresence = _grainFactory.GetPlayerPresenceGrain(
-                (int)this.GetPrimaryKeyLong()
-            );
+            var playerPresence = _grainFactory.GetPlayerPresenceGrain(this.GetPlayerId().Value);
 
             foreach (var update in updates)
                 await playerPresence.OnCurrencyUpdateAsync(update, ct);
@@ -186,7 +221,7 @@ internal sealed class PlayerWalletGrain(
         {
             var entity = await dbCtx
                 .PlayerCurrencies.Where(x =>
-                    x.Id == snapshot.Id && x.PlayerEntityId == (int)this.GetPrimaryKeyLong()
+                    x.Id == snapshot.Id && x.PlayerEntityId == this.GetPlayerId().Value
                 )
                 .FirstOrDefaultAsync(ct);
 
@@ -221,7 +256,7 @@ internal sealed class PlayerWalletGrain(
 
         var entities = await dbCtx
             .PlayerCurrencies.AsNoTracking()
-            .Where(x => x.PlayerEntityId == (int)this.GetPrimaryKeyLong())
+            .Where(x => x.PlayerEntityId == this.GetPlayerId().Value)
             .ToListAsync(ct);
 
         foreach (var entity in entities)

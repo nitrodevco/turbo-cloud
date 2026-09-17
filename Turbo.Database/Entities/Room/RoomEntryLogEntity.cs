@@ -13,8 +13,8 @@ public class RoomEntryLogEntity : TurboEntity
     public required int PlayerEntityId { get; set; }
 
     [ForeignKey(nameof(RoomEntityId))]
-    public required RoomEntity RoomEntity { get; set; }
+    public RoomEntity? RoomEntity { get; set; }
 
     [ForeignKey(nameof(PlayerEntityId))]
-    public required PlayerEntity PlayerEntity { get; set; }
+    public PlayerEntity? PlayerEntity { get; set; }
 }

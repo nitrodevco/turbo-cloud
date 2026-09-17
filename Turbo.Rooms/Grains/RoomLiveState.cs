@@ -36,6 +36,10 @@ public sealed class RoomLiveState
     public Dictionary<string, PlayerId> DoorbellRingersByName { get; } =
         new(StringComparer.OrdinalIgnoreCase);
     public bool IsRoomMuted { get; internal set; } = false;
+    public HashSet<PlayerId> PlayerIdsWhoRated { get; } = [];
+
+    /// <summary>Navigator-visible data changed since the room became active.</summary>
+    public bool IsListingChanged { get; internal set; } = false;
 
     public HashSet<int> DirtyHeightTileIds { get; set; } = [];
     public HashSet<RoomObjectId> DirtyItemIds { get; set; } = [];

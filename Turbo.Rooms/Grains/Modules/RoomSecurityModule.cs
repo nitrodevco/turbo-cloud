@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -6,6 +7,7 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Roomsettings;
+using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -30,7 +32,7 @@ public sealed class RoomSecurityModule(
         if (controllerLevel >= RoomControllerType.GroupAdmin)
             return true;
 
-        var isGroupRoom = await _roomGrain.GetIsGroupRoomAsync();
+        var isGroupRoom = await _roomGrain.GetIsGroupRoomAsync(CancellationToken.None);
 
         if (isGroupRoom)
         {
@@ -111,7 +113,7 @@ public sealed class RoomSecurityModule(
         if (await GetIsRoomOwnerAsync(playerId))
             return RoomControllerType.Owner;
 
-        var isGroupRoom = await _roomGrain.GetIsGroupRoomAsync();
+        var isGroupRoom = await _roomGrain.GetIsGroupRoomAsync(CancellationToken.None);
 
         if (isGroupRoom)
         {
@@ -199,13 +201,56 @@ public sealed class RoomSecurityModule(
         avatar.AddStatus(AvatarStatusType.FlatControl, ((int)controllerLevel).ToString());
     }
 
+    /// <summary>A player with rights gives them up; the owner is told if they are online.</summary>
+    public async Task<bool> RemoveOwnRightsAsync(PlayerId playerId, CancellationToken ct)
+    {
+        if (
+            await _roomGrain.GetIsGroupRoomAsync(ct)
+            || !_roomGrain._state.PlayerIdsWithRights.Contains(playerId)
+        )
+            return false;
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        await dbCtx
+            .Set<RoomRightEntity>()
+            .Where(x =>
+                x.RoomEntityId == _roomGrain.RoomId.Value && x.PlayerEntityId == playerId.Value
+            )
+            .ExecuteDeleteAsync(ct);
+
+        _roomGrain._state.PlayerIdsWithRights.Remove(playerId);
+
+        await PublishRightsChangedAsync([playerId], ct);
+
+        await RefreshControllerLevelForPlayerAsync(playerId, ct);
+
+        await _roomGrain
+            ._grainFactory.GetPlayerPresenceGrain(_roomGrain._state.RoomSnapshot.OwnerId)
+            .SendComposerAsync(
+                new FlatControllerRemovedEventMessageComposer
+                {
+                    RoomId = _roomGrain.RoomId,
+                    PlayerId = playerId,
+                },
+                ct
+            );
+
+        return true;
+    }
+
+    private Task PublishRightsChangedAsync(IEnumerable<PlayerId> playerIds, CancellationToken ct) =>
+        _roomGrain
+            ._grainFactory.GetRoomDirectoryGrain()
+            .PublishListingChangesAsync([.. playerIds.Select(NavigatorListingKeys.Rights)], ct);
+
     public async Task GiveRightsToPlayerAsync(
         ActionContext ctx,
         PlayerId playerId,
         CancellationToken ct
     )
     {
-        var isGroupRoom = await _roomGrain.GetIsGroupRoomAsync();
+        var isGroupRoom = await _roomGrain.GetIsGroupRoomAsync(ct);
         var ctxIsOwner = await GetIsRoomOwnerAsync(ctx);
         var playerIsOwner = await GetIsRoomOwnerAsync(playerId);
         var playerControllerLevel = await GetControllerLevelAsync(playerId);
@@ -232,6 +277,8 @@ public sealed class RoomSecurityModule(
 
         _roomGrain._state.PlayerIdsWithRights.Add(playerId);
 
+        await PublishRightsChangedAsync([playerId], ct);
+
         await RefreshControllerLevelForPlayerAsync(playerId, ct);
 
         // Keeps the actor's open room settings rights list in sync.
@@ -246,7 +293,8 @@ public sealed class RoomSecurityModule(
                 {
                     RoomId = _roomGrain.RoomId,
                     Controller = new RoomControllerSnapshot { PlayerId = playerId, Name = name },
-                }
+                },
+                ct
             );
     }
 
@@ -256,7 +304,7 @@ public sealed class RoomSecurityModule(
         CancellationToken ct
     )
     {
-        var isGroupRoom = await _roomGrain.GetIsGroupRoomAsync();
+        var isGroupRoom = await _roomGrain.GetIsGroupRoomAsync(ct);
         var ctxIsOwner = await GetIsRoomOwnerAsync(ctx);
         var playerIsOwner = await GetIsRoomOwnerAsync(playerId);
         var playerControllerLevel = await GetControllerLevelAsync(playerId);
@@ -280,6 +328,8 @@ public sealed class RoomSecurityModule(
 
         _roomGrain._state.PlayerIdsWithRights.Remove(playerId);
 
+        await PublishRightsChangedAsync([playerId], ct);
+
         await RefreshControllerLevelForPlayerAsync(playerId, ct);
 
         await _roomGrain
@@ -289,7 +339,8 @@ public sealed class RoomSecurityModule(
                 {
                     RoomId = _roomGrain.RoomId,
                     PlayerId = playerId,
-                }
+                },
+                ct
             );
     }
 
@@ -297,7 +348,7 @@ public sealed class RoomSecurityModule(
     {
         await EnsureRightsLoadedAsync(ct);
 
-        var isGroupRoom = await _roomGrain.GetIsGroupRoomAsync();
+        var isGroupRoom = await _roomGrain.GetIsGroupRoomAsync(ct);
 
         if (!await GetIsRoomOwnerAsync(ctx) || isGroupRoom)
             return;
@@ -316,6 +367,8 @@ public sealed class RoomSecurityModule(
 
         _roomGrain._state.PlayerIdsWithRights.Clear();
 
+        await PublishRightsChangedAsync(playerIds, ct);
+
         foreach (var playerId in playerIds)
             await RefreshControllerLevelForPlayerAsync(playerId, ct);
 
@@ -329,7 +382,7 @@ public sealed class RoomSecurityModule(
 
         await _roomGrain
             ._grainFactory.GetPlayerPresenceGrain(ctx.PlayerId)
-            .SendComposerAsync(removedComposers);
+            .SendComposerAsync(removedComposers, ct);
     }
 
     internal async Task EnsureRightsLoadedAsync(CancellationToken ct)

@@ -8,6 +8,6 @@ internal class CanCreateRoomMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, CanCreateRoomMessageComposer message)
     {
-        packet.WriteInteger(message.ResultCode).WriteInteger(message.RoomLimit);
+        packet.WriteInteger((int)message.Result).WriteInteger(message.RoomLimit);
     }
 }

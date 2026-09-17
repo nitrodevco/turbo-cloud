@@ -8,11 +8,14 @@ using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Players;
 using Turbo.Players.Configuration;
+using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Navigator.Enums;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains.Settings;
 using Turbo.Primitives.Players.Snapshots.Settings;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.Players.Grains.Settings;
 
@@ -26,6 +29,7 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly PlayerConfig _playerConfig;
+    private readonly IGrainFactory _grainFactory;
     private readonly ILogger<IPlayerSettingsGrain> _logger;
 
     private readonly PlayerId _playerId;
@@ -38,14 +42,16 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
     public PlayerSettingsGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IOptions<PlayerConfig> playerConfig,
+        IGrainFactory grainFactory,
         ILogger<IPlayerSettingsGrain> logger
     )
     {
         _dbCtxFactory = dbCtxFactory;
         _playerConfig = playerConfig.Value;
+        _grainFactory = grainFactory;
         _logger = logger;
 
-        _playerId = PlayerId.Parse((int)this.GetPrimaryKeyLong());
+        _playerId = this.GetPlayerId();
     }
 
     public override async Task OnActivateAsync(CancellationToken ct)
@@ -238,6 +244,62 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         return Task.CompletedTask;
     }
 
+    public async Task SetHomeRoomAsync(RoomId roomId, CancellationToken ct)
+    {
+        var homeRoomId = roomId.Value > 0 ? roomId : RoomId.Invalid;
+
+        Apply(_settings with { HomeRoomId = homeRoomId });
+
+        await _grainFactory
+            .GetPlayerPresenceGrain(_playerId)
+            .SendComposerAsync(
+                new NavigatorSettingsMessageComposer
+                {
+                    HomeRoomId = homeRoomId,
+                    RoomIdToEnter = RoomId.Invalid,
+                },
+                ct
+            );
+    }
+
+    public Task SetNavigatorWindowPreferencesAsync(
+        int x,
+        int y,
+        int width,
+        int height,
+        bool leftPaneHidden,
+        NavigatorViewModeType resultsMode,
+        CancellationToken ct
+    )
+    {
+        if (width <= 0 || height <= 0 || !Enum.IsDefined(resultsMode))
+        {
+            _logger.LogWarning(
+                "Rejected navigator window preferences for player {PlayerId}: size {Width}x{Height}, results mode {ResultsMode}",
+                _playerId,
+                width,
+                height,
+                resultsMode
+            );
+
+            return Task.CompletedTask;
+        }
+
+        Apply(
+            _settings with
+            {
+                NavigatorWindowX = x,
+                NavigatorWindowY = y,
+                NavigatorWindowWidth = width,
+                NavigatorWindowHeight = height,
+                NavigatorLeftPaneHidden = leftPaneHidden,
+                NavigatorResultsMode = resultsMode,
+            }
+        );
+
+        return Task.CompletedTask;
+    }
+
     private static bool IsValidVolume(int volume) =>
         volume is >= PlayerSettingsEntity.VOLUME_MIN and <= PlayerSettingsEntity.VOLUME_MAX;
 
@@ -325,6 +387,13 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
             WiredWhisperDisabled = entity.WiredWhisperDisabled,
             WiredShowAllNotifications = entity.WiredShowAllNotifications,
             WiredUIStyle = entity.WiredUIStyle,
+            HomeRoomId = entity.HomeRoomId is > 0 ? entity.HomeRoomId.Value : RoomId.Invalid,
+            NavigatorWindowX = entity.NavigatorWindowX,
+            NavigatorWindowY = entity.NavigatorWindowY,
+            NavigatorWindowWidth = entity.NavigatorWindowWidth,
+            NavigatorWindowHeight = entity.NavigatorWindowHeight,
+            NavigatorLeftPaneHidden = entity.NavigatorLeftPaneHidden,
+            NavigatorResultsMode = entity.NavigatorResultsMode,
         };
 
     private static void ApplyTo(PlayerSettingsEntity entity, PlayerSettingsSnapshot settings)
@@ -348,5 +417,12 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         entity.WiredWhisperDisabled = settings.WiredWhisperDisabled;
         entity.WiredShowAllNotifications = settings.WiredShowAllNotifications;
         entity.WiredUIStyle = settings.WiredUIStyle;
+        entity.HomeRoomId = settings.HomeRoomId.Value > 0 ? settings.HomeRoomId.Value : null;
+        entity.NavigatorWindowX = settings.NavigatorWindowX;
+        entity.NavigatorWindowY = settings.NavigatorWindowY;
+        entity.NavigatorWindowWidth = settings.NavigatorWindowWidth;
+        entity.NavigatorWindowHeight = settings.NavigatorWindowHeight;
+        entity.NavigatorLeftPaneHidden = settings.NavigatorLeftPaneHidden;
+        entity.NavigatorResultsMode = settings.NavigatorResultsMode;
     }
 }

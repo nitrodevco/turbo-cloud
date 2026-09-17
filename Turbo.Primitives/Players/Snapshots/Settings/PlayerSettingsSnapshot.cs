@@ -1,6 +1,7 @@
 using Orleans;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.Primitives.Players.Snapshots.Settings;
 
@@ -63,4 +64,25 @@ public sealed record PlayerSettingsSnapshot
 
     [Id(18)]
     public required int OnlineIndicatorPreference { get; init; }
+
+    [Id(19)]
+    public required RoomId HomeRoomId { get; init; }
+
+    [Id(20)]
+    public required int NavigatorWindowX { get; init; }
+
+    [Id(21)]
+    public required int NavigatorWindowY { get; init; }
+
+    [Id(22)]
+    public required int NavigatorWindowWidth { get; init; }
+
+    [Id(23)]
+    public required int NavigatorWindowHeight { get; init; }
+
+    [Id(24)]
+    public required bool NavigatorLeftPaneHidden { get; init; }
+
+    [Id(25)]
+    public required NavigatorViewModeType NavigatorResultsMode { get; init; }
 }

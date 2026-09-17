@@ -8,6 +8,8 @@ namespace Turbo.Furniture.StuffData;
 
 internal sealed class MapStuffData : StuffDataBase, IMapStuffData
 {
+    protected const string CHEST_NAME = "chest_name";
+
     [JsonIgnore]
     public override StuffDataType StuffType => StuffDataType.MapKey;
 
@@ -19,6 +21,8 @@ internal sealed class MapStuffData : StuffDataBase, IMapStuffData
     }
 
     public override string GetLegacyString() => GetValue(STATE_KEY);
+
+    public string GetChestName() => GetValue(CHEST_NAME);
 
     public override void SetState(string state)
     {

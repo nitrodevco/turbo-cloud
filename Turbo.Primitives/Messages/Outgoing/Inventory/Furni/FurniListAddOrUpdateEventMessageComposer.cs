@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Networking;
@@ -8,5 +9,5 @@ namespace Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
 public sealed record FurniListAddOrUpdateEventMessageComposer : IComposer
 {
     [Id(0)]
-    public required FurnitureItemSnapshot Item { get; init; }
+    public required List<FurnitureItemSnapshot> Items { get; init; }
 }

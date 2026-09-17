@@ -20,8 +20,18 @@ internal class RoomAvatarSerializer
             .WriteInteger((int)item.BodyRotation)
             .WriteInteger((int)item.AvatarType);
 
-        if (item is RoomPlayerAvatarSnapshot player)
-            SerializePlayerAvatar(packet, player);
+        switch (item)
+        {
+            case RoomPlayerAvatarSnapshot player:
+                SerializePlayerAvatar(packet, player);
+                break;
+            case RoomPetAvatarSnapshot pet:
+                SerializePetAvatar(packet, pet);
+                break;
+            case RoomRentableBotAvatarSnapshot bot:
+                SerializeRentableBotAvatar(packet, bot);
+                break;
+        }
     }
 
     public static void SerializePlayerAvatar(
@@ -38,5 +48,37 @@ internal class RoomAvatarSerializer
             .WriteInteger(snapshot.ActivityPoints)
             .WriteBoolean(snapshot.IsModerator)
             .WriteInteger(snapshot.BadgesRank);
+    }
+
+    public static void SerializePetAvatar(IServerPacket packet, RoomPetAvatarSnapshot snapshot)
+    {
+        packet
+            .WriteInteger(snapshot.SubType)
+            .WriteInteger(snapshot.OwnerId)
+            .WriteString(snapshot.OwnerName)
+            .WriteInteger(snapshot.RarityLevel)
+            .WriteBoolean(snapshot.HasSaddle)
+            .WriteBoolean(snapshot.IsRiding)
+            .WriteBoolean(snapshot.CanBreed)
+            .WriteBoolean(snapshot.CanHarvest)
+            .WriteBoolean(snapshot.CanRevive)
+            .WriteBoolean(snapshot.HasBreedingPermission)
+            .WriteInteger(snapshot.PetLevel)
+            .WriteString(snapshot.PetPosture);
+    }
+
+    public static void SerializeRentableBotAvatar(
+        IServerPacket packet,
+        RoomRentableBotAvatarSnapshot snapshot
+    )
+    {
+        packet
+            .WriteString(AvatarGenderTypeExtensions.ToLegacyString(snapshot.Gender))
+            .WriteInteger(snapshot.OwnerId)
+            .WriteString(snapshot.OwnerName)
+            .WriteInteger(snapshot.BotSkills.Length);
+
+        foreach (var skill in snapshot.BotSkills)
+            packet.WriteShort(skill);
     }
 }

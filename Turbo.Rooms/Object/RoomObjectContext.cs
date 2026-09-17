@@ -32,6 +32,7 @@ public abstract class RoomObjectContext<TObject, TLogic, TSelf>(
     public Task PublishRoomEventAsync(RoomEvent evt, CancellationToken ct) =>
         _roomGrain.PublishRoomEventAsync(evt, ct);
 
+    // Object logic runs inside a room tick and carries no token of its own.
     public Task SendComposerToRoomAsync(IComposer composer) =>
-        _roomGrain.SendComposerToRoomAsync(composer);
+        _roomGrain.SendComposerToRoomAsync(composer, CancellationToken.None);
 }

@@ -16,7 +16,8 @@ internal sealed partial class PlayerPresenceGrain
             .GetOutfitsAsync(ct);
 
         await SendComposerAsync(
-            new WardrobeMessageComposer { State = WARDROBE_STATE_LOADED, Outfits = outfits }
+            new WardrobeMessageComposer { State = WARDROBE_STATE_LOADED, Outfits = outfits },
+            ct
         );
     }
 }

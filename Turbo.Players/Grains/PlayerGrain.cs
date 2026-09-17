@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Logging;
@@ -19,27 +20,54 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly IGrainFactory _grainFactory;
+    private readonly ILogger<IPlayerGrain> _logger;
 
     private readonly PlayerLiveState _state;
 
     public PlayerId PlayerId => _state.PlayerId;
 
-    public PlayerGrain(IDbContextFactory<TurboDbContext> dbCtxFactory, IGrainFactory grainFactory)
+    public PlayerGrain(
+        IDbContextFactory<TurboDbContext> dbCtxFactory,
+        IGrainFactory grainFactory,
+        ILogger<IPlayerGrain> logger
+    )
     {
         _dbCtxFactory = dbCtxFactory;
         _grainFactory = grainFactory;
+        _logger = logger;
 
-        _state = new() { PlayerId = PlayerId.Parse((int)this.GetPrimaryKeyLong()) };
+        _state = new() { PlayerId = this.GetPlayerId() };
     }
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
-        await HydrateAsync(ct);
+        try
+        {
+            await HydrateAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to hydrate player {PlayerId}", _state.PlayerId);
+
+            throw;
+        }
     }
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
-        await WriteToDatabaseAsync(ct);
+        // Nothing can act on a failure here, but losing the last changes must not be silent.
+        try
+        {
+            await WriteToDatabaseAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to save player {PlayerId} on deactivation",
+                _state.PlayerId
+            );
+        }
     }
 
     public async Task SetOnlineStatusAsync(bool flag, CancellationToken ct)
@@ -156,6 +184,10 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
                 StarGemCount = 0,
                 BooleanField26 = false,
                 BooleanField27 = false,
+                TotalBadges = 0,
+                AchievementLevel = 0,
+                BadgeRarityCounts = [],
+                TotalBadgesRank = _state.BadgesRank,
             }
         );
     }

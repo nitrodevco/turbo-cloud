@@ -128,7 +128,7 @@ public sealed class RoomModerationModule(
         return _roomGrain._state.MutedUntilByPlayerId.Remove(playerId);
     }
 
-    public async Task<bool> ToggleRoomMuteAsync(ActionContext ctx)
+    public async Task<bool> ToggleRoomMuteAsync(ActionContext ctx, CancellationToken ct)
     {
         var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx);
 
@@ -138,7 +138,8 @@ public sealed class RoomModerationModule(
         _roomGrain._state.IsRoomMuted = !_roomGrain._state.IsRoomMuted;
 
         await _roomGrain.SendComposerToRoomAsync(
-            new MuteAllInRoomEventMessageComposer { IsMuted = _roomGrain._state.IsRoomMuted }
+            new MuteAllInRoomEventMessageComposer { IsMuted = _roomGrain._state.IsRoomMuted },
+            ct
         );
 
         return true;

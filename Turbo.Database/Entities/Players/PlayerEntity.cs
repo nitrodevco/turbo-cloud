@@ -23,7 +23,7 @@ public class PlayerEntity : TurboEntity
     public string? Motto { get; set; }
 
     [Column("figure")]
-    [MaxLength(100)]
+    [MaxLength(279)]
     [DefaultValue("hr-115-42.hd-195-19.ch-3030-82.lg-275-1408.fa-1201.ca-1804-64")]
     public required string Figure { get; set; }
 

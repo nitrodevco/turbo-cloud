@@ -146,6 +146,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
 
     public ActionContext AsActionContext() => ActionContext.CreateForWired(_roomGrain.RoomId);
 
+    // Wired effects run inside a room tick and carry no token of their own.
     public Task SendComposerToRoomAsync(IComposer composer) =>
-        Room.SendComposerToRoomAsync(composer);
+        Room.SendComposerToRoomAsync(composer, System.Threading.CancellationToken.None);
 }

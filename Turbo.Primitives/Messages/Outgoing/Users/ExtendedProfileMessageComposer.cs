@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players.Snapshots;
 
 namespace Turbo.Primitives.Messages.Outgoing.Users;
 
@@ -64,4 +65,16 @@ public sealed record ExtendedProfileMessageComposer : IComposer
 
     [Id(18)]
     public required bool BooleanField27 { get; init; }
+
+    [Id(19)]
+    public required int TotalBadges { get; init; }
+
+    [Id(20)]
+    public required int AchievementLevel { get; init; }
+
+    [Id(21)]
+    public required List<BadgeRarityCountSnapshot> BadgeRarityCounts { get; init; }
+
+    [Id(22)]
+    public required int TotalBadgesRank { get; init; }
 }

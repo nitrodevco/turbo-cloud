@@ -17,6 +17,7 @@ public class RoomEntity : TurboEntity
     public const WiredPermissionFlags DEFAULT_WIRED_PERMISSION_MASK = WiredPermissionFlags.Rights;
     public const string DEFAULT_WIRED_TIMEZONE = "UTC";
     public const int WIRED_TIMEZONE_MAX_LENGTH = 64;
+    public const int TAGS_MAX_LENGTH = 128;
 
     [Column("name")]
     public required string Name { get; set; }
@@ -137,6 +138,19 @@ public class RoomEntity : TurboEntity
     [DefaultValue(false)]
     public bool MuteAllPets { get; set; }
 
+    [Column("score")]
+    [DefaultValue(0)]
+    public int Score { get; set; }
+
+    /// <summary>Comma-separated room tags shown and searched in the navigator.</summary>
+    [Column("tags")]
+    [MaxLength(TAGS_MAX_LENGTH)]
+    public string? Tags { get; set; }
+
+    [Column("staff_pick")]
+    [DefaultValue(false)]
+    public bool StaffPick { get; set; }
+
     [Column("hidden_by_bc")]
     [DefaultValue(false)]
     public bool HiddenByBc { get; set; }
@@ -182,4 +196,10 @@ public class RoomEntity : TurboEntity
 
     [InverseProperty("RoomEntity")]
     public List<RoomChatlogEntity>? RoomChats { get; set; }
+
+    [InverseProperty("RoomEntity")]
+    public List<RoomRatingEntity>? RoomRatings { get; set; }
+
+    [InverseProperty("RoomEntity")]
+    public List<RoomEventEntity>? RoomEvents { get; set; }
 }

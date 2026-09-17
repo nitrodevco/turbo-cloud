@@ -10,12 +10,15 @@ using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Wallet;
+using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Catalog.Grains;
 
-public sealed partial class CatalogPurchaseGrain(
+internal sealed partial class CatalogPurchaseGrain(
     IGrainFactory grainFactory,
     ICatalogService catalogService,
     ILogger<CatalogPurchaseGrain> logger
@@ -44,7 +47,7 @@ public sealed partial class CatalogPurchaseGrain(
         if (TryGetDebitRequests(offer, quantity, out var debitRequests))
         {
             var result = await _grainFactory
-                .GetPlayerWalletGrain((int)this.GetPrimaryKeyLong())
+                .GetPlayerWalletGrain(this.GetPlayerId().Value)
                 .TryDebitAsync(debitRequests, ct);
 
             if (!result.Succeeded)
@@ -52,8 +55,71 @@ public sealed partial class CatalogPurchaseGrain(
         }
 
         await _grainFactory
-            .GetInventoryGrain((int)this.GetPrimaryKeyLong())
+            .GetInventoryGrain(this.GetPlayerId().Value)
             .GrantCatalogOfferAsync(offer, extraParam, quantity, ct);
+
+        return offer;
+    }
+
+    public async Task<CatalogOfferSnapshot> PurchaseRoomAdAsync(
+        int offerId,
+        RoomId roomId,
+        int categoryId,
+        string name,
+        string description,
+        bool extended,
+        TimeSpan duration,
+        CancellationToken ct
+    )
+    {
+        var playerId = this.GetPlayerId();
+        var snapshot = _catalogService.GetCatalogSnapshot(CatalogType.Normal);
+
+        if (!snapshot.OffersById.TryGetValue(offerId, out var offer))
+            throw new CatalogPurchaseException(CatalogPurchaseErrorType.OfferNotFound);
+
+        var roomGrain = _grainFactory.GetRoomGrain(roomId);
+        var controllerLevel = await roomGrain.GetControllerLevelAsync(playerId, ct);
+
+        if (controllerLevel < RoomControllerType.Owner)
+            throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
+
+        // A new promotion needs a free room; an extension needs a running one.
+        var activeEvent = await roomGrain.GetActiveEventAsync(ct);
+
+        if (extended ? activeEvent is null : activeEvent is not null)
+            throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
+
+        if (TryGetDebitRequests(offer, 1, out var debitRequests))
+        {
+            var result = await _grainFactory
+                .GetPlayerWalletGrain(playerId)
+                .TryDebitAsync(debitRequests, ct);
+
+            if (!result.Succeeded)
+                throw CreateInsufficientBalanceException(result);
+        }
+
+        var created = await roomGrain.CreateEventAsync(
+            playerId,
+            categoryId,
+            name,
+            description,
+            duration,
+            ct
+        );
+
+        if (created is null)
+        {
+            _logger.LogError(
+                "Room ad offer {OfferId} was charged to player {PlayerId} but the event in room {RoomId} could not be created",
+                offerId,
+                playerId,
+                roomId
+            );
+
+            throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
+        }
 
         return offer;
     }

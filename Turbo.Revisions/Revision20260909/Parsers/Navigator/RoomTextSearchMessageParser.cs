@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Navigator;
 
 internal class RoomTextSearchMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new RoomTextSearchMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new RoomTextSearchMessage { Query = packet.PopString() };
 }

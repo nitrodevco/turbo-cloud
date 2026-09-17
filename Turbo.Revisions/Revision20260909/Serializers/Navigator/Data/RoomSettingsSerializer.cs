@@ -1,3 +1,4 @@
+using System;
 using Turbo.Primitives.Packets;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -26,9 +27,15 @@ internal class RoomSettingsSerializer
         foreach (var tag in message.Tags)
             packet.WriteString(tag);
 
-        var bitmask = RoomBitmaskFlags.None;
+        var now = DateTime.UtcNow;
+        var activeEvent = message.ActiveEvent is { } evt && evt.IsActiveAt(now) ? evt : null;
+        var bitmask = RoomBitmaskFlags.ShowOwner;
 
-        bitmask |= RoomBitmaskFlags.ShowOwner;
+        if (message.AllowPets)
+            bitmask |= RoomBitmaskFlags.AllowPets;
+
+        if (activeEvent is not null)
+            bitmask |= RoomBitmaskFlags.RoomAd;
 
         packet.WriteInteger((int)bitmask);
 
@@ -48,9 +55,9 @@ internal class RoomSettingsSerializer
         if (bitmask.HasFlag(RoomBitmaskFlags.RoomAd))
         {
             packet
-                .WriteString(string.Empty) // adName
-                .WriteString(string.Empty) // adDescription
-                .WriteInteger(0); // roomAdExpiresInMin
+                .WriteString(activeEvent!.Name)
+                .WriteString(activeEvent.Description)
+                .WriteInteger(activeEvent.MinutesUntilExpiry(now));
         }
     }
 }

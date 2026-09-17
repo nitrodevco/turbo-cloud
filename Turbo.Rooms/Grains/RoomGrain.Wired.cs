@@ -91,7 +91,7 @@ public sealed partial class RoomGrain
 
             await _grainFactory
                 .GetPlayerPresenceGrain(ctx.PlayerId)
-                .SendComposerAsync(CreateWiredRoomSettingsComposer());
+                .SendComposerAsync(CreateWiredRoomSettingsComposer(), ct);
 
             await SecurityModule.RefreshWiredPermissionsForRoomAsync(ct);
 

@@ -268,7 +268,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
         }
 
         foreach (var composer in composers)
-            _ = _roomGrain.SendComposerToRoomAsync(composer);
+            _ = _roomGrain.SendComposerToRoomAsync(composer, CancellationToken.None);
         return Task.CompletedTask;
     }
 

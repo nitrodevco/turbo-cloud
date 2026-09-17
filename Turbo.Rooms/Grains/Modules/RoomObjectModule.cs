@@ -60,7 +60,8 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
                 await _roomGrain.AvatarModule.ProcessNextAvatarStepAsync(avatar, ct);
 
                 _ = _roomGrain.SendComposerToRoomAsync(
-                    new UsersMessageComposer { Avatars = [avatar.GetSnapshot()] }
+                    new UsersMessageComposer { Avatars = [avatar.GetSnapshot()] },
+                    ct
                 );
                 break;
             }
@@ -85,7 +86,7 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
                 if (!_roomGrain.MapModule.RemoveItem(item))
                     return false;
 
-                await _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(pickerId));
+                await _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(pickerId), ct);
 
                 await item.Logic.OnDetachAsync(ct);
                 await item.Logic.OnPickupAsync(ctx, ct);
@@ -110,7 +111,8 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
                 await avatar.Logic.OnDetachAsync(ct);
 
                 await _roomGrain.SendComposerToRoomAsync(
-                    new UserRemoveMessageComposer { ObjectId = avatar.ObjectId }
+                    new UserRemoveMessageComposer { ObjectId = avatar.ObjectId },
+                    ct
                 );
 
                 _roomGrain._state.AvatarsByObjectId.Remove(avatar.ObjectId);

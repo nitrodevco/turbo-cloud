@@ -11,7 +11,8 @@ public class SendRoomInviteMessageParser : IParser
     {
         var friendIds = new List<int>();
 
-        var totalInvites = packet.PopInt();
+        // The message after the ids needs at least two bytes of its own.
+        var totalInvites = packet.PopCount(bytesPerItem: 4);
 
         for (var i = 0; i < totalInvites; i++)
         {

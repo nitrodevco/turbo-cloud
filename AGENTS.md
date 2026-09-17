@@ -60,6 +60,26 @@ Default output format:
 - Keep diffs focused and minimal; avoid unrelated refactors.
 - Avoid introducing new dependencies unless required by the task.
 
+### Type placement
+- Every snapshot type lives in its own file under `Turbo.Primitives`, named after the type, in the
+  folder for its domain (`Turbo.Primitives/<Domain>/Snapshots/<Name>Snapshot.cs`, for example
+  `Turbo.Primitives/Rooms/Snapshots/RoomEventSnapshot.cs`).
+- Never declare a snapshot inside another type's file (a composer, message, grain or service).
+- The same applies to shared enums and DTOs: one public type per file, placed under the domain it
+  belongs to, so other modules can use it without depending on the file that happened to need it
+  first.
+
+### Constants and magic values
+- Do not scatter hardcoded literals or `const` fields through implementation files. Give them a home:
+  - a value the protocol or domain defines (message types, result codes, entry kinds) becomes an
+    **enum** in `Turbo.Primitives/<Domain>/Enums/`, and the serializer casts it;
+  - a set of related identifiers the client sends (search codes, cache keys) becomes one **shared
+    static class** in `Turbo.Primitives/<Domain>/` (see `NavigatorSearchCodes`,
+    `NavigatorListingKeys`);
+  - anything an operator may want to tune (limits, lengths, timeouts, intervals, caps) becomes a
+    **config option** on the module's config class, bound from `appsettings.json`.
+- Keep an inline literal only where it is local and self-evident, and comment why.
+
 ## Behavioral rules for generated code
 - Match local conventions in the files you touch.
 - Prefer deterministic handlers/services with clear guard clauses.
@@ -76,8 +96,70 @@ These rules exist because every one of these mistakes has shipped and caused rea
 ### Never swallow exceptions silently
 Every bare `catch { }` hides a real bug path. Always use `catch (Exception ex)` and log it.
 If a cross-grain notification fails silently, state goes asymmetric and nobody knows why.
-- **Required**: inject `ILogger<T>` into every grain that does cross-grain calls or DB work.
-- **Forbidden**: bare `catch { }`, `catch (Exception) { }` without logging.
+- **Required**: inject `ILogger<T>` into every grain that does cross-grain calls or DB work, typed
+  by the grain interface (`ILogger<IPlayerGrain>`), and reach it from that grain's modules and
+  systems rather than giving them their own.
+- **Forbidden**: bare `catch { }`, `catch (Exception) { }` without logging, and `Console.WriteLine`
+  in place of the logger.
+- Log with structured templates and the identity the entry is about — `_logger.LogError(ex, "Failed
+  to remove item {ItemId} from room {RoomId}", itemId, _state.RoomId)` — never string interpolation,
+  so entries can be searched by id.
+- Pick the level by who is at fault: `LogError` for a failure of ours, `LogWarning` for a rejected
+  or impossible request (insufficient balance, unknown id), `LogDebug` inside per-tick loops where
+  error-level logging would flood.
+- `OnActivateAsync` hydration: catch, log with the grain key, then rethrow. Activation must still
+  fail, but never namelessly.
+- `OnDeactivateAsync`: isolate each step in its own try/catch and log. One failing step must never
+  skip the ones after it — a failed flush still has to release the grain's registrations.
+
+### Activate and deactivate the same way everywhere
+- A grain that owns database-backed state hydrates it in `OnActivateAsync`, inside a try/catch that
+  logs with the grain key and rethrows. Do not hydrate bare: a silent activation failure surfaces
+  later as empty state.
+- Lazy hydration is allowed only where eager loading would be wasteful (`InventoryGrain` loads
+  furniture on first use, because the grain is also activated for cheap lookups). Say so in a
+  comment on the class, so the exception reads as a decision rather than an omission.
+- Every grain's class comment states how its state reaches the database: write-through
+  (`PlayerWalletGrain`, `PlayerWardrobeGrain`) or buffered-and-flushed (`PlayerSettingsGrain`,
+  `PlayerMessengerGrain`). This is what tells a reader whether a missing `OnDeactivateAsync` is
+  correct.
+- Buffered state is flushed on a timer *and* in `OnDeactivateAsync`, and the buffer is bounded by a
+  configured limit so a database outage cannot grow it without end.
+- A failed flush re-queues what it dropped (up to that limit) and logs; it never throws out of
+  deactivation.
+- Do not leave `OnActivateAsync`/`OnDeactivateAsync` overrides that only `return Task.CompletedTask`.
+  An empty override says nothing the base class does not already do.
+
+### Register timers one way
+- Use the static callback form so the timer never captures the grain's fields or an outer token:
+  `this.RegisterGrainTimer<object?>(static async (self, ct) => await ((TGrain)self!).TickAsync(ct), this, dueTime, period)`.
+- The callback body belongs in a named method on the grain, not inline in the registration.
+- Use the token the timer passes. Never capture the `CancellationToken` from `OnActivateAsync`: it
+  covers activation only, and the timer outlives it.
+- Keep the returned `IDisposable` in a field and dispose it in `OnDeactivateAsync`, before any final
+  flush, so a tick cannot race deactivation.
+- A tick that can fail catches, logs and keeps the schedule alive; one bad tick must not stop the
+  grain from ticking again.
+
+### Declare grain implementations `internal sealed`
+- A grain implementation is an implementation detail: only its interface is public. Declare it
+  `internal sealed` (`internal sealed partial` when split across files) and keep the interface in
+  `Turbo.Primitives/<Domain>/Grains/`.
+- The exception is `RoomGrain`, which stays public, and the reason is on the class. Types discovered
+  by `AssemblyExplorer` (`IRoomObjectLogic` implementations, `IWiredInternalVariable`
+  implementations) must be public — it skips non-public types — and those name `RoomGrain` in their
+  constructors and protected fields, so it cannot be narrower than they are.
+- Packet handlers (`IMessageHandler<T>`) are discovered the same way and stay public for the same
+  reason.
+- Before narrowing any type's visibility, check whether it is reflection-discovered. Making one
+  internal still compiles; it just registers nothing at startup, which no build or test catches.
+
+### Grain method signatures
+- Every asynchronous grain interface method takes a `CancellationToken ct` as its last parameter,
+  including simple getters. Callers pass the token they were given, or `CancellationToken.None`
+  for fire-and-forget calls.
+- Take the grain key once, through `this.GetPlayerId()` / `this.GetRoomId()`, instead of casting
+  `this.GetPrimaryKeyLong()` at each use site.
 
 ### Parallelize independent grain calls
 When checking status on N grains (e.g. online status for a friend list), do not `await` each one in a `foreach`.

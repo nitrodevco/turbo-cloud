@@ -36,8 +36,8 @@ public sealed record RoomPetAvatarSnapshot : RoomAvatarSnapshot
     public required bool HasBreedingPermission { get; init; }
 
     [Id(23)]
-    public required bool PetLevel { get; init; }
+    public required int PetLevel { get; init; }
 
     [Id(24)]
-    public required bool PetPosture { get; init; }
+    public required string PetPosture { get; init; }
 }

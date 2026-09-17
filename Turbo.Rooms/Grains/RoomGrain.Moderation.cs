@@ -63,7 +63,7 @@ public sealed partial class RoomGrain
     {
         try
         {
-            return await ModerationModule.ToggleRoomMuteAsync(ctx);
+            return await ModerationModule.ToggleRoomMuteAsync(ctx, ct);
         }
         catch (Exception ex)
         {
@@ -78,5 +78,6 @@ public sealed partial class RoomGrain
         }
     }
 
-    public Task<bool> GetIsRoomMutedAsync() => Task.FromResult(_state.IsRoomMuted);
+    public Task<bool> GetIsRoomMutedAsync(CancellationToken ct) =>
+        Task.FromResult(_state.IsRoomMuted);
 }

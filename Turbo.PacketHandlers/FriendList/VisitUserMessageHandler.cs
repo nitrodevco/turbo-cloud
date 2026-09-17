@@ -34,7 +34,7 @@ public class VisitUserMessageHandler(IGrainFactory grainFactory) : IMessageHandl
             return;
 
         var targetPresence = _grainFactory.GetPlayerPresenceGrain(targetId.Value);
-        var activeRoom = await targetPresence.GetActiveRoomAsync().ConfigureAwait(false);
+        var activeRoom = await targetPresence.GetActiveRoomAsync(ct).ConfigureAwait(false);
 
         if (activeRoom.RoomId <= 0)
             return;

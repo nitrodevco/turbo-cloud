@@ -26,10 +26,11 @@ public record SaveRoomSettingsMessage : IMessageEvent
     public ModSettingType WhoCanMute { get; init; }
     public ModSettingType WhoCanKick { get; init; }
     public ModSettingType WhoCanBan { get; init; }
-    public ChatModeType ChatMode { get; init; }
-    public ChatBubbleWidthType ChatBubbleSize { get; init; }
-    public ChatScrollSpeedType ChatScrollUpFrequency { get; init; }
-    public int ChatFullHearRange { get; init; }
     public ChatFloodSensitivityType ChatFloodSensitivity { get; init; }
-    public bool AllowNavigatorDynCats { get; init; }
+    public bool LeaveOnDoorTileEnabled { get; init; }
+    public bool IdleSleepEnabled { get; init; }
+    public int IdleSleepTimeoutSeconds { get; init; }
+    public bool IdleAutokickEnabled { get; init; }
+    public int IdleAutokickTimeoutSeconds { get; init; }
+    public bool MuteAllPets { get; init; }
 }

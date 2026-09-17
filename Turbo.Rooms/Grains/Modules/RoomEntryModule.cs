@@ -43,7 +43,7 @@ public sealed class RoomEntryModule(
 
             if (snapshot.PlayersMax > 0)
             {
-                var population = await _roomGrain.GetRoomPopulationAsync();
+                var population = await _roomGrain.GetRoomPopulationAsync(CancellationToken.None);
 
                 if (population >= snapshot.PlayersMax)
                     return RoomEntryAccessType.Full;
@@ -65,7 +65,11 @@ public sealed class RoomEntryModule(
     /// Registers the player at the door and notifies every controller currently in the room.
     /// Returns false when nobody is present to answer, in which case the player is not queued.
     /// </summary>
-    public async Task<bool> RingDoorbellAsync(PlayerId playerId, string playerName)
+    public async Task<bool> RingDoorbellAsync(
+        PlayerId playerId,
+        string playerName,
+        CancellationToken ct
+    )
     {
         RemoveDoorbellRinger(playerId);
 
@@ -78,7 +82,8 @@ public sealed class RoomEntryModule(
 
         await _roomGrain.SendComposerToPlayersAsync(
             controllerIds,
-            new DoorbellMessageComposer { Username = playerName }
+            new DoorbellMessageComposer { Username = playerName },
+            ct
         );
 
         return true;
@@ -92,7 +97,8 @@ public sealed class RoomEntryModule(
     public async Task<PlayerId?> AnswerDoorbellAsync(
         ActionContext ctx,
         string playerName,
-        bool accepted
+        bool accepted,
+        CancellationToken ct
     )
     {
         var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx);
@@ -117,7 +123,7 @@ public sealed class RoomEntryModule(
                 Username = playerName,
             };
 
-        await _roomGrain.SendComposerToPlayersAsync(controllerIds, composer);
+        await _roomGrain.SendComposerToPlayersAsync(controllerIds, composer, ct);
 
         return ringerId;
     }

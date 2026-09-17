@@ -11,6 +11,6 @@ internal class RoomSettingsSavedEventMessageComposerSerializer(int header)
         RoomSettingsSavedEventMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.RoomId);
     }
 }

@@ -25,6 +25,11 @@ public class PlayerSettingsEntity : TurboEntity
     public const bool DEFAULT_WIRED_SHOW_ALL_NOTIFICATIONS = true;
     public const string DEFAULT_WIRED_UI_STYLE = "";
     public const int WIRED_UI_STYLE_MAX_LENGTH = 50;
+    public const int DEFAULT_NAVIGATOR_WINDOW_X = 427;
+    public const int DEFAULT_NAVIGATOR_WINDOW_Y = 41;
+    public const int DEFAULT_NAVIGATOR_WINDOW_WIDTH = 425;
+    public const int DEFAULT_NAVIGATOR_WINDOW_HEIGHT = 400;
+    public const NavigatorViewModeType DEFAULT_NAVIGATOR_RESULTS_MODE = NavigatorViewModeType.Tiles;
 
     [Column("player_id")]
     public required int PlayerEntityId { get; set; }
@@ -110,6 +115,35 @@ public class PlayerSettingsEntity : TurboEntity
     [MaxLength(WIRED_UI_STYLE_MAX_LENGTH)]
     [DefaultValue(DEFAULT_WIRED_UI_STYLE)]
     public string WiredUIStyle { get; set; } = DEFAULT_WIRED_UI_STYLE;
+
+    [Column("home_room_id")]
+    public int? HomeRoomId { get; set; }
+
+    [Column("navigator_window_x")]
+    [DefaultValue(DEFAULT_NAVIGATOR_WINDOW_X)]
+    public int NavigatorWindowX { get; set; } = DEFAULT_NAVIGATOR_WINDOW_X;
+
+    [Column("navigator_window_y")]
+    [DefaultValue(DEFAULT_NAVIGATOR_WINDOW_Y)]
+    public int NavigatorWindowY { get; set; } = DEFAULT_NAVIGATOR_WINDOW_Y;
+
+    [Column("navigator_window_width")]
+    [DefaultValue(DEFAULT_NAVIGATOR_WINDOW_WIDTH)]
+    public int NavigatorWindowWidth { get; set; } = DEFAULT_NAVIGATOR_WINDOW_WIDTH;
+
+    [Column("navigator_window_height")]
+    [DefaultValue(DEFAULT_NAVIGATOR_WINDOW_HEIGHT)]
+    public int NavigatorWindowHeight { get; set; } = DEFAULT_NAVIGATOR_WINDOW_HEIGHT;
+
+    [Column("navigator_left_pane_hidden")]
+    [DefaultValue(false)]
+    public bool NavigatorLeftPaneHidden { get; set; }
+
+    [Column("navigator_results_mode")]
+    [DefaultValue(DEFAULT_NAVIGATOR_RESULTS_MODE)]
+    [DatabaseGenerated(DatabaseGeneratedOption.None)]
+    public NavigatorViewModeType NavigatorResultsMode { get; set; } =
+        DEFAULT_NAVIGATOR_RESULTS_MODE;
 
     [ForeignKey(nameof(PlayerEntityId))]
     public PlayerEntity? PlayerEntity { get; set; }

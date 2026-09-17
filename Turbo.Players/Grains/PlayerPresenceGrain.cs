@@ -47,22 +47,20 @@ internal sealed partial class PlayerPresenceGrain
         _grainFactory = grainFactory;
         _logger = logger;
 
-        _state = new() { PlayerId = PlayerId.Parse((int)this.GetPrimaryKeyLong()) };
-    }
-
-    public override Task OnActivateAsync(CancellationToken ct)
-    {
-        return Task.CompletedTask;
+        _state = new() { PlayerId = this.GetPlayerId() };
     }
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
+        _timer?.Dispose();
+        _timer = null;
+
         _outgoingQueue.Clear();
 
         await UnregisterSessionObserverAsync(ct);
     }
 
-    public Task RegisterSessionObserverAsync(ISessionContextObserver observer)
+    public Task RegisterSessionObserverAsync(ISessionContextObserver observer, CancellationToken ct)
     {
         _sessionObserver = observer;
 
@@ -76,19 +74,9 @@ internal sealed partial class PlayerPresenceGrain
         // KeepAlive: a presence grain with a live session must not be collected on idle. Losing
         // the activation drops the session observer and strands the room stream subscription.
         _timer = this.RegisterGrainTimer<object?>(
-            async (state, ct) =>
-            {
-                var messengerGrain = _grainFactory.GetPlayerMessengerGrain(_state.PlayerId);
-                var messengerUpdates = await messengerGrain.GetPendingUpdatesAsync(ct);
-
-                if (messengerUpdates.Count > 0)
-                {
-                    var categories = await messengerGrain.GetCategoriesAsync(ct);
-
-                    await FlushMessengerUpdatesAsync(categories, messengerUpdates, ct);
-                }
-            },
-            null,
+            static async (self, ct) =>
+                await ((PlayerPresenceGrain)self!).FlushPendingMessengerUpdatesAsync(ct),
+            this,
             new GrainTimerCreationOptions
             {
                 DueTime = TimeSpan.FromMilliseconds(_playerConfig.PlayerPresenceTickMs),
@@ -98,6 +86,19 @@ internal sealed partial class PlayerPresenceGrain
         );
 
         return Task.CompletedTask;
+    }
+
+    private async Task FlushPendingMessengerUpdatesAsync(CancellationToken ct)
+    {
+        var messengerGrain = _grainFactory.GetPlayerMessengerGrain(_state.PlayerId);
+        var messengerUpdates = await messengerGrain.GetPendingUpdatesAsync(ct);
+
+        if (messengerUpdates.Count == 0)
+            return;
+
+        var categories = await messengerGrain.GetCategoriesAsync(ct);
+
+        await FlushMessengerUpdatesAsync(categories, messengerUpdates, ct);
     }
 
     public async Task UnregisterSessionObserverAsync(CancellationToken ct)
@@ -115,9 +116,10 @@ internal sealed partial class PlayerPresenceGrain
         _sessionObserver = null;
     }
 
-    public Task<bool> HasActiveSessionAsync() => Task.FromResult(_sessionObserver is not null);
+    public Task<bool> HasActiveSessionAsync(CancellationToken ct) =>
+        Task.FromResult(_sessionObserver is not null);
 
-    public Task SendComposerAsync(IComposer composer)
+    public Task SendComposerAsync(IComposer composer, CancellationToken ct)
     {
         if (composer is not null)
         {
@@ -129,9 +131,9 @@ internal sealed partial class PlayerPresenceGrain
         return Task.CompletedTask;
     }
 
-    public Task SendComposerAsync(params IComposer[] composers)
+    public Task SendComposerAsync(IReadOnlyList<IComposer> composers, CancellationToken ct)
     {
-        if (composers.Length > 0)
+        if (composers.Count > 0)
         {
             foreach (var composer in composers)
                 Enqueue(composer);
@@ -150,7 +152,7 @@ internal sealed partial class PlayerPresenceGrain
         )
             return Task.CompletedTask;
 
-        return SendComposerAsync(item.Composer);
+        return SendComposerAsync(item.Composer, CancellationToken.None);
     }
 
     public Task OnCompletedAsync() => Task.CompletedTask;

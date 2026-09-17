@@ -1,4 +1,5 @@
 using Turbo.Primitives.Packets;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 
 namespace Turbo.Revisions.Revision20260909.Serializers.Room.Engine.Data;
@@ -15,11 +16,14 @@ internal class WiredMovementSerializer
             .WriteString(item.SourceZ.ToString())
             .WriteString(item.TargetZ.ToString())
             .WriteInteger(item.ObjectId.Value)
-            .WriteInteger((int)item.MoveType)
+            .WriteInteger(item.MoveType == SlideAvatarMoveType.Slide ? 1 : 0) // 0 = mv, otherwise sld
             .WriteInteger(item.AnimationTime)
             .WriteInteger((int)item.BodyDirection)
             .WriteInteger((int)item.HeadDirection)
-            .WriteInteger(item.JumpPower);
+            .WriteBoolean(item.JumpPower > 0);
+
+        if (item.JumpPower > 0)
+            packet.WriteInteger(item.JumpPower);
     }
 
     public static void SerializeFloorItemMovement(
@@ -36,7 +40,9 @@ internal class WiredMovementSerializer
             .WriteString(item.TargetZ.ToString())
             .WriteInteger(item.ObjectId.Value)
             .WriteInteger(item.AnimationTime)
-            .WriteInteger((int)item.Rotation);
+            .WriteInteger((int)item.Rotation)
+            .WriteBoolean(false) // has overshooting distance
+            .WriteBoolean(false); // has curve strength
     }
 
     public static void SerializeWallItemMovement(

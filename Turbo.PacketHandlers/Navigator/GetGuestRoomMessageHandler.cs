@@ -33,9 +33,9 @@ public class GetGuestRoomMessageHandler(IRoomService roomService, IGrainFactory 
             return;
 
         var roomGrain = _grainFactory.GetRoomGrain(message.RoomId);
-        var snapshot = await roomGrain.GetSnapshotAsync().ConfigureAwait(false);
-        var population = await roomGrain.GetRoomPopulationAsync().ConfigureAwait(false);
-        var allInRoomMuted = await roomGrain.GetIsRoomMutedAsync().ConfigureAwait(false);
+        var snapshot = await roomGrain.GetSnapshotAsync(ct).ConfigureAwait(false);
+        var population = await roomGrain.GetRoomPopulationAsync(ct).ConfigureAwait(false);
+        var allInRoomMuted = await roomGrain.GetIsRoomMutedAsync(ct).ConfigureAwait(false);
 
         var isNavigatorForward = !message.EnterRoom && message.RoomForward;
         var access = RoomEntryAccessType.Allowed;
@@ -53,7 +53,6 @@ public class GetGuestRoomMessageHandler(IRoomService roomService, IGrainFactory 
 
         var isOpening = isNavigatorForward && access == RoomEntryAccessType.Allowed;
 
-        var staffPick = false;
         var groupMember = false;
         var canMute = false;
 
@@ -63,7 +62,7 @@ public class GetGuestRoomMessageHandler(IRoomService roomService, IGrainFactory 
                     EnterRoom = message.EnterRoom,
                     RoomInfo = snapshot with { Population = population },
                     RoomForward = message.RoomForward,
-                    StaffPick = staffPick,
+                    StaffPick = snapshot.StaffPick,
                     IsGroupMember = groupMember,
                     AllInRoomMuted = allInRoomMuted,
                     CanMute = canMute,

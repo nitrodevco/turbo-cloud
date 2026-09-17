@@ -13,7 +13,7 @@ internal class RemoveRightsMessageParser : IParser
 
     private static List<PlayerId> ParsePlayerIds(IClientPacket packet)
     {
-        var count = packet.PopInt();
+        var count = packet.PopCount(bytesPerItem: 4);
         var playerIds = new List<PlayerId>();
 
         for (var i = 0; i < count; i++)

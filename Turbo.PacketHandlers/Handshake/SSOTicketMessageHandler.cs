@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -15,7 +16,9 @@ using Turbo.Primitives.Messages.Outgoing.Mysterybox;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Messages.Outgoing.Perk;
+using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.PacketHandlers.Handshake;
@@ -23,12 +26,14 @@ namespace Turbo.PacketHandlers.Handshake;
 public class SSOTicketMessageHandler(
     IAuthenticationService authService,
     ISessionGateway sessionGateway,
-    IGrainFactory grainFactory
+    IGrainFactory grainFactory,
+    INavigatorService navigatorService
 ) : IMessageHandler<SSOTicketMessage>
 {
     private readonly IAuthenticationService _authService = authService;
     private readonly ISessionGateway _sessionGateway = sessionGateway;
     private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly INavigatorService _navigatorService = navigatorService;
 
     public async ValueTask HandleAsync(
         SSOTicketMessage message,
@@ -66,13 +71,30 @@ public class SSOTicketMessageHandler(
                 .ConfigureAwait(false);
             await ctx.SendComposerAsync(new AvatarEffectsMessageComposer { Effects = [] }, ct)
                 .ConfigureAwait(false);
+            var settings = await _grainFactory
+                .GetPlayerSettingsGrain(playerId)
+                .GetSettingsAsync(ct)
+                .ConfigureAwait(false);
+            var favouriteRoomIds = await _navigatorService
+                .GetFavouriteRoomIdsAsync(playerId, ct)
+                .ConfigureAwait(false);
+
+            // The client enters the home room on login.
             await ctx.SendComposerAsync(
-                    new NavigatorSettingsMessageComposer { HomeRoomId = 1, RoomIdToEnter = 1 },
+                    new NavigatorSettingsMessageComposer
+                    {
+                        HomeRoomId = settings.HomeRoomId,
+                        RoomIdToEnter = settings.HomeRoomId,
+                    },
                     ct
                 )
                 .ConfigureAwait(false);
             await ctx.SendComposerAsync(
-                    new FavouritesMessageComposer { Limit = 0, FavoriteRoomIds = [] },
+                    new FavouritesMessageComposer
+                    {
+                        Limit = _navigatorService.FavouriteRoomLimit,
+                        FavoriteRoomIds = [.. favouriteRoomIds.Select(x => x.Value)],
+                    },
                     ct
                 )
                 .ConfigureAwait(false);

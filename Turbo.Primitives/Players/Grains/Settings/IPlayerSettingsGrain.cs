@@ -4,6 +4,7 @@ using Orleans;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Snapshots.Settings;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.Primitives.Players.Grains.Settings;
 
@@ -38,6 +39,18 @@ public interface IPlayerSettingsGrain : IGrainWithIntegerKey
         bool whisperDisabled,
         bool showAllNotifications,
         string uiStyle,
+        CancellationToken ct
+    );
+
+    /// <summary>Sets the home room (a non-positive id clears it) and tells the player.</summary>
+    public Task SetHomeRoomAsync(RoomId roomId, CancellationToken ct);
+    public Task SetNavigatorWindowPreferencesAsync(
+        int x,
+        int y,
+        int width,
+        int height,
+        bool leftPaneHidden,
+        NavigatorViewModeType resultsMode,
         CancellationToken ct
     );
 }

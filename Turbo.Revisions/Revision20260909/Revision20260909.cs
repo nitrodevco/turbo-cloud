@@ -2573,7 +2573,7 @@ public class Revision20260909 : IRevision
             {
                 typeof(HabboActivityPointNotificationMessageComposer),
                 new HabboActivityPointNotificationMessageComposerSerializer(
-                    MessageComposer.HabboAchievementNotificationMessageComposer
+                    MessageComposer.HabboActivityPointNotificationMessageComposer
                 )
             },
             {

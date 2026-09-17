@@ -24,6 +24,7 @@ internal class FloorItemSerializer
             .WriteInteger((int)item.UsagePolicy)
             .WriteInteger(item.OwnerId);
 
-        // if no sprite id, WriteString(staticClass)
+        if (item.SpriteId < 0)
+            packet.WriteString(string.Empty); // static class
     }
 }

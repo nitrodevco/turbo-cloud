@@ -8,12 +8,12 @@ namespace Turbo.Primitives.Players.Grains;
 
 public partial interface IPlayerPresenceGrain
 {
-    public Task<RoomPointerSnapshot> GetActiveRoomAsync();
-    public Task<RoomPendingSnapshot> GetPendingRoomAsync();
+    public Task<RoomPointerSnapshot> GetActiveRoomAsync(CancellationToken ct);
+    public Task<RoomPendingSnapshot> GetPendingRoomAsync(CancellationToken ct);
     public Task SetActiveRoomAsync(RoomId roomId, CancellationToken ct);
     public Task ClearActiveRoomAsync(CancellationToken ct);
-    public Task SetPendingRoomAsync(RoomId roomId, RoomEntryState state);
-    public Task ClearPendingRoomAsync();
+    public Task SetPendingRoomAsync(RoomId roomId, RoomEntryState state, CancellationToken ct);
+    public Task ClearPendingRoomAsync(CancellationToken ct);
     public Task OnControllerLevelUpdatedAsync(
         RoomId roomId,
         RoomControllerType controllerType,

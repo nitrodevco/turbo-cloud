@@ -14,6 +14,21 @@ public class RoomConfig
     public bool PlaceItemsOnAvatars { get; init; } = true;
     public bool EnableDiagonalChecking { get; init; } = true;
     public int MaxPlayersLimit { get; init; } = 50;
+    public int RoomNameMaxLength { get; init; } = 60;
+    public int RoomDescriptionMaxLength { get; init; } = 128;
+    public int RoomPasswordMaxLength { get; init; } = 64;
+    public int RoomTagsMax { get; init; } = 2;
+    public int RoomTagMaxLength { get; init; } = 30;
+    public int RoomIdleSleepTimeoutMinSeconds { get; init; } = 60;
+    public int RoomIdleSleepTimeoutMaxSeconds { get; init; } = 3600;
+    public int RoomIdleAutokickTimeoutMinSeconds { get; init; } = 60;
+    public int RoomIdleAutokickTimeoutMaxSeconds { get; init; } = 86400;
+
+    /// <summary>
+    /// Listing changes the room directory remembers for navigator caches. A silo that falls
+    /// further behind than this drops its whole cache instead.
+    /// </summary>
+    public int ListingChangeLogSize { get; init; } = 10000;
 
     public int RoomCheckMs { get; init; } = 300000;
     public int RoomDeactivationDelayMs { get; init; } = 1800000;

@@ -15,7 +15,7 @@ internal sealed partial class PlayerPresenceGrain
     {
         var inventoryGrain = _grainFactory.GetInventoryGrain(_state.PlayerId);
         var items = await inventoryGrain.GetAllItemSnapshotsAsync(ct);
-        var furniPerFragment = 100;
+        var furniPerFragment = _playerConfig.FurnitureInventoryFragmentSize;
 
         var totalFragments = (int)
             Math.Max(1, Math.Ceiling((double)items.Length / furniPerFragment));
@@ -37,7 +37,8 @@ internal sealed partial class PlayerPresenceGrain
                         TotalFragments = totalFragments,
                         CurrentFragment = currentFragment,
                         Items = [.. fragmentItems],
-                    }
+                    },
+                    ct
                 );
 
                 fragmentItems.Clear();
@@ -55,13 +56,14 @@ internal sealed partial class PlayerPresenceGrain
                 TotalFragments = totalFragments,
                 CurrentFragment = currentFragment,
                 Items = [.. fragmentItems],
-            }
+            },
+            ct
         );
     }
 
     public Task OnFurnitureAddedAsync(FurnitureItemSnapshot snapshot, CancellationToken ct) =>
-        SendComposerAsync(new FurniListInvalidateEventMessageComposer());
+        SendComposerAsync(new FurniListInvalidateEventMessageComposer(), ct);
 
     public Task OnFurnitureRemovedAsync(RoomObjectId itemId, CancellationToken ct) =>
-        SendComposerAsync(new FurniListRemoveEventMessageComposer { ItemId = itemId });
+        SendComposerAsync(new FurniListRemoveEventMessageComposer { ItemId = itemId }, ct);
 }

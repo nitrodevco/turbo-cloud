@@ -17,7 +17,7 @@ namespace Turbo.Players.Grains;
 
 internal sealed partial class PlayerPresenceGrain
 {
-    public Task<RoomPointerSnapshot> GetActiveRoomAsync() =>
+    public Task<RoomPointerSnapshot> GetActiveRoomAsync(CancellationToken ct) =>
         Task.FromResult(
             new RoomPointerSnapshot
             {
@@ -26,7 +26,7 @@ internal sealed partial class PlayerPresenceGrain
             }
         );
 
-    public Task<RoomPendingSnapshot> GetPendingRoomAsync() =>
+    public Task<RoomPendingSnapshot> GetPendingRoomAsync(CancellationToken ct) =>
         Task.FromResult(
             new RoomPendingSnapshot
             {
@@ -41,7 +41,7 @@ internal sealed partial class PlayerPresenceGrain
             return;
 
         await ClearActiveRoomAsync(ct);
-        await ClearPendingRoomAsync();
+        await ClearPendingRoomAsync(ct);
 
         _state.ActiveRoomId = roomId;
         _state.ActiveRoomSinceUtc = DateTime.UtcNow;
@@ -49,6 +49,11 @@ internal sealed partial class PlayerPresenceGrain
         await _grainFactory
             .GetRoomDirectoryGrain()
             .AddPlayerToRoomAsync(_state.PlayerId, roomId, ct);
+
+        _grainFactory
+            .GetPlayerNavigatorGrain(_state.PlayerId)
+            .RecordRoomVisitAsync(roomId, CancellationToken.None)
+            .LogAndForget(_logger, $"record visit of player {_state.PlayerId} to room {roomId}");
 
         var stream = GetRoomStream(roomId);
 
@@ -121,7 +126,7 @@ internal sealed partial class PlayerPresenceGrain
         }
     }
 
-    public Task SetPendingRoomAsync(RoomId roomId, RoomEntryState state)
+    public Task SetPendingRoomAsync(RoomId roomId, RoomEntryState state, CancellationToken ct)
     {
         _state.PendingRoomId = roomId;
         _state.PendingRoomState = state;
@@ -129,7 +134,7 @@ internal sealed partial class PlayerPresenceGrain
         return Task.CompletedTask;
     }
 
-    public Task ClearPendingRoomAsync()
+    public Task ClearPendingRoomAsync(CancellationToken ct)
     {
         _state.PendingRoomId = -1;
         _state.PendingRoomState = RoomEntryState.None;
@@ -155,15 +160,16 @@ internal sealed partial class PlayerPresenceGrain
                 {
                     RoomId = roomId,
                     ControllerLevel = controllerType,
-                }
+                },
+                ct
             );
 
             if (controllerType >= RoomControllerType.Owner)
-                await SendComposerAsync(new YouAreOwnerMessageComposer { RoomId = roomId });
+                await SendComposerAsync(new YouAreOwnerMessageComposer { RoomId = roomId }, ct);
         }
         else
         {
-            await SendComposerAsync(new YouAreNotControllerMessageComposer { RoomId = roomId });
+            await SendComposerAsync(new YouAreNotControllerMessageComposer { RoomId = roomId }, ct);
         }
 
         await OnWiredPermissionsUpdatedAsync(roomId, canModifyWired, canReadWired, ct);
@@ -184,7 +190,8 @@ internal sealed partial class PlayerPresenceGrain
             {
                 CanModify = canModifyWired,
                 CanRead = canReadWired,
-            }
+            },
+            ct
         );
     }
 

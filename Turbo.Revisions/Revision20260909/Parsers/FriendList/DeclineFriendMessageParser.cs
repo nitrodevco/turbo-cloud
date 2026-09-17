@@ -18,7 +18,7 @@ public class DeclineFriendMessageParser : IParser
         }
 
         var playerIds = new List<PlayerId>();
-        var count = packet.PopInt();
+        var count = packet.PopCount(bytesPerItem: 4);
 
         while (count > 0)
         {

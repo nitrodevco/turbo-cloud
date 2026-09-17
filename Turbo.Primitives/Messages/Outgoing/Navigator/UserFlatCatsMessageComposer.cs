@@ -1,5 +1,6 @@
-using System.Collections.Generic;
+using System.Collections.Immutable;
 using Orleans;
+using Turbo.Primitives.Navigator.Snapshots;
 using Turbo.Primitives.Networking;
 
 namespace Turbo.Primitives.Messages.Outgoing.Navigator;
@@ -8,5 +9,5 @@ namespace Turbo.Primitives.Messages.Outgoing.Navigator;
 public sealed record UserFlatCatsMessageComposer : IComposer
 {
     [Id(0)]
-    public List<object>? Nodes { get; init; }
+    public required ImmutableArray<NavigatorFlatCategorySnapshot> Categories { get; init; }
 }

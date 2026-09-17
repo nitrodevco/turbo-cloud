@@ -58,9 +58,14 @@ public sealed partial class RoomGrain
         {
             await SecurityModule.RefreshControllerLevelForPlayerAsync(ctx.PlayerId, ct);
         }
-        catch
+        catch (Exception ex)
         {
-            // TODO handle exceptions
+            _logger.LogError(
+                ex,
+                "Failed to refresh the controller level of player {PlayerId} in room {RoomId}",
+                ctx.PlayerId,
+                _state.RoomId
+            );
         }
     }
 
@@ -74,9 +79,14 @@ public sealed partial class RoomGrain
         {
             await SecurityModule.GiveRightsToPlayerAsync(ctx, playerId, ct);
         }
-        catch
+        catch (Exception ex)
         {
-            // TODO handle exceptions
+            _logger.LogError(
+                ex,
+                "Failed to give rights to player {PlayerId} in room {RoomId}",
+                playerId,
+                _state.RoomId
+            );
         }
     }
 
@@ -90,9 +100,14 @@ public sealed partial class RoomGrain
         {
             await SecurityModule.RemoveRightsFromPlayerAsync(ctx, playerId, ct);
         }
-        catch
+        catch (Exception ex)
         {
-            // TODO handle exceptions
+            _logger.LogError(
+                ex,
+                "Failed to remove rights from player {PlayerId} in room {RoomId}",
+                playerId,
+                _state.RoomId
+            );
         }
     }
 
