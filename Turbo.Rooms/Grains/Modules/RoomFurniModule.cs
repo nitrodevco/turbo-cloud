@@ -1,12 +1,7 @@
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
-using Orleans;
-using Turbo.Logging;
-using Turbo.Primitives;
-using Turbo.Primitives.Action;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
@@ -46,36 +41,6 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain)
             await _roomGrain.ObjectModule.AttatchObjectAsync(item, ct);
 
         _roomGrain._state.IsFurniLoaded = true;
-    }
-
-    public async Task<bool> UseItemByIdAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
-    )
-    {
-        if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
-            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
-
-        await item.Logic.OnUseAsync(ctx, param, ct);
-
-        return true;
-    }
-
-    public async Task<bool> ClickItemByIdAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
-    )
-    {
-        if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
-            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
-
-        await item.Logic.OnClickAsync(ctx, param, ct);
-
-        return true;
     }
 
     public Task<RoomItemSnapshot?> GetItemSnapshotByIdAsync(

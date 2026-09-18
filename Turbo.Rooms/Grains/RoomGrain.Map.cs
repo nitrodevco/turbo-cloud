@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 
 namespace Turbo.Rooms.Grains;
@@ -27,6 +29,26 @@ public sealed partial class RoomGrain
 
     public Task<RoomMapSnapshot> GetMapSnapshotAsync(CancellationToken ct) =>
         Task.FromResult(MapModule.GetMapSnapshot(ct));
+
+    public Task<ImmutableArray<RoomTilePositionSnapshot>> GetOccupiedTilesAsync(
+        CancellationToken ct
+    )
+    {
+        var tiles = ImmutableArray.CreateBuilder<RoomTilePositionSnapshot>();
+        var flags = _state.TileFlags;
+
+        for (var idx = 0; idx < flags.Length; idx++)
+        {
+            if (!flags[idx].Has(RoomTileFlags.FurnitureOccupied))
+                continue;
+
+            var (x, y) = MapModule.GetTileXY(idx);
+
+            tiles.Add(new RoomTilePositionSnapshot { X = x, Y = y });
+        }
+
+        return Task.FromResult(tiles.ToImmutable());
+    }
 
     private Task FlushDirtyTilesAsync(CancellationToken ct)
     {

@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Room.Furniture;
 
 internal class ThrowDiceMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new ThrowDiceMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new ThrowDiceMessage { ObjectId = packet.PopInt() };
 }

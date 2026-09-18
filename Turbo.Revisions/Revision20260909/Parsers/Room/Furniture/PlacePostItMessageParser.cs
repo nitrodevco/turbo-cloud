@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Room.Furniture;
 
 internal class PlacePostItMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new PlacePostItMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new PlacePostItMessage { ItemId = packet.PopInt(), Location = packet.PopString() };
 }

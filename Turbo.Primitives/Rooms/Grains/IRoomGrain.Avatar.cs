@@ -27,6 +27,15 @@ public partial interface IRoomGrain
         int targetY,
         CancellationToken ct
     );
+
+    /// <summary>Turns the player's avatar to face a tile without walking.</summary>
+    public Task<bool> LookToAsync(
+        ActionContext ctx,
+        int targetX,
+        int targetY,
+        CancellationToken ct
+    );
+
     public Task<bool> UpdateAvatarWithPlayerAsync(
         PlayerSummarySnapshot snapshot,
         CancellationToken ct

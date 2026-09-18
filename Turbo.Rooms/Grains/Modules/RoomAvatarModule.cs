@@ -350,6 +350,28 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         return Task.FromResult(true);
     }
 
+    public Task<bool> LookToAsync(ActionContext ctx, int targetX, int targetY, CancellationToken ct)
+    {
+        if (
+            !_roomGrain.MapModule.InBounds(targetX, targetY)
+            || !_roomGrain._state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
+            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+        )
+            return Task.FromResult(false);
+
+        // Turning mid-walk would fight the next step's rotation; the walk already faces its path.
+        if (avatar.IsWalking || (avatar.X == targetX && avatar.Y == targetY))
+            return Task.FromResult(false);
+
+        var rotation = RotationExtensions.FromPoints(avatar.X, avatar.Y, targetX, targetY);
+
+        avatar.SetBodyRotation(rotation);
+        avatar.SetHeadRotation(rotation);
+        avatar.MarkDirty();
+
+        return Task.FromResult(true);
+    }
+
     public Task<bool> SetAvatarPostureAsync(
         RoomObjectId objectId,
         AvatarPostureType postureType,

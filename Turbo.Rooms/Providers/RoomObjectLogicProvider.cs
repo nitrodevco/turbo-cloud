@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Rooms.Object;
@@ -11,9 +12,15 @@ using Turbo.Runtime;
 
 namespace Turbo.Rooms.Providers;
 
-public sealed class RoomObjectLogicProvider(IServiceProvider host) : IRoomObjectLogicProvider
+public sealed class RoomObjectLogicProvider(
+    IServiceProvider host,
+    ILogger<IRoomObjectLogicProvider> logger
+) : IRoomObjectLogicProvider
 {
+    private const string DEFAULT_FLOOR_LOGIC = "default_floor";
+
     private readonly IServiceProvider _host = host;
+    private readonly ILogger<IRoomObjectLogicProvider> _logger = logger;
     private readonly ConcurrentDictionary<string, RoomObjectLogicReg> _logics = [];
 
     public IDisposable RegisterLogic(
@@ -36,16 +43,20 @@ public sealed class RoomObjectLogicProvider(IServiceProvider host) : IRoomObject
     {
         if (!_logics.TryGetValue(logicType, out var reg))
         {
-            Console.WriteLine(
-                $"[RoomObjectLogicProvider] Logic type '{logicType}' not found, falling back to default_floor"
+            // An unknown logic type still gets a working item; the warning is what tells us a
+            // definition asks for behaviour the server has not implemented yet.
+            _logger.LogWarning(
+                "Logic type {LogicType} is not registered; object {ObjectId} falls back to {Fallback}",
+                logicType,
+                ctx.ObjectId,
+                DEFAULT_FLOOR_LOGIC
             );
-            reg = _logics.TryGetValue("default_floor", out var defaultReg) ? defaultReg : null;
+
+            reg = _logics.TryGetValue(DEFAULT_FLOOR_LOGIC, out var defaultReg) ? defaultReg : null;
         }
 
         if (reg is null)
             throw new TurboException(TurboErrorCodeEnum.InvalidLogic);
-
-        // TODO we need to fall back if not found
 
         var sp = reg.ServiceProvider;
 

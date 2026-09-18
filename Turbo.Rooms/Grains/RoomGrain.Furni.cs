@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
@@ -107,6 +108,112 @@ public sealed partial class RoomGrain
             _logger.LogError(
                 ex,
                 "Failed to click item {ItemId} in room {RoomId} for player {PlayerId}",
+                itemId,
+                _state.RoomId,
+                ctx.PlayerId
+            );
+
+            return false;
+        }
+    }
+
+    public async Task<bool> InteractWithItemAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        FurnitureInteractionType interaction,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return await ActionModule.InteractWithItemAsync(ctx, itemId, interaction, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed interaction {Interaction} with item {ItemId} in room {RoomId} for player {PlayerId}",
+                interaction,
+                itemId,
+                _state.RoomId,
+                ctx.PlayerId
+            );
+
+            return false;
+        }
+    }
+
+    public async Task<bool> SetItemDataAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        string color,
+        string text,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return await ActionModule.SetItemDataAsync(ctx, itemId, color, text, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to set item data on {ItemId} in room {RoomId} for player {PlayerId}",
+                itemId,
+                _state.RoomId,
+                ctx.PlayerId
+            );
+
+            return false;
+        }
+    }
+
+    public async Task<bool> SetObjectDataAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        IReadOnlyDictionary<string, string> entries,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return await ActionModule.SetObjectDataAsync(ctx, itemId, entries, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to set object data on {ItemId} in room {RoomId} for player {PlayerId}",
+                itemId,
+                _state.RoomId,
+                ctx.PlayerId
+            );
+
+            return false;
+        }
+    }
+
+    public Task<string?> GetItemDataAsync(RoomObjectId itemId, CancellationToken ct) =>
+        Task.FromResult(
+            _state.ItemsById.TryGetValue(itemId, out var item) ? item.Logic.GetLegacyString() : null
+        );
+
+    public async Task<bool> DeleteItemByIdAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return await ActionModule.DeleteItemByIdAsync(ctx, itemId, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to delete item {ItemId} from room {RoomId} for player {PlayerId}",
                 itemId,
                 _state.RoomId,
                 ctx.PlayerId

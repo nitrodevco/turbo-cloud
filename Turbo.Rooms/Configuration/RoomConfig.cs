@@ -42,6 +42,20 @@ public class RoomConfig
     public int MaxPathNodes { get; init; } = 4096;
 
     public int ChatMaxLength { get; init; } = 100;
+
+    /// <summary>How long a thrown dice shows the rolling animation before landing.</summary>
+    public int DiceRollMs { get; init; } = 3000;
+
+    /// <summary>How long the wheel of fortune spins before stopping on a segment.</summary>
+    public int WheelSpinMs { get; init; } = 5000;
+
+    /// <summary>Delay before a one-way door closes behind the avatar that entered it.</summary>
+    public int OneWayDoorCloseMs { get; init; } = 2000;
+
+    public int StickieTextMaxLength { get; init; } = 500;
+    public int ObjectDataMaxEntries { get; init; } = 32;
+    public int ObjectDataMaxKeyLength { get; init; } = 64;
+    public int ObjectDataMaxValueLength { get; init; } = 512;
     public int ChatLookAtRange { get; init; } = 6;
     public int ChatFloodMaxMessagesExtraSensitivity { get; init; } = 4;
     public int ChatFloodMaxMessagesNormalSensitivity { get; init; } = 6;

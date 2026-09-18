@@ -282,6 +282,32 @@ public sealed partial class RoomGrain
         }
     }
 
+    public async Task<bool> LookToAsync(
+        ActionContext ctx,
+        int targetX,
+        int targetY,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return await AvatarModule.LookToAsync(ctx, targetX, targetY, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to turn avatar for player {PlayerId} in room {RoomId} towards ({TargetX}, {TargetY})",
+                ctx.PlayerId,
+                _state.RoomId,
+                targetX,
+                targetY
+            );
+
+            return false;
+        }
+    }
+
     public Task<ImmutableArray<RoomAvatarSnapshot>> GetAllAvatarSnapshotsAsync(
         CancellationToken ct
     ) => AvatarModule.GetAllAvatarSnapshotsAsync(ct);

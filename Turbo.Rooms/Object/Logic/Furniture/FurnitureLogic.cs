@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -77,6 +78,49 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
     {
         StuffData.SetState(state.ToString());
 
+        PersistStuffData(refresh);
+
+        await OnStateChangedAsync(CancellationToken.None);
+    }
+
+    public virtual async Task SetLegacyDataAsync(string data, bool refresh = true)
+    {
+        StuffData.SetState(data);
+
+        PersistStuffData(refresh);
+
+        await OnStateChangedAsync(CancellationToken.None);
+    }
+
+    public virtual async Task<bool> SetMapDataAsync(
+        IReadOnlyDictionary<string, string> entries,
+        bool refresh = true
+    )
+    {
+        if (StuffData is not IMapStuffData mapData)
+            return false;
+
+        foreach (var (key, value) in entries)
+            mapData.Data[key] = value;
+
+        mapData.MarkDirty();
+
+        PersistStuffData(refresh);
+
+        await OnStateChangedAsync(CancellationToken.None);
+
+        return true;
+    }
+
+    public virtual Task<bool> OnInteractAsync(
+        ActionContext ctx,
+        FurnitureInteractionType interaction,
+        CancellationToken ct
+    ) => Task.FromResult(false);
+
+    /// <summary>Writes the current stuff data into the item's extra data and, optionally, to the room.</summary>
+    protected void PersistStuffData(bool refresh)
+    {
         if (_stuffPersistanceType == StuffPersistanceType.Persistent)
             _ctx.RoomObject.ExtraData.UpdateSection(
                 ExtraDataSectionType.STUFF,
@@ -85,8 +129,6 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
 
         if (refresh)
             _ = _ctx.RefreshStuffDataAsync();
-
-        await OnStateChangedAsync(CancellationToken.None);
     }
 
     public override Task OnAttachAsync(CancellationToken ct) =>

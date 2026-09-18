@@ -72,6 +72,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public readonly RoomRollerSystem RollerSystem;
     public readonly RoomWiredSystem WiredSystem;
     public readonly RoomChatSystem ChatSystem;
+    public readonly RoomTimerSystem TimerSystem;
 
     public RoomId RoomId => _state.RoomId;
 
@@ -115,6 +116,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         RollerSystem = new(this);
         WiredSystem = new(this);
         ChatSystem = new(this);
+        TimerSystem = new(this);
 
         EventModule.Register(RollerSystem);
         EventModule.Register(WiredSystem);
@@ -165,6 +167,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             await AvatarTickSystem.ProcessAvatarsAsync(now, ct);
             await WiredSystem.ProcessWiredAsync(now, ct);
             await RollerSystem.ProcessRollersAsync(now, ct);
+            await TimerSystem.ProcessTimersAsync(now, ct);
             await FlushDirtyTilesAsync(ct);
             await FlushDirtyItemsAsync(ct);
         }

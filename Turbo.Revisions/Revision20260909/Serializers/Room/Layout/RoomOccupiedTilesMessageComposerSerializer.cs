@@ -11,6 +11,9 @@ internal class RoomOccupiedTilesMessageComposerSerializer(int header)
         RoomOccupiedTilesMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.Tiles.Length);
+
+        foreach (var tile in message.Tiles)
+            packet.WriteInteger(tile.X).WriteInteger(tile.Y);
     }
 }

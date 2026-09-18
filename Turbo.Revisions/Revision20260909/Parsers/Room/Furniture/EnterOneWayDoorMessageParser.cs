@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Room.Furniture;
 
 internal class EnterOneWayDoorMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new EnterOneWayDoorMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new EnterOneWayDoorMessage { ObjectId = packet.PopInt() };
 }

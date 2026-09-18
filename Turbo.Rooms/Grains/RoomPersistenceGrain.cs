@@ -32,6 +32,7 @@ internal sealed class RoomPersistenceGrain(
 
     private Dictionary<long, RoomItemSnapshot> _dirtyItems = [];
     private readonly HashSet<RoomObjectId> _removedItemIds = [];
+    private readonly HashSet<RoomObjectId> _deletedItemIds = [];
     private readonly Queue<RoomChatlogSnapshot> _pendingChatlogs = new();
     private IDisposable? _timer;
     private IDisposable? _chatlogTimer;
@@ -135,6 +136,35 @@ internal sealed class RoomPersistenceGrain(
         }
     }
 
+    private async Task FlushDeletedItemsAsync(CancellationToken ct)
+    {
+        if (_deletedItemIds.Count == 0)
+            return;
+
+        var ids = _deletedItemIds.Select(x => x.Value).ToList();
+
+        _deletedItemIds.Clear();
+
+        try
+        {
+            using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+            await dbCtx.Furnitures.Where(x => ids.Contains(x.Id)).ExecuteDeleteAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to delete {Count} furniture items for room {RoomId}",
+                ids.Count,
+                this.GetRoomId()
+            );
+
+            foreach (var id in ids)
+                _deletedItemIds.Add(id);
+        }
+    }
+
     public Task EnqueueDirtyItemAsync(
         RoomId roomId,
         RoomItemSnapshot snapshot,
@@ -146,6 +176,16 @@ internal sealed class RoomPersistenceGrain(
 
         if (remove)
             _removedItemIds.Add(snapshot.ObjectId);
+
+        return Task.CompletedTask;
+    }
+
+    public Task EnqueueDeletedItemAsync(RoomId roomId, RoomObjectId itemId, CancellationToken ct)
+    {
+        // A pending update for the same item would only resurrect the row.
+        _dirtyItems.Remove(itemId);
+        _removedItemIds.Remove(itemId);
+        _deletedItemIds.Add(itemId);
 
         return Task.CompletedTask;
     }
@@ -164,6 +204,8 @@ internal sealed class RoomPersistenceGrain(
 
     private async Task FlushDirtyItemsAsync(CancellationToken ct)
     {
+        await FlushDeletedItemsAsync(ct);
+
         if (_dirtyItems.Count == 0)
             return;
 

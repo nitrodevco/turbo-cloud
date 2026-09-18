@@ -229,6 +229,22 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
 - If a grain uses `[PersistentState]`, state is hydrated from the configured store (not DB) on activation. Direct DB edits will be overwritten by stale store data.
 - Admin tools and external systems must call grain methods, not issue raw SQL/DB updates, for data that grains own.
 
+## Room object logic rules
+- Behaviour lives in a `[RoomObjectLogic("<type>")]` class under `Turbo.Rooms/Object/Logic/`; the
+  type name must equal the `furniture_definitions.logic` value, or the provider falls back to
+  `default_floor` and logs a warning. Never special-case a furniture type in a handler or module.
+- A client action with its own packet (dice, wheel, one-way door) is a `FurnitureInteractionType`
+  routed through `IRoomGrain.InteractWithItemAsync`; the logic answers it in `OnInteractAsync`.
+  A plain double-click stays on `OnUseAsync`. Do not add a grain method per furniture type.
+- Delayed item work (a dice landing, a door closing) is scheduled on `RoomTimerSystem`, keyed by
+  the item, and cancelled in `OnPickupAsync`. Never `Task.Delay` inside a grain turn.
+- Protocol state values the client interprets (`DiceStates`, `WheelStates`, `StickieColors`)
+  live as static classes under `Turbo.Primitives/Furniture/`; durations and limits are
+  `RoomConfig` tunables.
+- Validate client data in the action module before the logic sees it: colour must be in the
+  palette, text within `StickieTextMaxLength`, map entries within the `ObjectData*` limits.
+  Reject with a `LogWarning` naming the item, room and player.
+
 ## Profile and grain flow constraints
 - Keep packet handlers orchestration-only:
   - validate input

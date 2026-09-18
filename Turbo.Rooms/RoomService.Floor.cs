@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
@@ -52,7 +53,16 @@ internal sealed partial class RoomService
                 return;
             }
         }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to place floor item {ItemId} in room {RoomId} for player {PlayerId}",
+                itemId,
+                ctx.RoomId,
+                ctx.PlayerId
+            );
+        }
     }
 
     public async Task MoveFloorItemInRoomAsync(

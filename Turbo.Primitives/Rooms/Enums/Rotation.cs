@@ -56,6 +56,8 @@ public static class RotationExtensions
 
     public static Rotation ToSitRotation(this Rotation rot) => (int)rot % 2 > 0 ? rot - 1 : rot;
 
+    public static Rotation Opposite(this Rotation rot) => rot.Rotate(4);
+
     public static Rotation Rotate(this Rotation rot, int delta) =>
         (Rotation)(((int)rot + delta + 8) % 8);
 }

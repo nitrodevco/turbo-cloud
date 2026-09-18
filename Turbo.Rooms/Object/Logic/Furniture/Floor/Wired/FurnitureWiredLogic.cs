@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Enums;
@@ -380,7 +381,14 @@ public abstract class FurnitureWiredLogic(
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex);
+            _roomGrain._logger.LogError(
+                ex,
+                "Failed to apply a wired update to item {ItemId} in room {RoomId} for player {PlayerId}",
+                _ctx.ObjectId,
+                _ctx.RoomId,
+                ctx.PlayerId
+            );
+
             return false;
         }
     }

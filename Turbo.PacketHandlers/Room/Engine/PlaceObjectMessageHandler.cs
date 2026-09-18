@@ -22,40 +22,36 @@ public class PlaceObjectMessageHandler(IRoomService roomService)
         if (ctx.PlayerId <= 0)
             return;
 
-        var position = message.Data.Split(' ');
+        var separator = message.Data.IndexOf(' ');
 
-        if (position.Length != 4)
+        if (separator <= 0 || !int.TryParse(message.Data[..separator], out var id))
             return;
 
-        var itemId = int.TryParse(position[0], out var id) ? Math.Abs(id) : -1;
-        var location = string.Join(' ', new[] { position[1], position[2], position[3] });
+        var itemId = Math.Abs(id);
+        var location = message.Data[(separator + 1)..];
 
-        position = location.Split(' ');
-
-        if (location.StartsWith(':'))
+        if (WallPosition.TryParse(location, out var wall))
         {
-            var coords = position[0][3..].Split(',');
-            var loc = position[1][2..].Split(',');
-            var rot = position[2].Equals("l") ? Rotation.South : Rotation.West;
-
-            if (coords.Length != 2 || loc.Length != 2)
-                return;
-
             await _roomService
                 .PlaceWallItemInRoomAsync(
                     ctx.AsActionContext(),
                     itemId,
-                    int.TryParse(coords[0], out var x) ? x : 0,
-                    int.TryParse(coords[1], out var y) ? y : 0,
-                    double.TryParse(loc[1], out var z) ? z : 0,
-                    int.TryParse(loc[0], out var wallOffset) ? wallOffset : 0,
-                    rot,
+                    wall.X,
+                    wall.Y,
+                    wall.Z,
+                    wall.WallOffset,
+                    wall.Rotation,
                     ct
                 )
                 .ConfigureAwait(false);
         }
         else
         {
+            var position = location.Split(' ');
+
+            if (position.Length != 3)
+                return;
+
             await _roomService
                 .PlaceFloorItemInRoomAsync(
                     ctx.AsActionContext(),

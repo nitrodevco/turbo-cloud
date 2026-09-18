@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Room.Avatar;
 
 internal class LookToMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new LookToMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new LookToMessage { X = packet.PopInt(), Y = packet.PopInt() };
 }

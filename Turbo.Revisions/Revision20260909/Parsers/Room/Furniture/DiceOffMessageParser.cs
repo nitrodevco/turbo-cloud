@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Room.Furniture;
 
 internal class DiceOffMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new DiceOffMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new DiceOffMessage { ObjectId = packet.PopInt() };
 }

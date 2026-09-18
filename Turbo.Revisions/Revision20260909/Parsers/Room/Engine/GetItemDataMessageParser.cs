@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Room.Engine;
 
 internal class GetItemDataMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetItemDataMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetItemDataMessage { ObjectId = packet.PopInt() };
 }
