@@ -1,5 +1,9 @@
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Messages.Incoming.Room.Furniture;
 
-public record RoomDimmerGetPresetsMessage : IMessageEvent { }
+public record RoomDimmerGetPresetsMessage : IMessageEvent
+{
+    public required RoomObjectId ObjectId { get; init; }
+}

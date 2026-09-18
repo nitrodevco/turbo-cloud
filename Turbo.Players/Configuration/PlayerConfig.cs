@@ -12,6 +12,13 @@ public class PlayerConfig
     public required int MessengerMaxIgnore { get; init; } = 100;
     public required int MaxSessionMessagesPerConversation { get; init; } = 20;
     public required int WardrobeMaxSlots { get; init; } = 10;
+
+    /// <summary>Respects a player may give per day; resets at UTC midnight.</summary>
+    public required int MaxRespectPerDay { get; init; } = 3;
+    public required int MaxPetRespectPerDay { get; init; } = 3;
+
+    /// <summary>Times per day a player may refill their respects (0 disables the option).</summary>
+    public required int RespectReplenishesPerDay { get; init; } = 0;
     public required int SettingsFlushMs { get; init; } = 5000;
 
     /// <summary>How often delivered-message flags are written back to the database.</summary>

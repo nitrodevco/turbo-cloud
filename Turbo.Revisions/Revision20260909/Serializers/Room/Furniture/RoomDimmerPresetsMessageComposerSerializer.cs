@@ -11,6 +11,15 @@ internal class RoomDimmerPresetsMessageComposerSerializer(int header)
         RoomDimmerPresetsMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.Presets.Length).WriteInteger(message.SelectedPresetId);
+
+        foreach (var preset in message.Presets)
+            packet
+                .WriteInteger(preset.Id)
+                .WriteInteger(preset.Type)
+                .WriteString(preset.Color)
+                .WriteInteger(preset.Brightness);
+
+        packet.WriteBoolean(message.IsOn).WriteInteger(message.ItemId);
     }
 }

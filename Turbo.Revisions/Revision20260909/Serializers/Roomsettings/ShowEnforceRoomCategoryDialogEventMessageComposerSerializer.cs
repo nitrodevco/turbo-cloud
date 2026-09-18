@@ -11,6 +11,6 @@ internal class ShowEnforceRoomCategoryDialogEventMessageComposerSerializer(int h
         ShowEnforceRoomCategoryDialogEventMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.SelectionType);
     }
 }

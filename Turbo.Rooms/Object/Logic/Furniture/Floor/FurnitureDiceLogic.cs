@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 using Turbo.Primitives.Rooms.Enums;
@@ -29,7 +30,7 @@ public class FurnitureDiceLogic(IStuffDataFactory stuffDataFactory, IRoomFloorIt
 
     public override async Task<bool> OnInteractAsync(
         ActionContext ctx,
-        FurnitureInteractionType interaction,
+        FurnitureInteraction interaction,
         CancellationToken ct
     )
     {
@@ -38,7 +39,7 @@ public class FurnitureDiceLogic(IStuffDataFactory stuffDataFactory, IRoomFloorIt
 
         switch (interaction)
         {
-            case FurnitureInteractionType.ThrowDice:
+            case ThrowDiceInteraction:
                 if (GetState() == DiceStates.ROLLING)
                     return false;
 
@@ -52,11 +53,10 @@ public class FurnitureDiceLogic(IStuffDataFactory stuffDataFactory, IRoomFloorIt
 
                 return true;
 
-            case FurnitureInteractionType.DiceOff:
+            case DiceOffInteraction:
                 _roomGrain.TimerSystem.Cancel(_ctx.ObjectId);
 
                 await SetStateAsync(DiceStates.OFF);
-                await SendValueAsync(DiceStates.OFF);
 
                 return true;
 
@@ -77,11 +77,5 @@ public class FurnitureDiceLogic(IStuffDataFactory stuffDataFactory, IRoomFloorIt
         var value = Random.Shared.Next(DiceStates.MIN_VALUE, DiceStates.MAX_VALUE + 1);
 
         await SetStateAsync(value);
-        await SendValueAsync(value);
     }
-
-    private Task SendValueAsync(int value) =>
-        _ctx.SendComposerToRoomAsync(
-            new DiceValueMessageComposer { FurniId = _ctx.ObjectId, Value = value }
-        );
 }

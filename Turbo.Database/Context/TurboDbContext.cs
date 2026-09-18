@@ -88,6 +88,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<RoomRatingEntity> RoomRatings { get; init; }
 
     public DbSet<RoomEventEntity> RoomEvents { get; init; }
+    public DbSet<RoomFilterWordEntity> RoomFilterWords { get; init; }
 
     protected override void OnModelCreating(ModelBuilder mb)
     {

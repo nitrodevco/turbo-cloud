@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Room.Furniture;
 
 internal class SetMannequinNameMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new SetMannequinNameMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new SetMannequinNameMessage { ObjectId = packet.PopInt(), Name = packet.PopString() };
 }

@@ -36,4 +36,16 @@ public sealed record PlayerSummarySnapshot
 
     [Id(9)]
     public required DateTime LastUpdated { get; init; }
+
+    [Id(10)]
+    public required int RespectPoints { get; init; }
+
+    [Id(11)]
+    public required int RespectsLeft { get; init; }
+
+    [Id(12)]
+    public required int PetRespectsLeft { get; init; }
+
+    [Id(13)]
+    public required int RespectReplenishesLeft { get; init; }
 }

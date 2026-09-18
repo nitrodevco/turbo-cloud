@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 using Turbo.Primitives.Rooms.Enums;
@@ -31,11 +32,11 @@ public class FurnitureOneWayDoorLogic(IStuffDataFactory stuffDataFactory, IRoomF
 
     public override async Task<bool> OnInteractAsync(
         ActionContext ctx,
-        FurnitureInteractionType interaction,
+        FurnitureInteraction interaction,
         CancellationToken ct
     )
     {
-        if (interaction != FurnitureInteractionType.EnterOneWayDoor)
+        if (interaction is not EnterOneWayDoorInteraction)
             return false;
 
         if (GetState() == OPEN_STATE)

@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
@@ -39,7 +39,7 @@ public partial interface IRoomGrain
     public Task<bool> InteractWithItemAsync(
         ActionContext ctx,
         RoomObjectId itemId,
-        FurnitureInteractionType interaction,
+        FurnitureInteraction interaction,
         CancellationToken ct
     );
 

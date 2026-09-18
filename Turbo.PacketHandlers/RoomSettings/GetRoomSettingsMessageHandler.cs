@@ -10,8 +10,8 @@ namespace Turbo.PacketHandlers.RoomSettings;
 
 /// <summary>
 /// Sent when the owner opens the room settings window. The client only shows the window once the
-/// settings data for the requested room id arrives, so nothing is sent when the room grain
-/// refuses the request.
+/// settings data for the requested room id arrives; a refused or unknown room gets NoSuchFlat so
+/// the client stops waiting.
 /// </summary>
 public class GetRoomSettingsMessageHandler(IGrainFactory grainFactory)
     : IMessageHandler<GetRoomSettingsMessage>
@@ -33,7 +33,15 @@ public class GetRoomSettingsMessageHandler(IGrainFactory grainFactory)
             .ConfigureAwait(false);
 
         if (settings is null)
+        {
+            await ctx.SendComposerAsync(
+                    new NoSuchFlatEventMessageComposer { RoomId = message.RoomId },
+                    ct
+                )
+                .ConfigureAwait(false);
+
             return;
+        }
 
         var room = settings.Room;
 

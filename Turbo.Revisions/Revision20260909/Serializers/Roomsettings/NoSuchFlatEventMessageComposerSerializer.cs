@@ -8,6 +8,6 @@ internal class NoSuchFlatEventMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, NoSuchFlatEventMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.RoomId);
     }
 }

@@ -11,6 +11,6 @@ internal class FriendFurniOtherLockConfirmedMessageComposerSerializer(int header
         FriendFurniOtherLockConfirmedMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.ItemId);
     }
 }

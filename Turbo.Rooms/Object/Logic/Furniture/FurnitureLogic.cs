@@ -2,10 +2,15 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.StuffData;
+using Turbo.Primitives.Networking;
+using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object;
@@ -114,9 +119,70 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
 
     public virtual Task<bool> OnInteractAsync(
         ActionContext ctx,
-        FurnitureInteractionType interaction,
+        FurnitureInteraction interaction,
         CancellationToken ct
     ) => Task.FromResult(false);
+
+    /// <summary>Whether the acting player may edit furniture here (room rights).</summary>
+    protected Task<bool> HasRightsAsync(ActionContext ctx) =>
+        _roomGrain.SecurityModule.CanManipulateFurniAsync(ctx);
+
+    /// <summary>Whether the acting player owns this item or the room.</summary>
+    protected async Task<bool> IsOwnerAsync(ActionContext ctx) =>
+        _ctx.RoomObject.OwnerId == ctx.PlayerId
+        || await _roomGrain.SecurityModule.GetIsRoomOwnerAsync(ctx);
+
+    protected Task SendToPlayerAsync(PlayerId playerId, IComposer composer, CancellationToken ct) =>
+        _roomGrain._grainFactory.GetPlayerPresenceGrain(playerId).SendComposerAsync(composer, ct);
+
+    /// <summary>Logs a refused interaction with the ids that identify it, and yields false.</summary>
+    protected bool Reject(ActionContext ctx, FurnitureInteraction interaction, string reason)
+    {
+        _roomGrain._logger.LogWarning(
+            "Rejected {Interaction} on item {ItemId} in room {RoomId} by player {PlayerId}: {Reason}",
+            interaction.GetType().Name,
+            _ctx.ObjectId,
+            _ctx.RoomId,
+            ctx.PlayerId,
+            reason
+        );
+
+        return false;
+    }
+
+    /// <summary>Replaces int-array stuff data wholesale. False when this item's data is not numeric.</summary>
+    protected async Task<bool> SetNumberDataAsync(IReadOnlyList<int> values, bool refresh = true)
+    {
+        if (StuffData is not INumberStuffData numbers)
+            return false;
+
+        numbers.Data.Clear();
+        numbers.Data.AddRange(values);
+        numbers.MarkDirty();
+
+        PersistStuffData(refresh);
+
+        await OnStateChangedAsync(CancellationToken.None);
+
+        return true;
+    }
+
+    /// <summary>Replaces string-array stuff data wholesale. False when this item's data is not a string array.</summary>
+    protected async Task<bool> SetStringDataAsync(IReadOnlyList<string> values, bool refresh = true)
+    {
+        if (StuffData is not IStringStuffData strings)
+            return false;
+
+        strings.Data.Clear();
+        strings.Data.AddRange(values);
+        strings.MarkDirty();
+
+        PersistStuffData(refresh);
+
+        await OnStateChangedAsync(CancellationToken.None);
+
+        return true;
+    }
 
     /// <summary>Writes the current stuff data into the item's extra data and, optionally, to the room.</summary>
     protected void PersistStuffData(bool refresh)

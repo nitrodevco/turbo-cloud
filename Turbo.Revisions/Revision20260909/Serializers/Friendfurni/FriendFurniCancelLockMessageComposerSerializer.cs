@@ -11,6 +11,6 @@ internal class FriendFurniCancelLockMessageComposerSerializer(int header)
         FriendFurniCancelLockMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.ItemId);
     }
 }

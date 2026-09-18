@@ -4,8 +4,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Logging;
 using Turbo.Primitives;
+using Turbo.Primitives.Messages.Outgoing.Room.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
@@ -47,6 +49,8 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
                     await ProcessAvatarAsync(avatar, now, ct);
                 }
 
+                CheckIdle(avatar, now);
+
                 if (!avatar.IsDirty)
                     continue;
 
@@ -67,6 +71,35 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
         _ = _roomGrain.SendComposerToRoomAsync(
             new UserUpdateMessageComposer { Avatars = [.. dirtySnapshots] },
             ct
+        );
+    }
+
+    /// <summary>
+    /// Puts an avatar to sleep once it has been still for the room's idle timeout. Waking is
+    /// driven by the avatar's next action through <see cref="RoomAvatarModule.TouchAvatar"/>.
+    /// </summary>
+    private void CheckIdle(IRoomAvatar avatar, long now)
+    {
+        var room = _roomGrain._state.RoomSnapshot;
+
+        if (avatar.IsIdle || !room.IdleSleepEnabled || avatar.AvatarType != RoomObjectType.Player)
+            return;
+
+        if (avatar.LastActiveAtMs == 0)
+        {
+            avatar.Touch(now);
+
+            return;
+        }
+
+        if (now - avatar.LastActiveAtMs < room.IdleSleepTimeoutSeconds * 1000L)
+            return;
+
+        avatar.SetIdle(true);
+
+        _ = _roomGrain.SendComposerToRoomAsync(
+            new SleepMessageComposer { UserId = avatar.ObjectId, IsSleeping = true },
+            CancellationToken.None
         );
     }
 

@@ -36,6 +36,12 @@ public sealed class RoomLiveState
     public Dictionary<string, PlayerId> DoorbellRingersByName { get; } =
         new(StringComparer.OrdinalIgnoreCase);
     public bool IsRoomMuted { get; internal set; } = false;
+
+    /// <summary>Set once deletion starts: no new entries, and hydration must not resurrect it.</summary>
+    public bool IsDeleting { get; internal set; } = false;
+    public HashSet<string> FilterWords { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<RoomObjectId, FriendFurniLockRequest> PendingFriendFurniLocks { get; } = [];
+    public bool IsFilterLoaded { get; internal set; } = false;
     public HashSet<PlayerId> PlayerIdsWhoRated { get; } = [];
 
     /// <summary>Navigator-visible data changed since the room became active.</summary>

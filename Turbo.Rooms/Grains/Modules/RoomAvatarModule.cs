@@ -9,6 +9,8 @@ using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Messages.Outgoing.Users;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
@@ -370,6 +372,106 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         avatar.MarkDirty();
 
         return Task.FromResult(true);
+    }
+
+    /// <summary>
+    /// Marks the avatar active. An idle avatar wakes up, which the room sees as a sleep update.
+    /// </summary>
+    public void TouchAvatar(PlayerId playerId, long nowMs)
+    {
+        if (
+            !_roomGrain._state.AvatarsByPlayerId.TryGetValue(playerId, out var objectId)
+            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+        )
+            return;
+
+        avatar.Touch(nowMs);
+
+        if (!avatar.IsIdle)
+            return;
+
+        avatar.SetIdle(false);
+
+        _ = _roomGrain.SendComposerToRoomAsync(
+            new SleepMessageComposer { UserId = avatar.ObjectId, IsSleeping = false },
+            CancellationToken.None
+        );
+    }
+
+    public Task SetHandItemAsync(IRoomAvatar avatar, int handItemId, CancellationToken ct)
+    {
+        if (!avatar.SetHandItem(handItemId))
+            return Task.CompletedTask;
+
+        if (handItemId > 0)
+            _roomGrain.TimerSystem.Schedule(
+                avatar.ObjectId,
+                _roomGrain._roomConfig.HandItemExpireMs,
+                _ => SetHandItemAsync(avatar, 0, CancellationToken.None)
+            );
+        else
+            _roomGrain.TimerSystem.Cancel(avatar.ObjectId);
+
+        return _roomGrain.SendComposerToRoomAsync(
+            new CarryObjectMessageComposer { UserId = avatar.ObjectId, ItemType = handItemId },
+            ct
+        );
+    }
+
+    public async Task<bool> PassHandItemAsync(
+        ActionContext ctx,
+        PlayerId targetId,
+        CancellationToken ct
+    )
+    {
+        if (
+            targetId <= 0
+            || targetId == ctx.PlayerId
+            || !_roomGrain._state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var giverId)
+            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(giverId, out var giver)
+            || !_roomGrain._state.AvatarsByPlayerId.TryGetValue(targetId, out var receiverId)
+            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(receiverId, out var receiver)
+        )
+            return false;
+
+        var handItemId = giver.HandItemId;
+
+        // Passing needs the two avatars side by side, as the client only offers it then.
+        if (
+            handItemId <= 0
+            || Math.Max(Math.Abs(giver.X - receiver.X), Math.Abs(giver.Y - receiver.Y)) > 1
+        )
+            return false;
+
+        await SetHandItemAsync(giver, 0, ct);
+        await SetHandItemAsync(receiver, handItemId, ct);
+
+        await _roomGrain
+            ._grainFactory.GetPlayerPresenceGrain(targetId)
+            .SendComposerAsync(
+                new HandItemReceivedMessageComposer
+                {
+                    GiverPlayerId = ctx.PlayerId,
+                    HandItemType = handItemId,
+                },
+                ct
+            );
+
+        return true;
+    }
+
+    public async Task<bool> DropHandItemAsync(ActionContext ctx, CancellationToken ct)
+    {
+        if (
+            !_roomGrain._state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
+            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+            || avatar.HandItemId <= 0
+        )
+            return false;
+
+        await SetHandItemAsync(avatar, 0, ct);
+
+        return true;
     }
 
     public Task<bool> SetAvatarPostureAsync(

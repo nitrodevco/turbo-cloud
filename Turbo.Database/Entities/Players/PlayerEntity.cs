@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
@@ -41,6 +42,26 @@ public class PlayerEntity : TurboEntity
     [DefaultValue(PlayerPerkFlags.None)]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public required PlayerPerkFlags PlayerPerks { get; set; }
+
+    [Column("respect_points")]
+    [DefaultValue(0)]
+    public int RespectPoints { get; set; }
+
+    [Column("respects_left")]
+    [DefaultValue(0)]
+    public int RespectsLeft { get; set; }
+
+    [Column("pet_respects_left")]
+    [DefaultValue(0)]
+    public int PetRespectsLeft { get; set; }
+
+    [Column("respect_replenishes_left")]
+    [DefaultValue(0)]
+    public int RespectReplenishesLeft { get; set; }
+
+    /// <summary>UTC date the daily respect counters were last reset for.</summary>
+    [Column("respect_reset_date")]
+    public DateTime? RespectResetDate { get; set; }
 
     [InverseProperty("PlayerEntity")]
     public List<PlayerBadgeEntity>? PlayerBadges { get; set; }

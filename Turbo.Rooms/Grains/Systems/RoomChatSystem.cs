@@ -43,7 +43,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
         if (!TryGetPlayerAvatar(ctx.PlayerId, out var speaker))
             return false;
 
-        text = NormalizeText(text);
+        text = _roomGrain.ModerationModule.ApplyFilter(NormalizeText(text));
 
         if (text.Length == 0)
             return false;

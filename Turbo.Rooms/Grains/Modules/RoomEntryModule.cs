@@ -33,6 +33,9 @@ public sealed class RoomEntryModule(
         bool bypassDoor
     )
     {
+        if (_roomGrain._state.IsDeleting)
+            return RoomEntryAccessType.Closed;
+
         var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(playerId);
         var snapshot = _roomGrain._state.RoomSnapshot;
 

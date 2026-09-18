@@ -1,15 +1,19 @@
 using System;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Roomsettings;
 using Turbo.Primitives.Navigator.Enums;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -166,7 +170,293 @@ public sealed class RoomModerationModule(
         _roomGrain._state.IsMutesLoaded = true;
     }
 
-    private async Task<bool> CanMutePlayerAsync(ActionContext ctx, PlayerId targetId)
+    public async Task<bool> KickPlayerAsync(
+        ActionContext ctx,
+        PlayerId playerId,
+        CancellationToken ct
+    )
+    {
+        if (
+            !await CanModerateAsync(
+                ctx,
+                playerId,
+                _roomGrain._state.RoomSnapshot.ModSettings.WhoCanKick
+            )
+        )
+            return false;
+
+        if (!_roomGrain._state.AvatarsByPlayerId.ContainsKey(playerId))
+            return false;
+
+        await _roomGrain.AvatarModule.RemoveAvatarFromPlayerAsync(ctx, playerId, ct);
+
+        return true;
+    }
+
+    public async Task<bool> BanPlayerAsync(
+        ActionContext ctx,
+        PlayerId playerId,
+        RoomBanDurationType duration,
+        CancellationToken ct
+    )
+    {
+        if (
+            !await CanModerateAsync(
+                ctx,
+                playerId,
+                _roomGrain._state.RoomSnapshot.ModSettings.WhoCanBan
+            )
+        )
+            return false;
+
+        var config = _roomGrain._roomConfig;
+        var expiresAt = duration switch
+        {
+            RoomBanDurationType.Hour => DateTime.UtcNow.AddMinutes(config.BanHourMinutes),
+            RoomBanDurationType.Day => DateTime.UtcNow.AddMinutes(config.BanDayMinutes),
+            RoomBanDurationType.Permanent => DateTime.UtcNow.AddDays(config.BanPermanentDays),
+            _ => throw new ArgumentOutOfRangeException(nameof(duration), duration, null),
+        };
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        var entity = await dbCtx.RoomBans.FirstOrDefaultAsync(
+            x => x.RoomEntityId == _roomGrain.RoomId.Value && x.PlayerEntityId == playerId.Value,
+            ct
+        );
+
+        if (entity is null)
+        {
+            dbCtx.RoomBans.Add(
+                new RoomBanEntity
+                {
+                    RoomEntityId = _roomGrain.RoomId.Value,
+                    PlayerEntityId = playerId.Value,
+                    DateExpires = expiresAt,
+                    RoomEntity = null!,
+                    PlayerEntity = null!,
+                }
+            );
+        }
+        else
+        {
+            entity.DateExpires = expiresAt;
+        }
+
+        await dbCtx.SaveChangesAsync(ct);
+
+        _roomGrain._state.BannedUntilByPlayerId[playerId] = expiresAt;
+
+        if (_roomGrain._state.AvatarsByPlayerId.ContainsKey(playerId))
+            await _roomGrain.AvatarModule.RemoveAvatarFromPlayerAsync(ctx, playerId, ct);
+
+        return true;
+    }
+
+    public async Task<bool> UnbanPlayerAsync(
+        ActionContext ctx,
+        PlayerId playerId,
+        CancellationToken ct
+    )
+    {
+        if (playerId <= 0 || !await CanManageBansAsync(ctx))
+            return false;
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        await dbCtx
+            .RoomBans.Where(x =>
+                x.RoomEntityId == _roomGrain.RoomId.Value && x.PlayerEntityId == playerId.Value
+            )
+            .ExecuteDeleteAsync(ct);
+
+        return _roomGrain._state.BannedUntilByPlayerId.Remove(playerId);
+    }
+
+    public async Task<ImmutableArray<RoomBannedPlayerSnapshot>?> GetBannedPlayersAsync(
+        ActionContext ctx,
+        CancellationToken ct
+    )
+    {
+        if (!await CanManageBansAsync(ctx))
+            return null;
+
+        var now = DateTime.UtcNow;
+        var bannedIds = _roomGrain
+            ._state.BannedUntilByPlayerId.Where(x => x.Value > now)
+            .Select(x => x.Key)
+            .ToList();
+
+        if (bannedIds.Count == 0)
+            return [];
+
+        var names = await _roomGrain
+            ._grainFactory.GetPlayerDirectoryGrain()
+            .GetPlayerNamesAsync(bannedIds, ct);
+
+        return
+        [
+            .. bannedIds.Select(id => new RoomBannedPlayerSnapshot
+            {
+                PlayerId = id,
+                Name = names.TryGetValue(id, out var name) ? name : string.Empty,
+            }),
+        ];
+    }
+
+    /// <summary>The ban list is part of room settings: owners, or whoever the ban setting allows.</summary>
+    private async Task<bool> CanManageBansAsync(ActionContext ctx)
+    {
+        var level = await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx);
+
+        if (level >= RoomControllerType.Owner)
+            return true;
+
+        return _roomGrain._state.RoomSnapshot.ModSettings.WhoCanBan switch
+        {
+            ModSettingType.All => true,
+            ModSettingType.Rights => level >= RoomControllerType.Rights,
+            ModSettingType.GroupRights => level >= RoomControllerType.GroupRights,
+            ModSettingType.RightsOrGroup => level >= RoomControllerType.Rights,
+            _ => false,
+        };
+    }
+
+    public async Task<ImmutableArray<string>?> GetRoomFilterWordsAsync(
+        ActionContext ctx,
+        CancellationToken ct
+    )
+    {
+        if (!await _roomGrain.SecurityModule.GetIsRoomOwnerAsync(ctx))
+            return null;
+
+        await EnsureFilterLoadedAsync(ct);
+
+        return [.. _roomGrain._state.FilterWords.Order(StringComparer.OrdinalIgnoreCase)];
+    }
+
+    public async Task<bool> UpdateRoomFilterAsync(
+        ActionContext ctx,
+        bool isAdding,
+        string word,
+        CancellationToken ct
+    )
+    {
+        if (!await _roomGrain.SecurityModule.GetIsRoomOwnerAsync(ctx))
+            return false;
+
+        await EnsureFilterLoadedAsync(ct);
+
+        var config = _roomGrain._roomConfig;
+        var words = _roomGrain._state.FilterWords;
+
+        word = word.Trim();
+
+        if (
+            word.Length == 0
+            || word.Length
+                > Math.Min(config.RoomFilterWordMaxLength, RoomFilterWordEntity.WORD_MAX_LENGTH)
+            || (isAdding && !words.Contains(word) && words.Count >= config.RoomFilterMaxWords)
+        )
+        {
+            _roomGrain._logger.LogWarning(
+                "Rejected room filter change in room {RoomId} by player {PlayerId}: adding={IsAdding}, {Length} characters, {Count} words",
+                _roomGrain.RoomId,
+                ctx.PlayerId,
+                isAdding,
+                word.Length,
+                words.Count
+            );
+
+            return false;
+        }
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        if (isAdding)
+        {
+            if (!words.Add(word))
+                return true;
+
+            dbCtx.RoomFilterWords.Add(
+                new RoomFilterWordEntity
+                {
+                    RoomEntityId = _roomGrain.RoomId.Value,
+                    Word = word,
+                    RoomEntity = null!,
+                }
+            );
+
+            await dbCtx.SaveChangesAsync(ct);
+        }
+        else
+        {
+            if (!words.Remove(word))
+                return true;
+
+            await dbCtx
+                .RoomFilterWords.Where(x =>
+                    x.RoomEntityId == _roomGrain.RoomId.Value && x.Word == word
+                )
+                .ExecuteDeleteAsync(ct);
+        }
+
+        return true;
+    }
+
+    /// <summary>Replaces each filtered word in the text; whole words only, case-insensitive.</summary>
+    public string ApplyFilter(string text)
+    {
+        var words = _roomGrain._state.FilterWords;
+
+        if (words.Count == 0 || text.Length == 0)
+            return text;
+
+        var replacement = _roomGrain._roomConfig.RoomFilterReplacement;
+        var parts = text.Split(' ');
+        var changed = false;
+
+        for (var i = 0; i < parts.Length; i++)
+        {
+            if (!words.Contains(parts[i]))
+                continue;
+
+            parts[i] = replacement;
+            changed = true;
+        }
+
+        return changed ? string.Join(' ', parts) : text;
+    }
+
+    internal async Task EnsureFilterLoadedAsync(CancellationToken ct)
+    {
+        if (_roomGrain._state.IsFilterLoaded)
+            return;
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        var words = await dbCtx
+            .RoomFilterWords.AsNoTracking()
+            .Where(x => x.RoomEntityId == _roomGrain.RoomId.Value)
+            .Select(x => x.Word)
+            .ToListAsync(ct);
+
+        _roomGrain._state.FilterWords.UnionWith(words);
+        _roomGrain._state.IsFilterLoaded = true;
+    }
+
+    private Task<bool> CanMutePlayerAsync(ActionContext ctx, PlayerId targetId) =>
+        CanModerateAsync(ctx, targetId, _roomGrain._state.RoomSnapshot.ModSettings.WhoCanMute);
+
+    /// <summary>
+    /// Whether the actor may apply a moderation action to the target under the room's setting
+    /// for it. Owners always may; nobody may act on someone of equal or higher rank.
+    /// </summary>
+    private async Task<bool> CanModerateAsync(
+        ActionContext ctx,
+        PlayerId targetId,
+        ModSettingType setting
+    )
     {
         if (targetId <= 0 || ctx.PlayerId == targetId)
             return false;
@@ -180,7 +470,7 @@ public sealed class RoomModerationModule(
         if (actorLevel >= RoomControllerType.Owner)
             return true;
 
-        return _roomGrain._state.RoomSnapshot.ModSettings.WhoCanMute switch
+        return setting switch
         {
             ModSettingType.All => true,
             ModSettingType.Rights => actorLevel >= RoomControllerType.Rights,

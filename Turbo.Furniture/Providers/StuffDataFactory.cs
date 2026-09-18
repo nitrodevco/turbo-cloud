@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Immutable;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Turbo.Furniture.StuffData;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
@@ -10,8 +11,10 @@ using Turbo.Primitives.Furniture.StuffData;
 
 namespace Turbo.Furniture.Providers;
 
-public sealed class StuffDataFactory : IStuffDataFactory
+public sealed class StuffDataFactory(ILogger<IStuffDataFactory> logger) : IStuffDataFactory
 {
+    private readonly ILogger<IStuffDataFactory> _logger = logger;
+
     public IStuffData CreateStuffData(StuffDataType type)
     {
         return type switch
@@ -46,16 +49,29 @@ public sealed class StuffDataFactory : IStuffDataFactory
 
         if (extraData.TryGetSection(ExtraDataSectionType.STUFF, out var stuffElement))
         {
-            return type switch
+            try
             {
-                StuffDataType.MapKey => stuffElement.Deserialize<MapStuffData>()!,
-                StuffDataType.StringKey => stuffElement.Deserialize<StringStuffData>()!,
-                StuffDataType.VoteKey => stuffElement.Deserialize<VoteStuffData>()!,
-                StuffDataType.EmptyKey => stuffElement.Deserialize<EmptyStuffData>()!,
-                StuffDataType.NumberKey => stuffElement.Deserialize<NumberStuffData>()!,
-                StuffDataType.HighscoreKey => stuffElement.Deserialize<HighscoreStuffData>()!,
-                StuffDataType.CrackableKey or _ => stuffElement.Deserialize<LegacyStuffData>()!,
-            };
+                return type switch
+                {
+                    StuffDataType.MapKey => stuffElement.Deserialize<MapStuffData>()!,
+                    StuffDataType.StringKey => stuffElement.Deserialize<StringStuffData>()!,
+                    StuffDataType.VoteKey => stuffElement.Deserialize<VoteStuffData>()!,
+                    StuffDataType.EmptyKey => stuffElement.Deserialize<EmptyStuffData>()!,
+                    StuffDataType.NumberKey => stuffElement.Deserialize<NumberStuffData>()!,
+                    StuffDataType.HighscoreKey => stuffElement.Deserialize<HighscoreStuffData>()!,
+                    StuffDataType.CrackableKey or _ => stuffElement.Deserialize<LegacyStuffData>()!,
+                };
+            }
+            catch (JsonException ex)
+            {
+                // Stored data written for another logic type (an item whose definition changed
+                // logic, say). Starting fresh keeps the item usable; the warning says why.
+                _logger.LogWarning(
+                    ex,
+                    "Stored stuff data does not match {StuffType}; starting the item with empty data",
+                    type
+                );
+            }
         }
 
         return CreateStuffData(type);

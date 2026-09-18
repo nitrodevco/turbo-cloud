@@ -6,5 +6,9 @@ namespace Turbo.Primitives.Messages.Outgoing.Moderation;
 [GenerateSerializer, Immutable]
 public sealed record ModeratorCautionEventMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required string Message { get; init; }
+
+    [Id(1)]
+    public required string Url { get; init; }
 }

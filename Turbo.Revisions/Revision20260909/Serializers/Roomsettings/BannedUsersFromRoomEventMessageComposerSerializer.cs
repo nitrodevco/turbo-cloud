@@ -11,6 +11,9 @@ internal class BannedUsersFromRoomEventMessageComposerSerializer(int header)
         BannedUsersFromRoomEventMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.RoomId).WriteInteger(message.Players.Length);
+
+        foreach (var player in message.Players)
+            packet.WriteInteger(player.PlayerId).WriteString(player.Name);
     }
 }

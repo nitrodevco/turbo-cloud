@@ -11,6 +11,6 @@ internal class FriendFurniStartConfirmationMessageComposerSerializer(int header)
         FriendFurniStartConfirmationMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.ItemId).WriteBoolean(message.IsOwner);
     }
 }

@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Room.Avatar;
 
 internal class PassCarryItemToPetMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new PassCarryItemToPetMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new PassCarryItemToPetMessage { PetId = packet.PopInt() };
 }

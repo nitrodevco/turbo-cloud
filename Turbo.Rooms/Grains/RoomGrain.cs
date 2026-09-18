@@ -244,6 +244,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         await SecurityModule.EnsureRightsLoadedAsync(ct);
         await ModerationModule.EnsureMutesLoadedAsync(ct);
         await EntryModule.EnsureBansLoadedAsync(ct);
+        await ModerationModule.EnsureFilterLoadedAsync(ct);
     }
 
     public Task<RoomSnapshot> GetSnapshotAsync(CancellationToken ct) =>

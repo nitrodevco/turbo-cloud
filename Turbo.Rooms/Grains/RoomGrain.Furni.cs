@@ -6,7 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
@@ -120,7 +120,7 @@ public sealed partial class RoomGrain
     public async Task<bool> InteractWithItemAsync(
         ActionContext ctx,
         RoomObjectId itemId,
-        FurnitureInteractionType interaction,
+        FurnitureInteraction interaction,
         CancellationToken ct
     )
     {

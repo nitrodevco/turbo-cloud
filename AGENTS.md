@@ -233,9 +233,19 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
 - Behaviour lives in a `[RoomObjectLogic("<type>")]` class under `Turbo.Rooms/Object/Logic/`; the
   type name must equal the `furniture_definitions.logic` value, or the provider falls back to
   `default_floor` and logs a warning. Never special-case a furniture type in a handler or module.
-- A client action with its own packet (dice, wheel, one-way door) is a `FurnitureInteractionType`
-  routed through `IRoomGrain.InteractWithItemAsync`; the logic answers it in `OnInteractAsync`.
-  A plain double-click stays on `OnUseAsync`. Do not add a grain method per furniture type.
+- A client action with its own packet (dice, dimmer preset, mannequin outfit, love-lock answer)
+  is a `FurnitureInteraction` record under `Turbo.Primitives/Furniture/Interactions/` carrying
+  that packet's payload, routed through the single `IRoomGrain.InteractWithItemAsync`; the logic
+  pattern-matches it in `OnInteractAsync` and checks its own permissions with `HasRightsAsync` /
+  `IsOwnerAsync`, refusing through `Reject(...)` so the refusal is logged with ids. A plain
+  double-click stays on `OnUseAsync`. Do not add a grain method per furniture type.
+- Replies that go to one player (a preset list, an unwrapped gift) are sent by the logic via
+  `SendToPlayerAsync`; room-wide changes go through `SetLegacyDataAsync` / `SetNumberDataAsync` /
+  `SetStringDataAsync` / `SetMapDataAsync`, which persist and refresh in one step.
+- The exact data shape each widget needs (dimmer `state,preset,effect,#RRGGBB,brightness`, toner
+  `[state,h,s,l]`, love lock string array, trophy tab-separated) comes from the Flash client's
+  logic classes; the constants next to each logic record the format, so verify against the client
+  before changing one.
 - Delayed item work (a dice landing, a door closing) is scheduled on `RoomTimerSystem`, keyed by
   the item, and cancelled in `OnPickupAsync`. Never `Task.Delay` inside a grain turn.
 - Protocol state values the client interprets (`DiceStates`, `WheelStates`, `StickieColors`)
@@ -244,6 +254,16 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
 - Validate client data in the action module before the logic sees it: colour must be in the
   palette, text within `StickieTextMaxLength`, map entries within the `ObjectData*` limits.
   Reject with a `LogWarning` naming the item, room and player.
+
+### Grains are not reentrant: side effects on other grains that call back go in the service
+- `RoomGrain` and `PlayerPresenceGrain` call each other. A room grain that awaits a presence grain
+  which in turn calls the room (for example `ClearActiveRoomAsync` → `RemoveAvatarFromPlayerAsync`)
+  deadlocks, because grains are single-threaded and non-reentrant.
+- So a room operation that must close a player's session (kick, ban, delete) is split: the grain
+  validates and removes the avatar and returns a result; `RoomService` then calls the presence
+  grain. Entry, doorbell and close already work this way; follow them.
+- Never mark a grain `[Reentrant]` to make such a chain compile. It moves the bug from a deadlock to
+  interleaved state.
 
 ## Profile and grain flow constraints
 - Keep packet handlers orchestration-only:

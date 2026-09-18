@@ -11,6 +11,6 @@ internal class ModeratorCautionEventMessageComposerSerializer(int header)
         ModeratorCautionEventMessageComposer message
     )
     {
-        //
+        packet.WriteString(message.Message).WriteString(message.Url);
     }
 }

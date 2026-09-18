@@ -1,9 +1,11 @@
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
+using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Object.Furniture.Floor;
 
@@ -19,12 +21,21 @@ public sealed class RoomFloorItem
     public override IComposer GetUpdateComposer() =>
         new ObjectUpdateMessageComposer { FloorItem = GetSnapshot() };
 
-    public override IComposer GetRefreshStuffDataComposer() =>
-        new ObjectDataUpdateMessageComposer
+    public override IComposer GetRefreshStuffDataComposer()
+    {
+        if (Logic is FurnitureDiceLogic)
+            return new DiceValueMessageComposer
+            {
+                FurniId = ObjectId,
+                Value = Logic.StuffData.GetState(),
+            };
+
+        return new ObjectDataUpdateMessageComposer
         {
             ObjectId = ObjectId,
             StuffData = Logic.StuffData.GetSnapshot(),
         };
+    }
 
     public override IComposer GetRemoveComposer(
         PlayerId pickerId,

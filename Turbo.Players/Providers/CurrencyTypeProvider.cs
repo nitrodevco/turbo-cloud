@@ -28,6 +28,9 @@ public sealed class CurrencyTypeProvider(
         return snapshot;
     }
 
+    public bool TryGetCurrencyTypeId(CurrencyKind kind, out int typeId) =>
+        _currencyIdsByKind.TryGetValue(kind, out typeId);
+
     public async Task ReloadAsync(CancellationToken ct)
     {
         _currenciesById.Clear();

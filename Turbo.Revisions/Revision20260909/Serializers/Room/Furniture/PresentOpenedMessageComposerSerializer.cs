@@ -12,7 +12,7 @@ internal class PresentOpenedMessageComposerSerializer(int header)
         packet
             .WriteString(message.ItemType)
             .WriteInteger(message.ClassId)
-            .WriteString(message.ProductCode.ToLegacyString())
+            .WriteString(message.ProductCode)
             .WriteInteger(message.PlacedItemId)
             .WriteString(message.PlacedItemType.ToLegacyString())
             .WriteBoolean(message.PlacedInRoom)

@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Database.Context;
+using Turbo.Database.Entities.Players;
 using Turbo.Players.Exceptions;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -74,7 +75,7 @@ internal sealed class PlayerWalletGrain(
                 {
                     var update = await ProcessDebitRequestAsync(dbCtx, request, ct);
 
-                    if (update.ChangedBy != request.Amount)
+                    if (update.ChangedBy != -request.Amount)
                         throw new WalletDebitFailedException(
                             request.CurrencyKind,
                             request.Amount,
@@ -127,6 +128,82 @@ internal sealed class PlayerWalletGrain(
         return WalletDebitResult.Success();
     }
 
+    public async Task<bool> CreditAsync(CurrencyKind kind, int amount, CancellationToken ct)
+    {
+        if (amount <= 0)
+            return false;
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        int newAmount;
+
+        if (_currenciesByKind.TryGetValue(kind, out var snapshot))
+        {
+            var entity = await dbCtx.PlayerCurrencies.FirstOrDefaultAsync(
+                x => x.Id == snapshot.Id && x.PlayerEntityId == PlayerId.Value,
+                ct
+            );
+
+            if (entity is null)
+                return false;
+
+            entity.Amount += amount;
+            newAmount = entity.Amount;
+
+            await dbCtx.SaveChangesAsync(ct);
+
+            _currenciesByKind[kind] = snapshot with { Amount = newAmount };
+        }
+        else
+        {
+            // First time this player holds the currency: the row is created on the fly.
+            if (!_currencyTypeProvider.TryGetCurrencyTypeId(kind, out var typeId))
+            {
+                _logger.LogWarning(
+                    "Cannot credit {Amount} of {CurrencyKind} to player {PlayerId}: no such currency type",
+                    amount,
+                    kind,
+                    PlayerId
+                );
+
+                return false;
+            }
+
+            var entity = new PlayerCurrencyEntity
+            {
+                PlayerEntityId = PlayerId.Value,
+                CurrencyTypeEntityId = typeId,
+                Amount = amount,
+            };
+
+            dbCtx.PlayerCurrencies.Add(entity);
+
+            await dbCtx.SaveChangesAsync(ct);
+
+            newAmount = amount;
+            _currenciesByKind[kind] = new WalletCurrencySnapshot
+            {
+                Id = entity.Id,
+                CurrencyKind = kind,
+                Amount = newAmount,
+            };
+        }
+
+        await _grainFactory
+            .GetPlayerPresenceGrain(PlayerId)
+            .OnCurrencyUpdateAsync(
+                new WalletCurrencyUpdateSnapshot
+                {
+                    CurrencyKind = kind,
+                    ChangedBy = amount,
+                    Amount = newAmount,
+                },
+                ct
+            );
+
+        return true;
+    }
+
     public Task RollbackUpdatesAsync(
         List<WalletCurrencyUpdateSnapshot> updates,
         CancellationToken ct
@@ -143,7 +220,7 @@ internal sealed class PlayerWalletGrain(
             {
                 _currenciesByKind[update.CurrencyKind] = snapshot with
                 {
-                    Amount = snapshot.Amount + update.ChangedBy,
+                    Amount = snapshot.Amount - update.ChangedBy,
                 };
             }
         }
@@ -231,8 +308,10 @@ internal sealed class PlayerWalletGrain(
 
                 if ((cost > 0) && (currentAmount >= cost))
                 {
-                    changedBy = cost;
-                    entity.Amount -= changedBy;
+                    // ChangedBy is the signed delta: a debit is negative, so the client shows
+                    // it as spent rather than received.
+                    changedBy = -cost;
+                    entity.Amount += changedBy;
                     currentAmount = entity.Amount;
                 }
             }

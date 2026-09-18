@@ -2,7 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
-using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Messages.Incoming.Room.Furniture;
 using Turbo.Primitives.Orleans;
 
@@ -30,7 +30,7 @@ public class EnterOneWayDoorMessageHandler(IGrainFactory grainFactory)
             .InteractWithItemAsync(
                 ctx.AsActionContext(),
                 message.ObjectId,
-                FurnitureInteractionType.EnterOneWayDoor,
+                new EnterOneWayDoorInteraction(),
                 ct
             )
             .ConfigureAwait(false);

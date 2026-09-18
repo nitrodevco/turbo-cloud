@@ -8,6 +8,6 @@ internal class HandItemReceivedMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, HandItemReceivedMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.GiverPlayerId).WriteInteger(message.HandItemType);
     }
 }

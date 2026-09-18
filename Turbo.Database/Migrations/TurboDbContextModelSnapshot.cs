@@ -1489,6 +1489,12 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("varchar(512)")
                         .HasColumnName("name");
 
+                    b.Property<int>("PetRespectsLeft")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("pet_respects_left");
+
                     b.Property<int>("PlayerPerks")
                         .HasColumnType("int")
                         .HasDefaultValue(0)
@@ -1498,6 +1504,28 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("status");
+
+                    b.Property<int>("RespectPoints")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("respect_points");
+
+                    b.Property<int>("RespectReplenishesLeft")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("respect_replenishes_left");
+
+                    b.Property<DateTime?>("RespectResetDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("respect_reset_date");
+
+                    b.Property<int>("RespectsLeft")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("respects_left");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAddOrUpdate()
@@ -2448,6 +2476,54 @@ namespace Turbo.Database.Migrations
                     b.ToTable("room_events");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Room.RoomFilterWordEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("deleted_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
+
+                    b.Property<int>("RoomEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("room_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime>("UpdatedAt"));
+
+                    b.Property<string>("Word")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("word");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoomEntityId", "Word")
+                        .IsUnique();
+
+                    b.ToTable("room_filter_words");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Room.RoomModelEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -3277,6 +3353,17 @@ namespace Turbo.Database.Migrations
                     b.Navigation("RoomEntity");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Room.RoomFilterWordEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Room.RoomEntity", "RoomEntity")
+                        .WithMany("RoomFilterWords")
+                        .HasForeignKey("RoomEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RoomEntity");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Room.RoomMuteEntity", b =>
                 {
                     b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
@@ -3422,6 +3509,8 @@ namespace Turbo.Database.Migrations
                     b.Navigation("RoomChats");
 
                     b.Navigation("RoomEvents");
+
+                    b.Navigation("RoomFilterWords");
 
                     b.Navigation("RoomMutes");
 

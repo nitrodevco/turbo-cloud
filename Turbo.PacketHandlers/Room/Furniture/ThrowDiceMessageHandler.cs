@@ -2,7 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
-using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Messages.Incoming.Room.Furniture;
 using Turbo.Primitives.Orleans;
 
@@ -29,7 +29,7 @@ public class ThrowDiceMessageHandler(IGrainFactory grainFactory) : IMessageHandl
             .InteractWithItemAsync(
                 ctx.AsActionContext(),
                 message.ObjectId,
-                FurnitureInteractionType.ThrowDice,
+                new ThrowDiceInteraction(),
                 ct
             )
             .ConfigureAwait(false);

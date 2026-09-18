@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture;
@@ -43,7 +43,7 @@ public interface IFurnitureLogic : IRoomObjectLogic, IRollableObject
     /// </summary>
     public Task<bool> OnInteractAsync(
         ActionContext ctx,
-        FurnitureInteractionType interaction,
+        FurnitureInteraction interaction,
         CancellationToken ct
     );
 

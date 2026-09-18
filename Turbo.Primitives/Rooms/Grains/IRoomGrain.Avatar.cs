@@ -36,6 +36,17 @@ public partial interface IRoomGrain
         CancellationToken ct
     );
 
+    /// <summary>Hands the carried item to an adjacent player.</summary>
+    public Task<bool> PassHandItemAsync(ActionContext ctx, PlayerId targetId, CancellationToken ct);
+    public Task<bool> DropHandItemAsync(ActionContext ctx, CancellationToken ct);
+
+    /// <summary>Spends one of the giver's daily respects on a player in the room.</summary>
+    public Task<bool> RespectPlayerAsync(
+        ActionContext ctx,
+        PlayerId targetId,
+        CancellationToken ct
+    );
+
     public Task<bool> UpdateAvatarWithPlayerAsync(
         PlayerSummarySnapshot snapshot,
         CancellationToken ct

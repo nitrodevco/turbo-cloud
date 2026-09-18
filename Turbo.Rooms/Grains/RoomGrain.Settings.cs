@@ -13,6 +13,7 @@ using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -190,6 +191,75 @@ public sealed partial class RoomGrain
         await ApplySettingsAsync(current, next, ct);
 
         return RoomSettingsSaveResultSnapshot.Success;
+    }
+
+    public async Task<ImmutableArray<PlayerId>?> PrepareRoomDeletionAsync(
+        ActionContext ctx,
+        CancellationToken ct
+    )
+    {
+        if (_state.IsDeleting || !await IsRoomOwnerAsync(ctx, ct))
+            return null;
+
+        _state.IsDeleting = true;
+
+        return [.. _state.AvatarsByPlayerId.Keys];
+    }
+
+    public async Task CompleteRoomDeletionAsync(CancellationToken ct)
+    {
+        if (!_state.IsDeleting)
+            return;
+
+        var roomId = _state.RoomId.Value;
+
+        // Furniture goes home before the row goes: the same path a pickup takes, so inventories
+        // that are live see the items arrive.
+        foreach (var item in _state.ItemsById.Values.ToList())
+        {
+            await ObjectModule.RemoveObjectAsync(
+                ActionContext.CreateForSystem(_state.RoomId),
+                item,
+                ct,
+                item.OwnerId
+            );
+            await _grainFactory
+                .GetInventoryGrain(item.OwnerId)
+                .AddFurnitureFromRoomItemSnapshotAsync(item.GetSnapshot(), ct);
+        }
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+        await using var tx = await dbCtx.Database.BeginTransactionAsync(ct);
+
+        await dbCtx
+            .Furnitures.Where(x => x.RoomEntityId == roomId)
+            .ExecuteUpdateAsync(up => up.SetProperty(x => x.RoomEntityId, (int?)null), ct);
+        await dbCtx.RoomRights.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
+        await dbCtx.RoomBans.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
+        await dbCtx.RoomMutes.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
+        await dbCtx.RoomRatings.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
+        await dbCtx.RoomEvents.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
+        await dbCtx.RoomEntryLogs.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
+        await dbCtx.Chatlogs.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
+        await dbCtx.RoomFilterWords.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
+        await dbCtx
+            .PlayerFavouriteRooms.Where(x => x.RoomEntityId == roomId)
+            .ExecuteDeleteAsync(ct);
+        await dbCtx.Rooms.Where(x => x.Id == roomId).ExecuteDeleteAsync(ct);
+
+        await tx.CommitAsync(ct);
+
+        var directory = _grainFactory.GetRoomDirectoryGrain();
+
+        await directory.RemoveActiveRoomAsync(_state.RoomId, listingChanged: true, ct);
+        await directory.PublishListingChangesAsync(
+            [NavigatorListingKeys.OwnerRoomCount(_state.RoomSnapshot.OwnerId)],
+            ct
+        );
+
+        _state.IsListingChanged = false;
+
+        DeactivateRoom();
     }
 
     private async Task<bool> IsRoomOwnerAsync(ActionContext ctx, CancellationToken ct)

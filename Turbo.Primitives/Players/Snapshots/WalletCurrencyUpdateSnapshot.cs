@@ -10,6 +10,7 @@ public sealed record WalletCurrencyUpdateSnapshot
     public required CurrencyKind CurrencyKind { get; init; }
 
     [Id(1)]
+    /// <summary>Signed delta: negative for a debit, positive for a credit.</summary>
     public required int ChangedBy { get; init; }
 
     [Id(2)]

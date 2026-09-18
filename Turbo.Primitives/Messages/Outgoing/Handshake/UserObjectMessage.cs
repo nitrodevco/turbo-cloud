@@ -9,4 +9,7 @@ public sealed record UserObjectMessage : IComposer
 {
     [Id(0)]
     public required PlayerSummarySnapshot Player { get; init; }
+
+    [Id(1)]
+    public required int MaxRespectPerDay { get; init; }
 }

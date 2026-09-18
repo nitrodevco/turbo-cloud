@@ -11,6 +11,6 @@ internal class UserUnbannedFromRoomEventMessageComposerSerializer(int header)
         UserUnbannedFromRoomEventMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.RoomId).WriteInteger(message.PlayerId);
     }
 }

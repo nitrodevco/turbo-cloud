@@ -27,8 +27,14 @@ public sealed class FurnitureDefinitionProvider(
     private ImmutableDictionary<int, FurnitureDefinitionSnapshot> _definitionsById =
         ImmutableDictionary<int, FurnitureDefinitionSnapshot>.Empty;
 
+    private ImmutableDictionary<string, FurnitureDefinitionSnapshot> _definitionsByName =
+        ImmutableDictionary<string, FurnitureDefinitionSnapshot>.Empty;
+
     public FurnitureDefinitionSnapshot? TryGetDefinition(int id) =>
         _definitionsById.TryGetValue(id, out var definition) ? definition : null;
+
+    public FurnitureDefinitionSnapshot? TryGetDefinitionByName(string name) =>
+        _definitionsByName.TryGetValue(name, out var definition) ? definition : null;
 
     public async Task ReloadAsync(CancellationToken ct = default)
     {
@@ -68,6 +74,11 @@ public sealed class FurnitureDefinitionProvider(
                 .ToList();
 
             _definitionsById = defs.ToImmutableDictionary(p => p.Id);
+
+            _definitionsByName = defs.ToImmutableDictionary(
+                x => x.Name,
+                StringComparer.OrdinalIgnoreCase
+            );
 
             _logger.LogInformation(
                 "Loaded {TotalDefCount} furniture definitions",

@@ -53,6 +53,31 @@ public class RoomConfig
     public int OneWayDoorCloseMs { get; init; } = 2000;
 
     public int StickieTextMaxLength { get; init; } = 500;
+
+    /// <summary>How long a hand item (drink, snack) stays in an avatar's hand.</summary>
+    public int HandItemExpireMs { get; init; } = 240000;
+
+    public int MannequinNameMaxLength { get; init; } = 32;
+    public int TrophyInscriptionMaxLength { get; init; } = 100;
+
+    /// <summary>Largest side, in tiles, an area hider may cover.</summary>
+    public int AreaHideMaxSize { get; init; } = 20;
+
+    /// <summary>How long both sides of a love lock have to confirm before it is cancelled.</summary>
+    public int FriendFurniLockTimeoutMs { get; init; } = 60000;
+
+    /// <summary>Definition (class) name of the note a post-it wall creates.</summary>
+    public string SpamWallPostItDefinitionName { get; init; } = "post_it";
+
+    public int RoomFilterMaxWords { get; init; } = 50;
+    public int RoomFilterWordMaxLength { get; init; } = 30;
+
+    /// <summary>What a filtered word is replaced with in chat.</summary>
+    public string RoomFilterReplacement { get; init; } = "bobba";
+
+    public int BanHourMinutes { get; init; } = 60;
+    public int BanDayMinutes { get; init; } = 1440;
+    public int BanPermanentDays { get; init; } = 36500;
     public int ObjectDataMaxEntries { get; init; } = 32;
     public int ObjectDataMaxKeyLength { get; init; } = 64;
     public int ObjectDataMaxValueLength { get; init; } = 512;

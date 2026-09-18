@@ -1,10 +1,15 @@
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players;
 
 namespace Turbo.Primitives.Messages.Outgoing.Users;
 
 [GenerateSerializer, Immutable]
 public sealed record RespectNotificationMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required PlayerId PlayerId { get; init; }
+
+    [Id(1)]
+    public required int RespectTotal { get; init; }
 }

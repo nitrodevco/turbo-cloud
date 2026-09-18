@@ -6,5 +6,10 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Room.Furniture;
 
 internal class OpenMysteryTrophyMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new OpenMysteryTrophyMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new OpenMysteryTrophyMessage
+        {
+            ObjectId = packet.PopInt(),
+            Inscription = packet.PopString(),
+        };
 }

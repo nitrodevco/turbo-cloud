@@ -21,6 +21,8 @@ public sealed partial class RoomGrain
     {
         try
         {
+            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+
             return await ChatSystem.SendChatFromPlayerAsync(
                 ctx,
                 chatType,

@@ -1230,6 +1230,10 @@ public class Revision20260909 : IRevision
                 MessageEvent.SetCustomStackingHeightMessageEvent,
                 new SetCustomStackingHeightMessageParser()
             },
+            {
+                MessageEvent.SetAdjacentCustomStackingHeightMessageEvent,
+                new SetAdjacentCustomStackingHeightMessageParser()
+            },
             { MessageEvent.SetMannequinFigureMessageEvent, new SetMannequinFigureMessageParser() },
             { MessageEvent.SetMannequinNameMessageEvent, new SetMannequinNameMessageParser() },
             { MessageEvent.SetRandomStateMessageEvent, new SetRandomStateMessageParser() },
@@ -1458,6 +1462,8 @@ public class Revision20260909 : IRevision
                 new GetRelationshipStatusInfoMessageParser()
             },
             { MessageEvent.GetSelectedBadgesMessageEvent, new GetSelectedBadgesMessageParser() },
+            { MessageEvent.RespectUserMessageEvent, new RespectUserMessageParser() },
+            { MessageEvent.ReplenishRespectMessageEvent, new ReplenishRespectMessageParser() },
             {
                 MessageEvent.GetUserNftChatStylesMessageEvent,
                 new GetUserNftChatStylesMessageParser()

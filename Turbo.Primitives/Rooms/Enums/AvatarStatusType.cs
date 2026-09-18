@@ -37,6 +37,8 @@ public enum AvatarStatusType
     WagTail,
     JumpIn,
     JumpOut,
+    CarryItem,
+    UseItem,
 }
 
 public static class RoomAvatarStatusTypeExtensions
@@ -79,6 +81,8 @@ public static class RoomAvatarStatusTypeExtensions
             AvatarStatusType.WagTail => "wag",
             AvatarStatusType.JumpIn => "jmp-in",
             AvatarStatusType.JumpOut => "jmp-out",
+            AvatarStatusType.CarryItem => "cri",
+            AvatarStatusType.UseItem => "usei",
             _ => throw new System.NotImplementedException(),
         };
 }

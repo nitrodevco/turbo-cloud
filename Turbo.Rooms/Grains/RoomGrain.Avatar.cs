@@ -4,6 +4,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Messages.Outgoing.Users;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
@@ -140,6 +142,8 @@ public sealed partial class RoomGrain
     {
         try
         {
+            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+
             if (
                 !_state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
                 || !await AvatarModule.SetAvatarDanceAsync(objectId, danceType, ct)
@@ -170,6 +174,8 @@ public sealed partial class RoomGrain
     {
         try
         {
+            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+
             if (
                 !_state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
                 || !await AvatarModule.SetAvatarEffectAsync(objectId, effectId, ct)
@@ -200,6 +206,8 @@ public sealed partial class RoomGrain
     {
         try
         {
+            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+
             if (
                 !_state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
                 || !await AvatarModule.SetAvatarExpressionAsync(objectId, expressionType, ct)
@@ -230,6 +238,8 @@ public sealed partial class RoomGrain
     {
         try
         {
+            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+
             if (
                 !_state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
                 || !await AvatarModule.SetAvatarSignAsync(objectId, signType, ct)
@@ -260,6 +270,8 @@ public sealed partial class RoomGrain
     {
         try
         {
+            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+
             if (
                 !_state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
                 || !await AvatarModule.SetAvatarPostureAsync(objectId, postureType, ct)
@@ -282,6 +294,101 @@ public sealed partial class RoomGrain
         }
     }
 
+    public async Task<bool> PassHandItemAsync(
+        ActionContext ctx,
+        PlayerId targetId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+
+            return await AvatarModule.PassHandItemAsync(ctx, targetId, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to pass a hand item from player {PlayerId} to {TargetId} in room {RoomId}",
+                ctx.PlayerId,
+                targetId,
+                _state.RoomId
+            );
+
+            return false;
+        }
+    }
+
+    public async Task<bool> DropHandItemAsync(ActionContext ctx, CancellationToken ct)
+    {
+        try
+        {
+            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+
+            return await AvatarModule.DropHandItemAsync(ctx, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to drop the hand item of player {PlayerId} in room {RoomId}",
+                ctx.PlayerId,
+                _state.RoomId
+            );
+
+            return false;
+        }
+    }
+
+    public async Task<bool> RespectPlayerAsync(
+        ActionContext ctx,
+        PlayerId targetId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            if (
+                targetId <= 0
+                || targetId == ctx.PlayerId
+                || !_state.AvatarsByPlayerId.ContainsKey(targetId)
+                || !_state.AvatarsByPlayerId.ContainsKey(ctx.PlayerId)
+            )
+                return false;
+
+            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+
+            if (!await _grainFactory.GetPlayerGrain(ctx.PlayerId).TryUseRespectAsync(ct))
+                return false;
+
+            var total = await _grainFactory.GetPlayerGrain(targetId).ReceiveRespectAsync(ct);
+
+            await SendComposerToRoomAsync(
+                new RespectNotificationMessageComposer
+                {
+                    PlayerId = targetId,
+                    RespectTotal = total,
+                },
+                ct
+            );
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to respect player {TargetId} from {PlayerId} in room {RoomId}",
+                targetId,
+                ctx.PlayerId,
+                _state.RoomId
+            );
+
+            return false;
+        }
+    }
+
     public async Task<bool> LookToAsync(
         ActionContext ctx,
         int targetX,
@@ -291,6 +398,8 @@ public sealed partial class RoomGrain
     {
         try
         {
+            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+
             return await AvatarModule.LookToAsync(ctx, targetX, targetY, ct);
         }
         catch (Exception ex)

@@ -8,4 +8,7 @@ public enum RoomEntryAccessType
     Doorbell = 3,
     PasswordRequired = 4,
     InvalidPassword = 5,
+
+    /// <summary>The room is being deleted and takes no new visitors.</summary>
+    Closed = 6,
 }

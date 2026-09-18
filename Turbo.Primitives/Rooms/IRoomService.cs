@@ -44,6 +44,18 @@ public partial interface IRoomService
         CancellationToken ct
     );
     public Task CloseRoomForPlayerAsync(PlayerId playerId, CancellationToken ct);
+
+    /// <summary>Kicks a player: the room removes the avatar, the service closes the session.</summary>
+    public Task KickPlayerAsync(ActionContext ctx, PlayerId targetId, CancellationToken ct);
+    public Task BanPlayerAsync(
+        ActionContext ctx,
+        PlayerId targetId,
+        RoomBanDurationType duration,
+        CancellationToken ct
+    );
+
+    /// <summary>Deletes the owner's room, evicting everyone inside first.</summary>
+    public Task DeleteRoomAsync(ActionContext ctx, CancellationToken ct);
     public Task ClickTileAsync(ActionContext ctx, int targetX, int targetY, CancellationToken ct);
     public Task PickupItemInRoomAsync(
         ActionContext ctx,

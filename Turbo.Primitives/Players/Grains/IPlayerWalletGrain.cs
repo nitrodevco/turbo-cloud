@@ -13,5 +13,8 @@ public interface IPlayerWalletGrain : IGrainWithIntegerKey
         CancellationToken ct
     );
     public Task<int> GetAmountForCurrencyAsync(CurrencyKind kind, CancellationToken ct);
+
+    /// <summary>Adds to a balance and tells the player. False when the currency does not exist.</summary>
+    public Task<bool> CreditAsync(CurrencyKind kind, int amount, CancellationToken ct);
     public Task<Dictionary<int, int>> GetActivityPointsAsync(CancellationToken ct);
 }

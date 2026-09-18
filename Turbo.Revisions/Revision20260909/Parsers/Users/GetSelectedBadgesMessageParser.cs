@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Users;
 
 internal class GetSelectedBadgesMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetSelectedBadgesMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetSelectedBadgesMessage { PlayerId = packet.PopInt() };
 }

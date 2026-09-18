@@ -202,4 +202,5 @@ public class RoomEntity : TurboEntity
 
     [InverseProperty("RoomEntity")]
     public List<RoomEventEntity>? RoomEvents { get; set; }
+    public List<RoomFilterWordEntity>? RoomFilterWords { get; set; }
 }

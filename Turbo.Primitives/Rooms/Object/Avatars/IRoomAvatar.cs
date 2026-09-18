@@ -37,7 +37,16 @@ public interface IRoomAvatar : IRoomObject
     public long NextMoveUpdateAtMs { get; set; }
     public long PendingStopAtMs { get; set; }
 
+    /// <summary>The hand item (drink, snack) the avatar carries, 0 for none.</summary>
+    public int HandItemId { get; }
+
+    /// <summary>Milliseconds (room clock) of the avatar's last deliberate action.</summary>
+    public long LastActiveAtMs { get; }
+    public bool IsIdle { get; }
     public bool SetGoalTileId(int tileId);
+    public bool SetHandItem(int handItemId);
+    public void Touch(long nowMs);
+    public void SetIdle(bool isIdle);
     public void SetHeight(Altitude z);
     public void SetBodyRotation(Rotation rot);
     public void SetHeadRotation(Rotation rot);

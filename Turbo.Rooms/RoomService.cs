@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -126,6 +127,18 @@ internal sealed partial class RoomService(
                     .ConfigureAwait(false);
                 return;
 
+            case RoomEntryAccessType.Closed:
+                await RejectEntryAsync(
+                        playerPresence,
+                        new CantConnectMessageComposer
+                        {
+                            ErrorType = RoomConnectionErrorType.NoEntry,
+                        },
+                        ct
+                    )
+                    .ConfigureAwait(false);
+                return;
+
             case RoomEntryAccessType.Doorbell:
                 await RingDoorbellAsync(playerPresence, playerId, room, roomId, ct)
                     .ConfigureAwait(false);
@@ -156,6 +169,76 @@ internal sealed partial class RoomService(
                     .ConfigureAwait(false);
                 return;
         }
+    }
+
+    public async Task KickPlayerAsync(ActionContext ctx, PlayerId targetId, CancellationToken ct)
+    {
+        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || targetId <= 0)
+            return;
+
+        var room = _grainFactory.GetRoomGrain(ctx.RoomId);
+
+        if (!await room.KickPlayerAsync(ctx, targetId, ct).ConfigureAwait(false))
+            return;
+
+        await EvictPlayerAsync(targetId, kicked: true, ct).ConfigureAwait(false);
+    }
+
+    public async Task BanPlayerAsync(
+        ActionContext ctx,
+        PlayerId targetId,
+        RoomBanDurationType duration,
+        CancellationToken ct
+    )
+    {
+        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || targetId <= 0)
+            return;
+
+        var room = _grainFactory.GetRoomGrain(ctx.RoomId);
+
+        if (!await room.BanPlayerAsync(ctx, targetId, duration, ct).ConfigureAwait(false))
+            return;
+
+        await EvictPlayerAsync(targetId, kicked: true, ct).ConfigureAwait(false);
+    }
+
+    public async Task DeleteRoomAsync(ActionContext ctx, CancellationToken ct)
+    {
+        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0)
+            return;
+
+        var room = _grainFactory.GetRoomGrain(ctx.RoomId);
+        var players = await room.PrepareRoomDeletionAsync(ctx, ct).ConfigureAwait(false);
+
+        if (players is null)
+            return;
+
+        // Sessions close before the row goes, so no presence grain re-enters a room mid-delete.
+        foreach (var playerId in players.Value)
+            await EvictPlayerAsync(playerId, kicked: false, ct).ConfigureAwait(false);
+
+        await room.CompleteRoomDeletionAsync(ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Closes a player's room session after the room grain has already dropped their avatar.
+    /// Lives here rather than in the grain because the presence grain calls back into the room.
+    /// </summary>
+    private async Task EvictPlayerAsync(PlayerId playerId, bool kicked, CancellationToken ct)
+    {
+        var presence = _grainFactory.GetPlayerPresenceGrain(playerId);
+
+        await presence.ClearActiveRoomAsync(ct).ConfigureAwait(false);
+
+        IReadOnlyList<IComposer> composers = kicked
+            ?
+            [
+                new GenericErrorMessage { ErrorCode = RoomGenericErrorType.RoomKicked },
+                new CloseConnectionMessageComposer(),
+            ]
+            : [new CloseConnectionMessageComposer()];
+
+        await presence.SendComposerAsync(composers, ct).ConfigureAwait(false);
     }
 
     public async Task AnswerDoorbellAsync(

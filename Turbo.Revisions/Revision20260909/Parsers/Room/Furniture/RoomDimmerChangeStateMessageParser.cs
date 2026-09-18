@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Room.Furniture;
 
 internal class RoomDimmerChangeStateMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new RoomDimmerChangeStateMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new RoomDimmerChangeStateMessage { ObjectId = packet.PopInt() };
 }

@@ -6,5 +6,10 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Friendfurni;
 
 internal class FriendFurniConfirmLockMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new FriendFurniConfirmLockMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new FriendFurniConfirmLockMessage
+        {
+            ObjectId = packet.PopInt(),
+            Confirmed = packet.PopBoolean(),
+        };
 }

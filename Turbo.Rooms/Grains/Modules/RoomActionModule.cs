@@ -8,6 +8,7 @@ using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
@@ -75,20 +76,19 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain)
         return true;
     }
 
+    /// <summary>
+    /// Dedicated furniture actions carry their own permission rules (owner-only edits, rights,
+    /// adjacency), so the logic checks them rather than the item usage policy.
+    /// </summary>
     public async Task<bool> InteractWithItemAsync(
         ActionContext ctx,
         RoomObjectId itemId,
-        FurnitureInteractionType interaction,
+        FurnitureInteraction interaction,
         CancellationToken ct
     )
     {
         if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
-
-        var usagePolicy = item.Logic.GetUsagePolicy();
-
-        if (!await _roomGrain.SecurityModule.CanUseFurniAsync(ctx, usagePolicy))
-            return false;
 
         return await item.Logic.OnInteractAsync(ctx, interaction, ct);
     }

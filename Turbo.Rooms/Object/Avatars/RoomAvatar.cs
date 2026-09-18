@@ -38,6 +38,9 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
     public long NextMoveStepAtMs { get; set; } = 0;
     public long NextMoveUpdateAtMs { get; set; } = 0;
     public long PendingStopAtMs { get; set; } = 0;
+    public int HandItemId { get; private set; } = 0;
+    public long LastActiveAtMs { get; private set; } = 0;
+    public bool IsIdle { get; private set; } = false;
 
     private int _goalTries = 0;
 
@@ -150,6 +153,25 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
             RemoveStatus(AvatarStatusType.Lay);
         }
     }
+
+    public bool SetHandItem(int handItemId)
+    {
+        if (handItemId < 0 || handItemId == HandItemId)
+            return false;
+
+        HandItemId = handItemId;
+
+        if (handItemId == 0)
+            RemoveStatus(AvatarStatusType.CarryItem);
+        else
+            AddStatus(AvatarStatusType.CarryItem, handItemId.ToString());
+
+        return true;
+    }
+
+    public void Touch(long nowMs) => LastActiveAtMs = nowMs;
+
+    public void SetIdle(bool isIdle) => IsIdle = isIdle;
 
     public void AddStatus(AvatarStatusType type, string value)
     {

@@ -1,12 +1,15 @@
 using System;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Logging;
+using Turbo.Players.Configuration;
 using Turbo.Primitives;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -21,6 +24,7 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly IGrainFactory _grainFactory;
     private readonly ILogger<IPlayerGrain> _logger;
+    private readonly PlayerConfig _playerConfig;
 
     private readonly PlayerLiveState _state;
 
@@ -29,12 +33,14 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
     public PlayerGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IGrainFactory grainFactory,
-        ILogger<IPlayerGrain> logger
+        ILogger<IPlayerGrain> logger,
+        IOptions<PlayerConfig> playerConfig
     )
     {
         _dbCtxFactory = dbCtxFactory;
         _grainFactory = grainFactory;
         _logger = logger;
+        _playerConfig = playerConfig.Value;
 
         _state = new() { PlayerId = this.GetPlayerId() };
     }
@@ -119,6 +125,13 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         _state.AchievementScore = 0;
         _state.CreatedAt = entity.CreatedAt;
         _state.LastUpdated = entity.UpdatedAt;
+        _state.RespectPoints = entity.RespectPoints;
+        _state.RespectsLeft = entity.RespectsLeft;
+        _state.PetRespectsLeft = entity.PetRespectsLeft;
+        _state.RespectReplenishesLeft = entity.RespectReplenishesLeft;
+        _state.RespectResetDate = entity.RespectResetDate;
+
+        ResetDailyRespectIfDue();
 
         await _grainFactory.GetPlayerDirectoryGrain().SetPlayerNameAsync(PlayerId, _state.Name, ct);
     }
@@ -136,7 +149,12 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
                     up.SetProperty(p => p.Name, snapshot.Name)
                         .SetProperty(p => p.Motto, snapshot.Motto)
                         .SetProperty(p => p.Figure, snapshot.Figure)
-                        .SetProperty(p => p.Gender, snapshot.Gender),
+                        .SetProperty(p => p.Gender, snapshot.Gender)
+                        .SetProperty(p => p.RespectPoints, _state.RespectPoints)
+                        .SetProperty(p => p.RespectsLeft, _state.RespectsLeft)
+                        .SetProperty(p => p.PetRespectsLeft, _state.PetRespectsLeft)
+                        .SetProperty(p => p.RespectReplenishesLeft, _state.RespectReplenishesLeft)
+                        .SetProperty(p => p.RespectResetDate, _state.RespectResetDate),
                 ct
             );
 
@@ -157,8 +175,92 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
                 IsOnline = _state.IsOnline,
                 CreatedAt = _state.CreatedAt,
                 LastUpdated = _state.LastUpdated,
+                RespectPoints = _state.RespectPoints,
+                RespectsLeft = _state.RespectsLeft,
+                PetRespectsLeft = _state.PetRespectsLeft,
+                RespectReplenishesLeft = _state.RespectReplenishesLeft,
             }
         );
+
+    public async Task<bool> TryUseRespectAsync(CancellationToken ct)
+    {
+        ResetDailyRespectIfDue();
+
+        if (_state.RespectsLeft <= 0)
+            return false;
+
+        _state.RespectsLeft--;
+
+        await WriteToDatabaseAsync(ct);
+
+        return true;
+    }
+
+    public async Task<int> ReceiveRespectAsync(CancellationToken ct)
+    {
+        _state.RespectPoints++;
+
+        await WriteToDatabaseAsync(ct);
+
+        return _state.RespectPoints;
+    }
+
+    public async Task<bool> ReplenishRespectAsync(CancellationToken ct)
+    {
+        ResetDailyRespectIfDue();
+
+        if (_state.RespectReplenishesLeft <= 0)
+            return false;
+
+        _state.RespectReplenishesLeft--;
+        _state.RespectsLeft = _playerConfig.MaxRespectPerDay;
+
+        await WriteToDatabaseAsync(ct);
+
+        return true;
+    }
+
+    public async Task<ImmutableArray<PlayerBadgeSnapshot>> GetSelectedBadgesAsync(
+        CancellationToken ct
+    )
+    {
+        if (_state.SelectedBadges is { } cached)
+            return cached;
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        var badges = await dbCtx
+            .PlayerBadges.AsNoTracking()
+            .Where(x => x.PlayerEntityId == (int)_state.PlayerId && x.SlotId != null)
+            .OrderBy(x => x.SlotId)
+            .Select(x => new PlayerBadgeSnapshot
+            {
+                SlotId = x.SlotId!.Value,
+                BadgeCode = x.BadgeCode,
+            })
+            .ToListAsync(ct);
+
+        _state.SelectedBadges = [.. badges];
+
+        return _state.SelectedBadges.Value;
+    }
+
+    /// <summary>
+    /// Daily respect allowances refill at UTC midnight. Checked lazily on every use, so a grain
+    /// that stays active across midnight still resets.
+    /// </summary>
+    private void ResetDailyRespectIfDue()
+    {
+        var today = DateTime.UtcNow.Date;
+
+        if (_state.RespectResetDate == today)
+            return;
+
+        _state.RespectResetDate = today;
+        _state.RespectsLeft = _playerConfig.MaxRespectPerDay;
+        _state.PetRespectsLeft = _playerConfig.MaxPetRespectPerDay;
+        _state.RespectReplenishesLeft = _playerConfig.RespectReplenishesPerDay;
+    }
 
     public Task<PlayerExtendedProfileSnapshot> GetExtendedProfileSnapshotAsync(CancellationToken ct)
     {

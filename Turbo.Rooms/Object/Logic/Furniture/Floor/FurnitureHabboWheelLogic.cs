@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -26,11 +27,11 @@ public class FurnitureHabboWheelLogic(IStuffDataFactory stuffDataFactory, IRoomF
 
     public override async Task<bool> OnInteractAsync(
         ActionContext ctx,
-        FurnitureInteractionType interaction,
+        FurnitureInteraction interaction,
         CancellationToken ct
     )
     {
-        if (interaction != FurnitureInteractionType.SpinWheel || !IsAvatarAdjacent(ctx))
+        if (interaction is not SpinWheelInteraction || !IsAvatarAdjacent(ctx))
             return false;
 
         if (GetState() == WheelStates.SPINNING)

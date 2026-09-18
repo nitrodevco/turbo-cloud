@@ -14,7 +14,7 @@ public sealed record PresentOpenedMessageComposer : IComposer
     public required int ClassId { get; init; }
 
     [Id(2)]
-    public required ProductType ProductCode { get; init; }
+    public required string ProductCode { get; init; }
 
     [Id(3)]
     public required int PlacedItemId { get; init; }
