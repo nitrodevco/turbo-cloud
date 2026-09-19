@@ -9,6 +9,7 @@ using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -26,35 +27,14 @@ public class WiredActionRemoveVariable(
     public override int GetMaxVariableIds() => 1;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredParamRule((int)WiredVariableTargetType.User)];
+        [WiredRules.VariableTarget(WiredVariableTargetType.User)];
 
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [
-            [
-                WiredFurniSourceType.SelectedItems,
-                WiredFurniSourceType.SelectorItems,
-                WiredFurniSourceType.SignalItems,
-                WiredFurniSourceType.TriggeredItem,
-            ],
-        ];
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
-        [
-            [
-                WiredPlayerSourceType.TriggeredUser,
-                WiredPlayerSourceType.SelectorUsers,
-                WiredPlayerSourceType.SignalUsers,
-            ],
-        ];
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
-        [
-            new WiredVariableAllInRoomSnapshot()
-            {
-                ContextType = WiredContextType.AllVariablesInRoom,
-                AllVariablesHash = _roomGrain._state.AllVariablesHash,
-            },
-        ];
+        AllVariablesContext();
 
     public override Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
@@ -63,10 +43,7 @@ public class WiredActionRemoveVariable(
         if (variable is null)
             return Task.FromResult(false);
 
-        var targetType = (WiredVariableTargetType)GetIntParamOrDefault(
-            0,
-            (int)variable.GetVarSnapshot().TargetType
-        );
+        var targetType = GetTargetType(variable, 0);
         var selection = ctx.GetSelection(this);
         var removed = false;
 

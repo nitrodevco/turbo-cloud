@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Players;
+using Turbo.Database.Extensions;
 using Turbo.Players.Exceptions;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -24,21 +25,31 @@ namespace Turbo.Players.Grains;
 /// transaction before the in-memory balances move, so an activation can be collected at any time
 /// without a flush on deactivation.
 /// </summary>
-internal sealed class PlayerWalletGrain(
-    IDbContextFactory<TurboDbContext> dbCtxFactory,
-    ICurrencyTypeProvider currencyTypeProvider,
-    IGrainFactory grainFactory,
-    ILogger<IPlayerWalletGrain> logger
-) : Grain, IPlayerWalletGrain
+internal sealed class PlayerWalletGrain : Grain, IPlayerWalletGrain
 {
-    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
-    private readonly ICurrencyTypeProvider _currencyTypeProvider = currencyTypeProvider;
-    private readonly IGrainFactory _grainFactory = grainFactory;
-    private readonly ILogger<IPlayerWalletGrain> _logger = logger;
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
+    private readonly IGrainFactory _grainFactory;
+    private readonly ICurrencyTypeProvider _currencyTypeProvider;
+    private readonly ILogger<IPlayerWalletGrain> _logger;
 
-    private readonly Dictionary<CurrencyKind, WalletCurrencySnapshot> _currenciesByKind = [];
+    private readonly PlayerWalletLiveState _state;
 
-    private PlayerId PlayerId => this.GetPlayerId();
+    private PlayerId PlayerId => _state.PlayerId;
+
+    public PlayerWalletGrain(
+        IDbContextFactory<TurboDbContext> dbCtxFactory,
+        IGrainFactory grainFactory,
+        ICurrencyTypeProvider currencyTypeProvider,
+        ILogger<IPlayerWalletGrain> logger
+    )
+    {
+        _dbCtxFactory = dbCtxFactory;
+        _grainFactory = grainFactory;
+        _currencyTypeProvider = currencyTypeProvider;
+        _logger = logger;
+
+        _state = new() { PlayerId = this.GetPlayerId() };
+    }
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
@@ -119,7 +130,7 @@ internal sealed class PlayerWalletGrain(
             await dbCtx.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
 
-            var playerPresence = _grainFactory.GetPlayerPresenceGrain(this.GetPlayerId().Value);
+            var playerPresence = _grainFactory.GetPlayerPresenceGrain(PlayerId.Value);
 
             foreach (var update in updates)
                 await playerPresence.OnCurrencyUpdateAsync(update, ct);
@@ -137,7 +148,7 @@ internal sealed class PlayerWalletGrain(
 
         int newAmount;
 
-        if (_currenciesByKind.TryGetValue(kind, out var snapshot))
+        if (_state.CurrenciesByKind.TryGetValue(kind, out var snapshot))
         {
             var entity = await dbCtx.PlayerCurrencies.FirstOrDefaultAsync(
                 x => x.Id == snapshot.Id && x.PlayerEntityId == PlayerId.Value,
@@ -152,7 +163,7 @@ internal sealed class PlayerWalletGrain(
 
             await dbCtx.SaveChangesAsync(ct);
 
-            _currenciesByKind[kind] = snapshot with { Amount = newAmount };
+            _state.CurrenciesByKind[kind] = snapshot with { Amount = newAmount };
         }
         else
         {
@@ -181,12 +192,7 @@ internal sealed class PlayerWalletGrain(
             await dbCtx.SaveChangesAsync(ct);
 
             newAmount = amount;
-            _currenciesByKind[kind] = new WalletCurrencySnapshot
-            {
-                Id = entity.Id,
-                CurrencyKind = kind,
-                Amount = newAmount,
-            };
+            _state.CurrenciesByKind[kind] = entity.ToSnapshot(kind);
         }
 
         await _grainFactory
@@ -216,9 +222,9 @@ internal sealed class PlayerWalletGrain(
             if (update is null || update.ChangedBy == 0)
                 continue;
 
-            if (_currenciesByKind.TryGetValue(update.CurrencyKind, out var snapshot))
+            if (_state.CurrenciesByKind.TryGetValue(update.CurrencyKind, out var snapshot))
             {
-                _currenciesByKind[update.CurrencyKind] = snapshot with
+                _state.CurrenciesByKind[update.CurrencyKind] = snapshot with
                 {
                     Amount = snapshot.Amount - update.ChangedBy,
                 };
@@ -230,14 +236,14 @@ internal sealed class PlayerWalletGrain(
 
     public Task<int> GetAmountForCurrencyAsync(CurrencyKind kind, CancellationToken ct) =>
         Task.FromResult(
-            _currenciesByKind.TryGetValue(kind, out var snapshot) ? snapshot.Amount : 0
+            _state.CurrenciesByKind.TryGetValue(kind, out var snapshot) ? snapshot.Amount : 0
         );
 
     public Task<Dictionary<int, int>> GetActivityPointsAsync(CancellationToken ct)
     {
         var result = new Dictionary<int, int>();
 
-        foreach (var currency in _currenciesByKind.Values)
+        foreach (var currency in _state.CurrenciesByKind.Values)
         {
             if (
                 currency is null
@@ -294,11 +300,11 @@ internal sealed class PlayerWalletGrain(
         var currentAmount = 0;
         var cost = request.Amount;
 
-        if (_currenciesByKind.TryGetValue(request.CurrencyKind, out var snapshot))
+        if (_state.CurrenciesByKind.TryGetValue(request.CurrencyKind, out var snapshot))
         {
             var entity = await dbCtx
                 .PlayerCurrencies.Where(x =>
-                    x.Id == snapshot.Id && x.PlayerEntityId == this.GetPlayerId().Value
+                    x.Id == snapshot.Id && x.PlayerEntityId == PlayerId.Value
                 )
                 .FirstOrDefaultAsync(ct);
 
@@ -316,7 +322,10 @@ internal sealed class PlayerWalletGrain(
                 }
             }
 
-            _currenciesByKind[request.CurrencyKind] = snapshot with { Amount = currentAmount };
+            _state.CurrenciesByKind[request.CurrencyKind] = snapshot with
+            {
+                Amount = currentAmount,
+            };
         }
 
         return new()
@@ -329,13 +338,13 @@ internal sealed class PlayerWalletGrain(
 
     private async Task HydrateAsync(CancellationToken ct)
     {
-        _currenciesByKind.Clear();
+        _state.CurrenciesByKind.Clear();
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         var entities = await dbCtx
             .PlayerCurrencies.AsNoTracking()
-            .Where(x => x.PlayerEntityId == this.GetPlayerId().Value)
+            .Where(x => x.PlayerEntityId == PlayerId.Value)
             .ToListAsync(ct);
 
         foreach (var entity in entities)
@@ -345,18 +354,15 @@ internal sealed class PlayerWalletGrain(
             if (currencyType is null || !currencyType.Enabled)
                 continue;
 
-            var snapshot = new WalletCurrencySnapshot
-            {
-                Id = entity.Id,
-                CurrencyKind = new CurrencyKind
+            var snapshot = entity.ToSnapshot(
+                new CurrencyKind
                 {
                     CurrencyType = currencyType.CurrencyType,
                     ActivityPointType = currencyType.ActivityPointType,
-                },
-                Amount = entity.Amount,
-            };
+                }
+            );
 
-            _currenciesByKind[snapshot.CurrencyKind] = snapshot;
+            _state.CurrenciesByKind[snapshot.CurrencyKind] = snapshot;
         }
     }
 }

@@ -39,26 +39,7 @@ public class WiredConditionItemMatches(
             [WiredFurniSourceType.SelectedItems],
         ];
 
-    public override async Task<bool> ApplyWiredUpdateAsync(
-        ActionContext ctx,
-        UpdateWiredMessage update,
-        CancellationToken ct
-    )
-    {
-        if (!await base.ApplyWiredUpdateAsync(ctx, update, ct))
-            return false;
-
-        CaptureFurniSnapshot(GetStuffIds());
-
-        return true;
-    }
-
-    public override async Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
-    {
-        DeleteFurniSnapshot();
-
-        await base.OnPickupAsync(ctx, ct);
-    }
+    protected override bool KeepsFurniSnapshot => true;
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {

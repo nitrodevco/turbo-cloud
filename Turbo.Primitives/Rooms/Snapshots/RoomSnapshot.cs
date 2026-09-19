@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Orleans;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Rooms.Enums;
@@ -9,6 +10,17 @@ namespace Turbo.Primitives.Rooms.Snapshots;
 [GenerateSerializer, Immutable]
 public sealed record RoomSnapshot : RoomInfoSnapshot
 {
+    public RoomSnapshot() { }
+
+    /// <summary>
+    /// Starts from a listing snapshot, so the fields the two share are mapped once. The attribute
+    /// is what lets the base fields count as set; it also stops the compiler from checking the
+    /// room-only fields below, so whoever calls this sets every one of them.
+    /// </summary>
+    [SetsRequiredMembers]
+    public RoomSnapshot(RoomInfoSnapshot info)
+        : base(info) { }
+
     [Id(0)]
     public required string Password { get; init; } = string.Empty;
 

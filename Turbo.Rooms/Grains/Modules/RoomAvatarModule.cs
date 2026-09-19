@@ -95,10 +95,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
     {
         try
         {
-            if (
-                !_roomGrain._state.AvatarsByPlayerId.TryGetValue(playerId, out var objectId)
-                || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
-            )
+            if (!TryGetPlayer(playerId, out var avatar))
                 return;
 
             await _roomGrain.ObjectModule.RemoveObjectAsync(ctx, avatar, ct, -1);
@@ -116,6 +113,28 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         }
     }
 
+    /// <summary>
+    /// The avatar of a player who is in the room. This is the one lookup from player id to
+    /// avatar; modules, systems and wired boxes all come here instead of walking
+    /// <c>AvatarsByPlayerId</c> and <c>AvatarsByObjectId</c> themselves.
+    /// </summary>
+    internal bool TryGetPlayer(PlayerId playerId, out IRoomPlayer player)
+    {
+        player = null!;
+
+        if (
+            playerId <= 0
+            || !_roomGrain._state.AvatarsByPlayerId.TryGetValue(playerId, out var objectId)
+            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+            || avatar is not IRoomPlayer roomPlayer
+        )
+            return false;
+
+        player = roomPlayer;
+
+        return true;
+    }
+
     public async Task<bool> WalkAvatarToAsync(
         ActionContext ctx,
         int targetX,
@@ -125,8 +144,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
     {
         if (
             ctx.PlayerId <= 0
-            || !_roomGrain._state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectIdValue)
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectIdValue, out var avatar)
+            || !TryGetPlayer(ctx.PlayerId, out var avatar)
             || !await WalkAvatarToAsync(avatar, targetX, targetY, ct)
         )
             return false;
@@ -275,25 +293,25 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
     {
         if (
             snapshot.PlayerId <= 0
-            || !_roomGrain._state.AvatarsByPlayerId.TryGetValue(snapshot.PlayerId, out var objectId)
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
-            || avatar is not IRoomPlayer avatarPlayer
+            || !TryGetPlayer(snapshot.PlayerId, out var avatarPlayer)
             || !avatarPlayer.UpdateWithPlayer(snapshot)
         )
             return Task.FromResult(false);
 
-        _ = _roomGrain.SendComposerToRoomAsync(
-            new UserChangeMessageComposer
-            {
-                ObjectId = avatarPlayer.ObjectId,
-                Figure = avatarPlayer.Figure,
-                Gender = avatarPlayer.Gender,
-                CustomInfo = avatarPlayer.Motto,
-                AchievementScore = snapshot.AchievementScore,
-                BadgesRank = snapshot.BadgesRank,
-            },
-            ct
-        );
+        _roomGrain
+            .SendComposerToRoomAsync(
+                new UserChangeMessageComposer
+                {
+                    ObjectId = avatarPlayer.ObjectId,
+                    Figure = avatarPlayer.Figure,
+                    Gender = avatarPlayer.Gender,
+                    CustomInfo = avatarPlayer.Motto,
+                    AchievementScore = snapshot.AchievementScore,
+                    BadgesRank = snapshot.BadgesRank,
+                },
+                ct
+            )
+            .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
 
         return Task.FromResult(true);
     }
@@ -312,10 +330,16 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         )
             return Task.FromResult(false);
 
-        _ = _roomGrain.SendComposerToRoomAsync(
-            new DanceMessageComposer { ObjectId = avatar.ObjectId, DanceType = player.DanceType },
-            ct
-        );
+        _roomGrain
+            .SendComposerToRoomAsync(
+                new DanceMessageComposer
+                {
+                    ObjectId = avatar.ObjectId,
+                    DanceType = player.DanceType,
+                },
+                ct
+            )
+            .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
 
         PublishAction(player, WiredAvatarActionType.Dance, (int)player.DanceType);
 
@@ -336,15 +360,17 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         )
             return Task.FromResult(false);
 
-        _ = _roomGrain.SendComposerToRoomAsync(
-            new AvatarEffectMessageComposer
-            {
-                ObjectId = avatar.ObjectId,
-                EffectId = player.EffectId,
-                DelayMilliseconds = 0,
-            },
-            ct
-        );
+        _roomGrain
+            .SendComposerToRoomAsync(
+                new AvatarEffectMessageComposer
+                {
+                    ObjectId = avatar.ObjectId,
+                    EffectId = player.EffectId,
+                    DelayMilliseconds = 0,
+                },
+                ct
+            )
+            .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
 
         return Task.FromResult(true);
     }
@@ -361,14 +387,16 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         )
             return Task.FromResult(false);
 
-        _ = _roomGrain.SendComposerToRoomAsync(
-            new ExpressionMessageComposer
-            {
-                ObjectId = avatar.ObjectId,
-                ExpressionType = expressionType,
-            },
-            ct
-        );
+        _roomGrain
+            .SendComposerToRoomAsync(
+                new ExpressionMessageComposer
+                {
+                    ObjectId = avatar.ObjectId,
+                    ExpressionType = expressionType,
+                },
+                ct
+            )
+            .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
 
         if (avatar is IRoomPlayer expressingPlayer)
             PublishAction(expressingPlayer, ToActionType(expressionType), 0);
@@ -396,8 +424,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
     {
         if (
             !_roomGrain.MapModule.InBounds(targetX, targetY)
-            || !_roomGrain._state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+            || !TryGetPlayer(ctx.PlayerId, out var avatar)
         )
             return Task.FromResult(false);
 
@@ -419,10 +446,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
     /// </summary>
     public void TouchAvatar(PlayerId playerId, long nowMs)
     {
-        if (
-            !_roomGrain._state.AvatarsByPlayerId.TryGetValue(playerId, out var objectId)
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
-        )
+        if (!TryGetPlayer(playerId, out var avatar))
             return;
 
         avatar.Touch(nowMs);
@@ -432,10 +456,12 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
 
         avatar.SetIdle(false);
 
-        _ = _roomGrain.SendComposerToRoomAsync(
-            new SleepMessageComposer { UserId = avatar.ObjectId, IsSleeping = false },
-            CancellationToken.None
-        );
+        _roomGrain
+            .SendComposerToRoomAsync(
+                new SleepMessageComposer { UserId = avatar.ObjectId, IsSleeping = false },
+                CancellationToken.None
+            )
+            .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
     }
 
     public Task SetHandItemAsync(IRoomAvatar avatar, int handItemId, CancellationToken ct)
@@ -467,10 +493,8 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         if (
             targetId <= 0
             || targetId == ctx.PlayerId
-            || !_roomGrain._state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var giverId)
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(giverId, out var giver)
-            || !_roomGrain._state.AvatarsByPlayerId.TryGetValue(targetId, out var receiverId)
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(receiverId, out var receiver)
+            || !TryGetPlayer(ctx.PlayerId, out var giver)
+            || !TryGetPlayer(targetId, out var receiver)
         )
             return false;
 
@@ -486,27 +510,22 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         await SetHandItemAsync(giver, 0, ct);
         await SetHandItemAsync(receiver, handItemId, ct);
 
-        await _roomGrain
-            ._grainFactory.GetPlayerPresenceGrain(targetId)
-            .SendComposerAsync(
-                new HandItemReceivedMessageComposer
-                {
-                    GiverPlayerId = ctx.PlayerId,
-                    HandItemType = handItemId,
-                },
-                ct
-            );
+        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            targetId,
+            new HandItemReceivedMessageComposer
+            {
+                GiverPlayerId = ctx.PlayerId,
+                HandItemType = handItemId,
+            },
+            ct
+        );
 
         return true;
     }
 
     public async Task<bool> DropHandItemAsync(ActionContext ctx, CancellationToken ct)
     {
-        if (
-            !_roomGrain._state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
-            || avatar.HandItemId <= 0
-        )
+        if (!TryGetPlayer(ctx.PlayerId, out var avatar) || avatar.HandItemId <= 0)
             return false;
 
         await SetHandItemAsync(avatar, 0, ct);
@@ -557,17 +576,19 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
 
     /// <summary>Feeds the "performs action" wired trigger. Queued, so it never blocks the caller.</summary>
     private void PublishAction(IRoomPlayer player, WiredAvatarActionType actionType, int value) =>
-        _ = _roomGrain.PublishRoomEventAsync(
-            new PlayerPerformsActionEvent
-            {
-                RoomId = _roomGrain.RoomId,
-                CausedBy = ActionContext.CreateForPlayer(player.PlayerId, _roomGrain.RoomId),
-                PlayerId = player.PlayerId,
-                ActionType = actionType,
-                Value = value,
-            },
-            CancellationToken.None
-        );
+        _roomGrain
+            .PublishRoomEventAsync(
+                new PlayerPerformsActionEvent
+                {
+                    RoomId = _roomGrain.RoomId,
+                    CausedBy = ActionContext.CreateForPlayer(player.PlayerId, _roomGrain.RoomId),
+                    PlayerId = player.PlayerId,
+                    ActionType = actionType,
+                    Value = value,
+                },
+                CancellationToken.None
+            )
+            .LogAndForget(_roomGrain._logger, $"publish an event in room {_roomGrain.RoomId}");
 
     internal int GetNextObjectId()
     {

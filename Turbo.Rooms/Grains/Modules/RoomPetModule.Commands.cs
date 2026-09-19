@@ -8,6 +8,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Messages.Outgoing.Room.Pets;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
 using Turbo.Primitives.Rooms.Enums;
@@ -41,7 +42,7 @@ public sealed partial class RoomPetModule
         if (!TryGetPet(petId, out var pet))
             return false;
 
-        await SendToPlayerAsync(
+        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new PetCommandsMessageComposer
             {
@@ -147,7 +148,7 @@ public sealed partial class RoomPetModule
             return false;
         }
 
-        TryGetPlayer(pet.OwnerId, out var owner);
+        _roomGrain.AvatarModule.TryGetPlayer(pet.OwnerId, out var owner);
 
         await _roomGrain.AvatarModule.StopWalkingAsync(pet, ct);
 
@@ -361,7 +362,7 @@ public sealed partial class RoomPetModule
             ct
         );
 
-        await SendToPlayerAsync(
+        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
             pet.OwnerId,
             new PetLevelNotificationEventMessageComposer
             {

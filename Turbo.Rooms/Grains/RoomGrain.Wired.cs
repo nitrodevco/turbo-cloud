@@ -91,9 +91,11 @@ public sealed partial class RoomGrain
                 WiredTimezone = timezone,
             };
 
-            await _grainFactory
-                .GetPlayerPresenceGrain(ctx.PlayerId)
-                .SendComposerAsync(CreateWiredRoomSettingsComposer(), ct);
+            await _grainFactory.SendComposerToPlayerAsync(
+                ctx.PlayerId,
+                CreateWiredRoomSettingsComposer(),
+                ct
+            );
 
             await SecurityModule.RefreshWiredPermissionsForRoomAsync(ct);
 

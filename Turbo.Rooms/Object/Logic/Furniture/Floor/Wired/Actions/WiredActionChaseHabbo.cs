@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.RoomItem;
@@ -12,6 +13,7 @@ using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
@@ -24,15 +26,7 @@ public class WiredActionChaseHabbo(
 {
     public override int WiredCode => (int)WiredActionType.CHASE;
 
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [
-            [
-                WiredFurniSourceType.SelectedItems,
-                WiredFurniSourceType.SelectorItems,
-                WiredFurniSourceType.SignalItems,
-                WiredFurniSourceType.TriggeredItem,
-            ],
-        ];
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
@@ -66,18 +60,22 @@ public class WiredActionChaseHabbo(
                     {
                         didCollide = true;
 
-                        _ = _ctx.PublishRoomEventAsync(
-                            new RoomItemCollisionEvent()
-                            {
-                                ObjectId = floorItem.ObjectId,
-                                CausedBy = ActionContext.CreateForPlayer(
-                                    player.PlayerId,
-                                    _roomGrain.RoomId
-                                ),
-                                RoomId = _roomGrain.RoomId,
-                            },
-                            ct
-                        );
+                        _ctx.PublishRoomEventAsync(
+                                new RoomItemCollisionEvent()
+                                {
+                                    ObjectId = floorItem.ObjectId,
+                                    CausedBy = ActionContext.CreateForPlayer(
+                                        player.PlayerId,
+                                        _roomGrain.RoomId
+                                    ),
+                                    RoomId = _roomGrain.RoomId,
+                                },
+                                ct
+                            )
+                            .LogAndForget(
+                                _roomGrain._logger,
+                                $"publish an event in room {_roomGrain.RoomId}"
+                            );
 
                         break;
                     }

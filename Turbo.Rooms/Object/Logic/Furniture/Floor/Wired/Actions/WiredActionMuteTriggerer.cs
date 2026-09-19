@@ -4,11 +4,13 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -28,14 +30,10 @@ public class WiredActionMuteTriggerer(
 
     public override List<IWiredParamRule> GetIntParamRules() => [new WiredRangeParamRule(0, 10, 1)];
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
-        [
-            [
-                WiredPlayerSourceType.TriggeredUser,
-                WiredPlayerSourceType.SelectorUsers,
-                WiredPlayerSourceType.SignalUsers,
-            ],
-        ];
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
+
+    protected override int GetStringParamMaxLength() =>
+        _roomGrain._roomConfig.WiredKickMessageMaxLength;
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
@@ -59,8 +57,8 @@ public class WiredActionMuteTriggerer(
             if (message.Length == 0)
                 continue;
 
-            await _roomGrain.SendComposerToPlayersAsync(
-                [player.PlayerId],
+            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                player.PlayerId,
                 new WhisperMessageComposer
                 {
                     ObjectId = player.ObjectId,

@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events;
@@ -268,7 +269,9 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
         }
 
         foreach (var composer in composers)
-            _ = _roomGrain.SendComposerToRoomAsync(composer, CancellationToken.None);
+            _roomGrain
+                .SendComposerToRoomAsync(composer, CancellationToken.None)
+                .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
         return Task.CompletedTask;
     }
 

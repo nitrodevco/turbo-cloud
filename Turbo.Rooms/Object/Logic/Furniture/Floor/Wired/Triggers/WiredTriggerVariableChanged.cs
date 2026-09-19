@@ -35,18 +35,12 @@ public class WiredTriggerVariableChanged(
     public override int GetMaxVariableIds() => 1;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredParamRule((int)WiredVariableTargetType.User), new WiredParamRule(0)];
+        [WiredRules.VariableTarget(WiredVariableTargetType.User), WiredRules.AnyInt()];
 
-    public override IWiredParamRule? GetIntParamTailRule() => new WiredParamRule(0);
+    public override IWiredParamRule? GetIntParamTailRule() => WiredRules.AnyInt();
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
-        [
-            new WiredVariableAllInRoomSnapshot()
-            {
-                ContextType = WiredContextType.AllVariablesInRoom,
-                AllVariablesHash = _roomGrain._state.AllVariablesHash,
-            },
-        ];
+        AllVariablesContext();
 
     public override Task<bool> MatchesEventAsync(RoomEvent evt, CancellationToken ct)
     {

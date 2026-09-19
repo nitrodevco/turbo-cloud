@@ -95,11 +95,10 @@ public sealed partial class RoomActionModule
         if (item.Logic is not FurnitureWiredLogic wiredLogic)
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        var (canModify, _) = _roomGrain.SecurityModule.GetWiredPermissions(
-            await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx)
-        );
+        var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx);
+        var (canModify, _) = _roomGrain.SecurityModule.GetWiredPermissions(controllerLevel);
 
-        if (!canModify)
+        if (!canModify || controllerLevel < wiredLogic.MinimumControllerLevelToSave)
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToModifyWired);
 
         if (!await wiredLogic.ApplyWiredUpdateAsync(ctx, update, ct))

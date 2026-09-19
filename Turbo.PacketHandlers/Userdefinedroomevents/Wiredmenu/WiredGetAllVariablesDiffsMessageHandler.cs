@@ -34,38 +34,27 @@ public class WiredGetAllVariablesDiffsMessageHandler(IGrainFactory grainFactory)
         if (variables is null)
             return;
 
+        // The client lists what it already holds. It gets back the ids that are gone and the
+        // variables that are new to it or whose hash moved; what it has unchanged is not resent.
+        var current = variables.Variables.ToDictionary(x => x.VariableId);
+        var known = new HashSet<WiredVariableId>();
         var removedIds = new List<WiredVariableId>();
-        var checkedIds = new List<WiredVariableId>();
         var diffs = new List<WiredVariableSnapshot>();
 
-        if (message.VariableIdsWithHash.Count > 0)
+        foreach (var (id, hash) in message.VariableIdsWithHash)
         {
-            foreach (var (id, hash) in message.VariableIdsWithHash)
-            {
-                checkedIds.Add(id);
-
-                try
-                {
-                    var existing = variables.Variables.First(x => x.VariableId == id);
-
-                    diffs.Add(existing);
-                }
-                catch
-                {
-                    removedIds.Add(id);
-                }
-            }
-        }
-
-        foreach (var variable in variables.Variables)
-        {
-            if (checkedIds.Contains(variable.VariableId))
+            if (!known.Add(id))
                 continue;
 
-            diffs.Add(variable);
+            if (!current.TryGetValue(id, out var existing))
+                removedIds.Add(id);
+            else if (existing.VariableHash != hash)
+                diffs.Add(existing);
         }
 
-        _ = ctx.SendComposerAsync(
+        diffs.AddRange(variables.Variables.Where(x => !known.Contains(x.VariableId)));
+
+        await ctx.SendComposerAsync(
                 new WiredAllVariablesDiffsEventMessageComposer()
                 {
                     AllVariablesHash = variables.AllVariablesHash,

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,6 +13,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object;
@@ -98,6 +100,12 @@ public abstract partial class FurnitureWiredLogic(
     public virtual List<Type> GetTypeSpecificTypes() => [];
 
     public virtual bool SupportsAdvancedMode() => true;
+
+    /// <summary>
+    /// The room role needed to save this box, on top of the room's wired modify permission.
+    /// Boxes that hand out things of value outside the room raise it.
+    /// </summary>
+    public virtual RoomControllerType MinimumControllerLevelToSave => RoomControllerType.None;
 
     public virtual List<WiredVariableContextSnapshot> GetWiredContextSnapshots() => [];
 
@@ -248,7 +256,7 @@ public abstract partial class FurnitureWiredLogic(
         try
         {
             var intParams = new List<int>();
-            var stringParam = update.StringParam;
+            var stringParam = SanitizeStringParam(update.StringParam);
             var stuffIds = new List<int>();
             var stuffIds2 = new List<int>();
             var variableIds = new List<string>();
@@ -282,22 +290,16 @@ public abstract partial class FurnitureWiredLogic(
             {
                 WiredFurniSourceType[]? sourceTypes = source;
 
-                try
+                if (index < update.FurniSources.Count && update.FurniSources[index] is { } proposed)
                 {
-                    if (update.FurniSources[index] is not null)
-                    {
-                        sourceTypes =
-                        [
-                            .. update
-                                .FurniSources[index]
-                                .Where(validFurniSources[index].Contains)
-                                .Take(source.Length),
-                        ];
-                    }
-                }
-                catch (Exception ex)
-                {
-                    LogWiredDataFault(ex);
+                    // Only sources this box offers survive; with none left the default stands.
+                    var allowed = proposed
+                        .Where(validFurniSources[index].Contains)
+                        .Take(source.Length)
+                        .ToArray();
+
+                    if (allowed.Length > 0)
+                        sourceTypes = allowed;
                 }
 
                 furniSources.Add(sourceTypes);
@@ -311,22 +313,19 @@ public abstract partial class FurnitureWiredLogic(
             {
                 WiredPlayerSourceType[]? sourceTypes = source;
 
-                try
+                if (
+                    index < update.PlayerSources.Count
+                    && update.PlayerSources[index] is { } proposed
+                )
                 {
-                    if (update.PlayerSources[index] is not null)
-                    {
-                        sourceTypes =
-                        [
-                            .. update
-                                .PlayerSources[index]
-                                .Where(validPlayerSources[index].Contains)
-                                .Take(source.Length),
-                        ];
-                    }
-                }
-                catch (Exception ex)
-                {
-                    LogWiredDataFault(ex);
+                    // Only sources this box offers survive; with none left the default stands.
+                    var allowed = proposed
+                        .Where(validPlayerSources[index].Contains)
+                        .Take(source.Length)
+                        .ToArray();
+
+                    if (allowed.Length > 0)
+                        sourceTypes = allowed;
                 }
 
                 playerSources.Add(sourceTypes);
@@ -339,24 +338,12 @@ public abstract partial class FurnitureWiredLogic(
             {
                 object specific = default!;
 
-                try
-                {
-                    if (
-                        update.DefinitionSpecifics[index] is not null
-                        && specType.IsAssignableFrom(update.DefinitionSpecifics[index].GetType())
-                    )
-                    {
-                        specific = update.DefinitionSpecifics[index];
-                    }
-                    else
-                    {
-                        specific = Activator.CreateInstance(specType)!;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    LogWiredDataFault(ex);
-                }
+                specific =
+                    index < update.DefinitionSpecifics.Count
+                    && update.DefinitionSpecifics[index] is { } sent
+                    && specType.IsInstanceOfType(sent)
+                        ? sent
+                        : CreateDefaultSpecific(specType);
 
                 definitionSpecifics.Add(specific);
                 index++;
@@ -368,24 +355,12 @@ public abstract partial class FurnitureWiredLogic(
             {
                 object specific = default!;
 
-                try
-                {
-                    if (
-                        update.TypeSpecifics[index] is not null
-                        && specType.IsAssignableFrom(update.TypeSpecifics[index].GetType())
-                    )
-                    {
-                        specific = update.TypeSpecifics[index];
-                    }
-                    else
-                    {
-                        specific = Activator.CreateInstance(specType)!;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    LogWiredDataFault(ex);
-                }
+                specific =
+                    index < update.TypeSpecifics.Count
+                    && update.TypeSpecifics[index] is { } sent
+                    && specType.IsInstanceOfType(sent)
+                        ? sent
+                        : CreateDefaultSpecific(specType);
 
                 typeSpecifics.Add(specific);
                 index++;
@@ -402,6 +377,9 @@ public abstract partial class FurnitureWiredLogic(
             _wiredData.TypeSpecifics = typeSpecifics;
 
             _wiredData.MarkDirty();
+
+            if (KeepsFurniSnapshot)
+                CaptureFurniSnapshot(stuffIds);
 
             await OnWiredStackChangedAsync(ctx, [_ctx.GetTileIdx()], ct);
 
@@ -420,6 +398,42 @@ public abstract partial class FurnitureWiredLogic(
             return false;
         }
     }
+
+    /// <summary>
+    /// Longest text this box stores. The client caps every input itself, so anything longer
+    /// did not come from the editor; boxes with a smaller input override this.
+    /// </summary>
+    protected virtual int GetStringParamMaxLength() =>
+        _roomGrain._roomConfig.WiredStringParamMaxLength;
+
+    /// <summary>
+    /// The text as it is stored: control characters dropped (tab and line breaks stay, boxes
+    /// use them as separators) and cut to <see cref="GetStringParamMaxLength"/>.
+    /// </summary>
+    protected string SanitizeStringParam(string? proposed)
+    {
+        if (string.IsNullOrEmpty(proposed))
+            return string.Empty;
+
+        var max = Math.Max(0, GetStringParamMaxLength());
+        var builder = new StringBuilder(Math.Min(proposed.Length, max));
+
+        foreach (var c in proposed)
+        {
+            if (builder.Length >= max)
+                break;
+
+            if (char.IsControl(c) && c is not ('\t' or '\n' or '\r'))
+                continue;
+
+            builder.Append(c);
+        }
+
+        return builder.ToString();
+    }
+
+    private static object CreateDefaultSpecific(Type specType) =>
+        specType == typeof(string) ? string.Empty : Activator.CreateInstance(specType)!;
 
     protected virtual bool TryNormalizeIntParams(List<int> proposed, out List<int> normalized)
     {
@@ -492,19 +506,18 @@ public abstract partial class FurnitureWiredLogic(
     {
         stuffIds = [];
 
-        var count = 0;
+        var limit = _roomGrain._roomConfig.WiredSelectedItemsLimit;
+        var seen = new HashSet<int>();
 
         foreach (var id in proposed)
         {
-            if (!_roomGrain._state.ItemsById.TryGetValue(id, out var item))
+            if (stuffIds.Count >= limit)
+                break;
+
+            if (!_roomGrain._state.ItemsById.ContainsKey(id) || !seen.Add(id))
                 continue;
 
             stuffIds.Add(id);
-
-            count++;
-
-            if (count >= _roomGrain._roomConfig.WiredSelectedItemsLimit)
-                break;
         }
 
         return true;
@@ -517,31 +530,23 @@ public abstract partial class FurnitureWiredLogic(
     {
         variableIds = [];
 
-        var count = 0;
         var max = GetMaxVariableIds();
 
         foreach (var id in proposed)
         {
-            try
-            {
-                var variableId = WiredVariableId.Parse(id);
-                var variable = _roomGrain.WiredSystem.GetVariableById(variableId);
+            if (variableIds.Count >= max)
+                break;
 
-                if (variable is null)
-                    continue;
-
-                variableIds.Add(variableId);
-
-                count++;
-
-                if (count >= max)
-                    break;
-            }
-            catch (Exception ex)
-            {
-                LogWiredDataFault(ex);
+            if (!WiredVariableId.TryParse(id, out var variableId))
                 continue;
-            }
+
+            if (
+                variableIds.Contains(variableId)
+                || _roomGrain.WiredSystem.GetVariableById(variableId) is null
+            )
+                continue;
+
+            variableIds.Add(variableId);
         }
 
         return true;
@@ -577,6 +582,27 @@ public abstract partial class FurnitureWiredLogic(
                 _wiredData.IntParams = normalizedIntParams;
                 _wiredData.MarkDirty();
             }
+        }
+        else
+        {
+            // Stored params no longer fit the rules (a rule was tightened, or the row was edited
+            // by hand). They never reach the box unchecked: it starts over from its defaults.
+            _roomGrain._logger.LogWarning(
+                "Wired item {ItemId} in room {RoomId} held int params that fail its rules; reset to defaults",
+                _ctx.ObjectId,
+                _ctx.RoomId
+            );
+
+            _wiredData.IntParams = GetDefaultIntParams();
+            _wiredData.MarkDirty();
+        }
+
+        var storedString = SanitizeStringParam(_wiredData.StringParam);
+
+        if (!string.Equals(storedString, _wiredData.StringParam, StringComparison.Ordinal))
+        {
+            _wiredData.StringParam = storedString;
+            _wiredData.MarkDirty();
         }
 
         if (GetValidStuffIds(_wiredData.StuffIds, out var stuffIds))
@@ -697,18 +723,18 @@ public abstract partial class FurnitureWiredLogic(
 
         _ctx.RoomObject.ExtraData.DeleteSection(ExtraDataSectionType.WIRED);
 
+        if (KeepsFurniSnapshot)
+            DeleteFurniSnapshot();
+
         await OnWiredStackChangedAsync(ctx, [_ctx.GetTileIdx()], ct);
     }
 
-    public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
-    {
-        _ = _grainFactory
-            .GetPlayerPresenceGrain(ctx.PlayerId)
-            .SendComposerAsync(new OpenEventMessageComposer { ItemId = _ctx.ObjectId }, ct)
-            .ConfigureAwait(false);
-
-        return Task.CompletedTask;
-    }
+    public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct) =>
+        _grainFactory.SendComposerToPlayerAsync(
+            ctx.PlayerId,
+            new OpenEventMessageComposer { ItemId = _ctx.ObjectId },
+            ct
+        );
 
     /// <summary>
     /// Stored wired data that does not fit the box (a stale shape after a definition change) is
@@ -737,21 +763,8 @@ public abstract partial class FurnitureWiredLogic(
         return true;
     }
 
-    protected bool TryGetPlayer(int playerId, out IRoomPlayer player)
-    {
-        player = null!;
-
-        if (
-            !_roomGrain._state.AvatarsByPlayerId.TryGetValue(playerId, out var objectId)
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
-            || avatar is not IRoomPlayer found
-        )
-            return false;
-
-        player = found;
-
-        return true;
-    }
+    protected bool TryGetPlayer(int playerId, out IRoomPlayer player) =>
+        _roomGrain.AvatarModule.TryGetPlayer(playerId, out player);
 
     /// <summary>The players of a selection that are still in the room.</summary>
     protected List<IRoomPlayer> GetPlayers(IWiredSelectionSet selection)

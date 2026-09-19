@@ -60,7 +60,7 @@ public class WiredAddonVariableTimeUtil(
     public override int WiredCode => (int)WiredAddonType.VARIABLE_TIME_UTIL;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredParamRule(0), new WiredRangeParamRule(0, 2, 0)];
+        [WiredRules.AnyInt(), new WiredRangeParamRule(0, 2, 0)];
 
     protected override IEnumerable<IWiredVariable> BuildSubVariables(
         FurnitureWiredVariableLogic parent,

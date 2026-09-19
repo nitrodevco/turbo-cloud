@@ -8,6 +8,7 @@ using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Messages.Outgoing.Room.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -81,10 +82,12 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
         if (dirtySnapshots.Count == 0)
             return;
 
-        _ = _roomGrain.SendComposerToRoomAsync(
-            new UserUpdateMessageComposer { Avatars = [.. dirtySnapshots] },
-            ct
-        );
+        _roomGrain
+            .SendComposerToRoomAsync(
+                new UserUpdateMessageComposer { Avatars = [.. dirtySnapshots] },
+                ct
+            )
+            .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
     }
 
     /// <summary>
@@ -110,10 +113,12 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
 
         avatar.SetIdle(true);
 
-        _ = _roomGrain.SendComposerToRoomAsync(
-            new SleepMessageComposer { UserId = avatar.ObjectId, IsSleeping = true },
-            CancellationToken.None
-        );
+        _roomGrain
+            .SendComposerToRoomAsync(
+                new SleepMessageComposer { UserId = avatar.ObjectId, IsSleeping = true },
+                CancellationToken.None
+            )
+            .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
     }
 
     private async Task ProcessAvatarAsync(IRoomAvatar avatar, long now, CancellationToken ct)

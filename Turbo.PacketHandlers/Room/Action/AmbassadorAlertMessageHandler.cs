@@ -39,8 +39,8 @@ public class AmbassadorAlertMessageHandler(IGrainFactory grainFactory)
             return;
 
         await _grainFactory
-            .GetPlayerPresenceGrain(message.UserId)
-            .SendComposerAsync(
+            .SendComposerToPlayerAsync(
+                message.UserId,
                 new ModeratorCautionEventMessageComposer
                 {
                     Message = AmbassadorAlertText.MESSAGE,

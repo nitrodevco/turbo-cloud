@@ -7,6 +7,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
@@ -24,7 +25,7 @@ public class WiredConditionHasVariable(
     public override int GetMaxVariableIds() => 1;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredParamRule((int)WiredVariableTargetType.User)];
+        [WiredRules.VariableTarget(WiredVariableTargetType.User)];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [
@@ -36,23 +37,10 @@ public class WiredConditionHasVariable(
             ],
         ];
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
-        [
-            [
-                WiredPlayerSourceType.TriggeredUser,
-                WiredPlayerSourceType.SelectorUsers,
-                WiredPlayerSourceType.SignalUsers,
-            ],
-        ];
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
-        [
-            new WiredVariableAllInRoomSnapshot()
-            {
-                ContextType = WiredContextType.AllVariablesInRoom,
-                AllVariablesHash = _roomGrain._state.AllVariablesHash,
-            },
-        ];
+        AllVariablesContext();
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
@@ -61,10 +49,7 @@ public class WiredConditionHasVariable(
         if (variable is null)
             return false;
 
-        var targetType = (WiredVariableTargetType)GetIntParamOrDefault(
-            0,
-            (int)variable.GetVarSnapshot().TargetType
-        );
+        var targetType = GetTargetType(variable, 0);
         var targets = GetTargetIds(targetType, ctx.GetSelection(this)).ToList();
 
         return Quantify(

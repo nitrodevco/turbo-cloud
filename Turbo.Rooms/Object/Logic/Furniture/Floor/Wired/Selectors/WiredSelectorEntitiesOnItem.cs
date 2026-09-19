@@ -22,15 +22,7 @@ public class WiredSelectorEntitiesOnItem(
 {
     public override int WiredCode => (int)WiredSelectorType.USERS_ON_FURNI;
 
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [
-            [
-                WiredFurniSourceType.SelectedItems,
-                WiredFurniSourceType.SelectorItems,
-                WiredFurniSourceType.SignalItems,
-                WiredFurniSourceType.TriggeredItem,
-            ],
-        ];
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
     public override Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,

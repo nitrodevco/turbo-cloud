@@ -9,7 +9,6 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
-using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
@@ -24,12 +23,7 @@ public class WiredSelectorEntitiesInArea(
     public override int WiredCode => (int)WiredSelectorType.USERS_IN_AREA;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [
-            new WiredParamRule(0),
-            new WiredParamRule(0),
-            new WiredParamRule(0),
-            new WiredParamRule(0),
-        ];
+        WiredArea.GetParamRules(_roomGrain._roomConfig);
 
     public override Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,
@@ -37,26 +31,19 @@ public class WiredSelectorEntitiesInArea(
     )
     {
         var output = new WiredSelectionSet();
-        var rootX = GetIntParamOrDefault(0, 0);
-        var rootY = GetIntParamOrDefault(1, 0);
-        var width = GetIntParamOrDefault(2, 0);
-        var height = GetIntParamOrDefault(3, 0);
-
-        if (width * height > _roomGrain._roomConfig.WiredMaxAreaTiles)
-            return Task.FromResult<IWiredSelectionSet>(output);
-
+        var area = WiredArea.Create(
+            _roomGrain,
+            GetIntParamOrDefault(0, 0),
+            GetIntParamOrDefault(1, 0),
+            GetIntParamOrDefault(2, 0),
+            GetIntParamOrDefault(3, 0)
+        );
         foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
         {
             if (avatar is not IRoomPlayer player)
                 continue;
 
-            var inside =
-                player.X >= rootX
-                && player.X < rootX + width
-                && player.Y >= rootY
-                && player.Y < rootY + height;
-
-            if (inside)
+            if (area.Contains(player.X, player.Y))
                 output.SelectedPlayerIds.Add(player.PlayerId);
         }
 

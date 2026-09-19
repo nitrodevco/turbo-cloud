@@ -9,6 +9,7 @@ using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
@@ -26,9 +27,7 @@ public class WiredTriggerItemStateUpdated(
     public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(false)];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [
-            [WiredFurniSourceType.SelectedItems, WiredFurniSourceType.SelectorItems],
-        ];
+        [WiredSources.PickedFurni];
 
     public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {

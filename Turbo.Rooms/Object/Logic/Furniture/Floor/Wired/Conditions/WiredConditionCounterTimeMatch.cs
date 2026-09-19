@@ -33,9 +33,7 @@ public class WiredConditionCounterTimeMatch(
         ];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [
-            [WiredFurniSourceType.SelectedItems, WiredFurniSourceType.SelectorItems],
-        ];
+        [WiredSources.PickedFurni];
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {

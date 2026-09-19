@@ -24,15 +24,7 @@ public class WiredConditionItemHeightMatch(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredRangeParamRule(0, 8000, 0), new WiredRangeParamRule(0, 2, 1)];
 
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [
-            [
-                WiredFurniSourceType.SelectedItems,
-                WiredFurniSourceType.SelectorItems,
-                WiredFurniSourceType.SignalItems,
-                WiredFurniSourceType.TriggeredItem,
-            ],
-        ];
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {

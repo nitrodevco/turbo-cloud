@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Entities.Room;
+using Turbo.Database.Extensions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Orleans;
@@ -62,16 +63,11 @@ public sealed partial class RoomGrain
 
         await PublishToDirectoryAsync(ct);
 
-        await _grainFactory
-            .GetPlayerPresenceGrain(ctx.PlayerId)
-            .SendComposerAsync(
-                new RoomRatingMessageComposer
-                {
-                    Rating = _state.RoomSnapshot.Score,
-                    CanRate = false,
-                },
-                ct
-            );
+        await _grainFactory.SendComposerToPlayerAsync(
+            ctx.PlayerId,
+            new RoomRatingMessageComposer { Rating = _state.RoomSnapshot.Score, CanRate = false },
+            ct
+        );
 
         return true;
     }
@@ -224,17 +220,10 @@ public sealed partial class RoomGrain
 
                 await dbCtx.SaveChangesAsync(ct);
 
-                next = new RoomEventSnapshot
+                // The row's created-at is stamped by the database, so the snapshot takes ours.
+                next = entity.ToSnapshot(_state.RoomSnapshot.OwnerName) with
                 {
-                    EventId = entity.Id,
-                    RoomId = _state.RoomId,
-                    OwnerId = playerId,
-                    OwnerName = _state.RoomSnapshot.OwnerName,
-                    CategoryId = categoryId,
-                    Name = name,
-                    Description = description,
                     CreatedAtUtc = now,
-                    ExpiresAtUtc = entity.ExpiresAt,
                 };
             }
         }

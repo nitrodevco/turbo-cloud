@@ -124,5 +124,8 @@ public class RoomConfig
     public int WiredBotFollowDistance { get; init; } = 1;
     public int[] WiredTeamEffectIds { get; init; } = [0, 33, 34, 35, 36];
     public int[] WiredFreezeEffectIds { get; init; } = [0, 0, 0, 0, 0];
-    public int WiredMaxAreaTiles { get; init; } = 400;
+    public int WiredMaxCoordinate { get; init; } = 255;
+    public int WiredStringParamMaxLength { get; init; } = 2000;
+    public int WiredMaxHandItemId { get; init; } = 10000;
+    public int WiredMaxEffectId { get; init; } = 10000;
 }

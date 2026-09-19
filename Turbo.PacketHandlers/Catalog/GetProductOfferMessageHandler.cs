@@ -20,16 +20,12 @@ public class GetProductOfferMessageHandler(ICatalogService catalogService)
         CancellationToken ct
     )
     {
-        try
-        {
-            var snapshot = _catalogService.GetCatalogSnapshot(CatalogType.Normal);
+        var snapshot = _catalogService.GetCatalogSnapshot(CatalogType.Normal);
 
-            if (!snapshot.OffersById.TryGetValue(message.OfferId, out var offer))
-                return;
+        if (!snapshot.OffersById.TryGetValue(message.OfferId, out var offer))
+            return;
 
-            await ctx.SendComposerAsync(new ProductOfferEventMessageComposer { Offer = offer }, ct)
-                .ConfigureAwait(false);
-        }
-        catch (Exception) { }
+        await ctx.SendComposerAsync(new ProductOfferEventMessageComposer { Offer = offer }, ct)
+            .ConfigureAwait(false);
     }
 }

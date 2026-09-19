@@ -17,6 +17,11 @@ using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Players.Grains;
 
+/// <summary>
+/// Where a player is connected and which room they are in, and the one way composers reach
+/// them. Nothing is persisted: presence only means something while the session lives, so
+/// deactivation drops the queue and lets go of the session and the room stream.
+/// </summary>
 internal sealed partial class PlayerPresenceGrain
     : Grain,
         IPlayerPresenceGrain,
@@ -27,13 +32,9 @@ internal sealed partial class PlayerPresenceGrain
     internal readonly ILogger<IPlayerPresenceGrain> _logger;
     internal readonly PlayerPresenceLiveState _state;
 
-    private ISessionContextObserver? _sessionObserver = null;
-    private StreamSubscriptionHandle<RoomOutboundSnapshot>? _roomOutboundSub = null;
-
-    private readonly Queue<IComposer> _outgoingQueue = new();
-
-    private IGrainTimer? _timer;
-    private bool _isProcessingQueue = false;
+    private ISessionContextObserver? _sessionObserver;
+    private StreamSubscriptionHandle<RoomOutboundSnapshot>? _roomOutboundSub;
+    private IGrainTimer? _presenceTimer;
 
     public PlayerId PlayerId => _state.PlayerId;
 
@@ -52,10 +53,10 @@ internal sealed partial class PlayerPresenceGrain
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
-        _timer?.Dispose();
-        _timer = null;
+        _presenceTimer?.Dispose();
+        _presenceTimer = null;
 
-        _outgoingQueue.Clear();
+        _state.OutgoingQueue.Clear();
 
         await UnregisterSessionObserverAsync(ct);
     }
@@ -69,11 +70,11 @@ internal sealed partial class PlayerPresenceGrain
             .SetOnlineStatusAsync(true, CancellationToken.None)
             .LogAndForget(_logger, $"set player {_state.PlayerId} online");
 
-        _timer?.Dispose();
+        _presenceTimer?.Dispose();
 
         // KeepAlive: a presence grain with a live session must not be collected on idle. Losing
         // the activation drops the session observer and strands the room stream subscription.
-        _timer = this.RegisterGrainTimer<object?>(
+        _presenceTimer = this.RegisterGrainTimer<object?>(
             static async (self, ct) =>
                 await ((PlayerPresenceGrain)self!).FlushPendingMessengerUpdatesAsync(ct),
             this,
@@ -103,8 +104,8 @@ internal sealed partial class PlayerPresenceGrain
 
     public async Task UnregisterSessionObserverAsync(CancellationToken ct)
     {
-        _timer?.Dispose();
-        _timer = null;
+        _presenceTimer?.Dispose();
+        _presenceTimer = null;
 
         await ClearActiveRoomAsync(ct);
 
@@ -173,7 +174,7 @@ internal sealed partial class PlayerPresenceGrain
     {
         // Without a session nothing can drain the queue; keep it bounded so an offline or
         // half-attached presence cannot grow without limit.
-        if (_outgoingQueue.Count >= _playerConfig.MaxPendingComposers)
+        if (_state.OutgoingQueue.Count >= _playerConfig.MaxPendingComposers)
         {
             _logger.LogWarning(
                 "Outgoing queue for player {PlayerId} is full ({Max}); dropping oldest composer",
@@ -181,18 +182,18 @@ internal sealed partial class PlayerPresenceGrain
                 _playerConfig.MaxPendingComposers
             );
 
-            _outgoingQueue.Dequeue();
+            _state.OutgoingQueue.Dequeue();
         }
 
-        _outgoingQueue.Enqueue(composer);
+        _state.OutgoingQueue.Enqueue(composer);
     }
 
     private async Task ProcessOutgoingQueueAsync()
     {
-        if (_isProcessingQueue)
+        if (_state.IsProcessingQueue)
             return;
 
-        _isProcessingQueue = true;
+        _state.IsProcessingQueue = true;
 
         try
         {
@@ -200,9 +201,9 @@ internal sealed partial class PlayerPresenceGrain
 
             if (_sessionObserver is not null)
             {
-                while (_outgoingQueue.Count > 0)
+                while (_state.OutgoingQueue.Count > 0)
                 {
-                    var payload = _outgoingQueue.Dequeue();
+                    var payload = _state.OutgoingQueue.Dequeue();
 
                     await _sessionObserver.SendComposerAsync(payload);
                 }
@@ -218,7 +219,7 @@ internal sealed partial class PlayerPresenceGrain
         }
         finally
         {
-            _isProcessingQueue = false;
+            _state.IsProcessingQueue = false;
         }
     }
 }

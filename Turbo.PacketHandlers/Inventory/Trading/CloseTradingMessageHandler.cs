@@ -22,8 +22,8 @@ public class CloseTradingMessageHandler(IGrainFactory grainFactory)
             return;
 
         await _grainFactory
-            .GetRoomGrain(ctx.RoomId)
-            .CloseTradeAsync(ctx.AsActionContext(), ct)
+            .GetRoomTradeGrain(ctx.RoomId)
+            .CloseAsync(ctx.AsActionContext(), ct)
             .ConfigureAwait(false);
     }
 }

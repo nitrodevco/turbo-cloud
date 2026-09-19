@@ -35,18 +35,15 @@ public class WiredAddonVariableCapturer(
 
     public override int WiredCode => (int)WiredAddonType.VARIABLE_CAPTURER;
 
+    // Both the keyword and the chat line come from players, so the match is time boxed.
+    private static readonly TimeSpan MATCH_TIMEOUT = TimeSpan.FromMilliseconds(50);
+
     public override int GetMaxVariableIds() => 1;
 
     public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(false)];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
-        [
-            new WiredVariableAllInRoomSnapshot()
-            {
-                ContextType = WiredContextType.AllVariablesInRoom,
-                AllVariablesHash = _roomGrain._state.AllVariablesHash,
-            },
-        ];
+        AllVariablesContext();
 
     public override async Task BeforeEffectsAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
@@ -73,7 +70,18 @@ public class WiredAddonVariableCapturer(
             Regex.Escape(keyword[..tokenIndex]).Replace("\\ ", "\\s+")
             + "(\\S+)"
             + Regex.Escape(keyword[(tokenIndex + token.Length)..]).Replace("\\ ", "\\s+");
-        var match = Regex.Match(chat.Text.Trim(), pattern, RegexOptions.IgnoreCase);
+        Match match;
+
+        try
+        {
+            match = Regex.Match(chat.Text.Trim(), pattern, RegexOptions.IgnoreCase, MATCH_TIMEOUT);
+        }
+        catch (RegexMatchTimeoutException ex)
+        {
+            LogWiredDataFault(ex);
+
+            return;
+        }
 
         if (!match.Success)
             return;

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -35,20 +36,14 @@ internal sealed class RoomNpcProvider(
             .Where(x => x.RoomEntityId == roomId.Value)
             .ToListAsync(ct);
 
-        var ownerNames = await _grainFactory
-            .GetPlayerDirectoryGrain()
-            .GetPlayerNamesAsync(
-                entities.Select(x => (PlayerId)x.PlayerEntityId).Distinct().ToList(),
-                ct
-            );
+        var ownerNames = await GetOwnerNamesAsync(entities.Select(x => x.PlayerEntityId), ct);
 
-        return entities
-            .Select(x =>
-                x.ToSnapshot(
-                    ownerNames.TryGetValue(x.PlayerEntityId, out var name) ? name : string.Empty
-                )
-            )
-            .ToList();
+        return
+        [
+            .. entities.Select(x =>
+                x.ToSnapshot(ownerNames.GetValueOrDefault(x.PlayerEntityId, string.Empty))
+            ),
+        ];
     }
 
     public async Task<IReadOnlyList<BotSnapshot>> LoadBotsByRoomIdAsync(
@@ -63,19 +58,22 @@ internal sealed class RoomNpcProvider(
             .Where(x => x.RoomEntityId == roomId.Value)
             .ToListAsync(ct);
 
-        var ownerNames = await _grainFactory
-            .GetPlayerDirectoryGrain()
-            .GetPlayerNamesAsync(
-                entities.Select(x => (PlayerId)x.PlayerEntityId).Distinct().ToList(),
-                ct
-            );
+        var ownerNames = await GetOwnerNamesAsync(entities.Select(x => x.PlayerEntityId), ct);
 
-        return entities
-            .Select(x =>
-                x.ToSnapshot(
-                    ownerNames.TryGetValue(x.PlayerEntityId, out var name) ? name : string.Empty
-                )
-            )
-            .ToList();
+        return
+        [
+            .. entities.Select(x =>
+                x.ToSnapshot(ownerNames.GetValueOrDefault(x.PlayerEntityId, string.Empty))
+            ),
+        ];
     }
+
+    /// <summary>One directory call for every owner in the room, however many pets or bots they have.</summary>
+    private Task<ImmutableDictionary<PlayerId, string>> GetOwnerNamesAsync(
+        IEnumerable<int> ownerIds,
+        CancellationToken ct
+    ) =>
+        _grainFactory
+            .GetPlayerDirectoryGrain()
+            .GetPlayerNamesAsync([.. ownerIds.Distinct().Select(x => (PlayerId)x)], ct);
 }

@@ -17,28 +17,32 @@ using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms.Grains;
 
+/// <summary>
+/// The rooms that are active right now, their populations and who is in them, one grain for
+/// the hotel. Nothing is persisted: the directory is rebuilt as rooms activate and report in,
+/// so deactivation only stops the timer.
+/// </summary>
 [KeepAlive]
-internal sealed class RoomDirectoryGrain(
-    IOptions<RoomConfig> roomConfig,
-    ILogger<IRoomDirectoryGrain> logger,
-    IGrainFactory grainFactory
-) : Grain, IRoomDirectoryGrain
+internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
 {
-    private readonly RoomConfig _roomConfig = roomConfig.Value;
-    private readonly ILogger<IRoomDirectoryGrain> _logger = logger;
-    private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly RoomConfig _roomConfig;
+    private readonly IGrainFactory _grainFactory;
+    private readonly ILogger<IRoomDirectoryGrain> _logger;
 
-    private readonly Dictionary<RoomId, RoomInfoSnapshot> _activeRooms = [];
+    private readonly RoomDirectoryLiveState _state = new();
 
-    // How each room looked when it became active, so a listing it has since left (for example
-    // an old category) is also invalidated when it deactivates.
-    private readonly Dictionary<RoomId, RoomInfoSnapshot> _activatedRooms = [];
-    private readonly Queue<(long Sequence, string Key)> _listingChanges = new();
-    private readonly Guid _listingEpoch = Guid.NewGuid();
-    private long _listingSequence;
     private IDisposable? _roomCheckTimer;
-    private readonly Dictionary<RoomId, List<PlayerId>> _roomPlayers = [];
-    private readonly Dictionary<RoomId, int> _roomPopulations = [];
+
+    public RoomDirectoryGrain(
+        IOptions<RoomConfig> roomConfig,
+        IGrainFactory grainFactory,
+        ILogger<IRoomDirectoryGrain> logger
+    )
+    {
+        _roomConfig = roomConfig.Value;
+        _grainFactory = grainFactory;
+        _logger = logger;
+    }
 
     public override Task OnActivateAsync(CancellationToken ct)
     {
@@ -71,16 +75,16 @@ internal sealed class RoomDirectoryGrain(
             LastUpdatedUtc = DateTime.UtcNow,
         };
 
-        _activeRooms[snapshot.RoomId] = room;
-        _activatedRooms.TryAdd(snapshot.RoomId, room);
+        _state.ActiveRooms[snapshot.RoomId] = room;
+        _state.ActivatedRooms.TryAdd(snapshot.RoomId, room);
 
         return Task.CompletedTask;
     }
 
     public Task RemoveActiveRoomAsync(RoomId roomId, bool listingChanged, CancellationToken ct)
     {
-        _activeRooms.Remove(roomId, out var current);
-        _activatedRooms.Remove(roomId, out var activated);
+        _state.ActiveRooms.Remove(roomId, out var current);
+        _state.ActivatedRooms.Remove(roomId, out var activated);
 
         if (listingChanged && current is not null)
         {
@@ -120,13 +124,15 @@ internal sealed class RoomDirectoryGrain(
     )
     {
         var oldestKnown =
-            _listingChanges.Count > 0 ? _listingChanges.Peek().Sequence : _listingSequence + 1;
+            _state.ListingChanges.Count > 0
+                ? _state.ListingChanges.Peek().Sequence
+                : _state.ListingSequence + 1;
 
         // A caller from another directory activation, or one older than the log, cannot catch up
         // key by key.
         var isReset =
-            epoch != _listingEpoch
-            || sinceSequence > _listingSequence
+            epoch != _state.ListingEpoch
+            || sinceSequence > _state.ListingSequence
             || sinceSequence < oldestKnown - 1;
 
         return Task.FromResult(
@@ -135,22 +141,22 @@ internal sealed class RoomDirectoryGrain(
                 ActiveRooms = includeActiveRooms
                     ?
                     [
-                        .. _activeRooms.Values.Select(x =>
+                        .. _state.ActiveRooms.Values.Select(x =>
                             RoomActiveSnapshot.From(
                                 x,
-                                _roomPopulations.TryGetValue(x.RoomId, out var pop) ? pop : 0
+                                _state.RoomPopulations.TryGetValue(x.RoomId, out var pop) ? pop : 0
                             )
                         ),
                     ]
                     : [],
-                Epoch = _listingEpoch,
-                Sequence = _listingSequence,
+                Epoch = _state.ListingEpoch,
+                Sequence = _state.ListingSequence,
                 ChangedKeys = isReset
                     ? []
                     :
                     [
-                        .. _listingChanges
-                            .Where(x => x.Sequence > sinceSequence)
+                        .. _state
+                            .ListingChanges.Where(x => x.Sequence > sinceSequence)
                             .Select(x => x.Key)
                             .Distinct(StringComparer.Ordinal),
                     ],
@@ -163,19 +169,19 @@ internal sealed class RoomDirectoryGrain(
     {
         foreach (var key in keys)
         {
-            _listingChanges.Enqueue((++_listingSequence, key));
+            _state.ListingChanges.Enqueue((++_state.ListingSequence, key));
 
-            while (_listingChanges.Count > _roomConfig.ListingChangeLogSize)
-                _listingChanges.Dequeue();
+            while (_state.ListingChanges.Count > _roomConfig.ListingChangeLogSize)
+                _state.ListingChanges.Dequeue();
         }
     }
 
     public async Task AddPlayerToRoomAsync(PlayerId playerId, RoomId roomId, CancellationToken ct)
     {
-        if (!_roomPlayers.TryGetValue(roomId, out var playerIds))
+        if (!_state.RoomPlayers.TryGetValue(roomId, out var playerIds))
         {
             playerIds = [];
-            _roomPlayers[roomId] = playerIds;
+            _state.RoomPlayers[roomId] = playerIds;
         }
 
         if (!playerIds.Contains(playerId))
@@ -190,7 +196,7 @@ internal sealed class RoomDirectoryGrain(
         CancellationToken ct
     )
     {
-        if (!_roomPlayers.TryGetValue(roomId, out var players))
+        if (!_state.RoomPlayers.TryGetValue(roomId, out var players))
             return;
 
         if (!players.Remove(playerId))
@@ -200,11 +206,14 @@ internal sealed class RoomDirectoryGrain(
     }
 
     public Task<int> GetRoomPopulationAsync(RoomId roomId, CancellationToken ct) =>
-        Task.FromResult(_roomPopulations.TryGetValue(roomId, out var pop) ? pop : 0);
+        Task.FromResult(_state.RoomPopulations.TryGetValue(roomId, out var pop) ? pop : 0);
 
     public Task<RoomId?> GetRandomPopulatedRoomAsync(CancellationToken ct)
     {
-        var populated = _roomPopulations.Where(kv => kv.Value > 0).Select(kv => kv.Key).ToArray();
+        var populated = _state
+            .RoomPopulations.Where(kv => kv.Value > 0)
+            .Select(kv => kv.Key)
+            .ToArray();
 
         if (populated.Length == 0)
             return Task.FromResult<RoomId?>(null);
@@ -215,7 +224,7 @@ internal sealed class RoomDirectoryGrain(
 
     private Task UpdatePopulationAsync(RoomId roomId)
     {
-        _roomPopulations[roomId] = _roomPlayers.TryGetValue(roomId, out var players)
+        _state.RoomPopulations[roomId] = _state.RoomPlayers.TryGetValue(roomId, out var players)
             ? players.Count
             : 0;
 
@@ -224,11 +233,11 @@ internal sealed class RoomDirectoryGrain(
 
     private Task CheckRoomsAsync(CancellationToken ct)
     {
-        var rooms = _activeRooms.Values.ToArray();
+        var rooms = _state.ActiveRooms.Values.ToArray();
 
         foreach (var room in rooms)
         {
-            var population = _roomPopulations.TryGetValue(room.RoomId, out var pop) ? pop : 0;
+            var population = _state.RoomPopulations.TryGetValue(room.RoomId, out var pop) ? pop : 0;
             var roomGrain = _grainFactory.GetRoomGrain(room.RoomId);
 
             if (population > 0)

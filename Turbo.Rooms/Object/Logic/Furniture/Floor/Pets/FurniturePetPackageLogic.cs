@@ -35,7 +35,7 @@ public class FurniturePetPackageLogic(IStuffDataFactory stuffDataFactory, IRoomF
 
         var contents = ReadContents();
 
-        await SendToPlayerAsync(
+        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new OpenPetPackageRequestedMessageComposer
             {
@@ -104,7 +104,7 @@ public class FurniturePetPackageLogic(IStuffDataFactory stuffDataFactory, IRoomF
         PetNameValidationType status,
         CancellationToken ct
     ) =>
-        SendToPlayerAsync(
+        _roomGrain._grainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new OpenPetPackageResultMessageComposer
             {

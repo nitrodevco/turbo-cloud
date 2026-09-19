@@ -10,6 +10,7 @@ using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
@@ -36,9 +37,7 @@ public class WiredTriggerCounterReachesTime(
         ];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [
-            [WiredFurniSourceType.SelectedItems, WiredFurniSourceType.SelectorItems],
-        ];
+        [WiredSources.PickedFurni];
 
     public int GetTargetHalfSeconds() =>
         (GetIntParamOrDefault(1, 0) * 60 + GetIntParamOrDefault(0, 0)) * 2

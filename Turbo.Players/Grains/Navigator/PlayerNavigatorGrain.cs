@@ -33,44 +33,27 @@ namespace Turbo.Players.Grains.Navigator;
 internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
-    private readonly IGrainFactory _grainFactory;
     private readonly PlayerConfig _playerConfig;
+    private readonly IGrainFactory _grainFactory;
     private readonly ILogger<IPlayerNavigatorGrain> _logger;
 
-    private readonly PlayerId _playerId;
+    private readonly PlayerNavigatorLiveState _state;
 
-    private readonly List<RoomId> _favouriteRoomIds = [];
-    private readonly List<NavigatorQuickLinkSnapshot> _savedSearches = [];
-    private readonly HashSet<string> _collapsedSearchCodes = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, NavigatorViewModeType> _viewModes = new(
-        StringComparer.Ordinal
-    );
-    private readonly Dictionary<RoomId, RoomVisitStats> _visitsByRoomId = [];
-    private readonly List<RoomId> _pendingVisits = [];
-
-    // Saved search ids are stored with each search, so the client sees the same id every login.
-    private int _nextSavedSearchId = 1;
-    private int _failedVisitWrites;
-    private readonly Queue<DateTime> _uncachedSearchTimes = new();
-
-    // Preference changes bump the version; a flush that completes at that version is clean.
-    private int _preferencesVersion;
-    private int _persistedPreferencesVersion;
     private IDisposable? _flushTimer;
 
     public PlayerNavigatorGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
-        IGrainFactory grainFactory,
         IOptions<PlayerConfig> playerConfig,
+        IGrainFactory grainFactory,
         ILogger<IPlayerNavigatorGrain> logger
     )
     {
         _dbCtxFactory = dbCtxFactory;
-        _grainFactory = grainFactory;
         _playerConfig = playerConfig.Value;
+        _grainFactory = grainFactory;
         _logger = logger;
 
-        _playerId = this.GetPlayerId();
+        _state = new() { PlayerId = this.GetPlayerId() };
     }
 
     public override async Task OnActivateAsync(CancellationToken ct)
@@ -84,7 +67,7 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
             _logger.LogError(
                 ex,
                 "Failed to hydrate navigator state for player {PlayerId}",
-                _playerId
+                _state.PlayerId
             );
 
             throw;
@@ -110,34 +93,35 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
         Task.FromResult(
             new PlayerNavigatorSnapshot
             {
-                FavouriteRoomIds = [.. _favouriteRoomIds],
-                SavedSearches = [.. _savedSearches],
-                CollapsedSearchCodes = [.. _collapsedSearchCodes],
-                ViewModes = _viewModes.ToImmutableDictionary(StringComparer.Ordinal),
+                FavouriteRoomIds = [.. _state.FavouriteRoomIds],
+                SavedSearches = [.. _state.SavedSearches],
+                CollapsedSearchCodes = [.. _state.CollapsedSearchCodes],
+                ViewModes = _state.ViewModes.ToImmutableDictionary(StringComparer.Ordinal),
             }
         );
 
     public async Task AddFavouriteRoomAsync(RoomId roomId, int limit, CancellationToken ct)
     {
-        if (roomId.Value <= 0 || _favouriteRoomIds.Contains(roomId))
+        if (roomId.Value <= 0 || _state.FavouriteRoomIds.Contains(roomId))
             return;
 
-        if (_favouriteRoomIds.Count >= limit)
+        if (_state.FavouriteRoomIds.Count >= limit)
         {
             _logger.LogWarning(
                 "Rejected favourite room {RoomId} for player {PlayerId}: limit {Limit} reached",
                 roomId,
-                _playerId,
+                _state.PlayerId,
                 limit
             );
 
             return;
         }
 
-        _favouriteRoomIds.Add(roomId);
-        _preferencesVersion++;
+        _state.FavouriteRoomIds.Add(roomId);
+        _state.PreferencesVersion++;
 
-        await SendToPlayerAsync(
+        await _grainFactory.SendComposerToPlayerAsync(
+            _state.PlayerId,
             new FavouriteChangedMessageComposer { RoomId = roomId, Added = true },
             ct
         );
@@ -145,12 +129,13 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
 
     public async Task RemoveFavouriteRoomAsync(RoomId roomId, CancellationToken ct)
     {
-        if (!_favouriteRoomIds.Remove(roomId))
+        if (!_state.FavouriteRoomIds.Remove(roomId))
             return;
 
-        _preferencesVersion++;
+        _state.PreferencesVersion++;
 
-        await SendToPlayerAsync(
+        await _grainFactory.SendComposerToPlayerAsync(
+            _state.PlayerId,
             new FavouriteChangedMessageComposer { RoomId = roomId, Added = false },
             ct
         );
@@ -173,32 +158,32 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
         )
             return;
 
-        if (_savedSearches.Any(x => x.SearchCode == searchCode && x.Filter == filter))
+        if (_state.SavedSearches.Any(x => x.SearchCode == searchCode && x.Filter == filter))
             return;
 
-        if (_savedSearches.Count >= limit)
+        if (_state.SavedSearches.Count >= limit)
         {
             _logger.LogWarning(
                 "Rejected saved search for player {PlayerId}: limit {Limit} reached",
-                _playerId,
+                _state.PlayerId,
                 limit
             );
 
             return;
         }
 
-        _savedSearches.Add(CreateSavedSearch(_nextSavedSearchId++, searchCode, filter));
-        _preferencesVersion++;
+        _state.SavedSearches.Add(CreateSavedSearch(_state.NextSavedSearchId++, searchCode, filter));
+        _state.PreferencesVersion++;
 
         await SendSavedSearchesAsync(ct);
     }
 
     public async Task DeleteSavedSearchAsync(int savedSearchId, CancellationToken ct)
     {
-        if (_savedSearches.RemoveAll(x => x.Id == savedSearchId) == 0)
+        if (_state.SavedSearches.RemoveAll(x => x.Id == savedSearchId) == 0)
             return;
 
-        _preferencesVersion++;
+        _state.PreferencesVersion++;
 
         await SendSavedSearchesAsync(ct);
     }
@@ -207,18 +192,18 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
     {
         if (
             IsValidSearchCode(searchCode)
-            && _collapsedSearchCodes.Count < limit
-            && _collapsedSearchCodes.Add(searchCode)
+            && _state.CollapsedSearchCodes.Count < limit
+            && _state.CollapsedSearchCodes.Add(searchCode)
         )
-            _preferencesVersion++;
+            _state.PreferencesVersion++;
 
         return Task.CompletedTask;
     }
 
     public Task RemoveCollapsedSearchCodeAsync(string searchCode, CancellationToken ct)
     {
-        if (_collapsedSearchCodes.Remove(searchCode))
-            _preferencesVersion++;
+        if (_state.CollapsedSearchCodes.Remove(searchCode))
+            _state.PreferencesVersion++;
 
         return Task.CompletedTask;
     }
@@ -233,13 +218,13 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
         if (!IsValidSearchCode(searchCode) || !Enum.IsDefined(viewMode))
             return Task.CompletedTask;
 
-        var exists = _viewModes.TryGetValue(searchCode, out var current);
+        var exists = _state.ViewModes.TryGetValue(searchCode, out var current);
 
-        if ((exists && current == viewMode) || (!exists && _viewModes.Count >= limit))
+        if ((exists && current == viewMode) || (!exists && _state.ViewModes.Count >= limit))
             return Task.CompletedTask;
 
-        _viewModes[searchCode] = viewMode;
-        _preferencesVersion++;
+        _state.ViewModes[searchCode] = viewMode;
+        _state.PreferencesVersion++;
 
         return Task.CompletedTask;
     }
@@ -251,16 +236,16 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
 
         var now = DateTime.UtcNow;
 
-        _visitsByRoomId[roomId] = _visitsByRoomId.TryGetValue(roomId, out var stats)
+        _state.VisitsByRoomId[roomId] = _state.VisitsByRoomId.TryGetValue(roomId, out var stats)
             ? new RoomVisitStats(stats.Visits + 1, now)
             : new RoomVisitStats(1, now);
 
         TrimVisitHistory();
 
-        if (_pendingVisits.Count >= _playerConfig.NavigatorMaxPendingVisits)
-            _pendingVisits.RemoveAt(0);
+        if (_state.PendingVisits.Count >= _playerConfig.NavigatorMaxPendingVisits)
+            _state.PendingVisits.RemoveAt(0);
 
-        _pendingVisits.Add(roomId);
+        _state.PendingVisits.Add(roomId);
 
         return Task.CompletedTask;
     }
@@ -269,29 +254,32 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
     {
         var now = DateTime.UtcNow;
 
-        while (_uncachedSearchTimes.Count > 0 && now - _uncachedSearchTimes.Peek() >= window)
-            _uncachedSearchTimes.Dequeue();
+        while (
+            _state.UncachedSearchTimes.Count > 0
+            && now - _state.UncachedSearchTimes.Peek() >= window
+        )
+            _state.UncachedSearchTimes.Dequeue();
 
-        if (_uncachedSearchTimes.Count >= limit)
+        if (_state.UncachedSearchTimes.Count >= limit)
             return Task.FromResult(false);
 
-        _uncachedSearchTimes.Enqueue(now);
+        _state.UncachedSearchTimes.Enqueue(now);
 
         return Task.FromResult(true);
     }
 
     public Task<ImmutableArray<RoomId>> GetRecentRoomIdsAsync(int limit, CancellationToken ct) =>
         Task.FromResult<ImmutableArray<RoomId>>([
-            .. _visitsByRoomId
-                .OrderByDescending(x => x.Value.LastVisitUtc)
+            .. _state
+                .VisitsByRoomId.OrderByDescending(x => x.Value.LastVisitUtc)
                 .Take(limit)
                 .Select(x => x.Key),
         ]);
 
     public Task<ImmutableArray<RoomId>> GetFrequentRoomIdsAsync(int limit, CancellationToken ct) =>
         Task.FromResult<ImmutableArray<RoomId>>([
-            .. _visitsByRoomId
-                .OrderByDescending(x => x.Value.Visits)
+            .. _state
+                .VisitsByRoomId.OrderByDescending(x => x.Value.Visits)
                 .ThenByDescending(x => x.Value.LastVisitUtc)
                 .Take(limit)
                 .Select(x => x.Key),
@@ -303,14 +291,14 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
 
         var favouriteRoomIds = await dbCtx
             .PlayerFavouriteRooms.AsNoTracking()
-            .Where(x => x.PlayerEntityId == _playerId.Value)
+            .Where(x => x.PlayerEntityId == _state.PlayerId.Value)
             .OrderBy(x => x.Id)
             .Select(x => x.RoomEntityId)
             .ToListAsync(ct);
 
         var savedSearches = await dbCtx
             .PlayerNavigatorSavedSearches.AsNoTracking()
-            .Where(x => x.PlayerEntityId == _playerId.Value)
+            .Where(x => x.PlayerEntityId == _state.PlayerId.Value)
             .OrderBy(x => x.Id)
             .Select(x => new
             {
@@ -322,19 +310,19 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
 
         var collapsedSearchCodes = await dbCtx
             .PlayerNavigatorCollapsedCategories.AsNoTracking()
-            .Where(x => x.PlayerEntityId == _playerId.Value)
+            .Where(x => x.PlayerEntityId == _state.PlayerId.Value)
             .Select(x => x.SearchCode)
             .ToListAsync(ct);
 
         var viewModes = await dbCtx
             .PlayerNavigatorViewModes.AsNoTracking()
-            .Where(x => x.PlayerEntityId == _playerId.Value)
+            .Where(x => x.PlayerEntityId == _state.PlayerId.Value)
             .Select(x => new { x.SearchCode, x.ViewMode })
             .ToListAsync(ct);
 
         var visits = await dbCtx
             .RoomEntryLogs.AsNoTracking()
-            .Where(x => x.PlayerEntityId == _playerId.Value)
+            .Where(x => x.PlayerEntityId == _state.PlayerId.Value)
             .GroupBy(x => x.RoomEntityId)
             .Select(g => new
             {
@@ -346,42 +334,43 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
             .Take(_playerConfig.NavigatorHistoryRooms)
             .ToListAsync(ct);
 
-        _favouriteRoomIds.Clear();
-        _favouriteRoomIds.AddRange(favouriteRoomIds.Select(RoomId.Parse));
+        _state.FavouriteRoomIds.Clear();
+        _state.FavouriteRoomIds.AddRange(favouriteRoomIds.Select(RoomId.Parse));
 
-        _savedSearches.Clear();
-        _savedSearches.AddRange(
+        _state.SavedSearches.Clear();
+        _state.SavedSearches.AddRange(
             savedSearches.Select(x => CreateSavedSearch(x.SearchId, x.SearchCode, x.Filter))
         );
-        _nextSavedSearchId = savedSearches.Count == 0 ? 1 : savedSearches.Max(x => x.SearchId) + 1;
+        _state.NextSavedSearchId =
+            savedSearches.Count == 0 ? 1 : savedSearches.Max(x => x.SearchId) + 1;
 
-        _collapsedSearchCodes.Clear();
-        _collapsedSearchCodes.UnionWith(collapsedSearchCodes);
+        _state.CollapsedSearchCodes.Clear();
+        _state.CollapsedSearchCodes.UnionWith(collapsedSearchCodes);
 
-        _viewModes.Clear();
+        _state.ViewModes.Clear();
 
         foreach (var viewMode in viewModes)
-            _viewModes[viewMode.SearchCode] = viewMode.ViewMode;
+            _state.ViewModes[viewMode.SearchCode] = viewMode.ViewMode;
 
-        _visitsByRoomId.Clear();
+        _state.VisitsByRoomId.Clear();
 
         foreach (var visit in visits)
-            _visitsByRoomId[RoomId.Parse(visit.RoomId)] = new RoomVisitStats(
+            _state.VisitsByRoomId[RoomId.Parse(visit.RoomId)] = new RoomVisitStats(
                 visit.Visits,
                 visit.LastVisit
             );
 
-        _pendingVisits.Clear();
-        _preferencesVersion = 0;
-        _persistedPreferencesVersion = 0;
+        _state.PendingVisits.Clear();
+        _state.PreferencesVersion = 0;
+        _state.PersistedPreferencesVersion = 0;
     }
 
     private async Task FlushAsync(CancellationToken ct)
     {
-        if (_preferencesVersion != _persistedPreferencesVersion)
+        if (_state.PreferencesVersion != _state.PersistedPreferencesVersion)
             await FlushPreferencesAsync(ct);
 
-        if (_pendingVisits.Count > 0)
+        if (_state.PendingVisits.Count > 0)
             await FlushVisitsAsync(ct);
     }
 
@@ -391,12 +380,12 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
     /// </summary>
     private async Task FlushPreferencesAsync(CancellationToken ct)
     {
-        var version = _preferencesVersion;
-        var favouriteRoomIds = _favouriteRoomIds.Select(x => x.Value).ToHashSet();
-        var savedSearches = _savedSearches.ToDictionary(x => x.Id);
-        var collapsedSearchCodes = _collapsedSearchCodes.ToHashSet(StringComparer.Ordinal);
+        var version = _state.PreferencesVersion;
+        var favouriteRoomIds = _state.FavouriteRoomIds.Select(x => x.Value).ToHashSet();
+        var savedSearches = _state.SavedSearches.ToDictionary(x => x.Id);
+        var collapsedSearchCodes = _state.CollapsedSearchCodes.ToHashSet(StringComparer.Ordinal);
         var viewModes = new Dictionary<string, NavigatorViewModeType>(
-            _viewModes,
+            _state.ViewModes,
             StringComparer.Ordinal
         );
 
@@ -405,7 +394,7 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
             await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
             var favouriteRows = await dbCtx
-                .PlayerFavouriteRooms.Where(x => x.PlayerEntityId == _playerId.Value)
+                .PlayerFavouriteRooms.Where(x => x.PlayerEntityId == _state.PlayerId.Value)
                 .ToListAsync(ct);
 
             // Remove() on the snapshot sets leaves only the rows still to be inserted.
@@ -415,7 +404,7 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
             dbCtx.PlayerFavouriteRooms.AddRange(
                 favouriteRoomIds.Select(roomId => new PlayerFavoriteRoomsEntity
                 {
-                    PlayerEntityId = _playerId.Value,
+                    PlayerEntityId = _state.PlayerId.Value,
                     RoomEntityId = roomId,
                     PlayerEntity = null!,
                     RoomEntity = null!,
@@ -423,7 +412,7 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
             );
 
             var savedSearchRows = await dbCtx
-                .PlayerNavigatorSavedSearches.Where(x => x.PlayerEntityId == _playerId.Value)
+                .PlayerNavigatorSavedSearches.Where(x => x.PlayerEntityId == _state.PlayerId.Value)
                 .ToListAsync(ct);
 
             dbCtx.PlayerNavigatorSavedSearches.RemoveRange(
@@ -432,7 +421,7 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
             dbCtx.PlayerNavigatorSavedSearches.AddRange(
                 savedSearches.Values.Select(x => new PlayerNavigatorSavedSearchEntity
                 {
-                    PlayerEntityId = _playerId.Value,
+                    PlayerEntityId = _state.PlayerId.Value,
                     SearchId = x.Id,
                     SearchCode = x.SearchCode,
                     Filter = x.Filter,
@@ -440,7 +429,9 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
             );
 
             var collapsedRows = await dbCtx
-                .PlayerNavigatorCollapsedCategories.Where(x => x.PlayerEntityId == _playerId.Value)
+                .PlayerNavigatorCollapsedCategories.Where(x =>
+                    x.PlayerEntityId == _state.PlayerId.Value
+                )
                 .ToListAsync(ct);
 
             dbCtx.PlayerNavigatorCollapsedCategories.RemoveRange(
@@ -449,13 +440,13 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
             dbCtx.PlayerNavigatorCollapsedCategories.AddRange(
                 collapsedSearchCodes.Select(code => new PlayerNavigatorCollapsedCategoryEntity
                 {
-                    PlayerEntityId = _playerId.Value,
+                    PlayerEntityId = _state.PlayerId.Value,
                     SearchCode = code,
                 })
             );
 
             var viewModeRows = await dbCtx
-                .PlayerNavigatorViewModes.Where(x => x.PlayerEntityId == _playerId.Value)
+                .PlayerNavigatorViewModes.Where(x => x.PlayerEntityId == _state.PlayerId.Value)
                 .ToListAsync(ct);
 
             foreach (var row in viewModeRows)
@@ -469,7 +460,7 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
             dbCtx.PlayerNavigatorViewModes.AddRange(
                 viewModes.Select(x => new PlayerNavigatorViewModeEntity
                 {
-                    PlayerEntityId = _playerId.Value,
+                    PlayerEntityId = _state.PlayerId.Value,
                     SearchCode = x.Key,
                     ViewMode = x.Value,
                 })
@@ -482,15 +473,15 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
             _logger.LogError(
                 ex,
                 "Failed to flush navigator preferences for player {PlayerId}",
-                _playerId
+                _state.PlayerId
             );
 
             return;
         }
 
         // Only mark clean if nothing changed while the write was in flight.
-        if (_preferencesVersion == version)
-            _persistedPreferencesVersion = version;
+        if (_state.PreferencesVersion == version)
+            _state.PersistedPreferencesVersion = version;
     }
 
     /// <summary>
@@ -500,7 +491,7 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
     /// </summary>
     private async Task FlushVisitsAsync(CancellationToken ct)
     {
-        var visits = _pendingVisits.ToList();
+        var visits = _state.PendingVisits.ToList();
 
         try
         {
@@ -510,7 +501,7 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
                 visits.Select(roomId => new RoomEntryLogEntity
                 {
                     RoomEntityId = roomId.Value,
-                    PlayerEntityId = _playerId.Value,
+                    PlayerEntityId = _state.PlayerId.Value,
                 })
             );
 
@@ -518,16 +509,16 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
         }
         catch (Exception ex)
         {
-            _failedVisitWrites++;
+            _state.FailedVisitWrites++;
 
-            if (_failedVisitWrites < _playerConfig.NavigatorVisitWriteAttempts)
+            if (_state.FailedVisitWrites < _playerConfig.NavigatorVisitWriteAttempts)
             {
                 _logger.LogWarning(
                     ex,
                     "Failed to write {VisitCount} room visits for player {PlayerId} (attempt {Attempt}); retrying",
                     visits.Count,
-                    _playerId,
-                    _failedVisitWrites
+                    _state.PlayerId,
+                    _state.FailedVisitWrites
                 );
 
                 return;
@@ -537,31 +528,31 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
                 ex,
                 "Dropped {VisitCount} room visits for player {PlayerId} after {Attempts} failed writes",
                 visits.Count,
-                _playerId,
-                _failedVisitWrites
+                _state.PlayerId,
+                _state.FailedVisitWrites
             );
         }
 
         // Visits recorded while the write was in flight stay buffered for the next tick.
-        _pendingVisits.RemoveRange(0, Math.Min(visits.Count, _pendingVisits.Count));
-        _failedVisitWrites = 0;
+        _state.PendingVisits.RemoveRange(0, Math.Min(visits.Count, _state.PendingVisits.Count));
+        _state.FailedVisitWrites = 0;
     }
 
     private void TrimVisitHistory()
     {
-        var excess = _visitsByRoomId.Count - _playerConfig.NavigatorHistoryRooms;
+        var excess = _state.VisitsByRoomId.Count - _playerConfig.NavigatorHistoryRooms;
 
         if (excess <= 0)
             return;
 
-        var oldest = _visitsByRoomId
-            .OrderBy(x => x.Value.LastVisitUtc)
+        var oldest = _state
+            .VisitsByRoomId.OrderBy(x => x.Value.LastVisitUtc)
             .Take(excess)
             .Select(x => x.Key)
             .ToList();
 
         foreach (var roomId in oldest)
-            _visitsByRoomId.Remove(roomId);
+            _state.VisitsByRoomId.Remove(roomId);
     }
 
     private static NavigatorQuickLinkSnapshot CreateSavedSearch(
@@ -578,19 +569,13 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
         };
 
     private Task SendSavedSearchesAsync(CancellationToken ct) =>
-        SendToPlayerAsync(
-            new NavigatorSavedSearchesMessage { SavedSearches = [.. _savedSearches] },
+        _grainFactory.SendComposerToPlayerAsync(
+            _state.PlayerId,
+            new NavigatorSavedSearchesMessage { SavedSearches = [.. _state.SavedSearches] },
             ct
         );
-
-    private Task SendToPlayerAsync(IComposer composer, CancellationToken ct) =>
-        _grainFactory
-            .GetPlayerPresenceGrain(_playerId)
-            .SendComposerAsync(composer, CancellationToken.None);
 
     private static bool IsValidSearchCode(string searchCode) =>
         !string.IsNullOrWhiteSpace(searchCode)
         && searchCode.Length <= PlayerNavigatorSavedSearchEntity.SEARCH_CODE_MAX_LENGTH;
-
-    private readonly record struct RoomVisitStats(int Visits, DateTime LastVisitUtc);
 }

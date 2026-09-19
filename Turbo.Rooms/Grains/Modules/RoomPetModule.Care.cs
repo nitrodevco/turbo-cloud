@@ -18,7 +18,10 @@ public sealed partial class RoomPetModule
 {
     public async Task<bool> RespectPetAsync(ActionContext ctx, int petId, CancellationToken ct)
     {
-        if (!TryGetPet(petId, out var pet) || !TryGetPlayer(ctx.PlayerId, out _))
+        if (
+            !TryGetPet(petId, out var pet)
+            || !_roomGrain.AvatarModule.TryGetPlayer(ctx.PlayerId, out _)
+        )
             return false;
 
         var playerGrain = _roomGrain._grainFactory.GetPlayerGrain(ctx.PlayerId);
@@ -30,7 +33,7 @@ public sealed partial class RoomPetModule
 
             if (ageDays < Config.RespectMinAccountAgeDays)
             {
-                await SendToPlayerAsync(
+                await _roomGrain._grainFactory.SendComposerToPlayerAsync(
                     ctx.PlayerId,
                     new PetRespectFailedMessageComposer
                     {
@@ -201,7 +204,10 @@ public sealed partial class RoomPetModule
         CancellationToken ct
     )
     {
-        if (!TryGetPet(petId, out var pet) || !TryGetPlayer(ctx.PlayerId, out var player))
+        if (
+            !TryGetPet(petId, out var pet)
+            || !_roomGrain.AvatarModule.TryGetPlayer(ctx.PlayerId, out var player)
+        )
             return false;
 
         if (player.HandItemId <= 0 || pet.IsMonsterplant || !IsAdjacent(pet, player))

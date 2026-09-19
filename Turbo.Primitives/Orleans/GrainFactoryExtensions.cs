@@ -1,6 +1,11 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Inventory.Grains;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Grains.Messenger;
@@ -22,11 +27,37 @@ public static class GrainFactoryExtensions
         RoomId roomId
     ) => factory.GetGrain<IRoomPersistenceGrain>((long)roomId.Value);
 
+    public static IRoomTradeGrain GetRoomTradeGrain(this IGrainFactory factory, RoomId roomId) =>
+        factory.GetGrain<IRoomTradeGrain>((long)roomId.Value);
+
     public static IRoomDirectoryGrain GetRoomDirectoryGrain(this IGrainFactory factory) =>
         factory.GetGrain<IRoomDirectoryGrain>(SingletonGrainId.GLOBAL);
 
     public static IPlayerGrain GetPlayerGrain(this IGrainFactory factory, PlayerId playerId) =>
         factory.GetGrain<IPlayerGrain>((long)playerId.Value);
+
+    /// <summary>
+    /// Sends a composer to a player, wherever they are connected. This is the one way to reach
+    /// a player from a grain, module, logic class or service; do not spell out
+    /// <c>GetPlayerPresenceGrain(id).SendComposerAsync(...)</c> or wrap it in a local helper.
+    /// </summary>
+    public static Task SendComposerToPlayerAsync(
+        this IGrainFactory factory,
+        PlayerId playerId,
+        IComposer composer,
+        CancellationToken ct
+    ) => factory.GetPlayerPresenceGrain(playerId).SendComposerAsync(composer, ct);
+
+    /// <summary>The same composer to several players. Each presence is its own grain, so the sends run side by side.</summary>
+    public static Task SendComposerToPlayersAsync(
+        this IGrainFactory factory,
+        IEnumerable<PlayerId> playerIds,
+        IComposer composer,
+        CancellationToken ct
+    ) =>
+        Task.WhenAll(
+            playerIds.Select(playerId => factory.SendComposerToPlayerAsync(playerId, composer, ct))
+        );
 
     public static IPlayerPresenceGrain GetPlayerPresenceGrain(
         this IGrainFactory factory,

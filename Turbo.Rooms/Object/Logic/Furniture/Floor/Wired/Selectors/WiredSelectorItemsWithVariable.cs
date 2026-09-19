@@ -36,9 +36,9 @@ public class WiredSelectorItemsWithVariable(
             new WiredEnumParamRule<WiredComparisonType>(WiredComparisonType.GreaterThan),
             new WiredBoolParamRule(false),
             new WiredBoolParamRule(false),
-            new WiredParamRule(0),
-            new WiredParamRule(0),
-            new WiredParamRule((int)WiredVariableTargetType.Furni),
+            WiredRules.AnyInt(),
+            WiredRules.AnyInt(),
+            WiredRules.VariableTarget(WiredVariableTargetType.Furni),
         ];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
@@ -56,13 +56,7 @@ public class WiredSelectorItemsWithVariable(
         ];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
-        [
-            new WiredVariableAllInRoomSnapshot()
-            {
-                ContextType = WiredContextType.AllVariablesInRoom,
-                AllVariablesHash = _roomGrain._state.AllVariablesHash,
-            },
-        ];
+        AllVariablesContext();
 
     public override Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,

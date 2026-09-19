@@ -10,6 +10,7 @@ using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -32,41 +33,20 @@ public class WiredActionChangeVariable(
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredParamRule((int)WiredVariableTargetType.User),
+            WiredRules.VariableTarget(WiredVariableTargetType.User),
             new WiredEnumParamRule<WiredVariableOperationType>(WiredVariableOperationType.Set),
             new WiredBoolParamRule(false),
-            new WiredParamRule(0),
-            new WiredParamRule(0),
-            new WiredParamRule((int)WiredVariableTargetType.User),
+            WiredRules.AnyInt(),
+            WiredRules.AnyInt(),
+            WiredRules.VariableTarget(WiredVariableTargetType.User),
         ];
 
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [
-            [
-                WiredFurniSourceType.SelectedItems,
-                WiredFurniSourceType.SelectorItems,
-                WiredFurniSourceType.SignalItems,
-                WiredFurniSourceType.TriggeredItem,
-            ],
-        ];
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
-        [
-            [
-                WiredPlayerSourceType.TriggeredUser,
-                WiredPlayerSourceType.SelectorUsers,
-                WiredPlayerSourceType.SignalUsers,
-            ],
-        ];
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
-        [
-            new WiredVariableAllInRoomSnapshot()
-            {
-                ContextType = WiredContextType.AllVariablesInRoom,
-                AllVariablesHash = _roomGrain._state.AllVariablesHash,
-            },
-        ];
+        AllVariablesContext();
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
@@ -82,10 +62,7 @@ public class WiredActionChangeVariable(
         if (RequiresOperand(operation) && !TryResolveOperand(2, 3, 5, 1, selection, out operand))
             return false;
 
-        var targetType = (WiredVariableTargetType)GetIntParamOrDefault(
-            0,
-            (int)variable.GetVarSnapshot().TargetType
-        );
+        var targetType = GetTargetType(variable, 0);
         var changed = false;
 
         foreach (var targetId in GetTargetIds(targetType, selection))

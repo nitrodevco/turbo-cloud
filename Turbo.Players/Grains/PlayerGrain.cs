@@ -20,12 +20,16 @@ using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Players.Grains;
 
+/// <summary>
+/// A player's profile. Write-through: every change is saved as it happens, and deactivation
+/// saves once more so whatever changed last is not lost.
+/// </summary>
 internal sealed class PlayerGrain : Grain, IPlayerGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
+    private readonly PlayerConfig _playerConfig;
     private readonly IGrainFactory _grainFactory;
     private readonly ILogger<IPlayerGrain> _logger;
-    private readonly PlayerConfig _playerConfig;
 
     private readonly PlayerLiveState _state;
 
@@ -33,15 +37,15 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
 
     public PlayerGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
+        IOptions<PlayerConfig> playerConfig,
         IGrainFactory grainFactory,
-        ILogger<IPlayerGrain> logger,
-        IOptions<PlayerConfig> playerConfig
+        ILogger<IPlayerGrain> logger
     )
     {
         _dbCtxFactory = dbCtxFactory;
+        _playerConfig = playerConfig.Value;
         _grainFactory = grainFactory;
         _logger = logger;
-        _playerConfig = playerConfig.Value;
 
         _state = new() { PlayerId = this.GetPlayerId() };
     }

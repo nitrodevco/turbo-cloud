@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Players;
+using Turbo.Database.Extensions;
 using Turbo.Players.Configuration;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -28,8 +29,7 @@ internal sealed class PlayerWardrobeGrain : Grain, IPlayerWardrobeGrain
     private readonly PlayerConfig _playerConfig;
     private readonly ILogger<IPlayerWardrobeGrain> _logger;
 
-    private readonly PlayerId _playerId;
-    private readonly SortedDictionary<int, OutfitDataSnapshot> _outfitsBySlot = [];
+    private readonly PlayerWardrobeLiveState _state;
 
     public PlayerWardrobeGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
@@ -41,7 +41,7 @@ internal sealed class PlayerWardrobeGrain : Grain, IPlayerWardrobeGrain
         _playerConfig = playerConfig.Value;
         _logger = logger;
 
-        _playerId = this.GetPlayerId();
+        _state = new() { PlayerId = this.GetPlayerId() };
     }
 
     public override async Task OnActivateAsync(CancellationToken ct)
@@ -52,14 +52,18 @@ internal sealed class PlayerWardrobeGrain : Grain, IPlayerWardrobeGrain
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to hydrate wardrobe for player {PlayerId}", _playerId);
+            _logger.LogError(
+                ex,
+                "Failed to hydrate wardrobe for player {PlayerId}",
+                _state.PlayerId
+            );
 
             throw;
         }
     }
 
     public Task<List<OutfitDataSnapshot>> GetOutfitsAsync(CancellationToken ct) =>
-        Task.FromResult(_outfitsBySlot.Values.ToList());
+        Task.FromResult(_state.OutfitsBySlot.Values.ToList());
 
     public async Task<bool> SaveOutfitAsync(
         int slotId,
@@ -73,7 +77,7 @@ internal sealed class PlayerWardrobeGrain : Grain, IPlayerWardrobeGrain
             _logger.LogWarning(
                 "Rejected wardrobe slot {SlotId} for player {PlayerId}: outside 1..{MaxSlots}",
                 slotId,
-                _playerId,
+                _state.PlayerId,
                 _playerConfig.WardrobeMaxSlots
             );
 
@@ -87,7 +91,7 @@ internal sealed class PlayerWardrobeGrain : Grain, IPlayerWardrobeGrain
         {
             _logger.LogWarning(
                 "Rejected wardrobe figure for player {PlayerId} slot {SlotId}: empty or longer than {MaxLength}",
-                _playerId,
+                _state.PlayerId,
                 slotId,
                 PlayerOutfitEntity.FIGURE_MAX_LENGTH
             );
@@ -98,7 +102,7 @@ internal sealed class PlayerWardrobeGrain : Grain, IPlayerWardrobeGrain
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         var entity = await dbCtx.PlayerOutfits.FirstOrDefaultAsync(
-            x => x.PlayerEntityId == _playerId.Value && x.SlotId == slotId,
+            x => x.PlayerEntityId == _state.PlayerId.Value && x.SlotId == slotId,
             ct
         );
 
@@ -106,7 +110,7 @@ internal sealed class PlayerWardrobeGrain : Grain, IPlayerWardrobeGrain
         {
             entity = new PlayerOutfitEntity
             {
-                PlayerEntityId = _playerId.Value,
+                PlayerEntityId = _state.PlayerId.Value,
                 SlotId = slotId,
                 Figure = figure,
                 Gender = gender,
@@ -122,19 +126,14 @@ internal sealed class PlayerWardrobeGrain : Grain, IPlayerWardrobeGrain
 
         await dbCtx.SaveChangesAsync(ct);
 
-        _outfitsBySlot[slotId] = new OutfitDataSnapshot
-        {
-            SlotId = slotId,
-            Figure = figure,
-            Gender = gender,
-        };
+        _state.OutfitsBySlot[slotId] = entity.ToSnapshot();
 
         return true;
     }
 
     private async Task HydrateAsync(CancellationToken ct)
     {
-        _outfitsBySlot.Clear();
+        _state.OutfitsBySlot.Clear();
 
         var maxSlots = _playerConfig.WardrobeMaxSlots;
 
@@ -143,18 +142,13 @@ internal sealed class PlayerWardrobeGrain : Grain, IPlayerWardrobeGrain
         var entities = await dbCtx
             .PlayerOutfits.AsNoTracking()
             .Where(x =>
-                x.PlayerEntityId == _playerId.Value && x.SlotId >= 1 && x.SlotId <= maxSlots
+                x.PlayerEntityId == _state.PlayerId.Value && x.SlotId >= 1 && x.SlotId <= maxSlots
             )
             .ToListAsync(ct);
 
         foreach (var entity in entities)
         {
-            _outfitsBySlot[entity.SlotId] = new OutfitDataSnapshot
-            {
-                SlotId = entity.SlotId,
-                Figure = entity.Figure,
-                Gender = entity.Gender,
-            };
+            _state.OutfitsBySlot[entity.SlotId] = entity.ToSnapshot();
         }
     }
 }

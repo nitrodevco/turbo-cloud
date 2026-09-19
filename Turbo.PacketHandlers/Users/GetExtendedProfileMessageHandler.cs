@@ -33,35 +33,7 @@ public class GetExtendedProfileMessageHandler : IMessageHandler<GetExtendedProfi
             .GetExtendedProfileSnapshotAsync(ct)
             .ConfigureAwait(false);
 
-        await ctx.SendComposerAsync(
-                new ExtendedProfileMessageComposer
-                {
-                    UserId = (int)snapshot.UserId,
-                    UserName = snapshot.UserName,
-                    Figure = snapshot.Figure,
-                    Motto = snapshot.Motto,
-                    CreationDate = snapshot.CreationDate,
-                    AchievementScore = snapshot.AchievementScore,
-                    FriendCount = snapshot.FriendCount,
-                    IsFriend = snapshot.IsFriend,
-                    IsFriendRequestSent = snapshot.IsFriendRequestSent,
-                    IsOnline = snapshot.IsOnline,
-                    Guilds = snapshot.Guilds,
-                    LastAccessSinceInSeconds = snapshot.LastAccessSinceInSeconds,
-                    OpenProfileWindow = snapshot.OpenProfileWindow,
-                    IsHidden = snapshot.IsHidden,
-                    AccountLevel = snapshot.AccountLevel,
-                    IntegerField24 = snapshot.IntegerField24,
-                    StarGemCount = snapshot.StarGemCount,
-                    BooleanField26 = snapshot.BooleanField26,
-                    BooleanField27 = snapshot.BooleanField27,
-                    TotalBadges = snapshot.TotalBadges,
-                    AchievementLevel = snapshot.AchievementLevel,
-                    BadgeRarityCounts = snapshot.BadgeRarityCounts,
-                    TotalBadgesRank = snapshot.TotalBadgesRank,
-                },
-                ct
-            )
+        await ctx.SendComposerAsync(new ExtendedProfileMessageComposer { Profile = snapshot }, ct)
             .ConfigureAwait(false);
     }
 }

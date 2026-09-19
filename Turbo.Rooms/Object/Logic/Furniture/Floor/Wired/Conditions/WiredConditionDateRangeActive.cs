@@ -25,7 +25,7 @@ public class WiredConditionDateRangeActive(
 
     public override List<IWiredParamRule> GetIntParamRules() => [];
 
-    public override IWiredParamRule? GetIntParamTailRule() => new WiredParamRule(0);
+    public override IWiredParamRule? GetIntParamTailRule() => WiredRules.NonNegative();
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {

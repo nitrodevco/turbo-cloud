@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
+using Turbo.Database.Extensions;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Pets.Snapshots;
 
@@ -39,19 +40,7 @@ public sealed class PetBreedProvider(
             .ToImmutableDictionary(
                 group => group.Key,
                 group =>
-                    group
-                        .OrderBy(x => x.PaletteId)
-                        .Select(x => new PetBreedSnapshot
-                        {
-                            TypeId = x.TypeId,
-                            BreedId = x.BreedId,
-                            PaletteId = x.PaletteId,
-                            RarityLevel = x.RarityLevel,
-                            Sellable = x.Sellable,
-                            Rare = x.Rare,
-                            ColorTag = x.ColorTag,
-                        })
-                        .ToImmutableArray()
+                    group.OrderBy(x => x.PaletteId).Select(x => x.ToSnapshot()).ToImmutableArray()
             );
 
         if (entities.Count == 0)

@@ -162,6 +162,15 @@ public sealed partial class RoomWiredSystem
         if (variable is null)
             return false;
 
+        // The menu only edits values the variable itself lets wired write, and only on a furni
+        // or user that is in the room right now: the target id comes from the client, and an
+        // unchecked one would let values pile up under ids that belong to nothing here.
+        if (
+            !variable.GetVarSnapshot().Flags.Has(WiredVariableFlags.CanWriteValue)
+            || !IsLiveTarget(binding)
+        )
+            return false;
+
         var key = new WiredVariableKey(
             variableId,
             binding.TargetType,
@@ -177,6 +186,21 @@ public sealed partial class RoomWiredSystem
 
         return await variable.GiveValueAsync(key, value, true);
     }
+
+    private bool IsLiveTarget(WiredVariableBinding binding) =>
+        binding.TargetType switch
+        {
+            WiredVariableTargetType.User => _roomGrain._state.AvatarsByObjectId.TryGetValue(
+                binding.TargetId,
+                out var avatar
+            )
+                && avatar is IRoomPlayer,
+            WiredVariableTargetType.Furni => _roomGrain._state.ItemsById.ContainsKey(
+                binding.TargetId
+            ),
+            WiredVariableTargetType.Global or WiredVariableTargetType.Context => true,
+            _ => false,
+        };
 
     private Task ProcessInternalVariablesAsync(long now, CancellationToken ct)
     {

@@ -87,11 +87,12 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
         return true;
     }
 
-    private Task SendToPlayerAsync(PlayerId playerId, IComposer composer, CancellationToken ct) =>
-        _roomGrain._grainFactory.GetPlayerPresenceGrain(playerId).SendComposerAsync(composer, ct);
-
     private Task SendErrorAsync(ActionContext ctx, BotErrorType error, CancellationToken ct) =>
-        SendToPlayerAsync(ctx.PlayerId, new BotErrorMessageComposer { Error = error }, ct);
+        _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            ctx.PlayerId,
+            new BotErrorMessageComposer { Error = error },
+            ct
+        );
 
     /// <summary>The bot's owner or any room controller may move or pick it up.</summary>
     private async Task<bool> CanManageAsync(ActionContext ctx, IRoomBot bot) =>
@@ -107,7 +108,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
-        if (!_roomGrain.PetModule.TryGetPlayer(ctx.PlayerId, out _))
+        if (!_roomGrain.AvatarModule.TryGetPlayer(ctx.PlayerId, out _))
             return false;
 
         if (!await _roomGrain.SecurityModule.GetIsRoomOwnerAsync(ctx))
@@ -335,7 +336,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
                 return false;
         }
 
-        await SendToPlayerAsync(
+        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new BotCommandConfigurationMessageComposer
             {
@@ -509,10 +510,16 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
         return true;
     }
 
-    /// <summary>Returns every bot to its owner's inventory, as a room deletion requires.</summary>
+    /// <summary>
+    /// Returns every bot to its owner's inventory, as a room deletion requires. The room lets go
+    /// of them all first; the owners' inventories are separate grains and take theirs back side
+    /// by side.
+    /// </summary>
     internal async Task ReturnAllToOwnersAsync(CancellationToken ct)
     {
-        foreach (var bot in Bots.ToList())
+        var bots = Bots.ToList();
+
+        foreach (var bot in bots)
         {
             await _roomGrain.ObjectModule.RemoveObjectAsync(
                 ActionContext.CreateForSystem(_roomGrain.RoomId),
@@ -522,16 +529,28 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
 
             _roomGrain._state.AvatarsByBotId.Remove(bot.BotId);
             _lastPersistedTileByBotId.Remove(bot.BotId);
+        }
 
-            if (
-                !await _roomGrain
-                    ._grainFactory.GetInventoryGrain(bot.OwnerId)
-                    .ReturnBotAsync(bot.GetBotSnapshot(), ct)
-            )
+        await Task.WhenAll(
+            bots.GroupBy(x => x.OwnerId).Select(owned => ReturnToOwnerAsync(owned.Key, owned, ct))
+        );
+    }
+
+    private async Task ReturnToOwnerAsync(
+        PlayerId ownerId,
+        IEnumerable<IRoomBot> bots,
+        CancellationToken ct
+    )
+    {
+        var inventory = _roomGrain._grainFactory.GetInventoryGrain(ownerId);
+
+        foreach (var bot in bots)
+        {
+            if (!await inventory.ReturnBotAsync(bot.GetBotSnapshot(), ct))
                 _roomGrain._logger.LogError(
                     "Bot {BotId} could not be returned to player {OwnerId} while room {RoomId} is deleted",
                     bot.BotId,
-                    bot.OwnerId,
+                    ownerId,
                     _roomGrain.RoomId
                 );
         }

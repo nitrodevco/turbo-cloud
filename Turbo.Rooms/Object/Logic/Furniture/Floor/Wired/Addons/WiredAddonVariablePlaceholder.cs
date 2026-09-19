@@ -37,18 +37,12 @@ public class WiredAddonVariablePlaceholder(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredBoolParamRule(false),
-            new WiredParamRule((int)WiredVariableTargetType.User),
+            WiredRules.VariableTarget(WiredVariableTargetType.User),
             new WiredBoolParamRule(false),
         ];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
-        [
-            new WiredVariableAllInRoomSnapshot()
-            {
-                ContextType = WiredContextType.AllVariablesInRoom,
-                AllVariablesHash = _roomGrain._state.AllVariablesHash,
-            },
-        ];
+        AllVariablesContext();
 
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
+using Turbo.Database.Extensions;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Wallet;
@@ -47,14 +48,7 @@ public sealed class CurrencyTypeProvider(
 
             foreach (var entity in entities)
             {
-                var snapshot = new CurrencyTypeSnapshot
-                {
-                    Id = entity.Id,
-                    Name = entity.Name ?? string.Empty,
-                    CurrencyType = entity.CurrencyType,
-                    ActivityPointType = entity.ActivityPointType,
-                    Enabled = entity.Enabled,
-                };
+                var snapshot = entity.ToSnapshot();
 
                 var kind = new CurrencyKind
                 {

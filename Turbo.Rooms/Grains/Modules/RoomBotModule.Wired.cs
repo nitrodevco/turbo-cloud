@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -87,8 +88,8 @@ public sealed partial class RoomBotModule
 
         text = _roomGrain.ModerationModule.ApplyFilter(text);
 
-        return _roomGrain.SendComposerToPlayersAsync(
-            [player.PlayerId],
+        return _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            player.PlayerId,
             new WhisperMessageComposer
             {
                 ObjectId = bot.ObjectId,

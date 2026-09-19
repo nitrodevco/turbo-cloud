@@ -19,13 +19,9 @@ public class GetCatalogIndexMessageHandler(ICatalogService catalogService)
         CancellationToken ct
     )
     {
-        try
-        {
-            var snapshot = _catalogService.GetCatalogSnapshot(message.CatalogType);
+        var snapshot = _catalogService.GetCatalogSnapshot(message.CatalogType);
 
-            await ctx.SendComposerAsync(new CatalogIndexMessageComposer { Catalog = snapshot }, ct)
-                .ConfigureAwait(false);
-        }
-        catch (Exception) { }
+        await ctx.SendComposerAsync(new CatalogIndexMessageComposer { Catalog = snapshot }, ct)
+            .ConfigureAwait(false);
     }
 }

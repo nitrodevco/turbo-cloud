@@ -32,11 +32,8 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
     private readonly IGrainFactory _grainFactory;
     private readonly ILogger<IPlayerSettingsGrain> _logger;
 
-    private readonly PlayerId _playerId;
-    private PlayerSettingsSnapshot _settings = FromEntity(
-        new PlayerSettingsEntity { PlayerEntityId = 0 }
-    );
-    private bool _isDirty;
+    private readonly PlayerSettingsLiveState _state;
+
     private IDisposable? _flushTimer;
 
     public PlayerSettingsGrain(
@@ -51,7 +48,11 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         _grainFactory = grainFactory;
         _logger = logger;
 
-        _playerId = this.GetPlayerId();
+        _state = new()
+        {
+            PlayerId = this.GetPlayerId(),
+            Settings = FromEntity(new PlayerSettingsEntity { PlayerEntityId = 0 }),
+        };
     }
 
     public override async Task OnActivateAsync(CancellationToken ct)
@@ -62,7 +63,11 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to hydrate settings for player {PlayerId}", _playerId);
+            _logger.LogError(
+                ex,
+                "Failed to hydrate settings for player {PlayerId}",
+                _state.PlayerId
+            );
 
             throw;
         }
@@ -84,7 +89,7 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
     }
 
     public Task<PlayerSettingsSnapshot> GetSettingsAsync(CancellationToken ct) =>
-        Task.FromResult(_settings);
+        Task.FromResult(_state.Settings);
 
     public Task SetSoundSettingsAsync(
         int genericVolume,
@@ -101,7 +106,7 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         {
             _logger.LogWarning(
                 "Rejected sound settings for player {PlayerId}: volumes {Generic}/{Furni}/{Trax} outside {Min}..{Max}",
-                _playerId,
+                _state.PlayerId,
                 genericVolume,
                 furniVolume,
                 traxVolume,
@@ -113,7 +118,7 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         }
 
         Apply(
-            _settings with
+            _state.Settings with
             {
                 GenericVolume = genericVolume,
                 FurniVolume = furniVolume,
@@ -139,7 +144,7 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         {
             _logger.LogWarning(
                 "Rejected chat preferences for player {PlayerId}: mode {ChatMode}, bubble width {BubbleWidth}, scroll speed {ScrollSpeed}",
-                _playerId,
+                _state.PlayerId,
                 chatMode,
                 bubbleWidth,
                 scrollSpeed
@@ -149,7 +154,7 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         }
 
         Apply(
-            _settings with
+            _state.Settings with
             {
                 ChatMode = chatMode,
                 ChatBubbleWidth = bubbleWidth,
@@ -166,7 +171,7 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         {
             _logger.LogWarning(
                 "Rejected chat style for player {PlayerId}: style {ChatStyleId}, font size {FontSize}",
-                _playerId,
+                _state.PlayerId,
                 chatStyleId,
                 fontSize
             );
@@ -174,28 +179,28 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
             return Task.CompletedTask;
         }
 
-        Apply(_settings with { ChatStyleId = chatStyleId, ChatFontSize = fontSize });
+        Apply(_state.Settings with { ChatStyleId = chatStyleId, ChatFontSize = fontSize });
 
         return Task.CompletedTask;
     }
 
     public Task SetIgnoreRoomInvitesAsync(bool ignoreRoomInvites, CancellationToken ct)
     {
-        Apply(_settings with { RoomInvitesIgnored = ignoreRoomInvites });
+        Apply(_state.Settings with { RoomInvitesIgnored = ignoreRoomInvites });
 
         return Task.CompletedTask;
     }
 
     public Task SetRoomCameraFollowDisabledAsync(bool cameraFollowDisabled, CancellationToken ct)
     {
-        Apply(_settings with { RoomCameraFollowDisabled = cameraFollowDisabled });
+        Apply(_state.Settings with { RoomCameraFollowDisabled = cameraFollowDisabled });
 
         return Task.CompletedTask;
     }
 
     public Task SetUIFlagsAsync(UIFlags uiFlags, CancellationToken ct)
     {
-        Apply(_settings with { UIFlags = uiFlags });
+        Apply(_state.Settings with { UIFlags = uiFlags });
 
         return Task.CompletedTask;
     }
@@ -219,7 +224,7 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         {
             _logger.LogWarning(
                 "Rejected wired preferences for player {PlayerId}: variable syntax mode {VariableSyntaxMode}, ui style length {UIStyleLength} (max {MaxLength})",
-                _playerId,
+                _state.PlayerId,
                 variableSyntaxMode,
                 uiStyle?.Length ?? -1,
                 PlayerSettingsEntity.WIRED_UI_STYLE_MAX_LENGTH
@@ -229,7 +234,7 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         }
 
         Apply(
-            _settings with
+            _state.Settings with
             {
                 WiredMenuButton = menuButton,
                 WiredInspectButton = inspectButton,
@@ -248,18 +253,17 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
     {
         var homeRoomId = roomId.Value > 0 ? roomId : RoomId.Invalid;
 
-        Apply(_settings with { HomeRoomId = homeRoomId });
+        Apply(_state.Settings with { HomeRoomId = homeRoomId });
 
-        await _grainFactory
-            .GetPlayerPresenceGrain(_playerId)
-            .SendComposerAsync(
-                new NavigatorSettingsMessageComposer
-                {
-                    HomeRoomId = homeRoomId,
-                    RoomIdToEnter = RoomId.Invalid,
-                },
-                ct
-            );
+        await _grainFactory.SendComposerToPlayerAsync(
+            _state.PlayerId,
+            new NavigatorSettingsMessageComposer
+            {
+                HomeRoomId = homeRoomId,
+                RoomIdToEnter = RoomId.Invalid,
+            },
+            ct
+        );
     }
 
     public Task SetNavigatorWindowPreferencesAsync(
@@ -276,7 +280,7 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         {
             _logger.LogWarning(
                 "Rejected navigator window preferences for player {PlayerId}: size {Width}x{Height}, results mode {ResultsMode}",
-                _playerId,
+                _state.PlayerId,
                 width,
                 height,
                 resultsMode
@@ -286,7 +290,7 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         }
 
         Apply(
-            _settings with
+            _state.Settings with
             {
                 NavigatorWindowX = x,
                 NavigatorWindowY = y,
@@ -305,11 +309,11 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
 
     private void Apply(PlayerSettingsSnapshot next)
     {
-        if (next == _settings)
+        if (next == _state.Settings)
             return;
 
-        _settings = next;
-        _isDirty = true;
+        _state.Settings = next;
+        _state.IsDirty = true;
     }
 
     private async Task HydrateAsync(CancellationToken ct)
@@ -318,35 +322,35 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
 
         var entity = await dbCtx
             .PlayerSettings.AsNoTracking()
-            .FirstOrDefaultAsync(x => x.PlayerEntityId == _playerId.Value, ct);
+            .FirstOrDefaultAsync(x => x.PlayerEntityId == _state.PlayerId.Value, ct);
 
         // A missing row means the player has never changed anything; the entity's property
         // initializers are the single source of the defaults.
-        _settings = FromEntity(
-            entity ?? new PlayerSettingsEntity { PlayerEntityId = _playerId.Value }
+        _state.Settings = FromEntity(
+            entity ?? new PlayerSettingsEntity { PlayerEntityId = _state.PlayerId.Value }
         );
-        _isDirty = false;
+        _state.IsDirty = false;
     }
 
     private async Task FlushAsync(CancellationToken ct)
     {
-        if (!_isDirty)
+        if (!_state.IsDirty)
             return;
 
-        var settings = _settings;
+        var settings = _state.Settings;
 
         try
         {
             await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
             var entity = await dbCtx.PlayerSettings.FirstOrDefaultAsync(
-                x => x.PlayerEntityId == _playerId.Value,
+                x => x.PlayerEntityId == _state.PlayerId.Value,
                 ct
             );
 
             if (entity is null)
             {
-                entity = new PlayerSettingsEntity { PlayerEntityId = _playerId.Value };
+                entity = new PlayerSettingsEntity { PlayerEntityId = _state.PlayerId.Value };
 
                 dbCtx.PlayerSettings.Add(entity);
             }
@@ -356,12 +360,12 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
             await dbCtx.SaveChangesAsync(ct);
 
             // Only clear the dirty flag if nothing changed while the write was in flight.
-            if (ReferenceEquals(settings, _settings))
-                _isDirty = false;
+            if (ReferenceEquals(settings, _state.Settings))
+                _state.IsDirty = false;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to flush settings for player {PlayerId}", _playerId);
+            _logger.LogError(ex, "Failed to flush settings for player {PlayerId}", _state.PlayerId);
         }
     }
 

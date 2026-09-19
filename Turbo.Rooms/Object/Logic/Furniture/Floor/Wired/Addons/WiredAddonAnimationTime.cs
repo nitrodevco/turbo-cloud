@@ -21,12 +21,13 @@ public class WiredAddonAnimationTime(
 {
     public override int WiredCode => (int)WiredAddonType.ANIMATION_TIME;
 
-    private int _animationTimeMs;
+    private const int MIN_ANIMATION_MS = 50;
+    private const int MAX_ANIMATION_MS = 2000;
+
+    private int _animationTimeMs = MIN_ANIMATION_MS;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [
-            new WiredRangeParamRule(50, 2000, 50), // Animation Time
-        ];
+        [new WiredRangeParamRule(MIN_ANIMATION_MS, MAX_ANIMATION_MS, MIN_ANIMATION_MS)];
 
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
@@ -39,10 +40,6 @@ public class WiredAddonAnimationTime(
     {
         await base.FillInternalDataAsync(ct);
 
-        try
-        {
-            _animationTimeMs = Math.Clamp(_wiredData.GetIntParam<int>(0), 50, 2000);
-        }
-        catch { }
+        _animationTimeMs = GetIntParamOrDefault(0, MIN_ANIMATION_MS);
     }
 }

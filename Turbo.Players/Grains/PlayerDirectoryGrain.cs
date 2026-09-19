@@ -13,21 +13,30 @@ using Turbo.Primitives.Players.Grains;
 
 namespace Turbo.Players.Grains;
 
+/// <summary>
+/// Player names and ids for the whole hotel, one grain. It is a read-through cache over the
+/// players table: nothing here is written back, so there is nothing to flush on deactivation.
+/// </summary>
 [KeepAlive]
-internal sealed class PlayerDirectoryGrain(
-    IDbContextFactory<TurboDbContext> dbCtxFactory,
-    ILogger<IPlayerDirectoryGrain> logger
-) : Grain, IPlayerDirectoryGrain
+internal sealed class PlayerDirectoryGrain : Grain, IPlayerDirectoryGrain
 {
-    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
-    private readonly ILogger<IPlayerDirectoryGrain> _logger = logger;
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
+    private readonly ILogger<IPlayerDirectoryGrain> _logger;
 
-    private readonly Dictionary<PlayerId, string> _idToName = [];
-    private readonly Dictionary<string, PlayerId> _nameToId = new(StringComparer.OrdinalIgnoreCase);
+    private readonly PlayerDirectoryLiveState _state = new();
+
+    public PlayerDirectoryGrain(
+        IDbContextFactory<TurboDbContext> dbCtxFactory,
+        ILogger<IPlayerDirectoryGrain> logger
+    )
+    {
+        _dbCtxFactory = dbCtxFactory;
+        _logger = logger;
+    }
 
     public async Task<string> GetPlayerNameAsync(PlayerId playerId, CancellationToken ct)
     {
-        if (_idToName.TryGetValue(playerId, out var x))
+        if (_state.IdToName.TryGetValue(playerId, out var x))
             return x;
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
@@ -72,7 +81,7 @@ internal sealed class PlayerDirectoryGrain(
 
             foreach (var playerId in ids)
             {
-                if (_idToName.TryGetValue(playerId, out var name))
+                if (_state.IdToName.TryGetValue(playerId, out var name))
                 {
                     names.TryAdd(playerId, name);
                 }
@@ -118,7 +127,7 @@ internal sealed class PlayerDirectoryGrain(
         if (string.IsNullOrWhiteSpace(name))
             return null;
 
-        if (_nameToId.TryGetValue(name, out var playerId))
+        if (_state.NameToId.TryGetValue(name, out var playerId))
             return playerId;
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
@@ -141,10 +150,10 @@ internal sealed class PlayerDirectoryGrain(
 
     private void SetNameCache(PlayerId playerId, string name)
     {
-        if (_idToName.TryGetValue(playerId, out var existingName))
-            _nameToId.Remove(existingName);
+        if (_state.IdToName.TryGetValue(playerId, out var existingName))
+            _state.NameToId.Remove(existingName);
 
-        _idToName[playerId] = name;
-        _nameToId[name] = playerId;
+        _state.IdToName[playerId] = name;
+        _state.NameToId[name] = playerId;
     }
 }

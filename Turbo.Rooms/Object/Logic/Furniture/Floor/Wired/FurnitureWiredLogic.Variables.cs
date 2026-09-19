@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 
@@ -19,19 +20,30 @@ public abstract partial class FurnitureWiredLogic
         if (_wiredData is null || index < 0 || index >= _wiredData.VariableIds.Count)
             return null;
 
-        try
-        {
-            return _roomGrain.WiredSystem.GetVariableById(
-                WiredVariableId.Parse(_wiredData.VariableIds[index])
-            );
-        }
-        catch (Exception ex)
-        {
-            LogWiredDataFault(ex);
-
-            return null;
-        }
+        return WiredVariableId.TryParse(_wiredData.VariableIds[index], out var variableId)
+            ? _roomGrain.WiredSystem.GetVariableById(variableId)
+            : null;
     }
+
+    /// <summary>
+    /// What the box acts on: the target type saved at <paramref name="paramIndex"/>, or the
+    /// variable's own when the box was never saved with one.
+    /// </summary>
+    protected WiredVariableTargetType GetTargetType(IWiredVariable variable, int paramIndex) =>
+        (WiredVariableTargetType)GetIntParamOrDefault(
+            paramIndex,
+            (int)variable.GetVarSnapshot().TargetType
+        );
+
+    /// <summary>The editor context of a box that lets the user pick any variable in the room.</summary>
+    protected List<WiredVariableContextSnapshot> AllVariablesContext() =>
+        [
+            new WiredVariableAllInRoomSnapshot()
+            {
+                ContextType = WiredContextType.AllVariablesInRoom,
+                AllVariablesHash = _roomGrain._state.AllVariablesHash,
+            },
+        ];
 
     /// <summary>
     /// A value the client stored as a long: two ints, the first only carrying the sign. The
@@ -78,10 +90,7 @@ public abstract partial class FurnitureWiredLogic
         if (operand is null)
             return false;
 
-        var targetType = (WiredVariableTargetType)GetIntParamOrDefault(
-            operandTargetIndex,
-            (int)operand.GetVarSnapshot().TargetType
-        );
+        var targetType = GetTargetType(operand, operandTargetIndex);
 
         foreach (var targetId in GetTargetIds(targetType, selection))
         {

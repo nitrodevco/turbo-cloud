@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Database.Context;
+using Turbo.Database.Extensions;
 using Turbo.Furniture.Configuration;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
@@ -47,31 +48,7 @@ public sealed class FurnitureDefinitionProvider(
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
 
-            var defs = entities
-                .Select(x => new FurnitureDefinitionSnapshot
-                {
-                    Id = x.Id,
-                    SpriteId = x.SpriteId,
-                    Name = x.Name,
-                    ProductType = x.ProductType,
-                    FurniCategory = x.FurniCategory,
-                    LogicName = x.Logic,
-                    TotalStates = x.TotalStates,
-                    Width = x.Width,
-                    Length = x.Length,
-                    StackHeight = Math.Round(Math.Max(_config.MinimumZValue, x.StackHeight), 2),
-                    CanStack = x.CanStack,
-                    CanWalk = x.CanWalk,
-                    CanSit = x.CanSit,
-                    CanLay = x.CanLay,
-                    CanRecycle = x.CanRecycle,
-                    CanTrade = x.CanTrade,
-                    CanGroup = x.CanGroup,
-                    CanSell = x.CanSell,
-                    UsagePolicy = x.UsagePolicy,
-                    ExtraData = x.ExtraData,
-                })
-                .ToList();
+            var defs = entities.Select(x => x.ToSnapshot(_config.MinimumZValue)).ToList();
 
             _definitionsById = defs.ToImmutableDictionary(p => p.Id);
 

@@ -25,7 +25,10 @@ public sealed partial class RoomPetModule
         CancellationToken ct
     )
     {
-        if (!TryGetPet(petId, out var pet) || !TryGetPlayer(ctx.PlayerId, out var rider))
+        if (
+            !TryGetPet(petId, out var pet)
+            || !_roomGrain.AvatarModule.TryGetPlayer(ctx.PlayerId, out var rider)
+        )
             return false;
 
         if (!mount)

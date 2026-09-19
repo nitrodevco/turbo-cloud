@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
@@ -245,7 +246,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
             return;
 
         if (ctx.Trigger is not null)
-            _ = ctx.Trigger.FlashActivationStateAsync(ct);
+            ctx.Trigger.FlashActivationStateAsync(ct)
+                .LogAndForget(_roomGrain._logger, $"flash a wired box in room {_roomGrain.RoomId}");
 
         foreach (var addon in ctx.Stack.Addons)
             await addon.BeforeEffectsAsync(ctx, ct);
@@ -524,13 +526,22 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
                     CancellationToken = ct,
                 };
 
-                _ = action.FlashActivationStateAsync(ct);
+                action
+                    .FlashActivationStateAsync(ct)
+                    .LogAndForget(
+                        _roomGrain._logger,
+                        $"flash a wired box in room {_roomGrain.RoomId}"
+                    );
 
                 succeeded = await action.ExecuteAsync(ctx, ct);
 
                 CountExecution();
 
-                _ = FlushWiredContextAsync(ctx);
+                FlushWiredContextAsync(ctx)
+                    .LogAndForget(
+                        _roomGrain._logger,
+                        $"flush wired results in room {_roomGrain.RoomId}"
+                    );
             }
             catch (Exception ex)
             {
@@ -577,25 +588,28 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
             || ctx.FloorItemMoves.Count > 0
             || ctx.WallItemMoves.Count > 0
         )
-            _ = ctx.SendComposerToRoomAsync(
-                new WiredMovementsMessageComposer
-                {
-                    Users = ctx.UserMoves,
-                    FloorItems = ctx.FloorItemMoves,
-                    WallItems = ctx.WallItemMoves,
-                    UserDirections = ctx.UserDirections,
-                }
-            );
+            ctx.SendComposerToRoomAsync(
+                    new WiredMovementsMessageComposer
+                    {
+                        Users = ctx.UserMoves,
+                        FloorItems = ctx.FloorItemMoves,
+                        WallItems = ctx.WallItemMoves,
+                        UserDirections = ctx.UserDirections,
+                    }
+                )
+                .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
 
         if (ctx.FloorItemStateUpdates.Count > 0)
-            _ = ctx.SendComposerToRoomAsync(
-                new ObjectsDataUpdateMessageComposer { StuffDatas = ctx.FloorItemStateUpdates }
-            );
+            ctx.SendComposerToRoomAsync(
+                    new ObjectsDataUpdateMessageComposer { StuffDatas = ctx.FloorItemStateUpdates }
+                )
+                .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
 
         if (ctx.WallItemStateUpdates.Count > 0)
-            _ = ctx.SendComposerToRoomAsync(
-                new ItemsStateUpdateMessageComposer { ObjectStates = ctx.WallItemStateUpdates }
-            );
+            ctx.SendComposerToRoomAsync(
+                    new ItemsStateUpdateMessageComposer { ObjectStates = ctx.WallItemStateUpdates }
+                )
+                .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
 
         return Task.CompletedTask;
     }

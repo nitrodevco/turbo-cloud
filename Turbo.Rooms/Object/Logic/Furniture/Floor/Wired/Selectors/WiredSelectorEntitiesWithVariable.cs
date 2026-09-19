@@ -27,9 +27,9 @@ public class WiredSelectorEntitiesWithVariable(
             new WiredEnumParamRule<WiredComparisonType>(WiredComparisonType.GreaterThan),
             new WiredBoolParamRule(false),
             new WiredBoolParamRule(false),
-            new WiredParamRule(0),
-            new WiredParamRule(0),
-            new WiredParamRule((int)WiredVariableTargetType.User),
+            WiredRules.AnyInt(),
+            WiredRules.AnyInt(),
+            WiredRules.VariableTarget(WiredVariableTargetType.User),
         ];
 
     protected override IEnumerable<int> EnumerateTargets()

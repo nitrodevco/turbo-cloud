@@ -23,7 +23,8 @@ public class WiredSelectorEntitiesWithHanditem(
 {
     public override int WiredCode => (int)WiredSelectorType.USERS_WITH_HANDITEM;
 
-    public override List<IWiredParamRule> GetIntParamRules() => [new WiredParamRule(0)];
+    public override List<IWiredParamRule> GetIntParamRules() =>
+        [WiredRules.HandItem(_roomGrain._roomConfig)];
 
     public override Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,

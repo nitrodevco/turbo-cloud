@@ -23,28 +23,38 @@ using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms.Grains;
 
-internal sealed class RoomPersistenceGrain(
-    IDbContextFactory<TurboDbContext> dbCtxFactory,
-    IOptions<RoomConfig> roomConfig,
-    ILogger<IRoomPersistenceGrain> logger
-) : Grain, IRoomPersistenceGrain
+/// <summary>
+/// The write buffer of one room, so database writes never hold up the room's turn. Buffered and
+/// flushed: the room hands over what changed, a timer writes it, and deactivation writes what
+/// is left. A write that fails keeps its rows queued up to the configured caps.
+/// </summary>
+internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
 {
-    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
-    private readonly RoomConfig _roomConfig = roomConfig.Value;
-    private readonly ILogger<IRoomPersistenceGrain> _logger = logger;
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
+    private readonly RoomConfig _roomConfig;
+    private readonly ILogger<IRoomPersistenceGrain> _logger;
 
-    private Dictionary<long, RoomItemSnapshot> _dirtyItems = [];
-    private readonly HashSet<RoomObjectId> _removedItemIds = [];
-    private readonly HashSet<RoomObjectId> _deletedItemIds = [];
-    private readonly Dictionary<int, PetSnapshot> _dirtyPets = [];
-    private readonly Dictionary<int, BotSnapshot> _dirtyBots = [];
-    private readonly Queue<RoomChatlogSnapshot> _pendingChatlogs = new();
-    private IDisposable? _timer;
+    private readonly RoomPersistenceLiveState _state;
+
+    private IDisposable? _dirtyItemsTimer;
     private IDisposable? _chatlogTimer;
+
+    public RoomPersistenceGrain(
+        IDbContextFactory<TurboDbContext> dbCtxFactory,
+        IOptions<RoomConfig> roomConfig,
+        ILogger<IRoomPersistenceGrain> logger
+    )
+    {
+        _dbCtxFactory = dbCtxFactory;
+        _roomConfig = roomConfig.Value;
+        _logger = logger;
+
+        _state = new() { RoomId = this.GetRoomId() };
+    }
 
     public override Task OnActivateAsync(CancellationToken ct)
     {
-        _timer = this.RegisterGrainTimer<object?>(
+        _dirtyItemsTimer = this.RegisterGrainTimer<object?>(
             static async (self, ct) => await ((RoomPersistenceGrain)self!).FlushDirtyItemsAsync(ct),
             this,
             TimeSpan.FromMilliseconds(_roomConfig.DirtyItemsTickMs),
@@ -63,47 +73,56 @@ internal sealed class RoomPersistenceGrain(
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
-        _timer?.Dispose();
-        _timer = null;
+        _dirtyItemsTimer?.Dispose();
+        _dirtyItemsTimer = null;
 
         _chatlogTimer?.Dispose();
         _chatlogTimer = null;
 
         await FlushDirtyItemsAsync(ct);
 
-        while (_pendingChatlogs.Count > 0)
-            await FlushChatlogsAsync(ct);
+        // Stops at the first batch that cannot be written: a database that is down must not
+        // hold the deactivation in a loop.
+        while (_state.PendingChatlogs.Count > 0 && await FlushChatlogsAsync(ct)) { }
     }
 
     public Task EnqueueChatlogAsync(RoomChatlogSnapshot snapshot, CancellationToken ct)
     {
-        if (_pendingChatlogs.Count >= _roomConfig.MaxPendingChatlogs)
+        if (_state.PendingChatlogs.Count >= _roomConfig.MaxPendingChatlogs)
         {
             _logger.LogWarning(
                 "Chatlog queue for room {RoomId} is full ({Max}); dropping oldest entry",
-                this.GetPrimaryKeyLong(),
+                _state.RoomId,
                 _roomConfig.MaxPendingChatlogs
             );
 
-            _pendingChatlogs.Dequeue();
+            _state.PendingChatlogs.Dequeue();
         }
 
-        _pendingChatlogs.Enqueue(snapshot);
+        _state.PendingChatlogs.Enqueue(snapshot);
 
         return Task.CompletedTask;
     }
 
-    private async Task FlushChatlogsAsync(CancellationToken ct)
+    /// <summary>
+    /// Writes one batch. False means the batch could not be written and went back on the queue,
+    /// which is what tells deactivation to stop trying.
+    /// </summary>
+    private async Task<bool> FlushChatlogsAsync(CancellationToken ct)
     {
-        if (_pendingChatlogs.Count == 0)
-            return;
+        if (_state.PendingChatlogs.Count == 0)
+            return true;
 
-        var batchSize = Math.Min(_pendingChatlogs.Count, _roomConfig.MaxChatlogsPerFlush);
+        var batchSize = Math.Min(_state.PendingChatlogs.Count, _roomConfig.MaxChatlogsPerFlush);
         var batch = new List<RoomChatlogEntity>(batchSize);
+        var taken = new List<RoomChatlogSnapshot>(batchSize);
 
         for (var i = 0; i < batchSize; i++)
         {
-            var snapshot = _pendingChatlogs.Dequeue();
+            var snapshot = _state.PendingChatlogs.Dequeue();
+
+            taken.Add(snapshot);
+
             var message =
                 snapshot.Text.Length > RoomChatlogEntity.MESSAGE_MAX_LENGTH
                     ? snapshot.Text[..RoomChatlogEntity.MESSAGE_MAX_LENGTH]
@@ -129,26 +148,43 @@ internal sealed class RoomPersistenceGrain(
             dbCtx.Chatlogs.AddRange(batch);
 
             await dbCtx.SaveChangesAsync(ct);
+
+            return true;
         }
         catch (Exception ex)
         {
             _logger.LogError(
                 ex,
-                "Failed to flush {Count} chatlog entries for room {RoomId}",
+                "Failed to flush {Count} chatlog entries for room {RoomId}; they stay queued",
                 batch.Count,
-                this.GetPrimaryKeyLong()
+                _state.RoomId
             );
+
+            RequeueChatlogs(taken);
+
+            return false;
         }
+    }
+
+    /// <summary>Puts a failed batch back in front, oldest first, dropping the newest past the cap.</summary>
+    private void RequeueChatlogs(List<RoomChatlogSnapshot> failed)
+    {
+        var later = _state.PendingChatlogs.ToList();
+
+        _state.PendingChatlogs.Clear();
+
+        foreach (var snapshot in failed.Concat(later).Take(_roomConfig.MaxPendingChatlogs))
+            _state.PendingChatlogs.Enqueue(snapshot);
     }
 
     private async Task FlushDeletedItemsAsync(CancellationToken ct)
     {
-        if (_deletedItemIds.Count == 0)
+        if (_state.DeletedItemIds.Count == 0)
             return;
 
-        var ids = _deletedItemIds.Select(x => x.Value).ToList();
+        var ids = _state.DeletedItemIds.Select(x => x.Value).ToList();
 
-        _deletedItemIds.Clear();
+        _state.DeletedItemIds.Clear();
 
         try
         {
@@ -162,11 +198,11 @@ internal sealed class RoomPersistenceGrain(
                 ex,
                 "Failed to delete {Count} furniture items for room {RoomId}",
                 ids.Count,
-                this.GetRoomId()
+                _state.RoomId
             );
 
             foreach (var id in ids)
-                _deletedItemIds.Add(id);
+                _state.DeletedItemIds.Add(id);
         }
     }
 
@@ -177,10 +213,10 @@ internal sealed class RoomPersistenceGrain(
         bool remove = false
     )
     {
-        _dirtyItems[snapshot.ObjectId] = snapshot;
+        _state.DirtyItems[snapshot.ObjectId] = snapshot;
 
         if (remove)
-            _removedItemIds.Add(snapshot.ObjectId);
+            _state.RemovedItemIds.Add(snapshot.ObjectId);
 
         return Task.CompletedTask;
     }
@@ -188,9 +224,9 @@ internal sealed class RoomPersistenceGrain(
     public Task EnqueueDeletedItemAsync(RoomId roomId, RoomObjectId itemId, CancellationToken ct)
     {
         // A pending update for the same item would only resurrect the row.
-        _dirtyItems.Remove(itemId);
-        _removedItemIds.Remove(itemId);
-        _deletedItemIds.Add(itemId);
+        _state.DirtyItems.Remove(itemId);
+        _state.RemovedItemIds.Remove(itemId);
+        _state.DeletedItemIds.Add(itemId);
 
         return Task.CompletedTask;
     }
@@ -202,21 +238,21 @@ internal sealed class RoomPersistenceGrain(
     )
     {
         foreach (var snapshot in snapshots)
-            _dirtyItems[snapshot.ObjectId] = snapshot;
+            _state.DirtyItems[snapshot.ObjectId] = snapshot;
 
         return Task.CompletedTask;
     }
 
     public Task EnqueueDirtyPetAsync(PetSnapshot snapshot, CancellationToken ct)
     {
-        _dirtyPets[snapshot.Id] = snapshot;
+        _state.DirtyPets[snapshot.Id] = snapshot;
 
         return Task.CompletedTask;
     }
 
     public Task EnqueueDirtyBotAsync(BotSnapshot snapshot, CancellationToken ct)
     {
-        _dirtyBots[snapshot.Id] = snapshot;
+        _state.DirtyBots[snapshot.Id] = snapshot;
 
         return Task.CompletedTask;
     }
@@ -227,15 +263,15 @@ internal sealed class RoomPersistenceGrain(
     /// </summary>
     private async Task FlushDirtyPetsAsync(CancellationToken ct)
     {
-        if (_dirtyPets.Count == 0)
+        if (_state.DirtyPets.Count == 0)
             return;
 
-        var batch = _dirtyPets.Values.Take(_roomConfig.MaxDirtyItemsPerFlush).ToArray();
+        var batch = _state.DirtyPets.Values.Take(_roomConfig.MaxDirtyItemsPerFlush).ToArray();
 
         foreach (var pet in batch)
-            _dirtyPets.Remove(pet.Id);
+            _state.DirtyPets.Remove(pet.Id);
 
-        var roomId = this.GetRoomId().Value;
+        var roomId = _state.RoomId.Value;
 
         try
         {
@@ -287,15 +323,15 @@ internal sealed class RoomPersistenceGrain(
 
     private async Task FlushDirtyBotsAsync(CancellationToken ct)
     {
-        if (_dirtyBots.Count == 0)
+        if (_state.DirtyBots.Count == 0)
             return;
 
-        var batch = _dirtyBots.Values.Take(_roomConfig.MaxDirtyItemsPerFlush).ToArray();
+        var batch = _state.DirtyBots.Values.Take(_roomConfig.MaxDirtyItemsPerFlush).ToArray();
 
         foreach (var bot in batch)
-            _dirtyBots.Remove(bot.Id);
+            _state.DirtyBots.Remove(bot.Id);
 
-        var roomId = this.GetRoomId().Value;
+        var roomId = _state.RoomId.Value;
 
         try
         {
@@ -342,16 +378,16 @@ internal sealed class RoomPersistenceGrain(
         await FlushDirtyPetsAsync(ct);
         await FlushDirtyBotsAsync(ct);
 
-        if (_dirtyItems.Count == 0)
+        if (_state.DirtyItems.Count == 0)
             return;
 
-        var batch = _dirtyItems
-            .Take(_roomConfig.MaxDirtyItemsPerFlush)
+        var batch = _state
+            .DirtyItems.Take(_roomConfig.MaxDirtyItemsPerFlush)
             .Select(x => x.Value)
             .ToArray();
 
         foreach (var item in batch)
-            _dirtyItems.Remove(item.ObjectId);
+            _state.DirtyItems.Remove(item.ObjectId);
 
         try
         {
@@ -389,17 +425,17 @@ internal sealed class RoomPersistenceGrain(
                     e.Property(x => x.WallOffset).IsModified = true;
                 }
 
-                if (_removedItemIds.Contains(item.ObjectId))
+                if (_state.RemovedItemIds.Contains(item.ObjectId))
                 {
                     dbEntity.RoomEntityId = null;
 
                     e.Property(x => x.RoomEntityId).IsModified = true;
 
-                    _removedItemIds.Remove(item.ObjectId);
+                    _state.RemovedItemIds.Remove(item.ObjectId);
                 }
                 else
                 {
-                    dbEntity.RoomEntityId = this.GetRoomId().Value;
+                    dbEntity.RoomEntityId = _state.RoomId.Value;
 
                     e.Property(x => x.RoomEntityId).IsModified = true;
                 }
@@ -413,7 +449,7 @@ internal sealed class RoomPersistenceGrain(
                 ex,
                 "Failed to flush {Count} dirty furniture items for room {RoomId}",
                 batch.Length,
-                this.GetPrimaryKeyLong()
+                _state.RoomId
             );
         }
     }

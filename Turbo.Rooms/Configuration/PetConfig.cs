@@ -72,7 +72,6 @@ public class PetConfig
 
     /// <summary>Days an account must be old before it may scratch a pet.</summary>
     public int RespectMinAccountAgeDays { get; init; } = 0;
-    public int MinutesBetweenMountAttempts { get; init; } = 0;
 
     public int MonsterplantMaxLevel { get; init; } = 7;
     public int MonsterplantGrowthSeconds { get; init; } = 3600;

@@ -73,41 +73,7 @@ public sealed class RoomModerationModule(
         if (durationMinutes <= 0 || !await CanMutePlayerAsync(ctx, playerId))
             return false;
 
-        durationMinutes = Math.Min(
-            durationMinutes,
-            _roomGrain._roomConfig.ChatMuteMaxDurationMinutes
-        );
-
-        var expiresAt = DateTime.UtcNow.AddMinutes(durationMinutes);
-
-        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
-
-        var entity = await dbCtx.RoomMutes.FirstOrDefaultAsync(
-            x => x.RoomEntityId == _roomGrain.RoomId.Value && x.PlayerEntityId == playerId.Value,
-            ct
-        );
-
-        if (entity is null)
-        {
-            dbCtx.RoomMutes.Add(
-                new RoomMuteEntity
-                {
-                    RoomEntityId = _roomGrain.RoomId.Value,
-                    PlayerEntityId = playerId.Value,
-                    DateExpires = expiresAt,
-                    RoomEntity = null!,
-                    PlayerEntity = null!,
-                }
-            );
-        }
-        else
-        {
-            entity.DateExpires = expiresAt;
-        }
-
-        await dbCtx.SaveChangesAsync(ct);
-
-        _roomGrain._state.MutedUntilByPlayerId[playerId] = expiresAt;
+        await StoreMuteAsync(playerId, durationMinutes, ct);
 
         return true;
     }
@@ -127,6 +93,14 @@ public sealed class RoomModerationModule(
         if (controllerLevel >= RoomControllerType.Owner)
             return false;
 
+        await StoreMuteAsync(playerId, durationMinutes, ct);
+
+        return true;
+    }
+
+    /// <summary>Writes the mute, capped at the room's maximum, and starts applying it.</summary>
+    private async Task StoreMuteAsync(PlayerId playerId, int durationMinutes, CancellationToken ct)
+    {
         durationMinutes = Math.Min(
             durationMinutes,
             _roomGrain._roomConfig.ChatMuteMaxDurationMinutes
@@ -162,8 +136,6 @@ public sealed class RoomModerationModule(
         await dbCtx.SaveChangesAsync(ct);
 
         _roomGrain._state.MutedUntilByPlayerId[playerId] = expiresAt;
-
-        return true;
     }
 
     public async Task<bool> UnmutePlayerAsync(

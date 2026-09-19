@@ -36,13 +36,7 @@ public class WiredVariableEcho(
         GetSource()?.GetVarSnapshot().Flags ?? WiredVariableFlags.None;
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
-        [
-            new WiredVariableAllInRoomSnapshot()
-            {
-                ContextType = WiredContextType.AllVariablesInRoom,
-                AllVariablesHash = _roomGrain._state.AllVariablesHash,
-            },
-        ];
+        AllVariablesContext();
 
     public override bool TryGetValue(in WiredVariableKey key, out WiredVariableValue value)
     {

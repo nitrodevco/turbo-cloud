@@ -22,8 +22,8 @@ public class ConfirmDeclineTradingMessageHandler(IGrainFactory grainFactory)
             return;
 
         await _grainFactory
-            .GetRoomGrain(ctx.RoomId)
-            .ConfirmTradeAsync(ctx.AsActionContext(), false, ct)
+            .GetRoomTradeGrain(ctx.RoomId)
+            .ConfirmAsync(ctx.AsActionContext(), false, ct)
             .ConfigureAwait(false);
     }
 }

@@ -31,7 +31,7 @@ public abstract class WiredAddonSelectorFilter(
         [
             new WiredRangeParamRule(1, 1000, 1),
             new WiredBoolParamRule(false),
-            new WiredParamRule((int)WiredVariableTargetType.User),
+            WiredRules.VariableTarget(WiredVariableTargetType.User),
         ];
 
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
@@ -68,10 +68,7 @@ public abstract class WiredAddonSelectorFilter(
         if (variable is null)
             return count;
 
-        var targetType = (WiredVariableTargetType)GetIntParamOrDefault(
-            2,
-            (int)variable.GetVarSnapshot().TargetType
-        );
+        var targetType = GetTargetType(variable, 2);
 
         foreach (var targetId in GetTargetIds(targetType, ctx.Selected))
         {

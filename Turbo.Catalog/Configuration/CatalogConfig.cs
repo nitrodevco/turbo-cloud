@@ -73,18 +73,6 @@ public class LtdRaffleWeightConfig
         };
 
     /// <summary>
-    /// Online time (minutes) weighting configuration.
-    /// Note: Requires online time tracking to be implemented.
-    /// </summary>
-    public WeightCriterion OnlineTimeMinutes { get; set; } =
-        new()
-        {
-            Enabled = false,
-            BonusPerUnit = 0.00005,
-            MaxBonus = 0.5,
-        };
-
-    /// <summary>
     /// Room count weighting configuration.
     /// </summary>
     public WeightCriterion RoomCount { get; set; } =

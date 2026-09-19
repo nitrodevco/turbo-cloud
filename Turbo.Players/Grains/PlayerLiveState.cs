@@ -7,7 +7,7 @@ using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Players.Grains;
 
-public sealed class PlayerLiveState
+internal sealed class PlayerLiveState
 {
     public required PlayerId PlayerId { get; init; }
     public string Name { get; set; } = string.Empty;

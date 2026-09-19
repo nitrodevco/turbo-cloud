@@ -89,7 +89,7 @@ public sealed class RoomEntryModule(
 
         _roomGrain._state.DoorbellRingersByName[playerName] = playerId;
 
-        await _roomGrain.SendComposerToPlayersAsync(
+        await _roomGrain._grainFactory.SendComposerToPlayersAsync(
             controllerIds,
             new DoorbellMessageComposer { Username = playerName },
             ct
@@ -132,7 +132,7 @@ public sealed class RoomEntryModule(
                 Username = playerName,
             };
 
-        await _roomGrain.SendComposerToPlayersAsync(controllerIds, composer, ct);
+        await _roomGrain._grainFactory.SendComposerToPlayersAsync(controllerIds, composer, ct);
 
         return ringerId;
     }

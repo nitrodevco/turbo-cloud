@@ -29,7 +29,7 @@ public class WiredSelectorRemoteSelection(
     public override int WiredCode => (int)WiredSelectorType.REMOTE_SELECTOR;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredRangeParamRule(0, 1, 0), new WiredParamRule(0)];
+        [new WiredRangeParamRule(0, 1, 0), WiredRules.AnyInt()];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
         [

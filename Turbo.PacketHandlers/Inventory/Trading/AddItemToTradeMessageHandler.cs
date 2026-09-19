@@ -22,8 +22,8 @@ public class AddItemToTradeMessageHandler(IGrainFactory grainFactory)
             return;
 
         await _grainFactory
-            .GetRoomGrain(ctx.RoomId)
-            .AddTradeItemsAsync(ctx.AsActionContext(), [message.ItemId], ct)
+            .GetRoomTradeGrain(ctx.RoomId)
+            .AddItemsAsync(ctx.AsActionContext(), [message.ItemId], ct)
             .ConfigureAwait(false);
     }
 }

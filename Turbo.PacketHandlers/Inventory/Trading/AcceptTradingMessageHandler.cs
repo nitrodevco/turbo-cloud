@@ -22,8 +22,8 @@ public class AcceptTradingMessageHandler(IGrainFactory grainFactory)
             return;
 
         await _grainFactory
-            .GetRoomGrain(ctx.RoomId)
-            .AcceptTradeAsync(ctx.AsActionContext(), true, ct)
+            .GetRoomTradeGrain(ctx.RoomId)
+            .AcceptAsync(ctx.AsActionContext(), true, ct)
             .ConfigureAwait(false);
     }
 }

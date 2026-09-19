@@ -43,4 +43,16 @@ public static class PetEntityExtensions
             WateredAtUtc = entity.WateredAt,
             HarvestedAtUtc = entity.HarvestedAt,
         };
+
+    public static PetBreedSnapshot ToSnapshot(this PetBreedEntity entity) =>
+        new()
+        {
+            TypeId = entity.TypeId,
+            BreedId = entity.BreedId,
+            PaletteId = entity.PaletteId,
+            RarityLevel = entity.RarityLevel,
+            Sellable = entity.Sellable,
+            Rare = entity.Rare,
+            ColorTag = entity.ColorTag,
+        };
 }

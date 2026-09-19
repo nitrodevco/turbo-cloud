@@ -1,6 +1,8 @@
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Snapshots;
@@ -20,6 +22,26 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain)
 
     public Task<ImmutableDictionary<PlayerId, string>> GetAllOwnersAsync(CancellationToken ct) =>
         Task.FromResult(_roomGrain._state.OwnerNamesById.ToImmutableDictionary());
+
+    /// <summary>
+    /// The room an item stands in right now, this room or any other; null while it sits in an
+    /// inventory. Paired furni (teleporters) use it to find where their pair leads.
+    /// </summary>
+    public async Task<RoomId?> GetRoomIdOfItemAsync(int itemId, CancellationToken ct)
+    {
+        if (_roomGrain._state.ItemsById.ContainsKey(itemId))
+            return _roomGrain.RoomId;
+
+        await using var dbCtx = await _roomGrain._dbCtxFactory.CreateDbContextAsync(ct);
+
+        var roomId = await dbCtx
+            .Furnitures.AsNoTracking()
+            .Where(x => x.Id == itemId)
+            .Select(x => x.RoomEntityId)
+            .FirstOrDefaultAsync(ct);
+
+        return roomId is > 0 ? RoomId.Parse(roomId.Value) : null;
+    }
 
     /// <summary>
     /// Creates a brand-new wall item directly in the room, for furniture the room produces

@@ -60,7 +60,7 @@ public class FurnitureFriendFurniLogic(
             PartnerId = partner.Value,
         };
 
-        await SendToPlayerAsync(
+        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new FriendFurniStartConfirmationMessageComposer
             {
@@ -69,7 +69,7 @@ public class FurnitureFriendFurniLogic(
             },
             ct
         );
-        await SendToPlayerAsync(
+        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
             partner.Value,
             new FriendFurniStartConfirmationMessageComposer
             {
@@ -115,7 +115,7 @@ public class FurnitureFriendFurniLogic(
 
         if (!(request.InitiatorConfirmed && request.PartnerConfirmed))
         {
-            await SendToPlayerAsync(
+            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
                 request.OtherOf(ctx.PlayerId),
                 new FriendFurniOtherLockConfirmedMessageComposer { ItemId = _ctx.ObjectId },
                 ct
@@ -172,8 +172,8 @@ public class FurnitureFriendFurniLogic(
 
         var cancel = new FriendFurniCancelLockMessageComposer { ItemId = _ctx.ObjectId };
 
-        await SendToPlayerAsync(request.InitiatorId, cancel, ct);
-        await SendToPlayerAsync(request.PartnerId, cancel, ct);
+        await _roomGrain._grainFactory.SendComposerToPlayerAsync(request.InitiatorId, cancel, ct);
+        await _roomGrain._grainFactory.SendComposerToPlayerAsync(request.PartnerId, cancel, ct);
     }
 
     /// <summary>Another player's avatar standing on or next to the lock, if exactly one is there.</summary>

@@ -12,6 +12,7 @@ using Orleans;
 using Orleans.Runtime;
 using Orleans.Streams;
 using Turbo.Database.Context;
+using Turbo.Database.Extensions;
 using Turbo.Events;
 using Turbo.Logging;
 using Turbo.Primitives;
@@ -58,10 +59,6 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly IGrainFactory _grainFactory;
     internal readonly EventSystem _eventSystem;
 
-    internal IAsyncStream<RoomOutboundSnapshot> _roomOutbound = default!;
-
-    private IGrainTimer? _roomTimer;
-
     internal readonly RoomLiveState _state;
 
     public readonly RoomEventModule EventModule;
@@ -86,6 +83,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public readonly RoomChatSystem ChatSystem;
     public readonly RoomTimerSystem TimerSystem;
 
+    internal IAsyncStream<RoomOutboundSnapshot> _roomOutbound = default!;
+    private IGrainTimer? _roomTimer;
+
     public RoomId RoomId => _state.RoomId;
 
     public RoomGrain(
@@ -93,7 +93,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IOptions<RoomConfig> roomConfig,
         IOptions<PetConfig> petConfig,
         IOptions<BotConfig> botConfig,
-        ILogger<IRoomGrain> logger,
+        IGrainFactory grainFactory,
         IRoomModelProvider roomModelProvider,
         IRoomItemsProvider itemsLoader,
         IRoomNpcProvider npcProvider,
@@ -102,8 +102,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IRoomWiredVariablesProvider wiredVariablesProvider,
         IPetBreedProvider petBreedProvider,
         IFurnitureDefinitionProvider definitionProvider,
-        IGrainFactory grainFactory,
-        EventSystem eventSystem
+        EventSystem eventSystem,
+        ILogger<IRoomGrain> logger
     )
     {
         _dbCtxFactory = dbCtxFactory;
@@ -315,21 +315,6 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             new RoomOutboundSnapshot { RoomId = _state.RoomId, Composer = composer }
         );
 
-    /// <summary>
-    /// Targets a subset of players directly instead of the room stream. Independent presence
-    /// grains, so the sends run concurrently.
-    /// </summary>
-    internal Task SendComposerToPlayersAsync(
-        IEnumerable<PlayerId> playerIds,
-        IComposer composer,
-        CancellationToken ct
-    ) =>
-        Task.WhenAll(
-            playerIds.Select(playerId =>
-                _grainFactory.GetPlayerPresenceGrain(playerId).SendComposerAsync(composer, ct)
-            )
-        );
-
     private async Task HydrateRoomStateAsync(CancellationToken ct)
     {
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
@@ -383,63 +368,12 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
                 _state.RoomProperties[RoomPropertyType.Landscape] = entity.PaintLandscape;
             }
 
-            _state.RoomSnapshot = new RoomSnapshot
-            {
-                RoomId = entity.Id,
-                Name = entity.Name ?? string.Empty,
-                Description = entity.Description ?? string.Empty,
-                OwnerId = PlayerId.Parse(entity.PlayerEntityId),
-                OwnerName = ownerName,
-                Population = 0,
-                DoorMode = entity.DoorMode,
-                PlayersMax = entity.PlayersMax,
-                TradeType = entity.TradeType,
-                Score = entity.Score,
-                Ranking = 0,
-                CategoryId = entity.NavigatorCategoryEntityId ?? -1,
-                Tags = RoomTags.Parse(entity.Tags),
-                StaffPick = entity.StaffPick,
-                ActiveEvent = eventEntity is null
-                    ? null
-                    : new RoomEventSnapshot
-                    {
-                        EventId = eventEntity.Id,
-                        RoomId = entity.Id,
-                        OwnerId = PlayerId.Parse(eventEntity.PlayerEntityId),
-                        OwnerName = ownerName,
-                        CategoryId = eventEntity.NavigatorEventCategoryEntityId,
-                        Name = eventEntity.Name,
-                        Description = eventEntity.Description,
-                        CreatedAtUtc = eventEntity.CreatedAt,
-                        ExpiresAtUtc = eventEntity.ExpiresAt,
-                    },
-                AllowBlocking = entity.AllowBlocking,
-                AllowPets = entity.AllowPets,
-                AllowPetsEat = entity.AllowPetsEat,
-                Password = entity.Password ?? string.Empty,
-                ModSettings = new ModSettingsSnapshot
-                {
-                    WhoCanMute = entity.MuteType,
-                    WhoCanKick = entity.KickType,
-                    WhoCanBan = entity.BanType,
-                },
-                ChatProtection = entity.ChatFloodType,
-                WorldType = _state.Model.Name,
-                HideWalls = entity.HideWalls,
-                WallThickness = entity.ThicknessWall,
-                FloorThickness = entity.ThicknessFloor,
-                LeaveOnDoorTile = entity.LeaveOnDoorTile,
-                IdleSleepEnabled = entity.IdleSleepEnabled,
-                IdleSleepTimeoutSeconds = entity.IdleSleepTimeoutSeconds,
-                IdleAutokickEnabled = entity.IdleAutokickEnabled,
-                IdleAutokickTimeoutSeconds = entity.IdleAutokickTimeoutSeconds,
-                MuteAllPets = entity.MuteAllPets,
-                HiddenByBc = entity.HiddenByBc,
-                WiredModifyPermissionMask = entity.WiredModifyPermissionMask,
-                WiredReadPermissionMask = entity.WiredReadPermissionMask,
-                WiredTimezone = entity.WiredTimezone,
-                LastUpdatedUtc = DateTime.UtcNow,
-            };
+            _state.RoomSnapshot = entity.ToSnapshot(
+                ownerName,
+                _state.Model.Name,
+                eventEntity,
+                DateTime.UtcNow
+            );
 
             await SecurityModule.EnsureRightsLoadedAsync(ct);
             await EntryModule.EnsureBansLoadedAsync(ct);

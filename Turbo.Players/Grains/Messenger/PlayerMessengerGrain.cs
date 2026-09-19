@@ -30,27 +30,24 @@ namespace Turbo.Players.Grains.Messenger;
 internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
-    private readonly IGrainFactory _grainFactory;
     private readonly PlayerConfig _playerConfig;
+    private readonly IGrainFactory _grainFactory;
     private readonly ILogger<IPlayerMessengerGrain> _logger;
 
     private readonly PlayerMessengerLiveState _state;
-    private readonly Dictionary<PlayerId, MessengerUpdateSnapshot> _pendingUpdates = [];
-    private readonly HashSet<int> _pendingDeliveredIds = [];
 
-    private int _nextSessionMessageId = 1;
     private IDisposable? _deliveredFlushTimer;
 
     public PlayerMessengerGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
-        IGrainFactory grainFactory,
         IOptions<PlayerConfig> playerConfig,
+        IGrainFactory grainFactory,
         ILogger<IPlayerMessengerGrain> logger
     )
     {
         _dbCtxFactory = dbCtxFactory;
-        _grainFactory = grainFactory;
         _playerConfig = playerConfig.Value;
+        _grainFactory = grainFactory;
         _logger = logger;
 
         _state = new() { PlayerId = this.GetPlayerId() };
@@ -188,14 +185,18 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
             .ExecuteDeleteAsync(ct);
 
         foreach (var playerId in validPlayerIds)
-        {
             await ForceRemoveFriendAsync(playerId, ct);
 
-            var friendMessenger = _grainFactory.GetPlayerMessengerGrain(playerId);
+        // Each former friend is a grain of their own, so they are told side by side.
+        await Task.WhenAll(
+            validPlayerIds.Select(async playerId =>
+            {
+                var friendMessenger = _grainFactory.GetPlayerMessengerGrain(playerId);
 
-            await friendMessenger.ForceRemoveFriendAsync(_state.PlayerId, ct);
-            await friendMessenger.FlushUpdatesAsync(ct);
-        }
+                await friendMessenger.ForceRemoveFriendAsync(_state.PlayerId, ct);
+                await friendMessenger.FlushUpdatesAsync(ct);
+            })
+        );
 
         await FlushUpdatesAsync(ct);
     }
@@ -206,7 +207,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         {
             _state.Friends.Remove(playerId);
 
-            _pendingUpdates.Add(
+            _state.PendingUpdates.Add(
                 playerId,
                 new MessengerUpdateSnapshot
                 {
@@ -643,7 +644,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
             return false;
 
         var now = DateTime.UtcNow;
-        var sessionMsgId = _nextSessionMessageId++.ToString();
+        var sessionMsgId = _state.NextSessionMessageId++.ToString();
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
@@ -706,7 +707,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         if (!_state.Friends.TryGetValue(senderId, out var friend)) // TODO check if im online
             return false;
 
-        var sessionMsgId = _nextSessionMessageId++.ToString();
+        var sessionMsgId = _state.NextSessionMessageId++.ToString();
 
         AddToSessionHistory(
             senderId,
@@ -721,26 +722,25 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
             }
         );
 
-        await _grainFactory
-            .GetPlayerPresenceGrain(_state.PlayerId)
-            .SendComposerAsync(
-                new NewConsoleMessageMessageComposer
-                {
-                    ChatId = chatId,
-                    Message = messageText,
-                    SecondsSinceSent = (int)(DateTime.UtcNow - sentAtUtc).TotalSeconds,
-                    MessageId = sessionMsgId,
-                    ConfirmationId = confirmationId,
-                    SenderId = senderId,
-                    SenderName = senderName,
-                    SenderFigure = senderFigure,
-                },
-                ct
-            );
+        await _grainFactory.SendComposerToPlayerAsync(
+            _state.PlayerId,
+            new NewConsoleMessageMessageComposer
+            {
+                ChatId = chatId,
+                Message = messageText,
+                SecondsSinceSent = (int)(DateTime.UtcNow - sentAtUtc).TotalSeconds,
+                MessageId = sessionMsgId,
+                ConfirmationId = confirmationId,
+                SenderId = senderId,
+                SenderName = senderName,
+                SenderFigure = senderFigure,
+            },
+            ct
+        );
 
         // Queue delivered-flag update — flushed periodically by timer to avoid per-message DB writes
         if (dbMessageId > 0)
-            _pendingDeliveredIds.Add(dbMessageId);
+            _state.PendingDeliveredIds.Add(dbMessageId);
 
         return true;
     }
@@ -751,12 +751,12 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
     /// </summary>
     private async Task FlushDeliveredMessagesAsync(CancellationToken ct)
     {
-        if (_pendingDeliveredIds.Count == 0)
+        if (_state.PendingDeliveredIds.Count == 0)
             return;
 
-        var messageIds = _pendingDeliveredIds.ToList();
+        var messageIds = _state.PendingDeliveredIds.ToList();
 
-        _pendingDeliveredIds.Clear();
+        _state.PendingDeliveredIds.Clear();
 
         try
         {
@@ -777,10 +777,10 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
 
             foreach (var messageId in messageIds)
             {
-                if (_pendingDeliveredIds.Count >= _playerConfig.MessengerMaxPendingDelivered)
+                if (_state.PendingDeliveredIds.Count >= _playerConfig.MessengerMaxPendingDelivered)
                     break;
 
-                _pendingDeliveredIds.Add(messageId);
+                _state.PendingDeliveredIds.Add(messageId);
             }
         }
     }
@@ -808,9 +808,9 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
 
     public Task<List<MessengerUpdateSnapshot>> GetPendingUpdatesAsync(CancellationToken ct)
     {
-        var updates = _pendingUpdates.Values.ToList();
+        var updates = _state.PendingUpdates.Values.ToList();
 
-        _pendingUpdates.Clear();
+        _state.PendingUpdates.Clear();
 
         return Task.FromResult(updates);
     }
@@ -852,9 +852,9 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         if (!_state.Friends.TryGetValue(friendId, out var friendDto))
             return;
 
-        _pendingUpdates.Remove(friendId);
+        _state.PendingUpdates.Remove(friendId);
 
-        _pendingUpdates.Add(
+        _state.PendingUpdates.Add(
             friendDto.PlayerId,
             new MessengerUpdateSnapshot
             {

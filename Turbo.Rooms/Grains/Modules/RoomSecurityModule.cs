@@ -166,14 +166,21 @@ public sealed class RoomSecurityModule(
     /// </summary>
     public async Task RefreshWiredPermissionsForRoomAsync(CancellationToken ct)
     {
+        var updates = new List<Task>();
+
         foreach (var playerId in _roomGrain._state.AvatarsByPlayerId.Keys.ToList())
         {
             var (canModify, canRead) = GetWiredPermissions(await GetControllerLevelAsync(playerId));
 
-            await _roomGrain
-                ._grainFactory.GetPlayerPresenceGrain(playerId)
-                .OnWiredPermissionsUpdatedAsync(_roomGrain.RoomId, canModify, canRead, ct);
+            updates.Add(
+                _roomGrain
+                    ._grainFactory.GetPlayerPresenceGrain(playerId)
+                    .OnWiredPermissionsUpdatedAsync(_roomGrain.RoomId, canModify, canRead, ct)
+            );
         }
+
+        // One presence grain per player, so the updates do not wait on each other.
+        await Task.WhenAll(updates);
     }
 
     public async Task RefreshControllerLevelForPlayerAsync(PlayerId playerId, CancellationToken ct)
@@ -192,10 +199,7 @@ public sealed class RoomSecurityModule(
             )
             .ConfigureAwait(false);
 
-        if (
-            !_roomGrain._state.AvatarsByPlayerId.TryGetValue(playerId, out var objectId)
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
-        )
+        if (!_roomGrain.AvatarModule.TryGetPlayer(playerId, out var avatar))
             return;
 
         avatar.AddStatus(AvatarStatusType.FlatControl, ((int)controllerLevel).ToString());
@@ -225,16 +229,15 @@ public sealed class RoomSecurityModule(
 
         await RefreshControllerLevelForPlayerAsync(playerId, ct);
 
-        await _roomGrain
-            ._grainFactory.GetPlayerPresenceGrain(_roomGrain._state.RoomSnapshot.OwnerId)
-            .SendComposerAsync(
-                new FlatControllerRemovedEventMessageComposer
-                {
-                    RoomId = _roomGrain.RoomId,
-                    PlayerId = playerId,
-                },
-                ct
-            );
+        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            _roomGrain._state.RoomSnapshot.OwnerId,
+            new FlatControllerRemovedEventMessageComposer
+            {
+                RoomId = _roomGrain.RoomId,
+                PlayerId = playerId,
+            },
+            ct
+        );
 
         return true;
     }
@@ -286,16 +289,15 @@ public sealed class RoomSecurityModule(
             ._grainFactory.GetPlayerDirectoryGrain()
             .GetPlayerNameAsync(playerId, ct);
 
-        await _roomGrain
-            ._grainFactory.GetPlayerPresenceGrain(ctx.PlayerId)
-            .SendComposerAsync(
-                new FlatControllerAddedEventMessageComposer
-                {
-                    RoomId = _roomGrain.RoomId,
-                    Controller = new RoomControllerSnapshot { PlayerId = playerId, Name = name },
-                },
-                ct
-            );
+        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            ctx.PlayerId,
+            new FlatControllerAddedEventMessageComposer
+            {
+                RoomId = _roomGrain.RoomId,
+                Controller = new RoomControllerSnapshot { PlayerId = playerId, Name = name },
+            },
+            ct
+        );
     }
 
     public async Task RemoveRightsFromPlayerAsync(
@@ -332,16 +334,15 @@ public sealed class RoomSecurityModule(
 
         await RefreshControllerLevelForPlayerAsync(playerId, ct);
 
-        await _roomGrain
-            ._grainFactory.GetPlayerPresenceGrain(ctx.PlayerId)
-            .SendComposerAsync(
-                new FlatControllerRemovedEventMessageComposer
-                {
-                    RoomId = _roomGrain.RoomId,
-                    PlayerId = playerId,
-                },
-                ct
-            );
+        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            ctx.PlayerId,
+            new FlatControllerRemovedEventMessageComposer
+            {
+                RoomId = _roomGrain.RoomId,
+                PlayerId = playerId,
+            },
+            ct
+        );
     }
 
     public async Task RemoveAllRightsAsync(ActionContext ctx, CancellationToken ct)

@@ -35,17 +35,11 @@ public abstract class WiredAddonVariableFilter(
             new WiredRangeParamRule(1, 1000, 1),
             new WiredEnumParamRule<WiredVariableSortType>(WiredVariableSortType.ValueDescending),
             new WiredBoolParamRule(false),
-            new WiredParamRule((int)WiredVariableTargetType.User),
+            WiredRules.VariableTarget(WiredVariableTargetType.User),
         ];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
-        [
-            new WiredVariableAllInRoomSnapshot()
-            {
-                ContextType = WiredContextType.AllVariablesInRoom,
-                AllVariablesHash = _roomGrain._state.AllVariablesHash,
-            },
-        ];
+        AllVariablesContext();
 
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
@@ -107,10 +101,7 @@ public abstract class WiredAddonVariableFilter(
         if (operand is null)
             return 1;
 
-        var targetType = (WiredVariableTargetType)GetIntParamOrDefault(
-            3,
-            (int)operand.GetVarSnapshot().TargetType
-        );
+        var targetType = GetTargetType(operand, 3);
 
         foreach (var targetId in GetTargetIds(targetType, ctx.Selected))
         {

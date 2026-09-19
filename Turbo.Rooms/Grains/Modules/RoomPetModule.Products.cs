@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -7,6 +8,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Snapshots;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
 
@@ -136,26 +138,5 @@ public sealed partial class RoomPetModule
         await LevelUpAsync(pet, ct);
         await PersistAsync(pet, ct);
         await SendInfoToOwnerAsync(pet, ct);
-    }
-
-    /// <summary>Returns every pet to its owner's inventory, as a room deletion requires.</summary>
-    internal async Task ReturnAllToOwnersAsync(CancellationToken ct)
-    {
-        foreach (var pet in Pets.ToList())
-        {
-            await RemovePetAvatarAsync(ActionContext.CreateForSystem(_roomGrain.RoomId), pet, ct);
-
-            if (
-                !await _roomGrain
-                    ._grainFactory.GetInventoryGrain(pet.OwnerId)
-                    .ReturnPetAsync(pet.GetPetSnapshot(), ct)
-            )
-                _roomGrain._logger.LogError(
-                    "Pet {PetId} could not be returned to player {OwnerId} while room {RoomId} is deleted",
-                    pet.PetId,
-                    pet.OwnerId,
-                    _roomGrain.RoomId
-                );
-        }
     }
 }

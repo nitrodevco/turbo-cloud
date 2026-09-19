@@ -12,7 +12,7 @@ using Turbo.Primitives.Rooms.Wired.Variable;
 
 namespace Turbo.Rooms.Grains;
 
-public sealed class RoomLiveState
+internal sealed class RoomLiveState
 {
     public required RoomId RoomId { get; init; }
     public RoomSnapshot RoomSnapshot { get; set; } = default!;
@@ -46,9 +46,6 @@ public sealed class RoomLiveState
 
     /// <summary>Nest breedings awaiting the owners' answers, keyed by the nest item.</summary>
     public Dictionary<RoomObjectId, NestBreedingSession> PendingNestBreedings { get; } = [];
-
-    /// <summary>Open trades, keyed by both parties so either can be found from a player id.</summary>
-    public Dictionary<PlayerId, TradeSession> TradesByPlayerId { get; } = [];
 
     /// <summary>Monsterplant breedings awaiting the invited owner, keyed by the requesting plant.</summary>
     public Dictionary<int, PlantBreedingRequest> PendingPlantBreedings { get; } = [];

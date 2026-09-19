@@ -22,8 +22,8 @@ public class RemoveItemFromTradeMessageHandler(IGrainFactory grainFactory)
             return;
 
         await _grainFactory
-            .GetRoomGrain(ctx.RoomId)
-            .RemoveTradeItemAsync(ctx.AsActionContext(), message.ItemId, ct)
+            .GetRoomTradeGrain(ctx.RoomId)
+            .RemoveItemAsync(ctx.AsActionContext(), message.ItemId, ct)
             .ConfigureAwait(false);
     }
 }

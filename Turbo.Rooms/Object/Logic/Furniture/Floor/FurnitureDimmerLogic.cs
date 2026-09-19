@@ -10,6 +10,7 @@ using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -107,7 +108,7 @@ public class FurnitureDimmerLogic(IStuffDataFactory stuffDataFactory, IRoomFloor
     {
         var (state, presetId, presets) = Current();
 
-        return SendToPlayerAsync(
+        return _roomGrain._grainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new RoomDimmerPresetsMessageComposer
             {

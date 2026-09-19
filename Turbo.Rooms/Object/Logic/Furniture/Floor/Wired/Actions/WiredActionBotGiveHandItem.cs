@@ -24,7 +24,8 @@ public class WiredActionBotGiveHandItem(
 {
     public override int WiredCode => (int)WiredActionType.BOT_GIVE_HAND_ITEM;
 
-    public override List<IWiredParamRule> GetIntParamRules() => [new WiredParamRule(0)];
+    public override List<IWiredParamRule> GetIntParamRules() =>
+        [WiredRules.HandItem(_roomGrain._roomConfig)];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
         [

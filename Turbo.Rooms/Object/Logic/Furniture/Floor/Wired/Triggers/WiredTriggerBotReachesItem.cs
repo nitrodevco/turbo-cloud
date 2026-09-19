@@ -10,6 +10,7 @@ using Turbo.Primitives.Rooms.Events.Bot;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
@@ -28,9 +29,7 @@ public class WiredTriggerBotReachesItem(
     public override List<Type> SupportedEventTypes { get; } = [typeof(BotReachedItemEvent)];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [
-            [WiredFurniSourceType.SelectedItems, WiredFurniSourceType.SelectorItems],
-        ];
+        [WiredSources.PickedFurni];
 
     public override Task<bool> MatchesEventAsync(RoomEvent evt, CancellationToken ct)
     {

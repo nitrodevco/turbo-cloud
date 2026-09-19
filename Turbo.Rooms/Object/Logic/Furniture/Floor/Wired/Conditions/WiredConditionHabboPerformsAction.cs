@@ -24,14 +24,7 @@ public class WiredConditionHabboPerformsAction(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredEnumParamRule<WiredAvatarActionType>(WiredAvatarActionType.Sit)];
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
-        [
-            [
-                WiredPlayerSourceType.TriggeredUser,
-                WiredPlayerSourceType.SelectorUsers,
-                WiredPlayerSourceType.SignalUsers,
-            ],
-        ];
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {

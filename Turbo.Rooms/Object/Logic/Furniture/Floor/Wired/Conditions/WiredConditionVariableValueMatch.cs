@@ -29,12 +29,12 @@ public class WiredConditionVariableValueMatch(
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredParamRule((int)WiredVariableTargetType.User),
+            WiredRules.VariableTarget(WiredVariableTargetType.User),
             new WiredEnumParamRule<WiredComparisonType>(WiredComparisonType.Equals),
             new WiredBoolParamRule(false),
-            new WiredParamRule(0),
-            new WiredParamRule(0),
-            new WiredParamRule((int)WiredVariableTargetType.User),
+            WiredRules.AnyInt(),
+            WiredRules.AnyInt(),
+            WiredRules.VariableTarget(WiredVariableTargetType.User),
         ];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
@@ -47,23 +47,10 @@ public class WiredConditionVariableValueMatch(
             ],
         ];
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
-        [
-            [
-                WiredPlayerSourceType.TriggeredUser,
-                WiredPlayerSourceType.SelectorUsers,
-                WiredPlayerSourceType.SignalUsers,
-            ],
-        ];
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
-        [
-            new WiredVariableAllInRoomSnapshot()
-            {
-                ContextType = WiredContextType.AllVariablesInRoom,
-                AllVariablesHash = _roomGrain._state.AllVariablesHash,
-            },
-        ];
+        AllVariablesContext();
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
@@ -77,10 +64,7 @@ public class WiredConditionVariableValueMatch(
         if (!TryResolveOperand(2, 3, 5, 1, selection, out var operand))
             return false;
 
-        var targetType = (WiredVariableTargetType)GetIntParamOrDefault(
-            0,
-            (int)variable.GetVarSnapshot().TargetType
-        );
+        var targetType = GetTargetType(variable, 0);
         var comparison = GetIntParamOrDefault(1, WiredComparisonType.Equals);
         var targets = GetTargetIds(targetType, selection).ToList();
 

@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -23,7 +24,7 @@ public class WiredActionBotChangeFigure(
     {
         var (botName, figure) = SplitParam();
 
-        if (figure.Length == 0 || !TryGetBot(botName, out var bot))
+        if (!FigureString.IsWellFormed(figure) || !TryGetBot(botName, out var bot))
             return false;
 
         await _roomGrain.BotModule.SetFigureAsync(bot, figure, bot.Gender, ct);

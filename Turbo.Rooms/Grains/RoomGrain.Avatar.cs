@@ -60,7 +60,17 @@ public sealed partial class RoomGrain
     {
         try
         {
-            await TradeModule.CloseForPlayerAsync(playerId, ct);
+            // The trade grain calls this room back to clear the status, so it is told, never
+            // awaited. A token of its own: the caller's may be cancelled once we return.
+            if (TradeModule.IsTrading(playerId))
+                _grainFactory
+                    .GetRoomTradeGrain(_state.RoomId)
+                    .CloseForPlayerAsync(playerId, CancellationToken.None)
+                    .LogAndForget(
+                        _logger,
+                        $"close the trade of player {playerId} leaving room {_state.RoomId}"
+                    );
+
             await AvatarModule.RemoveAvatarFromPlayerAsync(ctx, playerId, ct);
 
             await PublishRoomEventAsync(

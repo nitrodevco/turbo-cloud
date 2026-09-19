@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -26,6 +27,7 @@ public class WiredActionShowMessage(
 ) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
 {
     private const int DEFAULT_STYLE_ID = 34;
+    private const int MAX_STYLE_ID = 1000;
 
     public override int WiredCode => (int)WiredActionType.CHAT;
 
@@ -34,7 +36,7 @@ public class WiredActionShowMessage(
             new WiredEnumParamRule<WiredChatVisibilityType>(
                 WiredChatVisibilityType.SelectedUsersOnly
             ),
-            new WiredParamRule(DEFAULT_STYLE_ID),
+            new WiredRangeParamRule(0, MAX_STYLE_ID, DEFAULT_STYLE_ID),
             new WiredRangeParamRule(-1, 2, -1),
         ];
 
@@ -48,17 +50,15 @@ public class WiredActionShowMessage(
             ],
         ];
 
+    protected override int GetStringParamMaxLength() =>
+        _roomGrain._roomConfig.WiredShowMessageMaxLength;
+
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
         var text = _wiredData.StringParam?.Trim() ?? string.Empty;
 
         if (text.Length == 0)
             return false;
-
-        var maxLength = _roomGrain._roomConfig.WiredShowMessageMaxLength;
-
-        if (text.Length > maxLength)
-            text = text[..maxLength];
 
         text = _roomGrain.ModerationModule.ApplyFilter(await ctx.FormatTextAsync(text, ct));
 
@@ -96,7 +96,11 @@ public class WiredActionShowMessage(
             if (visibility == WiredChatVisibilityType.Everyone)
                 await ctx.SendComposerToRoomAsync(composer);
             else
-                await _roomGrain.SendComposerToPlayersAsync([player.PlayerId], composer, ct);
+                await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                    player.PlayerId,
+                    composer,
+                    ct
+                );
         }
 
         return players.Count > 0;

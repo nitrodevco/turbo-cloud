@@ -24,17 +24,15 @@ public class WiredActionWriteToLogs(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredEnumParamRule<WiredLogLevelType>(WiredLogLevelType.Info)];
 
+    protected override int GetStringParamMaxLength() =>
+        _roomGrain._roomConfig.WiredLogMessageMaxLength;
+
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
         var message = _wiredData.StringParam?.Trim() ?? string.Empty;
 
         if (message.Length == 0)
             return false;
-
-        var maxLength = _roomGrain._roomConfig.WiredLogMessageMaxLength;
-
-        if (message.Length > maxLength)
-            message = message[..maxLength];
 
         message = await ctx.FormatTextAsync(message, ct);
 

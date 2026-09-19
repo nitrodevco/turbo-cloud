@@ -22,8 +22,8 @@ public class OpenTradingMessageHandler(IGrainFactory grainFactory)
             return;
 
         await _grainFactory
-            .GetRoomGrain(ctx.RoomId)
-            .OpenTradeAsync(ctx.AsActionContext(), message.ObjectId, ct)
+            .GetRoomTradeGrain(ctx.RoomId)
+            .OpenAsync(ctx.AsActionContext(), message.ObjectId, ct)
             .ConfigureAwait(false);
     }
 }

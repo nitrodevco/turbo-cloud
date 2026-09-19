@@ -26,8 +26,6 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<FurnitureEntity> Furnitures { get; init; }
 
-    public DbSet<FurnitureTeleportLinkEntity> FurnitureTeleportLinks { get; init; }
-
     public DbSet<PlayerBadgeEntity> PlayerBadges { get; init; }
 
     public DbSet<PlayerCurrencyEntity> PlayerCurrencies { get; init; }

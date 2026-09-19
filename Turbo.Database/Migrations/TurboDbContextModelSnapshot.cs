@@ -825,55 +825,6 @@ namespace Turbo.Database.Migrations
                     b.ToTable("furniture");
                 });
 
-            modelBuilder.Entity("Turbo.Database.Entities.Furniture.FurnitureTeleportLinkEntity", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("deleted_at");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
-
-                    b.Property<int>("FurnitureEntityOneId")
-                        .HasColumnType("int")
-                        .HasColumnName("furniture_one_id");
-
-                    b.Property<int>("FurnitureEntityTwoId")
-                        .HasColumnType("int")
-                        .HasColumnName("furniture_two_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime>("UpdatedAt"));
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FurnitureEntityOneId")
-                        .IsUnique();
-
-                    b.HasIndex("FurnitureEntityTwoId")
-                        .IsUnique();
-
-                    b.ToTable("furniture_teleport_links");
-                });
-
             modelBuilder.Entity("Turbo.Database.Entities.Messenger.MessengerBlockedEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -3361,25 +3312,6 @@ namespace Turbo.Database.Migrations
                     b.Navigation("PlayerEntity");
 
                     b.Navigation("RoomEntity");
-                });
-
-            modelBuilder.Entity("Turbo.Database.Entities.Furniture.FurnitureTeleportLinkEntity", b =>
-                {
-                    b.HasOne("Turbo.Database.Entities.Furniture.FurnitureEntity", "FurnitureEntityOne")
-                        .WithMany()
-                        .HasForeignKey("FurnitureEntityOneId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Turbo.Database.Entities.Furniture.FurnitureEntity", "FurnitureEntityTwo")
-                        .WithMany()
-                        .HasForeignKey("FurnitureEntityTwoId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("FurnitureEntityOne");
-
-                    b.Navigation("FurnitureEntityTwo");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Messenger.MessengerBlockedEntity", b =>

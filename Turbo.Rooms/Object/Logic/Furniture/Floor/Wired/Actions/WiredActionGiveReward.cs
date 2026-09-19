@@ -10,6 +10,7 @@ using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -36,6 +37,12 @@ public class WiredActionGiveReward(
 {
     public override int WiredCode => (int)WiredActionType.GIVE_REWARD;
 
+    /// <summary>
+    /// Rewards are badges and furniture created from nothing, so a room owner must never be
+    /// able to configure them: only hotel staff acting in the room may save this box.
+    /// </summary>
+    public override RoomControllerType MinimumControllerLevelToSave => RoomControllerType.Moderator;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredEnumParamRule<WiredRewardIntervalType>(WiredRewardIntervalType.Once),
@@ -44,14 +51,7 @@ public class WiredActionGiveReward(
             new WiredRangeParamRule(1, 1000, 1),
         ];
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
-        [
-            [
-                WiredPlayerSourceType.TriggeredUser,
-                WiredPlayerSourceType.SelectorUsers,
-                WiredPlayerSourceType.SignalUsers,
-            ],
-        ];
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
@@ -242,8 +242,8 @@ public class WiredActionGiveReward(
         WiredRewardResultType result,
         CancellationToken ct
     ) =>
-        _roomGrain.SendComposerToPlayersAsync(
-            [player.PlayerId],
+        _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            player.PlayerId,
             new WiredRewardResultMessageComposer { Reason = result },
             ct
         );

@@ -56,7 +56,7 @@ public class WiredAddonVariableLevelUp(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredRangeParamRule(0, 255, 255), new WiredRangeParamRule(0, 2, 1)];
 
-    public override IWiredParamRule? GetIntParamTailRule() => new WiredParamRule(0);
+    public override IWiredParamRule? GetIntParamTailRule() => WiredRules.NonNegative();
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {

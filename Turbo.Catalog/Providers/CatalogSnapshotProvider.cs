@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
+using Turbo.Database.Extensions;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Providers;
@@ -93,34 +94,13 @@ public sealed class CatalogSnapshotProvider<TTag>(
 
             var productsById = products
                 .Select(x =>
-                {
-                    var productSeries = series.GetValueOrDefault(x.Id);
-                    return new CatalogProductSnapshot
-                    {
-                        Id = x.Id,
-                        OfferId = x.CatalogOfferEntityId,
-                        ProductType = x.ProductType,
-                        FurniDefinitionId = x.FurnitureDefinitionEntityId ?? -1,
-                        SpriteId =
-                            x.FurnitureDefinitionEntityId != null
-                                ? _furnitureProvider
-                                    .TryGetDefinition(x.FurnitureDefinitionEntityId.Value)
-                                    ?.SpriteId
-                                    ?? -1
-                                : -1,
-                        ExtraParam = x.ExtraParam,
-                        Quantity = x.Quantity,
-                        UniqueSize = productSeries?.TotalQuantity ?? 0,
-                        UniqueRemaining = productSeries?.RemainingQuantity ?? 0,
-                        LtdSeriesId = productSeries?.Id,
-                        ClassName =
-                            x.FurnitureDefinitionEntityId != null
-                                ? _furnitureProvider
-                                    .TryGetDefinition(x.FurnitureDefinitionEntityId.Value)
-                                    ?.Name
-                                : null,
-                    };
-                })
+                    x.ToSnapshot(
+                        x.FurnitureDefinitionEntityId is { } definitionId
+                            ? _furnitureProvider.TryGetDefinition(definitionId)
+                            : null,
+                        series.GetValueOrDefault(x.Id)
+                    )
+                )
                 .ToImmutableDictionary(x => x.Id);
 
             var offersById = offers
@@ -131,41 +111,17 @@ public sealed class CatalogSnapshotProvider<TTag>(
                         : [];
                     var products = ids.Select(x => productsById[x]).ToImmutableArray();
 
-                    return new CatalogOfferSnapshot()
-                    {
-                        Id = x.Id,
-                        PageId = x.CatalogPageEntityId,
-                        LocalizationId = x.LocalizationId ?? string.Empty,
-                        Rentable = false,
-                        CostCredits = x.CostCredits,
-                        CostSilver = 0,
-                        CostCurrency = x.CostCurrency,
-                        CurrencyTypeId = x.CurrencyTypeId,
-                        CanGift = x.CanGift,
-                        CanBundle = x.CanBundle,
-                        ClubLevel = x.ClubLevel,
-                        Visible = x.Visible,
-                        ProductIds = ids,
-                        Products = products,
-                    };
+                    return x.ToSnapshot(ids, products);
                 })
                 .ToImmutableDictionary(x => x.Id);
 
             var pagesById = pages
-                .Select(x => new CatalogPageSnapshot
-                {
-                    Id = x.Id,
-                    ParentId = x.ParentEntityId ?? -1,
-                    Localization = x.Localization,
-                    Name = x.Name,
-                    Icon = x.Icon,
-                    Layout = x.Layout,
-                    ImageData = x.ImageData ?? [],
-                    TextData = x.TextData ?? [],
-                    Visible = x.Visible,
-                    OfferIds = pageOfferIds.TryGetValue(x.Id, out var offerIds) ? offerIds : [],
-                    ChildIds = pageChildrenIds.TryGetValue(x.Id, out var childIds) ? childIds : [],
-                })
+                .Select(x =>
+                    x.ToSnapshot(
+                        pageOfferIds.TryGetValue(x.Id, out var offerIds) ? offerIds : [],
+                        pageChildrenIds.TryGetValue(x.Id, out var childIds) ? childIds : []
+                    )
+                )
                 .ToImmutableDictionary(x => x.Id);
 
             var snapshot = new CatalogSnapshot

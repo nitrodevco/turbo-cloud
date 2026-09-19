@@ -91,7 +91,7 @@ public class FurniturePresentLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
             }
         }
 
-        await SendToPlayerAsync(
+        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new PresentOpenedMessageComposer
             {

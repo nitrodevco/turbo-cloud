@@ -21,17 +21,29 @@ using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Catalog.Grains;
 
-internal sealed partial class CatalogPurchaseGrain(
-    IGrainFactory grainFactory,
-    ICatalogService catalogService,
-    IPetBreedProvider petBreedProvider,
-    ILogger<CatalogPurchaseGrain> logger
-) : Grain, ICatalogPurchaseGrain
+/// <summary>
+/// One player's catalog purchases, keyed by the player id so they run one at a time. It holds
+/// no state of its own: the wallet and the inventory it calls own what changes.
+/// </summary>
+internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrain
 {
-    private readonly IGrainFactory _grainFactory = grainFactory;
-    private readonly ICatalogService _catalogService = catalogService;
-    private readonly IPetBreedProvider _petBreedProvider = petBreedProvider;
-    private readonly ILogger<CatalogPurchaseGrain> _logger = logger;
+    private readonly IGrainFactory _grainFactory;
+    private readonly ICatalogService _catalogService;
+    private readonly IPetBreedProvider _petBreedProvider;
+    private readonly ILogger<ICatalogPurchaseGrain> _logger;
+
+    public CatalogPurchaseGrain(
+        IGrainFactory grainFactory,
+        ICatalogService catalogService,
+        IPetBreedProvider petBreedProvider,
+        ILogger<ICatalogPurchaseGrain> logger
+    )
+    {
+        _grainFactory = grainFactory;
+        _catalogService = catalogService;
+        _petBreedProvider = petBreedProvider;
+        _logger = logger;
+    }
 
     public async Task<CatalogOfferSnapshot> PurchaseOfferFromCatalogAsync(
         CatalogType catalogType,

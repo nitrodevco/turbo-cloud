@@ -32,11 +32,11 @@ public class WiredConditionVariableAgeMatch(
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredParamRule((int)WiredVariableTargetType.User),
+            WiredRules.VariableTarget(WiredVariableTargetType.User),
             new WiredRangeParamRule(0, 2, 2),
             new WiredBoolParamRule(false),
-            new WiredParamRule(0),
-            new WiredParamRule(0),
+            WiredRules.AnyInt(),
+            WiredRules.AnyInt(),
             new WiredEnumParamRule<WiredTimeUnitType>(WiredTimeUnitType.Seconds),
         ];
 
@@ -50,23 +50,10 @@ public class WiredConditionVariableAgeMatch(
             ],
         ];
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
-        [
-            [
-                WiredPlayerSourceType.TriggeredUser,
-                WiredPlayerSourceType.SelectorUsers,
-                WiredPlayerSourceType.SignalUsers,
-            ],
-        ];
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
-        [
-            new WiredVariableAllInRoomSnapshot()
-            {
-                ContextType = WiredContextType.AllVariablesInRoom,
-                AllVariablesHash = _roomGrain._state.AllVariablesHash,
-            },
-        ];
+        AllVariablesContext();
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
@@ -75,10 +62,7 @@ public class WiredConditionVariableAgeMatch(
         if (variable is null)
             return false;
 
-        var targetType = (WiredVariableTargetType)GetIntParamOrDefault(
-            0,
-            (int)variable.GetVarSnapshot().TargetType
-        );
+        var targetType = GetTargetType(variable, 0);
         var comparison = GetIntParamOrDefault(1, 2);
         var useUpdate = GetIntParamOrDefault(2, false);
         var durationMs = WiredTimeUnits.ToMilliseconds(

@@ -319,6 +319,12 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
             }
         }
 
+        // Placeholders expand the text, and a box can repeat one many times over.
+        var maxLength = _roomGrain._roomConfig.WiredStringParamMaxLength;
+
+        if (text.Length > maxLength)
+            text = text[..maxLength];
+
         return text;
     }
 

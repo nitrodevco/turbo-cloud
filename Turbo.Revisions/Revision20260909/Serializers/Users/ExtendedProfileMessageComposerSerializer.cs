@@ -9,38 +9,40 @@ internal class ExtendedProfileMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, ExtendedProfileMessageComposer message)
     {
-        packet
-            .WriteInteger(message.UserId)
-            .WriteString(message.UserName)
-            .WriteString(message.Figure)
-            .WriteString(message.Motto)
-            .WriteString(message.CreationDate)
-            .WriteInteger(message.AchievementScore)
-            .WriteInteger(message.FriendCount)
-            .WriteBoolean(message.IsFriend)
-            .WriteBoolean(message.IsFriendRequestSent)
-            .WriteBoolean(message.IsOnline)
-            .WriteInteger(message.Guilds.Count);
+        var profile = message.Profile;
 
-        foreach (var guild in message.Guilds)
+        packet
+            .WriteInteger((int)profile.UserId)
+            .WriteString(profile.UserName)
+            .WriteString(profile.Figure)
+            .WriteString(profile.Motto)
+            .WriteString(profile.CreationDate)
+            .WriteInteger(profile.AchievementScore)
+            .WriteInteger(profile.FriendCount)
+            .WriteBoolean(profile.IsFriend)
+            .WriteBoolean(profile.IsFriendRequestSent)
+            .WriteBoolean(profile.IsOnline)
+            .WriteInteger(profile.Guilds.Count);
+
+        foreach (var guild in profile.Guilds)
             GuildInfoSerializer.Serialize(packet, guild);
 
         packet
-            .WriteInteger(message.LastAccessSinceInSeconds)
-            .WriteBoolean(message.OpenProfileWindow)
-            .WriteBoolean(message.IsHidden)
-            .WriteInteger(message.AccountLevel)
-            .WriteInteger(message.IntegerField24)
-            .WriteInteger(message.StarGemCount)
-            .WriteBoolean(message.BooleanField26)
-            .WriteBoolean(message.BooleanField27)
-            .WriteInteger(message.TotalBadges)
-            .WriteInteger(message.AchievementLevel)
-            .WriteInteger(message.BadgeRarityCounts.Count);
+            .WriteInteger(profile.LastAccessSinceInSeconds)
+            .WriteBoolean(profile.OpenProfileWindow)
+            .WriteBoolean(profile.IsHidden)
+            .WriteInteger(profile.AccountLevel)
+            .WriteInteger(profile.IntegerField24)
+            .WriteInteger(profile.StarGemCount)
+            .WriteBoolean(profile.BooleanField26)
+            .WriteBoolean(profile.BooleanField27)
+            .WriteInteger(profile.TotalBadges)
+            .WriteInteger(profile.AchievementLevel)
+            .WriteInteger(profile.BadgeRarityCounts.Count);
 
-        foreach (var rarity in message.BadgeRarityCounts)
+        foreach (var rarity in profile.BadgeRarityCounts)
             packet.WriteByte(rarity.RarityId).WriteInteger(rarity.Count);
 
-        packet.WriteInteger(message.TotalBadgesRank);
+        packet.WriteInteger(profile.TotalBadgesRank);
     }
 }

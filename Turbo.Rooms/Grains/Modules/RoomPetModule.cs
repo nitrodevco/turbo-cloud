@@ -82,31 +82,16 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
         return true;
     }
 
-    internal bool TryGetPlayer(PlayerId playerId, out IRoomPlayer player)
-    {
-        player = null!;
-
-        if (
-            playerId <= 0
-            || !_roomGrain._state.AvatarsByPlayerId.TryGetValue(playerId, out var objectId)
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
-            || avatar is not IRoomPlayer roomPlayer
-        )
-            return false;
-
-        player = roomPlayer;
-
-        return true;
-    }
-
-    internal Task SendToPlayerAsync(PlayerId playerId, IComposer composer, CancellationToken ct) =>
-        _roomGrain._grainFactory.GetPlayerPresenceGrain(playerId).SendComposerAsync(composer, ct);
-
     private Task SendPlacingErrorAsync(
         ActionContext ctx,
         PetPlacingErrorType error,
         CancellationToken ct
-    ) => SendToPlayerAsync(ctx.PlayerId, new PetPlacingErrorMessageComposer { Error = error }, ct);
+    ) =>
+        _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            ctx.PlayerId,
+            new PetPlacingErrorMessageComposer { Error = error },
+            ct
+        );
 
     /// <summary>The pet's owner, or the room owner, may manage a placed pet.</summary>
     internal async Task<bool> CanManageAsync(ActionContext ctx, IRoomPet pet) =>
@@ -120,7 +105,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
-        if (!TryGetPlayer(ctx.PlayerId, out _))
+        if (!_roomGrain.AvatarModule.TryGetPlayer(ctx.PlayerId, out _))
             return false;
 
         var room = _roomGrain._state.RoomSnapshot;
@@ -319,6 +304,42 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
     }
 
     /// <summary>
+    /// Returns every pet to its owner's inventory, as a room deletion requires. Same shape as
+    /// <see cref="RoomBotModule.ReturnAllToOwnersAsync"/>.
+    /// </summary>
+    internal async Task ReturnAllToOwnersAsync(CancellationToken ct)
+    {
+        var pets = Pets.ToList();
+
+        foreach (var pet in pets)
+            await RemovePetAvatarAsync(ActionContext.CreateForSystem(_roomGrain.RoomId), pet, ct);
+
+        await Task.WhenAll(
+            pets.GroupBy(x => x.OwnerId).Select(owned => ReturnToOwnerAsync(owned.Key, owned, ct))
+        );
+    }
+
+    private async Task ReturnToOwnerAsync(
+        PlayerId ownerId,
+        IEnumerable<IRoomPet> pets,
+        CancellationToken ct
+    )
+    {
+        var inventory = _roomGrain._grainFactory.GetInventoryGrain(ownerId);
+
+        foreach (var pet in pets)
+        {
+            if (!await inventory.ReturnPetAsync(pet.GetPetSnapshot(), ct))
+                _roomGrain._logger.LogError(
+                    "Pet {PetId} could not be returned to player {OwnerId} while room {RoomId} is deleted",
+                    pet.PetId,
+                    ownerId,
+                    _roomGrain.RoomId
+                );
+        }
+    }
+
+    /// <summary>
     /// A tile a pet or bot can stand on. With <paramref name="exact"/> only the given tile is
     /// considered; otherwise the search spirals out from it (the door when nothing was chosen).
     /// </summary>
@@ -468,7 +489,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
 
         RefreshFlags(pet);
 
-        await SendToPlayerAsync(
+        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new PetInfoMessageComposer { Info = BuildInfo(pet) },
             ct
@@ -478,7 +499,11 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
     }
 
     internal Task SendInfoToOwnerAsync(IRoomPet pet, CancellationToken ct) =>
-        SendToPlayerAsync(pet.OwnerId, new PetInfoMessageComposer { Info = BuildInfo(pet) }, ct);
+        _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            pet.OwnerId,
+            new PetInfoMessageComposer { Info = BuildInfo(pet) },
+            ct
+        );
 
     internal Task BroadcastStatusAsync(IRoomPet pet, CancellationToken ct) =>
         _roomGrain.SendComposerToRoomAsync(

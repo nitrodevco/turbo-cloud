@@ -9,6 +9,7 @@ using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
@@ -33,7 +34,7 @@ public class FurnitureSpamWallLogic(
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Everybody;
 
     public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct) =>
-        SendToPlayerAsync(
+        _roomGrain._grainFactory.SendComposerToPlayerAsync(
             ctx.PlayerId,
             new RequestSpamWallPostItMessageComposer
             {

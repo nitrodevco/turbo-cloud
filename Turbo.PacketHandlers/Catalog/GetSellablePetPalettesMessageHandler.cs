@@ -39,8 +39,8 @@ public class GetSellablePetPalettesMessageHandler(
             return;
 
         await _grainFactory
-            .GetPlayerPresenceGrain(ctx.PlayerId)
-            .SendComposerAsync(
+            .SendComposerToPlayerAsync(
+                ctx.PlayerId,
                 new SellablePetPalettesMessageComposer
                 {
                     ProductCode = message.ProductCode,

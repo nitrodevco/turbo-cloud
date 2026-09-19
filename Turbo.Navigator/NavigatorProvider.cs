@@ -12,6 +12,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Room;
+using Turbo.Database.Extensions;
 using Turbo.Navigator.Configuration;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Navigator.Enums;
@@ -488,40 +489,11 @@ public sealed class NavigatorProvider : INavigatorProvider, IDisposable
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        _topLevelContexts =
-        [
-            .. topLevelEntities.Select(x => new NavigatorTopLevelContextSnapshot
-            {
-                SearchCode = x.SearchCode,
-                QuickLinks = [],
-            }),
-        ];
+        _topLevelContexts = [.. topLevelEntities.Select(x => x.ToSnapshot())];
 
-        _flatCategories =
-        [
-            .. flatCategoryEntities.Select(x => new NavigatorFlatCategorySnapshot
-            {
-                Id = x.Id,
-                Name = x.Name,
-                Visible = x.Visible,
-                Automatic = x.Automatic,
-                AutomaticCategoryKey = x.AutomaticCategory ?? string.Empty,
-                GlobalCategoryKey = x.GlobalCategory ?? string.Empty,
-                StaffOnly = x.StaffOnly,
-                MinRank = x.MinRank,
-                OrderNum = x.OrderNum,
-            }),
-        ];
+        _flatCategories = [.. flatCategoryEntities.Select(x => x.ToSnapshot())];
 
-        _eventCategories =
-        [
-            .. eventCategoryEntities.Select(x => new NavigatorEventCategorySnapshot
-            {
-                Id = x.Id,
-                Name = x.Name,
-                Visible = x.Visible,
-            }),
-        ];
+        _eventCategories = [.. eventCategoryEntities.Select(x => x.ToSnapshot())];
 
         _logger.LogInformation(
             "Loaded navigator snapshot: TotalTopLevelContexts={TotalTopLevelContextsCount}, FlatCategories={FlatCategoryCount}, EventCategories={EventCategoryCount}",
@@ -662,46 +634,12 @@ public sealed class NavigatorProvider : INavigatorProvider, IDisposable
         return
         [
             .. rows.Select(row =>
-            {
-                var room = row.Room;
-                var evt = eventsByRoomId.GetValueOrDefault(room.Id);
-
-                return new RoomInfoSnapshot
-                {
-                    RoomId = room.Id,
-                    Name = room.Name,
-                    Description = room.Description ?? string.Empty,
-                    OwnerId = PlayerId.Parse(room.PlayerEntityId),
-                    OwnerName = row.OwnerName,
-                    Population = 0,
-                    DoorMode = room.DoorMode,
-                    PlayersMax = room.PlayersMax,
-                    TradeType = room.TradeType,
-                    Score = room.Score,
-                    Ranking = 0,
-                    CategoryId = room.NavigatorCategoryEntityId ?? -1,
-                    Tags = RoomTags.Parse(room.Tags),
-                    AllowBlocking = room.AllowBlocking,
-                    AllowPets = room.AllowPets,
-                    AllowPetsEat = room.AllowPetsEat,
-                    StaffPick = room.StaffPick,
-                    ActiveEvent = evt is null
-                        ? null
-                        : new RoomEventSnapshot
-                        {
-                            EventId = evt.Id,
-                            RoomId = room.Id,
-                            OwnerId = PlayerId.Parse(evt.PlayerEntityId),
-                            OwnerName = row.OwnerName,
-                            CategoryId = evt.NavigatorEventCategoryEntityId,
-                            Name = evt.Name,
-                            Description = evt.Description,
-                            CreatedAtUtc = evt.CreatedAt,
-                            ExpiresAtUtc = evt.ExpiresAt,
-                        },
-                    LastUpdatedUtc = now,
-                };
-            }),
+                row.Room.ToInfoSnapshot(
+                    row.OwnerName,
+                    eventsByRoomId.GetValueOrDefault(row.Room.Id),
+                    now
+                )
+            ),
         ];
     }
 }

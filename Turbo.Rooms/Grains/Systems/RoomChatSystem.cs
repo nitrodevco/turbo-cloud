@@ -114,10 +114,12 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
         if (!TryGetPlayerAvatar(ctx.PlayerId, out var avatar))
             return Task.FromResult(false);
 
-        _ = _roomGrain.SendComposerToRoomAsync(
-            new UserTypingMessageComposer { UserId = avatar.ObjectId, IsTyping = isTyping },
-            ct
-        );
+        _roomGrain
+            .SendComposerToRoomAsync(
+                new UserTypingMessageComposer { UserId = avatar.ObjectId, IsTyping = isTyping },
+                ct
+            )
+            .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
 
         return Task.FromResult(true);
     }
@@ -154,7 +156,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
         if (recipient is not null)
             targets.Add(recipient.PlayerId);
 
-        await _roomGrain.SendComposerToPlayersAsync(targets, composer, ct);
+        await _roomGrain._grainFactory.SendComposerToPlayersAsync(targets, composer, ct);
     }
 
     private static IComposer CreateComposer(PlayerChatEvent evt) =>
@@ -221,12 +223,11 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
 
         if (remainingSeconds > 0)
         {
-            await _roomGrain
-                ._grainFactory.GetPlayerPresenceGrain(playerId)
-                .SendComposerAsync(
-                    new RemainingMutePeriodMessageComposer { SecondsRemaining = remainingSeconds },
-                    ct
-                );
+            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                playerId,
+                new RemainingMutePeriodMessageComposer { SecondsRemaining = remainingSeconds },
+                ct
+            );
 
             return true;
         }
@@ -278,15 +279,14 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
             _floodMutedUntilByPlayerId[playerId] = now + config.ChatFloodMuteMs;
             timestamps.Clear();
 
-            await _roomGrain
-                ._grainFactory.GetPlayerPresenceGrain(playerId)
-                .SendComposerAsync(
-                    new FloodControlMessageComposer
-                    {
-                        Seconds = (int)Math.Ceiling(config.ChatFloodMuteMs / 1000d),
-                    },
-                    ct
-                );
+            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                playerId,
+                new FloodControlMessageComposer
+                {
+                    Seconds = (int)Math.Ceiling(config.ChatFloodMuteMs / 1000d),
+                },
+                ct
+            );
 
             return true;
         }
@@ -314,8 +314,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
 
         if (
             playerId <= 0
-            || !_roomGrain._state.AvatarsByPlayerId.TryGetValue(playerId, out var objectId)
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+            || !_roomGrain.AvatarModule.TryGetPlayer(playerId, out var avatar)
             || avatar is not IRoomPlayer roomPlayer
         )
             return false;

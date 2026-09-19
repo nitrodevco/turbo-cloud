@@ -78,6 +78,26 @@ Default output format:
   logic that reads it. Client-facing key and
   state tables (`PresentData`, `MannequinData`, `DiceStates`) are not section records and stay
   under `Turbo.Primitives/Furniture/`.
+- A database row becomes a snapshot through an extension method on the entity, in
+  `Turbo.Database/Extensions/<Domain>EntityExtensions.cs` (`entity.ToSnapshot(...)`,
+  `RoomEntity.ToInfoSnapshot(...)`). Whatever the row does not hold (owner name, grouped child
+  ids, a resolved definition, "now") is a parameter, so the mapping stays a pure function with
+  no provider or grain inside it. Do not write `new XSnapshot { Id = entity.Id, ... }` in a
+  grain, provider or service: the second place that needs the same mapping will copy it and the
+  two will drift. Two things stay inline: a column-trimmed projection inside a query
+  (`.Select(x => new PlayerBadgeSnapshot { ... })`, so SQL fetches only those columns) and a
+  snapshot built from grain state rather than from a row.
+  When one snapshot record derives from another (`RoomSnapshot : RoomInfoSnapshot`), map the
+  shared fields once: the derived record takes the base in a `[SetsRequiredMembers]` constructor
+  that calls the record copy constructor (`: base(info)`), and its extension is
+  `new(entity.ToInfoSnapshot(...)) { room-only fields }`. That attribute switches off the
+  compiler's required-member check for that constructor, so keep it to the one mapping site and
+  keep a parameterless constructor beside it for everything else.
+- What a furni leads to is stored on the item, in the `RoomLinkerData` extra data section: a
+  fixed `RoomId` for a room linker, the paired `ItemId` for a teleporter. There is no link table.
+  A pair's room is never stored, because either half can be picked up and placed elsewhere;
+  resolve it when needed (`RoomFurniModule.GetRoomIdOfItemAsync`). A dangling `ItemId` (the pair
+  was deleted) simply leads nowhere.
 
 ### Constants and magic values
 - Do not scatter hardcoded literals or `const` fields through implementation files. Give them a home:
@@ -121,6 +141,42 @@ If a cross-grain notification fails silently, state goes asymmetric and nobody k
   fail, but never namelessly.
 - `OnDeactivateAsync`: isolate each step in its own try/catch and log. One failing step must never
   skip the ones after it — a failed flush still has to release the grain's registrations.
+
+### Every grain has the same shape
+A reader who knows one grain should be able to find their way in any other. `PlayerGrain`,
+`PlayerNavigatorGrain` and `RoomPersistenceGrain` are the references.
+- **Members, top to bottom:** injected dependencies (readonly), `_state`, modules, then runtime
+  handles (timers, stream subscriptions, the session observer), then the key property, then the
+  constructor, `OnActivateAsync`, `OnDeactivateAsync`, and the interface methods.
+- **Constructor:** a classic constructor, never a primary one. Most grains need a body (the
+  state is created with the grain key, modules take `this`), and a grain that captured
+  primary-constructor parameters used them directly in its methods while its neighbours used
+  `_fields`. One form everywhere ends that.
+- **Parameter order:** `IDbContextFactory<TurboDbContext>`, `IOptions<...>` config, `IGrainFactory`,
+  domain providers and services, `EventSystem`, and `ILogger` last. The logger is typed on the grain
+  interface (`ILogger<IPlayerGrain>`), not the class. DI resolves by type, so the order is only
+  for the reader; keep it anyway.
+- **Live state:** everything the grain holds in memory about its domain (collections, snapshots,
+  dirty flags, write buffers, counters) lives in `internal sealed class <GrainName>LiveState`, in
+  `<GrainName>LiveState.cs` beside the grain, held as `private readonly <GrainName>LiveState _state`.
+  Members are properties: `{ get; }` for collections, `{ get; set; }` for values, and a comment
+  where the meaning is not obvious. Loose `_dictionary` fields on the grain are drift. What stays
+  on the grain is what is not data: dependencies, config, modules, and handles that must be
+  disposed (timers, stream subscriptions, observers).
+- **The grain key** is read once, in the constructor, into the state
+  (`_state = new() { PlayerId = this.GetPlayerId() }`, `RoomId = this.GetRoomId()`), and code reads
+  `_state.PlayerId`. Do not call `this.GetPlayerId()` or `this.GetPrimaryKeyLong()` through the
+  body, and never read a key through the wrong helper (the raffle grain read its series id with
+  `GetPlayerId()`). A singleton grain's state carries no key; a stateless grain
+  (`CatalogPurchaseGrain`) has no state class and reads its key where it needs it.
+- **Timer fields** are named for what they drive (`_flushTimer`, `_dirtyItemsTimer`), never `_timer`.
+- **A flush used in `OnDeactivateAsync` must be able to give up.** If a failed write re-queues its
+  rows, a `while (pending > 0) await FlushAsync()` loop never ends while the database is down.
+  Have the flush report whether it made progress and stop on the first failure.
+- **Module files hold one concern.** A partial module file is named for what it covers
+  (`RoomPetModule.Products.cs` is things used on a pet). Placement, pick-up and returning to the
+  owner are the module's core and live in the main file, in the same place for sibling modules
+  (`RoomPetModule.cs`, `RoomBotModule.cs`).
 
 ### Activate and deactivate the same way everywhere
 - A grain that owns database-backed state hydrates it in `OnActivateAsync`, inside a try/catch that
@@ -250,7 +306,8 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   `IsOwnerAsync`, refusing through `Reject(...)` so the refusal is logged with ids. A plain
   double-click stays on `OnUseAsync`. Do not add a grain method per furniture type.
 - Replies that go to one player (a preset list, an unwrapped gift) are sent by the logic via
-  `SendToPlayerAsync`; room-wide changes go through `SetLegacyDataAsync` / `SetNumberDataAsync` /
+  `SendComposerToPlayerAsync` (the grain factory extension); room-wide changes go through
+  `SetLegacyDataAsync` / `SetNumberDataAsync` /
   `SetStringDataAsync` / `SetMapDataAsync`, which persist and refresh in one step.
 - The exact data shape each widget needs (dimmer `state,preset,effect,#RRGGBB,brightness`, toner
   `[state,h,s,l]`, love lock string array, trophy tab-separated) comes from the Flash client's
@@ -305,12 +362,21 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   `Turbo.Primitives/Pets` and `Turbo.Primitives/Bots`; verify against the client before changing.
 
 ### Trading
-- A trade is room state (`RoomTradeModule`, `TradeSession` in `RoomLiveState.TradesByPlayerId`):
-  both parties are avatars in the room and leaving ends it. Offers hold inventory snapshots;
-  nothing is reserved, so the commit re-checks and moves each side through
-  `IInventoryGrain.TransferFurnitureAsync` (one owner-change statement per side, then the
-  receiving inventory is told). A half-failed commit is handed back and closed with
-  `TradeCloseReasonType.CommitError`.
+- Trades live in `RoomTradeGrain` (`IRoomTradeGrain`, keyed by room id), not in the room grain:
+  adding items reads an inventory and the commit writes two, and none of that may hold up the
+  room's turn. Handlers talk to the trade grain only. The room keeps the two things only it
+  knows (`RoomTradeModule`): who the clicked avatar is and whether the room's trade mode lets
+  each side trade (`GetTradePartiesAsync`), and the trading status on the avatars
+  (`SetTradingStatusAsync`).
+- The calls go one way. The trade grain awaits the room; the room never awaits the trade grain.
+  When a trading player leaves, the room fires `CloseForPlayerAsync` with `LogAndForget` and
+  carries on. Awaiting it would deadlock, because ending a trade calls the room back to clear
+  the status.
+- Trades are not persisted. Offers hold inventory snapshots and reserve nothing, so the commit
+  re-checks and moves each side through `IInventoryGrain.TransferFurnitureAsync` (one
+  owner-change statement per side, then the receiving inventory is told). A half-failed commit
+  is handed back and closed with `TradeCloseReasonType.CommitError`. Deactivation closes
+  whatever is still open.
 - The flow mirrors the client's state machine: accept/unaccept while open, both accepted →
   `TradingConfirmation` (client countdown), both confirm → items move → `TradingCompleted`;
   a decline drops both acceptances. Any offer change also drops them.
@@ -353,6 +419,31 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   the variable boxes. Value timestamps live in `KeyValueStore.Timestamps`.
 - Team, freeze and game effect ids are `RoomConfig` tunables (`WiredTeamEffectIds`,
   `WiredFreezeEffectIds`); the freeze list ships as zeros and is hotel data.
+- Everything in a wired save comes from a client and is checked before it is stored, in
+  `FurnitureWiredLogic.ApplyWiredUpdateAsync`; the same checks run again when a box loads, and
+  stored ints that fail them are replaced by the box defaults. A new box gets this for free as
+  long as it declares its inputs honestly:
+  - One rule per int param, the narrowest that fits: `WiredEnumParamRule<T>`,
+    `WiredBoolParamRule`, `WiredRangeParamRule`, or a shared one from `WiredRules`
+    (`VariableTarget`, `HandItem`, `Effect`, `TileOffset`, `NonNegative`). `WiredRules.AnyInt`
+    is only for values with no bound at all (half of a 64-bit value, a bit mask, a variable's
+    value). Never cast an unchecked int to an enum, and never use a client int as a loop bound
+    or an array index; rectangles go through `WiredArea`, which cuts them to the map and to
+    `WiredSelectorMaxAreaSize`.
+  - Text is cut to `GetStringParamMaxLength()` and stripped of control characters on save.
+    Override it with the client's own input limit for the box (`TextInputParam`/`TextAreaParam`
+    in the AS3 editor class) instead of truncating at execution time. Text that is expanded
+    (`FormatTextAsync`) is capped again after expansion. A regex built from player text is
+    escaped and run with a match timeout.
+  - Picked furni must be in the room, are de-duplicated and capped by
+    `WiredSelectedItemsLimit`; variable ids must parse (`WiredVariableId.TryParse`), exist, and
+    fit `GetMaxVariableIds()`; sources outside `GetAllowed*Sources()` fall back to the default.
+  - Malformed input is refused or dropped without throwing. Do not catch an index or parse
+    exception to detect it: a client could fill the log one request at a time.
+- A box that creates value outside the room (`wf_act_give_reward`: badges, furniture) raises
+  `MinimumControllerLevelToSave`, so holding the room's wired permission is not enough to
+  configure it. The wired menu writes a variable only when the variable allows writes and the
+  target furni or user is in the room right now.
 
 ### Grains are not reentrant: side effects on other grains that call back go in the service
 - `RoomGrain` and `PlayerPresenceGrain` call each other. A room grain that awaits a presence grain
@@ -366,6 +457,9 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   it is the one eviction call that is safe from inside the room grain; `RoomService` uses the same
   call for kicks, bans and room deletion. Code that runs in the room tick (a wired kick) does not
   await it: it goes out with `LogAndForget`, because the presence may itself be waiting on the room.
+- The same one-way rule holds for every helper grain of a room: `RoomTradeGrain` awaits the room,
+  so the room only ever tells it things with `LogAndForget`. Before adding an awaited call from
+  grain A to grain B, check that nothing B awaits leads back to A.
 - Never mark a grain `[Reentrant]` to make such a chain compile. It moves the bug from a deadlock to
   interleaved state.
 
@@ -384,10 +478,18 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
 ## Session and room routing constraints
 - Connection/session lifecycle starts in gateway flow; do not duplicate session registration in handlers.
 - Post-SSO session attachment goes through `PlayerPresenceGrain` (one active presence grain per player id).
-- Player-targeted outbound flow must be:
-  - resolve player presence grain
-  - call `SendComposerAsync`
-  - rely on presence fan-out to subscribed sessions
+- There are exactly three ways to send a composer; pick by who it is for:
+  - **The session that sent the packet being handled**: `ctx.SendComposerAsync(composer, ct)` in
+    the handler. It is a reply to that connection and needs no grain hop.
+  - **A player** (someone else, or anything a grain, module, logic class or service pushes):
+    `grainFactory.SendComposerToPlayerAsync(playerId, composer, ct)`, or
+    `SendComposerToPlayersAsync` for several. These are the `GrainFactoryExtensions` wrappers
+    over the presence grain, which fans out to the player's sessions. Do not spell out
+    `GetPlayerPresenceGrain(id).SendComposerAsync(...)` and do not add a local
+    `SendToPlayerAsync` helper; five of those existed before they were folded into the
+    extension. The list overload (`presence.SendComposerAsync(composers, ct)`) stays a direct
+    presence call, because it is a batch for one player.
+  - **Everyone in a room**: `RoomGrain.SendComposerToRoomAsync` (the room stream).
 - Do not send directly to raw sockets/session transports from packet handlers.
 - Active-room membership/discovery belongs to `RoomDirectoryGrain`; do not bypass it with ad-hoc room tracking.
 - Grain lifetime remains Orleans-managed by default; use `[KeepAlive]` only for explicitly justified directory/manager grains.
@@ -485,16 +587,64 @@ finishing a change, check it against this list; each line is a mistake that was 
   why not. Behaviour lives in the module; grain partials forward.
 - **Batch across grain boundaries.** A loop that makes a grain call per item is a bug in waiting.
   Pass the whole set (`OnFurnitureAddedAsync`, `AddFurnitureFromRoomItemSnapshotsAsync`), group
-  by target grain, and run independent targets with `Task.WhenAll`.
+  by target grain, and run independent targets with `Task.WhenAll`. Returning furni, pets and bots
+  on room deletion all follow that shape: the room lets go first, then each owner's inventory
+  takes its share back concurrently.
 - **One public type per file, in the folder for its kind** (see Type placement). A base class and
   its two registered subclasses are three files.
-- **No silent catch, no blocking wait.** Both hide failures that only show up under load.
+- **No silent catch, no blocking wait, no discarded task.** All three hide failures that only
+  show up under load.
+  - A packet handler does not wrap its body in `try { } catch (Exception) { }`: `PackageHandler`
+    already logs every handler failure with the packet header and session. A handler catches only
+    a typed exception it turns into a reply (`CatalogPurchaseException` → `NotEnoughBalance`).
+  - `_ = SomethingAsync(...)` is `.Ignore()` by another name. Await the task, return it, or end it
+    with `.LogAndForget(logger, "what it was doing")`. Handlers await their sends. Room code that
+    must not hold up the tick (broadcasts, event publishes, wired box flashes) uses `LogAndForget`.
+  - Do not use an exception as a lookup (`First` inside `try`, an index inside `try`): use
+    `TryGetValue`, a bounds check or `GetIntParamOrDefault`. The only commented swallows left are
+    in runtime primitives that have no logger and run during unload (`ReloadableExport`,
+    `CompositeDisposable`); do not add new ones.
+- **Shared room lookups have one home.** Player id → avatar is `RoomAvatarModule.TryGetPlayer`;
+  do not walk `AvatarsByPlayerId` then `AvatarsByObjectId` inline, and do not park a general
+  helper in whichever module needed it first (it lived in the pet module, and trading reached
+  into pets to find a player). When a second module needs a helper, move it to the module that
+  owns the state before calling it.
+- **Two classes that differ in one line share a base.** Before copying a class to change a
+  detail, extract what stays the same and leave the detail abstract: the wired neighbourhood
+  selectors (`FurnitureWiredNeighborhoodSelectorLogic`), the furni placement variables
+  (`FurniturePlacementVariable`), the pet products (`FurniturePetProductLogic`) and the six wired
+  save handlers (`UpdateWiredMessageHandler<TMessage>`) were each written out in full per
+  variant, and the copies had already drifted (only the trigger save reported a refused save).
+  When the variants cannot share a base (a wired action and a wired condition), put the shared
+  lifecycle in the common ancestor behind an opt-in flag (`KeepsFurniSnapshot`).
+- **Declarations repeat too.** A list or block that many boxes declare identically gets a name:
+  `WiredSources.Users` / `Furni` / `PickedFurni`, `AllVariablesContext()`, `GetTargetType(...)`.
+  A box spells its own list out only when it really differs.
+- **A composer that mirrors a snapshot carries the snapshot.** Do not copy twenty fields from a
+  snapshot into a composer in every handler (`ExtendedProfileMessageComposer { Profile = ... }`);
+  the serializer reads the snapshot.
+- **A second private method with the same body is a copy.** The wired mute was added as a
+  duplicate of the player mute; both now go through `StoreMuteAsync`. Same for two classes that
+  are identical but for the name (`PackageEncoderWs` was `PackageEncoder`).
+- Scan for copies with a script over `git ls-files -co --exclude-standard`, not plain
+  `git ls-files`: files that are new in the working tree are the most likely to hold them, and
+  a tracked-only listing skips exactly those.
+- **A bulk replace must skip the definition it points at.** When call sites are rewritten to use
+  a new helper by script or search-and-replace, the helper's own body matches the pattern too.
+  `RoomAvatarModule.TryGetPlayer` was rewritten to call itself this way and overflowed the stack
+  the first time a player entered a room; it compiled, and no gate catches it. Exclude the
+  defining file or method from the replace, then read the helper again afterwards.
+- **A diff is computed, not assumed.** When the client sends what it already holds (ids with
+  hashes), compare before resending; the wired variable sync resent every variable on each
+  request because the hash was read and never used.
 - **A claim about the client is checked in the client.** Behaviour attributed to the Flash client
   (what it sends after `CloseConnection`, what a param means) is read from the AS3 source before
   it is written into code or a comment. Where the source only has localisation keys, the
   assumption is recorded on the enum.
 - **Remove what a change orphans**: the setting nothing reads, the interface member with no
-  caller, the using, the appsettings key.
+  caller, the using, the appsettings key. A setting added "for later" (`OnlineTimeMinutes`,
+  `MinutesBetweenMountAttempts`) is an orphan from the day it lands: add it with the code that
+  reads it.
 - When a fix teaches a rule that is not in this file yet, add it here in the same change.
 
 ## Required validation before completion

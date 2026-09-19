@@ -132,9 +132,6 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
         _ctx.RoomObject.OwnerId == ctx.PlayerId
         || await _roomGrain.SecurityModule.GetIsRoomOwnerAsync(ctx);
 
-    protected Task SendToPlayerAsync(PlayerId playerId, IComposer composer, CancellationToken ct) =>
-        _roomGrain._grainFactory.GetPlayerPresenceGrain(playerId).SendComposerAsync(composer, ct);
-
     /// <summary>Logs a refused interaction with the ids that identify it, and yields false.</summary>
     protected bool Reject(ActionContext ctx, FurnitureInteraction interaction, string reason)
     {
@@ -194,7 +191,11 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
             );
 
         if (refresh)
-            _ = _ctx.RefreshStuffDataAsync();
+            _ctx.RefreshStuffDataAsync()
+                .LogAndForget(
+                    _roomGrain._logger,
+                    $"refresh furni data in room {_roomGrain.RoomId}"
+                );
     }
 
     public override Task OnAttachAsync(CancellationToken ct) =>

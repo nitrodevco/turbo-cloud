@@ -61,10 +61,15 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
                 await AttatchLogicAsync(avatar, ct);
                 await _roomGrain.AvatarModule.ProcessNextAvatarStepAsync(avatar, ct);
 
-                _ = _roomGrain.SendComposerToRoomAsync(
-                    new UsersMessageComposer { Avatars = [avatar.GetSnapshot()] },
-                    ct
-                );
+                _roomGrain
+                    .SendComposerToRoomAsync(
+                        new UsersMessageComposer { Avatars = [avatar.GetSnapshot()] },
+                        ct
+                    )
+                    .LogAndForget(
+                        _roomGrain._logger,
+                        $"send a composer to room {_roomGrain.RoomId}"
+                    );
                 break;
             }
             default:

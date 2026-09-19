@@ -128,7 +128,7 @@ public sealed class NetworkManager(
             {
                 ConfigureCommonServices(services);
 
-                services.AddSingleton<IPackageEncoder<OutgoingPackage>, PackageEncoderWs>();
+                services.AddSingleton<IPackageEncoder<OutgoingPackage>, PackageEncoder>();
             }
         );
         builder.UseWebSocketMessageHandler(

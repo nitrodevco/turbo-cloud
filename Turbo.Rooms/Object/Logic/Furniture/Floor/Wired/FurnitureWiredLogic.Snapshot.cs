@@ -14,6 +14,13 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 /// </summary>
 public abstract partial class FurnitureWiredLogic
 {
+    /// <summary>
+    /// Set by the boxes that compare against a saved snapshot. The base then captures the picked
+    /// furni on every save and drops the snapshot when the box is picked up, so an action and a
+    /// condition (which share no other base) do not each repeat that lifecycle.
+    /// </summary>
+    protected virtual bool KeepsFurniSnapshot => false;
+
     protected Dictionary<int, WiredFurniSnapshotEntry> GetFurniSnapshot() =>
         FurnitureExtraDataSections.Read<Dictionary<int, WiredFurniSnapshotEntry>>(
             _ctx.RoomObject.ExtraData,
@@ -22,7 +29,7 @@ public abstract partial class FurnitureWiredLogic
         ) ?? [];
 
     /// <summary>Captures the picked items as they stand now.</summary>
-    protected void CaptureFurniSnapshot(IEnumerable<int> itemIds)
+    private void CaptureFurniSnapshot(IEnumerable<int> itemIds)
     {
         var snapshot = new Dictionary<int, WiredFurniSnapshotEntry>();
 
@@ -43,6 +50,6 @@ public abstract partial class FurnitureWiredLogic
         _ctx.RoomObject.ExtraData.UpdateSection(WiredFurniSnapshotEntry.SECTION, snapshot);
     }
 
-    protected void DeleteFurniSnapshot() =>
+    private void DeleteFurniSnapshot() =>
         _ctx.RoomObject.ExtraData.DeleteSection(WiredFurniSnapshotEntry.SECTION);
 }

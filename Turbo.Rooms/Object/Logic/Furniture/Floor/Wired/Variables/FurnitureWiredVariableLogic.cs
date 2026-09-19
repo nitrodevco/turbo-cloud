@@ -9,6 +9,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Wired;
@@ -198,20 +199,21 @@ public abstract class FurnitureWiredVariableLogic
         WiredVariableValue value,
         WiredVariableValue previous
     ) =>
-        _ = _ctx.PublishRoomEventAsync(
-            new WiredVariableChangedEvent
-            {
-                RoomId = _ctx.RoomId,
-                CausedBy = ActionContext.CreateForWired(_ctx.RoomId),
-                VariableId = key.VariableId,
-                TargetType = key.TargetType,
-                TargetId = key.TargetId,
-                ChangeType = changeType,
-                Value = value,
-                PreviousValue = previous,
-            },
-            System.Threading.CancellationToken.None
-        );
+        _ctx.PublishRoomEventAsync(
+                new WiredVariableChangedEvent
+                {
+                    RoomId = _ctx.RoomId,
+                    CausedBy = ActionContext.CreateForWired(_ctx.RoomId),
+                    VariableId = key.VariableId,
+                    TargetType = key.TargetType,
+                    TargetId = key.TargetId,
+                    ChangeType = changeType,
+                    Value = value,
+                    PreviousValue = previous,
+                },
+                System.Threading.CancellationToken.None
+            )
+            .LogAndForget(_roomGrain._logger, $"publish an event in room {_roomGrain.RoomId}");
 
     /// <summary>The labels a text connector addon on the same tile gives the values.</summary>
     public virtual Dictionary<WiredVariableValue, string> GetTextConnectors()

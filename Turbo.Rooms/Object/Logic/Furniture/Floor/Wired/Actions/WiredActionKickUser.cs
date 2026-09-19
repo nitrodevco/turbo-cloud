@@ -10,6 +10,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
@@ -28,23 +29,14 @@ public class WiredActionKickUser(
 {
     public override int WiredCode => (int)WiredActionType.KICK_FROM_ROOM;
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
-        [
-            [
-                WiredPlayerSourceType.TriggeredUser,
-                WiredPlayerSourceType.SelectorUsers,
-                WiredPlayerSourceType.SignalUsers,
-            ],
-        ];
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
+
+    protected override int GetStringParamMaxLength() =>
+        _roomGrain._roomConfig.WiredKickMessageMaxLength;
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
         var message = _wiredData.StringParam?.Trim() ?? string.Empty;
-        var maxLength = _roomGrain._roomConfig.WiredKickMessageMaxLength;
-
-        if (message.Length > maxLength)
-            message = message[..maxLength];
-
         message = await ctx.FormatTextAsync(message, ct);
 
         var ownerId = _roomGrain._state.RoomSnapshot.OwnerId;
@@ -56,8 +48,8 @@ public class WiredActionKickUser(
                 continue;
 
             if (message.Length > 0)
-                await _roomGrain.SendComposerToPlayersAsync(
-                    [player.PlayerId],
+                await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                    player.PlayerId,
                     new WhisperMessageComposer
                     {
                         ObjectId = player.ObjectId,

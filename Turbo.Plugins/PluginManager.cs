@@ -436,7 +436,7 @@ public sealed class PluginManager(
         return services.BuildServiceProvider(SP_OPTIONS);
     }
 
-    private static async Task StartPluginAsync(
+    private async Task StartPluginAsync(
         ITurboPlugin plugin,
         IServiceProvider sp,
         CancellationToken ct
@@ -450,8 +450,15 @@ public sealed class PluginManager(
             {
                 await svc.StartAsync(ct).ConfigureAwait(false);
             }
-            catch
-            { /* bubble via plugin Start */
+            catch (Exception ex)
+            {
+                // The plugin still starts; it decides in its own Start whether it can run without
+                // the service.
+                _logger.LogError(
+                    ex,
+                    "Hosted service {Service} of a plugin failed to start",
+                    svc.GetType().FullName
+                );
             }
         }
 
