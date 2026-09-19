@@ -14,5 +14,5 @@ public sealed class RoomFurniCountVariable(RoomGrain roomGrain) : RoomVariable(r
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 
     protected override WiredVariableValue GetValueForRoom(RoomGrain roomGrain) =>
-        WiredVariableValue.Parse(roomGrain._state.ItemsById.Count);
+        WiredVariableValue.Parse(roomGrain.FurniModule.ItemCount);
 }

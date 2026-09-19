@@ -152,6 +152,34 @@ public abstract class FurnitureWiredVariableLogic
         return true;
     }
 
+    /// <summary>
+    /// Takes the variable from every holder the box itself keeps, present in the room or not,
+    /// and says so once per holder like any other removal. A variable that lives in the shared
+    /// room-active stores keeps no list of its own, so there is nothing to walk: zero.
+    /// </summary>
+    public int RemoveAllValues()
+    {
+        if (_storage is null)
+            return 0;
+
+        var removed = 0;
+
+        // Copied first: each removal changes the store being walked.
+        string[] storageKeys = [.. _storage.Store.Keys];
+
+        foreach (var storageKey in storageKeys)
+        {
+            if (
+                WiredVariableKey.TryFromStorageKey(storageKey, out var key)
+                && CanBind(key)
+                && RemoveValue(key)
+            )
+                removed++;
+        }
+
+        return removed;
+    }
+
     private async Task<bool> GiveAndNotifyAsync(
         KeyValueStore store,
         WiredVariableKey key,

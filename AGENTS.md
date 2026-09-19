@@ -102,12 +102,20 @@ Default output format:
 ### Constants and magic values
 - Do not scatter hardcoded literals or `const` fields through implementation files. Give them a home:
   - a value the protocol or domain defines (message types, result codes, entry kinds) becomes an
-    **enum** in `Turbo.Primitives/<Domain>/Enums/`, and the serializer casts it;
+    **enum** in `Turbo.Primitives/<Domain>/Enums/`, and the serializer casts it. The composer or
+    snapshot field has the enum's type; an `int` field with `(int)SomeType.Member` at the call
+    site is the same cast in the wrong place (`RoomSettingsErrorEventMessageComposer.ErrorCode`,
+    `VariableFxConfigSnapshot.ShowMode` / `Category`). Zero counts: when the client reads `0` as
+    an answer ("can rent"), the enum gets that member (`RentableSpaceRentFailedType.None`)
+    instead of a `const Type X = 0` beside the code that sends it;
   - a set of related identifiers the client sends (search codes, cache keys) becomes one **shared
     static class** in `Turbo.Primitives/<Domain>/` (see `NavigatorSearchCodes`,
     `NavigatorListingKeys`);
   - anything an operator may want to tune (limits, lengths, timeouts, intervals, caps) becomes a
     **config option** on the module's config class, bound from `appsettings.json`.
+- A unit conversion is not a constant to declare: `MS_PER_SECOND = 1000` appeared in two furni
+  classes in one change. Convert through `TimeSpan` (`TimeSpan.FromSeconds(x).TotalMilliseconds`),
+  or through the domain's own helper where one exists (`WiredPulses`).
 - Keep an inline literal only where it is local and self-evident, and comment why.
 
 ## Behavioral rules for generated code
@@ -330,12 +338,46 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   before changing one.
 - Delayed item work (a dice landing, a door closing) is scheduled on `RoomTimerSystem`, keyed by
   the item, and cancelled in `OnPickupAsync`. Never `Task.Delay` inside a grain turn.
-- Protocol state values the client interprets (`DiceStates`, `WheelStates`, `StickieColors`)
-  live as static classes under `Turbo.Primitives/Furniture/`; durations and limits are
-  `RoomConfig` tunables.
+- Protocol state values the client interprets (`DiceStates`, `WheelStates`, `StickieColors`,
+  `RentableSpaceStates`) live as static classes under `Turbo.Primitives/Furniture/`, not as
+  `private const int STATE_*` in the logic class; durations and limits are `RoomConfig`
+  tunables.
 - Validate client data in the action module before the logic sees it: colour must be in the
   palette, text within `StickieTextMaxLength`, map entries within the `ObjectData*` limits.
   Reject with a `LogWarning` naming the item, room and player.
+
+### Furni that gives, rents or plays something
+- `clothing_change` (a booth that dresses whoever walks in), `rentable_space` and `youtube` (a
+  video display) are ordinary `[RoomObjectLogic]` classes whose client packets arrive as
+  `FurnitureInteraction` records, like the dice and the dimmer.
+- A room never awaits a change to a player's figure. `RoomAvatarModule.ChangePlayerFigure`
+  tells the player grain with `LogAndForget`: the player grain tells the presence, the presence
+  comes back to this room to update the avatar, and a room waiting on that waits on itself.
+  The mannequin awaited it and would have hung for the grain timeout on every use.
+- A furni that lets a player build without room rights implements `IRoomBuildArea`; the
+  placement path asks through `RoomFurniModule.HasBuildAreaRights` once room rights said no,
+  for a new item and for moving one's own item inside the area. It does not check for a rentable
+  space. A rent lives in the item's extra data (`RentableSpaceData`), ends on a
+  `RoomTimerSystem` timer that is set again in `OnAttachAsync`, and ending it sends what the
+  renter built there home. The status message reuses the refusal enum, and the client reads
+  `RentableSpaceRentFailedType.None` there as "can rent".
+- Many items leave a room through `RoomActionModule.ReturnItemsToOwnersAsync`: the room lets go
+  of all of them, tells the client once per owner (`ObjectRemoveMultiple`) and hands each
+  owner's inventory its share in one call. Room deletion and an ended rent both use it.
+- A player may always pick up their own furni, whatever their rights
+  (`RoomActionModule.RemoveItemByIdAsync`); otherwise a renter, or a guest whose rights were
+  taken, could never get it back.
+- A video display keeps a clock, not a stream: which video, how far in, paused or not. The
+  client plays it and never says when a video ends, so each video's length is config
+  (`RoomConfig.YoutubePlaylists`) and the room moves on by timer.
+- Which client packets the server still lacks is measured, not guessed:
+  `python scripts/packetgap.py Room` (nitro-next is found through `NITRO_NEXT`) compares the
+  composers nitro-next constructs and the messages it listens to with the handlers that do
+  something and the composers something sends. Its "stub" and "unsent" are heuristics, so read
+  the file before acting on a line. Still missing after this pass, each for want of
+  a system rather than a handler: purchasable clothing (no clothing inventory), the guild furni
+  menu (no guilds), the room queue and spectators, `ConfigurationItemStates`, `UseObject`,
+  `SpecialRoomEffect` and `BotSkillListUpdate` (nothing on the server causes them).
 
 ### Inventory sections
 - Furniture, pets and bots are three modules of `InventoryGrain` with one shape
@@ -452,7 +494,19 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   applied there) → addons mutate the `WiredPolicy` → conditions → the actions the outcome picks.
   Actions whose `IsNegative` is set (the `wf_act_neg_*` boxes) run when the conditions fail.
 - Int params follow the Flash client editor exactly; declare them with `GetIntParamRules()` and
-  read them with `GetIntParamOrDefault`. Two-int longs (`pushIntAsLong`) are read with
+  read them with `GetIntParamOrDefault`, as the type the rule declares: a
+  `WiredEnumParamRule<T>` param is read as `T` (fallback `T.Member`), a bool rule as `bool`.
+  Reading an enum param as `int` and casting throws inside the accessor, and the fallback
+  hides it: `GetTargetType` did that, so every box with a variable target ignored the target
+  it was saved with and logged an exception on each run. A mismatch is now logged as an error
+  naming the box class; treat that line as a bug in the box, not as bad data. A variable
+  target is read through `GetTargetType(variable, index)`, not by hand.
+  All three cases found were in shared helpers that take the index as an argument, where the
+  rule is out of sight: `GetTargetType`, `TryResolveOperand` (its value-or-variable switch
+  always read as "value", so an operand variable never worked) and `RequiresAll` (the "all
+  must match" switch always read as off). A helper that reads a param says in its summary
+  which rule the box must declare there, and a new one is checked against every caller's
+  `GetIntParamRules()`. Two-int longs (`pushIntAsLong`) are read with
   `GetLongParam`, the "value or another variable" operand block with `TryResolveOperand`.
   Two-slot boxes (move furni to, furni to furni, send signal) read each slot with
   `WiredSlotSelection.ForSlot`; the second slot is `StuffIds2`.
@@ -504,10 +558,84 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
     fit `GetMaxVariableIds()`; sources outside `GetAllowed*Sources()` fall back to the default.
   - Malformed input is refused or dropped without throwing. Do not catch an index or parse
     exception to detect it: a client could fill the log one request at a time.
+  - Stored data is as untrusted as sent data, and a box that was never saved stores nothing.
+    `FillInternalDataAsync` rebuilds every list to the shape the box declares, so code after
+    it reads by index without a `try`: int params by their rules, and the definition and type
+    specifics by `NormalizeSpecifics` (one entry per declared type, the default where the
+    stored one is missing or does not fit). `List<object>` comes back from JSON as
+    `JsonElement`, never as the `int` or `bool` that was saved; the base class used to index
+    and cast inside a `catch`, which logged an exception for every freshly placed action,
+    condition and selector and dropped every delay, quantifier and invert switch on the first
+    room load after a save. Sources are read through `StoredOrDefault` for the same reason.
+    A new kind of stored list gets its normaliser in the base class, not a `try` at each
+    reader.
 - A box that creates value outside the room (`wf_act_give_reward`: badges, furniture) raises
   `MinimumControllerLevelToSave`, so holding the room's wired permission is not enough to
-  configure it. The wired menu writes a variable only when the variable allows writes and the
-  target furni or user is in the room right now.
+  configure it.
+- The wired menu changes variables through two packets. `WiredSetObjectVariableValue` works on
+  one furni or user that is in the room right now, and its last field says what to do
+  (`WiredVariableMenuOperationType`: edit a value, give the variable, take it away); each
+  operation asks for the flags the client checks before it shows the button (`HasValue` and
+  `CanWriteValue` to edit, `CanCreateAndDelete` to give or take), because the client is not
+  trusted to have checked. `WiredDeleteAllVariableHolders` takes a stored furni or user
+  variable from every holder the box keeps, present or not
+  (`FurnitureWiredVariableLogic.RemoveAllValues`), and is logged. Both go through
+  `RoomWiredSystem`, remove through `RemoveValue` so triggers and fx hear of it, and answer
+  with the refreshed list the tab is showing.
+
+### Variable fx
+- A variable fx draws a wired variable over whoever holds it: a bar, hearts, a level badge or a
+  number over avatars (user fx) or floor furni (furni fx). One addon per category
+  (`wf_xtra_var_fx_health`, `_progress`, `_level`, `_status`, `_boss`, `_number`; wired codes
+  1200 to 1205), all deriving from `FurnitureWiredVariableFxLogic`. The logic names are this
+  server's and differ from the furnidata names (`wf_xtra_varfx_hp`, `_prog`, `_levelling`,
+  `_status`, `_boss`, `_number`), unlike every other wired box, whose logic is its furni name;
+  the `logic` column of those six `furniture_definitions` rows has to be set to match.
+- An fx shows nothing until three things hold, and none of them is a packet: a variable box
+  stands on the fx box's own tile, the box's source (user or furni) is what that variable
+  hangs on, and someone in the room actually holds the variable. An fx stacked on a trigger,
+  or standing alone, is configured correctly and draws nothing.
+- The editor never picks the variable an fx shows, only the two that may replace its value
+  range and the one that gates its audience. Which variable it shows is the room's rule: the
+  variable box on the same tile (`GetVariableBoxOnTile`, shared with the sub-variable addons),
+  and only when that variable hangs on what the fx is drawn over. An addon that needs another
+  kind of neighbour on its tile asks `FurnitureWiredAddonLogic.GetLogicOnTile<T>()`; do not
+  write the tile walk out again. A levelling fx takes level,
+  level cap and the experience bounds of the current level from the level-up addon on that
+  tile (`WiredAddonVariableLevelUp.TryGetLevelProgress`).
+- The box holds no state and sends nothing. It answers three questions: how the fx looks
+  (`BuildConfig`), what one holder shows (`ResolveStatus`) and who may see it (`Visibility`).
+  `RoomVariableFxSystem` (`Turbo.Rooms/Wired/VariableFx/`) does the rest: after something
+  changed it works out, per player, every status that player should be seeing, compares it
+  with what they were sent and sends the difference as one ordered batch. Do not send an fx
+  message from a wired box or on a variable write; mark the system dirty with an event.
+- The client filters nothing, so audience is decided here (`VariableFxVisibilityType`): only
+  the holder, the holder's game team, everyone, or viewers who hold a user variable (with a
+  given value). It also keeps nothing across rooms: configs and statuses go out again on every
+  entry, configs first.
+- What the client does not check, the server must get right, because the failure is an
+  exception in the client, not a missing bar. All of it was read from the AS3 and is kept in
+  `VariableFxStyles` / `VariableFxIcons`, the team colours of the "delegated colour" included
+  (`VariableFxStyles.GetTeamColor`); the system and the boxes hold no client table of their own:
+  - a (category, style) pair outside the style table loses the whole config message;
+  - a renderer must be one the style registers, a number display needs its `design` extra, an
+    icon must be one the client has an asset for;
+  - every status of a levelling fx, and of any fx using the levelling colour, must carry
+    `is_maxed` (with `current_level` and `max_level`);
+  - the two ends of a range override travel as a pair, so one overridden end repeats the
+    default for the other; a maxed level sends both ends equal with `is_maxed`, which is how
+    the client knows to draw the bar full.
+- The client drops a status for an avatar or furni it has not been told about, and never asks
+  again. Those objects reach it over the room stream while fx messages go to the player
+  directly, so a new player, avatar or furni waits `WiredConfig.VariableFxEntryDelayMs` before
+  anything about it is sent. A viewer's first batch, and a holder's first status, are marked
+  "initialize": the client then draws the value without the change animation.
+- The three variable ids of an fx box are positional (override min, override max, audience).
+  `GetValidVariableIds` keeps the slots and stores "none" as id 0, which `WiredDataSerializer`
+  writes as an empty string; the default implementation drops unknown ids and would slide the
+  audience variable into the first slot. Any box with positional variable ids needs the same.
+- Limits are `WiredConfig.VariableFx*`: boxes per room (enforced through
+  `IRoomPlacementLimit`), statuses per viewer, the flush interval and the entry delay.
 
 ### System boundaries: wired is a user of the room, not a part of it
 Wired touches everything, so it is where systems bleed into each other first. These rules came
@@ -534,8 +662,11 @@ out of pulling it apart; they hold for any system that grows the same way.
     `canReadWired` themselves.
 - **What wired drives is not wired's.** Teams, scores and the running game are
   `RoomGameSystem` (`GameTeamType`, `GameStartedEvent`, `GameEndedEvent`,
-  `GameScoreChangedEvent`): a counter furni starts a game, wired boxes join teams and give
-  points, wired triggers listen, and banzai or freeze furni will use the same system. Frozen is
+  `GameScoreChangedEvent`, `GameTeamChangedEvent`): a counter furni starts a game, wired boxes
+  join teams and give points, wired triggers listen, and banzai or freeze furni will use the
+  same system. Joining or leaving a team is also what tells the client it is playing
+  (`YouArePlayingGame`), so that is sent from the game system and nowhere else; the variable fx
+  system learns of team changes from the event, not from whoever moved the player. Frozen is
   avatar state (`IRoomAvatar.SetFrozen(isFrozen, thawsOnTeleport)`), not a set kept by whoever
   froze it; that set was never cleared when the avatar left.
 - **A wired action asks the owning module; it does not redo the module's work.** A box picks
@@ -799,6 +930,13 @@ finishing a change, check it against this list; each line is a mistake that was 
   either. When two rules disagree, find which one the code follows, delete the other here and in
   the adapters, and remove what the dead rule left in the code (the unused `IConfiguration`
   injections).
+- **A field nobody reads is a question, not padding.** `WiredSetObjectVariableValue`'s last int
+  was named `ReferenceRoomId` by guess and never read. It is the operation (set, create,
+  delete), so deleting a variable from the wired menu set it to zero instead, and nothing
+  failed. When a parser pops a field the handler ignores, find the composer's call sites in
+  the AS3 and see what the client puts there. Likewise a header constant with no parser
+  (`WiredDeleteAllVariableHoldersMessageEvent`) is a feature the client has and the server
+  does not; `scripts/packetgap.py` lists them.
 - **A placeholder on the wire is checked in the client.** `BadgesRank = 0` looked harmless and
   was sent for every avatar; the client draws any rank of zero or more, so everyone was "#0".
   Before leaving a `0` or `// TODO` in a snapshot a serializer writes, read what the client does
@@ -807,6 +945,17 @@ finishing a change, check it against this list; each line is a mistake that was 
   system that owns the concept, not to the one that needed it first (see **System boundaries**).
   A `Wired` prefix on something in a general class, or a general module checking for a wired
   type, is the sign it landed in the wrong place.
+- **A rule written in a change is kept by that change.** The variable fx section said every
+  client table lives in `VariableFxStyles` while the team colours sat in the system; the
+  logic rules said state values live in `Turbo.Primitives/Furniture/` while the rentable space
+  declared `STATE_FREE` / `STATE_RENTED` privately. After writing a section here, grep the new
+  code for what the section forbids.
+- **A name in a comment is checked like a name in code.** `VariableFxConfigSnapshot` sent
+  readers to a `VariableFxUpdateFlags` that was never written. No gate resolves a `<c>` tag:
+  use `<see cref>` for a type that exists, and grep for one you only mention.
+- **A summary says what the method does now.** `GetRoomSettingsMessageHandler` began to send a
+  settings error before `NoSuchFlat` and its summary still described the old reply. Read the
+  doc comment of whatever you change the behaviour of.
 - **Remove what a change orphans**: the setting nothing reads, the interface member with no
   caller, the using, the appsettings key. A setting added "for later" (`OnlineTimeMinutes`,
   `MinutesBetweenMountAttempts`) is an orphan from the day it lands: add it with the code that

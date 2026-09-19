@@ -12,7 +12,7 @@ internal class WiredSetObjectVariableValueMessageParser : IParser
         var objectIdForType = packet.PopInt();
         var variableId = packet.PopString();
         var value = packet.PopInt();
-        var referenceRoomId = packet.PopInt();
+        var operation = packet.PopInt();
 
         return new WiredSetObjectVariableValueMessage
         {
@@ -20,7 +20,7 @@ internal class WiredSetObjectVariableValueMessageParser : IParser
             ObjectIdForType = objectIdForType,
             VariableId = variableId,
             Value = value,
-            ReferenceRoomId = referenceRoomId,
+            Operation = operation,
         };
     }
 }

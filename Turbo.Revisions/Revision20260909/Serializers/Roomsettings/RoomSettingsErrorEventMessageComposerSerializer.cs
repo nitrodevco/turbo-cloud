@@ -11,6 +11,6 @@ internal class RoomSettingsErrorEventMessageComposerSerializer(int header)
         RoomSettingsErrorEventMessageComposer message
     )
     {
-        packet.WriteInteger(message.RoomId).WriteInteger(message.ErrorCode);
+        packet.WriteInteger(message.RoomId).WriteInteger((int)message.ErrorCode);
     }
 }

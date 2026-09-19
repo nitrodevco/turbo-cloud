@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Room.Furniture;
 
 internal class GetYoutubeDisplayStatusMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetYoutubeDisplayStatusMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetYoutubeDisplayStatusMessage { ObjectId = packet.PopInt() };
 }

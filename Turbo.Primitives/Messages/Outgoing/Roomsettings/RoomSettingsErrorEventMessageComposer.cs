@@ -1,6 +1,7 @@
 using Orleans;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Primitives.Messages.Outgoing.Roomsettings;
 
@@ -11,5 +12,5 @@ public sealed record RoomSettingsErrorEventMessageComposer : IComposer
     public required RoomId RoomId { get; init; }
 
     [Id(1)]
-    public required int ErrorCode { get; init; }
+    public required RoomSettingsErrorType ErrorCode { get; init; }
 }

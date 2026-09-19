@@ -255,10 +255,34 @@ public sealed partial class RoomGrain
         return WiredSystem.GetVariableHolders(variableId);
     }
 
-    public async Task<bool> SetWiredVariableValueAsync(
+    public async Task<bool> RemoveWiredVariableFromAllHoldersAsync(
+        ActionContext ctx,
+        WiredVariableId variableId,
+        CancellationToken ct
+    )
+    {
+        if (!await CanModifyWiredAsync(ctx, ct))
+            return false;
+
+        var removed = WiredSystem.RemoveVariableFromAllHolders(variableId);
+
+        // Wiping a variable for everyone cannot be undone, so it leaves a trace.
+        _logger.LogInformation(
+            "Player {PlayerId} removed wired variable {VariableId} from {Removed} holders in room {RoomId}",
+            ctx.PlayerId,
+            variableId,
+            removed,
+            _state.RoomId
+        );
+
+        return true;
+    }
+
+    public async Task<bool> ApplyWiredVariableMenuOperationAsync(
         ActionContext ctx,
         WiredVariableBinding binding,
         WiredVariableId variableId,
+        WiredVariableMenuOperationType operation,
         WiredVariableValue value,
         CancellationToken ct
     )
@@ -268,14 +292,21 @@ public sealed partial class RoomGrain
             if (!await CanModifyWiredAsync(ctx, ct))
                 return false;
 
-            return await WiredSystem.SetVariableValueAsync(binding, variableId, value, ct);
+            return await WiredSystem.ApplyVariableMenuOperationAsync(
+                binding,
+                variableId,
+                operation,
+                value,
+                ct
+            );
         }
         catch (Exception ex)
         {
             _logger.LogError(
                 ex,
-                "Player {PlayerId} failed to set wired variable {VariableId} on {TargetType} {TargetId} in room {RoomId}",
+                "Player {PlayerId} failed to {Operation} wired variable {VariableId} on {TargetType} {TargetId} in room {RoomId}",
                 ctx.PlayerId,
+                operation,
                 variableId,
                 binding.TargetType,
                 binding.TargetId,

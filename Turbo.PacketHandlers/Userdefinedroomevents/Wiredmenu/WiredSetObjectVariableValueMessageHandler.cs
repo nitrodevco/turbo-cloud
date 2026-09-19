@@ -1,5 +1,4 @@
 using System;
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -14,8 +13,9 @@ using Turbo.Primitives.Rooms.Wired.Variable;
 namespace Turbo.PacketHandlers.Userdefinedroomevents.Wiredmenu;
 
 /// <summary>
-/// The wired menu wrote a variable value on one furni or user. The room checks permission,
-/// applies it and answers with the refreshed value list of that target.
+/// The wired menu edited a variable's value on one furni or user, gave it the variable or took
+/// the variable away; the packet's last field says which. The room checks permission, applies
+/// it and answers with the refreshed value list of that target.
 /// </summary>
 public class WiredSetObjectVariableValueMessageHandler(IGrainFactory grainFactory)
     : IMessageHandler<WiredSetObjectVariableValueMessage>
@@ -28,16 +28,11 @@ public class WiredSetObjectVariableValueMessageHandler(IGrainFactory grainFactor
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0)
-            return;
-
         if (
-            !ulong.TryParse(
-                message.VariableId,
-                NumberStyles.None,
-                CultureInfo.InvariantCulture,
-                out var rawId
-            )
+            ctx.PlayerId <= 0
+            || ctx.RoomId <= 0
+            || !WiredVariableId.TryParse(message.VariableId, out var variableId)
+            || !Enum.IsDefined((WiredVariableMenuOperationType)message.Operation)
         )
             return;
 
@@ -48,10 +43,11 @@ public class WiredSetObjectVariableValueMessageHandler(IGrainFactory grainFactor
         var room = _grainFactory.GetRoomGrain(ctx.RoomId);
 
         if (
-            !await room.SetWiredVariableValueAsync(
+            !await room.ApplyWiredVariableMenuOperationAsync(
                     ctx.AsActionContext(),
                     binding,
-                    new WiredVariableId(rawId),
+                    variableId,
+                    (WiredVariableMenuOperationType)message.Operation,
                     new WiredVariableValue(message.Value),
                     ct
                 )

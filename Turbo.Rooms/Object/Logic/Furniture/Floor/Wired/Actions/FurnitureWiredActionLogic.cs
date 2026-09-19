@@ -54,13 +54,6 @@ public abstract class FurnitureWiredActionLogic(
     {
         await base.FillInternalDataAsync(ct);
 
-        try
-        {
-            _delayMs = Math.Clamp(_wiredData.GetDefinitionParam<int>(0), 0, 20) * WiredPulses.MS;
-        }
-        catch (Exception ex)
-        {
-            LogWiredDataFault(ex);
-        }
+        _delayMs = Math.Clamp(_wiredData.GetDefinitionParam<int>(0), 0, 20) * WiredPulses.MS;
     }
 }

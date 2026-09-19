@@ -104,14 +104,25 @@ public partial interface IRoomGrain
     );
 
     /// <summary>
-    /// Writes a variable value on one target from the wired menu. Requires wired modify
-    /// permission; the target id is a room object id for furni and users.
+    /// Edits, gives or takes away a variable on one target from the wired menu. Requires wired
+    /// modify permission; the target id is a room object id for furni and users.
     /// </summary>
-    public Task<bool> SetWiredVariableValueAsync(
+    public Task<bool> ApplyWiredVariableMenuOperationAsync(
         ActionContext ctx,
         WiredVariableBinding binding,
         WiredVariableId variableId,
+        WiredVariableMenuOperationType operation,
         WiredVariableValue value,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Takes a stored furni or user variable from everything that holds it, in the room or not.
+    /// Requires wired modify permission; false when the caller lacks it.
+    /// </summary>
+    public Task<bool> RemoveWiredVariableFromAllHoldersAsync(
+        ActionContext ctx,
+        WiredVariableId variableId,
         CancellationToken ct
     );
 }

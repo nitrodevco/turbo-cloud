@@ -83,7 +83,8 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
         ActionContext ctx,
         IRoomObject roomObject,
         CancellationToken ct,
-        int pickerId = -1
+        int pickerId = -1,
+        bool announce = true
     )
     {
         switch (roomObject)
@@ -93,7 +94,9 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
                 if (!_roomGrain.MapModule.RemoveItem(item))
                     return false;
 
-                await _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(pickerId), ct);
+                // A caller removing many items at once tells the room once for all of them.
+                if (announce)
+                    await _roomGrain.SendComposerToRoomAsync(item.GetRemoveComposer(pickerId), ct);
 
                 await item.Logic.OnDetachAsync(ct);
                 await item.Logic.OnPickupAsync(ctx, ct);

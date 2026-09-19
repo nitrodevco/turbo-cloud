@@ -52,9 +52,11 @@ public class FurnitureMannequinLogic(IStuffDataFactory stuffDataFactory, IRoomFl
         )
             return;
 
-        await _roomGrain
-            ._grainFactory.GetPlayerGrain(ctx.PlayerId)
-            .SetFigureAsync(MannequinData.Dress(wearer.Figure, figure), wearer.Gender, ct);
+        _roomGrain.AvatarModule.ChangePlayerFigure(
+            ctx.PlayerId,
+            MannequinData.Dress(wearer.Figure, figure),
+            wearer.Gender
+        );
     }
 
     public override async Task<bool> OnInteractAsync(

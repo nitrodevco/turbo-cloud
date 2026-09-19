@@ -64,7 +64,7 @@ public class WiredAddonVariablePlaceholder(
             return Task.FromResult(text);
 
         var snapshot = variable.GetVarSnapshot();
-        var targetType = (WiredVariableTargetType)GetIntParamOrDefault(1, (int)snapshot.TargetType);
+        var targetType = GetTargetType(variable, 1);
         var textMode = GetIntParamOrDefault(2, false);
         var values = new List<string>();
 

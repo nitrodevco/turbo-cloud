@@ -152,43 +152,80 @@ public sealed partial class RoomWiredSystem
         };
     }
 
-    /// <summary>Writes a value from the wired menu; creates it when the variable allows it.</summary>
-    public async Task<bool> SetVariableValueAsync(
+    /// <summary>
+    /// The wired menu's inspection tab edits, gives or takes away a variable on one furni or
+    /// user. The flags asked for are the ones the client checks before it offers each button;
+    /// the client is not trusted to have checked them.
+    /// </summary>
+    public async Task<bool> ApplyVariableMenuOperationAsync(
         WiredVariableBinding binding,
         WiredVariableId variableId,
+        WiredVariableMenuOperationType operation,
         WiredVariableValue value,
         CancellationToken ct
     )
     {
         var variable = GetVariableById(variableId);
 
-        if (variable is null)
+        // Only on a furni or user that is in the room right now: the target id comes from the
+        // client, and an unchecked one would let values pile up under ids that belong to
+        // nothing here.
+        if (variable is null || !IsLiveTarget(binding))
             return false;
 
-        // The menu only edits values the variable itself lets wired write, and only on a furni
-        // or user that is in the room right now: the target id comes from the client, and an
-        // unchecked one would let values pile up under ids that belong to nothing here.
-        if (
-            !variable.GetVarSnapshot().Flags.Has(WiredVariableFlags.CanWriteValue)
-            || !IsLiveTarget(binding)
-        )
-            return false;
-
+        var flags = variable.GetVarSnapshot().Flags;
         var key = new WiredVariableKey(
             variableId,
             binding.TargetType,
             ResolveTargetId(binding.TargetType, binding.TargetId)
         );
 
-        if (variable.TryGetValue(key, out _))
+        switch (operation)
         {
-            var ctx = new WiredExecutionContext(_roomGrain) { CancellationToken = ct };
+            case WiredVariableMenuOperationType.SetValue:
+                if (
+                    !flags.Has(WiredVariableFlags.HasValue)
+                    || !flags.Has(WiredVariableFlags.CanWriteValue)
+                )
+                    return false;
 
-            return await variable.SetValueAsync(ctx, key, value);
+                return await variable.SetValueAsync(
+                    new WiredExecutionContext(_roomGrain) { CancellationToken = ct },
+                    key,
+                    value
+                );
+            case WiredVariableMenuOperationType.Create:
+                if (!flags.Has(WiredVariableFlags.CanCreateAndDelete))
+                    return false;
+
+                // A variable without a value is only held or not; whatever number came along
+                // is not kept.
+                return await variable.GiveValueAsync(
+                    key,
+                    flags.Has(WiredVariableFlags.HasValue) ? value : WiredVariableValue.Default
+                );
+            case WiredVariableMenuOperationType.Delete:
+                return flags.Has(WiredVariableFlags.CanCreateAndDelete)
+                    && variable.RemoveValue(key);
+            default:
+                return false;
         }
-
-        return await variable.GiveValueAsync(key, value, true);
     }
+
+    /// <summary>
+    /// The overview tab's "delete" on a variable: it is taken from everyone and everything that
+    /// holds it, whether or not they are in the room. The client offers this for a stored furni
+    /// or user variable only, and that is all a box can do it for: only a stored variable keeps
+    /// its own list of holders.
+    /// </summary>
+    public int RemoveVariableFromAllHolders(WiredVariableId variableId) =>
+        GetVariableById(variableId) is FurnitureWiredVariableLogic box
+        && box.GetVarSnapshot().Flags.Has(WiredVariableFlags.CanCreateAndDelete)
+        && box.GetVarSnapshot().TargetType
+            is WiredVariableTargetType.Furni
+                or WiredVariableTargetType.User
+            ? box.RemoveAllValues()
+            : 0;
 
     private bool IsLiveTarget(WiredVariableBinding binding) =>
         binding.TargetType switch

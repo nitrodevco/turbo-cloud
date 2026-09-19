@@ -5,13 +5,14 @@ using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.RoomSettings;
 using Turbo.Primitives.Messages.Outgoing.Roomsettings;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.PacketHandlers.RoomSettings;
 
 /// <summary>
 /// Sent when the owner opens the room settings window. The client only shows the window once the
-/// settings data for the requested room id arrives; a refused or unknown room gets NoSuchFlat so
-/// the client stops waiting.
+/// settings data for the requested room id arrives; a refused asker gets the settings error and
+/// NoSuchFlat, so the client stops waiting.
 /// </summary>
 public class GetRoomSettingsMessageHandler(IGrainFactory grainFactory)
     : IMessageHandler<GetRoomSettingsMessage>
@@ -34,6 +35,17 @@ public class GetRoomSettingsMessageHandler(IGrainFactory grainFactory)
 
         if (settings is null)
         {
+            // The room exists (its grain answered), so a refusal means the asker may not see
+            // its settings; the window shows that as its error text.
+            await ctx.SendComposerAsync(
+                    new RoomSettingsErrorEventMessageComposer
+                    {
+                        RoomId = message.RoomId,
+                        ErrorCode = RoomSettingsErrorType.NotOwner,
+                    },
+                    ct
+                )
+                .ConfigureAwait(false);
             await ctx.SendComposerAsync(
                     new NoSuchFlatEventMessageComposer { RoomId = message.RoomId },
                     ct

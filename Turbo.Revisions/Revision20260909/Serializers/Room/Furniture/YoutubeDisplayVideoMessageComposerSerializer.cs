@@ -11,6 +11,11 @@ internal class YoutubeDisplayVideoMessageComposerSerializer(int header)
         YoutubeDisplayVideoMessageComposer message
     )
     {
-        //
+        packet
+            .WriteInteger(message.FurniId)
+            .WriteString(message.VideoId)
+            .WriteInteger(message.StartAtSeconds)
+            .WriteInteger(message.EndAtSeconds)
+            .WriteInteger((int)message.State);
     }
 }

@@ -6,5 +6,10 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Room.Furniture;
 
 internal class SetYoutubeDisplayPlaylistMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new SetYoutubeDisplayPlaylistMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new SetYoutubeDisplayPlaylistMessage
+        {
+            ObjectId = packet.PopInt(),
+            PlaylistId = packet.PopString(),
+        };
 }

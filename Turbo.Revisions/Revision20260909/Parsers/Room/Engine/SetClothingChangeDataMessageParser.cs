@@ -6,5 +6,11 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Room.Engine;
 
 internal class SetClothingChangeDataMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new SetClothingChangeDataMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new SetClothingChangeDataMessage
+        {
+            ObjectId = packet.PopInt(),
+            Gender = packet.PopString(),
+            Figure = packet.PopString(),
+        };
 }

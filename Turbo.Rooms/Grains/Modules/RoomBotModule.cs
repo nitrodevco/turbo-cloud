@@ -183,6 +183,19 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
         if (TryGetBot(botId, out var bot))
             await PersistAsync(bot, ct);
 
+        // A bot that was just placed is about to be set up, so the client is asked to open its
+        // menu. Told, not awaited: the presence may be waiting on this room.
+        _roomGrain
+            ._grainFactory.SendComposerToPlayerAsync(
+                ctx.PlayerId,
+                new BotForceOpenContextMenuMessageComposer { BotId = botId },
+                CancellationToken.None
+            )
+            .LogAndForget(
+                _roomGrain._logger,
+                $"open the menu of bot {botId} for player {ctx.PlayerId}"
+            );
+
         return true;
     }
 

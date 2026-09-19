@@ -7,14 +7,15 @@ using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
-using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Interactions;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -36,6 +37,11 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain)
 
         var pickupType = await _roomGrain.SecurityModule.GetFurniPickupTypeAsync(ctx);
 
+        // Whatever a player may do in the room, their own furni is theirs to take back: someone
+        // who built on a rented space, or whose rights were taken away, is not stuck with it here.
+        if (pickupType == FurniturePickupType.None && item.OwnerId == ctx.PlayerId)
+            pickupType = FurniturePickupType.SendToOwner;
+
         if (pickupType == FurniturePickupType.None)
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
@@ -55,6 +61,74 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain)
         await inventory.AddFurnitureFromRoomItemSnapshotAsync(snapshot, ct);
 
         return true;
+    }
+
+    /// <summary>
+    /// Sends many items home at once: the room lets go of all of them first, then each owner's
+    /// inventory takes its share in one call, owners side by side. The room is told once per
+    /// owner for floor items (the client removes them together); wall items have no such
+    /// message and go one by one.
+    /// </summary>
+    public async Task ReturnItemsToOwnersAsync(
+        IReadOnlyCollection<IRoomItem> items,
+        CancellationToken ct
+    )
+    {
+        if (items.Count == 0)
+            return;
+
+        var ctx = ActionContext.CreateForSystem(_roomGrain.RoomId);
+        var returned = new Dictionary<PlayerId, List<IRoomItem>>();
+
+        foreach (var item in items)
+        {
+            var isFloorItem = item is IRoomFloorItem;
+
+            if (
+                !await _roomGrain.ObjectModule.RemoveObjectAsync(
+                    ctx,
+                    item,
+                    ct,
+                    item.OwnerId,
+                    announce: !isFloorItem
+                )
+            )
+                continue;
+
+            if (!returned.TryGetValue(item.OwnerId, out var owned))
+                returned[item.OwnerId] = owned = [];
+
+            owned.Add(item);
+        }
+
+        foreach (var (ownerId, owned) in returned)
+        {
+            var floorIds = owned
+                .Where(x => x is IRoomFloorItem)
+                .Select(x => (long)x.ObjectId.Value)
+                .ToList();
+
+            if (floorIds.Count > 0)
+                await _roomGrain.SendComposerToRoomAsync(
+                    new ObjectRemoveMultipleMessageComposer
+                    {
+                        ObjectIdsToRemove = [.. floorIds],
+                        PickerId = ownerId,
+                    },
+                    ct
+                );
+        }
+
+        await Task.WhenAll(
+            returned.Select(entry =>
+                _roomGrain
+                    ._grainFactory.GetInventoryGrain(entry.Key)
+                    .AddFurnitureFromRoomItemSnapshotsAsync(
+                        [.. entry.Value.Select(x => x.GetSnapshot())],
+                        ct
+                    )
+            )
+        );
     }
 
     public async Task<bool> UseItemByIdAsync(

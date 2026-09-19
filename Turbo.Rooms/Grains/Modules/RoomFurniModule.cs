@@ -11,6 +11,7 @@ using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -81,6 +82,35 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain)
     public bool IsHighestOnTile(IRoomFloorItem item, int tileIdx) =>
         _roomGrain.MapModule.InBounds(tileIdx)
         && _roomGrain._state.TileHighestFloorItems[tileIdx] == item.ObjectId;
+
+    /// <summary>
+    /// Whether some furni in the room lets this player build where a floor item of this size
+    /// would stand (see <see cref="IRoomBuildArea"/>). Only asked once room rights said no.
+    /// </summary>
+    public bool HasBuildAreaRights(
+        PlayerId playerId,
+        IRoomFloorItem item,
+        int x,
+        int y,
+        Rotation rot
+    )
+    {
+        if (
+            !_roomGrain.MapModule.GetTileIdForSize(
+                x,
+                y,
+                rot,
+                item.Definition.Width,
+                item.Definition.Length,
+                out var tileIds
+            )
+        )
+            return false;
+
+        return Items.Any(other =>
+            other.Logic is IRoomBuildArea area && area.GrantsBuildRights(playerId, tileIds)
+        );
+    }
 
     /// <summary>Asks every registered limit before a new item is placed; a refusal throws.</summary>
     public void EnsureWithinPlacementLimits(IRoomItem item)

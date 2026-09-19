@@ -1370,6 +1370,10 @@ public class Revision20260909 : IRevision
                 new WiredClearErrorLogsMessageParser()
             },
             {
+                MessageEvent.WiredDeleteAllVariableHoldersMessageEvent,
+                new WiredDeleteAllVariableHoldersMessageParser()
+            },
+            {
                 MessageEvent.WiredGetAllVariableHoldersMessageEvent,
                 new WiredGetAllVariableHoldersMessageParser()
             },
@@ -3241,6 +3245,30 @@ public class Revision20260909 : IRevision
                 typeof(WiredFurniVariableEventMessageComposer),
                 new WiredFurniVariableEventMessageComposerSerializer(
                     MessageComposer.WiredFurniVariableMessageComposer
+                )
+            },
+            {
+                typeof(VariableFxConfigsMessageComposer),
+                new VariableFxConfigsMessageComposerSerializer(
+                    MessageComposer.VariableFxConfigsMessageComposer
+                )
+            },
+            {
+                typeof(VariableFxConfigsRemovedMessageComposer),
+                new VariableFxConfigsRemovedMessageComposerSerializer(
+                    MessageComposer.VariableFxConfigsRemovedMessageComposer
+                )
+            },
+            {
+                typeof(VariableFxStatusMessageComposer),
+                new VariableFxStatusMessageComposerSerializer(
+                    MessageComposer.VariableFxStatusMessageComposer
+                )
+            },
+            {
+                typeof(VariableFxStatusRemovedMessageComposer),
+                new VariableFxStatusRemovedMessageComposerSerializer(
+                    MessageComposer.VariableFxStatusRemovedMessageComposer
                 )
             },
             {

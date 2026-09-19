@@ -11,6 +11,7 @@ using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
+using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
@@ -91,21 +92,16 @@ public class WiredAddonVariableLevelUp(
 
     private WiredVariableValue? Compute(IWiredVariable parent, WiredVariableKey key, int index)
     {
-        if (!parent.TryGetValue(key, out var xpValue) || _thresholds.Count == 0)
+        if (
+            !parent.TryGetValue(key, out var xpValue)
+            || !TryGetLevelProgress(xpValue.Value, out var reached)
+        )
             return null;
 
         long xp = Math.Max(0, xpValue.Value);
-        var maxLevel = _thresholds.Count;
-        var level = 1;
-
-        while (level < maxLevel && xp >= _thresholds[level])
-            level++;
-
-        var levelStart = _thresholds[level - 1];
-        var nextStart = level < maxLevel ? _thresholds[level] : levelStart;
+        var (level, maxLevel, levelStart, nextStart, isMaxed) = reached;
         var required = Math.Max(0, nextStart - levelStart);
         var progress = Math.Max(0, xp - levelStart);
-        var isMaxed = level >= maxLevel;
 
         long result = index switch
         {
@@ -121,6 +117,38 @@ public class WiredAddonVariableLevelUp(
         };
 
         return new WiredVariableValue((int)Math.Clamp(result, int.MinValue, int.MaxValue));
+    }
+
+    /// <summary>
+    /// The level an experience total has reached by this box's table. The sub-variables are
+    /// derived from it, and so is what a levelling fx on the same tile shows.
+    /// </summary>
+    public bool TryGetLevelProgress(long xp, out WiredLevelProgress progress)
+    {
+        progress = default;
+
+        if (_thresholds.Count == 0)
+            return false;
+
+        xp = Math.Max(0, xp);
+
+        var maxLevel = _thresholds.Count;
+        var level = 1;
+
+        while (level < maxLevel && xp >= _thresholds[level])
+            level++;
+
+        var levelStart = _thresholds[level - 1];
+
+        progress = new WiredLevelProgress(
+            level,
+            maxLevel,
+            levelStart,
+            level < maxLevel ? _thresholds[level] : levelStart,
+            level >= maxLevel
+        );
+
+        return true;
     }
 
     /// <summary>XP needed to reach each level, index 0 being level 1 (always zero).</summary>

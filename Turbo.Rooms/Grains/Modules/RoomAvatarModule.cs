@@ -456,6 +456,20 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         return true;
     }
 
+    /// <summary>
+    /// Furni that dresses a player (a mannequin, a clothing booth) changes their figure here.
+    /// Told, never awaited: the player grain tells the presence, which comes back to this room
+    /// to update the avatar, and a room waiting on that would be waiting on itself.
+    /// </summary>
+    public void ChangePlayerFigure(PlayerId playerId, string figure, AvatarGenderType gender) =>
+        _roomGrain
+            ._grainFactory.GetPlayerGrain(playerId)
+            .SetFigureAsync(figure, gender, CancellationToken.None)
+            .LogAndForget(
+                _roomGrain._logger,
+                $"change the figure of player {playerId} from room {_roomGrain.RoomId}"
+            );
+
     public Task<bool> UpdateAvatarWithPlayerAsync(
         PlayerSummarySnapshot snapshot,
         CancellationToken ct

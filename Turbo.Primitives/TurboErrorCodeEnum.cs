@@ -25,6 +25,7 @@ public enum TurboErrorCodeEnum
     WiredFloorItemLimitReached,
     WiredWallItemLimitReached,
     WiredPermanentVariableLimitReached,
+    WiredVariableFxLimitReached,
     PetNotFound,
     BotNotFound,
 }
@@ -66,6 +67,8 @@ public static class ErrorCodeExtensions
                 "This room has reached its wired wall furniture limit.",
             TurboErrorCodeEnum.WiredPermanentVariableLimitReached =>
                 "This room has reached its permanent wired variable limit.",
+            TurboErrorCodeEnum.WiredVariableFxLimitReached =>
+                "This room has reached its variable fx limit.",
             TurboErrorCodeEnum.PetNotFound => "The specified pet could not be found.",
             TurboErrorCodeEnum.BotNotFound => "The specified bot could not be found.",
             _ => "An unknown error occurred.",

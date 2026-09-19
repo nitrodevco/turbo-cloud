@@ -22,13 +22,17 @@ public sealed partial class RoomActionModule
         CancellationToken ct
     )
     {
-        if (!await _roomGrain.SecurityModule.CanPlaceFurniAsync(ctx))
-            throw new TurboException(TurboErrorCodeEnum.NoPermissionToPlaceFurni);
-
         var item = _roomGrain._itemsLoader.CreateFromFurnitureItemSnapshot(snapshot);
 
         if (item is not IRoomFloorItem floorItem)
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
+
+        // Room rights, or a furni that lets this player build on exactly these tiles.
+        if (
+            !await _roomGrain.SecurityModule.CanPlaceFurniAsync(ctx)
+            && !_roomGrain.FurniModule.HasBuildAreaRights(ctx.PlayerId, floorItem, x, y, rot)
+        )
+            throw new TurboException(TurboErrorCodeEnum.NoPermissionToPlaceFurni);
 
         _roomGrain.FurniModule.EnsureWithinPlacementLimits(item);
 
@@ -62,7 +66,23 @@ public sealed partial class RoomActionModule
         CancellationToken ct
     )
     {
-        if (!await _roomGrain.SecurityModule.CanManipulateFurniAsync(ctx))
+        // Without room rights a player still moves their own furni inside an area they may
+        // build on: it has to stand there now and end up there.
+        if (
+            !await _roomGrain.SecurityModule.CanManipulateFurniAsync(ctx)
+            && !(
+                _roomGrain.FurniModule.TryGetFloorItem(itemId, out var own)
+                && own.OwnerId == ctx.PlayerId
+                && _roomGrain.FurniModule.HasBuildAreaRights(
+                    ctx.PlayerId,
+                    own,
+                    own.X,
+                    own.Y,
+                    own.Rotation
+                )
+                && _roomGrain.FurniModule.HasBuildAreaRights(ctx.PlayerId, own, x, y, rot)
+            )
+        )
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
         if (!await _roomGrain.FurniModule.ValidateFloorItemPlacementAsync(ctx, itemId, x, y, rot))

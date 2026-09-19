@@ -46,6 +46,21 @@ public class WiredConfig
     /// <summary>The most a wired counter shows: 99:59.5, counted in half seconds.</summary>
     public int ClockMaxHalfSeconds { get; init; } = 11999;
 
+    /// <summary>Variable fx addons a room may hold; each one is drawn over every holder of its variable.</summary>
+    public int VariableFxMaxBoxes { get; init; } = 25;
+
+    /// <summary>The most fx values one player is shown at once; a variable on every furni stops here.</summary>
+    public int VariableFxMaxStatusesPerViewer { get; init; } = 500;
+
+    /// <summary>How often changed fx values go out. Changes in between reach the client as one batch.</summary>
+    public int VariableFxFlushMs { get; init; } = 100;
+
+    /// <summary>
+    /// How long a player, avatar or furni is in the room before fx are sent about it. The client
+    /// drops an fx for an object it has not been told of yet, and the object travels another way.
+    /// </summary>
+    public int VariableFxEntryDelayMs { get; init; } = 1000;
+
     /// <summary>
     /// The effect a wired freeze paints, by the index the box editor sends. Ships as zeros (no
     /// effect): which effect ids a hotel has is hotel data.

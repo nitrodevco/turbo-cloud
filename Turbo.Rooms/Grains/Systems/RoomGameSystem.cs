@@ -4,6 +4,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Messages.Outgoing.Room.Session;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -91,6 +93,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain) : IRoomEventListener
             GetTeamEffectId(team),
             ct
         );
+        await PublishTeamChangedAsync(playerId, team, ct);
 
         return true;
     }
@@ -106,6 +109,8 @@ public sealed class RoomGameSystem(RoomGrain roomGrain) : IRoomEventListener
             && player.EffectId == GetTeamEffectId(team)
         )
             await _roomGrain.AvatarModule.SetAvatarEffectAsync(player.ObjectId, NO_EFFECT, ct);
+
+        await PublishTeamChangedAsync(playerId, GameTeamType.None, ct);
 
         return true;
     }
@@ -188,6 +193,30 @@ public sealed class RoomGameSystem(RoomGrain roomGrain) : IRoomEventListener
             {
                 RoomId = _roomGrain.RoomId,
                 CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
+            },
+            ct
+        );
+    }
+
+    private Task PublishTeamChangedAsync(PlayerId playerId, GameTeamType team, CancellationToken ct)
+    {
+        // The client has a playing mode of its own (it hides what gets in the way of a game);
+        // being on a team is what puts a player in it.
+        _roomGrain
+            ._grainFactory.SendComposerToPlayerAsync(
+                playerId,
+                new YouArePlayingGameMessageComposer { IsPlaying = team != GameTeamType.None },
+                CancellationToken.None
+            )
+            .LogAndForget(_roomGrain._logger, $"tell player {playerId} whether they are playing");
+
+        return _roomGrain.PublishRoomEventAsync(
+            new GameTeamChangedEvent
+            {
+                RoomId = _roomGrain.RoomId,
+                CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
+                PlayerId = playerId,
+                Team = team,
             },
             ct
         );

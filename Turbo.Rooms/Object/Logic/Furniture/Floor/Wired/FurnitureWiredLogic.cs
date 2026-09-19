@@ -109,58 +109,24 @@ public abstract partial class FurnitureWiredLogic(
 
     public virtual List<WiredVariableContextSnapshot> GetWiredContextSnapshots() => [];
 
-    public List<WiredFurniSourceType[]> GetFurniSources()
+    public List<WiredFurniSourceType[]> GetFurniSources() =>
+        StoredOrDefault(_wiredData.FurniSources, GetDefaultFurniSources());
+
+    public List<WiredPlayerSourceType[]> GetPlayerSources() =>
+        StoredOrDefault(_wiredData.PlayerSources, GetDefaultPlayerSources());
+
+    /// <summary>
+    /// One entry per slot the box declares: what is stored for the slot, or the slot's default.
+    /// A box that was never saved stores no sources at all, so the stored list is often shorter.
+    /// </summary>
+    private static List<T[]> StoredOrDefault<T>(List<T[]> stored, List<T[]> defaults)
     {
-        var sources = new List<WiredFurniSourceType[]>();
-        var index = 0;
+        var sources = new List<T[]>(defaults.Count);
 
-        foreach (var source in GetDefaultFurniSources())
-        {
-            WiredFurniSourceType[] sourceTypes = source;
-
-            try
-            {
-                if (_wiredData.FurniSources[index] is not null)
-                {
-                    sourceTypes = _wiredData.FurniSources[index];
-                }
-            }
-            catch (Exception ex)
-            {
-                LogWiredDataFault(ex);
-            }
-
-            sources.Add(sourceTypes);
-            index++;
-        }
-
-        return sources;
-    }
-
-    public List<WiredPlayerSourceType[]> GetPlayerSources()
-    {
-        var sources = new List<WiredPlayerSourceType[]>();
-        var index = 0;
-
-        foreach (var source in GetDefaultPlayerSources())
-        {
-            WiredPlayerSourceType[] sourceTypes = source;
-
-            try
-            {
-                if (_wiredData.PlayerSources[index] is not null)
-                {
-                    sourceTypes = _wiredData.PlayerSources[index];
-                }
-            }
-            catch (Exception ex)
-            {
-                LogWiredDataFault(ex);
-            }
-
-            sources.Add(sourceTypes);
-            index++;
-        }
+        for (var index = 0; index < defaults.Count; index++)
+            sources.Add(
+                index < stored.Count && stored[index] is { } chosen ? chosen : defaults[index]
+            );
 
         return sources;
     }
@@ -171,70 +137,71 @@ public abstract partial class FurnitureWiredLogic(
     public List<WiredPlayerSourceType[]> GetDefaultPlayerSources() =>
         [.. GetAllowedPlayerSources().Select(x => new[] { x[0] })];
 
-    public List<object> GetDefinitionSpecifics()
+    // Both lists hold exactly the declared types once the box has loaded (NormalizeSpecifics).
+    public List<object> GetDefinitionSpecifics() => [.. _wiredData.DefinitionSpecifics];
+
+    public List<object> GetTypeSpecifics() => [.. _wiredData.TypeSpecifics];
+
+    /// <summary>
+    /// The stored specifics as the types the box declares: one entry per declared type, the
+    /// stored value where it fits and the type's default where it does not. A box that was
+    /// never saved stores none, and JSON hands the rest back as untyped elements, so without
+    /// this a delay or an invert switch was read by index into nothing, or lost on the first
+    /// room load after it was saved.
+    /// </summary>
+    private static List<object> NormalizeSpecifics(List<object> stored, List<Type> specTypes)
     {
-        var specifics = new List<object>();
-        var index = 0;
+        var specifics = new List<object>(specTypes.Count);
 
-        foreach (var specType in GetDefinitionSpecificTypes())
+        for (var index = 0; index < specTypes.Count; index++)
         {
-            object specific = null!;
-
-            try
-            {
-                if (
-                    _wiredData.DefinitionSpecifics[index] is not null
-                    && specType.IsAssignableFrom(_wiredData.DefinitionSpecifics[index].GetType())
-                )
-                {
-                    specific = _wiredData.DefinitionSpecifics[index];
-                }
-            }
-            catch (Exception ex)
-            {
-                LogWiredDataFault(ex);
-            }
-
-            specific ??= Activator.CreateInstance(specType)!;
-
-            specifics.Add(specific);
-            index++;
+            specifics.Add(
+                index < stored.Count
+                && TryReadSpecific(stored[index], specTypes[index], out var specific)
+                    ? specific
+                    : CreateDefaultSpecific(specTypes[index])
+            );
         }
 
         return specifics;
     }
 
-    public List<object> GetTypeSpecifics()
+    private static bool TryReadSpecific(object? stored, Type specType, out object specific)
     {
-        var specifics = new List<object>();
-        var index = 0;
+        specific = stored!;
 
-        foreach (var specType in GetTypeSpecificTypes())
+        if (stored is null)
+            return false;
+
+        if (specType.IsInstanceOfType(stored))
+            return true;
+
+        if (stored is not JsonElement element)
+            return false;
+
+        switch (element.ValueKind)
         {
-            object specific = null!;
+            case JsonValueKind.Number
+                when specType == typeof(int) && element.TryGetInt32(out var i):
+                specific = i;
 
-            try
-            {
-                if (
-                    _wiredData.TypeSpecifics[index] is not null
-                    && specType.IsAssignableFrom(_wiredData.TypeSpecifics[index].GetType())
-                )
-                {
-                    specific = _wiredData.TypeSpecifics[index];
-                }
-            }
-            catch (Exception ex)
-            {
-                LogWiredDataFault(ex);
-            }
+                return true;
+            case JsonValueKind.Number
+                when specType == typeof(byte) && element.TryGetByte(out var b):
+                specific = b;
 
-            specific ??= Activator.CreateInstance(specType)!;
+                return true;
+            case JsonValueKind.True or JsonValueKind.False when specType == typeof(bool):
+                specific = element.GetBoolean();
 
-            specifics.Add(specific);
-            index++;
+                return true;
+            case JsonValueKind.String when specType == typeof(string):
+                specific = element.GetString() ?? string.Empty;
+
+                return true;
+            default:
+                return false;
         }
-
-        return specifics;
     }
 
     public List<int> GetDefaultIntParams()
@@ -636,6 +603,27 @@ public abstract partial class FurnitureWiredLogic(
             }
         }
 
+        var definitionSpecifics = NormalizeSpecifics(
+            _wiredData.DefinitionSpecifics,
+            GetDefinitionSpecificTypes()
+        );
+
+        if (!_wiredData.DefinitionSpecifics.SequenceEqual(definitionSpecifics))
+        {
+            _wiredData.DefinitionSpecifics = definitionSpecifics;
+
+            _wiredData.MarkDirty();
+        }
+
+        var typeSpecifics = NormalizeSpecifics(_wiredData.TypeSpecifics, GetTypeSpecificTypes());
+
+        if (!_wiredData.TypeSpecifics.SequenceEqual(typeSpecifics))
+        {
+            _wiredData.TypeSpecifics = typeSpecifics;
+
+            _wiredData.MarkDirty();
+        }
+
         _wiredData.SetAction(() =>
         {
             _ctx.RoomObject.ExtraData.UpdateSection(
@@ -781,7 +769,13 @@ public abstract partial class FurnitureWiredLogic(
         return items;
     }
 
-    /// <summary>An int param, or the default when the box has fewer params than expected.</summary>
+    /// <summary>
+    /// An int param, or the default when the box has fewer params than expected.
+    /// <typeparamref name="T"/> is the type the param's rule declares: an enum rule is read as
+    /// its enum, never as <c>int</c> and cast. Asking for another type is a mistake in the box,
+    /// not in the stored data, and is logged as one; the fallback it returns hid that for every
+    /// box reading a variable target, which all ignored the target they were saved with.
+    /// </summary>
     protected T GetIntParamOrDefault<T>(int index, T fallback)
     {
         try
@@ -790,6 +784,19 @@ public abstract partial class FurnitureWiredLogic(
                 return fallback;
 
             return _wiredData.GetIntParam<T>(index);
+        }
+        catch (WiredParamTypeMismatchException ex)
+        {
+            _roomGrain._logger.LogError(
+                ex,
+                "Wired box {Logic} (item {ItemId}, room {RoomId}) reads int param {Index} as the wrong type",
+                GetType().Name,
+                _ctx.ObjectId,
+                _ctx.RoomId,
+                index
+            );
+
+            return fallback;
         }
         catch (Exception ex)
         {

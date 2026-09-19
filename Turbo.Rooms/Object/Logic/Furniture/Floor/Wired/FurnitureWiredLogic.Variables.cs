@@ -30,10 +30,7 @@ public abstract partial class FurnitureWiredLogic
     /// variable's own when the box was never saved with one.
     /// </summary>
     protected WiredVariableTargetType GetTargetType(IWiredVariable variable, int paramIndex) =>
-        (WiredVariableTargetType)GetIntParamOrDefault(
-            paramIndex,
-            (int)variable.GetVarSnapshot().TargetType
-        );
+        GetIntParamOrDefault(paramIndex, variable.GetVarSnapshot().TargetType);
 
     /// <summary>The editor context of a box that lets the user pick any variable in the room.</summary>
     protected List<WiredVariableContextSnapshot> AllVariablesContext() =>
@@ -64,8 +61,10 @@ public abstract partial class FurnitureWiredLogic
         };
 
     /// <summary>
-    /// Resolves the operand of a comparison or arithmetic box: a literal when the mode param is
-    /// zero, otherwise the operand variable read on the first matching target of the selection.
+    /// Resolves the operand of a comparison or arithmetic box: a literal, or, when the editor's
+    /// value-or-variable switch at <paramref name="modeIndex"/> is on, the operand variable read
+    /// on the first matching target of the selection. Boxes declare that switch as a
+    /// <see cref="Turbo.Rooms.Wired.Rules.WiredBoolParamRule"/>.
     /// </summary>
     protected bool TryResolveOperand(
         int modeIndex,
@@ -78,7 +77,7 @@ public abstract partial class FurnitureWiredLogic
     {
         value = 0;
 
-        if (GetIntParamOrDefault(modeIndex, 0) == 0)
+        if (!GetIntParamOrDefault(modeIndex, false))
         {
             value = GetLongParam(hiIndex);
 

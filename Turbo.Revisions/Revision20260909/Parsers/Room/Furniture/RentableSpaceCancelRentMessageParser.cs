@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Room.Furniture;
 
 internal class RentableSpaceCancelRentMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new RentableSpaceCancelRentMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new RentableSpaceCancelRentMessage { ObjectId = packet.PopInt() };
 }

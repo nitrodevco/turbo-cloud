@@ -11,6 +11,14 @@ internal class YoutubeDisplayPlaylistsMessageComposerSerializer(int header)
         YoutubeDisplayPlaylistsMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.FurniId).WriteInteger(message.Playlists.Length);
+
+        foreach (var playlist in message.Playlists)
+            packet
+                .WriteString(playlist.PlaylistId)
+                .WriteString(playlist.Title)
+                .WriteString(playlist.Description);
+
+        packet.WriteString(message.SelectedPlaylistId);
     }
 }

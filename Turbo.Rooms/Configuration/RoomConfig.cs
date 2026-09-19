@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 
@@ -57,6 +58,22 @@ public class RoomConfig
     public int HandItemExpireMs { get; init; } = 240000;
 
     public int MannequinNameMaxLength { get; init; } = 32;
+
+    /// <summary>Longest figure string a furni stores (a clothing booth's look).</summary>
+    public int FigureMaxLength { get; init; } = 300;
+
+    /// <summary>What renting a rentable space costs, in credits. Zero makes them free.</summary>
+    public int RentableSpacePriceCredits { get; init; } = 10;
+
+    /// <summary>How long a rent lasts. A week by default.</summary>
+    public int RentableSpaceDurationSeconds { get; init; } = 604800;
+
+    /// <summary>
+    /// The playlists a video display offers. Which videos a hotel shows is hotel data, so it
+    /// ships empty; a video's length is needed because the client never says when one ends.
+    /// </summary>
+    public List<YoutubePlaylistConfig> YoutubePlaylists { get; init; } = [];
+
     public int TrophyInscriptionMaxLength { get; init; } = 100;
 
     /// <summary>Largest side, in tiles, an area hider may cover.</summary>

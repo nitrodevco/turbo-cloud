@@ -29,15 +29,8 @@ public abstract class FurnitureWiredSelectorLogic(
     {
         await base.FillInternalDataAsync(ct);
 
-        try
-        {
-            _isFilter = _wiredData.GetDefinitionParam<bool>(0);
-            _isInvert = _wiredData.GetDefinitionParam<bool>(1);
-        }
-        catch (Exception ex)
-        {
-            LogWiredDataFault(ex);
-        }
+        _isFilter = _wiredData.GetDefinitionParam<bool>(0);
+        _isInvert = _wiredData.GetDefinitionParam<bool>(1);
     }
 
     public bool GetIsFilter() => _isFilter;

@@ -25,21 +25,9 @@ public abstract class FurnitureWiredSubVariableAddonLogic(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredAddonLogic(grainFactory, stuffDataFactory, ctx), IWiredSubVariableProvider
 {
-    /// <summary>The variable box sharing this tile, if any.</summary>
-    protected FurnitureWiredVariableLogic? GetParentBox()
-    {
-        foreach (var item in _roomGrain.FurniModule.GetFloorItemsOnTile(_ctx.GetTileIdx()))
-        {
-            if (item.Logic is FurnitureWiredVariableLogic variable)
-                return variable;
-        }
-
-        return null;
-    }
-
     public IEnumerable<IWiredVariable> GetSubVariables()
     {
-        var parent = GetParentBox();
+        var parent = GetVariableBoxOnTile();
 
         if (parent is null)
             return [];

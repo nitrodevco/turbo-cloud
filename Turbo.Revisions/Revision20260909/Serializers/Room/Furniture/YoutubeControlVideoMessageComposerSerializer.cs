@@ -11,6 +11,6 @@ internal class YoutubeControlVideoMessageComposerSerializer(int header)
         YoutubeControlVideoMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.FurniId).WriteInteger((int)message.State);
     }
 }

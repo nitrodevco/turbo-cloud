@@ -93,21 +93,14 @@ public abstract class FurnitureWiredConditionLogic(
     }
 
     /// <summary>The client "require all" radio, stored as int param 0 on most conditions.</summary>
-    protected bool RequiresAll(int paramIndex = 0) => GetIntParamOrDefault(paramIndex, 0) == 1;
+    protected bool RequiresAll(int paramIndex = 0) => GetIntParamOrDefault(paramIndex, false);
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
         await base.FillInternalDataAsync(ct);
 
-        try
-        {
-            _quantifierCode = _wiredData.GetDefinitionParam<int>(0);
-            _quantifierType = _wiredData.GetTypeParam<byte>(0);
-            _isInvert = _wiredData.GetTypeParam<bool>(1);
-        }
-        catch (Exception ex)
-        {
-            LogWiredDataFault(ex);
-        }
+        _quantifierCode = _wiredData.GetDefinitionParam<int>(0);
+        _quantifierType = _wiredData.GetTypeParam<byte>(0);
+        _isInvert = _wiredData.GetTypeParam<bool>(1);
     }
 }

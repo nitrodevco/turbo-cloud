@@ -31,6 +31,7 @@ using Turbo.Primitives.Rooms.Snapshots.Settings;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
+using Turbo.Rooms.Wired.VariableFx;
 
 namespace Turbo.Rooms.Grains;
 
@@ -82,6 +83,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public readonly RoomRollerSystem RollerSystem;
     public readonly RoomWiredSystem WiredSystem;
     public readonly RoomGameSystem GameSystem;
+    public readonly RoomVariableFxSystem VariableFxSystem;
     public readonly RoomChatSystem ChatSystem;
     public readonly RoomTimerSystem TimerSystem;
 
@@ -147,13 +149,16 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         RollerSystem = new(this);
         WiredSystem = new(this);
         GameSystem = new(this);
+        VariableFxSystem = new(this);
         ChatSystem = new(this);
         TimerSystem = new(this);
 
         EventModule.Register(RollerSystem);
         EventModule.Register(WiredSystem);
         EventModule.Register(GameSystem);
+        EventModule.Register(VariableFxSystem);
         FurniModule.RegisterPlacementLimit(WiredSystem);
+        FurniModule.RegisterPlacementLimit(VariableFxSystem);
         EventModule.Register(ChatSystem);
     }
 
@@ -203,6 +208,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             await BotTickSystem.ProcessBotsAsync(now, ct);
             await AvatarTickSystem.ProcessAvatarsAsync(now, ct);
             await WiredSystem.ProcessWiredAsync(now, ct);
+            await VariableFxSystem.ProcessAsync(now, ct);
             await RollerSystem.ProcessRollersAsync(now, ct);
             await TimerSystem.ProcessTimersAsync(now, ct);
             await FlushDirtyTilesAsync(ct);
