@@ -3,8 +3,13 @@ using Turbo.Primitives.Networking;
 
 namespace Turbo.Primitives.Messages.Outgoing.Room.Pets;
 
+/// <summary>The account is too young to scratch pets.</summary>
 [GenerateSerializer, Immutable]
 public sealed record PetRespectFailedMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required int RequiredDays { get; init; }
+
+    [Id(1)]
+    public required int AvatarAgeDays { get; init; }
 }

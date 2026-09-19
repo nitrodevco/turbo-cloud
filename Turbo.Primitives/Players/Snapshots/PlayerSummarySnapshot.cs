@@ -1,5 +1,6 @@
 using System;
 using Orleans;
+using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Primitives.Players.Snapshots;
@@ -48,4 +49,7 @@ public sealed record PlayerSummarySnapshot
 
     [Id(13)]
     public required int RespectReplenishesLeft { get; init; }
+
+    [Id(14)]
+    public required PlayerPerkFlags Perks { get; init; }
 }

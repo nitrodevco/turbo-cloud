@@ -112,6 +112,60 @@ public sealed class RoomModerationModule(
         return true;
     }
 
+    /// <summary>A wired mute: no actor, no rank check, the room cap still applies.</summary>
+    public async Task<bool> MutePlayerBySystemAsync(
+        PlayerId playerId,
+        int durationMinutes,
+        CancellationToken ct
+    )
+    {
+        if (durationMinutes <= 0 || !_roomGrain._state.AvatarsByPlayerId.ContainsKey(playerId))
+            return false;
+
+        var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(playerId);
+
+        if (controllerLevel >= RoomControllerType.Owner)
+            return false;
+
+        durationMinutes = Math.Min(
+            durationMinutes,
+            _roomGrain._roomConfig.ChatMuteMaxDurationMinutes
+        );
+
+        var expiresAt = DateTime.UtcNow.AddMinutes(durationMinutes);
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        var entity = await dbCtx.RoomMutes.FirstOrDefaultAsync(
+            x => x.RoomEntityId == _roomGrain.RoomId.Value && x.PlayerEntityId == playerId.Value,
+            ct
+        );
+
+        if (entity is null)
+        {
+            dbCtx.RoomMutes.Add(
+                new RoomMuteEntity
+                {
+                    RoomEntityId = _roomGrain.RoomId.Value,
+                    PlayerEntityId = playerId.Value,
+                    DateExpires = expiresAt,
+                    RoomEntity = null!,
+                    PlayerEntity = null!,
+                }
+            );
+        }
+        else
+        {
+            entity.DateExpires = expiresAt;
+        }
+
+        await dbCtx.SaveChangesAsync(ct);
+
+        _roomGrain._state.MutedUntilByPlayerId[playerId] = expiresAt;
+
+        return true;
+    }
+
     public async Task<bool> UnmutePlayerAsync(
         ActionContext ctx,
         PlayerId playerId,

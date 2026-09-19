@@ -11,6 +11,6 @@ internal class BotRemovedFromInventoryEventMessageComposerSerializer(int header)
         BotRemovedFromInventoryEventMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.BotId);
     }
 }

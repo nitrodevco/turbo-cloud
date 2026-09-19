@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Inventory.Trading;
 
 internal class OpenTradingMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new OpenTradingMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new OpenTradingMessage { ObjectId = packet.PopInt() };
 }

@@ -6,5 +6,6 @@ namespace Turbo.Primitives.Messages.Outgoing.Inventory.Pets;
 [GenerateSerializer, Immutable]
 public sealed record PetRemovedFromInventoryEventMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required int PetId { get; init; }
 }

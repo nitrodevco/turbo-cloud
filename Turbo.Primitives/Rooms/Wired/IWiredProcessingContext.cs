@@ -6,5 +6,7 @@ public interface IWiredProcessingContext : IWiredContext
 {
     public RoomEvent Event { get; }
     public IWiredStack Stack { get; }
-    public IWiredTrigger Trigger { get; }
+
+    /// <summary>Null when the stack was run by a "call stack" action rather than a trigger.</summary>
+    public IWiredTrigger? Trigger { get; }
 }

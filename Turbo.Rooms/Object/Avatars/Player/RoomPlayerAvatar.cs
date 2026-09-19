@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Text;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots;
@@ -19,6 +20,7 @@ public sealed class RoomPlayerAvatar
     public AvatarGenderType Gender { get; private set; } = AvatarGenderType.Male;
     public AvatarDanceType DanceType { get; private set; } = AvatarDanceType.None;
     public int EffectId { get; private set; } = 0;
+    public ImmutableArray<string> BadgeCodes { get; private set; } = [];
 
     public int GroupId { get; init; } = -1;
     public int GroupStatus { get; init; } = -1;
@@ -70,6 +72,8 @@ public sealed class RoomPlayerAvatar
 
         return true;
     }
+
+    public void SetBadges(ImmutableArray<string> badgeCodes) => BadgeCodes = badgeCodes;
 
     public bool SetEffect(int effectId = 0)
     {

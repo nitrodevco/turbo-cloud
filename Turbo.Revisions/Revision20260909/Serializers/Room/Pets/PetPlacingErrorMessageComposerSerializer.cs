@@ -8,6 +8,6 @@ internal class PetPlacingErrorMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, PetPlacingErrorMessageComposer message)
     {
-        //
+        packet.WriteInteger((int)message.Error);
     }
 }

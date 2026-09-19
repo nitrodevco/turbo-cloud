@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Room.Engine;
 
 internal class TogglePetRidingPermissionMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new TogglePetRidingPermissionMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new TogglePetRidingPermissionMessage { PetId = packet.PopInt() };
 }

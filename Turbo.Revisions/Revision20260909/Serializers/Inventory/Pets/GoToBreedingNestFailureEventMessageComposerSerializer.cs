@@ -11,6 +11,6 @@ internal class GoToBreedingNestFailureEventMessageComposerSerializer(int header)
         GoToBreedingNestFailureEventMessageComposer message
     )
     {
-        //
+        packet.WriteInteger((int)message.Reason);
     }
 }

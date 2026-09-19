@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Inventory.Trading;
 
 internal class AddItemToTradeMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new AddItemToTradeMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new AddItemToTradeMessage { ItemId = packet.PopInt() };
 }

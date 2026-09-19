@@ -17,6 +17,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Settings;
 
 namespace Turbo.Rooms.Grains;
@@ -213,8 +214,14 @@ public sealed partial class RoomGrain
 
         var roomId = _state.RoomId.Value;
 
+        // Pets and bots go home first; their rows cascade with the room otherwise.
+        await PetModule.ReturnAllToOwnersAsync(ct);
+        await BotModule.ReturnAllToOwnersAsync(ct);
+
         // Furniture goes home before the row goes: the same path a pickup takes, so inventories
         // that are live see the items arrive.
+        var returned = new Dictionary<PlayerId, List<RoomItemSnapshot>>();
+
         foreach (var item in _state.ItemsById.Values.ToList())
         {
             await ObjectModule.RemoveObjectAsync(
@@ -223,16 +230,33 @@ public sealed partial class RoomGrain
                 ct,
                 item.OwnerId
             );
-            await _grainFactory
-                .GetInventoryGrain(item.OwnerId)
-                .AddFurnitureFromRoomItemSnapshotAsync(item.GetSnapshot(), ct);
+
+            if (!returned.TryGetValue(item.OwnerId, out var owned))
+                returned[item.OwnerId] = owned = [];
+
+            owned.Add(item.GetSnapshot());
         }
+
+        // One call per owner, however many items they had in the room.
+        await Task.WhenAll(
+            returned.Select(entry =>
+                _grainFactory
+                    .GetInventoryGrain(entry.Key)
+                    .AddFurnitureFromRoomItemSnapshotsAsync([.. entry.Value], ct)
+            )
+        );
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
         await using var tx = await dbCtx.Database.BeginTransactionAsync(ct);
 
         await dbCtx
             .Furnitures.Where(x => x.RoomEntityId == roomId)
+            .ExecuteUpdateAsync(up => up.SetProperty(x => x.RoomEntityId, (int?)null), ct);
+        await dbCtx
+            .Pets.Where(x => x.RoomEntityId == roomId)
+            .ExecuteUpdateAsync(up => up.SetProperty(x => x.RoomEntityId, (int?)null), ct);
+        await dbCtx
+            .Bots.Where(x => x.RoomEntityId == roomId)
             .ExecuteUpdateAsync(up => up.SetProperty(x => x.RoomEntityId, (int?)null), ct);
         await dbCtx.RoomRights.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);
         await dbCtx.RoomBans.Where(x => x.RoomEntityId == roomId).ExecuteDeleteAsync(ct);

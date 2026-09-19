@@ -8,6 +8,6 @@ internal class BotErrorMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, BotErrorMessageComposer message)
     {
-        //
+        packet.WriteInteger((int)message.Error);
     }
 }

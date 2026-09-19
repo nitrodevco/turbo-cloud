@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Database.Context;
+using Turbo.Database.Entities.Players;
 using Turbo.Logging;
 using Turbo.Players.Configuration;
 using Turbo.Primitives;
@@ -125,6 +126,7 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         _state.AchievementScore = 0;
         _state.CreatedAt = entity.CreatedAt;
         _state.LastUpdated = entity.UpdatedAt;
+        _state.Perks = entity.PlayerPerks;
         _state.RespectPoints = entity.RespectPoints;
         _state.RespectsLeft = entity.RespectsLeft;
         _state.PetRespectsLeft = entity.PetRespectsLeft;
@@ -179,6 +181,7 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
                 RespectsLeft = _state.RespectsLeft,
                 PetRespectsLeft = _state.PetRespectsLeft,
                 RespectReplenishesLeft = _state.RespectReplenishesLeft,
+                Perks = _state.Perks,
             }
         );
 
@@ -190,6 +193,20 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
             return false;
 
         _state.RespectsLeft--;
+
+        await WriteToDatabaseAsync(ct);
+
+        return true;
+    }
+
+    public async Task<bool> TryUsePetRespectAsync(CancellationToken ct)
+    {
+        ResetDailyRespectIfDue();
+
+        if (_state.PetRespectsLeft <= 0)
+            return false;
+
+        _state.PetRespectsLeft--;
 
         await WriteToDatabaseAsync(ct);
 
@@ -216,6 +233,38 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         _state.RespectsLeft = _playerConfig.MaxRespectPerDay;
 
         await WriteToDatabaseAsync(ct);
+
+        return true;
+    }
+
+    public async Task<bool> GiveBadgeAsync(string badgeCode, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(badgeCode))
+            return false;
+
+        badgeCode = badgeCode.Trim();
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        var exists = await dbCtx.PlayerBadges.AnyAsync(
+            x => x.PlayerEntityId == (int)_state.PlayerId && x.BadgeCode == badgeCode,
+            ct
+        );
+
+        if (exists)
+            return false;
+
+        dbCtx.PlayerBadges.Add(
+            new PlayerBadgeEntity
+            {
+                PlayerEntityId = (int)_state.PlayerId,
+                BadgeCode = badgeCode,
+                SlotId = null,
+                PlayerEntity = null!,
+            }
+        );
+
+        await dbCtx.SaveChangesAsync(ct);
 
         return true;
     }

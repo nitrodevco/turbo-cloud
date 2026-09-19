@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using Turbo.Database.Entities.Bots;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Messenger;
 using Turbo.Database.Entities.Navigator;
+using Turbo.Database.Entities.Pets;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Entities.Security;
@@ -89,6 +91,9 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<RoomEventEntity> RoomEvents { get; init; }
     public DbSet<RoomFilterWordEntity> RoomFilterWords { get; init; }
+    public DbSet<PetEntity> Pets { get; init; }
+    public DbSet<PetBreedEntity> PetBreeds { get; init; }
+    public DbSet<BotEntity> Bots { get; init; }
 
     protected override void OnModelCreating(ModelBuilder mb)
     {

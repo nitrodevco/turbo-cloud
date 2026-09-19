@@ -20,6 +20,8 @@ public sealed class RoomLiveState
     public Dictionary<RoomObjectId, IRoomItem> ItemsById { get; } = [];
     public Dictionary<RoomObjectId, IRoomAvatar> AvatarsByObjectId { get; } = [];
     public Dictionary<PlayerId, RoomObjectId> AvatarsByPlayerId { get; } = [];
+    public Dictionary<int, RoomObjectId> AvatarsByPetId { get; } = [];
+    public Dictionary<int, RoomObjectId> AvatarsByBotId { get; } = [];
     public Dictionary<PlayerId, string> OwnerNamesById { get; } = [];
 
     public RoomModelSnapshot? Model { get; internal set; } = null;
@@ -41,7 +43,18 @@ public sealed class RoomLiveState
     public bool IsDeleting { get; internal set; } = false;
     public HashSet<string> FilterWords { get; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<RoomObjectId, FriendFurniLockRequest> PendingFriendFurniLocks { get; } = [];
+
+    /// <summary>Nest breedings awaiting the owners' answers, keyed by the nest item.</summary>
+    public Dictionary<RoomObjectId, NestBreedingSession> PendingNestBreedings { get; } = [];
+
+    /// <summary>Open trades, keyed by both parties so either can be found from a player id.</summary>
+    public Dictionary<PlayerId, TradeSession> TradesByPlayerId { get; } = [];
+
+    /// <summary>Monsterplant breedings awaiting the invited owner, keyed by the requesting plant.</summary>
+    public Dictionary<int, PlantBreedingRequest> PendingPlantBreedings { get; } = [];
     public bool IsFilterLoaded { get; internal set; } = false;
+    public bool IsPetsLoaded { get; internal set; } = false;
+    public bool IsBotsLoaded { get; internal set; } = false;
     public HashSet<PlayerId> PlayerIdsWhoRated { get; } = [];
 
     /// <summary>Navigator-visible data changed since the room became active.</summary>

@@ -9,7 +9,10 @@ using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Catalog.Snapshots;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Pets;
+using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Wallet;
@@ -21,11 +24,13 @@ namespace Turbo.Catalog.Grains;
 internal sealed partial class CatalogPurchaseGrain(
     IGrainFactory grainFactory,
     ICatalogService catalogService,
+    IPetBreedProvider petBreedProvider,
     ILogger<CatalogPurchaseGrain> logger
 ) : Grain, ICatalogPurchaseGrain
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
     private readonly ICatalogService _catalogService = catalogService;
+    private readonly IPetBreedProvider _petBreedProvider = petBreedProvider;
     private readonly ILogger<CatalogPurchaseGrain> _logger = logger;
 
     public async Task<CatalogOfferSnapshot> PurchaseOfferFromCatalogAsync(
@@ -44,6 +49,8 @@ internal sealed partial class CatalogPurchaseGrain(
         if (!snapshot.OffersById.TryGetValue(offerId, out var offer))
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.OfferNotFound);
 
+        ValidatePetProducts(offer, extraParam);
+
         if (TryGetDebitRequests(offer, quantity, out var debitRequests))
         {
             var result = await _grainFactory
@@ -59,6 +66,41 @@ internal sealed partial class CatalogPurchaseGrain(
             .GrantCatalogOfferAsync(offer, extraParam, quantity, ct);
 
         return offer;
+    }
+
+    /// <summary>
+    /// A pet purchase carries the name, breed and colour the buyer chose; refuse it before any
+    /// money moves when it cannot be granted, since the grant runs after the debit.
+    /// </summary>
+    private void ValidatePetProducts(CatalogOfferSnapshot offer, string extraParam)
+    {
+        foreach (var product in offer.Products)
+        {
+            if (product.ProductType != ProductType.Pet)
+                continue;
+
+            if (
+                !PetProductCodes.TryGetTypeId(product.ClassName, out var typeId)
+                && !int.TryParse(product.ExtraParam, out typeId)
+            )
+            {
+                _logger.LogError(
+                    "Pet product {ProductId} of offer {OfferId} names no pet type",
+                    product.Id,
+                    offer.Id
+                );
+
+                throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
+            }
+
+            if (!PetPurchaseData.TryParse(extraParam, out var purchase))
+                throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
+
+            var palette = _petBreedProvider.TryGetPalette(typeId, purchase.PaletteId);
+
+            if (palette is null || !palette.Sellable)
+                throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
+        }
     }
 
     public async Task<CatalogOfferSnapshot> PurchaseRoomAdAsync(

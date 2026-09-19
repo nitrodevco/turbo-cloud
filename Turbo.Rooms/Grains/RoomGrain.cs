@@ -15,8 +15,10 @@ using Turbo.Database.Context;
 using Turbo.Events;
 using Turbo.Logging;
 using Turbo.Primitives;
+using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -42,12 +44,17 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 {
     internal readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     internal readonly RoomConfig _roomConfig;
+    internal readonly PetConfig _petConfig;
+    internal readonly BotConfig _botConfig;
     internal readonly ILogger<IRoomGrain> _logger;
     internal readonly IRoomModelProvider _roomModelProvider;
     internal readonly IRoomItemsProvider _itemsLoader;
+    internal readonly IRoomNpcProvider _npcProvider;
     internal readonly IRoomObjectLogicProvider _logicProvider;
     internal readonly IRoomAvatarProvider _avatarProvider;
     internal readonly IRoomWiredVariablesProvider _wiredVariablesProvider;
+    internal readonly IPetBreedProvider _petBreedProvider;
+    internal readonly IFurnitureDefinitionProvider _definitionProvider;
     internal readonly IGrainFactory _grainFactory;
     internal readonly EventSystem _eventSystem;
 
@@ -66,9 +73,14 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public readonly RoomAvatarModule AvatarModule;
     public readonly RoomFurniModule FurniModule;
     public readonly RoomActionModule ActionModule;
+    public readonly RoomPetModule PetModule;
+    public readonly RoomBotModule BotModule;
+    public readonly RoomTradeModule TradeModule;
 
     public readonly RoomPathingSystem PathingSystem;
     public readonly RoomAvatarTickSystem AvatarTickSystem;
+    public readonly RoomPetTickSystem PetTickSystem;
+    public readonly RoomBotTickSystem BotTickSystem;
     public readonly RoomRollerSystem RollerSystem;
     public readonly RoomWiredSystem WiredSystem;
     public readonly RoomChatSystem ChatSystem;
@@ -79,24 +91,34 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public RoomGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IOptions<RoomConfig> roomConfig,
+        IOptions<PetConfig> petConfig,
+        IOptions<BotConfig> botConfig,
         ILogger<IRoomGrain> logger,
         IRoomModelProvider roomModelProvider,
         IRoomItemsProvider itemsLoader,
+        IRoomNpcProvider npcProvider,
         IRoomObjectLogicProvider logicProvider,
         IRoomAvatarProvider avatarProvider,
         IRoomWiredVariablesProvider wiredVariablesProvider,
+        IPetBreedProvider petBreedProvider,
+        IFurnitureDefinitionProvider definitionProvider,
         IGrainFactory grainFactory,
         EventSystem eventSystem
     )
     {
         _dbCtxFactory = dbCtxFactory;
         _roomConfig = roomConfig.Value;
+        _petConfig = petConfig.Value;
+        _botConfig = botConfig.Value;
         _logger = logger;
         _roomModelProvider = roomModelProvider;
         _itemsLoader = itemsLoader;
+        _npcProvider = npcProvider;
         _logicProvider = logicProvider;
         _avatarProvider = avatarProvider;
         _wiredVariablesProvider = wiredVariablesProvider;
+        _petBreedProvider = petBreedProvider;
+        _definitionProvider = definitionProvider;
         _grainFactory = grainFactory;
         _eventSystem = eventSystem;
 
@@ -111,8 +133,13 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         AvatarModule = new(this);
         FurniModule = new(this);
         ActionModule = new(this);
+        PetModule = new(this);
+        BotModule = new(this);
+        TradeModule = new(this);
 
         AvatarTickSystem = new(this);
+        PetTickSystem = new(this);
+        BotTickSystem = new(this);
         RollerSystem = new(this);
         WiredSystem = new(this);
         ChatSystem = new(this);
@@ -164,6 +191,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         {
             var now = NowMs();
 
+            // Pets and bots pick their next walk before avatars step, so it starts this tick.
+            await PetTickSystem.ProcessPetsAsync(now, ct);
+            await BotTickSystem.ProcessBotsAsync(now, ct);
             await AvatarTickSystem.ProcessAvatarsAsync(now, ct);
             await WiredSystem.ProcessWiredAsync(now, ct);
             await RollerSystem.ProcessRollersAsync(now, ct);
@@ -241,6 +271,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
         await MapModule.EnsureMapBuiltAsync(ct);
         await FurniModule.EnsureFurniLoadedAsync(ct);
+        await PetModule.EnsurePetsLoadedAsync(ct);
+        await BotModule.EnsureBotsLoadedAsync(ct);
         await SecurityModule.EnsureRightsLoadedAsync(ct);
         await ModerationModule.EnsureMutesLoadedAsync(ct);
         await EntryModule.EnsureBansLoadedAsync(ct);

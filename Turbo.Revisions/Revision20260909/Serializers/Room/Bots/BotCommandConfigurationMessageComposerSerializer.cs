@@ -11,6 +11,9 @@ internal class BotCommandConfigurationMessageComposerSerializer(int header)
         BotCommandConfigurationMessageComposer message
     )
     {
-        //
+        packet
+            .WriteInteger(message.BotId)
+            .WriteInteger((int)message.Skill)
+            .WriteString(message.Data);
     }
 }

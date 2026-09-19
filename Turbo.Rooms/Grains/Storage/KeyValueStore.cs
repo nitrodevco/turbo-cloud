@@ -10,6 +10,9 @@ public sealed class KeyValueStore : IWiredVariableStore
 {
     public Dictionary<string, WiredVariableValue> Store { get; set; } = [];
 
+    /// <summary>Creation and last write times per key, for the variable age wired.</summary>
+    public Dictionary<string, WiredVariableTimestamps> Timestamps { get; set; } = [];
+
     private Func<Task>? _onChanged;
 
     public void SetAction(Func<Task>? onChanged) => _onChanged = onChanged;
@@ -25,10 +28,13 @@ public sealed class KeyValueStore : IWiredVariableStore
         bool replace = false
     )
     {
-        if (Store.ContainsKey(key.ToStorageKey()) && !replace)
+        var existed = Store.ContainsKey(key.ToStorageKey());
+
+        if (existed && !replace)
             return Task.FromResult(false);
 
         Store[key.ToStorageKey()] = value;
+        Stamp(key.ToStorageKey(), !existed);
 
         MarkDirty();
 
@@ -45,10 +51,29 @@ public sealed class KeyValueStore : IWiredVariableStore
             return Task.FromResult(false);
 
         Store[key.ToStorageKey()] = value;
+        Stamp(key.ToStorageKey(), false);
 
         MarkDirty();
 
         return Task.FromResult(true);
+    }
+
+    public bool TryGetTimestamps(
+        in WiredVariableKey key,
+        out long createdAtMs,
+        out long updatedAtMs
+    )
+    {
+        createdAtMs = 0;
+        updatedAtMs = 0;
+
+        if (!Timestamps.TryGetValue(key.ToStorageKey(), out var stamps))
+            return Store.ContainsKey(key.ToStorageKey());
+
+        createdAtMs = stamps.CreatedAtMs;
+        updatedAtMs = stamps.UpdatedAtMs;
+
+        return true;
     }
 
     public bool RemoveValue(WiredVariableKey key)
@@ -56,9 +81,21 @@ public sealed class KeyValueStore : IWiredVariableStore
         if (!Store.ContainsKey(key.ToStorageKey()) || !Store.Remove(key.ToStorageKey()))
             return false;
 
+        Timestamps.Remove(key.ToStorageKey());
+
         MarkDirty();
 
         return true;
+    }
+
+    private void Stamp(string storageKey, bool created)
+    {
+        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+        if (created || !Timestamps.TryGetValue(storageKey, out var stamps))
+            Timestamps[storageKey] = new WiredVariableTimestamps(now, now);
+        else
+            Timestamps[storageKey] = stamps with { UpdatedAtMs = now };
     }
 
     private void MarkDirty()

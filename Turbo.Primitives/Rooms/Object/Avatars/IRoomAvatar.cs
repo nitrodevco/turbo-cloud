@@ -43,10 +43,14 @@ public interface IRoomAvatar : IRoomObject
     /// <summary>Milliseconds (room clock) of the avatar's last deliberate action.</summary>
     public long LastActiveAtMs { get; }
     public bool IsIdle { get; }
+
+    /// <summary>Frozen avatars cannot walk; wired freezes and unfreezes them.</summary>
+    public bool IsFrozen { get; }
     public bool SetGoalTileId(int tileId);
     public bool SetHandItem(int handItemId);
     public void Touch(long nowMs);
     public void SetIdle(bool isIdle);
+    public void SetFrozen(bool isFrozen);
     public void SetHeight(Altitude z);
     public void SetBodyRotation(Rotation rot);
     public void SetHeadRotation(Rotation rot);

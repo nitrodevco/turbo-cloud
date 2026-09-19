@@ -6,5 +6,21 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Userdefinedroomevents.Wiredme
 
 internal class WiredSetObjectVariableValueMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new WiredSetObjectVariableValueMessage();
+    public IMessageEvent Parse(IClientPacket packet)
+    {
+        var variableTarget = packet.PopInt();
+        var objectIdForType = packet.PopInt();
+        var variableId = packet.PopString();
+        var value = packet.PopInt();
+        var referenceRoomId = packet.PopInt();
+
+        return new WiredSetObjectVariableValueMessage
+        {
+            VariableTarget = variableTarget,
+            ObjectIdForType = objectIdForType,
+            VariableId = variableId,
+            Value = value,
+            ReferenceRoomId = referenceRoomId,
+        };
+    }
 }

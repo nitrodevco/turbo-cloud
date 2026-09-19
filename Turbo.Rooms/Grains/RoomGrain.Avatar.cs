@@ -10,6 +10,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Player;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Rooms.Grains;
@@ -59,6 +60,7 @@ public sealed partial class RoomGrain
     {
         try
         {
+            await TradeModule.CloseForPlayerAsync(playerId, ct);
             await AvatarModule.RemoveAvatarFromPlayerAsync(ctx, playerId, ct);
 
             await PublishRoomEventAsync(
@@ -334,6 +336,50 @@ public sealed partial class RoomGrain
                 ex,
                 "Failed to drop the hand item of player {PlayerId} in room {RoomId}",
                 ctx.PlayerId,
+                _state.RoomId
+            );
+
+            return false;
+        }
+    }
+
+    public async Task<bool> ClickAvatarAsync(
+        ActionContext ctx,
+        RoomObjectId targetObjectId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            if (
+                ctx.PlayerId <= 0
+                || !_state.AvatarsByObjectId.ContainsKey(targetObjectId)
+                || !_state.AvatarsByPlayerId.ContainsKey(ctx.PlayerId)
+            )
+                return false;
+
+            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+
+            await PublishRoomEventAsync(
+                new PlayerClickedAvatarEvent
+                {
+                    RoomId = _state.RoomId,
+                    CausedBy = ctx,
+                    PlayerId = ctx.PlayerId,
+                    TargetObjectId = targetObjectId,
+                },
+                ct
+            );
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Player {PlayerId} failed to click avatar {ObjectId} in room {RoomId}",
+                ctx.PlayerId,
+                targetObjectId,
                 _state.RoomId
             );
 

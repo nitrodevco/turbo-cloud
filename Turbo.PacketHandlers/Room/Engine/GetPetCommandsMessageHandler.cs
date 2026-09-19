@@ -1,18 +1,29 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Room.Engine;
+using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Room.Engine;
 
-public class GetPetCommandsMessageHandler : IMessageHandler<GetPetCommandsMessage>
+public class GetPetCommandsMessageHandler(IGrainFactory grainFactory)
+    : IMessageHandler<GetPetCommandsMessage>
 {
+    private readonly IGrainFactory _grainFactory = grainFactory;
+
     public async ValueTask HandleAsync(
         GetPetCommandsMessage message,
         MessageContext ctx,
         CancellationToken ct
     )
     {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || message.PetId <= 0)
+            return;
+
+        await _grainFactory
+            .GetRoomGrain(ctx.RoomId)
+            .RequestPetCommandsAsync(ctx.AsActionContext(), message.PetId, ct)
+            .ConfigureAwait(false);
     }
 }

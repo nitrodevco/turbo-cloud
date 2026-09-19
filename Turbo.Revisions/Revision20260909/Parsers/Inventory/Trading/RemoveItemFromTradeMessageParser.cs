@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Inventory.Trading;
 
 internal class RemoveItemFromTradeMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new RemoveItemFromTradeMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new RemoveItemFromTradeMessage { ItemId = packet.PopInt() };
 }

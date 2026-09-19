@@ -11,6 +11,6 @@ internal class ConfirmBreedingResultEventMessageComposerSerializer(int header)
         ConfirmBreedingResultEventMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.NestId).WriteInteger((int)message.Result);
     }
 }

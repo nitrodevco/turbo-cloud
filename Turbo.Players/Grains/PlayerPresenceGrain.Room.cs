@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -6,8 +7,11 @@ using Orleans;
 using Orleans.Runtime;
 using Orleans.Streams;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Room.Permissions;
+using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -81,15 +85,10 @@ internal sealed partial class PlayerPresenceGrain
     /// </summary>
     public async Task ClearActiveRoomAsync(CancellationToken ct)
     {
-        await UnsubscribeFromRoomStreamAsync();
+        var prev = await LeaveActiveRoomAsync(ct);
 
-        if (_state.ActiveRoomId <= 0)
+        if (prev <= 0)
             return;
-
-        var prev = _state.ActiveRoomId;
-
-        _state.ActiveRoomId = -1;
-        _state.ActiveRoomSinceUtc = DateTime.UtcNow;
 
         var ctx = ActionContext.CreateForPlayer(_state.PlayerId, prev);
 
@@ -108,12 +107,52 @@ internal sealed partial class PlayerPresenceGrain
                 prev
             );
         }
+    }
+
+    /// <summary>
+    /// The room already dropped this player's avatar (kick, ban, room deletion, wired kick) and
+    /// the session only has to follow. Unlike <see cref="ClearActiveRoomAsync"/> this never calls
+    /// the room grain, so a room grain may invoke it without deadlocking on itself.
+    /// </summary>
+    public async Task OnRemovedFromRoomAsync(RoomId roomId, bool kicked, CancellationToken ct)
+    {
+        if (_state.ActiveRoomId != roomId)
+            return;
+
+        await LeaveActiveRoomAsync(ct);
+
+        IReadOnlyList<IComposer> composers = kicked
+            ?
+            [
+                new GenericErrorMessage { ErrorCode = RoomGenericErrorType.RoomKicked },
+                new CloseConnectionMessageComposer(),
+            ]
+            : [new CloseConnectionMessageComposer()];
+
+        await SendComposerAsync(composers, ct);
+    }
+
+    /// <summary>
+    /// Forgets the active room: releases the stream, clears the pointer and leaves the room
+    /// directory. Returns the room that was left, or -1 when there was none.
+    /// </summary>
+    private async Task<RoomId> LeaveActiveRoomAsync(CancellationToken ct)
+    {
+        await UnsubscribeFromRoomStreamAsync();
+
+        if (_state.ActiveRoomId <= 0)
+            return -1;
+
+        var prev = _state.ActiveRoomId;
+
+        _state.ActiveRoomId = -1;
+        _state.ActiveRoomSinceUtc = DateTime.UtcNow;
 
         try
         {
             await _grainFactory
                 .GetRoomDirectoryGrain()
-                .RemovePlayerFromRoomAsync(ctx.PlayerId, prev, ct);
+                .RemovePlayerFromRoomAsync(_state.PlayerId, prev, ct);
         }
         catch (Exception ex)
         {
@@ -124,6 +163,8 @@ internal sealed partial class PlayerPresenceGrain
                 prev
             );
         }
+
+        return prev;
     }
 
     public Task SetPendingRoomAsync(RoomId roomId, RoomEntryState state, CancellationToken ct)

@@ -11,6 +11,9 @@ internal class PetSupplementedNotificationEventMessageComposerSerializer(int hea
         PetSupplementedNotificationEventMessageComposer message
     )
     {
-        //
+        packet
+            .WriteInteger(message.PetId)
+            .WriteInteger(message.PlayerId)
+            .WriteInteger((int)message.Supplement);
     }
 }

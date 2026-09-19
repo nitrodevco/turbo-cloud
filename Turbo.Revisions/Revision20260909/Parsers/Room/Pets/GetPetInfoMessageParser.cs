@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Room.Pets;
 
 internal class GetPetInfoMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetPetInfoMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetPetInfoMessage { PetId = packet.PopInt() };
 }

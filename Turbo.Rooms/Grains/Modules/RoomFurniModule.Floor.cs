@@ -80,7 +80,13 @@ public sealed partial class RoomFurniModule
         int x,
         int y,
         Rotation rot
-    )
+    ) => Task.FromResult(CanPlaceFloorItem(itemId, x, y, rot));
+
+    /// <summary>
+    /// Whether an item already in the room may stand at a tile and rotation. Pure room state, so
+    /// synchronous callers (wired conditions) use it directly.
+    /// </summary>
+    public bool CanPlaceFloorItem(RoomObjectId itemId, int x, int y, Rotation rot)
     {
         if (
             !_roomGrain._state.ItemsById.TryGetValue(itemId, out var item)
@@ -135,7 +141,7 @@ public sealed partial class RoomFurniModule
                         )
                     )
                 )
-                    return Task.FromResult(false);
+                    return false;
 
                 if (bItem == tItem)
                     continue;
@@ -150,14 +156,14 @@ public sealed partial class RoomFurniModule
                             || tItem.Logic is FurnitureRollerLogic
                         )
                     )
-                        return Task.FromResult(false);
+                        return false;
 
                     // if is a stack helper, allow placement
                 }
             }
         }
 
-        return Task.FromResult(true);
+        return true;
     }
 
     public Task<bool> ValidateNewFloorItemPlacementAsync(

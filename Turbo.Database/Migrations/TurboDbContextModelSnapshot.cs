@@ -22,6 +22,133 @@ namespace Turbo.Database.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
+            modelBuilder.Entity("Turbo.Database.Entities.Bots.BotEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("AutoChat")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("auto_chat");
+
+                    b.Property<int>("ChatDelaySeconds")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("chat_delay");
+
+                    b.Property<string>("ChatText")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)")
+                        .HasColumnName("chat_text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("DanceType")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("dance");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("deleted_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
+
+                    b.Property<string>("Figure")
+                        .IsRequired()
+                        .HasMaxLength(279)
+                        .HasColumnType("varchar(279)")
+                        .HasColumnName("figure");
+
+                    b.Property<bool>("FreeRoam")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("free_roam");
+
+                    b.Property<int>("Gender")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("gender");
+
+                    b.Property<bool>("MixSentences")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("mix_sentences");
+
+                    b.Property<string>("Motto")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("motto");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<int?>("RoomEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("room_id");
+
+                    b.Property<int>("Rotation")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("direction");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime>("UpdatedAt"));
+
+                    b.Property<int>("X")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("x");
+
+                    b.Property<int>("Y")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("y");
+
+                    b.Property<double>("Z")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("double(10,3)")
+                        .HasDefaultValue(0.0)
+                        .HasColumnName("z");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerEntityId");
+
+                    b.HasIndex("RoomEntityId");
+
+                    b.ToTable("bots");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.CatalogOfferEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -1240,6 +1367,241 @@ namespace Turbo.Database.Migrations
                         .IsUnique();
 
                     b.ToTable("navigator_top_level_contexts");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Pets.PetBreedEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BreedId")
+                        .HasColumnType("int")
+                        .HasColumnName("breed_id");
+
+                    b.Property<int>("ColorTag")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(-1)
+                        .HasColumnName("color_tag");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("deleted_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
+
+                    b.Property<int>("PaletteId")
+                        .HasColumnType("int")
+                        .HasColumnName("palette_id");
+
+                    b.Property<bool>("Rare")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("rare");
+
+                    b.Property<int>("RarityLevel")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("rarity_level");
+
+                    b.Property<bool>("Sellable")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("sellable");
+
+                    b.Property<int>("TypeId")
+                        .HasColumnType("int")
+                        .HasColumnName("type_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime>("UpdatedAt"));
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TypeId", "PaletteId")
+                        .IsUnique();
+
+                    b.ToTable("pet_breeds");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Pets.PetEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("AnyoneCanRide")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("anyone_can_ride");
+
+                    b.Property<int>("BreedId")
+                        .HasColumnType("int")
+                        .HasColumnName("breed_id");
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(6)
+                        .HasColumnType("varchar(6)")
+                        .HasColumnName("color");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<string>("CustomParts")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("custom_parts");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("deleted_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
+
+                    b.Property<int>("Energy")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(100)
+                        .HasColumnName("energy");
+
+                    b.Property<int>("Experience")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("experience");
+
+                    b.Property<DateTime?>("HarvestedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("harvested_at");
+
+                    b.Property<bool>("HasBreedingPermission")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("breeding_permission");
+
+                    b.Property<bool>("HasSaddle")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("has_saddle");
+
+                    b.Property<int>("Level")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1)
+                        .HasColumnName("level");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("Nutrition")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(100)
+                        .HasColumnName("nutrition");
+
+                    b.Property<int>("PaletteId")
+                        .HasColumnType("int")
+                        .HasColumnName("palette_id");
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<int>("RarityLevel")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("rarity_level");
+
+                    b.Property<int>("Respect")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("respect");
+
+                    b.Property<int?>("RoomEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("room_id");
+
+                    b.Property<int>("Rotation")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("direction");
+
+                    b.Property<int>("TypeId")
+                        .HasColumnType("int")
+                        .HasColumnName("type_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime>("UpdatedAt"));
+
+                    b.Property<DateTime>("WateredAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("watered_at");
+
+                    b.Property<int>("X")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("x");
+
+                    b.Property<int>("Y")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("y");
+
+                    b.Property<double>("Z")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("double(10,3)")
+                        .HasDefaultValue(0.0)
+                        .HasColumnName("z");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerEntityId");
+
+                    b.HasIndex("RoomEntityId");
+
+                    b.ToTable("pets");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerBadgeEntity", b =>
@@ -2886,6 +3248,23 @@ namespace Turbo.Database.Migrations
                     b.ToTable("performance_logs");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Bots.BotEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Turbo.Database.Entities.Room.RoomEntity", "RoomEntity")
+                        .WithMany()
+                        .HasForeignKey("RoomEntityId");
+
+                    b.Navigation("PlayerEntity");
+
+                    b.Navigation("RoomEntity");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.CatalogOfferEntity", b =>
                 {
                     b.HasOne("Turbo.Database.Entities.Catalog.CatalogPageEntity", "Page")
@@ -3113,6 +3492,23 @@ namespace Turbo.Database.Migrations
                     b.Navigation("PlayerEntity");
 
                     b.Navigation("RequestedPlayerEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Pets.PetEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Turbo.Database.Entities.Room.RoomEntity", "RoomEntity")
+                        .WithMany()
+                        .HasForeignKey("RoomEntityId");
+
+                    b.Navigation("PlayerEntity");
+
+                    b.Navigation("RoomEntity");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerBadgeEntity", b =>

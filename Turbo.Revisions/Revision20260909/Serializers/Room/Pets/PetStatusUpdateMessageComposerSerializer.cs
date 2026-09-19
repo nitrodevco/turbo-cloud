@@ -8,6 +8,12 @@ internal class PetStatusUpdateMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, PetStatusUpdateMessageComposer message)
     {
-        //
+        packet
+            .WriteInteger(message.ObjectId)
+            .WriteInteger(message.PetId)
+            .WriteBoolean(message.CanBreed)
+            .WriteBoolean(message.CanHarvest)
+            .WriteBoolean(message.CanRevive)
+            .WriteBoolean(message.HasBreedingPermission);
     }
 }

@@ -11,6 +11,16 @@ internal class SellablePetPalettesMessageComposerSerializer(int header)
         SellablePetPalettesMessageComposer message
     )
     {
-        //
+        packet.WriteString(message.ProductCode).WriteInteger(message.Palettes.Length);
+
+        foreach (var palette in message.Palettes)
+        {
+            packet
+                .WriteInteger(palette.TypeId)
+                .WriteInteger(palette.BreedId)
+                .WriteInteger(palette.PaletteId)
+                .WriteBoolean(palette.Sellable)
+                .WriteBoolean(palette.Rare);
+        }
     }
 }

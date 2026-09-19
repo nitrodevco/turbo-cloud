@@ -11,6 +11,7 @@ internal class TradingAcceptEventMessageComposerSerializer(int header)
         TradingAcceptEventMessageComposer message
     )
     {
-        //
+        // Accepted travels as an int the client compares with 0.
+        packet.WriteInteger(message.PlayerId).WriteInteger(message.Accepted ? 1 : 0);
     }
 }

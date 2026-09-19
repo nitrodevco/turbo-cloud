@@ -1,3 +1,4 @@
+using System;
 using Orleans;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
@@ -45,4 +46,8 @@ public sealed record FurnitureItemSnapshot
 
     [Id(11)]
     public int Extra { get; init; } = 0;
+
+    /// <summary>When the row was created; shown by the trade window. Null when not loaded.</summary>
+    [Id(12)]
+    public DateTime? CreatedAtUtc { get; init; }
 }

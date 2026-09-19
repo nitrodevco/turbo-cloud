@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Messages.Outgoing.Room.Action;
@@ -28,7 +30,7 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
 
         var dirtySnapshots = new List<RoomAvatarSnapshot>();
 
-        foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
+        foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values.ToList())
         {
             try
             {
@@ -50,19 +52,30 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
                 }
 
                 CheckIdle(avatar, now);
-
-                if (!avatar.IsDirty)
-                    continue;
-
-                dirtySnapshots.Add(avatar.GetSnapshot());
-
-                if (avatar.HasStatus(AvatarStatusType.Sign))
-                    avatar.RemoveStatus(AvatarStatusType.Sign);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                continue;
+                _roomGrain._logger.LogError(
+                    ex,
+                    "Avatar {ObjectId} in room {RoomId} failed to step",
+                    avatar.ObjectId,
+                    _roomGrain.RoomId
+                );
             }
+        }
+
+        // Ridden pets copy their rider's step, so they are updated once every rider has moved.
+        await _roomGrain.PetModule.SyncRidingPetsAsync(ct);
+
+        foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
+        {
+            if (!avatar.IsDirty)
+                continue;
+
+            dirtySnapshots.Add(avatar.GetSnapshot());
+
+            if (avatar.HasStatus(AvatarStatusType.Sign))
+                avatar.RemoveStatus(AvatarStatusType.Sign);
         }
 
         if (dirtySnapshots.Count == 0)

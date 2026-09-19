@@ -69,6 +69,12 @@ public class RoomConfig
     /// <summary>Definition (class) name of the note a post-it wall creates.</summary>
     public string SpamWallPostItDefinitionName { get; init; } = "post_it";
 
+    /// <summary>Items one side may offer in a trade.</summary>
+    public int TradeMaxItemsPerSide { get; init; } = 50;
+
+    /// <summary>Whether the TRADE perk gates trading, as on the live hotel; off lets every account trade.</summary>
+    public bool TradeRequiresPerk { get; init; } = false;
+
     public int RoomFilterMaxWords { get; init; } = 50;
     public int RoomFilterWordMaxLength { get; init; } = 30;
 
@@ -109,4 +115,14 @@ public class RoomConfig
     public int WiredExecutionCostWindowMs { get; init; } = 1000;
     public int WiredExecutionCostCap { get; init; } = 500;
     public int WiredMaxErrorLogEntries { get; init; } = 50;
+    public int WiredShowMessageMaxLength { get; init; } = 200;
+    public int WiredKickMessageMaxLength { get; init; } = 100;
+    public int WiredLogMessageMaxLength { get; init; } = 400;
+    public int WiredMaxRewardsPerBox { get; init; } = 20;
+    public int WiredClockMaxHalfSeconds { get; init; } = 11999;
+    public int WiredGameDefaultDurationSeconds { get; init; } = 60;
+    public int WiredBotFollowDistance { get; init; } = 1;
+    public int[] WiredTeamEffectIds { get; init; } = [0, 33, 34, 35, 36];
+    public int[] WiredFreezeEffectIds { get; init; } = [0, 0, 0, 0, 0];
+    public int WiredMaxAreaTiles { get; init; } = 400;
 }

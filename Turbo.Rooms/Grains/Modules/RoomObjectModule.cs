@@ -12,6 +12,8 @@ using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
+using Turbo.Rooms.Object.Avatars.Bot;
+using Turbo.Rooms.Object.Avatars.Pet;
 using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Furniture.Wall;
@@ -136,6 +138,14 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
             case IRoomPlayer player:
                 logicType = "default_avatar";
                 ctx = new RoomPlayerContext(_roomGrain, player);
+                break;
+            case IRoomPet pet:
+                logicType = "default_pet";
+                ctx = new RoomPetContext(_roomGrain, pet);
+                break;
+            case IRoomBot bot:
+                logicType = "default_bot";
+                ctx = new RoomBotContext(_roomGrain, bot);
                 break;
             case IRoomFloorItem floor:
                 logicType = floor.Definition.LogicName;

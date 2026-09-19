@@ -8,6 +8,9 @@ internal class PetLevelUpdateMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, PetLevelUpdateMessageComposer message)
     {
-        //
+        packet
+            .WriteInteger(message.ObjectId)
+            .WriteInteger(message.PetId)
+            .WriteInteger(message.Level);
     }
 }

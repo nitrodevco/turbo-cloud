@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Inventory.Trading;
 
 internal class SilverFeeMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new SilverFeeMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new SilverFeeMessage { Pay = packet.PopBoolean() };
 }

@@ -13,7 +13,7 @@ internal class OpenPetPackageResultMessageComposerSerializer(int header)
     {
         packet
             .WriteInteger(message.ObjectId)
-            .WriteInteger(message.NameValidationStatus)
+            .WriteInteger((int)message.NameValidationStatus)
             .WriteString(message.NameValidationInfo);
     }
 }

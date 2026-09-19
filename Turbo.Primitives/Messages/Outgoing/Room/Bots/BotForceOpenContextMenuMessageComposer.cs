@@ -6,5 +6,6 @@ namespace Turbo.Primitives.Messages.Outgoing.Room.Bots;
 [GenerateSerializer, Immutable]
 public sealed record BotForceOpenContextMenuMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required int BotId { get; init; }
 }

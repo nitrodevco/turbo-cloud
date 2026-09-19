@@ -8,6 +8,6 @@ internal class PetRespectFailedMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, PetRespectFailedMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.RequiredDays).WriteInteger(message.AvatarAgeDays);
     }
 }

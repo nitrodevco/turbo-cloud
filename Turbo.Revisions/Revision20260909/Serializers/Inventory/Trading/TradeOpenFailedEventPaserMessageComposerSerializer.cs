@@ -11,6 +11,6 @@ internal class TradeOpenFailedEventPaserMessageComposerSerializer(int header)
         TradeOpenFailedEventPaserMessageComposer message
     )
     {
-        //
+        packet.WriteInteger((int)message.Reason).WriteString(message.OtherPlayerName);
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Immutable;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 
@@ -23,5 +24,6 @@ public sealed class PlayerLiveState
     public int PetRespectsLeft { get; set; } = 0;
     public int RespectReplenishesLeft { get; set; } = 0;
     public DateTime? RespectResetDate { get; set; } = null;
+    public PlayerPerkFlags Perks { get; set; } = PlayerPerkFlags.None;
     public ImmutableArray<PlayerBadgeSnapshot>? SelectedBadges { get; set; } = null;
 }

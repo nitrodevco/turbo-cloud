@@ -11,6 +11,6 @@ internal class TradingCloseEventMessageComposerSerializer(int header)
         TradingCloseEventMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.PlayerId).WriteInteger((int)message.Reason);
     }
 }

@@ -1141,6 +1141,9 @@ public class Revision20260909 : IRevision
             { MessageEvent.MoveAvatarMessageEvent, new MoveAvatarMessageParser() },
             { MessageEvent.MoveObjectMessageEvent, new MoveObjectMessageParser() },
             { MessageEvent.MovePetMessageEvent, new MovePetMessageParser() },
+            { MessageEvent.MoveEntityInFlatMessageEvent, new MoveEntityInFlatMessageParser() },
+            { MessageEvent.HarvestPetMessageEvent, new HarvestPetMessageParser() },
+            { MessageEvent.CompostPlantMessageEvent, new CompostPlantMessageParser() },
             { MessageEvent.MoveWallItemMessageEvent, new MoveWallItemMessageParser() },
             { MessageEvent.PickupObjectMessageEvent, new PickupObjectMessageParser() },
             { MessageEvent.PlaceBotMessageEvent, new PlaceBotMessageParser() },
@@ -2687,7 +2690,7 @@ public class Revision20260909 : IRevision
                 new BotErrorMessageComposerSerializer(MessageComposer.BotErrorMessageComposer)
             },
             {
-                typeof(BotForceOpenContextMenuMessageComposerSerializer),
+                typeof(BotForceOpenContextMenuMessageComposer),
                 new BotForceOpenContextMenuMessageComposerSerializer(
                     MessageComposer.BotForceOpenContextMenuMessageComposer
                 )

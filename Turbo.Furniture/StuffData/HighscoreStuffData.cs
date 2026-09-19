@@ -21,7 +21,7 @@ internal sealed class HighscoreStuffData : StuffDataBase, IHighscoreStuffData
     public override void SetState(string state)
     {
         if (string.IsNullOrEmpty(state))
-            state = "0";
+            state = DEFAULT_STATE;
 
         Data = state;
 

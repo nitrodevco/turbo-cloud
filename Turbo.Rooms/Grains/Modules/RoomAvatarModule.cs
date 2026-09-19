@@ -14,6 +14,8 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
@@ -55,7 +57,34 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
 
         avatar.SetRotation(startRot);
 
+        await LoadBadgesAsync(avatar, ct);
+
         return avatar;
+    }
+
+    /// <summary>The badges a player wears feed the "wearing badge" wired condition.</summary>
+    private async Task LoadBadgesAsync(IRoomAvatar avatar, CancellationToken ct)
+    {
+        if (avatar is not IRoomPlayer player)
+            return;
+
+        try
+        {
+            var badges = await _roomGrain
+                ._grainFactory.GetPlayerGrain(player.PlayerId)
+                .GetSelectedBadgesAsync(ct);
+
+            player.SetBadges([.. badges.Select(x => x.BadgeCode)]);
+        }
+        catch (Exception ex)
+        {
+            _roomGrain._logger.LogWarning(
+                ex,
+                "Could not load the badges of player {PlayerId} entering room {RoomId}",
+                player.PlayerId,
+                _roomGrain.RoomId
+            );
+        }
     }
 
     public async Task RemoveAvatarFromPlayerAsync(
@@ -130,6 +159,9 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
     {
         try
         {
+            if (avatar.IsFrozen)
+                throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
+
             var goalTileId = _roomGrain.MapModule.ToIdx(targetX, targetY);
             var currentTileId =
                 avatar.NextTileId > 0
@@ -285,6 +317,8 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
             ct
         );
 
+        PublishAction(player, WiredAvatarActionType.Dance, (int)player.DanceType);
+
         return Task.FromResult(true);
     }
 
@@ -336,6 +370,9 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
             ct
         );
 
+        if (avatar is IRoomPlayer expressingPlayer)
+            PublishAction(expressingPlayer, ToActionType(expressionType), 0);
+
         return Task.FromResult(true);
     }
 
@@ -348,6 +385,9 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
             return Task.FromResult(false);
 
         avatar.AddStatus(AvatarStatusType.Sign, signType.ToString());
+
+        if (avatar is IRoomPlayer signingPlayer)
+            PublishAction(signingPlayer, WiredAvatarActionType.Sign, signType);
 
         return Task.FromResult(true);
     }
@@ -490,16 +530,46 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         {
             case AvatarPostureType.Sit:
                 avatar.Sit(true);
+                if (avatar is IRoomPlayer sittingPlayer)
+                    PublishAction(sittingPlayer, WiredAvatarActionType.Sit, 0);
                 break;
             case AvatarPostureType.Stand:
                 avatar.Sit(false);
+                if (avatar is IRoomPlayer standingPlayer)
+                    PublishAction(standingPlayer, WiredAvatarActionType.Stand, 0);
                 break;
         }
 
         return Task.FromResult(true);
     }
 
-    private int GetNextObjectId()
+    private static WiredAvatarActionType ToActionType(AvatarExpressionType expressionType) =>
+        expressionType switch
+        {
+            AvatarExpressionType.Wave => WiredAvatarActionType.Wave,
+            AvatarExpressionType.Blow => WiredAvatarActionType.Blow,
+            AvatarExpressionType.Laugh => WiredAvatarActionType.Laugh,
+            AvatarExpressionType.Respect => WiredAvatarActionType.Respect,
+            AvatarExpressionType.Idle => WiredAvatarActionType.Sleep,
+            AvatarExpressionType.Jump => WiredAvatarActionType.Jump,
+            _ => WiredAvatarActionType.Wave,
+        };
+
+    /// <summary>Feeds the "performs action" wired trigger. Queued, so it never blocks the caller.</summary>
+    private void PublishAction(IRoomPlayer player, WiredAvatarActionType actionType, int value) =>
+        _ = _roomGrain.PublishRoomEventAsync(
+            new PlayerPerformsActionEvent
+            {
+                RoomId = _roomGrain.RoomId,
+                CausedBy = ActionContext.CreateForPlayer(player.PlayerId, _roomGrain.RoomId),
+                PlayerId = player.PlayerId,
+                ActionType = actionType,
+                Value = value,
+            },
+            CancellationToken.None
+        );
+
+    internal int GetNextObjectId()
     {
         var objectId = _nextObjectId += 1;
 

@@ -9,6 +9,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Networking.Revisions;
+using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Revisions.Revision20260909;
@@ -22,6 +23,7 @@ public class TurboEmulator(
     ICurrencyTypeProvider currencyTypeProvider,
     INavigatorProvider topLevelContextProvider,
     IRoomModelProvider roomModelProvider,
+    IPetBreedProvider petBreedProvider,
     INetworkManager networkManager,
     IRevisionManager revisionManager
 ) : IHostedService
@@ -32,6 +34,7 @@ public class TurboEmulator(
     private readonly ICurrencyTypeProvider _currencyTypeProvider = currencyTypeProvider;
     private readonly INavigatorProvider _topLevelContextProvider = topLevelContextProvider;
     private readonly IRoomModelProvider _roomModelProvider = roomModelProvider;
+    private readonly IPetBreedProvider _petBreedProvider = petBreedProvider;
     private readonly INetworkManager _networkManager = networkManager;
     private readonly IRevisionManager _revisionManager = revisionManager;
 
@@ -45,6 +48,7 @@ public class TurboEmulator(
             await _currencyTypeProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _topLevelContextProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _roomModelProvider.ReloadAsync(ct).ConfigureAwait(false);
+            await _petBreedProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _networkManager.StartAsync(ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)

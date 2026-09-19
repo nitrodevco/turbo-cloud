@@ -11,6 +11,6 @@ internal class WiredRewardResultMessageComposerSerializer(int header)
         WiredRewardResultMessageComposer message
     )
     {
-        //
+        packet.WriteInteger((int)message.Reason);
     }
 }

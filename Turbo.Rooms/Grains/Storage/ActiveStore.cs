@@ -52,5 +52,19 @@ public abstract class ActiveStore : IWiredVariableStore
         return store.RemoveValue(key);
     }
 
+    public bool TryGetTimestamps(
+        in WiredVariableKey key,
+        out long createdAtMs,
+        out long updatedAtMs
+    )
+    {
+        createdAtMs = 0;
+        updatedAtMs = 0;
+
+        return TryGetStore(key, out var store)
+            && store is not null
+            && store.TryGetTimestamps(key, out createdAtMs, out updatedAtMs);
+    }
+
     public abstract bool TryGetStore(WiredVariableKey key, out KeyValueStore? store);
 }

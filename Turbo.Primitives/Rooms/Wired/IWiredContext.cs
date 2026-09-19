@@ -10,10 +10,19 @@ public interface IWiredContext
 {
     public IRoomGrain Room { get; }
     public IWiredPolicy Policy { get; }
-    public IWiredSelectionSet Selected { get; }
-    public IWiredSelectionSet SelectorPool { get; }
-    public Dictionary<string, int> Variables { get; }
 
+    /// <summary>The triggering furni and users.</summary>
+    public IWiredSelectionSet Selected { get; }
+
+    /// <summary>What the selectors of the stack picked.</summary>
+    public IWiredSelectionSet SelectorPool { get; }
+
+    /// <summary>The furni and users a signal or stack call forwarded into this firing.</summary>
+    public IWiredSelectionSet Signal { get; }
+
+    /// <summary>How many stack calls or signals deep this firing is; bounded by config.</summary>
+    public int Depth { get; }
+    public Dictionary<string, int> Variables { get; }
     public Task<IWiredSelectionSet> GetWiredSelectionSetAsync(
         IWiredBox wired,
         CancellationToken ct

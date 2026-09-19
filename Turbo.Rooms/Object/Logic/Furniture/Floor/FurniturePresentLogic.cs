@@ -7,6 +7,7 @@ using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.StuffData;
@@ -20,7 +21,7 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 /// <summary>
 /// A wrapped gift. The map data carries what the client shows (sender, note); the extra data's
-/// <see cref="PresentData.STORAGE_SECTION"/> names the wrapped furniture row, which sits in the
+/// <see cref="PresentStorage.SECTION"/> names the wrapped furniture row, which sits in the
 /// present owner's inventory. Opening destroys the wrapping, places a floor item where the present
 /// stood (or leaves a wall item in the inventory), and tells the opener what they got.
 /// </summary>
@@ -108,25 +109,10 @@ public class FurniturePresentLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
         return true;
     }
 
-    private PresentStorage? ReadStorage()
-    {
-        if (!_ctx.RoomObject.ExtraData.TryGetSection(PresentData.STORAGE_SECTION, out var element))
-            return null;
-
-        try
-        {
-            return element.Deserialize<PresentStorage>();
-        }
-        catch (JsonException ex)
-        {
-            _roomGrain._logger.LogWarning(
-                ex,
-                "Present {ItemId} in room {RoomId} has unreadable gift storage",
-                _ctx.ObjectId,
-                _ctx.RoomId
-            );
-
-            return null;
-        }
-    }
+    private PresentStorage? ReadStorage() =>
+        FurnitureExtraDataSections.Read<PresentStorage>(
+            _ctx.RoomObject.ExtraData,
+            PresentStorage.SECTION,
+            _roomGrain._logger
+        );
 }

@@ -16,4 +16,20 @@ public interface IWiredVariableStore
         WiredVariableValue value
     );
     public bool RemoveValue(WiredVariableKey key);
+
+    /// <summary>
+    /// When the value on a target was created and last written (unix milliseconds). False when
+    /// the store keeps no history for it.
+    /// </summary>
+    public bool TryGetTimestamps(
+        in WiredVariableKey key,
+        out long createdAtMs,
+        out long updatedAtMs
+    )
+    {
+        createdAtMs = 0;
+        updatedAtMs = 0;
+
+        return false;
+    }
 }

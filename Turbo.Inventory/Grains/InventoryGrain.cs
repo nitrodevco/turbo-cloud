@@ -12,29 +12,30 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Grains;
 
 namespace Turbo.Inventory.Grains;
 
 /// <summary>
-/// Owns a player's inventory. Furniture is hydrated lazily rather than on activation: the grain
-/// is activated for cheap lookups too, and loading a full furniture list on every activation is
-/// far more expensive than the first call that actually needs it. Every mutation writes through
-/// to the database, so there is nothing to flush on deactivation.
+/// Owns a player's inventory. Furniture, pets and bots are hydrated lazily rather than on
+/// activation: the grain is activated for cheap lookups too, and loading full lists on every
+/// activation is far more expensive than the first call that actually needs them. Every
+/// mutation writes through to the database, so there is nothing to flush on deactivation.
+/// Each section is a module with the same shape (ensure ready, read, add, remove); the grain
+/// partials only forward to them.
 /// </summary>
 internal sealed partial class InventoryGrain : Grain, IInventoryGrain
 {
-    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
-    private readonly InventoryConfig _inventoryConfig;
+    internal readonly InventoryConfig _inventoryConfig;
     private readonly IGrainFactory _grainFactory;
-    private readonly IFurnitureDefinitionProvider _furnitureDefinitionProvider;
-    private readonly IInventoryFurnitureLoader _furnitureItemsLoader;
-    private readonly IStuffDataFactory _stuffDataFactory;
-    private readonly ICatalogService _catalogService;
     private readonly ILogger<IInventoryGrain> _logger;
 
     private readonly InventoryLiveState _state;
     private readonly InventoryFurniModule _furniModule;
+    private readonly InventoryPetModule _petModule;
+    private readonly InventoryBotModule _botModule;
 
     public PlayerId PlayerId => _state.PlayerId;
 
@@ -44,21 +45,47 @@ internal sealed partial class InventoryGrain : Grain, IInventoryGrain
         IGrainFactory grainFactory,
         IFurnitureDefinitionProvider furnitureDefinitionProvider,
         IInventoryFurnitureLoader furnitureItemsLoader,
-        IStuffDataFactory stuffDataFactory,
         ICatalogService catalogService,
+        IPetBreedProvider petBreedProvider,
         ILogger<IInventoryGrain> logger
     )
     {
-        _dbCtxFactory = dbContextFactory;
         _inventoryConfig = inventoryConfig.Value;
         _grainFactory = grainFactory;
-        _furnitureDefinitionProvider = furnitureDefinitionProvider;
-        _furnitureItemsLoader = furnitureItemsLoader;
-        _stuffDataFactory = stuffDataFactory;
-        _catalogService = catalogService;
         _logger = logger;
 
         _state = new() { PlayerId = this.GetPlayerId() };
-        _furniModule = new InventoryFurniModule(this, _state, _furnitureItemsLoader);
+        _furniModule = new InventoryFurniModule(
+            this,
+            _state,
+            dbContextFactory,
+            furnitureItemsLoader,
+            furnitureDefinitionProvider,
+            catalogService,
+            logger
+        );
+        _petModule = new InventoryPetModule(
+            this,
+            _state,
+            dbContextFactory,
+            petBreedProvider,
+            logger
+        );
+        _botModule = new InventoryBotModule(this, _state, dbContextFactory, logger);
     }
+
+    /// <summary>The presence that mirrors inventory changes to the player's client.</summary>
+    internal IPlayerPresenceGrain Presence => _grainFactory.GetPlayerPresenceGrain(PlayerId);
+
+    internal IInventoryGrain GetInventoryOf(PlayerId playerId) =>
+        _grainFactory.GetInventoryGrain(playerId);
+
+    /// <summary>
+    /// The owner's name every furniture, pet and bot snapshot carries. Asked of the directory
+    /// once per activation instead of once per load or purchase.
+    /// </summary>
+    internal async ValueTask<string> GetOwnerNameAsync(CancellationToken ct) =>
+        _state.OwnerName ??= await _grainFactory
+            .GetPlayerDirectoryGrain()
+            .GetPlayerNameAsync(PlayerId, ct);
 }

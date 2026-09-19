@@ -1,0 +1,11 @@
+using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Object.Logic;
+
+namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
+
+[RoomObjectLogic("wf_game_upcounter2")]
+public sealed class FurnitureGameCounter2Logic(
+    IStuffDataFactory stuffDataFactory,
+    IRoomFloorItemContext ctx
+) : FurnitureGameCounterLogic(stuffDataFactory, ctx);

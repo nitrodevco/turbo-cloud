@@ -1,3 +1,4 @@
+using System;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.StuffData;
@@ -16,6 +17,7 @@ internal sealed class FurnitureItem : IFurnitureItem
     public required FurnitureDefinitionSnapshot Definition { get; init; }
     public required IExtraData ExtraData { get; init; }
     public required IStuffData StuffData { get; init; }
+    public DateTime? CreatedAtUtc { get; init; }
 
     private FurnitureItemSnapshot? _snapshot;
 
@@ -42,5 +44,6 @@ internal sealed class FurnitureItem : IFurnitureItem
             SecondsToExpiration = -1,
             HasRentPeriodStarted = false,
             RoomId = -1,
+            CreatedAtUtc = CreatedAtUtc,
         };
 }

@@ -12,6 +12,7 @@ using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 
@@ -72,6 +73,16 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain)
             return false;
 
         await item.Logic.OnUseAsync(ctx, param, ct);
+
+        await _roomGrain.PublishRoomEventAsync(
+            new RoomItemUsedEvent
+            {
+                RoomId = _roomGrain.RoomId,
+                CausedBy = ctx,
+                ObjectId = item.ObjectId,
+            },
+            ct
+        );
 
         return true;
     }

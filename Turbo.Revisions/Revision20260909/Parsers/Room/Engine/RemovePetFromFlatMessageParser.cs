@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Room.Engine;
 
 internal class RemovePetFromFlatMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new RemovePetFromFlatMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new RemovePetFromFlatMessage { PetId = packet.PopInt() };
 }

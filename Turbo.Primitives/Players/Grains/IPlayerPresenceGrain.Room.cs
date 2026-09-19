@@ -12,6 +12,12 @@ public partial interface IPlayerPresenceGrain
     public Task<RoomPendingSnapshot> GetPendingRoomAsync(CancellationToken ct);
     public Task SetActiveRoomAsync(RoomId roomId, CancellationToken ct);
     public Task ClearActiveRoomAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Closes the room session of a player whose avatar the room has already removed. Never
+    /// calls the room grain back, so it is the one eviction call a room grain may make.
+    /// </summary>
+    public Task OnRemovedFromRoomAsync(RoomId roomId, bool kicked, CancellationToken ct);
     public Task SetPendingRoomAsync(RoomId roomId, RoomEntryState state, CancellationToken ct);
     public Task ClearPendingRoomAsync(CancellationToken ct);
     public Task OnControllerLevelUpdatedAsync(

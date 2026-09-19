@@ -5,6 +5,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Primitives.Rooms.Grains;
@@ -39,6 +40,13 @@ public partial interface IRoomGrain
     /// <summary>Hands the carried item to an adjacent player.</summary>
     public Task<bool> PassHandItemAsync(ActionContext ctx, PlayerId targetId, CancellationToken ct);
     public Task<bool> DropHandItemAsync(ActionContext ctx, CancellationToken ct);
+
+    /// <summary>A player clicked another avatar; feeds the "user clicks user" wired trigger.</summary>
+    public Task<bool> ClickAvatarAsync(
+        ActionContext ctx,
+        RoomObjectId targetObjectId,
+        CancellationToken ct
+    );
 
     /// <summary>Spends one of the giver's daily respects on a player in the room.</summary>
     public Task<bool> RespectPlayerAsync(

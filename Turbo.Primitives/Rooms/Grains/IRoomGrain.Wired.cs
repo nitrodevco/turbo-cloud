@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
+using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
+using Turbo.Primitives.Rooms.Wired.Variable;
 
 namespace Turbo.Primitives.Rooms.Grains;
 
@@ -48,4 +50,26 @@ public partial interface IRoomGrain
     /// Empties the error list. Requires wired modify permission.
     /// </summary>
     public Task<bool> ClearWiredErrorLogsAsync(ActionContext ctx, CancellationToken ct);
+
+    /// <summary>
+    /// One variable plus every furni or user currently holding a value for it, or null when the
+    /// caller may not read the room wired or the variable is unknown.
+    /// </summary>
+    public Task<WiredVariableInfoAndHoldersSnapshot?> GetWiredVariableHoldersAsync(
+        ActionContext ctx,
+        WiredVariableId variableId,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Writes a variable value on one target from the wired menu. Requires wired modify
+    /// permission; the target id is a room object id for furni and users.
+    /// </summary>
+    public Task<bool> SetWiredVariableValueAsync(
+        ActionContext ctx,
+        WiredVariableBinding binding,
+        WiredVariableId variableId,
+        WiredVariableValue value,
+        CancellationToken ct
+    );
 }

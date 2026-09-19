@@ -88,6 +88,8 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
         if (chatType != RoomChatType.Whisper)
             TurnHeadsTowards(speaker, chatType);
 
+        await _roomGrain.PetModule.HandleChatAsync(evt, ct);
+
         if (_roomGrain._roomConfig.ChatlogEnabled)
             await _roomGrain
                 ._grainFactory.GetRoomPersistenceGrain(_roomGrain._state.RoomId)

@@ -17,6 +17,9 @@ public interface IPlayerGrain : IGrainWithIntegerKey
     /// <summary>Consumes one daily respect; false when none are left today.</summary>
     public Task<bool> TryUseRespectAsync(CancellationToken ct);
 
+    /// <summary>Spends one of today's pet scratches; false when none are left.</summary>
+    public Task<bool> TryUsePetRespectAsync(CancellationToken ct);
+
     /// <summary>Records a received respect and returns the new total.</summary>
     public Task<int> ReceiveRespectAsync(CancellationToken ct);
 
@@ -25,6 +28,9 @@ public interface IPlayerGrain : IGrainWithIntegerKey
 
     /// <summary>The badges the player wears, by slot.</summary>
     public Task<ImmutableArray<PlayerBadgeSnapshot>> GetSelectedBadgesAsync(CancellationToken ct);
+
+    /// <summary>Grants a badge the player does not own yet. False when already owned or invalid.</summary>
+    public Task<bool> GiveBadgeAsync(string badgeCode, CancellationToken ct);
 
     public Task<PlayerExtendedProfileSnapshot> GetExtendedProfileSnapshotAsync(
         CancellationToken ct

@@ -181,7 +181,7 @@ internal sealed partial class RoomService(
         if (!await room.KickPlayerAsync(ctx, targetId, ct).ConfigureAwait(false))
             return;
 
-        await EvictPlayerAsync(targetId, kicked: true, ct).ConfigureAwait(false);
+        await EvictPlayerAsync(ctx.RoomId, targetId, kicked: true, ct).ConfigureAwait(false);
     }
 
     public async Task BanPlayerAsync(
@@ -199,7 +199,7 @@ internal sealed partial class RoomService(
         if (!await room.BanPlayerAsync(ctx, targetId, duration, ct).ConfigureAwait(false))
             return;
 
-        await EvictPlayerAsync(targetId, kicked: true, ct).ConfigureAwait(false);
+        await EvictPlayerAsync(ctx.RoomId, targetId, kicked: true, ct).ConfigureAwait(false);
     }
 
     public async Task DeleteRoomAsync(ActionContext ctx, CancellationToken ct)
@@ -215,31 +215,22 @@ internal sealed partial class RoomService(
 
         // Sessions close before the row goes, so no presence grain re-enters a room mid-delete.
         foreach (var playerId in players.Value)
-            await EvictPlayerAsync(playerId, kicked: false, ct).ConfigureAwait(false);
+            await EvictPlayerAsync(ctx.RoomId, playerId, kicked: false, ct).ConfigureAwait(false);
 
         await room.CompleteRoomDeletionAsync(ct).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Closes a player's room session after the room grain has already dropped their avatar.
-    /// Lives here rather than in the grain because the presence grain calls back into the room.
+    /// The presence does it in one call that never re-enters the room; wired kicks use the
+    /// same call from inside the room grain.
     /// </summary>
-    private async Task EvictPlayerAsync(PlayerId playerId, bool kicked, CancellationToken ct)
-    {
-        var presence = _grainFactory.GetPlayerPresenceGrain(playerId);
-
-        await presence.ClearActiveRoomAsync(ct).ConfigureAwait(false);
-
-        IReadOnlyList<IComposer> composers = kicked
-            ?
-            [
-                new GenericErrorMessage { ErrorCode = RoomGenericErrorType.RoomKicked },
-                new CloseConnectionMessageComposer(),
-            ]
-            : [new CloseConnectionMessageComposer()];
-
-        await presence.SendComposerAsync(composers, ct).ConfigureAwait(false);
-    }
+    private Task EvictPlayerAsync(
+        RoomId roomId,
+        PlayerId playerId,
+        bool kicked,
+        CancellationToken ct
+    ) => _grainFactory.GetPlayerPresenceGrain(playerId).OnRemovedFromRoomAsync(roomId, kicked, ct);
 
     public async Task AnswerDoorbellAsync(
         ActionContext ctx,
@@ -410,7 +401,17 @@ internal sealed partial class RoomService(
         var wallSnapshot = await room.GetAllWallItemSnapshotsAsync(ct).ConfigureAwait(false);
         var avatarSnapshots = await room.GetAllAvatarSnapshotsAsync(ct).ConfigureAwait(false);
         var danceComposers = avatarSnapshots
-            .OfType<RoomPlayerAvatarSnapshot>()
+            .Select(x =>
+                (
+                    x.ObjectId,
+                    DanceType: x switch
+                    {
+                        RoomPlayerAvatarSnapshot player => player.DanceType,
+                        RoomRentableBotAvatarSnapshot bot => bot.DanceType,
+                        _ => AvatarDanceType.None,
+                    }
+                )
+            )
             .Where(x => x.DanceType != AvatarDanceType.None)
             .Select(x => new DanceMessageComposer
             {

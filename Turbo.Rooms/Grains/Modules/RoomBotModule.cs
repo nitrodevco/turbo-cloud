@@ -1,0 +1,564 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Turbo.Primitives.Action;
+using Turbo.Primitives.Bots;
+using Turbo.Primitives.Bots.Enums;
+using Turbo.Primitives.Bots.Snapshots;
+using Turbo.Primitives.Messages.Outgoing.Room.Action;
+using Turbo.Primitives.Messages.Outgoing.Room.Bots;
+using Turbo.Primitives.Messages.Outgoing.Room.Chat;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Networking;
+using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Pets;
+using Turbo.Primitives.Pets.Enums;
+using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Rooms.Configuration;
+
+namespace Turbo.Rooms.Grains.Modules;
+
+/// <summary>
+/// Rentable bots standing in the room: placement and pick-up against the owner's inventory,
+/// and the skills their owner uses on them. Roaming and chatter run in
+/// <see cref="Systems.RoomBotTickSystem"/>.
+/// </summary>
+public sealed partial class RoomBotModule(RoomGrain roomGrain)
+{
+    private readonly RoomGrain _roomGrain = roomGrain;
+    private readonly Dictionary<int, int> _lastPersistedTileByBotId = [];
+    private readonly Random _random = new();
+
+    private BotConfig Config => _roomGrain._botConfig;
+
+    public IEnumerable<IRoomBot> Bots =>
+        _roomGrain._state.AvatarsByObjectId.Values.OfType<IRoomBot>();
+
+    internal async Task EnsureBotsLoadedAsync(CancellationToken ct)
+    {
+        if (_roomGrain._state.IsBotsLoaded)
+            return;
+
+        var bots = await _roomGrain._npcProvider.LoadBotsByRoomIdAsync(_roomGrain.RoomId, ct);
+
+        foreach (var bot in bots)
+        {
+            var tileIdx = _roomGrain.MapModule.InBounds(bot.X, bot.Y)
+                ? _roomGrain.MapModule.ToIdx(bot.X, bot.Y)
+                : -1;
+
+            if (tileIdx < 0 && !_roomGrain.PetModule.TryFindFreeTile(0, 0, out tileIdx))
+            {
+                _roomGrain._logger.LogWarning(
+                    "Bot {BotId} has no tile to stand on in room {RoomId}; leaving it unplaced",
+                    bot.Id,
+                    _roomGrain.RoomId
+                );
+
+                continue;
+            }
+
+            await AttachBotAsync(bot, tileIdx, bot.Rotation, ct);
+        }
+
+        _roomGrain._state.IsBotsLoaded = true;
+    }
+
+    public bool TryGetBot(int botId, out IRoomBot bot)
+    {
+        bot = null!;
+
+        if (
+            !_roomGrain._state.AvatarsByBotId.TryGetValue(botId, out var objectId)
+            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+            || avatar is not IRoomBot roomBot
+        )
+            return false;
+
+        bot = roomBot;
+
+        return true;
+    }
+
+    private Task SendToPlayerAsync(PlayerId playerId, IComposer composer, CancellationToken ct) =>
+        _roomGrain._grainFactory.GetPlayerPresenceGrain(playerId).SendComposerAsync(composer, ct);
+
+    private Task SendErrorAsync(ActionContext ctx, BotErrorType error, CancellationToken ct) =>
+        SendToPlayerAsync(ctx.PlayerId, new BotErrorMessageComposer { Error = error }, ct);
+
+    /// <summary>The bot's owner or any room controller may move or pick it up.</summary>
+    private async Task<bool> CanManageAsync(ActionContext ctx, IRoomBot bot) =>
+        bot.OwnerId == ctx.PlayerId
+        || await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx)
+            >= RoomControllerType.Rights;
+
+    public async Task<bool> PlaceBotAsync(
+        ActionContext ctx,
+        int botId,
+        int x,
+        int y,
+        CancellationToken ct
+    )
+    {
+        if (!_roomGrain.PetModule.TryGetPlayer(ctx.PlayerId, out _))
+            return false;
+
+        if (!await _roomGrain.SecurityModule.GetIsRoomOwnerAsync(ctx))
+        {
+            await SendErrorAsync(ctx, BotErrorType.ForbiddenInFlat, ct);
+
+            return false;
+        }
+
+        if (Bots.Count() >= Config.MaxBotsPerRoom)
+        {
+            await SendErrorAsync(ctx, BotErrorType.LimitReached, ct);
+
+            return false;
+        }
+
+        var chosen = x != 0 || y != 0;
+
+        if (!_roomGrain.PetModule.TryFindFreeTile(x, y, out var tileIdx, chosen))
+        {
+            await SendErrorAsync(ctx, BotErrorType.SelectedTileNotFree, ct);
+
+            return false;
+        }
+
+        var snapshot = await _roomGrain
+            ._grainFactory.GetInventoryGrain(ctx.PlayerId)
+            .TryCheckOutBotAsync(botId, _roomGrain.RoomId, ct);
+
+        if (snapshot is null)
+        {
+            _roomGrain._logger.LogWarning(
+                "Player {PlayerId} tried to place bot {BotId} they do not hold in room {RoomId}",
+                ctx.PlayerId,
+                botId,
+                _roomGrain.RoomId
+            );
+
+            return false;
+        }
+
+        if (
+            !_roomGrain.PetModule.IsTileFreeForNpc(tileIdx)
+            && !_roomGrain.PetModule.TryFindFreeTile(0, 0, out tileIdx)
+        )
+        {
+            await _roomGrain
+                ._grainFactory.GetInventoryGrain(ctx.PlayerId)
+                .ReturnBotAsync(snapshot, ct);
+            await SendErrorAsync(ctx, BotErrorType.SelectedTileNotFree, ct);
+
+            return false;
+        }
+
+        var (tileX, tileY) = _roomGrain.MapModule.GetTileXY(tileIdx);
+        var placed = snapshot with
+        {
+            RoomId = _roomGrain.RoomId,
+            X = tileX,
+            Y = tileY,
+            Z = _roomGrain._state.TileHeights[tileIdx],
+        };
+
+        if (!await AttachBotAsync(placed, tileIdx, placed.Rotation, ct))
+        {
+            await _roomGrain
+                ._grainFactory.GetInventoryGrain(ctx.PlayerId)
+                .ReturnBotAsync(snapshot, ct);
+
+            return false;
+        }
+
+        if (TryGetBot(botId, out var bot))
+            await PersistAsync(bot, ct);
+
+        return true;
+    }
+
+    public async Task<bool> MoveBotAsync(
+        ActionContext ctx,
+        RoomObjectId objectId,
+        int x,
+        int y,
+        Rotation rotation,
+        CancellationToken ct
+    )
+    {
+        if (
+            !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+            || avatar is not IRoomBot bot
+        )
+            return false;
+
+        if (!await CanManageAsync(ctx, bot) || !_roomGrain.MapModule.InBounds(x, y))
+            return false;
+
+        var tileIdx = _roomGrain.MapModule.ToIdx(x, y);
+
+        if (tileIdx != _roomGrain.MapModule.ToIdx(bot.X, bot.Y))
+        {
+            if (!_roomGrain.PetModule.IsTileFreeForNpc(tileIdx))
+                return false;
+
+            await _roomGrain.AvatarModule.StopWalkingAsync(bot, ct);
+
+            _roomGrain.MapModule.RemoveAvatar(bot, false);
+
+            bot.SetPosition(x, y);
+
+            _roomGrain.MapModule.AddAvatar(bot, false);
+            _roomGrain.MapModule.UpdateHeightForAvatar(bot);
+        }
+
+        if (rotation != Rotation.None)
+            bot.SetRotation(rotation);
+
+        bot.MarkDirty();
+
+        await PersistAsync(bot, ct);
+
+        return true;
+    }
+
+    public async Task<bool> PickupBotAsync(ActionContext ctx, int botId, CancellationToken ct)
+    {
+        if (!TryGetBot(botId, out var bot))
+            return false;
+
+        if (!await CanManageAsync(ctx, bot))
+            return false;
+
+        await _roomGrain.ObjectModule.RemoveObjectAsync(ctx, bot, ct);
+
+        _roomGrain._state.AvatarsByBotId.Remove(botId);
+        _lastPersistedTileByBotId.Remove(botId);
+
+        if (
+            !await _roomGrain
+                ._grainFactory.GetInventoryGrain(bot.OwnerId)
+                .ReturnBotAsync(bot.GetBotSnapshot(), ct)
+        )
+        {
+            _roomGrain._logger.LogError(
+                "Bot {BotId} picked up from room {RoomId} could not be returned to player {OwnerId}",
+                botId,
+                _roomGrain.RoomId,
+                bot.OwnerId
+            );
+        }
+
+        return true;
+    }
+
+    public async Task<bool> CommandBotAsync(
+        ActionContext ctx,
+        int botId,
+        BotSkillType skill,
+        string data,
+        CancellationToken ct
+    )
+    {
+        if (!TryGetBot(botId, out var bot) || bot.OwnerId != ctx.PlayerId)
+            return false;
+
+        if (!bot.Skills.Contains(skill))
+            return false;
+
+        switch (skill)
+        {
+            case BotSkillType.DressUp:
+                return await DressUpAsync(ctx, bot, ct);
+            case BotSkillType.SetupChat:
+                return await SetupChatAsync(ctx, bot, data, ct);
+            case BotSkillType.RandomWalk:
+                bot.SetFreeRoam(!bot.FreeRoam);
+
+                if (!bot.FreeRoam)
+                    await _roomGrain.AvatarModule.StopWalkingAsync(bot, ct);
+
+                await PersistAsync(bot, ct);
+
+                return true;
+            case BotSkillType.Dance:
+                return await ToggleDanceAsync(bot, ct);
+            case BotSkillType.ChangeName:
+                return await RenameAsync(ctx, bot, data, ct);
+            default:
+                _roomGrain._logger.LogWarning(
+                    "Bot skill {Skill} on bot {BotId} in room {RoomId} has no behaviour",
+                    skill,
+                    botId,
+                    _roomGrain.RoomId
+                );
+
+                return false;
+        }
+    }
+
+    public async Task<bool> RequestConfigurationAsync(
+        ActionContext ctx,
+        int botId,
+        BotSkillType skill,
+        CancellationToken ct
+    )
+    {
+        if (!TryGetBot(botId, out var bot) || bot.OwnerId != ctx.PlayerId)
+            return false;
+
+        string data;
+
+        switch (skill)
+        {
+            case BotSkillType.SetupChat:
+                data = BotChatterConfig.Compose(
+                    bot.ChatText,
+                    bot.AutoChat,
+                    bot.ChatDelaySeconds,
+                    bot.MixSentences
+                );
+                break;
+            case BotSkillType.ChangeName:
+                data = bot.Name;
+                break;
+            default:
+                return false;
+        }
+
+        await SendToPlayerAsync(
+            ctx.PlayerId,
+            new BotCommandConfigurationMessageComposer
+            {
+                BotId = botId,
+                Skill = skill,
+                Data = data,
+            },
+            ct
+        );
+
+        return true;
+    }
+
+    private async Task<bool> DressUpAsync(ActionContext ctx, IRoomBot bot, CancellationToken ct)
+    {
+        var owner = await _roomGrain._grainFactory.GetPlayerGrain(ctx.PlayerId).GetSummaryAsync(ct);
+
+        bot.SetFigure(owner.Figure, owner.Gender);
+
+        await _roomGrain.SendComposerToRoomAsync(
+            new UserChangeMessageComposer
+            {
+                ObjectId = bot.ObjectId,
+                Figure = bot.Figure,
+                Gender = bot.Gender,
+                CustomInfo = bot.Motto,
+                AchievementScore = 0,
+                BadgesRank = 0,
+            },
+            ct
+        );
+        await PersistAsync(bot, ct);
+
+        return true;
+    }
+
+    private async Task<bool> SetupChatAsync(
+        ActionContext ctx,
+        IRoomBot bot,
+        string data,
+        CancellationToken ct
+    )
+    {
+        if (
+            !BotChatterConfig.TryParse(
+                data,
+                out var text,
+                out var autoChat,
+                out var delay,
+                out var mix
+            )
+        )
+        {
+            _roomGrain._logger.LogWarning(
+                "Player {PlayerId} sent an unreadable chat setup for bot {BotId} in room {RoomId}",
+                ctx.PlayerId,
+                bot.BotId,
+                _roomGrain.RoomId
+            );
+
+            return false;
+        }
+
+        if (text.Length > Config.ChatTextMaxLength)
+            text = text[..Config.ChatTextMaxLength];
+
+        var lines = BotChatLines.Split(text);
+
+        if (lines.Length > Config.MaxChatLines)
+            text = string.Join('\n', lines.Take(Config.MaxChatLines));
+
+        delay = Math.Clamp(delay, Config.ChatDelayMinSeconds, Config.ChatDelayMaxSeconds);
+
+        bot.SetChatter(text, autoChat, delay, mix);
+        bot.NextChatAtMs = _roomGrain.NowMs() + delay * 1000L;
+
+        await PersistAsync(bot, ct);
+
+        return true;
+    }
+
+    private async Task<bool> ToggleDanceAsync(IRoomBot bot, CancellationToken ct)
+    {
+        var next =
+            bot.DanceType == AvatarDanceType.None ? AvatarDanceType.Dance : AvatarDanceType.None;
+
+        if (!bot.SetDance(next))
+            return false;
+
+        await _roomGrain.SendComposerToRoomAsync(
+            new DanceMessageComposer { ObjectId = bot.ObjectId, DanceType = bot.DanceType },
+            ct
+        );
+        await PersistAsync(bot, ct);
+
+        return true;
+    }
+
+    /// <summary>A renamed bot is re-sent to the room, as the Users packet is the only carrier of a name.</summary>
+    private async Task<bool> RenameAsync(
+        ActionContext ctx,
+        IRoomBot bot,
+        string name,
+        CancellationToken ct
+    )
+    {
+        var status = PetNames.Validate(name, Config.NameMinLength, Config.NameMaxLength);
+
+        if (status != PetNameValidationType.Ok)
+        {
+            await SendErrorAsync(ctx, BotErrorType.NameNotAccepted, ct);
+
+            return false;
+        }
+
+        bot.SetName(name.Trim());
+
+        await _roomGrain.SendComposerToRoomAsync(
+            new UserRemoveMessageComposer { ObjectId = bot.ObjectId },
+            ct
+        );
+        await _roomGrain.SendComposerToRoomAsync(
+            new UsersMessageComposer { Avatars = [bot.GetSnapshot()] },
+            ct
+        );
+        await PersistAsync(bot, ct);
+
+        return true;
+    }
+
+    internal Task TalkAsync(IRoomBot bot, string text, CancellationToken ct) =>
+        _roomGrain.SendComposerToRoomAsync(
+            new ChatMessageComposer
+            {
+                ObjectId = bot.ObjectId,
+                Text = text,
+                Gesture = AvatarGestureType.None,
+                StyleId = Config.ChatStyleId,
+                Links = [],
+                TrackingId = -1,
+            },
+            ct
+        );
+
+    private async Task<bool> AttachBotAsync(
+        BotSnapshot snapshot,
+        int tileIdx,
+        Rotation rotation,
+        CancellationToken ct
+    )
+    {
+        var objectId = _roomGrain.AvatarModule.GetNextObjectId();
+        var bot = _roomGrain._avatarProvider.CreateAvatarFromBotSnapshot(objectId, snapshot);
+
+        bot.NextTileId = tileIdx;
+
+        if (!await _roomGrain.ObjectModule.AttatchObjectAsync(bot, ct))
+            return false;
+
+        bot.SetRotation(rotation == Rotation.None ? Rotation.South : rotation);
+
+        _roomGrain._state.AvatarsByBotId[bot.BotId] = bot.ObjectId;
+        _lastPersistedTileByBotId[bot.BotId] = tileIdx;
+
+        if (bot.DanceType != AvatarDanceType.None)
+            await _roomGrain.SendComposerToRoomAsync(
+                new DanceMessageComposer { ObjectId = bot.ObjectId, DanceType = bot.DanceType },
+                ct
+            );
+
+        return true;
+    }
+
+    /// <summary>Returns every bot to its owner's inventory, as a room deletion requires.</summary>
+    internal async Task ReturnAllToOwnersAsync(CancellationToken ct)
+    {
+        foreach (var bot in Bots.ToList())
+        {
+            await _roomGrain.ObjectModule.RemoveObjectAsync(
+                ActionContext.CreateForSystem(_roomGrain.RoomId),
+                bot,
+                ct
+            );
+
+            _roomGrain._state.AvatarsByBotId.Remove(bot.BotId);
+            _lastPersistedTileByBotId.Remove(bot.BotId);
+
+            if (
+                !await _roomGrain
+                    ._grainFactory.GetInventoryGrain(bot.OwnerId)
+                    .ReturnBotAsync(bot.GetBotSnapshot(), ct)
+            )
+                _roomGrain._logger.LogError(
+                    "Bot {BotId} could not be returned to player {OwnerId} while room {RoomId} is deleted",
+                    bot.BotId,
+                    bot.OwnerId,
+                    _roomGrain.RoomId
+                );
+        }
+    }
+
+    internal Task PersistAsync(IRoomBot bot, CancellationToken ct)
+    {
+        _lastPersistedTileByBotId[bot.BotId] = _roomGrain.MapModule.ToIdx(bot.X, bot.Y);
+
+        return _roomGrain
+            ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
+            .EnqueueDirtyBotAsync(bot.GetBotSnapshot(), ct);
+    }
+
+    internal Task PersistPositionIfMovedAsync(IRoomBot bot, CancellationToken ct)
+    {
+        if (bot.IsWalking)
+            return Task.CompletedTask;
+
+        var tileIdx = _roomGrain.MapModule.ToIdx(bot.X, bot.Y);
+
+        if (_lastPersistedTileByBotId.TryGetValue(bot.BotId, out var last) && last == tileIdx)
+            return Task.CompletedTask;
+
+        return PersistAsync(bot, ct);
+    }
+
+    internal int NextRandom(int minInclusive, int maxExclusive) =>
+        _random.Next(minInclusive, Math.Max(minInclusive + 1, maxExclusive));
+}

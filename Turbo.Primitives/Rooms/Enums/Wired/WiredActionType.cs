@@ -44,4 +44,7 @@ public enum WiredActionType
     CHANGE_VARIABLE = 41,
     MOVE_USER = 42,
     MOVE_USER_TO_FURNI = 43,
+    TELEPORT_TO_ROOM = 44,
+    WRITE_TO_LOGS = 49,
+    NEG_WRITE_TO_LOGS = 50,
 }

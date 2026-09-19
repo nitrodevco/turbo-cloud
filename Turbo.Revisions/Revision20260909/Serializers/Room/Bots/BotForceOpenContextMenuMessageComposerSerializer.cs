@@ -11,6 +11,6 @@ internal class BotForceOpenContextMenuMessageComposerSerializer(int header)
         BotForceOpenContextMenuMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.BotId);
     }
 }

@@ -11,6 +11,6 @@ internal class NestBreedingSuccessEventMessageComposerSerializer(int header)
         NestBreedingSuccessEventMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.PetId).WriteInteger(message.RarityCategory);
     }
 }

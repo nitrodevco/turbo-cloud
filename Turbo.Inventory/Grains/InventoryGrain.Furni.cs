@@ -1,25 +1,8 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Orleans;
-using Turbo.Database.Entities.Furniture;
-using Turbo.Furniture;
-using Turbo.Inventory.Furniture;
-using Turbo.Logging;
-using Turbo.Primitives;
-using Turbo.Primitives.Catalog.Enums;
-using Turbo.Primitives.Catalog.Snapshots;
-using Turbo.Primitives.Furniture.Enums;
-using Turbo.Primitives.Furniture.Snapshots;
-using Turbo.Primitives.Furniture.StuffData;
-using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Snapshots;
-using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
@@ -27,205 +10,54 @@ namespace Turbo.Inventory.Grains;
 
 internal sealed partial class InventoryGrain
 {
-    public Task EnsureFurnitureReadyAsync(CancellationToken ct) =>
-        _furniModule.EnsureFurnitureReadyAsync(ct);
-
-    public async Task<bool> AddFurnitureAsync(IFurnitureItem item, CancellationToken ct)
-    {
-        if (!await _furniModule.AddFurnitureAsync(item, ct))
-            return false;
-
-        var presence = _grainFactory.GetPlayerPresenceGrain(PlayerId);
-
-        await presence.OnFurnitureAddedAsync(item.GetSnapshot(), ct);
-
-        return true;
-    }
-
-    public async Task<bool> AddFurnitureFromRoomItemSnapshotAsync(
-        RoomItemSnapshot snapshot,
+    public Task<ImmutableArray<FurnitureItemSnapshot>> GetAllItemSnapshotsAsync(
         CancellationToken ct
-    )
-    {
-        var item = _furnitureItemsLoader.CreateFromRoomItemSnapshot(snapshot);
-
-        if (!await _furniModule.AddFurnitureAsync(item, ct))
-            return false;
-
-        var presence = _grainFactory.GetPlayerPresenceGrain(PlayerId);
-
-        await presence.OnFurnitureAddedAsync(item.GetSnapshot(), ct);
-
-        return true;
-    }
-
-    public async Task<bool> RemoveFurnitureAsync(RoomObjectId itemId, CancellationToken ct)
-    {
-        if (!await _furniModule.RemoveFurnitureAsync(itemId, ct))
-            return false;
-
-        var presence = _grainFactory.GetPlayerPresenceGrain(PlayerId);
-
-        await presence.OnFurnitureRemovedAsync(itemId, ct);
-
-        return true;
-    }
-
-    public async Task GrantCatalogOfferAsync(
-        CatalogOfferSnapshot offer,
-        string extraParam,
-        int quantity,
-        CancellationToken ct
-    )
-    {
-        quantity = Math.Max(1, quantity);
-
-        var entities = new List<FurnitureEntity>();
-
-        foreach (var product in offer.Products)
-        {
-            if (product.ProductType is ProductType.Floor || product.ProductType is ProductType.Wall)
-            {
-                var def = GetDefinitionOrThrow(product.FurniDefinitionId);
-
-                for (int i = 0; i < quantity; i++)
-                    entities.Add(
-                        new FurnitureEntity
-                        {
-                            PlayerEntityId = (int)PlayerId,
-                            FurnitureDefinitionEntityId = def.Id,
-                        }
-                    );
-
-                continue;
-            }
-        }
-
-        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
-
-        dbCtx.AddRange(entities);
-
-        await dbCtx.SaveChangesAsync(ct);
-
-        foreach (var entity in entities)
-        {
-            var def = GetDefinitionOrThrow(entity.FurnitureDefinitionEntityId);
-
-            // TODO need to batch these
-
-            await AddFurnitureAsync(
-                new FurnitureItem()
-                {
-                    ItemId = entity.Id,
-                    OwnerId = entity.PlayerEntityId,
-                    OwnerName = string.Empty,
-                    Definition = def,
-                    ExtraData = new ExtraData("{}"),
-                    StuffData = _stuffDataFactory.CreateStuffData((int)StuffDataType.LegacyKey),
-                },
-                ct
-            );
-        }
-    }
+    ) => _furniModule.GetAllAsync(ct);
 
     public Task<FurnitureItemSnapshot?> GetItemSnapshotAsync(
         RoomObjectId itemId,
         CancellationToken ct
-    ) => _furniModule.GetItemSnapshotAsync(itemId, ct);
+    ) => _furniModule.GetAsync(itemId, ct);
 
-    public Task<ImmutableArray<FurnitureItemSnapshot>> GetAllItemSnapshotsAsync(
+    public Task<ImmutableArray<FurnitureItemSnapshot>> GetItemSnapshotsAsync(
+        ImmutableArray<RoomObjectId> itemIds,
         CancellationToken ct
-    ) => _furniModule.GetAllItemSnapshotsAsync(ct);
+    ) => _furniModule.GetManyAsync(itemIds, ct);
 
-    public async Task GrantLtdFurnitureAsync(
+    public async Task<bool> AddFurnitureFromRoomItemSnapshotAsync(
+        RoomItemSnapshot snapshot,
+        CancellationToken ct
+    ) => await _furniModule.AddFromRoomItemsAsync([snapshot], ct) > 0;
+
+    public Task<int> AddFurnitureFromRoomItemSnapshotsAsync(
+        ImmutableArray<RoomItemSnapshot> snapshots,
+        CancellationToken ct
+    ) => _furniModule.AddFromRoomItemsAsync(snapshots, ct);
+
+    public Task<bool> RemoveFurnitureAsync(RoomObjectId itemId, CancellationToken ct) =>
+        _furniModule.RemoveAsync(itemId, ct);
+
+    public Task<FurnitureItemSnapshot?> GrantFurnitureAsync(
+        int definitionId,
+        string? extraDataJson,
+        CancellationToken ct
+    ) => _furniModule.GrantAsync(definitionId, extraDataJson, ct);
+
+    public Task GrantLtdFurnitureAsync(
         int catalogProductId,
         int serialNumber,
         int seriesSize,
         CancellationToken ct
-    )
-    {
-        // Find the product in the catalog snapshot
-        var snapshot = _catalogService.GetCatalogSnapshot(CatalogType.Normal);
-        var product = snapshot.ProductsById.Values.FirstOrDefault(p => p.Id == catalogProductId);
+    ) => _furniModule.GrantLimitedAsync(catalogProductId, serialNumber, seriesSize, ct);
 
-        if (product == null)
-        {
-            _logger.LogError(
-                "Catalog product {CatalogProductId} is missing; cannot grant the limited item to player {PlayerId}",
-                catalogProductId,
-                PlayerId
-            );
+    public Task<bool> TransferFurnitureAsync(
+        ImmutableArray<RoomObjectId> itemIds,
+        PlayerId toPlayerId,
+        CancellationToken ct
+    ) => _furniModule.TransferAsync(itemIds, toPlayerId, ct);
 
-            throw new TurboException(TurboErrorCodeEnum.CatalogProductNotFound);
-        }
-
-        var def = GetDefinitionOrThrow(product.FurniDefinitionId);
-
-        // Build ExtraData JSON with LTD serial info in the stuff section
-        var extraDataJson = JsonSerializer.Serialize(
-            new
-            {
-                stuff = new
-                {
-                    UniqueNumber = serialNumber,
-                    UniqueSeries = seriesSize,
-                    Data = "0",
-                },
-            }
-        );
-
-        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
-
-        // Create furniture entity - LTD data is stored in ExtraData JSON
-        var entity = new FurnitureEntity
-        {
-            PlayerEntityId = (int)PlayerId,
-            FurnitureDefinitionEntityId = def.Id,
-            ExtraData = extraDataJson,
-        };
-
-        dbCtx.Add(entity);
-        await dbCtx.SaveChangesAsync(ct);
-
-        // Create stuff data from the ExtraData - this properly loads the UniqueNumber/UniqueSeries
-        var extraData = new ExtraData(extraDataJson);
-        var stuffData = _stuffDataFactory.CreateStuffDataFromExtraData(
-            StuffDataType.LegacyKey,
-            extraData
-        );
-
-        // Add to inventory
-        await AddFurnitureAsync(
-            new FurnitureItem()
-            {
-                ItemId = entity.Id,
-                OwnerId = entity.PlayerEntityId,
-                OwnerName = string.Empty,
-                Definition = def,
-                ExtraData = extraData,
-                StuffData = stuffData,
-            },
-            ct
-        );
-    }
-
-    /// <summary>
-    /// The definition a grant needs. A missing one means the catalog and the furniture data no
-    /// longer agree, so it is logged with the id before the purchase is failed.
-    /// </summary>
-    private FurnitureDefinitionSnapshot GetDefinitionOrThrow(int definitionId)
-    {
-        var definition = _furnitureDefinitionProvider.TryGetDefinition(definitionId);
-
-        if (definition is not null)
-            return definition;
-
-        _logger.LogError(
-            "Furniture definition {DefinitionId} is missing; cannot grant it to player {PlayerId}",
-            definitionId,
-            PlayerId
-        );
-
-        throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
-    }
+    public Task ReceiveFurnitureAsync(
+        ImmutableArray<FurnitureItemSnapshot> items,
+        CancellationToken ct
+    ) => _furniModule.ReceiveAsync(items, ct);
 }

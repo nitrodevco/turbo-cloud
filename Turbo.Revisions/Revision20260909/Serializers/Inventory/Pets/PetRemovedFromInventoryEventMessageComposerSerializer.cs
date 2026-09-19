@@ -11,6 +11,6 @@ internal class PetRemovedFromInventoryEventMessageComposerSerializer(int header)
         PetRemovedFromInventoryEventMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.PetId);
     }
 }

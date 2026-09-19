@@ -8,6 +8,6 @@ internal class TradeSilverFeeMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, TradeSilverFeeMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.SilverFee);
     }
 }

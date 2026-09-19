@@ -4,20 +4,21 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Orleans;
+using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
-using Turbo.Database.Entities.Furniture;
 using Turbo.Furniture;
 using Turbo.Inventory.Furniture;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Furniture;
-using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Inventory.Factories;
@@ -26,84 +27,94 @@ internal sealed class InventoryFurnitureLoader(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IFurnitureDefinitionProvider defsProvider,
     IStuffDataFactory stuffDataFactory,
-    IGrainFactory grainFactory
+    ILogger<IInventoryFurnitureLoader> logger
 ) : IInventoryFurnitureLoader
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
     private readonly IFurnitureDefinitionProvider _defsProvider = defsProvider;
     private readonly IStuffDataFactory _stuffDataFactory = stuffDataFactory;
-    private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly ILogger<IInventoryFurnitureLoader> _logger = logger;
 
     public async Task<IReadOnlyList<IFurnitureItem>> LoadByPlayerIdAsync(
         PlayerId playerId,
+        string ownerName,
         CancellationToken ct
     )
     {
-        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-        try
-        {
-            var entities = await dbCtx
-                .Furnitures.AsNoTracking()
-                .Where(x => x.PlayerEntityId == (int)playerId && x.RoomEntityId == null)
-                .ToListAsync(ct)
-                .ConfigureAwait(false);
-
-            var items = new List<IFurnitureItem>();
-
-            var ownerName = await _grainFactory
-                .GetPlayerDirectoryGrain()
-                .GetPlayerNameAsync(playerId, ct)
-                .ConfigureAwait(false);
-
-            foreach (var entity in entities)
+        var rows = await dbCtx
+            .Furnitures.AsNoTracking()
+            .Where(x => x.PlayerEntityId == (int)playerId && x.RoomEntityId == null)
+            .Select(x => new
             {
-                try
-                {
-                    var item = CreateFromEntity(entity, ownerName);
+                x.Id,
+                x.FurnitureDefinitionEntityId,
+                x.ExtraData,
+                x.CreatedAt,
+            })
+            .ToListAsync(ct);
 
-                    items.Add(item);
-                }
-                catch (Exception)
-                {
-                    continue;
-                }
+        var items = new List<IFurnitureItem>(rows.Count);
+
+        foreach (var row in rows)
+        {
+            var definition = _defsProvider.TryGetDefinition(row.FurnitureDefinitionEntityId);
+
+            // A row whose definition is gone cannot be shown or placed; skip it, loudly.
+            if (definition is null)
+            {
+                _logger.LogWarning(
+                    "Furniture {ItemId} of player {PlayerId} uses missing definition {DefinitionId}; left out of the inventory",
+                    row.Id,
+                    playerId,
+                    row.FurnitureDefinitionEntityId
+                );
+
+                continue;
             }
 
-            return items;
+            items.Add(
+                Create(row.Id, playerId, ownerName, definition, row.ExtraData, row.CreatedAt)
+            );
         }
-        finally
-        {
-            await dbCtx.DisposeAsync().ConfigureAwait(false);
-        }
+
+        return items;
     }
 
-    public IFurnitureItem CreateFromEntity(FurnitureEntity entity, string? ownerName)
-    {
-        var definition =
-            _defsProvider.TryGetDefinition(entity.FurnitureDefinitionEntityId)
-            ?? throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
+    public IFurnitureItem Create(
+        RoomObjectId itemId,
+        PlayerId ownerId,
+        string ownerName,
+        FurnitureDefinitionSnapshot definition,
+        string? extraDataJson,
+        DateTime? createdAtUtc
+    ) =>
+        Build(
+            itemId,
+            ownerId,
+            ownerName,
+            definition,
+            extraDataJson,
+            // TODO the stuff data type belongs to the furniture logic, which inventories do not run.
+            StuffDataType.LegacyKey,
+            createdAtUtc
+        );
 
-        // TODO we need to get the correct stuff data key
-
-        var extraData = new ExtraData(entity.ExtraData);
-        var jsonData = extraData.TryGetSection(ExtraDataSectionType.STUFF, out var element)
-            ? element.GetRawText()
-            : "{}";
-
-        return new FurnitureItem()
-        {
-            ItemId = entity.Id,
-            OwnerId = entity.PlayerEntityId,
-            OwnerName = ownerName ?? string.Empty,
-            Definition = definition,
-            ExtraData = extraData,
-            StuffData = _stuffDataFactory.CreateStuffDataFromJson(
-                StuffDataType.LegacyKey,
-                jsonData
-            ),
-        };
-    }
+    public IFurnitureItem CreateFromFurnitureItemSnapshot(
+        FurnitureItemSnapshot snapshot,
+        PlayerId ownerId,
+        string ownerName
+    ) =>
+        Build(
+            snapshot.ItemId,
+            ownerId,
+            ownerName,
+            snapshot.Definition,
+            snapshot.ExtraData,
+            (StuffDataType)snapshot.StuffData.StuffBitmask,
+            snapshot.CreatedAtUtc
+        );
 
     public IFurnitureItem CreateFromRoomItemSnapshot(RoomItemSnapshot snapshot)
     {
@@ -111,17 +122,42 @@ internal sealed class InventoryFurnitureLoader(
             _defsProvider.TryGetDefinition(snapshot.DefinitionId)
             ?? throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
 
-        return new FurnitureItem()
+        return Build(
+            snapshot.ObjectId,
+            snapshot.OwnerId,
+            snapshot.OwnerName,
+            definition,
+            snapshot.ExtraData,
+            (StuffDataType)snapshot.StuffData.StuffBitmask,
+            null
+        );
+    }
+
+    /// <summary>
+    /// The one place an inventory item is assembled: the stuff data always comes from the
+    /// stuff section of the item's own extra data.
+    /// </summary>
+    private FurnitureItem Build(
+        RoomObjectId itemId,
+        PlayerId ownerId,
+        string ownerName,
+        FurnitureDefinitionSnapshot definition,
+        string? extraDataJson,
+        StuffDataType stuffDataType,
+        DateTime? createdAtUtc
+    )
+    {
+        var extraData = new ExtraData(extraDataJson);
+
+        return new FurnitureItem
         {
-            ItemId = snapshot.ObjectId,
-            OwnerId = snapshot.OwnerId,
-            OwnerName = snapshot.OwnerName,
+            ItemId = itemId,
+            OwnerId = ownerId,
+            OwnerName = ownerName,
             Definition = definition,
-            ExtraData = new ExtraData(snapshot.ExtraData),
-            StuffData = _stuffDataFactory.CreateStuffDataFromJson(
-                (StuffDataType)snapshot.StuffData.StuffBitmask,
-                snapshot.ExtraData
-            ),
+            ExtraData = extraData,
+            StuffData = _stuffDataFactory.CreateStuffDataFromExtraData(stuffDataType, extraData),
+            CreatedAtUtc = createdAtUtc,
         };
     }
 }
