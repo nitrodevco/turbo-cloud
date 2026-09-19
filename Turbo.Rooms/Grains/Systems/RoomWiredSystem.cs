@@ -9,9 +9,14 @@ using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Events.Avatar;
+using Turbo.Primitives.Rooms.Events.Bot;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Events.RoomItem;
+using Turbo.Primitives.Rooms.Events.Wired;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
@@ -23,6 +28,11 @@ using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Grains.Systems;
 
+/// <summary>
+/// Runs the wired of a room. Boxes on one tile form a stack; an event that a stack trigger
+/// accepts runs the selectors, addons and conditions of that stack and schedules its actions.
+/// Signals, stack calls, periodic triggers and timers are driven from here as well.
+/// </summary>
 public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
 {
     private readonly RoomGrain _roomGrain = roomGrain;
@@ -30,7 +40,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
     private readonly HashSet<int> _dirtyStackIds = [];
     private readonly Dictionary<int, IWiredStack> _stacksById = [];
     private readonly Dictionary<Type, List<int>> _stackIdsByEventType = [];
-
+    private readonly Dictionary<int, int> _nextUnseenIndexByStackId = [];
     private readonly Queue<RoomEvent> _eventQueue = new();
     private readonly Dictionary<
         WiredExecutionKey,
@@ -62,10 +72,17 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
 
         await ProcessVariableBoxesAsync(now, ct);
         await ProcessWiredStacksAsync(now, ct);
+        await ProcessGameAsync(now, ct);
         await RunDueScheduledStackExecutionsAsync(now, ct);
 
-        if (_stacksById.Count == 0 || _stackIdsByEventType.Count == 0)
+        if (_stacksById.Count == 0)
+        {
+            _eventQueue.Clear();
+
             return;
+        }
+
+        await ProcessTimedTriggersAsync(now, ct);
 
         var budget = _roomGrain._roomConfig.WiredMaxEventsPerTick;
 
@@ -75,8 +92,6 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
 
             await ProcessRoomEventAsync(evt, now, ct);
         }
-
-        //await RunDueScheduledStackExecutionsAsync(now, ct);
     }
 
     public Task OnRoomEventAsync(RoomEvent evt, CancellationToken ct)
@@ -100,10 +115,12 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
                 break;
             case PlayerLeftEvent playerLeftEvt:
                 _playerActiveStore.RemovePlayerStore(playerLeftEvt.PlayerId);
+                ForgetPlayer(playerLeftEvt.PlayerId);
                 _eventQueue.Enqueue(evt);
                 break;
             case RoomItemDetachedEvent detatchedEvt:
                 _furnitureActiveStore.RemoveFurnitureStore(detatchedEvt.ObjectId);
+                ForgetTimedTrigger(detatchedEvt.ObjectId);
                 break;
             default:
                 _eventQueue.Enqueue(evt);
@@ -115,7 +132,17 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
 
     private async Task ProcessRoomEventAsync(RoomEvent evt, long now, CancellationToken ct)
     {
-        if (evt is null || !_stackIdsByEventType.TryGetValue(evt.GetType(), out var stackIds))
+        if (evt is null)
+            return;
+
+        if (evt is WiredStackCalledEvent callEvt)
+        {
+            await ProcessStackCallAsync(callEvt, now, ct);
+
+            return;
+        }
+
+        if (!_stackIdsByEventType.TryGetValue(evt.GetType(), out var stackIds))
             return;
 
         foreach (var stackId in stackIds)
@@ -144,55 +171,239 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
         )
             return;
 
+        var (signal, depth) = evt switch
+        {
+            WiredSignalEvent signalEvt => (
+                new WiredSelectionSet().UnionWith(
+                    new WiredSelectionSet(signalEvt.FurniIds, signalEvt.PlayerIds)
+                ),
+                signalEvt.Depth
+            ),
+            _ => (new WiredSelectionSet(), 0),
+        };
+
         var ctx = new WiredProcessingContext(_roomGrain)
         {
             Event = evt,
             Stack = stack,
             Trigger = trigger,
+            Signal = signal,
+            Depth = depth,
+            CancellationToken = ct,
         };
 
-        if (evt.CausedBy.Origin == ActionOrigin.Player && evt.CausedBy.PlayerId > 0)
-            ctx.Selected.SelectedPlayerIds.Add(evt.CausedBy.PlayerId);
+        SeedSelectionFromEvent(ctx, evt);
 
-        var selection = await ctx.GetWiredSelectionSetAsync(trigger, ct);
+        var selection = ctx.GetSelection(trigger);
 
         ctx.Selected.UnionWith(selection);
 
-        foreach (var selector in ctx.Stack.Selectors)
-        {
-            var set = await selector.SelectAsync(ctx, ct);
+        await RunStackAsync(ctx, now, null, ct);
+    }
 
-            ctx.SelectorPool.UnionWith(set);
-        }
+    /// <summary>
+    /// Runs the selectors, addons and conditions of a stack for one firing and schedules the
+    /// actions the outcome selects. <paramref name="negativeCall"/> is set for stack calls: a
+    /// positive call runs the actions when the conditions pass, a negative one when they fail.
+    /// </summary>
+    private async Task RunStackAsync(
+        WiredProcessingContext ctx,
+        long now,
+        bool? negativeCall,
+        CancellationToken ct
+    )
+    {
+        foreach (var selector in ctx.Stack.Selectors)
+            await ApplySelectorAsync(ctx, selector, ct);
 
         foreach (var addon in ctx.Stack.Addons)
-            await addon.MutatePolicyAsync(ctx, ct);
+        {
+            if (!await addon.MutatePolicyAsync(ctx, ct))
+                return;
+        }
 
-        if (!EvaluateConditions(ctx.Stack.Conditions, ctx))
+        var passed = EvaluateConditions(ctx.Stack.Conditions, ctx);
+
+        if (ctx.Trigger is not null && !await ctx.Trigger.CanTriggerAsync(ctx, ct))
             return;
 
-        if (!await trigger.CanTriggerAsync(ctx, ct))
+        List<IWiredAction> pool;
+
+        if (negativeCall is bool negative)
+        {
+            if (negative == passed)
+                return;
+
+            pool = ctx.Stack.Actions.Where(x => !x.IsNegative).ToList();
+        }
+        else
+        {
+            pool = ctx.Stack.Actions.Where(x => x.IsNegative != passed).ToList();
+        }
+
+        if (pool.Count == 0)
             return;
 
-        _ = ctx.Trigger.FlashActivationStateAsync(ct);
+        if (ctx.Trigger is not null)
+            _ = ctx.Trigger.FlashActivationStateAsync(ct);
 
         foreach (var addon in ctx.Stack.Addons)
             await addon.BeforeEffectsAsync(ctx, ct);
 
-        ScheduleStackExecution(ctx, now, ct);
+        ScheduleStackExecution(ctx, ChooseActions(pool, ctx.Policy, ctx.Stack.StackId), now);
 
         foreach (var addon in ctx.Stack.Addons)
             await addon.AfterEffectsAsync(ctx, ct);
     }
 
-    private void ScheduleStackExecution(
+    /// <summary>
+    /// Adds a selector's result to the pool. Filter selectors narrow what is already there
+    /// (the pool, or the triggering set when the pool is still empty); inverted selectors
+    /// contribute everything in the room they did not pick.
+    /// </summary>
+    private async Task ApplySelectorAsync(
         WiredProcessingContext ctx,
-        long dueAtMs,
+        IWiredSelector selector,
         CancellationToken ct
     )
     {
-        var actions = ChooseActions(ctx.Stack.Actions, ctx.Policy);
+        var set = await selector.SelectAsync(ctx, ct);
 
+        if (selector.GetIsInvert())
+            set = InvertSelection(set);
+
+        if (!selector.GetIsFilter())
+        {
+            ctx.SelectorPool.UnionWith(set);
+
+            return;
+        }
+
+        var basis =
+            ctx.SelectorPool.HasFurni || ctx.SelectorPool.HasPlayers
+                ? ctx.SelectorPool
+                : ctx.Selected;
+        var furni = basis.SelectedFurniIds.Intersect(set.SelectedFurniIds).ToList();
+        var players = basis.SelectedPlayerIds.Intersect(set.SelectedPlayerIds).ToList();
+
+        ctx.SelectorPool.SelectedFurniIds.Clear();
+        ctx.SelectorPool.SelectedPlayerIds.Clear();
+        ctx.SelectorPool.SelectedFurniIds.UnionWith(furni);
+        ctx.SelectorPool.SelectedPlayerIds.UnionWith(players);
+    }
+
+    private WiredSelectionSet InvertSelection(IWiredSelectionSet set)
+    {
+        var inverted = new WiredSelectionSet();
+
+        foreach (var item in _roomGrain._state.ItemsById.Values)
+        {
+            if (!set.SelectedFurniIds.Contains(item.ObjectId))
+                inverted.SelectedFurniIds.Add(item.ObjectId);
+        }
+
+        foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
+        {
+            if (avatar is IRoomPlayer player && !set.SelectedPlayerIds.Contains(player.PlayerId))
+                inverted.SelectedPlayerIds.Add(player.PlayerId);
+        }
+
+        return inverted;
+    }
+
+    /// <summary>The furni and users an event is about become the triggering selection.</summary>
+    private void SeedSelectionFromEvent(WiredProcessingContext ctx, RoomEvent evt)
+    {
+        if (evt.CausedBy.Origin == ActionOrigin.Player && evt.CausedBy.PlayerId > 0)
+            ctx.Selected.SelectedPlayerIds.Add(evt.CausedBy.PlayerId);
+
+        switch (evt)
+        {
+            case PlayerClickedAvatarEvent clickEvt:
+                ctx.Selected.SelectedPlayerIds.Add(clickEvt.PlayerId);
+                AddPlayerByObjectId(ctx, clickEvt.TargetObjectId);
+                break;
+            case PlayerEvent playerEvt:
+                ctx.Selected.SelectedPlayerIds.Add(playerEvt.PlayerId);
+                break;
+            case AvatarWalkOnFurniEvent walkOnEvt:
+                AddPlayerByObjectId(ctx, walkOnEvt.ObjectId);
+                ctx.Selected.SelectedFurniIds.Add(walkOnEvt.FurniId);
+                break;
+            case AvatarWalkOffFurniEvent walkOffEvt:
+                AddPlayerByObjectId(ctx, walkOffEvt.ObjectId);
+                ctx.Selected.SelectedFurniIds.Add(walkOffEvt.FurniId);
+                break;
+            case RoomItemEvent itemEvt:
+                ctx.Selected.SelectedFurniIds.Add(itemEvt.ObjectId);
+                break;
+            case BotReachedAvatarEvent botAvatarEvt:
+                AddPlayerByObjectId(ctx, botAvatarEvt.TargetObjectId);
+                break;
+            case BotReachedItemEvent botItemEvt:
+                ctx.Selected.SelectedFurniIds.Add(botItemEvt.FurniId);
+                break;
+            case WiredClockTickEvent clockEvt:
+                ctx.Selected.SelectedFurniIds.Add(clockEvt.ObjectId);
+                break;
+            case WiredSignalEvent signalEvt:
+                ctx.Selected.SelectedFurniIds.UnionWith(signalEvt.AntennaIds);
+                break;
+        }
+    }
+
+    private void AddPlayerByObjectId(WiredProcessingContext ctx, int objectId)
+    {
+        if (
+            _roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+            && avatar is IRoomPlayer player
+        )
+            ctx.Selected.SelectedPlayerIds.Add(player.PlayerId);
+    }
+
+    private async Task ProcessStackCallAsync(
+        WiredStackCalledEvent evt,
+        long now,
+        CancellationToken ct
+    )
+    {
+        if (evt.Depth > _roomGrain._roomConfig.WiredMaxDepth)
+        {
+            RecordError("WiredCallDepthExceeded", "Action 18", now);
+
+            return;
+        }
+
+        foreach (var stackId in evt.StackIds)
+        {
+            if (!_stacksById.TryGetValue(stackId, out var stack) || stack is null)
+                continue;
+
+            var ctx = new WiredProcessingContext(_roomGrain)
+            {
+                Event = evt,
+                Stack = stack,
+                Trigger = null,
+                Depth = evt.Depth,
+                CancellationToken = ct,
+            };
+
+            ctx.Selected.SelectedFurniIds.UnionWith(evt.FurniIds);
+            ctx.Selected.SelectedPlayerIds.UnionWith(evt.PlayerIds);
+
+            await RunStackAsync(ctx, now, evt.IsNegative, ct);
+        }
+    }
+
+    /// <summary>Whether the tile holds a stack with at least one wired box in it.</summary>
+    public bool HasStack(int stackId) => _stacksById.ContainsKey(stackId);
+
+    private void ScheduleStackExecution(
+        WiredProcessingContext ctx,
+        List<IWiredAction> actions,
+        long dueAtMs
+    )
+    {
         if (actions.Count == 0)
             return;
 
@@ -209,8 +420,10 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
             Policy = ctx.Policy,
             Selected = ctx.Selected,
             SelectorPool = ctx.SelectorPool,
+            Signal = ctx.Signal,
+            Depth = ctx.Depth,
             Version = 1,
-            DueAtMs = dueAtMs,
+            DueAtMs = dueAtMs + (long)ctx.Policy.Delay.TotalMilliseconds,
             NextActionIndex = 0,
         };
 
@@ -297,6 +510,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
                 }
             }
 
+            var succeeded = false;
+
             try
             {
                 var ctx = new WiredExecutionContext(_roomGrain)
@@ -304,11 +519,14 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
                     Policy = pending.Policy,
                     Selected = new WiredSelectionSet().UnionWith(pending.Selected),
                     SelectorPool = new WiredSelectionSet().UnionWith(pending.SelectorPool),
+                    Signal = new WiredSelectionSet().UnionWith(pending.Signal),
+                    Depth = pending.Depth,
+                    CancellationToken = ct,
                 };
 
                 _ = action.FlashActivationStateAsync(ct);
 
-                await action.ExecuteAsync(ctx, ct);
+                succeeded = await action.ExecuteAsync(ctx, ct);
 
                 CountExecution();
 
@@ -328,6 +546,9 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
             }
 
             pending.NextActionIndex = i + 1;
+
+            if (succeeded && pending.Policy.ShortCircuitOnFirstEffectSuccess)
+                return true;
         }
 
         return true;
@@ -385,6 +606,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
             return;
 
         var dirtyStackIds = _dirtyStackIds.ToList();
+
         _dirtyStackIds.Clear();
 
         foreach (var stackId in dirtyStackIds)
@@ -401,6 +623,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
                     if (!_stackIdsByEventType.TryGetValue(eventType, out var list))
                     {
                         list = [];
+
                         _stackIdsByEventType[eventType] = list;
                     }
 
@@ -413,6 +636,10 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
     private async Task ProcessWiredStackAsync(int stackId, CancellationToken ct)
     {
         _stacksById.Remove(stackId);
+        _nextUnseenIndexByStackId.Remove(stackId);
+
+        if (stackId < 0 || stackId >= _roomGrain._state.TileFloorStacks.Length)
+            return;
 
         var wiredItems = _roomGrain
             ._state.TileFloorStacks[stackId]
@@ -420,6 +647,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
             .Where(x =>
                 x.Logic is FurnitureWiredLogic && x.Logic is not FurnitureWiredVariableLogic
             )
+            .OrderBy(x => x.Z.Value)
             .ToList();
 
         if (wiredItems.Count == 0)
@@ -432,6 +660,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
             try
             {
                 var wiredLogic = (FurnitureWiredLogic)item.Logic!;
+
                 await wiredLogic.LoadWiredAsync(ct);
 
                 switch (wiredLogic)
@@ -473,17 +702,43 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
         _stacksById[stackId] = stack;
     }
 
-    private static List<IWiredAction> ChooseActions(List<IWiredAction> actions, IWiredPolicy policy)
+    private List<IWiredAction> ChooseActions(
+        List<IWiredAction> actions,
+        IWiredPolicy policy,
+        int stackId
+    )
     {
         if (actions.Count == 0)
             return [];
 
-        return policy.EffectMode switch
+        switch (policy.EffectMode)
         {
-            WiredEffectModeType.FirstOnly => [actions[0]],
-            WiredEffectModeType.Random => [actions[Random.Shared.Next(actions.Count)]],
-            _ => [.. actions],
-        };
+            case WiredEffectModeType.FirstOnly:
+                return [actions[0]];
+            case WiredEffectModeType.Random:
+            {
+                var candidates = actions.Skip(Math.Max(0, policy.RandomSkipCount)).ToList();
+
+                if (candidates.Count == 0)
+                    return [];
+
+                var picks = Math.Clamp(policy.RandomPickCount, 1, candidates.Count);
+
+                return candidates.OrderBy(_ => Random.Shared.Next()).Take(picks).ToList();
+            }
+            case WiredEffectModeType.Unseen:
+            {
+                _nextUnseenIndexByStackId.TryGetValue(stackId, out var index);
+
+                var picked = actions[index % actions.Count];
+
+                _nextUnseenIndexByStackId[stackId] = (index + 1) % actions.Count;
+
+                return [picked];
+            }
+            default:
+                return [.. actions];
+        }
     }
 
     private static bool EvaluateConditions(
@@ -494,12 +749,22 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
         if (conditions.Count == 0)
             return true;
 
+        if (ctx.Policy.ConditionMode == WiredConditionModeType.None)
+            return true;
+
+        var matched = conditions.Count(c => c.Evaluate(ctx));
+        var threshold = Math.Max(0, ctx.Policy.ConditionThreshold);
+
         return ctx.Policy.ConditionMode switch
         {
-            WiredConditionModeType.None => true,
-            WiredConditionModeType.Any => conditions.Exists(c => c.Evaluate(ctx)),
-            WiredConditionModeType.All => conditions.TrueForAll(c => c.Evaluate(ctx)),
-            _ => conditions.TrueForAll(c => c.Evaluate(ctx)),
+            WiredConditionModeType.Any => matched > 0,
+            WiredConditionModeType.All => matched == conditions.Count,
+            WiredConditionModeType.NoneMatch => matched == 0,
+            WiredConditionModeType.NotAll => matched < conditions.Count,
+            WiredConditionModeType.AtLeast => matched >= threshold,
+            WiredConditionModeType.AtMost => matched <= threshold,
+            WiredConditionModeType.Exactly => matched == threshold,
+            _ => matched == conditions.Count,
         };
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -48,8 +49,10 @@ public class WiredSelectorItemsInArea(
                 foreach (var itemId in itemIds)
                     output.SelectedFurniIds.Add((int)itemId);
             }
-            catch
+            catch (Exception ex)
             {
+                LogWiredDataFault(ex);
+
                 continue;
             }
         }

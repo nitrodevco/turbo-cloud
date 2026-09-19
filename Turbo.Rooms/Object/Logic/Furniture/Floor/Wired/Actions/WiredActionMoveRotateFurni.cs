@@ -43,7 +43,7 @@ public class WiredActionMoveRotateFurni(
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        var selection = await ctx.GetEffectiveSelectionAsync(this, ct);
+        var selection = ctx.GetSelection(this);
         var actionCtx = ctx.AsActionContext();
 
         foreach (var furniId in selection.SelectedFurniIds)
@@ -83,8 +83,10 @@ public class WiredActionMoveRotateFurni(
 
                 await ctx.ProcessFloorItemMovementAsync(floorItem, nextIdx, null, moveRotation);
             }
-            catch
+            catch (Exception ex)
             {
+                LogWiredDataFault(ex);
+
                 continue;
             }
         }
@@ -96,12 +98,8 @@ public class WiredActionMoveRotateFurni(
     {
         await base.FillInternalDataAsync(ct);
 
-        try
-        {
-            _movementType = _wiredData.GetIntParam<int>(0);
-            _rotationType = _wiredData.GetIntParam<int>(1);
-        }
-        catch { }
+        _movementType = GetIntParamOrDefault(0, 0);
+        _rotationType = GetIntParamOrDefault(1, 0);
     }
 
     public static Rotation GetMoveDirection(int movementType) =>

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -37,7 +38,7 @@ public class WiredActionToggleItemState(
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        var selection = await ctx.GetEffectiveSelectionAsync(this, ct);
+        var selection = ctx.GetSelection(this);
 
         foreach (var furniId in selection.SelectedFurniIds)
         {
@@ -54,8 +55,10 @@ public class WiredActionToggleItemState(
 
                 await ctx.ProcessItemStateUpdateAsync(item, state);
             }
-            catch
+            catch (Exception ex)
             {
+                LogWiredDataFault(ex);
+
                 continue;
             }
         }

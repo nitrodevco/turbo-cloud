@@ -68,6 +68,16 @@ Default output format:
 - The same applies to shared enums and DTOs: one public type per file, placed under the domain it
   belongs to, so other modules can use it without depending on the file that happened to need it
   first.
+- A record stored as a JSON section of a furniture item extra data (`PetPackageData`,
+  `PresentStorage`, `WiredRewardClaim`, ...) lives in `Turbo.Primitives/Furniture/ExtraData/`,
+  namespace `Turbo.Primitives.Furniture.ExtraData`, next to the `FurnitureExtraDataSections`
+  reader. It names its section in a `SECTION` constant when it owns one. Sections are read
+  through `FurnitureExtraDataSections.Read`, which takes the logger so an unreadable section is
+  logged with its name; do not deserialize a section by hand or keep its name in the logic
+  class. Never put a section record directly under `Turbo.Primitives/Furniture/` or beside the
+  logic that reads it. Client-facing key and
+  state tables (`PresentData`, `MannequinData`, `DiceStates`) are not section records and stay
+  under `Turbo.Primitives/Furniture/`.
 
 ### Constants and magic values
 - Do not scatter hardcoded literals or `const` fields through implementation files. Give them a home:
@@ -255,6 +265,95 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   palette, text within `StickieTextMaxLength`, map entries within the `ObjectData*` limits.
   Reject with a `LogWarning` naming the item, room and player.
 
+### Inventory sections
+- Furniture, pets and bots are three modules of `InventoryGrain` with one shape
+  (`Inventory{Furni,Pet,Bot}Module`): `EnsureReadyAsync` loads the section on first use,
+  `GetAsync` / `GetAllAsync` read it, and every change writes the row before the list and then
+  tells the presence. The grain partials only forward; put behaviour in the module. A section
+  lists only what is in no room.
+- Inventory items are built by `IInventoryFurnitureLoader` and nowhere else, so loaded, granted,
+  picked-up and traded items read their extra data and stuff data the same way.
+- Tell the presence once per change, not once per item: `OnFurnitureAddedAsync` and
+  `OnFurnitureRemovedAsync` take the whole batch, and a grant of N items is one insert. The
+  owner name comes from `InventoryGrain.GetOwnerNameAsync`, cached per activation.
+- Ownership caps (`MaxPets`, `MaxBots`) count rows, placed or not, in the same context as the
+  insert. A catalog purchase validates every product before it creates anything
+  (`ValidateProduct` then `GrantProductAsync`).
+
+### Pets and bots
+- A pet or bot is a row (`pets`, `bots`) that is either in its owner's inventory
+  (`room_id` null) or standing in a room. The hand-over is a grain call that moves the row
+  first (`IInventoryGrain.TryCheckOut*Async` / `Return*Async`), so a crash in between leaves
+  it where the database says it is. Rooms load theirs through `IRoomNpcProvider` and write
+  stats back through `IRoomPersistenceGrain.EnqueueDirty*Async`; never update those rows from
+  anywhere else.
+- In a room they are avatars (`IRoomPet`, `IRoomBot`) with logic `default_pet` /
+  `default_bot`; behaviour over time lives in `RoomPetTickSystem` / `RoomBotTickSystem`,
+  actions in `RoomPetModule` / `RoomBotModule`. Pet commands arrive as chat
+  ("&lt;name&gt; &lt;word&gt;") and are matched against `PetConfig.CommandWords`, which must agree
+  with the hotel's `pet.command.<id>` texts.
+- Pet-related furniture is a `[RoomObjectLogic]` like any other: `pet_food`, `pet_drink`,
+  `pet_toy`, `pet_nest` (`IPetSupplyLogic`), `pet_breeding_nest`, `pet_package`, `pet_saddle`,
+  `pet_revive`, `pet_fertilizer`, `pet_dye`, `pet_custom_part`, `monsterplant_seed`. The stock Habbo
+  names are mapped to these by the data migration `MapPetFurnitureLogic`; extend that mapping
+  rather than editing rows by hand. A product used on a pet is a
+  `UseWithPetInteraction` on the item; what an item applies (package contents, a hair part) is
+  a JSON section read with `FurnitureExtraDataSections.Read` from the item's extra data, with
+  the definition's extra data as the per-type default.
+- Wire shapes (pet figure struct, `PetInfo` field order, bot skill ids, chatter string) come
+  from the Flash client and are recorded on the enums and helpers under
+  `Turbo.Primitives/Pets` and `Turbo.Primitives/Bots`; verify against the client before changing.
+
+### Trading
+- A trade is room state (`RoomTradeModule`, `TradeSession` in `RoomLiveState.TradesByPlayerId`):
+  both parties are avatars in the room and leaving ends it. Offers hold inventory snapshots;
+  nothing is reserved, so the commit re-checks and moves each side through
+  `IInventoryGrain.TransferFurnitureAsync` (one owner-change statement per side, then the
+  receiving inventory is told). A half-failed commit is handed back and closed with
+  `TradeCloseReasonType.CommitError`.
+- The flow mirrors the client's state machine: accept/unaccept while open, both accepted →
+  `TradingConfirmation` (client countdown), both confirm → items move → `TradingCompleted`;
+  a decline drops both acceptances. Any offer change also drops them.
+
+### Wired
+- Every wired box is a `[RoomObjectLogic("wf_...")]` under `Turbo.Rooms/Object/Logic/Furniture/Floor/Wired/`
+  deriving from the base of its kind (`FurnitureWiredTriggerLogic`, `...ConditionLogic`,
+  `...SelectorLogic`, `...AddonLogic`, `...ActionLogic`, `...VariableLogic`). The boxes on one
+  tile form a stack that `RoomWiredSystem` runs: trigger → selectors (filter and invert are
+  applied there) → addons mutate the `WiredPolicy` → conditions → the actions the outcome picks.
+  Actions whose `IsNegative` is set (the `wf_act_neg_*` boxes) run when the conditions fail.
+- Int params follow the Flash client editor exactly; declare them with `GetIntParamRules()` and
+  read them with `GetIntParamOrDefault`. Two-int longs (`pushIntAsLong`) are read with
+  `GetLongParam`, the "value or another variable" operand block with `TryResolveOperand`.
+  Two-slot boxes (move furni to, furni to furni, send signal) read each slot with
+  `WiredSlotSelection.ForSlot`; the second slot is `StuffIds2`.
+- Conditions override `EvaluateCore` and state the positive rule only; the base applies the
+  `wf_cnd_not_*` negation and the client invert switch.
+- `IWiredContext.GetSelection(box)` is the only way a box resolves its inputs. It is synchronous
+  because it only reads room state; never reintroduce an async twin or block on a task
+  (`GetAwaiter().GetResult()`) inside a grain. When a synchronous caller needs a module answer,
+  give the module a synchronous core (`CanPlaceFloorItem`) and let the async method wrap it.
+- Wired time is counted in half-second pulses. Convert through `WiredPulses`; do not write the
+  500 again.
+- Anything that happens over time is an event the system consumes: signals
+  (`WiredSignalEvent`, antennas are picked furni), stack calls (`WiredStackCalledEvent`,
+  bounded by `RoomConfig.WiredMaxDepth`), clocks (`WiredClockTickEvent` from
+  `FurnitureCounterClockLogic`), games and scores (`RoomWiredSystem.Game`), variable writes
+  (`WiredVariableChangedEvent`), avatar actions (`PlayerPerformsActionEvent`) and item use
+  (`RoomItemUsedEvent`). Periodic and "at given time" triggers are paced by
+  `RoomWiredSystem.Timers` from the tick, not by an event.
+- Movement of furni and users goes through `IWiredExecutionContext` (`ProcessFloorItemMovementAsync`,
+  `ProcessUserMovementAsync`, `ProcessUserDirectionAsync`); the system flushes one
+  `WiredMovements` packet per action. Text an action shows goes through `FormatTextAsync` so the
+  placeholder addons apply. Selections carry player ids and furni object ids; bots are not in
+  them, bot actions resolve the named bot from their string param.
+- Variable boxes key user values by player id; the wired menu addresses users by room index and
+  `RoomWiredSystem.ResolveTargetId` maps between the two. Derived variables (level-up, time
+  utility) implement `IWiredSubVariableProvider` on the variable box tile and are rebuilt with
+  the variable boxes. Value timestamps live in `KeyValueStore.Timestamps`.
+- Team, freeze and game effect ids are `RoomConfig` tunables (`WiredTeamEffectIds`,
+  `WiredFreezeEffectIds`); the freeze list ships as zeros and is hotel data.
+
 ### Grains are not reentrant: side effects on other grains that call back go in the service
 - `RoomGrain` and `PlayerPresenceGrain` call each other. A room grain that awaits a presence grain
   which in turn calls the room (for example `ClearActiveRoomAsync` → `RemoveAvatarFromPlayerAsync`)
@@ -262,6 +361,11 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
 - So a room operation that must close a player's session (kick, ban, delete) is split: the grain
   validates and removes the avatar and returns a result; `RoomService` then calls the presence
   grain. Entry, doorbell and close already work this way; follow them.
+- Closing the session of a player the room has already removed is
+  `IPlayerPresenceGrain.OnRemovedFromRoomAsync(roomId, kicked)`. It never calls the room back, so
+  it is the one eviction call that is safe from inside the room grain; `RoomService` uses the same
+  call for kicks, bans and room deletion. Code that runs in the room tick (a wired kick) does not
+  await it: it goes out with `LogAndForget`, because the presence may itself be waiting on the room.
 - Never mark a grain `[Reentrant]` to make such a chain compile. It moves the bug from a deadlock to
   interleaved state.
 
@@ -366,6 +470,32 @@ When adding packet mappings in `Turbo.Revisions/Revision20260909`:
 - Validation:
   - `dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudFastCheck`
   - `dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudQualityGate`
+
+## Keeping the codebase from drifting
+Most drift here came from adding the second copy of something that already existed. Before
+finishing a change, check it against this list; each line is a mistake that was made and fixed.
+- **Search before adding.** A config key, constant, helper, event or grain method: grep for an
+  existing one first. `WiredMaxDepth` existed unused while a second depth setting was added beside
+  it. An unused setting is a signal to wire it up or delete it, not to add a sibling.
+- **One way to do a thing.** If a change makes two members do the same job (two selection
+  methods, two eviction paths, two ways to build an inventory item), collapse them in the same
+  change and move every caller. Aliases kept "for compatibility" inside this repository are drift.
+- **Sibling features share a shape.** Inventory sections, wired box kinds, pet and bot modules:
+  when one gets a capability (batching, a `GetAsync`, a delete), give it to its siblings or say
+  why not. Behaviour lives in the module; grain partials forward.
+- **Batch across grain boundaries.** A loop that makes a grain call per item is a bug in waiting.
+  Pass the whole set (`OnFurnitureAddedAsync`, `AddFurnitureFromRoomItemSnapshotsAsync`), group
+  by target grain, and run independent targets with `Task.WhenAll`.
+- **One public type per file, in the folder for its kind** (see Type placement). A base class and
+  its two registered subclasses are three files.
+- **No silent catch, no blocking wait.** Both hide failures that only show up under load.
+- **A claim about the client is checked in the client.** Behaviour attributed to the Flash client
+  (what it sends after `CloseConnection`, what a param means) is read from the AS3 source before
+  it is written into code or a comment. Where the source only has localisation keys, the
+  assumption is recorded on the enum.
+- **Remove what a change orphans**: the setting nothing reads, the interface member with no
+  caller, the using, the appsettings key.
+- When a fix teaches a rule that is not in this file yet, add it here in the same change.
 
 ## Required validation before completion
 ```bash

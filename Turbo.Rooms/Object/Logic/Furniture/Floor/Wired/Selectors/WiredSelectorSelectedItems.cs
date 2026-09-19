@@ -27,12 +27,12 @@ public class WiredSelectorSelectedItems(
             [WiredFurniSourceType.SelectedItems],
         ];
 
-    public override async Task<IWiredSelectionSet> SelectAsync(
+    public override Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,
         CancellationToken ct
     )
     {
-        var input = await ctx.GetWiredSelectionSetAsync(this, ct);
+        var input = ctx.GetSelection(this);
         var output = new WiredSelectionSet();
 
         foreach (var id in input.SelectedFurniIds)
@@ -50,6 +50,6 @@ public class WiredSelectorSelectedItems(
             }
         }
 
-        return output;
+        return Task.FromResult<IWiredSelectionSet>(output);
     }
 }

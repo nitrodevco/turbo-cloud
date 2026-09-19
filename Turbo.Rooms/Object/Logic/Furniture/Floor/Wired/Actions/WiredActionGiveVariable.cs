@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -67,7 +68,7 @@ public class WiredActionGiveVariable(
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        var selection = await ctx.GetEffectiveSelectionAsync(this, ct);
+        var selection = ctx.GetSelection(this);
         var variableIds = _wiredData.VariableIds;
 
         foreach (var variableId in variableIds)
@@ -117,8 +118,10 @@ public class WiredActionGiveVariable(
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                LogWiredDataFault(ex);
+
                 continue;
             }
         }

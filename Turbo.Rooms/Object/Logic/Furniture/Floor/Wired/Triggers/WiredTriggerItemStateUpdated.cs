@@ -30,19 +30,16 @@ public class WiredTriggerItemStateUpdated(
             [WiredFurniSourceType.SelectedItems, WiredFurniSourceType.SelectorItems],
         ];
 
-    public override async Task<bool> CanTriggerAsync(
-        IWiredProcessingContext ctx,
-        CancellationToken ct
-    )
+    public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
         if (ctx.Event is not RoomItemStateChangedEvent evt)
-            return false;
+            return Task.FromResult(false);
 
-        var selection = await ctx.GetEffectiveSelectionAsync(this, ct);
+        var selection = ctx.GetSelection(this);
 
         if (!selection.SelectedFurniIds.Contains((int)evt.ObjectId))
-            return false;
+            return Task.FromResult(false);
 
-        return true;
+        return Task.FromResult(true);
     }
 }

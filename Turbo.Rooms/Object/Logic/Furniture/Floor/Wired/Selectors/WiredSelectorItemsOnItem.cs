@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -34,12 +35,12 @@ public class WiredSelectorItemsOnItem(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredEnumParamRule<WiredFurniSelectionType>(WiredFurniSelectionType.FurniAboveFurni)];
 
-    public override async Task<IWiredSelectionSet> SelectAsync(
+    public override Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,
         CancellationToken ct
     )
     {
-        var input = await ctx.GetWiredSelectionSetAsync(this, ct);
+        var input = ctx.GetSelection(this);
         var output = new WiredSelectionSet();
 
         foreach (var id in input.SelectedFurniIds)
@@ -97,12 +98,14 @@ public class WiredSelectorItemsOnItem(
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                LogWiredDataFault(ex);
+
                 continue;
             }
         }
 
-        return output;
+        return Task.FromResult<IWiredSelectionSet>(output);
     }
 }

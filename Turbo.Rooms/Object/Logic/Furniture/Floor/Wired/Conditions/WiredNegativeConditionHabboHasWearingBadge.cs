@@ -6,7 +6,7 @@ using Turbo.Primitives.Rooms.Object.Logic;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
-[RoomObjectLogic("wf_cnd_not_habbo_owns_badge")]
+[RoomObjectLogic("wf_cnd_not_wearing_b")]
 public class WiredNegativeConditionHabboHasWearingBadge(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,

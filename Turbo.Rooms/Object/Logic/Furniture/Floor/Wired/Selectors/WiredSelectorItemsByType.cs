@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,12 +33,12 @@ public class WiredSelectorItemsByType(
             ],
         ];
 
-    public override async Task<IWiredSelectionSet> SelectAsync(
+    public override Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,
         CancellationToken ct
     )
     {
-        var input = await ctx.GetWiredSelectionSetAsync(this, ct);
+        var input = ctx.GetSelection(this);
         var allowedDefinitionIds = new List<int>();
         var output = new WiredSelectionSet();
 
@@ -50,8 +51,10 @@ public class WiredSelectorItemsByType(
 
                 allowedDefinitionIds.Add(item.Definition.Id);
             }
-            catch
+            catch (Exception ex)
             {
+                LogWiredDataFault(ex);
+
                 continue;
             }
         }
@@ -62,6 +65,6 @@ public class WiredSelectorItemsByType(
                 output.SelectedFurniIds.Add((int)item.ObjectId);
         }
 
-        return output;
+        return Task.FromResult<IWiredSelectionSet>(output);
     }
 }

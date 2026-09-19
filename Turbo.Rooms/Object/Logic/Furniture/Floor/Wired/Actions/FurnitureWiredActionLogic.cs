@@ -25,6 +25,8 @@ public abstract class FurnitureWiredActionLogic(
 
     public int GetDelayMs() => _delayMs;
 
+    public virtual bool IsNegative => false;
+
     public virtual Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct) =>
         Task.FromResult(true);
 
@@ -34,8 +36,11 @@ public abstract class FurnitureWiredActionLogic(
 
         try
         {
-            _delayMs = Math.Clamp(_wiredData.GetDefinitionParam<int>(0), 0, 20) * 500;
+            _delayMs = Math.Clamp(_wiredData.GetDefinitionParam<int>(0), 0, 20) * WiredPulses.MS;
         }
-        catch { }
+        catch (Exception ex)
+        {
+            LogWiredDataFault(ex);
+        }
     }
 }

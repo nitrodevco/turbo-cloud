@@ -10,5 +10,7 @@ public sealed class WiredProcessingContext(RoomGrain roomGrain)
 {
     public required RoomEvent Event { get; init; }
     public required IWiredStack Stack { get; init; }
-    public required IWiredTrigger Trigger { get; init; }
+
+    /// <summary>Null when the stack was run by a "call stack" action rather than a trigger.</summary>
+    public IWiredTrigger? Trigger { get; init; }
 }

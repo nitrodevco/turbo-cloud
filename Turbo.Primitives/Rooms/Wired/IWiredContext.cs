@@ -1,6 +1,4 @@
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 
@@ -23,13 +21,11 @@ public interface IWiredContext
     /// <summary>How many stack calls or signals deep this firing is; bounded by config.</summary>
     public int Depth { get; }
     public Dictionary<string, int> Variables { get; }
-    public Task<IWiredSelectionSet> GetWiredSelectionSetAsync(
-        IWiredBox wired,
-        CancellationToken ct
-    );
-    public Task<IWiredSelectionSet> GetEffectiveSelectionAsync(
-        IWiredBox wired,
-        CancellationToken ct
-    );
+
+    /// <summary>
+    /// The furni and users a box works on: every input slot of the box resolved against this
+    /// firing. Synchronous on purpose; it only reads room state, and conditions are synchronous.
+    /// </summary>
+    public IWiredSelectionSet GetSelection(IWiredBox wired);
     public WiredContextSnapshot GetSnapshot();
 }

@@ -14,6 +14,8 @@ using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
@@ -23,7 +25,7 @@ using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 
-public abstract class FurnitureWiredLogic(
+public abstract partial class FurnitureWiredLogic(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
@@ -38,6 +40,8 @@ public abstract class FurnitureWiredLogic(
         StuffPersistanceType.RoomActive;
 
     protected IWiredData _wiredData = null!;
+
+    public RoomObjectId ObjectId => _ctx.ObjectId;
 
     private WiredDataSnapshot? _snapshot;
 
@@ -113,7 +117,10 @@ public abstract class FurnitureWiredLogic(
                     sourceTypes = _wiredData.FurniSources[index];
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogWiredDataFault(ex);
+            }
 
             sources.Add(sourceTypes);
             index++;
@@ -138,7 +145,10 @@ public abstract class FurnitureWiredLogic(
                     sourceTypes = _wiredData.PlayerSources[index];
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogWiredDataFault(ex);
+            }
 
             sources.Add(sourceTypes);
             index++;
@@ -172,7 +182,10 @@ public abstract class FurnitureWiredLogic(
                     specific = _wiredData.DefinitionSpecifics[index];
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogWiredDataFault(ex);
+            }
 
             specific ??= Activator.CreateInstance(specType)!;
 
@@ -202,7 +215,10 @@ public abstract class FurnitureWiredLogic(
                     specific = _wiredData.TypeSpecifics[index];
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogWiredDataFault(ex);
+            }
 
             specific ??= Activator.CreateInstance(specType)!;
 
@@ -279,7 +295,10 @@ public abstract class FurnitureWiredLogic(
                         ];
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    LogWiredDataFault(ex);
+                }
 
                 furniSources.Add(sourceTypes);
                 index++;
@@ -305,7 +324,10 @@ public abstract class FurnitureWiredLogic(
                         ];
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    LogWiredDataFault(ex);
+                }
 
                 playerSources.Add(sourceTypes);
                 index++;
@@ -331,7 +353,10 @@ public abstract class FurnitureWiredLogic(
                         specific = Activator.CreateInstance(specType)!;
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    LogWiredDataFault(ex);
+                }
 
                 definitionSpecifics.Add(specific);
                 index++;
@@ -357,7 +382,10 @@ public abstract class FurnitureWiredLogic(
                         specific = Activator.CreateInstance(specType)!;
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    LogWiredDataFault(ex);
+                }
 
                 typeSpecifics.Add(specific);
                 index++;
@@ -423,8 +451,9 @@ public abstract class FurnitureWiredLogic(
 
                     normalized.Add(rule.Sanitize(v));
                 }
-                catch
+                catch (Exception ex)
                 {
+                    LogWiredDataFault(ex);
                     normalized.Add(fixedRules[i].DefaultValue);
                 }
             }
@@ -508,8 +537,9 @@ public abstract class FurnitureWiredLogic(
                 if (count >= max)
                     break;
             }
-            catch
+            catch (Exception ex)
             {
+                LogWiredDataFault(ex);
                 continue;
             }
         }
@@ -678,6 +708,95 @@ public abstract class FurnitureWiredLogic(
             .ConfigureAwait(false);
 
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Stored wired data that does not fit the box (a stale shape after a definition change) is
+    /// replaced by defaults; the fault is logged so the loss is visible.
+    /// </summary>
+    protected void LogWiredDataFault(Exception ex) =>
+        _roomGrain._logger.LogDebug(
+            ex,
+            "Wired item {ItemId} in room {RoomId} carried data its box could not read",
+            _ctx.ObjectId,
+            _ctx.RoomId
+        );
+
+    protected bool TryGetFloorItem(int itemId, out IRoomFloorItem floorItem)
+    {
+        floorItem = null!;
+
+        if (
+            !_roomGrain._state.ItemsById.TryGetValue(itemId, out var item)
+            || item is not IRoomFloorItem found
+        )
+            return false;
+
+        floorItem = found;
+
+        return true;
+    }
+
+    protected bool TryGetPlayer(int playerId, out IRoomPlayer player)
+    {
+        player = null!;
+
+        if (
+            !_roomGrain._state.AvatarsByPlayerId.TryGetValue(playerId, out var objectId)
+            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+            || avatar is not IRoomPlayer found
+        )
+            return false;
+
+        player = found;
+
+        return true;
+    }
+
+    /// <summary>The players of a selection that are still in the room.</summary>
+    protected List<IRoomPlayer> GetPlayers(IWiredSelectionSet selection)
+    {
+        var players = new List<IRoomPlayer>();
+
+        foreach (var playerId in selection.SelectedPlayerIds)
+        {
+            if (TryGetPlayer(playerId, out var player))
+                players.Add(player);
+        }
+
+        return players;
+    }
+
+    /// <summary>The floor items of a selection that are still in the room.</summary>
+    protected List<IRoomFloorItem> GetFloorItems(IWiredSelectionSet selection)
+    {
+        var items = new List<IRoomFloorItem>();
+
+        foreach (var itemId in selection.SelectedFurniIds)
+        {
+            if (TryGetFloorItem(itemId, out var item))
+                items.Add(item);
+        }
+
+        return items;
+    }
+
+    /// <summary>An int param, or the default when the box has fewer params than expected.</summary>
+    protected T GetIntParamOrDefault<T>(int index, T fallback)
+    {
+        try
+        {
+            if (_wiredData is null || index >= _wiredData.IntParams.Count)
+                return fallback;
+
+            return _wiredData.GetIntParam<T>(index);
+        }
+        catch (Exception ex)
+        {
+            LogWiredDataFault(ex);
+
+            return fallback;
+        }
     }
 
     protected virtual Task OnWiredStackChangedAsync(

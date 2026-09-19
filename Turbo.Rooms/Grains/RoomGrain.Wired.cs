@@ -12,6 +12,8 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
+using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
+using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains.Systems;
 
 namespace Turbo.Rooms.Grains;
@@ -168,6 +170,49 @@ public sealed partial class RoomGrain
         WiredSystem.ClearErrorLogs();
 
         return true;
+    }
+
+    public async Task<WiredVariableInfoAndHoldersSnapshot?> GetWiredVariableHoldersAsync(
+        ActionContext ctx,
+        WiredVariableId variableId,
+        CancellationToken ct
+    )
+    {
+        if (!await CanReadWiredAsync(ctx, ct))
+            return null;
+
+        return WiredSystem.GetVariableHolders(variableId);
+    }
+
+    public async Task<bool> SetWiredVariableValueAsync(
+        ActionContext ctx,
+        WiredVariableBinding binding,
+        WiredVariableId variableId,
+        WiredVariableValue value,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            if (!await CanModifyWiredAsync(ctx, ct))
+                return false;
+
+            return await WiredSystem.SetVariableValueAsync(binding, variableId, value, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Player {PlayerId} failed to set wired variable {VariableId} on {TargetType} {TargetId} in room {RoomId}",
+                ctx.PlayerId,
+                variableId,
+                binding.TargetType,
+                binding.TargetId,
+                _state.RoomId
+            );
+
+            return false;
+        }
     }
 
     private async Task<bool> CanReadWiredAsync(ActionContext ctx, CancellationToken ct)

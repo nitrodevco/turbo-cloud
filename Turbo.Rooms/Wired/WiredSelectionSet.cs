@@ -6,6 +6,14 @@ namespace Turbo.Rooms.Wired;
 
 public sealed class WiredSelectionSet : IWiredSelectionSet
 {
+    public WiredSelectionSet() { }
+
+    public WiredSelectionSet(IEnumerable<int> furniIds, IEnumerable<int> playerIds)
+    {
+        SelectedFurniIds.UnionWith(furniIds);
+        SelectedPlayerIds.UnionWith(playerIds);
+    }
+
     public HashSet<int> SelectedFurniIds { get; } = [];
     public HashSet<int> SelectedPlayerIds { get; } = [];
 

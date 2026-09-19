@@ -1,11 +1,16 @@
+using System.Collections.Generic;
+using System.Linq;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
+using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
+/// <summary>True when the triggering users wear the effect id in param 0 (zero: any effect).</summary>
 [RoomObjectLogic("wf_cnd_wearing_effect")]
 public class WiredConditionHabboHasEffect(
     IGrainFactory grainFactory,
@@ -14,4 +19,26 @@ public class WiredConditionHabboHasEffect(
 ) : FurnitureWiredConditionLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredConditionType.ACTOR_IS_WEARING_EFFECT;
+
+    public override List<IWiredParamRule> GetIntParamRules() => [new WiredParamRule(0)];
+
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
+        [
+            [
+                WiredPlayerSourceType.TriggeredUser,
+                WiredPlayerSourceType.SelectorUsers,
+                WiredPlayerSourceType.SignalUsers,
+            ],
+        ];
+
+    protected override bool EvaluateCore(IWiredProcessingContext ctx)
+    {
+        var effectId = GetIntParamOrDefault(0, 0);
+        var players = GetPlayers(ctx.GetSelection(this));
+
+        return Quantify(
+            players.Select(p => effectId == 0 ? p.EffectId != 0 : p.EffectId == effectId),
+            true
+        );
+    }
 }

@@ -1,11 +1,17 @@
+using System.Threading;
+using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
+using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Object.Avatars.Player;
+using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
+/// <summary>Picks the players wearing a group badge: any group, or the id in the string param.</summary>
 [RoomObjectLogic("wf_slc_users_group")]
 public class WiredSelectorEntitiesInGroup(
     IGrainFactory grainFactory,
@@ -14,4 +20,25 @@ public class WiredSelectorEntitiesInGroup(
 ) : FurnitureWiredSelectorLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredSelectorType.USERS_IN_GROUP;
+
+    public override Task<IWiredSelectionSet> SelectAsync(
+        IWiredProcessingContext ctx,
+        CancellationToken ct
+    )
+    {
+        var output = new WiredSelectionSet();
+        int? wantedGroupId =
+            int.TryParse(_wiredData.StringParam, out var parsed) && parsed > 0 ? parsed : null;
+
+        foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
+        {
+            if (avatar is not RoomPlayerAvatar player || player.GroupId <= 0)
+                continue;
+
+            if (wantedGroupId is null || player.GroupId == wantedGroupId)
+                output.SelectedPlayerIds.Add(player.PlayerId);
+        }
+
+        return Task.FromResult<IWiredSelectionSet>(output);
+    }
 }

@@ -1,14 +1,23 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Events.Avatar;
+using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
+using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
+/// <summary>
+/// Fires when a team score crosses the configured points. Params: points, then the team
+/// (zero for any team).
+/// </summary>
 [RoomObjectLogic("wf_trg_score_achieved")]
 public class WiredTriggerScoreAchieved(
     IGrainFactory grainFactory,
@@ -17,5 +26,36 @@ public class WiredTriggerScoreAchieved(
 ) : FurnitureWiredTriggerLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredTriggerType.SCORE_ACHIEVED;
-    public override List<Type> SupportedEventTypes { get; } = [typeof(AvatarWalkOnFurniEvent)];
+    public override List<Type> SupportedEventTypes { get; } = [typeof(WiredScoreChangedEvent)];
+
+    public override List<IWiredParamRule> GetIntParamRules() =>
+        [
+            new WiredRangeParamRule(1, 1000, 1),
+            new WiredEnumParamRule<WiredTeamType>(WiredTeamType.None),
+        ];
+
+    public override Task<bool> MatchesEventAsync(RoomEvent evt, CancellationToken ct)
+    {
+        if (evt is not WiredScoreChangedEvent score)
+            return Task.FromResult(false);
+
+        var points = GetIntParamOrDefault(0, 1);
+        var team = GetIntParamOrDefault(1, WiredTeamType.None);
+
+        if (team != WiredTeamType.None && team != score.Team)
+            return Task.FromResult(false);
+
+        return Task.FromResult(score.PreviousScore < points && score.Score >= points);
+    }
+
+    public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct)
+    {
+        if (ctx.Event is not WiredScoreChangedEvent score)
+            return Task.FromResult(false);
+
+        foreach (var playerId in _roomGrain.WiredSystem.GetTeamMembers(score.Team))
+            ctx.Selected.SelectedPlayerIds.Add(playerId);
+
+        return Task.FromResult(true);
+    }
 }

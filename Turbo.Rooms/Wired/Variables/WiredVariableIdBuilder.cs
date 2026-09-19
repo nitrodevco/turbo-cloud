@@ -14,6 +14,13 @@ public static class WiredVariableIdBuilder
             ((ulong)((int)WiredVariableIdSourceType.Database & 0b1_1111) << 48) | HashBoxId48(boxId)
         );
 
+    /// <summary>An id for the n-th derived variable of a box, distinct from the box own id.</summary>
+    public static WiredVariableId CreateFromBoxId(int boxId, int subIndex) =>
+        new(
+            ((ulong)((int)WiredVariableIdSourceType.Database & 0b1_1111) << 48)
+                | HashBoxId48(unchecked(boxId * 397) ^ (subIndex + 1) * 7919)
+        );
+
     public static WiredVariableId CreateInternalOrdered(
         WiredVariableTargetType targetType,
         string name,

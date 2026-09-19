@@ -34,7 +34,10 @@ public abstract class FurnitureWiredSelectorLogic(
             _isFilter = _wiredData.GetDefinitionParam<bool>(0);
             _isInvert = _wiredData.GetDefinitionParam<bool>(1);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            LogWiredDataFault(ex);
+        }
     }
 
     public bool GetIsFilter() => _isFilter;

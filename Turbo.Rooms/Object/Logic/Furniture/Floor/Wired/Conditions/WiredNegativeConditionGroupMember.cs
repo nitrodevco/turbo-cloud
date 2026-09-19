@@ -6,7 +6,7 @@ using Turbo.Primitives.Rooms.Object.Logic;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
-[RoomObjectLogic("wf_cnd_not_actor_in_group")]
+[RoomObjectLogic("wf_cnd_not_in_group")]
 public class WiredNegativeConditionGroupMember(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,

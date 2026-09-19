@@ -13,6 +13,11 @@ using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
+/// <summary>
+/// Picks the furni holding the chosen variable, optionally only those whose value passes a
+/// comparison. Params: comparison, select-by-value flag, operand mode, operand (hi, lo),
+/// operand target. Variables: the subject, then the operand variable.
+/// </summary>
 [RoomObjectLogic("wf_slc_furni_with_var")]
 public class WiredSelectorItemsWithVariable(
     IGrainFactory grainFactory,
@@ -20,15 +25,20 @@ public class WiredSelectorItemsWithVariable(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredSelectorLogic(grainFactory, stuffDataFactory, ctx)
 {
+    protected virtual WiredVariableTargetType TargetType => WiredVariableTargetType.Furni;
+
     public override int WiredCode => (int)WiredSelectorType.FURNI_WITH_VARIABLE;
+
+    public override int GetMaxVariableIds() => 2;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredEnumParamRule<WiredComparisonType>(WiredComparisonType.GreaterThan),
-            new WiredRangeParamRule(0, 2, 0),
+            new WiredBoolParamRule(false),
+            new WiredBoolParamRule(false),
             new WiredParamRule(0),
-            new WiredParamRule(0), // set value
-            new WiredEnumParamRule<WiredVariableTargetType>(WiredVariableTargetType.Furni),
+            new WiredParamRule(0),
+            new WiredParamRule((int)WiredVariableTargetType.Furni),
         ];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
@@ -54,102 +64,47 @@ public class WiredSelectorItemsWithVariable(
             },
         ];
 
-    public override async Task<IWiredSelectionSet> SelectAsync(
+    public override Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,
         CancellationToken ct
     )
     {
-        var input = await ctx.GetWiredSelectionSetAsync(this, ct);
-        var allowedDefinitionIds = new List<int>();
         var output = new WiredSelectionSet();
+        var variable = GetVariable(0);
 
-        /* try
+        if (variable is null)
+            return Task.FromResult<IWiredSelectionSet>(output);
+
+        var byValue = GetIntParamOrDefault(1, false);
+        long operand = 0;
+
+        if (byValue && !TryResolveOperand(2, 3, 5, 1, ctx.GetSelection(this), out operand))
+            return Task.FromResult<IWiredSelectionSet>(output);
+
+        var comparison = GetIntParamOrDefault(0, WiredComparisonType.GreaterThan);
+
+        foreach (var targetId in EnumerateTargets())
         {
-            if(_wiredData.VariableIds.Count == 0)
-                return output;
+            var value = ReadVariable(variable, TargetType, targetId);
 
-            var variableId = WiredVariableId.Parse(_wiredData.VariableIds[0]);
-            var variable = _roomGrain.WiredSystem.GetVariableById(variableId);
-
-            if(variable)
-            {
-                var refValue = 0;
-
-                switch(_wiredData.GetIntParam<int>(1))
-                {
-                    case 2:
-                        {
-                            var refVariable = _roomGrain.WiredSystem.GetVariableById(WiredVariableId.Parse(_wiredData.VariableIds[1]));
-                        }
-                    break;
-                    case 1:
-                })
-
-                if(_wiredData.GetIntParam<int>(1) == 2)
-                {
-                    var refVariable = _roomGrain.WiredSystem.GetVariableById(WiredVariableId.Parse(_wiredData.VariableIds[1]));
-
-                    if(refVariable is not null)
-                    {
-                        var refVarValue = refVariable.TryGetValue()
-
-                        if(refVarValue is int i)
-                            refValue = i;
-                    }
-
-                    if(refVariable.GetVarSnapshot().TargetType != _wiredData.GetIntParam<WiredVariableTargetType>(4))
-                        return output;
-                }
-            }
-            var variableValue = await ctx.GetVariableValueAsync(variableId, ct);
-
-            if (variableValue is null)
-                return output;
-
-            var comparisonType = _wiredData.GetIntParam<WiredComparisonType>(0);
-            var compareToValue = _wiredData.GetIntParam(2);
-
-            var comparisonResult = variableValue.CompareTo(compareToValue);
-
-            var isMatch =
-                comparisonType switch
-                {
-                    WiredComparisonType.LessThan => comparisonResult < 0,
-                    WiredComparisonType.Equals => comparisonResult == 0,
-                    WiredComparisonType.GreaterThan => comparisonResult > 0,
-                    _ => throw new TurboException(TurboErrorCodeEnum.InvalidWired),
-                };
-
-            if (!isMatch)
-                return output;
-        }
-
-        var variableId = WiredVariableId.Parse(_wiredData.VariableIds[0]);
-
-        if(_wiredData.Vari)
-
-        foreach (var id in input.SelectedFurniIds)
-        {
-            try
-            {
-                _roomGrain.WiredSystem.GetVariableById()
-                if (!_roomGrain._state.ItemsById.TryGetValue(id, out var item))
-                    continue;
-
-                allowedDefinitionIds.Add(item.Definition.Id);
-            }
-            catch
-            {
+            if (value is null)
                 continue;
-            }
+
+            if (byValue && !WiredComparison.Compare(comparison, value.Value, operand))
+                continue;
+
+            if (TargetType == WiredVariableTargetType.Furni)
+                output.SelectedFurniIds.Add(targetId);
+            else
+                output.SelectedPlayerIds.Add(targetId);
         }
 
-        foreach (var item in _roomGrain._state.ItemsById.Values)
-        {
-            if (allowedDefinitionIds.Contains(item.Definition.Id))
-                output.SelectedFurniIds.Add((int)item.ObjectId);
-        } */
+        return Task.FromResult<IWiredSelectionSet>(output);
+    }
 
-        return output;
+    protected virtual IEnumerable<int> EnumerateTargets()
+    {
+        foreach (var item in _roomGrain._state.ItemsById.Values)
+            yield return item.ObjectId;
     }
 }

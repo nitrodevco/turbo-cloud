@@ -36,7 +36,7 @@ public class WiredActionChaseHabbo(
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        var selection = await ctx.GetEffectiveSelectionAsync(this, ct);
+        var selection = ctx.GetSelection(this);
 
         foreach (var furniId in selection.SelectedFurniIds)
         {
@@ -136,8 +136,10 @@ public class WiredActionChaseHabbo(
                         floorItem.Rotation
                     );
             }
-            catch
+            catch (Exception ex)
             {
+                LogWiredDataFault(ex);
+
                 continue;
             }
         }

@@ -11,6 +11,10 @@ using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
+/// <summary>
+/// Furni moved by this stack carry the users on them. Param 0: only users on the moving
+/// furni itself, or everyone on its tiles.
+/// </summary>
 [RoomObjectLogic("wf_xtra_mov_carry_users")]
 public class WiredAddonCarryUsers(
     IGrainFactory grainFactory,
@@ -20,24 +24,13 @@ public class WiredAddonCarryUsers(
 {
     public override int WiredCode => (int)WiredAddonType.CARRY_USERS;
 
-    protected WiredCarryUserType _carryUserType = WiredCarryUserType.StandingOnFurni;
-
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredEnumParamRule<WiredCarryUserType>(WiredCarryUserType.StandingOnFurni)];
 
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
+        ctx.Policy.CarryUsers = GetIntParamOrDefault(0, WiredCarryUserType.StandingOnFurni);
+
         return Task.FromResult(true);
-    }
-
-    protected override async Task FillInternalDataAsync(CancellationToken ct)
-    {
-        await base.FillInternalDataAsync(ct);
-
-        try
-        {
-            _carryUserType = _wiredData.GetIntParam<WiredCarryUserType>(0);
-        }
-        catch { }
     }
 }

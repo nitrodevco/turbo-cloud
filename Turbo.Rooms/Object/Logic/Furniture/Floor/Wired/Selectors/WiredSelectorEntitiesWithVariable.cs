@@ -1,67 +1,43 @@
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
+/// <summary>Picks the players holding the chosen variable, optionally filtered by value.</summary>
 [RoomObjectLogic("wf_slc_users_with_var")]
 public class WiredSelectorEntitiesWithVariable(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredSelectorLogic(grainFactory, stuffDataFactory, ctx)
+) : WiredSelectorItemsWithVariable(grainFactory, stuffDataFactory, ctx)
 {
+    protected override WiredVariableTargetType TargetType => WiredVariableTargetType.User;
+
     public override int WiredCode => (int)WiredSelectorType.USERS_WITH_VARIABLE;
 
-    public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(false)];
-
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
+    public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            [
-                WiredFurniSourceType.SelectedItems,
-                WiredFurniSourceType.SignalItems,
-                WiredFurniSourceType.TriggeredItem,
-            ],
+            new WiredEnumParamRule<WiredComparisonType>(WiredComparisonType.GreaterThan),
+            new WiredBoolParamRule(false),
+            new WiredBoolParamRule(false),
+            new WiredParamRule(0),
+            new WiredParamRule(0),
+            new WiredParamRule((int)WiredVariableTargetType.User),
         ];
 
-    public override async Task<IWiredSelectionSet> SelectAsync(
-        IWiredProcessingContext ctx,
-        CancellationToken ct
-    )
+    protected override IEnumerable<int> EnumerateTargets()
     {
-        var input = await ctx.GetWiredSelectionSetAsync(this, ct);
-        var allowedDefinitionIds = new List<int>();
-        var output = new WiredSelectionSet();
-
-        foreach (var id in input.SelectedFurniIds)
+        foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
         {
-            try
-            {
-                if (!_roomGrain._state.ItemsById.TryGetValue(id, out var item))
-                    continue;
-
-                allowedDefinitionIds.Add(item.Definition.Id);
-            }
-            catch
-            {
-                continue;
-            }
+            if (avatar is IRoomPlayer player)
+                yield return player.PlayerId;
         }
-
-        foreach (var item in _roomGrain._state.ItemsById.Values)
-        {
-            if (allowedDefinitionIds.Contains(item.Definition.Id))
-                output.SelectedFurniIds.Add((int)item.ObjectId);
-        }
-
-        return output;
     }
 }

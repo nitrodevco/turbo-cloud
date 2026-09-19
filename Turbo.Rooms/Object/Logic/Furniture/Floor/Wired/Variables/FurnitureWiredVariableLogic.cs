@@ -11,6 +11,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
@@ -109,7 +110,7 @@ public abstract class FurnitureWiredVariableLogic
         )
             return Task.FromResult(false);
 
-        return store.GiveValueAsync(key, value, replace);
+        return GiveAndNotifyAsync(store, key, value, replace);
     }
 
     public virtual Task<bool> SetValueAsync(
@@ -121,7 +122,21 @@ public abstract class FurnitureWiredVariableLogic
         if (!TryGetStore(key, out var store) || store is null || !store.ContainsKey(key))
             return Task.FromResult(false);
 
-        return store.SetValueAsync(ctx, key, value);
+        return SetAndNotifyAsync(store, ctx, key, value);
+    }
+
+    public bool TryGetTimestamps(
+        in WiredVariableKey key,
+        out long createdAtMs,
+        out long updatedAtMs
+    )
+    {
+        createdAtMs = 0;
+        updatedAtMs = 0;
+
+        return TryGetStore(key, out var store)
+            && store is not null
+            && store.TryGetTimestamps(key, out createdAtMs, out updatedAtMs);
     }
 
     public virtual bool RemoveValue(WiredVariableKey key)
@@ -129,10 +144,98 @@ public abstract class FurnitureWiredVariableLogic
         if (!TryGetStore(key, out var store) || store is null)
             return false;
 
-        return store.RemoveValue(key);
+        if (!store.TryGetValue(key, out var previous) || !store.RemoveValue(key))
+            return false;
+
+        PublishChange(key, WiredVariableChangeType.Removed, previous, previous);
+
+        return true;
     }
 
-    public virtual Dictionary<WiredVariableValue, string> GetTextConnectors() => [];
+    private async Task<bool> GiveAndNotifyAsync(
+        KeyValueStore store,
+        WiredVariableKey key,
+        WiredVariableValue value,
+        bool replace
+    )
+    {
+        var existed = store.TryGetValue(key, out var previous);
+
+        if (!await store.GiveValueAsync(key, value, replace))
+            return false;
+
+        PublishChange(
+            key,
+            existed ? WiredVariableChangeType.Updated : WiredVariableChangeType.Created,
+            value,
+            existed ? previous : value
+        );
+
+        return true;
+    }
+
+    private async Task<bool> SetAndNotifyAsync(
+        KeyValueStore store,
+        IWiredExecutionContext ctx,
+        WiredVariableKey key,
+        WiredVariableValue value
+    )
+    {
+        store.TryGetValue(key, out var previous);
+
+        if (!await store.SetValueAsync(ctx, key, value))
+            return false;
+
+        PublishChange(key, WiredVariableChangeType.Updated, value, previous);
+
+        return true;
+    }
+
+    /// <summary>Feeds the "variable changed" trigger. Fire-and-forget: the event is queued.</summary>
+    private void PublishChange(
+        WiredVariableKey key,
+        WiredVariableChangeType changeType,
+        WiredVariableValue value,
+        WiredVariableValue previous
+    ) =>
+        _ = _ctx.PublishRoomEventAsync(
+            new WiredVariableChangedEvent
+            {
+                RoomId = _ctx.RoomId,
+                CausedBy = ActionContext.CreateForWired(_ctx.RoomId),
+                VariableId = key.VariableId,
+                TargetType = key.TargetType,
+                TargetId = key.TargetId,
+                ChangeType = changeType,
+                Value = value,
+                PreviousValue = previous,
+            },
+            System.Threading.CancellationToken.None
+        );
+
+    /// <summary>The labels a text connector addon on the same tile gives the values.</summary>
+    public virtual Dictionary<WiredVariableValue, string> GetTextConnectors()
+    {
+        var connectors = new Dictionary<WiredVariableValue, string>();
+        var tileIdx = _ctx.GetTileIdx();
+
+        if (tileIdx < 0 || tileIdx >= _roomGrain._state.TileFloorStacks.Length)
+            return connectors;
+
+        foreach (var itemId in _roomGrain._state.TileFloorStacks[tileIdx])
+        {
+            if (
+                !_roomGrain._state.ItemsById.TryGetValue(itemId, out var item)
+                || item.Logic is not Addons.WiredAddonVariableTextConnector connector
+            )
+                continue;
+
+            foreach (var (value, label) in connector.GetConnectors())
+                connectors[value] = label;
+        }
+
+        return connectors;
+    }
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
@@ -189,11 +292,12 @@ public abstract class FurnitureWiredVariableLogic
     protected virtual WiredVariableSnapshot BuildVarSnapshot()
     {
         var textConnectors = GetTextConnectors();
+        var flags = textConnectors.Count > 0 ? Flags | WiredVariableFlags.HasTextConnector : Flags;
         var variableHash = WiredVariableHashBuilder.HashValues(
             _wiredData.StringParam,
             AvailabilityType,
             TargetType,
-            Flags,
+            flags,
             textConnectors
         );
 
@@ -205,7 +309,7 @@ public abstract class FurnitureWiredVariableLogic
             VariableHash = variableHash,
             AvailabilityType = AvailabilityType,
             TargetType = TargetType,
-            Flags = Flags,
+            Flags = flags,
             TextConnectors = textConnectors,
         };
     }
