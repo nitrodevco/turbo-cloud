@@ -1,6 +1,5 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Users;
@@ -9,11 +8,10 @@ using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Users;
 
-public class IgnoreUserMessageHandler(IGrainFactory grainFactory, IConfiguration configuration)
+public class IgnoreUserMessageHandler(IGrainFactory grainFactory)
     : IMessageHandler<IgnoreUserMessage>
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
-    private readonly IConfiguration _configuration = configuration;
 
     public async ValueTask HandleAsync(
         IgnoreUserMessage message,

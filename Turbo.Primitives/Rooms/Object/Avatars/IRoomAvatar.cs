@@ -44,13 +44,16 @@ public interface IRoomAvatar : IRoomObject
     public long LastActiveAtMs { get; }
     public bool IsIdle { get; }
 
-    /// <summary>Frozen avatars cannot walk; wired freezes and unfreezes them.</summary>
+    /// <summary>Frozen avatars cannot walk. Whatever freezes one also thaws it.</summary>
     public bool IsFrozen { get; }
+
+    /// <summary>Whether being teleported thaws a frozen avatar. Set with the freeze and gone with it.</summary>
+    public bool ThawsOnTeleport { get; }
     public bool SetGoalTileId(int tileId);
     public bool SetHandItem(int handItemId);
     public void Touch(long nowMs);
     public void SetIdle(bool isIdle);
-    public void SetFrozen(bool isFrozen);
+    public void SetFrozen(bool isFrozen, bool thawsOnTeleport = false);
     public void SetHeight(Altitude z);
     public void SetBodyRotation(Rotation rot);
     public void SetHeadRotation(Rotation rot);

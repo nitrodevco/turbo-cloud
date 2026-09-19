@@ -21,15 +21,15 @@ internal static class WiredRules
             WiredVariableTargetType.Context
         );
 
-    public static IWiredParamRule HandItem(RoomConfig config) =>
-        new WiredRangeParamRule(0, config.WiredMaxHandItemId, 0);
+    public static IWiredParamRule HandItem(WiredConfig config) =>
+        new WiredRangeParamRule(0, config.MaxHandItemId, 0);
 
-    public static IWiredParamRule Effect(RoomConfig config) =>
-        new WiredRangeParamRule(0, config.WiredMaxEffectId, 0);
+    public static IWiredParamRule Effect(WiredConfig config) =>
+        new WiredRangeParamRule(0, config.MaxEffectId, 0);
 
     /// <summary>A tile coordinate or an offset between two tiles, either direction.</summary>
-    public static IWiredParamRule TileOffset(RoomConfig config) =>
-        new WiredRangeParamRule(-config.WiredMaxCoordinate, config.WiredMaxCoordinate, 0);
+    public static IWiredParamRule TileOffset(WiredConfig config) =>
+        new WiredRangeParamRule(-config.MaxCoordinate, config.MaxCoordinate, 0);
 
     /// <summary>Counts, unix seconds and other values that are never negative.</summary>
     public static IWiredParamRule NonNegative(int defaultValue = 0) =>

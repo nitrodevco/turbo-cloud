@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,7 +7,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Database.Context;
-using Turbo.Database.Entities.Players;
 using Turbo.Logging;
 using Turbo.Players.Configuration;
 using Turbo.Primitives;
@@ -241,63 +239,6 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         return true;
     }
 
-    public async Task<bool> GiveBadgeAsync(string badgeCode, CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(badgeCode))
-            return false;
-
-        badgeCode = badgeCode.Trim();
-
-        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
-
-        var exists = await dbCtx.PlayerBadges.AnyAsync(
-            x => x.PlayerEntityId == (int)_state.PlayerId && x.BadgeCode == badgeCode,
-            ct
-        );
-
-        if (exists)
-            return false;
-
-        dbCtx.PlayerBadges.Add(
-            new PlayerBadgeEntity
-            {
-                PlayerEntityId = (int)_state.PlayerId,
-                BadgeCode = badgeCode,
-                SlotId = null,
-                PlayerEntity = null!,
-            }
-        );
-
-        await dbCtx.SaveChangesAsync(ct);
-
-        return true;
-    }
-
-    public async Task<ImmutableArray<PlayerBadgeSnapshot>> GetSelectedBadgesAsync(
-        CancellationToken ct
-    )
-    {
-        if (_state.SelectedBadges is { } cached)
-            return cached;
-
-        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
-
-        var badges = await dbCtx
-            .PlayerBadges.AsNoTracking()
-            .Where(x => x.PlayerEntityId == (int)_state.PlayerId && x.SlotId != null)
-            .OrderBy(x => x.SlotId)
-            .Select(x => new PlayerBadgeSnapshot
-            {
-                SlotId = x.SlotId!.Value,
-                BadgeCode = x.BadgeCode,
-            })
-            .ToListAsync(ct);
-
-        _state.SelectedBadges = [.. badges];
-
-        return _state.SelectedBadges.Value;
-    }
-
     /// <summary>
     /// Daily respect allowances refill at UTC midnight. Checked lazily on every use, so a grain
     /// that stays active across midnight still resets.
@@ -315,9 +256,26 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         _state.RespectReplenishesLeft = _playerConfig.RespectReplenishesPerDay;
     }
 
-    public Task<PlayerExtendedProfileSnapshot> GetExtendedProfileSnapshotAsync(CancellationToken ct)
+    public async Task SetBadgesRankAsync(int badgesRank, CancellationToken ct)
     {
-        return Task.FromResult(
+        if (_state.BadgesRank == badgesRank)
+            return;
+
+        _state.BadgesRank = badgesRank;
+
+        // Only the room shows a rank, so friends are not told as they are of a new figure.
+        await _grainFactory
+            .GetPlayerPresenceGrain(PlayerId)
+            .OnBadgesRankChangedAsync(await GetSummaryAsync(ct), ct);
+    }
+
+    // The badge figures of a profile are not here: they are the inventory's, and this grain must
+    // not await the inventory (inventory -> presence -> this grain is already a chain). The
+    // handler reads both and sends them side by side.
+    public Task<PlayerExtendedProfileSnapshot> GetExtendedProfileSnapshotAsync(
+        CancellationToken ct
+    ) =>
+        Task.FromResult(
             new PlayerExtendedProfileSnapshot
             {
                 UserId = _state.PlayerId,
@@ -339,11 +297,7 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
                 StarGemCount = 0,
                 BooleanField26 = false,
                 BooleanField27 = false,
-                TotalBadges = 0,
                 AchievementLevel = 0,
-                BadgeRarityCounts = [],
-                TotalBadgesRank = _state.BadgesRank,
             }
         );
-    }
 }

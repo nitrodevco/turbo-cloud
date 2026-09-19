@@ -7,6 +7,7 @@ using Orleans;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;

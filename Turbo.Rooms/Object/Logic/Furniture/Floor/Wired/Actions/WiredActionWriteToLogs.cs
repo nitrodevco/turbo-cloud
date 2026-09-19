@@ -24,8 +24,7 @@ public class WiredActionWriteToLogs(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredEnumParamRule<WiredLogLevelType>(WiredLogLevelType.Info)];
 
-    protected override int GetStringParamMaxLength() =>
-        _roomGrain._roomConfig.WiredLogMessageMaxLength;
+    protected override int GetStringParamMaxLength() => _roomGrain._wiredConfig.LogMessageMaxLength;
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {

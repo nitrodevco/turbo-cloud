@@ -47,6 +47,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly RoomConfig _roomConfig;
     internal readonly PetConfig _petConfig;
     internal readonly BotConfig _botConfig;
+    internal readonly WiredConfig _wiredConfig;
     internal readonly ILogger<IRoomGrain> _logger;
     internal readonly IRoomModelProvider _roomModelProvider;
     internal readonly IRoomItemsProvider _itemsLoader;
@@ -80,6 +81,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public readonly RoomBotTickSystem BotTickSystem;
     public readonly RoomRollerSystem RollerSystem;
     public readonly RoomWiredSystem WiredSystem;
+    public readonly RoomGameSystem GameSystem;
     public readonly RoomChatSystem ChatSystem;
     public readonly RoomTimerSystem TimerSystem;
 
@@ -93,6 +95,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IOptions<RoomConfig> roomConfig,
         IOptions<PetConfig> petConfig,
         IOptions<BotConfig> botConfig,
+        IOptions<WiredConfig> wiredConfig,
         IGrainFactory grainFactory,
         IRoomModelProvider roomModelProvider,
         IRoomItemsProvider itemsLoader,
@@ -110,6 +113,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _roomConfig = roomConfig.Value;
         _petConfig = petConfig.Value;
         _botConfig = botConfig.Value;
+        _wiredConfig = wiredConfig.Value;
         _logger = logger;
         _roomModelProvider = roomModelProvider;
         _itemsLoader = itemsLoader;
@@ -142,11 +146,14 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         BotTickSystem = new(this);
         RollerSystem = new(this);
         WiredSystem = new(this);
+        GameSystem = new(this);
         ChatSystem = new(this);
         TimerSystem = new(this);
 
         EventModule.Register(RollerSystem);
         EventModule.Register(WiredSystem);
+        EventModule.Register(GameSystem);
+        FurniModule.RegisterPlacementLimit(WiredSystem);
         EventModule.Register(ChatSystem);
     }
 
@@ -159,7 +166,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             _state.EpochMs = now;
             _state.NextAvatarBoundaryMs = AlignToNextBoundary(now, _roomConfig.AvatarTickMs);
             _state.NextRollerBoundaryMs = AlignToNextBoundary(now, _roomConfig.RollerTickMs);
-            _state.NextWiredBoundaryMs = AlignToNextBoundary(now, _roomConfig.WiredTickMs);
+            _state.NextWiredBoundaryMs = AlignToNextBoundary(now, _wiredConfig.TickMs);
         }
 
         await HydrateRoomStateAsync(ct);

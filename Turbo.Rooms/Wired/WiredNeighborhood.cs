@@ -19,7 +19,7 @@ public static class WiredNeighborhood
         IReadOnlyList<int> masks
     )
     {
-        var radius = roomGrain._roomConfig.WiredNeighborhoodRadius;
+        var radius = roomGrain._wiredConfig.NeighborhoodRadius;
         var width = roomGrain.MapModule.Width;
         var height = roomGrain.MapModule.Height;
         var size = radius * 2 + 1;

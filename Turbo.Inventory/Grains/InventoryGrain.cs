@@ -7,6 +7,7 @@ using Orleans;
 using Turbo.Database.Context;
 using Turbo.Inventory.Configuration;
 using Turbo.Inventory.Grains.Modules;
+using Turbo.Primitives.Badges.Grains;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Inventory.Factories;
@@ -36,6 +37,7 @@ internal sealed partial class InventoryGrain : Grain, IInventoryGrain
     private readonly InventoryFurniModule _furniModule;
     private readonly InventoryPetModule _petModule;
     private readonly InventoryBotModule _botModule;
+    private readonly InventoryBadgeModule _badgeModule;
 
     public PlayerId PlayerId => _state.PlayerId;
 
@@ -72,10 +74,17 @@ internal sealed partial class InventoryGrain : Grain, IInventoryGrain
             logger
         );
         _botModule = new InventoryBotModule(this, _state, dbContextFactory, logger);
+        _badgeModule = new InventoryBadgeModule(this, _state, dbContextFactory, logger);
     }
 
     /// <summary>The presence that mirrors inventory changes to the player's client.</summary>
     internal IPlayerPresenceGrain Presence => _grainFactory.GetPlayerPresenceGrain(PlayerId);
+
+    internal IBadgeDirectoryGrain BadgeDirectory => _grainFactory.GetBadgeDirectoryGrain();
+
+    internal IBadgeLeaderboardGrain BadgeLeaderboard => _grainFactory.GetBadgeLeaderboardGrain();
+
+    internal IPlayerGrain Player => _grainFactory.GetPlayerGrain(PlayerId);
 
     internal IInventoryGrain GetInventoryOf(PlayerId playerId) =>
         _grainFactory.GetInventoryGrain(playerId);

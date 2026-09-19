@@ -41,6 +41,13 @@ public partial interface IRoomGrain
     public Task<bool> PassHandItemAsync(ActionContext ctx, PlayerId targetId, CancellationToken ct);
     public Task<bool> DropHandItemAsync(ActionContext ctx, CancellationToken ct);
 
+    /// <summary>The badges a player in the room wears changed. Called by the presence, never awaited by it.</summary>
+    public Task SetPlayerBadgesAsync(
+        PlayerId playerId,
+        ImmutableArray<PlayerBadgeSnapshot> selectedBadges,
+        CancellationToken ct
+    );
+
     /// <summary>A player clicked another avatar; feeds the "user clicks user" wired trigger.</summary>
     public Task<bool> ClickAvatarAsync(
         ActionContext ctx,

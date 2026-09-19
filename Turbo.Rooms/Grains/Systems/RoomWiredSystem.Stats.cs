@@ -40,11 +40,9 @@ public sealed partial class RoomWiredSystem
     {
         var cap = targetType switch
         {
-            WiredVariableTargetType.Furni => _roomGrain._roomConfig.WiredMaxPermanentFurniVariables,
-            WiredVariableTargetType.User => _roomGrain._roomConfig.WiredMaxPermanentUserVariables,
-            WiredVariableTargetType.Global => _roomGrain
-                ._roomConfig
-                .WiredMaxPermanentGlobalVariables,
+            WiredVariableTargetType.Furni => _roomGrain._wiredConfig.MaxPermanentFurniVariables,
+            WiredVariableTargetType.User => _roomGrain._wiredConfig.MaxPermanentUserVariables,
+            WiredVariableTargetType.Global => _roomGrain._wiredConfig.MaxPermanentGlobalVariables,
             _ => 0,
         };
 
@@ -88,7 +86,7 @@ public sealed partial class RoomWiredSystem
 
     private void RollExecutionWindow(long now)
     {
-        var windowMs = _roomGrain._roomConfig.WiredExecutionCostWindowMs;
+        var windowMs = _roomGrain._wiredConfig.ExecutionCostWindowMs;
 
         if (_executionWindowStartMs == 0)
         {

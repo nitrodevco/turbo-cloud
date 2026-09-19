@@ -11,7 +11,7 @@ using Turbo.Rooms.Configuration;
 namespace Turbo.Rooms.Grains.Systems;
 
 /// <summary>
-/// Bots roam when told to and recite their chat lines on the configured delay. Wired orders
+/// Bots roam when told to and recite their chat lines on the configured delay. Orders
 /// (follow an avatar, walk to a furni) take precedence over free roaming and raise the bot
 /// arrival triggers when they complete.
 /// </summary>
@@ -165,7 +165,7 @@ public sealed class RoomBotTickSystem(RoomGrain roomGrain)
         var targetIdx = map.ToIdx(target.X, target.Y);
         var distance = map.GetDistanceBetween(botIdx, targetIdx);
 
-        if (distance <= _roomGrain._roomConfig.WiredBotFollowDistance)
+        if (distance <= _roomGrain._botConfig.FollowDistance)
         {
             if (now < bot.NextWalkAtMs)
                 return;

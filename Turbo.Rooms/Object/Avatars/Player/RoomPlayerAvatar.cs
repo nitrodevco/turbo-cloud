@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Text;
+using Turbo.Primitives.Badges;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
@@ -22,6 +23,9 @@ public sealed class RoomPlayerAvatar
     public int EffectId { get; private set; } = 0;
     public ImmutableArray<string> BadgeCodes { get; private set; } = [];
 
+    /// <summary>The player's place on the total badges board, as their summary last said.</summary>
+    public int BadgesRank { get; private set; } = BadgeRanks.NONE;
+
     public int GroupId { get; init; } = -1;
     public int GroupStatus { get; init; } = -1;
     public string GroupName { get; init; } = string.Empty;
@@ -35,6 +39,7 @@ public sealed class RoomPlayerAvatar
         Motto = snapshot.Motto;
         Figure = snapshot.Figure;
         Gender = snapshot.Gender;
+        BadgesRank = snapshot.BadgesRank;
 
         return true;
     }
@@ -118,7 +123,7 @@ public sealed class RoomPlayerAvatar
             SwimFigure = SwimFigure,
             ActivityPoints = ActivityPoints,
             IsModerator = IsModerator,
-            BadgesRank = 0, // TODO
+            BadgesRank = BadgesRank,
         };
     }
 }

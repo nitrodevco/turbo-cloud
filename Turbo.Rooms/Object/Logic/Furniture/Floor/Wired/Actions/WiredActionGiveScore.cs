@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -41,10 +42,10 @@ public class WiredActionGiveScore(
         {
             var team = ResolveTeam(playerId);
 
-            if (team == WiredTeamType.None)
+            if (team == GameTeamType.None)
                 continue;
 
-            scored |= await _roomGrain.WiredSystem.GiveScoreAsync(
+            scored |= await _roomGrain.GameSystem.GiveScoreAsync(
                 team,
                 points,
                 ObjectId,
@@ -57,6 +58,6 @@ public class WiredActionGiveScore(
         return scored;
     }
 
-    protected virtual WiredTeamType ResolveTeam(int playerId) =>
-        _roomGrain.WiredSystem.GetTeam(playerId);
+    protected virtual GameTeamType ResolveTeam(int playerId) =>
+        _roomGrain.GameSystem.GetTeam(playerId);
 }

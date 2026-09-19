@@ -52,6 +52,12 @@ public sealed partial class RoomGrain
         }
     }
 
+    public Task SetPlayerBadgesAsync(
+        PlayerId playerId,
+        ImmutableArray<PlayerBadgeSnapshot> selectedBadges,
+        CancellationToken ct
+    ) => AvatarModule.SetPlayerBadgesAsync(playerId, selectedBadges, ct);
+
     public async Task<bool> RemoveAvatarFromPlayerAsync(
         ActionContext ctx,
         PlayerId playerId,

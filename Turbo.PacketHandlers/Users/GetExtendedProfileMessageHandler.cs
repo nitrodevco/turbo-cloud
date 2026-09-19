@@ -28,12 +28,6 @@ public class GetExtendedProfileMessageHandler : IMessageHandler<GetExtendedProfi
         if (targetUserId <= 0)
             return;
 
-        var snapshot = await _grainFactory
-            .GetPlayerGrain(targetUserId)
-            .GetExtendedProfileSnapshotAsync(ct)
-            .ConfigureAwait(false);
-
-        await ctx.SendComposerAsync(new ExtendedProfileMessageComposer { Profile = snapshot }, ct)
-            .ConfigureAwait(false);
+        await ctx.SendExtendedProfileAsync(_grainFactory, targetUserId, ct).ConfigureAwait(false);
     }
 }

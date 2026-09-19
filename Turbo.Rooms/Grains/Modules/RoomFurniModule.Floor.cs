@@ -61,13 +61,40 @@ public sealed partial class RoomFurniModule
         )
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        var prevIdx = _roomGrain.MapModule.ToIdx(item.X, item.Y);
-        var nextIdx = _roomGrain.MapModule.ToIdx(x, y);
+        return await MoveFloorItemAsync(
+            ctx,
+            floor,
+            _roomGrain.MapModule.ToIdx(x, y),
+            z,
+            rot,
+            announce: true,
+            ct
+        );
+    }
 
-        if (!_roomGrain.MapModule.MoveFloorItem(floor, nextIdx, z, rot))
+    /// <summary>
+    /// The one way a floor item changes tile, whoever moves it: the map is updated and the
+    /// item's logic hears of it (a roller re-registers its tile, a wired box its stack). A
+    /// caller that tells the room itself passes <paramref name="announce"/> false; wired does,
+    /// because it sends all the moves of one action as a single animated packet.
+    /// </summary>
+    public async Task<bool> MoveFloorItemAsync(
+        ActionContext ctx,
+        IRoomFloorItem item,
+        int tileIdx,
+        Altitude? z,
+        Rotation? rot,
+        bool announce,
+        CancellationToken ct
+    )
+    {
+        var prevIdx = _roomGrain.MapModule.ToIdx(item.X, item.Y);
+
+        if (!_roomGrain.MapModule.MoveFloorItem(item, tileIdx, z, rot))
             return false;
 
-        await _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer(), ct);
+        if (announce)
+            await _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer(), ct);
 
         await item.Logic.OnMoveAsync(ctx, prevIdx, ct);
 

@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Inventory.Badges;
 
 internal class GetIsBadgeRequestFulfilledMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetIsBadgeRequestFulfilledMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetIsBadgeRequestFulfilledMessage { RequestCode = packet.PopString() };
 }

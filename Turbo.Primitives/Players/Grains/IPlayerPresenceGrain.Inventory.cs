@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Pets.Snapshots;
+using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Players.Grains;
@@ -26,4 +27,18 @@ public partial interface IPlayerPresenceGrain
     public Task OpenBotInventoryAsync(CancellationToken ct);
     public Task OnBotAddedAsync(BotSnapshot snapshot, bool openInventory, CancellationToken ct);
     public Task OnBotRemovedAsync(int botId, CancellationToken ct);
+
+    // The badge calls only send what they are given. The inventory grain awaits them, so none of
+    // them may call the inventory grain back.
+    public Task SendBadgeInventoryAsync(
+        ImmutableArray<PlayerBadgeSnapshot> badges,
+        CancellationToken ct
+    );
+    public Task OnBadgeReceivedAsync(PlayerBadgeSnapshot badge, CancellationToken ct);
+
+    /// <summary>What the player wears changed: the room they are in, or else they alone, is told.</summary>
+    public Task OnSelectedBadgesChangedAsync(
+        ImmutableArray<PlayerBadgeSnapshot> selectedBadges,
+        CancellationToken ct
+    );
 }

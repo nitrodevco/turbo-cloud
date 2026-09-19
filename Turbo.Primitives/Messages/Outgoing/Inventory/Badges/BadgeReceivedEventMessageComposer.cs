@@ -1,10 +1,12 @@
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players.Snapshots;
 
 namespace Turbo.Primitives.Messages.Outgoing.Inventory.Badges;
 
 [GenerateSerializer, Immutable]
 public sealed record BadgeReceivedEventMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required PlayerBadgeSnapshot Badge { get; init; }
 }

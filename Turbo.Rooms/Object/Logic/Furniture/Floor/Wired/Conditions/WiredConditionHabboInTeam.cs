@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -22,21 +23,21 @@ public class WiredConditionHabboInTeam(
     public override int WiredCode => (int)WiredConditionType.ACTOR_IS_IN_TEAM;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredEnumParamRule<WiredTeamType>(WiredTeamType.None)];
+        [new WiredEnumParamRule<GameTeamType>(GameTeamType.None)];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
-        var wanted = GetIntParamOrDefault(0, WiredTeamType.None);
+        var wanted = GetIntParamOrDefault(0, GameTeamType.None);
         var players = ctx.GetSelection(this).SelectedPlayerIds;
 
         return Quantify(
             players.Select(playerId =>
             {
-                var team = _roomGrain.WiredSystem.GetTeam(playerId);
+                var team = _roomGrain.GameSystem.GetTeam(playerId);
 
-                return wanted == WiredTeamType.None ? team != WiredTeamType.None : team == wanted;
+                return wanted == GameTeamType.None ? team != GameTeamType.None : team == wanted;
             }),
             true
         );

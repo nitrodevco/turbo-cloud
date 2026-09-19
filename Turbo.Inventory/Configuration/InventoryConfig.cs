@@ -9,6 +9,9 @@ public class InventoryConfig
 
     /// <summary>Bots a player may own; the client drops arrivals past its own cap of 150.</summary>
     public int MaxBots { get; init; } = 150;
+
+    /// <summary>Badges a player can wear at once; the client has five slots.</summary>
+    public int MaxActiveBadges { get; init; } = 5;
     public int PetStartEnergy { get; init; } = 100;
     public int PetStartNutrition { get; init; } = 100;
     public int PetNameMinLength { get; init; } = 1;

@@ -51,7 +51,7 @@ public class WiredActionShowMessage(
         ];
 
     protected override int GetStringParamMaxLength() =>
-        _roomGrain._roomConfig.WiredShowMessageMaxLength;
+        _roomGrain._wiredConfig.ShowMessageMaxLength;
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {

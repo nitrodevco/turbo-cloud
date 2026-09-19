@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Turbo.Database.Entities.Badges;
 using Turbo.Database.Entities.Bots;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
@@ -26,6 +27,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<FurnitureEntity> Furnitures { get; init; }
 
+    public DbSet<BadgeDefinitionEntity> BadgeDefinitions { get; init; }
     public DbSet<PlayerBadgeEntity> PlayerBadges { get; init; }
 
     public DbSet<PlayerCurrencyEntity> PlayerCurrencies { get; init; }

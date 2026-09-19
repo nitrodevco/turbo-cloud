@@ -10,7 +10,6 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Room.Permissions;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
-using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms;
@@ -76,6 +75,14 @@ internal sealed partial class PlayerPresenceGrain
                 playerSnapshot,
                 ct
             );
+
+        // A rank moves when other players get badges too, so entering a room is when it is
+        // looked at again. Told, not awaited: the presence never awaits the inventory. A rank
+        // that did change comes back as OnBadgesRankChangedAsync, now that the avatar exists.
+        _grainFactory
+            .GetInventoryGrain(_state.PlayerId)
+            .RefreshBadgesRankAsync(CancellationToken.None)
+            .LogAndForget(_logger, $"refresh the badges rank of player {_state.PlayerId}");
     }
 
     /// <summary>
@@ -186,8 +193,6 @@ internal sealed partial class PlayerPresenceGrain
     public async Task OnControllerLevelUpdatedAsync(
         RoomId roomId,
         RoomControllerType controllerType,
-        bool canModifyWired,
-        bool canReadWired,
         CancellationToken ct
     )
     {
@@ -212,28 +217,6 @@ internal sealed partial class PlayerPresenceGrain
         {
             await SendComposerAsync(new YouAreNotControllerMessageComposer { RoomId = roomId }, ct);
         }
-
-        await OnWiredPermissionsUpdatedAsync(roomId, canModifyWired, canReadWired, ct);
-    }
-
-    public async Task OnWiredPermissionsUpdatedAsync(
-        RoomId roomId,
-        bool canModifyWired,
-        bool canReadWired,
-        CancellationToken ct
-    )
-    {
-        if (_state.ActiveRoomId != roomId)
-            return;
-
-        await SendComposerAsync(
-            new WiredPermissionsEventMessageComposer
-            {
-                CanModify = canModifyWired,
-                CanRead = canReadWired,
-            },
-            ct
-        );
     }
 
     private IAsyncStream<RoomOutboundSnapshot> GetRoomStream(RoomId roomId)

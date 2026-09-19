@@ -12,7 +12,7 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Snapshots.Settings;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -133,71 +133,27 @@ public sealed class RoomSecurityModule(
         return RoomControllerType.None;
     }
 
-    /// <summary>
-    /// Resolves the room's wired permission masks against a controller level. The owner and
-    /// staff always pass; group admins count as group members.
-    /// </summary>
-    public (bool canModify, bool canRead) GetWiredPermissions(RoomControllerType controllerLevel)
-    {
-        var snapshot = _roomGrain._state.RoomSnapshot;
-
-        return (
-            IsWiredPermitted(snapshot.WiredModifyPermissionMask, controllerLevel),
-            IsWiredPermitted(snapshot.WiredReadPermissionMask, controllerLevel)
-        );
-    }
-
-    private static bool IsWiredPermitted(WiredPermissionFlags mask, RoomControllerType level) =>
-        level switch
-        {
-            >= RoomControllerType.Owner => true,
-            RoomControllerType.GroupAdmin => mask.HasFlag(WiredPermissionFlags.GroupAdmins)
-                || mask.HasFlag(WiredPermissionFlags.GroupMembers)
-                || mask.HasFlag(WiredPermissionFlags.Everyone),
-            RoomControllerType.GroupRights => mask.HasFlag(WiredPermissionFlags.GroupMembers)
-                || mask.HasFlag(WiredPermissionFlags.Everyone),
-            RoomControllerType.Rights => mask.HasFlag(WiredPermissionFlags.Rights)
-                || mask.HasFlag(WiredPermissionFlags.Everyone),
-            _ => mask.HasFlag(WiredPermissionFlags.Everyone),
-        };
-
-    /// <summary>
-    /// Re-sends wired read/modify permissions to everyone in the room, for when the masks change.
-    /// </summary>
-    public async Task RefreshWiredPermissionsForRoomAsync(CancellationToken ct)
-    {
-        var updates = new List<Task>();
-
-        foreach (var playerId in _roomGrain._state.AvatarsByPlayerId.Keys.ToList())
-        {
-            var (canModify, canRead) = GetWiredPermissions(await GetControllerLevelAsync(playerId));
-
-            updates.Add(
-                _roomGrain
-                    ._grainFactory.GetPlayerPresenceGrain(playerId)
-                    .OnWiredPermissionsUpdatedAsync(_roomGrain.RoomId, canModify, canRead, ct)
-            );
-        }
-
-        // One presence grain per player, so the updates do not wait on each other.
-        await Task.WhenAll(updates);
-    }
-
     public async Task RefreshControllerLevelForPlayerAsync(PlayerId playerId, CancellationToken ct)
     {
         var controllerLevel = await GetControllerLevelAsync(playerId);
-        var (canModifyWired, canReadWired) = GetWiredPermissions(controllerLevel);
         var playerPresence = _roomGrain._grainFactory.GetPlayerPresenceGrain(playerId);
 
         await playerPresence
-            .OnControllerLevelUpdatedAsync(
-                _roomGrain.RoomId,
-                controllerLevel,
-                canModifyWired,
-                canReadWired,
-                ct
-            )
+            .OnControllerLevelUpdatedAsync(_roomGrain.RoomId, controllerLevel, ct)
             .ConfigureAwait(false);
+
+        // Whatever else depends on the level (the wired permissions a player is shown) hears it
+        // here, so this module does not have to know who that is.
+        await _roomGrain.PublishRoomEventAsync(
+            new PlayerControllerLevelChangedEvent
+            {
+                RoomId = _roomGrain.RoomId,
+                CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
+                PlayerId = playerId,
+                ControllerLevel = controllerLevel,
+            },
+            ct
+        );
 
         if (!_roomGrain.AvatarModule.TryGetPlayer(playerId, out var avatar))
             return;

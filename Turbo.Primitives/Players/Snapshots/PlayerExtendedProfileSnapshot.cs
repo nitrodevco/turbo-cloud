@@ -64,15 +64,8 @@ public sealed record PlayerExtendedProfileSnapshot
     [Id(18)]
     public required bool BooleanField27 { get; init; }
 
-    [Id(19)]
-    public required int TotalBadges { get; init; }
-
+    // Ids 19, 21 and 22 were the badge figures. They are the inventory's to give
+    // (PlayerBadgeSummarySnapshot) and travel beside this snapshot, not inside it.
     [Id(20)]
     public required int AchievementLevel { get; init; }
-
-    [Id(21)]
-    public required List<BadgeRarityCountSnapshot> BadgeRarityCounts { get; init; }
-
-    [Id(22)]
-    public required int TotalBadgesRank { get; init; }
 }

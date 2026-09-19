@@ -14,6 +14,9 @@ public class BotConfig
     public int MaxChatLines { get; init; } = 30;
     public int ChatDelayMinSeconds { get; init; } = 5;
     public int ChatDelayMaxSeconds { get; init; } = 300;
+
+    /// <summary>How many tiles behind the avatar it follows a bot stays.</summary>
+    public int FollowDistance { get; init; } = 1;
     public int FreeRoamMinIntervalMs { get; init; } = 5000;
     public int FreeRoamMaxIntervalMs { get; init; } = 15000;
     public int FreeRoamMaxDistance { get; init; } = 6;

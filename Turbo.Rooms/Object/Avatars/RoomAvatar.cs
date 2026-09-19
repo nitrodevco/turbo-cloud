@@ -42,6 +42,7 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
     public long LastActiveAtMs { get; private set; } = 0;
     public bool IsIdle { get; private set; } = false;
     public bool IsFrozen { get; private set; } = false;
+    public bool ThawsOnTeleport { get; private set; } = false;
 
     private int _goalTries = 0;
 
@@ -174,7 +175,11 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
 
     public void SetIdle(bool isIdle) => IsIdle = isIdle;
 
-    public void SetFrozen(bool isFrozen) => IsFrozen = isFrozen;
+    public void SetFrozen(bool isFrozen, bool thawsOnTeleport = false)
+    {
+        IsFrozen = isFrozen;
+        ThawsOnTeleport = isFrozen && thawsOnTeleport;
+    }
 
     public void AddStatus(AvatarStatusType type, string value)
     {

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Inventory.Furniture;
@@ -26,4 +27,9 @@ internal sealed class InventoryLiveState
 
     public SortedDictionary<int, BotSnapshot> BotsById { get; } = [];
     public bool IsBotsReady { get; set; } = false;
+
+    // Badges are not placed anywhere, so unlike the other sections this one lists every badge.
+    public Dictionary<string, InventoryBadge> BadgesByCode { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
+    public bool IsBadgesReady { get; set; } = false;
 }

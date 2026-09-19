@@ -50,7 +50,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
     private readonly PriorityQueue<(WiredExecutionKey key, long version), long> _stackSchedule =
         new();
 
-    private int _tickMs => _roomGrain._roomConfig.WiredTickMs;
+    private int _tickMs => _roomGrain._wiredConfig.TickMs;
     private bool _firstRun = true;
     private long _nextStackExecutionId = 0;
 
@@ -73,7 +73,6 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
 
         await ProcessVariableBoxesAsync(now, ct);
         await ProcessWiredStacksAsync(now, ct);
-        await ProcessGameAsync(now, ct);
         await RunDueScheduledStackExecutionsAsync(now, ct);
 
         if (_stacksById.Count == 0)
@@ -85,7 +84,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
 
         await ProcessTimedTriggersAsync(now, ct);
 
-        var budget = _roomGrain._roomConfig.WiredMaxEventsPerTick;
+        var budget = _roomGrain._wiredConfig.MaxEventsPerTick;
 
         while (budget-- > 0 && _eventQueue.Count > 0)
         {
@@ -114,9 +113,10 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
                         _dirtyVariableBoxIds.Add(boxId);
                 }
                 break;
+            case PlayerControllerLevelChangedEvent levelEvt:
+                return SendPermissionsAsync(levelEvt.PlayerId, levelEvt.ControllerLevel, ct);
             case PlayerLeftEvent playerLeftEvt:
                 _playerActiveStore.RemovePlayerStore(playerLeftEvt.PlayerId);
-                ForgetPlayer(playerLeftEvt.PlayerId);
                 _eventQueue.Enqueue(evt);
                 break;
             case RoomItemDetachedEvent detatchedEvt:
@@ -369,7 +369,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
         CancellationToken ct
     )
     {
-        if (evt.Depth > _roomGrain._roomConfig.WiredMaxDepth)
+        if (evt.Depth > _roomGrain._wiredConfig.MaxDepth)
         {
             RecordError("WiredCallDepthExceeded", "Action 18", now);
 
@@ -435,8 +435,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
 
     private async Task RunDueScheduledStackExecutionsAsync(long now, CancellationToken ct)
     {
-        var budget = _roomGrain._roomConfig.WiredMaxScheduledPerTick;
-        var costCap = _roomGrain._roomConfig.WiredExecutionCostCap;
+        var budget = _roomGrain._wiredConfig.MaxScheduledPerTick;
+        var costCap = _roomGrain._wiredConfig.ExecutionCostCap;
 
         while (budget-- > 0 && _stackSchedule.Count > 0)
         {

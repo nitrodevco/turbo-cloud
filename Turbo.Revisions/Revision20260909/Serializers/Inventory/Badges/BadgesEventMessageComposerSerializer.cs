@@ -8,6 +8,16 @@ internal class BadgesEventMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, BadgesEventMessageComposer message)
     {
-        //
+        packet
+            .WriteInteger(message.TotalFragments)
+            .WriteInteger(message.FragmentNo)
+            .WriteInteger(message.Badges.Length);
+
+        foreach (var badge in message.Badges)
+            packet
+                .WriteInteger(badge.BadgeId)
+                .WriteString(badge.BadgeCode)
+                .WriteInteger(badge.OwnerCount)
+                .WriteInteger((int)badge.Rarity);
     }
 }

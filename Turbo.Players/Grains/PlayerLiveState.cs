@@ -1,8 +1,7 @@
 using System;
-using System.Collections.Immutable;
+using Turbo.Primitives.Badges;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
-using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Players.Grains;
@@ -15,7 +14,9 @@ internal sealed class PlayerLiveState
     public string Figure { get; set; } = string.Empty;
     public AvatarGenderType Gender { get; set; } = AvatarGenderType.Male;
     public int AchievementScore { get; set; } = 0;
-    public int BadgesRank { get; set; } = 0;
+
+    /// <summary>Told by the inventory once the badges are loaded; none until then.</summary>
+    public int BadgesRank { get; set; } = BadgeRanks.NONE;
     public bool IsOnline { get; set; } = false;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
@@ -25,5 +26,4 @@ internal sealed class PlayerLiveState
     public int RespectReplenishesLeft { get; set; } = 0;
     public DateTime? RespectResetDate { get; set; } = null;
     public PlayerPerkFlags Perks { get; set; } = PlayerPerkFlags.None;
-    public ImmutableArray<PlayerBadgeSnapshot>? SelectedBadges { get; set; } = null;
 }

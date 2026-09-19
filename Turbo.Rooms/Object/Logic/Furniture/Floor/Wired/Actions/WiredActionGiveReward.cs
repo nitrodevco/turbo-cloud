@@ -198,7 +198,7 @@ public class WiredActionGiveReward(
             {
                 case WiredRewardType.Badge:
                     return await _grainFactory
-                        .GetPlayerGrain(player.PlayerId)
+                        .GetInventoryGrain(player.PlayerId)
                         .GiveBadgeAsync(reward.Code, ct)
                         ? WiredRewardResultType.RewardReceivedBadge
                         : WiredRewardResultType.RewardAlreadyReceived;
@@ -277,7 +277,7 @@ public class WiredActionGiveReward(
                 )
             );
 
-            if (rewards.Count >= _roomGrain._roomConfig.WiredMaxRewardsPerBox)
+            if (rewards.Count >= _roomGrain._wiredConfig.MaxRewardsPerBox)
                 break;
         }
 

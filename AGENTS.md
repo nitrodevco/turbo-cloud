@@ -258,9 +258,19 @@ Follow the `RoomPersistenceGrain` pattern: queue dirty state, flush with `Regist
 Do not issue per-event DB writes that block the grain turn.
 
 ### Do not hardcode limits in grains
-Handlers already read configuration values (e.g. `Turbo:FriendList:UserFriendLimit`) from `IConfiguration` and pass them to grains.
-Magic numbers like `Take(50)`, `Take(20)`, or `maxIgnoreCapacity = 100` must come from configuration parameters on the grain interface method.
-A 10,000 user hotel needs different tuning than a 10 player dev server.
+Magic numbers like `Take(50)`, `Take(20)`, or `maxIgnoreCapacity = 100` are config options (see
+**Constants and magic values**). A 10,000 user hotel needs different tuning than a 10 player dev
+server.
+- The grain that enforces a limit reads it: it takes `IOptions<TConfig>` of its module's config
+  class in its constructor and keeps `.Value` in a field (`PlayerMessengerGrain` reads
+  `PlayerConfig.MessengerNormalFriendLimit`, `BadgeLeaderboardGrain` reads `BadgeConfig`).
+- A limit is not a parameter of a grain interface method and a handler does not read it from
+  `IConfiguration` to pass along. This file used to say the opposite, and it lost: a limit that
+  arrives as an argument is only as good as every caller, a plugin calling the grain skips it
+  altogether, and the three handlers that still injected `IConfiguration` for it never read it.
+- What does arrive as an argument is a number the *client* chose (a page size, a chunk index).
+  The grain clamps it to the configured limit before using it
+  (`BadgeLeaderboardGrain.GetLeaderboardAsync`).
 
 ### Use tracked deletes for atomicity
 `ExecuteDeleteAsync` commits immediately and bypasses the EF change tracker.
@@ -278,6 +288,11 @@ Without a cap, long-running sessions leak memory.
 Each major domain component should operate in its own grain. When a grain needs heavy I/O (DB writes, persistence flushes), delegate that work to a dedicated secondary grain so it does not block the primary grain's turn.
 - Example: `RoomGrain` delegates furniture saves to `RoomPersistenceGrain`. The room grain stays responsive while persistence queues and flushes.
 - Do not combine domain logic and persistence flushing in the same grain.
+- The same holds for reads. A hotel-wide singleton that other grains await on their hot path (a
+  directory) answers from memory; a query per request goes in a grain of its own. The badge
+  leaderboards were first written into `BadgeDirectoryGrain`, where a grouped query over every
+  badge row held up every badge list, profile and room entry in the hotel until it returned;
+  they are now `BadgeLeaderboardGrain`.
 
 ### Use grain boundaries for thread safety
 Orleans grains are single-threaded by design. Use this for concurrency-sensitive operations by giving each user their own grain for the operation.
@@ -336,6 +351,54 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
 - Ownership caps (`MaxPets`, `MaxBots`) count rows, placed or not, in the same context as the
   insert. A catalog purchase validates every product before it creates anything
   (`ValidateProduct` then `GrantProductAsync`).
+
+### Badges
+- A badge is a code a player owns (`player_badges`); it needs no definition to exist. Badges are
+  the fourth section of `InventoryGrain` (`InventoryBadgeModule`), with the shape of the other
+  three, and every grant, removal and "wear these" goes through it. `PlayerGrain` no longer
+  knows about badges; do not add a second way to give one.
+- Owner count and rarity are the hotel's, not the player's. They live in `BadgeDirectoryGrain`
+  (one grain: owner counts per code, recounted on a timer and adjusted on each grant) and are
+  filled into a `PlayerBadgeSnapshot` on every read. The inventory never stores them, because a
+  copy would go stale the moment someone else got the badge.
+- Because every badge shown anywhere asks the directory, it answers from memory only; its one
+  query is the recount. Work that queries per request lives in `BadgeLeaderboardGrain`
+  (`IBadgeLeaderboardGrain`), which asks the directory which codes are of a tier
+  (`GetCodesOfRarityAsync`). The calls go one way: leaderboard → directory, never back.
+- The client only draws the rarity it is sent (`BadgeRarityType` mirrors its `BadgeRarity`
+  ids). How an owner count becomes a tier is therefore hotel data: the owner-share limits in
+  `BadgeConfig`, with `MinimumPlayersForRarity` keeping a small hotel from calling everything
+  unique. A `badge_definitions` row pins a rarity regardless of owners (staff badges).
+- Every badge on the wire carries `ownerCount` and `badgeRarityId` (`Badges`, `BadgeReceived`,
+  `BadgeInfo`, `HabboUserBadges`). The `Badges` list does not say what is worn: the client
+  learns that from its own `HabboUserBadges`, so the two are sent together.
+- A change to what is worn reaches the room through the presence
+  (`OnSelectedBadgesChangedAsync` → `IRoomGrain.SetPlayerBadgesAsync`, told with `LogAndForget`),
+  which updates the codes the wired "wearing badge" condition reads and broadcasts
+  `HabboUserBadges`, since the client's room handler listens for it for every user.
+- Leaderboards (`BadgeLeaderboardType`: total badges, one rarity tier, achievement level) are
+  grouped queries over `player_badges` in `BadgeLeaderboardGrain`, cached per chunk for as long
+  as the client treats a chunk as fresh. Players on the same score share a rank. The
+  achievement board is empty until achievements exist. Type, tier, chunk index and size all
+  come from the client and are bounded in the leaderboard grain.
+- A player's badges rank (info stand, profile) is asked of the leaderboard grain with the number
+  of badges, not the player: it keeps how many players hold each total (one grouped query per
+  cache window, one row per distinct total) and answers from that, so ranking every avatar in
+  every room costs no query. The client shows a rank of zero or more and hides a negative one;
+  no badges, bots and "not known yet" are `BadgeRanks.NONE`.
+- The rank is worked out where the badge count is, in the inventory
+  (`InventoryBadgeModule.RefreshRankAsync`): when a badge is given or removed, and when the
+  presence asks on room entry, because a rank also moves when other players get badges. The
+  inventory *tells* the player grain (`IPlayerGrain.SetBadgesRankAsync`, `LogAndForget`), which
+  keeps it for `PlayerSummarySnapshot.BadgesRank`; a changed rank goes presence → room as a
+  `UserChange`. A first entry after activation therefore shows no rank for a moment and then
+  the rank. Do not make `GetSummaryAsync` fetch it: that call is on every hot path.
+- The player grain never awaits the inventory (inventory → presence → player grain is already a
+  chain). So a profile's badge figures do not pass through it: the handler reads
+  `GetExtendedProfileSnapshotAsync` and `IInventoryGrain.GetBadgeSummaryAsync` side by side
+  (`ExtendedProfileExtensions.SendExtendedProfileAsync`) and the composer carries both.
+- A client may claim a badge only through a request code the hotel lists
+  (`BadgeConfig.RequestableBadges`); the badge code itself is never taken from the client.
 
 ### Pets and bots
 - A pet or bot is a row (`pets`, `bots`) that is either in its owner's inventory
@@ -403,8 +466,8 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   500 again.
 - Anything that happens over time is an event the system consumes: signals
   (`WiredSignalEvent`, antennas are picked furni), stack calls (`WiredStackCalledEvent`,
-  bounded by `RoomConfig.WiredMaxDepth`), clocks (`WiredClockTickEvent` from
-  `FurnitureCounterClockLogic`), games and scores (`RoomWiredSystem.Game`), variable writes
+  bounded by `WiredConfig.MaxDepth`), clocks (`WiredClockTickEvent` from
+  `FurnitureCounterClockLogic`), games and scores (`RoomGameSystem` events), variable writes
   (`WiredVariableChangedEvent`), avatar actions (`PlayerPerformsActionEvent`) and item use
   (`RoomItemUsedEvent`). Periodic and "at given time" triggers are paced by
   `RoomWiredSystem.Timers` from the tick, not by an event.
@@ -416,9 +479,10 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
 - Variable boxes key user values by player id; the wired menu addresses users by room index and
   `RoomWiredSystem.ResolveTargetId` maps between the two. Derived variables (level-up, time
   utility) implement `IWiredSubVariableProvider` on the variable box tile and are rebuilt with
-  the variable boxes. Value timestamps live in `KeyValueStore.Timestamps`.
-- Team, freeze and game effect ids are `RoomConfig` tunables (`WiredTeamEffectIds`,
-  `WiredFreezeEffectIds`); the freeze list ships as zeros and is hotel data.
+  the variable boxes. Value timestamps live in `KeyValueStore.Timestamps`
+  (`Turbo.Rooms/Wired/Storage/`).
+- Freeze effect ids are `WiredConfig.FreezeEffectIds`; the list ships as zeros and is hotel
+  data. Team effect ids belong to the game, not to wired: `RoomConfig.GameTeamEffectIds`.
 - Everything in a wired save comes from a client and is checked before it is stored, in
   `FurnitureWiredLogic.ApplyWiredUpdateAsync`; the same checks run again when a box loads, and
   stored ints that fail them are replaced by the box defaults. A new box gets this for free as
@@ -429,14 +493,14 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
     is only for values with no bound at all (half of a 64-bit value, a bit mask, a variable's
     value). Never cast an unchecked int to an enum, and never use a client int as a loop bound
     or an array index; rectangles go through `WiredArea`, which cuts them to the map and to
-    `WiredSelectorMaxAreaSize`.
+    `WiredConfig.SelectorMaxAreaSize`.
   - Text is cut to `GetStringParamMaxLength()` and stripped of control characters on save.
     Override it with the client's own input limit for the box (`TextInputParam`/`TextAreaParam`
     in the AS3 editor class) instead of truncating at execution time. Text that is expanded
     (`FormatTextAsync`) is capped again after expansion. A regex built from player text is
     escaped and run with a match timeout.
   - Picked furni must be in the room, are de-duplicated and capped by
-    `WiredSelectedItemsLimit`; variable ids must parse (`WiredVariableId.TryParse`), exist, and
+    `WiredConfig.SelectedItemsLimit`; variable ids must parse (`WiredVariableId.TryParse`), exist, and
     fit `GetMaxVariableIds()`; sources outside `GetAllowed*Sources()` fall back to the default.
   - Malformed input is refused or dropped without throwing. Do not catch an index or parse
     exception to detect it: a client could fill the log one request at a time.
@@ -444,6 +508,53 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   `MinimumControllerLevelToSave`, so holding the room's wired permission is not enough to
   configure it. The wired menu writes a variable only when the variable allows writes and the
   target furni or user is in the room right now.
+
+### System boundaries: wired is a user of the room, not a part of it
+Wired touches everything, so it is where systems bleed into each other first. These rules came
+out of pulling it apart; they hold for any system that grows the same way.
+- **Wired lives in its own tree.** `Turbo.Rooms/Wired/**` (runtime, rules, variable storage),
+  `Turbo.Rooms/Object/Logic/Furniture/Floor/Wired/**` (every `wf_*` furni, the counters
+  included), `RoomWiredSystem*.cs`, `RoomGrain.Wired.cs` / `IRoomGrain.Wired.cs`, and the
+  `.../Wired/` folders in `Turbo.Primitives`. A wired-only type anywhere else is misplaced,
+  however neutral its name: the variable stores sat in `Grains/Storage`, two wired events in
+  the events root, the wired grain methods in the floor-furniture partials.
+- **Wired settings are `WiredConfig`** (`Turbo:Wired`), and only what wired code reads goes in
+  it. A `Wired` prefix is not a reason: the bot follow distance (`BotConfig.FollowDistance`),
+  the game duration and the team effect ids (`RoomConfig.Game*`) were all named `Wired*` while
+  wired never read them.
+- **A general module does not recognise a wired box.** No `is IWiredBox`, no
+  `is FurnitureWiredLogic`, no wired error code outside the wired tree. When general code needs
+  wired to have a say, it offers a seam that does not name wired and wired plugs into it in
+  `RoomGrain`'s constructor, the one place that knows every system:
+  - refusing a placement: `IRoomPlacementLimit`, asked through
+    `RoomFurniModule.EnsureWithinPlacementLimits` (the wired box cap);
+  - reacting to a change: a room event. `RoomSecurityModule` publishes
+    `PlayerControllerLevelChangedEvent`; the wired system answers it with the wired permissions.
+    The security module and the presence grain used to compute and carry `canModifyWired` /
+    `canReadWired` themselves.
+- **What wired drives is not wired's.** Teams, scores and the running game are
+  `RoomGameSystem` (`GameTeamType`, `GameStartedEvent`, `GameEndedEvent`,
+  `GameScoreChangedEvent`): a counter furni starts a game, wired boxes join teams and give
+  points, wired triggers listen, and banzai or freeze furni will use the same system. Frozen is
+  avatar state (`IRoomAvatar.SetFrozen(isFrozen, thawsOnTeleport)`), not a set kept by whoever
+  froze it; that set was never cleared when the avatar left.
+- **A wired action asks the owning module; it does not redo the module's work.** A box picks
+  the targets and the parameters, then makes one call: `RoomModerationModule.KickPlayerBySystemAsync`
+  / `MutePlayerBySystemAsync`, `RoomChatSystem.WhisperToPlayerAsync`,
+  `RoomFurniModule.MoveFloorItemAsync`. When the module has no such method, add it to the module
+  (`...BySystemAsync` for "no actor, no rank check") and call that. The copies had already
+  diverged: the wired kick protected only the owner while the wired mute protected staff too,
+  and wired moved furni straight on the map, so `OnMoveAsync` never ran and a roller or wired
+  box moved by wired kept its old tile in the roller index and the wired stacks.
+- **One system may batch what another announces, not skip what it does.** Wired sends the moves
+  of an action as one `WiredMovements` packet, so it passes `announce: false`; the map update and
+  the logic callback still go through the furni module.
+- Still open, and the next places to apply the rule above: wired relocates avatars itself
+  (`WiredExecutionContext.ProcessUserMovementAsync` repeats the walk-on / walk-off sequence of
+  `RoomAvatarTickSystem`), `WiredActionChaseHabbo` / `FleeHabbo` / `MoveToDirection` hand-roll a
+  pathing step, `WiredActionShowMessage` builds chat composers beside `RoomChatSystem`, and many
+  selectors read `_state.AvatarsByObjectId` / `TileAvatarStacks` directly instead of through
+  `RoomAvatarModule` / `RoomMapModule`. Give the module the method first, then move the callers.
 
 ### Grains are not reentrant: side effects on other grains that call back go in the service
 - `RoomGrain` and `PlayerPresenceGrain` call each other. A room grain that awaits a presence grain
@@ -457,6 +568,12 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   it is the one eviction call that is safe from inside the room grain; `RoomService` uses the same
   call for kicks, bans and room deletion. Code that runs in the room tick (a wired kick) does not
   await it: it goes out with `LogAndForget`, because the presence may itself be waiting on the room.
+- The inventory grain awaits the presence grain whenever a section changes, so the presence must
+  never await the inventory. The badge calls on the presence only send what they are given, and
+  the handler fetches the list first (`GetBadgesMessageHandler`). The older
+  `Open{Furniture,Pet,Bot}InventoryAsync` calls do ask the inventory from inside the presence;
+  they predate this rule and can deadlock against a concurrent add. Do not copy them, and move
+  them to the handler-fetches shape when they are next touched.
 - The same one-way rule holds for every helper grain of a room: `RoomTradeGrain` awaits the room,
   so the room only ever tells it things with `LogAndForget`. Before adding an awaited call from
   grain A to grain B, check that nothing B awaits leads back to A.
@@ -577,7 +694,7 @@ When adding packet mappings in `Turbo.Revisions/Revision20260909`:
 Most drift here came from adding the second copy of something that already existed. Before
 finishing a change, check it against this list; each line is a mistake that was made and fixed.
 - **Search before adding.** A config key, constant, helper, event or grain method: grep for an
-  existing one first. `WiredMaxDepth` existed unused while a second depth setting was added beside
+  existing one first. `WiredMaxDepth` (now `WiredConfig.MaxDepth`) existed unused while a second depth setting was added beside
   it. An unused setting is a signal to wire it up or delete it, not to add a sibling.
 - **One way to do a thing.** If a change makes two members do the same job (two selection
   methods, two eviction paths, two ways to build an inventory item), collapse them in the same
@@ -641,6 +758,33 @@ finishing a change, check it against this list; each line is a mistake that was 
   (what it sends after `CloseConnection`, what a param means) is read from the AS3 source before
   it is written into code or a comment. Where the source only has localisation keys, the
   assumption is recorded on the enum.
+- **A feature that moves takes its leftovers with it.** When badges left `PlayerGrain`, the
+  usings they needed stayed behind in `PlayerGrain` and `PlayerLiveState`; no gate flags an
+  unused using, so read the file you removed code from once more.
+- **Build output is part of the diff.** The gates fail on errors, not on warnings, so read the
+  warnings for the files you touched. `GetBadgeInfoMessageHandler` awaited its two tasks again
+  after `Task.WhenAll` without `ConfigureAwait(false)` and added two CA2007 warnings; read
+  results into locals with `ConfigureAwait(false)` like every other handler await.
+- **A new setting looks like its siblings.** `BadgeInventoryFragmentSize` landed beside three
+  `required`, documented fragment sizes with appsettings keys, and had none of the three. A
+  config option is `required`, has a summary, and has its key in `appsettings.json`.
+- **The adapter files say what this file says.** `CONTEXT.md` and
+  `.github/copilot-instructions.md` still sent revision work to the plugin repo after it moved
+  to `Turbo.Revisions/`. When a rule here changes, grep the adapters (`CONTEXT.md`, `CLAUDE.md`,
+  `CODEX.md`, `.github/copilot-instructions.md`) for the old wording in the same change.
+- **A rule that lost is deleted, not left beside the winner.** This file told grains to take
+  limits from handlers in one section and from their module config in another; new code picked
+  either. When two rules disagree, find which one the code follows, delete the other here and in
+  the adapters, and remove what the dead rule left in the code (the unused `IConfiguration`
+  injections).
+- **A placeholder on the wire is checked in the client.** `BadgesRank = 0` looked harmless and
+  was sent for every avatar; the client draws any rank of zero or more, so everyone was "#0".
+  Before leaving a `0` or `// TODO` in a snapshot a serializer writes, read what the client does
+  with that value and send its "nothing" (`BadgeRanks.NONE`) instead.
+- **Ask whose it is before where it fits.** New state, a new setting or a new method goes to the
+  system that owns the concept, not to the one that needed it first (see **System boundaries**).
+  A `Wired` prefix on something in a general class, or a general module checking for a wired
+  type, is the sign it landed in the wrong place.
 - **Remove what a change orphans**: the setting nothing reads, the interface member with no
   caller, the using, the appsettings key. A setting added "for later" (`OnlineTimeMinutes`,
   `MinutesBetweenMountAttempts`) is an orphan from the day it lands: add it with the code that

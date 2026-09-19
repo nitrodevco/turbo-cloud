@@ -38,7 +38,7 @@ public class WiredTriggerReceiveSignal(
         if (evt is not WiredSignalEvent signal)
             return Task.FromResult(false);
 
-        if (signal.Depth > _roomGrain._roomConfig.WiredMaxDepth)
+        if (signal.Depth > _roomGrain._wiredConfig.MaxDepth)
             return Task.FromResult(false);
 
         return Task.FromResult(GetStuffIds().Any(signal.AntennaIds.Contains));

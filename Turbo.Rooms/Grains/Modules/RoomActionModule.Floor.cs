@@ -4,13 +4,10 @@ using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Inventory.Snapshots;
-using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -33,12 +30,7 @@ public sealed partial class RoomActionModule
         if (item is not IRoomFloorItem floorItem)
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        if (
-            item.Logic is IWiredBox
-            && _roomGrain.WiredSystem.CountWiredItems().floor
-                >= _roomGrain._roomConfig.WiredMaxFloorItems
-        )
-            throw new TurboException(TurboErrorCodeEnum.WiredFloorItemLimitReached);
+        _roomGrain.FurniModule.EnsureWithinPlacementLimits(item);
 
         if (
             !await _roomGrain.FurniModule.ValidateNewFloorItemPlacementAsync(
@@ -77,31 +69,6 @@ public sealed partial class RoomActionModule
             throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
         if (!await _roomGrain.FurniModule.MoveFloorItemByIdAsync(ctx, itemId, x, y, null, rot, ct))
-            return false;
-
-        return true;
-    }
-
-    public async Task<bool> ApplyWiredUpdateAsync(
-        ActionContext ctx,
-        RoomObjectId itemId,
-        UpdateWiredMessage update,
-        CancellationToken ct
-    )
-    {
-        if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
-            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
-
-        if (item.Logic is not FurnitureWiredLogic wiredLogic)
-            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
-
-        var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx);
-        var (canModify, _) = _roomGrain.SecurityModule.GetWiredPermissions(controllerLevel);
-
-        if (!canModify || controllerLevel < wiredLogic.MinimumControllerLevelToSave)
-            throw new TurboException(TurboErrorCodeEnum.NoPermissionToModifyWired);
-
-        if (!await wiredLogic.ApplyWiredUpdateAsync(ctx, update, ct))
             return false;
 
         return true;

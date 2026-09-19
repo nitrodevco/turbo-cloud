@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -29,19 +30,19 @@ public class WiredActionJoinTeam(
     private const int MODE_SMALLEST = 1;
     private const int MODE_RANDOM = 2;
 
-    private static readonly WiredTeamType[] TEAMS =
+    private static readonly GameTeamType[] TEAMS =
     [
-        WiredTeamType.Red,
-        WiredTeamType.Green,
-        WiredTeamType.Blue,
-        WiredTeamType.Yellow,
+        GameTeamType.Red,
+        GameTeamType.Green,
+        GameTeamType.Blue,
+        GameTeamType.Yellow,
     ];
 
     public override int WiredCode => (int)WiredActionType.JOIN_TEAM;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredEnumParamRule<WiredTeamType>(WiredTeamType.Red, TEAMS),
+            new WiredEnumParamRule<GameTeamType>(GameTeamType.Red, TEAMS),
             new WiredRangeParamRule(0, 2, 0),
         ];
 
@@ -58,13 +59,13 @@ public class WiredActionJoinTeam(
             var team = mode switch
             {
                 MODE_SMALLEST => TEAMS
-                    .OrderBy(t => _roomGrain.WiredSystem.GetTeamMembers(t).Count())
+                    .OrderBy(t => _roomGrain.GameSystem.GetTeamMembers(t).Count())
                     .First(),
                 MODE_RANDOM => TEAMS[Random.Shared.Next(TEAMS.Length)],
-                _ => GetIntParamOrDefault(0, WiredTeamType.Red),
+                _ => GetIntParamOrDefault(0, GameTeamType.Red),
             };
 
-            joined |= await _roomGrain.WiredSystem.JoinTeamAsync(playerId, team, ct);
+            joined |= await _roomGrain.GameSystem.JoinTeamAsync(playerId, team, ct);
         }
 
         return joined;

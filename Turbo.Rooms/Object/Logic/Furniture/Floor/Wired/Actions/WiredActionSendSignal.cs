@@ -46,7 +46,7 @@ public class WiredActionSendSignal(
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        if (ctx.Depth >= _roomGrain._roomConfig.WiredMaxDepth)
+        if (ctx.Depth >= _roomGrain._wiredConfig.MaxDepth)
         {
             _roomGrain.WiredSystem.RecordError(
                 "WiredCallDepthExceeded",

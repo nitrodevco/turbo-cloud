@@ -10,12 +10,11 @@ internal class HabboUserBadgesMessageComposerSerializer(int header)
     {
         packet.WriteInteger(message.PlayerId).WriteInteger(message.Badges.Length);
 
-        // Owner count and rarity are badge-catalogue data the server does not track yet.
         foreach (var badge in message.Badges)
             packet
                 .WriteInteger(badge.SlotId)
                 .WriteString(badge.BadgeCode)
-                .WriteInteger(0)
-                .WriteInteger(0);
+                .WriteInteger(badge.OwnerCount)
+                .WriteInteger((int)badge.Rarity);
     }
 }

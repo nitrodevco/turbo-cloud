@@ -57,7 +57,7 @@ public class WiredActionTeleportTo(
             var target = items[Random.Shared.Next(items.Count)];
             var tileIdx = map.ToIdx(target.X, target.Y);
 
-            if (player.IsFrozen && _roomGrain.WiredSystem.FreezeCancelsOnTeleport(player.ObjectId))
+            if (player.IsFrozen && player.ThawsOnTeleport)
                 player.SetFrozen(false);
 
             moved |= await ctx.ProcessUserMovementAsync(player, tileIdx, SlideAvatarMoveType.None);

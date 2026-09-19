@@ -29,7 +29,7 @@ public class WiredActionLeaveTeam(
         var left = false;
 
         foreach (var playerId in selection.SelectedPlayerIds)
-            left |= await _roomGrain.WiredSystem.LeaveTeamAsync(playerId, ct);
+            left |= await _roomGrain.GameSystem.LeaveTeamAsync(playerId, ct);
 
         return left;
     }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -7,10 +8,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired.Variable;
@@ -20,6 +23,72 @@ namespace Turbo.Rooms.Grains;
 
 public sealed partial class RoomGrain
 {
+    public async Task<bool> ApplyWiredUpdateAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        UpdateWiredMessage update,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            if (!await WiredSystem.ApplyUpdateAsync(ctx, itemId, update, ct))
+                return false;
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to apply a wired update to item {ItemId} in room {RoomId} for player {PlayerId}",
+                itemId,
+                _state.RoomId,
+                ctx.PlayerId
+            );
+
+            return false;
+        }
+    }
+
+    public async Task<WiredDataSnapshot?> GetWiredDataSnapshotByFloorItemIdAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        CancellationToken ct
+    )
+    {
+        if (!await CanReadWiredAsync(ctx, ct))
+            return null;
+
+        return WiredSystem.GetBoxSnapshot(itemId);
+    }
+
+    public async Task<WiredVariablesSnapshot?> GetWiredVariablesSnapshotAsync(
+        ActionContext ctx,
+        CancellationToken ct
+    )
+    {
+        if (!await CanReadWiredAsync(ctx, ct))
+            return null;
+
+        return await WiredSystem.GetWiredVariablesSnapshotAsync(ct);
+    }
+
+    public async Task<List<(
+        WiredVariableId id,
+        WiredVariableValue value
+    )>?> GetAllVariablesForBindingAsync(
+        ActionContext ctx,
+        WiredVariableBinding binding,
+        CancellationToken ct
+    )
+    {
+        if (!await CanReadWiredAsync(ctx, ct))
+            return null;
+
+        return await WiredSystem.GetAllVariablesForBindingAsync(binding, ct);
+    }
+
     public async Task<WiredRoomSettingsSnapshot?> GetWiredRoomSettingsAsync(
         ActionContext ctx,
         CancellationToken ct
@@ -97,7 +166,7 @@ public sealed partial class RoomGrain
                 ct
             );
 
-            await SecurityModule.RefreshWiredPermissionsForRoomAsync(ct);
+            await WiredSystem.RefreshPermissionsForRoomAsync(ct);
 
             return true;
         }
@@ -129,27 +198,27 @@ public sealed partial class RoomGrain
         return new WiredRoomStatsSnapshot
         {
             ExecutionCost = executionCost,
-            ExecutionCostCap = _roomConfig.WiredExecutionCostCap,
-            IsHeavy = executionCost >= _roomConfig.WiredExecutionCostCap,
+            ExecutionCostCap = _wiredConfig.ExecutionCostCap,
+            IsHeavy = executionCost >= _wiredConfig.ExecutionCostCap,
             FloorItemCount = floorItemCount,
-            FloorItemCap = _roomConfig.WiredMaxFloorItems,
+            FloorItemCap = _wiredConfig.MaxFloorItems,
             WallItemCount = wallItemCount,
-            WallItemCap = _roomConfig.WiredMaxWallItems,
+            WallItemCap = _wiredConfig.MaxWallItems,
             PermanentFurniVariables = RoomWiredSystem.CountPermanentVariables(
                 variables,
                 WiredVariableTargetType.Furni
             ),
-            MaxPermanentFurniVariables = _roomConfig.WiredMaxPermanentFurniVariables,
+            MaxPermanentFurniVariables = _wiredConfig.MaxPermanentFurniVariables,
             PermanentUserVariables = RoomWiredSystem.CountPermanentVariables(
                 variables,
                 WiredVariableTargetType.User
             ),
-            MaxPermanentUserVariables = _roomConfig.WiredMaxPermanentUserVariables,
+            MaxPermanentUserVariables = _wiredConfig.MaxPermanentUserVariables,
             PermanentGlobalVariables = RoomWiredSystem.CountPermanentVariables(
                 variables,
                 WiredVariableTargetType.Global
             ),
-            MaxPermanentGlobalVariables = _roomConfig.WiredMaxPermanentGlobalVariables,
+            MaxPermanentGlobalVariables = _wiredConfig.MaxPermanentGlobalVariables,
         };
     }
 
@@ -238,9 +307,7 @@ public sealed partial class RoomGrain
     {
         await SecurityModule.EnsureRightsLoadedAsync(ct);
 
-        return SecurityModule.GetWiredPermissions(
-            await SecurityModule.GetControllerLevelAsync(ctx)
-        );
+        return WiredSystem.GetPermissions(await SecurityModule.GetControllerLevelAsync(ctx));
     }
 
     private WiredRoomSettingsSnapshot CreateWiredRoomSettingsSnapshot() =>

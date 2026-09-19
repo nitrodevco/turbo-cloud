@@ -71,7 +71,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         try
         {
             var badges = await _roomGrain
-                ._grainFactory.GetPlayerGrain(player.PlayerId)
+                ._grainFactory.GetInventoryGrain(player.PlayerId)
                 .GetSelectedBadgesAsync(ct);
 
             player.SetBadges([.. badges.Select(x => x.BadgeCode)]);
@@ -85,6 +85,27 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
                 _roomGrain.RoomId
             );
         }
+    }
+
+    /// <summary>
+    /// A player in the room changed what they wear: the wired condition reads the new codes, and
+    /// everyone in the room (the wearer too) sees them on the info stand.
+    /// </summary>
+    public Task SetPlayerBadgesAsync(
+        PlayerId playerId,
+        ImmutableArray<PlayerBadgeSnapshot> selectedBadges,
+        CancellationToken ct
+    )
+    {
+        if (!TryGetPlayer(playerId, out var player))
+            return Task.CompletedTask;
+
+        player.SetBadges([.. selectedBadges.Select(x => x.BadgeCode)]);
+
+        return _roomGrain.SendComposerToRoomAsync(
+            new HabboUserBadgesMessageComposer { PlayerId = playerId, Badges = selectedBadges },
+            ct
+        );
     }
 
     public async Task RemoveAvatarFromPlayerAsync(

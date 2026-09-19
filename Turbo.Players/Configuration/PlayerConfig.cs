@@ -37,6 +37,9 @@ public class PlayerConfig
 
     /// <summary>Pets per fragment when the pet inventory is sent to the client.</summary>
     public required int PetInventoryFragmentSize { get; init; } = 100;
+
+    /// <summary>Badges per fragment when the badge inventory is sent to the client.</summary>
+    public required int BadgeInventoryFragmentSize { get; init; } = 500;
     public required int NavigatorFlushMs { get; init; } = 5000;
 
     /// <summary>Distinct rooms kept in memory for a player's visit history.</summary>

@@ -26,9 +26,8 @@ Include in every request:
 - Keep plugin lifecycle logic centralized in `Turbo.Plugins`.
 - Keep packet handlers in `Turbo.PacketHandlers` and domain logic in domain modules.
 - Respect Orleans grain boundaries and avoid bypassing grain orchestration.
-- For protocol revision parser/serializer work, target the plugin repo path:
-  - `../turbo-sample-plugin/TurboSamplePlugin/Revision/**`
-  - Do not generate `Revision<id>/Parsers` or `Revision<id>/Serializers` in `turbo-cloud`.
+- For protocol revision parser/serializer work, edit `Turbo.Revisions/Revision<id>/**` in this
+  repository and follow the packet addition checklist in `AGENTS.md`.
 - For extended profile flow:
   - keep handlers orchestration-only
   - do not query database contexts/repositories from handlers
@@ -48,7 +47,7 @@ Include in every request:
 - Hoist repeated grain calls out of loops.
 - Batch DB deletes with `WHERE ... IN (...)`, not per-entity `ExecuteDeleteAsync`.
 - Use timer-flush for housekeeping writes (see `RoomPersistenceGrain`).
-- No hardcoded limits in grains — pass from handlers via `IConfiguration`.
+- No hardcoded limits in grains — they are options on the module's config class, read by the grain through `IOptions<TConfig>`. Handlers do not pass limits in; client-chosen numbers are clamped in the grain.
 - Use tracked EF deletes when atomicity with inserts is required.
 - Replace `.Ignore()` with a `LogAndForget` helper that logs faulted tasks.
 - Cap in-memory per-event collections (message history, queues).

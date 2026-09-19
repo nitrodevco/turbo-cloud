@@ -28,10 +28,10 @@ public interface IRoomBot : IRoomAvatar<IRoomBot, IRoomBotLogic, IRoomBotContext
     public long NextChatAtMs { get; set; }
     public int NextChatLineIndex { get; set; }
 
-    /// <summary>The avatar a wired "follow" order attached the bot to, or -1.</summary>
+    /// <summary>The avatar a "follow" order attached the bot to, or -1.</summary>
     public RoomObjectId FollowObjectId { get; set; }
 
-    /// <summary>The furni a wired "move" order sent the bot to, or -1.</summary>
+    /// <summary>The furni a "move" order sent the bot to, or -1.</summary>
     public RoomObjectId TargetItemId { get; set; }
 
     public void SetName(string name);

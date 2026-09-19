@@ -57,10 +57,27 @@ public sealed partial class RoomFurniModule
         )
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
-        if (!_roomGrain.MapModule.MoveWallItem(wall, x, y, z, rot, wallOffset))
+        return await MoveWallItemAsync(ctx, wall, x, y, z, wallOffset, rot, announce: true, ct);
+    }
+
+    /// <summary>The wall counterpart of <see cref="MoveFloorItemAsync"/>.</summary>
+    public async Task<bool> MoveWallItemAsync(
+        ActionContext ctx,
+        IRoomWallItem item,
+        int x,
+        int y,
+        Altitude z,
+        int wallOffset,
+        Rotation rot,
+        bool announce,
+        CancellationToken ct
+    )
+    {
+        if (!_roomGrain.MapModule.MoveWallItem(item, x, y, z, rot, wallOffset))
             return false;
 
-        await _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer(), ct);
+        if (announce)
+            await _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer(), ct);
 
         await item.Logic.OnMoveAsync(ctx, -1, ct);
 

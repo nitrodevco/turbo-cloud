@@ -11,6 +11,6 @@ internal class IsBadgeRequestFulfilledEventMessageComposerSerializer(int header)
         IsBadgeRequestFulfilledEventMessageComposer message
     )
     {
-        //
+        packet.WriteString(message.RequestCode).WriteBoolean(message.Fulfilled);
     }
 }

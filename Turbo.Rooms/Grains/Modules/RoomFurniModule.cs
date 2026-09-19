@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -11,6 +12,7 @@ using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
@@ -19,6 +21,18 @@ namespace Turbo.Rooms.Grains.Modules;
 public sealed partial class RoomFurniModule(RoomGrain roomGrain)
 {
     private readonly RoomGrain _roomGrain = roomGrain;
+
+    private readonly List<IRoomPlacementLimit> _placementLimits = [];
+
+    /// <summary>A system that caps its own kind of furni registers here; see <see cref="IRoomPlacementLimit"/>.</summary>
+    public void RegisterPlacementLimit(IRoomPlacementLimit limit) => _placementLimits.Add(limit);
+
+    /// <summary>Asks every registered limit before a new item is placed; a refusal throws.</summary>
+    public void EnsureWithinPlacementLimits(IRoomItem item)
+    {
+        foreach (var limit in _placementLimits)
+            limit.EnsureCanPlace(item);
+    }
 
     public Task<ImmutableDictionary<PlayerId, string>> GetAllOwnersAsync(CancellationToken ct) =>
         Task.FromResult(_roomGrain._state.OwnerNamesById.ToImmutableDictionary());

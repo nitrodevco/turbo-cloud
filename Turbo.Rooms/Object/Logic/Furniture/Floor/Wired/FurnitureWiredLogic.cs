@@ -16,6 +16,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -403,8 +404,7 @@ public abstract partial class FurnitureWiredLogic(
     /// Longest text this box stores. The client caps every input itself, so anything longer
     /// did not come from the editor; boxes with a smaller input override this.
     /// </summary>
-    protected virtual int GetStringParamMaxLength() =>
-        _roomGrain._roomConfig.WiredStringParamMaxLength;
+    protected virtual int GetStringParamMaxLength() => _roomGrain._wiredConfig.StringParamMaxLength;
 
     /// <summary>
     /// The text as it is stored: control characters dropped (tab and line breaks stay, boxes
@@ -442,7 +442,7 @@ public abstract partial class FurnitureWiredLogic(
         var fixedRules = GetIntParamRules();
         var tailRule = GetIntParamTailRule();
         var min = fixedRules.Count;
-        var max = Math.Max(min, _roomGrain._roomConfig.WiredMaxIntParams);
+        var max = Math.Max(min, _roomGrain._wiredConfig.MaxIntParams);
 
         if (proposed.Count > max)
             return false;
@@ -506,7 +506,7 @@ public abstract partial class FurnitureWiredLogic(
     {
         stuffIds = [];
 
-        var limit = _roomGrain._roomConfig.WiredSelectedItemsLimit;
+        var limit = _roomGrain._wiredConfig.SelectedItemsLimit;
         var seen = new HashSet<int>();
 
         foreach (var id in proposed)
@@ -656,7 +656,7 @@ public abstract partial class FurnitureWiredLogic(
         new()
         {
             WiredType = WiredType,
-            FurniLimit = _roomGrain._roomConfig.WiredSelectedItemsLimit,
+            FurniLimit = _roomGrain._wiredConfig.SelectedItemsLimit,
             StuffIds = GetValidStuffIds(_wiredData.StuffIds, out var validStuffIds)
                 ? validStuffIds
                 : [],
@@ -675,7 +675,7 @@ public abstract partial class FurnitureWiredLogic(
             Code = WiredCode,
             AdvancedMode = SupportsAdvancedMode(),
             AmountFurniSelections = [],
-            AllowWallFurni = _roomGrain._roomConfig.WiredAllowWallFurni,
+            AllowWallFurni = _roomGrain._wiredConfig.AllowWallFurni,
             AllowedFurniSources = GetAllowedFurniSources(),
             AllowedPlayerSources = GetAllowedPlayerSources(),
             DefaultFurniSources = GetDefaultFurniSources(),

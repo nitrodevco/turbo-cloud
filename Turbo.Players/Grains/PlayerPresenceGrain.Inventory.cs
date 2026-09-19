@@ -6,12 +6,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Messages.Outgoing.Inventory.Badges;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Bots;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Pets;
+using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets.Snapshots;
+using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Players.Grains;
@@ -120,6 +123,67 @@ internal sealed partial class PlayerPresenceGrain
 
     public Task OnBotRemovedAsync(int botId, CancellationToken ct) =>
         SendComposerAsync(new BotRemovedFromInventoryEventMessageComposer { BotId = botId }, ct);
+
+    public async Task SendBadgeInventoryAsync(
+        ImmutableArray<PlayerBadgeSnapshot> badges,
+        CancellationToken ct
+    )
+    {
+        await SendFragmentsAsync(
+            badges,
+            _playerConfig.BadgeInventoryFragmentSize,
+            (total, current, fragment) =>
+                new BadgesEventMessageComposer
+                {
+                    TotalFragments = total,
+                    FragmentNo = current,
+                    Badges = fragment,
+                },
+            ct
+        );
+
+        // The badge list does not say which badges are worn; the client learns that from its
+        // own entry of the message that also describes everyone else's.
+        await SendComposerAsync(
+            new HabboUserBadgesMessageComposer
+            {
+                PlayerId = _state.PlayerId,
+                Badges = [.. badges.Where(x => x.IsWorn).OrderBy(x => x.SlotId)],
+            },
+            ct
+        );
+    }
+
+    public Task OnBadgeReceivedAsync(PlayerBadgeSnapshot badge, CancellationToken ct) =>
+        SendComposerAsync(new BadgeReceivedEventMessageComposer { Badge = badge }, ct);
+
+    public Task OnSelectedBadgesChangedAsync(
+        ImmutableArray<PlayerBadgeSnapshot> selectedBadges,
+        CancellationToken ct
+    )
+    {
+        if (_state.ActiveRoomId <= 0)
+            return SendComposerAsync(
+                new HabboUserBadgesMessageComposer
+                {
+                    PlayerId = _state.PlayerId,
+                    Badges = selectedBadges,
+                },
+                ct
+            );
+
+        // The room shows the change to everyone in it, this player included. It is told, not
+        // awaited: the room may be waiting on this player's inventory, which is waiting on us.
+        _grainFactory
+            .GetRoomGrain(_state.ActiveRoomId)
+            .SetPlayerBadgesAsync(_state.PlayerId, selectedBadges, CancellationToken.None)
+            .LogAndForget(
+                _logger,
+                $"show the badges of player {_state.PlayerId} in room {_state.ActiveRoomId}"
+            );
+
+        return Task.CompletedTask;
+    }
 
     /// <summary>
     /// Sends a list in fragments of at most <paramref name="perFragment"/> entries, in one

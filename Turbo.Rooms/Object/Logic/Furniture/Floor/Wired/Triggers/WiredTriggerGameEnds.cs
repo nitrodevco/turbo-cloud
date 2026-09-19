@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Events.Game;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -21,8 +22,8 @@ public class WiredTriggerGameEnds(
 ) : FurnitureWiredTriggerLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredTriggerType.GAME_ENDS;
-    public override List<Type> SupportedEventTypes { get; } = [typeof(WiredGameEndedEvent)];
+    public override List<Type> SupportedEventTypes { get; } = [typeof(GameEndedEvent)];
 
     public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct) =>
-        Task.FromResult(ctx.Event is WiredGameEndedEvent);
+        Task.FromResult(ctx.Event is GameEndedEvent);
 }

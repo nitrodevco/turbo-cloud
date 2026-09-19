@@ -26,11 +26,11 @@ public interface IPlayerGrain : IGrainWithIntegerKey
     /// <summary>Refills today's respects if a replenish is available; false otherwise.</summary>
     public Task<bool> ReplenishRespectAsync(CancellationToken ct);
 
-    /// <summary>The badges the player wears, by slot.</summary>
-    public Task<ImmutableArray<PlayerBadgeSnapshot>> GetSelectedBadgesAsync(CancellationToken ct);
-
-    /// <summary>Grants a badge the player does not own yet. False when already owned or invalid.</summary>
-    public Task<bool> GiveBadgeAsync(string badgeCode, CancellationToken ct);
+    /// <summary>
+    /// The player's place on the total badges board, told by their inventory, which is where the
+    /// badges are. A change is passed on to the room they are in.
+    /// </summary>
+    public Task SetBadgesRankAsync(int badgesRank, CancellationToken ct);
 
     public Task<PlayerExtendedProfileSnapshot> GetExtendedProfileSnapshotAsync(
         CancellationToken ct

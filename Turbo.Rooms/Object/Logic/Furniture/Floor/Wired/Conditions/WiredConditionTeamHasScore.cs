@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -25,7 +26,7 @@ public class WiredConditionTeamHasScore(
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredEnumParamRule<WiredTeamType>(WiredTeamType.None),
+            new WiredEnumParamRule<GameTeamType>(GameTeamType.None),
             new WiredRangeParamRule(0, 1000, 0),
             new WiredRangeParamRule(0, 2, 1),
         ];
@@ -35,12 +36,12 @@ public class WiredConditionTeamHasScore(
         var points = GetIntParamOrDefault(1, 0);
         var comparison = GetIntParamOrDefault(2, 1);
 
-        foreach (var team in ResolveTeams(GetIntParamOrDefault(0, WiredTeamType.None), ctx))
+        foreach (var team in ResolveTeams(GetIntParamOrDefault(0, GameTeamType.None), ctx))
         {
             if (
                 WiredComparison.CompareThreeWay(
                     comparison,
-                    _roomGrain.WiredSystem.GetScore(team),
+                    _roomGrain.GameSystem.GetScore(team),
                     points
                 )
             )

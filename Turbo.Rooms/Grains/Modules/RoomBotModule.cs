@@ -354,21 +354,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
     {
         var owner = await _roomGrain._grainFactory.GetPlayerGrain(ctx.PlayerId).GetSummaryAsync(ct);
 
-        bot.SetFigure(owner.Figure, owner.Gender);
-
-        await _roomGrain.SendComposerToRoomAsync(
-            new UserChangeMessageComposer
-            {
-                ObjectId = bot.ObjectId,
-                Figure = bot.Figure,
-                Gender = bot.Gender,
-                CustomInfo = bot.Motto,
-                AchievementScore = 0,
-                BadgesRank = 0,
-            },
-            ct
-        );
-        await PersistAsync(bot, ct);
+        await SetFigureAsync(bot, owner.Figure, owner.Gender, ct);
 
         return true;
     }

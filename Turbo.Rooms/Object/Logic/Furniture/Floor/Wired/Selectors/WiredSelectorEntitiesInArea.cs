@@ -23,7 +23,7 @@ public class WiredSelectorEntitiesInArea(
     public override int WiredCode => (int)WiredSelectorType.USERS_IN_AREA;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        WiredArea.GetParamRules(_roomGrain._roomConfig);
+        WiredArea.GetParamRules(_roomGrain._wiredConfig);
 
     public override Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,

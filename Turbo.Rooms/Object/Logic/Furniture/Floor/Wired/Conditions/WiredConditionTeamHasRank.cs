@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -24,18 +25,15 @@ public class WiredConditionTeamHasRank(
     public override int WiredCode => (int)WiredConditionType.TEAM_IS_WINNING;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [
-            new WiredEnumParamRule<WiredTeamType>(WiredTeamType.None),
-            new WiredRangeParamRule(0, 3, 0),
-        ];
+        [new WiredEnumParamRule<GameTeamType>(GameTeamType.None), new WiredRangeParamRule(0, 3, 0)];
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var placement = GetIntParamOrDefault(1, 0) + 1;
 
-        foreach (var team in ResolveTeams(GetIntParamOrDefault(0, WiredTeamType.None), ctx))
+        foreach (var team in ResolveTeams(GetIntParamOrDefault(0, GameTeamType.None), ctx))
         {
-            if (_roomGrain.WiredSystem.GetPlacement(team) == placement)
+            if (_roomGrain.GameSystem.GetPlacement(team) == placement)
                 return true;
         }
 
@@ -43,17 +41,17 @@ public class WiredConditionTeamHasRank(
     }
 
     /// <summary>The configured team, or the teams of the triggering users when set to "triggerer".</summary>
-    protected IEnumerable<WiredTeamType> ResolveTeams(
-        WiredTeamType configured,
+    protected IEnumerable<GameTeamType> ResolveTeams(
+        GameTeamType configured,
         IWiredProcessingContext ctx
     )
     {
-        if (configured != WiredTeamType.None)
+        if (configured != GameTeamType.None)
             return [configured];
 
         return ctx
-            .Selected.SelectedPlayerIds.Select(id => _roomGrain.WiredSystem.GetTeam(id))
-            .Where(x => x != WiredTeamType.None)
+            .Selected.SelectedPlayerIds.Select(id => _roomGrain.GameSystem.GetTeam(id))
+            .Where(x => x != GameTeamType.None)
             .Distinct()
             .ToList();
     }

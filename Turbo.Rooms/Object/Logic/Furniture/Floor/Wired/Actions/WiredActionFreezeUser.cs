@@ -34,7 +34,7 @@ public class WiredActionFreezeUser(
     {
         var effectIndex = GetIntParamOrDefault(0, 0);
         var cancelOnTeleport = GetIntParamOrDefault(1, false);
-        var effectIds = _roomGrain._roomConfig.WiredFreezeEffectIds;
+        var effectIds = _roomGrain._wiredConfig.FreezeEffectIds;
         var effectId = effectIndex < effectIds.Length ? effectIds[effectIndex] : 0;
         var frozen = false;
 
@@ -42,8 +42,7 @@ public class WiredActionFreezeUser(
         {
             await _roomGrain.AvatarModule.StopWalkingAsync(player, ct);
 
-            player.SetFrozen(true);
-            _roomGrain.WiredSystem.SetFreezeCancelsOnTeleport(player.ObjectId, cancelOnTeleport);
+            player.SetFrozen(true, cancelOnTeleport);
 
             if (effectId > 0)
                 await _roomGrain.AvatarModule.SetAvatarEffectAsync(player.ObjectId, effectId, ct);

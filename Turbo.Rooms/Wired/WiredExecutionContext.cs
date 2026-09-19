@@ -83,7 +83,19 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
             if (Policy.MovePhysics.HasFlag(WiredMovePhysicsFlags.KeepAltitude))
                 z ??= floorItem.Z;
 
-            if (!_roomGrain.MapModule.MoveFloorItem(floorItem, tileIdx, z, rot))
+            // Through the furni module, so the item's logic hears of the move as it would from a
+            // player; only the announcing stays here, batched into the action's one packet.
+            if (
+                !await _roomGrain.FurniModule.MoveFloorItemAsync(
+                    AsActionContext(),
+                    floorItem,
+                    tileIdx,
+                    z,
+                    rot,
+                    announce: false,
+                    CancellationToken
+                )
+            )
                 return false;
 
             FloorItemMoves.Add(
@@ -138,7 +150,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         }
     }
 
-    public Task ProcessWallItemMovementAsync(
+    public async Task ProcessWallItemMovementAsync(
         IRoomWallItem wallItem,
         int x,
         int y,
@@ -148,7 +160,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
     )
     {
         if (wallItem is null)
-            return Task.CompletedTask;
+            return;
 
         try
         {
@@ -159,7 +171,19 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
                 wallItem.WallOffset
             );
 
-            if (_roomGrain.MapModule.MoveWallItem(wallItem, x, y, z, rot, wallOffset))
+            if (
+                await _roomGrain.FurniModule.MoveWallItemAsync(
+                    AsActionContext(),
+                    wallItem,
+                    x,
+                    y,
+                    z,
+                    wallOffset,
+                    rot,
+                    announce: false,
+                    CancellationToken
+                )
+            )
             {
                 WallItemMoves.Add(
                     new()
@@ -188,8 +212,6 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
                 _roomGrain.RoomId
             );
         }
-
-        return Task.CompletedTask;
     }
 
     public async Task<bool> ProcessUserMovementAsync(
@@ -320,7 +342,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         }
 
         // Placeholders expand the text, and a box can repeat one many times over.
-        var maxLength = _roomGrain._roomConfig.WiredStringParamMaxLength;
+        var maxLength = _roomGrain._wiredConfig.StringParamMaxLength;
 
         if (text.Length > maxLength)
             text = text[..maxLength];

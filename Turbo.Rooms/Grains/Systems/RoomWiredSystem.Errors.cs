@@ -28,7 +28,7 @@ public sealed partial class RoomWiredSystem
             return;
         }
 
-        var cap = _roomGrain._roomConfig.WiredMaxErrorLogEntries;
+        var cap = _roomGrain._wiredConfig.MaxErrorLogEntries;
 
         if (cap <= 0)
             return;

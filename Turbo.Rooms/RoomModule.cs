@@ -21,6 +21,7 @@ public sealed class RoomModule : IHostPluginModule
         services.Configure<RoomConfig>(builder.Configuration.GetSection(RoomConfig.SECTION_NAME));
         services.Configure<PetConfig>(builder.Configuration.GetSection(PetConfig.SECTION_NAME));
         services.Configure<BotConfig>(builder.Configuration.GetSection(BotConfig.SECTION_NAME));
+        services.Configure<WiredConfig>(builder.Configuration.GetSection(WiredConfig.SECTION_NAME));
 
         services.AddSingleton<IRoomAvatarProvider, RoomAvatarProvider>();
         services.AddSingleton<IRoomItemsProvider, RoomItemsProvider>();

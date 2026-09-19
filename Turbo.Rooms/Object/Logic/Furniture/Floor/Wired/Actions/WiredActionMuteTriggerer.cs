@@ -33,7 +33,7 @@ public class WiredActionMuteTriggerer(
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
     protected override int GetStringParamMaxLength() =>
-        _roomGrain._roomConfig.WiredKickMessageMaxLength;
+        _roomGrain._wiredConfig.KickMessageMaxLength;
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
@@ -57,20 +57,7 @@ public class WiredActionMuteTriggerer(
             if (message.Length == 0)
                 continue;
 
-            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
-                player.PlayerId,
-                new WhisperMessageComposer
-                {
-                    ObjectId = player.ObjectId,
-                    Text = message,
-                    Gesture = AvatarGestureType.None,
-                    StyleId = 0,
-                    Links = [],
-                    TrackingId = -1,
-                    ReceiverRoomIndex = player.ObjectId,
-                },
-                ct
-            );
+            await _roomGrain.ChatSystem.WhisperToPlayerAsync(player, message, ct);
         }
 
         return muted;

@@ -35,7 +35,6 @@ public class RoomConfig
     public int RoomTickMs { get; init; } = 50;
     public int AvatarTickMs { get; init; } = 500;
     public int RollerTickMs { get; init; } = 2000;
-    public int WiredTickMs { get; init; } = 50;
     public int DirtyItemsTickMs { get; init; } = 2000;
     public int MaxDirtyItemsPerFlush { get; init; } = 100;
     public int MaxTileHeightsPerFlush { get; init; } = 200;
@@ -99,33 +98,6 @@ public class RoomConfig
     public int MaxChatlogsPerFlush { get; init; } = 200;
     public int MaxPendingChatlogs { get; init; } = 2000;
 
-    public int WiredMaxDepth { get; init; } = 20;
-    public int WiredMaxScheduledPerTick { get; init; } = 64;
-    public int WiredMaxEventsPerTick { get; init; } = 64;
-    public int WiredSelectorMaxAreaSize { get; init; } = 100;
-    public int WiredSelectedItemsLimit { get; init; } = 20;
-    public bool WiredAllowWallFurni { get; init; } = true;
-    public int WiredMaxIntParams { get; init; } = 16;
-    public int WiredNeighborhoodRadius { get; init; } = 5;
-    public int WiredMaxFloorItems { get; init; } = 200;
-    public int WiredMaxWallItems { get; init; } = 50;
-    public int WiredMaxPermanentFurniVariables { get; init; } = 50;
-    public int WiredMaxPermanentUserVariables { get; init; } = 50;
-    public int WiredMaxPermanentGlobalVariables { get; init; } = 50;
-    public int WiredExecutionCostWindowMs { get; init; } = 1000;
-    public int WiredExecutionCostCap { get; init; } = 500;
-    public int WiredMaxErrorLogEntries { get; init; } = 50;
-    public int WiredShowMessageMaxLength { get; init; } = 200;
-    public int WiredKickMessageMaxLength { get; init; } = 100;
-    public int WiredLogMessageMaxLength { get; init; } = 400;
-    public int WiredMaxRewardsPerBox { get; init; } = 20;
-    public int WiredClockMaxHalfSeconds { get; init; } = 11999;
-    public int WiredGameDefaultDurationSeconds { get; init; } = 60;
-    public int WiredBotFollowDistance { get; init; } = 1;
-    public int[] WiredTeamEffectIds { get; init; } = [0, 33, 34, 35, 36];
-    public int[] WiredFreezeEffectIds { get; init; } = [0, 0, 0, 0, 0];
-    public int WiredMaxCoordinate { get; init; } = 255;
-    public int WiredStringParamMaxLength { get; init; } = 2000;
-    public int WiredMaxHandItemId { get; init; } = 10000;
-    public int WiredMaxEffectId { get; init; } = 10000;
+    public int GameDefaultDurationSeconds { get; init; } = 60;
+    public int[] GameTeamEffectIds { get; init; } = [0, 33, 34, 35, 36];
 }

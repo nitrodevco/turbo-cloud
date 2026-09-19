@@ -24,9 +24,9 @@
 - Keep database querying and persistence access out of packet handlers.
 - Keep grain lifecycle/state logic within grain modules; do not bypass grain boundaries with direct cross-layer shortcuts.
 - Keep plugin lifecycle operations inside `Turbo.Plugins`; do not duplicate plugin loading logic in unrelated modules.
-- Protocol revision parser/serializer trees are owned by the plugin repo at:
-  - `../turbo-sample-plugin/TurboSamplePlugin/Revision/**`
-  - Do not create `Revision<id>/Parsers` or `Revision<id>/Serializers` trees in `turbo-cloud`.
+- Protocol revision parser/serializer trees live in this repository:
+  - `Turbo.Revisions/Revision<id>/**` (headers, `Parsers/<Domain>/`, `Serializers/<Domain>/`)
+  - Follow the packet addition checklist in `AGENTS.md`; do not add them anywhere else.
 - Extended profile flow boundary:
   - `Turbo.PacketHandlers/Users/*ExtendedProfile*Handler.cs` orchestrates lookup + response mapping only.
   - `Turbo.Players/Grains/PlayerDirectoryGrain.cs` owns username/id lookup semantics and cache coherence.
@@ -57,7 +57,7 @@
 - Identical grain calls must not repeat inside loops — hoist before the loop.
 - DB batch operations use single `WHERE ... IN (...)` queries, not per-entity `ExecuteDeleteAsync` loops.
 - Housekeeping writes (e.g. delivered flags) follow the timer-flush pattern: queue dirty state, flush with `RegisterGrainTimer`, flush on `OnDeactivateAsync`. See `RoomPersistenceGrain` for reference.
-- Do not hardcode limits (`Take(N)`, capacity constants) in grains. Pass them from handlers via `IConfiguration`.
+- Do not hardcode limits (`Take(N)`, capacity constants) in grains. They are options on the module's config class, read by the grain through `IOptions<TConfig>`; handlers do not pass them in. Numbers a client chose are clamped to those limits in the grain.
 - When a delete + insert must be atomic, use EF tracked operations (`Remove` + `SaveChangesAsync`), not `ExecuteDeleteAsync`.
 - Replace `.Ignore()` on grain tasks with a `LogAndForget` helper that logs faulted continuations.
 - In-memory collections that grow per-event (message history, queues) must have a configurable cap.

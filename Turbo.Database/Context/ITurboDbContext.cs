@@ -1,5 +1,6 @@
 using System;
 using Microsoft.EntityFrameworkCore;
+using Turbo.Database.Entities.Badges;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Navigator;
@@ -24,6 +25,7 @@ public interface ITurboDbContext : IDisposable
 
     public DbSet<FurnitureEntity>? Furnitures { get; set; }
 
+    public DbSet<BadgeDefinitionEntity>? BadgeDefinitions { get; set; }
     public DbSet<PlayerBadgeEntity>? PlayerBadges { get; set; }
 
     public DbSet<PlayerCurrencyEntity>? PlayerCurrencies { get; set; }

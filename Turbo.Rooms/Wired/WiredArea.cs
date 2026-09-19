@@ -10,18 +10,18 @@ namespace Turbo.Rooms.Wired;
 /// <summary>
 /// The rectangle an area selector covers, as the client sends it (root x, root y, width,
 /// height). The numbers come from the client, so the rectangle is always cut to the map and
-/// to <see cref="RoomConfig.WiredSelectorMaxAreaSize"/> tiles, counted row by row from the
+/// to <see cref="WiredConfig.SelectorMaxAreaSize"/> tiles, counted row by row from the
 /// root, before anything walks it.
 /// </summary>
 internal readonly record struct WiredArea(int X, int Y, int Width, int Height, int MaxTiles)
 {
     /// <summary>Int param rules for the four values, in wire order.</summary>
-    public static List<IWiredParamRule> GetParamRules(RoomConfig config) =>
+    public static List<IWiredParamRule> GetParamRules(WiredConfig config) =>
         [
-            new WiredRangeParamRule(0, config.WiredMaxCoordinate, 0),
-            new WiredRangeParamRule(0, config.WiredMaxCoordinate, 0),
-            new WiredRangeParamRule(0, config.WiredMaxCoordinate, 0),
-            new WiredRangeParamRule(0, config.WiredMaxCoordinate, 0),
+            new WiredRangeParamRule(0, config.MaxCoordinate, 0),
+            new WiredRangeParamRule(0, config.MaxCoordinate, 0),
+            new WiredRangeParamRule(0, config.MaxCoordinate, 0),
+            new WiredRangeParamRule(0, config.MaxCoordinate, 0),
         ];
 
     public static WiredArea Create(RoomGrain roomGrain, int x, int y, int width, int height)
@@ -39,7 +39,7 @@ internal readonly record struct WiredArea(int X, int Y, int Width, int Height, i
             y,
             width,
             height,
-            Math.Max(0, roomGrain._roomConfig.WiredSelectorMaxAreaSize)
+            Math.Max(0, roomGrain._wiredConfig.SelectorMaxAreaSize)
         );
     }
 

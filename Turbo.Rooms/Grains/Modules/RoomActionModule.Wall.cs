@@ -8,7 +8,6 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
-using Turbo.Primitives.Rooms.Wired;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -33,12 +32,7 @@ public sealed partial class RoomActionModule
         if (item is not IRoomWallItem wallItem)
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
-        if (
-            item.Logic is IWiredBox
-            && _roomGrain.WiredSystem.CountWiredItems().wall
-                >= _roomGrain._roomConfig.WiredMaxWallItems
-        )
-            throw new TurboException(TurboErrorCodeEnum.WiredWallItemLimitReached);
+        _roomGrain.FurniModule.EnsureWithinPlacementLimits(item);
 
         if (
             !await _roomGrain.FurniModule.ValidateNewWallItemPlacementAsync(

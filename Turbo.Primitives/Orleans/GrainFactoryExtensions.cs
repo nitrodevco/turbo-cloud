@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Turbo.Primitives.Badges.Grains;
 using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Networking;
@@ -71,6 +72,12 @@ public static class GrainFactoryExtensions
 
     public static IPlayerDirectoryGrain GetPlayerDirectoryGrain(this IGrainFactory factory) =>
         factory.GetGrain<IPlayerDirectoryGrain>(SingletonGrainId.GLOBAL);
+
+    public static IBadgeDirectoryGrain GetBadgeDirectoryGrain(this IGrainFactory factory) =>
+        factory.GetGrain<IBadgeDirectoryGrain>(SingletonGrainId.GLOBAL);
+
+    public static IBadgeLeaderboardGrain GetBadgeLeaderboardGrain(this IGrainFactory factory) =>
+        factory.GetGrain<IBadgeLeaderboardGrain>(SingletonGrainId.GLOBAL);
 
     public static IPlayerWalletGrain GetPlayerWalletGrain(
         this IGrainFactory factory,

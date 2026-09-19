@@ -10,6 +10,7 @@ internal class ExtendedProfileMessageComposerSerializer(int header)
     protected override void Serialize(IServerPacket packet, ExtendedProfileMessageComposer message)
     {
         var profile = message.Profile;
+        var badges = message.Badges;
 
         packet
             .WriteInteger((int)profile.UserId)
@@ -36,13 +37,13 @@ internal class ExtendedProfileMessageComposerSerializer(int header)
             .WriteInteger(profile.StarGemCount)
             .WriteBoolean(profile.BooleanField26)
             .WriteBoolean(profile.BooleanField27)
-            .WriteInteger(profile.TotalBadges)
+            .WriteInteger(badges.TotalBadges)
             .WriteInteger(profile.AchievementLevel)
-            .WriteInteger(profile.BadgeRarityCounts.Count);
+            .WriteInteger(badges.RarityCounts.Length);
 
-        foreach (var rarity in profile.BadgeRarityCounts)
+        foreach (var rarity in badges.RarityCounts)
             packet.WriteByte(rarity.RarityId).WriteInteger(rarity.Count);
 
-        packet.WriteInteger(profile.TotalBadgesRank);
+        packet.WriteInteger(badges.TotalBadgesRank);
     }
 }

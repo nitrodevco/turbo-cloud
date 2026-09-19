@@ -26,7 +26,7 @@ public class WiredActionUnfreezeUser(
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        var freezeEffects = _roomGrain._roomConfig.WiredFreezeEffectIds;
+        var freezeEffects = _roomGrain._wiredConfig.FreezeEffectIds;
         var thawed = false;
 
         foreach (var player in GetPlayers(ctx.GetSelection(this)))
@@ -35,7 +35,6 @@ public class WiredActionUnfreezeUser(
                 continue;
 
             player.SetFrozen(false);
-            _roomGrain.WiredSystem.SetFreezeCancelsOnTeleport(player.ObjectId, false);
 
             if (player.EffectId > 0 && freezeEffects.Contains(player.EffectId))
                 await _roomGrain.AvatarModule.SetAvatarEffectAsync(player.ObjectId, 0, ct);

@@ -1,6 +1,5 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
@@ -9,11 +8,10 @@ using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.FriendList;
 
-public class HabboSearchMessageHandler(IGrainFactory grainFactory, IConfiguration configuration)
+public class HabboSearchMessageHandler(IGrainFactory grainFactory)
     : IMessageHandler<HabboSearchMessage>
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
-    private readonly IConfiguration _configuration = configuration;
 
     public async ValueTask HandleAsync(
         HabboSearchMessage message,

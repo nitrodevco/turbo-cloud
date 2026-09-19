@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -23,15 +24,15 @@ public class WiredActionGiveScoreToTeam(
         [
             new WiredRangeParamRule(-1000, 1000, 1),
             new WiredRangeParamRule(0, 10, 1),
-            new WiredEnumParamRule<WiredTeamType>(
-                WiredTeamType.Red,
-                WiredTeamType.Red,
-                WiredTeamType.Green,
-                WiredTeamType.Blue,
-                WiredTeamType.Yellow
+            new WiredEnumParamRule<GameTeamType>(
+                GameTeamType.Red,
+                GameTeamType.Red,
+                GameTeamType.Green,
+                GameTeamType.Blue,
+                GameTeamType.Yellow
             ),
         ];
 
-    protected override WiredTeamType ResolveTeam(int playerId) =>
-        GetIntParamOrDefault(2, WiredTeamType.Red);
+    protected override GameTeamType ResolveTeam(int playerId) =>
+        GetIntParamOrDefault(2, GameTeamType.Red);
 }

@@ -4,8 +4,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Events.Game;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -26,23 +28,23 @@ public class WiredTriggerScoreAchieved(
 ) : FurnitureWiredTriggerLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredTriggerType.SCORE_ACHIEVED;
-    public override List<Type> SupportedEventTypes { get; } = [typeof(WiredScoreChangedEvent)];
+    public override List<Type> SupportedEventTypes { get; } = [typeof(GameScoreChangedEvent)];
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredRangeParamRule(1, 1000, 1),
-            new WiredEnumParamRule<WiredTeamType>(WiredTeamType.None),
+            new WiredEnumParamRule<GameTeamType>(GameTeamType.None),
         ];
 
     public override Task<bool> MatchesEventAsync(RoomEvent evt, CancellationToken ct)
     {
-        if (evt is not WiredScoreChangedEvent score)
+        if (evt is not GameScoreChangedEvent score)
             return Task.FromResult(false);
 
         var points = GetIntParamOrDefault(0, 1);
-        var team = GetIntParamOrDefault(1, WiredTeamType.None);
+        var team = GetIntParamOrDefault(1, GameTeamType.None);
 
-        if (team != WiredTeamType.None && team != score.Team)
+        if (team != GameTeamType.None && team != score.Team)
             return Task.FromResult(false);
 
         return Task.FromResult(score.PreviousScore < points && score.Score >= points);
@@ -50,10 +52,10 @@ public class WiredTriggerScoreAchieved(
 
     public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
-        if (ctx.Event is not WiredScoreChangedEvent score)
+        if (ctx.Event is not GameScoreChangedEvent score)
             return Task.FromResult(false);
 
-        foreach (var playerId in _roomGrain.WiredSystem.GetTeamMembers(score.Team))
+        foreach (var playerId in _roomGrain.GameSystem.GetTeamMembers(score.Team))
             ctx.Selected.SelectedPlayerIds.Add(playerId);
 
         return Task.FromResult(true);

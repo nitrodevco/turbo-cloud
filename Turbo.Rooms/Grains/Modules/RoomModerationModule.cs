@@ -78,7 +78,7 @@ public sealed class RoomModerationModule(
         return true;
     }
 
-    /// <summary>A wired mute: no actor, no rank check, the room cap still applies.</summary>
+    /// <summary>A mute by the room itself (wired): no actor, no rank check, the room cap still applies.</summary>
     public async Task<bool> MutePlayerBySystemAsync(
         PlayerId playerId,
         int durationMinutes,
@@ -215,6 +215,47 @@ public sealed class RoomModerationModule(
             return false;
 
         await _roomGrain.AvatarModule.RemoveAvatarFromPlayerAsync(ctx, playerId, ct);
+
+        return true;
+    }
+
+    /// <summary>
+    /// A kick by the room itself (wired): no actor and no "who can kick" setting, but the owner
+    /// and anyone above them stay, as with <see cref="MutePlayerBySystemAsync"/>. It runs inside
+    /// the room tick, so the player's session is told to close without being awaited: the
+    /// presence may itself be waiting on this room. The parting words, when there are any, are
+    /// whispered to the player first.
+    /// </summary>
+    public async Task<bool> KickPlayerBySystemAsync(
+        PlayerId playerId,
+        string partingWords,
+        CancellationToken ct
+    )
+    {
+        if (!_roomGrain.AvatarModule.TryGetPlayer(playerId, out var player))
+            return false;
+
+        var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(playerId);
+
+        if (controllerLevel >= RoomControllerType.Owner)
+            return false;
+
+        if (partingWords.Length > 0)
+            await _roomGrain.ChatSystem.WhisperToPlayerAsync(player, partingWords, ct);
+
+        await _roomGrain.AvatarModule.RemoveAvatarFromPlayerAsync(
+            ActionContext.CreateForSystem(_roomGrain.RoomId),
+            playerId,
+            ct
+        );
+
+        _roomGrain
+            ._grainFactory.GetPlayerPresenceGrain(playerId)
+            .OnRemovedFromRoomAsync(_roomGrain.RoomId, true, CancellationToken.None)
+            .LogAndForget(
+                _roomGrain._logger,
+                $"close the room session of player {playerId} kicked from room {_roomGrain.RoomId}"
+            );
 
         return true;
     }

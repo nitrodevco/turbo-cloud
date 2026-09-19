@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -23,7 +24,7 @@ public class WiredSelectorEntitiesInTeam(
     public override int WiredCode => (int)WiredSelectorType.USERS_IN_TEAM;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredEnumParamRule<WiredTeamType>(WiredTeamType.None)];
+        [new WiredEnumParamRule<GameTeamType>(GameTeamType.None)];
 
     public override Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,
@@ -31,22 +32,22 @@ public class WiredSelectorEntitiesInTeam(
     )
     {
         var output = new WiredSelectionSet();
-        var wanted = GetIntParamOrDefault(0, WiredTeamType.None);
+        var wanted = GetIntParamOrDefault(0, GameTeamType.None);
 
         foreach (
             var team in new[]
             {
-                WiredTeamType.Red,
-                WiredTeamType.Green,
-                WiredTeamType.Blue,
-                WiredTeamType.Yellow,
+                GameTeamType.Red,
+                GameTeamType.Green,
+                GameTeamType.Blue,
+                GameTeamType.Yellow,
             }
         )
         {
-            if (wanted != WiredTeamType.None && wanted != team)
+            if (wanted != GameTeamType.None && wanted != team)
                 continue;
 
-            foreach (var playerId in _roomGrain.WiredSystem.GetTeamMembers(team))
+            foreach (var playerId in _roomGrain.GameSystem.GetTeamMembers(team))
                 output.SelectedPlayerIds.Add(playerId);
         }
 

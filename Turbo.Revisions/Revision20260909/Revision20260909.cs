@@ -724,6 +724,7 @@ public class Revision20260909 : IRevision
                 MessageEvent.GetBadgePointLimitsMessageEvent,
                 new GetBadgePointLimitsMessageParser()
             },
+            { MessageEvent.GetBadgeInfoMessageEvent, new GetBadgeInfoMessageParser() },
             { MessageEvent.GetBadgesMessageEvent, new GetBadgesMessageParser() },
             {
                 MessageEvent.GetIsBadgeRequestFulfilledMessageEvent,
@@ -1464,6 +1465,10 @@ public class Revision20260909 : IRevision
                 MessageEvent.GetRelationshipStatusInfoMessageEvent,
                 new GetRelationshipStatusInfoMessageParser()
             },
+            {
+                MessageEvent.GetBadgeLeaderboardMessageEvent,
+                new GetBadgeLeaderboardMessageParser()
+            },
             { MessageEvent.GetSelectedBadgesMessageEvent, new GetSelectedBadgesMessageParser() },
             { MessageEvent.RespectUserMessageEvent, new RespectUserMessageParser() },
             { MessageEvent.ReplenishRespectMessageEvent, new ReplenishRespectMessageParser() },
@@ -2092,6 +2097,10 @@ public class Revision20260909 : IRevision
             #endregion
 
             #region Inventory Badges
+            {
+                typeof(BadgeInfoMessageComposer),
+                new BadgeInfoMessageComposerSerializer(MessageComposer.BadgeInfoMessageComposer)
+            },
             {
                 typeof(BadgePointLimitsEventMessageComposer),
                 new BadgePointLimitsEventMessageComposerSerializer(
@@ -4514,6 +4523,12 @@ public class Revision20260909 : IRevision
                 typeof(HabboGroupJoinFailedMessageComposer),
                 new HabboGroupJoinFailedMessageComposerSerializer(
                     MessageComposer.HabboGroupJoinFailedMessageComposer
+                )
+            },
+            {
+                typeof(BadgeLeaderboardResultMessageComposer),
+                new BadgeLeaderboardResultMessageComposerSerializer(
+                    MessageComposer.BadgeLeaderboardResultMessageComposer
                 )
             },
             {

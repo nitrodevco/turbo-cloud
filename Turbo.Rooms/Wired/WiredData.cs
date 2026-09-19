@@ -4,7 +4,6 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Exceptions;
 
 namespace Turbo.Rooms.Wired;
 

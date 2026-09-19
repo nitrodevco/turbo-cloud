@@ -11,6 +11,10 @@ internal class BadgeReceivedEventMessageComposerSerializer(int header)
         BadgeReceivedEventMessageComposer message
     )
     {
-        //
+        packet
+            .WriteInteger(message.Badge.BadgeId)
+            .WriteString(message.Badge.BadgeCode)
+            .WriteInteger(message.Badge.OwnerCount)
+            .WriteInteger((int)message.Badge.Rarity);
     }
 }

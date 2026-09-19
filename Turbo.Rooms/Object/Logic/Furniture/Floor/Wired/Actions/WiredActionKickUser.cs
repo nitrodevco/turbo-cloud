@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -32,53 +33,23 @@ public class WiredActionKickUser(
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
     protected override int GetStringParamMaxLength() =>
-        _roomGrain._roomConfig.WiredKickMessageMaxLength;
+        _roomGrain._wiredConfig.KickMessageMaxLength;
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
         var message = _wiredData.StringParam?.Trim() ?? string.Empty;
         message = await ctx.FormatTextAsync(message, ct);
 
-        var ownerId = _roomGrain._state.RoomSnapshot.OwnerId;
         var kicked = false;
 
-        foreach (var player in GetPlayers(ctx.GetSelection(this)))
-        {
-            if (player.PlayerId == ownerId)
-                continue;
-
-            if (message.Length > 0)
-                await _roomGrain._grainFactory.SendComposerToPlayerAsync(
-                    player.PlayerId,
-                    new WhisperMessageComposer
-                    {
-                        ObjectId = player.ObjectId,
-                        Text = message,
-                        Gesture = AvatarGestureType.None,
-                        StyleId = 0,
-                        Links = [],
-                        TrackingId = -1,
-                        ReceiverRoomIndex = player.ObjectId,
-                    },
-                    ct
-                );
-
-            await _roomGrain.AvatarModule.RemoveAvatarFromPlayerAsync(
-                ctx.AsActionContext(),
+        // Who may be kicked, and how a kicked player's session is closed, is the moderation
+        // module's business; this box only chooses the players and the parting words.
+        foreach (var player in GetPlayers(ctx.GetSelection(this)).ToList())
+            kicked |= await _roomGrain.ModerationModule.KickPlayerBySystemAsync(
                 player.PlayerId,
+                message,
                 ct
             );
-
-            _grainFactory
-                .GetPlayerPresenceGrain(player.PlayerId)
-                .OnRemovedFromRoomAsync(_roomGrain.RoomId, true, CancellationToken.None)
-                .LogAndForget(
-                    _roomGrain._logger,
-                    $"close the room session of player {player.PlayerId} kicked by wired from room {_roomGrain.RoomId}"
-                );
-
-            kicked = true;
-        }
 
         return kicked;
     }

@@ -109,6 +109,27 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
         return true;
     }
 
+    /// <summary>
+    /// The room telling one player something: a whisper over their own avatar that nobody else
+    /// sees (why they were muted, a parting word before a kick). Not chat, so it is neither
+    /// filtered for flooding nor logged.
+    /// </summary>
+    public Task WhisperToPlayerAsync(IRoomPlayer player, string text, CancellationToken ct) =>
+        _roomGrain._grainFactory.SendComposerToPlayerAsync(
+            player.PlayerId,
+            new WhisperMessageComposer
+            {
+                ObjectId = player.ObjectId,
+                Text = text,
+                Gesture = AvatarGestureType.None,
+                StyleId = 0,
+                Links = [],
+                TrackingId = -1,
+                ReceiverRoomIndex = player.ObjectId,
+            },
+            ct
+        );
+
     public Task<bool> SetAvatarTypingAsync(ActionContext ctx, bool isTyping, CancellationToken ct)
     {
         if (!TryGetPlayerAvatar(ctx.PlayerId, out var avatar))
