@@ -79,6 +79,40 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>A tile that is no part of the room: a hole in the model, or outside it.</summary>
+    public bool IsTileDisabled(int tileIdx) =>
+        !InBounds(tileIdx) || _roomGrain._state.TileFlags[tileIdx].Has(RoomTileFlags.Disabled);
+
+    /// <summary>
+    /// The neighbouring tiles that bring <paramref name="fromIdx"/> closer to
+    /// <paramref name="toIdx"/>, straight steps only: the axis with more ground to cover first,
+    /// the other one second. Empty when both are the same tile. Whether anything may stand on
+    /// them is the caller's to check.
+    /// </summary>
+    public IEnumerable<int> GetStepsToward(int fromIdx, int toIdx) =>
+        GetSteps(fromIdx, GetX(toIdx) - GetX(fromIdx), GetY(toIdx) - GetY(fromIdx));
+
+    /// <summary>The same, leading away from <paramref name="awayFromIdx"/>.</summary>
+    public IEnumerable<int> GetStepsAwayFrom(int fromIdx, int awayFromIdx) =>
+        GetSteps(fromIdx, GetX(fromIdx) - GetX(awayFromIdx), GetY(fromIdx) - GetY(awayFromIdx));
+
+    private IEnumerable<int> GetSteps(int fromIdx, int dx, int dy)
+    {
+        var (x, y) = (GetX(fromIdx), GetY(fromIdx));
+        var alongX = (x + Math.Sign(dx), y);
+        var alongY = (x, y + Math.Sign(dy));
+
+        foreach (
+            var (stepX, stepY) in Math.Abs(dx) >= Math.Abs(dy)
+                ? new[] { alongX, alongY }
+                : [alongY, alongX]
+        )
+        {
+            if ((stepX != x || stepY != y) && InBounds(stepX, stepY))
+                yield return ToIdx(stepX, stepY);
+        }
+    }
+
     public bool TryGetTileInFront(int index, Rotation direction, out int nextIndex)
     {
         var x = GetX(index);

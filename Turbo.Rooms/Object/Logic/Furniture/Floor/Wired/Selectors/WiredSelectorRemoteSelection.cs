@@ -47,7 +47,7 @@ public class WiredSelectorRemoteSelection(
         foreach (var itemId in GetStuffIds())
         {
             if (
-                !_roomGrain._state.ItemsById.TryGetValue(itemId, out var item)
+                !_roomGrain.FurniModule.TryGetItem(itemId, out var item)
                 || item.Logic is not FurnitureWiredSelectorLogic remote
                 || remote is WiredSelectorRemoteSelection
             )

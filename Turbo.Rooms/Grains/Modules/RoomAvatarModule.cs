@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -14,10 +15,10 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -139,6 +140,91 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
     /// avatar; modules, systems and wired boxes all come here instead of walking
     /// <c>AvatarsByPlayerId</c> and <c>AvatarsByObjectId</c> themselves.
     /// </summary>
+    // Read access for the systems that are not this module (wired above all). They ask here
+    // instead of reading the room state, so how avatars are indexed can change in one place.
+
+    /// <summary>Every avatar in the room: players, pets and bots.</summary>
+    public IReadOnlyCollection<IRoomAvatar> Avatars => _roomGrain._state.AvatarsByObjectId.Values;
+
+    public IEnumerable<IRoomPlayer> Players => Avatars.OfType<IRoomPlayer>();
+
+    public bool TryGetAvatar(RoomObjectId objectId, out IRoomAvatar avatar)
+    {
+        if (_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var found))
+        {
+            avatar = found;
+
+            return true;
+        }
+
+        avatar = null!;
+
+        return false;
+    }
+
+    /// <summary>The avatars on a tile; none for a tile outside the room.</summary>
+    public IEnumerable<IRoomAvatar> GetAvatarsOnTile(int tileIdx)
+    {
+        if (!_roomGrain.MapModule.InBounds(tileIdx))
+            yield break;
+
+        foreach (var objectId in _roomGrain._state.TileAvatarStacks[tileIdx])
+        {
+            if (_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar))
+                yield return avatar;
+        }
+    }
+
+    public bool HasAvatarOnTile(int tileIdx) =>
+        _roomGrain.MapModule.InBounds(tileIdx)
+        && _roomGrain._state.TileAvatarStacks[tileIdx].Count > 0;
+
+    /// <summary>
+    /// The avatars on any tile a floor item covers. With <paramref name="standingOnIt"/> only
+    /// those the item actually carries count: the ones on a tile where it is the highest furni.
+    /// </summary>
+    public IEnumerable<IRoomAvatar> GetAvatarsOnItem(IRoomFloorItem item, bool standingOnIt = false)
+    {
+        if (!_roomGrain.FurniModule.GetTileIdForFloorItem(item, out var tileIds))
+            yield break;
+
+        foreach (var tileIdx in tileIds)
+        {
+            if (standingOnIt && !_roomGrain.FurniModule.IsHighestOnTile(item, tileIdx))
+                continue;
+
+            foreach (var avatar in GetAvatarsOnTile(tileIdx))
+                yield return avatar;
+        }
+    }
+
+    /// <summary>The player closest to a tile and no further than <paramref name="maxDistance"/>.</summary>
+    public bool TryGetNearestPlayer(
+        int tileIdx,
+        int maxDistance,
+        out IRoomPlayer nearest,
+        out int distance
+    )
+    {
+        nearest = null!;
+        distance = int.MaxValue;
+
+        var map = _roomGrain.MapModule;
+
+        foreach (var player in Players)
+        {
+            var away = map.GetDistanceBetween(tileIdx, map.ToIdx(player.X, player.Y));
+
+            if (away > maxDistance || away >= distance)
+                continue;
+
+            nearest = player;
+            distance = away;
+        }
+
+        return nearest is not null;
+    }
+
     internal bool TryGetPlayer(PlayerId playerId, out IRoomPlayer player)
     {
         player = null!;
@@ -307,6 +393,69 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         }
     }
 
+    /// <summary>
+    /// Puts an avatar on a tile at once, without walking there: a teleport, or being carried or
+    /// pushed. It is the one place that does it, so the furni left behind and the furni landed on
+    /// always hear of it, as they do for a walked step. Whether the avatar may stand there is
+    /// the caller's question (<see cref="RoomMapModule.CanAvatarWalk"/>); telling the room is
+    /// the caller's too, since a wired move and a plain status update look different on the wire.
+    /// </summary>
+    public async Task RelocateAvatarAsync(IRoomAvatar avatar, int tileIdx, CancellationToken ct)
+    {
+        var map = _roomGrain.MapModule;
+        var sourceIdx = map.ToIdx(avatar.X, avatar.Y);
+
+        if (sourceIdx == tileIdx)
+            return;
+
+        await StopWalkingAsync(avatar, ct);
+        await NotifyWalkOffAsync(avatar, sourceIdx, ct);
+
+        var (targetX, targetY) = map.GetTileXY(tileIdx);
+
+        map.RemoveAvatarAtIdx(avatar, sourceIdx, false);
+        avatar.SetPosition(targetX, targetY);
+        map.AddAvatarAtIdx(avatar, tileIdx, false);
+        map.UpdateHeightForAvatar(avatar);
+
+        avatar.RemoveStatus(AvatarStatusType.Move);
+        avatar.NeedsInvoke = true;
+        avatar.MarkDirty();
+
+        await NotifyWalkOnAsync(avatar, tileIdx, ct);
+    }
+
+    /// <summary>Tells the furni an avatar stands on that the avatar is leaving it.</summary>
+    public Task NotifyWalkOffAsync(IRoomAvatar avatar, int tileIdx, CancellationToken ct) =>
+        TryGetWalkableItem(tileIdx, out var item)
+            ? item.Logic.OnWalkOffAsync((IRoomAvatarContext)avatar.Logic.Context, ct)
+            : Task.CompletedTask;
+
+    /// <summary>Tells the furni on a tile that an avatar arrived on it.</summary>
+    public Task NotifyWalkOnAsync(IRoomAvatar avatar, int tileIdx, CancellationToken ct) =>
+        TryGetWalkableItem(tileIdx, out var item)
+            ? item.Logic.OnWalkOnAsync((IRoomAvatarContext)avatar.Logic.Context, ct)
+            : Task.CompletedTask;
+
+    /// <summary>The furni an avatar on this tile stands on: the highest floor item, if any.</summary>
+    private bool TryGetWalkableItem(int tileIdx, out IRoomFloorItem item)
+    {
+        item = null!;
+
+        var itemId = _roomGrain._state.TileHighestFloorItems[tileIdx];
+
+        if (
+            itemId <= 0
+            || !_roomGrain._state.ItemsById.TryGetValue(itemId, out var found)
+            || found is not IRoomFloorItem floorItem
+        )
+            return false;
+
+        item = floorItem;
+
+        return true;
+    }
+
     public Task<bool> UpdateAvatarWithPlayerAsync(
         PlayerSummarySnapshot snapshot,
         CancellationToken ct
@@ -362,7 +511,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
             )
             .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
 
-        PublishAction(player, WiredAvatarActionType.Dance, (int)player.DanceType);
+        PublishAction(player, AvatarActionType.Dance, (int)player.DanceType);
 
         return Task.FromResult(true);
     }
@@ -420,7 +569,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
             .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
 
         if (avatar is IRoomPlayer expressingPlayer)
-            PublishAction(expressingPlayer, ToActionType(expressionType), 0);
+            PublishAction(expressingPlayer, AvatarActionType.Expression, (int)expressionType);
 
         return Task.FromResult(true);
     }
@@ -436,7 +585,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         avatar.AddStatus(AvatarStatusType.Sign, signType.ToString());
 
         if (avatar is IRoomPlayer signingPlayer)
-            PublishAction(signingPlayer, WiredAvatarActionType.Sign, signType);
+            PublishAction(signingPlayer, AvatarActionType.Sign, signType);
 
         return Task.FromResult(true);
     }
@@ -571,32 +720,28 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
             case AvatarPostureType.Sit:
                 avatar.Sit(true);
                 if (avatar is IRoomPlayer sittingPlayer)
-                    PublishAction(sittingPlayer, WiredAvatarActionType.Sit, 0);
+                    PublishAction(
+                        sittingPlayer,
+                        AvatarActionType.Posture,
+                        (int)AvatarPostureType.Sit
+                    );
                 break;
             case AvatarPostureType.Stand:
                 avatar.Sit(false);
                 if (avatar is IRoomPlayer standingPlayer)
-                    PublishAction(standingPlayer, WiredAvatarActionType.Stand, 0);
+                    PublishAction(
+                        standingPlayer,
+                        AvatarActionType.Posture,
+                        (int)AvatarPostureType.Stand
+                    );
                 break;
         }
 
         return Task.FromResult(true);
     }
 
-    private static WiredAvatarActionType ToActionType(AvatarExpressionType expressionType) =>
-        expressionType switch
-        {
-            AvatarExpressionType.Wave => WiredAvatarActionType.Wave,
-            AvatarExpressionType.Blow => WiredAvatarActionType.Blow,
-            AvatarExpressionType.Laugh => WiredAvatarActionType.Laugh,
-            AvatarExpressionType.Respect => WiredAvatarActionType.Respect,
-            AvatarExpressionType.Idle => WiredAvatarActionType.Sleep,
-            AvatarExpressionType.Jump => WiredAvatarActionType.Jump,
-            _ => WiredAvatarActionType.Wave,
-        };
-
-    /// <summary>Feeds the "performs action" wired trigger. Queued, so it never blocks the caller.</summary>
-    private void PublishAction(IRoomPlayer player, WiredAvatarActionType actionType, int value) =>
+    /// <summary>Tells the room what a player just did. Queued, so it never blocks the caller.</summary>
+    private void PublishAction(IRoomPlayer player, AvatarActionType actionType, int value) =>
         _roomGrain
             .PublishRoomEventAsync(
                 new PlayerPerformsActionEvent

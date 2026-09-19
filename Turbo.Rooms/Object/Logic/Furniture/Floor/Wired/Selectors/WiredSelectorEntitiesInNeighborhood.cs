@@ -19,12 +19,9 @@ public class WiredSelectorEntitiesInNeighborhood(
 
     protected override void CollectTile(int tileId, WiredSelectionSet output)
     {
-        foreach (var avatarId in _roomGrain._state.TileAvatarStacks[tileId])
+        foreach (var avatar in _roomGrain.AvatarModule.GetAvatarsOnTile(tileId))
         {
-            if (
-                _roomGrain._state.AvatarsByObjectId.TryGetValue(avatarId, out var avatar)
-                && avatar is IRoomPlayer player
-            )
+            if (avatar is IRoomPlayer player)
                 output.SelectedPlayerIds.Add(player.PlayerId);
         }
     }

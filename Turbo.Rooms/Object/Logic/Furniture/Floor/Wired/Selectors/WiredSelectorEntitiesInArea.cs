@@ -38,7 +38,7 @@ public class WiredSelectorEntitiesInArea(
             GetIntParamOrDefault(2, 0),
             GetIntParamOrDefault(3, 0)
         );
-        foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
+        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
         {
             if (avatar is not IRoomPlayer player)
                 continue;

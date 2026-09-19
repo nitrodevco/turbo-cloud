@@ -41,7 +41,7 @@ public class WiredSelectorItemsWithAltitude(
         var altitude = Altitude.FromInt(_wiredData.GetIntParam<int>(0));
         var output = new WiredSelectionSet();
 
-        foreach (var item in _roomGrain._state.ItemsById.Values)
+        foreach (var item in _roomGrain.FurniModule.Items)
         {
             if (item is not IRoomFloorItem floorItem)
                 continue;

@@ -39,7 +39,7 @@ public class WiredSelectorSelectedItems(
         {
             try
             {
-                if (!_roomGrain._state.ItemsById.TryGetValue(id, out var item))
+                if (!_roomGrain.FurniModule.TryGetItem(id, out var item))
                     continue;
 
                 output.SelectedFurniIds.Add((int)item.ObjectId);

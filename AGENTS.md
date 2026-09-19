@@ -549,12 +549,34 @@ out of pulling it apart; they hold for any system that grows the same way.
 - **One system may batch what another announces, not skip what it does.** Wired sends the moves
   of an action as one `WiredMovements` packet, so it passes `announce: false`; the map update and
   the logic callback still go through the furni module.
-- Still open, and the next places to apply the rule above: wired relocates avatars itself
-  (`WiredExecutionContext.ProcessUserMovementAsync` repeats the walk-on / walk-off sequence of
-  `RoomAvatarTickSystem`), `WiredActionChaseHabbo` / `FleeHabbo` / `MoveToDirection` hand-roll a
-  pathing step, `WiredActionShowMessage` builds chat composers beside `RoomChatSystem`, and many
-  selectors read `_state.AvatarsByObjectId` / `TileAvatarStacks` directly instead of through
-  `RoomAvatarModule` / `RoomMapModule`. Give the module the method first, then move the callers.
+- **Wired reads the room through the modules, not through `_state`.** The avatar and furni
+  modules have a read surface for everyone who is not them: `RoomAvatarModule.Avatars` /
+  `Players` / `TryGetAvatar` / `GetAvatarsOnTile` / `HasAvatarOnTile` / `GetAvatarsOnItem` /
+  `TryGetNearestPlayer`, `RoomFurniModule.Items` / `TryGetItem` / `TryGetFloorItem` /
+  `GetFloorItemsOnTile` / `IsHighestOnTile`, `RoomMapModule.IsTileDisabled`. They are
+  bounds-safe, so a caller does not repeat the `InBounds` check or index a tile array. The only
+  `_state` members wired code still touches are `RoomSnapshot` (its own masks and timezone) and
+  `NextWiredBoundaryMs` (set with the other tick boundaries). Before reading `_state` from
+  outside the owning module, look for the accessor; when it is missing, add it to the module.
+- **Putting an avatar somewhere is `RoomAvatarModule.RelocateAvatarAsync`.** It stops the walk,
+  tells the furni left and the furni landed on, moves the avatar on the map and fixes its
+  height. Wired teleports and carried avatars use it; the walked step in `RoomAvatarTickSystem`
+  shares its `NotifyWalkOffAsync` / `NotifyWalkOnAsync`. Whether the avatar may stand there, and
+  how the room is told (wired batches a `WiredMovements` packet), stay with the caller.
+- **Which tile is "toward" or "away from" something is the map's** (`RoomMapModule.GetStepsToward`
+  / `GetStepsAwayFrom`, straight steps, longer axis first). The chase and flee boxes used to do
+  it with index arithmetic of their own, each differently. A box decides what the furni wants;
+  the map says where that is; the furni module says whether it fits.
+- **A bubble nobody typed is `RoomChatSystem.SayAsAvatarAsync`** with an `AvatarSpeech` (style,
+  shout, whisper to one player, width): bot lines and orders, pet replies, the wired message
+  box, the word a player gets before a wired kick or mute. Six places built those composers by
+  hand, and only some of them filtered the text; the chat system filters all of it. It is
+  deliberately not chat: no flood check, no commands, no chat log, no `PlayerChatEvent`.
+- **A general event speaks the room's language, the listener translates.**
+  `PlayerPerformsActionEvent` carries an `AvatarActionType` and the expression, dance, sign or
+  posture it was; `WiredAvatarActionMatcher.TryTranslate` turns that into the wired editor's
+  own numbering. The avatar module used to publish `WiredAvatarActionType` and map expressions
+  onto it, with anything unknown counted as a wave.
 
 ### Grains are not reentrant: side effects on other grains that call back go in the service
 - `RoomGrain` and `PlayerPresenceGrain` call each other. A room grain that awaits a presence grain

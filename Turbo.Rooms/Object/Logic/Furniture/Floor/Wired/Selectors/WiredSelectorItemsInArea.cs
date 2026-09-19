@@ -43,11 +43,8 @@ public class WiredSelectorItemsInArea(
 
         foreach (var tileId in area.GetTileIds(_roomGrain.MapModule.Width))
         {
-            if (!_roomGrain.MapModule.InBounds(tileId))
-                continue;
-
-            foreach (var itemId in _roomGrain._state.TileFloorStacks[tileId])
-                output.SelectedFurniIds.Add((int)itemId);
+            foreach (var item in _roomGrain.FurniModule.GetFloorItemsOnTile(tileId))
+                output.SelectedFurniIds.Add((int)item.ObjectId);
         }
 
         return Task.FromResult((IWiredSelectionSet)output);

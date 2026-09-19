@@ -25,6 +25,9 @@ namespace Turbo.Rooms.Grains.Systems;
 /// </summary>
 public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
 {
+    // What the client is sent for a line no player typed, so it has no message to track.
+    private const int NO_TRACKING_ID = -1;
+
     private readonly RoomGrain _roomGrain = roomGrain;
 
     private readonly Dictionary<PlayerId, Queue<long>> _chatTimestampsByPlayerId = [];
@@ -110,25 +113,71 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
     }
 
     /// <summary>
-    /// The room telling one player something: a whisper over their own avatar that nobody else
-    /// sees (why they were muted, a parting word before a kick). Not chat, so it is neither
-    /// filtered for flooding nor logged.
+    /// A bubble over an avatar that is not a player typing: a bot's line, a pet's reply, a wired
+    /// message, the room telling a player why they were muted. The words are filtered like
+    /// anything players read, but it is not chat: no flood check, no commands, no chat log, no
+    /// event. Every such bubble is built here, so a change to what a bubble carries is one edit.
     /// </summary>
-    public Task WhisperToPlayerAsync(IRoomPlayer player, string text, CancellationToken ct) =>
-        _roomGrain._grainFactory.SendComposerToPlayerAsync(
-            player.PlayerId,
-            new WhisperMessageComposer
+    public Task SayAsAvatarAsync(
+        IRoomAvatar speaker,
+        string text,
+        AvatarSpeech speech,
+        CancellationToken ct
+    )
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return Task.CompletedTask;
+
+        text = _roomGrain.ModerationModule.ApplyFilter(text);
+
+        if (speech.OnlyFor is { } listener)
+            return _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                listener.PlayerId,
+                new WhisperMessageComposer
+                {
+                    ObjectId = speaker.ObjectId,
+                    Text = text,
+                    Gesture = AvatarGestureType.None,
+                    StyleId = speech.StyleId,
+                    Links = [],
+                    TrackingId = NO_TRACKING_ID,
+                    ReceiverRoomIndex = listener.ObjectId,
+                    ChatBubbleWidthOverride = speech.BubbleWidth,
+                },
+                ct
+            );
+
+        ChatMessageComposer composer = speech.Shout
+            ? new ShoutMessageComposer
             {
-                ObjectId = player.ObjectId,
+                ObjectId = speaker.ObjectId,
                 Text = text,
                 Gesture = AvatarGestureType.None,
-                StyleId = 0,
+                StyleId = speech.StyleId,
                 Links = [],
-                TrackingId = -1,
-                ReceiverRoomIndex = player.ObjectId,
-            },
-            ct
-        );
+                TrackingId = NO_TRACKING_ID,
+                ChatBubbleWidthOverride = speech.BubbleWidth,
+            }
+            : new ChatMessageComposer
+            {
+                ObjectId = speaker.ObjectId,
+                Text = text,
+                Gesture = AvatarGestureType.None,
+                StyleId = speech.StyleId,
+                Links = [],
+                TrackingId = NO_TRACKING_ID,
+                ChatBubbleWidthOverride = speech.BubbleWidth,
+            };
+
+        return _roomGrain.SendComposerToRoomAsync(composer, ct);
+    }
+
+    /// <summary>
+    /// The room telling one player something: a whisper over their own avatar that nobody else
+    /// sees (why they were muted, a parting word before a kick).
+    /// </summary>
+    public Task WhisperToPlayerAsync(IRoomPlayer player, string text, CancellationToken ct) =>
+        SayAsAvatarAsync(player, text, new AvatarSpeech { OnlyFor = player }, ct);
 
     public Task<bool> SetAvatarTypingAsync(ActionContext ctx, bool isTyping, CancellationToken ct)
     {

@@ -48,15 +48,13 @@ public class WiredSelectorItemsOnItem(
             try
             {
                 if (
-                    !_roomGrain._state.ItemsById.TryGetValue(id, out var item)
+                    !_roomGrain.FurniModule.TryGetItem(id, out var item)
                     || item is not IRoomFloorItem floorItem
                 )
                     continue;
 
                 var tileIdx = _roomGrain.MapModule.ToIdx(floorItem.X, floorItem.Y);
-                var floorStack = _roomGrain
-                    ._state.TileFloorStacks[tileIdx]
-                    .Select(x => _roomGrain._state.ItemsById[(int)x]);
+                var floorStack = _roomGrain.FurniModule.GetFloorItemsOnTile(tileIdx);
 
                 switch (_wiredData.GetIntParam<WiredFurniSelectionType>(0))
                 {

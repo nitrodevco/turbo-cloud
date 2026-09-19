@@ -70,7 +70,7 @@ public sealed partial class RoomWiredSystem
         var floor = 0;
         var wall = 0;
 
-        foreach (var item in _roomGrain._state.ItemsById.Values)
+        foreach (var item in _roomGrain.FurniModule.Items)
         {
             if (item.Logic is not IWiredBox)
                 continue;

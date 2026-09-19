@@ -34,7 +34,7 @@ public class WiredSelectorEntitiesWithVariable(
 
     protected override IEnumerable<int> EnumerateTargets()
     {
-        foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
+        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
         {
             if (avatar is IRoomPlayer player)
                 yield return player.PlayerId;

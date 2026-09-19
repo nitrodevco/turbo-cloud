@@ -40,7 +40,7 @@ public class WiredSelectorEntitiesByType(
         if ((GetIntParamOrDefault(0, TYPE_PLAYER) & TYPE_PLAYER) == 0)
             return Task.FromResult<IWiredSelectionSet>(output);
 
-        foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
+        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
         {
             if (avatar is IRoomPlayer player)
                 output.SelectedPlayerIds.Add(player.PlayerId);

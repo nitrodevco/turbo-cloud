@@ -33,22 +33,10 @@ public class WiredSelectorEntitiesOnItem(
 
         foreach (var item in GetFloorItems(ctx.GetSelection(this)))
         {
-            if (!_roomGrain.FurniModule.GetTileIdForFloorItem(item, out var tileIds))
-                continue;
-
-            foreach (var tileId in tileIds)
+            foreach (var avatar in _roomGrain.AvatarModule.GetAvatarsOnItem(item))
             {
-                if (!_roomGrain.MapModule.InBounds(tileId))
-                    continue;
-
-                foreach (var avatarId in _roomGrain._state.TileAvatarStacks[tileId])
-                {
-                    if (
-                        _roomGrain._state.AvatarsByObjectId.TryGetValue(avatarId, out var avatar)
-                        && avatar is IRoomPlayer player
-                    )
-                        output.SelectedPlayerIds.Add(player.PlayerId);
-                }
+                if (avatar is IRoomPlayer player)
+                    output.SelectedPlayerIds.Add(player.PlayerId);
             }
         }
 

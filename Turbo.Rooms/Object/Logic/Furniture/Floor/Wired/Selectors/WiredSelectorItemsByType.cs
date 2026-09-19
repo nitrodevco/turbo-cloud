@@ -46,7 +46,7 @@ public class WiredSelectorItemsByType(
         {
             try
             {
-                if (!_roomGrain._state.ItemsById.TryGetValue(id, out var item))
+                if (!_roomGrain.FurniModule.TryGetItem(id, out var item))
                     continue;
 
                 allowedDefinitionIds.Add(item.Definition.Id);
@@ -59,7 +59,7 @@ public class WiredSelectorItemsByType(
             }
         }
 
-        foreach (var item in _roomGrain._state.ItemsById.Values)
+        foreach (var item in _roomGrain.FurniModule.Items)
         {
             if (allowedDefinitionIds.Contains(item.Definition.Id))
                 output.SelectedFurniIds.Add((int)item.ObjectId);

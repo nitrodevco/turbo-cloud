@@ -11,7 +11,6 @@ using Turbo.Primitives.Bots.Enums;
 using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Room.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Bots;
-using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
@@ -454,18 +453,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
     }
 
     internal Task TalkAsync(IRoomBot bot, string text, CancellationToken ct) =>
-        _roomGrain.SendComposerToRoomAsync(
-            new ChatMessageComposer
-            {
-                ObjectId = bot.ObjectId,
-                Text = text,
-                Gesture = AvatarGestureType.None,
-                StyleId = Config.ChatStyleId,
-                Links = [],
-                TrackingId = -1,
-            },
-            ct
-        );
+        TalkAsync(bot, text, shout: false, bubbleWidth: null, ct);
 
     private async Task<bool> AttachBotAsync(
         BotSnapshot snapshot,

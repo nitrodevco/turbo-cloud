@@ -24,6 +24,9 @@ public sealed partial class RoomWiredSystem
     private readonly RoomActiveStore _roomActiveStore = new();
     private WiredVariablesSnapshot? _variablesSnapshot = null;
 
+    /// <summary>The hash of every variable as last sent; a box editor echoes it to ask what changed.</summary>
+    public WiredVariableHash AllVariablesHash { get; private set; } = new(0);
+
     public IWiredVariable? GetVariableById(WiredVariableId id)
     {
         if (_variableById.TryGetValue(id, out var variable))
@@ -58,7 +61,7 @@ public sealed partial class RoomWiredSystem
     {
         if (
             targetType == WiredVariableTargetType.User
-            && _roomGrain._state.AvatarsByObjectId.TryGetValue(targetId, out var avatar)
+            && _roomGrain.AvatarModule.TryGetAvatar(targetId, out var avatar)
             && avatar is IRoomPlayer player
         )
             return player.PlayerId;
@@ -103,7 +106,7 @@ public sealed partial class RoomWiredSystem
         switch (snapshot.TargetType)
         {
             case WiredVariableTargetType.Furni:
-                foreach (var item in _roomGrain._state.ItemsById.Values)
+                foreach (var item in _roomGrain.FurniModule.Items)
                 {
                     var key = new WiredVariableKey(
                         variableId,
@@ -116,7 +119,7 @@ public sealed partial class RoomWiredSystem
                 }
                 break;
             case WiredVariableTargetType.User:
-                foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
+                foreach (var avatar in _roomGrain.AvatarModule.Avatars)
                 {
                     if (avatar is not IRoomPlayer player)
                         continue;
@@ -190,14 +193,12 @@ public sealed partial class RoomWiredSystem
     private bool IsLiveTarget(WiredVariableBinding binding) =>
         binding.TargetType switch
         {
-            WiredVariableTargetType.User => _roomGrain._state.AvatarsByObjectId.TryGetValue(
+            WiredVariableTargetType.User => _roomGrain.AvatarModule.TryGetAvatar(
                 binding.TargetId,
                 out var avatar
             )
                 && avatar is IRoomPlayer,
-            WiredVariableTargetType.Furni => _roomGrain._state.ItemsById.ContainsKey(
-                binding.TargetId
-            ),
+            WiredVariableTargetType.Furni => _roomGrain.FurniModule.HasItem(binding.TargetId),
             WiredVariableTargetType.Global or WiredVariableTargetType.Context => true,
             _ => false,
         };
@@ -231,7 +232,7 @@ public sealed partial class RoomWiredSystem
     {
         RemoveVariableBox(boxId);
 
-        if (!_roomGrain._state.ItemsById.TryGetValue(boxId, out var item))
+        if (!_roomGrain.FurniModule.TryGetItem(boxId, out var item))
             return;
 
         switch (item.Logic)
@@ -319,7 +320,7 @@ public sealed partial class RoomWiredSystem
             Variables = snapshots,
         };
 
-        _roomGrain._state.AllVariablesHash = allVariablesSnapshot.AllVariablesHash;
+        AllVariablesHash = allVariablesSnapshot.AllVariablesHash;
 
         return allVariablesSnapshot;
     }

@@ -8,7 +8,6 @@ using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
-using Turbo.Primitives.Rooms.Wired.Variable;
 
 namespace Turbo.Rooms.Grains;
 
@@ -61,8 +60,6 @@ internal sealed class RoomLiveState
     public HashSet<RoomObjectId> DirtyItemIds { get; set; } = [];
     public HashSet<RoomObjectId> DirtyFloorItemIds { get; set; } = [];
     public HashSet<RoomObjectId> DirtyWallItemIds { get; set; } = [];
-
-    public WiredVariableHash AllVariablesHash { get; internal set; } = new WiredVariableHash(0);
 
     public Dictionary<RoomPropertyType, string> RoomProperties { get; } = [];
 

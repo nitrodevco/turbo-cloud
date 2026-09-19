@@ -33,11 +33,11 @@ public sealed partial class RoomWiredSystem
     {
         var updates = new List<Task>();
 
-        foreach (var playerId in _roomGrain._state.AvatarsByPlayerId.Keys.ToList())
+        foreach (var player in _roomGrain.AvatarModule.Players.ToList())
             updates.Add(
                 SendPermissionsAsync(
-                    playerId,
-                    await _roomGrain.SecurityModule.GetControllerLevelAsync(playerId),
+                    player.PlayerId,
+                    await _roomGrain.SecurityModule.GetControllerLevelAsync(player.PlayerId),
                     ct
                 )
             );
@@ -54,7 +54,7 @@ public sealed partial class RoomWiredSystem
     {
         // A level also changes for players who are elsewhere (rights given to someone not in
         // the room); only the ones standing here are shown this room's permissions.
-        if (!_roomGrain._state.AvatarsByPlayerId.ContainsKey(playerId))
+        if (!_roomGrain.AvatarModule.TryGetPlayer(playerId, out _))
             return Task.CompletedTask;
 
         var (canModify, canRead) = GetPermissions(controllerLevel);

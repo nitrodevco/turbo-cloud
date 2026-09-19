@@ -30,7 +30,7 @@ public class WiredSelectorEntitiesInGroup(
         int? wantedGroupId =
             int.TryParse(_wiredData.StringParam, out var parsed) && parsed > 0 ? parsed : null;
 
-        foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
+        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
         {
             if (avatar is not RoomPlayerAvatar player || player.GroupId <= 0)
                 continue;

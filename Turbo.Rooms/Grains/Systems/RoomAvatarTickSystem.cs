@@ -12,7 +12,6 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
-using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Rooms.Grains.Systems;
@@ -170,33 +169,12 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
                 throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
             }
 
-            var prevHighestItemId = _roomGrain._state.TileHighestFloorItems[prevTileId];
-            var nextHighestItemId = _roomGrain._state.TileHighestFloorItems[nextTileId];
-
-            if (
-                prevHighestItemId > 0
-                && _roomGrain._state.ItemsById.TryGetValue(prevHighestItemId, out var prevFloorItem)
-            )
-            {
-                await ((IRoomFloorItem)prevFloorItem).Logic.OnWalkOffAsync(
-                    (IRoomAvatarContext)avatar.Logic.Context,
-                    ct
-                );
-            }
+            await _roomGrain.AvatarModule.NotifyWalkOffAsync(avatar, prevTileId, ct);
 
             _roomGrain.MapModule.RemoveAvatarAtIdx(avatar, prevTileId, false);
             _roomGrain.MapModule.AddAvatarAtIdx(avatar, nextTileId, false);
 
-            if (
-                nextHighestItemId > 0
-                && _roomGrain._state.ItemsById.TryGetValue(nextHighestItemId, out var nextFloorItem)
-            )
-            {
-                await ((IRoomFloorItem)nextFloorItem).Logic.OnWalkOnAsync(
-                    (IRoomAvatarContext)avatar.Logic.Context,
-                    ct
-                );
-            }
+            await _roomGrain.AvatarModule.NotifyWalkOnAsync(avatar, nextTileId, ct);
 
             avatar.RemoveStatus(AvatarStatusType.Lay, AvatarStatusType.Sit);
             avatar.AddStatus(AvatarStatusType.Move, $"{nextX},{nextY},{nextHeight}");

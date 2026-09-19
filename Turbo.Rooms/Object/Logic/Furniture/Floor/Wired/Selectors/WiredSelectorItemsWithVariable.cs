@@ -98,7 +98,7 @@ public class WiredSelectorItemsWithVariable(
 
     protected virtual IEnumerable<int> EnumerateTargets()
     {
-        foreach (var item in _roomGrain._state.ItemsById.Values)
+        foreach (var item in _roomGrain.FurniModule.Items)
             yield return item.ObjectId;
     }
 }

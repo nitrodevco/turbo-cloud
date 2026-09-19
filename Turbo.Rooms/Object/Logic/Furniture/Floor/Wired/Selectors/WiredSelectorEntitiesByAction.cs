@@ -34,7 +34,7 @@ public class WiredSelectorEntitiesByAction(
         var output = new WiredSelectionSet();
         var action = GetIntParamOrDefault(0, WiredAvatarActionType.Sit);
 
-        foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
+        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
         {
             if (
                 avatar is IRoomPlayer player

@@ -34,13 +34,16 @@ public class WiredTriggerHabboPerformsAction(
 
     public override Task<bool> MatchesEventAsync(RoomEvent evt, CancellationToken ct)
     {
-        if (evt is not PlayerPerformsActionEvent action)
+        if (
+            evt is not PlayerPerformsActionEvent performed
+            || !WiredAvatarActionMatcher.TryTranslate(performed, out var action, out var value)
+        )
             return Task.FromResult(false);
 
         return Task.FromResult(
             WiredAvatarActionMatcher.Matches(
-                action.ActionType,
-                action.Value,
+                action,
+                value,
                 GetIntParamOrDefault(0, WiredAvatarActionType.Wave),
                 _wiredData.StringParam
             )

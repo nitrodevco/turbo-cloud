@@ -11,7 +11,6 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
@@ -219,17 +218,10 @@ public abstract class FurnitureWiredVariableLogic
     public virtual Dictionary<WiredVariableValue, string> GetTextConnectors()
     {
         var connectors = new Dictionary<WiredVariableValue, string>();
-        var tileIdx = _ctx.GetTileIdx();
 
-        if (tileIdx < 0 || tileIdx >= _roomGrain._state.TileFloorStacks.Length)
-            return connectors;
-
-        foreach (var itemId in _roomGrain._state.TileFloorStacks[tileIdx])
+        foreach (var item in _roomGrain.FurniModule.GetFloorItemsOnTile(_ctx.GetTileIdx()))
         {
-            if (
-                !_roomGrain._state.ItemsById.TryGetValue(itemId, out var item)
-                || item.Logic is not Addons.WiredAddonVariableTextConnector connector
-            )
+            if (item.Logic is not Addons.WiredAddonVariableTextConnector connector)
                 continue;
 
             foreach (var (value, label) in connector.GetConnectors())

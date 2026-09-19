@@ -243,27 +243,16 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
 
             if (
                 Policy.MovePhysics.HasFlag(WiredMovePhysicsFlags.MoveThroughUsers)
-                && _roomGrain._state.TileFlags[tileIdx].Has(RoomTileFlags.Disabled)
+                && map.IsTileDisabled(tileIdx)
             )
                 return false;
 
-            await _roomGrain.AvatarModule.StopWalkingAsync(avatar, CancellationToken);
-
             var (sourceX, sourceY, sourceZ) = (avatar.X, avatar.Y, avatar.Z);
-            var (targetX, targetY) = map.GetTileXY(tileIdx);
 
-            await NotifyWalkOffAsync(avatar, sourceIdx);
-
-            map.RemoveAvatarAtIdx(avatar, sourceIdx, false);
-            avatar.SetPosition(targetX, targetY);
-            map.AddAvatarAtIdx(avatar, tileIdx, false);
-            map.UpdateHeightForAvatar(avatar);
-
-            avatar.RemoveStatus(AvatarStatusType.Move);
-            avatar.NeedsInvoke = true;
-            avatar.MarkDirty();
-
-            await NotifyWalkOnAsync(avatar, tileIdx);
+            // What wired decides is above: whether its movement policy lets the avatar go there.
+            // Putting it there is the avatar module's; only the announcing stays here, batched
+            // into the action's one packet.
+            await _roomGrain.AvatarModule.RelocateAvatarAsync(avatar, tileIdx, CancellationToken);
 
             UserMoves.Add(
                 new()
@@ -367,59 +356,13 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         if (Policy.CarryUsers is not { } carryMode)
             return carried;
 
-        if (!_roomGrain.FurniModule.GetTileIdForFloorItem(floorItem, out var tileIds))
-            return carried;
-
-        foreach (var tileId in tileIds)
-        {
-            if (!_roomGrain.MapModule.InBounds(tileId))
-                continue;
-
-            foreach (var avatarId in _roomGrain._state.TileAvatarStacks[tileId])
-            {
-                if (!_roomGrain._state.AvatarsByObjectId.TryGetValue(avatarId, out var avatar))
-                    continue;
-
-                if (
-                    carryMode == WiredCarryUserType.StandingOnFurni
-                    && _roomGrain._state.TileHighestFloorItems[tileId] != floorItem.ObjectId
-                )
-                    continue;
-
-                carried.Add(avatar);
-            }
-        }
+        carried.AddRange(
+            _roomGrain.AvatarModule.GetAvatarsOnItem(
+                floorItem,
+                standingOnIt: carryMode == WiredCarryUserType.StandingOnFurni
+            )
+        );
 
         return carried;
-    }
-
-    private async Task NotifyWalkOffAsync(IRoomAvatar avatar, int tileIdx)
-    {
-        var itemId = _roomGrain._state.TileHighestFloorItems[tileIdx];
-
-        if (
-            itemId > 0
-            && _roomGrain._state.ItemsById.TryGetValue(itemId, out var item)
-            && item is IRoomFloorItem floorItem
-        )
-            await floorItem.Logic.OnWalkOffAsync(
-                (IRoomAvatarContext)avatar.Logic.Context,
-                CancellationToken
-            );
-    }
-
-    private async Task NotifyWalkOnAsync(IRoomAvatar avatar, int tileIdx)
-    {
-        var itemId = _roomGrain._state.TileHighestFloorItems[tileIdx];
-
-        if (
-            itemId > 0
-            && _roomGrain._state.ItemsById.TryGetValue(itemId, out var item)
-            && item is IRoomFloorItem floorItem
-        )
-            await floorItem.Logic.OnWalkOnAsync(
-                (IRoomAvatarContext)avatar.Logic.Context,
-                CancellationToken
-            );
     }
 }

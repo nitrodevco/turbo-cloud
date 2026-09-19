@@ -41,7 +41,7 @@ public abstract partial class FurnitureWiredLogic
             new WiredVariableAllInRoomSnapshot()
             {
                 ContextType = WiredContextType.AllVariablesInRoom,
-                AllVariablesHash = _roomGrain._state.AllVariablesHash,
+                AllVariablesHash = _roomGrain.WiredSystem.AllVariablesHash,
             },
         ];
 

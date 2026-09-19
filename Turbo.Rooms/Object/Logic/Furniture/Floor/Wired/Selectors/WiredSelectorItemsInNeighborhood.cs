@@ -18,7 +18,7 @@ public class WiredSelectorItemsInNeighborhood(
 
     protected override void CollectTile(int tileId, WiredSelectionSet output)
     {
-        foreach (var itemId in _roomGrain._state.TileFloorStacks[tileId])
-            output.SelectedFurniIds.Add(itemId);
+        foreach (var item in _roomGrain.FurniModule.GetFloorItemsOnTile(tileId))
+            output.SelectedFurniIds.Add(item.ObjectId);
     }
 }

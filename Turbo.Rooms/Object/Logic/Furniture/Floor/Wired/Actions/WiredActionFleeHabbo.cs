@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
@@ -38,43 +38,33 @@ public class WiredActionFleeHabbo(
         foreach (var item in GetFloorItems(selection))
         {
             var itemIdx = map.ToIdx(item.X, item.Y);
-            var bestDistance = int.MaxValue;
-            IRoomAvatar? nearest = null;
 
-            foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
-            {
-                if (avatar is not IRoomPlayer)
-                    continue;
-
-                var distance = map.GetDistanceBetween(itemIdx, map.ToIdx(avatar.X, avatar.Y));
-
-                if (distance <= FLEE_RANGE && distance < bestDistance)
-                {
-                    bestDistance = distance;
-                    nearest = avatar;
-                }
-            }
-
-            if (nearest is null)
+            if (
+                !_roomGrain.AvatarModule.TryGetNearestPlayer(
+                    itemIdx,
+                    FLEE_RANGE,
+                    out var nearest,
+                    out _
+                )
+            )
                 continue;
 
-            var dx = Math.Sign(item.X - nearest.X);
-            var dy = Math.Sign(item.Y - nearest.Y);
-            var candidates = new List<(int x, int y)>();
-
-            if (dx != 0)
-                candidates.Add((item.X + dx, item.Y));
-
-            if (dy != 0)
-                candidates.Add((item.X, item.Y + dy));
+            // Which tiles lead away from the player is the map's to say. A player standing on
+            // the furni's own tile leaves no direction, so the furni sidesteps at random.
+            var candidates = map.GetStepsAwayFrom(itemIdx, map.ToIdx(nearest.X, nearest.Y))
+                .ToList();
 
             if (candidates.Count == 0)
-                candidates.Add((item.X + Random.Shared.Next(-1, 2), item.Y));
-
-            foreach (var (x, y) in candidates)
             {
-                if (!map.InBounds(x, y))
-                    continue;
+                var sideX = item.X + Random.Shared.Next(-1, 2);
+
+                if (map.InBounds(sideX, item.Y))
+                    candidates.Add(map.ToIdx(sideX, item.Y));
+            }
+
+            foreach (var tileIdx in candidates)
+            {
+                var (x, y) = map.GetTileXY(tileIdx);
 
                 if (
                     !await _roomGrain.FurniModule.ValidateFloorItemPlacementAsync(
@@ -87,7 +77,7 @@ public class WiredActionFleeHabbo(
                 )
                     continue;
 
-                if (await ctx.ProcessFloorItemMovementAsync(item, map.ToIdx(x, y), null, null))
+                if (await ctx.ProcessFloorItemMovementAsync(item, tileIdx, null, null))
                 {
                     moved = true;
 

@@ -34,7 +34,7 @@ public class WiredSelectorEntitiesWithHanditem(
         var output = new WiredSelectionSet();
         var handItemId = GetIntParamOrDefault(0, 0);
 
-        foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
+        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
         {
             if (avatar is not IRoomPlayer player)
                 continue;

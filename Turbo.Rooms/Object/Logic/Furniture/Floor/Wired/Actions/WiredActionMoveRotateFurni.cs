@@ -44,7 +44,7 @@ public class WiredActionMoveRotateFurni(
             try
             {
                 if (
-                    !_roomGrain._state.ItemsById.TryGetValue(furniId, out var item)
+                    !_roomGrain.FurniModule.TryGetItem(furniId, out var item)
                     || item is not IRoomFloorItem floorItem
                 )
                     continue;

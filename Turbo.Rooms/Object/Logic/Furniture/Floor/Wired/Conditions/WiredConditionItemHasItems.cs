@@ -37,21 +37,10 @@ public class WiredConditionItemHasItems(
         if (!_roomGrain.FurniModule.GetTileIdForFloorItem(item, out var tileIds))
             return false;
 
-        foreach (var tileId in tileIds)
-        {
-            if (!_roomGrain.MapModule.InBounds(tileId))
-                continue;
-
-            foreach (var otherId in _roomGrain._state.TileFloorStacks[tileId])
-            {
-                if (otherId == item.ObjectId)
-                    continue;
-
-                if (TryGetFloorItem(otherId, out var other) && other.Z > item.Z)
-                    return true;
-            }
-        }
-
-        return false;
+        return tileIds.Any(tileId =>
+            _roomGrain
+                .FurniModule.GetFloorItemsOnTile(tileId)
+                .Any(other => other.ObjectId != item.ObjectId && other.Z > item.Z)
+        );
     }
 }

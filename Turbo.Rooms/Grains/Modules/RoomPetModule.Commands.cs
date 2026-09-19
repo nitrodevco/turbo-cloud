@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
-using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Messages.Outgoing.Room.Pets;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
@@ -15,6 +14,7 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Rooms.Grains.Systems;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -266,18 +266,7 @@ public sealed partial class RoomPetModule
         pet.AddStatus(AvatarStatusType.Gesture, AvatarStatusType.Speak.ToLegacyString());
         pet.ActionExpiresAtMs = _roomGrain.NowMs() + Config.SpeakDurationMs;
 
-        await _roomGrain.SendComposerToRoomAsync(
-            new ChatMessageComposer
-            {
-                ObjectId = pet.ObjectId,
-                Text = line,
-                Gesture = AvatarGestureType.None,
-                StyleId = 0,
-                Links = [],
-                TrackingId = -1,
-            },
-            ct
-        );
+        await _roomGrain.ChatSystem.SayAsAvatarAsync(pet, line, new AvatarSpeech(), ct);
     }
 
     /// <summary>Walks <paramref name="walker"/> to a free tile next to <paramref name="target"/>; false when none is reachable.</summary>

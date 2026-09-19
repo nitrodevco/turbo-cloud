@@ -29,7 +29,7 @@ public class WiredSelectorEntitiesByName(
         var output = new WiredSelectionSet();
         var names = _wiredData.StringParam.Split('/').Select(n => n.Trim().ToLower()).ToHashSet();
 
-        foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
+        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
         {
             if (avatar is not IRoomPlayer roomPlayer || !names.Contains(roomPlayer.Name.ToLower()))
                 continue;

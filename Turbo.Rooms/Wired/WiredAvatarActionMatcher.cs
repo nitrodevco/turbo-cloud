@@ -1,6 +1,7 @@
 using System;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object.Avatars;
 
 namespace Turbo.Rooms.Wired;
@@ -27,6 +28,47 @@ public static class WiredAvatarActionMatcher
             text = text[6..].Trim();
 
         return int.TryParse(text, out var value) ? value : null;
+    }
+
+    /// <summary>
+    /// Puts what the room reported into the numbering of the wired editor's action list. False
+    /// for something that list has no entry for (crying), which then matches no box.
+    /// </summary>
+    public static bool TryTranslate(
+        PlayerPerformsActionEvent evt,
+        out WiredAvatarActionType action,
+        out int value
+    )
+    {
+        value = 0;
+
+        WiredAvatarActionType? translated = evt.ActionType switch
+        {
+            AvatarActionType.Expression => (AvatarExpressionType)evt.Value switch
+            {
+                AvatarExpressionType.Wave => WiredAvatarActionType.Wave,
+                AvatarExpressionType.Blow => WiredAvatarActionType.Blow,
+                AvatarExpressionType.Laugh => WiredAvatarActionType.Laugh,
+                AvatarExpressionType.Respect => WiredAvatarActionType.Respect,
+                AvatarExpressionType.Idle => WiredAvatarActionType.Sleep,
+                AvatarExpressionType.Jump => WiredAvatarActionType.Jump,
+                _ => null,
+            },
+            AvatarActionType.Posture => (AvatarPostureType)evt.Value == AvatarPostureType.Sit
+                ? WiredAvatarActionType.Sit
+                : WiredAvatarActionType.Stand,
+            AvatarActionType.Dance => WiredAvatarActionType.Dance,
+            AvatarActionType.Sign => WiredAvatarActionType.Sign,
+            _ => null,
+        };
+
+        action = translated ?? default;
+
+        // Only a dance and a sign have an id a box can narrow to.
+        if (translated is WiredAvatarActionType.Dance or WiredAvatarActionType.Sign)
+            value = evt.Value;
+
+        return translated is not null;
     }
 
     public static bool Matches(

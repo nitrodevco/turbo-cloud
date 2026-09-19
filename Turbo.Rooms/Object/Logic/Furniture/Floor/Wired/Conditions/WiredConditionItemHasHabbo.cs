@@ -32,14 +32,6 @@ public class WiredConditionItemHasHabbo(
         return Quantify(items.Select(HasAvatar), RequiresAll());
     }
 
-    private bool HasAvatar(IRoomFloorItem item)
-    {
-        if (!_roomGrain.FurniModule.GetTileIdForFloorItem(item, out var tileIds))
-            return false;
-
-        return tileIds.Any(tileId =>
-            _roomGrain.MapModule.InBounds(tileId)
-            && _roomGrain._state.TileAvatarStacks[tileId].Count > 0
-        );
-    }
+    private bool HasAvatar(IRoomFloorItem item) =>
+        _roomGrain.AvatarModule.GetAvatarsOnItem(item).Any();
 }

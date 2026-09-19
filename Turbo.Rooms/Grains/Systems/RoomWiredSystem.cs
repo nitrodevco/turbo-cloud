@@ -17,7 +17,6 @@ using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
@@ -298,13 +297,13 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
     {
         var inverted = new WiredSelectionSet();
 
-        foreach (var item in _roomGrain._state.ItemsById.Values)
+        foreach (var item in _roomGrain.FurniModule.Items)
         {
             if (!set.SelectedFurniIds.Contains(item.ObjectId))
                 inverted.SelectedFurniIds.Add(item.ObjectId);
         }
 
-        foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
+        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
         {
             if (avatar is IRoomPlayer player && !set.SelectedPlayerIds.Contains(player.PlayerId))
                 inverted.SelectedPlayerIds.Add(player.PlayerId);
@@ -357,7 +356,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
     private void AddPlayerByObjectId(WiredProcessingContext ctx, int objectId)
     {
         if (
-            _roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+            _roomGrain.AvatarModule.TryGetAvatar(objectId, out var avatar)
             && avatar is IRoomPlayer player
         )
             ctx.Selected.SelectedPlayerIds.Add(player.PlayerId);
@@ -652,12 +651,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
         _stacksById.Remove(stackId);
         _nextUnseenIndexByStackId.Remove(stackId);
 
-        if (stackId < 0 || stackId >= _roomGrain._state.TileFloorStacks.Length)
-            return;
-
         var wiredItems = _roomGrain
-            ._state.TileFloorStacks[stackId]
-            .Select(x => _roomGrain._state.ItemsById[x])
+            .FurniModule.GetFloorItemsOnTile(stackId)
             .Where(x =>
                 x.Logic is FurnitureWiredLogic && x.Logic is not FurnitureWiredVariableLogic
             )

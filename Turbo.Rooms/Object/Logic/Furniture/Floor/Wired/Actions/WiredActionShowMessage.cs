@@ -3,13 +3,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
-using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
@@ -60,48 +59,27 @@ public class WiredActionShowMessage(
         if (text.Length == 0)
             return false;
 
-        text = _roomGrain.ModerationModule.ApplyFilter(await ctx.FormatTextAsync(text, ct));
+        text = await ctx.FormatTextAsync(text, ct);
 
         var visibility = GetIntParamOrDefault(0, WiredChatVisibilityType.SelectedUsersOnly);
         var styleId = GetIntParamOrDefault(1, DEFAULT_STYLE_ID);
         var width = GetIntParamOrDefault(2, -1);
         var players = GetPlayers(ctx.GetSelection(this));
 
+        // The bubble appears over each chosen player: for the whole room to see, or as a whisper
+        // only that player sees.
         foreach (var player in players)
-        {
-            ChatMessageComposer composer =
-                visibility == WiredChatVisibilityType.Everyone
-                    ? new ChatMessageComposer
-                    {
-                        ObjectId = player.ObjectId,
-                        Text = text,
-                        Gesture = AvatarGestureType.None,
-                        StyleId = styleId,
-                        Links = [],
-                        TrackingId = -1,
-                        ChatBubbleWidthOverride = width < 0 ? null : width,
-                    }
-                    : new WhisperMessageComposer
-                    {
-                        ObjectId = player.ObjectId,
-                        Text = text,
-                        Gesture = AvatarGestureType.None,
-                        StyleId = styleId,
-                        Links = [],
-                        TrackingId = -1,
-                        ReceiverRoomIndex = player.ObjectId,
-                        ChatBubbleWidthOverride = width < 0 ? null : width,
-                    };
-
-            if (visibility == WiredChatVisibilityType.Everyone)
-                await ctx.SendComposerToRoomAsync(composer);
-            else
-                await _roomGrain._grainFactory.SendComposerToPlayerAsync(
-                    player.PlayerId,
-                    composer,
-                    ct
-                );
-        }
+            await _roomGrain.ChatSystem.SayAsAvatarAsync(
+                player,
+                text,
+                new AvatarSpeech
+                {
+                    StyleId = styleId,
+                    OnlyFor = visibility == WiredChatVisibilityType.Everyone ? null : player,
+                    BubbleWidth = width < 0 ? null : width,
+                },
+                ct
+            );
 
         return players.Count > 0;
     }

@@ -15,7 +15,6 @@ using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -514,7 +513,7 @@ public abstract partial class FurnitureWiredLogic(
             if (stuffIds.Count >= limit)
                 break;
 
-            if (!_roomGrain._state.ItemsById.ContainsKey(id) || !seen.Add(id))
+            if (!_roomGrain.FurniModule.HasItem(id) || !seen.Add(id))
                 continue;
 
             stuffIds.Add(id);
@@ -748,20 +747,8 @@ public abstract partial class FurnitureWiredLogic(
             _ctx.RoomId
         );
 
-    protected bool TryGetFloorItem(int itemId, out IRoomFloorItem floorItem)
-    {
-        floorItem = null!;
-
-        if (
-            !_roomGrain._state.ItemsById.TryGetValue(itemId, out var item)
-            || item is not IRoomFloorItem found
-        )
-            return false;
-
-        floorItem = found;
-
-        return true;
-    }
+    protected bool TryGetFloorItem(int itemId, out IRoomFloorItem floorItem) =>
+        _roomGrain.FurniModule.TryGetFloorItem(itemId, out floorItem);
 
     protected bool TryGetPlayer(int playerId, out IRoomPlayer player) =>
         _roomGrain.AvatarModule.TryGetPlayer(playerId, out player);

@@ -3,12 +3,10 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
-using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -116,39 +114,17 @@ public class WiredActionMoveToDirection(
 
     private bool IsBlockedByUser(int tileIdx, bool blockOnUsers, IRoomFloorItem item)
     {
-        if (!blockOnUsers || !HasAvatarOnTile(tileIdx))
+        if (!blockOnUsers || !_roomGrain.AvatarModule.HasAvatarOnTile(tileIdx))
             return false;
 
-        foreach (var avatarId in _roomGrain._state.TileAvatarStacks[tileIdx])
+        foreach (var avatar in _roomGrain.AvatarModule.GetAvatarsOnTile(tileIdx))
         {
-            if (
-                _roomGrain._state.AvatarsByObjectId.TryGetValue(avatarId, out var avatar)
-                && avatar is IRoomPlayer player
-            )
-                _ctx.PublishRoomEventAsync(
-                        new RoomItemCollisionEvent
-                        {
-                            RoomId = _roomGrain.RoomId,
-                            CausedBy = ActionContext.CreateForPlayer(
-                                player.PlayerId,
-                                _roomGrain.RoomId
-                            ),
-                            ObjectId = item.ObjectId,
-                        },
-                        CancellationToken.None
-                    )
-                    .LogAndForget(
-                        _roomGrain._logger,
-                        $"publish an event in room {_roomGrain.RoomId}"
-                    );
+            if (avatar is IRoomPlayer player)
+                PublishCollision(item, player);
         }
 
         return true;
     }
-
-    private bool HasAvatarOnTile(int tileIdx) =>
-        _roomGrain.MapModule.InBounds(tileIdx)
-        && _roomGrain._state.TileAvatarStacks[tileIdx].Count > 0;
 
     private static Rotation Turn(Rotation heading, int turnMode) =>
         turnMode switch

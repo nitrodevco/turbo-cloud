@@ -26,7 +26,7 @@ public class WiredConditionRoomHabboCount(
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
-        var count = _roomGrain._state.AvatarsByObjectId.Values.Count(x => x is IRoomPlayer);
+        var count = _roomGrain.AvatarModule.Avatars.Count(x => x is IRoomPlayer);
         var min = GetIntParamOrDefault(0, 0);
         var max = GetIntParamOrDefault(1, 0);
 

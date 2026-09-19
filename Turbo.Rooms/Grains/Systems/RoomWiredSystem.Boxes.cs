@@ -41,7 +41,7 @@ public sealed partial class RoomWiredSystem : IRoomPlacementLimit
 
     /// <summary>A box's editor data, or null when the item is not a wired box.</summary>
     public WiredDataSnapshot? GetBoxSnapshot(RoomObjectId itemId) =>
-        _roomGrain._state.ItemsById.TryGetValue(itemId, out var item)
+        _roomGrain.FurniModule.TryGetItem(itemId, out var item)
         && item.Logic is FurnitureWiredLogic wiredLogic
             ? wiredLogic.GetSnapshot()
             : null;
@@ -58,7 +58,7 @@ public sealed partial class RoomWiredSystem : IRoomPlacementLimit
     )
     {
         if (
-            !_roomGrain._state.ItemsById.TryGetValue(itemId, out var item)
+            !_roomGrain.FurniModule.TryGetItem(itemId, out var item)
             || item.Logic is not FurnitureWiredLogic wiredLogic
         )
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);

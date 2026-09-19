@@ -3,13 +3,13 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Badges;
-using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Rooms.Grains.Systems;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -46,37 +46,18 @@ public sealed partial class RoomBotModule
         bool shout,
         int? bubbleWidth,
         CancellationToken ct
-    )
-    {
-        if (string.IsNullOrWhiteSpace(text))
-            return Task.CompletedTask;
-
-        text = _roomGrain.ModerationModule.ApplyFilter(text);
-
-        ChatMessageComposer composer = shout
-            ? new ShoutMessageComposer
+    ) =>
+        _roomGrain.ChatSystem.SayAsAvatarAsync(
+            bot,
+            text,
+            new AvatarSpeech
             {
-                ObjectId = bot.ObjectId,
-                Text = text,
-                Gesture = AvatarGestureType.None,
                 StyleId = Config.ChatStyleId,
-                Links = [],
-                TrackingId = -1,
-                ChatBubbleWidthOverride = bubbleWidth,
-            }
-            : new ChatMessageComposer
-            {
-                ObjectId = bot.ObjectId,
-                Text = text,
-                Gesture = AvatarGestureType.None,
-                StyleId = Config.ChatStyleId,
-                Links = [],
-                TrackingId = -1,
-                ChatBubbleWidthOverride = bubbleWidth,
-            };
-
-        return _roomGrain.SendComposerToRoomAsync(composer, ct);
-    }
+                Shout = shout,
+                BubbleWidth = bubbleWidth,
+            },
+            ct
+        );
 
     /// <summary>A bot whispers to one player; only that player sees the bubble.</summary>
     public Task WhisperAsync(
@@ -85,29 +66,18 @@ public sealed partial class RoomBotModule
         string text,
         int? bubbleWidth,
         CancellationToken ct
-    )
-    {
-        if (string.IsNullOrWhiteSpace(text))
-            return Task.CompletedTask;
-
-        text = _roomGrain.ModerationModule.ApplyFilter(text);
-
-        return _roomGrain._grainFactory.SendComposerToPlayerAsync(
-            player.PlayerId,
-            new WhisperMessageComposer
+    ) =>
+        _roomGrain.ChatSystem.SayAsAvatarAsync(
+            bot,
+            text,
+            new AvatarSpeech
             {
-                ObjectId = bot.ObjectId,
-                Text = text,
-                Gesture = AvatarGestureType.None,
                 StyleId = Config.ChatStyleId,
-                Links = [],
-                TrackingId = -1,
-                ReceiverRoomIndex = player.ObjectId,
-                ChatBubbleWidthOverride = bubbleWidth,
+                OnlyFor = player,
+                BubbleWidth = bubbleWidth,
             },
             ct
         );
-    }
 
     /// <summary>Sends a bot walking to a furni; arrival raises the "bot reached furni" trigger.</summary>
     public async Task<bool> WalkToItemAsync(IRoomBot bot, IRoomFloorItem item, CancellationToken ct)

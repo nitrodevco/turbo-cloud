@@ -74,7 +74,7 @@ public abstract class WiredContext(RoomGrain roomGrain) : IWiredContext
                         set.SelectedFurniIds.UnionWith(Signal.SelectedFurniIds);
                         break;
                     case WiredFurniSourceType.AllRoomItems:
-                        foreach (var item in _roomGrain._state.ItemsById.Values)
+                        foreach (var item in _roomGrain.FurniModule.Items)
                             set.SelectedFurniIds.Add(item.ObjectId);
                         break;
                 }
@@ -102,7 +102,7 @@ public abstract class WiredContext(RoomGrain roomGrain) : IWiredContext
                         AddPlayersByName(set, wired.GetSnapshot().StringParam);
                         break;
                     case WiredPlayerSourceType.AllRoomUsers:
-                        foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
+                        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
                         {
                             if (avatar is IRoomPlayer player)
                                 set.SelectedPlayerIds.Add(player.PlayerId);
@@ -132,7 +132,7 @@ public abstract class WiredContext(RoomGrain roomGrain) : IWiredContext
 
         foreach (var id in stuffIds)
         {
-            if (_roomGrain._state.ItemsById.ContainsKey(id))
+            if (_roomGrain.FurniModule.HasItem(id))
                 set.SelectedFurniIds.Add(id);
         }
     }
@@ -147,7 +147,7 @@ public abstract class WiredContext(RoomGrain roomGrain) : IWiredContext
             System.StringComparer.OrdinalIgnoreCase
         );
 
-        foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
+        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
         {
             if (avatar is IRoomPlayer player && wanted.Contains(player.Name.Trim()))
                 set.SelectedPlayerIds.Add(player.PlayerId);

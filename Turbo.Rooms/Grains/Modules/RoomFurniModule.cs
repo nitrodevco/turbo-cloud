@@ -13,6 +13,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
@@ -26,6 +27,60 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain)
 
     /// <summary>A system that caps its own kind of furni registers here; see <see cref="IRoomPlacementLimit"/>.</summary>
     public void RegisterPlacementLimit(IRoomPlacementLimit limit) => _placementLimits.Add(limit);
+
+    // Read access for the systems that are not this module (wired above all). They ask here
+    // instead of reading the room state, so how furni is indexed can change in one place.
+
+    /// <summary>Every floor and wall item in the room.</summary>
+    public IReadOnlyCollection<IRoomItem> Items => _roomGrain._state.ItemsById.Values;
+
+    public int ItemCount => _roomGrain._state.ItemsById.Count;
+
+    public bool HasItem(RoomObjectId itemId) => _roomGrain._state.ItemsById.ContainsKey(itemId);
+
+    public bool TryGetItem(RoomObjectId itemId, out IRoomItem item)
+    {
+        if (_roomGrain._state.ItemsById.TryGetValue(itemId, out var found))
+        {
+            item = found;
+
+            return true;
+        }
+
+        item = null!;
+
+        return false;
+    }
+
+    public bool TryGetFloorItem(RoomObjectId itemId, out IRoomFloorItem item)
+    {
+        item = null!;
+
+        if (!TryGetItem(itemId, out var found) || found is not IRoomFloorItem floorItem)
+            return false;
+
+        item = floorItem;
+
+        return true;
+    }
+
+    /// <summary>The floor items stacked on a tile; none for a tile outside the room.</summary>
+    public IEnumerable<IRoomFloorItem> GetFloorItemsOnTile(int tileIdx)
+    {
+        if (!_roomGrain.MapModule.InBounds(tileIdx))
+            yield break;
+
+        foreach (var itemId in _roomGrain._state.TileFloorStacks[tileIdx])
+        {
+            if (TryGetFloorItem(itemId, out var item))
+                yield return item;
+        }
+    }
+
+    /// <summary>Whether this item is the top of the stack on a tile, the one an avatar there stands on.</summary>
+    public bool IsHighestOnTile(IRoomFloorItem item, int tileIdx) =>
+        _roomGrain.MapModule.InBounds(tileIdx)
+        && _roomGrain._state.TileHighestFloorItems[tileIdx] == item.ObjectId;
 
     /// <summary>Asks every registered limit before a new item is placed; a refusal throws.</summary>
     public void EnsureWithinPlacementLimits(IRoomItem item)

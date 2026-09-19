@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
-using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired.Variable;
@@ -29,17 +28,9 @@ public abstract class FurnitureWiredSubVariableAddonLogic(
     /// <summary>The variable box sharing this tile, if any.</summary>
     protected FurnitureWiredVariableLogic? GetParentBox()
     {
-        var tileIdx = _ctx.GetTileIdx();
-
-        if (tileIdx < 0 || tileIdx >= _roomGrain._state.TileFloorStacks.Length)
-            return null;
-
-        foreach (var itemId in _roomGrain._state.TileFloorStacks[tileIdx])
+        foreach (var item in _roomGrain.FurniModule.GetFloorItemsOnTile(_ctx.GetTileIdx()))
         {
-            if (
-                _roomGrain._state.ItemsById.TryGetValue(itemId, out var item)
-                && item.Logic is FurnitureWiredVariableLogic variable
-            )
+            if (item.Logic is FurnitureWiredVariableLogic variable)
                 return variable;
         }
 
