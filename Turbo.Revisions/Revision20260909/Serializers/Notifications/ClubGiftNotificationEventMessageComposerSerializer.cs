@@ -9,8 +9,5 @@ internal class ClubGiftNotificationEventMessageComposerSerializer(int header)
     protected override void Serialize(
         IServerPacket packet,
         ClubGiftNotificationEventMessageComposer message
-    )
-    {
-        //
-    }
+    ) => packet.WriteInteger(message.NumGifts);
 }

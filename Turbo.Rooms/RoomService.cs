@@ -7,8 +7,10 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
+using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Messages.Outgoing.Room.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
@@ -120,6 +122,29 @@ internal sealed partial class RoomService(
                         new GenericErrorMessage
                         {
                             ErrorCode = RoomGenericErrorType.InvalidPassword,
+                        },
+                        ct
+                    )
+                    .ConfigureAwait(false);
+                return;
+
+            case RoomEntryAccessType.HiddenByBuildersClub:
+                // The pop-up says what the generic refusal cannot: the room is not gone, its
+                // owner has let a Builders Club membership lapse.
+                await playerPresence
+                    .SendComposerAsync(
+                        new NotificationDialogMessageComposer
+                        {
+                            NotificationType = BuildersClubNotifications.VISIT_DENIED_FOR_VISITOR,
+                        },
+                        ct
+                    )
+                    .ConfigureAwait(false);
+                await RejectEntryAsync(
+                        playerPresence,
+                        new CantConnectMessageComposer
+                        {
+                            ErrorType = RoomConnectionErrorType.NoEntry,
                         },
                         ct
                     )

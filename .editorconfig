@@ -68,6 +68,11 @@ dotnet_diagnostic.IDE1006.severity = none
 [*Grain.cs]
 dotnet_diagnostic.CA2007.severity = none
 
+# The same, for a grain split across partial files (BuildersClubGrain.Lapse.cs). There is no
+# synchronisation context inside a grain, so ConfigureAwait says nothing there either.
+[*Grain.*.cs]
+dotnet_diagnostic.CA2007.severity = none
+
 [Grains/**/*.cs]
 dotnet_diagnostic.CA2007.severity = none
 

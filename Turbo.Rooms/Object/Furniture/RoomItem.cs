@@ -4,6 +4,7 @@ using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
@@ -31,6 +32,12 @@ public abstract class RoomItem<TSelf, TLogic, TContext>
     public IExtraData ExtraData => _extraData;
     public bool IsInvisible => false;
     public bool IsTemporary => ObjectId.Value < 0;
+    public bool IsBuildersClub => FurniIdBands.IsBuildersClub(ObjectId.Value);
+
+    public FurnitureOwnershipType Ownership =>
+        IsBuildersClub ? FurnitureOwnershipType.BuildersClub
+        : IsTemporary ? FurnitureOwnershipType.Temporary
+        : FurnitureOwnershipType.Normal;
 
     public void SetExtraData(string? extraData)
     {

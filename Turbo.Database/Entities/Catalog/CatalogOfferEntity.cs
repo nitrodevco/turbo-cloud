@@ -36,6 +36,13 @@ public class CatalogOfferEntity : TurboEntity
     [DefaultValue(0)]
     public required int ClubLevel { get; set; }
 
+    /// <summary>
+    /// Days of Habbo Club membership a player must have used up before this offer may be picked
+    /// as a club gift. Null for every offer that is not a gift, which is what marks it as one.
+    /// </summary>
+    [Column("club_gift_days_required")]
+    public int? ClubGiftDaysRequired { get; set; }
+
     [Column("visible")]
     [DefaultValue(true)]
     public required bool Visible { get; set; }

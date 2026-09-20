@@ -16,6 +16,7 @@ using Turbo.Database.Extensions;
 using Turbo.Events;
 using Turbo.Logging;
 using Turbo.Primitives;
+using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
@@ -67,6 +68,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly IPetBreedProvider _petBreedProvider;
     internal readonly IFurnitureDefinitionProvider _definitionProvider;
     internal readonly IHotelTextProvider _hotelTextProvider;
+    internal readonly ICatalogService _catalogService;
     internal readonly IGrainFactory _grainFactory;
     internal readonly EventSystem _eventSystem;
 
@@ -117,6 +119,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IPetBreedProvider petBreedProvider,
         IFurnitureDefinitionProvider definitionProvider,
         IHotelTextProvider hotelTextProvider,
+        ICatalogService catalogService,
         EventSystem eventSystem,
         ILogger<IRoomGrain> logger
     )
@@ -136,6 +139,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _petBreedProvider = petBreedProvider;
         _definitionProvider = definitionProvider;
         _hotelTextProvider = hotelTextProvider;
+        _catalogService = catalogService;
         _grainFactory = grainFactory;
         _eventSystem = eventSystem;
 

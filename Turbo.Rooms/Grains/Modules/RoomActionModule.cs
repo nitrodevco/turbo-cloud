@@ -39,6 +39,20 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain)
         if (item.IsTemporary)
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
+        // A borrowed furni is given back rather than picked up: it belongs to the club, so it
+        // reaches no inventory and the room simply lets go of it. The client warns the player
+        // that it cannot be borrowed again before it asks for this.
+        if (item.IsBuildersClub)
+        {
+            if (
+                await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx)
+                < RoomControllerType.GroupAdmin
+            )
+                throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
+
+            return await _roomGrain.ObjectModule.RemoveObjectAsync(ctx, item, ct, ctx.PlayerId);
+        }
+
         var pickupType = await _roomGrain.SecurityModule.GetFurniPickupTypeAsync(ctx);
 
         // Whatever a player may do in the room, their own furni is theirs to take back: someone
@@ -83,6 +97,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain)
 
         var ctx = ActionContext.CreateForSystem(_roomGrain.RoomId);
         var returned = new Dictionary<PlayerId, List<IRoomItem>>();
+        var borrowsGivenBack = new Dictionary<PlayerId, int>();
 
         foreach (var item in items)
         {
@@ -94,10 +109,21 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain)
                     item,
                     ct,
                     item.OwnerId,
-                    announce: !isFloorItem
+                    announce: !isFloorItem,
+                    reportBorrow: false
                 )
             )
                 continue;
+
+            // A borrowed furni goes back to the club rather than to anybody's inventory. They
+            // are counted up here so each borrower is told their new total once.
+            if (item.IsBuildersClub)
+            {
+                borrowsGivenBack[item.OwnerId] =
+                    borrowsGivenBack.GetValueOrDefault(item.OwnerId) + 1;
+
+                continue;
+            }
 
             // A temporary furni leaves the room like any other and then is simply gone.
             if (item.IsTemporary)
@@ -126,6 +152,11 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain)
                     ct
                 );
         }
+
+        var buildersClub = _roomGrain._grainFactory.GetBuildersClubGrain();
+
+        foreach (var (playerId, count) in borrowsGivenBack)
+            await buildersClub.OnReturnedAsync(playerId, count, ct);
 
         await Task.WhenAll(
             returned.Select(entry =>

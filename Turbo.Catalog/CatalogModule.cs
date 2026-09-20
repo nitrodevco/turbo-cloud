@@ -33,5 +33,13 @@ public sealed class CatalogModule : IHostPluginModule
                 CatalogType.Normal
             )
         );
+        services.AddSingleton<ICatalogSnapshotProvider<BuildersClubCatalog>>(
+            sp => new CatalogSnapshotProvider<BuildersClubCatalog>(
+                sp.GetRequiredService<IDbContextFactory<TurboDbContext>>(),
+                sp.GetRequiredService<ILogger<ICatalogSnapshotProvider<BuildersClubCatalog>>>(),
+                sp.GetRequiredService<IFurnitureDefinitionProvider>(),
+                CatalogType.BuildersClub
+            )
+        );
     }
 }

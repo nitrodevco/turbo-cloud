@@ -47,4 +47,11 @@ public sealed record CatalogOfferSnapshot
 
     [Id(13)]
     public required ImmutableArray<CatalogProductSnapshot> Products { get; init; }
+
+    /// <summary>
+    /// Days of used-up Habbo Club membership needed before this offer may be picked as a club
+    /// gift; null when it is not one.
+    /// </summary>
+    [Id(14)]
+    public int? ClubGiftDaysRequired { get; init; }
 }

@@ -30,11 +30,7 @@ public sealed class FurnitureTypeVariable(RoomGrain roomGrain)
 
     protected override bool TryGetValueForItem(IRoomItem item, out WiredVariableValue value)
     {
-        value = WiredVariableValue.Parse(
-            (int)(
-                item.IsTemporary ? FurnitureOwnershipType.Temporary : FurnitureOwnershipType.Normal
-            )
-        );
+        value = WiredVariableValue.Parse((int)item.Ownership);
 
         return true;
     }

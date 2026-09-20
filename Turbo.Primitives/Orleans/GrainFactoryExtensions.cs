@@ -12,6 +12,7 @@ using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Grains.Messenger;
 using Turbo.Primitives.Players.Grains.Navigator;
 using Turbo.Primitives.Players.Grains.Settings;
+using Turbo.Primitives.Players.Grains.Subscriptions;
 using Turbo.Primitives.Players.Grains.Wardrobe;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Grains;
@@ -107,6 +108,9 @@ public static class GrainFactoryExtensions
         long playerId
     ) => factory.GetGrain<ICatalogPurchaseGrain>(playerId);
 
+    public static IBuildersClubGrain GetBuildersClubGrain(this IGrainFactory factory) =>
+        factory.GetGrain<IBuildersClubGrain>(SingletonGrainId.GLOBAL);
+
     public static ICatalogLtdRaffleGrain GetLtdRaffleGrain(
         this IGrainFactory factory,
         int ltdSeriesId
@@ -126,6 +130,16 @@ public static class GrainFactoryExtensions
         this IGrainFactory factory,
         PlayerId playerId
     ) => factory.GetGrain<IPlayerSettingsGrain>(playerId.Value);
+
+    public static IPlayerSubscriptionGrain GetPlayerSubscriptionGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerSubscriptionGrain>(playerId.Value);
+
+    public static IPlayerSubscriptionGrain GetPlayerSubscriptionGrain(
+        this IGrainFactory factory,
+        long playerId
+    ) => factory.GetGrain<IPlayerSubscriptionGrain>(playerId);
 
     public static IPlayerNavigatorGrain GetPlayerNavigatorGrain(
         this IGrainFactory factory,

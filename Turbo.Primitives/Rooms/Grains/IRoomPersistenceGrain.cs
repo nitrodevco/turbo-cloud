@@ -23,6 +23,19 @@ public interface IRoomPersistenceGrain : IGrainWithIntegerKey
     /// <summary>Deletes the item's row on the next flush instead of updating it.</summary>
     public Task EnqueueDeletedItemAsync(RoomId roomId, RoomObjectId itemId, CancellationToken ct);
 
+    /// <summary>
+    /// Writes the row behind a newly borrowed furni, now rather than on the next flush: the room
+    /// waits for it, because a borrow the database never heard of would vanish on the next room
+    /// load while still counting against the borrower. False when the write failed, and the
+    /// caller takes the furni back out of the room.
+    /// </summary>
+    public Task<bool> InsertBuildersClubItemAsync(
+        RoomId roomId,
+        RoomItemSnapshot snapshot,
+        int offerId,
+        CancellationToken ct
+    );
+
     public Task EnqueueDirtyItemsAsync(
         RoomId roomId,
         List<RoomItemSnapshot> snapshots,

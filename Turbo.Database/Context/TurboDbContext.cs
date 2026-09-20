@@ -27,6 +27,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<FurnitureEntity> Furnitures { get; init; }
 
+    public DbSet<BuildersClubFurnitureEntity> BuildersClubFurnitures { get; init; }
+
     public DbSet<BadgeDefinitionEntity> BadgeDefinitions { get; init; }
     public DbSet<PlayerBadgeEntity> PlayerBadges { get; init; }
 
@@ -35,6 +37,10 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerOutfitEntity> PlayerOutfits { get; init; }
 
     public DbSet<PlayerSettingsEntity> PlayerSettings { get; init; }
+
+    public DbSet<PlayerSubscriptionEntity> PlayerSubscriptions { get; init; }
+
+    public DbSet<PlayerClubGiftEntity> PlayerClubGifts { get; init; }
     public DbSet<PlayerEntity> Players { get; init; }
 
     public DbSet<RoomBanEntity> RoomBans { get; init; }

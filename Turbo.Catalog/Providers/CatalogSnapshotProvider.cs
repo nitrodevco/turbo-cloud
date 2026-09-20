@@ -45,16 +45,23 @@ public sealed class CatalogSnapshotProvider<TTag>(
 
         try
         {
+            // Every catalog is its own tree and is loaded on its own. Offers and products have
+            // no type of their own, so they are reached through the page that holds them; a row
+            // of the other catalog must not appear here, because the placement path asks this
+            // snapshot whether an offer is one it is allowed to hand out.
             var pages = await dbCtx
                 .CatalogPages.AsNoTracking()
+                .Where(x => x.CatalogType == catalogType)
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
             var offers = await dbCtx
                 .CatalogOffers.AsNoTracking()
+                .Where(x => x.Page.CatalogType == catalogType)
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
             var products = await dbCtx
                 .CatalogProducts.AsNoTracking()
+                .Where(x => x.Offer.Page.CatalogType == catalogType)
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
             var allSeries = await dbCtx
@@ -127,7 +134,9 @@ public sealed class CatalogSnapshotProvider<TTag>(
             var snapshot = new CatalogSnapshot
             {
                 CatalogType = CatalogType,
-                RootPageId = pages.First(x => x.ParentEntityId == null)?.Id ?? -1,
+                // A hotel that has no pages of this type at all is not an error: it simply has
+                // no such catalog, and the root of nothing is -1.
+                RootPageId = pages.FirstOrDefault(x => x.ParentEntityId == null)?.Id ?? -1,
                 PagesById = pagesById,
                 OffersById = offersById,
                 ProductsById = productsById,

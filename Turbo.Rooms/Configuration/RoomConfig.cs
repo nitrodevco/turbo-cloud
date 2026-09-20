@@ -68,6 +68,14 @@ public class RoomConfig
     /// </summary>
     public int TemporaryFurniMax { get; init; } = 200;
 
+    /// <summary>
+    /// Whether Builders Club furni may be borrowed into a group room by someone who does not own
+    /// it. The client greys out its own drag handle from
+    /// <c>builders.club.furniture.placement.group.room.enabled</c>, so the two are expected to
+    /// agree.
+    /// </summary>
+    public bool BuildersClubInGroupRooms { get; init; } = true;
+
     /// <summary>What renting a rentable space costs, in credits. Zero makes them free.</summary>
     public int RentableSpacePriceCredits { get; init; } = 10;
 

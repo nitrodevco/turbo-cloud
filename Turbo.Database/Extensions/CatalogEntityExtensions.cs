@@ -52,6 +52,7 @@ public static class CatalogEntityExtensions
             Visible = entity.Visible,
             ProductIds = productIds,
             Products = products,
+            ClubGiftDaysRequired = entity.ClubGiftDaysRequired,
         };
 
     /// <param name="definition">The furniture the product grants; null for non-furni products.</param>
@@ -74,6 +75,8 @@ public static class CatalogEntityExtensions
             UniqueRemaining = series?.RemainingQuantity ?? 0,
             LtdSeriesId = series?.Id,
             ClassName = definition?.Name,
+            SubscriptionType = entity.SubscriptionType,
+            SubscriptionDays = entity.SubscriptionDays,
         };
 
     public static LtdSeriesSnapshot ToSnapshot(this LtdSeriesEntity entity) =>

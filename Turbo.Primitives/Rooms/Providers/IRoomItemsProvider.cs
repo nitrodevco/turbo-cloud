@@ -29,4 +29,14 @@ public interface IRoomItemsProvider
         PlayerId ownerId,
         FurnitureDefinitionSnapshot definition
     );
+
+    /// <summary>
+    /// The same for either kind, floor or wall, as the definition says. Borrowed furni is built
+    /// this way: the row behind it is written by the room, not by an inventory.
+    /// </summary>
+    public IRoomItem CreateFromDefinition(
+        RoomObjectId objectId,
+        PlayerId ownerId,
+        FurnitureDefinitionSnapshot definition
+    );
 }

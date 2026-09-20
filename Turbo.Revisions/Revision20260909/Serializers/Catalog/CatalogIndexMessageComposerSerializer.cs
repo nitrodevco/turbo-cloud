@@ -12,9 +12,9 @@ internal class CatalogIndexMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, CatalogIndexMessageComposer message)
     {
-        var rootPage = message.Catalog.PagesById[message.Catalog.RootPageId];
-
-        if (rootPage is null)
+        // A hotel that keeps no pages of this type has no tree to send, and a client that is
+        // told nothing simply leaves that catalog uninitialised.
+        if (!message.Catalog.PagesById.TryGetValue(message.Catalog.RootPageId, out var rootPage))
             return;
 
         SerializePage(packet, message.Catalog, rootPage);

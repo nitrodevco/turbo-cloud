@@ -4,7 +4,7 @@ using Turbo.Primitives.Packets;
 
 namespace Turbo.Revisions.Revision20260909.Parsers.Catalog;
 
-internal class BuildersClubPlaceWallItemMessageParser : IParser
+public class BuildersClubPlaceWallItemMessageParser : IParser
 {
     public IMessageEvent Parse(IClientPacket packet) =>
         new BuildersClubPlaceWallItemMessage
@@ -13,5 +13,6 @@ internal class BuildersClubPlaceWallItemMessageParser : IParser
             OfferId = packet.PopInt(),
             ExtraParam = packet.PopString(),
             Location = packet.PopString(),
+            ConfirmedHideRoom = packet.PopBoolean(),
         };
 }

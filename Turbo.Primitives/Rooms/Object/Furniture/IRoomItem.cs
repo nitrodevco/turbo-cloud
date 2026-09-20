@@ -2,6 +2,7 @@ using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
@@ -33,6 +34,16 @@ public interface IRoomItem : IRoomObject
     /// mistaken for one that has.
     /// </summary>
     public bool IsTemporary { get; }
+
+    /// <summary>
+    /// A furni the Builders Club lends: it has a row and outlives the room, but nobody owns it,
+    /// it can never reach an inventory, and picking it up destroys it. Its id is in the band the
+    /// client reads that out of (<see cref="Furniture.FurniIdBands"/>).
+    /// </summary>
+    public bool IsBuildersClub { get; }
+
+    /// <summary>Which of the three kinds this is, as the wired <c>@type</c> variable reports it.</summary>
+    public FurnitureOwnershipType Ownership { get; }
     public void SetExtraData(string? extraData);
     public void SetOwnerId(PlayerId ownerId);
     public void SetOwnerName(string ownerName);

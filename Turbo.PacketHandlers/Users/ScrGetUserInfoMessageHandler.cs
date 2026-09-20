@@ -4,9 +4,9 @@ using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Users;
 using Turbo.Primitives.Messages.Outgoing.Preferences;
-using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.PacketHandlers.Users;
 
@@ -29,23 +29,9 @@ public class ScrGetUserInfoMessageHandler(IGrainFactory grainFactory)
             .GetSettingsAsync(ct)
             .ConfigureAwait(false);
 
-        await ctx.SendComposerAsync(
-                new ScrSendUserInfoMessageComposer
-                {
-                    ProductName = "club_habbo",
-                    DaysToPeriodEnd = 0,
-                    MemberPeriods = 0,
-                    PeriodsSubscribedAhead = 0,
-                    ResponseType = 0,
-                    HasEverBeenMember = false,
-                    IsVIP = false,
-                    PastClubDays = 0,
-                    PastVipDays = 0,
-                    MinutesUntilExpiration = 0,
-                    MinutesSinceLastModified = -1,
-                },
-                ct
-            )
+        await _grainFactory
+            .GetPlayerSubscriptionGrain(ctx.PlayerId)
+            .SendClubInfoAsync(ScrUserInfoResponseType.Normal, ct)
             .ConfigureAwait(false);
 
         await ctx.SendComposerAsync(

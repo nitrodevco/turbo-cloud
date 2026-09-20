@@ -2,7 +2,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
-using Turbo.Catalog.Exceptions;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
@@ -44,63 +43,15 @@ public class PurchaseFromCatalogMessageHandler(
             }
         }
 
-        try
-        {
-            var purchaseGrain = _grainFactory.GetCatalogPurchaseGrain(ctx.PlayerId);
-            var resultOffer = await purchaseGrain
-                .PurchaseOfferFromCatalogAsync(
-                    CatalogType.Normal,
-                    message.OfferId,
-                    message.ExtraParam ?? string.Empty,
-                    message.Quantity,
-                    ct
-                )
-                .ConfigureAwait(false);
-
-            await ctx.SendComposerAsync(new PurchaseOKMessageComposer { Offer = resultOffer }, ct)
-                .ConfigureAwait(false);
-        }
-        catch (CatalogPurchaseException ex)
-        {
-            if (ex.BalanceFailure is not null)
-            {
-                await ctx.SendComposerAsync(
-                        new NotEnoughBalanceMessageComposer
-                        {
-                            NotEnoughCredits = ex.BalanceFailure.NotEnoughCredits,
-                            NotEnoughActivityPoints = ex.BalanceFailure.NotEnoughActivityPoints,
-                            ActivityPointType = ex.BalanceFailure.ActivityPointType,
-                        },
-                        ct
-                    )
-                    .ConfigureAwait(false);
-                return;
-            }
-
-            if ((int)ex.ErrorType < 100)
-            {
-                await ctx.SendComposerAsync(
-                        new PurchaseErrorMessageComposer { ErrorCode = ex.ErrorType },
-                        ct
-                    )
-                    .ConfigureAwait(false);
-            }
-            else
-            {
-                var errorCode =
-                    ex.ErrorType == CatalogPurchaseErrorType.RequiresHabboClub
-                        ? 1
-                        : (int)ex.ErrorType;
-                await ctx.SendComposerAsync(
-                        new PurchaseNotAllowedMessageComposer
-                        {
-                            ErrorType = (CatalogPurchaseErrorType)errorCode,
-                        },
-                        ct
-                    )
-                    .ConfigureAwait(false);
-            }
-        }
+        await ctx.PurchaseOfferAsync(
+                _grainFactory,
+                CatalogType.Normal,
+                message.OfferId,
+                message.ExtraParam ?? string.Empty,
+                message.Quantity,
+                ct
+            )
+            .ConfigureAwait(false);
     }
 
     private async Task HandleLtdPurchaseAsync(

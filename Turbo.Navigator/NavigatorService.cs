@@ -991,7 +991,7 @@ public sealed class NavigatorService(
         query.LiveRooms.TryGetValue(room.RoomId, out var live) ? live.Population : 0;
 
     private static bool IsPublic(RoomInfoSnapshot room) =>
-        room.DoorMode != RoomDoorModeType.Invisible;
+        room.DoorMode != RoomDoorModeType.Invisible && !room.HiddenByBc;
 
     private static bool IsVisibleTo(RoomInfoSnapshot room, PlayerId playerId) =>
         IsPublic(room) || room.OwnerId == playerId;

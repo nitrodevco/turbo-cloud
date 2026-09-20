@@ -355,6 +355,20 @@ public sealed partial class RoomGrain
         if (!current.Tags.SequenceEqual(next.Tags))
             changedKeys.Add(NavigatorListingKeys.TAGS);
 
+        // Whether the room may be listed at all changed, so every listing it could be in has to
+        // be read again: a cached row still says it is public until it is.
+        if (current.HiddenByBc != next.HiddenByBc)
+        {
+            changedKeys.Add(NavigatorListingKeys.Category(next.CategoryId));
+            changedKeys.Add(NavigatorListingKeys.Owner(next.OwnerId));
+            changedKeys.Add(NavigatorListingKeys.Room(next.RoomId));
+            changedKeys.Add(NavigatorListingKeys.HIGHEST_SCORED);
+            changedKeys.Add(NavigatorListingKeys.STAFF_PICKS);
+            changedKeys.Add(NavigatorListingKeys.SEARCH);
+            changedKeys.Add(NavigatorListingKeys.TAGS);
+            changedKeys.Add(NavigatorListingKeys.EVENTS);
+        }
+
         if (changedKeys.Count > 0)
             await _grainFactory
                 .GetRoomDirectoryGrain()

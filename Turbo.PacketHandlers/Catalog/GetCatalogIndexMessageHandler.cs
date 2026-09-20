@@ -21,6 +21,12 @@ public class GetCatalogIndexMessageHandler(ICatalogService catalogService)
     {
         var snapshot = _catalogService.GetCatalogSnapshot(message.CatalogType);
 
+        // An index is the root page and everything under it, so a hotel that keeps no pages of
+        // this type has nothing to answer with. The client leaves that catalog uninitialised,
+        // which is what an empty tree should look like.
+        if (!snapshot.PagesById.ContainsKey(snapshot.RootPageId))
+            return;
+
         await ctx.SendComposerAsync(new CatalogIndexMessageComposer { Catalog = snapshot }, ct)
             .ConfigureAwait(false);
     }

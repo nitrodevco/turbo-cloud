@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.Primitives.Catalog.Snapshots;
 
@@ -38,4 +39,12 @@ public sealed record CatalogProductSnapshot
 
     [Id(10)]
     public required string? ClassName { get; init; }
+
+    /// <summary>The subscription this product grants, or null when it grants furniture.</summary>
+    [Id(11)]
+    public SubscriptionType? SubscriptionType { get; init; }
+
+    /// <summary>Days of membership the product grants; zero unless it grants a subscription.</summary>
+    [Id(12)]
+    public int SubscriptionDays { get; init; }
 }

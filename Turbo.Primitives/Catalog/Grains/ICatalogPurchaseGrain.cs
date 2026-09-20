@@ -32,4 +32,13 @@ public partial interface ICatalogPurchaseGrain : IGrainWithIntegerKey
         TimeSpan duration,
         CancellationToken ct
     );
+
+    /// <summary>The club gift shelf as it stands for this player.</summary>
+    public Task<ClubGiftInfoSnapshot> GetClubGiftInfoAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Spends one of this player's club gifts on the offer with this product code, and hands
+    /// them what it holds. Throws a <c>CatalogPurchaseException</c> when they may not have it.
+    /// </summary>
+    public Task<CatalogOfferSnapshot> ClaimClubGiftAsync(string productCode, CancellationToken ct);
 }

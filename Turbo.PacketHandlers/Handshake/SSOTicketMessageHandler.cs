@@ -7,7 +7,6 @@ using Turbo.Messages.Registry;
 using Turbo.Primitives.Authentication;
 using Turbo.Primitives.Messages.Incoming.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Availability;
-using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Achievements;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Avatareffect;
@@ -111,15 +110,11 @@ public class SSOTicketMessageHandler(
                 ct
             )
             .ConfigureAwait(false);
-        await ctx.SendComposerAsync(
-                new UserRightsMessage
-                {
-                    ClubLevel = ClubLevelType.Vip,
-                    SecurityLevel = SecurityLevelType.None,
-                    IsAmbassador = false,
-                },
-                ct
-            )
+        // The subscription grain owns both the club level and the Builders Club countdown, and
+        // sends them again itself whenever they change.
+        await _grainFactory
+            .GetPlayerSubscriptionGrain(playerId)
+            .SendStatusAsync(ct)
             .ConfigureAwait(false);
         await ctx.SendComposerAsync(
                 new AvailabilityStatusMessageComposer
@@ -133,6 +128,23 @@ public class SSOTicketMessageHandler(
             .ConfigureAwait(false);
         await ctx.SendComposerAsync(new InfoFeedEnableMessageComposer { Enabled = true }, ct)
             .ConfigureAwait(false);
+
+        // Club gifts waiting to be collected. A hotel that offers none answers this from memory,
+        // so it costs a login nothing; the client draws nothing for a count below one.
+        var clubGifts = await _grainFactory
+            .GetCatalogPurchaseGrain(playerId)
+            .GetClubGiftInfoAsync(ct)
+            .ConfigureAwait(false);
+
+        if (clubGifts.GiftsAvailable > 0)
+            await ctx.SendComposerAsync(
+                    new ClubGiftNotificationEventMessageComposer
+                    {
+                        NumGifts = clubGifts.GiftsAvailable,
+                    },
+                    ct
+                )
+                .ConfigureAwait(false);
         await ctx.SendComposerAsync(new AchievementsScoreEventMessageComposer { Score = 0 }, ct)
             .ConfigureAwait(false);
         await ctx.SendComposerAsync(new IsFirstLoginOfDayMessage { IsFirstLoginOfDay = true }, ct)
@@ -142,17 +154,6 @@ public class SSOTicketMessageHandler(
                 {
                     BoxColor = string.Empty,
                     KeyColor = string.Empty,
-                },
-                ct
-            )
-            .ConfigureAwait(false);
-        await ctx.SendComposerAsync(
-                new BuildersClubSubscriptionStatusMessageComposer
-                {
-                    SecondsLeft = 0,
-                    FurniLimit = 0,
-                    MaxFurniLimit = 0,
-                    SecondsLeftWithGrace = 0,
                 },
                 ct
             )

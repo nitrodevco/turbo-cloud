@@ -9,6 +9,9 @@ public class PlayerConfig
 {
     public const string SECTION_NAME = "Turbo:Players";
 
+    /// <summary>Habbo Club and Builders Club membership tunables.</summary>
+    public SubscriptionConfig Subscriptions { get; init; } = new();
+
     public int PlayerPresenceTickMs { get; init; } = 5000;
     public int MessengerUserFriendLimit { get; init; } = 100;
     public int MessengerNormalFriendLimit { get; init; } = 100;

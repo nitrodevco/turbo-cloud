@@ -122,7 +122,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
                 break;
             case RoomItemDetachedEvent detatchedEvt:
                 _furnitureActiveStore.RemoveFurnitureStore(detatchedEvt.ObjectId);
-                ForgetStoredValuesOfTemporaryFurni(detatchedEvt.ObjectId);
+                ForgetStoredValuesOfUnownedFurni(detatchedEvt.ObjectId);
                 ForgetProjectileFlight(detatchedEvt.ObjectId);
                 ForgetTimedTrigger(detatchedEvt.ObjectId);
                 break;

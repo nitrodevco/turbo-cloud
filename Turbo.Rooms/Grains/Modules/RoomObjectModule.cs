@@ -82,12 +82,17 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
         return true;
     }
 
+    /// <param name="reportBorrow">
+    /// False when the caller is letting go of many at once and will report the borrows it gave
+    /// back itself, so the borrower hears one new total rather than one per furni.
+    /// </param>
     public async Task<bool> RemoveObjectAsync(
         ActionContext ctx,
         IRoomObject roomObject,
         CancellationToken ct,
         int pickerId = -1,
-        bool announce = true
+        bool announce = true,
+        bool reportBorrow = true
     )
     {
         switch (roomObject)
@@ -108,10 +113,26 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
 
                 _roomGrain._state.ItemsById.Remove(item.ObjectId);
 
-                if (!item.IsTemporary)
+                if (item.IsBuildersClub)
+                {
+                    // Nobody owns a borrowed furni, so there is nowhere for it to go: leaving the
+                    // room is the end of it, and the borrow goes back to the club.
+                    await _roomGrain
+                        ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
+                        .EnqueueDeletedItemAsync(_roomGrain.RoomId, item.ObjectId, ct);
+
+                    if (reportBorrow)
+                        await _roomGrain
+                            ._grainFactory.GetBuildersClubGrain()
+                            .OnReturnedAsync(item.OwnerId, 1, ct);
+                }
+                else if (!item.IsTemporary)
+                {
                     await _roomGrain
                         ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
                         .EnqueueDirtyItemAsync(_roomGrain.RoomId, item.GetSnapshot(), ct, true);
+                }
+
                 break;
             }
             case IRoomAvatar avatar:

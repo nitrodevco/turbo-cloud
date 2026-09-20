@@ -42,4 +42,13 @@ public record RoomInfoSnapshot : RoomSummarySnapshot
 
     [Id(11)]
     public RoomEventSnapshot? ActiveEvent { get; init; }
+
+    /// <summary>
+    /// The room is off the navigator and closed to everyone but its owner, because somebody
+    /// borrowed Builders Club furni into it without a membership to keep it. It is a listing
+    /// field rather than a room-only one because the navigator filters on it without loading
+    /// the room.
+    /// </summary>
+    [Id(12)]
+    public bool HiddenByBc { get; init; }
 }

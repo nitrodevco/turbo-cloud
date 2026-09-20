@@ -39,6 +39,7 @@ public static class RoomEntityExtensions
             AllowPetsEat = entity.AllowPetsEat,
             StaffPick = entity.StaffPick,
             ActiveEvent = activeEvent?.ToSnapshot(ownerName),
+            HiddenByBc = entity.HiddenByBc,
             LastUpdatedUtc = nowUtc,
         };
 
@@ -74,7 +75,6 @@ public static class RoomEntityExtensions
             IdleAutokickEnabled = entity.IdleAutokickEnabled,
             IdleAutokickTimeoutSeconds = entity.IdleAutokickTimeoutSeconds,
             MuteAllPets = entity.MuteAllPets,
-            HiddenByBc = entity.HiddenByBc,
             WiredModifyPermissionMask = entity.WiredModifyPermissionMask,
             WiredReadPermissionMask = entity.WiredReadPermissionMask,
             WiredTimezone = entity.WiredTimezone,

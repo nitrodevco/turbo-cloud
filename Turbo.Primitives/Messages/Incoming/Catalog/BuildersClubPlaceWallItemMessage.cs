@@ -8,4 +8,7 @@ public record BuildersClubPlaceWallItemMessage : IMessageEvent
     public int OfferId { get; init; }
     public string? ExtraParam { get; init; }
     public string? Location { get; init; }
+
+    /// <summary>See <see cref="BuildersClubPlaceRoomItemMessage.ConfirmedHideRoom"/>.</summary>
+    public bool ConfirmedHideRoom { get; init; }
 }

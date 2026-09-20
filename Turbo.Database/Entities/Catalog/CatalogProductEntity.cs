@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.Database.Entities.Catalog;
 
@@ -24,6 +25,19 @@ public class CatalogProductEntity : TurboEntity
     [Column("quantity")]
     [DefaultValue(1)]
     public required int Quantity { get; set; }
+
+    /// <summary>
+    /// The subscription this product grants, for a product that sells membership rather than
+    /// furniture. Null for everything else. <see cref="ProductType.HabboClub"/> is the letter the
+    /// client is sent and says nothing about which club, so the two are not the same column.
+    /// </summary>
+    [Column("subscription_type")]
+    public SubscriptionType? SubscriptionType { get; set; }
+
+    /// <summary>Days of membership the product grants. Zero unless it grants a subscription.</summary>
+    [Column("subscription_days")]
+    [DefaultValue(0)]
+    public int SubscriptionDays { get; set; }
 
     [ForeignKey(nameof(CatalogOfferEntityId))]
     public required CatalogOfferEntity Offer { get; set; }

@@ -572,9 +572,13 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   layout given in full, and the slots of the variables below are reserved and deliberately
   empty.
 - **A variable with nothing behind it is not declared.** These have no system yet and are
-  reserved rather than written: user `@level`, `@is_hc`, `@is_group_admin`,
+  reserved rather than written: user `@level`, `@is_group_admin`,
   `@favorite_group_id`, `@team.type` and the six `@transaction.*`, because chests and
-  contracts do not exist.
+  contracts do not exist. `@is_hc` is still reserved, but no longer for that reason:
+  subscriptions exist (`IPlayerSubscriptionGrain`), and what it waits on is the value reaching
+  the avatar. A variable reads room state synchronously and must never await a grain, so
+  whether a player holds Habbo Club has to be pushed to the room the way badges are
+  (inventory → presence → room) before the variable can answer.
 - **A user variable is keyed by the avatar's room index, never by the player.** That index is
   how the client addresses any avatar and the only id a player, a pet and a bot all have; a
   player's own id is a value a variable reports (`@user_id`), exactly as `@pet_id` and

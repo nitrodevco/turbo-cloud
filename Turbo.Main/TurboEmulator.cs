@@ -22,6 +22,7 @@ public class TurboEmulator(
     IFurnitureDefinitionProvider furnitureProvider,
     IHotelTextProvider hotelTextProvider,
     ICatalogSnapshotProvider<NormalCatalog> catalogProvider,
+    ICatalogSnapshotProvider<BuildersClubCatalog> buildersClubCatalogProvider,
     ICurrencyTypeProvider currencyTypeProvider,
     INavigatorProvider topLevelContextProvider,
     IRoomModelProvider roomModelProvider,
@@ -34,6 +35,8 @@ public class TurboEmulator(
     private readonly IFurnitureDefinitionProvider _furnitureProvider = furnitureProvider;
     private readonly IHotelTextProvider _hotelTextProvider = hotelTextProvider;
     private readonly ICatalogSnapshotProvider<NormalCatalog> _catalogProvider = catalogProvider;
+    private readonly ICatalogSnapshotProvider<BuildersClubCatalog> _buildersClubCatalogProvider =
+        buildersClubCatalogProvider;
     private readonly ICurrencyTypeProvider _currencyTypeProvider = currencyTypeProvider;
     private readonly INavigatorProvider _topLevelContextProvider = topLevelContextProvider;
     private readonly IRoomModelProvider _roomModelProvider = roomModelProvider;
@@ -48,6 +51,7 @@ public class TurboEmulator(
             _revisionManager.RegisterRevision(new Revision20260909());
             await _furnitureProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _catalogProvider.ReloadAsync(ct).ConfigureAwait(false);
+            await _buildersClubCatalogProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _currencyTypeProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _topLevelContextProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _roomModelProvider.ReloadAsync(ct).ConfigureAwait(false);

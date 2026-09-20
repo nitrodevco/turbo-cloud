@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.Primitives.Messages.Outgoing.Users;
 
@@ -19,7 +20,7 @@ public sealed record ScrSendUserInfoMessageComposer : IComposer
     public required int PeriodsSubscribedAhead { get; init; }
 
     [Id(4)]
-    public required int ResponseType { get; init; }
+    public required ScrUserInfoResponseType ResponseType { get; init; }
 
     [Id(5)]
     public required bool HasEverBeenMember { get; init; }

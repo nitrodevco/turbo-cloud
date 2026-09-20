@@ -9,7 +9,7 @@ public enum FurnitureOwnershipType
 {
     Normal = 0,
 
-    /// <summary>Lent by the Builders Club. Nothing grants these yet, so nothing reports it.</summary>
+    /// <summary>Lent by the Builders Club while a membership lasts; nobody owns it.</summary>
     BuildersClub = 1,
     Temporary = 2,
 }

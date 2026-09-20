@@ -50,6 +50,12 @@ public sealed class RoomEntryModule(
             if (GetIsBanned(playerId))
                 return RoomEntryAccessType.Banned;
 
+            // A room hidden over a lapsed Builders Club membership is the owner's alone until
+            // they renew it or give the borrowed furni back. Re-entering does not excuse it:
+            // whoever is inside when it is hidden stays, but nobody comes back in.
+            if (snapshot.HiddenByBc)
+                return RoomEntryAccessType.HiddenByBuildersClub;
+
             if (!isReentering && snapshot.PlayersMax > 0)
             {
                 var population = await _roomGrain.GetRoomPopulationAsync(CancellationToken.None);

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -207,12 +208,13 @@ public sealed partial class RoomWiredSystem
 
     /// <summary>
     /// A stored furni variable outlives the furni that holds it, which is right for a furni
-    /// somebody owns and wrong for a temporary one: its id is handed out again the next time the
-    /// room loads, and the new furni would inherit the old one's values.
+    /// somebody owns and wrong for one nobody does. A temporary furni's id is handed out again
+    /// the next time the room loads, and a borrowed one's as soon as the room needs another, so
+    /// in both cases the next furni to get that id would inherit these values.
     /// </summary>
-    private void ForgetStoredValuesOfTemporaryFurni(RoomObjectId objectId)
+    private void ForgetStoredValuesOfUnownedFurni(RoomObjectId objectId)
     {
-        if (objectId.Value >= 0)
+        if (!FurniIdBands.IsBuildersClub(objectId.Value) && objectId.Value >= 0)
             return;
 
         foreach (var variable in _variableById.Values)

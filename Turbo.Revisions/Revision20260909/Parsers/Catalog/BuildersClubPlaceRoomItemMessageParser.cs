@@ -15,5 +15,6 @@ public class BuildersClubPlaceRoomItemMessageParser : IParser
             X = packet.PopInt(),
             Y = packet.PopInt(),
             Direction = packet.PopInt(),
+            ConfirmedHideRoom = packet.PopBoolean(),
         };
 }

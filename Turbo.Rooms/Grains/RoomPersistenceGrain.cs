@@ -11,6 +11,7 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Bots.Snapshots;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Snapshots;
@@ -186,11 +187,24 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
 
         _state.DeletedItemIds.Clear();
 
+        // Borrowed furni lives in its own table, keyed by this room and the id the room gave it.
+        var borrowedIds = ids.Where(FurniIdBands.IsBuildersClub).ToList();
+        var ownedIds = ids.Where(x => !FurniIdBands.IsBuildersClub(x)).ToList();
+
         try
         {
             using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-            await dbCtx.Furnitures.Where(x => ids.Contains(x.Id)).ExecuteDeleteAsync(ct);
+            if (ownedIds.Count > 0)
+                await dbCtx.Furnitures.Where(x => ownedIds.Contains(x.Id)).ExecuteDeleteAsync(ct);
+
+            if (borrowedIds.Count > 0)
+                await dbCtx
+                    .BuildersClubFurnitures.Where(x =>
+                        x.RoomEntityId == _state.RoomId.Value
+                        && borrowedIds.Contains(x.RoomObjectId)
+                    )
+                    .ExecuteDeleteAsync(ct);
         }
         catch (Exception ex)
         {
@@ -395,6 +409,13 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
 
             foreach (var item in batch)
             {
+                if (FurniIdBands.IsBuildersClub(item.ObjectId))
+                {
+                    FlushBorrowedItem(dbCtx, item);
+
+                    continue;
+                }
+
                 var dbEntity = new FurnitureEntity
                 {
                     Id = item.ObjectId.Value,
@@ -451,6 +472,99 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 batch.Length,
                 _state.RoomId
             );
+        }
+    }
+
+    /// <summary>
+    /// Writes a borrowed furni's position back. There is no "taken out of the room but kept"
+    /// state for one, because nobody owns it and it has no inventory to go to: leaving the room
+    /// is the same as being given back, which the delete queue handles.
+    /// </summary>
+    private void FlushBorrowedItem(TurboDbContext dbCtx, RoomItemSnapshot item)
+    {
+        // Leaving the room is the same as being given back for a borrowed furni, which the
+        // delete queue handles, so nothing should ever mark one as merely removed.
+        _state.RemovedItemIds.Remove(item.ObjectId);
+
+        var dbEntity = new BuildersClubFurnitureEntity
+        {
+            RoomEntityId = _state.RoomId.Value,
+            RoomObjectId = item.ObjectId.Value,
+            FurnitureDefinitionEntityId = item.DefinitionId,
+            PlacedByPlayerEntityId = item.OwnerId.Value,
+            // Only the columns marked modified below are written; the rest are here to satisfy
+            // the entity and never reach the database.
+            CatalogOfferEntityId = 0,
+            X = item.X,
+            Y = item.Y,
+            Z = item.Z,
+            Rotation = item.Rotation,
+            ExtraData = item.ExtraData,
+        };
+
+        dbCtx.Attach(dbEntity);
+
+        var e = dbCtx.Entry(dbEntity);
+
+        e.Property(x => x.X).IsModified = true;
+        e.Property(x => x.Y).IsModified = true;
+        e.Property(x => x.Z).IsModified = true;
+        e.Property(x => x.Rotation).IsModified = true;
+        e.Property(x => x.ExtraData).IsModified = true;
+
+        if (item is RoomWallItemSnapshot wallItem)
+        {
+            dbEntity.WallOffset = wallItem.WallOffset;
+
+            e.Property(x => x.WallOffset).IsModified = true;
+        }
+    }
+
+    public async Task<bool> InsertBuildersClubItemAsync(
+        RoomId roomId,
+        RoomItemSnapshot snapshot,
+        int offerId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+            dbCtx.BuildersClubFurnitures.Add(
+                new BuildersClubFurnitureEntity
+                {
+                    RoomEntityId = _state.RoomId.Value,
+                    RoomObjectId = snapshot.ObjectId.Value,
+                    FurnitureDefinitionEntityId = snapshot.DefinitionId,
+                    PlacedByPlayerEntityId = snapshot.OwnerId.Value,
+                    CatalogOfferEntityId = offerId,
+                    X = snapshot.X,
+                    Y = snapshot.Y,
+                    Z = snapshot.Z,
+                    Rotation = snapshot.Rotation,
+                    WallOffset = snapshot is RoomWallItemSnapshot wallItem
+                        ? wallItem.WallOffset
+                        : 0,
+                    ExtraData = snapshot.ExtraData,
+                }
+            );
+
+            await dbCtx.SaveChangesAsync(ct);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to write borrowed furniture {ItemId} of offer {OfferId} in room {RoomId}",
+                snapshot.ObjectId,
+                offerId,
+                _state.RoomId
+            );
+
+            return false;
         }
     }
 }

@@ -1,5 +1,6 @@
 using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Packets;
+using Turbo.Revisions.Revision20260909.Serializers.Catalog.Data;
 
 namespace Turbo.Revisions.Revision20260909.Serializers.Catalog;
 
@@ -11,6 +12,11 @@ internal class ClubGiftSelectedEventMessageComposerSerializer(int header)
         ClubGiftSelectedEventMessageComposer message
     )
     {
-        //
+        packet
+            .WriteString(message.Offer.LocalizationId)
+            .WriteInteger(message.Offer.Products.Length);
+
+        foreach (var product in message.Offer.Products)
+            CatalogProductSerializer.Serialize(packet, product);
     }
 }

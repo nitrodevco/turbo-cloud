@@ -60,8 +60,9 @@ public sealed record RoomSnapshot : RoomInfoSnapshot
     [Id(12)]
     public required bool MuteAllPets { get; init; } = false;
 
-    [Id(13)]
-    public required bool HiddenByBc { get; init; } = false;
+    // 13 was HiddenByBc, which moved to RoomInfoSnapshot so the navigator could filter on it.
+    // Orleans numbers ids per declaring type and a stored id is never reused, so the slot stays
+    // empty rather than being filled by the next field added here.
 
     [Id(14)]
     public required WiredPermissionFlags WiredModifyPermissionMask { get; init; }

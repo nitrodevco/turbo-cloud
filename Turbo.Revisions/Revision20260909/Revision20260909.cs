@@ -1674,6 +1674,12 @@ public class Revision20260909 : IRevision
                 )
             },
             {
+                typeof(BuildersClubFurniCountMessageComposer),
+                new BuildersClubFurniCountMessageComposerSerializer(
+                    MessageComposer.BuildersClubFurniCountMessageComposer
+                )
+            },
+            {
                 typeof(BuildersClubSubscriptionStatusMessageComposer),
                 new BuildersClubSubscriptionStatusMessageComposerSerializer(
                     MessageComposer.BuildersClubSubscriptionStatusMessageComposer
