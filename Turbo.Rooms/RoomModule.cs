@@ -4,6 +4,7 @@ using Turbo.Contracts.Plugins;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Providers;
+using Turbo.Primitives.Texts;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Object.Logic;
 using Turbo.Rooms.Providers;
@@ -22,7 +23,11 @@ public sealed class RoomModule : IHostPluginModule
         services.Configure<PetConfig>(builder.Configuration.GetSection(PetConfig.SECTION_NAME));
         services.Configure<BotConfig>(builder.Configuration.GetSection(BotConfig.SECTION_NAME));
         services.Configure<WiredConfig>(builder.Configuration.GetSection(WiredConfig.SECTION_NAME));
+        services.Configure<HotelTextConfig>(
+            builder.Configuration.GetSection(HotelTextConfig.SECTION_NAME)
+        );
 
+        services.AddSingleton<IHotelTextProvider, HotelTextProvider>();
         services.AddSingleton<IRoomAvatarProvider, RoomAvatarProvider>();
         services.AddSingleton<IRoomItemsProvider, RoomItemsProvider>();
         services.AddSingleton<IRoomNpcProvider, RoomNpcProvider>();

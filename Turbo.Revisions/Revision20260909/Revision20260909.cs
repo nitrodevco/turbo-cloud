@@ -3272,6 +3272,12 @@ public class Revision20260909 : IRevision
                 )
             },
             {
+                typeof(WiredClickSettingsMessageComposer),
+                new WiredClickSettingsMessageComposerSerializer(
+                    MessageComposer.WiredClickSettingsMessageComposer
+                )
+            },
+            {
                 typeof(WiredRewardResultMessageComposer),
                 new WiredRewardResultMessageComposerSerializer(
                     MessageComposer.WiredRewardResultMessageComposer

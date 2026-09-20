@@ -62,6 +62,12 @@ public class RoomConfig
     /// <summary>Longest figure string a furni stores (a clothing booth's look).</summary>
     public int FigureMaxLength { get; init; } = 300;
 
+    /// <summary>
+    /// Temporary furni (placed by wired, gone when the room unloads) a room may hold at once.
+    /// They cost nobody anything, so without a cap a looping stack fills the room.
+    /// </summary>
+    public int TemporaryFurniMax { get; init; } = 200;
+
     /// <summary>What renting a rentable space costs, in credits. Zero makes them free.</summary>
     public int RentableSpacePriceCredits { get; init; } = 10;
 

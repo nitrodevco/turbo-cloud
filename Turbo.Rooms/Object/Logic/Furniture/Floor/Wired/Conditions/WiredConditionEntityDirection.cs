@@ -33,7 +33,7 @@ public class WiredConditionEntityDirection(
         if (mask == 0)
             return false;
 
-        var players = GetPlayers(ctx.GetSelection(this));
+        var players = GetAvatars(ctx.GetSelection(this));
 
         return Quantify(players.Select(p => (mask & (1 << (int)p.Rotation)) != 0), true);
     }

@@ -54,7 +54,7 @@ public class WiredConditionSelectQuantity(
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var selection = ctx.GetSelection(this);
-        var count = selection.SelectedFurniIds.Count + selection.SelectedPlayerIds.Count;
+        var count = selection.SelectedFurniIds.Count + selection.SelectedAvatarIds.Count;
 
         return WiredComparison.CompareThreeWay(
             GetIntParamOrDefault(2, 1),

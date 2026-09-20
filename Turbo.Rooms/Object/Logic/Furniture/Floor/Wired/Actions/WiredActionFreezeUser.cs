@@ -38,7 +38,7 @@ public class WiredActionFreezeUser(
         var effectId = effectIndex < effectIds.Length ? effectIds[effectIndex] : 0;
         var frozen = false;
 
-        foreach (var player in GetPlayers(ctx.GetSelection(this)))
+        foreach (var player in GetAvatars(ctx.GetSelection(this)))
         {
             await _roomGrain.AvatarModule.StopWalkingAsync(player, ct);
 

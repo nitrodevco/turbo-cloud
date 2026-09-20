@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
@@ -48,10 +49,10 @@ public abstract class WiredAddonVariableFilter(
         if (variable is null)
             return Task.FromResult(true);
 
-        var pool =
-            TargetType == WiredVariableTargetType.Furni
-                ? ctx.SelectorPool.SelectedFurniIds
-                : ctx.SelectorPool.SelectedPlayerIds;
+        var isFurni = TargetType == WiredVariableTargetType.Furni;
+        var pool = isFurni
+            ? ctx.SelectorPool.SelectedFurniIds
+            : ctx.SelectorPool.SelectedAvatarIds.Select(x => x.Value);
         var sort = GetIntParamOrDefault(1, WiredVariableSortType.ValueDescending);
         var variableId = variable.GetVarSnapshot().VariableId;
         var keyed = new List<(int id, long key)>();
@@ -85,8 +86,16 @@ public abstract class WiredAddonVariableFilter(
         var keep = (int)Math.Max(0, ResolveCount(ctx));
         var kept = ordered.Take(keep).Select(x => x.id).ToList();
 
-        pool.Clear();
-        pool.UnionWith(kept);
+        if (isFurni)
+        {
+            ctx.SelectorPool.SelectedFurniIds.Clear();
+            ctx.SelectorPool.SelectedFurniIds.UnionWith(kept);
+        }
+        else
+        {
+            ctx.SelectorPool.SelectedAvatarIds.Clear();
+            ctx.SelectorPool.SelectedAvatarIds.UnionWith(kept.Select(RoomObjectId.Parse));
+        }
 
         return Task.FromResult(true);
     }

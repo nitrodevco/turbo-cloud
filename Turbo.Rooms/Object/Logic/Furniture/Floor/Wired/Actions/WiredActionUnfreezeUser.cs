@@ -29,15 +29,17 @@ public class WiredActionUnfreezeUser(
         var freezeEffects = _roomGrain._wiredConfig.FreezeEffectIds;
         var thawed = false;
 
-        foreach (var player in GetPlayers(ctx.GetSelection(this)))
+        foreach (var avatar in GetAvatars(ctx.GetSelection(this)))
         {
-            if (!player.IsFrozen)
+            if (!avatar.IsFrozen)
                 continue;
 
-            player.SetFrozen(false);
+            avatar.SetFrozen(false);
 
-            if (player.EffectId > 0 && freezeEffects.Contains(player.EffectId))
-                await _roomGrain.AvatarModule.SetAvatarEffectAsync(player.ObjectId, 0, ct);
+            // Whatever the freeze put on comes back off, and only that: an effect the avatar was
+            // already wearing is not a freeze effect and is left alone.
+            if (avatar.EffectId > 0 && freezeEffects.Contains(avatar.EffectId))
+                await _roomGrain.AvatarModule.SetAvatarEffectAsync(avatar.ObjectId, 0, ct);
 
             thawed = true;
         }

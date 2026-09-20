@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Orleans;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Rooms.Events.Wired;
 
@@ -17,7 +18,7 @@ public sealed record WiredStackCalledEvent : RoomEvent
     public required HashSet<int> FurniIds { get; init; }
 
     [Id(2)]
-    public required HashSet<int> PlayerIds { get; init; }
+    public required HashSet<RoomObjectId> AvatarIds { get; init; }
 
     [Id(3)]
     public required int Depth { get; init; }

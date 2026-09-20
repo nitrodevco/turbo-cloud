@@ -23,6 +23,16 @@ public partial interface IRoomGrain
     );
 
     /// <summary>
+    /// Stores the current state of a wired box's picked furni as its snapshot (the editor's
+    /// "apply furni to set conditions"). False when refused, or when the box keeps no snapshot.
+    /// </summary>
+    public Task<bool> ApplyWiredSnapshotAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// A wired box's editor data, or null when the item is not wired or the caller may not read
     /// the room's wired.
     /// </summary>

@@ -45,4 +45,12 @@ public record RoomAvatarSnapshot
 
     [Id(12)]
     public required string Status { get; init; }
+
+    /// <summary>Not on the wire in the Users packet; replayed as a dance update on room entry.</summary>
+    [Id(13)]
+    public required AvatarDanceType DanceType { get; init; }
+
+    /// <summary>Also replayed on room entry, as an effect update. Zero is no effect.</summary>
+    [Id(14)]
+    public required int EffectId { get; init; }
 }

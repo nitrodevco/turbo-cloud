@@ -28,8 +28,8 @@ public class WiredActionLeaveTeam(
         var selection = ctx.GetSelection(this);
         var left = false;
 
-        foreach (var playerId in selection.SelectedPlayerIds)
-            left |= await _roomGrain.GameSystem.LeaveTeamAsync(playerId, ct);
+        foreach (var player in GetPlayers(selection))
+            left |= await _roomGrain.GameSystem.LeaveTeamAsync(player.PlayerId, ct);
 
         return left;
     }

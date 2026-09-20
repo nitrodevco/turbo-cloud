@@ -38,6 +38,18 @@ internal sealed partial class PlayerPresenceGrain
             }
         );
 
+    public Task SetPendingRoomEntryAsync(
+        RoomId roomId,
+        RoomEntrySnapshot entry,
+        CancellationToken ct
+    )
+    {
+        _state.PendingEntryRoomId = roomId;
+        _state.PendingEntry = entry;
+
+        return Task.CompletedTask;
+    }
+
     public async Task SetActiveRoomAsync(RoomId roomId, CancellationToken ct)
     {
         if (roomId <= 0)
@@ -68,11 +80,19 @@ internal sealed partial class PlayerPresenceGrain
             .GetPlayerGrain(_state.PlayerId)
             .GetSummaryAsync(ct);
 
+        // Only the room a furni named gets the entry it named; anywhere else is a plain walk in.
+        var entry =
+            _state.PendingEntryRoomId == roomId ? _state.PendingEntry : RoomEntrySnapshot.Default;
+
+        _state.PendingEntryRoomId = -1;
+        _state.PendingEntry = RoomEntrySnapshot.Default;
+
         await _grainFactory
             .GetRoomGrain(roomId)
             .CreateAvatarFromPlayerAsync(
                 ActionContext.CreateForPlayer(_state.PlayerId, roomId),
                 playerSnapshot,
+                entry,
                 ct
             );
 

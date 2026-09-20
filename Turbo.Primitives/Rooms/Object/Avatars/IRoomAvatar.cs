@@ -40,6 +40,21 @@ public interface IRoomAvatar : IRoomObject
     /// <summary>The hand item (drink, snack) the avatar carries, 0 for none.</summary>
     public int HandItemId { get; }
 
+    /// <summary>
+    /// The dance the avatar is doing, none for standing still. Every avatar carries one because
+    /// wired reads and writes it on any of them, but only an avatar the client draws as a user
+    /// shows it: <c>RoomObjectUserTypes.getVisualizationType</c> maps a bot to <c>"user"</c>,
+    /// while a pet keeps its own visualization and never dances.
+    /// </summary>
+    public AvatarDanceType DanceType { get; }
+
+    /// <summary>
+    /// The effect the avatar is wearing, 0 for none. As with <see cref="DanceType"/> a pet holds
+    /// one without showing it, because only the client's <c>AvatarLogic</c> reads the effect
+    /// update and a pet is driven by <c>PetLogic</c>.
+    /// </summary>
+    public int EffectId { get; }
+
     /// <summary>Milliseconds (room clock) of the avatar's last deliberate action.</summary>
     public long LastActiveAtMs { get; }
     public bool IsIdle { get; }
@@ -51,6 +66,15 @@ public interface IRoomAvatar : IRoomObject
     public bool ThawsOnTeleport { get; }
     public bool SetGoalTileId(int tileId);
     public bool SetHandItem(int handItemId);
+
+    /// <summary>
+    /// Starts or stops a dance. False when it changes nothing, and when the avatar is sitting or
+    /// lying: it cannot dance down there, though it can always stop.
+    /// </summary>
+    public bool SetDance(AvatarDanceType danceType = AvatarDanceType.None);
+
+    /// <summary>Puts an effect on the avatar, 0 to take it off. False when it changes nothing.</summary>
+    public bool SetEffect(int effectId = 0);
     public void Touch(long nowMs);
     public void SetIdle(bool isIdle);
     public void SetFrozen(bool isFrozen, bool thawsOnTeleport = false);

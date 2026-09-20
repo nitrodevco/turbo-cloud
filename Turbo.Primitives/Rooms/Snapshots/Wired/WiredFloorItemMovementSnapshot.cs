@@ -33,4 +33,12 @@ public sealed record WiredFloorItemMovementSnapshot
 
     [Id(8)]
     public required int AnimationTime { get; init; }
+
+    /// <summary>How high the move arcs; null is a straight line.</summary>
+    [Id(9)]
+    public required int? CurveStrength { get; init; }
+
+    /// <summary>Tiles the animation flies on past the target before the furni settles on it; null is none.</summary>
+    [Id(10)]
+    public required int? OvershootDistance { get; init; }
 }

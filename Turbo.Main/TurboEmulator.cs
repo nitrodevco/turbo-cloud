@@ -12,6 +12,7 @@ using Turbo.Primitives.Networking.Revisions;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Rooms.Providers;
+using Turbo.Primitives.Texts;
 using Turbo.Revisions.Revision20260909;
 
 namespace Turbo.Main;
@@ -19,6 +20,7 @@ namespace Turbo.Main;
 public class TurboEmulator(
     ILogger<TurboEmulator> logger,
     IFurnitureDefinitionProvider furnitureProvider,
+    IHotelTextProvider hotelTextProvider,
     ICatalogSnapshotProvider<NormalCatalog> catalogProvider,
     ICurrencyTypeProvider currencyTypeProvider,
     INavigatorProvider topLevelContextProvider,
@@ -30,6 +32,7 @@ public class TurboEmulator(
 {
     private readonly ILogger<TurboEmulator> _logger = logger;
     private readonly IFurnitureDefinitionProvider _furnitureProvider = furnitureProvider;
+    private readonly IHotelTextProvider _hotelTextProvider = hotelTextProvider;
     private readonly ICatalogSnapshotProvider<NormalCatalog> _catalogProvider = catalogProvider;
     private readonly ICurrencyTypeProvider _currencyTypeProvider = currencyTypeProvider;
     private readonly INavigatorProvider _topLevelContextProvider = topLevelContextProvider;
@@ -49,6 +52,7 @@ public class TurboEmulator(
             await _topLevelContextProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _roomModelProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _petBreedProvider.ReloadAsync(ct).ConfigureAwait(false);
+            await _hotelTextProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _networkManager.StartAsync(ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)

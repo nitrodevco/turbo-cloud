@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Orleans;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Rooms.Snapshots.Wired;
 
@@ -10,5 +11,5 @@ public sealed record WiredSelectionSetSnapshot
     public required HashSet<int> SelectedFurniIds { get; init; }
 
     [Id(1)]
-    public required HashSet<int> SelectedPlayerIds { get; init; }
+    public required HashSet<RoomObjectId> SelectedAvatarIds { get; init; }
 }

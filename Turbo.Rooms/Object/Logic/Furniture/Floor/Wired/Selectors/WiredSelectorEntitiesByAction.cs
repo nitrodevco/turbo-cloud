@@ -36,11 +36,8 @@ public class WiredSelectorEntitiesByAction(
 
         foreach (var avatar in _roomGrain.AvatarModule.Avatars)
         {
-            if (
-                avatar is IRoomPlayer player
-                && WiredAvatarActionMatcher.IsPerforming(player, action, _wiredData.StringParam)
-            )
-                output.SelectedPlayerIds.Add(player.PlayerId);
+            if (WiredAvatarActionMatcher.IsPerforming(avatar, action, _wiredData.StringParam))
+                output.SelectedAvatarIds.Add(avatar.ObjectId);
         }
 
         return Task.FromResult<IWiredSelectionSet>(output);

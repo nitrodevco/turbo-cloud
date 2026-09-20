@@ -30,6 +30,7 @@ public abstract class RoomItem<TSelf, TLogic, TContext>
     public Altitude Height => Z + GetStackHeight();
     public IExtraData ExtraData => _extraData;
     public bool IsInvisible => false;
+    public bool IsTemporary => ObjectId.Value < 0;
 
     public void SetExtraData(string? extraData)
     {

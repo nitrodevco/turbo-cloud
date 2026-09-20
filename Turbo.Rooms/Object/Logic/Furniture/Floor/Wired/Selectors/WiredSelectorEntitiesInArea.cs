@@ -40,11 +40,8 @@ public class WiredSelectorEntitiesInArea(
         );
         foreach (var avatar in _roomGrain.AvatarModule.Avatars)
         {
-            if (avatar is not IRoomPlayer player)
-                continue;
-
-            if (area.Contains(player.X, player.Y))
-                output.SelectedPlayerIds.Add(player.PlayerId);
+            if (area.Contains(avatar.X, avatar.Y))
+                output.SelectedAvatarIds.Add(avatar.ObjectId);
         }
 
         return Task.FromResult<IWiredSelectionSet>(output);

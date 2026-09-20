@@ -36,7 +36,7 @@ public class WiredSelectorEntitiesInGroup(
                 continue;
 
             if (wantedGroupId is null || player.GroupId == wantedGroupId)
-                output.SelectedPlayerIds.Add(player.PlayerId);
+                output.SelectedAvatarIds.Add(player.ObjectId);
         }
 
         return Task.FromResult<IWiredSelectionSet>(output);

@@ -18,5 +18,7 @@ public sealed class WiredPolicy : IWiredPolicy
     public bool ShortCircuitOnFirstEffectSuccess { get; set; }
     public WiredCarryUserType? CarryUsers { get; set; }
     public WiredMovePhysicsFlags MovePhysics { get; set; } = WiredMovePhysicsFlags.None;
+    public int? JumpStrength { get; set; }
+    public WiredProjectileSettings? Projectile { get; set; }
     public List<IWiredTextPlaceholder> TextPlaceholders { get; } = [];
 }

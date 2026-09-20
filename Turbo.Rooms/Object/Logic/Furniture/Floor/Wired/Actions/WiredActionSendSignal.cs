@@ -6,6 +6,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
@@ -63,7 +64,7 @@ public class WiredActionSendSignal(
             return false;
 
         var forwardedFurni = WiredSlotSelection.ForSlot(this, ctx, 1).SelectedFurniIds;
-        var forwardedUsers = (ctx.GetSelection(this)).SelectedPlayerIds;
+        var forwardedUsers = (ctx.GetSelection(this)).SelectedAvatarIds;
         var splitFurni = GetIntParamOrDefault(0, false);
         var splitUsers = GetIntParamOrDefault(1, false);
 
@@ -74,7 +75,7 @@ public class WiredActionSendSignal(
         var userBatches =
             splitUsers && forwardedUsers.Count > 0
                 ? Split(forwardedUsers)
-                : [new HashSet<int>(forwardedUsers)];
+                : [new HashSet<RoomObjectId>(forwardedUsers)];
 
         foreach (var furniBatch in furniBatches)
         {
@@ -87,7 +88,7 @@ public class WiredActionSendSignal(
                         CausedBy = ActionContext.CreateForWired(_roomGrain.RoomId),
                         AntennaIds = new HashSet<int>(antennas),
                         FurniIds = furniBatch,
-                        PlayerIds = userBatch,
+                        AvatarIds = userBatch,
                         Depth = ctx.Depth + 1,
                         SenderId = ObjectId,
                     },
@@ -99,9 +100,9 @@ public class WiredActionSendSignal(
         return true;
     }
 
-    private static List<HashSet<int>> Split(HashSet<int> ids)
+    private static List<HashSet<TId>> Split<TId>(HashSet<TId> ids)
     {
-        var batches = new List<HashSet<int>>(ids.Count);
+        var batches = new List<HashSet<TId>>(ids.Count);
 
         foreach (var id in ids)
             batches.Add([id]);

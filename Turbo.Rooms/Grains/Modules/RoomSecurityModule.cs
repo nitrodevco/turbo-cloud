@@ -88,17 +88,23 @@ public sealed class RoomSecurityModule(
 
     public Task<bool> GetIsRoomOwnerAsync(ActionContext ctx) => GetIsRoomOwnerAsync(ctx.PlayerId);
 
-    public Task<bool> GetIsRoomOwnerAsync(PlayerId playerId)
-    {
-        var isOwner = false;
+    public Task<bool> GetIsRoomOwnerAsync(PlayerId playerId) =>
+        Task.FromResult(IsRoomOwner(playerId));
 
-        if (_roomGrain._state.RoomSnapshot.OwnerId == playerId)
-            isOwner = true;
-
+    /// <summary>
+    /// Whether the room is this player's. Synchronous because it only reads room state, for
+    /// callers that cannot await (the wired variables).
+    /// </summary>
+    public bool IsRoomOwner(PlayerId playerId) =>
         // if has perm any_room_owner true
+        _roomGrain._state.RoomSnapshot.OwnerId == playerId;
 
-        return Task.FromResult(isOwner);
-    }
+    /// <summary>
+    /// Whether this player was given rights here. Rights are loaded with the room, so this
+    /// needs no await; it says nothing about the owner, who needs no rights.
+    /// </summary>
+    public bool HasRights(PlayerId playerId) =>
+        _roomGrain._state.PlayerIdsWithRights.Contains(playerId);
 
     /// <summary>
     /// System-originated actions act as a moderator; everything else resolves by player id.
@@ -110,7 +116,7 @@ public sealed class RoomSecurityModule(
 
     public async Task<RoomControllerType> GetControllerLevelAsync(PlayerId playerId)
     {
-        if (await GetIsRoomOwnerAsync(playerId))
+        if (IsRoomOwner(playerId))
             return RoomControllerType.Owner;
 
         var isGroupRoom = await _roomGrain.GetIsGroupRoomAsync(CancellationToken.None);
@@ -126,7 +132,7 @@ public sealed class RoomSecurityModule(
         {
             // if has perm room_rights Rights
 
-            if (_roomGrain._state.PlayerIdsWithRights.Contains(playerId))
+            if (HasRights(playerId))
                 return RoomControllerType.Rights;
         }
 

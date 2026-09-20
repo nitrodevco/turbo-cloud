@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -17,8 +16,12 @@ using Turbo.Rooms.Wired.Rules;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
 /// <summary>
-/// Fires on chat. Params: hide the message (kept for the client), the match mode (contains,
-/// exact, every word) and owner only. The string param is the keyword.
+/// Fires on chat. Params, as the client's editor writes them: hide the message (honoured by
+/// the chat path), the match mode and owner only. The string param is the keyword.
+///
+/// The third mode is "Match all text", and the editor greys the keyword box out for it: it
+/// fires on anything that is said. The other two need a keyword and match it against the whole
+/// message.
 /// </summary>
 [RoomObjectLogic("wf_trg_says_something")]
 public class WiredTriggerHabboSaysKeyword(
@@ -33,7 +36,7 @@ public class WiredTriggerHabboSaysKeyword(
 
     private const int MATCH_CONTAINS = 0;
     private const int MATCH_EXACT = 1;
-    private const int MATCH_ALL_WORDS = 2;
+    private const int MATCH_ANY_TEXT = 2;
 
     public override int WiredCode => (int)WiredTriggerType.AVATAR_SAYS_SOMETHING;
     public override List<Type> SupportedEventTypes { get; } = [typeof(PlayerChatEvent)];
@@ -50,6 +53,12 @@ public class WiredTriggerHabboSaysKeyword(
         if (evt is not PlayerChatEvent chatEvt || chatEvt.ChatType == RoomChatType.Whisper)
             return Task.FromResult(false);
 
+        var mode = GetIntParamOrDefault(MATCH_MODE_PARAM_INDEX, MATCH_CONTAINS);
+
+        // Anything said will do, so there is no keyword to check: the editor disables the box.
+        if (mode == MATCH_ANY_TEXT)
+            return Task.FromResult(true);
+
         var keyword = _wiredData.StringParam?.Trim() ?? string.Empty;
 
         if (keyword.Length == 0)
@@ -58,14 +67,9 @@ public class WiredTriggerHabboSaysKeyword(
         var text = chatEvt.Text.Trim();
 
         return Task.FromResult(
-            GetIntParamOrDefault(MATCH_MODE_PARAM_INDEX, MATCH_CONTAINS) switch
-            {
-                MATCH_EXACT => string.Equals(text, keyword, StringComparison.OrdinalIgnoreCase),
-                MATCH_ALL_WORDS => keyword
-                    .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                    .All(word => text.Contains(word, StringComparison.OrdinalIgnoreCase)),
-                _ => text.Contains(keyword, StringComparison.OrdinalIgnoreCase),
-            }
+            mode == MATCH_EXACT
+                ? string.Equals(text, keyword, StringComparison.OrdinalIgnoreCase)
+                : text.Contains(keyword, StringComparison.OrdinalIgnoreCase)
         );
     }
 

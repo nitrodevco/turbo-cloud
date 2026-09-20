@@ -6,7 +6,7 @@ using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
-using Turbo.Primitives.Rooms.Events.Player;
+using Turbo.Primitives.Rooms.Events.Avatar;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
@@ -16,7 +16,7 @@ using Turbo.Rooms.Wired.Rules;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
 /// <summary>
-/// Fires when a player waves, dances, sits and so on. Int param 0 is the action code; the
+/// Fires when an avatar waves, dances, sits and so on. Int param 0 is the action code; the
 /// string param narrows a sign ("3") or dance ("dance 2") to one value.
 /// </summary>
 [RoomObjectLogic("wf_trg_user_performs_action")]
@@ -27,7 +27,7 @@ public class WiredTriggerHabboPerformsAction(
 ) : FurnitureWiredTriggerLogic(grainFactory, stuffDataFactory, ctx)
 {
     public override int WiredCode => (int)WiredTriggerType.AVATAR_PERFORMS_ACTION;
-    public override List<Type> SupportedEventTypes { get; } = [typeof(PlayerPerformsActionEvent)];
+    public override List<Type> SupportedEventTypes { get; } = [typeof(AvatarPerformsActionEvent)];
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredEnumParamRule<WiredAvatarActionType>(WiredAvatarActionType.Wave)];
@@ -35,7 +35,7 @@ public class WiredTriggerHabboPerformsAction(
     public override Task<bool> MatchesEventAsync(RoomEvent evt, CancellationToken ct)
     {
         if (
-            evt is not PlayerPerformsActionEvent performed
+            evt is not AvatarPerformsActionEvent performed
             || !WiredAvatarActionMatcher.TryTranslate(performed, out var action, out var value)
         )
             return Task.FromResult(false);
@@ -51,5 +51,5 @@ public class WiredTriggerHabboPerformsAction(
     }
 
     public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct) =>
-        Task.FromResult(ctx.Event is PlayerPerformsActionEvent);
+        Task.FromResult(ctx.Event is AvatarPerformsActionEvent);
 }

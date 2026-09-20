@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
@@ -15,6 +16,7 @@ using Turbo.Primitives.Rooms.Events.Bot;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Events.Wired;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
@@ -115,11 +117,13 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
             case PlayerControllerLevelChangedEvent levelEvt:
                 return SendPermissionsAsync(levelEvt.PlayerId, levelEvt.ControllerLevel, ct);
             case PlayerLeftEvent playerLeftEvt:
-                _playerActiveStore.RemovePlayerStore(playerLeftEvt.PlayerId);
+                _playerActiveStore.RemoveAvatarStore(playerLeftEvt.ObjectId);
                 _eventQueue.Enqueue(evt);
                 break;
             case RoomItemDetachedEvent detatchedEvt:
                 _furnitureActiveStore.RemoveFurnitureStore(detatchedEvt.ObjectId);
+                ForgetStoredValuesOfTemporaryFurni(detatchedEvt.ObjectId);
+                ForgetProjectileFlight(detatchedEvt.ObjectId);
                 ForgetTimedTrigger(detatchedEvt.ObjectId);
                 break;
             default:
@@ -175,7 +179,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
         {
             WiredSignalEvent signalEvt => (
                 new WiredSelectionSet().UnionWith(
-                    new WiredSelectionSet(signalEvt.FurniIds, signalEvt.PlayerIds)
+                    new WiredSelectionSet(signalEvt.FurniIds, signalEvt.AvatarIds)
                 ),
                 signalEvt.Depth
             ),
@@ -281,16 +285,16 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
         }
 
         var basis =
-            ctx.SelectorPool.HasFurni || ctx.SelectorPool.HasPlayers
+            ctx.SelectorPool.HasFurni || ctx.SelectorPool.HasAvatars
                 ? ctx.SelectorPool
                 : ctx.Selected;
         var furni = basis.SelectedFurniIds.Intersect(set.SelectedFurniIds).ToList();
-        var players = basis.SelectedPlayerIds.Intersect(set.SelectedPlayerIds).ToList();
+        var players = basis.SelectedAvatarIds.Intersect(set.SelectedAvatarIds).ToList();
 
         ctx.SelectorPool.SelectedFurniIds.Clear();
-        ctx.SelectorPool.SelectedPlayerIds.Clear();
+        ctx.SelectorPool.SelectedAvatarIds.Clear();
         ctx.SelectorPool.SelectedFurniIds.UnionWith(furni);
-        ctx.SelectorPool.SelectedPlayerIds.UnionWith(players);
+        ctx.SelectorPool.SelectedAvatarIds.UnionWith(players);
     }
 
     private WiredSelectionSet InvertSelection(IWiredSelectionSet set)
@@ -305,8 +309,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
 
         foreach (var avatar in _roomGrain.AvatarModule.Avatars)
         {
-            if (avatar is IRoomPlayer player && !set.SelectedPlayerIds.Contains(player.PlayerId))
-                inverted.SelectedPlayerIds.Add(player.PlayerId);
+            if (!set.SelectedAvatarIds.Contains(avatar.ObjectId))
+                inverted.SelectedAvatarIds.Add(avatar.ObjectId);
         }
 
         return inverted;
@@ -316,30 +320,35 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
     private void SeedSelectionFromEvent(WiredProcessingContext ctx, RoomEvent evt)
     {
         if (evt.CausedBy.Origin == ActionOrigin.Player && evt.CausedBy.PlayerId > 0)
-            ctx.Selected.SelectedPlayerIds.Add(evt.CausedBy.PlayerId);
+            AddPlayerById(ctx, evt.CausedBy.PlayerId);
 
         switch (evt)
         {
             case PlayerClickedAvatarEvent clickEvt:
-                ctx.Selected.SelectedPlayerIds.Add(clickEvt.PlayerId);
-                AddPlayerByObjectId(ctx, clickEvt.TargetObjectId);
+                AddPlayerById(ctx, clickEvt.PlayerId);
+                AddAvatarByObjectId(ctx, clickEvt.TargetObjectId);
                 break;
             case PlayerEvent playerEvt:
-                ctx.Selected.SelectedPlayerIds.Add(playerEvt.PlayerId);
+                AddPlayerById(ctx, playerEvt.PlayerId);
                 break;
             case AvatarWalkOnFurniEvent walkOnEvt:
-                AddPlayerByObjectId(ctx, walkOnEvt.ObjectId);
+                AddAvatarByObjectId(ctx, walkOnEvt.ObjectId);
                 ctx.Selected.SelectedFurniIds.Add(walkOnEvt.FurniId);
                 break;
             case AvatarWalkOffFurniEvent walkOffEvt:
-                AddPlayerByObjectId(ctx, walkOffEvt.ObjectId);
+                AddAvatarByObjectId(ctx, walkOffEvt.ObjectId);
                 ctx.Selected.SelectedFurniIds.Add(walkOffEvt.FurniId);
+                break;
+            // Anything else an avatar did names it by room index and nothing more, so the avatar
+            // is the whole selection. This follows the two above, which add their furni as well.
+            case AvatarEvent avatarEvt:
+                AddAvatarByObjectId(ctx, avatarEvt.ObjectId);
                 break;
             case RoomItemEvent itemEvt:
                 ctx.Selected.SelectedFurniIds.Add(itemEvt.ObjectId);
                 break;
             case BotReachedAvatarEvent botAvatarEvt:
-                AddPlayerByObjectId(ctx, botAvatarEvt.TargetObjectId);
+                AddAvatarByObjectId(ctx, botAvatarEvt.TargetObjectId);
                 break;
             case BotReachedItemEvent botItemEvt:
                 ctx.Selected.SelectedFurniIds.Add(botItemEvt.FurniId);
@@ -353,13 +362,17 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
         }
     }
 
-    private void AddPlayerByObjectId(WiredProcessingContext ctx, int objectId)
+    private void AddAvatarByObjectId(WiredProcessingContext ctx, RoomObjectId objectId)
     {
-        if (
-            _roomGrain.AvatarModule.TryGetAvatar(objectId, out var avatar)
-            && avatar is IRoomPlayer player
-        )
-            ctx.Selected.SelectedPlayerIds.Add(player.PlayerId);
+        if (_roomGrain.AvatarModule.TryGetAvatar(objectId, out _))
+            ctx.Selected.SelectedAvatarIds.Add(objectId);
+    }
+
+    /// <summary>An event names the player; a selection names the avatar they are here.</summary>
+    private void AddPlayerById(WiredProcessingContext ctx, PlayerId playerId)
+    {
+        if (_roomGrain.AvatarModule.TryGetPlayer(playerId, out var player))
+            ctx.Selected.SelectedAvatarIds.Add(player.ObjectId);
     }
 
     private async Task ProcessStackCallAsync(
@@ -390,7 +403,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
             };
 
             ctx.Selected.SelectedFurniIds.UnionWith(evt.FurniIds);
-            ctx.Selected.SelectedPlayerIds.UnionWith(evt.PlayerIds);
+            ctx.Selected.SelectedAvatarIds.UnionWith(evt.AvatarIds);
 
             await RunStackAsync(ctx, now, evt.IsNegative, ct);
         }
@@ -770,9 +783,9 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
             WiredConditionModeType.All => matched == conditions.Count,
             WiredConditionModeType.NoneMatch => matched == 0,
             WiredConditionModeType.NotAll => matched < conditions.Count,
-            WiredConditionModeType.AtLeast => matched >= threshold,
-            WiredConditionModeType.AtMost => matched <= threshold,
+            WiredConditionModeType.LessThan => matched < threshold,
             WiredConditionModeType.Exactly => matched == threshold,
+            WiredConditionModeType.MoreThan => matched > threshold,
             _ => matched == conditions.Count,
         };
     }

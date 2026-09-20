@@ -35,6 +35,10 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain)
         if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
+        // Nobody owns a temporary furni, so nobody picks one up into an inventory.
+        if (item.IsTemporary)
+            throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
+
         var pickupType = await _roomGrain.SecurityModule.GetFurniPickupTypeAsync(ctx);
 
         // Whatever a player may do in the room, their own furni is theirs to take back: someone
@@ -93,6 +97,10 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain)
                     announce: !isFloorItem
                 )
             )
+                continue;
+
+            // A temporary furni leaves the room like any other and then is simply gone.
+            if (item.IsTemporary)
                 continue;
 
             if (!returned.TryGetValue(item.OwnerId, out var owned))

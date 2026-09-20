@@ -4,9 +4,9 @@ using Turbo.Primitives.Badges;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Rooms.Object.Avatars.Player;
@@ -19,12 +19,14 @@ public sealed class RoomPlayerAvatar
 
     public required PlayerId PlayerId { get; init; }
     public AvatarGenderType Gender { get; private set; } = AvatarGenderType.Male;
-    public AvatarDanceType DanceType { get; private set; } = AvatarDanceType.None;
-    public int EffectId { get; private set; } = 0;
     public ImmutableArray<string> BadgeCodes { get; private set; } = [];
 
     /// <summary>The player's place on the total badges board, as their summary last said.</summary>
     public int BadgesRank { get; private set; } = BadgeRanks.NONE;
+    public int AchievementScore { get; private set; }
+    public RoomEntrySnapshot RoomEntry { get; private set; } = RoomEntrySnapshot.Default;
+
+    public void SetRoomEntry(RoomEntrySnapshot entry) => RoomEntry = entry;
 
     public int GroupId { get; init; } = -1;
     public int GroupStatus { get; init; } = -1;
@@ -40,57 +42,12 @@ public sealed class RoomPlayerAvatar
         Figure = snapshot.Figure;
         Gender = snapshot.Gender;
         BadgesRank = snapshot.BadgesRank;
-
-        return true;
-    }
-
-    public override void Sit(bool flag = true, Altitude? height = null, Rotation? rot = null)
-    {
-        if (flag)
-            SetDance(AvatarDanceType.None);
-
-        base.Sit(flag, height, rot);
-    }
-
-    public override void Lay(bool flag = true, Altitude? height = null, Rotation? rot = null)
-    {
-        if (flag)
-            SetDance(AvatarDanceType.None);
-
-        base.Lay(flag, height, rot);
-    }
-
-    public bool SetDance(AvatarDanceType danceType = AvatarDanceType.None)
-    {
-        if (DanceType == danceType)
-            return false;
-
-        if (HasStatus(AvatarStatusType.Sit, AvatarStatusType.Lay))
-            return false;
-
-        // check if dance valid
-        // check if dance is hc only / validate hc
-
-        DanceType = danceType;
-
-        _snapshot = null;
+        AchievementScore = snapshot.AchievementScore;
 
         return true;
     }
 
     public void SetBadges(ImmutableArray<string> badgeCodes) => BadgeCodes = badgeCodes;
-
-    public bool SetEffect(int effectId = 0)
-    {
-        if (EffectId == effectId)
-            return false;
-
-        EffectId = effectId;
-
-        _snapshot = null;
-
-        return true;
-    }
 
     protected override RoomPlayerAvatarSnapshot BuildSnapshot()
     {

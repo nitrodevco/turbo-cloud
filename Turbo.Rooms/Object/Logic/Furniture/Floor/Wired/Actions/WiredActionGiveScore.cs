@@ -38,8 +38,9 @@ public class WiredActionGiveScore(
         var selection = ctx.GetSelection(this);
         var scored = false;
 
-        foreach (var playerId in selection.SelectedPlayerIds)
+        foreach (var player in GetPlayers(selection))
         {
+            var playerId = player.PlayerId;
             var team = ResolveTeam(playerId);
 
             if (team == GameTeamType.None)

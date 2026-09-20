@@ -94,8 +94,6 @@ public abstract class FurnitureWiredVariableFxLogic(
     protected const string STATUS_IS_MAXED = "is_maxed";
     private const string STATUS_DELEGATED_COLOR = "delegated_color";
 
-    private static readonly WiredVariableId NO_VARIABLE = new(0);
-
     protected abstract VariableFxCategoryType Category { get; }
 
     /// <summary>False for the categories whose editor has no min and max (levels, plain numbers).</summary>
@@ -378,30 +376,8 @@ public abstract class FurnitureWiredVariableFxLogic(
         return variable.TryGetValue(key, out var value) ? value.Value : null;
     }
 
-    /// <summary>
-    /// The three ids keep their places: an empty or unknown one becomes "none" instead of being
-    /// dropped, or the audience variable would slide into the override minimum's slot.
-    /// </summary>
-    protected override bool GetValidVariableIds(
-        List<string> proposed,
-        out List<WiredVariableId> variableIds
-    )
-    {
-        variableIds = [];
-
-        for (var slot = 0; slot < SLOT_COUNT; slot++)
-        {
-            variableIds.Add(
-                slot < proposed.Count
-                && WiredVariableId.TryParse(proposed[slot], out var variableId)
-                && _roomGrain.WiredSystem.GetVariableById(variableId) is not null
-                    ? variableId
-                    : NO_VARIABLE
-            );
-        }
-
-        return true;
-    }
+    // Override min, override max, audience: see HasPositionalVariableIds.
+    protected override bool HasPositionalVariableIds => true;
 
     // A save, a move, placing and picking up all end here. The stack event stays: it is what
     // makes the wired system load this box. The fx system is told besides, since every one of

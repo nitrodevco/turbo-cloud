@@ -30,12 +30,12 @@ public class WiredConditionHabboInTeam(
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var wanted = GetIntParamOrDefault(0, GameTeamType.None);
-        var players = ctx.GetSelection(this).SelectedPlayerIds;
+        var players = GetPlayers(ctx.GetSelection(this));
 
         return Quantify(
-            players.Select(playerId =>
+            players.Select(player =>
             {
-                var team = _roomGrain.GameSystem.GetTeam(playerId);
+                var team = _roomGrain.GameSystem.GetTeam(player.PlayerId);
 
                 return wanted == GameTeamType.None ? team != GameTeamType.None : team == wanted;
             }),

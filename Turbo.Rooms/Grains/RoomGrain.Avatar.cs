@@ -11,6 +11,7 @@ using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Rooms.Grains;
@@ -20,12 +21,13 @@ public sealed partial class RoomGrain
     public async Task<bool> CreateAvatarFromPlayerAsync(
         ActionContext ctx,
         PlayerSummarySnapshot snapshot,
+        RoomEntrySnapshot entry,
         CancellationToken ct
     )
     {
         try
         {
-            var avatar = await AvatarModule.CreateAvatarFromPlayerAsync(ctx, snapshot, ct);
+            var avatar = await AvatarModule.CreateAvatarFromPlayerAsync(ctx, snapshot, entry, ct);
 
             await PublishRoomEventAsync(
                 new PlayerEnterEvent
@@ -77,6 +79,12 @@ public sealed partial class RoomGrain
                         $"close the trade of player {playerId} leaving room {_state.RoomId}"
                     );
 
+            // Read before the avatar goes: what left is told with the event, because by then
+            // there is nothing left to look up.
+            var objectId = AvatarModule.TryGetPlayer(playerId, out var leaving)
+                ? leaving.ObjectId
+                : RoomObjectId.Parse(0);
+
             await AvatarModule.RemoveAvatarFromPlayerAsync(ctx, playerId, ct);
 
             await PublishRoomEventAsync(
@@ -85,6 +93,7 @@ public sealed partial class RoomGrain
                     RoomId = _state.RoomId,
                     CausedBy = ctx,
                     PlayerId = playerId,
+                    ObjectId = objectId,
                 },
                 ct
             );

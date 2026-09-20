@@ -29,7 +29,7 @@ public class WiredConditionHabboHasHanditem(
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var handItemId = GetIntParamOrDefault(0, 0);
-        var players = GetPlayers(ctx.GetSelection(this));
+        var players = GetAvatars(ctx.GetSelection(this));
 
         return Quantify(
             players.Select(p => handItemId == 0 ? p.HandItemId != 0 : p.HandItemId == handItemId),

@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired.Variable;
@@ -53,28 +54,12 @@ public sealed partial class RoomWiredSystem
     public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct) =>
         Task.FromResult(_variablesSnapshot ??= BuildVariablesSnapshot());
 
-    /// <summary>
-    /// The client addresses users by room index; stores and selections use player ids. Maps a
-    /// room index to the player id when one is in the room, otherwise passes the id through.
-    /// </summary>
-    public int ResolveTargetId(WiredVariableTargetType targetType, int targetId)
-    {
-        if (
-            targetType == WiredVariableTargetType.User
-            && _roomGrain.AvatarModule.TryGetAvatar(targetId, out var avatar)
-            && avatar is IRoomPlayer player
-        )
-            return player.PlayerId;
-
-        return targetId;
-    }
-
     public Task<
         List<(WiredVariableId id, WiredVariableValue value)>
     > GetAllVariablesForBindingAsync(WiredVariableBinding binding, CancellationToken ct)
     {
         var variableValues = new List<(WiredVariableId id, WiredVariableValue value)>();
-        var targetId = ResolveTargetId(binding.TargetType, binding.TargetId);
+        var targetId = binding.TargetId;
 
         foreach (var (id, variable) in _variableById)
         {
@@ -121,13 +106,10 @@ public sealed partial class RoomWiredSystem
             case WiredVariableTargetType.User:
                 foreach (var avatar in _roomGrain.AvatarModule.Avatars)
                 {
-                    if (avatar is not IRoomPlayer player)
-                        continue;
-
                     var key = new WiredVariableKey(
                         variableId,
                         WiredVariableTargetType.User,
-                        player.PlayerId
+                        avatar.ObjectId
                     );
 
                     if (variable.TryGetValue(key, out var value))
@@ -174,11 +156,7 @@ public sealed partial class RoomWiredSystem
             return false;
 
         var flags = variable.GetVarSnapshot().Flags;
-        var key = new WiredVariableKey(
-            variableId,
-            binding.TargetType,
-            ResolveTargetId(binding.TargetType, binding.TargetId)
-        );
+        var key = new WiredVariableKey(variableId, binding.TargetType, binding.TargetId);
 
         switch (operation)
         {
@@ -226,6 +204,31 @@ public sealed partial class RoomWiredSystem
                 or WiredVariableTargetType.User
             ? box.RemoveAllValues()
             : 0;
+
+    /// <summary>
+    /// A stored furni variable outlives the furni that holds it, which is right for a furni
+    /// somebody owns and wrong for a temporary one: its id is handed out again the next time the
+    /// room loads, and the new furni would inherit the old one's values.
+    /// </summary>
+    private void ForgetStoredValuesOfTemporaryFurni(RoomObjectId objectId)
+    {
+        if (objectId.Value >= 0)
+            return;
+
+        foreach (var variable in _variableById.Values)
+        {
+            var snapshot = variable.GetVarSnapshot();
+
+            if (snapshot.TargetType == WiredVariableTargetType.Furni)
+                variable.RemoveValue(
+                    new WiredVariableKey(
+                        snapshot.VariableId,
+                        WiredVariableTargetType.Furni,
+                        objectId.Value
+                    )
+                );
+        }
+    }
 
     private bool IsLiveTarget(WiredVariableBinding binding) =>
         binding.TargetType switch

@@ -6,6 +6,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Primitives.Rooms.Grains;
@@ -15,6 +16,7 @@ public partial interface IRoomGrain
     public Task<bool> CreateAvatarFromPlayerAsync(
         ActionContext ctx,
         PlayerSummarySnapshot snapshot,
+        RoomEntrySnapshot entry,
         CancellationToken ct
     );
     public Task<bool> RemoveAvatarFromPlayerAsync(

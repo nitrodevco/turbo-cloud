@@ -15,10 +15,11 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Events.Player;
+using Turbo.Primitives.Rooms.Events.Avatar;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -32,6 +33,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
     public async Task<IRoomAvatar> CreateAvatarFromPlayerAsync(
         ActionContext ctx,
         PlayerSummarySnapshot snapshot,
+        RoomEntrySnapshot entry,
         CancellationToken ct
     )
     {
@@ -49,6 +51,8 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         }
 
         var avatar = _roomGrain._avatarProvider.CreateAvatarFromPlayerSnapshot(objectId, snapshot);
+
+        avatar.SetRoomEntry(entry);
 
         avatar.NextTileId = _roomGrain.MapModule.ToIdx(startX, startY);
 
@@ -509,8 +513,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         if (
             objectId <= 0
             || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar)
-            || avatar is not IRoomPlayer player
-            || !player.SetDance(danceType)
+            || !avatar.SetDance(danceType)
         )
             return Task.FromResult(false);
 
@@ -519,13 +522,13 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
                 new DanceMessageComposer
                 {
                     ObjectId = avatar.ObjectId,
-                    DanceType = player.DanceType,
+                    DanceType = avatar.DanceType,
                 },
                 ct
             )
             .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
 
-        PublishAction(player, AvatarActionType.Dance, (int)player.DanceType);
+        PublishAction(avatar, AvatarActionType.Dance, (int)avatar.DanceType);
 
         return Task.FromResult(true);
     }
@@ -539,8 +542,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         if (
             objectId <= 0
             || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar)
-            || avatar is not IRoomPlayer player
-            || !player.SetEffect(effectId)
+            || !avatar.SetEffect(effectId)
         )
             return Task.FromResult(false);
 
@@ -549,7 +551,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
                 new AvatarEffectMessageComposer
                 {
                     ObjectId = avatar.ObjectId,
-                    EffectId = player.EffectId,
+                    EffectId = avatar.EffectId,
                     DelayMilliseconds = 0,
                 },
                 ct
@@ -582,8 +584,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
             )
             .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
 
-        if (avatar is IRoomPlayer expressingPlayer)
-            PublishAction(expressingPlayer, AvatarActionType.Expression, (int)expressionType);
+        PublishAction(avatar, AvatarActionType.Expression, (int)expressionType);
 
         return Task.FromResult(true);
     }
@@ -598,8 +599,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
 
         avatar.AddStatus(AvatarStatusType.Sign, signType.ToString());
 
-        if (avatar is IRoomPlayer signingPlayer)
-            PublishAction(signingPlayer, AvatarActionType.Sign, signType);
+        PublishAction(avatar, AvatarActionType.Sign, signType);
 
         return Task.FromResult(true);
     }
@@ -733,36 +733,32 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         {
             case AvatarPostureType.Sit:
                 avatar.Sit(true);
-                if (avatar is IRoomPlayer sittingPlayer)
-                    PublishAction(
-                        sittingPlayer,
-                        AvatarActionType.Posture,
-                        (int)AvatarPostureType.Sit
-                    );
+                PublishAction(avatar, AvatarActionType.Posture, (int)AvatarPostureType.Sit);
                 break;
             case AvatarPostureType.Stand:
                 avatar.Sit(false);
-                if (avatar is IRoomPlayer standingPlayer)
-                    PublishAction(
-                        standingPlayer,
-                        AvatarActionType.Posture,
-                        (int)AvatarPostureType.Stand
-                    );
+                PublishAction(avatar, AvatarActionType.Posture, (int)AvatarPostureType.Stand);
                 break;
         }
 
         return Task.FromResult(true);
     }
 
-    /// <summary>Tells the room what a player just did. Queued, so it never blocks the caller.</summary>
-    private void PublishAction(IRoomPlayer player, AvatarActionType actionType, int value) =>
+    /// <summary>
+    /// Tells the room what an avatar just did. Queued, so it never blocks the caller. The event
+    /// names the avatar by room index, so a bot or a pet is reported the same way a player is;
+    /// only a player has a player id to blame it on, and anything else is the room's own doing.
+    /// </summary>
+    private void PublishAction(IRoomAvatar avatar, AvatarActionType actionType, int value) =>
         _roomGrain
             .PublishRoomEventAsync(
-                new PlayerPerformsActionEvent
+                new AvatarPerformsActionEvent
                 {
                     RoomId = _roomGrain.RoomId,
-                    CausedBy = ActionContext.CreateForPlayer(player.PlayerId, _roomGrain.RoomId),
-                    PlayerId = player.PlayerId,
+                    CausedBy = avatar is IRoomPlayer player
+                        ? ActionContext.CreateForPlayer(player.PlayerId, _roomGrain.RoomId)
+                        : ActionContext.CreateForSystem(_roomGrain.RoomId),
+                    ObjectId = avatar.ObjectId,
                     ActionType = actionType,
                     Value = value,
                 },

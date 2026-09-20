@@ -120,6 +120,39 @@ public sealed class RoomGameSystem(RoomGrain roomGrain) : IRoomEventListener
     /// furni handing out the points) may score for one player during a game; zero means
     /// unlimited.
     /// </summary>
+    /// <summary>
+    /// Puts a team's score at a number, rather than adding to it: what writing the
+    /// <c>@team.score</c> variable does. It is not a grant, so the per-game limits a scoring
+    /// box obeys do not apply.
+    /// </summary>
+    public async Task<bool> SetScoreAsync(GameTeamType team, int score, CancellationToken ct)
+    {
+        if (!IsTeam(team))
+            return false;
+
+        var previous = _teamScores[(int)team];
+        var next = Math.Max(0, score);
+
+        if (next == previous)
+            return false;
+
+        _teamScores[(int)team] = next;
+
+        await _roomGrain.PublishRoomEventAsync(
+            new GameScoreChangedEvent
+            {
+                RoomId = _roomGrain.RoomId,
+                CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
+                Team = team,
+                Score = next,
+                PreviousScore = previous,
+            },
+            ct
+        );
+
+        return true;
+    }
+
     public async Task<bool> GiveScoreAsync(
         GameTeamType team,
         int points,

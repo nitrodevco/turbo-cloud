@@ -83,12 +83,15 @@ public class WiredActionGiveVariable(
                     }
                     case WiredVariableTargetType.User:
                     {
-                        foreach (var playerId in selection.SelectedPlayerIds)
+                        // A user variable is keyed by the avatar, not by the player.
+                        foreach (
+                            var targetId in GetTargetIds(WiredVariableTargetType.User, selection)
+                        )
                         {
                             var key = new WiredVariableKey(
                                 id,
                                 WiredVariableTargetType.User,
-                                playerId
+                                targetId
                             );
 
                             await variable.GiveValueAsync(key, value, replace);

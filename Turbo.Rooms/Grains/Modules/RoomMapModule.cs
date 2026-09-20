@@ -83,6 +83,10 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
     public bool IsTileDisabled(int tileIdx) =>
         !InBounds(tileIdx) || _roomGrain._state.TileFlags[tileIdx].Has(RoomTileFlags.Disabled);
 
+    /// <summary>How high the top of a tile is: what a furni put there lands on. Zero outside the room.</summary>
+    public Altitude GetTileHeight(int tileIdx) =>
+        InBounds(tileIdx) ? _roomGrain._state.TileHeights[tileIdx] : Altitude.Zero;
+
     /// <summary>
     /// The neighbouring tiles that bring <paramref name="fromIdx"/> closer to
     /// <paramref name="toIdx"/>, straight steps only: the axis with more ground to cover first,

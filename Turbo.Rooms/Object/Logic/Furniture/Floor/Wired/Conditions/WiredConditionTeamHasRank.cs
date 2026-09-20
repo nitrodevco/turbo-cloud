@@ -49,8 +49,8 @@ public class WiredConditionTeamHasRank(
         if (configured != GameTeamType.None)
             return [configured];
 
-        return ctx
-            .Selected.SelectedPlayerIds.Select(id => _roomGrain.GameSystem.GetTeam(id))
+        return GetPlayers(ctx.Selected)
+            .Select(x => _roomGrain.GameSystem.GetTeam(x.PlayerId))
             .Where(x => x != GameTeamType.None)
             .Distinct()
             .ToList();

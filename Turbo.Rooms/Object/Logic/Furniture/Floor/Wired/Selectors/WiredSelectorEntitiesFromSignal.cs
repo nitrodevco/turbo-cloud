@@ -27,10 +27,10 @@ public class WiredSelectorEntitiesFromSignal(
     {
         var output = new WiredSelectionSet();
 
-        foreach (var playerId in ctx.Signal.SelectedPlayerIds)
+        foreach (var avatarId in ctx.Signal.SelectedAvatarIds)
         {
-            if (TryGetPlayer(playerId, out _))
-                output.SelectedPlayerIds.Add(playerId);
+            if (_roomGrain.AvatarModule.TryGetAvatar(avatarId, out _))
+                output.SelectedAvatarIds.Add(avatarId);
         }
 
         return Task.FromResult<IWiredSelectionSet>(output);

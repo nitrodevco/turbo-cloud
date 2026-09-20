@@ -39,6 +39,8 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
     public long NextMoveUpdateAtMs { get; set; } = 0;
     public long PendingStopAtMs { get; set; } = 0;
     public int HandItemId { get; private set; } = 0;
+    public AvatarDanceType DanceType { get; private set; } = AvatarDanceType.None;
+    public int EffectId { get; private set; } = 0;
     public long LastActiveAtMs { get; private set; } = 0;
     public bool IsIdle { get; private set; } = false;
     public bool IsFrozen { get; private set; } = false;
@@ -120,6 +122,10 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
         {
             RemoveStatus(AvatarStatusType.Lay);
 
+            // Nothing dances sitting down. Every kind of avatar did this in its own override
+            // before; the posture is the base's to keep, so the dance it cancels is too.
+            SetDance(AvatarDanceType.None);
+
             rot ??= Rotation;
 
             SetRotation(rot.Value.ToSitRotation());
@@ -141,6 +147,8 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
         if (flag)
         {
             RemoveStatus(AvatarStatusType.Sit);
+
+            SetDance(AvatarDanceType.None);
 
             rot ??= Rotation;
 
@@ -170,6 +178,48 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
 
         return true;
     }
+
+    /// <summary>
+    /// Every avatar dances the same way, so this lives here rather than once per kind. Stopping
+    /// is always allowed; only starting is refused to an avatar that is sitting or lying.
+    /// </summary>
+    public bool SetDance(AvatarDanceType danceType = AvatarDanceType.None)
+    {
+        if (DanceType == danceType)
+            return false;
+
+        if (
+            danceType != AvatarDanceType.None
+            && HasStatus(AvatarStatusType.Sit, AvatarStatusType.Lay)
+        )
+            return false;
+
+        DanceType = danceType;
+
+        DropCachedSnapshot();
+
+        return true;
+    }
+
+    public bool SetEffect(int effectId = 0)
+    {
+        if (effectId < 0 || EffectId == effectId)
+            return false;
+
+        EffectId = effectId;
+
+        DropCachedSnapshot();
+
+        return true;
+    }
+
+    /// <summary>
+    /// Throws away the cached snapshot without marking the avatar dirty. A dance and an effect
+    /// each travel in their own composer, so the room has already been told; marking dirty would
+    /// put the avatar in the tick's <c>UserUpdate</c> as well and say it a second time. The
+    /// snapshot still has to be rebuilt, because it is what a player arriving later reads.
+    /// </summary>
+    private void DropCachedSnapshot() => _snapshot = null;
 
     public void Touch(long nowMs) => LastActiveAtMs = nowMs;
 

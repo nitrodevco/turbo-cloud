@@ -1,7 +1,7 @@
 using System;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Events.Player;
+using Turbo.Primitives.Rooms.Events.Avatar;
 using Turbo.Primitives.Rooms.Object.Avatars;
 
 namespace Turbo.Rooms.Wired;
@@ -35,7 +35,7 @@ public static class WiredAvatarActionMatcher
     /// for something that list has no entry for (crying), which then matches no box.
     /// </summary>
     public static bool TryTranslate(
-        PlayerPerformsActionEvent evt,
+        AvatarPerformsActionEvent evt,
         out WiredAvatarActionType action,
         out int value
     )
@@ -110,9 +110,8 @@ public static class WiredAvatarActionMatcher
                 AvatarStatusType.Sign,
                 out var sign
             ) && (extra is null || sign == extra.Value.ToString()),
-            WiredAvatarActionType.Dance => avatar is IRoomPlayer player
-                && player.DanceType != AvatarDanceType.None
-                && (extra is null || (int)player.DanceType == extra),
+            WiredAvatarActionType.Dance => avatar.DanceType != AvatarDanceType.None
+                && (extra is null || (int)avatar.DanceType == extra),
             _ => false,
         };
     }

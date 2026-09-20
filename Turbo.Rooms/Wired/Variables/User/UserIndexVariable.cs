@@ -10,7 +10,7 @@ public sealed class UserIndexVariable(RoomGrain roomGrain) : UserVariable<IRoomA
     protected override string VariableName => "@index";
     protected override WiredVariableGroupSubBandType SubBandType =>
         WiredVariableGroupSubBandType.Base;
-    protected override ushort Order => 20;
+    protected override ushort Order => 90;
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 

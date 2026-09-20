@@ -58,6 +58,9 @@ internal sealed class RoomLiveState
 
     public HashSet<int> DirtyHeightTileIds { get; set; } = [];
     public HashSet<RoomObjectId> DirtyItemIds { get; set; } = [];
+
+    /// <summary>The id the next temporary furni gets; they count down from -1 and are never reused.</summary>
+    public int NextTemporaryItemId { get; set; } = -1;
     public HashSet<RoomObjectId> DirtyFloorItemIds { get; set; } = [];
     public HashSet<RoomObjectId> DirtyWallItemIds { get; set; } = [];
 

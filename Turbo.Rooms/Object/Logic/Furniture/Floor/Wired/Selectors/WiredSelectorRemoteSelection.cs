@@ -58,7 +58,7 @@ public class WiredSelectorRemoteSelection(
             if (wantFurni)
                 output.SelectedFurniIds.UnionWith(set.SelectedFurniIds);
             else
-                output.SelectedPlayerIds.UnionWith(set.SelectedPlayerIds);
+                output.SelectedAvatarIds.UnionWith(set.SelectedAvatarIds);
         }
 
         return output;

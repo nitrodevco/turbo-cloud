@@ -36,11 +36,8 @@ public class WiredSelectorEntitiesWithHanditem(
 
         foreach (var avatar in _roomGrain.AvatarModule.Avatars)
         {
-            if (avatar is not IRoomPlayer player)
-                continue;
-
-            if (handItemId == 0 ? player.HandItemId != 0 : player.HandItemId == handItemId)
-                output.SelectedPlayerIds.Add(player.PlayerId);
+            if (handItemId == 0 ? avatar.HandItemId != 0 : avatar.HandItemId == handItemId)
+                output.SelectedAvatarIds.Add(avatar.ObjectId);
         }
 
         return Task.FromResult<IWiredSelectionSet>(output);

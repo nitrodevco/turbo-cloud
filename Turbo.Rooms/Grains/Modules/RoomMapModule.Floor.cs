@@ -37,7 +37,8 @@ public sealed partial class RoomMapModule
         return true;
     }
 
-    public bool PlaceFloorItem(IRoomFloorItem item, int nTileIdx, Rotation rot)
+    /// <summary>Puts a new item on a tile: on top of what stands there, or at <paramref name="z"/> when given.</summary>
+    public bool PlaceFloorItem(IRoomFloorItem item, int nTileIdx, Rotation rot, Altitude? z = null)
     {
         if (!InBounds(nTileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
@@ -45,7 +46,7 @@ public sealed partial class RoomMapModule
         var (targetX, targetY) = GetTileXY(nTileIdx);
 
         item.SetPosition(targetX, targetY);
-        item.SetPositionZ(_roomGrain._state.TileHeights[nTileIdx]);
+        item.SetPositionZ(z ?? _roomGrain._state.TileHeights[nTileIdx]);
         item.SetRotation(rot);
 
         return AddFloorItem(item);

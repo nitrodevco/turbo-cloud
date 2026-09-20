@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Wired.Variable;
@@ -9,15 +13,28 @@ public sealed class FurnitureTypeVariable(RoomGrain roomGrain)
     : FurnitureVariable<IRoomItem>(roomGrain)
 {
     protected override string VariableName => "@type";
+
     protected override WiredVariableGroupSubBandType SubBandType =>
         WiredVariableGroupSubBandType.Meta;
+
     protected override ushort Order => 70;
+
     protected override WiredVariableFlags Flags =>
-        WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
+        WiredVariableFlags.HasValue
+        | WiredVariableFlags.AlwaysAvailable
+        | WiredVariableFlags.HasTextConnector;
+
+    protected override Dictionary<WiredVariableValue, string> GetTextConnectors() =>
+        Enum.GetValues<FurnitureOwnershipType>()
+            .ToDictionary(x => WiredVariableValue.Parse((int)x), x => x.ToString());
 
     protected override bool TryGetValueForItem(IRoomItem item, out WiredVariableValue value)
     {
-        value = WiredVariableValue.Default;
+        value = WiredVariableValue.Parse(
+            (int)(
+                item.IsTemporary ? FurnitureOwnershipType.Temporary : FurnitureOwnershipType.Normal
+            )
+        );
 
         return true;
     }

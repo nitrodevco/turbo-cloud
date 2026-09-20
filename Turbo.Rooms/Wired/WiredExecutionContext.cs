@@ -83,6 +83,21 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
             if (Policy.MovePhysics.HasFlag(WiredMovePhysicsFlags.KeepAltitude))
                 z ??= floorItem.Z;
 
+            // A projectile addon speaks only for the furni it picked as projectiles.
+            var projectile =
+                Policy.Projectile is { } settings
+                && settings.ProjectileIds.Contains(floorItem.ObjectId)
+                    ? settings
+                    : null;
+            var (flightToX, flightToY) = _roomGrain.MapModule.GetTileXY(tileIdx);
+            var (flightX, flightY) = (flightToX - sourceX, flightToY - sourceY);
+
+            if (
+                projectile?.RotateBy is { } system
+                && WiredDirections.Resolve(system, flightX, flightY) is { } facing
+            )
+                rot = facing.Rotate(projectile.RotationOffset);
+
             // Through the furni module, so the item's logic hears of the move as it would from a
             // player; only the announcing stays here, batched into the action's one packet.
             if (
@@ -98,6 +113,18 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
             )
                 return false;
 
+            if (projectile is not null)
+                _roomGrain.WiredSystem.BeginProjectileFlight(
+                    floorItem.ObjectId,
+                    sourceX,
+                    sourceY,
+                    sourceZ.ToInt(),
+                    floorItem.X,
+                    floorItem.Y,
+                    floorItem.Z.ToInt(),
+                    GetAnimationTime()
+                );
+
             FloorItemMoves.Add(
                 new()
                 {
@@ -110,6 +137,16 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
                     TargetZ = floorItem.Z,
                     Rotation = floorItem.Rotation,
                     AnimationTime = GetAnimationTime(),
+                    // The movement curve addon outranks the projectile's own trajectory.
+                    CurveStrength = Policy.JumpStrength ?? projectile?.CurveStrength,
+                    OvershootDistance = projectile?.Distance switch
+                    {
+                        WiredProjectileDistanceType.Overshoot => projectile.DistanceTiles,
+                        // The tiles still missing from the distance it always flies.
+                        WiredProjectileDistanceType.Fixed => projectile.DistanceTiles
+                            - Math.Max(Math.Abs(flightX), Math.Abs(flightY)),
+                        _ => null,
+                    },
                 }
             );
 
@@ -268,7 +305,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
                     AnimationTime = GetAnimationTime(),
                     BodyDirection = avatar.Rotation,
                     HeadDirection = avatar.HeadRotation,
-                    JumpPower = avatar.JumpPower,
+                    JumpPower = Policy.JumpStrength ?? avatar.JumpPower,
                 }
             );
 

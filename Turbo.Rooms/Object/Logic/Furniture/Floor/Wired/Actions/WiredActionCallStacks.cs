@@ -66,7 +66,7 @@ public class WiredActionCallStacks(
                 CausedBy = ActionContext.CreateForWired(_roomGrain.RoomId),
                 StackIds = [.. stackIds],
                 FurniIds = [.. ctx.Selected.SelectedFurniIds],
-                PlayerIds = [.. ctx.Selected.SelectedPlayerIds],
+                AvatarIds = [.. ctx.Selected.SelectedAvatarIds],
                 Depth = ctx.Depth + 1,
                 IsNegative = IsNegativeCall,
             },

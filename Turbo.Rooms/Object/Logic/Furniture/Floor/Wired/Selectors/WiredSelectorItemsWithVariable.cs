@@ -90,7 +90,7 @@ public class WiredSelectorItemsWithVariable(
             if (TargetType == WiredVariableTargetType.Furni)
                 output.SelectedFurniIds.Add(targetId);
             else
-                output.SelectedPlayerIds.Add(targetId);
+                output.SelectedAvatarIds.Add(targetId);
         }
 
         return Task.FromResult<IWiredSelectionSet>(output);

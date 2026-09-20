@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
@@ -49,6 +50,7 @@ public abstract partial class FurnitureWiredLogic
     protected long GetLongParam(int hiIndex) => GetIntParamOrDefault(hiIndex + 1, 0);
 
     /// <summary>The ids a target type binds to within a selection.</summary>
+    /// <summary>The ids a variable of this target type is keyed by within a selection.</summary>
     protected static IEnumerable<int> GetTargetIds(
         WiredVariableTargetType targetType,
         IWiredSelectionSet selection
@@ -56,7 +58,7 @@ public abstract partial class FurnitureWiredLogic
         targetType switch
         {
             WiredVariableTargetType.Furni => selection.SelectedFurniIds,
-            WiredVariableTargetType.User => selection.SelectedPlayerIds,
+            WiredVariableTargetType.User => selection.SelectedAvatarIds.Select(x => x.Value),
             _ => [0],
         };
 
@@ -83,6 +85,29 @@ public abstract partial class FurnitureWiredLogic
 
             return true;
         }
+
+        return TryReadVariableOperand(
+            operandVariableIndex,
+            operandTargetIndex,
+            selection,
+            out value
+        );
+    }
+
+    /// <summary>
+    /// The variable half of a value-or-variable input: the picked variable, read on the first
+    /// target of the selection that holds it. The box declares a
+    /// <see cref="Turbo.Rooms.Wired.Rules.WiredRules.VariableTarget"/> rule at
+    /// <paramref name="operandTargetIndex"/>.
+    /// </summary>
+    protected bool TryReadVariableOperand(
+        int operandVariableIndex,
+        int operandTargetIndex,
+        IWiredSelectionSet selection,
+        out long value
+    )
+    {
+        value = 0;
 
         var operand = GetVariable(operandVariableIndex);
 

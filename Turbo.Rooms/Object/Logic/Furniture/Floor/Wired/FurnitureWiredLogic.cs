@@ -140,7 +140,11 @@ public abstract partial class FurnitureWiredLogic(
     // Both lists hold exactly the declared types once the box has loaded (NormalizeSpecifics).
     public List<object> GetDefinitionSpecifics() => [.. _wiredData.DefinitionSpecifics];
 
-    public List<object> GetTypeSpecifics() => [.. _wiredData.TypeSpecifics];
+    /// <summary>
+    /// What the client is told, which is what was stored unless a box computes it: a value the
+    /// client reads but never sends back is declared by the box, not kept with it.
+    /// </summary>
+    public virtual List<object> GetTypeSpecifics() => [.. _wiredData.TypeSpecifics];
 
     /// <summary>
     /// The stored specifics as the types the box declares: one entry per declared type, the
@@ -489,6 +493,16 @@ public abstract partial class FurnitureWiredLogic(
         return true;
     }
 
+    private static readonly WiredVariableId NO_VARIABLE = new(0);
+
+    /// <summary>
+    /// Set by a box whose variable ids mean something by position (override min, override max,
+    /// audience; spawn variable, value variable). Every slot is then kept, an empty or unknown
+    /// id as "none" (id 0, which the serializer writes as an empty string), instead of being
+    /// dropped: dropping one would slide the next variable into its place.
+    /// </summary>
+    protected virtual bool HasPositionalVariableIds => false;
+
     protected virtual bool GetValidVariableIds(
         List<string> proposed,
         out List<WiredVariableId> variableIds
@@ -497,6 +511,22 @@ public abstract partial class FurnitureWiredLogic(
         variableIds = [];
 
         var max = GetMaxVariableIds();
+
+        if (HasPositionalVariableIds)
+        {
+            for (var slot = 0; slot < max; slot++)
+            {
+                variableIds.Add(
+                    slot < proposed.Count
+                    && WiredVariableId.TryParse(proposed[slot], out var slotId)
+                    && _roomGrain.WiredSystem.GetVariableById(slotId) is not null
+                        ? slotId
+                        : NO_VARIABLE
+                );
+            }
+
+            return true;
+        }
 
         foreach (var id in proposed)
         {
@@ -742,13 +772,32 @@ public abstract partial class FurnitureWiredLogic(
         _roomGrain.AvatarModule.TryGetPlayer(playerId, out player);
 
     /// <summary>The players of a selection that are still in the room.</summary>
+    /// <summary>Every avatar a selection picked: players, pets and bots alike.</summary>
+    protected List<IRoomAvatar> GetAvatars(IWiredSelectionSet selection)
+    {
+        var avatars = new List<IRoomAvatar>();
+
+        foreach (var avatarId in selection.SelectedAvatarIds)
+        {
+            if (_roomGrain.AvatarModule.TryGetAvatar(avatarId, out var avatar))
+                avatars.Add(avatar);
+        }
+
+        return avatars;
+    }
+
+    /// <summary>
+    /// Only the players a selection picked. A box that can act on a pet or a bot asks for
+    /// <see cref="GetAvatars"/> instead; this one is for what a player alone can be (kicked,
+    /// muted, given a badge).
+    /// </summary>
     protected List<IRoomPlayer> GetPlayers(IWiredSelectionSet selection)
     {
         var players = new List<IRoomPlayer>();
 
-        foreach (var playerId in selection.SelectedPlayerIds)
+        foreach (var avatar in GetAvatars(selection))
         {
-            if (TryGetPlayer(playerId, out var player))
+            if (avatar is IRoomPlayer player)
                 players.Add(player);
         }
 

@@ -73,7 +73,7 @@ public class WiredTriggerVariableChanged(
                 ctx.Selected.SelectedFurniIds.Add(change.TargetId);
                 break;
             case WiredVariableTargetType.User:
-                ctx.Selected.SelectedPlayerIds.Add(change.TargetId);
+                ctx.Selected.SelectedAvatarIds.Add(change.TargetId);
                 break;
         }
 

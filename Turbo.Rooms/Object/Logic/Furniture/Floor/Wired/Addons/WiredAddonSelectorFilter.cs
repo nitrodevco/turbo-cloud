@@ -47,10 +47,10 @@ public abstract class WiredAddonSelectorFilter(
         }
         else
         {
-            var kept = ctx.SelectorPool.SelectedPlayerIds.Take(keep).ToList();
+            var kept = ctx.SelectorPool.SelectedAvatarIds.Take(keep).ToList();
 
-            ctx.SelectorPool.SelectedPlayerIds.Clear();
-            ctx.SelectorPool.SelectedPlayerIds.UnionWith(kept);
+            ctx.SelectorPool.SelectedAvatarIds.Clear();
+            ctx.SelectorPool.SelectedAvatarIds.UnionWith(kept);
         }
 
         return Task.FromResult(true);

@@ -42,7 +42,7 @@ public class WiredActionMoveRotateUser(
         var map = _roomGrain.MapModule;
         var affected = false;
 
-        foreach (var player in GetPlayers(ctx.GetSelection(this)))
+        foreach (var player in GetAvatars(ctx.GetSelection(this)))
         {
             if (moveDirection != NONE)
             {

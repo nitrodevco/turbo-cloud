@@ -11,7 +11,7 @@ using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
-/// <summary>True when the triggering users are in the state of the action in param 0.</summary>
+/// <summary>True when the triggering avatars are in the state of the action in param 0.</summary>
 [RoomObjectLogic("wf_cnd_user_performs_action")]
 public class WiredConditionHabboPerformsAction(
     IGrainFactory grainFactory,
@@ -29,11 +29,11 @@ public class WiredConditionHabboPerformsAction(
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var action = GetIntParamOrDefault(0, WiredAvatarActionType.Sit);
-        var players = GetPlayers(ctx.GetSelection(this));
+        var avatars = GetAvatars(ctx.GetSelection(this));
 
         return Quantify(
-            players.Select(p =>
-                WiredAvatarActionMatcher.IsPerforming(p, action, _wiredData.StringParam)
+            avatars.Select(x =>
+                WiredAvatarActionMatcher.IsPerforming(x, action, _wiredData.StringParam)
             ),
             true
         );

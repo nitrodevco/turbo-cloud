@@ -12,7 +12,7 @@ public interface IWiredPolicy
 {
     public WiredConditionModeType ConditionMode { get; set; }
 
-    /// <summary>The count the AtLeast / AtMost / Exactly condition modes compare against.</summary>
+    /// <summary>The count the counted condition modes compare the matches against.</summary>
     public int ConditionThreshold { get; set; }
     public WiredEffectModeType EffectMode { get; set; }
 
@@ -29,6 +29,15 @@ public interface IWiredPolicy
     /// <summary>Null when users are not carried along with moving furni.</summary>
     public WiredCarryUserType? CarryUsers { get; set; }
     public WiredMovePhysicsFlags MovePhysics { get; set; }
+
+    /// <summary>
+    /// How high the stack's movements arc (the client's jump power for a user, curve strength
+    /// for a furni). Null leaves a user their own jump and a furni a straight line.
+    /// </summary>
+    public int? JumpStrength { get; set; }
+
+    /// <summary>Null unless the stack holds a projectile addon.</summary>
+    public WiredProjectileSettings? Projectile { get; set; }
 
     /// <summary>Text transforms (username and variable placeholders) applied to outgoing text.</summary>
     public List<IWiredTextPlaceholder> TextPlaceholders { get; }

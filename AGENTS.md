@@ -379,6 +379,32 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   menu (no guilds), the room queue and spectators, `ConfigurationItemStates`, `UseObject`,
   `SpecialRoomEffect` and `BotSkillListUpdate` (nothing on the server causes them).
 
+### Temporary furni
+- A temporary furni is a floor item the room makes from a definition alone
+  (`RoomFurniModule.PlaceTemporaryFloorItemAsync`): on the map, in the furni list players are
+  sent, open to wired, and nowhere else. It has no row, no inventory and no persistence, and it
+  is gone when the room unloads. `wf_act_place_furni` makes them from its saved snapshot of
+  the picked furni (`WiredFurniSnapshotEntry.DefinitionId`), `wf_act_remove_furni` takes them
+  away and touches nothing else.
+- Its id is negative, handed out by the room counting down (`RoomLiveState.NextTemporaryItemId`),
+  and `IRoomItem.IsTemporary` is just that sign. A negative id cannot collide with a row id,
+  the client shows no infostand for one, and every packet handler already refuses ids that are
+  not positive, so a player cannot pick one up, move it or trade it.
+- Whatever writes items somewhere asks `IsTemporary` first: the dirty-item hook is not set
+  (`RoomObjectModule.AttatchObjectAsync`), removal queues no delete, a pickup is refused and
+  `ReturnItemsToOwnersAsync` lets them go without handing them to an inventory. A new path
+  that persists or returns room items needs the same check.
+- They cost nobody anything, so the room caps them (`RoomConfig.TemporaryFurniMax`); a stack on
+  a repeater would otherwise fill the room. Reaching the cap or a blocked tile is not an error.
+- The ids start again at -1 each time the room loads, so anything keyed by furni id that
+  outlives the room must let go when one leaves: the wired system drops the stored variable
+  values of a temporary furni on detach (`ForgetStoredValuesOfTemporaryFurni`), or the next
+  furni to get that id would inherit them.
+- A new item has no logic until it is attached. Code that runs before that reads the
+  definition instead (`tItem.Logic?.CanWalk() ?? tItem.Definition.CanWalk`); placement
+  validation dereferenced the logic and would have thrown for any item placed on an occupied
+  tile.
+
 ### Inventory sections
 - Furniture, pets and bots are three modules of `InventoryGrain` with one shape
   (`Inventory{Furni,Pet,Bot}Module`): `EnsureReadyAsync` loads the section on first use,
@@ -522,7 +548,7 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   (`WiredSignalEvent`, antennas are picked furni), stack calls (`WiredStackCalledEvent`,
   bounded by `WiredConfig.MaxDepth`), clocks (`WiredClockTickEvent` from
   `FurnitureCounterClockLogic`), games and scores (`RoomGameSystem` events), variable writes
-  (`WiredVariableChangedEvent`), avatar actions (`PlayerPerformsActionEvent`) and item use
+  (`WiredVariableChangedEvent`), avatar actions (`AvatarPerformsActionEvent`) and item use
   (`RoomItemUsedEvent`). Periodic and "at given time" triggers are paced by
   `RoomWiredSystem.Timers` from the tick, not by an event.
 - Movement of furni and users goes through `IWiredExecutionContext` (`ProcessFloorItemMovementAsync`,
@@ -530,6 +556,100 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   `WiredMovements` packet per action. Text an action shows goes through `FormatTextAsync` so the
   placeholder addons apply. Selections carry player ids and furni object ids; bots are not in
   them, bot actions resolve the named bot from their string param.
+- **An internal variable's place in the editor's list is its id.** The client sorts by variable
+  id, and `WiredVariableIdBuilder.CreateInternalOrdered` builds one from the target's band, the
+  box's `SubBandType` and its `Order`, highest first. So the order is declared, never
+  incidental: `python scripts/wiredvars.py` prints the list as the editor shows it. Leave gaps
+  in `Order` for what is not written yet, because a variable's id is what a saved box stores
+  and renumbering one loses every reference to it. The furni and user lists are numbered to a
+  layout given in full, and the slots of the variables below are reserved and deliberately
+  empty.
+- **A variable with nothing behind it is not declared.** These have no system yet and are
+  reserved rather than written: user `@level`, `@is_hc`, `@is_group_admin`,
+  `@favorite_group_id`, `@team.type` and the six `@transaction.*`, because chests and
+  contracts do not exist.
+- **A user variable is keyed by the avatar's room index, never by the player.** That index is
+  how the client addresses any avatar and the only id a player, a pet and a bot all have; a
+  player's own id is a value a variable reports (`@user_id`), exactly as `@pet_id` and
+  `@bot_id` report theirs, so keying by it would confuse the address with the answer. Every
+  path agrees on this: the menu passes the index the client sent, `GetTargetIds` looks the
+  index up for each selected player, the fx system keys by `holder.ObjectId`, and
+  `PlayerActiveStore` keeps one store per avatar and drops it on `PlayerLeftEvent.ObjectId`.
+  A subclass of `UserVariable<IRoomAvatar>` then answers for all three kinds, one of
+  `UserVariable<IRoomPlayer>` only where a player is meant, and `@pet_id` / `@bot_id` take
+  `IRoomPet` / `IRoomBot`. Indices are handed out by a counter that only climbs while the room
+  is loaded, so one is never two avatars; a player who leaves and returns is a new avatar and
+  holds nothing of what the old one did.
+- **Wired says "user" and means any avatar.** `IWiredSelectionSet.SelectedAvatarIds` holds
+  players, pets and bots alike, by room index, and every selector gathers all three; narrowing
+  to one kind is what `wf_slc_users_bytype` is for, and its mask (1 players, 2 bots, 4 pets)
+  is honoured. A box reads the selection through `GetAvatars` when what it does suits any
+  avatar (move, teleport, freeze, direction, hand item, a name in text) and through
+  `GetPlayers` when only a player can be the subject (kick, mute, a badge, a team, a score);
+  `GetPlayers` is `GetAvatars` with the others dropped, so a pet in the selection is skipped
+  rather than mistaken for a player. Whatever names a player by player id — an event, a game
+  team, a signal — is looked up and put into a selection as that player's avatar.
+- **A trait every avatar can hold belongs on `IRoomAvatar`, implemented once on `RoomAvatar`.**
+  Posture, hand item, freeze, idle, dance and effect are all declared there, and `RoomAvatar`
+  carries the one implementation; a kind-specific interface declares only what that kind alone
+  has (`PlayerId`, `BadgeCodes` and `AchievementScore` on a player, `Skills` on a bot, the pet's
+  stats). A trait declared twice, once on `IRoomPlayer` and once on `IRoomBot`, is drift: the two
+  copies drifted apart exactly that way, the player's `SetDance` refusing to *stop* a dance while
+  seated and the bot's forgetting to mark the snapshot dirty. The test is what the client draws,
+  not what the hotel calls a user: `RoomObjectUserTypes.getVisualizationType` maps `bot` and
+  `rentable_bot` to `"user"`, so a bot dances and wears effects exactly as a player does, while a
+  pet keeps its own visualization and only `AvatarLogic` reads the effect update — a pet therefore
+  holds the value and shows nothing, which is a no-op and not a special case to write. A dance and
+  an effect are on `RoomAvatarSnapshot` for the same reason, so room entry replays both for every
+  avatar in one pass instead of branching per kind.
+- **An event about an avatar names it by room index, not by player id.** `AvatarEvent` derives
+  from `RoomObjectEvent` and so carries `ObjectId`, which is the address wired already selects
+  and stores by; `PlayerEvent` carries a `PlayerId` and is for what happens to the *account*
+  behind an avatar (entering, leaving, chatting, a controller level changing). An action —
+  waving, dancing, sitting, a sign — is the avatar's, so `AvatarPerformsActionEvent` is an
+  `AvatarEvent`: a bot or a pet reports it exactly as a player does, and nothing has to invent a
+  player id it does not have. `CausedBy` still names the player when there is one and is the
+  room's own system context otherwise. `SeedSelectionFromEvent` resolves a `PlayerEvent` through
+  `AddPlayerById` and any `AvatarEvent` through `AddAvatarByObjectId`, with a general
+  `case AvatarEvent` last so a new avatar event needs no wiring; the two walk-on/off cases sit
+  above it only because they add their furni as well. Prefer an `AvatarEvent` for anything a bot
+  or a pet could also do, and keep a `PlayerEvent` for what only an account can.
+- **How a player got into the room is the room's to remember, not the client's.**
+  `OpenFlatConnection` carries no reason (its third field is always -1), so a furni that sends
+  someone elsewhere says so first: it puts a `RoomEntrySnapshot` on their presence against the
+  room it is forwarding them to (`SetPendingRoomEntryAsync`), and the room applies it as the
+  avatar is made and drops it. It is kept against one room id, so a forward the player never
+  followed cannot colour a later entry, and anything else is `RoomEntryMethodType.Default`.
+  `wf_act_teleport_to_room` tells the two apart by the `RoomLinkerData` it followed: a fixed
+  `RoomId` is a room network, a paired `ItemId` is a teleporter and the player arrives at that
+  half, which is what `@room_entry.teleport_id` reports.
+- **A text connector carries a word, not a key.** The editor writes it into its table as
+  `12 (Bubble Juice)`, and the client only localises a string that *begins* with `${`, so a key
+  would be shown as a key. The hotel's own texts come from the client's `ExternalTexts.json`,
+  named by `Turbo:Texts:ExternalTextsPath` — either a path on disk or an `http`/`https` address,
+  because the file is usually served beside the rest of the client's assets. It is empty by
+  default, in which case the editor simply shows the number. `IHotelTextProvider.ReloadAsync`
+  reads it, called from `TurboEmulator.StartAsync` with the other providers rather than from a
+  constructor, so the fetch is awaited and a hotel that names something unreadable is logged and
+  started anyway: no names is cosmetic, refusing to boot is not. How long to wait on the address
+  is `Turbo:Texts:FetchTimeoutSeconds`, because a timeout is a setting and not a constant. The
+  request sends a `User-Agent`
+  because asset hosts answer 403 to a request that names none, and `HttpClient` sends none of its
+  own. `WiredTextConnectors` names hand items
+  (`handitem{id}`), effects (`fx_{id}`), dances and signs by the client's own keys, following a
+  text that is only a reference to another one. The provider sits in the room module because
+  wired is its only caller; move it when a second module wants texts.
+- **A boolean reads differently on the two bases, and that is not drift.** A furni variable
+  says false by not holding the value at all (`TryGetValueForItem` returns false, which is what
+  the "has variable" condition asks); a user variable always has a value, so it answers one or
+  zero.
+- **A projectile's flight is followed, not guessed.** The server moves furni at once and the
+  client animates over the animation time it was sent, so `WiredProjectileFlight` follows that
+  same clock to answer the `@projectile.animation.*` variables: where the furni looks to be,
+  how far it has come, whether it is still going. The clock is the client's own; what counts
+  as a collision is this server's reading, recorded on the type. A flight outlives its landing
+  so a stack can read how the shot went, and is dropped when the furni leaves the room.
+
 - Variable boxes key user values by player id; the wired menu addresses users by room index and
   `RoomWiredSystem.ResolveTargetId` maps between the two. Derived variables (level-up, time
   utility) implement `IWiredSubVariableProvider` on the variable box tile and are rebuilt with
@@ -582,6 +702,80 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   (`FurnitureWiredVariableLogic.RemoveAllValues`), and is logged. Both go through
   `RoomWiredSystem`, remove through `RemoveValue` so triggers and fx hear of it, and answer
   with the refreshed list the tab is showing.
+
+- **A box's save packet is read from the client's composer, never mirrored from what the server
+  sends it.** The two shapes differ: the client sends back only what the player can change.
+  A condition's save carries one definition specific (the quantifier the player picked) and no
+  type specifics, while the def the server sends carries the quantifier *type* and the invert
+  flag as well. Reading those two back misaligned every condition save from the byte after the
+  variable ids. A value the client only ever draws is declared by the box, not stored with it:
+  `FurnitureWiredConditionLogic.QuantifierType` and `IsNegative()` feed
+  `GetTypeSpecifics()` directly. Today only actions (the delay), conditions (the quantifier)
+  and selectors (filter and invert) send a specific at all, and none of them sends a type
+  specific.
+- **A wired code is checked against the client's code table, both halves.** An editor class
+  declares its own `code` and its negative twin's `negativeCode`, so `wf_cnd_not_wearing_b`
+  has a code of its own (22) and must not reuse the positive box's (11), or the client opens
+  the wrong editor. `scripts/wiredgap.py` reads both getters and reports any code two boxes
+  claim; a second furni that is genuinely the same box inherits its twin instead of declaring
+  the code again (`WiredTriggerAtTimeLong`).
+- **An option whose editor greys out an input does not need that input.** The "says something"
+  trigger's third mode is "Match all text": the client disables the keyword box, so the trigger
+  fires on anything said. Reading it as "every word of the keyword must appear" meant it never
+  fired, because the keyword is empty.
+- **A sentinel is a value the rule has to allow.** The condition-evaluation addon writes -1 in
+  its mode param when the player picks one of the counted modes, and puts which one in the next
+  param and the number after that. A rule of `0..6` refused the save outright, and the modes
+  were read one slot early. Check an editor's `readIntParamsFromForm` for a branch that
+  rewrites a param before trusting the obvious reading of it.
+- **A request that is not a save is not answered with a save.** `WiredSaveSuccess` closes the
+  editor, so "apply furni to set conditions" (`ApplySnapshot`, which re-captures a box's furni
+  snapshot through `FurnitureWiredLogic.ApplyFurniSnapshot`) answers nothing at all: the client
+  expects no reply and keeps the editor open.
+- Which boxes the server still lacks is measured too: `python scripts/wiredgap.py` (the
+  deobfuscated client is found through `HABBO_CLIENT`) lists every wired code the client has an
+  editor for and no box returns. The client knows codes, never furni names; the furni a code
+  belongs to is looked up in the hotel's `furniture_definitions`. Do not write a box for a code
+  no furni in the hotel carries: nobody can place it, and its param layout goes untested.
+  Still missing after this pass, each for want of a system rather than a box: everything
+  around chests, transactions and contracts (triggers 25 and 26, actions 45 to 48, conditions
+  45 and 46, addons 18 and 20, the `wf_storage_*` and `wf_contract_*` furni), reward tracks
+  (58, 59), achievements (the enabler addon 2001 and action 51, which progresses one) and the
+  web API addon (2002). Give effect (52), override height (53), the level condition (44), the
+  global placeholder (2000) and variable box 8 have no furni in the hotel.
+- What an editor class does not say is in two other places, and both are read before a box is
+  written or called unknowable. The hotel's texts and furnidata
+  (`nitro-assets/gamedata/ExternalTexts.json`, `FurnitureData.json`): the `usage_info` and
+  option texts say what a box does, and the furni's display name says which code it is.
+  `wf_xtra_rotate_to_dir` is "Projectile" (21) and `wf_xtra_mov_curve` is "Movement Curve"
+  (22, the code table's JUMP_STRENGTH); neither name gives it away. And the editor's pictures:
+  the projectile's four directional systems are explained only by
+  `wired_misc_directional_system_N.png`, and `WiredDirections` was read off those tile by tile.
+- The projectile addon is partly done, and says so on the class: turning a projectile to its
+  flight direction, a curved trajectory and overshooting are in; scaling the animation time
+  with distance, the shooter's cosmetic direction and bunny hop, and the seven internal
+  variables are not, because nothing the server can read says how they work. Its nineteen
+  params are all declared anyway, so a save comes back as it was made. It speaks only for the
+  furni it picked as projectiles (`WiredProjectileSettings.ProjectileIds`), unlike the rest of
+  the policy, which covers the whole stack.
+- Variable ids that mean something by position (fx: override min, override max, audience;
+  place furni: spawn variable, value variable; projectile: time, distance) set
+  `HasPositionalVariableIds`. The base then keeps every slot and stores "none" as id 0; without
+  it an unknown id is dropped and the next variable slides into its place.
+- A movement's arc is the stack's, not the action's: `wf_xtra_mov_curve` (the client's "jump
+  strength") sets `IWiredPolicy.JumpStrength`, and `WiredExecutionContext` writes it into every
+  move of the stack as the jump power of a user and the curve strength of a furni. An action
+  never sets either.
+- A value-or-variable input is read one way: the switch as a bool, then the literal, or the
+  variable through `TryReadVariableOperand` (the first selected target that holds it).
+  `TryResolveOperand` is that plus a literal stored as a long; a box whose editor stores one
+  int reads the literal itself (`WiredAddonJumpStrength`).
+- What a box does only in the client is sent to the selected players and nothing is kept:
+  `wf_act_click_conf` sends `WiredClickSettings`, the client applies it and forgets it on
+  leaving the room. It goes out with `LogAndForget`, like everything a box sends from the tick.
+- Two placeholder addons that differ in whose names they print share
+  `FurnitureWiredNamePlaceholderLogic`. A furni's name on the server is its definition name;
+  the localised name is the client's.
 
 ### Variable fx
 - A variable fx draws a wired variable over whoever holds it: a bar, hearts, a level badge or a
@@ -704,7 +898,7 @@ out of pulling it apart; they hold for any system that grows the same way.
   hand, and only some of them filtered the text; the chat system filters all of it. It is
   deliberately not chat: no flood check, no commands, no chat log, no `PlayerChatEvent`.
 - **A general event speaks the room's language, the listener translates.**
-  `PlayerPerformsActionEvent` carries an `AvatarActionType` and the expression, dance, sign or
+  `AvatarPerformsActionEvent` carries an `AvatarActionType` and the expression, dance, sign or
   posture it was; `WiredAvatarActionMatcher.TryTranslate` turns that into the wired editor's
   own numbering. The avatar module used to publish `WiredAvatarActionType` and map expressions
   onto it, with anything unknown counted as a wave.

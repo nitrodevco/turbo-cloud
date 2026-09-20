@@ -20,9 +20,10 @@ internal class WiredMovementSerializer
             .WriteInteger(item.AnimationTime)
             .WriteInteger((int)item.BodyDirection)
             .WriteInteger((int)item.HeadDirection)
-            .WriteBoolean(item.JumpPower > 0);
+            .WriteBoolean(item.JumpPower != 0);
 
-        if (item.JumpPower > 0)
+        // A wired jump strength may be negative (the editor allows -1000 to 1000).
+        if (item.JumpPower != 0)
             packet.WriteInteger(item.JumpPower);
     }
 
@@ -41,8 +42,15 @@ internal class WiredMovementSerializer
             .WriteInteger(item.ObjectId.Value)
             .WriteInteger(item.AnimationTime)
             .WriteInteger((int)item.Rotation)
-            .WriteBoolean(false) // has overshooting distance
-            .WriteBoolean(false); // has curve strength
+            .WriteBoolean(item.OvershootDistance is not null);
+
+        if (item.OvershootDistance is { } overshootDistance)
+            packet.WriteInteger(overshootDistance);
+
+        packet.WriteBoolean(item.CurveStrength is not null);
+
+        if (item.CurveStrength is { } curveStrength)
+            packet.WriteInteger(curveStrength);
     }
 
     public static void SerializeWallItemMovement(

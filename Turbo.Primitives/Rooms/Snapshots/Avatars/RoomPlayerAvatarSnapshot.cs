@@ -9,12 +9,6 @@ public sealed record RoomPlayerAvatarSnapshot : RoomAvatarSnapshot
     [Id(12)]
     public required AvatarGenderType Gender { get; init; }
 
-    [Id(13)]
-    public required AvatarDanceType DanceType { get; init; }
-
-    [Id(14)]
-    public required int EffectId { get; init; }
-
     [Id(15)]
     public required int GroupId { get; init; }
 

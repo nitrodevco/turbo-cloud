@@ -13,7 +13,7 @@ public class WiredNegativeConditionHabboHasWearingBadge(
     IRoomFloorItemContext ctx
 ) : WiredConditionHabboHasWearingBadge(grainFactory, stuffDataFactory, ctx)
 {
-    public override int WiredCode => (int)WiredConditionType.ACTOR_IS_WEARING_BADGE;
+    public override int WiredCode => (int)WiredConditionType.NOT_ACTOR_IS_WEARING_BADGE;
 
     public override bool IsNegative() => true;
 }

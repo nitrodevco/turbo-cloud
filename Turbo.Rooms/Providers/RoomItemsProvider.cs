@@ -13,10 +13,12 @@ using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
@@ -125,6 +127,28 @@ internal sealed class RoomItemsProvider(
 
             _ => throw new TurboException(TurboErrorCodeEnum.InvalidFurnitureProductType),
         };
+    }
+
+    public IRoomFloorItem CreateFloorItem(
+        RoomObjectId objectId,
+        PlayerId ownerId,
+        FurnitureDefinitionSnapshot definition
+    )
+    {
+        if (definition.ProductType != ProductType.Floor)
+            throw new TurboException(TurboErrorCodeEnum.InvalidFurnitureProductType);
+
+        var item = new RoomFloorItem
+        {
+            ObjectId = objectId,
+            OwnerId = ownerId,
+            OwnerName = string.Empty,
+            Definition = definition,
+        };
+
+        item.SetExtraData(null);
+
+        return item;
     }
 
     public IRoomItem CreateFromFurnitureItemSnapshot(FurnitureItemSnapshot snapshot)

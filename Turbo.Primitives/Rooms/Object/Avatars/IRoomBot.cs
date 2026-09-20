@@ -16,7 +16,6 @@ public interface IRoomBot : IRoomAvatar<IRoomBot, IRoomBotLogic, IRoomBotContext
     public PlayerId OwnerId { get; }
     public string OwnerName { get; }
     public AvatarGenderType Gender { get; }
-    public AvatarDanceType DanceType { get; }
     public ImmutableArray<BotSkillType> Skills { get; }
     public bool FreeRoam { get; }
     public string ChatText { get; }
@@ -37,7 +36,6 @@ public interface IRoomBot : IRoomAvatar<IRoomBot, IRoomBotLogic, IRoomBotContext
     public void SetName(string name);
     public void SetMotto(string motto);
     public void SetFigure(string figure, AvatarGenderType gender);
-    public bool SetDance(AvatarDanceType danceType);
     public void SetFreeRoam(bool freeRoam);
     public void SetChatter(string text, bool autoChat, int delaySeconds, bool mixSentences);
     public BotSnapshot GetBotSnapshot();

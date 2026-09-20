@@ -43,11 +43,29 @@ public abstract partial class FurnitureWiredLogic
                 (int)item.Rotation,
                 item.X,
                 item.Y,
-                item.Z.ToInt()
+                item.Z.ToInt(),
+                item.Definition.Id
             );
         }
 
         _ctx.RoomObject.ExtraData.UpdateSection(WiredFurniSnapshotEntry.SECTION, snapshot);
+    }
+
+    /// <summary>
+    /// The editor's "apply furni to set conditions" button: remembers the picked furni as they
+    /// stand right now, so a player can arrange them and store that without opening the box and
+    /// saving it again. False for a box that keeps no snapshot; the client offers the button
+    /// only on the boxes that do.
+    /// </summary>
+    public bool ApplyFurniSnapshot()
+    {
+        if (!KeepsFurniSnapshot)
+            return false;
+
+        // Writing the section marks the item dirty, so the new snapshot is persisted.
+        CaptureFurniSnapshot(GetStuffIds());
+
+        return true;
     }
 
     private void DeleteFurniSnapshot() =>

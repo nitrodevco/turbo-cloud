@@ -48,7 +48,11 @@ public class WiredSelectorEntitiesInTeam(
                 continue;
 
             foreach (var playerId in _roomGrain.GameSystem.GetTeamMembers(team))
-                output.SelectedPlayerIds.Add(playerId);
+            {
+                // A team is kept by player id; a selection names the avatar.
+                if (_roomGrain.AvatarModule.TryGetPlayer(playerId, out var member))
+                    output.SelectedAvatarIds.Add(member.ObjectId);
+            }
         }
 
         return Task.FromResult<IWiredSelectionSet>(output);

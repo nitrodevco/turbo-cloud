@@ -47,7 +47,10 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
                 }
 
                 item.SetOwnerName(value ?? string.Empty);
-                item.SetAction(objectId => _roomGrain._state.DirtyItemIds.Add(objectId));
+
+                // A temporary furni has no row to write, so its changes are not queued.
+                if (!item.IsTemporary)
+                    item.SetAction(objectId => _roomGrain._state.DirtyItemIds.Add(objectId));
 
                 if (!await AttatchLogicAsync(roomObject, ct) || !_roomGrain.MapModule.AddItem(item))
                     return false;
@@ -105,11 +108,10 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
 
                 _roomGrain._state.ItemsById.Remove(item.ObjectId);
 
-                var snapshot = item.GetSnapshot();
-
-                await _roomGrain
-                    ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
-                    .EnqueueDirtyItemAsync(_roomGrain.RoomId, snapshot, ct, true);
+                if (!item.IsTemporary)
+                    await _roomGrain
+                        ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
+                        .EnqueueDirtyItemAsync(_roomGrain.RoomId, item.GetSnapshot(), ct, true);
                 break;
             }
             case IRoomAvatar avatar:

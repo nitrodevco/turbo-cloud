@@ -19,7 +19,7 @@ public sealed record WiredSignalEvent : RoomEvent
     public required HashSet<int> FurniIds { get; init; }
 
     [Id(2)]
-    public required HashSet<int> PlayerIds { get; init; }
+    public required HashSet<RoomObjectId> AvatarIds { get; init; }
 
     [Id(3)]
     public required int Depth { get; init; }

@@ -17,8 +17,4 @@ public sealed record RoomRentableBotAvatarSnapshot : RoomAvatarSnapshot
 
     [Id(15)]
     public required short[] BotSkills { get; init; }
-
-    /// <summary>Not on the wire in the Users packet; replayed as a dance update on room entry.</summary>
-    [Id(16)]
-    public required AvatarDanceType DanceType { get; init; }
 }

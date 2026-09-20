@@ -54,8 +54,9 @@ public class WiredActionJoinTeam(
         var mode = GetIntParamOrDefault(1, MODE_CHOSEN);
         var joined = false;
 
-        foreach (var playerId in selection.SelectedPlayerIds)
+        foreach (var player in GetPlayers(selection))
         {
+            var playerId = player.PlayerId;
             var team = mode switch
             {
                 MODE_SMALLEST => TEAMS

@@ -23,7 +23,6 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Snapshots.Avatars;
 using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms;
@@ -400,18 +399,10 @@ internal sealed partial class RoomService(
         var floorSnapshot = await room.GetAllFloorItemSnapshotsAsync(ct).ConfigureAwait(false);
         var wallSnapshot = await room.GetAllWallItemSnapshotsAsync(ct).ConfigureAwait(false);
         var avatarSnapshots = await room.GetAllAvatarSnapshotsAsync(ct).ConfigureAwait(false);
+        // Neither a dance nor an effect travels in the Users packet, so both are replayed to the
+        // arriving player as their own updates. Any avatar can carry them; one that the client
+        // does not draw as a user simply never has one to replay.
         var danceComposers = avatarSnapshots
-            .Select(x =>
-                (
-                    x.ObjectId,
-                    DanceType: x switch
-                    {
-                        RoomPlayerAvatarSnapshot player => player.DanceType,
-                        RoomRentableBotAvatarSnapshot bot => bot.DanceType,
-                        _ => AvatarDanceType.None,
-                    }
-                )
-            )
             .Where(x => x.DanceType != AvatarDanceType.None)
             .Select(x => new DanceMessageComposer
             {
@@ -420,7 +411,6 @@ internal sealed partial class RoomService(
             })
             .ToArray();
         var effectComposers = avatarSnapshots
-            .OfType<RoomPlayerAvatarSnapshot>()
             .Where(x => x.EffectId > 0)
             .Select(x => new AvatarEffectMessageComposer
             {

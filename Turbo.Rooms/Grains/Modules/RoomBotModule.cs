@@ -421,13 +421,11 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
         var next =
             bot.DanceType == AvatarDanceType.None ? AvatarDanceType.Dance : AvatarDanceType.None;
 
-        if (!bot.SetDance(next))
+        // The shared avatar path sets the dance and tells the room, the same one a dancing player
+        // goes through. A bot's dance is also part of how it was left configured, so it persists.
+        if (!await _roomGrain.AvatarModule.SetAvatarDanceAsync(bot.ObjectId, next, ct))
             return false;
 
-        await _roomGrain.SendComposerToRoomAsync(
-            new DanceMessageComposer { ObjectId = bot.ObjectId, DanceType = bot.DanceType },
-            ct
-        );
         await PersistAsync(bot, ct);
 
         return true;
@@ -491,6 +489,17 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
         if (bot.DanceType != AvatarDanceType.None)
             await _roomGrain.SendComposerToRoomAsync(
                 new DanceMessageComposer { ObjectId = bot.ObjectId, DanceType = bot.DanceType },
+                ct
+            );
+
+        if (bot.EffectId > 0)
+            await _roomGrain.SendComposerToRoomAsync(
+                new AvatarEffectMessageComposer
+                {
+                    ObjectId = bot.ObjectId,
+                    EffectId = bot.EffectId,
+                    DelayMilliseconds = 0,
+                },
                 ct
             );
 

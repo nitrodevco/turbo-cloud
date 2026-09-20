@@ -20,6 +20,17 @@ public partial interface IPlayerPresenceGrain
     public Task OnRemovedFromRoomAsync(RoomId roomId, bool kicked, CancellationToken ct);
     public Task SetPendingRoomAsync(RoomId roomId, RoomEntryState state, CancellationToken ct);
     public Task ClearPendingRoomAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Says how the player is about to arrive somewhere, for the furni that is sending them
+    /// there. It is kept until they enter <paramref name="roomId"/> and is dropped if they go
+    /// anywhere else, so a forward they never followed cannot colour a later entry.
+    /// </summary>
+    public Task SetPendingRoomEntryAsync(
+        RoomId roomId,
+        RoomEntrySnapshot entry,
+        CancellationToken ct
+    );
     public Task OnControllerLevelUpdatedAsync(
         RoomId roomId,
         RoomControllerType controllerType,

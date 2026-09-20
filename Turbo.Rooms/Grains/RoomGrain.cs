@@ -28,6 +28,7 @@ using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Settings;
+using Turbo.Primitives.Texts;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
@@ -58,6 +59,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly IRoomWiredVariablesProvider _wiredVariablesProvider;
     internal readonly IPetBreedProvider _petBreedProvider;
     internal readonly IFurnitureDefinitionProvider _definitionProvider;
+    internal readonly IHotelTextProvider _hotelTextProvider;
     internal readonly IGrainFactory _grainFactory;
     internal readonly EventSystem _eventSystem;
 
@@ -107,6 +109,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IRoomWiredVariablesProvider wiredVariablesProvider,
         IPetBreedProvider petBreedProvider,
         IFurnitureDefinitionProvider definitionProvider,
+        IHotelTextProvider hotelTextProvider,
         EventSystem eventSystem,
         ILogger<IRoomGrain> logger
     )
@@ -125,6 +128,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _wiredVariablesProvider = wiredVariablesProvider;
         _petBreedProvider = petBreedProvider;
         _definitionProvider = definitionProvider;
+        _hotelTextProvider = hotelTextProvider;
         _grainFactory = grainFactory;
         _eventSystem = eventSystem;
 

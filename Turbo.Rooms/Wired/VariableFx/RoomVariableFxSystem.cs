@@ -283,7 +283,7 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
                 var key = new WiredVariableKey(
                     variableId,
                     WiredVariableTargetType.User,
-                    holder.PlayerId
+                    holder.ObjectId
                 );
 
                 if (!variable.TryGetValue(key, out var value))
@@ -374,7 +374,7 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
             var key = new WiredVariableKey(
                 variableId,
                 WiredVariableTargetType.User,
-                viewer.PlayerId
+                viewer.ObjectId
             );
 
             if (!variable.TryGetValue(key, out var value))

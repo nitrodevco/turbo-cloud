@@ -14,11 +14,11 @@ public sealed class UserTypeVariable(RoomGrain roomGrain) : UserVariable<IRoomAv
     protected override string VariableName => "@type";
     protected override WiredVariableGroupSubBandType SubBandType =>
         WiredVariableGroupSubBandType.Base;
-    protected override ushort Order => 10;
+    protected override ushort Order => 80;
+
+    // Read only: what an avatar is cannot be written, so it does not claim it can be.
     protected override WiredVariableFlags Flags =>
-        WiredVariableFlags.HasValue
-        | WiredVariableFlags.CanWriteValue
-        | WiredVariableFlags.HasTextConnector;
+        WiredVariableFlags.HasValue | WiredVariableFlags.HasTextConnector;
 
     protected override Dictionary<WiredVariableValue, string> GetTextConnectors() =>
         Enum.GetValues<RoomObjectType>()

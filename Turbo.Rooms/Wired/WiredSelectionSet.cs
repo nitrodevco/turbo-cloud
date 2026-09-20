@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Wired;
 
@@ -8,22 +9,22 @@ public sealed class WiredSelectionSet : IWiredSelectionSet
 {
     public WiredSelectionSet() { }
 
-    public WiredSelectionSet(IEnumerable<int> furniIds, IEnumerable<int> playerIds)
+    public WiredSelectionSet(IEnumerable<int> furniIds, IEnumerable<RoomObjectId> avatarIds)
     {
         SelectedFurniIds.UnionWith(furniIds);
-        SelectedPlayerIds.UnionWith(playerIds);
+        SelectedAvatarIds.UnionWith(avatarIds);
     }
 
     public HashSet<int> SelectedFurniIds { get; } = [];
-    public HashSet<int> SelectedPlayerIds { get; } = [];
+    public HashSet<RoomObjectId> SelectedAvatarIds { get; } = [];
 
     public bool HasFurni => SelectedFurniIds.Count > 0;
-    public bool HasPlayers => SelectedPlayerIds.Count > 0;
+    public bool HasAvatars => SelectedAvatarIds.Count > 0;
 
     public IWiredSelectionSet UnionWith(IWiredSelectionSet other)
     {
         SelectedFurniIds.UnionWith(other.SelectedFurniIds);
-        SelectedPlayerIds.UnionWith(other.SelectedPlayerIds);
+        SelectedAvatarIds.UnionWith(other.SelectedAvatarIds);
 
         return this;
     }
@@ -32,6 +33,6 @@ public sealed class WiredSelectionSet : IWiredSelectionSet
         new()
         {
             SelectedFurniIds = [.. SelectedFurniIds],
-            SelectedPlayerIds = [.. SelectedPlayerIds],
+            SelectedAvatarIds = [.. SelectedAvatarIds],
         };
 }

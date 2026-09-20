@@ -25,7 +25,6 @@ public sealed class RoomBotAvatar : RoomAvatar<IRoomBot, IRoomBotLogic, IRoomBot
     public required RoomId RoomId { get; init; }
     public required ImmutableArray<BotSkillType> Skills { get; init; }
     public AvatarGenderType Gender { get; private set; }
-    public AvatarDanceType DanceType { get; private set; }
     public bool FreeRoam { get; private set; }
     public string ChatText { get; private set; } = string.Empty;
     public ImmutableArray<string> ChatLines { get; private set; } = [];
@@ -53,13 +52,13 @@ public sealed class RoomBotAvatar : RoomAvatar<IRoomBot, IRoomBotLogic, IRoomBot
             RoomId = snapshot.RoomId ?? -1,
             Skills = skills,
             Gender = snapshot.Gender,
-            DanceType = snapshot.DanceType,
             FreeRoam = snapshot.FreeRoam,
         };
 
         bot.Name = snapshot.Name;
         bot.Motto = snapshot.Motto;
         bot.Figure = snapshot.Figure;
+        bot.SetDance(snapshot.DanceType);
         bot.SetChatter(
             snapshot.ChatText,
             snapshot.AutoChat,
@@ -95,22 +94,6 @@ public sealed class RoomBotAvatar : RoomAvatar<IRoomBot, IRoomBotLogic, IRoomBot
         MarkDirty();
     }
 
-    public bool SetDance(AvatarDanceType danceType)
-    {
-        if (DanceType == danceType)
-            return false;
-
-        if (
-            danceType != AvatarDanceType.None
-            && HasStatus(AvatarStatusType.Sit, AvatarStatusType.Lay)
-        )
-            return false;
-
-        DanceType = danceType;
-
-        return true;
-    }
-
     public void SetFreeRoam(bool freeRoam) => FreeRoam = freeRoam;
 
     public void SetChatter(string text, bool autoChat, int delaySeconds, bool mixSentences)
@@ -123,22 +106,10 @@ public sealed class RoomBotAvatar : RoomAvatar<IRoomBot, IRoomBotLogic, IRoomBot
         NextChatLineIndex = 0;
     }
 
-    public override void Sit(bool flag = true, Altitude? height = null, Rotation? rot = null)
-    {
-        if (flag)
-            SetDance(AvatarDanceType.None);
-
-        base.Sit(flag, height, rot);
-    }
-
-    public override void Lay(bool flag = true, Altitude? height = null, Rotation? rot = null)
-    {
-        if (flag)
-            SetDance(AvatarDanceType.None);
-
-        base.Lay(flag, height, rot);
-    }
-
+    /// <summary>
+    /// What the bot is, as it goes back to the inventory and the database. The effect is left out
+    /// on purpose: it is room state something put on the bot, not part of how it was configured.
+    /// </summary>
     public BotSnapshot GetBotSnapshot() =>
         new()
         {
@@ -184,11 +155,12 @@ public sealed class RoomBotAvatar : RoomAvatar<IRoomBot, IRoomBotLogic, IRoomBot
             HeadRotation = HeadRotation,
             JumpPower = JumpPower,
             Status = statusString.ToString(),
+            DanceType = DanceType,
+            EffectId = EffectId,
             Gender = Gender,
             OwnerId = OwnerId,
             OwnerName = OwnerName,
             BotSkills = [.. Skills.Select(x => (short)x)],
-            DanceType = DanceType,
         };
     }
 }

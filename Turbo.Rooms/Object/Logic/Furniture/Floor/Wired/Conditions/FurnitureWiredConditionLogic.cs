@@ -20,27 +20,33 @@ public abstract class FurnitureWiredConditionLogic(
     public override WiredType WiredType => WiredType.Condition;
 
     private int _quantifierCode = 0;
-    private bool _isInvert = false;
-    private byte _quantifierType = 0;
+
+    /// <summary>
+    /// What this box's shared quantifier radio counts. The server declares it and the client
+    /// only draws it; <see cref="WiredQuantifierType.None"/> hides the radio, which is why the
+    /// quantifier of most boxes stays zero.
+    /// </summary>
+    protected virtual WiredQuantifierType QuantifierType => WiredQuantifierType.None;
 
     public override List<Type> GetDefinitionSpecificTypes() =>
         [.. base.GetDefinitionSpecificTypes(), typeof(int)];
 
-    public override List<Type> GetTypeSpecificTypes() =>
-        [.. base.GetTypeSpecificTypes(), typeof(byte), typeof(bool)];
+    // Nothing is stored: the client sends the quantifier code back and nothing else.
+    public override List<object> GetTypeSpecifics() =>
+        [.. base.GetTypeSpecifics(), (byte)QuantifierType, IsNegative()];
 
     public int GetQuantifierCode() => _quantifierCode;
 
-    public bool GetIsInvert() => _isInvert;
+    public bool GetIsInvert() => IsNegative();
 
-    public byte GetQuantifierType() => _quantifierType;
+    public byte GetQuantifierType() => (byte)QuantifierType;
 
     /// <summary>The "not" boxes derive from their positive twin and flip this.</summary>
     public virtual bool IsNegative() => false;
 
     /// <summary>
-    /// Evaluates the box. Negative boxes and the client "invert" switch flip the outcome of
-    /// <see cref="EvaluateCore"/>, so a concrete condition only states the positive rule.
+    /// Evaluates the box. A negative box flips the outcome of <see cref="EvaluateCore"/>, so a
+    /// concrete condition only states the positive rule.
     /// </summary>
     public bool Evaluate(IWiredProcessingContext ctx)
     {
@@ -68,7 +74,7 @@ public abstract class FurnitureWiredConditionLogic(
             result = false;
         }
 
-        return IsNegative() ^ _isInvert ? !result : result;
+        return IsNegative() ? !result : result;
     }
 
     protected virtual bool EvaluateCore(IWiredProcessingContext ctx) => false;
@@ -100,7 +106,5 @@ public abstract class FurnitureWiredConditionLogic(
         await base.FillInternalDataAsync(ct);
 
         _quantifierCode = _wiredData.GetDefinitionParam<int>(0);
-        _quantifierType = _wiredData.GetTypeParam<byte>(0);
-        _isInvert = _wiredData.GetTypeParam<bool>(1);
     }
 }

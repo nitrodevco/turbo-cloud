@@ -90,23 +90,20 @@ public abstract class WiredContext(RoomGrain roomGrain) : IWiredContext
                     case WiredPlayerSourceType.TriggeredUser:
                     case WiredPlayerSourceType.ReachedUser:
                     case WiredPlayerSourceType.ClickedUser:
-                        set.SelectedPlayerIds.UnionWith(Selected.SelectedPlayerIds);
+                        set.SelectedAvatarIds.UnionWith(Selected.SelectedAvatarIds);
                         break;
                     case WiredPlayerSourceType.SelectorUsers:
-                        set.SelectedPlayerIds.UnionWith(SelectorPool.SelectedPlayerIds);
+                        set.SelectedAvatarIds.UnionWith(SelectorPool.SelectedAvatarIds);
                         break;
                     case WiredPlayerSourceType.SignalUsers:
-                        set.SelectedPlayerIds.UnionWith(Signal.SelectedPlayerIds);
+                        set.SelectedAvatarIds.UnionWith(Signal.SelectedAvatarIds);
                         break;
                     case WiredPlayerSourceType.UserByName:
                         AddPlayersByName(set, wired.GetSnapshot().StringParam);
                         break;
                     case WiredPlayerSourceType.AllRoomUsers:
                         foreach (var avatar in _roomGrain.AvatarModule.Avatars)
-                        {
-                            if (avatar is IRoomPlayer player)
-                                set.SelectedPlayerIds.Add(player.PlayerId);
-                        }
+                            set.SelectedAvatarIds.Add(avatar.ObjectId);
                         break;
                     case WiredPlayerSourceType.BotByName:
                         // Bots are not players; bot actions resolve the named bot themselves.
@@ -149,8 +146,8 @@ public abstract class WiredContext(RoomGrain roomGrain) : IWiredContext
 
         foreach (var avatar in _roomGrain.AvatarModule.Avatars)
         {
-            if (avatar is IRoomPlayer player && wanted.Contains(player.Name.Trim()))
-                set.SelectedPlayerIds.Add(player.PlayerId);
+            if (wanted.Contains(avatar.Name.Trim()))
+                set.SelectedAvatarIds.Add(avatar.ObjectId);
         }
     }
 }

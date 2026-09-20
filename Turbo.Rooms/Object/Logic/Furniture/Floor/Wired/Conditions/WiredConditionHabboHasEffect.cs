@@ -11,7 +11,7 @@ using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
-/// <summary>True when the triggering users wear the effect id in param 0 (zero: any effect).</summary>
+/// <summary>True when the triggering avatars wear the effect id in param 0 (zero: any effect).</summary>
 [RoomObjectLogic("wf_cnd_wearing_effect")]
 public class WiredConditionHabboHasEffect(
     IGrainFactory grainFactory,
@@ -29,10 +29,10 @@ public class WiredConditionHabboHasEffect(
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
         var effectId = GetIntParamOrDefault(0, 0);
-        var players = GetPlayers(ctx.GetSelection(this));
+        var avatars = GetAvatars(ctx.GetSelection(this));
 
         return Quantify(
-            players.Select(p => effectId == 0 ? p.EffectId != 0 : p.EffectId == effectId),
+            avatars.Select(x => effectId == 0 ? x.EffectId != 0 : x.EffectId == effectId),
             true
         );
     }

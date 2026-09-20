@@ -21,8 +21,7 @@ public class WiredSelectorEntitiesInNeighborhood(
     {
         foreach (var avatar in _roomGrain.AvatarModule.GetAvatarsOnTile(tileId))
         {
-            if (avatar is IRoomPlayer player)
-                output.SelectedPlayerIds.Add(player.PlayerId);
+            output.SelectedAvatarIds.Add(avatar.ObjectId);
         }
     }
 }

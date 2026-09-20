@@ -22,7 +22,8 @@ public sealed partial class RoomFurniModule
         int x,
         int y,
         Rotation rot,
-        CancellationToken ct
+        CancellationToken ct,
+        Altitude? z = null
     )
     {
         var tileIdx = _roomGrain.MapModule.ToIdx(x, y);
@@ -32,7 +33,7 @@ public sealed partial class RoomFurniModule
 
         if (
             !await _roomGrain.ObjectModule.AttatchObjectAsync(item, ct)
-            || !_roomGrain.MapModule.PlaceFloorItem(item, tileIdx, rot)
+            || !_roomGrain.MapModule.PlaceFloorItem(item, tileIdx, rot, z)
         )
             return false;
 
@@ -233,7 +234,11 @@ public sealed partial class RoomFurniModule
                         !_roomGrain._roomConfig.PlaceItemsOnAvatars
                         && tileFlags.Has(RoomTileFlags.AvatarOccupied)
                     )
-                    || (tileFlags.Has(RoomTileFlags.AvatarOccupied) && !tItem.Logic.CanWalk())
+                    // A new item has no logic yet; its definition says as much.
+                    || (
+                        tileFlags.Has(RoomTileFlags.AvatarOccupied)
+                        && !(tItem.Logic?.CanWalk() ?? tItem.Definition.CanWalk)
+                    )
                 )
                     return Task.FromResult(false);
 

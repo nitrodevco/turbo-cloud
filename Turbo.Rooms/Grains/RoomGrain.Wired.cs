@@ -51,6 +51,30 @@ public sealed partial class RoomGrain
         }
     }
 
+    public async Task<bool> ApplyWiredSnapshotAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return await WiredSystem.ApplySnapshotAsync(ctx, itemId, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to apply a wired snapshot to item {ItemId} in room {RoomId} for player {PlayerId}",
+                itemId,
+                _state.RoomId,
+                ctx.PlayerId
+            );
+
+            return false;
+        }
+    }
+
     public async Task<WiredDataSnapshot?> GetWiredDataSnapshotByFloorItemIdAsync(
         ActionContext ctx,
         RoomObjectId itemId,

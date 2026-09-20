@@ -26,6 +26,13 @@ public interface IRoomItem : IRoomObject
     public IExtraData ExtraData { get; }
     public FurnitureDefinitionSnapshot Definition { get; }
     public bool IsInvisible { get; }
+
+    /// <summary>
+    /// A furni that exists only in this room while it is loaded (wired placed it): it has no
+    /// database row and no place in an inventory, and its id is negative so it can never be
+    /// mistaken for one that has.
+    /// </summary>
+    public bool IsTemporary { get; }
     public void SetExtraData(string? extraData);
     public void SetOwnerId(PlayerId ownerId);
     public void SetOwnerName(string ownerName);
