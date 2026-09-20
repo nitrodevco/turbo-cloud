@@ -186,7 +186,7 @@ public sealed partial class RoomPetModule
                 _roomGrain.MapModule.AddAvatar(pet, false);
             }
 
-            pet.SetHeight(rider.Z);
+            pet.SetPositionZ(rider.Z);
             pet.SetRotation(rider.Rotation);
 
             if (rider.Statuses.TryGetValue(AvatarStatusType.Move, out var move))

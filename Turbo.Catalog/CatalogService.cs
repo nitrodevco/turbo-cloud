@@ -37,7 +37,8 @@ public sealed class CatalogService(
 
     public async Task<UpcomingLtdSnapshot?> GetUpcomingLtdAsync(CancellationToken ct)
     {
-        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
         // Find the nearest upcoming active LTD drop
         var now = DateTime.UtcNow;
@@ -45,7 +46,8 @@ public sealed class CatalogService(
             .LtdSeries.AsNoTracking()
             .Where(s => s.IsActive && s.StartsAt > now)
             .OrderBy(s => s.StartsAt)
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
 
         if (nextSeries == null)
             return null;

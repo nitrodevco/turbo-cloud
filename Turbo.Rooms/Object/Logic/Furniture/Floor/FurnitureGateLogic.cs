@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -12,16 +13,13 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 public class FurnitureGateLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
     : FurnitureFloorLogic(stuffDataFactory, ctx)
 {
-    private const int CLOSED_STATE = 0;
-    private const int OPEN_STATE = 1;
-
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Controller;
 
     public override bool CanWalk()
     {
         var state = StuffData.GetState();
 
-        if (state == OPEN_STATE)
+        if (state == GateStates.OPEN)
             return true;
 
         return false;

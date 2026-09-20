@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Logging;
-using Turbo.Primitives;
 using Turbo.Primitives.Messages.Outgoing.Room.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans;
@@ -149,8 +148,15 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
             var prevHeight = _roomGrain.MapModule.GetTileHeightForAvatar(prevTileId);
             var nextHeight = _roomGrain.MapModule.GetTileHeightForAvatar(nextTileId);
 
+            // A step the map refuses is the normal end of a walk, not a failure: the tile was
+            // taken or raised while the avatar was on its way. Stop and say nothing; this runs
+            // for every avatar on every tick.
             if (Math.Abs(nextHeight - prevHeight) > Math.Abs(_roomGrain._roomConfig.MaxStepHeight))
-                throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
+            {
+                await _roomGrain.AvatarModule.StopWalkingAsync(avatar, ct);
+
+                return;
+            }
 
             if (!_roomGrain.MapModule.CanAvatarWalkBetween(avatar, prevTileId, nextTileId, isGoal))
             {
@@ -166,7 +172,9 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
                     }
                 }
 
-                throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
+                await _roomGrain.AvatarModule.StopWalkingAsync(avatar, ct);
+
+                return;
             }
 
             await _roomGrain.AvatarModule.NotifyWalkOffAsync(avatar, prevTileId, ct);
@@ -182,8 +190,15 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
 
             avatar.NextTileId = nextTileId;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _roomGrain._logger.LogError(
+                ex,
+                "Avatar {ObjectId} failed to step in room {RoomId}; stopping the walk",
+                avatar.ObjectId,
+                _roomGrain.RoomId
+            );
+
             await _roomGrain.AvatarModule.StopWalkingAsync(avatar, ct);
         }
     }

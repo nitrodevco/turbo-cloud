@@ -25,7 +25,7 @@ public sealed record RoomSnapshot : RoomInfoSnapshot
     public required string Password { get; init; } = string.Empty;
 
     [Id(1)]
-    public required ModSettingsSnapshot ModSettings { get; init; }
+    public required ModSettingsSnapshot ModSettings { get; init; } = ModSettingsSnapshot.OwnerOnly;
 
     [Id(2)]
     public required ChatFloodSensitivityType ChatProtection { get; init; }

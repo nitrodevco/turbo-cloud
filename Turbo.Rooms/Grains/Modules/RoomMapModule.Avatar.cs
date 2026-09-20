@@ -144,7 +144,7 @@ public sealed partial class RoomMapModule
 
         AddAvatar(avatar, false);
 
-        avatar.SetHeight(z);
+        avatar.SetPositionZ(z);
 
         return true;
     }
@@ -209,7 +209,7 @@ public sealed partial class RoomMapModule
 
             avatar.PostureOffset = postureOffset;
 
-            avatar.SetHeight(height - postureOffset);
+            avatar.SetPositionZ(height - postureOffset);
         }
         catch (Exception ex)
         {

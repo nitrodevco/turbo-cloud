@@ -126,7 +126,8 @@ internal sealed partial class PlayerPresenceGrain
         {
             Enqueue(composer);
 
-            _ = ProcessOutgoingQueueAsync();
+            ProcessOutgoingQueueAsync()
+                .LogAndForget(_logger, $"flush outgoing composers for player {_state.PlayerId}");
         }
 
         return Task.CompletedTask;
@@ -139,7 +140,8 @@ internal sealed partial class PlayerPresenceGrain
             foreach (var composer in composers)
                 Enqueue(composer);
 
-            _ = ProcessOutgoingQueueAsync();
+            ProcessOutgoingQueueAsync()
+                .LogAndForget(_logger, $"flush outgoing composers for player {_state.PlayerId}");
         }
 
         return Task.CompletedTask;

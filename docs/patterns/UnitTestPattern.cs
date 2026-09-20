@@ -1,38 +1,45 @@
-using System;
 using FluentAssertions;
+using Turbo.Primitives.Furniture;
 using Xunit;
 
 namespace Docs.Patterns;
 
-// Reference-only sample: prioritize failure-path coverage for generated logic.
-public static class PresenceRule
-{
-    public static bool CanEnterRoom(int roomId, bool isBanned)
-    {
-        if (roomId <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(roomId));
-        }
+// Reference-only sample, and nothing compiles it.
+//
+// Read this before copying it: the solution has no test project, and neither xunit nor
+// FluentAssertions is in Directory.Packages.props. This file is the shape to write tests in
+// once there is somewhere to put them, not something you can run today. Until then, the
+// "verification of at least one edge/failure scenario" the PR expectations ask for is done by
+// hand and described in the PR.
+//
+// The shape: one public type per file, here the test class; its subject is something that
+// already exists in the repository, so the sample cannot drift into testing an invented type.
+// Pure functions over client-facing tables (the *States and *Colors classes under
+// Turbo.Primitives/Furniture/) are what is worth unit testing — the rest of the server is
+// grains, which need a test silo.
+//
+// Failure paths first: the rejections are what the client reacts badly to, and what a change
+// to a validator is most likely to get wrong.
 
-        return !isBanned;
-    }
-}
-
-public class PresenceRuleTests
+public class DimmerStatesTests
 {
     [Theory]
-    [InlineData(1, false, true)]
-    [InlineData(1, true, false)]
-    public void CanEnterRoom_ReturnsExpected(int roomId, bool isBanned, bool expected)
+    [InlineData("#000000")]
+    [InlineData("#FFFFFF")]
+    [InlineData("#0a1B2c")]
+    public void IsValidColor_AcceptsSixDigitHex(string color)
     {
-        var result = PresenceRule.CanEnterRoom(roomId, isBanned);
-        result.Should().Be(expected);
+        DimmerStates.IsValidColor(color).Should().BeTrue();
     }
 
-    [Fact]
-    public void CanEnterRoom_ThrowsForInvalidRoomId()
+    [Theory]
+    [InlineData("")] // empty
+    [InlineData("000000")] // no leading hash
+    [InlineData("#00000")] // one digit short
+    [InlineData("#0000000")] // one digit long
+    [InlineData("#00000G")] // not hexadecimal
+    public void IsValidColor_RejectsAnythingElse(string color)
     {
-        var action = () => PresenceRule.CanEnterRoom(0, false);
-        action.Should().Throw<ArgumentOutOfRangeException>();
+        DimmerStates.IsValidColor(color).Should().BeFalse();
     }
 }

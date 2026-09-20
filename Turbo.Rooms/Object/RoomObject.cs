@@ -59,7 +59,7 @@ public abstract class RoomObject<TSelf, TLogic, TContext> : IRoomObject<TSelf, T
         MarkDirty();
     }
 
-    public void SetRotation(Rotation rot)
+    public virtual void SetRotation(Rotation rot)
     {
         if (Rotation == rot)
             return;

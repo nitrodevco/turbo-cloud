@@ -38,7 +38,6 @@ public sealed class FurnitureStateVariable(RoomGrain roomGrain)
             !snapshot.Flags.Has(WiredVariableFlags.CanWriteValue)
             || !CanBind(key)
             || !TryGetItemForKey(key, out var item)
-            || item is null
         )
             return false;
 

@@ -80,7 +80,7 @@ public class PurchaseFromCatalogMessageHandler(
             if ((int)ex.ErrorType < 100)
             {
                 await ctx.SendComposerAsync(
-                        new PurchaseErrorMessageComposer { ErrorCode = (int)ex.ErrorType },
+                        new PurchaseErrorMessageComposer { ErrorCode = ex.ErrorType },
                         ct
                     )
                     .ConfigureAwait(false);
@@ -137,7 +137,7 @@ public class PurchaseFromCatalogMessageHandler(
                 await ctx.SendComposerAsync(
                         new PurchaseErrorMessageComposer
                         {
-                            ErrorCode = (int)CatalogPurchaseErrorType.LtdPurchasesLimited,
+                            ErrorCode = CatalogPurchaseErrorType.LtdPurchasesLimited,
                         },
                         ct
                     )
@@ -148,7 +148,7 @@ public class PurchaseFromCatalogMessageHandler(
                 await ctx.SendComposerAsync(
                         new PurchaseErrorMessageComposer
                         {
-                            ErrorCode = (int)CatalogPurchaseErrorType.RaffleOngoing,
+                            ErrorCode = CatalogPurchaseErrorType.RaffleOngoing,
                         },
                         ct
                     )

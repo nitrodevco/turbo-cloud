@@ -20,7 +20,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<PluginManager>();
         services.AddHostedService<PluginBootstrapper>();
 
-        if (builder.Environment.IsDevelopment() && pluginSection.GetValue<bool>("HotReloadEnabled"))
+        // Read through the bound class, not by key name: a string literal here would keep
+        // working while the option was renamed, and it answers false for a missing section
+        // instead of the option's own default.
+        var pluginConfig = pluginSection.Get<PluginConfig>() ?? new PluginConfig();
+
+        if (builder.Environment.IsDevelopment() && pluginConfig.HotReloadEnabled)
             services.AddHostedService<PluginHotReloadService>();
 
         return services;

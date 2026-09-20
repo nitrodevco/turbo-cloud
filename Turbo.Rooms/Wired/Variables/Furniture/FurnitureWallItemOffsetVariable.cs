@@ -36,7 +36,6 @@ public sealed class FurnitureWallItemOffsetVariable(RoomGrain roomGrain)
             !snapshot.Flags.Has(WiredVariableFlags.CanWriteValue)
             || !CanBind(key)
             || !TryGetItemForKey(key, out var item)
-            || item is null
             || !await _roomGrain.FurniModule.ValidateWallItemPlacementAsync(
                 ctx.AsActionContext(),
                 item.ObjectId,

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
@@ -10,9 +11,11 @@ using Turbo.Primitives.Players;
 
 namespace Turbo.Networking.Session;
 
-public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
+public sealed class SessionGateway(IGrainFactory grainFactory, ILogger<ISessionGateway> logger)
+    : ISessionGateway
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly ILogger<ISessionGateway> _logger = logger;
 
     private readonly ConcurrentDictionary<SessionKey, ISessionContext> _sessions = new();
     private readonly ConcurrentDictionary<SessionKey, ObserverEntry> _sessionObservers = new();
@@ -62,10 +65,17 @@ public sealed class SessionGateway(IGrainFactory grainFactory) : ISessionGateway
             {
                 _grainFactory.DeleteObjectReference<ISessionContextObserver>(observer.Ref);
             }
-            catch (Exception) { }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Failed to delete the session observer reference for session {SessionKey}",
+                    key
+                );
+            }
         }
 
-        if (_sessions.TryRemove(key, out _)) { }
+        _sessions.TryRemove(key, out _);
     }
 
     public async Task AddSessionToPlayerAsync(SessionKey key, PlayerId playerId)

@@ -42,10 +42,13 @@
   - session is added to gateway/session tracking.
 - After SSO success:
   - session is registered to `PlayerPresenceGrain` for that player id.
-- Player outbound targeting:
-  - resolve target player's presence grain
-  - call `SendComposerAsync`
-  - fan-out to subscribed sessions happens inside presence flow.
+- Player outbound targeting, one of exactly three ways by who it is for:
+  - the session that sent the packet being handled: `ctx.SendComposerAsync`
+  - any other player: `grainFactory.SendComposerToPlayerAsync` / `SendComposerToPlayersAsync`
+  - everyone in a room: `RoomGrain.SendComposerToRoomAsync`
+  - the player wrappers go through the presence grain, which fans out to that player's
+    sessions; do not spell out `GetPlayerPresenceGrain(id).SendComposerAsync(...)` or add a
+    local send helper.
 - Room activity:
   - active room indexing/lookup and keepalive ping responsibilities stay in `RoomDirectoryGrain`.
 - Lifecycle:
@@ -58,12 +61,13 @@
 - DB batch operations use single `WHERE ... IN (...)` queries, not per-entity `ExecuteDeleteAsync` loops.
 - Housekeeping writes (e.g. delivered flags) follow the timer-flush pattern: queue dirty state, flush with `RegisterGrainTimer`, flush on `OnDeactivateAsync`. See `RoomPersistenceGrain` for reference.
 - Do not hardcode limits (`Take(N)`, capacity constants) in grains. They are options on the module's config class, read by the grain through `IOptions<TConfig>`; handlers do not pass them in. Numbers a client chose are clamped to those limits in the grain.
+- A config option carries the hotel default it ships with and a summary; `required` is only for an option with no sensible default (`CryptoConfig`'s key pair). Nothing reads an option by key name from `IConfiguration`.
 - When a delete + insert must be atomic, use EF tracked operations (`Remove` + `SaveChangesAsync`), not `ExecuteDeleteAsync`.
 - Replace `.Ignore()` on grain tasks with a `LogAndForget` helper that logs faulted continuations.
 - In-memory collections that grow per-event (message history, queues) must have a configurable cap.
 - One grain per responsibility: isolate heavy I/O (DB writes, persistence) into secondary grains so the primary domain grain stays responsive (e.g. `RoomGrain` → `RoomPersistenceGrain`).
 - Use grain single-threading for concurrency safety: per-player `PurchaseGrain` for catalog buys, dedicated grains for limited-edition items. Do not add manual locks inside grains.
-- Grains orchestrate their own outbound: when state changes, the grain sends the composer via `PlayerPresenceGrain.SendComposerAsync`. Callers do not build or send composers after calling a grain method.
+- Grains orchestrate their own outbound: when state changes, the grain sends the composer itself (through the wrappers above). Callers do not build or send composers after calling a grain method.
 - All mutations to grain-owned data must go through grain methods. Do not update the database directly — grains may hold cached state that will not reflect raw DB changes.
 
 ## Placement rules

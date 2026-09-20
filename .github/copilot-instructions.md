@@ -37,7 +37,10 @@ Include in every request:
   - keep incoming message contracts explicit for required fields
 - For session/presence/room flow:
   - do not send composers directly to raw sessions/sockets from handlers
-  - target players through `PlayerPresenceGrain.SendComposerAsync`
+  - there are exactly three ways to send a composer: `ctx.SendComposerAsync` to the session being
+    handled, `grainFactory.SendComposerToPlayerAsync` / `SendComposerToPlayersAsync` to a player,
+    and `RoomGrain.SendComposerToRoomAsync` to a room
+  - do not spell out `GetPlayerPresenceGrain(id).SendComposerAsync(...)` or add a local send helper
   - keep active-room indexing and keepalive behavior in `RoomDirectoryGrain`
   - treat `[KeepAlive]` as explicit infrastructure-only usage
 
@@ -47,13 +50,14 @@ Include in every request:
 - Hoist repeated grain calls out of loops.
 - Batch DB deletes with `WHERE ... IN (...)`, not per-entity `ExecuteDeleteAsync`.
 - Use timer-flush for housekeeping writes (see `RoomPersistenceGrain`).
+- A config option carries the hotel default it ships with; `required` is only for an option with no sensible default (`CryptoConfig`).
 - No hardcoded limits in grains — they are options on the module's config class, read by the grain through `IOptions<TConfig>`. Handlers do not pass limits in; client-chosen numbers are clamped in the grain.
 - Use tracked EF deletes when atomicity with inserts is required.
 - Replace `.Ignore()` with a `LogAndForget` helper that logs faulted tasks.
 - Cap in-memory per-event collections (message history, queues).
 - One grain per responsibility — isolate heavy I/O into secondary grains (e.g. `RoomPersistenceGrain`).
 - Use grain single-threading for concurrency safety (per-player `PurchaseGrain`, per-item `LimitedItemGrain`). No manual locks.
-- Grains orchestrate their own outbound communication via `PlayerPresenceGrain.SendComposerAsync`. Callers do not send composers.
+- Grains orchestrate their own outbound communication; the caller that triggered a change does not build or send the composer.
 - All mutations to grain-owned data go through grain methods. No direct DB updates for grain-owned state.
 
 ## Task routing hints

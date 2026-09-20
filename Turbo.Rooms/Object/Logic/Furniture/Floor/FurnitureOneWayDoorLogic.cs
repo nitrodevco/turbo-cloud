@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
@@ -20,12 +21,9 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 public class FurnitureOneWayDoorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
     : FurnitureFloorLogic(stuffDataFactory, ctx)
 {
-    private const int CLOSED_STATE = 0;
-    private const int OPEN_STATE = 1;
-
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Everybody;
 
-    public override bool CanWalk() => GetState() == OPEN_STATE;
+    public override bool CanWalk() => GetState() == GateStates.OPEN;
 
     public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct) =>
         Task.CompletedTask;
@@ -39,7 +37,7 @@ public class FurnitureOneWayDoorLogic(IStuffDataFactory stuffDataFactory, IRoomF
         if (interaction is not EnterOneWayDoorInteraction)
             return false;
 
-        if (GetState() == OPEN_STATE)
+        if (GetState() == GateStates.OPEN)
             return false;
 
         var avatar = GetAvatar(ctx);
@@ -67,8 +65,8 @@ public class FurnitureOneWayDoorLogic(IStuffDataFactory stuffDataFactory, IRoomF
         )
             return false;
 
-        await SetStateAsync(OPEN_STATE);
-        await SendStatusAsync(OPEN_STATE);
+        await SetStateAsync(GateStates.OPEN);
+        await SendStatusAsync(GateStates.OPEN);
 
         var (exitX, exitY) = map.GetTileXY(backIdx);
 
@@ -106,8 +104,8 @@ public class FurnitureOneWayDoorLogic(IStuffDataFactory stuffDataFactory, IRoomF
             return;
         }
 
-        await SetStateAsync(CLOSED_STATE);
-        await SendStatusAsync(CLOSED_STATE);
+        await SetStateAsync(GateStates.CLOSED);
+        await SendStatusAsync(GateStates.CLOSED);
     }
 
     private Task SendStatusAsync(int status) =>

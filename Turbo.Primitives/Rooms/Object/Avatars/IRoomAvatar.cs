@@ -78,7 +78,6 @@ public interface IRoomAvatar : IRoomObject
     public void Touch(long nowMs);
     public void SetIdle(bool isIdle);
     public void SetFrozen(bool isFrozen, bool thawsOnTeleport = false);
-    public void SetHeight(Altitude z);
     public void SetBodyRotation(Rotation rot);
     public void SetHeadRotation(Rotation rot);
     public void Sit(bool flag = true, Altitude? height = null, Rotation? rot = null);

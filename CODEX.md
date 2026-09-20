@@ -11,8 +11,12 @@ This adapter points Codex to the canonical AI contract for this repository.
 ## Non-negotiable constraints
 - Keep packet handlers orchestration-only.
 - Do not query database contexts/repositories from packet handlers.
-- Do not send composers directly to sockets/sessions from handlers; route via `PlayerPresenceGrain.SendComposerAsync`.
-- For `Revision<id>` parser/serializer work, edit `./turbo-cloud/Turbo.Revisions/Revision**`.
+- Do not send composers directly to sockets/sessions from handlers. There are exactly three ways
+  to send one: `ctx.SendComposerAsync` to the session being handled,
+  `grainFactory.SendComposerToPlayerAsync` / `SendComposerToPlayersAsync` to a player, and
+  `RoomGrain.SendComposerToRoomAsync` to a room. Do not spell out
+  `GetPlayerPresenceGrain(id).SendComposerAsync(...)` or add a local send helper.
+- For `Revision<id>` parser/serializer work, edit `Turbo.Revisions/Revision<id>/**`.
 
 ## Validation commands
 ```bash

@@ -105,7 +105,9 @@ Default output format:
     **enum** in `Turbo.Primitives/<Domain>/Enums/`, and the serializer casts it. The composer or
     snapshot field has the enum's type; an `int` field with `(int)SomeType.Member` at the call
     site is the same cast in the wrong place (`RoomSettingsErrorEventMessageComposer.ErrorCode`,
-    `VariableFxConfigSnapshot.ShowMode` / `Category`). Zero counts: when the client reads `0` as
+    `VariableFxConfigSnapshot.ShowMode` / `Category`, `PurchaseErrorMessageComposer.ErrorCode`,
+    which sat one `switch` away from `PurchaseNotAllowedMessageComposer.ErrorType` carrying the
+    same enum properly). Zero counts: when the client reads `0` as
     an answer ("can rent"), the enum gets that member (`RentableSpaceRentFailedType.None`)
     instead of a `const Type X = 0` beside the code that sends it;
   - a set of related identifiers the client sends (search codes, cache keys) becomes one **shared
@@ -338,10 +340,15 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   before changing one.
 - Delayed item work (a dice landing, a door closing) is scheduled on `RoomTimerSystem`, keyed by
   the item, and cancelled in `OnPickupAsync`. Never `Task.Delay` inside a grain turn.
-- Protocol state values the client interprets (`DiceStates`, `WheelStates`, `StickieColors`,
-  `RentableSpaceStates`) live as static classes under `Turbo.Primitives/Furniture/`, not as
-  `private const int STATE_*` in the logic class; durations and limits are `RoomConfig`
-  tunables.
+- A table of protocol state values the client interprets lives as a static class under
+  `Turbo.Primitives/Furniture/` (`DiceStates`, `WheelStates`, `DimmerStates`, `StickieColors`,
+  `RentableSpaceStates`, `GateStates`), never as `private const int STATE_*` in the logic class.
+  What makes it a table rather than a local constant is that a second reader exists or could:
+  `GateStates` was two private copies of the same `CLOSED = 0 / OPEN = 1` in the gate and the
+  one-way gate, which is how a table announces itself. A single logic's own field offsets and
+  ranges (`STATE_INDEX`, `MIN_CHANNEL`, a wired box's `PARAM_*`) stay beside the class that
+  reads them, because there is nothing to share and the doc comment above them records the
+  format. Durations and limits are `RoomConfig` tunables either way.
 - Validate client data in the action module before the logic sees it: colour must be in the
   palette, text within `StickieTextMaxLength`, map entries within the `ObjectData*` limits.
   Reject with a `LogWarning` naming the item, room and player.
@@ -1112,9 +1119,17 @@ finishing a change, check it against this list; each line is a mistake that was 
   warnings for the files you touched. `GetBadgeInfoMessageHandler` awaited its two tasks again
   after `Task.WhenAll` without `ConfigureAwait(false)` and added two CA2007 warnings; read
   results into locals with `ConfigureAwait(false)` like every other handler await.
-- **A new setting looks like its siblings.** `BadgeInventoryFragmentSize` landed beside three
-  `required`, documented fragment sizes with appsettings keys, and had none of the three. A
-  config option is `required`, has a summary, and has its key in `appsettings.json`.
+- **A new setting looks like its siblings.** A config option carries the hotel default it ships
+  with (`public int X { get; init; } = 100;`) and a summary saying what it tunes. Its key goes in
+  `appsettings.json` when a hotel is expected to change it; the default is what a hotel that says
+  nothing gets. `required` is for an option with **no** sensible default, which therefore carries
+  none and has to be in `appsettings.json` — `CryptoConfig`'s key pair is the only one in the
+  repository. This file used to say every option is `required`, generalised from `PlayerConfig`,
+  and lost: two hundred options across `RoomConfig`, `WiredConfig`, `PetConfig`, `NavigatorConfig`
+  and the rest carry defaults instead, and `required int X { get; init; } = 500` says both things
+  at once. It is also a promise the binder does not keep: `services.Configure<T>(section)` builds
+  the object by reflection, so a missing key is not an error — ten of `PlayerConfig`'s twenty-three
+  `required` options had no key at all and nothing noticed.
 - **The adapter files say what this file says.** `CONTEXT.md` and
   `.github/copilot-instructions.md` still sent revision work to the plugin repo after it moved
   to `Turbo.Revisions/`. When a rule here changes, grep the adapters (`CONTEXT.md`, `CLAUDE.md`,
@@ -1154,6 +1169,66 @@ finishing a change, check it against this list; each line is a mistake that was 
   caller, the using, the appsettings key. A setting added "for later" (`OnlineTimeMinutes`,
   `MinutesBetweenMountAttempts`) is an orphan from the day it lands: add it with the code that
   reads it.
+- **A `new` member that hides a base one is drift, not a specialisation.** `RoomAvatar` declared
+  `public new void SetRotation` that turned the body *and* the head, over `RoomObject`'s
+  body-only `SetRotation`. Which one ran depended on the static type of the variable: the
+  concrete avatar classes got both, and every caller holding an `IRoomAvatar` — the walk step,
+  room entry, riding, the bot and pet modules — turned the body and left the head behind. Make
+  the base member `virtual` and `override` it, so the call means the same thing everywhere, or
+  give the specialised one its own name. A behavioural difference that depends on the reference
+  type is invisible in review and no gate catches it.
+- **A second name for an inherited method is a copy of it.** `RoomAvatar.SetHeight` was
+  `RoomObject.SetPositionZ` written out again, word for word, and `IRoomAvatar` published both.
+  Before adding a method to a subclass, look for what the base already calls that job.
+- **A `Try...` method annotates its out parameter.** `[NotNullWhen(true)] out TItem? item` puts
+  the guard in the signature, so a caller that checks the result is done. Without it the check
+  becomes a convention: three of the four furniture variables wrote `|| item is null` after
+  `TryGetItemForKey` and the fourth forgot, which the compiler reported as two nullable warnings
+  nobody read.
+- **An exception is not control flow, not even inside the method that catches it.**
+  `ValidateAvatarStepAsync` threw `TurboException` to mean "this step is blocked" and caught it
+  a few lines down to stop the walk. A blocked step is the ordinary end of a walk, so it is a
+  guard clause and a `return`; and because the same `catch` swallowed everything else without
+  logging, a real failure in the walk path looked exactly like a taken tile.
+- **A stub handler has one shape.** Two hundred and seventy-one handlers answer a packet the
+  server has no system for with `await ValueTask.CompletedTask.ConfigureAwait(false)` and a
+  summary saying what is missing. A handler that instead keeps its body commented out, and the
+  injections that body needed, is neither working code nor an honest stub:
+  `GetMessengerHistoryMessageHandler` still carried the `IConfiguration` this file says handlers
+  no longer take, for a grain method that was never written.
+- **A buffer nothing reads is half a feature, and it does not announce itself.** The messenger
+  grain fills a per-conversation history, caps it with `MaxSessionMessagesPerConversation`, and
+  no caller ever reads it; `ConsoleMessageHistoryMessageComposer`, its serializer and its header
+  are all in place with nothing to send them. Neither end looks wrong on its own. When adding
+  state, add the reader in the same change — or when finding one, say which of the two ends is
+  missing rather than deleting the one you happened to open.
+- **Zero warnings is the baseline, and an incremental build hides them.** A clean tree builds
+  `Turbo.Main` with no warnings at all, so any warning belongs to the change in front of you.
+  MSBuild only reports warnings for projects it actually recompiles, so a project that was
+  already up to date stays silent about its own: `RoomSnapshot`'s uninitialised `ModSettings`
+  went unreported for as long as `Turbo.Primitives` was not rebuilt. Build to a scratch
+  `-p:OutDir` (which also keeps clear of a running debugger) to see the whole tree's output.
+- **A reference sample nothing compiles is a rule that rots silently.** `docs/patterns/*.cs` is
+  what the load order tells every tool to start from, and no project builds it:
+  `TurboCloudAiGovernanceCheck` asserts only that the three files exist. All three had drifted —
+  `ServicePattern` returned a `PlayerSummary` that is `PlayerSummarySnapshot` and has been for
+  some time, `HandlerPattern` showed a sealed handler with `ct.ThrowIfCancellationRequested()`
+  and a null check on the parsed message, which none of the 502 real handlers does, and
+  `UnitTestPattern` used `xunit` and `FluentAssertions`, neither of which is in
+  `Directory.Packages.props` (there is no test project at all). Each sample now names the real
+  file it mirrors; when a convention changes, change the sample in the same commit, and check
+  its type names by hand because nothing else will.
+- **An option is read through its config class, never by key name.**
+  `pluginSection.GetValue<bool>("HotReloadEnabled")` was the only place in the repository doing
+  otherwise. A string key survives a rename of the property it names, and it answers `false`
+  for an absent section instead of the option's own default — so `HotReloadEnabled = true` on
+  `PluginConfig` was dead. Bind the section (`section.Get<TConfig>()`) or take
+  `IOptions<TConfig>`, and read the property.
+- **A packet handler takes a primary constructor.** Five hundred of the five hundred and two
+  already did; the two extended-profile handlers were still writing out a field, a constructor
+  and an assignment. (Grains are the opposite and say so above: a grain takes a classic
+  constructor, because it has a body to run.)
+
 - When a fix teaches a rule that is not in this file yet, add it here in the same change.
 
 ## Required validation before completion

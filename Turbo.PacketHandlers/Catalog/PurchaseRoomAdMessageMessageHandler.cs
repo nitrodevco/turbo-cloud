@@ -91,10 +91,7 @@ public class PurchaseRoomAdMessageMessageHandler(
         CancellationToken ct
     ) =>
         (int)errorType < 100
-            ? ctx.SendComposerAsync(
-                new PurchaseErrorMessageComposer { ErrorCode = (int)errorType },
-                ct
-            )
+            ? ctx.SendComposerAsync(new PurchaseErrorMessageComposer { ErrorCode = errorType }, ct)
             : ctx.SendComposerAsync(
                 new PurchaseNotAllowedMessageComposer { ErrorType = errorType },
                 ct

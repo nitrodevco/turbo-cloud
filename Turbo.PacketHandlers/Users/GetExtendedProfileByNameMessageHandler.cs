@@ -8,15 +8,10 @@ using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Users;
 
-public class GetExtendedProfileByNameMessageHandler
+public class GetExtendedProfileByNameMessageHandler(IGrainFactory grainFactory)
     : IMessageHandler<GetExtendedProfileByNameMessage>
 {
-    private readonly IGrainFactory _grainFactory;
-
-    public GetExtendedProfileByNameMessageHandler(IGrainFactory grainFactory)
-    {
-        _grainFactory = grainFactory;
-    }
+    private readonly IGrainFactory _grainFactory = grainFactory;
 
     public async ValueTask HandleAsync(
         GetExtendedProfileByNameMessage message,

@@ -37,7 +37,14 @@ using Turbo.Rooms.Wired.VariableFx;
 namespace Turbo.Rooms.Grains;
 
 /// <summary>
-/// Owns a live room. Unlike every other grain implementation this type is public rather than
+/// Owns a live room: its map, its avatars, its furni and the systems that tick over them.
+/// Its own state reaches the database through <see cref="IRoomPersistenceGrain"/> and not from
+/// here — the room hands over what changed and carries on, so a write never holds up the tick,
+/// and there is nothing to flush on deactivation beyond telling the persistence grain. The
+/// settings and the navigator row are the exception: they are written through as they change,
+/// because a room is never re-read while it is loaded.
+///
+/// Unlike every other grain implementation this type is public rather than
 /// internal: room object logic and wired variables name it in their constructors, and those are
 /// discovered by <c>AssemblyExplorer</c>, which skips non-public types. Internalising this class
 /// compiles once those are internal too, but they then go undiscovered and silently register
@@ -184,7 +191,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
         var provider = this.GetStreamProvider(OrleansStreamProviders.ROOM_STREAM_PROVIDER);
 
-        var streamId = StreamId.Create(OrleansStreamNames.ROOM_STREAM, this.GetPrimaryKeyLong());
+        var streamId = StreamId.Create(OrleansStreamNames.ROOM_STREAM, _state.RoomId.Value);
 
         _roomOutbound = provider.GetStream<RoomOutboundSnapshot>(streamId);
 

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Wired.Variable;
@@ -15,7 +16,7 @@ public abstract class FurnitureVariable<TItem>(RoomGrain roomGrain)
     {
         value = WiredVariableValue.Default;
 
-        if (!CanBind(key) || !TryGetItemForKey(key, out var item) || item is null)
+        if (!CanBind(key) || !TryGetItemForKey(key, out var item))
             return false;
 
         return TryGetValueForItem(item, out value);
@@ -23,7 +24,15 @@ public abstract class FurnitureVariable<TItem>(RoomGrain roomGrain)
 
     protected abstract bool TryGetValueForItem(TItem item, out WiredVariableValue value);
 
-    protected virtual bool TryGetItemForKey(in WiredVariableKey key, out TItem? item)
+    /// <summary>
+    /// The item the key names, when it is in the room and of this variable's kind. The out
+    /// parameter is annotated, so a caller that checks the result does not repeat a null check —
+    /// and one that forgets it does not silently pass null on (the placement variables did).
+    /// </summary>
+    protected virtual bool TryGetItemForKey(
+        in WiredVariableKey key,
+        [NotNullWhen(true)] out TItem? item
+    )
     {
         item = default;
 

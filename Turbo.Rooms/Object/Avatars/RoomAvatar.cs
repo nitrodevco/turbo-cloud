@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Turbo.Primitives.Rooms.Enums;
@@ -76,33 +75,20 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
         return true;
     }
 
-    public void SetHeight(Altitude z)
-    {
-        z = Math.Round(z, 2);
-
-        if (Z == z)
-            return;
-
-        Z = z;
-
-        MarkDirty();
-    }
-
-    public new void SetRotation(Rotation rot)
+    /// <summary>
+    /// Turns the whole avatar: the head follows the body. This is an override and not a second
+    /// method, because an avatar reached through <see cref="IRoomObject"/> must turn the same way
+    /// as one reached through its own type; while it was hidden with <c>new</c>, a walking avatar
+    /// turned its body and left its head where it was.
+    /// </summary>
+    public override void SetRotation(Rotation rot)
     {
         SetBodyRotation(rot);
         SetHeadRotation(rot);
     }
 
-    public void SetBodyRotation(Rotation rot)
-    {
-        if (Rotation == rot)
-            return;
-
-        Rotation = rot;
-
-        MarkDirty();
-    }
+    /// <summary>Turns the body and leaves the head where it is (a look-at, a pet glancing round).</summary>
+    public void SetBodyRotation(Rotation rot) => base.SetRotation(rot);
 
     public void SetHeadRotation(Rotation rot)
     {
