@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
+using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Providers;
@@ -43,28 +44,7 @@ public sealed class RoomModelProvider(
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
 
-            _modelsById = entities
-                .Select(x =>
-                {
-                    var modelData = CleanModelString(x.Model);
-                    var compiledModel = CompileModelFromString(modelData);
-
-                    return new RoomModelSnapshot
-                    {
-                        Id = x.Id,
-                        Name = x.Name,
-                        Model = modelData,
-                        DoorX = x.DoorX,
-                        DoorY = x.DoorY,
-                        DoorRotation = x.DoorRotation,
-                        Width = compiledModel.Width,
-                        Height = compiledModel.Height,
-                        Size = compiledModel.Width * compiledModel.Height,
-                        BaseHeights = compiledModel.Heights,
-                        BaseFlags = compiledModel.Flags,
-                    };
-                })
-                .ToImmutableDictionary(x => x.Id);
+            _modelsById = entities.Select(ToSnapshot).ToImmutableDictionary(x => x.Id);
 
             _logger.LogInformation(
                 "Loaded room models: TotalModels={TotalModelCount}",
@@ -75,6 +55,52 @@ public sealed class RoomModelProvider(
         {
             await dbCtx.DisposeAsync().ConfigureAwait(false);
         }
+    }
+
+    public async Task<RoomModelSnapshot?> ReloadModelAsync(int modelId, CancellationToken ct)
+    {
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+
+        var entity = await dbCtx
+            .RoomModels.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == modelId, ct)
+            .ConfigureAwait(false);
+
+        if (entity is null)
+        {
+            _logger.LogWarning("Room model {ModelId} was asked for and is not there", modelId);
+
+            return null;
+        }
+
+        var snapshot = ToSnapshot(entity);
+
+        // The whole dictionary is swapped rather than mutated, so a reader mid-lookup keeps the
+        // map it started with instead of seeing half of two.
+        Volatile.Write(ref _modelsById, _modelsById.SetItem(snapshot.Id, snapshot));
+
+        return snapshot;
+    }
+
+    private static RoomModelSnapshot ToSnapshot(RoomModelEntity entity)
+    {
+        var modelData = CleanModelString(entity.Model);
+        var compiledModel = CompileModelFromString(modelData);
+
+        return new RoomModelSnapshot
+        {
+            Id = entity.Id,
+            Name = entity.Name,
+            Model = modelData,
+            DoorX = entity.DoorX,
+            DoorY = entity.DoorY,
+            DoorRotation = entity.DoorRotation,
+            Width = compiledModel.Width,
+            Height = compiledModel.Height,
+            Size = compiledModel.Width * compiledModel.Height,
+            BaseHeights = compiledModel.Heights,
+            BaseFlags = compiledModel.Flags,
+        };
     }
 
     private static string CleanModelString(string model) =>

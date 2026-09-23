@@ -18,11 +18,15 @@ public static class CatalogTypeExtensions
             _ => throw new ArgumentOutOfRangeException(nameof(catalogType), catalogType, null),
         };
 
-    public static CatalogType FromLegacyString(this string catalogType) =>
+    /// <summary>
+    /// Reads the catalog name a client sent. Anything else is the normal catalog rather than an
+    /// exception: this runs in a parser on a string the client chose, and a client that sends
+    /// nonsense would otherwise be able to fill the log one packet at a time.
+    /// </summary>
+    public static CatalogType FromLegacyString(this string? catalogType) =>
         catalogType switch
         {
-            "NORMAL" => CatalogType.Normal,
             "BUILDERS_CLUB" => CatalogType.BuildersClub,
-            _ => throw new ArgumentOutOfRangeException(nameof(catalogType), catalogType, null),
+            _ => CatalogType.Normal,
         };
 }

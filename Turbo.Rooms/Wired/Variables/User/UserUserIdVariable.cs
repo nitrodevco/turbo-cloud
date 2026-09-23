@@ -6,7 +6,8 @@ using Turbo.Rooms.Grains;
 namespace Turbo.Rooms.Wired.Variables.User;
 
 /// <summary>The player's hotel-wide id, which outlives their being in the room; @index is the id of their avatar here.</summary>
-public sealed class UserUserIdVariable(RoomGrain roomGrain) : UserVariable<IRoomPlayer>(roomGrain)
+public sealed class UserUserIdVariable(RoomGrain roomGrain)
+    : UserValueVariable<IRoomPlayer>(roomGrain)
 {
     protected override string VariableName => "@user_id";
 

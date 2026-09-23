@@ -10,7 +10,8 @@ using Turbo.Rooms.Grains;
 namespace Turbo.Rooms.Wired.Variables.User;
 
 /// <summary>The dance the avatar is doing, by the client's own numbering. Zero is standing still.</summary>
-public sealed class UserDanceVariable(RoomGrain roomGrain) : UserVariable<IRoomAvatar>(roomGrain)
+public sealed class UserDanceVariable(RoomGrain roomGrain)
+    : UserValueVariable<IRoomAvatar>(roomGrain)
 {
     protected override string VariableName => "@dance";
 

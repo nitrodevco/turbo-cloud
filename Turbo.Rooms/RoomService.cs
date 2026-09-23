@@ -424,9 +424,9 @@ internal sealed partial class RoomService(
         var floorSnapshot = await room.GetAllFloorItemSnapshotsAsync(ct).ConfigureAwait(false);
         var wallSnapshot = await room.GetAllWallItemSnapshotsAsync(ct).ConfigureAwait(false);
         var avatarSnapshots = await room.GetAllAvatarSnapshotsAsync(ct).ConfigureAwait(false);
-        // Neither a dance nor an effect travels in the Users packet, so both are replayed to the
-        // arriving player as their own updates. Any avatar can carry them; one that the client
-        // does not draw as a user simply never has one to replay.
+        // Neither a dance, an effect nor a sleep travels in the Users packet, so all three are
+        // replayed to the arriving player as their own updates. Any avatar can carry them; one
+        // that the client does not draw as a user simply never has one to replay.
         var danceComposers = avatarSnapshots
             .Where(x => x.DanceType != AvatarDanceType.None)
             .Select(x => new DanceMessageComposer
@@ -443,6 +443,10 @@ internal sealed partial class RoomService(
                 EffectId = x.EffectId,
                 DelayMilliseconds = 0,
             })
+            .ToArray();
+        var sleepComposers = avatarSnapshots
+            .Where(x => x.IsIdle)
+            .Select(x => new SleepMessageComposer { ObjectId = x.ObjectId, IsSleeping = true })
             .ToArray();
 
         var roomProperties = await room.GetRoomPropertiesAsync(ct).ConfigureAwait(false);
@@ -489,7 +493,12 @@ internal sealed partial class RoomService(
                     new FloorHeightMapMessageComposer
                     {
                         ScaleType = _roomConfig.DefaultRoomScale,
-                        FixedWallsHeight = _roomConfig.DefaultWallHeight,
+                        // The room's own choice, made in the floor plan editor; a room that has
+                        // never been drawn keeps the hotel's default.
+                        FixedWallsHeight =
+                            snapshot.WallHeight >= 0
+                                ? snapshot.WallHeight
+                                : _roomConfig.DefaultWallHeight,
                         ModelData = mapSnapshot.ModelData,
                         AreaHideData = [],
                         CameraInitX = mapSnapshot.DoorX,
@@ -557,6 +566,8 @@ internal sealed partial class RoomService(
             await playerPresence.SendComposerAsync(danceComposers, ct).ConfigureAwait(false);
         if (effectComposers.Length > 0)
             await playerPresence.SendComposerAsync(effectComposers, ct).ConfigureAwait(false);
+        if (sleepComposers.Length > 0)
+            await playerPresence.SendComposerAsync(sleepComposers, ct).ConfigureAwait(false);
 
         await playerPresence.SetActiveRoomAsync(roomId, ct).ConfigureAwait(false);
 

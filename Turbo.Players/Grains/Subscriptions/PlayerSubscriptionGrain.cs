@@ -142,7 +142,20 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
         await SendStatusAsync(ct);
 
         if (subscriptionType == SubscriptionType.HabboClub)
+        {
             await SendClubInfoAsync(ScrUserInfoResponseType.SubscriptionChanged, ct);
+
+            // The room this player is standing in keeps the new expiry against their avatar for
+            // the wired @is_hc variable. Not awaited: the presence has a room to tell and this
+            // grain has nothing to do with what it says.
+            _grainFactory
+                .GetPlayerPresenceGrain(PlayerId)
+                .OnHabboClubChangedAsync(entity.ExpiresAt, ct)
+                .LogAndForget(
+                    _logger,
+                    $"tell the room of player {PlayerId} about their Habbo Club"
+                );
+        }
 
         if (subscriptionType == SubscriptionType.BuildersClub)
             // Rooms hidden while this membership was lapsed can come back. Not awaited: the

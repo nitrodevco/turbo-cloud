@@ -157,6 +157,7 @@ public sealed class RoomBotAvatar : RoomAvatar<IRoomBot, IRoomBotLogic, IRoomBot
             Status = statusString.ToString(),
             DanceType = DanceType,
             EffectId = EffectId,
+            IsIdle = IsIdle,
             Gender = Gender,
             OwnerId = OwnerId,
             OwnerName = OwnerName,

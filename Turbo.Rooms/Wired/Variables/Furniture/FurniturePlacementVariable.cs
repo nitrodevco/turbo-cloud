@@ -17,7 +17,7 @@ namespace Turbo.Rooms.Wired.Variables.Furniture;
 /// out through the wired movement packet. A subclass only says which component it is.
 /// </summary>
 public abstract class FurniturePlacementVariable(RoomGrain roomGrain)
-    : FurnitureVariable<IRoomItem>(roomGrain)
+    : FurnitureValueVariable<IRoomItem>(roomGrain)
 {
     protected readonly record struct Placement(int X, int Y, Altitude Z, Rotation Rotation);
 

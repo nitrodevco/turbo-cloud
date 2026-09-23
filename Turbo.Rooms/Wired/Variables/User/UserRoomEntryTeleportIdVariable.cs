@@ -11,7 +11,7 @@ namespace Turbo.Rooms.Wired.Variables.User;
 /// which door someone used.
 /// </summary>
 public sealed class UserRoomEntryTeleportIdVariable(RoomGrain roomGrain)
-    : UserVariable<IRoomPlayer>(roomGrain)
+    : UserValueVariable<IRoomPlayer>(roomGrain)
 {
     protected override string VariableName => "@room_entry.teleport_id";
 

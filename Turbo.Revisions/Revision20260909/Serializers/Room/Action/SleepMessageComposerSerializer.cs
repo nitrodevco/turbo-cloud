@@ -8,6 +8,6 @@ internal class SleepMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, SleepMessageComposer message)
     {
-        packet.WriteInteger(message.UserId).WriteBoolean(message.IsSleeping);
+        packet.WriteInteger(message.ObjectId).WriteBoolean(message.IsSleeping);
     }
 }

@@ -10,7 +10,8 @@ using Turbo.Rooms.Grains;
 namespace Turbo.Rooms.Wired.Variables.User;
 
 /// <summary>What the avatar is holding, by hand item id. Zero is an empty hand.</summary>
-public sealed class UserHandItemVariable(RoomGrain roomGrain) : UserVariable<IRoomAvatar>(roomGrain)
+public sealed class UserHandItemVariable(RoomGrain roomGrain)
+    : UserValueVariable<IRoomAvatar>(roomGrain)
 {
     protected override string VariableName => "@handitem";
 
@@ -46,7 +47,6 @@ public sealed class UserHandItemVariable(RoomGrain roomGrain) : UserVariable<IRo
         if (
             !CanBind(key)
             || !TryGetAvatarForKey(key, out var avatar)
-            || avatar is null
             || value.Value < 0
             || value.Value > _roomGrain._wiredConfig.MaxHandItemId
         )

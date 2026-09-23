@@ -1,23 +1,16 @@
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture;
-using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired.Variables.Furniture;
 
 public sealed class FurnitureIsInvisibleVariable(RoomGrain roomGrain)
-    : FurnitureVariable<IRoomItem>(roomGrain)
+    : FurnitureFlagVariable<IRoomItem>(roomGrain)
 {
     protected override string VariableName => "@is_invisible";
     protected override WiredVariableGroupSubBandType SubBandType =>
         WiredVariableGroupSubBandType.Meta;
     protected override ushort Order => 80;
-    protected override WiredVariableFlags Flags => WiredVariableFlags.None;
 
-    protected override bool TryGetValueForItem(IRoomItem item, out WiredVariableValue value)
-    {
-        value = WiredVariableValue.Default;
-
-        return item.IsInvisible;
-    }
+    protected override bool HasFlag(IRoomItem item) => item.IsInvisible;
 }

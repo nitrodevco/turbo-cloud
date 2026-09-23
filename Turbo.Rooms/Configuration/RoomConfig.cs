@@ -76,6 +76,26 @@ public class RoomConfig
     /// </summary>
     public bool BuildersClubInGroupRooms { get; init; } = true;
 
+    /// <summary>
+    /// The longest a saved floor plan may be on either axis. The editor refuses to draw past 64
+    /// (<c>FloorPlanCache.MAX_AXIS_LENGTH</c>), so raising this past that gains nothing.
+    /// </summary>
+    public int FloorPlanMaxAxisLength { get; init; } = 64;
+
+    /// <summary>
+    /// The largest area a saved floor plan may cover, counted as the editor counts it:
+    /// <c>(width - 1) * (height - 1)</c>. The editor lets a player past this only when they hold
+    /// the <c>BUILDER_AT_WORK</c> perk, which nothing grants yet, so for now it is the ceiling
+    /// for everyone.
+    /// </summary>
+    public int FloorPlanMaxArea { get; init; } = 3025;
+
+    /// <summary>
+    /// The highest fixed wall height the editor's slider can reach. It draws the value plus one,
+    /// so 15 is the "16" a player sees.
+    /// </summary>
+    public int FloorPlanMaxWallHeight { get; init; } = 15;
+
     /// <summary>What renting a rentable space costs, in credits. Zero makes them free.</summary>
     public int RentableSpacePriceCredits { get; init; } = 10;
 

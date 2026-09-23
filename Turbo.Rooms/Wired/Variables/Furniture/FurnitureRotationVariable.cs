@@ -12,12 +12,7 @@ public sealed class FurnitureRotationVariable(RoomGrain roomGrain)
     protected override string VariableName => "@rotation";
     protected override ushort Order => 20;
 
-    protected override bool TryGetValueForItem(IRoomItem item, out WiredVariableValue value)
-    {
-        value = (int)item.Rotation;
-
-        return true;
-    }
+    protected override WiredVariableValue GetValueForItem(IRoomItem item) => (int)item.Rotation;
 
     /// <summary>A wall item only faces one of two ways; anything but south reads as north.</summary>
     protected override Placement Apply(IRoomItem item, Placement current, int value)

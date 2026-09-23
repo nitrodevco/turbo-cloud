@@ -9,7 +9,7 @@ namespace Turbo.Rooms.Wired.Variables.User;
 /// The pet's own id, the one its row is kept under, which outlives its being in this room.
 /// Only a pet holds it: a player or a bot has none.
 /// </summary>
-public sealed class UserPetIdVariable(RoomGrain roomGrain) : UserVariable<IRoomPet>(roomGrain)
+public sealed class UserPetIdVariable(RoomGrain roomGrain) : UserValueVariable<IRoomPet>(roomGrain)
 {
     protected override string VariableName => "@pet_id";
 

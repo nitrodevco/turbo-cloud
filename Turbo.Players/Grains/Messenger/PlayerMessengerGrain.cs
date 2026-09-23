@@ -136,6 +136,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
             Figure = snapshot.Figure,
             Gender = snapshot.Gender,
             Online = snapshot.IsOnline,
+            FollowingAllowed = true,
             LastAccess = snapshot.LastUpdated.ToString("dd-MM-yyyy HH:mm:ss"),
         };
 

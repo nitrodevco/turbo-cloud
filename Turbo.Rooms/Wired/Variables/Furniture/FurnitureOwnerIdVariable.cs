@@ -6,7 +6,7 @@ using Turbo.Rooms.Grains;
 namespace Turbo.Rooms.Wired.Variables.Furniture;
 
 public sealed class FurnitureOwnerIdVariable(RoomGrain roomGrain)
-    : FurnitureVariable<IRoomItem>(roomGrain)
+    : FurnitureValueVariable<IRoomItem>(roomGrain)
 {
     protected override string VariableName => "@owner_id";
     protected override WiredVariableGroupSubBandType SubBandType =>
@@ -15,10 +15,5 @@ public sealed class FurnitureOwnerIdVariable(RoomGrain roomGrain)
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 
-    protected override bool TryGetValueForItem(IRoomItem item, out WiredVariableValue value)
-    {
-        value = (int)item.OwnerId;
-
-        return true;
-    }
+    protected override WiredVariableValue GetValueForItem(IRoomItem item) => (int)item.OwnerId;
 }

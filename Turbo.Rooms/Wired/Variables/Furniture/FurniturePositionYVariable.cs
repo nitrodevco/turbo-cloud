@@ -10,12 +10,7 @@ public sealed class FurniturePositionYVariable(RoomGrain roomGrain)
     protected override string VariableName => "@position.y";
     protected override ushort Order => 30;
 
-    protected override bool TryGetValueForItem(IRoomItem item, out WiredVariableValue value)
-    {
-        value = item.Y;
-
-        return true;
-    }
+    protected override WiredVariableValue GetValueForItem(IRoomItem item) => item.Y;
 
     protected override Placement Apply(IRoomItem item, Placement current, int value) =>
         current with

@@ -6,7 +6,7 @@ using Turbo.Rooms.Grains;
 namespace Turbo.Rooms.Wired.Variables.Furniture;
 
 public sealed class FurnitureHeightVariable(RoomGrain roomGrain)
-    : FurnitureVariable<IRoomItem>(roomGrain)
+    : FurnitureValueVariable<IRoomItem>(roomGrain)
 {
     protected override string VariableName => "@height";
     protected override WiredVariableGroupSubBandType SubBandType =>
@@ -15,10 +15,6 @@ public sealed class FurnitureHeightVariable(RoomGrain roomGrain)
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 
-    protected override bool TryGetValueForItem(IRoomItem item, out WiredVariableValue value)
-    {
-        value = item.Logic.GetStackHeight().ToInt();
-
-        return true;
-    }
+    protected override WiredVariableValue GetValueForItem(IRoomItem item) =>
+        item.Logic.GetStackHeight().ToInt();
 }

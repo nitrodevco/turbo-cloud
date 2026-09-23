@@ -135,6 +135,12 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         _state.RespectReplenishesLeft = entity.RespectReplenishesLeft;
         _state.RespectResetDate = entity.RespectResetDate;
 
+        // Online-ness is not ours to remember: this grain is collected while idle and comes back
+        // long before the player logs out, so the session holder is asked instead of guessing.
+        _state.IsOnline = await _grainFactory
+            .GetPlayerPresenceGrain(_state.PlayerId)
+            .HasActiveSessionAsync(ct);
+
         ResetDailyRespectIfDue();
 
         await _grainFactory.GetPlayerDirectoryGrain().SetPlayerNameAsync(PlayerId, _state.Name, ct);

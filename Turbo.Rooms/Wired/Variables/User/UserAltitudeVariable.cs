@@ -6,7 +6,8 @@ using Turbo.Rooms.Grains;
 namespace Turbo.Rooms.Wired.Variables.User;
 
 /// <summary>How high the avatar stands, in hundredths of a tile, as furni altitudes are counted.</summary>
-public sealed class UserAltitudeVariable(RoomGrain roomGrain) : UserVariable<IRoomAvatar>(roomGrain)
+public sealed class UserAltitudeVariable(RoomGrain roomGrain)
+    : UserValueVariable<IRoomAvatar>(roomGrain)
 {
     protected override string VariableName => "@altitude";
 

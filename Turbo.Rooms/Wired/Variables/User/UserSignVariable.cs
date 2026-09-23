@@ -15,7 +15,8 @@ namespace Turbo.Rooms.Wired.Variables.User;
 /// ten and the rest are pictures. Holding no sign is <see cref="NO_SIGN"/>, because zero is
 /// itself a sign.
 /// </summary>
-public sealed class UserSignVariable(RoomGrain roomGrain) : UserVariable<IRoomAvatar>(roomGrain)
+public sealed class UserSignVariable(RoomGrain roomGrain)
+    : UserValueVariable<IRoomAvatar>(roomGrain)
 {
     /// <summary>The highest sign the client's editor offers; the list is the signs it can draw.</summary>
     private const int MAX_SIGN = 17;

@@ -8,7 +8,8 @@ using Turbo.Rooms.Grains;
 namespace Turbo.Rooms.Wired.Variables.User;
 
 /// <summary>The avatar's gender: male is zero and female is one, as the client's own figure data numbers them. Anything that is not a player has none.</summary>
-public sealed class UserGenderVariable(RoomGrain roomGrain) : UserVariable<IRoomAvatar>(roomGrain)
+public sealed class UserGenderVariable(RoomGrain roomGrain)
+    : UserValueVariable<IRoomAvatar>(roomGrain)
 {
     protected override string VariableName => "@gender";
 

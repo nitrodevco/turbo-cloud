@@ -7,7 +7,8 @@ using Turbo.Rooms.Grains;
 namespace Turbo.Rooms.Wired.Variables.User;
 
 /// <summary>The effect the avatar is wearing, by id. Zero is none.</summary>
-public sealed class UserEffectVariable(RoomGrain roomGrain) : UserVariable<IRoomAvatar>(roomGrain)
+public sealed class UserEffectVariable(RoomGrain roomGrain)
+    : UserValueVariable<IRoomAvatar>(roomGrain)
 {
     protected override string VariableName => "@effect";
 

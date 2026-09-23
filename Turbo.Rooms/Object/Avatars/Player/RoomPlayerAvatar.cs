@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using System.Text;
 using Turbo.Primitives.Badges;
@@ -20,6 +21,7 @@ public sealed class RoomPlayerAvatar
     public required PlayerId PlayerId { get; init; }
     public AvatarGenderType Gender { get; private set; } = AvatarGenderType.Male;
     public ImmutableArray<string> BadgeCodes { get; private set; } = [];
+    public DateTime? HabboClubExpiresAt { get; private set; }
 
     /// <summary>The player's place on the total badges board, as their summary last said.</summary>
     public int BadgesRank { get; private set; } = BadgeRanks.NONE;
@@ -49,6 +51,8 @@ public sealed class RoomPlayerAvatar
 
     public void SetBadges(ImmutableArray<string> badgeCodes) => BadgeCodes = badgeCodes;
 
+    public void SetHabboClubExpiresAt(DateTime? expiresAt) => HabboClubExpiresAt = expiresAt;
+
     protected override RoomPlayerAvatarSnapshot BuildSnapshot()
     {
         var statusString = new StringBuilder("/");
@@ -74,6 +78,7 @@ public sealed class RoomPlayerAvatar
             Gender = Gender,
             DanceType = DanceType,
             EffectId = EffectId,
+            IsIdle = IsIdle,
             GroupId = GroupId,
             GroupStatus = GroupStatus,
             GroupName = GroupName,

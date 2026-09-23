@@ -15,7 +15,7 @@ namespace Turbo.Rooms.Wired.Variables.User;
 /// A subclass only says which part it is.
 /// </summary>
 public abstract class UserPlacementVariable(RoomGrain roomGrain)
-    : UserVariable<IRoomAvatar>(roomGrain)
+    : UserValueVariable<IRoomAvatar>(roomGrain)
 {
     protected override WiredVariableGroupSubBandType SubBandType =>
         WiredVariableGroupSubBandType.Position;
@@ -40,7 +40,7 @@ public abstract class UserPlacementVariable(RoomGrain roomGrain)
         WiredVariableValue value
     )
     {
-        if (!CanBind(key) || !TryGetAvatarForKey(key, out var avatar) || avatar is null)
+        if (!CanBind(key) || !TryGetAvatarForKey(key, out var avatar))
             return false;
 
         if (IsRotation)

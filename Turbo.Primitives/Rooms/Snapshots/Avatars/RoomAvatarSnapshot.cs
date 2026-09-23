@@ -53,4 +53,11 @@ public record RoomAvatarSnapshot
     /// <summary>Also replayed on room entry, as an effect update. Zero is no effect.</summary>
     [Id(14)]
     public required int EffectId { get; init; }
+
+    /// <summary>
+    /// Also replayed on room entry, as a sleep update. Without it an avatar that dozed off
+    /// before the player arrived is drawn awake for them until it next moves.
+    /// </summary>
+    [Id(15)]
+    public required bool IsIdle { get; init; }
 }

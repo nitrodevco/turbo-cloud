@@ -75,6 +75,7 @@ public static class RoomEntityExtensions
             IdleAutokickEnabled = entity.IdleAutokickEnabled,
             IdleAutokickTimeoutSeconds = entity.IdleAutokickTimeoutSeconds,
             MuteAllPets = entity.MuteAllPets,
+            WallHeight = entity.WallHeight,
             WiredModifyPermissionMask = entity.WiredModifyPermissionMask,
             WiredReadPermissionMask = entity.WiredReadPermissionMask,
             WiredTimezone = entity.WiredTimezone,

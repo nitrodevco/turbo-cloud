@@ -8,7 +8,7 @@ using Turbo.Rooms.Grains;
 namespace Turbo.Rooms.Wired.Variables.Furniture;
 
 public sealed class FurnitureStateVariable(RoomGrain roomGrain)
-    : FurnitureVariable<IRoomItem>(roomGrain)
+    : FurnitureValueVariable<IRoomItem>(roomGrain)
 {
     protected override string VariableName => "@state";
     protected override WiredVariableGroupSubBandType SubBandType =>
@@ -19,12 +19,8 @@ public sealed class FurnitureStateVariable(RoomGrain roomGrain)
         | WiredVariableFlags.CanWriteValue
         | WiredVariableFlags.AlwaysAvailable;
 
-    protected override bool TryGetValueForItem(IRoomItem item, out WiredVariableValue value)
-    {
-        value = item.Logic.StuffData.GetState();
-
-        return true;
-    }
+    protected override WiredVariableValue GetValueForItem(IRoomItem item) =>
+        item.Logic.StuffData.GetState();
 
     public override async Task<bool> SetValueAsync(
         IWiredExecutionContext ctx,

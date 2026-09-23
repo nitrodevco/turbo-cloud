@@ -30,7 +30,10 @@ public class GetBannedUsersFromRoomMessageHandler(IGrainFactory grainFactory)
             .GetBannedPlayersAsync(ctx.AsActionContext(), ct)
             .ConfigureAwait(false);
 
-        if (players is null)
+        // The Flash client only creates its ban dictionary while iterating the entries it receives,
+        // so a zero-entry reply leaves the dictionary null and its refresh handler immediately asks
+        // again -- an endless request loop. Staying silent leaves the tab empty, which is correct.
+        if (players is null or { IsEmpty: true })
             return;
 
         await ctx.SendComposerAsync(

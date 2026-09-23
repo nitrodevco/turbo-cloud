@@ -13,6 +13,7 @@ using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Avatar;
@@ -63,6 +64,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         avatar.SetRotation(startRot);
 
         await LoadBadgesAsync(avatar, ct);
+        await LoadHabboClubAsync(avatar, ct);
 
         return avatar;
     }
@@ -90,6 +92,55 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
                 _roomGrain.RoomId
             );
         }
+    }
+
+    /// <summary>
+    /// The Habbo Club membership a player is standing here with, which the wired
+    /// <c>@is_hc</c> variable reads. Loaded on the way in, like the badges: putting it on
+    /// <c>PlayerSummarySnapshot</c> would add a grain call to every hot path that asks for a
+    /// summary.
+    /// </summary>
+    private async Task LoadHabboClubAsync(IRoomAvatar avatar, CancellationToken ct)
+    {
+        if (avatar is not IRoomPlayer player)
+            return;
+
+        try
+        {
+            var club = await _roomGrain
+                ._grainFactory.GetPlayerSubscriptionGrain(player.PlayerId)
+                .GetAsync(SubscriptionType.HabboClub, ct);
+
+            player.SetHabboClubExpiresAt(club.ExpiresAt);
+        }
+        catch (Exception ex)
+        {
+            // A player whose membership could not be read is treated as holding none, which is
+            // the safe way round: wired grants nothing it should not.
+            _roomGrain._logger.LogWarning(
+                ex,
+                "Could not load the Habbo Club membership of player {PlayerId} entering room {RoomId}",
+                player.PlayerId,
+                _roomGrain.RoomId
+            );
+        }
+    }
+
+    /// <summary>
+    /// A player in the room bought or extended their Habbo Club. Nothing is drawn for it; it is
+    /// what <c>@is_hc</c> answers from. An expiry needs no such call, because the value is the
+    /// moment it runs out.
+    /// </summary>
+    public Task SetPlayerHabboClubAsync(
+        PlayerId playerId,
+        DateTime? expiresAt,
+        CancellationToken ct
+    )
+    {
+        if (TryGetPlayer(playerId, out var player))
+            player.SetHabboClubExpiresAt(expiresAt);
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -642,7 +693,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
 
         _roomGrain
             .SendComposerToRoomAsync(
-                new SleepMessageComposer { UserId = avatar.ObjectId, IsSleeping = false },
+                new SleepMessageComposer { ObjectId = avatar.ObjectId, IsSleeping = false },
                 CancellationToken.None
             )
             .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");

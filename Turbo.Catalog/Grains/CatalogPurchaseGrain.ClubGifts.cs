@@ -43,7 +43,13 @@ internal sealed partial class CatalogPurchaseGrain
 
         return new ClubGiftInfoSnapshot
         {
-            DaysUntilNextGift = _giftIntervalDays - (club.DaysConsumed % _giftIntervalDays),
+            // Only a member is working towards the next gift. The client reads any countdown
+            // above zero as "your next gift is N days away", so telling somebody who holds no
+            // membership that they are 31 days from a gift would be a promise of nothing; zero
+            // sends it to the "no club" text instead.
+            DaysUntilNextGift = club.IsActive
+                ? _giftIntervalDays - (club.DaysConsumed % _giftIntervalDays)
+                : 0,
             GiftsAvailable = available,
             Offers = offers,
             Gifts =

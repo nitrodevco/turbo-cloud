@@ -17,12 +17,7 @@ public sealed class FurnitureWallItemOffsetVariable(RoomGrain roomGrain)
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.CanWriteValue;
 
-    protected override bool TryGetValueForItem(IRoomWallItem item, out WiredVariableValue value)
-    {
-        value = item.WallOffset;
-
-        return true;
-    }
+    protected override WiredVariableValue GetValueForItem(IRoomWallItem item) => item.WallOffset;
 
     public override async Task<bool> SetValueAsync(
         IWiredExecutionContext ctx,

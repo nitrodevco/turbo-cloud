@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
@@ -47,6 +48,16 @@ public partial interface IRoomGrain
     public Task SetPlayerBadgesAsync(
         PlayerId playerId,
         ImmutableArray<PlayerBadgeSnapshot> selectedBadges,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// A player in the room bought or extended their Habbo Club. Called by the presence, never
+    /// awaited by it.
+    /// </summary>
+    public Task SetPlayerHabboClubAsync(
+        PlayerId playerId,
+        DateTime? expiresAt,
         CancellationToken ct
     );
 

@@ -60,6 +60,12 @@ public sealed partial class RoomGrain
         CancellationToken ct
     ) => AvatarModule.SetPlayerBadgesAsync(playerId, selectedBadges, ct);
 
+    public Task SetPlayerHabboClubAsync(
+        PlayerId playerId,
+        DateTime? expiresAt,
+        CancellationToken ct
+    ) => AvatarModule.SetPlayerHabboClubAsync(playerId, expiresAt, ct);
+
     public async Task<bool> RemoveAvatarFromPlayerAsync(
         ActionContext ctx,
         PlayerId playerId,

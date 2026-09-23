@@ -15,7 +15,7 @@ namespace Turbo.Rooms.Wired.Variables.User;
 /// walked in through the navigator reads as zero.
 /// </summary>
 public sealed class UserRoomEntryMethodVariable(RoomGrain roomGrain)
-    : UserVariable<IRoomPlayer>(roomGrain)
+    : UserValueVariable<IRoomPlayer>(roomGrain)
 {
     protected override string VariableName => "@room_entry.method";
 

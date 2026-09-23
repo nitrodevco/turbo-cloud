@@ -72,4 +72,11 @@ public sealed record RoomSnapshot : RoomInfoSnapshot
 
     [Id(16)]
     public required string WiredTimezone { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The height every wall is drawn at, or -1 to let the client work it out from the plan. The
+    /// floor plan editor's slider is what sets it, and draws the value plus one.
+    /// </summary>
+    [Id(17)]
+    public int WallHeight { get; init; } = -1;
 }

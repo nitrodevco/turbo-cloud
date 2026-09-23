@@ -9,7 +9,8 @@ using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired.Variables.User;
 
-public sealed class UserTypeVariable(RoomGrain roomGrain) : UserVariable<IRoomAvatar>(roomGrain)
+public sealed class UserTypeVariable(RoomGrain roomGrain)
+    : UserValueVariable<IRoomAvatar>(roomGrain)
 {
     protected override string VariableName => "@type";
     protected override WiredVariableGroupSubBandType SubBandType =>

@@ -11,12 +11,7 @@ public sealed class FurnitureAltitudeVariable(RoomGrain roomGrain)
     protected override string VariableName => "@altitude";
     protected override ushort Order => 10;
 
-    protected override bool TryGetValueForItem(IRoomItem item, out WiredVariableValue value)
-    {
-        value = item.Z.ToInt();
-
-        return true;
-    }
+    protected override WiredVariableValue GetValueForItem(IRoomItem item) => item.Z.ToInt();
 
     protected override Placement Apply(IRoomItem item, Placement current, int value) =>
         current with

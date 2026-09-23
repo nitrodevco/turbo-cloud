@@ -74,6 +74,20 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         if (!snapshot.OffersById.TryGetValue(offerId, out var offer))
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.OfferNotFound);
 
+        // A club gift sits in the normal catalog like any other offer and is priced at nothing,
+        // because it is earned rather than sold. Buying one is not a purchase this shop makes:
+        // it goes through ClaimClubGiftAsync, which spends a gift the member has earned.
+        if (offer.ClubGiftDaysRequired is not null)
+        {
+            _logger.LogWarning(
+                "Player {PlayerId} tried to buy club gift offer {OfferId} instead of claiming it",
+                this.GetPlayerId(),
+                offerId
+            );
+
+            throw new CatalogPurchaseException(CatalogPurchaseErrorType.OfferNotFound);
+        }
+
         ValidatePetProducts(offer, extraParam);
         ValidateSubscriptionProducts(offer);
 

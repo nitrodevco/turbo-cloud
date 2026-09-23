@@ -113,7 +113,7 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
 
         _roomGrain
             .SendComposerToRoomAsync(
-                new SleepMessageComposer { UserId = avatar.ObjectId, IsSleeping = true },
+                new SleepMessageComposer { ObjectId = avatar.ObjectId, IsSleeping = true },
                 CancellationToken.None
             )
             .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");

@@ -10,7 +10,7 @@ using Turbo.Rooms.Grains;
 namespace Turbo.Rooms.Wired.Variables.Furniture;
 
 public sealed class FurnitureTypeVariable(RoomGrain roomGrain)
-    : FurnitureVariable<IRoomItem>(roomGrain)
+    : FurnitureValueVariable<IRoomItem>(roomGrain)
 {
     protected override string VariableName => "@type";
 
@@ -28,10 +28,6 @@ public sealed class FurnitureTypeVariable(RoomGrain roomGrain)
         Enum.GetValues<FurnitureOwnershipType>()
             .ToDictionary(x => WiredVariableValue.Parse((int)x), x => x.ToString());
 
-    protected override bool TryGetValueForItem(IRoomItem item, out WiredVariableValue value)
-    {
-        value = WiredVariableValue.Parse((int)item.Ownership);
-
-        return true;
-    }
+    protected override WiredVariableValue GetValueForItem(IRoomItem item) =>
+        WiredVariableValue.Parse((int)item.Ownership);
 }

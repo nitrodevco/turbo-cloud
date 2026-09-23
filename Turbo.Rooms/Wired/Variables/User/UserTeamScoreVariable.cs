@@ -10,7 +10,7 @@ namespace Turbo.Rooms.Wired.Variables.User;
 
 /// <summary>The score of the game team the player is on, or zero when they are on none.</summary>
 public sealed class UserTeamScoreVariable(RoomGrain roomGrain)
-    : UserVariable<IRoomPlayer>(roomGrain)
+    : UserValueVariable<IRoomPlayer>(roomGrain)
 {
     protected override string VariableName => "@team.score";
 
@@ -29,7 +29,7 @@ public sealed class UserTeamScoreVariable(RoomGrain roomGrain)
         WiredVariableValue value
     )
     {
-        if (!CanBind(key) || !TryGetAvatarForKey(key, out var avatar) || avatar is null)
+        if (!CanBind(key) || !TryGetAvatarForKey(key, out var avatar))
             return false;
 
         var team = _roomGrain.GameSystem.GetTeam(avatar.PlayerId);

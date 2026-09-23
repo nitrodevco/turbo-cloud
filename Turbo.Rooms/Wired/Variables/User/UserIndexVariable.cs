@@ -5,7 +5,8 @@ using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired.Variables.User;
 
-public sealed class UserIndexVariable(RoomGrain roomGrain) : UserVariable<IRoomAvatar>(roomGrain)
+public sealed class UserIndexVariable(RoomGrain roomGrain)
+    : UserValueVariable<IRoomAvatar>(roomGrain)
 {
     protected override string VariableName => "@index";
     protected override WiredVariableGroupSubBandType SubBandType =>
