@@ -9,8 +9,5 @@ internal class HabboGroupJoinFailedMessageComposerSerializer(int header)
     protected override void Serialize(
         IServerPacket packet,
         HabboGroupJoinFailedMessageComposer message
-    )
-    {
-        //
-    }
+    ) => packet.WriteInteger((int)message.Reason);
 }

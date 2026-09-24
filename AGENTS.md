@@ -93,6 +93,16 @@ Default output format:
   `new(entity.ToInfoSnapshot(...)) { room-only fields }`. That attribute switches off the
   compiler's required-member check for that constructor, so keep it to the one mapping site and
   keep a parameterless constructor beside it for everything else.
+  The same applies to a factory that builds a derived snapshot from an instance of its base, not
+  just to an entity mapping. **Most derived snapshots in the tree do not do this yet** — of the
+  derived records under `Turbo.Primitives`, only `RoomSnapshot`, `ClubExtendOfferSnapshot` and
+  `GuildSnapshot` take their base in a constructor; the rest either add no fields (nothing to
+  do) or re-list the base's fields by hand, and those are the ones to convert as you touch them.
+  This is not a tidiness rule. `RoomActiveSnapshot.From` copies nineteen base fields one by one
+  and silently stopped copying `HiddenByBc` when that field moved up to `RoomInfoSnapshot`; the
+  field is not `required`, so nothing failed to compile, and a room hidden by Builders Club goes
+  on being listed by the navigator for as long as it is active, because `NavigatorService`
+  filters live rooms on exactly that field. A `: base(room)` constructor could not have lost it.
 - What a furni leads to is stored on the item, in the `RoomLinkerData` extra data section: a
   fixed `RoomId` for a room linker, the paired `ItemId` for a teleporter. There is no link table.
   A pair's room is never stored, because either half can be picked up and placed elsewhere;
@@ -574,11 +584,15 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
 - **A variable with nothing behind it is not declared.** These have no system yet and are
   reserved rather than written: user `@level`, `@is_group_admin`,
   `@favorite_group_id`, `@team.type` and the six `@transaction.*`, because chests and
-  contracts do not exist. `@is_hc` is still reserved, but no longer for that reason:
-  subscriptions exist (`IPlayerSubscriptionGrain`), and what it waits on is the value reaching
-  the avatar. A variable reads room state synchronously and must never await a grain, so
-  whether a player holds Habbo Club has to be pushed to the room the way badges are
-  (inventory → presence → room) before the variable can answer.
+  contracts do not exist.
+- **What a variable reads is on the avatar before it is asked for.** A variable is
+  synchronous and must never await a grain, so anything an account owns is put on the avatar
+  when it enters (`RoomAvatarModule.LoadBadgesAsync`, `LoadHabboClubAsync`) and pushed again
+  when it changes. `PlayerSummarySnapshot` is not the way to carry it: that call is on every
+  hot path. **Store the moment, not the verdict, where one exists.** `@is_hc` reads
+  `IRoomPlayer.HabboClubExpiresAt` and compares it against now, so a membership running out
+  while its owner stands in the room needs nobody to notice and no timer to run; only a
+  purchase is pushed (subscription grain → presence → room).
 - **A user variable is keyed by the avatar's room index, never by the player.** That index is
   how the client addresses any avatar and the only id a player, a pet and a bot all have; a
   player's own id is a value a variable reports (`@user_id`), exactly as `@pet_id` and
@@ -650,10 +664,19 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   (`handitem{id}`), effects (`fx_{id}`), dances and signs by the client's own keys, following a
   text that is only a reference to another one. The provider sits in the room module because
   wired is its only caller; move it when a second module wants texts.
-- **A boolean reads differently on the two bases, and that is not drift.** A furni variable
-  says false by not holding the value at all (`TryGetValueForItem` returns false, which is what
-  the "has variable" condition asks); a user variable always has a value, so it answers one or
-  zero.
+- **A variable with no value is held or not, never a zero.** `WiredVariableFlags.HasValue` is
+  what says a variable carries a number. Without it the client only draws who holds one, and
+  "has variable" is the only question anything asks of it, so an avatar or furni it is false
+  for must answer that it holds nothing. `@is_hc`, `@has_rights`, `@is_owner`, `@is_frozen`,
+  `@is_muted`, `@is_trading`, `@is_idle` and `@projectile.animation.is_traveling` each reported
+  `0` instead, which put every avatar and every furni in the room on the holder list and left
+  each flag saying nothing at all. The user and furni families answer this the same way and
+  have the same three shapes: `TryGetValueForAvatar` / `TryGetValueForItem` for a variable that
+  can be absent, `UserValueVariable` / `FurnitureValueVariable` for one that every target it
+  binds to holds, and `UserFlagVariable` / `FurnitureFlagVariable` for one that is held or not.
+  A flag declares no `Flags` of its own, because `WiredInternalVariable.Flags` is already
+  `None`. A shape added to one family belongs on the other in the same change; this file used
+  to say the two differ here on purpose, and the seven user flags are what that cost.
 - **A projectile's flight is followed, not guessed.** The server moves furni at once and the
   client animates over the animation time it was sent, so `WiredProjectileFlight` follows that
   same clock to answer the `@projectile.animation.*` variables: where the furni looks to be,
@@ -1184,6 +1207,17 @@ finishing a change, check it against this list; each line is a mistake that was 
 - **A second name for an inherited method is a copy of it.** `RoomAvatar.SetHeight` was
   `RoomObject.SetPositionZ` written out again, word for word, and `IRoomAvatar` published both.
   Before adding a method to a subclass, look for what the base already calls that job.
+- **State the `Users` packet does not carry is replayed on room entry.** A dance, an effect
+  and a sleep are each their own update, so an arriving player is sent one per avatar that has
+  one, beside the `Users`/`UserUpdate` pair in `RoomService`. `IsIdle` was on `IRoomAvatar` but
+  not on `RoomAvatarSnapshot` at all, so everyone who had dozed off before you walked in was
+  drawn awake until they next moved. A snapshot field that exists only to be replayed says so
+  on itself, as `DanceType` and `EffectId` do.
+- **A composer field is named and typed for the id it carries.** `SleepMessageComposer.UserId`
+  was an `int` that all three call sites filled with `avatar.ObjectId`. The room object id and
+  the player id are different numbers and the name claimed the wrong one; its siblings in the
+  same folder (`DanceMessageComposer`, `AvatarEffectMessageComposer`) take a `RoomObjectId`,
+  and that type is what keeps the two from being swapped.
 - **A `Try...` method annotates its out parameter.** `[NotNullWhen(true)] out TItem? item` puts
   the guard in the signature, so a caller that checks the result is done. Without it the check
   becomes a convention: three of the four furniture variables wrote `|| item is null` after

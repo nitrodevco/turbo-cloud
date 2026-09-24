@@ -9,8 +9,5 @@ internal class GuildMembershipRejectedMessageComposerSerializer(int header)
     protected override void Serialize(
         IServerPacket packet,
         GuildMembershipRejectedMessageComposer message
-    )
-    {
-        //
-    }
+    ) => packet.WriteInteger(message.GuildId).WriteInteger(message.PlayerId);
 }

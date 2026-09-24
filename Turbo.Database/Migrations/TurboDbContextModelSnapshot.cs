@@ -959,6 +959,265 @@ namespace Turbo.Database.Migrations
                     b.ToTable("furniture");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Guilds.GuildBadgePartEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("deleted_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("file_name");
+
+                    b.Property<string>("MaskFileName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("mask_file_name");
+
+                    b.Property<int>("PartId")
+                        .HasColumnType("int")
+                        .HasColumnName("part_id");
+
+                    b.Property<int>("PartType")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("part_type");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime>("UpdatedAt"));
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PartType", "PartId")
+                        .IsUnique();
+
+                    b.ToTable("guild_badge_parts");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Guilds.GuildColorEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(6)
+                        .HasColumnType("varchar(6)")
+                        .HasColumnName("color");
+
+                    b.Property<int>("ColorId")
+                        .HasColumnType("int")
+                        .HasColumnName("color_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("deleted_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
+
+                    b.Property<int>("Slot")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("slot");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime>("UpdatedAt"));
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Slot", "ColorId")
+                        .IsUnique();
+
+                    b.ToTable("guild_colors");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Guilds.GuildEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BadgeCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("badge_code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("deleted_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("description");
+
+                    b.Property<int>("GuildType")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("guild_type");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<int>("PrimaryColorId")
+                        .HasColumnType("int")
+                        .HasColumnName("primary_color_id");
+
+                    b.Property<int>("RightsLevel")
+                        .HasColumnType("int")
+                        .HasDefaultValue(1)
+                        .HasColumnName("rights_level");
+
+                    b.Property<int>("RoomEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("room_id");
+
+                    b.Property<int>("SecondaryColorId")
+                        .HasColumnType("int")
+                        .HasColumnName("secondary_color_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime>("UpdatedAt"));
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name");
+
+                    b.HasIndex("PlayerEntityId");
+
+                    b.HasIndex("RoomEntityId")
+                        .IsUnique();
+
+                    b.ToTable("guilds");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Guilds.GuildMemberEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("deleted_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
+
+                    b.Property<int>("GuildEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("guild_id");
+
+                    b.Property<bool>("IsFavourite")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_favourite");
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<int>("Rank")
+                        .HasColumnType("int")
+                        .HasDefaultValue(2)
+                        .HasColumnName("member_rank");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime>("UpdatedAt"));
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerEntityId");
+
+                    b.HasIndex("GuildEntityId", "PlayerEntityId")
+                        .IsUnique();
+
+                    b.HasIndex("GuildEntityId", "Rank");
+
+                    b.ToTable("guild_members");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Messenger.MessengerBlockedEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -3595,6 +3854,44 @@ namespace Turbo.Database.Migrations
                     b.Navigation("PlayerEntity");
 
                     b.Navigation("RoomEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Guilds.GuildEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Turbo.Database.Entities.Room.RoomEntity", "RoomEntity")
+                        .WithMany()
+                        .HasForeignKey("RoomEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PlayerEntity");
+
+                    b.Navigation("RoomEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Guilds.GuildMemberEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Guilds.GuildEntity", "GuildEntity")
+                        .WithMany()
+                        .HasForeignKey("GuildEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("GuildEntity");
+
+                    b.Navigation("PlayerEntity");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Messenger.MessengerBlockedEntity", b =>

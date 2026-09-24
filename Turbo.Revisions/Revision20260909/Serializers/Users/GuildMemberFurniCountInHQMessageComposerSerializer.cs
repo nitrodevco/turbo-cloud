@@ -9,8 +9,5 @@ internal class GuildMemberFurniCountInHQMessageComposerSerializer(int header)
     protected override void Serialize(
         IServerPacket packet,
         GuildMemberFurniCountInHQMessageComposer message
-    )
-    {
-        //
-    }
+    ) => packet.WriteInteger(message.PlayerId).WriteInteger(message.FurniCount);
 }

@@ -9,8 +9,5 @@ internal class HabboGroupDeactivatedMessageComposerSerializer(int header)
     protected override void Serialize(
         IServerPacket packet,
         HabboGroupDeactivatedMessageComposer message
-    )
-    {
-        //
-    }
+    ) => packet.WriteInteger(message.GuildId);
 }

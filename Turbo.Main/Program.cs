@@ -13,6 +13,7 @@ using Turbo.Crypto.Extensions;
 using Turbo.Database.Extensions;
 using Turbo.Events.Extensions;
 using Turbo.Furniture;
+using Turbo.Guilds;
 using Turbo.Inventory;
 using Turbo.Logging.Extensions;
 using Turbo.Main.Console;
@@ -104,6 +105,7 @@ internal class Program
         builder.Services.AddHostPlugin<PlayerModule>(builder);
         builder.Services.AddHostPlugin<InventoryModule>(builder);
         builder.Services.AddHostPlugin<NavigatorModule>(builder);
+        builder.Services.AddHostPlugin<GuildModule>(builder);
         builder.Services.AddHostPlugin<RoomModule>(builder);
         builder.Services.AddHostPlugin<PacketHandlersModule>(builder);
 

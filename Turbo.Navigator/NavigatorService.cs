@@ -211,7 +211,20 @@ public sealed class NavigatorService(
                     NavigatorSearchCodes.WITH_RIGHTS
                 )
                 .ConfigureAwait(false),
-            // No groups or competitions exist yet.
+            NavigatorSearchType.MyGuildBases => await GetLegacySectionAsync(
+                    NavigatorSearchCodes.GROUPS
+                )
+                .ConfigureAwait(false),
+            NavigatorSearchType.GuildBases => await GetGuildBaseRoomsAsync(query, limit, ct)
+                .ConfigureAwait(false),
+            NavigatorSearchType.GroupNameSearch => await SearchGuildsByNameAsync(
+                    query,
+                    param,
+                    limit,
+                    ct
+                )
+                .ConfigureAwait(false),
+            // No competitions exist yet.
             _ => [],
         };
 
@@ -697,8 +710,11 @@ public sealed class NavigatorService(
                 return [.. MergeLive(cached, query, include: null).Take(limit)];
             }
             case NavigatorSearchCodes.GROUPS:
-                // There is no group system yet.
-                return [];
+            {
+                var roomIds = await GetMyGuildBaseRoomIdsAsync(playerId, ct).ConfigureAwait(false);
+
+                return await GetRoomsInOrderAsync(query, roomIds, limit, ct).ConfigureAwait(false);
+            }
             case NavigatorSearchCodes.TOP_PROMOTIONS:
             {
                 var rooms = await GetEventRoomsAsync(query, null, _config.SearchResultLimit, ct)
@@ -985,6 +1001,66 @@ public sealed class NavigatorService(
         result.AddRange(query.LiveRooms.Values.Where(x => include(x) && included.Add(x.RoomId)));
 
         return result;
+    }
+
+    /// <summary>
+    /// The homerooms of the groups this player belongs to. Their own grain holds the
+    /// memberships and the directory holds each group's room, so neither is queried.
+    /// </summary>
+    private async Task<List<RoomId>> GetMyGuildBaseRoomIdsAsync(
+        PlayerId playerId,
+        CancellationToken ct
+    )
+    {
+        var memberships = await _grainFactory
+            .GetPlayerGuildGrain(playerId)
+            .GetMembershipsAsync(ct)
+            .ConfigureAwait(false);
+
+        if (memberships.Length == 0)
+            return [];
+
+        var guilds = await _grainFactory
+            .GetGuildDirectoryGrain()
+            .GetSummariesAsync([.. memberships.Select(x => x.GroupId)], ct)
+            .ConfigureAwait(false);
+
+        return [.. guilds.Select(x => x.RoomId)];
+    }
+
+    /// <summary>
+    /// The hotel's biggest groups, as the group window's "show groups" link asks for them. How
+    /// many come back is the guild module's decision, so the directory caps it rather than this.
+    /// </summary>
+    private async Task<List<RoomInfoSnapshot>> GetGuildBaseRoomsAsync(
+        SearchQuery query,
+        int limit,
+        CancellationToken ct
+    )
+    {
+        var roomIds = await _grainFactory
+            .GetGuildDirectoryGrain()
+            .GetGuildBaseRoomIdsAsync(ct)
+            .ConfigureAwait(false);
+
+        return await GetRoomsInOrderAsync(query, [.. roomIds], limit, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Groups whose name matches, answered as their homerooms.</summary>
+    private async Task<List<RoomInfoSnapshot>> SearchGuildsByNameAsync(
+        SearchQuery query,
+        string name,
+        int limit,
+        CancellationToken ct
+    )
+    {
+        var guilds = await _grainFactory
+            .GetGuildDirectoryGrain()
+            .SearchByNameAsync(name, ct)
+            .ConfigureAwait(false);
+
+        return await GetRoomsInOrderAsync(query, [.. guilds.Select(x => x.RoomId)], limit, ct)
+            .ConfigureAwait(false);
     }
 
     private static int PopulationOf(RoomInfoSnapshot room, SearchQuery query) =>

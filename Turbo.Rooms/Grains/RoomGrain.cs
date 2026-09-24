@@ -326,8 +326,6 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         };
     }
 
-    public Task<bool> GetIsGroupRoomAsync(CancellationToken ct) => Task.FromResult(false);
-
     public async Task<int> GetRoomPopulationAsync(CancellationToken ct) =>
         await _grainFactory.GetRoomDirectoryGrain().GetRoomPopulationAsync(_state.RoomId, ct);
 

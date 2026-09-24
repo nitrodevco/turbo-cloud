@@ -9,8 +9,5 @@ internal class GuildMemberMgmtFailedMessageComposerSerializer(int header)
     protected override void Serialize(
         IServerPacket packet,
         GuildMemberMgmtFailedMessageComposer message
-    )
-    {
-        //
-    }
+    ) => packet.WriteInteger(message.GuildId).WriteInteger((int)message.Reason);
 }

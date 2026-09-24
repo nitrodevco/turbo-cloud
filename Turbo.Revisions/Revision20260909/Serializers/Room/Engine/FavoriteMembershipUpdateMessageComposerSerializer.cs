@@ -9,8 +9,10 @@ internal class FavoriteMembershipUpdateMessageComposerSerializer(int header)
     protected override void Serialize(
         IServerPacket packet,
         FavoriteMembershipUpdateMessageComposer message
-    )
-    {
-        //
-    }
+    ) =>
+        packet
+            .WriteInteger(message.RoomIndex)
+            .WriteInteger(message.GuildId)
+            .WriteInteger(message.Status)
+            .WriteString(message.GuildName);
 }

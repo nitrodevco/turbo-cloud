@@ -30,9 +30,9 @@ public sealed class RoomPlayerAvatar
 
     public void SetRoomEntry(RoomEntrySnapshot entry) => RoomEntry = entry;
 
-    public int GroupId { get; init; } = -1;
-    public int GroupStatus { get; init; } = -1;
-    public string GroupName { get; init; } = string.Empty;
+    public int GuildId { get; private set; } = -1;
+    public int GuildStatus { get; private set; } = -1;
+    public string GuildName { get; private set; } = string.Empty;
     public string SwimFigure { get; init; } = string.Empty;
     public int ActivityPoints { get; init; } = 0;
     public bool IsModerator { get; init; } = false;
@@ -47,6 +47,13 @@ public sealed class RoomPlayerAvatar
         AchievementScore = snapshot.AchievementScore;
 
         return true;
+    }
+
+    public void SetFavouriteGuild(int guildId, int guildStatus, string guildName)
+    {
+        GuildId = guildId;
+        GuildStatus = guildStatus;
+        GuildName = guildName;
     }
 
     public void SetBadges(ImmutableArray<string> badgeCodes) => BadgeCodes = badgeCodes;
@@ -79,9 +86,9 @@ public sealed class RoomPlayerAvatar
             DanceType = DanceType,
             EffectId = EffectId,
             IsIdle = IsIdle,
-            GroupId = GroupId,
-            GroupStatus = GroupStatus,
-            GroupName = GroupName,
+            GroupId = GuildId,
+            GroupStatus = GuildStatus,
+            GroupName = GuildName,
             SwimFigure = SwimFigure,
             ActivityPoints = ActivityPoints,
             IsModerator = IsModerator,

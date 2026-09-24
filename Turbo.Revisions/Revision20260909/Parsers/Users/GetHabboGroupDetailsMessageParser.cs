@@ -1,3 +1,4 @@
+using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Messages.Incoming.Users;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Packets;
@@ -6,5 +7,10 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Users;
 
 internal class GetHabboGroupDetailsMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetHabboGroupDetailsMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetHabboGroupDetailsMessage
+        {
+            GuildId = GuildId.Parse(packet.PopInt()),
+            OpenDetails = packet.PopBoolean(),
+        };
 }

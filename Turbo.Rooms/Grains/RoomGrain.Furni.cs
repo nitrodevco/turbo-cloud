@@ -226,6 +226,9 @@ public sealed partial class RoomGrain
     public Task<ImmutableDictionary<PlayerId, string>> GetAllOwnersAsync(CancellationToken ct) =>
         FurniModule.GetAllOwnersAsync(ct);
 
+    public Task<int> GetItemCountByOwnerAsync(PlayerId ownerId, CancellationToken ct) =>
+        FurniModule.GetItemCountByOwnerAsync(ownerId, ct);
+
     public Task<RoomItemSnapshot?> GetItemSnapshotByIdAsync(
         RoomObjectId itemId,
         CancellationToken ct

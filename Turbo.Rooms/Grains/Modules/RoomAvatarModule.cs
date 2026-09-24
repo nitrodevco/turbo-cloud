@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Messages.Outgoing.Room.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Users;
@@ -65,6 +66,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
 
         await LoadBadgesAsync(avatar, ct);
         await LoadHabboClubAsync(avatar, ct);
+        await LoadFavouriteGuildAsync(avatar, ct);
 
         return avatar;
     }
@@ -120,6 +122,56 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
             _roomGrain._logger.LogWarning(
                 ex,
                 "Could not load the Habbo Club membership of player {PlayerId} entering room {RoomId}",
+                player.PlayerId,
+                _roomGrain.RoomId
+            );
+        }
+    }
+
+    /// <summary>
+    /// The group badge a player walks in wearing. Loaded on the way in like the badges and the
+    /// club: it feeds the two wired group boxes and the badge the client draws beside them, and
+    /// putting it on <c>PlayerSummarySnapshot</c> would add a grain call to every hot path that
+    /// asks for a summary.
+    /// </summary>
+    public async Task LoadFavouriteGuildAsync(IRoomAvatar avatar, CancellationToken ct)
+    {
+        if (avatar is not IRoomPlayer player)
+            return;
+
+        try
+        {
+            var guildId = await _roomGrain
+                ._grainFactory.GetPlayerGuildGrain(player.PlayerId)
+                .GetFavouriteGuildIdAsync(ct);
+
+            if (guildId is not { } favourite)
+            {
+                player.SetFavouriteGuild(-1, -1, string.Empty);
+
+                return;
+            }
+
+            var guild = await _roomGrain
+                ._grainFactory.GetGuildDirectoryGrain()
+                .GetSummaryAsync(favourite, ct);
+
+            if (guild is null)
+            {
+                player.SetFavouriteGuild(-1, -1, string.Empty);
+
+                return;
+            }
+
+            player.SetFavouriteGuild(guild.GuildId, (int)GuildMembershipStatus.Member, guild.Name);
+        }
+        catch (Exception ex)
+        {
+            // A player whose group could not be read wears none, which is the safe way round:
+            // the wired group boxes grant nothing they should not.
+            _roomGrain._logger.LogWarning(
+                ex,
+                "Could not load the favourite group of player {PlayerId} entering room {RoomId}",
                 player.PlayerId,
                 _roomGrain.RoomId
             );

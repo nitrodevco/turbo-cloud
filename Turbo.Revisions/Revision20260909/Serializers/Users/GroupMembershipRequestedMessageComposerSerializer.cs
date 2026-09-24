@@ -1,5 +1,6 @@
 using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Packets;
+using Turbo.Revisions.Revision20260909.Serializers.Users.Data;
 
 namespace Turbo.Revisions.Revision20260909.Serializers.Users;
 
@@ -11,6 +12,8 @@ internal class GroupMembershipRequestedMessageComposerSerializer(int header)
         GroupMembershipRequestedMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.GuildId);
+
+        GuildMemberSerializer.Serialize(packet, message.Member);
     }
 }

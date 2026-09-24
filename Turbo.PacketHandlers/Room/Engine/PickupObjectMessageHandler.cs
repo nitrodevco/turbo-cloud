@@ -19,7 +19,9 @@ public class PickupObjectMessageHandler(IRoomService roomService)
     {
         var categoryId = message.CategoryId;
 
-        if (categoryId == 1)
+        // TODO FIX ROOMOBJECTCATEGORY
+
+        if (categoryId == 10)
         {
             await _roomService
                 .PickupItemInRoomAsync(ctx.AsActionContext(), message.ObjectId, ct, message.Confirm)
@@ -27,7 +29,7 @@ public class PickupObjectMessageHandler(IRoomService roomService)
             return;
         }
 
-        if (categoryId == 2)
+        if (categoryId == 20)
         {
             await _roomService
                 .PickupItemInRoomAsync(ctx.AsActionContext(), message.ObjectId, ct, message.Confirm)

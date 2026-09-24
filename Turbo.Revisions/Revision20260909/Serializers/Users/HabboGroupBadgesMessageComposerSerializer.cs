@@ -8,6 +8,9 @@ internal class HabboGroupBadgesMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, HabboGroupBadgesMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.Guilds.Length);
+
+        foreach (var guild in message.Guilds)
+            packet.WriteInteger(guild.GuildId).WriteString(guild.BadgeCode);
     }
 }

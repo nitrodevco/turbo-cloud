@@ -74,6 +74,13 @@ public partial interface IRoomGrain
     );
 
     public Task<ImmutableDictionary<PlayerId, string>> GetAllOwnersAsync(CancellationToken ct);
+
+    /// <summary>
+    /// How many items this player has standing in this room. Counted from the live room rather
+    /// than from the furniture rows, because an item placed a moment ago has not been flushed
+    /// yet and the player is about to be told how much they stand to get back.
+    /// </summary>
+    public Task<int> GetItemCountByOwnerAsync(PlayerId ownerId, CancellationToken ct);
     public Task<RoomItemSnapshot?> GetItemSnapshotByIdAsync(
         RoomObjectId itemId,
         CancellationToken ct

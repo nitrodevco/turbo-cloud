@@ -6,8 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Serializers.Users;
 internal class GuildCreatedMessageComposerSerializer(int header)
     : AbstractSerializer<GuildCreatedMessageComposer>(header)
 {
-    protected override void Serialize(IServerPacket packet, GuildCreatedMessageComposer message)
-    {
-        //
-    }
+    protected override void Serialize(IServerPacket packet, GuildCreatedMessageComposer message) =>
+        packet.WriteInteger(message.RoomId).WriteInteger(message.GuildId);
 }

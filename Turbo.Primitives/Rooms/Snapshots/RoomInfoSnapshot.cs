@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Orleans;
+using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Primitives.Rooms.Snapshots;
@@ -51,4 +52,12 @@ public record RoomInfoSnapshot : RoomSummarySnapshot
     /// </summary>
     [Id(12)]
     public bool HiddenByBc { get; init; }
+
+    /// <summary>
+    /// The group whose homeroom this is, or null. It is a listing field because the client draws
+    /// the badge on the room card as well as inside the room, and neither should have to load
+    /// the group to do it.
+    /// </summary>
+    [Id(13)]
+    public GuildSummarySnapshot? Guild { get; init; }
 }

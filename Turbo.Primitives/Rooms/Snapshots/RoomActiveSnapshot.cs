@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Orleans;
 
 namespace Turbo.Primitives.Rooms.Snapshots;
@@ -9,27 +10,18 @@ namespace Turbo.Primitives.Rooms.Snapshots;
 [GenerateSerializer, Immutable]
 public sealed record RoomActiveSnapshot : RoomInfoSnapshot
 {
+    public RoomActiveSnapshot() { }
+
+    /// <summary>
+    /// Starts from the room info, so the fields the two share are mapped once. It used to copy
+    /// them one by one and had already stopped copying <c>HiddenByBc</c> when that field moved
+    /// up here — the field is not required, so nothing failed to compile, and a room hidden by
+    /// Builders Club went on being listed for as long as it was active.
+    /// </summary>
+    [SetsRequiredMembers]
+    public RoomActiveSnapshot(RoomInfoSnapshot info)
+        : base(info) { }
+
     public static RoomActiveSnapshot From(RoomInfoSnapshot room, int population) =>
-        new()
-        {
-            RoomId = room.RoomId,
-            Name = room.Name,
-            Description = room.Description,
-            OwnerId = room.OwnerId,
-            OwnerName = room.OwnerName,
-            Population = population,
-            DoorMode = room.DoorMode,
-            PlayersMax = room.PlayersMax,
-            TradeType = room.TradeType,
-            Score = room.Score,
-            Ranking = room.Ranking,
-            CategoryId = room.CategoryId,
-            Tags = room.Tags,
-            AllowBlocking = room.AllowBlocking,
-            AllowPets = room.AllowPets,
-            AllowPetsEat = room.AllowPetsEat,
-            StaffPick = room.StaffPick,
-            ActiveEvent = room.ActiveEvent,
-            LastUpdatedUtc = room.LastUpdatedUtc,
-        };
+        new(room) { Population = population };
 }

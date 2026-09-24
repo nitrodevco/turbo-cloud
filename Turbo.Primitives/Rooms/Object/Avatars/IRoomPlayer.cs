@@ -30,6 +30,21 @@ public interface IRoomPlayer : IRoomAvatar<IRoomPlayer, IRoomPlayerLogic, IRoomP
     /// </summary>
     public DateTime? HabboClubExpiresAt { get; }
     public bool UpdateWithPlayer(PlayerSummarySnapshot snapshot);
+
+    /// <summary>
+    /// The group whose badge this player wears, or <c>-1</c>. Wired reads it, the info stand
+    /// draws it, and the room sends it on with every avatar; it is on the avatar rather than
+    /// fetched per use because both of those are hot paths.
+    /// </summary>
+    public int GuildId { get; }
+
+    /// <summary>The wearer's standing in that group, as the client numbers membership.</summary>
+    public int GuildStatus { get; }
+
+    public string GuildName { get; }
+
+    public void SetFavouriteGuild(int guildId, int guildStatus, string guildName);
+
     public void SetBadges(ImmutableArray<string> badgeCodes);
     public void SetHabboClubExpiresAt(DateTime? expiresAt);
 }

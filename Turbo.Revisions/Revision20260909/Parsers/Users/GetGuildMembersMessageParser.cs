@@ -1,3 +1,5 @@
+using Turbo.Primitives.Guilds;
+using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Messages.Incoming.Users;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Packets;
@@ -6,5 +8,12 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Users;
 
 internal class GetGuildMembersMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetGuildMembersMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetGuildMembersMessage
+        {
+            GuildId = GuildId.Parse(packet.PopInt()),
+            PageIndex = packet.PopInt(),
+            NameFilter = packet.PopString(),
+            SearchType = (GuildMemberSearchType)packet.PopInt(),
+        };
 }

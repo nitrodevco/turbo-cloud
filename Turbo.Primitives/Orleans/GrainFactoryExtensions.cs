@@ -5,10 +5,13 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Badges.Grains;
 using Turbo.Primitives.Catalog.Grains;
+using Turbo.Primitives.Guilds;
+using Turbo.Primitives.Guilds.Grains;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains;
+using Turbo.Primitives.Players.Grains.Guilds;
 using Turbo.Primitives.Players.Grains.Messenger;
 using Turbo.Primitives.Players.Grains.Navigator;
 using Turbo.Primitives.Players.Grains.Settings;
@@ -76,6 +79,17 @@ public static class GrainFactoryExtensions
 
     public static IBadgeDirectoryGrain GetBadgeDirectoryGrain(this IGrainFactory factory) =>
         factory.GetGrain<IBadgeDirectoryGrain>(SingletonGrainId.GLOBAL);
+
+    public static IGuildDirectoryGrain GetGuildDirectoryGrain(this IGrainFactory factory) =>
+        factory.GetGrain<IGuildDirectoryGrain>(SingletonGrainId.GLOBAL);
+
+    public static IGuildGrain GetGuildGrain(this IGrainFactory factory, GuildId guildId) =>
+        factory.GetGrain<IGuildGrain>((long)guildId.Value);
+
+    public static IPlayerGuildGrain GetPlayerGuildGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerGuildGrain>(playerId.Value);
 
     public static IBadgeLeaderboardGrain GetBadgeLeaderboardGrain(this IGrainFactory factory) =>
         factory.GetGrain<IBadgeLeaderboardGrain>(SingletonGrainId.GLOBAL);

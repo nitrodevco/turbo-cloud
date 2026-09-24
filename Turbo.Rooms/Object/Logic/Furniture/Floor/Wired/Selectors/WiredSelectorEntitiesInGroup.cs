@@ -32,10 +32,10 @@ public class WiredSelectorEntitiesInGroup(
 
         foreach (var avatar in _roomGrain.AvatarModule.Avatars)
         {
-            if (avatar is not RoomPlayerAvatar player || player.GroupId <= 0)
+            if (avatar is not RoomPlayerAvatar player || player.GuildId <= 0)
                 continue;
 
-            if (wantedGroupId is null || player.GroupId == wantedGroupId)
+            if (wantedGroupId is null || player.GuildId == wantedGroupId)
                 output.SelectedAvatarIds.Add(player.ObjectId);
         }
 

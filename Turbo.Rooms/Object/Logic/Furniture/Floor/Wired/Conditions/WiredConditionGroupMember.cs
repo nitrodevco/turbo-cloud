@@ -35,7 +35,7 @@ public class WiredConditionGroupMember(
         return Quantify(
             players.Select(player =>
             {
-                var groupId = player is RoomPlayerAvatar avatar ? avatar.GroupId : -1;
+                var groupId = player is RoomPlayerAvatar avatar ? avatar.GuildId : -1;
 
                 return wantedGroupId is null ? groupId > 0 : groupId == wantedGroupId;
             }),

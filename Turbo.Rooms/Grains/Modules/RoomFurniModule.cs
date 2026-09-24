@@ -122,6 +122,9 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain)
     public Task<ImmutableDictionary<PlayerId, string>> GetAllOwnersAsync(CancellationToken ct) =>
         Task.FromResult(_roomGrain._state.OwnerNamesById.ToImmutableDictionary());
 
+    public Task<int> GetItemCountByOwnerAsync(PlayerId ownerId, CancellationToken ct) =>
+        Task.FromResult(Items.Count(item => item.OwnerId == ownerId));
+
     /// <summary>
     /// The room an item stands in right now, this room or any other; null while it sits in an
     /// inventory. Paired furni (teleporters) use it to find where their pair leads.

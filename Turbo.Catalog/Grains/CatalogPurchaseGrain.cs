@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +15,9 @@ using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Guilds;
+using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Providers;
@@ -36,6 +40,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
     private readonly IGrainFactory _grainFactory;
     private readonly ICatalogService _catalogService;
     private readonly IPetBreedProvider _petBreedProvider;
+    private readonly IFurnitureDefinitionProvider _definitionProvider;
     private readonly ILogger<ICatalogPurchaseGrain> _logger;
 
     /// <summary>Days of used-up membership that earn a club gift; never zero, so it can divide.</summary>
@@ -47,6 +52,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         IGrainFactory grainFactory,
         ICatalogService catalogService,
         IPetBreedProvider petBreedProvider,
+        IFurnitureDefinitionProvider definitionProvider,
         ILogger<ICatalogPurchaseGrain> logger
     )
     {
@@ -55,6 +61,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         _grainFactory = grainFactory;
         _catalogService = catalogService;
         _petBreedProvider = petBreedProvider;
+        _definitionProvider = definitionProvider;
         _logger = logger;
     }
 
@@ -90,6 +97,8 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
 
         ValidatePetProducts(offer, extraParam);
         ValidateSubscriptionProducts(offer);
+
+        await ValidateGuildProductsAsync(offer, extraParam, ct);
 
         if (TryGetDebitRequests(offer, quantity, out var debitRequests))
         {
@@ -165,6 +174,38 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         // One call per type, not per product, so a buyer is told once about each membership.
         foreach (var (subscriptionType, granted) in days)
             await subscriptions.ExtendAsync(subscriptionType, granted, ct);
+    }
+
+    /// <summary>
+    /// Guild furni is bought for a group, and the group travels in the purchase's extra param.
+    /// The catalog page only offers groups the buyer is in, so this is the check against a
+    /// client that sent one it was never shown — without it, anyone could wear any group's badge
+    /// on their furni.
+    /// </summary>
+    private async Task ValidateGuildProductsAsync(
+        CatalogOfferSnapshot offer,
+        string extraParam,
+        CancellationToken ct
+    )
+    {
+        var isGuildOffer = offer.Products.Any(product =>
+            GuildFurnitureLogicNames.IsGuildFurniture(
+                _definitionProvider.TryGetDefinition(product.FurniDefinitionId)?.LogicName
+            )
+        );
+
+        if (!isGuildOffer)
+            return;
+
+        if (!int.TryParse(extraParam, out var guildId) || guildId <= 0)
+            throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
+
+        var rank = await _grainFactory
+            .GetGuildGrain(GuildId.Parse(guildId))
+            .GetMemberRankAsync(this.GetPlayerId(), ct);
+
+        if (rank is not (GuildMemberRank.Owner or GuildMemberRank.Admin or GuildMemberRank.Member))
+            throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
     }
 
     /// <summary>

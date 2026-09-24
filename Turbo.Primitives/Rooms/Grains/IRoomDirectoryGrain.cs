@@ -36,4 +36,11 @@ public interface IRoomDirectoryGrain : IGrainWithStringKey
     public Task AddPlayerToRoomAsync(PlayerId playerId, RoomId roomId, CancellationToken ct);
     public Task RemovePlayerFromRoomAsync(PlayerId playerId, RoomId roomId, CancellationToken ct);
     public Task<RoomId?> GetRandomPopulatedRoomAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Every room that is loaded right now. It is the set to push a change to when the change
+    /// only matters to rooms already holding something: a room that is not loaded reads whatever
+    /// is current the next time it loads, so telling it would be waking it for nothing.
+    /// </summary>
+    public Task<ImmutableArray<RoomId>> GetActiveRoomIdsAsync(CancellationToken ct);
 }

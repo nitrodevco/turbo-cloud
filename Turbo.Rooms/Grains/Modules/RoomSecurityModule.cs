@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Guilds;
+using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Messages.Outgoing.Roomsettings;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
@@ -36,9 +38,9 @@ public sealed class RoomSecurityModule(
 
         if (isGroupRoom)
         {
-            var canGroupDecorate = false;
-
-            if (controllerLevel >= RoomControllerType.GroupRights && canGroupDecorate)
+            // GroupRights is only ever handed out when the group says members may decorate, so
+            // holding it is the permission; there is nothing further to ask.
+            if (controllerLevel >= RoomControllerType.GroupRights)
                 return true;
         }
         else
@@ -119,24 +121,43 @@ public sealed class RoomSecurityModule(
         if (IsRoomOwner(playerId))
             return RoomControllerType.Owner;
 
-        var isGroupRoom = await _roomGrain.GetIsGroupRoomAsync(CancellationToken.None);
+        var guild = await _roomGrain.GetGuildAsync(CancellationToken.None);
 
-        if (isGroupRoom)
+        if (guild is not null)
         {
-            // if has perm group_admin GroupAdmin
-            // if has perm group_member GroupMember
+            // Rights in a homeroom are the group's, not the room's: room_rights rows are ignored
+            // here, and giving or taking them is refused for a group room elsewhere in this file.
+            var rank = await _roomGrain
+                ._grainFactory.GetGuildGrain(guild.GuildId)
+                .GetMemberRankAsync(playerId, CancellationToken.None);
 
-            // check if belongs to group
+            return rank switch
+            {
+                GuildMemberRank.Owner or GuildMemberRank.Admin => RoomControllerType.GroupAdmin,
+                GuildMemberRank.Member => await GetGroupMemberLevelAsync(guild.GuildId),
+                _ => RoomControllerType.None,
+            };
         }
-        else
-        {
-            // if has perm room_rights Rights
 
-            if (HasRights(playerId))
-                return RoomControllerType.Rights;
-        }
+        if (HasRights(playerId))
+            return RoomControllerType.Rights;
 
         return RoomControllerType.None;
+    }
+
+    /// <summary>
+    /// What a plain member of the group gets here, which is the group's decoration setting and
+    /// nothing else.
+    /// </summary>
+    private async Task<RoomControllerType> GetGroupMemberLevelAsync(GuildId guildId)
+    {
+        var guild = await _roomGrain
+            ._grainFactory.GetGuildGrain(guildId)
+            .GetSnapshotAsync(CancellationToken.None);
+
+        return guild?.RightsLevel == GuildRightsLevel.Members
+            ? RoomControllerType.GroupRights
+            : RoomControllerType.None;
     }
 
     public async Task RefreshControllerLevelForPlayerAsync(PlayerId playerId, CancellationToken ct)

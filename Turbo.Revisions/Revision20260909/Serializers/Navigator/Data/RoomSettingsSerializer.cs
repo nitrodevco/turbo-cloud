@@ -34,6 +34,9 @@ internal class RoomSettingsSerializer
         if (message.AllowPets)
             bitmask |= RoomBitmaskFlags.AllowPets;
 
+        if (message.Guild is not null)
+            bitmask |= RoomBitmaskFlags.GroupData;
+
         if (activeEvent is not null)
             bitmask |= RoomBitmaskFlags.RoomAd;
 
@@ -47,9 +50,9 @@ internal class RoomSettingsSerializer
         if (bitmask.HasFlag(RoomBitmaskFlags.GroupData))
         {
             packet
-                .WriteInteger(0) // groupId
-                .WriteString(string.Empty) // groupName
-                .WriteString(string.Empty); // groupBadgeCode
+                .WriteInteger(message.Guild!.GuildId)
+                .WriteString(message.Guild.Name)
+                .WriteString(message.Guild.BadgeCode);
         }
 
         if (bitmask.HasFlag(RoomBitmaskFlags.RoomAd))

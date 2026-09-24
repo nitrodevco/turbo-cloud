@@ -9,8 +9,5 @@ internal class GroupDetailsChangedMessageComposerSerializer(int header)
     protected override void Serialize(
         IServerPacket packet,
         GroupDetailsChangedMessageComposer message
-    )
-    {
-        //
-    }
+    ) => packet.WriteInteger(message.GuildId);
 }

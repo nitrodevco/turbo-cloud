@@ -3,6 +3,7 @@ using Turbo.Database.Entities.Badges;
 using Turbo.Database.Entities.Bots;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
+using Turbo.Database.Entities.Guilds;
 using Turbo.Database.Entities.Messenger;
 using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Pets;
@@ -100,6 +101,11 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PetEntity> Pets { get; init; }
     public DbSet<PetBreedEntity> PetBreeds { get; init; }
     public DbSet<BotEntity> Bots { get; init; }
+
+    public DbSet<GuildEntity> Guilds { get; init; }
+    public DbSet<GuildMemberEntity> GuildMembers { get; init; }
+    public DbSet<GuildBadgePartEntity> GuildBadgeParts { get; init; }
+    public DbSet<GuildColorEntity> GuildColors { get; init; }
 
     protected override void OnModelCreating(ModelBuilder mb)
     {

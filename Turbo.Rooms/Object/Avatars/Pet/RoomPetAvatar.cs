@@ -219,6 +219,7 @@ public sealed class RoomPetAvatar : RoomAvatar<IRoomPet, IRoomPetLogic, IRoomPet
             Status = statusString.ToString(),
             DanceType = DanceType,
             EffectId = EffectId,
+            IsIdle = IsIdle,
             SubType = PetFigure.TypeId,
             OwnerId = OwnerId,
             OwnerName = OwnerName,
