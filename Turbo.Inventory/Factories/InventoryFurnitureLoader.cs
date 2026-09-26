@@ -10,7 +10,6 @@ using Turbo.Furniture;
 using Turbo.Inventory.Furniture;
 using Turbo.Logging;
 using Turbo.Primitives;
-using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.StuffData;

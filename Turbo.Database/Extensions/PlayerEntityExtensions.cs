@@ -1,7 +1,6 @@
 using System;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Players;
-using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Snapshots.Wardrobe;
 using Turbo.Primitives.Players.Wallet;

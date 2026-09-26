@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Rooms;

@@ -50,20 +50,6 @@ public static class GuildEntityExtensions
             CreatedAt = entity.CreatedAt,
         };
 
-    public static GuildMemberSnapshot ToSnapshot(
-        this GuildMemberEntity entity,
-        string playerName,
-        string figure
-    ) =>
-        new()
-        {
-            Rank = entity.Rank,
-            PlayerId = PlayerId.Parse(entity.PlayerEntityId),
-            PlayerName = playerName,
-            Figure = figure,
-            MemberSince = entity.CreatedAt,
-        };
-
     public static GuildBadgePartDefinitionSnapshot ToSnapshot(this GuildBadgePartEntity entity) =>
         new()
         {

@@ -3,7 +3,6 @@ using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Chat;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 

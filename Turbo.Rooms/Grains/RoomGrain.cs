@@ -28,7 +28,6 @@ using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Primitives.Rooms.Snapshots;
-using Turbo.Primitives.Rooms.Snapshots.Settings;
 using Turbo.Primitives.Texts;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
@@ -400,6 +399,11 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
                 eventEntity,
                 DateTime.UtcNow
             );
+
+            // Before anything can ask for the snapshot: the group is not on the room row, and
+            // resolving it lazily meant the first caller to want the room's listing got one
+            // with no group in it.
+            await GetGuildAsync(ct);
 
             await SecurityModule.EnsureRightsLoadedAsync(ct);
             await EntryModule.EnsureBansLoadedAsync(ct);

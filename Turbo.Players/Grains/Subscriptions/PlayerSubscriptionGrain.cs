@@ -10,7 +10,6 @@ using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Extensions;
-using Turbo.Logging;
 using Turbo.Players.Configuration;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Handshake;

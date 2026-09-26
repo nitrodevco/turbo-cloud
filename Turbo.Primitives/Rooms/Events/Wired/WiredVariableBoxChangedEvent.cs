@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using Orleans;
-using Turbo.Primitives.Rooms.Events;
 
 namespace Turbo.Primitives.Rooms.Events.Wired;
 
