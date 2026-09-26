@@ -10,4 +10,5 @@ public enum LtdRaffleEntryErrorType
     InsufficientFunds = 5,
     RaffleProcessing = 6,
     AlreadyWon = 7,
+    RequiresHabboClub = 8,
 }

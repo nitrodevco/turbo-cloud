@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Guilds;
+using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Users;
@@ -22,8 +23,10 @@ namespace Turbo.Guilds.Grains;
 /// so, rather than both writing and one silently winning.
 ///
 /// Each change writes the row, updates the roster held here, tells the member's own grain that
-/// its cached memberships moved, and sends whatever the client needs to redraw. The member's
-/// grain is told rather than asked: it caches memberships, and nothing else would correct it.
+/// its cached memberships moved, refreshes their rights in the homeroom, and sends whatever the
+/// client needs to redraw. All of it happens in <see cref="AddOrUpdateMemberAsync"/> and
+/// <see cref="RemoveMemberAsync"/>, which every one of the operations above goes through, so
+/// none of the callers has to remember any of it.
 /// </summary>
 internal sealed partial class GuildGrain
 {
@@ -53,11 +56,7 @@ internal sealed partial class GuildGrain
         if (wanted is not { } newRank)
             return GuildJoinResultSnapshot.Failed(GuildJoinFailedType.GroupClosed);
 
-        if (
-            newRank == GuildMemberRank.Member
-            && CountOfRanks(GuildMemberRank.Owner, GuildMemberRank.Admin, GuildMemberRank.Member)
-                >= _guildConfig.RegularGuildMembersMax
-        )
+        if (newRank == GuildMemberRank.Member && FreeMemberSlots() == 0)
             return GuildJoinResultSnapshot.Failed(GuildJoinFailedType.GroupFull);
 
         // The joining player's own limit. Their grain owns that count; it never calls back here,
@@ -109,8 +108,17 @@ internal sealed partial class GuildGrain
         if (rank != GuildMemberRank.Requested)
             return GuildMemberMgmtResultSnapshot.Failed(GuildMemberMgmtFailedType.AlreadyAccepted);
 
+        if (FreeMemberSlots() == 0)
+            return GuildMemberMgmtResultSnapshot.FailedToJoin(GuildJoinFailedType.GroupFull);
+
+        // Their limit, not this group's, and the hotel words it as being about them: whether
+        // they are short of a club membership or have simply run out of room.
         if (!await CanTakeAnotherGroupAsync(targetId, ct))
-            return GuildMemberMgmtResultSnapshot.Failed(GuildMemberMgmtFailedType.NoLongerMember);
+            return GuildMemberMgmtResultSnapshot.FailedToJoin(
+                await _grainFactory.HasActiveClubAsync(targetId, ct)
+                    ? GuildJoinFailedType.TargetAtMaxMemberships
+                    : GuildJoinFailedType.TargetNotClubMember
+            );
 
         await AddOrUpdateMemberAsync(targetId, GuildMemberRank.Member, ct);
         await PublishMembershipUpdatedAsync(targetId, ct);
@@ -166,10 +174,60 @@ internal sealed partial class GuildGrain
             .Select(entry => PlayerId.Parse(entry.Key))
             .ToList();
 
-        foreach (var playerId in pending)
-            await ApproveRequestAsync(actorId, playerId, ct);
+        if (pending.Count == 0)
+            return GuildMemberMgmtResultSnapshot.Success();
 
-        return GuildMemberMgmtResultSnapshot.Success();
+        // Each player's own limit is theirs, so each is asked — but side by side, not one after
+        // the other, because the answers do not depend on each other.
+        var allowed = await Task.WhenAll(
+            pending.Select(async playerId =>
+                (playerId, ok: await CanTakeAnotherGroupAsync(playerId, ct))
+            )
+        );
+
+        var eligible = allowed.Where(x => x.ok).Select(x => x.playerId).ToList();
+
+        // The group's cap applies to a batch exactly as to one approval; whoever does not fit
+        // stays requested, and the manager is told the group is full.
+        var joining = eligible.Take(FreeMemberSlots()).ToList();
+        var result =
+            joining.Count < eligible.Count
+                ? GuildMemberMgmtResultSnapshot.FailedToJoin(GuildJoinFailedType.GroupFull)
+                : GuildMemberMgmtResultSnapshot.Success();
+
+        if (joining.Count == 0)
+            return result;
+
+        // One transaction for the lot rather than one per member: approving a busy group's
+        // backlog is exactly the case this is for.
+        await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
+        {
+            var ids = joining.Select(x => x.Value).ToList();
+
+            await dbCtx
+                .GuildMembers.Where(x =>
+                    x.GuildEntityId == GuildId.Value && ids.Contains(x.PlayerEntityId)
+                )
+                .ExecuteUpdateAsync(x => x.SetProperty(m => m.Rank, GuildMemberRank.Member), ct);
+        }
+
+        foreach (var playerId in joining)
+            _state.RankByPlayerId[playerId.Value] = GuildMemberRank.Member;
+
+        await Task.WhenAll(
+            joining.Select(playerId =>
+                _grainFactory.GetPlayerGuildGrain(playerId).OnMembershipsChangedAsync(ct)
+            )
+        );
+
+        // The batch wrote its own rows rather than going through AddOrUpdateMemberAsync, so it
+        // publishes for itself too.
+        foreach (var playerId in joining)
+            NotifyHomeroomMemberChanged(playerId);
+
+        await Task.WhenAll(joining.Select(playerId => PublishMembershipUpdatedAsync(playerId, ct)));
+
+        return result;
     }
 
     public async Task<GuildMemberMgmtResultSnapshot> SetAdminAsync(
@@ -287,10 +345,10 @@ internal sealed partial class GuildGrain
 
         var ranks = effectiveSearch switch
         {
-            GuildMemberSearchType.Admins => new[] { GuildMemberRank.Owner, GuildMemberRank.Admin },
+            GuildMemberSearchType.Admins => GuildMemberRanks.ManagingRanks(),
             GuildMemberSearchType.Pending => [GuildMemberRank.Requested],
             GuildMemberSearchType.Blocked => [GuildMemberRank.Blocked],
-            _ => [GuildMemberRank.Owner, GuildMemberRank.Admin, GuildMemberRank.Member],
+            _ => GuildMemberRanks.MemberRanks(),
         };
 
         var pageSize = _guildConfig.MembersPageSize;
@@ -349,7 +407,7 @@ internal sealed partial class GuildGrain
     /// <summary>The owner and the group's admins act on members; nobody else does.</summary>
     private bool CanManage(PlayerId actorId) =>
         _state.Guild is { } guild
-        && (guild.OwnerId == actorId || GetRank(actorId) == GuildMemberRank.Admin);
+        && (guild.OwnerId == actorId || GuildMemberRanks.CanManage(GetRank(actorId)));
 
     /// <summary>
     /// Whether this player has room for another group. The cap is theirs, not the group's, so
@@ -357,15 +415,15 @@ internal sealed partial class GuildGrain
     /// </summary>
     private async Task<bool> CanTakeAnotherGroupAsync(PlayerId playerId, CancellationToken ct)
     {
-        var memberships = await _grainFactory
+        var membershipsTask = _grainFactory
             .GetPlayerGuildGrain(playerId)
             .GetMembershipCountAsync(ct);
-        var hasClub = await _grainFactory
-            .GetPlayerSubscriptionGrain(playerId)
-            .HasActiveAsync(Primitives.Players.Enums.SubscriptionType.HabboClub, ct);
+        var clubTask = _grainFactory.HasActiveClubAsync(playerId, ct);
 
-        return memberships
-            < (hasClub ? _guildConfig.MembershipsMaxWithClub : _guildConfig.MembershipsMax);
+        await Task.WhenAll(membershipsTask, clubTask);
+
+        return await membershipsTask
+            < (await clubTask ? _guildConfig.MembershipsMaxWithClub : _guildConfig.MembershipsMax);
     }
 
     private async Task AddOrUpdateMemberAsync(
@@ -404,6 +462,8 @@ internal sealed partial class GuildGrain
         _state.RankByPlayerId[playerId.Value] = rank;
 
         await _grainFactory.GetPlayerGuildGrain(playerId).OnMembershipsChangedAsync(ct);
+
+        NotifyHomeroomMemberChanged(playerId);
     }
 
     private async Task RemoveMemberAsync(PlayerId playerId, CancellationToken ct)
@@ -420,15 +480,15 @@ internal sealed partial class GuildGrain
         _state.RankByPlayerId.Remove(playerId.Value);
 
         await _grainFactory.GetPlayerGuildGrain(playerId).OnMembershipsChangedAsync(ct);
+
+        NotifyHomeroomMemberChanged(playerId);
     }
 
     /// <summary>The owner and the admins: who hears about a roster change.</summary>
     private List<PlayerId> ManagerIds() =>
         [
             .. _state
-                .RankByPlayerId.Where(entry =>
-                    entry.Value is GuildMemberRank.Owner or GuildMemberRank.Admin
-                )
+                .RankByPlayerId.Where(entry => GuildMemberRanks.CanManage(entry.Value))
                 .Select(entry => PlayerId.Parse(entry.Key)),
         ];
 

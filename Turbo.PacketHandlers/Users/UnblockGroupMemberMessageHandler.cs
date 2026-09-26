@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Users;
-using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Users;
@@ -27,17 +26,7 @@ public class UnblockGroupMemberMessageHandler(IGrainFactory grainFactory)
             .UnblockAsync(ctx.PlayerId, message.PlayerId, ct)
             .ConfigureAwait(false);
 
-        if (result.Failure is { } reason)
-        {
-            await ctx.SendComposerAsync(
-                    new GuildMemberMgmtFailedMessageComposer
-                    {
-                        GuildId = message.GuildId,
-                        Reason = reason,
-                    },
-                    ct
-                )
-                .ConfigureAwait(false);
-        }
+        await ctx.SendGuildMemberMgmtFailureAsync(message.GuildId, result, ct)
+            .ConfigureAwait(false);
     }
 }

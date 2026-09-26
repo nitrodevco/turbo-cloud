@@ -34,7 +34,7 @@ public class WiredActionKickUser(
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        var message = _wiredData.StringParam?.Trim() ?? string.Empty;
+        var message = GetStringParam();
         message = await ctx.FormatTextAsync(message, ct);
 
         var kicked = false;

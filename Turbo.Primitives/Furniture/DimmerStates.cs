@@ -1,4 +1,5 @@
 using System;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Primitives.Furniture;
 
@@ -20,12 +21,5 @@ public static class DimmerStates
     public const int FIELD_COUNT = 5;
 
     public static bool IsValidColor(string color) =>
-        color.Length == 7
-        && color[0] == '#'
-        && int.TryParse(
-            color.AsSpan(1),
-            System.Globalization.NumberStyles.HexNumber,
-            System.Globalization.CultureInfo.InvariantCulture,
-            out _
-        );
+        color.Length == HexColor.DIGITS + 1 && color[0] == '#' && HexColor.IsRgb(color.AsSpan(1));
 }

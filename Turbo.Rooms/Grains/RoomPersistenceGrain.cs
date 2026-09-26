@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
@@ -420,46 +421,22 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 {
                     Id = item.ObjectId.Value,
                     PlayerEntityId = item.OwnerId.Value,
-                    X = item.X,
-                    Y = item.Y,
-                    Z = item.Z,
-                    Rotation = item.Rotation,
-                    ExtraData = item.ExtraData,
                 };
 
                 dbCtx.Attach(dbEntity);
 
                 var e = dbCtx.Entry(dbEntity);
 
+                WritePlacement(e, item);
+
                 e.Property(x => x.PlayerEntityId).IsModified = true;
+
+                // A removed item leaves the room; anything else is written as standing in it.
+                dbEntity.RoomEntityId = _state.RemovedItemIds.Remove(item.ObjectId)
+                    ? null
+                    : _state.RoomId.Value;
+
                 e.Property(x => x.RoomEntityId).IsModified = true;
-                e.Property(x => x.X).IsModified = true;
-                e.Property(x => x.Y).IsModified = true;
-                e.Property(x => x.Z).IsModified = true;
-                e.Property(x => x.Rotation).IsModified = true;
-                e.Property(x => x.ExtraData).IsModified = true;
-
-                if (item is RoomWallItemSnapshot wallItem)
-                {
-                    dbEntity.WallOffset = wallItem.WallOffset;
-
-                    e.Property(x => x.WallOffset).IsModified = true;
-                }
-
-                if (_state.RemovedItemIds.Contains(item.ObjectId))
-                {
-                    dbEntity.RoomEntityId = null;
-
-                    e.Property(x => x.RoomEntityId).IsModified = true;
-
-                    _state.RemovedItemIds.Remove(item.ObjectId);
-                }
-                else
-                {
-                    dbEntity.RoomEntityId = _state.RoomId.Value;
-
-                    e.Property(x => x.RoomEntityId).IsModified = true;
-                }
             }
 
             await dbCtx.SaveChangesAsync(ct);
@@ -492,31 +469,44 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
             RoomObjectId = item.ObjectId.Value,
             FurnitureDefinitionEntityId = item.DefinitionId,
             PlacedByPlayerEntityId = item.OwnerId.Value,
-            // Only the columns marked modified below are written; the rest are here to satisfy
-            // the entity and never reach the database.
+            // Only the columns marked modified are written; the rest are here to satisfy the
+            // entity and never reach the database.
             CatalogOfferEntityId = 0,
-            X = item.X,
-            Y = item.Y,
-            Z = item.Z,
-            Rotation = item.Rotation,
-            ExtraData = item.ExtraData,
         };
 
         dbCtx.Attach(dbEntity);
 
-        var e = dbCtx.Entry(dbEntity);
+        WritePlacement(dbCtx.Entry(dbEntity), item);
+    }
 
-        e.Property(x => x.X).IsModified = true;
-        e.Property(x => x.Y).IsModified = true;
-        e.Property(x => x.Z).IsModified = true;
-        e.Property(x => x.Rotation).IsModified = true;
-        e.Property(x => x.ExtraData).IsModified = true;
+    /// <summary>
+    /// Writes where an attached furni row stands and its data, and marks exactly those columns
+    /// modified, so nothing else on the row is touched. A hotel furni and a borrowed one share
+    /// these columns and were written by two copies of this block; a wall item also writes its
+    /// offset. Marked by name, which EF resolves on the concrete entity.
+    /// </summary>
+    private static void WritePlacement<TEntity>(EntityEntry<TEntity> entry, RoomItemSnapshot item)
+        where TEntity : class, IPlacedFurnitureEntity
+    {
+        var entity = entry.Entity;
+
+        entity.X = item.X;
+        entity.Y = item.Y;
+        entity.Z = item.Z;
+        entity.Rotation = item.Rotation;
+        entity.ExtraData = item.ExtraData;
+
+        entry.Property(nameof(IPlacedFurnitureEntity.X)).IsModified = true;
+        entry.Property(nameof(IPlacedFurnitureEntity.Y)).IsModified = true;
+        entry.Property(nameof(IPlacedFurnitureEntity.Z)).IsModified = true;
+        entry.Property(nameof(IPlacedFurnitureEntity.Rotation)).IsModified = true;
+        entry.Property(nameof(IPlacedFurnitureEntity.ExtraData)).IsModified = true;
 
         if (item is RoomWallItemSnapshot wallItem)
         {
-            dbEntity.WallOffset = wallItem.WallOffset;
+            entity.WallOffset = wallItem.WallOffset;
 
-            e.Property(x => x.WallOffset).IsModified = true;
+            entry.Property(nameof(IPlacedFurnitureEntity.WallOffset)).IsModified = true;
         }
     }
 

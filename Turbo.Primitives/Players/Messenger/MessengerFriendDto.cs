@@ -1,5 +1,7 @@
+using System.Globalization;
 using Orleans;
 using Turbo.Primitives.Players.Enums.Messenger;
+using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Primitives.Players.Messenger;
@@ -7,6 +9,30 @@ namespace Turbo.Primitives.Players.Messenger;
 [GenerateSerializer]
 public sealed record MessengerFriendDto
 {
+    /// <summary>How the friend list shows when a friend was last seen.</summary>
+    public const string LAST_ACCESS_FORMAT = "dd-MM-yyyy HH:mm:ss";
+
+    /// <summary>
+    /// A friend as the list shows them, from their live summary. The one mapping for adding a
+    /// friend and for refreshing one, so the two cannot disagree about a field; a caller keeps
+    /// what the summary does not know (category, relationship) itself.
+    /// </summary>
+    public static MessengerFriendDto FromSummary(PlayerSummarySnapshot snapshot) =>
+        new()
+        {
+            PlayerId = snapshot.PlayerId,
+            Name = snapshot.Name,
+            Motto = snapshot.Motto ?? string.Empty,
+            Figure = snapshot.Figure,
+            Gender = snapshot.Gender,
+            Online = snapshot.IsOnline,
+            FollowingAllowed = true,
+            LastAccess = snapshot.LastUpdated.ToString(
+                LAST_ACCESS_FORMAT,
+                CultureInfo.InvariantCulture
+            ),
+        };
+
     [Id(0)]
     public required PlayerId PlayerId { get; init; }
 

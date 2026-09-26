@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -215,6 +216,20 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
     {
         IsFrozen = isFrozen;
         ThawsOnTeleport = isFrozen && thawsOnTeleport;
+    }
+
+    /// <summary>
+    /// The statuses as the client's <c>Users</c> and <c>UserUpdate</c> packets carry them:
+    /// <c>/key value/key value/</c>. Every kind of avatar writes its snapshot with this.
+    /// </summary>
+    protected string BuildStatusString()
+    {
+        var status = new StringBuilder("/");
+
+        foreach (var (type, value) in Statuses)
+            status.Append(type.ToLegacyString()).Append(' ').Append(value).Append('/');
+
+        return status.ToString();
     }
 
     public void AddStatus(AvatarStatusType type, string value)

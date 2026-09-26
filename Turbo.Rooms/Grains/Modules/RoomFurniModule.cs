@@ -9,6 +9,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -112,8 +113,13 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain)
         );
     }
 
-    /// <summary>Asks every registered limit before a new item is placed; a refusal throws.</summary>
-    public void EnsureWithinPlacementLimits(IRoomItem item)
+    /// <summary>
+    /// Asks every registered limit before a new item is placed; a refusal throws. Only the two
+    /// placement entry points call it (<see cref="PlaceFloorItemAsync"/>,
+    /// <see cref="PlaceWallItemAsync"/>), once the item has its logic, which is how a limit
+    /// recognises its own kind. Asked before that, as it used to be, it recognised nothing.
+    /// </summary>
+    private void EnsureWithinPlacementLimits(IRoomItem item)
     {
         foreach (var limit in _placementLimits)
             limit.EnsureCanPlace(item);
@@ -193,22 +199,38 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain)
             RoomId = _roomGrain.RoomId,
         };
 
-        if (
-            _roomGrain._itemsLoader.CreateFromFurnitureItemSnapshot(snapshot)
-            is not IRoomWallItem item
-        )
-            return false;
+        var placed = false;
 
-        return await PlaceWallItemAsync(
-            ctx,
-            item,
-            position.X,
-            position.Y,
-            position.Z,
-            position.WallOffset,
-            position.Rotation,
-            ct
-        );
+        try
+        {
+            if (
+                _roomGrain._itemsLoader.CreateFromFurnitureItemSnapshot(snapshot)
+                is not IRoomWallItem item
+            )
+                return false;
+
+            placed = await PlaceWallItemAsync(
+                ctx,
+                item,
+                position.X,
+                position.Y,
+                position.Z,
+                position.WallOffset,
+                position.Rotation,
+                ct
+            );
+
+            return placed;
+        }
+        finally
+        {
+            // The row already says the item is in this room, so an item the room refused (a
+            // placement limit, a bad spot) would appear on the next load. It goes again.
+            if (!placed)
+                await _roomGrain
+                    ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
+                    .EnqueueDeletedItemAsync(_roomGrain.RoomId, entity.Id, ct);
+        }
     }
 
     internal async Task EnsureFurniLoadedAsync(CancellationToken ct)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Turbo.Primitives.Packets;
 
@@ -27,5 +28,28 @@ public static class ClientPacketExtensions
         return count <= 0
             ? 0
             : Math.Min(Math.Min(count, packet.Remaining / bytesPerItem), maxItems);
+    }
+
+    /// <summary>
+    /// Reads a counted list: the count through <see cref="PopCount"/>, so it is bounded the same
+    /// way, then one entry per <paramref name="read"/>. Every client list goes through here, so
+    /// no parser can forget the bound.
+    /// </summary>
+    public static List<T> PopList<T>(
+        this IClientPacket packet,
+        int bytesPerItem,
+        Func<IClientPacket, T> read,
+        int maxItems = int.MaxValue
+    )
+    {
+        ArgumentNullException.ThrowIfNull(read);
+
+        var count = packet.PopCount(bytesPerItem, maxItems);
+        var items = new List<T>(count);
+
+        for (var i = 0; i < count; i++)
+            items.Add(read(packet));
+
+        return items;
     }
 }

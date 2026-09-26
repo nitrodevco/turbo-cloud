@@ -19,7 +19,6 @@ using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Collectibles;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Wallet;
 
 namespace Turbo.Catalog.Grains;
@@ -121,14 +120,21 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         if (product == null || !snap.OffersById.TryGetValue(product.OfferId, out var offer))
             return LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.None);
 
+        // The same club rule as a shop purchase: an LTD is an offer like any other.
+        if (offer.RequiresClub && !await _grainFactory.HasActiveClubAsync(playerId, ct))
+            return LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.RequiresHabboClub);
+
         var walletGrain = _grainFactory.GetPlayerWalletGrain(playerId);
-        var credits = await walletGrain.GetAmountForCurrencyAsync(
-            new CurrencyKind { CurrencyType = CurrencyType.Credits },
-            ct
-        );
+        var credits = await walletGrain.GetAmountForCurrencyAsync(CurrencyKind.Credits, ct);
+        var silver =
+            offer.CostSilver > 0
+                ? await walletGrain.GetAmountForCurrencyAsync(CurrencyKind.Silver, ct)
+                : 0;
         var activityPoints = await walletGrain.GetActivityPointsAsync(ct);
 
-        var hasInsufficientCredits = offer.CostCredits > credits;
+        // The client has no "not enough silver" alert; the balance packet's credits flag is the
+        // nearest it draws, and the charge at the draw refuses a short silver balance anyway.
+        var hasInsufficientCredits = offer.CostCredits > credits || offer.CostSilver > silver;
         var hasInsufficientActivityPoints =
             offer is { CostCurrency: > 0, CurrencyTypeId: not null }
             && activityPoints.GetValueOrDefault(offer.CurrencyTypeId.Value) < offer.CostCurrency;
@@ -281,6 +287,12 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync();
         await using var tx = await dbCtx.Database.BeginTransactionAsync();
 
+        // The wallet is another grain, so the charge cannot join the transaction. If anything
+        // between the charge and the commit fails, the rollback undoes the serial and the charge
+        // is given back by hand.
+        List<WalletDebitRequest>? charged = null;
+        var committed = false;
+
         try
         {
             var series = await dbCtx
@@ -298,15 +310,18 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
             var prod = snap.ProductsById.Values.First(p => p.LtdSeriesId == series.Id);
             var offer = snap.OffersById[prod.OfferId];
 
+            var debits = offer.ToDebitRequests(1);
             var debitResult = await _grainFactory
                 .GetPlayerWalletGrain(playerId)
-                .TryDebitAsync(BuildDebits(offer), ct);
+                .TryDebitAsync(debits, ct);
 
             if (!debitResult.Succeeded)
             {
                 await NotifyLoserAsync(playerId, LtdRaffleResultType.Lost, ct);
                 return false;
             }
+
+            charged = debits;
 
             var serial = _config.LtdRaffle.RandomizeSerials
                 ? (await GetAvailableSerialsAsync(dbCtx, series))[
@@ -332,6 +347,8 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
 
             await dbCtx.SaveChangesAsync();
             await tx.CommitAsync();
+
+            committed = true;
 
             await _grainFactory
                 .GetInventoryGrain(playerId)
@@ -375,6 +392,15 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
             );
 
             await tx.RollbackAsync();
+
+            if (charged is not null && !committed)
+                await _grainFactory.RefundAsync(
+                    PlayerId.Parse(playerId),
+                    charged,
+                    _logger,
+                    $"LTD series {_state.SeriesId}"
+                );
+
             return false;
         }
     }
@@ -389,39 +415,6 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
             .ToListAsync();
 
         return [.. Enumerable.Range(1, s.TotalQuantity).Except(usedSerials)];
-    }
-
-    private static List<WalletDebitRequest> BuildDebits(CatalogOfferSnapshot offer)
-    {
-        var debits = new List<WalletDebitRequest>();
-
-        if (offer.CostCredits > 0)
-        {
-            debits.Add(
-                new WalletDebitRequest
-                {
-                    CurrencyKind = new CurrencyKind { CurrencyType = CurrencyType.Credits },
-                    Amount = offer.CostCredits,
-                }
-            );
-        }
-
-        if (offer.CostCurrency > 0)
-        {
-            debits.Add(
-                new WalletDebitRequest
-                {
-                    CurrencyKind = new CurrencyKind
-                    {
-                        CurrencyType = CurrencyType.ActivityPoints,
-                        ActivityPointType = offer.CurrencyTypeId,
-                    },
-                    Amount = offer.CostCurrency,
-                }
-            );
-        }
-
-        return debits;
     }
 
     private async Task<double> CalculateWeightAsync(int playerId, CancellationToken ct)

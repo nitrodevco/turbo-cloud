@@ -276,7 +276,7 @@ public sealed partial class RoomPetModule
         CancellationToken ct
     )
     {
-        if (IsAdjacent(walker, target))
+        if (RoomAvatarModule.AreAdjacent(walker, target))
             return true;
 
         foreach (var (x, y) in TilesAround(target.X, target.Y))

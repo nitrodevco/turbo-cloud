@@ -11,7 +11,7 @@ namespace Turbo.Database.Entities.Bots;
 [Table("bots")]
 [Index(nameof(PlayerEntityId))]
 [Index(nameof(RoomEntityId))]
-public class BotEntity : TurboEntity
+public class BotEntity : TurboEntity, IInventoryUnitEntity
 {
     public const int NAME_MAX_LENGTH = 32;
     public const int MOTTO_MAX_LENGTH = 128;

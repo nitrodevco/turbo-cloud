@@ -17,6 +17,9 @@ internal static class WiredSources
             WiredPlayerSourceType.SignalUsers,
         ];
 
+    /// <summary>The bot a bot box names in its text; bots are not in selections.</summary>
+    public static WiredPlayerSourceType[] BotByName => [WiredPlayerSourceType.BotByName];
+
     /// <summary>The furni a stack can act on, defaulting to the furni picked in the box.</summary>
     public static WiredFurniSourceType[] Furni =>
         [

@@ -47,6 +47,15 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
     public virtual FurnitureUsageType GetUsagePolicy() =>
         _ctx.Definition.TotalStates == 0 ? FurnitureUsageType.Nobody : _ctx.Definition.UsagePolicy;
 
+    /// <summary>
+    /// Who may use the item. By default that is its usage policy, which is also what the client
+    /// is told. A logic whose use belongs to one person (a seed, a pet package) overrides this
+    /// and keeps its policy at Nobody, so nobody else is offered a use at all. Never give such an
+    /// item a wider policy just so its use gets through: that is what the client draws.
+    /// </summary>
+    public virtual Task<bool> CanUseAsync(ActionContext ctx) =>
+        _roomGrain.SecurityModule.CanUseFurniAsync(ctx, GetUsagePolicy());
+
     public virtual bool CanToggle() => false;
 
     public virtual bool CanRoll() => false;
@@ -125,10 +134,20 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
     protected Task<bool> HasRightsAsync(ActionContext ctx) =>
         _roomGrain.SecurityModule.CanManipulateFurniAsync(ctx);
 
-    /// <summary>Whether the acting player owns this item or the room.</summary>
-    protected async Task<bool> IsOwnerAsync(ActionContext ctx) =>
-        _ctx.RoomObject.OwnerId == ctx.PlayerId
-        || await _roomGrain.SecurityModule.GetIsRoomOwnerAsync(ctx);
+    /// <summary>
+    /// Whether the acting player owns this item itself. The rule for turning the item into
+    /// something else that is theirs to keep (credits, a present's contents, a pet): the room's
+    /// owner may not do that with a guest's furni.
+    /// </summary>
+    protected bool IsItemOwner(ActionContext ctx) => _ctx.RoomObject.OwnerId == ctx.PlayerId;
+
+    /// <summary>
+    /// Whether the acting player owns this item or the room. The rule for changing how an item
+    /// stands in the room (dressing a mannequin, engraving a trophy), which the room's owner
+    /// may do too. Two meanings of "owner", named apart, so a new logic picks one on purpose.
+    /// </summary>
+    protected async Task<bool> IsItemOrRoomOwnerAsync(ActionContext ctx) =>
+        IsItemOwner(ctx) || await _roomGrain.SecurityModule.GetIsRoomOwnerAsync(ctx);
 
     /// <summary>Logs a refused interaction with the ids that identify it, and yields false.</summary>
     protected bool Reject(ActionContext ctx, FurnitureInteraction interaction, string reason)

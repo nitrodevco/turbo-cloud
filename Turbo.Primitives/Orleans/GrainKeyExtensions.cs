@@ -1,5 +1,6 @@
 using Orleans;
 using Orleans.Runtime;
+using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 
@@ -13,6 +14,9 @@ public static class GrainKeyExtensions
 {
     public static PlayerId GetPlayerId(this IAddressable grain) =>
         PlayerId.Parse((int)grain.GetPrimaryKeyLong());
+
+    public static GuildId GetGuildId(this IAddressable grain) =>
+        GuildId.Parse((int)grain.GetPrimaryKeyLong());
 
     public static RoomId GetRoomId(this IAddressable grain) =>
         RoomId.Parse((int)grain.GetPrimaryKeyLong());

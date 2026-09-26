@@ -9,13 +9,7 @@ internal class ObjectsMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, ObjectsMessageComposer message)
     {
-        packet.WriteInteger(message.OwnerNames.Count);
-
-        foreach (var (ownerId, ownerName) in message.OwnerNames)
-        {
-            packet.WriteInteger(ownerId);
-            packet.WriteString(ownerName);
-        }
+        OwnerNamesSerializer.Serialize(packet, message.OwnerNames);
 
         packet.WriteInteger(message.FloorItems.Length);
 

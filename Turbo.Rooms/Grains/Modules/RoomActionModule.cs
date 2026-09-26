@@ -180,9 +180,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain)
         if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        var usagePolicy = item.Logic.GetUsagePolicy();
-
-        if (!await _roomGrain.SecurityModule.CanUseFurniAsync(ctx, usagePolicy))
+        if (!await item.Logic.CanUseAsync(ctx))
             return false;
 
         await item.Logic.OnUseAsync(ctx, param, ct);

@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
-using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -38,72 +37,51 @@ public class WiredActionChaseHabbo(
 
         foreach (var floorItem in GetFloorItems(ctx.GetSelection(this)))
         {
-            try
+            var floorIdx = map.ToIdx(floorItem.X, floorItem.Y);
+            var targetIdx = NO_TILE;
+
+            if (
+                _roomGrain.AvatarModule.TryGetNearestPlayer(
+                    floorIdx,
+                    CHASE_RANGE,
+                    out var player,
+                    out var distance
+                )
+            )
             {
-                var floorIdx = map.ToIdx(floorItem.X, floorItem.Y);
-                var targetIdx = NO_TILE;
-
-                if (
-                    _roomGrain.AvatarModule.TryGetNearestPlayer(
-                        floorIdx,
-                        CHASE_RANGE,
-                        out var player,
-                        out var distance
-                    )
-                )
+                if (distance <= COLLISION_RANGE)
                 {
-                    if (distance <= COLLISION_RANGE)
-                    {
-                        PublishCollision(floorItem, player);
+                    PublishCollision(floorItem, player);
 
-                        continue;
-                    }
-
-                    // Which tile lies toward the player is the map's to say; this box only
-                    // decides that the furni takes the first of them.
-                    targetIdx = map.GetStepsToward(floorIdx, map.ToIdx(player.X, player.Y))
-                        .DefaultIfEmpty(NO_TILE)
-                        .First();
-                }
-                else if (
-                    map.TryGetTileInFront(
-                        floorIdx,
-                        RotationExtensions.CARDINAL[Random.Shared.Next(0, 4)],
-                        out var wanderIdx
-                    )
-                )
-                {
-                    // Nobody near: wander one tile in a random straight direction.
-                    targetIdx = wanderIdx;
-                }
-
-                if (targetIdx == NO_TILE)
                     continue;
+                }
 
-                var (targetX, targetY) = map.GetTileXY(targetIdx);
-
-                if (
-                    await _roomGrain.FurniModule.ValidateFloorItemPlacementAsync(
-                        ActionContext.Wired,
-                        floorItem.ObjectId,
-                        targetX,
-                        targetY,
-                        floorItem.Rotation
-                    )
+                // Which tile lies toward the player is the map's to say; this box only
+                // decides that the furni takes the first of them.
+                targetIdx = map.GetStepsToward(floorIdx, map.ToIdx(player.X, player.Y))
+                    .DefaultIfEmpty(NO_TILE)
+                    .First();
+            }
+            else if (
+                map.TryGetTileInFront(
+                    floorIdx,
+                    RotationExtensions.CARDINAL[Random.Shared.Next(0, 4)],
+                    out var wanderIdx
                 )
-                    await ctx.ProcessFloorItemMovementAsync(
-                        floorItem,
-                        targetIdx,
-                        floorItem.Z,
-                        floorItem.Rotation
-                    );
-            }
-            catch (Exception ex)
+            )
             {
-                LogWiredDataFault(ex);
-
-                continue;
+                // Nobody near: wander one tile in a random straight direction.
+                targetIdx = wanderIdx;
             }
+
+            if (targetIdx == NO_TILE)
+                continue;
+
+            var (targetX, targetY) = map.GetTileXY(targetIdx);
+
+            // Height follows the room's move physics like every other mover (the KeepAltitude
+            // addon keeps it); this box used to pin it, where its mirror, flee, did not.
+            await ctx.TryMoveFloorItemAsync(floorItem, targetX, targetY);
         }
 
         return true;

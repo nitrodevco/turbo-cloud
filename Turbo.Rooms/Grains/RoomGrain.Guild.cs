@@ -5,14 +5,12 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Guilds;
-using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains;
@@ -73,6 +71,11 @@ public sealed partial class RoomGrain
         _guildResolved = false;
         _guild = null;
 
+        // Cleared here as well as in GetGuildAsync: if the re-read fails, the room must not go
+        // on advertising a group it can no longer confirm.
+        if (_state.RoomSnapshot is not null)
+            _state.RoomSnapshot = _state.RoomSnapshot with { Guild = null };
+
         await GetGuildAsync(ct);
 
         // Rights here are the group's, so whoever is standing in the room may now build when
@@ -108,6 +111,14 @@ public sealed partial class RoomGrain
 
     public async Task<bool> GetIsGroupRoomAsync(CancellationToken ct) =>
         await GetGuildAsync(ct) is not null;
+
+    public async Task RefreshGuildMemberAsync(PlayerId playerId, CancellationToken ct)
+    {
+        if (!_state.AvatarsByPlayerId.ContainsKey(playerId))
+            return;
+
+        await SecurityModule.RefreshControllerLevelForPlayerAsync(playerId, ct);
+    }
 
     public async Task RefreshGuildFurniAsync(GuildId guildId, CancellationToken ct)
     {
@@ -155,8 +166,7 @@ public sealed partial class RoomGrain
             .GetGuildGrain(guild.GuildId)
             .GetMemberRankAsync(viewerId, ct);
 
-        var isMember =
-            rank is GuildMemberRank.Owner or GuildMemberRank.Admin or GuildMemberRank.Member;
+        var isMember = GuildMemberRanks.IsMember(rank);
 
         await _grainFactory.SendComposerToPlayerAsync(
             viewerId,

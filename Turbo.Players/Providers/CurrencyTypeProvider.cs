@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,8 +19,17 @@ public sealed class CurrencyTypeProvider(
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
     private readonly ILogger<ICurrencyTypeProvider> _logger = logger;
-    private readonly Dictionary<int, CurrencyTypeSnapshot> _currenciesById = [];
-    private readonly Dictionary<CurrencyKind, int> _currencyIdsByKind = [];
+
+    // Replaced whole on a reload, never cleared and refilled, so a reload that fails keeps the
+    // mapping the server was already running on (as FurnitureDefinitionProvider does).
+    private FrozenDictionary<int, CurrencyTypeSnapshot> _currenciesById = FrozenDictionary<
+        int,
+        CurrencyTypeSnapshot
+    >.Empty;
+    private FrozenDictionary<CurrencyKind, int> _currencyIdsByKind = FrozenDictionary<
+        CurrencyKind,
+        int
+    >.Empty;
 
     public CurrencyTypeSnapshot? GetCurrencyType(int typeId)
     {
@@ -34,9 +44,6 @@ public sealed class CurrencyTypeProvider(
 
     public async Task ReloadAsync(CancellationToken ct)
     {
-        _currenciesById.Clear();
-        _currencyIdsByKind.Clear();
-
         var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
         try
@@ -45,6 +52,9 @@ public sealed class CurrencyTypeProvider(
                 .CurrencyTypes.AsNoTracking()
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
+
+            var currenciesById = new Dictionary<int, CurrencyTypeSnapshot>();
+            var currencyIdsByKind = new Dictionary<CurrencyKind, int>();
 
             foreach (var entity in entities)
             {
@@ -56,9 +66,12 @@ public sealed class CurrencyTypeProvider(
                     ActivityPointType = snapshot.ActivityPointType,
                 };
 
-                _currencyIdsByKind[kind] = snapshot.Id;
-                _currenciesById[snapshot.Id] = snapshot;
+                currencyIdsByKind[kind] = snapshot.Id;
+                currenciesById[snapshot.Id] = snapshot;
             }
+
+            _currenciesById = currenciesById.ToFrozenDictionary();
+            _currencyIdsByKind = currencyIdsByKind.ToFrozenDictionary();
 
             _logger.LogInformation(
                 "Loaded currency type mapping: Count={Count}",

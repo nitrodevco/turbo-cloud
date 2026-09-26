@@ -14,6 +14,10 @@ namespace Turbo.Rooms.Grains.Modules;
 
 public sealed partial class RoomFurniModule
 {
+    /// <summary>
+    /// The wall counterpart of <see cref="PlaceFloorItemAsync"/>: every new wall item comes in
+    /// here, and the spot and the room's placement limits are checked here.
+    /// </summary>
     public async Task<bool> PlaceWallItemAsync(
         ActionContext ctx,
         IRoomWallItem item,
@@ -25,10 +29,20 @@ public sealed partial class RoomFurniModule
         CancellationToken ct
     )
     {
-        if (
-            !await _roomGrain.ObjectModule.AttatchObjectAsync(item, ct)
-            || !_roomGrain.MapModule.PlaceWallItem(item, x, y, z, rot, wallOffset)
-        )
+        if (!await ValidateNewWallItemPlacementAsync(ctx, item, x, y, z, wallOffset, rot))
+            return false;
+
+        // A limit tells its own kind of furni by the logic, which a new item does not have yet.
+        _roomGrain.ObjectModule.EnsureLogic(item);
+        EnsureWithinPlacementLimits(item);
+
+        // Positioned before it is attached, as a floor item is.
+        item.SetPosition(x, y);
+        item.SetPositionZ(z);
+        item.SetRotation(rot);
+        item.SetWallOffset(wallOffset);
+
+        if (!await _roomGrain.ObjectModule.AttatchObjectAsync(item, ct))
             return false;
 
         await item.Logic.OnPlaceAsync(ctx, ct);
@@ -94,7 +108,7 @@ public sealed partial class RoomFurniModule
         Rotation rot
     ) => Task.FromResult(true);
 
-    public Task<bool> ValidateNewWallItemPlacementAsync(
+    private Task<bool> ValidateNewWallItemPlacementAsync(
         ActionContext ctx,
         IRoomWallItem item,
         int x,

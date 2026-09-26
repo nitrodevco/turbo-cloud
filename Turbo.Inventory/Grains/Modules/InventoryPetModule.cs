@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,9 +19,9 @@ using Turbo.Primitives.Rooms;
 namespace Turbo.Inventory.Grains.Modules;
 
 /// <summary>
-/// The pets a player keeps in the inventory (not standing in a room). Loaded on first use like
-/// furniture; every hand-over to or from a room writes the row before the list changes, so a
-/// crash in between leaves the pet where the database says it is.
+/// The pets a player keeps in the inventory. The hand-over flow is
+/// <see cref="InventoryUnitModule{TEntity, TSnapshot}"/>; a pet brings its stats and figure
+/// back from a room, and is sold as a product the buyer names.
 /// </summary>
 internal sealed class InventoryPetModule(
     InventoryGrain inventoryGrain,
@@ -31,159 +30,68 @@ internal sealed class InventoryPetModule(
     IPetBreedProvider petBreedProvider,
     ILogger logger
 )
+    : InventoryUnitModule<PetEntity, PetSnapshot>(
+        inventoryGrain,
+        liveState.Pets,
+        dbCtxFactory,
+        logger
+    )
 {
-    private readonly InventoryGrain _inventoryGrain = inventoryGrain;
-    private readonly InventoryLiveState _state = liveState;
-    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
     private readonly IPetBreedProvider _petBreedProvider = petBreedProvider;
-    private readonly ILogger _logger = logger;
 
-    private int OwnerId => (int)_inventoryGrain.PlayerId;
+    protected override string Kind => "pet";
 
-    public async Task EnsureReadyAsync(CancellationToken ct)
-    {
-        if (_state.IsPetsReady)
-            return;
+    protected override int MaxOwned => _inventoryGrain._inventoryConfig.MaxPets;
 
-        var ownerName = await _inventoryGrain.GetOwnerNameAsync(ct);
+    protected override DbSet<PetEntity> Table(TurboDbContext dbCtx) => dbCtx.Pets;
 
-        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+    protected override PetSnapshot ToSnapshot(PetEntity entity, string ownerName) =>
+        entity.ToSnapshot(ownerName);
 
-        var entities = await dbCtx
-            .Pets.AsNoTracking()
-            .Where(x => x.PlayerEntityId == OwnerId && x.RoomEntityId == null)
-            .ToListAsync(ct);
-
-        _state.PetsById.Clear();
-
-        foreach (var entity in entities)
-            _state.PetsById[entity.Id] = entity.ToSnapshot(ownerName);
-
-        _state.IsPetsReady = true;
-    }
-
-    public async Task<ImmutableArray<PetSnapshot>> GetAllAsync(CancellationToken ct)
-    {
-        await EnsureReadyAsync(ct);
-
-        return [.. _state.PetsById.Values];
-    }
-
-    public async Task<PetSnapshot?> GetAsync(int petId, CancellationToken ct)
-    {
-        await EnsureReadyAsync(ct);
-
-        return _state.PetsById.TryGetValue(petId, out var pet) ? pet : null;
-    }
-
-    /// <summary>Hands a pet to a room. Null when it is not here to give.</summary>
-    public async Task<PetSnapshot?> TryCheckOutAsync(int petId, RoomId roomId, CancellationToken ct)
-    {
-        await EnsureReadyAsync(ct);
-
-        if (!_state.PetsById.TryGetValue(petId, out var pet))
-            return null;
-
-        int updated;
-
-        await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
-        {
-            updated = await dbCtx
-                .Pets.Where(x =>
-                    x.Id == petId && x.PlayerEntityId == OwnerId && x.RoomEntityId == null
-                )
-                .ExecuteUpdateAsync(up => up.SetProperty(p => p.RoomEntityId, roomId.Value), ct);
-        }
-
-        if (updated == 0)
-        {
-            _logger.LogWarning(
-                "Pet {PetId} of player {PlayerId} is listed in the inventory but its row is elsewhere; reloading",
-                petId,
-                _inventoryGrain.PlayerId
-            );
-
-            _state.IsPetsReady = false;
-
-            return null;
-        }
-
-        _state.PetsById.Remove(petId);
-
-        await _inventoryGrain.Presence.OnPetRemovedAsync(petId, ct);
-
-        return pet with
+    protected override PetSnapshot WithRoom(PetSnapshot snapshot, RoomId? roomId) =>
+        snapshot with
         {
             RoomId = roomId,
         };
-    }
 
-    /// <summary>Takes a pet back from a room, with the stats it earned there.</summary>
-    public async Task<bool> ReturnAsync(PetSnapshot snapshot, CancellationToken ct)
-    {
-        if (snapshot.OwnerId != _inventoryGrain.PlayerId)
-            return false;
+    protected override Task<int> WriteReturnedAsync(
+        IQueryable<PetEntity> row,
+        PetSnapshot snapshot,
+        CancellationToken ct
+    ) =>
+        row.ExecuteUpdateAsync(
+            up =>
+                up.SetProperty(p => p.RoomEntityId, (int?)null)
+                    .SetProperty(p => p.Name, snapshot.Name)
+                    .SetProperty(p => p.Level, snapshot.Level)
+                    .SetProperty(p => p.Experience, snapshot.Experience)
+                    .SetProperty(p => p.Energy, snapshot.Energy)
+                    .SetProperty(p => p.Nutrition, snapshot.Nutrition)
+                    .SetProperty(p => p.Respect, snapshot.Respect)
+                    .SetProperty(p => p.HasSaddle, snapshot.HasSaddle)
+                    .SetProperty(p => p.AnyoneCanRide, snapshot.AnyoneCanRide)
+                    .SetProperty(p => p.HasBreedingPermission, snapshot.HasBreedingPermission)
+                    .SetProperty(p => p.PaletteId, snapshot.Figure.PaletteId)
+                    .SetProperty(p => p.Color, snapshot.Figure.Color)
+                    .SetProperty(
+                        p => p.CustomParts,
+                        PetFigure.SerializeCustomParts(snapshot.Figure.CustomParts)
+                    )
+                    .SetProperty(p => p.WateredAt, snapshot.WateredAtUtc)
+                    .SetProperty(p => p.HarvestedAt, snapshot.HarvestedAtUtc),
+            ct
+        );
 
-        await EnsureReadyAsync(ct);
+    protected override Task OnAddedAsync(
+        PetSnapshot snapshot,
+        bool openInventory,
+        CancellationToken ct
+    ) => _inventoryGrain.Presence.OnPetAddedAsync(snapshot, openInventory, ct);
 
-        int updated;
+    protected override Task OnRemovedAsync(int id, CancellationToken ct) =>
+        _inventoryGrain.Presence.OnPetRemovedAsync(id, ct);
 
-        await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
-        {
-            updated = await dbCtx
-                .Pets.Where(x => x.Id == snapshot.Id && x.PlayerEntityId == OwnerId)
-                .ExecuteUpdateAsync(
-                    up =>
-                        up.SetProperty(p => p.RoomEntityId, (int?)null)
-                            .SetProperty(p => p.Name, snapshot.Name)
-                            .SetProperty(p => p.Level, snapshot.Level)
-                            .SetProperty(p => p.Experience, snapshot.Experience)
-                            .SetProperty(p => p.Energy, snapshot.Energy)
-                            .SetProperty(p => p.Nutrition, snapshot.Nutrition)
-                            .SetProperty(p => p.Respect, snapshot.Respect)
-                            .SetProperty(p => p.HasSaddle, snapshot.HasSaddle)
-                            .SetProperty(p => p.AnyoneCanRide, snapshot.AnyoneCanRide)
-                            .SetProperty(
-                                p => p.HasBreedingPermission,
-                                snapshot.HasBreedingPermission
-                            )
-                            .SetProperty(p => p.PaletteId, snapshot.Figure.PaletteId)
-                            .SetProperty(p => p.Color, snapshot.Figure.Color)
-                            .SetProperty(
-                                p => p.CustomParts,
-                                PetFigure.SerializeCustomParts(snapshot.Figure.CustomParts)
-                            )
-                            .SetProperty(p => p.WateredAt, snapshot.WateredAtUtc)
-                            .SetProperty(p => p.HarvestedAt, snapshot.HarvestedAtUtc),
-                    ct
-                );
-        }
-
-        if (updated == 0)
-        {
-            _logger.LogError(
-                "Pet {PetId} returned to player {PlayerId} has no row to update",
-                snapshot.Id,
-                _inventoryGrain.PlayerId
-            );
-
-            return false;
-        }
-
-        var returned = snapshot with { RoomId = null };
-
-        _state.PetsById[returned.Id] = returned;
-
-        await _inventoryGrain.Presence.OnPetAddedAsync(returned, false, ct);
-
-        return true;
-    }
-
-    /// <summary>
-    /// Creates a pet in the inventory. Null when the player already owns the configured
-    /// maximum, counting the pets standing in rooms.
-    /// </summary>
-    public async Task<PetSnapshot?> CreateAsync(
+    public Task<PetSnapshot?> CreateAsync(
         string name,
         int typeId,
         int paletteId,
@@ -193,72 +101,24 @@ internal sealed class InventoryPetModule(
         CancellationToken ct
     )
     {
-        await EnsureReadyAsync(ct);
-
         var config = _inventoryGrain._inventoryConfig;
-        var entity = new PetEntity
-        {
-            PlayerEntityId = OwnerId,
-            Name = name,
-            TypeId = typeId,
-            PaletteId = paletteId,
-            BreedId = breedId,
-            Color = color,
-            RarityLevel = rarityLevel,
-            Energy = config.PetStartEnergy,
-            Nutrition = config.PetStartNutrition,
-            WateredAt = DateTime.UtcNow,
-        };
 
-        await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
-        {
-            var owned = await dbCtx.Pets.CountAsync(x => x.PlayerEntityId == OwnerId, ct);
-
-            if (owned >= config.MaxPets)
+        return CreateAsync(
+            new PetEntity
             {
-                _logger.LogWarning(
-                    "Player {PlayerId} owns {Count} pets, the configured maximum; not creating another",
-                    _inventoryGrain.PlayerId,
-                    owned
-                );
-
-                return null;
-            }
-
-            dbCtx.Add(entity);
-
-            await dbCtx.SaveChangesAsync(ct);
-        }
-
-        var snapshot = entity.ToSnapshot(await _inventoryGrain.GetOwnerNameAsync(ct));
-
-        _state.PetsById[snapshot.Id] = snapshot;
-
-        await _inventoryGrain.Presence.OnPetAddedAsync(snapshot, true, ct);
-
-        return snapshot;
-    }
-
-    public async Task<bool> DeleteAsync(int petId, CancellationToken ct)
-    {
-        await EnsureReadyAsync(ct);
-
-        int deleted;
-
-        await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
-        {
-            deleted = await dbCtx
-                .Pets.Where(x => x.Id == petId && x.PlayerEntityId == OwnerId)
-                .ExecuteDeleteAsync(ct);
-        }
-
-        if (deleted == 0)
-            return false;
-
-        if (_state.PetsById.Remove(petId))
-            await _inventoryGrain.Presence.OnPetRemovedAsync(petId, ct);
-
-        return true;
+                PlayerEntityId = OwnerId,
+                Name = name,
+                TypeId = typeId,
+                PaletteId = paletteId,
+                BreedId = breedId,
+                Color = color,
+                RarityLevel = rarityLevel,
+                Energy = config.PetStartEnergy,
+                Nutrition = config.PetStartNutrition,
+                WateredAt = DateTime.UtcNow,
+            },
+            ct
+        );
     }
 
     /// <summary>

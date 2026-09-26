@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
@@ -10,7 +9,10 @@ using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
-/// <summary>Picks the players holding the chosen variable, optionally filtered by value.</summary>
+/// <summary>
+/// Picks the users holding the chosen variable, optionally filtered by value: players, pets and
+/// bots, by room index, as every user variable is keyed.
+/// </summary>
 [RoomObjectLogic("wf_slc_users_with_var")]
 public class WiredSelectorEntitiesWithVariable(
     IGrainFactory grainFactory,
@@ -31,13 +33,4 @@ public class WiredSelectorEntitiesWithVariable(
             WiredRules.AnyInt(),
             WiredRules.VariableTarget(WiredVariableTargetType.User),
         ];
-
-    protected override IEnumerable<int> EnumerateTargets()
-    {
-        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
-        {
-            if (avatar is IRoomPlayer player)
-                yield return player.PlayerId;
-        }
-    }
 }

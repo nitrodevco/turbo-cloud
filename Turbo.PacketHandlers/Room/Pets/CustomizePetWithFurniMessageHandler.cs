@@ -4,7 +4,6 @@ using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Messages.Incoming.Room.Pets;
-using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Room.Pets;
 
@@ -20,13 +19,11 @@ public class CustomizePetWithFurniMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || message.ObjectId <= 0 || message.PetId <= 0)
+        if (message.PetId <= 0)
             return;
 
-        await _grainFactory
-            .GetRoomGrain(ctx.RoomId)
-            .InteractWithItemAsync(
-                ctx.AsActionContext(),
+        await ctx.InteractWithRoomItemAsync(
+                _grainFactory,
                 message.ObjectId,
                 new UseWithPetInteraction { PetId = message.PetId },
                 ct

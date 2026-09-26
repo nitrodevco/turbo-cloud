@@ -24,9 +24,6 @@ public class FurnitureExchangeLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
 {
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Nobody;
 
-    public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct) =>
-        Task.CompletedTask;
-
     public override async Task<bool> OnInteractAsync(
         ActionContext ctx,
         FurnitureInteraction interaction,
@@ -36,7 +33,7 @@ public class FurnitureExchangeLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
         if (interaction is not RedeemCreditsInteraction)
             return false;
 
-        if (_ctx.RoomObject.OwnerId != ctx.PlayerId)
+        if (!IsItemOwner(ctx))
             return Reject(ctx, interaction, "not the owner");
 
         if (!CreditFurniValue.TryParse(_ctx.Definition.Name, out var credits))

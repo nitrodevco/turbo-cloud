@@ -12,7 +12,7 @@ namespace Turbo.Database.Entities.Pets;
 [Table("pets")]
 [Index(nameof(PlayerEntityId))]
 [Index(nameof(RoomEntityId))]
-public class PetEntity : TurboEntity
+public class PetEntity : TurboEntity, IInventoryUnitEntity
 {
     public const int NAME_MAX_LENGTH = 32;
     public const int COLOR_MAX_LENGTH = 6;

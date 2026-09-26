@@ -73,7 +73,6 @@ public class WiredActionMoveAsGroup(
         if (group.Any(x => !map.InBounds(x.X + dx, x.Y + dy)))
             return false;
 
-        var actionCtx = ctx.AsActionContext();
         var moved = false;
 
         // The furni furthest along the way goes first, so each one steps onto a tile the one
@@ -86,15 +85,7 @@ public class WiredActionMoveAsGroup(
             var y = item.Y + dy;
 
             // A blocked furni stops the ones behind it too: they would run into it.
-            if (
-                !await _roomGrain.FurniModule.ValidateFloorItemPlacementAsync(
-                    actionCtx,
-                    item.ObjectId,
-                    x,
-                    y,
-                    item.Rotation
-                ) || !await ctx.ProcessFloorItemMovementAsync(item, map.ToIdx(x, y), null, null)
-            )
+            if (!await ctx.TryMoveFloorItemAsync(item, x, y))
                 break;
 
             moved = true;

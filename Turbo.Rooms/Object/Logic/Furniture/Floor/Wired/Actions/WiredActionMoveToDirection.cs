@@ -63,7 +63,6 @@ public class WiredActionMoveToDirection(
         var turnMode = GetIntParamOrDefault(1, TURN_BACK);
         var blockOnUsers = GetIntParamOrDefault(2, false);
         var map = _roomGrain.MapModule;
-        var actionCtx = ctx.AsActionContext();
         var moved = false;
 
         foreach (var item in GetFloorItems(selection))
@@ -83,15 +82,7 @@ public class WiredActionMoveToDirection(
                 {
                     var (x, y) = map.GetTileXY(nextIdx);
 
-                    if (
-                        await _roomGrain.FurniModule.ValidateFloorItemPlacementAsync(
-                            actionCtx,
-                            item.ObjectId,
-                            x,
-                            y,
-                            item.Rotation
-                        ) && await ctx.ProcessFloorItemMovementAsync(item, nextIdx, null, null)
-                    )
+                    if (await ctx.TryMoveFloorItemAsync(item, x, y))
                     {
                         moved = true;
 

@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events;
@@ -39,9 +39,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
         var currentPlans = new List<RollerMovePlanSnapshot>();
         var reservedTileIdxs = new HashSet<int>();
         var nextAvatarTiles = new HashSet<int>(
-            _roomGrain
-                ._state.AvatarsByObjectId.Values.Where(x => x.NextTileId >= 0)
-                .Select(x => x.NextTileId)
+            _roomGrain.AvatarModule.Avatars.Where(x => x.NextTileId >= 0).Select(x => x.NextTileId)
         );
 
         foreach (var rollerIds in _rollerIdSets)
@@ -102,10 +100,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
                     foreach (var avatarId in _roomGrain._state.TileAvatarStacks[fromIdx])
                     {
                         if (
-                            !_roomGrain._state.AvatarsByObjectId.TryGetValue(
-                                avatarId,
-                                out var avatar
-                            )
+                            !_roomGrain.AvatarModule.TryGetAvatar(avatarId, out var avatar)
                             || avatar.Z < rollerHeight
                         )
                             continue;
@@ -160,9 +155,15 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
 
                     reservedTileIdxs.Add(toIdx);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    continue;
+                    // One roller that cannot be planned must not stop the others this tick.
+                    _roomGrain._logger.LogError(
+                        ex,
+                        "Roller {RollerId} in room {RoomId} failed to plan its move",
+                        rollerId,
+                        _roomGrain.RoomId
+                    );
                 }
             }
         }
@@ -189,91 +190,51 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
                     avatar.ToZ
                 );
 
-            if (plan.MovedAvatars.Count > 0)
-            {
-                var sent = false;
+            // The furni ride with the first avatar's packet, or alone when nobody is on the
+            // roller; each further avatar gets a packet of its own.
+            if (plan.MovedAvatars.Count == 0)
+                composers.Add(CreateSlideComposer(plan, fromX, fromY, toX, toY, true, null));
 
-                foreach (var avatar in plan.MovedAvatars)
-                {
-                    var avatarObject = (IRoomAvatar)avatar.RoomObject;
-
-                    if (!sent)
-                    {
-                        composers.Add(
-                            new SlideObjectBundleMessageComposer
-                            {
-                                FromX = fromX,
-                                FromY = fromY,
-                                ToX = toX,
-                                ToY = toY,
-                                RollerItemId = plan.RollerId,
-                                FloorItemHeights =
-                                [
-                                    .. plan.MovedFloorItems.Select(x =>
-                                        (x.RoomObject.ObjectId, x.FromZ, x.ToZ)
-                                    ),
-                                ],
-                                Avatar = (
-                                    SlideAvatarMoveType.Slide,
-                                    avatar.RoomObject.ObjectId,
-                                    avatar.FromZ + avatarObject.PostureOffset,
-                                    avatar.ToZ + avatarObject.PostureOffset
-                                ),
-                            }
-                        );
-
-                        sent = true;
-
-                        continue;
-                    }
-
-                    composers.Add(
-                        new SlideObjectBundleMessageComposer
-                        {
-                            FromX = fromX,
-                            FromY = fromY,
-                            ToX = toX,
-                            ToY = toY,
-                            RollerItemId = plan.RollerId,
-                            FloorItemHeights = [],
-                            Avatar = (
-                                SlideAvatarMoveType.Slide,
-                                avatar.RoomObject.ObjectId,
-                                avatar.FromZ + avatarObject.PostureOffset,
-                                avatar.ToZ + avatarObject.PostureOffset
-                            ),
-                        }
-                    );
-                }
-            }
-            else
-            {
+            for (var i = 0; i < plan.MovedAvatars.Count; i++)
                 composers.Add(
-                    new SlideObjectBundleMessageComposer
-                    {
-                        FromX = fromX,
-                        FromY = fromY,
-                        ToX = toX,
-                        ToY = toY,
-                        RollerItemId = plan.RollerId,
-                        FloorItemHeights =
-                        [
-                            .. plan.MovedFloorItems.Select(x =>
-                                (x.RoomObject.ObjectId, x.FromZ, x.ToZ)
-                            ),
-                        ],
-                        Avatar = null,
-                    }
+                    CreateSlideComposer(plan, fromX, fromY, toX, toY, i == 0, plan.MovedAvatars[i])
                 );
-            }
         }
 
         foreach (var composer in composers)
-            _roomGrain
-                .SendComposerToRoomAsync(composer, CancellationToken.None)
-                .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
+            _roomGrain.SendComposerToRoomAndForget(composer);
         return Task.CompletedTask;
     }
+
+    /// <summary>One slide packet of a roller's move: its furni when asked for, and one avatar or none.</summary>
+    private static SlideObjectBundleMessageComposer CreateSlideComposer(
+        RollerMovePlanSnapshot plan,
+        int fromX,
+        int fromY,
+        int toX,
+        int toY,
+        bool withFurni,
+        RollerMovedObjectSnapshot? avatar
+    ) =>
+        new()
+        {
+            FromX = fromX,
+            FromY = fromY,
+            ToX = toX,
+            ToY = toY,
+            RollerItemId = plan.RollerId,
+            FloorItemHeights = withFurni
+                ? [.. plan.MovedFloorItems.Select(x => (x.RoomObject.ObjectId, x.FromZ, x.ToZ))]
+                : [],
+            Avatar = avatar is null
+                ? null
+                : (
+                    SlideAvatarMoveType.Slide,
+                    avatar.RoomObject.ObjectId,
+                    avatar.FromZ + ((IRoomAvatar)avatar.RoomObject).PostureOffset,
+                    avatar.ToZ + ((IRoomAvatar)avatar.RoomObject).PostureOffset
+                ),
+        };
 
     private void ComputeRollers()
     {

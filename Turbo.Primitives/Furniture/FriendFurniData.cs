@@ -1,3 +1,5 @@
+using Turbo.Primitives.Texts;
+
 namespace Turbo.Primitives.Furniture;
 
 /// <summary>
@@ -15,5 +17,5 @@ public static class FriendFurniData
     public const int RIGHT_FIGURE_INDEX = 4;
     public const int DATE_INDEX = 5;
     public const int FIELD_COUNT = 6;
-    public const string DATE_FORMAT = "dd-MM-yyyy";
+    public const string DATE_FORMAT = ClientDates.DISPLAY_FORMAT;
 }

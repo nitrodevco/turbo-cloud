@@ -48,7 +48,6 @@ public class WiredActionMatchToSnapshot(
         var restoreRotation = GetIntParamOrDefault(1, false);
         var restorePosition = GetIntParamOrDefault(2, false);
         var restoreAltitude = GetIntParamOrDefault(3, false);
-        var actionCtx = ctx.AsActionContext();
 
         foreach (var (itemId, entry) in snapshot)
         {
@@ -71,24 +70,7 @@ public class WiredActionMatchToSnapshot(
             )
                 continue;
 
-            if (
-                !_roomGrain.MapModule.InBounds(targetX, targetY)
-                || !await _roomGrain.FurniModule.ValidateFloorItemPlacementAsync(
-                    actionCtx,
-                    itemId,
-                    targetX,
-                    targetY,
-                    targetRotation
-                )
-            )
-                continue;
-
-            await ctx.ProcessFloorItemMovementAsync(
-                item,
-                _roomGrain.MapModule.ToIdx(targetX, targetY),
-                targetZ,
-                targetRotation
-            );
+            await ctx.TryMoveFloorItemAsync(item, targetX, targetY, targetZ, targetRotation);
         }
 
         return true;

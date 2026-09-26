@@ -1,15 +1,12 @@
-using System;
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.RoomItem;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
-using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
@@ -19,26 +16,21 @@ public class WiredTriggerItemStateUpdated(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredTriggerLogic(grainFactory, stuffDataFactory, ctx)
+)
+    : FurnitureWiredFurniEventTriggerLogic<RoomItemStateChangedEvent>(
+        grainFactory,
+        stuffDataFactory,
+        ctx
+    )
 {
     public override int WiredCode => (int)WiredTriggerType.STATE_CHANGE;
-    public override List<Type> SupportedEventTypes { get; } = [typeof(RoomItemStateChangedEvent)];
 
+    /// <summary>
+    /// The editor's "trigger for all states" (0) or "for the current state" (1). The server
+    /// does not honour 1 yet and fires on every change; the rule stays so the editor gets back
+    /// the choice it saved.
+    /// </summary>
     public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(false)];
 
-    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [WiredSources.PickedFurni];
-
-    public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct)
-    {
-        if (ctx.Event is not RoomItemStateChangedEvent evt)
-            return Task.FromResult(false);
-
-        var selection = ctx.GetSelection(this);
-
-        if (!selection.SelectedFurniIds.Contains((int)evt.ObjectId))
-            return Task.FromResult(false);
-
-        return Task.FromResult(true);
-    }
+    protected override RoomObjectId GetFurniId(RoomItemStateChangedEvent evt) => evt.ObjectId;
 }

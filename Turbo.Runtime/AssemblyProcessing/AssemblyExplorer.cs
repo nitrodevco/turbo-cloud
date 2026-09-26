@@ -11,48 +11,30 @@ public static class AssemblyExplorer
 {
     private static readonly ConditionalWeakTable<Assembly, Lazy<Type[]>> CONCRETE_TYPE_CACHE = [];
 
+    /// <summary>
+    /// The single concrete public type in <paramref name="asm"/> assignable to
+    /// <paramref name="type"/>, or null when there is none.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">More than one type qualifies.</exception>
     public static Type? FindType(Assembly asm, Type type)
     {
+        ArgumentNullException.ThrowIfNull(type);
+
         using var _ = EnterContextual(asm);
 
         Type? candidate = null;
 
-        foreach (var ti in asm.DefinedTypes)
+        foreach (var concrete in EnumerateConcreteTypes(asm))
         {
-            if (ti.IsAbstract || ti.IsInterface || ti.IsGenericTypeDefinition)
+            if (!type.IsAssignableFrom(concrete))
                 continue;
 
-            Type? asType = null;
+            if (candidate is not null)
+                throw new InvalidOperationException(
+                    $"Multiple {type.Name} implementers in assembly {asm.GetName().Name}"
+                );
 
-            try
-            {
-                asType = ti.AsType();
-            }
-            catch
-            {
-                continue;
-            }
-
-            try
-            {
-                if (type.IsAssignableFrom(asType))
-                {
-                    if (candidate is null)
-                    {
-                        candidate = asType;
-                    }
-                    else
-                    {
-                        throw new InvalidOperationException(
-                            $"Multiple ITurboPlugin implementers in assembly {asm.GetName().Name}"
-                        );
-                    }
-                }
-            }
-            catch
-            {
-                // ignore reflection oddities and keep scanning
-            }
+            candidate = concrete;
         }
 
         return candidate;
@@ -74,56 +56,15 @@ public static class AssemblyExplorer
 
         using var _ = EnterContextual(asm);
 
-        foreach (var ti in asm.DefinedTypes)
+        foreach (var concrete in EnumerateConcreteTypes(asm))
         {
-            if (ti.IsAbstract || ti.IsInterface || ti.IsGenericTypeDefinition || !ti.IsPublic)
-                continue;
-
-            Type concrete;
-
-            try
+            foreach (var iface in concrete.GetInterfaces())
             {
-                concrete = ti.AsType();
-            }
-            catch
-            {
-                continue;
-            }
-
-            IEnumerable<Type> ifaces;
-
-            try
-            {
-                ifaces = ti.ImplementedInterfaces;
-            }
-            catch
-            {
-                continue;
-            }
-
-            foreach (var iface in ifaces)
-            {
-                bool match = false;
-                Type[]? args = null;
-
-                try
-                {
-                    if (
-                        iface.IsGenericType
-                        && ReferenceEquals(iface.GetGenericTypeDefinition(), openGenericInterface)
-                    )
-                    {
-                        args = iface.GetGenericArguments();
-                        match = true;
-                    }
-                }
-                catch
-                {
-                    // ignore malformed interface
-                }
-
-                if (match && args is not null)
-                    yield return (concrete, iface, args);
+                if (
+                    iface.IsGenericType
+                    && ReferenceEquals(iface.GetGenericTypeDefinition(), openGenericInterface)
+                )
+                    yield return (concrete, iface, iface.GetGenericArguments());
             }
         }
     }
@@ -134,29 +75,9 @@ public static class AssemblyExplorer
 
         using var _ = EnterContextual(asm);
 
-        foreach (var ti in asm.DefinedTypes)
+        foreach (var concrete in EnumerateConcreteTypes(asm))
         {
-            if (
-                ti.IsAbstract
-                || ti.IsInterface
-                || ti.IsGenericTypeDefinition
-                || !ti.IsPublic
-                || !ti.IsClass
-            )
-                continue;
-
-            Type concrete;
-
-            try
-            {
-                concrete = ti.AsType();
-            }
-            catch
-            {
-                continue;
-            }
-
-            if (!targetType.IsAssignableFrom(concrete))
+            if (!concrete.IsClass || !targetType.IsAssignableFrom(concrete))
                 continue;
 
             yield return concrete;
@@ -188,6 +109,20 @@ public static class AssemblyExplorer
             ) ?? throw new MissingMethodException(concrete.FullName, ifaceMethodName);
 
         return m;
+    }
+
+    // The types every scan considers: public, instantiable and closed. A type that cannot be
+    // loaded (a plugin missing a dependency) throws out of here rather than being skipped, so the
+    // plugin load fails with the reason instead of registering a partial set of features.
+    private static IEnumerable<Type> EnumerateConcreteTypes(Assembly asm)
+    {
+        foreach (var ti in asm.DefinedTypes)
+        {
+            if (ti.IsAbstract || ti.IsInterface || ti.IsGenericTypeDefinition || !ti.IsPublic)
+                continue;
+
+            yield return ti.AsType();
+        }
     }
 
     private static AssemblyLoadContext.ContextualReflectionScope? EnterContextual(Assembly asm)

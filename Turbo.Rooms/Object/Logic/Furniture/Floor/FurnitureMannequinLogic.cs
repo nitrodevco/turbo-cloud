@@ -67,7 +67,7 @@ public class FurnitureMannequinLogic(IStuffDataFactory stuffDataFactory, IRoomFl
         if (interaction is not (SetMannequinFigureInteraction or SetMannequinNameInteraction))
             return false;
 
-        if (!await IsOwnerAsync(ctx))
+        if (!await IsItemOrRoomOwnerAsync(ctx))
             return Reject(ctx, interaction, "not the owner");
 
         if (interaction is SetMannequinNameInteraction rename)

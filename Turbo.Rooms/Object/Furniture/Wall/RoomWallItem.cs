@@ -1,7 +1,7 @@
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
@@ -53,7 +53,7 @@ public class RoomWallItem
     ) => new ItemRemoveMessageComposer { ObjectId = ObjectId, PickerId = pickerId };
 
     public string ConvertWallPositionToString() =>
-        $":w={X},{Y} l={WallOffset},{Z} {(Rotation == Rotation.South ? "l" : "r")}";
+        new WallPosition(X, Y, WallOffset, Z, Rotation).ToString();
 
     protected override RoomItemSnapshot BuildSnapshot() =>
         new RoomWallItemSnapshot()

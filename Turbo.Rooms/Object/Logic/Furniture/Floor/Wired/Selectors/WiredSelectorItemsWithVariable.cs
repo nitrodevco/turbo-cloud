@@ -77,7 +77,7 @@ public class WiredSelectorItemsWithVariable(
 
         var comparison = GetIntParamOrDefault(0, WiredComparisonType.GreaterThan);
 
-        foreach (var targetId in EnumerateTargets())
+        foreach (var targetId in _roomGrain.WiredSystem.GetLiveTargetIds(TargetType))
         {
             var value = ReadVariable(variable, TargetType, targetId);
 
@@ -94,11 +94,5 @@ public class WiredSelectorItemsWithVariable(
         }
 
         return Task.FromResult<IWiredSelectionSet>(output);
-    }
-
-    protected virtual IEnumerable<int> EnumerateTargets()
-    {
-        foreach (var item in _roomGrain.FurniModule.Items)
-            yield return item.ObjectId;
     }
 }

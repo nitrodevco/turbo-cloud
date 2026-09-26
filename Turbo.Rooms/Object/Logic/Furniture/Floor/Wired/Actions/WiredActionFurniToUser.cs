@@ -35,29 +35,11 @@ public class WiredActionFurniToUser(
             return false;
 
         var target = players[0];
-        var map = _roomGrain.MapModule;
-        var actionCtx = ctx.AsActionContext();
         var moved = false;
 
         foreach (var item in items)
         {
-            if (
-                !await _roomGrain.FurniModule.ValidateFloorItemPlacementAsync(
-                    actionCtx,
-                    item.ObjectId,
-                    target.X,
-                    target.Y,
-                    item.Rotation
-                )
-            )
-                continue;
-
-            moved |= await ctx.ProcessFloorItemMovementAsync(
-                item,
-                map.ToIdx(target.X, target.Y),
-                null,
-                null
-            );
+            moved |= await ctx.TryMoveFloorItemAsync(item, target.X, target.Y);
         }
 
         return moved;

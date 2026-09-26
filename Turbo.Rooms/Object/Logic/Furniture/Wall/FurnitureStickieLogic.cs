@@ -1,6 +1,3 @@
-using System.Threading;
-using System.Threading.Tasks;
-using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
@@ -18,7 +15,4 @@ public class FurnitureStickieLogic(IStuffDataFactory stuffDataFactory, IRoomWall
     : FurnitureWallLogic(stuffDataFactory, ctx)
 {
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Nobody;
-
-    public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct) =>
-        Task.CompletedTask;
 }

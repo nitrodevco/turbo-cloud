@@ -1,10 +1,8 @@
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.RoomSettings;
-using Turbo.Primitives.Messages.Outgoing.Roomsettings;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
 
@@ -27,11 +25,10 @@ public class UpdateRoomCategoryAndTradeSettingsMessageHandler(
         if (ctx.PlayerId <= 0 || message.RoomId <= 0)
             return;
 
-        var categoryId = _navigatorService
-            .GetFlatCategoriesForPlayer(ctx.PlayerId)
-            .Any(x => x.Id == message.CategoryId)
-            ? message.CategoryId
-            : (int?)null;
+        var categoryId = _navigatorService.ResolvePlayerFlatCategory(
+            ctx.PlayerId,
+            message.CategoryId
+        );
 
         var result = await _grainFactory
             .GetRoomGrain(message.RoomId)
@@ -43,18 +40,7 @@ public class UpdateRoomCategoryAndTradeSettingsMessageHandler(
             )
             .ConfigureAwait(false);
 
-        if (result.Succeeded)
-            return;
-
-        await ctx.SendComposerAsync(
-                new RoomSettingsSaveErrorEventMessageComposer
-                {
-                    RoomId = message.RoomId,
-                    Error = result.Error,
-                    Info = result.Info,
-                },
-                ct
-            )
+        await ctx.SendRoomSettingsSaveFailureAsync(message.RoomId, result, ct)
             .ConfigureAwait(false);
     }
 }

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Entities.Room;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -356,22 +357,7 @@ public sealed partial class RoomMapModule
         if (item is not IRoomFloorItem floor)
             return IsOpenOnModel(model, item.X, item.Y);
 
-        var width = floor.Definition.Width;
-        var length = floor.Definition.Length;
-
-        if (width > 0 && length > 0 && floor.Rotation is Rotation.East or Rotation.West)
-            (width, length) = (length, width);
-
-        for (var x = floor.X; x < floor.X + width; x++)
-        {
-            for (var y = floor.Y; y < floor.Y + length; y++)
-            {
-                if (!IsOpenOnModel(model, x, y))
-                    return false;
-            }
-        }
-
-        return true;
+        return FloorFootprint.Of(floor).Tiles().All(tile => IsOpenOnModel(model, tile.X, tile.Y));
     }
 
     private static bool IsOpenOnModel(RoomModelSnapshot model, int x, int y) =>

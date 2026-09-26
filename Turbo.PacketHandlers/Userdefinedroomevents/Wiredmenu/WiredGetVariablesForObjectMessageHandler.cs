@@ -4,8 +4,6 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents.Wiredmenu;
-using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
-using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 
@@ -22,33 +20,16 @@ public class WiredGetVariablesForObjectMessageHandler(IGrainFactory grainFactory
         CancellationToken ct
     )
     {
-        if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0)
+        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0)
             return;
 
-        var variables = await _grainFactory
-            .GetRoomGrain(ctx.RoomId)
-            .GetAllVariablesForBindingAsync(
-                ctx.AsActionContext(),
-                new WiredVariableBinding()
-                {
-                    TargetType = (WiredVariableTargetType)message.SourceType,
-                    TargetId = Math.Abs(message.SourceId),
-                },
-                ct
-            )
-            .ConfigureAwait(false);
-
-        if (variables is null)
-            return;
-
-        await ctx.SendComposerAsync(
-                new WiredVariablesForObjectEventMessageComposer()
-                {
-                    TargetType = (WiredVariableTargetType)message.SourceType,
-                    TargetId = message.SourceId,
-                    VariableValues = variables,
-                    ConfiguredInWireds = [],
-                },
+        await ctx.SendWiredVariablesForObjectAsync(
+                _grainFactory,
+                new WiredVariableBinding(
+                    (WiredVariableTargetType)message.SourceType,
+                    Math.Abs(message.SourceId)
+                ),
+                message.SourceId,
                 ct
             )
             .ConfigureAwait(false);

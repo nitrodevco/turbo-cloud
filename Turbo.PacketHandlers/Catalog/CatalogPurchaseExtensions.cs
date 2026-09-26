@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Catalog.Exceptions;
 using Turbo.Messages.Registry;
+using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Orleans;
@@ -44,51 +45,61 @@ internal static class CatalogPurchaseExtensions
 
     /// <summary>
     /// Turns a refused purchase into the message the client draws for it: a balance failure has
-    /// its own packet, and the rest split by whether the client shows an error or a refusal.
+    /// its own packet, and the rest go by error type.
     /// </summary>
-    public static async Task SendPurchaseFailureAsync(
+    public static Task SendPurchaseFailureAsync(
         this MessageContext ctx,
         CatalogPurchaseException ex,
         CancellationToken ct
+    ) =>
+        ex.BalanceFailure is { } balanceFailure
+            ? ctx.SendBalanceFailureAsync(balanceFailure, ct)
+            : ctx.SendPurchaseErrorAsync(ex.ErrorType, ct);
+
+    /// <summary>
+    /// Tells the client which currency the buyer was short of.
+    /// </summary>
+    public static Task SendBalanceFailureAsync(
+        this MessageContext ctx,
+        CatalogBalanceFailure balanceFailure,
+        CancellationToken ct
+    ) =>
+        ctx.SendComposerAsync(
+            new NotEnoughBalanceMessageComposer
+            {
+                NotEnoughCredits = balanceFailure.NotEnoughCredits,
+                NotEnoughActivityPoints = balanceFailure.NotEnoughActivityPoints,
+                ActivityPointType = balanceFailure.ActivityPointType,
+            },
+            ct
+        );
+
+    /// <summary>
+    /// Sends a purchase error on whichever packet can word it. Codes below 100 are the client's
+    /// described purchase errors; the rest are refusals, where the client words only code 1 (club
+    /// required) and shows every other code as an unknown refusal.
+    /// </summary>
+    public static Task SendPurchaseErrorAsync(
+        this MessageContext ctx,
+        CatalogPurchaseErrorType errorType,
+        CancellationToken ct
     )
     {
-        if (ex.BalanceFailure is not null)
-        {
-            await ctx.SendComposerAsync(
-                    new NotEnoughBalanceMessageComposer
-                    {
-                        NotEnoughCredits = ex.BalanceFailure.NotEnoughCredits,
-                        NotEnoughActivityPoints = ex.BalanceFailure.NotEnoughActivityPoints,
-                        ActivityPointType = ex.BalanceFailure.ActivityPointType,
-                    },
-                    ct
-                )
-                .ConfigureAwait(false);
-
-            return;
-        }
-
-        if ((int)ex.ErrorType < 100)
-        {
-            await ctx.SendComposerAsync(
-                    new PurchaseErrorMessageComposer { ErrorCode = ex.ErrorType },
-                    ct
-                )
-                .ConfigureAwait(false);
-
-            return;
-        }
+        if ((int)errorType < 100)
+            return ctx.SendComposerAsync(
+                new PurchaseErrorMessageComposer { ErrorCode = errorType },
+                ct
+            );
 
         var errorCode =
-            ex.ErrorType == CatalogPurchaseErrorType.RequiresHabboClub ? 1 : (int)ex.ErrorType;
+            errorType == CatalogPurchaseErrorType.RequiresHabboClub ? 1 : (int)errorType;
 
-        await ctx.SendComposerAsync(
-                new PurchaseNotAllowedMessageComposer
-                {
-                    ErrorType = (CatalogPurchaseErrorType)errorCode,
-                },
-                ct
-            )
-            .ConfigureAwait(false);
+        return ctx.SendComposerAsync(
+            new PurchaseNotAllowedMessageComposer
+            {
+                ErrorType = (CatalogPurchaseErrorType)errorCode,
+            },
+            ct
+        );
     }
 }

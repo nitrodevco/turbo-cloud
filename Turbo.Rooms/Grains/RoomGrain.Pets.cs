@@ -1,7 +1,5 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Pets.Enums;
 using Turbo.Primitives.Rooms.Enums;
@@ -17,7 +15,12 @@ public sealed partial class RoomGrain
         int y,
         CancellationToken ct
     ) =>
-        RunPetActionAsync(ctx, petId, "place", () => PetModule.PlacePetAsync(ctx, petId, x, y, ct));
+        RunLoggedAsync(
+            ctx,
+            "place pet",
+            petId,
+            () => PetModule.PlacePetAsync(ctx, petId, x, y, ct)
+        );
 
     public Task<bool> MovePetAsync(
         ActionContext ctx,
@@ -27,37 +30,37 @@ public sealed partial class RoomGrain
         Rotation rotation,
         CancellationToken ct
     ) =>
-        RunPetActionAsync(
+        RunLoggedAsync(
             ctx,
+            "move pet",
             petId,
-            "move",
             () => PetModule.MovePetAsync(ctx, petId, x, y, rotation, ct)
         );
 
     public Task<bool> PickupPetAsync(ActionContext ctx, int petId, CancellationToken ct) =>
-        RunPetActionAsync(ctx, petId, "pick up", () => PetModule.PickupPetAsync(ctx, petId, ct));
+        RunLoggedAsync(ctx, "pick up pet", petId, () => PetModule.PickupPetAsync(ctx, petId, ct));
 
     public Task<bool> SelectPetAsync(ActionContext ctx, int petId, CancellationToken ct) =>
-        RunPetActionAsync(ctx, petId, "select", () => PetModule.SelectPetAsync(ctx, petId, ct));
+        RunLoggedAsync(ctx, "select pet", petId, () => PetModule.SelectPetAsync(ctx, petId, ct));
 
     public Task<bool> RequestPetInfoAsync(ActionContext ctx, int petId, CancellationToken ct) =>
-        RunPetActionAsync(
+        RunLoggedAsync(
             ctx,
+            "get info of pet",
             petId,
-            "get info of",
             () => PetModule.RequestPetInfoAsync(ctx, petId, ct)
         );
 
     public Task<bool> RequestPetCommandsAsync(ActionContext ctx, int petId, CancellationToken ct) =>
-        RunPetActionAsync(
+        RunLoggedAsync(
             ctx,
+            "get commands of pet",
             petId,
-            "get commands of",
             () => PetModule.RequestPetCommandsAsync(ctx, petId, ct)
         );
 
     public Task<bool> RespectPetAsync(ActionContext ctx, int petId, CancellationToken ct) =>
-        RunPetActionAsync(ctx, petId, "respect", () => PetModule.RespectPetAsync(ctx, petId, ct));
+        RunLoggedAsync(ctx, "respect pet", petId, () => PetModule.RespectPetAsync(ctx, petId, ct));
 
     public Task<bool> MountPetAsync(
         ActionContext ctx,
@@ -65,18 +68,18 @@ public sealed partial class RoomGrain
         bool mount,
         CancellationToken ct
     ) =>
-        RunPetActionAsync(
+        RunLoggedAsync(
             ctx,
+            mount ? "mount pet" : "dismount pet",
             petId,
-            mount ? "mount" : "dismount",
             () => PetModule.MountPetAsync(ctx, petId, mount, ct)
         );
 
     public Task<bool> RemovePetSaddleAsync(ActionContext ctx, int petId, CancellationToken ct) =>
-        RunPetActionAsync(
+        RunLoggedAsync(
             ctx,
+            "unsaddle pet",
             petId,
-            "unsaddle",
             () => PetModule.RemovePetSaddleAsync(ctx, petId, ct)
         );
 
@@ -85,10 +88,10 @@ public sealed partial class RoomGrain
         int petId,
         CancellationToken ct
     ) =>
-        RunPetActionAsync(
+        RunLoggedAsync(
             ctx,
+            "toggle riding permission of pet",
             petId,
-            "toggle riding permission of",
             () => PetModule.TogglePetRidingPermissionAsync(ctx, petId, ct)
         );
 
@@ -97,10 +100,10 @@ public sealed partial class RoomGrain
         int petId,
         CancellationToken ct
     ) =>
-        RunPetActionAsync(
+        RunLoggedAsync(
             ctx,
+            "toggle breeding permission of pet",
             petId,
-            "toggle breeding permission of",
             () => PetModule.TogglePetBreedingPermissionAsync(ctx, petId, ct)
         );
 
@@ -110,24 +113,24 @@ public sealed partial class RoomGrain
         PetSupplementType supplement,
         CancellationToken ct
     ) =>
-        RunPetActionAsync(
+        RunLoggedAsync(
             ctx,
+            "supplement pet",
             petId,
-            "supplement",
             () => PetModule.GivePetSupplementAsync(ctx, petId, supplement, ct)
         );
 
     public Task<bool> HarvestPetAsync(ActionContext ctx, int petId, CancellationToken ct) =>
-        RunPetActionAsync(ctx, petId, "harvest", () => PetModule.HarvestPetAsync(ctx, petId, ct));
+        RunLoggedAsync(ctx, "harvest pet", petId, () => PetModule.HarvestPetAsync(ctx, petId, ct));
 
     public Task<bool> CompostPetAsync(ActionContext ctx, int petId, CancellationToken ct) =>
-        RunPetActionAsync(ctx, petId, "compost", () => PetModule.CompostPetAsync(ctx, petId, ct));
+        RunLoggedAsync(ctx, "compost pet", petId, () => PetModule.CompostPetAsync(ctx, petId, ct));
 
     public Task<bool> PassHandItemToPetAsync(ActionContext ctx, int petId, CancellationToken ct) =>
-        RunPetActionAsync(
+        RunLoggedAsync(
             ctx,
+            "pass a hand item to pet",
             petId,
-            "pass a hand item to",
             () => PetModule.PassHandItemToPetAsync(ctx, petId, ct)
         );
 
@@ -138,10 +141,10 @@ public sealed partial class RoomGrain
         int otherPetId,
         CancellationToken ct
     ) =>
-        RunPetActionAsync(
+        RunLoggedAsync(
             ctx,
+            "breed pet",
             petId,
-            "breed",
             () => PetModule.BreedPetsAsync(ctx, action, petId, otherPetId, ct)
         );
 
@@ -153,10 +156,10 @@ public sealed partial class RoomGrain
         int otherPetId,
         CancellationToken ct
     ) =>
-        RunPetActionAsync(
+        RunLoggedAsync(
             ctx,
+            "confirm nest breeding of pet",
             petId,
-            "confirm nest breeding of",
             () => PetModule.ConfirmNestBreedingAsync(ctx, nestId, name, petId, otherPetId, ct)
         );
 
@@ -165,39 +168,10 @@ public sealed partial class RoomGrain
         int nestId,
         CancellationToken ct
     ) =>
-        RunPetActionAsync(
+        RunLoggedAsync(
             ctx,
+            "cancel the breeding in nest",
             nestId,
-            "cancel nest breeding at",
             () => PetModule.CancelNestBreedingAsync(ctx, nestId, ct)
         );
-
-    /// <summary>Every pet action marks the player active and is logged with the same shape on failure.</summary>
-    private async Task<bool> RunPetActionAsync(
-        ActionContext ctx,
-        int petId,
-        string action,
-        Func<Task<bool>> body
-    )
-    {
-        try
-        {
-            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
-
-            return await body();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Player {PlayerId} failed to {Action} pet {PetId} in room {RoomId}",
-                ctx.PlayerId,
-                action,
-                petId,
-                _state.RoomId
-            );
-
-            return false;
-        }
-    }
 }

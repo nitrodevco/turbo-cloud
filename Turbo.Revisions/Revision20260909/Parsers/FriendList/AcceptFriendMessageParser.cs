@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Turbo.Primitives.Messages.Incoming.FriendList;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Packets;
@@ -9,16 +8,7 @@ public class AcceptFriendMessageParser : IParser
 {
     public IMessageEvent Parse(IClientPacket packet)
     {
-        var friendsCount = packet.PopCount(bytesPerItem: 4);
-
-        var friends = new List<int>(friendsCount);
-
-        for (var i = 0; i < friendsCount; i++)
-        {
-            var userId = packet.PopInt();
-
-            friends.Add(userId);
-        }
+        var friends = packet.PopList(bytesPerItem: 4, p => p.PopInt());
 
         return new AcceptFriendMessage { Friends = friends };
     }

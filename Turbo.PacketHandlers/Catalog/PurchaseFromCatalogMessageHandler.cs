@@ -7,7 +7,6 @@ using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Messages.Incoming.Catalog;
-using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Catalog;
@@ -67,89 +66,23 @@ public class PurchaseFromCatalogMessageHandler(
         if (result.Success)
             return;
 
-        if (result.BalanceFailure != null)
+        if (result.BalanceFailure is { } balanceFailure)
         {
-            await ctx.SendComposerAsync(
-                    new NotEnoughBalanceMessageComposer
-                    {
-                        NotEnoughCredits = result.BalanceFailure.NotEnoughCredits,
-                        NotEnoughActivityPoints = result.BalanceFailure.NotEnoughActivityPoints,
-                        ActivityPointType = result.BalanceFailure.ActivityPointType,
-                    },
-                    ct
-                )
-                .ConfigureAwait(false);
+            await ctx.SendBalanceFailureAsync(balanceFailure, ct).ConfigureAwait(false);
+
             return;
         }
 
-        switch (result.Error)
+        var errorType = result.Error switch
         {
-            case LtdRaffleEntryErrorType.AlreadyWon:
-                await ctx.SendComposerAsync(
-                        new PurchaseErrorMessageComposer
-                        {
-                            ErrorCode = CatalogPurchaseErrorType.LtdPurchasesLimited,
-                        },
-                        ct
-                    )
-                    .ConfigureAwait(false);
-                break;
+            LtdRaffleEntryErrorType.AlreadyWon => CatalogPurchaseErrorType.LtdPurchasesLimited,
+            LtdRaffleEntryErrorType.RaffleProcessing => CatalogPurchaseErrorType.RaffleOngoing,
+            LtdRaffleEntryErrorType.SoldOut => CatalogPurchaseErrorType.OfferNotFound,
+            LtdRaffleEntryErrorType.InsufficientFunds => CatalogPurchaseErrorType.NotEnoughCredits,
+            LtdRaffleEntryErrorType.RequiresHabboClub => CatalogPurchaseErrorType.RequiresHabboClub,
+            _ => CatalogPurchaseErrorType.PurchaseFailed,
+        };
 
-            case LtdRaffleEntryErrorType.RaffleProcessing:
-                await ctx.SendComposerAsync(
-                        new PurchaseErrorMessageComposer
-                        {
-                            ErrorCode = CatalogPurchaseErrorType.RaffleOngoing,
-                        },
-                        ct
-                    )
-                    .ConfigureAwait(false);
-                break;
-
-            case LtdRaffleEntryErrorType.AlreadyInQueue:
-                await ctx.SendComposerAsync(
-                        new PurchaseNotAllowedMessageComposer
-                        {
-                            ErrorType = CatalogPurchaseErrorType.PurchaseFailed,
-                        },
-                        ct
-                    )
-                    .ConfigureAwait(false);
-                break;
-
-            case LtdRaffleEntryErrorType.SoldOut:
-                await ctx.SendComposerAsync(
-                        new PurchaseNotAllowedMessageComposer
-                        {
-                            ErrorType = (CatalogPurchaseErrorType)
-                                (int)CatalogPurchaseErrorType.OfferNotFound,
-                        },
-                        ct
-                    )
-                    .ConfigureAwait(false);
-                break;
-
-            case LtdRaffleEntryErrorType.InsufficientFunds:
-                await ctx.SendComposerAsync(
-                        new PurchaseNotAllowedMessageComposer
-                        {
-                            ErrorType = CatalogPurchaseErrorType.NotEnoughCredits,
-                        },
-                        ct
-                    )
-                    .ConfigureAwait(false);
-                break;
-
-            default:
-                await ctx.SendComposerAsync(
-                        new PurchaseNotAllowedMessageComposer
-                        {
-                            ErrorType = CatalogPurchaseErrorType.PurchaseFailed,
-                        },
-                        ct
-                    )
-                    .ConfigureAwait(false);
-                break;
-        }
+        await ctx.SendPurchaseErrorAsync(errorType, ct).ConfigureAwait(false);
     }
 }

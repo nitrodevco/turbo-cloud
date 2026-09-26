@@ -1,7 +1,9 @@
-using System.Linq;
+using System;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Turbo.Contracts.Plugins;
 using Turbo.Database.Configuration;
@@ -23,20 +25,11 @@ public static class ServiceCollectionExtensions
 
         services.AddDbContextFactory<TurboDbContext>(
             (sp, options) =>
-            {
-                var dbConfig = sp.GetRequiredService<IOptions<DatabaseConfig>>().Value;
-                var connectionString = dbConfig.ConnectionString;
-                var loggingEnabled = dbConfig.LoggingEnabled;
-
-                options.UseMySql(
-                    connectionString,
-                    ServerVersion.AutoDetect(connectionString),
-                    options =>
-                    {
-                        options.MigrationsAssembly("Turbo.Database");
-                    }
-                );
-            }
+                UseTurboMySql(
+                    options,
+                    sp.GetRequiredService<IOptions<DatabaseConfig>>().Value,
+                    mysql => mysql.MigrationsAssembly("Turbo.Database")
+                )
         );
 
         return services;
@@ -51,24 +44,9 @@ public static class ServiceCollectionExtensions
         {
             var manifest = sp.GetRequiredService<PluginManifest>();
 
-            var tablePrefix = manifest.TablePrefix;
-
-            if (manifest.ExplicitlyNoTablePrefix ?? false)
-                tablePrefix = string.Empty;
-            else
-            {
-                if (string.IsNullOrWhiteSpace(tablePrefix))
-                {
-                    tablePrefix = manifest
-                        .Key.Split('-')
-                        .Where(part => !string.IsNullOrEmpty(part))
-                        .Select(part => char.ToLowerInvariant(part[0]))
-                        .ToString();
-                }
-
-                tablePrefix += "_";
-            }
-
+            // Used exactly as the manifest writes it, separator included ("tsp_"): the plugin's
+            // design-time context factory builds its migrations from the same value, so deriving
+            // or suffixing one here would rename tables the migrations already created.
             return () => manifest.TablePrefix ?? string.Empty;
         });
 
@@ -89,23 +67,39 @@ public static class ServiceCollectionExtensions
             {
                 var prefix = sp.GetRequiredService<TablePrefixProvider>();
                 var host = sp.GetRequiredService<IHostServices>();
-                var dbConfig = host.GetRequiredService<IOptions<DatabaseConfig>>().Value;
-                var connectionString = dbConfig.ConnectionString;
-                var loggingEnabled = dbConfig.LoggingEnabled;
 
-                options.UseMySql(
-                    connectionString,
-                    ServerVersion.AutoDetect(connectionString),
-                    builder =>
-                    {
-                        builder.MigrationsHistoryTable(
+                UseTurboMySql(
+                    options,
+                    host.GetRequiredService<IOptions<DatabaseConfig>>().Value,
+                    mysql =>
+                        mysql.MigrationsHistoryTable(
                             $"__EFMigrationsHistory_{prefix().TrimEnd('_')}"
-                        );
-                    }
+                        )
                 );
             }
         );
 
         return services;
+    }
+
+    // The emulator's and every plugin's contexts connect the same way; only the migrations
+    // setup differs. With LoggingEnabled off, EF is given no logger at all, so its command and
+    // change-tracking logs stay out of the host log whatever the log level filters say.
+    private static void UseTurboMySql(
+        DbContextOptionsBuilder options,
+        DatabaseConfig dbConfig,
+        Action<MySqlDbContextOptionsBuilder> configureMySql
+    )
+    {
+        var connectionString = dbConfig.ConnectionString;
+
+        options.UseMySql(
+            connectionString,
+            ServerVersion.AutoDetect(connectionString),
+            configureMySql
+        );
+
+        if (!dbConfig.LoggingEnabled)
+            options.UseLoggerFactory(NullLoggerFactory.Instance);
     }
 }

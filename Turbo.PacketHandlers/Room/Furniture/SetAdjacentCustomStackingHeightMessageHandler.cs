@@ -4,7 +4,6 @@ using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Messages.Incoming.Room.Furniture;
-using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Room.Furniture;
 
@@ -22,13 +21,8 @@ public class SetAdjacentCustomStackingHeightMessageHandler(IGrainFactory grainFa
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || message.ObjectId <= 0)
-            return;
-
-        await _grainFactory
-            .GetRoomGrain(ctx.RoomId)
-            .InteractWithItemAsync(
-                ctx.AsActionContext(),
+        await ctx.InteractWithRoomItemAsync(
+                _grainFactory,
                 message.ObjectId,
                 new SetAdjacentStackHeightInteraction { Down = message.Down },
                 ct

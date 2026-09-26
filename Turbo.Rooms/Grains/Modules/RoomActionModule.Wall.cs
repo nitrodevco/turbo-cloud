@@ -32,21 +32,7 @@ public sealed partial class RoomActionModule
         if (item is not IRoomWallItem wallItem)
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
-        _roomGrain.FurniModule.EnsureWithinPlacementLimits(item);
-
-        if (
-            !await _roomGrain.FurniModule.ValidateNewWallItemPlacementAsync(
-                ctx,
-                wallItem,
-                x,
-                y,
-                z,
-                wallOffset,
-                rot
-            )
-        )
-            throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
-
+        // The spot and the room's limits are checked by the placement itself.
         if (
             !await _roomGrain.FurniModule.PlaceWallItemAsync(
                 ctx,

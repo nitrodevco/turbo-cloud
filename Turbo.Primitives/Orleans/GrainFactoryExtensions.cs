@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Primitives.Badges.Grains;
 using Turbo.Primitives.Catalog.Grains;
@@ -10,6 +12,7 @@ using Turbo.Primitives.Guilds.Grains;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Grains.Guilds;
 using Turbo.Primitives.Players.Grains.Messenger;
@@ -17,6 +20,7 @@ using Turbo.Primitives.Players.Grains.Navigator;
 using Turbo.Primitives.Players.Grains.Settings;
 using Turbo.Primitives.Players.Grains.Subscriptions;
 using Turbo.Primitives.Players.Grains.Wardrobe;
+using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Grains;
 
@@ -69,11 +73,6 @@ public static class GrainFactoryExtensions
         PlayerId playerId
     ) => factory.GetGrain<IPlayerPresenceGrain>(playerId.Value);
 
-    public static IPlayerPresenceGrain GetPlayerPresenceGrain(
-        this IGrainFactory factory,
-        long playerId
-    ) => factory.GetGrain<IPlayerPresenceGrain>(playerId);
-
     public static IPlayerDirectoryGrain GetPlayerDirectoryGrain(this IGrainFactory factory) =>
         factory.GetGrain<IPlayerDirectoryGrain>(SingletonGrainId.GLOBAL);
 
@@ -99,28 +98,15 @@ public static class GrainFactoryExtensions
         PlayerId playerId
     ) => factory.GetGrain<IPlayerWalletGrain>(playerId.Value);
 
-    public static IPlayerWalletGrain GetPlayerWalletGrain(
-        this IGrainFactory factory,
-        long playerId
-    ) => factory.GetGrain<IPlayerWalletGrain>(playerId);
-
     public static IInventoryGrain GetInventoryGrain(
         this IGrainFactory factory,
         PlayerId playerId
     ) => factory.GetGrain<IInventoryGrain>(playerId.Value);
 
-    public static IInventoryGrain GetInventoryGrain(this IGrainFactory factory, long playerId) =>
-        factory.GetGrain<IInventoryGrain>(playerId);
-
     public static ICatalogPurchaseGrain GetCatalogPurchaseGrain(
         this IGrainFactory factory,
         PlayerId playerId
     ) => factory.GetGrain<ICatalogPurchaseGrain>(playerId.Value);
-
-    public static ICatalogPurchaseGrain GetCatalogPurchaseGrain(
-        this IGrainFactory factory,
-        long playerId
-    ) => factory.GetGrain<ICatalogPurchaseGrain>(playerId);
 
     public static IBuildersClubGrain GetBuildersClubGrain(this IGrainFactory factory) =>
         factory.GetGrain<IBuildersClubGrain>(SingletonGrainId.GLOBAL);
@@ -150,10 +136,57 @@ public static class GrainFactoryExtensions
         PlayerId playerId
     ) => factory.GetGrain<IPlayerSubscriptionGrain>(playerId.Value);
 
-    public static IPlayerSubscriptionGrain GetPlayerSubscriptionGrain(
+    /// <summary>
+    /// Whether this player holds a Habbo Club membership right now. It is here rather than spelled
+    /// out at each call site because which subscription counts as "club" is one decision, and it
+    /// was being made in two places.
+    /// </summary>
+    public static Task<bool> HasActiveClubAsync(
         this IGrainFactory factory,
-        long playerId
-    ) => factory.GetGrain<IPlayerSubscriptionGrain>(playerId);
+        PlayerId playerId,
+        CancellationToken ct
+    ) =>
+        factory.GetPlayerSubscriptionGrain(playerId).HasActiveAsync(SubscriptionType.HabboClub, ct);
+
+    /// <summary>
+    /// Gives back what a charge took, after the charge went through but the thing it paid for
+    /// could not be made. A debit never shares a transaction with what it buys — the wallet is
+    /// another grain — so every "charge, then create" path ends here on failure. A refund that
+    /// itself fails is logged and nothing more: there is no third place to put the money, and
+    /// throwing would lose the original failure.
+    /// </summary>
+    public static async Task RefundAsync(
+        this IGrainFactory factory,
+        PlayerId playerId,
+        IEnumerable<WalletDebit> debits,
+        ILogger logger,
+        string what
+    )
+    {
+        var wallet = factory.GetPlayerWalletGrain(playerId);
+
+        foreach (var debit in debits)
+        {
+            try
+            {
+                // Not the caller's token: a refund that has started must not be abandoned.
+                await wallet
+                    .CreditAsync(debit.CurrencyKind, debit.Amount, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(
+                    ex,
+                    "Failed to refund {Amount} {CurrencyType} to player {PlayerId} for {What}",
+                    debit.Amount,
+                    debit.CurrencyKind.CurrencyType,
+                    playerId.Value,
+                    what
+                );
+            }
+        }
+    }
 
     public static IPlayerNavigatorGrain GetPlayerNavigatorGrain(
         this IGrainFactory factory,

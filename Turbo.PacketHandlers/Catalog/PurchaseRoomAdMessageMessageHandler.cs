@@ -38,7 +38,7 @@ public class PurchaseRoomAdMessageMessageHandler(
                 .Any(x => x.Id == message.CategoryId && x.Visible)
         )
         {
-            await SendPurchaseErrorAsync(ctx, CatalogPurchaseErrorType.PurchaseFailed, ct)
+            await ctx.SendPurchaseErrorAsync(CatalogPurchaseErrorType.PurchaseFailed, ct)
                 .ConfigureAwait(false);
 
             return;
@@ -65,35 +65,7 @@ public class PurchaseRoomAdMessageMessageHandler(
         }
         catch (CatalogPurchaseException ex)
         {
-            if (ex.BalanceFailure is not null)
-            {
-                await ctx.SendComposerAsync(
-                        new NotEnoughBalanceMessageComposer
-                        {
-                            NotEnoughCredits = ex.BalanceFailure.NotEnoughCredits,
-                            NotEnoughActivityPoints = ex.BalanceFailure.NotEnoughActivityPoints,
-                            ActivityPointType = ex.BalanceFailure.ActivityPointType,
-                        },
-                        ct
-                    )
-                    .ConfigureAwait(false);
-
-                return;
-            }
-
-            await SendPurchaseErrorAsync(ctx, ex.ErrorType, ct).ConfigureAwait(false);
+            await ctx.SendPurchaseFailureAsync(ex, ct).ConfigureAwait(false);
         }
     }
-
-    private static Task SendPurchaseErrorAsync(
-        MessageContext ctx,
-        CatalogPurchaseErrorType errorType,
-        CancellationToken ct
-    ) =>
-        (int)errorType < 100
-            ? ctx.SendComposerAsync(new PurchaseErrorMessageComposer { ErrorCode = errorType }, ct)
-            : ctx.SendComposerAsync(
-                new PurchaseNotAllowedMessageComposer { ErrorType = errorType },
-                ct
-            );
 }

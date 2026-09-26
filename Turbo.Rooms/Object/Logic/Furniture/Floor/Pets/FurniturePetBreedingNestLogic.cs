@@ -30,9 +30,6 @@ public class FurniturePetBreedingNestLogic(
 
     public override bool CanWalk() => true;
 
-    public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct) =>
-        Task.CompletedTask;
-
     /// <summary>Whether the nest has room for this pet, and any pet already in it is of the same type.</summary>
     public bool CanAccept(IRoomPet pet)
     {

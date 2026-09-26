@@ -21,12 +21,8 @@ internal sealed class InventoryLiveState
     public Dictionary<int, IFurnitureItem> FurnitureById { get; } = [];
     public bool IsFurnitureReady { get; set; } = false;
 
-    // Pets and bots are listed by id, so they are kept in that order rather than sorted per read.
-    public SortedDictionary<int, PetSnapshot> PetsById { get; } = [];
-    public bool IsPetsReady { get; set; } = false;
-
-    public SortedDictionary<int, BotSnapshot> BotsById { get; } = [];
-    public bool IsBotsReady { get; set; } = false;
+    public InventoryUnitSection<PetSnapshot> Pets { get; } = new();
+    public InventoryUnitSection<BotSnapshot> Bots { get; } = new();
 
     // Badges are not placed anywhere, so unlike the other sections this one lists every badge.
     public Dictionary<string, InventoryBadge> BadgesByCode { get; } =

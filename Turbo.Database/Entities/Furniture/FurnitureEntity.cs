@@ -7,7 +7,7 @@ using Turbo.Primitives.Rooms.Enums;
 namespace Turbo.Database.Entities.Furniture;
 
 [Table("furniture")]
-public class FurnitureEntity : TurboEntity
+public class FurnitureEntity : TurboEntity, IPlacedFurnitureEntity
 {
     [Column("player_id")]
     public int PlayerEntityId { get; set; }

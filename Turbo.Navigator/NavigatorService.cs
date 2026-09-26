@@ -17,6 +17,7 @@ using Turbo.Primitives.Players.Snapshots.Navigator;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Navigator;
 
@@ -54,8 +55,8 @@ public sealed class NavigatorService(
     )
     {
         // Both values are echoed back to the client and used as cache and preference keys.
-        var code = Truncate(searchCode, _config.MaxSearchCodeLength);
-        var filterText = Truncate(filter, _config.MaxSearchCodeLength);
+        var code = ClientText.Truncate(searchCode, _config.MaxSearchCodeLength);
+        var filterText = ClientText.Truncate(filter, _config.MaxSearchCodeLength);
         var preferences = await _grainFactory
             .GetPlayerNavigatorGrain(playerId)
             .GetSnapshotAsync(ct)
@@ -137,7 +138,7 @@ public sealed class NavigatorService(
     )
     {
         var limit = _config.SearchResultLimit;
-        var param = Truncate(searchParam, _config.MaxSearchCodeLength);
+        var param = ClientText.Truncate(searchParam, _config.MaxSearchCodeLength);
         var query = new SearchQuery(
             playerId,
             Preferences: null,
@@ -1072,39 +1073,15 @@ public sealed class NavigatorService(
     private static bool IsVisibleTo(RoomInfoSnapshot room, PlayerId playerId) =>
         IsPublic(room) || room.OwnerId == playerId;
 
+    /// <summary>
+    /// The room as a search returns it. The info is copied whole rather than field by field:
+    /// listing it out is how this quietly stopped carrying <c>HiddenByBc</c> and then
+    /// <c>Guild</c>. Population is the only thing the search knows better than the room does.
+    /// </summary>
     private static NavigatorSearchResultSnapshot ToSearchResult(
         RoomInfoSnapshot room,
         SearchQuery query
-    ) =>
-        new()
-        {
-            RoomId = room.RoomId,
-            Name = room.Name,
-            Description = room.Description,
-            OwnerId = room.OwnerId,
-            OwnerName = room.OwnerName,
-            Population = PopulationOf(room, query),
-            DoorMode = room.DoorMode,
-            PlayersMax = room.PlayersMax,
-            TradeType = room.TradeType,
-            Score = room.Score,
-            Ranking = room.Ranking,
-            CategoryId = room.CategoryId,
-            Tags = room.Tags,
-            AllowBlocking = room.AllowBlocking,
-            AllowPets = room.AllowPets,
-            AllowPetsEat = room.AllowPetsEat,
-            StaffPick = room.StaffPick,
-            ActiveEvent = room.ActiveEvent,
-            LastUpdatedUtc = room.LastUpdatedUtc,
-        };
-
-    private static string Truncate(string? value, int maxLength)
-    {
-        value = value?.Trim() ?? string.Empty;
-
-        return value.Length <= maxLength ? value : value[..maxLength];
-    }
+    ) => new(room) { Population = PopulationOf(room, query) };
 
     private static (NavigatorSearchFilterType Type, string Value) ParseFilter(string filter)
     {

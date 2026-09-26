@@ -14,6 +14,4 @@ internal sealed class PlayerGuildLiveState
 
     /// <summary>The group whose badge they wear, or null when they have picked none.</summary>
     public int? FavouriteGuildId { get; set; }
-
-    public bool IsLoaded { get; set; }
 }

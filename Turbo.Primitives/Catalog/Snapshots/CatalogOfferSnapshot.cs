@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Orleans;
+using Turbo.Primitives.Players.Wallet;
 
 namespace Turbo.Primitives.Catalog.Snapshots;
 
@@ -39,6 +41,13 @@ public sealed record CatalogOfferSnapshot
     [Id(10)]
     public required int ClubLevel { get; init; }
 
+    /// <summary>
+    /// Whether only a club member may buy this. This client collapses the club tiers (see
+    /// <see cref="ClubOfferSnapshot.IsVip"/>), so any level above none asks for an active
+    /// membership, and any active membership meets it.
+    /// </summary>
+    public bool RequiresClub => ClubLevel > 0;
+
     [Id(11)]
     public required bool Visible { get; init; }
 
@@ -54,4 +63,43 @@ public sealed record CatalogOfferSnapshot
     /// </summary>
     [Id(14)]
     public int? ClubGiftDaysRequired { get; init; }
+
+    /// <summary>
+    /// What buying <paramref name="quantity"/> of this offer takes out of a wallet, one request
+    /// per currency it costs. The one reading of an offer's price: the raffle had its own copy,
+    /// which left out silver and handed silver-priced LTDs out for free.
+    /// </summary>
+    public List<WalletDebitRequest> ToDebitRequests(int quantity)
+    {
+        var requests = new List<WalletDebitRequest>(3);
+
+        if (CostCredits > 0)
+            requests.Add(
+                new WalletDebitRequest
+                {
+                    CurrencyKind = CurrencyKind.Credits,
+                    Amount = CostCredits * quantity,
+                }
+            );
+
+        if (CostSilver > 0)
+            requests.Add(
+                new WalletDebitRequest
+                {
+                    CurrencyKind = CurrencyKind.Silver,
+                    Amount = CostSilver * quantity,
+                }
+            );
+
+        if (CostCurrency > 0)
+            requests.Add(
+                new WalletDebitRequest
+                {
+                    CurrencyKind = CurrencyKind.ActivityPoints(CurrencyTypeId),
+                    Amount = CostCurrency * quantity,
+                }
+            );
+
+        return requests;
+    }
 }

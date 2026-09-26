@@ -17,6 +17,7 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Settings;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Rooms.Grains;
 
@@ -51,12 +52,15 @@ public sealed partial class RoomGrain
             return RoomSettingsSaveResultSnapshot.Failed(RoomSettingsSaveErrorType.Invalid);
 
         var current = _state.RoomSnapshot;
-        var name = Truncate(settings.Name, _roomConfig.RoomNameMaxLength);
+        var name = ClientText.Truncate(settings.Name, _roomConfig.RoomNameMaxLength);
 
         if (name.Length == 0)
             return RoomSettingsSaveResultSnapshot.Failed(RoomSettingsSaveErrorType.NameRequired);
 
-        var description = Truncate(settings.Description, _roomConfig.RoomDescriptionMaxLength);
+        var description = ClientText.Truncate(
+            settings.Description,
+            _roomConfig.RoomDescriptionMaxLength
+        );
 
         if (!Enum.IsDefined((RoomDoorModeType)settings.DoorMode))
             return Rejected(ctx, "door mode", settings.DoorMode);
@@ -412,13 +416,6 @@ public sealed partial class RoomGrain
         );
 
         return RoomSettingsSaveResultSnapshot.Failed(RoomSettingsSaveErrorType.Invalid);
-    }
-
-    private static string Truncate(string? value, int maxLength)
-    {
-        value = value?.Trim() ?? string.Empty;
-
-        return value.Length <= maxLength ? value : value[..maxLength];
     }
 
     private static int ClampTimeout(int seconds, bool enabled, int min, int max) =>

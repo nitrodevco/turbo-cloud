@@ -24,24 +24,18 @@ public class WiredActionBotGiveHandItem(
 {
     public override int WiredCode => (int)WiredActionType.BOT_GIVE_HAND_ITEM;
 
+    protected override bool IsBotOptional => true;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [WiredRules.HandItem(_roomGrain._wiredConfig)];
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
-        [
-            [
-                WiredPlayerSourceType.TriggeredUser,
-                WiredPlayerSourceType.SelectorUsers,
-                WiredPlayerSourceType.SignalUsers,
-            ],
-            [WiredPlayerSourceType.BotByName],
-        ];
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => UserAndBotSources();
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
         var (botName, _) = SplitParam();
 
-        if (botName.Length > 0 && !TryGetBot(botName, out _))
+        if (!TryResolveBot(botName, out _))
             return false;
 
         var handItemId = GetIntParamOrDefault(0, 0);

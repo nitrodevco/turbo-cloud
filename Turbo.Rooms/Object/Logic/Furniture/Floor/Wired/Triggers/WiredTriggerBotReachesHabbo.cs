@@ -32,14 +32,7 @@ public class WiredTriggerBotReachesHabbo(
     public override Task<bool> MatchesEventAsync(RoomEvent evt, CancellationToken ct) =>
         Task.FromResult(
             evt is BotReachedAvatarEvent reached
-                && (
-                    string.IsNullOrWhiteSpace(_wiredData.StringParam)
-                    || string.Equals(
-                        reached.BotName,
-                        _wiredData.StringParam.Trim(),
-                        StringComparison.OrdinalIgnoreCase
-                    )
-                )
+                && (GetStringParam().Length == 0 || NamesMatch(reached.BotName, GetStringParam()))
         );
 
     public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct) =>

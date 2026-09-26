@@ -34,16 +34,8 @@ public class WiredActionCallStacks(
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        if (ctx.Depth >= _roomGrain._wiredConfig.MaxDepth)
-        {
-            _roomGrain.WiredSystem.RecordError(
-                "WiredCallDepthExceeded",
-                Grains.Systems.RoomWiredSystem.GetErrorCategory(this),
-                _roomGrain.NowMs()
-            );
-
+        if (IsCallDepthExceeded(ctx))
             return false;
-        }
 
         var stackIds = new HashSet<int>();
         var ownStackId = _ctx.GetTileIdx();

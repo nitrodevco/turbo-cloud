@@ -10,7 +10,6 @@ using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Messages.Outgoing.Roomsettings;
 using Turbo.Primitives.Navigator;
-using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
@@ -197,6 +196,22 @@ public sealed class RoomSecurityModule(
         )
             return false;
 
+        await RevokeRightsAsync(playerId, _roomGrain._state.RoomSnapshot.OwnerId, ct);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Takes one player's rights away and tells <paramref name="toldPlayerId"/>, whose open
+    /// rights list drops the entry: the owner when a player gives their rights up, the actor
+    /// when the owner takes them. Giving up and taking away were two copies of this.
+    /// </summary>
+    private async Task RevokeRightsAsync(
+        PlayerId playerId,
+        PlayerId toldPlayerId,
+        CancellationToken ct
+    )
+    {
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         await dbCtx
@@ -213,17 +228,14 @@ public sealed class RoomSecurityModule(
         await RefreshControllerLevelForPlayerAsync(playerId, ct);
 
         await _roomGrain._grainFactory.SendComposerToPlayerAsync(
-            _roomGrain._state.RoomSnapshot.OwnerId,
-            new FlatControllerRemovedEventMessageComposer
-            {
-                RoomId = _roomGrain.RoomId,
-                PlayerId = playerId,
-            },
+            toldPlayerId,
+            RightsRemovedComposer(playerId),
             ct
         );
-
-        return true;
     }
+
+    private FlatControllerRemovedEventMessageComposer RightsRemovedComposer(PlayerId playerId) =>
+        new() { RoomId = _roomGrain.RoomId, PlayerId = playerId };
 
     private Task PublishRightsChangedAsync(IEnumerable<PlayerId> playerIds, CancellationToken ct) =>
         _roomGrain
@@ -302,30 +314,7 @@ public sealed class RoomSecurityModule(
         )
             return;
 
-        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
-
-        await dbCtx
-            .Set<RoomRightEntity>()
-            .Where(x =>
-                x.RoomEntityId == _roomGrain.RoomId.Value && x.PlayerEntityId == playerId.Value
-            )
-            .ExecuteDeleteAsync(ct);
-
-        _roomGrain._state.PlayerIdsWithRights.Remove(playerId);
-
-        await PublishRightsChangedAsync([playerId], ct);
-
-        await RefreshControllerLevelForPlayerAsync(playerId, ct);
-
-        await _roomGrain._grainFactory.SendComposerToPlayerAsync(
-            ctx.PlayerId,
-            new FlatControllerRemovedEventMessageComposer
-            {
-                RoomId = _roomGrain.RoomId,
-                PlayerId = playerId,
-            },
-            ct
-        );
+        await RevokeRightsAsync(playerId, ctx.PlayerId, ct);
     }
 
     public async Task RemoveAllRightsAsync(ActionContext ctx, CancellationToken ct)
@@ -356,17 +345,11 @@ public sealed class RoomSecurityModule(
         foreach (var playerId in playerIds)
             await RefreshControllerLevelForPlayerAsync(playerId, ct);
 
-        var removedComposers = playerIds
-            .Select(playerId => new FlatControllerRemovedEventMessageComposer
-            {
-                RoomId = _roomGrain.RoomId,
-                PlayerId = playerId,
-            })
-            .ToArray<IComposer>();
-
+        // One entry per player for the actor's open rights list, as one batch to one player: the
+        // list overload is the sanctioned direct presence call (see AGENTS.md), and it keeps order.
         await _roomGrain
             ._grainFactory.GetPlayerPresenceGrain(ctx.PlayerId)
-            .SendComposerAsync(removedComposers, ct);
+            .SendComposerAsync([.. playerIds.Select(RightsRemovedComposer)], ct);
     }
 
     internal async Task EnsureRightsLoadedAsync(CancellationToken ct)

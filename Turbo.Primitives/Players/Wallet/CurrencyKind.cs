@@ -11,4 +11,11 @@ public readonly record struct CurrencyKind
 
     [Id(1)]
     public int? ActivityPointType { get; init; }
+
+    public static CurrencyKind Credits => new() { CurrencyType = CurrencyType.Credits };
+
+    public static CurrencyKind Silver => new() { CurrencyType = CurrencyType.Silver };
+
+    public static CurrencyKind ActivityPoints(int? activityPointType) =>
+        new() { CurrencyType = CurrencyType.ActivityPoints, ActivityPointType = activityPointType };
 }

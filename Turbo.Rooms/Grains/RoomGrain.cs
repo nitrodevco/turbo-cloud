@@ -16,6 +16,7 @@ using Turbo.Database.Extensions;
 using Turbo.Events;
 using Turbo.Logging;
 using Turbo.Primitives;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Networking;
@@ -332,6 +333,43 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         CancellationToken ct
     ) => Task.FromResult(_state.RoomProperties.ToImmutableArray());
 
+    /// <summary>
+    /// The shell a player's request runs in once it reaches this grain: the player counts as
+    /// active, and a failure is logged with who, what and on what, then answered with false.
+    /// The per-kind copies (bots, pets, avatar actions) were word for word this.
+    /// <para>
+    /// The service that called the grain logs its own failures only (an inventory it could not
+    /// read, a grain call that did not arrive); what failed in here is logged here, once.
+    /// </para>
+    /// </summary>
+    private async Task<bool> RunLoggedAsync(
+        ActionContext ctx,
+        string action,
+        object subject,
+        Func<Task<bool>> body
+    )
+    {
+        try
+        {
+            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+
+            return await body();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Player {PlayerId} failed to {Action} {Subject} in room {RoomId}",
+                ctx.PlayerId,
+                action,
+                subject,
+                _state.RoomId
+            );
+
+            return false;
+        }
+    }
+
     public Task PublishRoomEventAsync(RoomEvent evt, CancellationToken ct) =>
         EventModule.PublishAsync(evt, ct);
 
@@ -339,6 +377,16 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _roomOutbound.OnNextAsync(
             new RoomOutboundSnapshot { RoomId = _state.RoomId, Composer = composer }
         );
+
+    /// <summary>
+    /// <see cref="SendComposerToRoomAsync"/> for code that must not wait on it: the tick, and a
+    /// broadcast made once the answer is already known. The send goes out and a failure is
+    /// logged. The same way to reach the room, not a second one; it exists so the fifteen
+    /// callers stop spelling the log line out.
+    /// </summary>
+    public void SendComposerToRoomAndForget(IComposer composer) =>
+        SendComposerToRoomAsync(composer, CancellationToken.None)
+            .LogAndForget(_logger, $"send a composer to room {_state.RoomId}");
 
     private async Task HydrateRoomStateAsync(CancellationToken ct)
     {

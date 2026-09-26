@@ -38,7 +38,7 @@ public class WiredActionUserToFurni(
     {
         var selection = ctx.GetSelection(this);
         var items = GetFloorItems(selection);
-        var players = GetPlayers(selection);
+        var players = GetAvatars(selection);
 
         if (items.Count == 0 || players.Count == 0)
             return false;
@@ -66,7 +66,7 @@ public class WiredActionUserToFurni(
                     tileIdx,
                     SlideAvatarMoveType.Slide
                 ),
-                _ => await ctx.ProcessUserMovementAsync(player, tileIdx, SlideAvatarMoveType.None),
+                _ => await TeleportAvatarAsync(ctx, player, tileIdx),
             };
         }
 

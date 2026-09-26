@@ -27,8 +27,7 @@ public class WiredSelectorEntitiesInGroup(
     )
     {
         var output = new WiredSelectionSet();
-        int? wantedGroupId =
-            int.TryParse(_wiredData.StringParam, out var parsed) && parsed > 0 ? parsed : null;
+        var wantedGroupId = GetPositiveIdParam();
 
         foreach (var avatar in _roomGrain.AvatarModule.Avatars)
         {

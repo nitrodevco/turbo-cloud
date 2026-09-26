@@ -25,9 +25,6 @@ public class FurnitureMysteryTrophyLogic(
 {
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Nobody;
 
-    public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct) =>
-        Task.CompletedTask;
-
     public override async Task<bool> OnInteractAsync(
         ActionContext ctx,
         FurnitureInteraction interaction,
@@ -37,7 +34,7 @@ public class FurnitureMysteryTrophyLogic(
         if (interaction is not EngraveTrophyInteraction engrave)
             return false;
 
-        if (!await IsOwnerAsync(ctx))
+        if (!await IsItemOrRoomOwnerAsync(ctx))
             return Reject(ctx, interaction, "not the owner");
 
         if (GetLegacyString().Contains(TrophyData.SEPARATOR))

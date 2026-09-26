@@ -35,7 +35,7 @@ public class WiredActionMuteTriggerer(
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
         var minutes = GetIntParamOrDefault(0, 1);
-        var message = await ctx.FormatTextAsync(_wiredData.StringParam?.Trim() ?? string.Empty, ct);
+        var message = await ctx.FormatTextAsync(GetStringParam(), ct);
         var muted = false;
 
         foreach (var player in GetPlayers(ctx.GetSelection(this)))

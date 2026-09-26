@@ -2,9 +2,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
+using Turbo.PacketHandlers.Room;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Messages.Incoming.Friendfurni;
-using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Friendfurni;
 
@@ -22,13 +22,8 @@ public class FriendFurniConfirmLockMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || message.ObjectId <= 0)
-            return;
-
-        await _grainFactory
-            .GetRoomGrain(ctx.RoomId)
-            .InteractWithItemAsync(
-                ctx.AsActionContext(),
+        await ctx.InteractWithRoomItemAsync(
+                _grainFactory,
                 message.ObjectId,
                 new ConfirmFriendFurniLockInteraction { Confirmed = message.Confirmed },
                 ct

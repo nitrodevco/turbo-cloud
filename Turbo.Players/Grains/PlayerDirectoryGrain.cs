@@ -67,46 +67,38 @@ internal sealed class PlayerDirectoryGrain : Grain, IPlayerDirectoryGrain
     {
         var names = new Dictionary<PlayerId, string>();
 
-        if (playerIds.Count == 1)
-        {
-            var singleId = playerIds[0];
-            var singleName = await GetPlayerNameAsync(singleId, ct);
+        // One id or many, the same rule: an unknown player is left out. A special case for a
+        // single id used to answer "" for them instead.
+        var ids = playerIds.Distinct().ToList();
+        var notFound = new List<PlayerId>();
 
-            names.TryAdd(singleId, singleName);
-        }
-        else
+        foreach (var playerId in ids)
         {
-            var ids = playerIds.Distinct().ToList();
-            var notFound = new List<PlayerId>();
-
-            foreach (var playerId in ids)
+            if (_state.IdToName.TryGetValue(playerId, out var name))
             {
-                if (_state.IdToName.TryGetValue(playerId, out var name))
-                {
-                    names.TryAdd(playerId, name);
-                }
-                else
-                {
-                    notFound.Add(playerId);
-                }
+                names.TryAdd(playerId, name);
             }
-
-            if (notFound.Count > 0)
+            else
             {
-                await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+                notFound.Add(playerId);
+            }
+        }
 
-                var players = await dbCtx
-                    .Players.AsNoTracking()
-                    .Where(x => notFound.Select(x => (int)x).Contains(x.Id))
-                    .Select(x => new { x.Id, x.Name })
-                    .ToDictionaryAsync(x => x.Id, x => x.Name, ct);
+        if (notFound.Count > 0)
+        {
+            await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-                foreach (var player in players)
-                {
-                    SetNameCache(player.Key, player.Value);
+            var players = await dbCtx
+                .Players.AsNoTracking()
+                .Where(x => notFound.Select(x => (int)x).Contains(x.Id))
+                .Select(x => new { x.Id, x.Name })
+                .ToDictionaryAsync(x => x.Id, x => x.Name, ct);
 
-                    names.TryAdd(player.Key, player.Value);
-                }
+            foreach (var player in players)
+            {
+                SetNameCache(player.Key, player.Value);
+
+                names.TryAdd(player.Key, player.Value);
             }
         }
 

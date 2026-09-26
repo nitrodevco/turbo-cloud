@@ -436,6 +436,9 @@ Everything below keeps to that.
 - `RoomGrain.GetIsGroupRoomAsync` resolves through `GuildDirectoryGrain` — the directory, not a
   group grain, because the directory calls nothing back — and holds the answer. `_guildResolved`
   is separate from `_guild` so a room that is nobody's homeroom does not re-ask on every check.
+  The resolve runs **while the room loads**, not on first ask: the group is not on the room row,
+  `GetSnapshotAsync` awaits nothing, and a lazy resolve meant the first caller to want the
+  room's listing got one with no group in it.
   It lives in `IRoomGrain.Guild.cs` / `RoomGrain.Guild.cs`, matching the `FloorPlan` split.
 - `RoomSecurityModule.GetControllerLevelAsync` fills in its commented branch: owner →
   `Owner`; guild owner or admin → `GroupAdmin`; member, when `rightsLevel == Members` →
@@ -605,6 +608,15 @@ and released separately afterwards. Nothing in 1–7 may be shaped around the fo
    `GroupDetailsChanged` goes to the actor alone, for the same reason: reaching everyone who
    might have the group open means the room.
 
+   The group and its owner's membership are written in one `SaveChangesAsync`; two saves would
+   let a group exist with nobody in it, whose owner then had no rank and so no rights in their
+   own homeroom. The write sits in a `try`, and a failure after the charge refunds it — the
+   wallet is another grain, so the two can never share a transaction.
+
+   Creating a group tells its homeroom too, from the handler. The room very likely has the
+   question cached as "not a group room" — the wizard is opened from inside it — and without the
+   push the owner has none of the rights their own new group just gave them.
+
    Creation is on `PlayerGuildGrain` because it spends credits and counts against a per-player
    limit, and one player clicking twice must not make two groups — the same argument that puts
    buying on `CatalogPurchaseGrain`. That is also why that grain **moved into `Turbo.Guilds`**:
@@ -627,6 +639,15 @@ and released separately afterwards. Nothing in 1–7 may be shaped around the fo
 
    The roster page is the one read that queries rather than answering from the roster held in
    the grain: filtering by name needs the players' names, and those belong to the players.
+
+   Approving somebody who is at **their own** group limit is not a management failure — the
+   hotel words it as being about them (`group.joinfail.5` and `.6`), so it comes back as a
+   `HabboGroupJoinFailed` rather than a `GuildMemberMgmtFailed`. `GuildMemberMgmtResultSnapshot`
+   carries the two kinds separately so a handler cannot send the wrong one.
+
+   Every membership change tells the homeroom to refresh that one player
+   (`RefreshGuildRoomMemberAsync`). Rights there are the group's, so somebody standing in it when
+   they joined, left or were promoted would otherwise keep what they walked in with.
 
    `GetMemberGuildItemCount` counts from the **live room**, not from the furniture rows — an item
    placed a moment ago has not been flushed, and the player is about to be told how much they
@@ -663,6 +684,11 @@ and released separately afterwards. Nothing in 1–7 may be shaped around the fo
 
    Deleting a group fans out too: its furni standing in other rooms did not go back with the
    homeroom's, and would otherwise keep wearing a badge that no longer resolves.
+
+   The homeroom keeps its **own** copy of the group's summary, which its navigator listing draws
+   the name and badge from, and the furni fan-out does not touch it — the furni reads the
+   directory. So all four `UpdateGuild*` handlers refresh that copy as well; without it a rename
+   left the room advertising the old name for as long as it stayed loaded.
 
    `guild_forum` is `guild_customized` with a different logic name. The client picks its menu
    entries from the furni's own class name, not from anything the server sends, so there is

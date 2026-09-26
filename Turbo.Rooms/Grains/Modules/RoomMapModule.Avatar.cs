@@ -7,7 +7,6 @@ using Turbo.Primitives;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
-using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -22,15 +21,10 @@ public sealed partial class RoomMapModule
             if (avatar.IsWalking)
                 return;
 
-            var tileId = ToIdx(avatar.X, avatar.Y);
-            var highestItemId = _roomGrain._state.TileHighestFloorItems[tileId];
             var canSit = false;
             var canLay = false;
 
-            if (
-                _roomGrain._state.ItemsById.TryGetValue(highestItemId, out var item)
-                && item is IRoomFloorItem floorItem
-            )
+            if (TryGetHighestFloorItem(ToIdx(avatar.X, avatar.Y), out var floorItem))
             {
                 canSit = floorItem.Logic.CanSit();
                 canLay = floorItem.Logic.CanLay();
@@ -189,63 +183,38 @@ public sealed partial class RoomMapModule
 
     public void UpdateHeightForAvatar(IRoomAvatar avatar)
     {
-        try
+        var tileIdx = ToIdx(avatar.X, avatar.Y);
+
+        if (!InBounds(tileIdx))
         {
-            var tileId = ToIdx(avatar.X, avatar.Y);
-            var height = _roomGrain._state.TileHeights[tileId];
-            var highestItemId = _roomGrain._state.TileHighestFloorItems[tileId];
-            var postureOffset = Altitude.Zero;
-
-            if (highestItemId > 0)
-            {
-                if (
-                    _roomGrain._state.ItemsById.TryGetValue(highestItemId, out var item)
-                    && item is IRoomFloorItem floorItem
-                )
-                {
-                    postureOffset = floorItem.Logic.GetPostureOffset();
-                }
-            }
-
-            avatar.PostureOffset = postureOffset;
-
-            avatar.SetPositionZ(height - postureOffset);
-        }
-        catch (Exception ex)
-        {
-            _roomGrain._logger.LogError(
-                ex,
-                "Failed to update the height of avatar {ObjectId} in room {RoomId}",
+            _roomGrain._logger.LogWarning(
+                "Avatar {ObjectId} stands off the map of room {RoomId}; its height is left as it was",
                 avatar.ObjectId,
                 _roomGrain.RoomId
             );
+
+            return;
         }
+
+        var postureOffset = GetPostureOffset(tileIdx);
+
+        avatar.PostureOffset = postureOffset;
+        avatar.SetPositionZ(_roomGrain._state.TileHeights[tileIdx] - postureOffset);
     }
 
-    public Altitude GetTileHeightForAvatar(int tileId)
-    {
-        try
-        {
-            var height = _roomGrain._state.TileHeights[tileId];
-            var highestItemId = _roomGrain._state.TileHighestFloorItems[tileId];
-            var postureOffset = Altitude.Zero;
+    /// <summary>The height an avatar on this tile is drawn at; zero off the map.</summary>
+    public Altitude GetTileHeightForAvatar(int tileIdx) =>
+        InBounds(tileIdx)
+            ? _roomGrain._state.TileHeights[tileIdx] - GetPostureOffset(tileIdx)
+            : Altitude.Zero;
 
-            if (highestItemId > 0)
-            {
-                if (
-                    _roomGrain._state.ItemsById.TryGetValue(highestItemId, out var item)
-                    && item is IRoomFloorItem floorItem
-                )
-                {
-                    postureOffset = floorItem.Logic.GetPostureOffset();
-                }
-            }
-
-            return height - postureOffset;
-        }
-        catch (Exception)
-        {
-            return Altitude.Zero;
-        }
-    }
+    /// <summary>
+    /// How far the furni on top of a tile lowers an avatar standing there (a seat, a bed); zero
+    /// with nothing there. The one lookup, so the height an avatar is given and the height a
+    /// step is judged by cannot disagree.
+    /// </summary>
+    private Altitude GetPostureOffset(int tileIdx) =>
+        TryGetHighestFloorItem(tileIdx, out var item)
+            ? item.Logic.GetPostureOffset()
+            : Altitude.Zero;
 }

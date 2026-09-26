@@ -34,19 +34,7 @@ public sealed partial class RoomActionModule
         )
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToPlaceFurni);
 
-        _roomGrain.FurniModule.EnsureWithinPlacementLimits(item);
-
-        if (
-            !await _roomGrain.FurniModule.ValidateNewFloorItemPlacementAsync(
-                ctx,
-                floorItem,
-                x,
-                y,
-                rot
-            )
-        )
-            throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
-
+        // The spot and the room's limits are checked by the placement itself.
         if (!await _roomGrain.FurniModule.PlaceFloorItemAsync(ctx, floorItem, x, y, rot, ct))
             return false;
 
@@ -85,7 +73,7 @@ public sealed partial class RoomActionModule
         )
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
-        if (!await _roomGrain.FurniModule.ValidateFloorItemPlacementAsync(ctx, itemId, x, y, rot))
+        if (!_roomGrain.FurniModule.CanPlaceFloorItem(itemId, x, y, rot))
             throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
         if (!await _roomGrain.FurniModule.MoveFloorItemByIdAsync(ctx, itemId, x, y, null, rot, ct))

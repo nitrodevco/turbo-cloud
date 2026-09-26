@@ -1,5 +1,6 @@
 using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Packets;
+using Turbo.Revisions.Revision20260909.Serializers.Inventory.Badges.Data;
 
 namespace Turbo.Revisions.Revision20260909.Serializers.Users;
 
@@ -11,10 +12,13 @@ internal class HabboUserBadgesMessageComposerSerializer(int header)
         packet.WriteInteger(message.PlayerId).WriteInteger(message.Badges.Length);
 
         foreach (var badge in message.Badges)
-            packet
-                .WriteInteger(badge.SlotId)
-                .WriteString(badge.BadgeCode)
-                .WriteInteger(badge.OwnerCount)
-                .WriteInteger((int)badge.Rarity);
+            // A worn badge's row carries the slot where the inventory's carries the id.
+            BadgeEntrySerializer.Serialize(
+                packet,
+                badge.SlotId,
+                badge.BadgeCode,
+                badge.OwnerCount,
+                badge.Rarity
+            );
     }
 }

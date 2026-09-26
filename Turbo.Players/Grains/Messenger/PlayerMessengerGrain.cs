@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,6 +27,11 @@ namespace Turbo.Players.Grains.Messenger;
 /// request mutations write through to the database as they happen; only the delivered flags of
 /// received messages are buffered, and those are flushed on a timer and on deactivation so a
 /// busy conversation does not issue one write per message.
+///
+/// Two friends act on each other all the time — both message, both log in, both accept — so
+/// every call one messenger makes on another is an interleaved tell that touches memory only
+/// (<c>On*</c>, <c>Receive*</c>, <c>CanBeAddedBy</c>). The side that starts a change does the
+/// database work for both; the other side is only told.
 /// </summary>
 internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
 {
@@ -87,66 +93,76 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         await FlushDeliveredMessagesAsync(ct);
     }
 
-    public async Task<FriendListErrorCodeType> AddFriendAsync(
-        PlayerSummarySnapshot snapshot,
-        CancellationToken ct
-    )
+    public Task<FriendListErrorCodeType> CanBeAddedByAsync(PlayerId playerId, CancellationToken ct)
     {
+        // Answered from memory, between the accepting side's other awaits, so two accepts in
+        // the same instant can each see one free slot. One friend over the limit is the worst
+        // case, and the alternative is the two grains waiting on each other.
         if (_state.Friends.Count >= GetFriendLimit())
-            return FriendListErrorCodeType.TheyHitFriendLimit;
+            return Task.FromResult(FriendListErrorCodeType.TheyHitFriendLimit);
 
-        if (_state.BlockedPlayerIds.Contains(snapshot.PlayerId))
-            return FriendListErrorCodeType.BlockedByThem;
+        if (_state.BlockedPlayerIds.Contains(playerId))
+            return Task.FromResult(FriendListErrorCodeType.BlockedByThem);
 
-        await ForceAddFriendAsync(snapshot, ct);
-        await FlushUpdatesAsync(ct);
-
-        return FriendListErrorCodeType.None;
+        return Task.FromResult(FriendListErrorCodeType.None);
     }
 
-    public async Task ForceAddFriendAsync(PlayerSummarySnapshot snapshot, CancellationToken ct)
+    public Task OnFriendAddedAsync(PlayerSummarySnapshot snapshot, CancellationToken ct)
+    {
+        AddFriendToState(snapshot);
+
+        return FlushUpdatesAsync(ct);
+    }
+
+    /// <summary>
+    /// Writes a friendship from both sides, and drops any request either of them had open, in
+    /// one save: two saves on two grains could leave one of them friends with somebody who is
+    /// not friends with them.
+    /// </summary>
+    private async Task AddFriendshipAsync(PlayerSummarySnapshot friend, CancellationToken ct)
     {
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         await dbCtx
             .MessengerRequests.Where(x =>
-                x.PlayerEntityId == snapshot.PlayerId.Value
-                && x.RequestedPlayerEntityId == _state.PlayerId.Value
+                (
+                    x.PlayerEntityId == friend.PlayerId.Value
+                    && x.RequestedPlayerEntityId == _state.PlayerId.Value
+                )
+                || (
+                    x.PlayerEntityId == _state.PlayerId.Value
+                    && x.RequestedPlayerEntityId == friend.PlayerId.Value
+                )
             )
             .ExecuteDeleteAsync(ct);
 
-        dbCtx.Add(
-            new MessengerFriendEntity
-            {
-                PlayerEntityId = _state.PlayerId.Value,
-                FriendPlayerEntityId = snapshot.PlayerId.Value,
-                RelationType = MessengerFriendRelationType.Zero,
-                PlayerEntity = null!,
-                FriendPlayerEntity = null!,
-            }
-        );
+        dbCtx.Add(NewFriendRow(_state.PlayerId, friend.PlayerId));
+        dbCtx.Add(NewFriendRow(friend.PlayerId, _state.PlayerId));
 
         await dbCtx.SaveChangesAsync(ct);
 
-        var friendDto = new MessengerFriendDto
-        {
-            PlayerId = snapshot.PlayerId,
-            Name = snapshot.Name,
-            Motto = snapshot.Motto,
-            Figure = snapshot.Figure,
-            Gender = snapshot.Gender,
-            Online = snapshot.IsOnline,
-            FollowingAllowed = true,
-            LastAccess = snapshot.LastUpdated.ToString("dd-MM-yyyy HH:mm:ss"),
-        };
-
-        _state.Friends[friendDto.PlayerId] = friendDto;
-        _state.IncomingRequests.Remove(snapshot.PlayerId);
-
-        ForceUpdate(friendDto.PlayerId);
+        AddFriendToState(friend);
     }
 
-    public Task<FriendListErrorCodeType> CanAddFriendAsync(PlayerId playerId, CancellationToken ct)
+    private static MessengerFriendEntity NewFriendRow(PlayerId playerId, PlayerId friendId) =>
+        new()
+        {
+            PlayerEntityId = playerId.Value,
+            FriendPlayerEntityId = friendId.Value,
+            RelationType = MessengerFriendRelationType.Zero,
+            PlayerEntity = null!,
+            FriendPlayerEntity = null!,
+        };
+
+    private void AddFriendToState(PlayerSummarySnapshot snapshot)
+    {
+        _state.Friends[snapshot.PlayerId] = MessengerFriendDto.FromSummary(snapshot);
+        _state.IncomingRequests.Remove(snapshot.PlayerId);
+
+        ForceUpdate(snapshot.PlayerId);
+    }
+
+    private FriendListErrorCodeType CanAddFriend(PlayerId playerId)
     {
         var errorCode = FriendListErrorCodeType.None;
 
@@ -157,7 +173,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         else if (_state.BlockedPlayerIds.Contains(playerId))
             errorCode = FriendListErrorCodeType.BlockedByYou;
 
-        return Task.FromResult(errorCode);
+        return errorCode;
     }
 
     public async Task RemoveFriendsAsync(List<PlayerId> playerIds, CancellationToken ct)
@@ -186,23 +202,28 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
             .ExecuteDeleteAsync(ct);
 
         foreach (var playerId in validPlayerIds)
-            await ForceRemoveFriendAsync(playerId, ct);
+            RemoveFriendFromState(playerId);
 
         // Each former friend is a grain of their own, so they are told side by side.
         await Task.WhenAll(
-            validPlayerIds.Select(async playerId =>
-            {
-                var friendMessenger = _grainFactory.GetPlayerMessengerGrain(playerId);
-
-                await friendMessenger.ForceRemoveFriendAsync(_state.PlayerId, ct);
-                await friendMessenger.FlushUpdatesAsync(ct);
-            })
+            validPlayerIds.Select(playerId =>
+                _grainFactory
+                    .GetPlayerMessengerGrain(playerId)
+                    .OnFriendRemovedAsync(_state.PlayerId, ct)
+            )
         );
 
         await FlushUpdatesAsync(ct);
     }
 
-    public Task ForceRemoveFriendAsync(PlayerId playerId, CancellationToken ct)
+    public Task OnFriendRemovedAsync(PlayerId playerId, CancellationToken ct)
+    {
+        RemoveFriendFromState(playerId);
+
+        return FlushUpdatesAsync(ct);
+    }
+
+    private void RemoveFriendFromState(PlayerId playerId)
     {
         if (_state.Friends.TryGetValue(playerId, out var friend))
         {
@@ -217,8 +238,6 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
                 }
             );
         }
-
-        return Task.CompletedTask;
     }
 
     public async Task<List<MessengerAcceptFriendFailure>> AcceptFriendRequestsAsync(
@@ -231,7 +250,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
 
         foreach (var playerId in playerIds)
         {
-            var errorCode = await CanAddFriendAsync(playerId, ct);
+            var errorCode = CanAddFriend(playerId);
 
             if (errorCode != FriendListErrorCodeType.None)
             {
@@ -242,9 +261,9 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
                 continue;
             }
 
-            errorCode = await _grainFactory
-                .GetPlayerMessengerGrain(playerId)
-                .AddFriendAsync(snapshot, ct);
+            var friendMessenger = _grainFactory.GetPlayerMessengerGrain(playerId);
+
+            errorCode = await friendMessenger.CanBeAddedByAsync(_state.PlayerId, ct);
 
             if (errorCode != FriendListErrorCodeType.None)
             {
@@ -257,7 +276,8 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
 
             var friendSnapshot = await _grainFactory.GetPlayerGrain(playerId).GetSummaryAsync(ct);
 
-            await ForceAddFriendAsync(friendSnapshot, ct);
+            await AddFriendshipAsync(friendSnapshot, ct);
+            await friendMessenger.OnFriendAddedAsync(snapshot, ct);
         }
 
         await FlushUpdatesAsync(ct);
@@ -303,6 +323,11 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         CancellationToken ct
     )
     {
+        // Asking yourself would be this grain calling itself through a reference, which waits
+        // for a turn that can only start once this one ends.
+        if (playerId == _state.PlayerId)
+            return new MessengerRequestFriendResult(false);
+
         if (_state.Friends.Count >= GetFriendLimit())
             return new MessengerRequestFriendResult(
                 false,
@@ -521,14 +546,10 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
     {
         if (_state.Friends.TryGetValue(snapshot.PlayerId, out var friendDto))
         {
-            _state.Friends[snapshot.PlayerId] = friendDto with
+            _state.Friends[snapshot.PlayerId] = MessengerFriendDto.FromSummary(snapshot) with
             {
-                Name = snapshot.Name,
-                Motto = snapshot.Motto,
-                Figure = snapshot.Figure,
-                Gender = snapshot.Gender,
-                Online = snapshot.IsOnline,
-                LastAccess = snapshot.LastUpdated.ToString("dd-MM-yyyy HH:mm:ss"),
+                CategoryId = friendDto.CategoryId,
+                RelationshipStatus = friendDto.RelationshipStatus,
             };
 
             ForceUpdate(snapshot.PlayerId);
@@ -740,7 +761,12 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         );
 
         // Queue delivered-flag update — flushed periodically by timer to avoid per-message DB writes
-        if (dbMessageId > 0)
+        // Bounded here as well as on a failed flush: between two ticks a busy conversation could
+        // otherwise grow it without limit. The flag is cosmetic, so a dropped id costs nothing.
+        if (
+            dbMessageId > 0
+            && _state.PendingDeliveredIds.Count < _playerConfig.MessengerMaxPendingDelivered
+        )
             _state.PendingDeliveredIds.Add(dbMessageId);
 
         return true;
@@ -786,7 +812,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         }
     }
 
-    public async Task FlushUpdatesAsync(CancellationToken ct)
+    private async Task FlushUpdatesAsync(CancellationToken ct)
     {
         var updates = await GetPendingUpdatesAsync(ct);
 
@@ -888,7 +914,10 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
                 Figure = x.FriendPlayerEntity.Figure,
                 CategoryId = x.MessengerCategoryEntityId ?? -1,
                 Motto = x.FriendPlayerEntity.Motto ?? string.Empty,
-                LastAccess = x.FriendPlayerEntity.UpdatedAt.ToString("dd-MM-yyyy HH:mm:ss"),
+                LastAccess = x.FriendPlayerEntity.UpdatedAt.ToString(
+                    MessengerFriendDto.LAST_ACCESS_FORMAT,
+                    CultureInfo.InvariantCulture
+                ),
                 RealName = string.Empty,
                 FacebookId = string.Empty,
                 PersistedMessageUser = false,
@@ -927,8 +956,16 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         _state.BlockedPlayerIds.AddRange(blockedPlayerIds);
         _state.IgnoredPlayerIds.AddRange(ignoredPlayerIds);
 
-        foreach (var friend in friends)
-            _state.Friends.Add(friend.PlayerId, friend);
+        // Nothing persisted says who is online, so ask. Interleaved on the presence side, so
+        // asking cannot wait on a presence that is itself waiting on this activation.
+        var online = await Task.WhenAll(
+            friends.Select(friend =>
+                _grainFactory.GetPlayerPresenceGrain(friend.PlayerId).HasActiveSessionAsync(ct)
+            )
+        );
+
+        for (var i = 0; i < friends.Count; i++)
+            _state.Friends.Add(friends[i].PlayerId, friends[i] with { Online = online[i] });
 
         foreach (var request in incomingRequests)
             _state.IncomingRequests.Add(request.RequesterPlayerId, request);

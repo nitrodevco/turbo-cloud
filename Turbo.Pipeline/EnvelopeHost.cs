@@ -5,23 +5,32 @@ using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Turbo.Pipeline.Delegates;
 using Turbo.Pipeline.Registry;
 using Turbo.Runtime;
 
 namespace Turbo.Pipeline;
 
+/// <summary>
+/// Dispatches envelopes to their registered handlers and behaviors. A handler or behavior that
+/// fails is logged here and does not stop its siblings, and the failure is not rethrown: this is
+/// the one place a handler failure is logged, so callers must not log it again.
+/// </summary>
 public class EnvelopeHost<TEnvelope, TMeta, TContext>(
     IServiceProvider host,
-    EnvelopeHostOptions<TEnvelope, TMeta, TContext> options
+    EnvelopeHostOptions<TEnvelope, TMeta, TContext> options,
+    ILogger logger
 )
 {
     private readonly IServiceProvider _host = host;
     private readonly EnvelopeHostOptions<TEnvelope, TMeta, TContext> _opt = options;
+    private readonly ILogger _logger = logger;
     private readonly ConcurrentDictionary<Type, Bucket<TContext>> _byEvent = new();
 
     public IDisposable RegisterHandler(
         Type envType,
+        Type handlerType,
         IServiceProvider sp,
         Func<IServiceProvider, object> activator,
         HandlerInvoker<TContext> invoker
@@ -33,7 +42,9 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
 
         lock (b.Gate)
         {
-            b.Handlers = b.Handlers.Add(new HandlerReg<TContext>(sp, activator, invoker));
+            b.Handlers = b.Handlers.Add(
+                new HandlerReg<TContext>(handlerType, sp, activator, invoker)
+            );
             b.Version++;
             InvalidateCache(b);
         }
@@ -53,6 +64,7 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
 
     public IDisposable RegisterBehavior(
         Type envType,
+        Type behaviorType,
         IServiceProvider sp,
         Func<IServiceProvider, object> activator,
         BehaviorInvoker<TContext> invoker,
@@ -65,7 +77,9 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
 
         lock (b.Gate)
         {
-            b.Behaviors = b.Behaviors.Add(new BehaviorReg<TContext>(sp, order, activator, invoker));
+            b.Behaviors = b.Behaviors.Add(
+                new BehaviorReg<TContext>(behaviorType, sp, order, activator, invoker)
+            );
             b.Version++;
             InvalidateCache(b);
         }
@@ -247,7 +261,12 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
                     }
                     catch (Exception ex)
                     {
-                        _opt.OnBehaviorActivationError?.Invoke(ex, env);
+                        _logger.LogError(
+                            ex,
+                            "Failed to activate behavior {BehaviorType} for {EnvelopeType}",
+                            beh.BehaviorType,
+                            env.GetType()
+                        );
 
                         await next(env, ctx, ct).ConfigureAwait(false);
 
@@ -267,7 +286,12 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
                     }
                     catch (Exception ex)
                     {
-                        _opt.OnBehaviorInvokeError?.Invoke(ex, env);
+                        _logger.LogError(
+                            ex,
+                            "Behavior {BehaviorType} failed for {EnvelopeType}",
+                            beh.BehaviorType,
+                            env.GetType()
+                        );
                     }
                     finally
                     {
@@ -351,7 +375,12 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
         }
         catch (Exception ex)
         {
-            _opt.OnHandlerActivationError?.Invoke(ex, env);
+            _logger.LogError(
+                ex,
+                "Failed to activate handler {HandlerType} for {EnvelopeType}",
+                h.HandlerType,
+                env.GetType()
+            );
 
             return;
         }
@@ -362,7 +391,12 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
         }
         catch (Exception ex)
         {
-            _opt.OnHandlerInvokeError?.Invoke(ex, env);
+            _logger.LogError(
+                ex,
+                "Handler {HandlerType} failed for {EnvelopeType}",
+                h.HandlerType,
+                env.GetType()
+            );
         }
         finally
         {

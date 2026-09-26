@@ -1,4 +1,3 @@
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -33,11 +32,10 @@ public class SaveRoomSettingsMessageHandler(
         if (ctx.PlayerId <= 0 || message.RoomId <= 0)
             return;
 
-        var categoryId = _navigatorService
-            .GetFlatCategoriesForPlayer(ctx.PlayerId)
-            .Any(x => x.Id == message.CategoryId)
-            ? message.CategoryId
-            : (int?)null;
+        var categoryId = _navigatorService.ResolvePlayerFlatCategory(
+            ctx.PlayerId,
+            message.CategoryId
+        );
 
         var result = await _grainFactory
             .GetRoomGrain(message.RoomId)
@@ -74,24 +72,14 @@ public class SaveRoomSettingsMessageHandler(
             )
             .ConfigureAwait(false);
 
-        if (result.Succeeded)
-        {
-            await ctx.SendComposerAsync(
-                    new RoomSettingsSavedEventMessageComposer { RoomId = message.RoomId },
-                    ct
-                )
-                .ConfigureAwait(false);
-
+        if (
+            !await ctx.SendRoomSettingsSaveFailureAsync(message.RoomId, result, ct)
+                .ConfigureAwait(false)
+        )
             return;
-        }
 
         await ctx.SendComposerAsync(
-                new RoomSettingsSaveErrorEventMessageComposer
-                {
-                    RoomId = message.RoomId,
-                    Error = result.Error,
-                    Info = result.Info,
-                },
+                new RoomSettingsSavedEventMessageComposer { RoomId = message.RoomId },
                 ct
             )
             .ConfigureAwait(false);

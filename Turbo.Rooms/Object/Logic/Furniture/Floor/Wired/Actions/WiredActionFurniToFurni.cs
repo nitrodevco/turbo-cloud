@@ -22,53 +22,8 @@ public class WiredActionFurniToFurni(
     public override int WiredCode => (int)WiredActionType.MOVE_FURNI_TO_FURNI;
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [
-            [
-                WiredFurniSourceType.SelectedItems,
-                WiredFurniSourceType.SelectorItems,
-                WiredFurniSourceType.SignalItems,
-                WiredFurniSourceType.TriggeredItem,
-            ],
-            [WiredFurniSourceType.SelectedItems, WiredFurniSourceType.SelectorItems],
-        ];
+        [WiredSources.Furni, WiredSources.PickedFurni];
 
-    public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
-    {
-        var movers = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 0));
-        var targets = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 1));
-
-        if (movers.Count == 0 || targets.Count == 0)
-            return false;
-
-        var target = targets[0];
-        var map = _roomGrain.MapModule;
-        var actionCtx = ctx.AsActionContext();
-        var moved = false;
-
-        foreach (var mover in movers)
-        {
-            if (mover.ObjectId == target.ObjectId)
-                continue;
-
-            if (
-                !await _roomGrain.FurniModule.ValidateFloorItemPlacementAsync(
-                    actionCtx,
-                    mover.ObjectId,
-                    target.X,
-                    target.Y,
-                    mover.Rotation
-                )
-            )
-                continue;
-
-            moved |= await ctx.ProcessFloorItemMovementAsync(
-                mover,
-                map.ToIdx(target.X, target.Y),
-                null,
-                null
-            );
-        }
-
-        return moved;
-    }
+    public override Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct) =>
+        MoveOntoTargetFurniAsync(ctx, 0, 0);
 }

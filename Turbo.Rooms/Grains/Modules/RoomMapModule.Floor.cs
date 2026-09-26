@@ -1,5 +1,6 @@
 using Turbo.Logging;
 using Turbo.Primitives;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -15,41 +16,18 @@ public sealed partial class RoomMapModule
         if (!InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
-        if (
-            GetTileIdForSize(
-                item.X,
-                item.Y,
-                item.Rotation,
-                item.Definition.Width,
-                item.Definition.Length,
-                out var tileIds
-            )
-        )
-        {
-            foreach (var idx in tileIds)
-            {
-                _roomGrain._state.TileFloorStacks[idx].Add(item.ObjectId);
+        // Placement refuses a footprint off the map, so reaching this is a bug in the caller.
+        if (!TryGetTileIds(FloorFootprint.Of(item), out var tileIds))
+            throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
-                ComputeTile(idx);
-            }
+        foreach (var idx in tileIds)
+        {
+            _roomGrain._state.TileFloorStacks[idx].Add(item.ObjectId);
+
+            ComputeTile(idx);
         }
 
         return true;
-    }
-
-    /// <summary>Puts a new item on a tile: on top of what stands there, or at <paramref name="z"/> when given.</summary>
-    public bool PlaceFloorItem(IRoomFloorItem item, int nTileIdx, Rotation rot, Altitude? z = null)
-    {
-        if (!InBounds(nTileIdx))
-            throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
-
-        var (targetX, targetY) = GetTileXY(nTileIdx);
-
-        item.SetPosition(targetX, targetY);
-        item.SetPositionZ(z ?? _roomGrain._state.TileHeights[nTileIdx]);
-        item.SetRotation(rot);
-
-        return AddFloorItem(item);
     }
 
     public bool MoveFloorItem(
@@ -117,23 +95,14 @@ public sealed partial class RoomMapModule
         if (!InBounds(tileIdx))
             throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
-        if (
-            GetTileIdForSize(
-                item.X,
-                item.Y,
-                item.Rotation,
-                item.Definition.Width,
-                item.Definition.Length,
-                out var tileIds
-            )
-        )
-        {
-            foreach (var idx in tileIds)
-            {
-                _roomGrain._state.TileFloorStacks[idx].Remove(item.ObjectId);
+        if (!TryGetTileIds(FloorFootprint.Of(item), out var tileIds))
+            throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
 
-                ComputeTile(idx);
-            }
+        foreach (var idx in tileIds)
+        {
+            _roomGrain._state.TileFloorStacks[idx].Remove(item.ObjectId);
+
+            ComputeTile(idx);
         }
 
         return true;

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Orleans;
@@ -40,13 +39,10 @@ public class WiredConditionExecutorMatches(
             return false;
 
         var players = GetPlayers(ctx.GetSelection(this));
-        var wantedName = _wiredData.StringParam?.Trim() ?? string.Empty;
+        var wantedName = GetStringParam();
 
         return Quantify(
-            players.Select(p =>
-                wantedName.Length == 0
-                || string.Equals(p.Name, wantedName, StringComparison.OrdinalIgnoreCase)
-            ),
+            players.Select(p => wantedName.Length == 0 || NamesMatch(p.Name, wantedName)),
             true
         );
     }

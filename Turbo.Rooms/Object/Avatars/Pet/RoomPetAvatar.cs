@@ -1,5 +1,4 @@
 using System;
-using System.Text;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Players;
@@ -197,11 +196,6 @@ public sealed class RoomPetAvatar : RoomAvatar<IRoomPet, IRoomPetLogic, IRoomPet
 
     protected override RoomPetAvatarSnapshot BuildSnapshot()
     {
-        var statusString = new StringBuilder("/");
-
-        foreach (var (type, value) in Statuses)
-            statusString.Append($"{type.ToLegacyString()} {value}/");
-
         return new()
         {
             AvatarType = AvatarType,
@@ -216,7 +210,7 @@ public sealed class RoomPetAvatar : RoomAvatar<IRoomPet, IRoomPetLogic, IRoomPet
             BodyRotation = Rotation,
             HeadRotation = HeadRotation,
             JumpPower = JumpPower,
-            Status = statusString.ToString(),
+            Status = BuildStatusString(),
             DanceType = DanceType,
             EffectId = EffectId,
             IsIdle = IsIdle,

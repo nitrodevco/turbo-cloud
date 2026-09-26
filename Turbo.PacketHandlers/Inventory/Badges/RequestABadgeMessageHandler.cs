@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Inventory.Badges;
-using Turbo.Primitives.Messages.Outgoing.Inventory.Badges;
 using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Inventory.Badges;
@@ -29,21 +28,13 @@ public class RequestABadgeMessageHandler(IGrainFactory grainFactory)
             .GetRequestableBadgeAsync(message.RequestCode, ct)
             .ConfigureAwait(false);
 
-        if (badgeCode is null)
-            return;
+        if (badgeCode is not null)
+            await _grainFactory
+                .GetInventoryGrain(ctx.PlayerId)
+                .GiveBadgeAsync(badgeCode, ct)
+                .ConfigureAwait(false);
 
-        var inventory = _grainFactory.GetInventoryGrain(ctx.PlayerId);
-
-        await inventory.GiveBadgeAsync(badgeCode, ct).ConfigureAwait(false);
-
-        await ctx.SendComposerAsync(
-                new IsBadgeRequestFulfilledEventMessageComposer
-                {
-                    RequestCode = message.RequestCode,
-                    Fulfilled = await inventory.HasBadgeAsync(badgeCode, ct).ConfigureAwait(false),
-                },
-                ct
-            )
+        await ctx.SendBadgeRequestFulfilledAsync(_grainFactory, message.RequestCode, badgeCode, ct)
             .ConfigureAwait(false);
     }
 }

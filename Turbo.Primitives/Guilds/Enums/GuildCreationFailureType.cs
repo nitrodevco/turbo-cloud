@@ -18,4 +18,11 @@ public enum GuildCreationFailureType
 
     /// <summary>The creator could not pay. Nothing is sent; see the summary above.</summary>
     InsufficientCredits,
+
+    /// <summary>
+    /// The group could not be written. The charge, if there was one, has been given back. Like
+    /// <see cref="InsufficientCredits"/> the hotel has no text for it, because it is not
+    /// something the player did.
+    /// </summary>
+    CreationFailed,
 }

@@ -28,8 +28,7 @@ public class WiredConditionGroupMember(
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
-        int? wantedGroupId =
-            int.TryParse(_wiredData.StringParam, out var parsed) && parsed > 0 ? parsed : null;
+        var wantedGroupId = GetPositiveIdParam();
         var players = GetPlayers(ctx.GetSelection(this));
 
         return Quantify(

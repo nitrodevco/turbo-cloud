@@ -6,7 +6,6 @@ using Turbo.Messages.Registry;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Messages.Incoming.Room.Furniture;
-using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Room.Furniture;
 
@@ -22,18 +21,11 @@ public class ControlYoutubeDisplayPlaybackMessageHandler(IGrainFactory grainFact
         CancellationToken ct
     )
     {
-        if (
-            ctx.PlayerId <= 0
-            || ctx.RoomId <= 0
-            || message.ObjectId <= 0
-            || !Enum.IsDefined((YoutubePlaybackCommandType)message.CommandId)
-        )
+        if (!Enum.IsDefined((YoutubePlaybackCommandType)message.CommandId))
             return;
 
-        await _grainFactory
-            .GetRoomGrain(ctx.RoomId)
-            .InteractWithItemAsync(
-                ctx.AsActionContext(),
+        await ctx.InteractWithRoomItemAsync(
+                _grainFactory,
                 message.ObjectId,
                 new ControlYoutubePlaybackInteraction
                 {

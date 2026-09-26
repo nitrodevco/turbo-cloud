@@ -85,7 +85,7 @@ public sealed class RoomModerationModule(
         CancellationToken ct
     )
     {
-        if (durationMinutes <= 0 || !_roomGrain._state.AvatarsByPlayerId.ContainsKey(playerId))
+        if (durationMinutes <= 0 || !_roomGrain.AvatarModule.TryGetPlayer(playerId, out _))
             return false;
 
         var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(playerId);
@@ -211,7 +211,7 @@ public sealed class RoomModerationModule(
         )
             return false;
 
-        if (!_roomGrain._state.AvatarsByPlayerId.ContainsKey(playerId))
+        if (!_roomGrain.AvatarModule.TryGetPlayer(playerId, out _))
             return false;
 
         await _roomGrain.AvatarModule.RemoveAvatarFromPlayerAsync(ctx, playerId, ct);
@@ -314,7 +314,7 @@ public sealed class RoomModerationModule(
 
         _roomGrain._state.BannedUntilByPlayerId[playerId] = expiresAt;
 
-        if (_roomGrain._state.AvatarsByPlayerId.ContainsKey(playerId))
+        if (_roomGrain.AvatarModule.TryGetPlayer(playerId, out _))
             await _roomGrain.AvatarModule.RemoveAvatarFromPlayerAsync(ctx, playerId, ct);
 
         return true;
@@ -376,17 +376,7 @@ public sealed class RoomModerationModule(
     {
         var level = await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx);
 
-        if (level >= RoomControllerType.Owner)
-            return true;
-
-        return _roomGrain._state.RoomSnapshot.ModSettings.WhoCanBan switch
-        {
-            ModSettingType.All => true,
-            ModSettingType.Rights => level >= RoomControllerType.Rights,
-            ModSettingType.GroupRights => level >= RoomControllerType.GroupRights,
-            ModSettingType.RightsOrGroup => level >= RoomControllerType.Rights,
-            _ => false,
-        };
+        return level.IsAllowedBy(_roomGrain._state.RoomSnapshot.ModSettings.WhoCanBan);
     }
 
     public async Task<ImmutableArray<string>?> GetRoomFilterWordsAsync(
@@ -534,16 +524,6 @@ public sealed class RoomModerationModule(
         if (targetLevel >= actorLevel)
             return false;
 
-        if (actorLevel >= RoomControllerType.Owner)
-            return true;
-
-        return setting switch
-        {
-            ModSettingType.All => true,
-            ModSettingType.Rights => actorLevel >= RoomControllerType.Rights,
-            ModSettingType.GroupRights => actorLevel >= RoomControllerType.GroupRights,
-            ModSettingType.RightsOrGroup => actorLevel >= RoomControllerType.Rights,
-            _ => false,
-        };
+        return actorLevel.IsAllowedBy(setting);
     }
 }

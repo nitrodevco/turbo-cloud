@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Logging;
 using Turbo.Pipeline;
@@ -10,7 +11,7 @@ using Turbo.Primitives.Orleans;
 
 namespace Turbo.Messages.Registry;
 
-public sealed class MessageRegistry(IServiceProvider sp)
+public sealed class MessageRegistry(IServiceProvider sp, ILogger<MessageRegistry> logger)
     : EnvelopeHost<IMessageEvent, ISessionContext, MessageContext>(
         sp,
         new EnvelopeHostOptions<IMessageEvent, ISessionContext, MessageContext>
@@ -40,9 +41,6 @@ public sealed class MessageRegistry(IServiceProvider sp)
             EnableInheritanceDispatch = true,
             HandlerMode = HandlerExecutionMode.Parallel,
             MaxHandlerDegreeOfParallelism = null,
-            OnHandlerActivationError = (ex, env) => { },
-            OnHandlerInvokeError = (ex, env) => { },
-            OnBehaviorActivationError = (ex, env) => { },
-            OnBehaviorInvokeError = (ex, env) => { },
-        }
+        },
+        logger
     ) { }

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Runtime.Loader;
 using System.Threading;
 using System.Threading.Tasks;
@@ -33,8 +34,21 @@ public static class MigrationHelper
     {
         using var db = sp.GetRequiredService<TContext>();
 
-        var prefix = sp.GetRequiredService<TablePrefixProvider>();
-        var tablePrefix = prefix().Replace("`", "``");
+        var prefix = sp.GetRequiredService<TablePrefixProvider>()();
+
+        // The drop below matches every table that starts with the prefix. With no prefix that is
+        // every table in the database, the hotel's included; anything but a plain identifier
+        // would have to be escaped for SQL and for LIKE, so it is refused rather than escaped.
+        if (
+            string.IsNullOrEmpty(prefix)
+            || !prefix.All(c => char.IsAsciiLetterOrDigit(c) || c == '_')
+        )
+            throw new InvalidOperationException(
+                $"Refusing to uninstall {typeof(TContext).Name}: table prefix '{prefix}' is empty or not a plain identifier, so its tables cannot be told apart from the hotel's."
+            );
+
+        // `_` is a LIKE wildcard: "tsp_" would otherwise also match "tspx...".
+        var tablePrefix = prefix.Replace("_", @"\_");
 
         var sql =
             $@"

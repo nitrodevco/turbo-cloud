@@ -33,30 +33,14 @@ public class WiredActionSendSignal(
         [new WiredBoolParamRule(false), new WiredBoolParamRule(false)];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [
-            [WiredFurniSourceType.SelectedItems, WiredFurniSourceType.SelectorItems],
-            [
-                WiredFurniSourceType.SelectedItems,
-                WiredFurniSourceType.SelectorItems,
-                WiredFurniSourceType.SignalItems,
-                WiredFurniSourceType.TriggeredItem,
-            ],
-        ];
+        [WiredSources.PickedFurni, WiredSources.Furni];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        if (ctx.Depth >= _roomGrain._wiredConfig.MaxDepth)
-        {
-            _roomGrain.WiredSystem.RecordError(
-                "WiredCallDepthExceeded",
-                Grains.Systems.RoomWiredSystem.GetErrorCategory(this),
-                _roomGrain.NowMs()
-            );
-
+        if (IsCallDepthExceeded(ctx))
             return false;
-        }
 
         var antennas = WiredSlotSelection.ForSlot(this, ctx, 0).SelectedFurniIds;
 

@@ -37,51 +37,30 @@ public class WiredActionMoveRotateFurni(
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
         var selection = ctx.GetSelection(this);
-        var actionCtx = ctx.AsActionContext();
 
         foreach (var furniId in selection.SelectedFurniIds)
         {
-            try
-            {
-                if (
-                    !_roomGrain.FurniModule.TryGetItem(furniId, out var item)
-                    || item is not IRoomFloorItem floorItem
-                )
-                    continue;
-
-                var moveDirection = GetMoveDirection(_movementType);
-                var moveRotation = GetMoveRotation(floorItem.Rotation, _rotationType);
-
-                if (
-                    !_roomGrain.MapModule.TryGetTileInFront(
-                        _roomGrain.MapModule.ToIdx(floorItem.X, floorItem.Y),
-                        moveDirection,
-                        out var nextIdx
-                    )
-                )
-                    continue;
-
-                var (targetX, targetY) = _roomGrain.MapModule.GetTileXY(nextIdx);
-
-                if (
-                    !await _roomGrain.FurniModule.ValidateFloorItemPlacementAsync(
-                        actionCtx,
-                        furniId,
-                        targetX,
-                        targetY,
-                        moveRotation
-                    )
-                )
-                    continue;
-
-                await ctx.ProcessFloorItemMovementAsync(floorItem, nextIdx, null, moveRotation);
-            }
-            catch (Exception ex)
-            {
-                LogWiredDataFault(ex);
-
+            if (
+                !_roomGrain.FurniModule.TryGetItem(furniId, out var item)
+                || item is not IRoomFloorItem floorItem
+            )
                 continue;
-            }
+
+            var moveDirection = GetMoveDirection(_movementType);
+            var moveRotation = GetMoveRotation(floorItem.Rotation, _rotationType);
+
+            if (
+                !_roomGrain.MapModule.TryGetTileInFront(
+                    _roomGrain.MapModule.ToIdx(floorItem.X, floorItem.Y),
+                    moveDirection,
+                    out var nextIdx
+                )
+            )
+                continue;
+
+            var (targetX, targetY) = _roomGrain.MapModule.GetTileXY(nextIdx);
+
+            await ctx.TryMoveFloorItemAsync(floorItem, targetX, targetY, null, moveRotation);
         }
 
         return true;

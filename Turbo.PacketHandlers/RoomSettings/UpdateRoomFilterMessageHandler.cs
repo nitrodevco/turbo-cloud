@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.RoomSettings;
-using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.RoomSettings;
@@ -25,28 +24,19 @@ public class UpdateRoomFilterMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0 || message.RoomId <= 0)
             return;
 
-        var room = _grainFactory.GetRoomGrain(message.RoomId);
-        var updated = await room.UpdateRoomFilterAsync(
-                ctx.AsActionContext(),
-                message.IsAddingWord,
-                message.Word,
-                ct
-            )
-            .ConfigureAwait(false);
-
-        if (!updated)
+        if (
+            !await _grainFactory
+                .GetRoomGrain(message.RoomId)
+                .UpdateRoomFilterAsync(
+                    ctx.AsActionContext(),
+                    message.IsAddingWord,
+                    message.Word,
+                    ct
+                )
+                .ConfigureAwait(false)
+        )
             return;
 
-        var words = await room.GetRoomFilterWordsAsync(ctx.AsActionContext(), ct)
-            .ConfigureAwait(false);
-
-        if (words is null)
-            return;
-
-        await ctx.SendComposerAsync(
-                new RoomFilterSettingsMessageComposer { BadWords = [.. words.Value] },
-                ct
-            )
-            .ConfigureAwait(false);
+        await ctx.SendRoomFilterAsync(_grainFactory, message.RoomId, ct).ConfigureAwait(false);
     }
 }

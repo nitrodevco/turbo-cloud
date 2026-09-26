@@ -106,18 +106,7 @@ public sealed partial class RoomBotModule
         if (!_roomGrain.PetModule.IsTileFreeForNpc(tileIdx) && !CanShareTile(bot, tileIdx))
             return false;
 
-        await _roomGrain.AvatarModule.StopWalkingAsync(bot, ct);
-
-        _roomGrain.MapModule.RemoveAvatar(bot, false);
-
-        bot.SetPosition(item.X, item.Y);
-
-        _roomGrain.MapModule.AddAvatar(bot, false);
-        _roomGrain.MapModule.UpdateHeightForAvatar(bot);
-
-        bot.NeedsInvoke = true;
-        bot.MarkDirty();
-
+        await _roomGrain.AvatarModule.RelocateAvatarAsync(bot, tileIdx, ct);
         await PersistAsync(bot, ct);
 
         return true;

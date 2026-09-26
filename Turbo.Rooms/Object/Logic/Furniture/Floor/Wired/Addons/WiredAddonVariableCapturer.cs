@@ -54,7 +54,7 @@ public class WiredAddonVariableCapturer(
             return;
 
         var variable = GetVariable(0);
-        var name = _wiredData.StringParam?.Trim() ?? string.Empty;
+        var name = GetStringParam();
 
         if (variable is null || name.Length == 0)
             return;

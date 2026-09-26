@@ -1,7 +1,5 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Bots.Enums;
 using Turbo.Primitives.Rooms.Enums;
@@ -18,7 +16,12 @@ public sealed partial class RoomGrain
         int y,
         CancellationToken ct
     ) =>
-        RunBotActionAsync(ctx, botId, "place", () => BotModule.PlaceBotAsync(ctx, botId, x, y, ct));
+        RunLoggedAsync(
+            ctx,
+            "place bot",
+            botId,
+            () => BotModule.PlaceBotAsync(ctx, botId, x, y, ct)
+        );
 
     public Task<bool> MoveBotAsync(
         ActionContext ctx,
@@ -28,15 +31,15 @@ public sealed partial class RoomGrain
         Rotation rotation,
         CancellationToken ct
     ) =>
-        RunBotActionAsync(
+        RunLoggedAsync(
             ctx,
+            "move bot",
             objectId,
-            "move",
             () => BotModule.MoveBotAsync(ctx, objectId, x, y, rotation, ct)
         );
 
     public Task<bool> PickupBotAsync(ActionContext ctx, int botId, CancellationToken ct) =>
-        RunBotActionAsync(ctx, botId, "pick up", () => BotModule.PickupBotAsync(ctx, botId, ct));
+        RunLoggedAsync(ctx, "pick up bot", botId, () => BotModule.PickupBotAsync(ctx, botId, ct));
 
     public Task<bool> CommandBotAsync(
         ActionContext ctx,
@@ -45,10 +48,10 @@ public sealed partial class RoomGrain
         string data,
         CancellationToken ct
     ) =>
-        RunBotActionAsync(
+        RunLoggedAsync(
             ctx,
+            "command bot",
             botId,
-            "command",
             () => BotModule.CommandBotAsync(ctx, botId, skill, data, ct)
         );
 
@@ -58,38 +61,10 @@ public sealed partial class RoomGrain
         BotSkillType skill,
         CancellationToken ct
     ) =>
-        RunBotActionAsync(
+        RunLoggedAsync(
             ctx,
+            "get the configuration of bot",
             botId,
-            "get the configuration of",
             () => BotModule.RequestConfigurationAsync(ctx, botId, skill, ct)
         );
-
-    private async Task<bool> RunBotActionAsync(
-        ActionContext ctx,
-        int botId,
-        string action,
-        Func<Task<bool>> body
-    )
-    {
-        try
-        {
-            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
-
-            return await body();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Player {PlayerId} failed to {Action} bot {BotId} in room {RoomId}",
-                ctx.PlayerId,
-                action,
-                botId,
-                _state.RoomId
-            );
-
-            return false;
-        }
-    }
 }

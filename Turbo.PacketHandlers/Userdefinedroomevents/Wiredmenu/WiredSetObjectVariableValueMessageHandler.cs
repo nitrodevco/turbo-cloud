@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents.Wiredmenu;
-using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
@@ -39,10 +38,11 @@ public class WiredSetObjectVariableValueMessageHandler(IGrainFactory grainFactor
             (WiredVariableTargetType)message.VariableTarget,
             Math.Abs(message.ObjectIdForType)
         );
-        var room = _grainFactory.GetRoomGrain(ctx.RoomId);
 
         if (
-            !await room.ApplyWiredVariableMenuOperationAsync(
+            !await _grainFactory
+                .GetRoomGrain(ctx.RoomId)
+                .ApplyWiredVariableMenuOperationAsync(
                     ctx.AsActionContext(),
                     binding,
                     variableId,
@@ -54,24 +54,10 @@ public class WiredSetObjectVariableValueMessageHandler(IGrainFactory grainFactor
         )
             return;
 
-        var variables = await room.GetAllVariablesForBindingAsync(
-                ctx.AsActionContext(),
+        await ctx.SendWiredVariablesForObjectAsync(
+                _grainFactory,
                 binding,
-                ct
-            )
-            .ConfigureAwait(false);
-
-        if (variables is null)
-            return;
-
-        await ctx.SendComposerAsync(
-                new WiredVariablesForObjectEventMessageComposer
-                {
-                    TargetType = binding.TargetType,
-                    TargetId = message.ObjectIdForType,
-                    VariableValues = variables,
-                    ConfiguredInWireds = [],
-                },
+                message.ObjectIdForType,
                 ct
             )
             .ConfigureAwait(false);

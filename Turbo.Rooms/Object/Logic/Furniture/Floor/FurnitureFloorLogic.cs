@@ -1,8 +1,8 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Events.Avatar;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -57,10 +57,7 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
 
     /// <summary>The acting player's avatar, or null when they are not in the room.</summary>
     protected IRoomAvatar? GetAvatar(ActionContext ctx) =>
-        _roomGrain._state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
-        && _roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
-            ? avatar
-            : null;
+        _roomGrain.AvatarModule.TryGetPlayer(ctx.PlayerId, out var player) ? player : null;
 
     /// <summary>
     /// Whether the acting player's avatar stands on or next to this item. The client only offers
@@ -73,17 +70,7 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
         if (avatar is null)
             return false;
 
-        var item = _ctx.RoomObject;
-        var dx = Math.Max(
-            item.X - avatar.X,
-            Math.Max(0, avatar.X - (item.X + _ctx.Definition.Width - 1))
-        );
-        var dy = Math.Max(
-            item.Y - avatar.Y,
-            Math.Max(0, avatar.Y - (item.Y + _ctx.Definition.Length - 1))
-        );
-
-        return Math.Max(dx, dy) <= 1;
+        return FloorFootprint.Of(_ctx.RoomObject).IsOnOrNextTo(avatar.X, avatar.Y);
     }
 
     public virtual Task OnWalkOnAsync(IRoomAvatarContext ctx, CancellationToken ct) =>

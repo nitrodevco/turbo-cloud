@@ -1,3 +1,4 @@
+using System.Globalization;
 using Orleans;
 
 namespace Turbo.Primitives.Rooms.Object;
@@ -15,7 +16,11 @@ public readonly record struct Altitude
 
     public int ToInt() => (int)(Value * 100);
 
-    public override string ToString() => Value.ToString();
+    /// <summary>
+    /// Invariant, because an altitude that is turned into text is going to a client or a
+    /// database, and neither reads a decimal comma.
+    /// </summary>
+    public override string ToString() => Value.ToString(CultureInfo.InvariantCulture);
 
     public static implicit operator double(Altitude id) => id.Value;
 

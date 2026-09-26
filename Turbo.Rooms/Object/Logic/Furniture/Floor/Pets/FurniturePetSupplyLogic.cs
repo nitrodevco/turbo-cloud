@@ -28,9 +28,6 @@ public abstract class FurniturePetSupplyLogic(
 
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Nobody;
 
-    public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct) =>
-        Task.CompletedTask;
-
     public async Task OnPetReachedAsync(IRoomPet pet, CancellationToken ct)
     {
         if (!HasSuppliesLeft)

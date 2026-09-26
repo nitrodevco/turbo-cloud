@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Turbo.Primitives.Messages.Incoming.Inventory.Trading;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Packets;
@@ -10,12 +9,8 @@ internal class AddItemsToTradeMessageParser : IParser
 {
     public IMessageEvent Parse(IClientPacket packet)
     {
-        var count = packet.PopInt();
-        var builder = ImmutableArray.CreateBuilder<RoomObjectId>();
+        var itemIds = packet.PopList<RoomObjectId>(bytesPerItem: 4, p => p.PopInt());
 
-        for (var i = 0; i < count; i++)
-            builder.Add(packet.PopInt());
-
-        return new AddItemsToTradeMessage { ItemIds = builder.ToImmutable() };
+        return new AddItemsToTradeMessage { ItemIds = [.. itemIds] };
     }
 }

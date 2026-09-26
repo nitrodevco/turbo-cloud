@@ -39,7 +39,7 @@ public class EnvelopeFeatureProcessor<TEnvelope, TMeta, TContext>(
             var invoker = _invokerFactory.CreateHandlerInvoker(concrete, envType);
             var activator = ActivatorHelpers.BuildActivator(concrete);
 
-            batch.Add(_registry.RegisterHandler(envType, sp, activator, invoker));
+            batch.Add(_registry.RegisterHandler(envType, concrete, sp, activator, invoker));
         }
 
         foreach (
@@ -54,7 +54,7 @@ public class EnvelopeFeatureProcessor<TEnvelope, TMeta, TContext>(
             var order = concrete.GetCustomAttribute<OrderAttribute>()?.Value ?? 0;
             var activator = ActivatorHelpers.BuildActivator(concrete);
 
-            batch.Add(_registry.RegisterBehavior(envType, sp, activator, invoker, order));
+            batch.Add(_registry.RegisterBehavior(envType, concrete, sp, activator, invoker, order));
         }
 
         return Task.FromResult<IDisposable>(batch);

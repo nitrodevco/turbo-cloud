@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
-using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -57,10 +56,7 @@ public class WiredActionTeleportTo(
             var target = items[Random.Shared.Next(items.Count)];
             var tileIdx = map.ToIdx(target.X, target.Y);
 
-            if (player.IsFrozen && player.ThawsOnTeleport)
-                player.SetFrozen(false);
-
-            moved |= await ctx.ProcessUserMovementAsync(player, tileIdx, SlideAvatarMoveType.None);
+            moved |= await TeleportAvatarAsync(ctx, player, tileIdx);
         }
 
         return moved;

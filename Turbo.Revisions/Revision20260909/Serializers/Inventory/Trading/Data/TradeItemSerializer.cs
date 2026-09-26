@@ -1,6 +1,7 @@
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Packets;
+using Turbo.Revisions.Revision20260909.Serializers.Inventory.Furni.Data;
 using Turbo.Revisions.Revision20260909.Serializers.Room.Engine.Data;
 
 namespace Turbo.Revisions.Revision20260909.Serializers.Inventory.Trading.Data;
@@ -16,10 +17,9 @@ internal static class TradeItemSerializer
         var type = item.Definition.ProductType;
         var created = item.CreatedAtUtc;
 
+        FurnitureItemSerializer.WriteHead(packet, item);
+
         packet
-            .WriteInteger(item.ItemId)
-            .WriteString(type.ToLegacyString().ToUpperInvariant())
-            .WriteInteger(item.ItemId)
             .WriteInteger(item.SpriteId)
             .WriteInteger((int)item.Definition.FurniCategory)
             .WriteBoolean(item.Definition.CanGroup);

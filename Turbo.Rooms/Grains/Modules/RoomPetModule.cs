@@ -12,6 +12,7 @@ using Turbo.Primitives.Pets.Enums;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Rooms.Configuration;
 
@@ -30,8 +31,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
 
     private PetConfig Config => _roomGrain._petConfig;
 
-    public IEnumerable<IRoomPet> Pets =>
-        _roomGrain._state.AvatarsByObjectId.Values.OfType<IRoomPet>();
+    public IEnumerable<IRoomPet> Pets => _roomGrain.AvatarModule.Avatars.OfType<IRoomPet>();
 
     internal async Task EnsurePetsLoadedAsync(CancellationToken ct)
     {
@@ -69,7 +69,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
 
         if (
             !_roomGrain._state.AvatarsByPetId.TryGetValue(petId, out var objectId)
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+            || !_roomGrain.AvatarModule.TryGetAvatar(objectId, out var avatar)
             || avatar is not IRoomPet roomPet
         )
             return false;
@@ -105,6 +105,9 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
         if (!_roomGrain.AvatarModule.TryGetPlayer(ctx.PlayerId, out _))
             return false;
 
+        // Anyone may place a pet in a room that allows pets, and only the room owner in one that
+        // does not. Bots are the owner's alone (RoomBotModule.PlaceBotAsync); the two differ on
+        // purpose.
         var room = _roomGrain._state.RoomSnapshot;
 
         if (!room.AllowPets && !await _roomGrain.SecurityModule.GetIsRoomOwnerAsync(ctx))
@@ -121,64 +124,45 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
             return false;
         }
 
-        // The inventory's place button sends (0, 0) when no tile was chosen.
-        var chosen = x != 0 || y != 0;
+        var placed = await PlaceFromInventoryAsync(
+            ctx,
+            "pet",
+            petId,
+            x,
+            y,
+            () =>
+                _roomGrain
+                    ._grainFactory.GetInventoryGrain(ctx.PlayerId)
+                    .TryCheckOutPetAsync(petId, _roomGrain.RoomId, ct),
+            snapshot =>
+                _roomGrain
+                    ._grainFactory.GetInventoryGrain(ctx.PlayerId)
+                    .ReturnPetAsync(snapshot, ct),
+            (snapshot, tileIdx, z) =>
+            {
+                var (tileX, tileY) = _roomGrain.MapModule.GetTileXY(tileIdx);
+                var standing = snapshot with
+                {
+                    RoomId = _roomGrain.RoomId,
+                    X = tileX,
+                    Y = tileY,
+                    Z = z,
+                };
 
-        if (!TryFindFreeTile(x, y, out var tileIdx, chosen))
-        {
-            await SendPlacingErrorAsync(
-                ctx,
-                chosen ? PetPlacingErrorType.SelectedTileNotFree : PetPlacingErrorType.NoFreeTiles,
-                ct
-            );
+                return AttachPetAsync(standing, tileIdx, standing.Rotation, ct);
+            },
+            chosenTaken =>
+                SendPlacingErrorAsync(
+                    ctx,
+                    chosenTaken
+                        ? PetPlacingErrorType.SelectedTileNotFree
+                        : PetPlacingErrorType.NoFreeTiles,
+                    ct
+                )
+        );
 
+        if (!placed)
             return false;
-        }
-
-        var snapshot = await _roomGrain
-            ._grainFactory.GetInventoryGrain(ctx.PlayerId)
-            .TryCheckOutPetAsync(petId, _roomGrain.RoomId, ct);
-
-        if (snapshot is null)
-        {
-            _roomGrain._logger.LogWarning(
-                "Player {PlayerId} tried to place pet {PetId} they do not hold in room {RoomId}",
-                ctx.PlayerId,
-                petId,
-                _roomGrain.RoomId
-            );
-
-            return false;
-        }
-
-        // The tile may have been taken while the inventory was consulted.
-        if (!IsTileFreeForNpc(tileIdx) && !TryFindFreeTile(0, 0, out tileIdx))
-        {
-            await _roomGrain
-                ._grainFactory.GetInventoryGrain(ctx.PlayerId)
-                .ReturnPetAsync(snapshot, ct);
-            await SendPlacingErrorAsync(ctx, PetPlacingErrorType.NoFreeTiles, ct);
-
-            return false;
-        }
-
-        var (tileX, tileY) = _roomGrain.MapModule.GetTileXY(tileIdx);
-        var placed = snapshot with
-        {
-            RoomId = _roomGrain.RoomId,
-            X = tileX,
-            Y = tileY,
-            Z = _roomGrain._state.TileHeights[tileIdx],
-        };
-
-        if (!await AttachPetAsync(placed, tileIdx, placed.Rotation, ct))
-        {
-            await _roomGrain
-                ._grainFactory.GetInventoryGrain(ctx.PlayerId)
-                .ReturnPetAsync(snapshot, ct);
-
-            return false;
-        }
 
         if (TryGetPet(petId, out var pet))
             await PersistAsync(pet, ct);
@@ -213,12 +197,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
             if (!IsTileFreeForNpc(tileIdx))
                 return false;
 
-            _roomGrain.MapModule.RemoveAvatar(pet, false);
-
-            pet.SetPosition(x, y);
-
-            _roomGrain.MapModule.AddAvatar(pet, false);
-            _roomGrain.MapModule.UpdateHeightForAvatar(pet);
+            await _roomGrain.AvatarModule.RelocateAvatarAsync(pet, tileIdx, ct);
         }
 
         if (rotation != Rotation.None)
@@ -332,6 +311,87 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
                     pet.PetId,
                     ownerId,
                     _roomGrain.RoomId
+                );
+        }
+    }
+
+    /// <summary>
+    /// How a pet or a bot leaves its owner's inventory and stands in the room: pick a tile, take
+    /// the row out of the inventory, check the tile is still free (the inventory is another
+    /// grain, so the room may have changed meanwhile), stand it there, and hand the row back if
+    /// any of that fails. Both kinds place through here; what differs is passed in. Who may
+    /// place, and the room's cap, are each kind's own rule and checked before this.
+    /// </summary>
+    /// <param name="refuseTile">
+    /// Tells the player no tile was found: true when the tile they chose is taken, false when
+    /// the room has no free tile at all. A bot's error table has only the first, so a bot
+    /// answers both with it.
+    /// </param>
+    internal async Task<bool> PlaceFromInventoryAsync<TSnapshot>(
+        ActionContext ctx,
+        string kind,
+        int id,
+        int x,
+        int y,
+        Func<Task<TSnapshot?>> checkOut,
+        Func<TSnapshot, Task<bool>> giveBack,
+        Func<TSnapshot, int, Altitude, Task<bool>> attach,
+        Func<bool, Task> refuseTile
+    )
+        where TSnapshot : class
+    {
+        // The inventory's place button sends (0, 0) when no tile was chosen.
+        var chosen = x != 0 || y != 0;
+
+        if (!TryFindFreeTile(x, y, out var tileIdx, chosen))
+        {
+            await refuseTile(chosen);
+
+            return false;
+        }
+
+        var snapshot = await checkOut();
+
+        if (snapshot is null)
+        {
+            _roomGrain._logger.LogWarning(
+                "Player {PlayerId} tried to place {Kind} {Id} they do not hold in room {RoomId}",
+                ctx.PlayerId,
+                kind,
+                id,
+                _roomGrain.RoomId
+            );
+
+            return false;
+        }
+
+        // The tile may have been taken while the inventory was consulted.
+        if (!IsTileFreeForNpc(tileIdx) && !TryFindFreeTile(0, 0, out tileIdx))
+        {
+            await GiveBackAsync(snapshot);
+            await refuseTile(false);
+
+            return false;
+        }
+
+        if (!await attach(snapshot, tileIdx, _roomGrain.MapModule.GetTileHeight(tileIdx)))
+        {
+            await GiveBackAsync(snapshot);
+
+            return false;
+        }
+
+        return true;
+
+        async Task GiveBackAsync(TSnapshot taken)
+        {
+            if (!await giveBack(taken))
+                _roomGrain._logger.LogError(
+                    "{Kind} {Id} could not be placed in room {RoomId} nor returned to player {PlayerId}",
+                    kind,
+                    id,
+                    _roomGrain.RoomId,
+                    ctx.PlayerId
                 );
         }
     }

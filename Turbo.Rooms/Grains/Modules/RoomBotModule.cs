@@ -18,6 +18,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Texts;
 using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -35,8 +36,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
 
     private BotConfig Config => _roomGrain._botConfig;
 
-    public IEnumerable<IRoomBot> Bots =>
-        _roomGrain._state.AvatarsByObjectId.Values.OfType<IRoomBot>();
+    public IEnumerable<IRoomBot> Bots => _roomGrain.AvatarModule.Avatars.OfType<IRoomBot>();
 
     internal async Task EnsureBotsLoadedAsync(CancellationToken ct)
     {
@@ -74,7 +74,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
 
         if (
             !_roomGrain._state.AvatarsByBotId.TryGetValue(botId, out var objectId)
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+            || !_roomGrain.AvatarModule.TryGetAvatar(objectId, out var avatar)
             || avatar is not IRoomBot roomBot
         )
             return false;
@@ -108,6 +108,8 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
         if (!_roomGrain.AvatarModule.TryGetPlayer(ctx.PlayerId, out _))
             return false;
 
+        // Only the room owner places a bot, whatever the room's settings. Pets have a rule of
+        // their own (RoomPetModule.PlacePetAsync); the two differ on purpose.
         if (!await _roomGrain.SecurityModule.GetIsRoomOwnerAsync(ctx))
         {
             await SendErrorAsync(ctx, BotErrorType.ForbiddenInFlat, ct);
@@ -122,61 +124,39 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
             return false;
         }
 
-        var chosen = x != 0 || y != 0;
+        var placed = await _roomGrain.PetModule.PlaceFromInventoryAsync(
+            ctx,
+            "bot",
+            botId,
+            x,
+            y,
+            () =>
+                _roomGrain
+                    ._grainFactory.GetInventoryGrain(ctx.PlayerId)
+                    .TryCheckOutBotAsync(botId, _roomGrain.RoomId, ct),
+            snapshot =>
+                _roomGrain
+                    ._grainFactory.GetInventoryGrain(ctx.PlayerId)
+                    .ReturnBotAsync(snapshot, ct),
+            (snapshot, tileIdx, z) =>
+            {
+                var (tileX, tileY) = _roomGrain.MapModule.GetTileXY(tileIdx);
+                var standing = snapshot with
+                {
+                    RoomId = _roomGrain.RoomId,
+                    X = tileX,
+                    Y = tileY,
+                    Z = z,
+                };
 
-        if (!_roomGrain.PetModule.TryFindFreeTile(x, y, out var tileIdx, chosen))
-        {
-            await SendErrorAsync(ctx, BotErrorType.SelectedTileNotFree, ct);
+                return AttachBotAsync(standing, tileIdx, standing.Rotation, ct);
+            },
+            // The bot error table has one tile error, so "no free tile at all" says it too.
+            _ => SendErrorAsync(ctx, BotErrorType.SelectedTileNotFree, ct)
+        );
 
+        if (!placed)
             return false;
-        }
-
-        var snapshot = await _roomGrain
-            ._grainFactory.GetInventoryGrain(ctx.PlayerId)
-            .TryCheckOutBotAsync(botId, _roomGrain.RoomId, ct);
-
-        if (snapshot is null)
-        {
-            _roomGrain._logger.LogWarning(
-                "Player {PlayerId} tried to place bot {BotId} they do not hold in room {RoomId}",
-                ctx.PlayerId,
-                botId,
-                _roomGrain.RoomId
-            );
-
-            return false;
-        }
-
-        if (
-            !_roomGrain.PetModule.IsTileFreeForNpc(tileIdx)
-            && !_roomGrain.PetModule.TryFindFreeTile(0, 0, out tileIdx)
-        )
-        {
-            await _roomGrain
-                ._grainFactory.GetInventoryGrain(ctx.PlayerId)
-                .ReturnBotAsync(snapshot, ct);
-            await SendErrorAsync(ctx, BotErrorType.SelectedTileNotFree, ct);
-
-            return false;
-        }
-
-        var (tileX, tileY) = _roomGrain.MapModule.GetTileXY(tileIdx);
-        var placed = snapshot with
-        {
-            RoomId = _roomGrain.RoomId,
-            X = tileX,
-            Y = tileY,
-            Z = _roomGrain._state.TileHeights[tileIdx],
-        };
-
-        if (!await AttachBotAsync(placed, tileIdx, placed.Rotation, ct))
-        {
-            await _roomGrain
-                ._grainFactory.GetInventoryGrain(ctx.PlayerId)
-                .ReturnBotAsync(snapshot, ct);
-
-            return false;
-        }
 
         if (TryGetBot(botId, out var bot))
             await PersistAsync(bot, ct);
@@ -207,7 +187,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
     )
     {
         if (
-            !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+            !_roomGrain.AvatarModule.TryGetAvatar(objectId, out var avatar)
             || avatar is not IRoomBot bot
         )
             return false;
@@ -222,14 +202,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
             if (!_roomGrain.PetModule.IsTileFreeForNpc(tileIdx))
                 return false;
 
-            await _roomGrain.AvatarModule.StopWalkingAsync(bot, ct);
-
-            _roomGrain.MapModule.RemoveAvatar(bot, false);
-
-            bot.SetPosition(x, y);
-
-            _roomGrain.MapModule.AddAvatar(bot, false);
-            _roomGrain.MapModule.UpdateHeightForAvatar(bot);
+            await _roomGrain.AvatarModule.RelocateAvatarAsync(bot, tileIdx, ct);
         }
 
         if (rotation != Rotation.None)
@@ -396,8 +369,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
             return false;
         }
 
-        if (text.Length > Config.ChatTextMaxLength)
-            text = text[..Config.ChatTextMaxLength];
+        text = ClientText.Truncate(text, Config.ChatTextMaxLength);
 
         var lines = BotChatLines.Split(text);
 

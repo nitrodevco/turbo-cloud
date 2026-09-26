@@ -31,22 +31,13 @@ public class KickMemberMessageHandler(IGrainFactory grainFactory)
             .KickAsync(ctx.PlayerId, message.PlayerId, message.Block, ct)
             .ConfigureAwait(false);
 
-        if (result.Failure is { } reason)
-        {
-            await ctx.SendComposerAsync(
-                    new GuildMemberMgmtFailedMessageComposer
-                    {
-                        GuildId = message.GuildId,
-                        Reason = reason,
-                    },
-                    ct
-                )
-                .ConfigureAwait(false);
-
+        if (
+            !await ctx.SendGuildMemberMgmtFailureAsync(message.GuildId, result, ct)
+                .ConfigureAwait(false)
+        )
             return;
-        }
 
-        if (result.Succeeded && message.PlayerId == ctx.PlayerId)
+        if (message.PlayerId == ctx.PlayerId)
         {
             // They left: their own details window still shows a leave button until it refreshes.
             await ctx.SendComposerAsync(

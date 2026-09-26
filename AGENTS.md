@@ -337,8 +337,10 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
 - A client action with its own packet (dice, dimmer preset, mannequin outfit, love-lock answer)
   is a `FurnitureInteraction` record under `Turbo.Primitives/Furniture/Interactions/` carrying
   that packet's payload, routed through the single `IRoomGrain.InteractWithItemAsync`; the logic
-  pattern-matches it in `OnInteractAsync` and checks its own permissions with `HasRightsAsync` /
-  `IsOwnerAsync`, refusing through `Reject(...)` so the refusal is logged with ids. A plain
+  pattern-matches it in `OnInteractAsync` and checks its own permissions with `HasRightsAsync`,
+  `IsItemOwner` (the item's owner only — for turning an item into value: exchange, present, pet
+  package, seed) or `IsItemOrRoomOwnerAsync` (for changing how it stands: mannequin, trophy),
+  refusing through `Reject(...)` so the refusal is logged with ids. A plain
   double-click stays on `OnUseAsync`. Do not add a grain method per furniture type.
 - Replies that go to one player (a preset list, an unwrapped gift) are sent by the logic via
   `SendComposerToPlayerAsync` (the grain factory extension); room-wide changes go through
@@ -417,10 +419,23 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   outlives the room must let go when one leaves: the wired system drops the stored variable
   values of a temporary furni on detach (`ForgetStoredValuesOfTemporaryFurni`), or the next
   furni to get that id would inherit them.
-- A new item has no logic until it is attached. Code that runs before that reads the
-  definition instead (`tItem.Logic?.CanWalk() ?? tItem.Definition.CanWalk`); placement
-  validation dereferenced the logic and would have thrown for any item placed on an occupied
-  tile.
+- A new item has no logic until it is attached, and a check that type-tests `Logic` before
+  then silently answers "not mine": the wired and variable-fx placement caps tested it and so
+  refused nothing for as long as they existed. Placement calls `RoomObjectModule.EnsureLogic`
+  before asking the limits; anything that runs earlier still falls back to the definition
+  (`tItem.Logic?.CanWalk() ?? tItem.Definition.CanWalk`).
+- **Placement is checked in the entry point, never at its callers.**
+  `RoomFurniModule.PlaceFloorItemAsync` / `PlaceWallItemAsync` own the spot (`CanPlaceFloorItem`,
+  one occupancy rule for new and moved items) and the limits. The limits used to be asked by two
+  of four placement paths, so a Builders Club wired box skipped the cap.
+- **A bounds question returns false; it does not throw.** `RoomMapModule.GetTileIdForSize` /
+  `TryGetTileIds` answer by coordinate. It used to throw while its callers checked for `false`,
+  and the wired movers guarded it three ways (a pre-check, a `try`, nothing).
+- **"None" and a real id never share a value.** A tile with no top item said `-1`, and temporary
+  furni ids count down from `-1`, so every empty tile named the first temporary furni. Use
+  `RoomMapModule.NO_ITEM` (0) or a nullable.
+- **Footprint maths is `FloorFootprint`** (`Turbo.Primitives/Rooms`): rotation swap, tiles,
+  distance, adjacency. Two copies of the adjacency test forgot the east/west swap.
 
 ### Inventory sections
 - Furniture, pets and bots are three modules of `InventoryGrain` with one shape
@@ -428,6 +443,14 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   `GetAsync` / `GetAllAsync` read it, and every change writes the row before the list and then
   tells the presence. The grain partials only forward; put behaviour in the module. A section
   lists only what is in no room.
+- **Pets and bots are one flow.** `InventoryUnitModule<TEntity, TSnapshot>` loads, hands over to
+  a room, takes back, creates (under the owned cap) and deletes both; `InventoryPetModule` and
+  `InventoryBotModule` say only what differs — the table, the snapshot, the cap, the columns a
+  unit brings back from a room, the presence calls, and their catalog product. The entities
+  share `IInventoryUnitEntity`, the snapshots `IInventoryUnitSnapshot`, the live state
+  `InventoryUnitSection<T>`. The two modules were two hundred lines copied; a third kind of
+  room-placed unit is a subclass, not a copy. (EF translates the interface-typed `Where`,
+  `ExecuteUpdate` and `ExecuteDelete` in the base to plain column SQL; checked against MySQL.)
 - Inventory items are built by `IInventoryFurnitureLoader` and nowhere else, so loaded, granted,
   picked-up and traded items read their extra data and stuff data the same way.
 - Tell the presence once per change, not once per item: `OnFurnitureAddedAsync` and
@@ -684,8 +707,10 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   as a collision is this server's reading, recorded on the type. A flight outlives its landing
   so a stack can read how the shot went, and is dropped when the furni leaves the room.
 
-- Variable boxes key user values by player id; the wired menu addresses users by room index and
-  `RoomWiredSystem.ResolveTargetId` maps between the two. Derived variables (level-up, time
+- User variables are keyed by the avatar's room index, like everything else wired says about an
+  avatar. Every walk over "who holds a variable" goes through
+  `RoomWiredSystem.GetLiveTargetIds(targetType)`: the "users with variable" selector yielded
+  player ids from its own enumeration and so found nobody. Derived variables (level-up, time
   utility) implement `IWiredSubVariableProvider` on the variable box tile and are rebuilt with
   the variable boxes. Value timestamps live in `KeyValueStore.Timestamps`
   (`Turbo.Rooms/Wired/Storage/`).
@@ -921,7 +946,10 @@ out of pulling it apart; they hold for any system that grows the same way.
   tells the furni left and the furni landed on, moves the avatar on the map and fixes its
   height. Wired teleports and carried avatars use it; the walked step in `RoomAvatarTickSystem`
   shares its `NotifyWalkOffAsync` / `NotifyWalkOnAsync`. Whether the avatar may stand there, and
-  how the room is told (wired batches a `WiredMovements` packet), stay with the caller.
+  how the room is told (wired batches a `WiredMovements` packet), stay with the caller. A
+  `RemoveAvatar` / `SetPosition` / `AddAvatar` sequence anywhere else is drift: six copies (bot
+  and pet moves, bot teleport, mount, dismount, ride sync) skipped the furni notifications and
+  the invoke. The ridden pet passes `notifyFurni: false` so one step does not trigger twice.
 - **Which tile is "toward" or "away from" something is the map's** (`RoomMapModule.GetStepsToward`
   / `GetStepsAwayFrom`, straight steps, longer axis first). The chase and flee boxes used to do
   it with index arithmetic of their own, each differently. A box decides what the furni wants;
@@ -949,17 +977,74 @@ out of pulling it apart; they hold for any system that grows the same way.
   it is the one eviction call that is safe from inside the room grain; `RoomService` uses the same
   call for kicks, bans and room deletion. Code that runs in the room tick (a wired kick) does not
   await it: it goes out with `LogAndForget`, because the presence may itself be waiting on the room.
-- The inventory grain awaits the presence grain whenever a section changes, so the presence must
-  never await the inventory. The badge calls on the presence only send what they are given, and
-  the handler fetches the list first (`GetBadgesMessageHandler`). The older
-  `Open{Furniture,Pet,Bot}InventoryAsync` calls do ask the inventory from inside the presence;
-  they predate this rule and can deadlock against a concurrent add. Do not copy them, and move
-  them to the handler-fetches shape when they are next touched.
+- **The presence grain is the hub, so its methods come in two kinds** (the rule is written on
+  `IPlayerPresenceGrain` too). Nearly every grain awaits the presence, and the presence awaits
+  the room, the player, the messenger and the inventory — so it closes a cycle with almost
+  anything. A deadlock sweep found cycles through it with the room, the player grain, the
+  messenger, the inventory, the group grain, Builders Club and the wallet, all live.
+  - **Tells** — sends, `On*` notifications, reads of a field (`GetActiveRoomAsync`),
+    `SetPendingRoomEntryAsync`. `[AlwaysInterleave]` on the interface, and they **never await a
+    grain**: anything they pass on to a room or the messenger goes out with `LogAndForget`
+    (`OnPlayerUpdatedAsync` used to await the room, which made player → presence → room → player
+    a three-grain cycle through respect and mannequins). Any grain may await a tell, even while
+    the presence is waiting on that grain.
+  - **Flows** — entering and leaving a room, opening an inventory, the session lifecycle. Not
+    interleaved; they await other grains; only handlers and the presence's own session drive
+    them. No grain awaits a flow.
+  - A new presence method another grain will await is a tell. If it needs to ask something, it is
+    a flow, and the grain that wanted it tells instead.
+  - Interleaving is safe for a tell because it does its work in synchronous stretches: it
+    enqueues a composer or sets a field between awaits, it never holds an invariant across one.
+    A method that checks, awaits, then acts on what it checked is not a tell, whatever it is
+    called.
+- **Two grains of the same type talk to each other more than any other pair.** Two friends both
+  message, both log in, both accept, both remove — and every one of those was an awaited call
+  from one messenger to the other, so two people doing the same thing at the same moment
+  deadlocked both. A call between two instances of one grain type is an interleaved,
+  memory-only tell (`OnFriendAdded`, `ReceiveMessage`, `CanBeAddedBy`); the side that starts a
+  change does the database work for both, in one save.
+- **A grain never calls itself through a reference.** `GetPlayerMessengerGrain(self).X` inside
+  the messenger waits for a turn that can only start once the current one ends. It happened on a
+  friend request to your own name. Any operation that takes another player's id needs a
+  `target == self` guard when the target's grain is the same type as the caller's.
 - The same one-way rule holds for every helper grain of a room: `RoomTradeGrain` awaits the room,
   so the room only ever tells it things with `LogAndForget`. Before adding an awaited call from
   grain A to grain B, check that nothing B awaits leads back to A.
 - Never mark a grain `[Reentrant]` to make such a chain compile. It moves the bug from a deadlock to
   interleaved state.
+- **Auditing this is mechanical; do it rather than reason about it.** Every awaited grain-to-grain
+  call can be listed from the source: find the `Get*Grain(...)` accessors (and
+  `SendComposerToPlayer(s)Async`, which reaches the presence grain), work out which grain the file
+  belongs to — a module or a `.Partial.cs` belongs to its grain — and record whether the
+  statement is `await`ed or goes out with `LogAndForget`. Pairs with an awaited edge in **both**
+  directions are the candidates. A sweep of the tree found three; two are now one-way.
+- **The audit is at pair granularity; safety is per method.** A reported pair is not automatically
+  a bug: what matters is whether the specific method A awaits can lead back to A. Read both
+  methods before acting. What *is* automatic is the reverse — a pair with no awaited edge in one
+  direction cannot deadlock however either side changes later, which is why turning an awaited
+  notification into a `LogAndForget` is usually the cheapest permanent fix.
+- **Known mutual-await pairs, and what keeps them safe:**
+  - `PlayerPresenceGrain` ↔ `RoomGrain`, `PlayerGrain`, the messenger, the inventory, the group
+    grain, the wallet — every one of them awaits the presence only through a tell, which is
+    interleaved and awaits nothing. That is structural now, not discipline per method; it stays
+    true as long as the tell/flow split above holds.
+  - Messenger ↔ messenger — interleaved tells only (see above).
+  - "Safe because the other side only sends composers" was the justification for Room ↔ Presence
+    for a long time, and it was not true: the presence was not free to *receive* the send while
+    it was itself waiting on the room. What makes an edge safe is that the callee can run the
+    call *now*, which is what `[AlwaysInterleave]` says.
+- **Moving the call to the caller is the wrong half of the fix.** The one-way rule says who may
+  *await* whom. It does not say the owner of the state gives up publishing what changed. A group
+  grain that must not await a room still tells the room, with `LogAndForget` — the group system
+  spent a while with five handlers each remembering to refresh a room after calling the grain,
+  which is the same bug as building a composer in a handler. Put the push in the grain that
+  changed, fire-and-forget, and say in a comment that it is not awaited and why.
+- **Publish from the narrowest place every path already goes through.** Eight roster operations
+  (join, approve, approve-all, promote, demote, kick, leave, block) all end in
+  `AddOrUpdateMemberAsync` or `RemoveMemberAsync`, so the member's own grain and their rights in
+  the homeroom are refreshed there — two call sites, not eight. Four group edits all end in
+  `PublishChangedAsync`. Before adding a notification, find the funnel; if there is not one, that
+  is usually the thing to fix first.
 
 ## Profile and grain flow constraints
 - Keep packet handlers orchestration-only:
@@ -987,10 +1072,52 @@ out of pulling it apart; they hold for any system that grows the same way.
     `SendToPlayerAsync` helper; five of those existed before they were folded into the
     extension. The list overload (`presence.SendComposerAsync(composers, ct)`) stays a direct
     presence call, because it is a batch for one player.
-  - **Everyone in a room**: `RoomGrain.SendComposerToRoomAsync` (the room stream).
+  - **Everyone in a room**: `RoomGrain.SendComposerToRoomAsync` (the room stream), or
+    `RoomGrain.SendComposerToRoomAndForget` from room code that must not wait on it (the tick, a
+    broadcast made once the answer is known). The second is the first with `LogAndForget`, not
+    another route; fifteen call sites were spelling the log line out. A "local send helper" is
+    one that wraps a *player* send or reaches the presence directly — those stay forbidden.
 - Do not send directly to raw sockets/session transports from packet handlers.
 - Active-room membership/discovery belongs to `RoomDirectoryGrain`; do not bypass it with ad-hoc room tracking.
 - Grain lifetime remains Orleans-managed by default; use `[KeepAlive]` only for explicitly justified directory/manager grains.
+
+## Packet handler extensions
+When two or more handlers do the same thing around their grain call — the same grain call, the
+same mapping from a snapshot to a composer, the same failure-to-composer mapping — that
+behaviour goes in one extension class, not in each handler.
+- **Shape:** `internal static class <Thing>Extensions` in the folder of the handlers that use it,
+  in that folder's namespace. Methods extend `MessageContext` (`ctx.Send…Async`,
+  `ctx.…Async`) and take the `IGrainFactory` or service they need as an argument. A class does
+  not hold injected state.
+- **Naming:** `Send<Thing>Async` fetches or receives a result and sends the composer to the
+  sender. `Send<Thing>FailureAsync(result)` sends only the refusal and returns
+  `Task<bool>`, which is whether the operation went through. A caller with more to do stops on
+  `false`.
+- **Guards:** if every caller would write the same guard (`PlayerId`, `RoomId`, object id), it
+  goes inside the extension. The handler keeps only checks on its own payload.
+- **Existing ones. Reuse them before writing a new one:**
+
+  | Extension | Used for |
+  |---|---|
+  | `Catalog/CatalogPurchaseExtensions` | `PurchaseOfferAsync`, `SendPurchaseFailureAsync`, `SendBalanceFailureAsync`, `SendPurchaseErrorAsync`. Every catalog refusal goes through these, including LTD raffle errors. |
+  | `Navigator/LegacyRoomSearchExtensions` | `SendLegacySearchResultAsync` |
+  | `Room/RoomItemInteractionExtensions` | `InteractWithRoomItemAsync`, for any packet that is "do `FurnitureInteraction` X to this item" |
+  | `RoomSettings/RoomSettingsSaveExtensions` | `ResolvePlayerFlatCategory` and `SendRoomSettingsSaveFailureAsync` |
+  | `RoomSettings/RoomFilterExtensions` | `SendRoomFilterAsync`, which sends the room's whole word filter |
+  | `Inventory/Badges/BadgeRequestExtensions` | `SendBadgeRequestFulfilledAsync` |
+  | `Users/ExtendedProfileExtensions` | `SendExtendedProfileAsync` |
+  | `Users/GuildMemberMgmtResultExtensions` | `SendGuildMemberMgmtFailureAsync` |
+  | `Userdefinedroomevents/Wiredmenu/WiredVariableHoldersExtensions` | `SendWiredVariableHoldersAsync`, which lists who holds a wired variable |
+  | `Userdefinedroomevents/Wiredmenu/WiredVariablesForObjectExtensions` | `SendWiredVariablesForObjectAsync`, which lists the variables one target holds |
+
+- **Where it does not go:**
+  - A one-line grain call that encodes a rule belongs in `GrainFactoryExtensions` in
+    `Turbo.Primitives`, for example `SendComposerToPlayerAsync` and `HasActiveClubAsync`.
+  - A parser or other pure helper belongs beside its type, for example `WallPosition.TryParse`.
+  - Do not extract a single `ctx.SendComposerAsync(new X { … })`. The extension has to own a
+    decision or a mapping.
+- An extension is not a place for side effects on other grains. The rule that a handler does
+  guard, call, report still applies. See the reentrancy notes below.
 
 ## Packet addition checklist (revision work)
 When adding packet mappings in `Turbo.Revisions/Revision20260909`:
@@ -1092,9 +1219,17 @@ finishing a change, check it against this list; each line is a mistake that was 
   its two registered subclasses are three files.
 - **No silent catch, no blocking wait, no discarded task.** All three hide failures that only
   show up under load.
-  - A packet handler does not wrap its body in `try { } catch (Exception) { }`: `PackageHandler`
-    already logs every handler failure with the packet header and session. A handler catches only
-    a typed exception it turns into a reply (`CatalogPurchaseException` → `NotEnoughBalance`).
+  - A packet handler does not wrap its body in `try { } catch (Exception) { }`: `EnvelopeHost`
+    logs every packet- and event-handler failure with the handler and envelope type, and
+    `PackageHandler` logs parse and context failures. A handler catches only a typed exception it
+    turns into a reply (`CatalogPurchaseException` → `NotEnoughBalance`). This bullet used to
+    credit `PackageHandler` alone, which never saw a handler exception: the pipeline's error
+    callbacks were `(ex, env) => { }` in both registries, so every handler failure in the server
+    vanished.
+  - An error callback or hook defaults to logging, never to an empty lambda, and a component that
+    catches on behalf of others takes an `ILogger`.
+  - Never `throw` inside a `try` whose `catch` is broad. The plugin loader's "more than one plugin
+    entry type" check sat inside a bare `catch` and could never fire.
   - `_ = SomethingAsync(...)` is `.Ignore()` by another name. Await the task, return it, or end it
     with `.LogAndForget(logger, "what it was doing")`. Handlers await their sends. Room code that
     must not hold up the tick (broadcasts, event publishes, wired box flashes) uses `LogAndForget`.
@@ -1266,6 +1401,249 @@ finishing a change, check it against this list; each line is a mistake that was 
   already did; the two extended-profile handlers were still writing out a field, a constructor
   and an assignment. (Grains are the opposite and say so above: a grain takes a classic
   constructor, because it has a body to run.)
+
+- **A grain pair with a call in both directions deadlocks; decide the direction and write it
+  down.** Orleans grains are not reentrant, so if A is inside a call to B while B calls A, both
+  wait for ever. The group system has three such pairs and every one of them was written the
+  wrong way round first:
+  - the room grain asks the **group** grain for a member's rank on every controller-level check,
+    so the group grain may never call a room grain;
+  - the group grain asks the **player's** guild grain for their membership count before a join,
+    so that grain may never call a group grain;
+  - the player's guild grain tells the **room** its owner's badge changed, so the room may not
+    read that badge back out of the player's grain — it arrives as arguments.
+
+  Where a push is genuinely needed in the barred direction it goes **in the handler**, after the
+  grain call has returned: `GuildFurniRefreshExtensions`, `GuildRoomRefreshExtensions` and the
+  settings push in `UpdateGuildSettingsMessageHandler` all exist for that reason and say so. The
+  one exception in the tree is `GuildGrain.DeactivateAsync` calling `RoomGrain.OnGuildDeletedAsync`,
+  and it is safe only because the group is already gone from the directory by then, so the room
+  resolves no group and cannot ask the group grain anything. That ordering is load-bearing, not
+  incidental.
+
+  Before adding a call between two grains, ask what the callee already calls. If the answer is
+  "me", the call belongs in a handler or a service.
+- **A cache that answers "no" must be invalidated when the answer becomes "yes".** `RoomGrain`
+  holds whether it is a group's homeroom, and a room that is nobody's homeroom caches that so it
+  does not re-ask on every rights check. Creating a group whose homeroom was already loaded —
+  the usual case, since the wizard is opened from inside it — left the room certain it was an
+  ordinary room, so the owner had none of the rights their own new group had just given them.
+  A negative answer needs the same invalidation path as a positive one.
+- **A change to who may do something has to reach whoever is standing in the room.** Joining,
+  leaving, being approved, promoted or demoted changes a player's rights in the group's
+  homeroom. Nothing re-derives that on its own: the handler calls
+  `RefreshGuildRoomMemberAsync`, which refreshes that one player if they are in the room.
+  Without it a player keeps whatever they walked in with until they leave and come back.
+- **A fixed-width wire format needs a guard where the value enters, not a comment.**
+  `GuildBadgeCodes` writes a badge as six-character tokens: prefix, two digits of part, two of
+  colour, one of position. `BASE_KEY_MAX`, `SYMBOL_KEY_MAX` and `COLOR_KEY_MAX` described that
+  and were enforced nowhere, so a hotel that seeded a part id past 99 (or a symbol past 199)
+  would have produced codes that read back as a different badge entirely. The limits are now
+  checked in `GuildBadgeParts.Sanitize`, where parts arrive. Constants that state a limit but
+  guard nothing are the same dead weight as an unused config key.
+- **`dotnet format ... --diagnostics IDE0005` reports nothing; unused usings need a real build.**
+  IDE0005 does not fire without a documentation file, and the repository sets no severity for
+  it, so neither gate sees an unused using. To sweep for them without touching `.editorconfig`:
+  write a `.globalconfig` (`is_global = true`, `dotnet_diagnostic.IDE0005.severity = warning`)
+  and a targets file adding it as an `EditorConfigFiles` item, then build `Turbo.Main` with
+  `-p:CustomAfterMicrosoftCommonTargets=<targets> -p:EnforceCodeStyleInBuild=true
+  -p:GenerateDocumentationFile=true --no-incremental` and grep for IDE0005. (Adding it as a
+  `GlobalAnalyzerConfigFiles` item through `CustomBefore…` is not picked up.) Verify the sweep works by adding a deliberately unused `using` first — a
+  silent run means the detector is off, not that the tree is clean. Text heuristics do not
+  substitute: they misfire on attributes, enum types and extension methods.
+- **Dead state is a lie about what the grain knows.** `GuildLiveState.IsLoaded` and its twin on
+  the player's grain were set on every load and read nowhere, which reads as though something
+  distinguishes "not loaded yet" from "no such group" when nothing does. Either read the flag or
+  delete it.
+- **An entity-to-snapshot extension that nothing calls is worse than none.** `GuildEntityExtensions`
+  grew a `ToSnapshot` for `GuildMemberEntity` while both real call sites built the snapshot from
+  a column-trimmed query projection, which this file sanctions. The extension was dead and would
+  have been adopted by the next person as the "right" way, quietly adding a second mapping. If
+  the projection is correct, delete the extension.
+
+- **Lazy resolution and a snapshot handed out by reference do not mix.** `RoomGrain` resolved
+  which group owns it on first ask and stamped the answer onto `_state.RoomSnapshot`. But
+  `GetSnapshotAsync` returns that snapshot directly and awaits nothing, so whoever asked for the
+  room's listing first got one with no group on it — the room had never been given a reason to
+  look. Anything a snapshot carries that is not on the row it was built from has to be resolved
+  **while the room loads**, not when something first happens to ask.
+- **Clearing a cached lookup means clearing everywhere it was copied to.** The same resolution is
+  held twice: on a field, and stamped onto the room snapshot. Invalidating only the field left a
+  failed re-read advertising a group the room could no longer confirm — no rights, but still the
+  badge. If a value is cached in two places, the invalidation path has to name both.
+- **Two `SaveChangesAsync` calls are two chances to half-finish.** Creating a group wrote the
+  group, saved, then wrote its owner's membership and saved again. A failure between the two
+  left a group nobody was in, whose owner then stood in their own homeroom with no rank and so
+  no rights. Add both and save once: EF orders a principal and its dependent itself and fills
+  the foreign key, as long as the dependent points at the **entity** rather than at its id. The
+  same rule this file already states for delete-plus-insert applies to insert-plus-insert.
+- **Money moves before the thing it buys exists; say what happens when the thing fails.**
+  Creating a group charged the buyer and then wrote the rows, with nothing around the write. A
+  database error took the credits and gave nothing back, and the player has no way to see it
+  happened. Where a debit cannot share a transaction with what it pays for — it never can, the
+  wallet is another grain — the write goes in a `try` and the failure path refunds. A refund that
+  itself fails is logged and swallowed: there is no third place to put the money, and throwing
+  would lose the original error.
+
+- **Every field of a cached copy needs an invalidation path, not just the one you were thinking
+  about.** A room holds its group's summary — id, **name**, **badge**, colours, type — and draws
+  its navigator listing from it. Changing the group's settings refreshed it; renaming the group
+  and redrawing its badge did not, because those two had been written while thinking about the
+  furni they repaint, and the furni reads the directory rather than this copy. A rename left the
+  room advertising the old name indefinitely. When a cache holds a record rather than a single
+  value, enumerate what the record contains and check every writer of each field, not the field
+  that prompted the change.
+- **The unused-using sweep, and why it has to be a sweep.** Nothing in either gate sees an unused
+  `using`: IDE0005 needs a documentation file and the repository sets no severity for it, so
+  `csharpier`, `dotnet format` and the build are all silent. The recipe is above; run it over the
+  whole tree rather than the files you touched, because removing one `using` can make another
+  unnecessary — a full pass took four rounds to reach zero (107, then 7, then 2, then none).
+  Re-run `csharpier format` between rounds and confirm the diff contains nothing but `using`
+  lines before trusting it.
+
+- **A handler that does anything after the grain call is a design smell.** A packet handler
+  guards its inputs, calls one grain method, and turns the answer into a packet. If it is also
+  refreshing a room, repainting furni or invalidating a cache, that work belongs to whatever owns
+  the state — see the reentrancy section for how to push it without deadlocking. Nine guild
+  handlers had grown a refresh block each; all nine are now guard, call, report.
+- **Identical failure reporting in N handlers becomes wrong in one of them.** Seven roster
+  handlers each spelled out which composer carries which kind of refusal, and three had grown a
+  branch for a failure their own operation cannot produce. One extension
+  (`GuildMemberMgmtResultExtensions`) now owns that mapping and returns whether the operation
+  went through, so the one caller with more to do can stop. Repeated packet-shaping across
+  handlers of the same family is worth an extension in the same folder, the way
+  `ExtendedProfileExtensions` and `LegacyRoomSearchExtensions` already are. See **Packet handler
+  extensions** for the shape.
+- **The copy nobody updated is the one that is wrong.** A sweep for duplicated handler logic
+  found drift in almost every family that had more than one copy:
+  - The room-ad purchase had its own catalog error mapping. It sent `RequiresHabboClub` as the
+    raw code 101, so the client showed "unknown" where it should have said club required.
+  - The LTD raffle sent "not enough credits" on the refusal packet. That packet words only code 1.
+  - `MoveWallItem` parsed wall positions by hand. It did not use `WallPosition.TryParse`, so
+    short input threw and `z` was parsed with the server's locale.
+  - `RequestABadge` left the client with no answer for an unknown request code. Its sibling
+    answered "not fulfilled".
+
+  Each family now goes through one extension or parser. Before writing a handler, look for a
+  sibling that already does the same thing and call what it calls.
+- **A bidirectional await can be introduced by an innocent-looking read.** `RoomAvatarModule`
+  awaits the player's guild grain when somebody walks in, to learn the badge they wear. That made
+  the favourite-group setter — which awaited the room, to tell it the badge changed — a deadlock
+  waiting for the two to happen together. Nothing about either call site looked wrong on its own.
+  When adding a read from grain A to grain B, grep what B already calls on A before deciding the
+  direction is free.
+
+- **A predicate over an enum belongs beside the enum, not at each call site.** "Is this player in
+  the group" was written nine times in four spellings: `rank is (Owner or Admin or Member)`,
+  `CountOfRanks(Owner, Admin, Member)`, an `[Owner, Admin, Member]` array for a query, and —
+  twice — the *inverse*, `Rank != Requested && Rank != Blocked`. All nine read correctly, and the
+  two written by exclusion would have disagreed with the rest the moment a rank was added,
+  silently counting it as a membership. `GuildMemberRanks.IsMember` / `CanManage` are now the only
+  definitions, with `MemberRanks()` / `ManagingRanks()` returning fresh arrays for queries (a
+  plain array is what EF turns into an `IN`, and a fresh one cannot be edited by a caller).
+  When the same question about an enum is asked in more than one file, give it a name next to
+  the enum — and prefer stating it by inclusion, so a new member defaults to "no".
+- **A helper duplicated across modules belongs in `Turbo.Primitives`.** Clamping client text to a
+  stored length existed four times: the navigator, room settings and both guild grains. The two
+  guild copies had left the `Trim()` out, so a group could be named with leading spaces where a
+  room could not — the drift was already there, in behaviour, not just in line count. It is now
+  `Turbo.Primitives.Texts.ClientText.Truncate`. Before writing a small string, id or number
+  helper, grep for the body, not the name: these four were spelled `Truncate`, `Truncate` and
+  `Clamp` twice.
+- **A mapping that takes resolved values invites the resolution to be repeated.**
+  `ToSummarySnapshot(entity, hasForum, primaryColor, secondaryColor)` made each of its three
+  callers write out the same two palette lookups. Taking the palette itself
+  (`ToSummarySnapshot(entity, palette, hasForum)`) keeps the mapping a pure function — a snapshot
+  is data, not a provider, so the rule above still holds — and leaves one copy of the lookup.
+  Pass the **source** a mapping needs, not the answers, unless the caller genuinely knows
+  something the mapping cannot.
+
+- **"Which subscription counts as club" is one decision, so it has one call.** Two grains each
+  wrote `GetPlayerSubscriptionGrain(x).HasActiveAsync(SubscriptionType.HabboClub, ct)`, with
+  different signatures for the same question — one taking a player id, one using its own. It is
+  now `IGrainFactory.HasActiveClubAsync(playerId, ct)`, beside `SendComposerToPlayerAsync` in
+  `GrainFactoryExtensions`, which is where a one-line grain call that encodes a rule belongs.
+- **An awaited call that is safe "because of the order things happen in" is worth not awaiting.**
+  `GuildGrain.DeactivateAsync` awaited the room to hand back the homeroom's furni, and it was
+  genuinely safe: the group is out of the directory by then, so the room resolves no group and
+  cannot ask the group grain anything. But that safety is a property of the room's furni-removal
+  path, which is somebody else's to change. It is `LogAndForget` now, and the pair cannot deadlock
+  whatever either side does later. Prefer removing the edge to documenting why the edge is fine.
+
+- **An offer's price is read in one place.** `CatalogOfferSnapshot.ToDebitRequests(quantity)` is
+  what buying it takes out of a wallet. The LTD raffle had its own copy that left out silver, so
+  a silver-priced LTD was handed out for free. Do not build `WalletDebitRequest`s from an offer
+  by hand; `CurrencyKind.Credits` / `Silver` / `ActivityPoints(type)` name the kinds.
+- **Who may buy an offer is checked on every path that sells it.** `CatalogOfferSnapshot.
+  RequiresClub` (club level above none; this client collapses the tiers, so any active
+  membership meets it) is checked by the shop purchase, the room ad and the LTD entry. The level
+  was sent to the client and checked nowhere, so a club-only offer could be bought by anyone who
+  sent the packet.
+- **Every "charge, then create" path refunds through `IGrainFactory.RefundAsync`.** Group
+  creation refunded; the catalog grant, the room ad and the LTD draw did not, so a failed write
+  after a successful debit kept the money. The debit can never share a transaction with what it
+  pays for, so: debit, then `try` the creation, and on failure (thrown *or* refused) refund and
+  rethrow. Only wrap what the money bought — a failure after the thing exists (a notification, a
+  subscription extension that tells the player) must not refund a purchase that landed.
+- **Every path to a state checks the same limit.** Joining a group checked the member cap;
+  approving one request and approving the lot did not, so an exclusive group could be approved
+  past it. The limit is now a question with a name (`GuildGrain.FreeMemberSlots`) that all three
+  ask. When you find a limit checked in one path, list every other way to reach that state.
+- **A count the client sends is read with `PopList` / `PopCount`, never `PopInt`.**
+  `PopList(bytesPerItem, read)` bounds the count by what the packet can hold and reads the
+  entries; twelve parsers had the loop by hand, and two used a raw `PopInt` — one of them sized a
+  dictionary from it, so one packet could ask the server to allocate a billion entries.
+- **A row two packets carry is written by one serializer.** The inventory and the trade window
+  both start an item with id, type and *ref*, and the client locks an inventory item while it is
+  in a trade by matching that ref. Inventory wrote a floor item's ref negated, trade wrote it
+  positive, so no floor item was ever locked. `FurnitureItemSerializer.WriteHead`,
+  `BadgeEntrySerializer` and `OwnerNamesSerializer` exist for that reason; when a second
+  serializer needs a structure, move it to `Data/` before writing it again.
+- **Text the client prints as-is has one format.** `ClientDates.Format` (dd-MM-yyyy) for every
+  date the client shows, `HexColor.IsRgb` for colours, `ClientText.Truncate` for lengths. Four
+  copies of the date format existed and the profile used a fifth; two colour checks disagreed on
+  whitespace.
+- **A reload replaces, it does not clear and refill.** A provider that clears its maps and then
+  loads is empty after a failed reload; build the new maps and swap them in
+  (`FurnitureDefinitionProvider`, `CurrencyTypeProvider`).
+- **A special case for one item behaves like the general case.** `GetPlayerNamesAsync` answered
+  `""` for an unknown id when asked about one, and left it out when asked about several. If a
+  fast path is worth having, it returns what the slow path would.
+- **Stop releases everything start acquired.** `NetworkManager` started a TCP and a WebSocket
+  host and stopped only the TCP one. Review a start and its stop side by side.
+- **A value computed and then not used is a bug report, not dead code.** The plugin table-prefix
+  code computed a prefix and returned the raw one, so a plugin with none got `""` — and
+  uninstalling it ran `DROP TABLE ... LIKE '%'` over the whole database. `MigrationHelper` now
+  refuses an empty or non-identifier prefix. Before deleting an unused value, find what it was
+  meant to protect.
+
+- **A later optional wire field forces the earlier one to be written.** The client's chat parser
+  reads a receiver index if bytes remain, then a bubble width if bytes remain; the serializer
+  wrote the width only when there was a receiver, so bot bubble widths never arrived. Write the
+  client's "unset" value (-1) for the earlier field instead of skipping it.
+- **A separator in a wired string param is whatever the client's `readStringParamFromForm`
+  joins with.** The name selector split on `/`; the client sends tabs, so a list of names matched
+  nobody. Read the editor class before parsing its string.
+- **Who may use an item is `IFurnitureLogic.CanUseAsync`, not the usage policy alone.** The
+  policy is also what the client draws a use button for, so an item whose use is one person's
+  (a monster plant seed, a pet package: the client offers them to the owner and sends a plain
+  use) keeps its policy at Nobody and overrides `CanUseAsync` to `IsItemOwner`. Both used to
+  have real `OnUseAsync` bodies behind a Nobody policy that refused every use, so planting a
+  seed and opening a pet package did nothing. A usage-Nobody logic that does not override
+  `CanUseAsync` never has `OnUseAsync` called — do not give it one.
+
+- **A wired box moves a floor furni with `IWiredExecutionContext.TryMoveFloorItemAsync`.** It
+  asks `CanPlaceFloorItem` and then moves, in one call. Ten movers each wrote the check and the
+  move out by hand, "furni to furni" and "move furni to" were the same loop (now
+  `FurnitureWiredActionLogic.MoveOntoTargetFurniAsync`), and the copies had drifted: chase pinned
+  the furni's height where its mirror, flee, let the room's move physics decide, and the two
+  twins offered different sources for their target slot. Height is the policy's (the
+  `KeepAltitude` addon), not the box's; pass a `z` only when the box itself sets one (match to
+  snapshot, placement variable).
+- **A room writes a furni's placement through `WritePlacement`.** `FurnitureEntity` and
+  `BuildersClubFurnitureEntity` share their placement columns through `IPlacedFurnitureEntity`,
+  and the persistence grain marks exactly those modified, by name, for both. Two hand-written
+  copies of that block had already grown apart (one marked the room column three times).
 
 - When a fix teaches a rule that is not in this file yet, add it here in the same change.
 

@@ -63,6 +63,21 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         }
     }
 
+    public async Task<bool> TryMoveFloorItemAsync(
+        IRoomFloorItem floorItem,
+        int x,
+        int y,
+        Altitude? z = null,
+        Rotation? rotation = null
+    ) =>
+        _roomGrain.FurniModule.CanPlaceFloorItem(floorItem, x, y, rotation ?? floorItem.Rotation)
+        && await ProcessFloorItemMovementAsync(
+            floorItem,
+            _roomGrain.MapModule.ToIdx(x, y),
+            z,
+            rotation
+        );
+
     public async Task<bool> ProcessFloorItemMovementAsync(
         IRoomFloorItem floorItem,
         int tileIdx,

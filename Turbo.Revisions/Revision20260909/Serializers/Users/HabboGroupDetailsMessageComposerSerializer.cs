@@ -1,6 +1,6 @@
-using System.Globalization;
 using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Packets;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Revisions.Revision20260909.Serializers.Users;
 
@@ -11,8 +11,6 @@ internal class HabboGroupDetailsMessageComposerSerializer(int header)
     /// The client prints the creation date as it is given and parses nothing out of it, so the
     /// format is the hotel's to pick.
     /// </summary>
-    private const string CREATION_DATE_FORMAT = "dd-MM-yyyy";
-
     protected override void Serialize(
         IServerPacket packet,
         HabboGroupDetailsMessageComposer message
@@ -35,9 +33,7 @@ internal class HabboGroupDetailsMessageComposerSerializer(int header)
             .WriteInteger((int)view.Status)
             .WriteInteger(view.MemberCount)
             .WriteBoolean(message.IsFavourite)
-            .WriteString(
-                view.CreatedAt.ToString(CREATION_DATE_FORMAT, CultureInfo.InvariantCulture)
-            )
+            .WriteString(ClientDates.Format(view.CreatedAt))
             .WriteBoolean(view.IsOwner)
             .WriteBoolean(view.IsAdmin)
             .WriteString(message.OwnerName)

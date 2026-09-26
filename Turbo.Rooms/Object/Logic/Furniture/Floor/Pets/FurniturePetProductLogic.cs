@@ -21,9 +21,6 @@ public abstract class FurniturePetProductLogic(
 {
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Nobody;
 
-    public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct) =>
-        Task.CompletedTask;
-
     /// <summary>
     /// Reads what the product needs from its extra data before a pet is looked at. Returns the
     /// reason it cannot be used at all, or null.
@@ -48,7 +45,7 @@ public abstract class FurniturePetProductLogic(
         if (interaction is not UseWithPetInteraction use)
             return false;
 
-        if (_ctx.RoomObject.OwnerId != ctx.PlayerId)
+        if (!IsItemOwner(ctx))
             return Reject(ctx, interaction, "not the owner");
 
         if (Prepare() is { } unusable)

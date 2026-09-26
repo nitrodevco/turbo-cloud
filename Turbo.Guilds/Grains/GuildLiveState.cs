@@ -15,7 +15,4 @@ internal sealed class GuildLiveState
     /// their rank, which is what lets the counts below be derived rather than stored.
     /// </summary>
     public Dictionary<int, GuildMemberRank> RankByPlayerId { get; } = [];
-
-    /// <summary>Whether the load has run. Distinguishes "no such group" from "not looked yet".</summary>
-    public bool IsLoaded { get; set; }
 }

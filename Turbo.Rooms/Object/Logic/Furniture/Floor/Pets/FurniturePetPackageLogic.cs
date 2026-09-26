@@ -27,11 +27,12 @@ public class FurniturePetPackageLogic(IStuffDataFactory stuffDataFactory, IRoomF
 {
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Nobody;
 
+    // The client offers opening it to its owner only, and sends a plain use; Nobody keeps the
+    // use button away from everyone else, and this lets the owner's use through.
+    public override Task<bool> CanUseAsync(ActionContext ctx) => Task.FromResult(IsItemOwner(ctx));
+
     public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
     {
-        if (_ctx.RoomObject.OwnerId != ctx.PlayerId)
-            return;
-
         var contents = ReadContents();
 
         await _roomGrain._grainFactory.SendComposerToPlayerAsync(
@@ -54,7 +55,7 @@ public class FurniturePetPackageLogic(IStuffDataFactory stuffDataFactory, IRoomF
         if (interaction is not OpenPetPackageInteraction open)
             return false;
 
-        if (_ctx.RoomObject.OwnerId != ctx.PlayerId)
+        if (!IsItemOwner(ctx))
             return Reject(ctx, interaction, "not the owner");
 
         var contents = ReadContents();

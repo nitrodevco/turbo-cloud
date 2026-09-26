@@ -84,9 +84,6 @@ public sealed partial class RoomFurniModule
         )
             return false;
 
-        if (!await ValidateNewFloorItemPlacementAsync(ctx, item, x, y, rot))
-            return false;
-
         if (!await PlaceFloorItemAsync(ctx, item, x, y, rot, ct))
             return false;
 
@@ -138,19 +135,6 @@ public sealed partial class RoomFurniModule
                 prepared.Definition
             )
             is not IRoomWallItem item
-        )
-            return false;
-
-        if (
-            !await ValidateNewWallItemPlacementAsync(
-                ctx,
-                item,
-                position.X,
-                position.Y,
-                position.Z,
-                position.WallOffset,
-                position.Rotation
-            )
         )
             return false;
 

@@ -59,7 +59,7 @@ public class WiredTriggerHabboSaysKeyword(
         if (mode == MATCH_ANY_TEXT)
             return Task.FromResult(true);
 
-        var keyword = _wiredData.StringParam?.Trim() ?? string.Empty;
+        var keyword = GetStringParam();
 
         if (keyword.Length == 0)
             return Task.FromResult(false);

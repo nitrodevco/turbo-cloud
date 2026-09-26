@@ -6,15 +6,16 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Navigator.Enums;
-using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Player;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Chat;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Rooms.Grains.Systems;
 
@@ -43,10 +44,15 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
         CancellationToken ct
     )
     {
-        if (!TryGetPlayerAvatar(ctx.PlayerId, out var speaker))
+        if (!_roomGrain.AvatarModule.TryGetPlayer(ctx.PlayerId, out var speaker))
             return false;
 
-        text = _roomGrain.ModerationModule.ApplyFilter(NormalizeText(text));
+        // A chat limit of zero means none, which ClientText would read as "nothing fits".
+        var maxLength = _roomGrain._roomConfig.ChatMaxLength;
+
+        text = _roomGrain.ModerationModule.ApplyFilter(
+            ClientText.Truncate(text, maxLength > 0 ? maxLength : int.MaxValue)
+        );
 
         if (text.Length == 0)
             return false;
@@ -133,43 +139,32 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
         if (speech.OnlyFor is { } listener)
             return _roomGrain._grainFactory.SendComposerToPlayerAsync(
                 listener.PlayerId,
-                new WhisperMessageComposer
-                {
-                    ObjectId = speaker.ObjectId,
-                    Text = text,
-                    Gesture = AvatarGestureType.None,
-                    StyleId = speech.StyleId,
-                    Links = [],
-                    TrackingId = NO_TRACKING_ID,
-                    ReceiverRoomIndex = listener.ObjectId,
-                    ChatBubbleWidthOverride = speech.BubbleWidth,
-                },
+                CreateComposer(
+                    RoomChatType.Whisper,
+                    speaker.ObjectId,
+                    text,
+                    AvatarGestureType.None,
+                    speech.StyleId,
+                    NO_TRACKING_ID,
+                    listener.ObjectId,
+                    speech.BubbleWidth
+                ),
                 ct
             );
 
-        ChatMessageComposer composer = speech.Shout
-            ? new ShoutMessageComposer
-            {
-                ObjectId = speaker.ObjectId,
-                Text = text,
-                Gesture = AvatarGestureType.None,
-                StyleId = speech.StyleId,
-                Links = [],
-                TrackingId = NO_TRACKING_ID,
-                ChatBubbleWidthOverride = speech.BubbleWidth,
-            }
-            : new ChatMessageComposer
-            {
-                ObjectId = speaker.ObjectId,
-                Text = text,
-                Gesture = AvatarGestureType.None,
-                StyleId = speech.StyleId,
-                Links = [],
-                TrackingId = NO_TRACKING_ID,
-                ChatBubbleWidthOverride = speech.BubbleWidth,
-            };
-
-        return _roomGrain.SendComposerToRoomAsync(composer, ct);
+        return _roomGrain.SendComposerToRoomAsync(
+            CreateComposer(
+                speech.Shout ? RoomChatType.Shout : RoomChatType.Chat,
+                speaker.ObjectId,
+                text,
+                AvatarGestureType.None,
+                speech.StyleId,
+                NO_TRACKING_ID,
+                receiverRoomIndex: null,
+                speech.BubbleWidth
+            ),
+            ct
+        );
     }
 
     /// <summary>
@@ -181,15 +176,12 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
 
     public Task<bool> SetAvatarTypingAsync(ActionContext ctx, bool isTyping, CancellationToken ct)
     {
-        if (!TryGetPlayerAvatar(ctx.PlayerId, out var avatar))
+        if (!_roomGrain.AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar))
             return Task.FromResult(false);
 
-        _roomGrain
-            .SendComposerToRoomAsync(
-                new UserTypingMessageComposer { UserId = avatar.ObjectId, IsTyping = isTyping },
-                ct
-            )
-            .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
+        _roomGrain.SendComposerToRoomAndForget(
+            new UserTypingMessageComposer { UserId = avatar.ObjectId, IsTyping = isTyping }
+        );
 
         return Task.FromResult(true);
     }
@@ -229,35 +221,66 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
         await _roomGrain._grainFactory.SendComposerToPlayersAsync(targets, composer, ct);
     }
 
-    private static IComposer CreateComposer(PlayerChatEvent evt) =>
-        evt.ChatType switch
+    private static ChatMessageComposer CreateComposer(PlayerChatEvent evt) =>
+        CreateComposer(
+            evt.ChatType,
+            evt.ObjectId,
+            evt.Text,
+            evt.Gesture,
+            evt.StyleId,
+            evt.TrackingId,
+            receiverRoomIndex: null,
+            bubbleWidth: null
+        );
+
+    /// <summary>
+    /// Every chat bubble the room sends is built here, typed or not: the three packets differ
+    /// only in their header. The copies this replaced had drifted on the trailing fields.
+    /// </summary>
+    private static ChatMessageComposer CreateComposer(
+        RoomChatType chatType,
+        RoomObjectId objectId,
+        string text,
+        AvatarGestureType gesture,
+        int styleId,
+        int trackingId,
+        int? receiverRoomIndex,
+        int? bubbleWidth
+    ) =>
+        chatType switch
         {
             RoomChatType.Shout => new ShoutMessageComposer
             {
-                ObjectId = evt.ObjectId,
-                Text = evt.Text,
-                Gesture = evt.Gesture,
-                StyleId = evt.StyleId,
+                ObjectId = objectId,
+                Text = text,
+                Gesture = gesture,
+                StyleId = styleId,
                 Links = [],
-                TrackingId = evt.TrackingId,
+                TrackingId = trackingId,
+                ReceiverRoomIndex = receiverRoomIndex,
+                ChatBubbleWidthOverride = bubbleWidth,
             },
             RoomChatType.Whisper => new WhisperMessageComposer
             {
-                ObjectId = evt.ObjectId,
-                Text = evt.Text,
-                Gesture = evt.Gesture,
-                StyleId = evt.StyleId,
+                ObjectId = objectId,
+                Text = text,
+                Gesture = gesture,
+                StyleId = styleId,
                 Links = [],
-                TrackingId = evt.TrackingId,
+                TrackingId = trackingId,
+                ReceiverRoomIndex = receiverRoomIndex,
+                ChatBubbleWidthOverride = bubbleWidth,
             },
             _ => new ChatMessageComposer
             {
-                ObjectId = evt.ObjectId,
-                Text = evt.Text,
-                Gesture = evt.Gesture,
-                StyleId = evt.StyleId,
+                ObjectId = objectId,
+                Text = text,
+                Gesture = gesture,
+                StyleId = styleId,
                 Links = [],
-                TrackingId = evt.TrackingId,
+                TrackingId = trackingId,
+                ReceiverRoomIndex = receiverRoomIndex,
+                ChatBubbleWidthOverride = bubbleWidth,
             },
         };
 
@@ -265,7 +288,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
     {
         var range = _roomGrain._roomConfig.ChatLookAtRange;
 
-        foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
+        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
         {
             if (avatar.ObjectId == speaker.ObjectId || avatar.IsWalking)
                 continue;
@@ -366,42 +389,14 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
         return false;
     }
 
-    private string NormalizeText(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-            return string.Empty;
-
-        text = text.Trim();
-
-        var maxLength = _roomGrain._roomConfig.ChatMaxLength;
-
-        return maxLength > 0 && text.Length > maxLength ? text[..maxLength] : text;
-    }
-
-    private bool TryGetPlayerAvatar(PlayerId playerId, out IRoomPlayer player)
-    {
-        player = null!;
-
-        if (
-            playerId <= 0
-            || !_roomGrain.AvatarModule.TryGetPlayer(playerId, out var avatar)
-            || avatar is not IRoomPlayer roomPlayer
-        )
-            return false;
-
-        player = roomPlayer;
-
-        return true;
-    }
-
     private IRoomPlayer? FindPlayerAvatarByName(string? name)
     {
         if (string.IsNullOrWhiteSpace(name))
             return null;
 
-        return _roomGrain
-            ._state.AvatarsByObjectId.Values.OfType<IRoomPlayer>()
-            .FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
+        return _roomGrain.AvatarModule.Players.FirstOrDefault(x =>
+            string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)
+        );
     }
 
     private static AvatarGestureType GetGestureForText(string text)

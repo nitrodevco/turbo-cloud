@@ -36,14 +36,9 @@ public class WiredTriggerBotReachesItem(
         if (evt is not BotReachedItemEvent reached)
             return Task.FromResult(false);
 
-        if (
-            !string.IsNullOrWhiteSpace(_wiredData.StringParam)
-            && !string.Equals(
-                reached.BotName,
-                _wiredData.StringParam.Trim(),
-                StringComparison.OrdinalIgnoreCase
-            )
-        )
+        var botName = GetStringParam();
+
+        if (botName.Length > 0 && !NamesMatch(reached.BotName, botName))
             return Task.FromResult(false);
 
         var stuffIds = GetStuffIds();

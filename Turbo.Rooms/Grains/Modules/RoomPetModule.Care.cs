@@ -210,7 +210,11 @@ public sealed partial class RoomPetModule
         )
             return false;
 
-        if (player.HandItemId <= 0 || pet.IsMonsterplant || !IsAdjacent(pet, player))
+        if (
+            player.HandItemId <= 0
+            || pet.IsMonsterplant
+            || !RoomAvatarModule.AreAdjacent(pet, player)
+        )
             return false;
 
         await _roomGrain.AvatarModule.SetHandItemAsync(player, 0, ct);

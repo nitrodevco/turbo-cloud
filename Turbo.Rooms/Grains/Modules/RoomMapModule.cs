@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object;
@@ -20,6 +21,13 @@ namespace Turbo.Rooms.Grains.Modules;
 public sealed partial class RoomMapModule(RoomGrain roomGrain)
 {
     private readonly RoomGrain _roomGrain = roomGrain;
+
+    /// <summary>
+    /// What a tile's highest-item slot holds when no furni stands there. Zero, never -1:
+    /// temporary furni count their ids down from -1, and with -1 as "none" every empty tile
+    /// named the first temporary furni as its top item.
+    /// </summary>
+    private const int NO_ITEM = 0;
 
     private RoomMapSnapshot? _mapSnapshot = null;
     private bool _dirty = true;
@@ -78,10 +86,33 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
         };
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     /// <summary>A tile that is no part of the room: a hole in the model, or outside it.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IsTileDisabled(int tileIdx) =>
         !InBounds(tileIdx) || _roomGrain._state.TileFlags[tileIdx].Has(RoomTileFlags.Disabled);
+
+    /// <summary>
+    /// The furni on top of a tile, the one an avatar there stands on. None off the map. The one
+    /// read of the top-item slot, so nothing else has to know what "none" is stored as.
+    /// </summary>
+    public bool TryGetHighestFloorItem(int tileIdx, out IRoomFloorItem item)
+    {
+        item = null!;
+
+        if (
+            !InBounds(tileIdx)
+            || !_roomGrain._state.ItemsById.TryGetValue(
+                _roomGrain._state.TileHighestFloorItems[tileIdx],
+                out var found
+            )
+            || found is not IRoomFloorItem floorItem
+        )
+            return false;
+
+        item = floorItem;
+
+        return true;
+    }
 
     /// <summary>How high the top of a tile is: what a furni put there lands on. Zero outside the room.</summary>
     public Altitude GetTileHeight(int tileIdx) =>
@@ -147,6 +178,11 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
         return (GetX(idx), GetY(idx));
     }
 
+    /// <summary>
+    /// The tiles a floor item of this size covers at this spot and rotation. False, with no
+    /// tiles, when any of them is off the map: that is an answer, not an error, so this never
+    /// throws and a caller needs no bounds check of its own before asking.
+    /// </summary>
     public bool GetTileIdForSize(
         int x,
         int y,
@@ -154,27 +190,24 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
         int width,
         int length,
         out List<int> tileIds
-    )
+    ) => TryGetTileIds(FloorFootprint.Of(x, y, rot, width, length), out tileIds);
+
+    /// <inheritdoc cref="GetTileIdForSize"/>
+    public bool TryGetTileIds(FloorFootprint footprint, out List<int> tileIds)
     {
         tileIds = [];
 
-        if (width > 0 && length > 0)
+        foreach (var (x, y) in footprint.Tiles())
         {
-            if (rot == Rotation.East || rot == Rotation.West)
-                (width, length) = (length, width);
-        }
-
-        for (var minX = x; minX < x + width; minX++)
-        {
-            for (var minY = y; minY < y + length; minY++)
+            // Checked by coordinate: an index past the right edge is a valid index on the next row.
+            if (!InBounds(x, y))
             {
-                var idx = ToIdx(minX, minY);
+                tileIds = [];
 
-                if (!InBounds(idx))
-                    throw new TurboException(TurboErrorCodeEnum.TileOutOfBounds);
-
-                tileIds.Add(idx);
+                return false;
             }
+
+            tileIds.Add(ToIdx(x, y));
         }
 
         return true;
@@ -299,7 +332,7 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
 
         _roomGrain._state.TileHeights[id] = nextHeight;
         _roomGrain._state.TileFlags[id] = nextFlags;
-        _roomGrain._state.TileHighestFloorItems[id] = nextHighestItem?.ObjectId ?? -1;
+        _roomGrain._state.TileHighestFloorItems[id] = nextHighestItem?.ObjectId ?? NO_ITEM;
 
         var prevEncoded = _roomGrain._state.TileEncodedHeights[id];
         var nextEncoded = EncodeHeight(nextHeight, nextFlags.Has(RoomTileFlags.StackBlocked));
@@ -406,7 +439,7 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
                     flags.Has(RoomTileFlags.StackBlocked)
                 );
                 tileFlags[id] = flags;
-                tileHighestFloorItems[id] = -1;
+                tileHighestFloorItems[id] = NO_ITEM;
                 tileFloorStacks[id] = [];
                 tileAvatarStacks[id] = [];
             }

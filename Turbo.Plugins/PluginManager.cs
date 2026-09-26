@@ -98,75 +98,34 @@ public sealed class PluginManager(
         return list;
     }
 
+    /// <summary>
+    /// Loads every discovered plugin in dependency order, replacing live ones. A plugin that fails
+    /// is logged and skipped so the rest still load; with <paramref name="unloadRemoved"/>, live
+    /// plugins whose folder is gone are unloaded.
+    /// </summary>
     public async Task LoadAllAsync(bool unloadRemoved = true, CancellationToken ct = default)
     {
         await _reloadGate.WaitAsync(ct).ConfigureAwait(false);
 
         try
         {
-            var discovered = DiscoverPlugins();
-            var manifests = PluginHelpers.SortManifests([.. discovered.Select(d => d.manifest)]);
-            var byKey = discovered.ToDictionary(
-                d => d.manifest.Key,
-                d => d.folder,
-                StringComparer.OrdinalIgnoreCase
-            );
-            var envs = new List<PluginEnvelope>();
+            var plugins = DiscoverSorted();
             var tasks = new List<Func<Task>>();
 
-            RebuildDependents(manifests);
+            RebuildDependents(plugins.Select(p => p.Manifest));
 
-            foreach (var m in manifests)
+            foreach (var (m, folder) in plugins)
             {
                 var gate = GetKeyGate(m.Key);
 
                 await gate.WaitAsync(ct).ConfigureAwait(false);
-                var folder = byKey[m.Key];
-                LoadedAssembly asm;
 
                 try
                 {
-                    asm = GetLoadedPluginAssembly(m, folder);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(
-                        ex,
-                        "Failed to load assembly for {Name}@{Version} by {Author}",
-                        m.Name,
-                        m.Version,
-                        m.Author
-                    );
+                    var (asm, next) = await LoadPluginAsync(m, folder, ct).ConfigureAwait(false);
 
-                    gate.Release();
-
-                    continue;
-                }
-
-                try
-                {
-                    var current = _live.GetValueOrDefault(m.Key);
-
-                    if (current is not null)
-                    {
-                        if (
-                            _dependents.TryGetValue(m.Key, out var deps)
-                            && deps.Any(_live.ContainsKey)
-                        )
-                            throw new PluginDependencyException(
-                                PluginDependencyErrorType.DependentsActive,
-                                m.Key,
-                                deps.Where(_live.ContainsKey)
-                            );
-
-                        await StopAndTearDownAsync(current, ct).ConfigureAwait(false);
-                    }
-
-                    var next = await BuildEnvelopeAsync(asm, m, folder, ct).ConfigureAwait(false);
-
-                    _live[m.Key] = next;
-                    envs.Add(next);
-
+                    // Feature processing for different plugins is independent, so it runs
+                    // concurrently once every plugin is live.
                     tasks.Add(async () =>
                     {
                         var disp = await processor
@@ -196,8 +155,11 @@ public sealed class PluginManager(
 
             await BoundedHelper.RunAsync(tasks, degree, ct).ConfigureAwait(false);
 
+            // Only a plugin whose folder is gone counts as removed. One that failed to reload is
+            // still on disk and keeps its previous live version.
             if (unloadRemoved)
-                await UnloadRemovedAsync(envs.Select(d => d.Key), ct).ConfigureAwait(false);
+                await UnloadRemovedAsync(plugins.Select(p => p.Manifest.Key), ct)
+                    .ConfigureAwait(false);
 
             _logger.LogInformation("Loaded {Count} plugins", _live.Count);
         }
@@ -207,63 +169,38 @@ public sealed class PluginManager(
         }
     }
 
+    /// <summary>
+    /// Reloads one plugin, or unloads it when its folder is gone. Unlike
+    /// <see cref="LoadAllAsync"/>, a failure is thrown to the caller, who asked for this plugin.
+    /// </summary>
     public async Task ReloadAsync(string key, CancellationToken ct = default)
     {
         await _reloadGate.WaitAsync(ct).ConfigureAwait(false);
 
         try
         {
-            var discovered = DiscoverPlugins();
-            var manifests = PluginHelpers.SortManifests([.. discovered.Select(d => d.manifest)]);
-            var byKey = discovered.ToDictionary(
-                d => d.manifest.Key,
-                d => d.folder,
-                StringComparer.OrdinalIgnoreCase
+            var plugins = DiscoverSorted();
+
+            RebuildDependents(plugins.Select(p => p.Manifest));
+
+            var match = plugins.FirstOrDefault(p =>
+                string.Equals(p.Manifest.Key, key, StringComparison.OrdinalIgnoreCase)
             );
 
-            RebuildDependents(manifests);
-
-            if (!byKey.TryGetValue(key, out var folder))
+            if (match.Manifest is null)
             {
                 await UnloadAsync(key, ct).ConfigureAwait(false);
                 _logger.LogInformation("Plugin {Key} was removed from disk and unloaded.", key);
                 return;
             }
 
-            var manifest = manifests.First(m =>
-                string.Equals(m.Key, key, StringComparison.OrdinalIgnoreCase)
-            );
-
             var gate = GetKeyGate(key);
             await gate.WaitAsync(ct).ConfigureAwait(false);
 
             try
             {
-                foreach (var dep in manifest.Dependencies.Where(dep => !_live.ContainsKey(dep.Key)))
-                {
-                    throw new PluginDependencyException(
-                        PluginDependencyErrorType.DependencyInactive,
-                        key,
-                        [dep.Key]
-                    );
-                }
-
-                if (_dependents.TryGetValue(key, out var deps) && deps.Any(_live.ContainsKey))
-                    throw new PluginDependencyException(
-                        PluginDependencyErrorType.DependentsActive,
-                        key,
-                        deps.Where(_live.ContainsKey)
-                    );
-
-                var asm = GetLoadedPluginAssembly(manifest, folder);
-                var current = _live.GetValueOrDefault(key);
-
-                if (current is not null)
-                    await StopAndTearDownAsync(current, ct).ConfigureAwait(false);
-
-                var next = await BuildEnvelopeAsync(asm, manifest, folder, ct)
+                var (asm, next) = await LoadPluginAsync(match.Manifest, match.Folder, ct)
                     .ConfigureAwait(false);
-                _live[key] = next;
 
                 var disp = await processor
                     .ProcessAsync(asm.Assembly, next.ServiceProvider, ct)
@@ -281,6 +218,73 @@ public sealed class PluginManager(
         {
             _reloadGate.Release();
         }
+    }
+
+    /// <summary>
+    /// The plugins on disk with their folders, dependencies before their dependents.
+    /// </summary>
+    private List<(PluginManifest Manifest, string Folder)> DiscoverSorted()
+    {
+        var discovered = DiscoverPlugins();
+        var byKey = discovered.ToDictionary(
+            d => d.manifest.Key,
+            d => d.folder,
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        return
+        [
+            .. PluginHelpers
+                .SortManifests([.. discovered.Select(d => d.manifest)])
+                .Select(m => (m, byKey[m.Key])),
+        ];
+    }
+
+    /// <summary>
+    /// Replaces the live version of one plugin with a fresh load of <paramref name="folder"/>.
+    /// The caller holds the plugin's key gate and runs feature processing on the result. Refuses
+    /// while a dependency is not live, and refuses to replace a live version that live dependents
+    /// are bound to.
+    /// </summary>
+    private async Task<(LoadedAssembly Assembly, PluginEnvelope Envelope)> LoadPluginAsync(
+        PluginManifest m,
+        string folder,
+        CancellationToken ct
+    )
+    {
+        var inactive = m.Dependencies.Select(d => d.Key).Where(k => !_live.ContainsKey(k)).ToList();
+
+        if (inactive.Count > 0)
+            throw new PluginDependencyException(
+                PluginDependencyErrorType.DependencyInactive,
+                m.Key,
+                inactive
+            );
+
+        var current = _live.GetValueOrDefault(m.Key);
+
+        if (
+            current is not null
+            && _dependents.TryGetValue(m.Key, out var deps)
+            && deps.Any(_live.ContainsKey)
+        )
+            throw new PluginDependencyException(
+                PluginDependencyErrorType.DependentsActive,
+                m.Key,
+                deps.Where(_live.ContainsKey)
+            );
+
+        // Checks come first so a refused load does not leave an assembly context behind.
+        var asm = GetLoadedPluginAssembly(m, folder);
+
+        if (current is not null)
+            await StopAndTearDownAsync(current, ct).ConfigureAwait(false);
+
+        var next = await BuildEnvelopeAsync(asm, m, folder, ct).ConfigureAwait(false);
+
+        _live[m.Key] = next;
+
+        return (asm, next);
     }
 
     private async Task UnloadAsync(string key, CancellationToken ct = default)

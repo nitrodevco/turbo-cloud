@@ -1,5 +1,6 @@
 using Turbo.Primitives.Messages.Outgoing.Inventory.Badges;
 using Turbo.Primitives.Packets;
+using Turbo.Revisions.Revision20260909.Serializers.Inventory.Badges.Data;
 
 namespace Turbo.Revisions.Revision20260909.Serializers.Inventory.Badges;
 
@@ -14,10 +15,12 @@ internal class BadgesEventMessageComposerSerializer(int header)
             .WriteInteger(message.Badges.Length);
 
         foreach (var badge in message.Badges)
-            packet
-                .WriteInteger(badge.BadgeId)
-                .WriteString(badge.BadgeCode)
-                .WriteInteger(badge.OwnerCount)
-                .WriteInteger((int)badge.Rarity);
+            BadgeEntrySerializer.Serialize(
+                packet,
+                badge.BadgeId,
+                badge.BadgeCode,
+                badge.OwnerCount,
+                badge.Rarity
+            );
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -401,6 +402,29 @@ public abstract partial class FurnitureWiredLogic(
 
         return builder.ToString();
     }
+
+    /// <summary>The text the box was saved with, trimmed; empty when there is none.</summary>
+    protected string GetStringParam() => _wiredData.StringParam?.Trim() ?? string.Empty;
+
+    /// <summary>
+    /// The text as a positive id (a room, a group), read the invariant way; null when it is
+    /// empty or is not one.
+    /// </summary>
+    protected int? GetPositiveIdParam() =>
+        int.TryParse(GetStringParam(), NumberStyles.None, CultureInfo.InvariantCulture, out var id)
+        && id > 0
+            ? id
+            : null;
+
+    /// <summary>
+    /// How every box compares a name it was given with an avatar's or a bot's: ordinal, case
+    /// ignored. One rule, so the same name cannot match in one box and not in another, or on
+    /// one server's locale and not another's.
+    /// </summary>
+    protected static StringComparer NameComparer => StringComparer.OrdinalIgnoreCase;
+
+    /// <summary>Whether two names are the same name, by <see cref="NameComparer"/>.</summary>
+    protected static bool NamesMatch(string? a, string? b) => NameComparer.Equals(a, b);
 
     private static object CreateDefaultSpecific(Type specType) =>
         specType == typeof(string) ? string.Empty : Activator.CreateInstance(specType)!;

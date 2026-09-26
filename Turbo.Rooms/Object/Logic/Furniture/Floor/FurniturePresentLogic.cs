@@ -30,9 +30,6 @@ public class FurniturePresentLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
 
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Nobody;
 
-    public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct) =>
-        Task.CompletedTask;
-
     public override async Task<bool> OnInteractAsync(
         ActionContext ctx,
         FurnitureInteraction interaction,
@@ -42,7 +39,7 @@ public class FurniturePresentLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
         if (interaction is not OpenPresentInteraction)
             return false;
 
-        if (_ctx.RoomObject.OwnerId != ctx.PlayerId)
+        if (!IsItemOwner(ctx))
             return Reject(ctx, interaction, "not the owner");
 
         var storage = ReadStorage();

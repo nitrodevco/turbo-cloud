@@ -48,7 +48,7 @@ public class WiredAddonVariableFxNumberDisplay(
         int rendererId
     )
     {
-        var icon = _wiredData.StringParam?.Trim();
+        var icon = GetStringParam();
 
         // An icon the client has no asset for throws in its renderer, so an unknown one is not sent.
         if (!VariableFxIcons.IsKnown(icon))

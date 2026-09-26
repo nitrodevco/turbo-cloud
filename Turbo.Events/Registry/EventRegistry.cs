@@ -1,11 +1,12 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Turbo.Pipeline;
 using Turbo.Primitives.Events;
 
 namespace Turbo.Events.Registry;
 
-public sealed class EventRegistry(IServiceProvider sp)
+public sealed class EventRegistry(IServiceProvider sp, ILogger<EventRegistry> logger)
     : EnvelopeHost<IEvent, object, EventContext>(
         sp,
         new EnvelopeHostOptions<IEvent, object, EventContext>
@@ -14,9 +15,6 @@ public sealed class EventRegistry(IServiceProvider sp)
             EnableInheritanceDispatch = true,
             HandlerMode = HandlerExecutionMode.Parallel,
             MaxHandlerDegreeOfParallelism = null,
-            OnHandlerActivationError = (ex, env) => { },
-            OnHandlerInvokeError = (ex, env) => { },
-            OnBehaviorActivationError = (ex, env) => { },
-            OnBehaviorInvokeError = (ex, env) => { },
-        }
+        },
+        logger
     ) { }

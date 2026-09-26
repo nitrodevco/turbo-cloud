@@ -11,9 +11,6 @@ public sealed class EventSystem(EventRegistry registry)
 
     public async Task PublishAsync(IEvent env, CancellationToken ct = default)
     {
-        if (_registry is null)
-            return;
-
         await _registry.PublishAsync(env, null, ct).ConfigureAwait(false);
     }
 }

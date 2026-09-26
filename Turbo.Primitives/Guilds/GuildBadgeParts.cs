@@ -38,10 +38,31 @@ public static class GuildBadgeParts
                             ? baseIds.Contains(part.PartId)
                             : symbolIds.Contains(part.PartId)
                     )
+                    && FitsInCode(part)
                 )
                 .Take(GuildBadgeCodes.MAX_PARTS),
         ];
     }
+
+    /// <summary>
+    /// Whether this part can be written into a badge code at all. Every field in a code is
+    /// fixed width, so an id past its limit would run over into the next one and the whole code
+    /// would read back as a different badge.
+    ///
+    /// Nothing in the hotel's own seed goes near these, but the parts and the palettes are rows
+    /// an operator can add to, and a part that cannot be written is better dropped here than
+    /// quietly corrupting every badge that uses it.
+    /// </summary>
+    private static bool FitsInCode(GuildBadgePartSnapshot part) =>
+        part.ColorId >= 0
+        && part.ColorId <= GuildBadgeCodes.COLOR_KEY_MAX
+        && part.PartId >= 0
+        && part.PartId
+            <= (
+                part.Type == GuildBadgePartType.Base
+                    ? GuildBadgeCodes.BASE_KEY_MAX
+                    : GuildBadgeCodes.SYMBOL_KEY_MAX
+            );
 
     /// <summary>
     /// The chosen colour id, or the palette's first when the client sent one that is not in it.

@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using SuperSocket.ProtoBase;
 using SuperSocket.Server.Abstractions;
+using SuperSocket.Server.Abstractions.Host;
 using SuperSocket.Server.Host;
 using SuperSocket.WebSocket;
 using SuperSocket.WebSocket.Server;
@@ -78,37 +79,33 @@ public sealed class NetworkManager(
 
     public async Task StopAsync()
     {
-        IHost? hostToStop = null;
+        IHost? tcpHost;
+        IHost? wsHost;
 
         lock (_tcpGate)
         {
-            if (_tcpHost is null)
-                return;
-
-            hostToStop = _tcpHost;
+            tcpHost = _tcpHost;
             _tcpHost = null;
         }
 
-        if (hostToStop is not null)
+        lock (_wsGate)
         {
-            await hostToStop.StopAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            wsHost = _wsHost;
+            _wsHost = null;
         }
+
+        if (tcpHost is not null)
+            await tcpHost.StopAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+        if (wsHost is not null)
+            await wsHost.StopAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
     }
 
     private void CreateTcpSocket()
     {
         var builder = SuperSocketHostBuilder.Create<IClientPacket>();
 
-        builder.ConfigureServerOptions((ctx, config) => config.GetSection("TcpServer"));
-        builder.ConfigureLogging((ctx, logging) => logging.ClearProviders());
-        builder.ConfigureServices(
-            (ctx, services) =>
-            {
-                ConfigureCommonServices(services);
-
-                services.AddSingleton<IPackageEncoder<OutgoingPackage>, PackageEncoder>();
-            }
-        );
+        ConfigureCommon(builder, "TcpServer");
         builder.UseSession<TcpSessionContext>();
         builder.UsePipelineFilter<TcpFilter>();
         builder.UseSessionGateway();
@@ -121,16 +118,7 @@ public sealed class NetworkManager(
     {
         var builder = WebSocketHostBuilder.Create();
 
-        builder.ConfigureServerOptions((ctx, config) => config.GetSection("WebSocketServer"));
-        builder.ConfigureLogging((ctx, logging) => logging.ClearProviders());
-        builder.ConfigureServices(
-            (ctx, services) =>
-            {
-                ConfigureCommonServices(services);
-
-                services.AddSingleton<IPackageEncoder<OutgoingPackage>, PackageEncoder>();
-            }
-        );
+        ConfigureCommon(builder, "WebSocketServer");
         builder.UseWebSocketMessageHandler(
             async (session, package) =>
             {
@@ -183,6 +171,18 @@ public sealed class NetworkManager(
         _wsHost = builder.Build();
     }
 
+    // Both hosts read their own server section, log through the application's logger factory
+    // (SuperSocket's own providers are cleared) and share the singletons that route packets.
+    private void ConfigureCommon<TPackage>(
+        ISuperSocketHostBuilder<TPackage> builder,
+        string serverSection
+    )
+    {
+        builder.ConfigureServerOptions((ctx, config) => config.GetSection(serverSection));
+        builder.ConfigureLogging((ctx, logging) => logging.ClearProviders());
+        builder.ConfigureServices((ctx, services) => ConfigureCommonServices(services));
+    }
+
     private void ConfigureCommonServices(IServiceCollection services)
     {
         services.AddSingleton(_sessionGateway);
@@ -192,5 +192,6 @@ public sealed class NetworkManager(
         services.AddSingleton(_grainFactory);
         services.AddSingleton<IPackageHandler<IClientPacket>, PackageHandler>();
         services.AddSingleton<IClientPacketDecoder, ClientPacketDecoder>();
+        services.AddSingleton<IPackageEncoder<OutgoingPackage>, PackageEncoder>();
     }
 }

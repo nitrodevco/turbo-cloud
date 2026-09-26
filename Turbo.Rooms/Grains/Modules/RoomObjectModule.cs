@@ -64,15 +64,9 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
                 await AttatchLogicAsync(avatar, ct);
                 await _roomGrain.AvatarModule.ProcessNextAvatarStepAsync(avatar, ct);
 
-                _roomGrain
-                    .SendComposerToRoomAsync(
-                        new UsersMessageComposer { Avatars = [avatar.GetSnapshot()] },
-                        ct
-                    )
-                    .LogAndForget(
-                        _roomGrain._logger,
-                        $"send a composer to room {_roomGrain.RoomId}"
-                    );
+                _roomGrain.SendComposerToRoomAndForget(
+                    new UsersMessageComposer { Avatars = [avatar.GetSnapshot()] }
+                );
                 break;
             }
             default:
@@ -158,8 +152,24 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
 
     private async Task<bool> AttatchLogicAsync(IRoomObject roomObject, CancellationToken ct)
     {
-        if (roomObject.Logic is not null)
+        if (!EnsureLogic(roomObject))
             return false;
+
+        await roomObject.Logic.OnAttachAsync(ct);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Gives an object its logic without attaching it: nothing hears of it and the room does
+    /// not change. Placement uses it so the room's limits can tell what kind of furni a new item
+    /// is (<see cref="RoomFurniModule.EnsureWithinPlacementLimits"/>) before anything is done
+    /// that would have to be undone. Attaching later keeps the logic made here.
+    /// </summary>
+    internal bool EnsureLogic(IRoomObject roomObject)
+    {
+        if (roomObject.Logic is not null)
+            return true;
 
         var logicType = string.Empty;
         IRoomObjectContext? ctx = null;
@@ -191,11 +201,7 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
         if (string.IsNullOrWhiteSpace(logicType) || ctx is null)
             return false;
 
-        var logic = _roomGrain._logicProvider.CreateLogicInstance(logicType, ctx);
-
-        roomObject.SetLogic(logic);
-
-        await logic.OnAttachAsync(ct);
+        roomObject.SetLogic(_roomGrain._logicProvider.CreateLogicInstance(logicType, ctx));
 
         return true;
     }

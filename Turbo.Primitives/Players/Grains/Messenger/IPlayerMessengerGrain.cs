@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Orleans.Concurrency;
 using Turbo.Primitives.Players.Enums.Messenger;
 using Turbo.Primitives.Players.Messenger;
 using Turbo.Primitives.Players.Snapshots;
@@ -12,14 +13,22 @@ namespace Turbo.Primitives.Players.Grains.Messenger;
 
 public interface IPlayerMessengerGrain : IGrainWithIntegerKey
 {
-    public Task<FriendListErrorCodeType> AddFriendAsync(
-        PlayerSummarySnapshot snapshot,
-        CancellationToken ct
-    );
-    public Task ForceAddFriendAsync(PlayerSummarySnapshot snapshot, CancellationToken ct);
-    public Task<FriendListErrorCodeType> CanAddFriendAsync(PlayerId playerId, CancellationToken ct);
+    // The tells: what one messenger calls on another. Interleaved and memory-only, because two
+    // friends acting on each other at once would otherwise leave both grains waiting.
+
+    /// <summary>Whether <paramref name="playerId"/> may add this player: limit and block list.</summary>
+    [AlwaysInterleave]
+    public Task<FriendListErrorCodeType> CanBeAddedByAsync(PlayerId playerId, CancellationToken ct);
+
+    /// <summary>The adding side already wrote the friendship; this side only shows it.</summary>
+    [AlwaysInterleave]
+    public Task OnFriendAddedAsync(PlayerSummarySnapshot snapshot, CancellationToken ct);
+
+    /// <summary>The removing side already deleted the friendship; this side only shows it.</summary>
+    [AlwaysInterleave]
+    public Task OnFriendRemovedAsync(PlayerId playerId, CancellationToken ct);
+
     public Task RemoveFriendsAsync(List<PlayerId> playerIds, CancellationToken ct);
-    public Task ForceRemoveFriendAsync(PlayerId playerId, CancellationToken ct);
     public Task<List<MessengerAcceptFriendFailure>> AcceptFriendRequestsAsync(
         List<int> playerIds,
         CancellationToken ct
@@ -33,6 +42,8 @@ public interface IPlayerMessengerGrain : IGrainWithIntegerKey
         PlayerId playerId,
         CancellationToken ct
     );
+
+    [AlwaysInterleave]
     public Task<MessengerRequestFriendResult> ReceieveFriendRequestAsync(
         PlayerSummarySnapshot snapshot,
         CancellationToken ct
@@ -48,6 +59,8 @@ public interface IPlayerMessengerGrain : IGrainWithIntegerKey
         CancellationToken ct
     );
     public Task UpdateFriendsAsync(PlayerSummarySnapshot snapshot, CancellationToken ct);
+
+    [AlwaysInterleave]
     public Task RecieveFriendUpdateAsync(PlayerSummarySnapshot snapshot, CancellationToken ct);
     public Task<bool> SetRelationshipStatusAsync(
         PlayerId friendId,
@@ -66,6 +79,8 @@ public interface IPlayerMessengerGrain : IGrainWithIntegerKey
         string senderFigure,
         CancellationToken ct
     );
+
+    [AlwaysInterleave]
     public Task<bool> ReceiveMessageAsync(
         int chatId,
         string messageText,
@@ -78,7 +93,6 @@ public interface IPlayerMessengerGrain : IGrainWithIntegerKey
         CancellationToken ct,
         int dbMessageId = 0
     );
-    public Task FlushUpdatesAsync(CancellationToken ct);
     public Task<List<MessengerCategoryDto>> GetCategoriesAsync(CancellationToken ct);
     public Task<List<MessengerFriendDto>> GetFriendsAsync(CancellationToken ct);
     public Task<List<MessengerRequestDto>> GetRequestsAsync(CancellationToken ct);

@@ -11,23 +11,6 @@ public sealed partial class RoomMapModule
         return true;
     }
 
-    public bool PlaceWallItem(
-        IRoomWallItem item,
-        int x,
-        int y,
-        Altitude z,
-        Rotation rot,
-        int wallOffset
-    )
-    {
-        item.SetPosition(x, y);
-        item.SetPositionZ(z);
-        item.SetRotation(rot);
-        item.SetWallOffset(wallOffset);
-
-        return AddWallItem(item);
-    }
-
     public bool MoveWallItem(
         IRoomWallItem item,
         int x,

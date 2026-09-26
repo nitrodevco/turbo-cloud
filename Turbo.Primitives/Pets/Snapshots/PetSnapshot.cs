@@ -1,5 +1,6 @@
 using System;
 using Orleans;
+using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -12,7 +13,7 @@ namespace Turbo.Primitives.Pets.Snapshots;
 /// (and its live stats) once placed, and hands it back with the stats it accumulated.
 /// </summary>
 [GenerateSerializer, Immutable]
-public sealed record PetSnapshot
+public sealed record PetSnapshot : IInventoryUnitSnapshot
 {
     [Id(0)]
     public required int Id { get; init; }

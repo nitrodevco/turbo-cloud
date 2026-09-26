@@ -27,15 +27,7 @@ public class WiredActionBotTalkToAvatar(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredBoolParamRule(true), new WiredRangeParamRule(-1, 2, -1)];
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
-        [
-            [
-                WiredPlayerSourceType.TriggeredUser,
-                WiredPlayerSourceType.SelectorUsers,
-                WiredPlayerSourceType.SignalUsers,
-            ],
-            [WiredPlayerSourceType.BotByName],
-        ];
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => UserAndBotSources();
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {

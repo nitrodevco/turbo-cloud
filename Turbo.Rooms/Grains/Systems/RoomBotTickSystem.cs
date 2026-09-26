@@ -153,7 +153,7 @@ public sealed class RoomBotTickSystem(RoomGrain roomGrain)
     /// <summary>Keeps a following bot within reach of its avatar and reports each catch-up.</summary>
     private async Task ProcessFollowAsync(IRoomBot bot, long now, CancellationToken ct)
     {
-        if (!_roomGrain._state.AvatarsByObjectId.TryGetValue(bot.FollowObjectId, out var target))
+        if (!_roomGrain.AvatarModule.TryGetAvatar(bot.FollowObjectId, out var target))
         {
             bot.FollowObjectId = -1;
 

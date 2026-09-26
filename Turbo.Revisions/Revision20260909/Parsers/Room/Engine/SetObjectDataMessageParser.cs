@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Turbo.Primitives.Messages.Incoming.Room.Engine;
 using Turbo.Primitives.Networking;
@@ -12,8 +11,9 @@ internal class SetObjectDataMessageParser : IParser
     {
         var objectId = packet.PopInt();
         // The client writes the entry count doubled: one string for the key, one for the value.
-        var pairs = packet.PopInt() / 2;
-        var data = new Dictionary<string, string>(Math.Max(0, pairs));
+        // Bounded as strings first, so a bogus count cannot size the dictionary.
+        var pairs = packet.PopCount(bytesPerItem: 2) / 2;
+        var data = new Dictionary<string, string>(pairs);
 
         for (var i = 0; i < pairs; i++)
             data[packet.PopString()] = packet.PopString();

@@ -4,6 +4,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
@@ -21,9 +22,20 @@ public abstract class FurnitureWiredBotActionLogic(
     protected const char FIELD_SEPARATOR = '\t';
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
-        [
-            [WiredPlayerSourceType.BotByName],
-        ];
+        [WiredSources.BotByName];
+
+    /// <summary>
+    /// The two slots of a bot box that also acts on users (follow, hand item, talk to): the
+    /// users first, then the bot by name.
+    /// </summary>
+    protected static List<WiredPlayerSourceType[]> UserAndBotSources() =>
+        [WiredSources.Users, WiredSources.BotByName];
+
+    /// <summary>
+    /// Whether the box works with no bot named. Only the hand item editor lets the bot be left
+    /// out (its "bot.usage" checkbox sends an empty name); every other bot editor asks for one.
+    /// </summary>
+    protected virtual bool IsBotOptional => false;
 
     /// <summary>The bot name and the remaining text of a tab separated string param.</summary>
     protected (string botName, string text) SplitParam()
@@ -38,4 +50,23 @@ public abstract class FurnitureWiredBotActionLogic(
 
     protected bool TryGetBot(string name, out IRoomBot bot) =>
         _roomGrain.BotModule.TryGetBotByName(name, out bot);
+
+    /// <summary>
+    /// The bot the box names, by the box's own rule: false when a bot is needed and none by
+    /// that name is in the room. A box whose bot is optional and unnamed resolves to null.
+    /// </summary>
+    protected bool TryResolveBot(string name, out IRoomBot? bot)
+    {
+        bot = null;
+
+        if (name.Length == 0)
+            return IsBotOptional;
+
+        if (!TryGetBot(name, out var found))
+            return false;
+
+        bot = found;
+
+        return true;
+    }
 }

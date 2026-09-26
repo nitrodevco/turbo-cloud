@@ -49,11 +49,13 @@ public class CreateGuildMessageHandler(
 
         if (ToEditFailure(result.Failure) is not { } reason)
         {
-            // Only InsufficientCredits reaches here, and the hotel publishes no text for it.
-            // Saying one of the other reasons instead would put the wrong sentence on screen.
+            // InsufficientCredits and CreationFailed reach here, and the hotel publishes no text
+            // for either: neither is something the player did, and saying one of the four
+            // reasons that do have text would put the wrong sentence on screen.
             _logger.LogInformation(
-                "Player {PlayerId} could not afford to create a group",
-                ctx.PlayerId.Value
+                "Group creation refused for player {PlayerId}: {Reason}",
+                ctx.PlayerId.Value,
+                result.Failure
             );
 
             return;

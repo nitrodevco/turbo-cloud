@@ -1,5 +1,6 @@
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Packets;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Revisions.Revision20260909.Serializers.Users.Data;
 
@@ -9,19 +10,11 @@ namespace Turbo.Revisions.Revision20260909.Serializers.Users.Data;
 /// </summary>
 internal class GuildMemberSerializer
 {
-    /// <summary>The client prints this as given and parses nothing out of it.</summary>
-    private const string MEMBER_SINCE_FORMAT = "dd-MM-yyyy";
-
     public static void Serialize(IServerPacket packet, GuildMemberSnapshot member) =>
         packet
             .WriteInteger((int)member.Rank)
             .WriteInteger(member.PlayerId)
             .WriteString(member.PlayerName)
             .WriteString(member.Figure)
-            .WriteString(
-                member.MemberSince.ToString(
-                    MEMBER_SINCE_FORMAT,
-                    System.Globalization.CultureInfo.InvariantCulture
-                )
-            );
+            .WriteString(ClientDates.Format(member.MemberSince));
 }

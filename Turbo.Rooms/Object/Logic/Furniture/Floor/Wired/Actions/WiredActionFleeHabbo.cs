@@ -31,7 +31,6 @@ public class WiredActionFleeHabbo(
     {
         var selection = ctx.GetSelection(this);
         var map = _roomGrain.MapModule;
-        var actionCtx = ctx.AsActionContext();
         var moved = false;
 
         foreach (var item in GetFloorItems(selection))
@@ -65,18 +64,7 @@ public class WiredActionFleeHabbo(
             {
                 var (x, y) = map.GetTileXY(tileIdx);
 
-                if (
-                    !await _roomGrain.FurniModule.ValidateFloorItemPlacementAsync(
-                        actionCtx,
-                        item.ObjectId,
-                        x,
-                        y,
-                        item.Rotation
-                    )
-                )
-                    continue;
-
-                if (await ctx.ProcessFloorItemMovementAsync(item, tileIdx, null, null))
+                if (await ctx.TryMoveFloorItemAsync(item, x, y))
                 {
                     moved = true;
 

@@ -38,8 +38,6 @@ public class WiredActionRelativeMove(
         if (dx == 0 && dy == 0)
             return false;
 
-        var map = _roomGrain.MapModule;
-        var actionCtx = ctx.AsActionContext();
         var moved = false;
 
         foreach (var item in GetFloorItems(ctx.GetSelection(this)))
@@ -47,21 +45,7 @@ public class WiredActionRelativeMove(
             var x = item.X + dx;
             var y = item.Y + dy;
 
-            if (!map.InBounds(x, y))
-                continue;
-
-            if (
-                !await _roomGrain.FurniModule.ValidateFloorItemPlacementAsync(
-                    actionCtx,
-                    item.ObjectId,
-                    x,
-                    y,
-                    item.Rotation
-                )
-            )
-                continue;
-
-            moved |= await ctx.ProcessFloorItemMovementAsync(item, map.ToIdx(x, y), null, null);
+            moved |= await ctx.TryMoveFloorItemAsync(item, x, y);
         }
 
         return moved;

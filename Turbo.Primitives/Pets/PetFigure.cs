@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.Text;
 using Turbo.Primitives.Pets.Snapshots;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Primitives.Pets;
 
@@ -16,29 +17,14 @@ public static class PetFigure
 {
     public const string DEFAULT_COLOR = "FFFFFF";
     public const char SEPARATOR = ' ';
-    public const int COLOR_LENGTH = 6;
+    public const int COLOR_LENGTH = HexColor.DIGITS;
 
     /// <summary>Ints per custom part: layer id, part id, palette id.</summary>
     public const int CUSTOM_PART_FIELDS = 3;
 
-    public static bool IsValidColor(string? color)
-    {
-        if (color is null)
-            return false;
-
-        color = color.Trim();
-
-        if (color.Length != COLOR_LENGTH)
-            return false;
-
-        foreach (var c in color)
-        {
-            if (!Uri.IsHexDigit(c))
-                return false;
-        }
-
-        return true;
-    }
+    /// <summary>Surrounding whitespace is forgiven here, as it always was for pet colours.</summary>
+    public static bool IsValidColor(string? color) =>
+        color is not null && HexColor.IsRgb(color.AsSpan().Trim());
 
     public static string ToFigureString(PetFigureSnapshot figure)
     {

@@ -34,6 +34,18 @@ public interface IWiredExecutionContext : IWiredContext
         Altitude? z = null,
         Rotation? rotation = null
     );
+
+    /// <summary>
+    /// Moves a floor item to a tile if it may stand there: the one "move it if it fits" every
+    /// wired mover uses. False when the spot is refused (off the map included) or the move is.
+    /// </summary>
+    public Task<bool> TryMoveFloorItemAsync(
+        IRoomFloorItem floorItem,
+        int x,
+        int y,
+        Altitude? z = null,
+        Rotation? rotation = null
+    );
     public Task ProcessWallItemMovementAsync(
         IRoomWallItem wallItem,
         int x,

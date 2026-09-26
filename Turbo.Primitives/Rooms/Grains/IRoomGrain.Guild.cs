@@ -2,7 +2,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Rooms;
 
 namespace Turbo.Primitives.Rooms.Grains;
 
@@ -21,6 +20,13 @@ public partial interface IRoomGrain
     /// here are the group's, so a change to the group is a change to who may build.
     /// </summary>
     public Task OnGuildChangedAsync(CancellationToken ct);
+
+    /// <summary>
+    /// One player's standing in this room's group moved — they joined it, left it, or were
+    /// promoted. Only their own rights here change, so only they are refreshed; a player who is
+    /// not in the room costs one dictionary lookup.
+    /// </summary>
+    public Task RefreshGuildMemberAsync(PlayerId playerId, CancellationToken ct);
 
     /// <summary>
     /// A group changed its badge or its colours: every piece of that group's furni standing here

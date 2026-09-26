@@ -51,19 +51,13 @@ public sealed partial class RoomFurniModule
             return null;
         }
 
-        if (!_roomGrain.MapModule.InBounds(x, y))
-            return null;
-
         var item = _roomGrain._itemsLoader.CreateFloorItem(
             _roomGrain._state.NextTemporaryItemId,
             ownerId,
             definition
         );
 
-        if (
-            !await ValidateNewFloorItemPlacementAsync(ctx, item, x, y, rot)
-            || !await PlaceFloorItemAsync(ctx, item, x, y, rot, ct, z)
-        )
+        if (!await PlaceFloorItemAsync(ctx, item, x, y, rot, ct, z))
             return null;
 
         // Only an id that was used is spent.

@@ -13,95 +13,29 @@ internal abstract class UpdateWiredDataParser : IParser
     {
         var id = packet.PopInt();
 
-        var intParams = new List<int>();
-        var intParamCount = packet.PopCount(bytesPerItem: 4);
-
-        if (intParamCount > 0)
-        {
-            while (intParamCount > 0)
-            {
-                intParams.Add(packet.PopInt());
-
-                intParamCount--;
-            }
-        }
+        var intParams = packet.PopList(bytesPerItem: 4, p => p.PopInt());
 
         var stringParam = packet.PopString();
 
-        var stuffIds = new List<int>();
-        var stuffIdCount = packet.PopCount(bytesPerItem: 4);
-
-        if (stuffIdCount > 0)
-        {
-            while (stuffIdCount > 0)
-            {
-                stuffIds.Add(packet.PopInt());
-
-                stuffIdCount--;
-            }
-        }
+        var stuffIds = packet.PopList(bytesPerItem: 4, p => p.PopInt());
 
         var definitionSpecifics = ParseSpecifics(packet, GetRequiredDefinitionSpecifics());
 
-        var furniSources = new List<WiredFurniSourceType[]>();
-        var furniSourceCount = packet.PopCount(bytesPerItem: 4);
+        var furniSources = packet.PopList<WiredFurniSourceType[]>(
+            bytesPerItem: 4,
+            p => [WiredFurniSourceTypeExtensions.FromProtocolId((WiredSourceType)p.PopInt())]
+        );
 
-        if (furniSourceCount > 0)
-        {
-            while (furniSourceCount > 0)
-            {
-                furniSources.Add([
-                    WiredFurniSourceTypeExtensions.FromProtocolId((WiredSourceType)packet.PopInt()),
-                ]);
+        var userSources = packet.PopList<WiredPlayerSourceType[]>(
+            bytesPerItem: 4,
+            p => [WiredPlayerSourceTypeExtensions.FromProtocolId((WiredSourceType)p.PopInt())]
+        );
 
-                furniSourceCount--;
-            }
-        }
-
-        var userSources = new List<WiredPlayerSourceType[]>();
-        var userSourceCount = packet.PopCount(bytesPerItem: 4);
-
-        if (userSourceCount > 0)
-        {
-            while (userSourceCount > 0)
-            {
-                userSources.Add([
-                    WiredPlayerSourceTypeExtensions.FromProtocolId(
-                        (WiredSourceType)packet.PopInt()
-                    ),
-                ]);
-
-                userSourceCount--;
-            }
-        }
-
-        var variableIds = new List<string>();
-        var variableIdCount = packet.PopCount(bytesPerItem: 2);
-
-        if (variableIdCount > 0)
-        {
-            while (variableIdCount > 0)
-            {
-                variableIds.Add(packet.PopString());
-
-                variableIdCount--;
-            }
-        }
+        var variableIds = packet.PopList(bytesPerItem: 2, p => p.PopString());
 
         var typeSpecifics = ParseSpecifics(packet, GetRequiredTypeSpecifics());
 
-        var stuffIds2 = new List<int>();
-        var stuffId2Count = packet.PopCount(bytesPerItem: 4);
-
-        if (stuffId2Count > 0)
-        {
-            while (stuffId2Count > 0)
-            {
-                stuffIds2.Add(packet.PopInt());
-
-                stuffId2Count--;
-            }
-        }
+        var stuffIds2 = packet.PopList(bytesPerItem: 4, p => p.PopInt());
 
         var message = (UpdateWiredMessage)Activator.CreateInstance(UpdateMessageType)!;
 

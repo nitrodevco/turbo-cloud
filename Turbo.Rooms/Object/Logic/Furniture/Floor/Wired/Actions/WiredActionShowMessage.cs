@@ -53,7 +53,7 @@ public class WiredActionShowMessage(
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        var text = _wiredData.StringParam?.Trim() ?? string.Empty;
+        var text = GetStringParam();
 
         if (text.Length == 0)
             return false;

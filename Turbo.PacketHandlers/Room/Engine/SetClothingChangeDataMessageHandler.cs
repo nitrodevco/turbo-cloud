@@ -4,7 +4,6 @@ using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Messages.Incoming.Room.Engine;
-using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.PacketHandlers.Room.Engine;
@@ -21,18 +20,11 @@ public class SetClothingChangeDataMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (
-            ctx.PlayerId <= 0
-            || ctx.RoomId <= 0
-            || message.ObjectId <= 0
-            || string.IsNullOrEmpty(message.Figure)
-        )
+        if (string.IsNullOrEmpty(message.Figure))
             return;
 
-        await _grainFactory
-            .GetRoomGrain(ctx.RoomId)
-            .InteractWithItemAsync(
-                ctx.AsActionContext(),
+        await ctx.InteractWithRoomItemAsync(
+                _grainFactory,
                 message.ObjectId,
                 new SetClothingChangeInteraction
                 {

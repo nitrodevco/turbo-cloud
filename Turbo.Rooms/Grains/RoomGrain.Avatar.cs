@@ -167,212 +167,87 @@ public sealed partial class RoomGrain
         }
     }
 
-    public async Task<bool> SetAvatarDanceAsync(
+    public Task<bool> SetAvatarDanceAsync(
         ActionContext ctx,
         AvatarDanceType danceType,
         CancellationToken ct
-    )
-    {
-        try
-        {
-            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+    ) =>
+        RunLoggedAsync(
+            ctx,
+            "dance",
+            danceType,
+            async () =>
+                AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
+                && await AvatarModule.SetAvatarDanceAsync(avatar.ObjectId, danceType, ct)
+        );
 
-            if (
-                !_state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
-                || !await AvatarModule.SetAvatarDanceAsync(objectId, danceType, ct)
-            )
-                return false;
+    public Task<bool> SetAvatarEffectAsync(ActionContext ctx, int effectId, CancellationToken ct) =>
+        RunLoggedAsync(
+            ctx,
+            "wear effect",
+            effectId,
+            async () =>
+                AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
+                && await AvatarModule.SetAvatarEffectAsync(avatar.ObjectId, effectId, ct)
+        );
 
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Failed to dance:{DanceType} avatar for player {PlayerId} in room {RoomId}",
-                danceType,
-                ctx.PlayerId,
-                _state.RoomId
-            );
-
-            return false;
-        }
-    }
-
-    public async Task<bool> SetAvatarEffectAsync(
-        ActionContext ctx,
-        int effectId,
-        CancellationToken ct
-    )
-    {
-        try
-        {
-            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
-
-            if (
-                !_state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
-                || !await AvatarModule.SetAvatarEffectAsync(objectId, effectId, ct)
-            )
-                return false;
-
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Failed to effect:{EffectId} avatar for player {PlayerId} in room {RoomId}",
-                effectId,
-                ctx.PlayerId,
-                _state.RoomId
-            );
-
-            return false;
-        }
-    }
-
-    public async Task<bool> SetAvatarExpressionAsync(
+    public Task<bool> SetAvatarExpressionAsync(
         ActionContext ctx,
         AvatarExpressionType expressionType,
         CancellationToken ct
-    )
-    {
-        try
-        {
-            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+    ) =>
+        RunLoggedAsync(
+            ctx,
+            "show expression",
+            expressionType,
+            async () =>
+                AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
+                && await AvatarModule.SetAvatarExpressionAsync(avatar.ObjectId, expressionType, ct)
+        );
 
-            if (
-                !_state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
-                || !await AvatarModule.SetAvatarExpressionAsync(objectId, expressionType, ct)
-            )
-                return false;
+    public Task<bool> SetAvatarSignAsync(ActionContext ctx, int signType, CancellationToken ct) =>
+        RunLoggedAsync(
+            ctx,
+            "show sign",
+            signType,
+            async () =>
+                AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
+                && await AvatarModule.SetAvatarSignAsync(avatar.ObjectId, signType, ct)
+        );
 
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Failed to set expression:{ExpressionType} avatar for player {PlayerId} in room {RoomId}",
-                expressionType,
-                ctx.PlayerId,
-                _state.RoomId
-            );
-
-            return false;
-        }
-    }
-
-    public async Task<bool> SetAvatarSignAsync(
-        ActionContext ctx,
-        int signType,
-        CancellationToken ct
-    )
-    {
-        try
-        {
-            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
-
-            if (
-                !_state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
-                || !await AvatarModule.SetAvatarSignAsync(objectId, signType, ct)
-            )
-                return false;
-
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Failed to set sign:{SignType} avatar for player {PlayerId} in room {RoomId}",
-                signType,
-                ctx.PlayerId,
-                _state.RoomId
-            );
-
-            return false;
-        }
-    }
-
-    public async Task<bool> SetAvatarPostureAsync(
+    public Task<bool> SetAvatarPostureAsync(
         ActionContext ctx,
         AvatarPostureType postureType,
         CancellationToken ct
-    )
-    {
-        try
-        {
-            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+    ) =>
+        RunLoggedAsync(
+            ctx,
+            "take posture",
+            postureType,
+            async () =>
+                AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
+                && await AvatarModule.SetAvatarPostureAsync(avatar.ObjectId, postureType, ct)
+        );
 
-            if (
-                !_state.AvatarsByPlayerId.TryGetValue(ctx.PlayerId, out var objectId)
-                || !await AvatarModule.SetAvatarPostureAsync(objectId, postureType, ct)
-            )
-                return false;
-
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Failed to set posture:{PostureType} avatar for player {PlayerId} in room {RoomId}",
-                postureType,
-                ctx.PlayerId,
-                _state.RoomId
-            );
-
-            return false;
-        }
-    }
-
-    public async Task<bool> PassHandItemAsync(
+    public Task<bool> PassHandItemAsync(
         ActionContext ctx,
         PlayerId targetId,
         CancellationToken ct
-    )
-    {
-        try
-        {
-            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+    ) =>
+        RunLoggedAsync(
+            ctx,
+            "pass a hand item to player",
+            targetId,
+            () => AvatarModule.PassHandItemAsync(ctx, targetId, ct)
+        );
 
-            return await AvatarModule.PassHandItemAsync(ctx, targetId, ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Failed to pass a hand item from player {PlayerId} to {TargetId} in room {RoomId}",
-                ctx.PlayerId,
-                targetId,
-                _state.RoomId
-            );
-
-            return false;
-        }
-    }
-
-    public async Task<bool> DropHandItemAsync(ActionContext ctx, CancellationToken ct)
-    {
-        try
-        {
-            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
-
-            return await AvatarModule.DropHandItemAsync(ctx, ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Failed to drop the hand item of player {PlayerId} in room {RoomId}",
-                ctx.PlayerId,
-                _state.RoomId
-            );
-
-            return false;
-        }
-    }
+    public Task<bool> DropHandItemAsync(ActionContext ctx, CancellationToken ct) =>
+        RunLoggedAsync(
+            ctx,
+            "drop",
+            "their hand item",
+            () => AvatarModule.DropHandItemAsync(ctx, ct)
+        );
 
     public async Task<bool> ClickAvatarAsync(
         ActionContext ctx,
@@ -384,8 +259,8 @@ public sealed partial class RoomGrain
         {
             if (
                 ctx.PlayerId <= 0
-                || !_state.AvatarsByObjectId.ContainsKey(targetObjectId)
-                || !_state.AvatarsByPlayerId.ContainsKey(ctx.PlayerId)
+                || !AvatarModule.TryGetAvatar(targetObjectId, out _)
+                || !AvatarModule.TryGetPlayer(ctx.PlayerId, out _)
             )
                 return false;
 
@@ -429,8 +304,8 @@ public sealed partial class RoomGrain
             if (
                 targetId <= 0
                 || targetId == ctx.PlayerId
-                || !_state.AvatarsByPlayerId.ContainsKey(targetId)
-                || !_state.AvatarsByPlayerId.ContainsKey(ctx.PlayerId)
+                || !AvatarModule.TryGetPlayer(targetId, out _)
+                || !AvatarModule.TryGetPlayer(ctx.PlayerId, out _)
             )
                 return false;
 
@@ -466,33 +341,18 @@ public sealed partial class RoomGrain
         }
     }
 
-    public async Task<bool> LookToAsync(
+    public Task<bool> LookToAsync(
         ActionContext ctx,
         int targetX,
         int targetY,
         CancellationToken ct
-    )
-    {
-        try
-        {
-            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
-
-            return await AvatarModule.LookToAsync(ctx, targetX, targetY, ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Failed to turn avatar for player {PlayerId} in room {RoomId} towards ({TargetX}, {TargetY})",
-                ctx.PlayerId,
-                _state.RoomId,
-                targetX,
-                targetY
-            );
-
-            return false;
-        }
-    }
+    ) =>
+        RunLoggedAsync(
+            ctx,
+            "turn towards",
+            (targetX, targetY),
+            () => AvatarModule.LookToAsync(ctx, targetX, targetY, ct)
+        );
 
     public Task<ImmutableArray<RoomAvatarSnapshot>> GetAllAvatarSnapshotsAsync(
         CancellationToken ct

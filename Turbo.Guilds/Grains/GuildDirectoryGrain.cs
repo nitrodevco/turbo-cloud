@@ -232,7 +232,7 @@ internal sealed class GuildDirectoryGrain : Grain, IGuildDirectoryGrain
         var guilds = await dbCtx.Guilds.AsNoTracking().ToListAsync(ct);
         var memberCounts = await dbCtx
             .GuildMembers.AsNoTracking()
-            .Where(x => x.Rank != GuildMemberRank.Requested && x.Rank != GuildMemberRank.Blocked)
+            .Where(x => GuildMemberRanks.MemberRanks().Contains(x.Rank))
             .GroupBy(x => x.GuildEntityId)
             .Select(g => new { GuildEntityId = g.Key, Members = g.Count() })
             .ToListAsync(ct);
@@ -247,11 +247,7 @@ internal sealed class GuildDirectoryGrain : Grain, IGuildDirectoryGrain
         {
             // No group has a forum until the forum ship lands; the client draws no forum link
             // for a group that says false, which is the truth rather than a stub.
-            var summary = guild.ToSummarySnapshot(
-                hasForum: false,
-                _state.EditorData.GetColor(GuildColorSlotType.Primary, guild.PrimaryColorId),
-                _state.EditorData.GetColor(GuildColorSlotType.Secondary, guild.SecondaryColorId)
-            );
+            var summary = guild.ToSummarySnapshot(_state.EditorData, hasForum: false);
 
             _state.SummaryByGuildId[guild.Id] = summary;
             _state.GuildIdByRoomId[guild.RoomEntityId] = guild.Id;

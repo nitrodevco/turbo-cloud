@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Immutable;
-using System.Text;
 using Turbo.Primitives.Badges;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots;
@@ -62,11 +61,6 @@ public sealed class RoomPlayerAvatar
 
     protected override RoomPlayerAvatarSnapshot BuildSnapshot()
     {
-        var statusString = new StringBuilder("/");
-
-        foreach (var (type, value) in Statuses)
-            statusString.Append($"{type.ToLegacyString()} {value}/");
-
         return new()
         {
             AvatarType = AvatarType,
@@ -81,7 +75,7 @@ public sealed class RoomPlayerAvatar
             BodyRotation = Rotation,
             HeadRotation = HeadRotation,
             JumpPower = JumpPower,
-            Status = statusString.ToString(),
+            Status = BuildStatusString(),
             Gender = Gender,
             DanceType = DanceType,
             EffectId = EffectId,

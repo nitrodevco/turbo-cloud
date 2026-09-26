@@ -11,9 +11,6 @@ public sealed class MessageSystem(MessageRegistry registry)
 
     public async Task PublishAsync(IMessageEvent env, ISessionContext meta, CancellationToken ct)
     {
-        if (_registry is null)
-            return;
-
         await _registry.PublishAsync(env, meta, ct).ConfigureAwait(false);
     }
 }

@@ -65,12 +65,6 @@ public class FurnitureGuildCustomizedLogic(
         await RefreshGuildAsync(ct, show: false);
     }
 
-    public override Task OnUseAsync(
-        Primitives.Action.ActionContext ctx,
-        int param,
-        CancellationToken ct
-    ) => Task.CompletedTask;
-
     /// <summary>
     /// Looks the group up and paints the furni with it. Used when one piece refreshes on its
     /// own; a room repainting several resolves the group once and calls

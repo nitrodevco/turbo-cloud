@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -50,7 +49,7 @@ public sealed partial class RoomPetModule
         if (Pets.Any(x => x.RiderObjectId == rider.ObjectId))
             return false;
 
-        if (IsAdjacent(pet, rider))
+        if (RoomAvatarModule.AreAdjacent(pet, rider))
         {
             await CompleteMountAsync(pet, rider, ct);
 
@@ -72,22 +71,19 @@ public sealed partial class RoomPetModule
         if (pet.PendingRiderObjectId <= 0 || pet.IsRiding)
             return;
 
-        if (
-            !_roomGrain._state.AvatarsByObjectId.TryGetValue(
-                pet.PendingRiderObjectId,
-                out var rider
-            ) || rider.IsWalking
-        )
+        if (!_roomGrain.AvatarModule.TryGetAvatar(pet.PendingRiderObjectId, out var rider))
         {
-            if (rider is null)
-                pet.PendingRiderObjectId = -1;
+            pet.PendingRiderObjectId = -1;
 
             return;
         }
 
+        if (rider.IsWalking)
+            return;
+
         pet.PendingRiderObjectId = -1;
 
-        if (IsAdjacent(pet, rider) && pet.HasSaddle)
+        if (RoomAvatarModule.AreAdjacent(pet, rider) && pet.HasSaddle)
             await CompleteMountAsync(pet, rider, ct);
     }
 
@@ -108,12 +104,11 @@ public sealed partial class RoomPetModule
         rider.Sit(false);
         rider.Lay(false);
 
-        _roomGrain.MapModule.RemoveAvatar(rider, false);
-
-        rider.SetPosition(pet.X, pet.Y);
-
-        _roomGrain.MapModule.AddAvatar(rider, false);
-        _roomGrain.MapModule.UpdateHeightForAvatar(rider);
+        await _roomGrain.AvatarModule.RelocateAvatarAsync(
+            rider,
+            _roomGrain.MapModule.ToIdx(pet.X, pet.Y),
+            ct
+        );
 
         rider.SetRotation(pet.Rotation);
         rider.MarkDirty();
@@ -136,7 +131,7 @@ public sealed partial class RoomPetModule
         pet.SetRider(-1);
         pet.IsFreeRoaming = true;
 
-        if (_roomGrain._state.AvatarsByObjectId.TryGetValue(riderObjectId, out var rider))
+        if (_roomGrain.AvatarModule.TryGetAvatar(riderObjectId, out var rider))
         {
             await _roomGrain.AvatarModule.SetAvatarEffectAsync(rider.ObjectId, 0, ct);
 
@@ -148,14 +143,7 @@ public sealed partial class RoomPetModule
                 if (!IsTileFreeForNpc(idx))
                     continue;
 
-                _roomGrain.MapModule.RemoveAvatar(rider, false);
-
-                rider.SetPosition(x, y);
-
-                _roomGrain.MapModule.AddAvatar(rider, false);
-                _roomGrain.MapModule.UpdateHeightForAvatar(rider);
-
-                rider.MarkDirty();
+                await _roomGrain.AvatarModule.RelocateAvatarAsync(rider, idx, ct);
 
                 break;
             }
@@ -170,22 +158,21 @@ public sealed partial class RoomPetModule
     {
         foreach (var pet in Pets.Where(x => x.IsRiding).ToList())
         {
-            if (!_roomGrain._state.AvatarsByObjectId.TryGetValue(pet.RiderObjectId, out var rider))
+            if (!_roomGrain.AvatarModule.TryGetAvatar(pet.RiderObjectId, out var rider))
             {
                 await DismountAsync(pet, ct);
 
                 continue;
             }
 
-            if (pet.X != rider.X || pet.Y != rider.Y)
-            {
-                _roomGrain.MapModule.RemoveAvatar(pet, false);
+            await _roomGrain.AvatarModule.RelocateAvatarAsync(
+                pet,
+                _roomGrain.MapModule.ToIdx(rider.X, rider.Y),
+                ct,
+                notifyFurni: false
+            );
 
-                pet.SetPosition(rider.X, rider.Y);
-
-                _roomGrain.MapModule.AddAvatar(pet, false);
-            }
-
+            // Its rider's height, not the tile's: the two are drawn as one.
             pet.SetPositionZ(rider.Z);
             pet.SetRotation(rider.Rotation);
 
@@ -284,7 +271,4 @@ public sealed partial class RoomPetModule
             },
             ct
         );
-
-    internal static bool IsAdjacent(IRoomAvatar a, IRoomAvatar b) =>
-        Math.Max(Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y)) <= 1;
 }

@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
@@ -89,42 +88,12 @@ public sealed partial class RoomWiredSystem
         var snapshot = variable.GetVarSnapshot();
         var holders = new List<(int objectId, int value)>();
 
-        switch (snapshot.TargetType)
+        foreach (var targetId in GetLiveTargetIds(snapshot.TargetType))
         {
-            case WiredVariableTargetType.Furni:
-                foreach (var item in _roomGrain.FurniModule.Items)
-                {
-                    var key = new WiredVariableKey(
-                        variableId,
-                        WiredVariableTargetType.Furni,
-                        item.ObjectId
-                    );
+            var key = new WiredVariableKey(variableId, snapshot.TargetType, targetId);
 
-                    if (variable.TryGetValue(key, out var value))
-                        holders.Add((item.ObjectId, value));
-                }
-                break;
-            case WiredVariableTargetType.User:
-                foreach (var avatar in _roomGrain.AvatarModule.Avatars)
-                {
-                    var key = new WiredVariableKey(
-                        variableId,
-                        WiredVariableTargetType.User,
-                        avatar.ObjectId
-                    );
-
-                    if (variable.TryGetValue(key, out var value))
-                        holders.Add((avatar.ObjectId, value));
-                }
-                break;
-            default:
-            {
-                var key = new WiredVariableKey(variableId, snapshot.TargetType, 0);
-
-                if (variable.TryGetValue(key, out var value))
-                    holders.Add((0, value));
-                break;
-            }
+            if (variable.TryGetValue(key, out var value))
+                holders.Add((targetId, value));
         }
 
         return new WiredVariableInfoAndHoldersSnapshot
@@ -232,14 +201,32 @@ public sealed partial class RoomWiredSystem
         }
     }
 
+    /// <summary>
+    /// Everything in the room a variable of this kind can be held by, under the id its value is
+    /// stored by: each furni by object id, each avatar by room index (players, pets and bots
+    /// alike, as every user variable is keyed), and the single id 0 for the room and the
+    /// context. The one enumeration; the holder list, the "with variable" selectors and the
+    /// menu's liveness check all go through it, so none can key users another way.
+    /// </summary>
+    public IEnumerable<int> GetLiveTargetIds(WiredVariableTargetType targetType) =>
+        targetType switch
+        {
+            WiredVariableTargetType.Furni => _roomGrain.FurniModule.Items.Select(x =>
+                x.ObjectId.Value
+            ),
+            WiredVariableTargetType.User => _roomGrain.AvatarModule.Avatars.Select(x =>
+                x.ObjectId.Value
+            ),
+            _ => [0],
+        };
+
     private bool IsLiveTarget(WiredVariableBinding binding) =>
         binding.TargetType switch
         {
             WiredVariableTargetType.User => _roomGrain.AvatarModule.TryGetAvatar(
                 binding.TargetId,
-                out var avatar
-            )
-                && avatar is IRoomPlayer,
+                out _
+            ),
             WiredVariableTargetType.Furni => _roomGrain.FurniModule.HasItem(binding.TargetId),
             WiredVariableTargetType.Global or WiredVariableTargetType.Context => true,
             _ => false,

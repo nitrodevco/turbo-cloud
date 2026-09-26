@@ -117,8 +117,8 @@ public class WiredActionTeleportToRoom(
             }
         }
 
-        return int.TryParse(_wiredData.StringParam, out var parsed) && parsed > 0
-            ? (RoomId.Parse(parsed), RoomEntrySnapshot.Default)
+        return GetPositiveIdParam() is { } roomId
+            ? (RoomId.Parse(roomId), RoomEntrySnapshot.Default)
             : null;
     }
 }

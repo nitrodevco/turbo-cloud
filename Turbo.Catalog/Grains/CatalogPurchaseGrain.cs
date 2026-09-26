@@ -17,7 +17,6 @@ using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Guilds;
-using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Providers;
@@ -26,6 +25,7 @@ using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Catalog.Grains;
 
@@ -94,24 +94,34 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.OfferNotFound);
         }
 
+        await ValidateClubLevelAsync(offer, ct);
+
         ValidatePetProducts(offer, extraParam);
         ValidateSubscriptionProducts(offer);
 
         await ValidateGuildProductsAsync(offer, extraParam, ct);
 
-        if (TryGetDebitRequests(offer, quantity, out var debitRequests))
+        var debitRequests = offer.ToDebitRequests(quantity);
+
+        await DebitAsync(debitRequests, ct);
+
+        try
         {
-            var result = await _grainFactory
-                .GetPlayerWalletGrain(this.GetPlayerId().Value)
-                .TryDebitAsync(debitRequests, ct);
-
-            if (!result.Succeeded)
-                throw CreateInsufficientBalanceException(result);
+            await _grainFactory
+                .GetInventoryGrain(this.GetPlayerId())
+                .GrantCatalogOfferAsync(offer, extraParam, quantity, ct);
         }
+        catch
+        {
+            await _grainFactory.RefundAsync(
+                this.GetPlayerId(),
+                debitRequests,
+                _logger,
+                $"catalog offer {offerId}"
+            );
 
-        await _grainFactory
-            .GetInventoryGrain(this.GetPlayerId().Value)
-            .GrantCatalogOfferAsync(offer, extraParam, quantity, ct);
+            throw;
+        }
 
         // Last, because extending a membership tells the buyer it happened: a grant that threw
         // above must not leave them holding a notification for a purchase that did not land.
@@ -203,7 +213,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
             .GetGuildGrain(GuildId.Parse(guildId))
             .GetMemberRankAsync(this.GetPlayerId(), ct);
 
-        if (rank is not (GuildMemberRank.Owner or GuildMemberRank.Admin or GuildMemberRank.Member))
+        if (!GuildMemberRanks.IsMember(rank))
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
     }
 
@@ -259,6 +269,8 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         if (!snapshot.OffersById.TryGetValue(offerId, out var offer))
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.OfferNotFound);
 
+        await ValidateClubLevelAsync(offer, ct);
+
         var roomGrain = _grainFactory.GetRoomGrain(roomId);
         var controllerLevel = await roomGrain.GetControllerLevelAsync(playerId, ct);
 
@@ -271,80 +283,73 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         if (extended ? activeEvent is null : activeEvent is not null)
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
 
-        if (TryGetDebitRequests(offer, 1, out var debitRequests))
+        var debitRequests = offer.ToDebitRequests(1);
+
+        await DebitAsync(debitRequests, ct);
+
+        RoomEventSnapshot? created = null;
+
+        try
         {
-            var result = await _grainFactory
-                .GetPlayerWalletGrain(playerId)
-                .TryDebitAsync(debitRequests, ct);
-
-            if (!result.Succeeded)
-                throw CreateInsufficientBalanceException(result);
+            created = await roomGrain.CreateEventAsync(
+                playerId,
+                categoryId,
+                name,
+                description,
+                duration,
+                ct
+            );
         }
+        finally
+        {
+            // Covers both a refused event and a throwing room: either way nothing was bought.
+            if (created is null)
+            {
+                _logger.LogError(
+                    "Room ad offer {OfferId} was charged to player {PlayerId} but the event in room {RoomId} could not be created; refunding",
+                    offerId,
+                    playerId,
+                    roomId
+                );
 
-        var created = await roomGrain.CreateEventAsync(
-            playerId,
-            categoryId,
-            name,
-            description,
-            duration,
-            ct
-        );
+                await _grainFactory.RefundAsync(
+                    playerId,
+                    debitRequests,
+                    _logger,
+                    $"room ad offer {offerId}"
+                );
+            }
+        }
 
         if (created is null)
-        {
-            _logger.LogError(
-                "Room ad offer {OfferId} was charged to player {PlayerId} but the event in room {RoomId} could not be created",
-                offerId,
-                playerId,
-                roomId
-            );
-
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
-        }
 
         return offer;
     }
 
-    private bool TryGetDebitRequests(
-        CatalogOfferSnapshot offer,
-        int quantity,
-        out List<WalletDebitRequest> requests
-    )
+    /// <summary>
+    /// A club-only offer refused before any money moves. The client greys these out for a
+    /// non-member, but the level travels to it in the offer and nothing stopped a client from
+    /// sending the purchase anyway.
+    /// </summary>
+    private async Task ValidateClubLevelAsync(CatalogOfferSnapshot offer, CancellationToken ct)
     {
-        requests = [];
+        if (offer.RequiresClub && !await _grainFactory.HasActiveClubAsync(this.GetPlayerId(), ct))
+            throw new CatalogPurchaseException(CatalogPurchaseErrorType.RequiresHabboClub);
+    }
 
-        if (offer.CostCredits > 0)
-            requests.Add(
-                new WalletDebitRequest
-                {
-                    CurrencyKind = new CurrencyKind { CurrencyType = CurrencyType.Credits },
-                    Amount = offer.CostCredits * quantity,
-                }
-            );
+    /// <summary>Takes the price, or throws the refusal the client shows for a short balance.</summary>
+    private async Task DebitAsync(List<WalletDebitRequest> debitRequests, CancellationToken ct)
+    {
+        if (debitRequests.Count == 0)
+            return;
 
-        if (offer.CostSilver > 0)
-            requests.Add(
-                new WalletDebitRequest
-                {
-                    CurrencyKind = new CurrencyKind { CurrencyType = CurrencyType.Silver },
-                    Amount = offer.CostSilver * quantity,
-                }
-            );
+        var result = await _grainFactory
+            .GetPlayerWalletGrain(this.GetPlayerId())
+            .TryDebitAsync(debitRequests, ct);
 
-        if (offer.CostCurrency > 0)
-            requests.Add(
-                new WalletDebitRequest
-                {
-                    CurrencyKind = new CurrencyKind
-                    {
-                        CurrencyType = CurrencyType.ActivityPoints,
-                        ActivityPointType = offer.CurrencyTypeId,
-                    },
-                    Amount = offer.CostCurrency * quantity,
-                }
-            );
-
-        return true;
+        if (!result.Succeeded)
+            throw CreateInsufficientBalanceException(result);
     }
 
     private static CatalogPurchaseException CreateInsufficientBalanceException(

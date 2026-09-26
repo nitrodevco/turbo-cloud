@@ -208,14 +208,14 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain)
 
     private async Task FollowAsync(IRoomPet pet, CancellationToken ct)
     {
-        if (!_roomGrain._state.AvatarsByObjectId.TryGetValue(pet.FollowObjectId, out var target))
+        if (!_roomGrain.AvatarModule.TryGetAvatar(pet.FollowObjectId, out var target))
         {
             pet.FollowObjectId = -1;
 
             return;
         }
 
-        if (Modules.RoomPetModule.IsAdjacent(pet, target))
+        if (Modules.RoomAvatarModule.AreAdjacent(pet, target))
         {
             if (!pet.IsWalking && !target.IsWalking)
                 pet.SetBodyRotation(target.Rotation);

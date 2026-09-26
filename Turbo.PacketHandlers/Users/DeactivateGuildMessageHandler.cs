@@ -28,12 +28,5 @@ public class DeactivateGuildMessageHandler(IGrainFactory grainFactory)
 
         if (!deleted)
             return;
-
-        // The homeroom's furni went back to its owners with the group. Pieces of that group's
-        // furni standing in other rooms did not, and are now wearing a badge that no longer
-        // resolves, so those rooms are told to look again.
-        await _grainFactory
-            .RefreshGuildFurniEverywhereAsync(message.GuildId, ct)
-            .ConfigureAwait(false);
     }
 }

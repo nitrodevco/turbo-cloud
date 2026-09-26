@@ -242,11 +242,6 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         }
     }
 
-    /// <summary>
-    /// The avatar of a player who is in the room. This is the one lookup from player id to
-    /// avatar; modules, systems and wired boxes all come here instead of walking
-    /// <c>AvatarsByPlayerId</c> and <c>AvatarsByObjectId</c> themselves.
-    /// </summary>
     // Read access for the systems that are not this module (wired above all). They ask here
     // instead of reading the room state, so how avatars are indexed can change in one place.
 
@@ -332,6 +327,18 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         return nearest is not null;
     }
 
+    /// <summary>
+    /// Two avatars on the same tile or on touching ones, diagonals included: what passing a
+    /// hand item, mounting or feeding a pet needs.
+    /// </summary>
+    public static bool AreAdjacent(IRoomAvatar a, IRoomAvatar b) =>
+        Math.Max(Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y)) <= 1;
+
+    /// <summary>
+    /// The avatar of a player who is in the room. This is the one lookup from player id to
+    /// avatar; modules, systems and wired boxes all come here instead of walking
+    /// <c>AvatarsByPlayerId</c> and <c>AvatarsByObjectId</c> themselves.
+    /// </summary>
     internal bool TryGetPlayer(PlayerId playerId, out IRoomPlayer player)
     {
         player = null!;
@@ -339,7 +346,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         if (
             playerId <= 0
             || !_roomGrain._state.AvatarsByPlayerId.TryGetValue(playerId, out var objectId)
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+            || !TryGetAvatar(objectId, out var avatar)
             || avatar is not IRoomPlayer roomPlayer
         )
             return false;
@@ -374,7 +381,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
     )
     {
         if (
-            !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar)
+            !TryGetAvatar(objectId, out var avatar)
             || !await WalkAvatarToAsync(avatar, targetX, targetY, ct)
         )
             return false;
@@ -506,17 +513,34 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
     /// always hear of it, as they do for a walked step. Whether the avatar may stand there is
     /// the caller's question (<see cref="RoomMapModule.CanAvatarWalk"/>); telling the room is
     /// the caller's too, since a wired move and a plain status update look different on the wire.
+    /// <para>
+    /// <paramref name="notifyFurni"/> is false for one caller only: a ridden pet, which is moved
+    /// under its rider every step. The furni heard of the rider already; hearing of the pet as
+    /// well would fire every walk-on trigger twice for one step.
+    /// </para>
     /// </summary>
-    public async Task RelocateAvatarAsync(IRoomAvatar avatar, int tileIdx, CancellationToken ct)
+    public async Task RelocateAvatarAsync(
+        IRoomAvatar avatar,
+        int tileIdx,
+        CancellationToken ct,
+        bool notifyFurni = true
+    )
     {
         var map = _roomGrain.MapModule;
+
+        if (map.ToIdx(avatar.X, avatar.Y) == tileIdx)
+            return;
+
+        // Stopping finishes a step already under way, so where the avatar stands is read after.
+        await StopWalkingAsync(avatar, ct);
+
         var sourceIdx = map.ToIdx(avatar.X, avatar.Y);
 
         if (sourceIdx == tileIdx)
             return;
 
-        await StopWalkingAsync(avatar, ct);
-        await NotifyWalkOffAsync(avatar, sourceIdx, ct);
+        if (notifyFurni)
+            await NotifyWalkOffAsync(avatar, sourceIdx, ct);
 
         var (targetX, targetY) = map.GetTileXY(tileIdx);
 
@@ -529,39 +553,21 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         avatar.NeedsInvoke = true;
         avatar.MarkDirty();
 
-        await NotifyWalkOnAsync(avatar, tileIdx, ct);
+        if (notifyFurni)
+            await NotifyWalkOnAsync(avatar, tileIdx, ct);
     }
 
     /// <summary>Tells the furni an avatar stands on that the avatar is leaving it.</summary>
     public Task NotifyWalkOffAsync(IRoomAvatar avatar, int tileIdx, CancellationToken ct) =>
-        TryGetWalkableItem(tileIdx, out var item)
+        _roomGrain.MapModule.TryGetHighestFloorItem(tileIdx, out var item)
             ? item.Logic.OnWalkOffAsync((IRoomAvatarContext)avatar.Logic.Context, ct)
             : Task.CompletedTask;
 
     /// <summary>Tells the furni on a tile that an avatar arrived on it.</summary>
     public Task NotifyWalkOnAsync(IRoomAvatar avatar, int tileIdx, CancellationToken ct) =>
-        TryGetWalkableItem(tileIdx, out var item)
+        _roomGrain.MapModule.TryGetHighestFloorItem(tileIdx, out var item)
             ? item.Logic.OnWalkOnAsync((IRoomAvatarContext)avatar.Logic.Context, ct)
             : Task.CompletedTask;
-
-    /// <summary>The furni an avatar on this tile stands on: the highest floor item, if any.</summary>
-    private bool TryGetWalkableItem(int tileIdx, out IRoomFloorItem item)
-    {
-        item = null!;
-
-        var itemId = _roomGrain._state.TileHighestFloorItems[tileIdx];
-
-        if (
-            itemId <= 0
-            || !_roomGrain._state.ItemsById.TryGetValue(itemId, out var found)
-            || found is not IRoomFloorItem floorItem
-        )
-            return false;
-
-        item = floorItem;
-
-        return true;
-    }
 
     /// <summary>
     /// Furni that dresses a player (a mannequin, a clothing booth) changes their figure here.
@@ -589,20 +595,17 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         )
             return Task.FromResult(false);
 
-        _roomGrain
-            .SendComposerToRoomAsync(
-                new UserChangeMessageComposer
-                {
-                    ObjectId = avatarPlayer.ObjectId,
-                    Figure = avatarPlayer.Figure,
-                    Gender = avatarPlayer.Gender,
-                    CustomInfo = avatarPlayer.Motto,
-                    AchievementScore = snapshot.AchievementScore,
-                    BadgesRank = snapshot.BadgesRank,
-                },
-                ct
-            )
-            .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
+        _roomGrain.SendComposerToRoomAndForget(
+            new UserChangeMessageComposer
+            {
+                ObjectId = avatarPlayer.ObjectId,
+                Figure = avatarPlayer.Figure,
+                Gender = avatarPlayer.Gender,
+                CustomInfo = avatarPlayer.Motto,
+                AchievementScore = snapshot.AchievementScore,
+                BadgesRank = snapshot.BadgesRank,
+            }
+        );
 
         return Task.FromResult(true);
     }
@@ -613,23 +616,12 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
-        if (
-            objectId <= 0
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar)
-            || !avatar.SetDance(danceType)
-        )
+        if (objectId <= 0 || !TryGetAvatar(objectId, out var avatar) || !avatar.SetDance(danceType))
             return Task.FromResult(false);
 
-        _roomGrain
-            .SendComposerToRoomAsync(
-                new DanceMessageComposer
-                {
-                    ObjectId = avatar.ObjectId,
-                    DanceType = avatar.DanceType,
-                },
-                ct
-            )
-            .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
+        _roomGrain.SendComposerToRoomAndForget(
+            new DanceMessageComposer { ObjectId = avatar.ObjectId, DanceType = avatar.DanceType }
+        );
 
         PublishAction(avatar, AvatarActionType.Dance, (int)avatar.DanceType);
 
@@ -642,24 +634,17 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
-        if (
-            objectId <= 0
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar)
-            || !avatar.SetEffect(effectId)
-        )
+        if (objectId <= 0 || !TryGetAvatar(objectId, out var avatar) || !avatar.SetEffect(effectId))
             return Task.FromResult(false);
 
-        _roomGrain
-            .SendComposerToRoomAsync(
-                new AvatarEffectMessageComposer
-                {
-                    ObjectId = avatar.ObjectId,
-                    EffectId = avatar.EffectId,
-                    DelayMilliseconds = 0,
-                },
-                ct
-            )
-            .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
+        _roomGrain.SendComposerToRoomAndForget(
+            new AvatarEffectMessageComposer
+            {
+                ObjectId = avatar.ObjectId,
+                EffectId = avatar.EffectId,
+                DelayMilliseconds = 0,
+            }
+        );
 
         return Task.FromResult(true);
     }
@@ -670,22 +655,16 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
-        if (
-            objectId <= 0
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar)
-        )
+        if (objectId <= 0 || !TryGetAvatar(objectId, out var avatar))
             return Task.FromResult(false);
 
-        _roomGrain
-            .SendComposerToRoomAsync(
-                new ExpressionMessageComposer
-                {
-                    ObjectId = avatar.ObjectId,
-                    ExpressionType = expressionType,
-                },
-                ct
-            )
-            .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
+        _roomGrain.SendComposerToRoomAndForget(
+            new ExpressionMessageComposer
+            {
+                ObjectId = avatar.ObjectId,
+                ExpressionType = expressionType,
+            }
+        );
 
         PublishAction(avatar, AvatarActionType.Expression, (int)expressionType);
 
@@ -694,10 +673,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
 
     public Task<bool> SetAvatarSignAsync(RoomObjectId objectId, int signType, CancellationToken ct)
     {
-        if (
-            objectId <= 0
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar)
-        )
+        if (objectId <= 0 || !TryGetAvatar(objectId, out var avatar))
             return Task.FromResult(false);
 
         avatar.AddStatus(AvatarStatusType.Sign, signType.ToString());
@@ -743,12 +719,9 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
 
         avatar.SetIdle(false);
 
-        _roomGrain
-            .SendComposerToRoomAsync(
-                new SleepMessageComposer { ObjectId = avatar.ObjectId, IsSleeping = false },
-                CancellationToken.None
-            )
-            .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
+        _roomGrain.SendComposerToRoomAndForget(
+            new SleepMessageComposer { ObjectId = avatar.ObjectId, IsSleeping = false }
+        );
     }
 
     public Task SetHandItemAsync(IRoomAvatar avatar, int handItemId, CancellationToken ct)
@@ -788,10 +761,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         var handItemId = giver.HandItemId;
 
         // Passing needs the two avatars side by side, as the client only offers it then.
-        if (
-            handItemId <= 0
-            || Math.Max(Math.Abs(giver.X - receiver.X), Math.Abs(giver.Y - receiver.Y)) > 1
-        )
+        if (handItemId <= 0 || !AreAdjacent(giver, receiver))
             return false;
 
         await SetHandItemAsync(giver, 0, ct);
@@ -826,10 +796,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
-        if (
-            objectId <= 0
-            || !_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId.Value, out var avatar)
-        )
+        if (objectId <= 0 || !TryGetAvatar(objectId, out var avatar))
             return Task.FromResult(false);
 
         switch (postureType)

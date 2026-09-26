@@ -22,11 +22,12 @@ public class FurnitureMonsterplantSeedLogic(
 {
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Nobody;
 
+    // The client offers planting it to its owner only, and sends a plain use; Nobody keeps the
+    // use button away from everyone else, and this lets the owner's use through.
+    public override Task<bool> CanUseAsync(ActionContext ctx) => Task.FromResult(IsItemOwner(ctx));
+
     public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
     {
-        if (_ctx.RoomObject.OwnerId != ctx.PlayerId)
-            return;
-
         var data = FurnitureExtraDataSections.Read<MonsterplantSeedData>(
             _ctx.RoomObject.ExtraData,
             _ctx.Definition.ExtraData,

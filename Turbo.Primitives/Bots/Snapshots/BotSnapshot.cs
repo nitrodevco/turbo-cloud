@@ -1,4 +1,5 @@
 using Orleans;
+using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -11,7 +12,7 @@ namespace Turbo.Primitives.Bots.Snapshots;
 /// room owns it once placed and hands it back with whatever its owner changed meanwhile.
 /// </summary>
 [GenerateSerializer, Immutable]
-public sealed record BotSnapshot
+public sealed record BotSnapshot : IInventoryUnitSnapshot
 {
     [Id(0)]
     public required int Id { get; init; }

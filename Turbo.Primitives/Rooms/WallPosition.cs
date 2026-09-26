@@ -20,6 +20,7 @@ public readonly record struct WallPosition(
     private const string WALL_PREFIX = ":w=";
     private const string LOCATION_PREFIX = "l=";
     private const string LEFT_WALL = "l";
+    private const string RIGHT_WALL = "r";
     private const int SEGMENT_COUNT = 3;
 
     public static bool TryParse(string? value, out WallPosition position)
@@ -81,4 +82,15 @@ public readonly record struct WallPosition(
 
         return true;
     }
+
+    /// <summary>
+    /// The location in the client's own format, the inverse of <see cref="TryParse"/>. Written
+    /// with the invariant culture, like it is read: a server whose locale writes a decimal comma
+    /// would otherwise send a height the client cannot read.
+    /// </summary>
+    public override string ToString() =>
+        string.Create(
+            CultureInfo.InvariantCulture,
+            $"{WALL_PREFIX}{X},{Y} {LOCATION_PREFIX}{WallOffset},{Z.Value} {(Rotation == Rotation.South ? LEFT_WALL : RIGHT_WALL)}"
+        );
 }

@@ -24,7 +24,7 @@ namespace Turbo.Database.Entities.Furniture;
 [PrimaryKey(nameof(RoomEntityId), nameof(RoomObjectId))]
 // The borrow count is per player across every room, which the key above cannot serve.
 [Index(nameof(PlacedByPlayerEntityId))]
-public class BuildersClubFurnitureEntity
+public class BuildersClubFurnitureEntity : IPlacedFurnitureEntity
 {
     [Column("room_id")]
     public required int RoomEntityId { get; set; }

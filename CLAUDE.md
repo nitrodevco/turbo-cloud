@@ -14,7 +14,8 @@ This adapter points Claude to the canonical AI contract for this repository.
 - Do not send composers directly to sockets/sessions from handlers. There are exactly three ways
   to send one: `ctx.SendComposerAsync` to the session being handled,
   `grainFactory.SendComposerToPlayerAsync` / `SendComposerToPlayersAsync` to a player, and
-  `RoomGrain.SendComposerToRoomAsync` to a room. Do not spell out
+  `RoomGrain.SendComposerToRoomAsync` to a room (or `RoomGrain.SendComposerToRoomAndForget`,
+  its fire-and-forget form, from room code that must not wait). Do not spell out
   `GetPlayerPresenceGrain(id).SendComposerAsync(...)` or add a local send helper.
 - For `Revision<id>` parser/serializer work, edit `Turbo.Revisions/Revision<id>/**`.
 

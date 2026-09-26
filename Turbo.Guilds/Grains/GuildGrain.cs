@@ -53,7 +53,7 @@ internal sealed partial class GuildGrain : Grain, IGuildGrain
         _logger = logger;
     }
 
-    private GuildId GuildId => GuildId.Parse((int)this.GetPrimaryKeyLong());
+    private GuildId GuildId => this.GetGuildId();
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
@@ -113,29 +113,32 @@ internal sealed partial class GuildGrain : Grain, IGuildGrain
     /// blocked player is told they are not a member, which is the thing they can act on.
     /// </summary>
     private static GuildMembershipStatus ToStatus(GuildMemberRank? rank) =>
-        rank switch
-        {
-            GuildMemberRank.Owner or GuildMemberRank.Admin or GuildMemberRank.Member =>
-                GuildMembershipStatus.Member,
-            GuildMemberRank.Requested => GuildMembershipStatus.Pending,
-            _ => GuildMembershipStatus.NotMember,
-        };
+        GuildMemberRanks.IsMember(rank) ? GuildMembershipStatus.Member
+        : rank == GuildMemberRank.Requested ? GuildMembershipStatus.Pending
+        : GuildMembershipStatus.NotMember;
 
     private int CountOfRanks(params GuildMemberRank[] ranks) =>
         _state.RankByPlayerId.Values.Count(ranks.Contains);
 
+    /// <summary>Members, not counting pending requests or blocked players.</summary>
+    private int CountOfMembers() => CountOfRanks(GuildMemberRanks.MemberRanks());
+
+    /// <summary>
+    /// How many more members the group takes. Every path that makes somebody a member — joining,
+    /// one approval, approving the lot — asks this, rather than only the one that was written
+    /// first.
+    /// </summary>
+    private int FreeMemberSlots() =>
+        Math.Max(0, _guildConfig.RegularGuildMembersMax - CountOfMembers());
+
     private async Task LoadAsync(CancellationToken ct)
     {
-        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+        await LoadGuildAsync(ct);
 
-        var entity = await dbCtx
-            .Guilds.AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == GuildId.Value, ct);
-
-        _state.IsLoaded = true;
-
-        if (entity is null)
+        if (_state.Guild is null)
             return;
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         var members = await dbCtx
             .GuildMembers.AsNoTracking()
@@ -143,18 +146,34 @@ internal sealed partial class GuildGrain : Grain, IGuildGrain
             .Select(x => new { x.PlayerEntityId, x.Rank })
             .ToListAsync(ct);
 
-        var editorData = await _grainFactory.GetGuildDirectoryGrain().GetEditorDataAsync(ct);
-
-        // No group has a forum until the forum ship lands.
-        _state.Guild = entity.ToSnapshot(
-            hasForum: false,
-            editorData.GetColor(GuildColorSlotType.Primary, entity.PrimaryColorId),
-            editorData.GetColor(GuildColorSlotType.Secondary, entity.SecondaryColorId)
-        );
-
         _state.RankByPlayerId.Clear();
 
         foreach (var member in members)
             _state.RankByPlayerId[member.PlayerEntityId] = member.Rank;
+    }
+
+    /// <summary>
+    /// Re-reads the group row alone. An edit to the group never touches the roster, and a group
+    /// at its member limit would otherwise re-read five thousand rows to change its name.
+    /// </summary>
+    private async Task LoadGuildAsync(CancellationToken ct)
+    {
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        var entity = await dbCtx
+            .Guilds.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == GuildId.Value, ct);
+
+        if (entity is null)
+        {
+            _state.Guild = null;
+
+            return;
+        }
+
+        var editorData = await _grainFactory.GetGuildDirectoryGrain().GetEditorDataAsync(ct);
+
+        // No group has a forum until the forum ship lands.
+        _state.Guild = entity.ToSnapshot(editorData, hasForum: false);
     }
 }

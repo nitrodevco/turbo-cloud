@@ -51,25 +51,13 @@ public abstract class FurniturePlacementVariable(RoomGrain roomGrain)
         switch (item)
         {
             case IRoomFloorItem floorItem:
-                if (
-                    !await _roomGrain.FurniModule.ValidateFloorItemPlacementAsync(
-                        ctx.AsActionContext(),
-                        floorItem.ObjectId,
-                        target.X,
-                        target.Y,
-                        target.Rotation
-                    )
-                )
-                    return false;
-
-                await ctx.ProcessFloorItemMovementAsync(
+                return await ctx.TryMoveFloorItemAsync(
                     floorItem,
-                    _roomGrain.MapModule.ToIdx(target.X, target.Y),
+                    target.X,
+                    target.Y,
                     target.Z,
                     target.Rotation
                 );
-
-                return true;
             case IRoomWallItem wallItem:
                 if (
                     !await _roomGrain.FurniModule.ValidateWallItemPlacementAsync(

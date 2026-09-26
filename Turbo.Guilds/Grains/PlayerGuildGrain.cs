@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -17,11 +18,10 @@ using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Players.Enums;
-using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Grains.Guilds;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Guilds.Grains;
 
@@ -59,7 +59,7 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
         _logger = logger;
     }
 
-    private PlayerId PlayerId => PlayerId.Parse((int)this.GetPrimaryKeyLong());
+    private PlayerId PlayerId => this.GetPlayerId();
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
@@ -169,7 +169,7 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
     {
         var directory = _grainFactory.GetGuildDirectoryGrain();
 
-        var name = Clamp(request.Name, _guildConfig.NameMaxLength);
+        var name = ClientText.Truncate(request.Name, _guildConfig.NameMaxLength);
 
         if (string.IsNullOrWhiteSpace(name))
             return GuildCreationResultSnapshot.Failed(GuildCreationFailureType.InvalidName);
@@ -187,7 +187,10 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
         if (!rooms.Any(x => x.RoomId == request.RoomId))
             return GuildCreationResultSnapshot.Failed(GuildCreationFailureType.RoomAlreadyHomeroom);
 
-        if (_guildConfig.CreationRequiresClub && !await HasClubAsync(ct))
+        if (
+            _guildConfig.CreationRequiresClub
+            && !await _grainFactory.HasActiveClubAsync(PlayerId, ct)
+        )
             return GuildCreationResultSnapshot.Failed(GuildCreationFailureType.ClubRequired);
 
         var editorData = await directory.GetEditorDataAsync(ct);
@@ -204,20 +207,21 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
             request.SecondaryColorId
         );
 
-        if (_guildConfig.CreationCostInCredits > 0)
+        List<WalletDebitRequest> cost =
+            _guildConfig.CreationCostInCredits > 0
+                ?
+                [
+                    new WalletDebitRequest
+                    {
+                        CurrencyKind = CurrencyKind.Credits,
+                        Amount = _guildConfig.CreationCostInCredits,
+                    },
+                ]
+                : [];
+
+        if (cost.Count > 0)
         {
-            var debit = await _grainFactory
-                .GetPlayerWalletGrain(PlayerId)
-                .TryDebitAsync(
-                    [
-                        new WalletDebitRequest
-                        {
-                            CurrencyKind = new CurrencyKind { CurrencyType = CurrencyType.Credits },
-                            Amount = _guildConfig.CreationCostInCredits,
-                        },
-                    ],
-                    ct
-                );
+            var debit = await _grainFactory.GetPlayerWalletGrain(PlayerId).TryDebitAsync(cost, ct);
 
             if (!debit.Succeeded)
                 return GuildCreationResultSnapshot.Failed(
@@ -228,7 +232,10 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
         var entity = new GuildEntity
         {
             Name = name,
-            Description = Clamp(request.Description, _guildConfig.DescriptionMaxLength),
+            Description = ClientText.Truncate(
+                request.Description,
+                _guildConfig.DescriptionMaxLength
+            ),
             BadgeCode = badgeCode,
             PrimaryColorId = primaryColorId,
             SecondaryColorId = secondaryColorId,
@@ -238,16 +245,20 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
             RoomEntityId = request.RoomId.Value,
         };
 
-        await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
+        try
         {
+            await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+            // The group and its owner's membership are inserted together. Two saves would let a
+            // group exist with nobody in it, and its owner would then stand in their own
+            // homeroom with no rank and so no rights. EF orders the pair and fills the foreign
+            // key itself when the member points at the entity rather than at its id.
             dbCtx.Guilds.Add(entity);
-
-            await dbCtx.SaveChangesAsync(ct);
-
             dbCtx.GuildMembers.Add(
                 new GuildMemberEntity
                 {
-                    GuildEntityId = entity.Id,
+                    GuildEntity = entity,
+                    GuildEntityId = 0,
                     PlayerEntityId = PlayerId.Value,
                     Rank = GuildMemberRank.Owner,
                     // Their first group becomes the badge they wear; a later one does not take
@@ -258,18 +269,36 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
 
             await dbCtx.SaveChangesAsync(ct);
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to create a group for player {PlayerId}; refunding the cost",
+                PlayerId.Value
+            );
+
+            // They have already been charged. Nothing else gives it back, and a player who paid
+            // for a group that does not exist has no way to notice, let alone complain.
+            await _grainFactory.RefundAsync(PlayerId, cost, _logger, "creating a group");
+
+            return GuildCreationResultSnapshot.Failed(GuildCreationFailureType.CreationFailed);
+        }
 
         _state.GuildIds.Add(entity.Id);
         _state.FavouriteGuildId ??= entity.Id;
 
         await directory.OnGuildChangedAsync(
-            entity.ToSummarySnapshot(
-                hasForum: false,
-                editorData.GetColor(GuildColorSlotType.Primary, primaryColorId),
-                editorData.GetColor(GuildColorSlotType.Secondary, secondaryColorId)
-            ),
+            entity.ToSummarySnapshot(editorData, hasForum: false),
             ct
         );
+
+        // The homeroom is very likely loaded — the wizard is usually opened from inside it — and
+        // last resolved as an ordinary room, so the owner would have none of the rights their own
+        // group just gave them. Told rather than awaited, for the reason above.
+        _grainFactory
+            .GetRoomGrain(RoomId.Parse(entity.RoomEntityId))
+            .OnGuildChangedAsync(CancellationToken.None)
+            .LogAndForget(_logger, $"refresh the homeroom of the new group {entity.Id}");
 
         return GuildCreationResultSnapshot.Success(
             GuildId.Parse(entity.Id),
@@ -319,14 +348,21 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
         if (activeRoom.RoomId <= 0)
             return;
 
-        await _grainFactory
+        // Told, not asked, and deliberately not awaited: the room reads this grain when a player
+        // walks in (RoomAvatarModule.LoadFavouriteGuildAsync), so awaiting the room from here
+        // would let an entry and a badge change arrive together and deadlock the pair.
+        _grainFactory
             .GetRoomGrain(activeRoom.RoomId)
             .SetPlayerFavouriteGuildAsync(
                 PlayerId,
                 guild?.GuildId ?? -1,
                 guild is null ? -1 : (int)GuildMembershipStatus.Member,
                 guild?.Name ?? string.Empty,
-                ct
+                CancellationToken.None
+            )
+            .LogAndForget(
+                _logger,
+                $"tell room {activeRoom.RoomId} that player {PlayerId.Value} changed group badge"
             );
     }
 
@@ -349,16 +385,6 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
         }
     }
 
-    private async Task<bool> HasClubAsync(CancellationToken ct) =>
-        await _grainFactory
-            .GetPlayerSubscriptionGrain(PlayerId)
-            .HasActiveAsync(SubscriptionType.HabboClub, ct);
-
-    private static string Clamp(string? value, int maxLength) =>
-        string.IsNullOrEmpty(value) ? string.Empty
-        : value.Length <= maxLength ? value
-        : value[..maxLength];
-
     private async Task LoadAsync(CancellationToken ct)
     {
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
@@ -367,8 +393,7 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
             .GuildMembers.AsNoTracking()
             .Where(x =>
                 x.PlayerEntityId == PlayerId.Value
-                && x.Rank != GuildMemberRank.Requested
-                && x.Rank != GuildMemberRank.Blocked
+                && GuildMemberRanks.MemberRanks().Contains(x.Rank)
             )
             .Select(x => new { x.GuildEntityId, x.IsFavourite })
             .ToListAsync(ct);
@@ -383,7 +408,5 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
             if (membership.IsFavourite)
                 _state.FavouriteGuildId = membership.GuildEntityId;
         }
-
-        _state.IsLoaded = true;
     }
 }

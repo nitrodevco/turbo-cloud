@@ -28,7 +28,7 @@ public class WiredActionWriteToLogs(
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        var message = _wiredData.StringParam?.Trim() ?? string.Empty;
+        var message = GetStringParam();
 
         if (message.Length == 0)
             return false;

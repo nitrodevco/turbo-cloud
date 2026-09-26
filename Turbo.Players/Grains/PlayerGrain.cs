@@ -15,6 +15,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Players.Grains;
 
@@ -137,9 +138,14 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
 
         // Online-ness is not ours to remember: this grain is collected while idle and comes back
         // long before the player logs out, so the session holder is asked instead of guessing.
-        _state.IsOnline = await _grainFactory
-            .GetPlayerPresenceGrain(_state.PlayerId)
-            .HasActiveSessionAsync(ct);
+        //
+        // Asked a turn later rather than here, and not awaited. The presence grain is often what
+        // activated us — it reads this grain's summary on room entry — and it would then be
+        // sitting inside that call waiting for an activation that was waiting for it. The
+        // presence pushes this value on every session open and close anyway, so all this
+        // recovers is the case of being collected mid-session, and it self-corrects a turn in.
+        RefreshOnlineStatusAsync()
+            .LogAndForget(_logger, $"refresh online status of player {_state.PlayerId}");
 
         ResetDailyRespectIfDue();
 
@@ -270,14 +276,28 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         _state.BadgesRank = badgesRank;
 
         // Only the room shows a rank, so friends are not told as they are of a new figure.
-        await _grainFactory
+        // Told, not awaited: the presence grain reads this grain, so awaiting it from here is the
+        // other half of a deadlock.
+        var summary = await GetSummaryAsync(ct);
+
+        _grainFactory
             .GetPlayerPresenceGrain(PlayerId)
-            .OnBadgesRankChangedAsync(await GetSummaryAsync(ct), ct);
+            .OnBadgesRankChangedAsync(summary, CancellationToken.None)
+            .LogAndForget(_logger, $"tell player {PlayerId} presence of a new badges rank");
     }
 
     // The badge figures of a profile are not here: they are the inventory's, and this grain must
     // not await the inventory (inventory -> presence -> this grain is already a chain). The
     // handler reads both and sends them side by side.
+    /// <summary>
+    /// Re-reads whether the player has a live session. Runs a turn after activation rather than
+    /// during it; see the call site for why.
+    /// </summary>
+    private async Task RefreshOnlineStatusAsync() =>
+        _state.IsOnline = await _grainFactory
+            .GetPlayerPresenceGrain(_state.PlayerId)
+            .HasActiveSessionAsync(CancellationToken.None);
+
     public Task<PlayerExtendedProfileSnapshot> GetExtendedProfileSnapshotAsync(
         CancellationToken ct
     ) =>
@@ -288,7 +308,7 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
                 UserName = _state.Name,
                 Figure = _state.Figure,
                 Motto = _state.Motto,
-                CreationDate = _state.CreatedAt.ToString("yyyy-MM-dd"),
+                CreationDate = ClientDates.Format(_state.CreatedAt),
                 AchievementScore = _state.AchievementScore,
                 FriendCount = 0,
                 IsFriend = false,

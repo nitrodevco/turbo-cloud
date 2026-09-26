@@ -25,7 +25,7 @@ public class WiredConditionHabboHasWearingBadge(
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
-        var badgeCode = _wiredData.StringParam?.Trim() ?? string.Empty;
+        var badgeCode = GetStringParam();
 
         if (badgeCode.Length == 0)
             return false;

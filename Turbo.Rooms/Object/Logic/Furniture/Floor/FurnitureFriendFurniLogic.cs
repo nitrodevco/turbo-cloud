@@ -11,8 +11,8 @@ using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Messages.Outgoing.Friendfurni;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Rooms.Grains;
@@ -179,18 +179,11 @@ public class FurnitureFriendFurniLogic(
     /// <summary>Another player's avatar standing on or next to the lock, if exactly one is there.</summary>
     private PlayerId? AdjacentPartner(PlayerId initiatorId)
     {
-        var item = _ctx.RoomObject;
-        var width = _ctx.Definition.Width;
-        var length = _ctx.Definition.Length;
+        var footprint = FloorFootprint.Of(_ctx.RoomObject);
 
         var partners = _roomGrain
-            ._state.AvatarsByObjectId.Values.OfType<IRoomPlayer>()
-            .Where(player =>
-                player.PlayerId != initiatorId
-                && Math.Max(
-                    Math.Max(item.X - player.X, Math.Max(0, player.X - (item.X + width - 1))),
-                    Math.Max(item.Y - player.Y, Math.Max(0, player.Y - (item.Y + length - 1)))
-                ) <= 1
+            .AvatarModule.Players.Where(player =>
+                player.PlayerId != initiatorId && footprint.IsOnOrNextTo(player.X, player.Y)
             )
             .Select(player => player.PlayerId)
             .Take(2)

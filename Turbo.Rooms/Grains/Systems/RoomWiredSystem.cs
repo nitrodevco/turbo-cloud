@@ -599,28 +599,25 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
             || ctx.FloorItemMoves.Count > 0
             || ctx.WallItemMoves.Count > 0
         )
-            ctx.SendComposerToRoomAsync(
-                    new WiredMovementsMessageComposer
-                    {
-                        Users = ctx.UserMoves,
-                        FloorItems = ctx.FloorItemMoves,
-                        WallItems = ctx.WallItemMoves,
-                        UserDirections = ctx.UserDirections,
-                    }
-                )
-                .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
+            _roomGrain.SendComposerToRoomAndForget(
+                new WiredMovementsMessageComposer
+                {
+                    Users = ctx.UserMoves,
+                    FloorItems = ctx.FloorItemMoves,
+                    WallItems = ctx.WallItemMoves,
+                    UserDirections = ctx.UserDirections,
+                }
+            );
 
         if (ctx.FloorItemStateUpdates.Count > 0)
-            ctx.SendComposerToRoomAsync(
-                    new ObjectsDataUpdateMessageComposer { StuffDatas = ctx.FloorItemStateUpdates }
-                )
-                .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
+            _roomGrain.SendComposerToRoomAndForget(
+                new ObjectsDataUpdateMessageComposer { StuffDatas = ctx.FloorItemStateUpdates }
+            );
 
         if (ctx.WallItemStateUpdates.Count > 0)
-            ctx.SendComposerToRoomAsync(
-                    new ItemsStateUpdateMessageComposer { ObjectStates = ctx.WallItemStateUpdates }
-                )
-                .LogAndForget(_roomGrain._logger, $"send a composer to room {_roomGrain.RoomId}");
+            _roomGrain.SendComposerToRoomAndForget(
+                new ItemsStateUpdateMessageComposer { ObjectStates = ctx.WallItemStateUpdates }
+            );
 
         return Task.CompletedTask;
     }

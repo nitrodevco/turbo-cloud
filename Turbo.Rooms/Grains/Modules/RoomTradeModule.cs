@@ -27,7 +27,7 @@ public sealed class RoomTradeModule(RoomGrain roomGrain)
             return null;
 
         if (
-            !_roomGrain._state.AvatarsByObjectId.TryGetValue(targetObjectId, out var avatar)
+            !_roomGrain.AvatarModule.TryGetAvatar(targetObjectId, out var avatar)
             || avatar is not IRoomPlayer partner
             || partner.PlayerId == ctx.PlayerId
         )

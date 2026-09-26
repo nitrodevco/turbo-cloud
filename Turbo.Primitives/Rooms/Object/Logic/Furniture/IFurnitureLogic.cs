@@ -24,6 +24,9 @@ public interface IFurnitureLogic : IRoomObjectLogic, IRollableObject
     new IRoomItemContext Context { get; }
     public IStuffData StuffData { get; }
     public FurnitureUsageType GetUsagePolicy();
+
+    /// <summary>Whether this player may use the item now; see the implementation's note.</summary>
+    public Task<bool> CanUseAsync(ActionContext ctx);
     public bool CanToggle();
     public Altitude GetStackHeight();
     public int GetState();

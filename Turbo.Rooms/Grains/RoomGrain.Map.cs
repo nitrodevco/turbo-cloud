@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
-using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 
@@ -68,11 +67,9 @@ public sealed partial class RoomGrain
 
             if (heights.Count == heights.Capacity)
             {
-                SendComposerToRoomAsync(
-                        new HeightMapUpdateMessageComposer { TileHeights = [.. heights] },
-                        ct
-                    )
-                    .LogAndForget(_logger, $"send a composer to room {_state.RoomId}");
+                SendComposerToRoomAndForget(
+                    new HeightMapUpdateMessageComposer { TileHeights = [.. heights] }
+                );
 
                 heights.Clear();
             }
@@ -80,11 +77,9 @@ public sealed partial class RoomGrain
 
         if (heights.Count > 0)
         {
-            SendComposerToRoomAsync(
-                    new HeightMapUpdateMessageComposer { TileHeights = [.. heights] },
-                    ct
-                )
-                .LogAndForget(_logger, $"send a composer to room {_state.RoomId}");
+            SendComposerToRoomAndForget(
+                new HeightMapUpdateMessageComposer { TileHeights = [.. heights] }
+            );
         }
 
         return Task.CompletedTask;
