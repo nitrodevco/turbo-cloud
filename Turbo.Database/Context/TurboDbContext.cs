@@ -44,6 +44,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerSubscriptionEntity> PlayerSubscriptions { get; init; }
 
     public DbSet<PlayerClubGiftEntity> PlayerClubGifts { get; init; }
+    public DbSet<PlayerBonusRareProgressEntity> PlayerBonusRareProgress { get; init; }
     public DbSet<PlayerEntity> Players { get; init; }
 
     public DbSet<RoomBanEntity> RoomBans { get; init; }

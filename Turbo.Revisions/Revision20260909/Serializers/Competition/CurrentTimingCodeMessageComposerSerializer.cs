@@ -11,6 +11,6 @@ internal class CurrentTimingCodeMessageComposerSerializer(int header)
         CurrentTimingCodeMessageComposer message
     )
     {
-        //
+        packet.WriteString(message.SchedulingStr).WriteString(message.Code);
     }
 }
