@@ -722,6 +722,8 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         var results = await dbCtx
             .Players.AsNoTracking()
             .Where(p => EF.Functions.Like(p.Name, pattern, LIKE_ESCAPE))
+            .OrderBy(p => p.Name)
+            .ThenBy(p => p.Id)
             .Take(_playerConfig.MessengerSearchLimit)
             .Select(x => new
             {
