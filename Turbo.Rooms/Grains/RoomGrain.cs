@@ -99,6 +99,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public readonly RoomVariableFxSystem VariableFxSystem;
     public readonly RoomChatSystem ChatSystem;
     public readonly RoomTimerSystem TimerSystem;
+    public readonly RoomWaterAreaSystem WaterAreaSystem;
 
     internal IAsyncStream<RoomOutboundSnapshot> _roomOutbound = default!;
     private IGrainTimer? _tickTimer;
@@ -171,7 +172,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         VariableFxSystem = new(this);
         ChatSystem = new(this);
         TimerSystem = new(this);
+        WaterAreaSystem = new(this);
 
+        EventModule.Register(WaterAreaSystem);
         EventModule.Register(RollerSystem);
         EventModule.Register(WiredSystem);
         EventModule.Register(GameSystem);

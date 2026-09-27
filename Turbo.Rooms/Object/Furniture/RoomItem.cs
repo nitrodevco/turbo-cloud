@@ -70,7 +70,13 @@ public abstract class RoomItem<TSelf, TLogic, TContext>
 
     public RoomItemSnapshot GetSnapshot()
     {
-        if (_dirty || _snapshot is null)
+        // Room-active stuff data changes do not dirty persistent item data. They still
+        // invalidate the wire snapshot used when another player enters the room.
+        if (
+            _dirty
+            || _snapshot is null
+            || !ReferenceEquals(_snapshot.StuffData, Logic.StuffData.GetSnapshot())
+        )
         {
             _snapshot = BuildSnapshot();
             _dirty = false;

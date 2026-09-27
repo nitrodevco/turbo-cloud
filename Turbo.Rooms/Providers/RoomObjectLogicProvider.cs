@@ -2,11 +2,14 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Providers;
+using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Object.Logic;
 using Turbo.Runtime;
 
@@ -14,7 +17,8 @@ namespace Turbo.Rooms.Providers;
 
 public sealed class RoomObjectLogicProvider(
     IServiceProvider host,
-    ILogger<IRoomObjectLogicProvider> logger
+    ILogger<IRoomObjectLogicProvider> logger,
+    IOptions<RoomConfig> roomConfig
 ) : IRoomObjectLogicProvider
 {
     private const string DEFAULT_FLOOR_LOGIC = "default_floor";
@@ -22,6 +26,7 @@ public sealed class RoomObjectLogicProvider(
     private readonly IServiceProvider _host = host;
     private readonly ILogger<IRoomObjectLogicProvider> _logger = logger;
     private readonly ConcurrentDictionary<string, RoomObjectLogicReg> _logics = [];
+    private readonly RoomConfig _roomConfig = roomConfig.Value;
 
     public IDisposable RegisterLogic(
         string logicType,
@@ -41,6 +46,16 @@ public sealed class RoomObjectLogicProvider(
 
     public IRoomObjectLogic CreateLogicInstance(string logicType, IRoomObjectContext ctx)
     {
+        if (
+            logicType == DEFAULT_FLOOR_LOGIC
+            && ctx.RoomObject is IRoomItem item
+            && _roomConfig.WaterAreaLogicByDefinition.TryGetValue(
+                item.Definition.Name,
+                out var waterLogic
+            )
+        )
+            logicType = waterLogic;
+
         if (!_logics.TryGetValue(logicType, out var reg))
         {
             // An unknown logic type still gets a working item; the warning is what tells us a
