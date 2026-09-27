@@ -42,18 +42,15 @@ public sealed partial class RoomMapModule
 
         var (sourceX, sourceY, sourceRot) = (item.X, item.Y, item.Rotation);
         var (targetX, targetY) = GetTileXY(tileIdx);
-        var finalZ =
-            z
-            ?? (
-                sourceX != targetX || sourceY != targetY
-                    ? _roomGrain._state.TileHeights[tileIdx]
-                    : item.Z
-            );
         var finalRot = targetRot ?? sourceRot;
 
         if (sourceX != targetX || sourceY != targetY || sourceRot != finalRot)
         {
             RemoveFloorItem(item);
+
+            // Measured once it is off its own tiles, so an item turned in place under a stack
+            // lands on top of it, as the hotel does, rather than keeping its height.
+            var finalZ = z ?? _roomGrain._state.TileHeights[tileIdx];
 
             item.SetPosition(targetX, targetY);
             item.SetPositionZ(finalZ);
@@ -63,7 +60,7 @@ public sealed partial class RoomMapModule
         }
         else
         {
-            item.SetPositionZ(finalZ);
+            item.SetPositionZ(z ?? item.Z);
 
             ComputeTile(tileIdx);
         }
