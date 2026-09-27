@@ -433,7 +433,11 @@ internal sealed partial class RoomService(
         var doorTileIndex = mapSnapshot.DoorY * mapSnapshot.Width + mapSnapshot.DoorX;
         var doorAltitude =
             doorTileIndex >= 0 && doorTileIndex < mapSnapshot.TileEncodedHeights.Length
-                ? Altitude.FromInt(mapSnapshot.TileEncodedHeights[doorTileIndex])
+                ? Altitude.FromValue(
+                    mapSnapshot.TileEncodedHeights[doorTileIndex] < 0
+                        ? 0
+                        : (mapSnapshot.TileEncodedHeights[doorTileIndex] & 0x3FFF) / 256.0
+                )
                 : Altitude.Zero;
 
         // The whole entry sequence as one batch to the player, in the order the client expects
