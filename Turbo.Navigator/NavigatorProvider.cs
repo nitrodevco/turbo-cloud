@@ -166,7 +166,7 @@ public sealed class NavigatorProvider : INavigatorProvider, IDisposable
         if (missing.Count > 0)
         {
             var loaded = await QueryRoomsAsync(
-                    q => q.Where(x => missing.Contains(x.Id)),
+                    q => q.Where(x => missing.Contains(x.Id)).OrderBy(x => x.Id),
                     missing.Count,
                     ct
                 )

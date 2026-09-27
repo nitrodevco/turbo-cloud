@@ -2,4 +2,7 @@ using Turbo.Primitives.Networking;
 
 namespace Turbo.Primitives.Messages.Incoming.Competition;
 
-public record GetSecondsUntilMessage : IMessageEvent { }
+public record GetSecondsUntilMessage : IMessageEvent
+{
+    public required string TimeStr { get; init; }
+}

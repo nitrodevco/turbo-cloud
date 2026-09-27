@@ -8,6 +8,6 @@ internal class SecondsUntilMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, SecondsUntilMessageComposer message)
     {
-        //
+        packet.WriteString(message.TimeStr).WriteInteger(message.SecondsUntil);
     }
 }

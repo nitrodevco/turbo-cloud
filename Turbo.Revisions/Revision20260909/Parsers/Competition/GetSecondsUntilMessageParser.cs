@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Competition;
 
 internal class GetSecondsUntilMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetSecondsUntilMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetSecondsUntilMessage { TimeStr = packet.PopString() };
 }
