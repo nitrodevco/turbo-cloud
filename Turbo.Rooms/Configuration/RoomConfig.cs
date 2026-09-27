@@ -14,6 +14,14 @@ public class RoomConfig
     public Altitude MaxStepHeight { get; init; } = Altitude.FromInt(200);
     public bool PlaceItemsOnAvatars { get; init; } = true;
     public bool EnableDiagonalChecking { get; init; } = true;
+    public Dictionary<string, string> WaterAreaLogicByDefinition { get; init; } =
+        new()
+        {
+            ["bw_water_1"] = "furniture_water_area",
+            ["bw_water_2"] = "furniture_water_area",
+            ["val13_water"] = "furniture_water_area",
+            ["stackable_water"] = "furniture_water_area",
+        };
     public int MaxPlayersLimit { get; init; } = 50;
     public int RoomNameMaxLength { get; init; } = 60;
     public int RoomDescriptionMaxLength { get; init; } = 128;
