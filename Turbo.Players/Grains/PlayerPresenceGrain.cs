@@ -62,11 +62,20 @@ internal sealed partial class PlayerPresenceGrain
 
         _state.OutgoingQueue.Clear();
 
-        await UnregisterSessionObserverAsync(ct);
+        await UnregisterSessionObserverAsync(_state.SessionKey, ct);
     }
 
-    public Task RegisterSessionObserverAsync(ISessionContextObserver observer, CancellationToken ct)
+    public Task RegisterSessionObserverAsync(
+        SessionKey sessionKey,
+        ISessionContextObserver observer,
+        CancellationToken ct
+    )
     {
+        // A flush awaiting the previous observer must not stall the replacement connection.
+        _state.SessionGeneration++;
+        _state.SessionKey = sessionKey;
+        _state.IsProcessingQueue = false;
+        _state.OutgoingQueue.Clear();
         _sessionObserver = observer;
 
         // A new session starts outside any room; the first flush tells it otherwise. No flush is
@@ -111,8 +120,18 @@ internal sealed partial class PlayerPresenceGrain
         await FlushMessengerUpdatesAsync(categories, messengerUpdates, ct);
     }
 
-    public async Task UnregisterSessionObserverAsync(CancellationToken ct)
+    public async Task UnregisterSessionObserverAsync(SessionKey sessionKey, CancellationToken ct)
     {
+        // A delayed disconnect belongs only to the connection that registered it.
+        if (_state.SessionKey != sessionKey)
+            return;
+
+        _state.SessionGeneration++;
+        _state.SessionKey = SessionKey.Invalid;
+        _state.IsProcessingQueue = false;
+        _state.OutgoingQueue.Clear();
+        _sessionObserver = null;
+
         _presenceTimer?.Dispose();
         _presenceTimer = null;
 
@@ -224,7 +243,7 @@ internal sealed partial class PlayerPresenceGrain
 
         // ProcessOutgoingQueueAsync catches and logs everything itself; this only guards the
         // task from being dropped unobserved.
-        ProcessOutgoingQueueAsync()
+        ProcessOutgoingQueueAsync(_state.SessionGeneration)
             .LogAndForget(
                 _logger,
                 "flush outgoing composers for player {PlayerId}",
@@ -239,7 +258,7 @@ internal sealed partial class PlayerPresenceGrain
     /// made, so the session never lags the presence by more than the flush in flight, and never
     /// sees a composer from a room before it has been told it is in that room.
     /// </summary>
-    private async Task ProcessOutgoingQueueAsync()
+    private async Task ProcessOutgoingQueueAsync(long sessionGeneration)
     {
         try
         {
@@ -248,7 +267,8 @@ internal sealed partial class PlayerPresenceGrain
             await Task.Yield();
 
             while (
-                _sessionObserver is { } observer
+                sessionGeneration == _state.SessionGeneration
+                && _sessionObserver is { } observer
                 && (_state.OutgoingQueue.Count > 0 || _activeRoomDirty)
             )
             {
@@ -269,7 +289,7 @@ internal sealed partial class PlayerPresenceGrain
                 {
                     // A failed call may not have set the room, so the next flush repeats it. The
                     // batch itself is lost (and logged below), as a single composer was before.
-                    if (!delivered)
+                    if (!delivered && sessionGeneration == _state.SessionGeneration)
                         _activeRoomDirty = true;
                 }
             }
@@ -284,7 +304,8 @@ internal sealed partial class PlayerPresenceGrain
         }
         finally
         {
-            _state.IsProcessingQueue = false;
+            if (sessionGeneration == _state.SessionGeneration)
+                _state.IsProcessingQueue = false;
         }
     }
 }

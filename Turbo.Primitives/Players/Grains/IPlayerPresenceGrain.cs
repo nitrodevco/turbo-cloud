@@ -33,10 +33,11 @@ namespace Turbo.Primitives.Players.Grains;
 public partial interface IPlayerPresenceGrain : IGrainWithIntegerKey
 {
     public Task RegisterSessionObserverAsync(
+        SessionKey sessionKey,
         ISessionContextObserver observer,
         CancellationToken ct
     );
-    public Task UnregisterSessionObserverAsync(CancellationToken ct);
+    public Task UnregisterSessionObserverAsync(SessionKey sessionKey, CancellationToken ct);
 
     [AlwaysInterleave]
     public Task SendComposerAsync(IComposer composer, CancellationToken ct);

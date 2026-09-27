@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Orleans;
+using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Orleans.Observers;
@@ -31,7 +33,11 @@ public sealed class SessionGateway(IGrainFactory grainFactory, ILogger<ISessionG
         _sessionObservers.TryGetValue(key, out var observer) ? observer.Ref : null;
 
     public PlayerId GetPlayerId(SessionKey key) =>
-        _sessionToPlayer.TryGetValue(key, out var playerId) ? playerId : -1;
+        _sessionToPlayer.TryGetValue(key, out var playerId)
+        && _playerToSession.TryGetValue(playerId, out var currentKey)
+        && currentKey == key
+            ? playerId
+            : -1;
 
     public Task AddSessionAsync(SessionKey key, ISessionContext ctx)
     {
@@ -54,10 +60,15 @@ public sealed class SessionGateway(IGrainFactory grainFactory, ILogger<ISessionG
 
     public async Task RemoveSessionAsync(SessionKey key, CancellationToken ct)
     {
-        var playerId = GetPlayerId(key);
-
-        if (playerId > 0)
-            await RemoveSessionFromPlayerAsync(playerId, ct).ConfigureAwait(false);
+        if (_sessionToPlayer.TryRemove(key, out var playerId))
+        {
+            // Remove only this binding: a reconnect may already have replaced it.
+            _playerToSession.TryRemove(new KeyValuePair<PlayerId, SessionKey>(playerId, key));
+            await _grainFactory
+                .GetPlayerPresenceGrain(playerId)
+                .UnregisterSessionObserverAsync(key, ct)
+                .ConfigureAwait(false);
+        }
 
         if (_sessionObservers.TryRemove(key, out var observer))
         {
@@ -88,11 +99,56 @@ public sealed class SessionGateway(IGrainFactory grainFactory, ILogger<ISessionG
         var playerPresence = _grainFactory.GetPlayerPresenceGrain(playerId);
 
         _sessionToPlayer[key] = playerId;
-        _playerToSession[playerId] = key;
+        var previousKey = SessionKey.Invalid;
+        while (true)
+        {
+            if (_playerToSession.TryGetValue(playerId, out previousKey))
+            {
+                if (_playerToSession.TryUpdate(playerId, key, previousKey))
+                    break;
+            }
+            else if (_playerToSession.TryAdd(playerId, key))
+            {
+                previousKey = SessionKey.Invalid;
+                break;
+            }
+        }
 
         await playerPresence
-            .RegisterSessionObserverAsync(observer, CancellationToken.None)
+            .RegisterSessionObserverAsync(key, observer, CancellationToken.None)
             .ConfigureAwait(false);
+
+        if (previousKey != SessionKey.Invalid && previousKey != key)
+        {
+            // The old connection is already unauthenticated by GetPlayerId. Address it directly:
+            // player presence now routes to the replacement and must not receive this logout.
+            var previousSession = GetSession(previousKey);
+            if (previousSession is not null)
+            {
+                try
+                {
+                    await previousSession
+                        .SendComposerAsync(
+                            new DisconnectReasonEventMessageComposer
+                            {
+                                Reason = DisconnectReasonEventMessageComposer.ConcurrentLogin,
+                            },
+                            CancellationToken.None
+                        )
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "Failed to notify replaced session {SessionKey}",
+                        previousKey
+                    );
+                }
+
+                await previousSession.CloseSessionAsync().ConfigureAwait(false);
+            }
+        }
     }
 
     public async Task RemoveSessionFromPlayerAsync(PlayerId playerId, CancellationToken ct)
@@ -104,6 +160,6 @@ public sealed class SessionGateway(IGrainFactory grainFactory, ILogger<ISessionG
 
         var playerPresence = _grainFactory.GetPlayerPresenceGrain(playerId);
 
-        await playerPresence.UnregisterSessionObserverAsync(ct).ConfigureAwait(false);
+        await playerPresence.UnregisterSessionObserverAsync(sessionKey, ct).ConfigureAwait(false);
     }
 }
