@@ -40,6 +40,7 @@ public static class GuildEntityExtensions
             ),
             Type = entity.GuildType,
             HasForum = hasForum,
+            RightsLevel = entity.RightsLevel,
         };
 
     public static GuildSnapshot ToSnapshot(
@@ -50,7 +51,6 @@ public static class GuildEntityExtensions
         new(entity.ToSummarySnapshot(palette, hasForum))
         {
             Description = entity.Description,
-            RightsLevel = entity.RightsLevel,
             CreatedAt = entity.CreatedAt,
         };
 

@@ -13,6 +13,12 @@ internal sealed class VariableFxViewer
 {
     public Dictionary<VariableFxStatusKeySnapshot, string> Sent { get; } = [];
 
+    /// <summary>
+    /// What the viewer should be seeing, worked out afresh on each flush and compared with
+    /// <see cref="Sent"/>. Kept between flushes only so its storage is reused.
+    /// </summary>
+    public Dictionary<VariableFxStatusKeySnapshot, VariableFxWantedStatus> Wanted { get; } = [];
+
     public List<IComposer> Outbox { get; } = [];
 
     /// <summary>False until the first status batch, which the client takes as a sync rather than as changes.</summary>

@@ -38,7 +38,7 @@ public class WiredConditionExecutorOnItem(
 
         foreach (var item in GetFloorItems(selection))
         {
-            if (_roomGrain.FurniModule.GetTileIdForFloorItem(item, out var tileIds))
+            if (FurniModule.GetTileIdForFloorItem(item, out var tileIds))
                 tiles.UnionWith(tileIds);
         }
 
@@ -50,9 +50,6 @@ public class WiredConditionExecutorOnItem(
         if (players.Count == 0)
             return false;
 
-        return Quantify(
-            players.Select(p => tiles.Contains(_roomGrain.MapModule.ToIdx(p.X, p.Y))),
-            true
-        );
+        return Quantify(players.Select(p => tiles.Contains(MapModule.ToIdx(p.X, p.Y))), true);
     }
 }

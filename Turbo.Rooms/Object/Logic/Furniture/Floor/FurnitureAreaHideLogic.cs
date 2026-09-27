@@ -78,7 +78,7 @@ public class FurnitureAreaHideLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
             || area.Length < 1
             || area.Width > maxSize
             || area.Length > maxSize
-            || !_roomGrain.MapModule.InBounds(area.RootX, area.RootY)
+            || !MapModule.InBounds(area.RootX, area.RootY)
         )
             return Reject(ctx, interaction, "area out of range");
 

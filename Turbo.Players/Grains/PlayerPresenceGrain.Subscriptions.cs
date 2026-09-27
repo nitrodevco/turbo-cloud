@@ -19,7 +19,9 @@ internal sealed partial class PlayerPresenceGrain
             .SetPlayerHabboClubAsync(_state.PlayerId, expiresAt, CancellationToken.None)
             .LogAndForget(
                 _logger,
-                $"tell room {_state.ActiveRoomId} about the Habbo Club of player {_state.PlayerId}"
+                "tell room {RoomId} about the Habbo Club of player {PlayerId}",
+                _state.ActiveRoomId,
+                _state.PlayerId
             );
 
         return Task.CompletedTask;

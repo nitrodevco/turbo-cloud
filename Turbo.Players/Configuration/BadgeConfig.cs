@@ -31,12 +31,18 @@ public class BadgeConfig
     public int OwnerCountRefreshMs { get; init; } = 300000;
 
     /// <summary>
-    /// How long a board chunk, and the score table ranks are read from, stay cached. The client
-    /// treats a chunk as stale after a minute, so a shorter cache buys nothing.
+    /// How often the boards held in memory, and the score table ranks are read from, are read
+    /// again. The client treats a chunk as stale after a minute, so a shorter period buys
+    /// nothing. A board nobody asked for in a period is dropped rather than read again.
     /// </summary>
     public int LeaderboardCacheMs { get; init; } = 60000;
     public int LeaderboardMaxChunkSize { get; init; } = 50;
-    public int LeaderboardMaxCachedChunks { get; init; } = 200;
+
+    /// <summary>
+    /// Ranked entries held in memory per board. Chunks inside them are answered without a
+    /// query; a chunk further down the board is read when asked for.
+    /// </summary>
+    public int LeaderboardHeldEntries { get; init; } = 500;
 
     /// <summary>
     /// Badges a client may ask for by request code (the landing view's "request badge" button):

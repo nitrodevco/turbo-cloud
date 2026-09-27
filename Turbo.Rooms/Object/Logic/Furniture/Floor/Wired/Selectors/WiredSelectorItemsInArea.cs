@@ -41,9 +41,9 @@ public class WiredSelectorItemsInArea(
             GetIntParamOrDefault(3, 0)
         );
 
-        foreach (var tileId in area.GetTileIds(_roomGrain.MapModule.Width))
+        foreach (var tileId in area.GetTileIds(MapModule.Width))
         {
-            foreach (var item in _roomGrain.FurniModule.GetFloorItemsOnTile(tileId))
+            foreach (var item in FurniModule.GetFloorItemsOnTile(tileId))
                 output.SelectedFurniIds.Add((int)item.ObjectId);
         }
 

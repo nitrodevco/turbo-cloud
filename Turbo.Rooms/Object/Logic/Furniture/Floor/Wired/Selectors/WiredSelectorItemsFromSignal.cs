@@ -29,7 +29,7 @@ public class WiredSelectorItemsFromSignal(
 
         foreach (var itemId in ctx.Signal.SelectedFurniIds)
         {
-            if (_roomGrain.FurniModule.HasItem(itemId))
+            if (FurniModule.HasItem(itemId))
                 output.SelectedFurniIds.Add(itemId);
         }
 

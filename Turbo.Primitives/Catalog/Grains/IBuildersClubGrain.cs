@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Orleans.Concurrency;
 using Turbo.Primitives.Players;
 
 namespace Turbo.Primitives.Catalog.Grains;
@@ -29,7 +30,10 @@ public interface IBuildersClubGrain : IGrainWithStringKey
 
     /// <summary>
     /// Told when a player's Builders Club membership changed, so the rooms holding what they
-    /// borrowed are hidden or shown again at once rather than at the next sweep.
+    /// borrowed are hidden or shown again at once rather than at the next sweep. Interleaved:
+    /// it queries, and it touches none of the grain's state, so the placements asking for a
+    /// count need not wait for it.
     /// </summary>
+    [AlwaysInterleave]
     public Task OnSubscriptionChangedAsync(PlayerId playerId, CancellationToken ct);
 }

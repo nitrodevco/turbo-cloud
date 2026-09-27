@@ -54,7 +54,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
     /// item a wider policy just so its use gets through: that is what the client draws.
     /// </summary>
     public virtual Task<bool> CanUseAsync(ActionContext ctx) =>
-        _roomGrain.SecurityModule.CanUseFurniAsync(ctx, GetUsagePolicy());
+        SecurityModule.CanUseFurniAsync(ctx, GetUsagePolicy());
 
     public virtual bool CanToggle() => false;
 
@@ -132,7 +132,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
 
     /// <summary>Whether the acting player may edit furniture here (room rights).</summary>
     protected Task<bool> HasRightsAsync(ActionContext ctx) =>
-        _roomGrain.SecurityModule.CanManipulateFurniAsync(ctx);
+        SecurityModule.CanManipulateFurniAsync(ctx);
 
     /// <summary>
     /// Whether the acting player owns this item itself. The rule for turning the item into
@@ -147,7 +147,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
     /// may do too. Two meanings of "owner", named apart, so a new logic picks one on purpose.
     /// </summary>
     protected async Task<bool> IsItemOrRoomOwnerAsync(ActionContext ctx) =>
-        IsItemOwner(ctx) || await _roomGrain.SecurityModule.GetIsRoomOwnerAsync(ctx);
+        IsItemOwner(ctx) || await SecurityModule.GetIsRoomOwnerAsync(ctx);
 
     /// <summary>Logs a refused interaction with the ids that identify it, and yields false.</summary>
     protected bool Reject(ActionContext ctx, FurnitureInteraction interaction, string reason)
@@ -211,7 +211,8 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
             _ctx.RefreshStuffDataAsync()
                 .LogAndForget(
                     _roomGrain._logger,
-                    $"refresh furni data in room {_roomGrain.RoomId}"
+                    "refresh furni data in room {RoomId}",
+                    _roomGrain.RoomId
                 );
     }
 

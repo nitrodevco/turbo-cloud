@@ -20,4 +20,7 @@ public static class GrainKeyExtensions
 
     public static RoomId GetRoomId(this IAddressable grain) =>
         RoomId.Parse((int)grain.GetPrimaryKeyLong());
+
+    /// <summary>The limited series a grain keyed by one (the LTD raffle) stands for.</summary>
+    public static int GetLtdSeriesId(this IAddressable grain) => (int)grain.GetPrimaryKeyLong();
 }

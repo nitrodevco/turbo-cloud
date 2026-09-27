@@ -9,7 +9,8 @@ using Turbo.Primitives.Rooms.Enums;
 namespace Turbo.Database.Entities.Bots;
 
 [Table("bots")]
-[Index(nameof(PlayerEntityId))]
+// An inventory is the owner's units in no room (player_id = ? AND room_id IS NULL).
+[Index(nameof(PlayerEntityId), nameof(RoomEntityId))]
 [Index(nameof(RoomEntityId))]
 public class BotEntity : TurboEntity, IInventoryUnitEntity
 {

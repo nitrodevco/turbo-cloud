@@ -36,10 +36,6 @@ public class WiredActionBotTeleport(
         if (items.Count == 0)
             return false;
 
-        return await _roomGrain.BotModule.TeleportToItemAsync(
-            bot,
-            items[Random.Shared.Next(items.Count)],
-            ct
-        );
+        return await BotModule.TeleportToItemAsync(bot, items[Random.Shared.Next(items.Count)], ct);
     }
 }

@@ -6,10 +6,8 @@ using Turbo.Primitives.Rooms.Events;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-public sealed class RoomEventModule(RoomGrain roomGrain)
+public sealed class RoomEventModule(RoomGrain roomGrain) : RoomGrainComponent(roomGrain)
 {
-    private readonly RoomGrain _roomGrain = roomGrain;
-
     private readonly List<IRoomEventListener> _listeners = [];
 
     public void Register(IRoomEventListener listener)

@@ -227,6 +227,12 @@ public sealed partial class RoomGrain
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
         await using var tx = await dbCtx.Database.BeginTransactionAsync(ct);
 
+        // These rows belong to other grains (inventories, players' navigators), and the room
+        // writes them only because the room row cannot go while they point at it. Pets, bots and
+        // furni were handed home above; clearing their room here is the backstop for one whose
+        // hand-over failed, which the cascade would otherwise delete. A navigator still holding
+        // this room as a favourite drops it at its next flush (PlayerNavigatorGrain).
+
         await dbCtx
             .Furnitures.Where(x => x.RoomEntityId == roomId)
             .ExecuteUpdateAsync(up => up.SetProperty(x => x.RoomEntityId, (int?)null), ct);

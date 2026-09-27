@@ -38,13 +38,7 @@ public class WiredConditionTeamHasScore(
 
         foreach (var team in ResolveTeams(GetIntParamOrDefault(0, GameTeamType.None), ctx))
         {
-            if (
-                WiredComparison.CompareThreeWay(
-                    comparison,
-                    _roomGrain.GameSystem.GetScore(team),
-                    points
-                )
-            )
+            if (WiredComparison.CompareThreeWay(comparison, GameSystem.GetScore(team), points))
                 return true;
         }
 

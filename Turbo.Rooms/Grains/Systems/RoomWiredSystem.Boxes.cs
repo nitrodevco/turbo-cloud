@@ -41,8 +41,7 @@ public sealed partial class RoomWiredSystem : IRoomPlacementLimit
 
     /// <summary>A box's editor data, or null when the item is not a wired box.</summary>
     public WiredDataSnapshot? GetBoxSnapshot(RoomObjectId itemId) =>
-        _roomGrain.FurniModule.TryGetItem(itemId, out var item)
-        && item.Logic is FurnitureWiredLogic wiredLogic
+        FurniModule.TryGetItem(itemId, out var item) && item.Logic is FurnitureWiredLogic wiredLogic
             ? wiredLogic.GetSnapshot()
             : null;
 
@@ -61,12 +60,12 @@ public sealed partial class RoomWiredSystem : IRoomPlacementLimit
     )
     {
         if (
-            !_roomGrain.FurniModule.TryGetItem(itemId, out var item)
+            !FurniModule.TryGetItem(itemId, out var item)
             || item.Logic is not FurnitureWiredLogic wiredLogic
         )
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx);
+        var controllerLevel = await SecurityModule.GetControllerLevelAsync(ctx);
         var (canModify, _) = GetPermissions(controllerLevel);
 
         if (!canModify || controllerLevel < wiredLogic.MinimumControllerLevelToSave)
@@ -86,12 +85,12 @@ public sealed partial class RoomWiredSystem : IRoomPlacementLimit
     )
     {
         if (
-            !_roomGrain.FurniModule.TryGetItem(itemId, out var item)
+            !FurniModule.TryGetItem(itemId, out var item)
             || item.Logic is not FurnitureWiredLogic wiredLogic
         )
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx);
+        var controllerLevel = await SecurityModule.GetControllerLevelAsync(ctx);
         var (canModify, _) = GetPermissions(controllerLevel);
 
         if (!canModify || controllerLevel < wiredLogic.MinimumControllerLevelToSave)

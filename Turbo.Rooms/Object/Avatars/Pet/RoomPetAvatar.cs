@@ -47,12 +47,14 @@ public sealed class RoomPetAvatar : RoomAvatar<IRoomPet, IRoomPetLogic, IRoomPet
     public bool IsSilenced { get; set; }
     public bool IsFreeRoaming { get; set; } = true;
     public RoomObjectId FollowObjectId { get; set; } = -1;
+    public int FollowBlockedTileIdx { get; set; } = -1;
+    public long FollowRetryAtMs { get; set; }
     public int FollowOffset { get; set; }
     public RoomObjectId TargetItemId { get; set; } = -1;
     public long NextActionAtMs { get; set; }
     public long ActionExpiresAtMs { get; set; }
-    public long NextEnergyDecayAtMs { get; set; }
-    public long NextNutritionDecayAtMs { get; set; }
+    public DateTime? EnergyDecayDueUtc { get; set; }
+    public DateTime? NutritionDecayDueUtc { get; set; }
 
     public int TypeId => PetFigure.TypeId;
     public bool IsMonsterplant => PetTypes.IsMonsterplant(PetFigure.TypeId);
@@ -80,6 +82,8 @@ public sealed class RoomPetAvatar : RoomAvatar<IRoomPet, IRoomPetLogic, IRoomPet
             HasBreedingPermission = snapshot.HasBreedingPermission,
             WateredAtUtc = snapshot.WateredAtUtc,
             HarvestedAtUtc = snapshot.HarvestedAtUtc,
+            EnergyDecayDueUtc = snapshot.EnergyDecayDueUtc,
+            NutritionDecayDueUtc = snapshot.NutritionDecayDueUtc,
         };
 
         pet.Name = snapshot.Name;
@@ -192,6 +196,8 @@ public sealed class RoomPetAvatar : RoomAvatar<IRoomPet, IRoomPetLogic, IRoomPet
             CreatedAtUtc = CreatedAtUtc,
             WateredAtUtc = WateredAtUtc,
             HarvestedAtUtc = HarvestedAtUtc,
+            EnergyDecayDueUtc = EnergyDecayDueUtc,
+            NutritionDecayDueUtc = NutritionDecayDueUtc,
         };
 
     protected override RoomPetAvatarSnapshot BuildSnapshot()

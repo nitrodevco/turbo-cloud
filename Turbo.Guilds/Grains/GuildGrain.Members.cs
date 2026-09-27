@@ -225,7 +225,7 @@ internal sealed partial class GuildGrain
         foreach (var playerId in joining)
             NotifyHomeroomMemberChanged(playerId);
 
-        await Task.WhenAll(joining.Select(playerId => PublishMembershipUpdatedAsync(playerId, ct)));
+        await PublishMembershipsUpdatedAsync(joining, ct);
 
         return result;
     }
@@ -493,22 +493,36 @@ internal sealed partial class GuildGrain
         ];
 
     /// <summary>Tells the group's managers, and the member themselves, that a rank moved.</summary>
-    private async Task PublishMembershipUpdatedAsync(PlayerId playerId, CancellationToken ct)
+    private Task PublishMembershipUpdatedAsync(PlayerId playerId, CancellationToken ct) =>
+        PublishMembershipsUpdatedAsync([playerId], ct);
+
+    /// <summary>
+    /// <see cref="PublishMembershipUpdatedAsync"/> for several members at once, with their
+    /// snapshots read in one go rather than two queries each.
+    /// </summary>
+    private async Task PublishMembershipsUpdatedAsync(
+        IReadOnlyCollection<PlayerId> playerIds,
+        CancellationToken ct
+    )
     {
         if (_state.Guild is not { } guild)
             return;
 
-        var member = await BuildMemberSnapshotAsync(playerId, ct);
+        var members = await BuildMemberSnapshotsAsync(playerIds, ct);
+        var managerIds = ManagerIds();
 
-        if (member is null)
-            return;
-
-        var recipients = ManagerIds().Append(playerId).Distinct().ToList();
-
-        await _grainFactory.SendComposerToPlayersAsync(
-            recipients,
-            new GuildMembershipUpdatedMessageComposer { GuildId = guild.GuildId, Member = member },
-            ct
+        await Task.WhenAll(
+            members.Select(member =>
+                _grainFactory.SendComposerToPlayersAsync(
+                    managerIds.Append(member.PlayerId).Distinct().ToList(),
+                    new GuildMembershipUpdatedMessageComposer
+                    {
+                        GuildId = guild.GuildId,
+                        Member = member,
+                    },
+                    ct
+                )
+            )
         );
     }
 
@@ -519,37 +533,52 @@ internal sealed partial class GuildGrain
     private async Task<GuildMemberSnapshot?> BuildMemberSnapshotAsync(
         PlayerId playerId,
         CancellationToken ct
+    ) => (await BuildMemberSnapshotsAsync([playerId], ct)).FirstOrDefault();
+
+    /// <summary>
+    /// <see cref="BuildMemberSnapshotAsync"/> for several players: two queries however many.
+    /// A player with no row any more is left out.
+    /// </summary>
+    private async Task<List<GuildMemberSnapshot>> BuildMemberSnapshotsAsync(
+        IReadOnlyCollection<PlayerId> playerIds,
+        CancellationToken ct
     )
     {
+        var ids = playerIds.Select(x => x.Value).Distinct().ToList();
+
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-        var row = await dbCtx
+        var rows = await dbCtx
             .Players.AsNoTracking()
-            .Where(x => x.Id == playerId.Value)
-            .Select(x => new { x.Name, x.Figure })
-            .FirstOrDefaultAsync(ct);
+            .Where(x => ids.Contains(x.Id))
+            .Select(x => new
+            {
+                x.Id,
+                x.Name,
+                x.Figure,
+            })
+            .ToListAsync(ct);
+        var memberSinceByPlayerId = await dbCtx
+            .GuildMembers.AsNoTracking()
+            .Where(x => x.GuildEntityId == GuildId.Value && ids.Contains(x.PlayerEntityId))
+            .Select(x => new { x.PlayerEntityId, x.CreatedAt })
+            .ToDictionaryAsync(x => x.PlayerEntityId, x => x.CreatedAt, ct);
 
-        if (row is null)
-            return null;
-
-        // When they are gone the row is gone with them, and the client only needs a date to
-        // print; falling back to now beats leaving the field unset.
-        var memberSince =
-            await dbCtx
-                .GuildMembers.AsNoTracking()
-                .Where(x => x.GuildEntityId == GuildId.Value && x.PlayerEntityId == playerId.Value)
-                .Select(x => (DateTime?)x.CreatedAt)
-                .FirstOrDefaultAsync(ct)
-            ?? DateTime.UtcNow;
-
-        return new GuildMemberSnapshot
-        {
-            // Somebody just removed keeps the rank the client should draw them as gone from.
-            Rank = GetRank(playerId) ?? GuildMemberRank.Requested,
-            PlayerId = playerId,
-            PlayerName = row.Name ?? string.Empty,
-            Figure = row.Figure ?? string.Empty,
-            MemberSince = memberSince,
-        };
+        return
+        [
+            .. rows.Select(row => new GuildMemberSnapshot
+            {
+                // Somebody just removed keeps the rank the client should draw them as gone from.
+                Rank = GetRank(PlayerId.Parse(row.Id)) ?? GuildMemberRank.Requested,
+                PlayerId = PlayerId.Parse(row.Id),
+                PlayerName = row.Name ?? string.Empty,
+                Figure = row.Figure ?? string.Empty,
+                // When they are gone the row is gone with them, and the client only needs a date
+                // to print; falling back to now beats leaving the field unset.
+                MemberSince = memberSinceByPlayerId.TryGetValue(row.Id, out var since)
+                    ? since
+                    : DateTime.UtcNow,
+            }),
+        ];
     }
 }

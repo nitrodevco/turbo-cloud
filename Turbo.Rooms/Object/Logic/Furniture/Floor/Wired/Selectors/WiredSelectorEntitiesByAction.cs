@@ -33,7 +33,7 @@ public class WiredSelectorEntitiesByAction(
         var output = new WiredSelectionSet();
         var action = GetIntParamOrDefault(0, WiredAvatarActionType.Sit);
 
-        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
+        foreach (var avatar in AvatarModule.Avatars)
         {
             if (WiredAvatarActionMatcher.IsPerforming(avatar, action, _wiredData.StringParam))
                 output.SelectedAvatarIds.Add(avatar.ObjectId);

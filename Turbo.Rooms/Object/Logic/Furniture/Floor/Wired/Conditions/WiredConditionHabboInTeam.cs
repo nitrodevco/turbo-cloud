@@ -35,7 +35,7 @@ public class WiredConditionHabboInTeam(
         return Quantify(
             players.Select(player =>
             {
-                var team = _roomGrain.GameSystem.GetTeam(player.PlayerId);
+                var team = GameSystem.GetTeam(player.PlayerId);
 
                 return wanted == GameTeamType.None ? team != GameTeamType.None : team == wanted;
             }),

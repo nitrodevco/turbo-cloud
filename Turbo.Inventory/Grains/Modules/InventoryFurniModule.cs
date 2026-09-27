@@ -12,12 +12,14 @@ using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
@@ -52,6 +54,7 @@ internal sealed class InventoryFurniModule(
         if (_state.IsFurnitureReady)
             return;
 
+        var receivesBefore = _state.FurnitureReceiveCount;
         var items = await _furnitureLoader.LoadByPlayerIdAsync(
             _inventoryGrain.PlayerId,
             await _inventoryGrain.GetOwnerNameAsync(ct),
@@ -63,7 +66,9 @@ internal sealed class InventoryFurniModule(
         foreach (var item in items)
             _state.FurnitureById[item.ItemId] = item;
 
-        _state.IsFurnitureReady = true;
+        // A receive landed while the rows were read, and they may not include it: serve this
+        // call from what was read and load again next time.
+        _state.IsFurnitureReady = receivesBefore == _state.FurnitureReceiveCount;
     }
 
     public async Task<ImmutableArray<FurnitureItemSnapshot>> GetAllAsync(CancellationToken ct)
@@ -149,7 +154,9 @@ internal sealed class InventoryFurniModule(
 
     /// <summary>
     /// Creates one row per definition and lists the items. One insert and one presence call,
-    /// however many items a purchase grants.
+    /// however many items a purchase grants. A section that is not loaded is not loaded for
+    /// this: the rows are written, the client is told its list changed, and the next read
+    /// loads them with everything else.
     /// </summary>
     public async Task<ImmutableArray<FurnitureItemSnapshot>> GrantAsync(
         IReadOnlyList<(FurnitureDefinitionSnapshot Definition, string? ExtraDataJson)> grants,
@@ -158,8 +165,6 @@ internal sealed class InventoryFurniModule(
     {
         if (grants.Count == 0)
             return [];
-
-        await EnsureReadyAsync(ct);
 
         var entities = grants
             .Select(grant => new FurnitureEntity
@@ -177,6 +182,69 @@ internal sealed class InventoryFurniModule(
             await dbCtx.SaveChangesAsync(ct);
         }
 
+        return await ListGrantedAsync(
+            entities,
+            grants.Select(grant => grant.Definition).ToList(),
+            ct
+        );
+    }
+
+    /// <summary>
+    /// Teleporters, each unit a linked pair: two rows, each naming the other in its
+    /// <c>room_linker</c> section. The ids exist only once the rows are inserted, so the pair is
+    /// inserted, linked and committed in one transaction — no half is ever left unlinked.
+    /// </summary>
+    public async Task<ImmutableArray<FurnitureItemSnapshot>> GrantTeleportPairsAsync(
+        IReadOnlyList<FurnitureDefinitionSnapshot> definitions,
+        CancellationToken ct
+    )
+    {
+        if (definitions.Count == 0)
+            return [];
+
+        var pairDefinitions = definitions
+            .SelectMany(definition => new[] { definition, definition })
+            .ToList();
+        var entities = pairDefinitions
+            .Select(definition => new FurnitureEntity
+            {
+                PlayerEntityId = (int)_inventoryGrain.PlayerId,
+                FurnitureDefinitionEntityId = definition.Id,
+            })
+            .ToList();
+
+        await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
+        {
+            await using var tx = await dbCtx.Database.BeginTransactionAsync(ct);
+
+            dbCtx.AddRange(entities);
+
+            await dbCtx.SaveChangesAsync(ct);
+
+            for (var i = 0; i < entities.Count; i += 2)
+            {
+                entities[i].ExtraData = TeleportFurniture.PairExtraData(entities[i + 1].Id);
+                entities[i + 1].ExtraData = TeleportFurniture.PairExtraData(entities[i].Id);
+            }
+
+            await dbCtx.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+
+        return await ListGrantedAsync(entities, pairDefinitions, ct);
+    }
+
+    /// <summary>
+    /// Builds the items for rows just written and tells the owner. A section that is not
+    /// loaded is not loaded for this: the client is told its list changed, and the next read
+    /// loads the rows with everything else.
+    /// </summary>
+    private async Task<ImmutableArray<FurnitureItemSnapshot>> ListGrantedAsync(
+        List<FurnitureEntity> entities,
+        List<FurnitureDefinitionSnapshot> definitions,
+        CancellationToken ct
+    )
+    {
         var ownerName = await _inventoryGrain.GetOwnerNameAsync(ct);
         var items = new List<IFurnitureItem>(entities.Count);
 
@@ -189,16 +257,22 @@ internal sealed class InventoryFurniModule(
                     entity.Id,
                     _inventoryGrain.PlayerId,
                     ownerName,
-                    grants[i].Definition,
+                    definitions[i],
                     entity.ExtraData,
                     entity.CreatedAt
                 )
             );
         }
 
-        await AddAsync(items, ct);
+        var snapshots = items.Select(x => x.GetSnapshot()).ToImmutableArray();
 
-        return [.. items.Select(x => x.GetSnapshot())];
+        // Only a loaded section is kept in step; an unloaded one reads these rows when it loads.
+        if (_state.IsFurnitureReady)
+            await AddAsync(items, ct);
+        else
+            await _inventoryGrain.Presence.OnFurnitureAddedAsync(snapshots, ct);
+
+        return snapshots;
     }
 
     /// <summary>One item of a definition (a saddle taken off a horse, a harvested seed).</summary>
@@ -275,6 +349,18 @@ internal sealed class InventoryFurniModule(
         if (itemIds.IsDefaultOrEmpty)
             return true;
 
+        // Handing items to yourself would change nothing, and a trade never does it.
+        if (toPlayerId == _inventoryGrain.PlayerId)
+        {
+            _logger.LogWarning(
+                "Player {PlayerId} was asked to transfer {Count} items to themselves; refused",
+                _inventoryGrain.PlayerId,
+                itemIds.Length
+            );
+
+            return false;
+        }
+
         await EnsureReadyAsync(ct);
 
         var items = new List<IFurnitureItem>(itemIds.Length);
@@ -347,31 +433,55 @@ internal sealed class InventoryFurniModule(
         return true;
     }
 
-    /// <summary>Items whose rows were just re-owned to this player by another inventory.</summary>
-    public async Task ReceiveAsync(
-        ImmutableArray<FurnitureItemSnapshot> snapshots,
-        CancellationToken ct
-    )
+    /// <summary>
+    /// Items whose rows were just re-owned to this player by another inventory. Runs
+    /// interleaved and awaits nothing (see <c>IInventoryGrain.ReceiveFurnitureAsync</c>): a
+    /// loaded section lists the items, an unloaded one leaves them to its load, and the client
+    /// is told either way.
+    /// </summary>
+    public void Receive(ImmutableArray<FurnitureItemSnapshot> snapshots)
     {
         if (snapshots.IsDefaultOrEmpty)
             return;
 
-        await EnsureReadyAsync(ct);
+        _state.FurnitureReceiveCount++;
 
-        var ownerName = await _inventoryGrain.GetOwnerNameAsync(ct);
+        var added = snapshots;
 
-        await AddAsync(
+        if (_state.IsFurnitureReady && _state.OwnerName is { } ownerName)
+        {
+            added =
             [
-                .. snapshots.Select(snapshot =>
-                    _furnitureLoader.CreateFromFurnitureItemSnapshot(
-                        snapshot,
-                        _inventoryGrain.PlayerId,
-                        ownerName
+                .. snapshots.Where(snapshot =>
+                    _state.FurnitureById.TryAdd(
+                        snapshot.ItemId,
+                        _furnitureLoader.CreateFromFurnitureItemSnapshot(
+                            snapshot,
+                            _inventoryGrain.PlayerId,
+                            ownerName
+                        )
                     )
                 ),
-            ],
-            ct
-        );
+            ];
+        }
+        else
+        {
+            // Not loaded (or loaded without a name, which a load never leaves): the next read
+            // loads the rows, these among them.
+            _state.IsFurnitureReady = false;
+        }
+
+        if (added.IsDefaultOrEmpty)
+            return;
+
+        _inventoryGrain
+            .Presence.OnFurnitureAddedAsync(added, CancellationToken.None)
+            .LogAndForget(
+                _logger,
+                "tell player {PlayerId} about {ItemCount} received items",
+                _inventoryGrain.PlayerId,
+                added.Length
+            );
     }
 
     /// <summary>

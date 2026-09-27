@@ -41,7 +41,7 @@ public class WiredActionMoveRotateFurni(
         foreach (var furniId in selection.SelectedFurniIds)
         {
             if (
-                !_roomGrain.FurniModule.TryGetItem(furniId, out var item)
+                !FurniModule.TryGetItem(furniId, out var item)
                 || item is not IRoomFloorItem floorItem
             )
                 continue;
@@ -50,15 +50,15 @@ public class WiredActionMoveRotateFurni(
             var moveRotation = GetMoveRotation(floorItem.Rotation, _rotationType);
 
             if (
-                !_roomGrain.MapModule.TryGetTileInFront(
-                    _roomGrain.MapModule.ToIdx(floorItem.X, floorItem.Y),
+                !MapModule.TryGetTileInFront(
+                    MapModule.ToIdx(floorItem.X, floorItem.Y),
                     moveDirection,
                     out var nextIdx
                 )
             )
                 continue;
 
-            var (targetX, targetY) = _roomGrain.MapModule.GetTileXY(nextIdx);
+            var (targetX, targetY) = MapModule.GetTileXY(nextIdx);
 
             await ctx.TryMoveFloorItemAsync(floorItem, targetX, targetY, null, moveRotation);
         }

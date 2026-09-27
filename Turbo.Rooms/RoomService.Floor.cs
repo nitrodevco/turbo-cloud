@@ -89,11 +89,13 @@ internal sealed partial class RoomService
         if (item is null)
             return;
 
-        var session = _sessionGateway.GetSession(ctx.SessionKey);
-
-        if (session is not null)
-            await session
-                .SendComposerAsync(new ObjectUpdateMessageComposer { FloorItem = item }, ct)
-                .ConfigureAwait(false);
+        // A refused move puts the furni back where the mover's client dragged it from.
+        await _grainFactory
+            .SendComposerToPlayerAsync(
+                ctx.PlayerId,
+                new ObjectUpdateMessageComposer { FloorItem = item },
+                ct
+            )
+            .ConfigureAwait(false);
     }
 }

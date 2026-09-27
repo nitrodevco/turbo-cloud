@@ -1,4 +1,5 @@
 using Orleans;
+using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Networking;
 
 namespace Turbo.Primitives.Messages.Outgoing.NewNavigator;
@@ -22,5 +23,5 @@ public sealed record NewNavigatorPreferencesMessageComposer : IComposer
     public required bool LeftPaneHidden { get; init; }
 
     [Id(5)]
-    public required int ResultsMode { get; init; }
+    public required NavigatorViewModeType ResultsMode { get; init; }
 }

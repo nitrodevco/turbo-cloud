@@ -35,7 +35,7 @@ public class WiredActionWriteToLogs(
 
         message = await ctx.FormatTextAsync(message, ct);
 
-        _roomGrain.WiredSystem.RecordLog(
+        WiredSystem.RecordLog(
             GetIntParamOrDefault(0, WiredLogLevelType.Info),
             message,
             _roomGrain.NowMs()

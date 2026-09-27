@@ -93,7 +93,7 @@ public class FurniturePetPackageLogic(IStuffDataFactory stuffDataFactory, IRoomF
         if (pet is null)
             return Reject(ctx, interaction, "the inventory refused the pet");
 
-        await _roomGrain.ActionModule.DeleteItemByIdAsync(ctx, _ctx.ObjectId, ct);
+        await ActionModule.DeleteItemByIdAsync(ctx, _ctx.ObjectId, ct);
         await SendResultAsync(ctx, PetNameValidationType.Ok, ct);
 
         return true;

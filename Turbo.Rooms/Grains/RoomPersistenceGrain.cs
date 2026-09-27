@@ -81,27 +81,36 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         _chatlogTimer?.Dispose();
         _chatlogTimer = null;
 
-        await FlushDirtyItemsAsync(ct);
+        // Everything that is left, not one timer's worth. Each queue still stops at its first
+        // batch that cannot be written: a database that is down must not hold the deactivation
+        // in a loop.
+        await FlushDirtyItemsAsync(int.MaxValue, ct);
 
-        // Stops at the first batch that cannot be written: a database that is down must not
-        // hold the deactivation in a loop.
         while (_state.PendingChatlogs.Count > 0 && await FlushChatlogsAsync(ct)) { }
     }
 
-    public Task EnqueueChatlogAsync(RoomChatlogSnapshot snapshot, CancellationToken ct)
+    public Task EnqueueChatlogsAsync(List<RoomChatlogSnapshot> snapshots, CancellationToken ct)
     {
-        if (_state.PendingChatlogs.Count >= _roomConfig.MaxPendingChatlogs)
-        {
-            _logger.LogWarning(
-                "Chatlog queue for room {RoomId} is full ({Max}); dropping oldest entry",
-                _state.RoomId,
-                _roomConfig.MaxPendingChatlogs
-            );
+        var dropped = 0;
 
-            _state.PendingChatlogs.Dequeue();
+        foreach (var snapshot in snapshots)
+        {
+            if (_state.PendingChatlogs.Count >= _roomConfig.MaxPendingChatlogs)
+            {
+                _state.PendingChatlogs.Dequeue();
+                dropped++;
+            }
+
+            _state.PendingChatlogs.Enqueue(snapshot);
         }
 
-        _state.PendingChatlogs.Enqueue(snapshot);
+        if (dropped > 0)
+            _logger.LogWarning(
+                "Chatlog queue for room {RoomId} is full ({Max}); dropped the {Count} oldest entries",
+                _state.RoomId,
+                _roomConfig.MaxPendingChatlogs,
+                dropped
+            );
 
         return Task.CompletedTask;
     }
@@ -253,35 +262,43 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     )
     {
         foreach (var snapshot in snapshots)
+        {
             _state.DirtyItems[snapshot.ObjectId] = snapshot;
 
-        return Task.CompletedTask;
-    }
-
-    public Task EnqueueDirtyPetAsync(PetSnapshot snapshot, CancellationToken ct)
-    {
-        _state.DirtyPets[snapshot.Id] = snapshot;
+            // The room hands over only what stands in it. An item picked up and put back before
+            // the next flush still had its pick-up queued, which wrote it out of the room again.
+            _state.RemovedItemIds.Remove(snapshot.ObjectId);
+        }
 
         return Task.CompletedTask;
     }
 
-    public Task EnqueueDirtyBotAsync(BotSnapshot snapshot, CancellationToken ct)
+    public Task EnqueueDirtyPetsAsync(List<PetSnapshot> snapshots, CancellationToken ct)
     {
-        _state.DirtyBots[snapshot.Id] = snapshot;
+        foreach (var snapshot in snapshots)
+            _state.DirtyPets[snapshot.Id] = snapshot;
+
+        return Task.CompletedTask;
+    }
+
+    public Task EnqueueDirtyBotsAsync(List<BotSnapshot> snapshots, CancellationToken ct)
+    {
+        foreach (var snapshot in snapshots)
+            _state.DirtyBots[snapshot.Id] = snapshot;
 
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// Only a row still standing in this room is written: a pet picked up meanwhile belongs to
-    /// the inventory, which wrote it back itself.
+    /// Writes one batch of pets. Only a row still standing in this room is written: a pet
+    /// picked up meanwhile belongs to the inventory, which wrote it back itself. The rows are
+    /// read in one query and saved in one, rather than one update statement per pet; the read
+    /// is what keeps the "still in this room" check that a keyed update would lose. False when
+    /// the batch could not be written.
     /// </summary>
-    private async Task FlushDirtyPetsAsync(CancellationToken ct)
+    private async Task<bool> FlushDirtyPetBatchAsync(CancellationToken ct)
     {
-        if (_state.DirtyPets.Count == 0)
-            return;
-
-        var batch = _state.DirtyPets.Values.Take(_roomConfig.MaxDirtyItemsPerFlush).ToArray();
+        var batch = _state.DirtyPets.Values.Take(_roomConfig.MaxDirtyItemsPerFlush).ToList();
 
         foreach (var pet in batch)
             _state.DirtyPets.Remove(pet.Id);
@@ -290,58 +307,61 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
 
         try
         {
-            using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+            await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+            var ids = batch.Select(x => x.Id).ToList();
+            var rows = await dbCtx
+                .Pets.Where(x => ids.Contains(x.Id) && x.RoomEntityId == roomId)
+                .ToDictionaryAsync(x => x.Id, ct);
 
             foreach (var pet in batch)
             {
-                var customParts = PetFigure.SerializeCustomParts(pet.Figure.CustomParts);
+                if (!rows.TryGetValue(pet.Id, out var row))
+                    continue;
 
-                await dbCtx
-                    .Pets.Where(x => x.Id == pet.Id && x.RoomEntityId == roomId)
-                    .ExecuteUpdateAsync(
-                        up =>
-                            up.SetProperty(p => p.Name, pet.Name)
-                                .SetProperty(p => p.Level, pet.Level)
-                                .SetProperty(p => p.Experience, pet.Experience)
-                                .SetProperty(p => p.Energy, pet.Energy)
-                                .SetProperty(p => p.Nutrition, pet.Nutrition)
-                                .SetProperty(p => p.Respect, pet.Respect)
-                                .SetProperty(p => p.HasSaddle, pet.HasSaddle)
-                                .SetProperty(p => p.AnyoneCanRide, pet.AnyoneCanRide)
-                                .SetProperty(
-                                    p => p.HasBreedingPermission,
-                                    pet.HasBreedingPermission
-                                )
-                                .SetProperty(p => p.PaletteId, pet.Figure.PaletteId)
-                                .SetProperty(p => p.Color, pet.Figure.Color)
-                                .SetProperty(p => p.CustomParts, customParts)
-                                .SetProperty(p => p.X, pet.X)
-                                .SetProperty(p => p.Y, pet.Y)
-                                .SetProperty(p => p.Z, pet.Z.Value)
-                                .SetProperty(p => p.Rotation, pet.Rotation)
-                                .SetProperty(p => p.WateredAt, pet.WateredAtUtc)
-                                .SetProperty(p => p.HarvestedAt, pet.HarvestedAtUtc),
-                        ct
-                    );
+                row.Name = pet.Name;
+                row.Level = pet.Level;
+                row.Experience = pet.Experience;
+                row.Energy = pet.Energy;
+                row.Nutrition = pet.Nutrition;
+                row.Respect = pet.Respect;
+                row.HasSaddle = pet.HasSaddle;
+                row.AnyoneCanRide = pet.AnyoneCanRide;
+                row.HasBreedingPermission = pet.HasBreedingPermission;
+                row.PaletteId = pet.Figure.PaletteId;
+                row.Color = pet.Figure.Color;
+                row.CustomParts = PetFigure.SerializeCustomParts(pet.Figure.CustomParts);
+                row.X = pet.X;
+                row.Y = pet.Y;
+                row.Z = pet.Z.Value;
+                row.Rotation = pet.Rotation;
+                row.WateredAt = pet.WateredAtUtc;
+                row.HarvestedAt = pet.HarvestedAtUtc;
+                row.EnergyDecayDueAt = pet.EnergyDecayDueUtc;
+                row.NutritionDecayDueAt = pet.NutritionDecayDueUtc;
             }
+
+            await dbCtx.SaveChangesAsync(ct);
+
+            return true;
         }
         catch (Exception ex)
         {
             _logger.LogError(
                 ex,
                 "Failed to flush {Count} dirty pets for room {RoomId}",
-                batch.Length,
+                batch.Count,
                 roomId
             );
+
+            return false;
         }
     }
 
-    private async Task FlushDirtyBotsAsync(CancellationToken ct)
+    /// <summary>Writes one batch of bots, as <see cref="FlushDirtyPetBatchAsync"/> writes pets.</summary>
+    private async Task<bool> FlushDirtyBotBatchAsync(CancellationToken ct)
     {
-        if (_state.DirtyBots.Count == 0)
-            return;
-
-        var batch = _state.DirtyBots.Values.Take(_roomConfig.MaxDirtyItemsPerFlush).ToArray();
+        var batch = _state.DirtyBots.Values.Take(_roomConfig.MaxDirtyItemsPerFlush).ToList();
 
         foreach (var bot in batch)
             _state.DirtyBots.Remove(bot.Id);
@@ -350,52 +370,85 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
 
         try
         {
-            using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+            await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+            var ids = batch.Select(x => x.Id).ToList();
+            var rows = await dbCtx
+                .Bots.Where(x => ids.Contains(x.Id) && x.RoomEntityId == roomId)
+                .ToDictionaryAsync(x => x.Id, ct);
 
             foreach (var bot in batch)
             {
-                await dbCtx
-                    .Bots.Where(x => x.Id == bot.Id && x.RoomEntityId == roomId)
-                    .ExecuteUpdateAsync(
-                        up =>
-                            up.SetProperty(p => p.Name, bot.Name)
-                                .SetProperty(p => p.Motto, bot.Motto)
-                                .SetProperty(p => p.Figure, bot.Figure)
-                                .SetProperty(p => p.Gender, bot.Gender)
-                                .SetProperty(p => p.X, bot.X)
-                                .SetProperty(p => p.Y, bot.Y)
-                                .SetProperty(p => p.Z, bot.Z.Value)
-                                .SetProperty(p => p.Rotation, bot.Rotation)
-                                .SetProperty(p => p.FreeRoam, bot.FreeRoam)
-                                .SetProperty(p => p.ChatText, bot.ChatText)
-                                .SetProperty(p => p.AutoChat, bot.AutoChat)
-                                .SetProperty(p => p.ChatDelaySeconds, bot.ChatDelaySeconds)
-                                .SetProperty(p => p.MixSentences, bot.MixSentences)
-                                .SetProperty(p => p.DanceType, bot.DanceType),
-                        ct
-                    );
+                if (!rows.TryGetValue(bot.Id, out var row))
+                    continue;
+
+                row.Name = bot.Name;
+                row.Motto = bot.Motto;
+                row.Figure = bot.Figure;
+                row.Gender = bot.Gender;
+                row.X = bot.X;
+                row.Y = bot.Y;
+                row.Z = bot.Z.Value;
+                row.Rotation = bot.Rotation;
+                row.FreeRoam = bot.FreeRoam;
+                row.ChatText = bot.ChatText;
+                row.AutoChat = bot.AutoChat;
+                row.ChatDelaySeconds = bot.ChatDelaySeconds;
+                row.MixSentences = bot.MixSentences;
+                row.DanceType = bot.DanceType;
             }
+
+            await dbCtx.SaveChangesAsync(ct);
+
+            return true;
         }
         catch (Exception ex)
         {
             _logger.LogError(
                 ex,
                 "Failed to flush {Count} dirty bots for room {RoomId}",
-                batch.Length,
+                batch.Count,
                 roomId
             );
+
+            return false;
         }
     }
 
-    private async Task FlushDirtyItemsAsync(CancellationToken ct)
+    private Task FlushDirtyItemsAsync(CancellationToken ct) =>
+        FlushDirtyItemsAsync(_roomConfig.MaxDirtyBatchesPerFlush, ct);
+
+    /// <summary>
+    /// Writes up to <paramref name="maxBatches"/> batches of each queue. One batch per tick
+    /// left a busy room further behind on every tick. Each queue stops at its first batch that
+    /// cannot be written.
+    /// </summary>
+    private async Task FlushDirtyItemsAsync(int maxBatches, CancellationToken ct)
     {
         await FlushDeletedItemsAsync(ct);
-        await FlushDirtyPetsAsync(ct);
-        await FlushDirtyBotsAsync(ct);
 
-        if (_state.DirtyItems.Count == 0)
-            return;
+        for (var i = 0; i < maxBatches && _state.DirtyPets.Count > 0; i++)
+        {
+            if (!await FlushDirtyPetBatchAsync(ct))
+                break;
+        }
 
+        for (var i = 0; i < maxBatches && _state.DirtyBots.Count > 0; i++)
+        {
+            if (!await FlushDirtyBotBatchAsync(ct))
+                break;
+        }
+
+        for (var i = 0; i < maxBatches && _state.DirtyItems.Count > 0; i++)
+        {
+            if (!await FlushDirtyItemBatchAsync(ct))
+                break;
+        }
+    }
+
+    /// <summary>Writes one batch of furni. False when the batch could not be written.</summary>
+    private async Task<bool> FlushDirtyItemBatchAsync(CancellationToken ct)
+    {
         var batch = _state
             .DirtyItems.Take(_roomConfig.MaxDirtyItemsPerFlush)
             .Select(x => x.Value)
@@ -440,6 +493,8 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
             }
 
             await dbCtx.SaveChangesAsync(ct);
+
+            return true;
         }
         catch (Exception ex)
         {
@@ -449,6 +504,8 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 batch.Length,
                 _state.RoomId
             );
+
+            return false;
         }
     }
 

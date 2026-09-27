@@ -1,3 +1,4 @@
+using System;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
@@ -8,7 +9,7 @@ namespace Turbo.Primitives.Rooms.Object.Avatars;
 /// A pet in a room. The live stats belong to the room while the pet is placed; the snapshot
 /// they are rebuilt into is what goes back to the inventory and the database.
 /// </summary>
-public interface IRoomPet : IRoomAvatar<IRoomPet, IRoomPetLogic, IRoomPetContext>
+public interface IRoomPet : IRoomAvatar<IRoomPet, IRoomPetLogic, IRoomPetContext>, IRoomFollower
 {
     new IRoomPetLogic Logic { get; }
     public int PetId { get; }
@@ -44,16 +45,22 @@ public interface IRoomPet : IRoomAvatar<IRoomPet, IRoomPetLogic, IRoomPetContext
     /// <summary>Whether the pet wanders on its own between commands.</summary>
     public bool IsFreeRoaming { get; set; }
 
-    /// <summary>The avatar the pet is following, or -1.</summary>
-    public RoomObjectId FollowObjectId { get; set; }
     public int FollowOffset { get; set; }
 
     /// <summary>The item the pet is walking to (food, nest, breeding nest), or -1.</summary>
     public RoomObjectId TargetItemId { get; set; }
     public long NextActionAtMs { get; set; }
     public long ActionExpiresAtMs { get; set; }
-    public long NextEnergyDecayAtMs { get; set; }
-    public long NextNutritionDecayAtMs { get; set; }
+
+    /// <summary>
+    /// When the pet next loses energy, in wall-clock time rather than the room's clock, so the
+    /// time a room spends unloaded or dormant still counts. Null until the first tick after
+    /// the pet is placed.
+    /// </summary>
+    public DateTime? EnergyDecayDueUtc { get; set; }
+
+    /// <summary>The same as <see cref="EnergyDecayDueUtc"/>, for nutrition.</summary>
+    public DateTime? NutritionDecayDueUtc { get; set; }
 
     public void SetName(string name);
     public void SetPetFigure(PetFigureSnapshot figure);

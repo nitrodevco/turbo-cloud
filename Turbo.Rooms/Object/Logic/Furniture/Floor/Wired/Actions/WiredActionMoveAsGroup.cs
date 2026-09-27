@@ -62,7 +62,7 @@ public class WiredActionMoveAsGroup(
         if (group.Count == 0 || !TryGetTargetTile(ctx, out var targetX, out var targetY))
             return false;
 
-        var map = _roomGrain.MapModule;
+        var map = MapModule;
         var dx = targetX + GetIntParamOrDefault(PARAM_OFFSET_X, 0) - group[0].X;
         var dy = targetY + GetIntParamOrDefault(PARAM_OFFSET_Y, 0) - group[0].Y;
 

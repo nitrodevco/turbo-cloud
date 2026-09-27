@@ -211,23 +211,16 @@ public sealed partial class RoomWiredSystem
     public IEnumerable<int> GetLiveTargetIds(WiredVariableTargetType targetType) =>
         targetType switch
         {
-            WiredVariableTargetType.Furni => _roomGrain.FurniModule.Items.Select(x =>
-                x.ObjectId.Value
-            ),
-            WiredVariableTargetType.User => _roomGrain.AvatarModule.Avatars.Select(x =>
-                x.ObjectId.Value
-            ),
+            WiredVariableTargetType.Furni => FurniModule.Items.Select(x => x.ObjectId.Value),
+            WiredVariableTargetType.User => AvatarModule.Avatars.Select(x => x.ObjectId.Value),
             _ => [0],
         };
 
     private bool IsLiveTarget(WiredVariableBinding binding) =>
         binding.TargetType switch
         {
-            WiredVariableTargetType.User => _roomGrain.AvatarModule.TryGetAvatar(
-                binding.TargetId,
-                out _
-            ),
-            WiredVariableTargetType.Furni => _roomGrain.FurniModule.HasItem(binding.TargetId),
+            WiredVariableTargetType.User => AvatarModule.TryGetAvatar(binding.TargetId, out _),
+            WiredVariableTargetType.Furni => FurniModule.HasItem(binding.TargetId),
             WiredVariableTargetType.Global or WiredVariableTargetType.Context => true,
             _ => false,
         };
@@ -261,7 +254,7 @@ public sealed partial class RoomWiredSystem
     {
         RemoveVariableBox(boxId);
 
-        if (!_roomGrain.FurniModule.TryGetItem(boxId, out var item))
+        if (!FurniModule.TryGetItem(boxId, out var item))
             return;
 
         switch (item.Logic)

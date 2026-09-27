@@ -179,7 +179,9 @@ internal sealed partial class PlayerPresenceGrain
             .SetPlayerBadgesAsync(_state.PlayerId, selectedBadges, CancellationToken.None)
             .LogAndForget(
                 _logger,
-                $"show the badges of player {_state.PlayerId} in room {_state.ActiveRoomId}"
+                "show the badges of player {PlayerId} in room {RoomId}",
+                _state.PlayerId,
+                _state.ActiveRoomId
             );
 
         return Task.CompletedTask;

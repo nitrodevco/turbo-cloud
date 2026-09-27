@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -56,34 +57,73 @@ public abstract partial class FurnitureWiredLogic(
     public Task FlashActivationStateAsync(CancellationToken ct) =>
         SetStateAsync(GetState() == 1 ? 0 : 1);
 
-    public virtual List<int> GetStuffIds()
-    {
-        if (GetValidStuffIds(_wiredData.StuffIds, out var stuffIds))
-        {
-            if (!_wiredData.StuffIds.SequenceEqual(stuffIds))
-            {
-                _wiredData.StuffIds = stuffIds;
+    // The picked furni that are still in the room, worked out again only when the box's picks
+    // (a new list is stored on every save) or the room's furni have changed since. Every trigger
+    // match and every selection reads them, and each read used to rebuild and compare them.
+    private readonly ValidatedStuffIds _stuffIds = new();
+    private readonly ValidatedStuffIds _stuffIds2 = new();
 
-                _wiredData.MarkDirty();
-            }
+    /// <summary>The picked furni still in the room. Read-only: the list is shared between reads.</summary>
+    public List<int> GetStuffIds()
+    {
+        var stuffIds = _stuffIds.Get(_wiredData.StuffIds, this);
+
+        if (!ReferenceEquals(stuffIds, _wiredData.StuffIds))
+        {
+            _wiredData.StuffIds = stuffIds;
+            _stuffIds.Adopt(stuffIds);
+
+            _wiredData.MarkDirty();
         }
 
-        return stuffIds ?? [];
+        return stuffIds;
     }
 
-    public virtual List<int> GetStuffIds2()
+    /// <summary>The second slot's picked furni still in the room, as <see cref="GetStuffIds"/>.</summary>
+    public List<int> GetStuffIds2()
     {
-        if (GetValidStuffIds(_wiredData.StuffIds2, out var stuffIds))
-        {
-            if (!_wiredData.StuffIds2.SequenceEqual(stuffIds))
-            {
-                _wiredData.StuffIds2 = stuffIds;
+        var stuffIds = _stuffIds2.Get(_wiredData.StuffIds2, this);
 
-                _wiredData.MarkDirty();
-            }
+        if (!ReferenceEquals(stuffIds, _wiredData.StuffIds2))
+        {
+            _wiredData.StuffIds2 = stuffIds;
+            _stuffIds2.Adopt(stuffIds);
+
+            _wiredData.MarkDirty();
         }
 
-        return stuffIds ?? [];
+        return stuffIds;
+    }
+
+    /// <summary>
+    /// One slot's validated picks, kept against the stored list they came from and the room's
+    /// furni version. When validation keeps the stored list as it is, the stored list itself is
+    /// the answer, so nothing is written back.
+    /// </summary>
+    private sealed class ValidatedStuffIds
+    {
+        private List<int>? _source;
+        private List<int> _valid = [];
+        private long _itemsVersion = -1;
+
+        public List<int> Get(List<int> stored, FurnitureWiredLogic box)
+        {
+            var itemsVersion = box.FurniModule.ItemsVersion;
+
+            if (ReferenceEquals(stored, _source) && itemsVersion == _itemsVersion)
+                return _valid;
+
+            box.GetValidStuffIds(stored, out var valid);
+
+            _source = stored;
+            _valid = stored.SequenceEqual(valid) ? stored : valid;
+            _itemsVersion = itemsVersion;
+
+            return _valid;
+        }
+
+        /// <summary>The validated list has become the stored one, so it is its own source now.</summary>
+        public void Adopt(List<int> stored) => _source = stored;
     }
 
     public virtual List<IWiredParamRule> GetIntParamRules() => [];
@@ -421,7 +461,7 @@ public abstract partial class FurnitureWiredLogic(
     /// ignored. One rule, so the same name cannot match in one box and not in another, or on
     /// one server's locale and not another's.
     /// </summary>
-    protected static StringComparer NameComparer => StringComparer.OrdinalIgnoreCase;
+    protected static StringComparer NameComparer => WiredNameList.Comparer;
 
     /// <summary>Whether two names are the same name, by <see cref="NameComparer"/>.</summary>
     protected static bool NamesMatch(string? a, string? b) => NameComparer.Equals(a, b);
@@ -508,7 +548,7 @@ public abstract partial class FurnitureWiredLogic(
             if (stuffIds.Count >= limit)
                 break;
 
-            if (!_roomGrain.FurniModule.HasItem(id) || !seen.Add(id))
+            if (!FurniModule.HasItem(id) || !seen.Add(id))
                 continue;
 
             stuffIds.Add(id);
@@ -543,7 +583,7 @@ public abstract partial class FurnitureWiredLogic(
                 variableIds.Add(
                     slot < proposed.Count
                     && WiredVariableId.TryParse(proposed[slot], out var slotId)
-                    && _roomGrain.WiredSystem.GetVariableById(slotId) is not null
+                    && WiredSystem.GetVariableById(slotId) is not null
                         ? slotId
                         : NO_VARIABLE
                 );
@@ -560,10 +600,7 @@ public abstract partial class FurnitureWiredLogic(
             if (!WiredVariableId.TryParse(id, out var variableId))
                 continue;
 
-            if (
-                variableIds.Contains(variableId)
-                || _roomGrain.WiredSystem.GetVariableById(variableId) is null
-            )
+            if (variableIds.Contains(variableId) || WiredSystem.GetVariableById(variableId) is null)
                 continue;
 
             variableIds.Add(variableId);
@@ -789,11 +826,11 @@ public abstract partial class FurnitureWiredLogic(
             _ctx.RoomId
         );
 
-    protected bool TryGetFloorItem(int itemId, out IRoomFloorItem floorItem) =>
-        _roomGrain.FurniModule.TryGetFloorItem(itemId, out floorItem);
+    protected bool TryGetFloorItem(int itemId, [NotNullWhen(true)] out IRoomFloorItem? floorItem) =>
+        FurniModule.TryGetFloorItem(itemId, out floorItem);
 
-    protected bool TryGetPlayer(int playerId, out IRoomPlayer player) =>
-        _roomGrain.AvatarModule.TryGetPlayer(playerId, out player);
+    protected bool TryGetPlayer(int playerId, [NotNullWhen(true)] out IRoomPlayer? player) =>
+        AvatarModule.TryGetPlayer(playerId, out player);
 
     /// <summary>The players of a selection that are still in the room.</summary>
     /// <summary>Every avatar a selection picked: players, pets and bots alike.</summary>
@@ -803,7 +840,7 @@ public abstract partial class FurnitureWiredLogic(
 
         foreach (var avatarId in selection.SelectedAvatarIds)
         {
-            if (_roomGrain.AvatarModule.TryGetAvatar(avatarId, out var avatar))
+            if (AvatarModule.TryGetAvatar(avatarId, out var avatar))
                 avatars.Add(avatar);
         }
 

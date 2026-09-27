@@ -33,7 +33,7 @@ public class WiredConditionTeamHasRank(
 
         foreach (var team in ResolveTeams(GetIntParamOrDefault(0, GameTeamType.None), ctx))
         {
-            if (_roomGrain.GameSystem.GetPlacement(team) == placement)
+            if (GameSystem.GetPlacement(team) == placement)
                 return true;
         }
 
@@ -50,7 +50,7 @@ public class WiredConditionTeamHasRank(
             return [configured];
 
         return GetPlayers(ctx.Selected)
-            .Select(x => _roomGrain.GameSystem.GetTeam(x.PlayerId))
+            .Select(x => GameSystem.GetTeam(x.PlayerId))
             .Where(x => x != GameTeamType.None)
             .Distinct()
             .ToList();

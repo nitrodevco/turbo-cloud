@@ -28,7 +28,7 @@ public abstract class FurnitureWiredAddonLogic(
     protected TLogic? GetLogicOnTile<TLogic>()
         where TLogic : class
     {
-        foreach (var item in _roomGrain.FurniModule.GetFloorItemsOnTile(_ctx.GetTileIdx()))
+        foreach (var item in FurniModule.GetFloorItemsOnTile(_ctx.GetTileIdx()))
         {
             if (item.Logic is TLogic logic)
                 return logic;

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Rooms.Enums;
@@ -7,6 +8,8 @@ using Turbo.Primitives.Rooms.Enums;
 namespace Turbo.Database.Entities.Furniture;
 
 [Table("furniture")]
+// An inventory is the rows a player owns that are in no room (player_id = ? AND room_id IS NULL).
+[Index(nameof(PlayerEntityId), nameof(RoomEntityId))]
 public class FurnitureEntity : TurboEntity, IPlacedFurnitureEntity
 {
     [Column("player_id")]

@@ -65,7 +65,7 @@ public sealed partial class RoomPetModule
             return true;
         }
 
-        if (await _roomGrain.AvatarModule.WalkAvatarToAsync(pet, nestItem.X, nestItem.Y, ct))
+        if (await AvatarModule.WalkAvatarToAsync(pet, nestItem.X, nestItem.Y, ct))
             return true;
 
         pet.TargetItemId = -1;

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -206,7 +207,15 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         if (!isGuildOffer)
             return;
 
-        if (!int.TryParse(extraParam, out var guildId) || guildId <= 0)
+        if (
+            !int.TryParse(
+                extraParam,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var guildId
+            )
+            || guildId <= 0
+        )
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
 
         var rank = await _grainFactory
@@ -230,7 +239,12 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
 
             if (
                 !PetProductCodes.TryGetTypeId(product.ClassName, out var typeId)
-                && !int.TryParse(product.ExtraParam, out typeId)
+                && !int.TryParse(
+                    product.ExtraParam,
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out typeId
+                )
             )
             {
                 _logger.LogError(

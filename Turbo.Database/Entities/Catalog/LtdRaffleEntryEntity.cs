@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Players;
 
 namespace Turbo.Database.Entities.Catalog;
@@ -10,6 +11,9 @@ namespace Turbo.Database.Entities.Catalog;
 /// An entry in an LTD raffle queue.
 /// </summary>
 [Table("ltd_raffle_entries")]
+// "Has this player already won this series" and "this batch's entry for this player".
+[Index(nameof(SeriesEntityId), nameof(PlayerEntityId), nameof(Result))]
+[Index(nameof(BatchId), nameof(PlayerEntityId))]
 public class LtdRaffleEntryEntity : TurboEntity
 {
     /// <summary>

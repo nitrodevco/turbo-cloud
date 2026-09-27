@@ -52,7 +52,7 @@ public sealed class UserHandItemVariable(RoomGrain roomGrain)
         )
             return false;
 
-        await _roomGrain.AvatarModule.SetHandItemAsync(avatar, value, CancellationToken.None);
+        await AvatarModule.SetHandItemAsync(avatar, value, CancellationToken.None);
 
         return true;
     }

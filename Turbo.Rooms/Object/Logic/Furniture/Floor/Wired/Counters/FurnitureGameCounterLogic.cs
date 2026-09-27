@@ -55,14 +55,14 @@ public class FurnitureGameCounterLogic(
         _remainingSeconds = duration;
         _isRunning = true;
 
-        await _roomGrain.GameSystem.StartGameAsync(ct);
+        await GameSystem.StartGameAsync(ct);
 
         Schedule();
     }
 
     public override Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
     {
-        _roomGrain.TimerSystem.Cancel(_ctx.ObjectId);
+        TimerSystem.Cancel(_ctx.ObjectId);
         _isRunning = false;
 
         return base.OnPickupAsync(ctx, ct);
@@ -75,12 +75,12 @@ public class FurnitureGameCounterLogic(
 
         _isRunning = false;
 
-        _roomGrain.TimerSystem.Cancel(_ctx.ObjectId);
+        TimerSystem.Cancel(_ctx.ObjectId);
 
-        await _roomGrain.GameSystem.EndGameAsync(ct);
+        await GameSystem.EndGameAsync(ct);
     }
 
-    private void Schedule() => _roomGrain.TimerSystem.Schedule(_ctx.ObjectId, TICK_MS, TickAsync);
+    private void Schedule() => TimerSystem.Schedule(_ctx.ObjectId, TICK_MS, TickAsync);
 
     private async Task TickAsync(CancellationToken ct)
     {

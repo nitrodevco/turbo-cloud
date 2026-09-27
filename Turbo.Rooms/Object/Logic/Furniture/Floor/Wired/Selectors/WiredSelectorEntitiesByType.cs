@@ -40,7 +40,7 @@ public class WiredSelectorEntitiesByType(
         var output = new WiredSelectionSet();
         var kinds = GetIntParamOrDefault(0, TYPE_PLAYER);
 
-        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
+        foreach (var avatar in AvatarModule.Avatars)
         {
             var kind = avatar switch
             {

@@ -20,7 +20,7 @@ public abstract class FurnitureProjectileVariable(RoomGrain roomGrain)
     {
         value = WiredVariableValue.Default;
 
-        return _roomGrain.WiredSystem.GetProjectileFlight(item.ObjectId) is { } flight
+        return WiredSystem.GetProjectileFlight(item.ObjectId) is { } flight
             && TryGetValueForFlight(flight, _roomGrain.NowMs(), out value);
     }
 

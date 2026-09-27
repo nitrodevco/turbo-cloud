@@ -74,7 +74,9 @@ internal sealed partial class BuildersClubGrain
             .SetHiddenByBuildersClubAsync(hidden, ct)
             .LogAndForget(
                 _logger,
-                $"set the Builders Club visibility of room {roomId} to {hidden}"
+                "set the Builders Club visibility of room {RoomId} to {Hidden}",
+                roomId,
+                hidden
             );
 
     /// <summary>

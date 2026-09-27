@@ -18,6 +18,7 @@ internal sealed class PlayerPresenceLiveState
     /// <summary>How a furni said the player would arrive, and the room it said it for.</summary>
     public RoomId PendingEntryRoomId { get; set; } = -1;
     public RoomEntrySnapshot PendingEntry { get; set; } = RoomEntrySnapshot.Default;
+    public DateTime PendingEntrySetAtUtc { get; set; }
     public DateTime ActiveRoomSinceUtc { get; set; } = DateTime.UtcNow;
 
     /// <summary>Composers waiting for the session, in the order they were sent.</summary>

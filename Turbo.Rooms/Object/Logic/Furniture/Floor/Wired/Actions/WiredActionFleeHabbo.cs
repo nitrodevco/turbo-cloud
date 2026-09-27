@@ -30,21 +30,14 @@ public class WiredActionFleeHabbo(
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
         var selection = ctx.GetSelection(this);
-        var map = _roomGrain.MapModule;
+        var map = MapModule;
         var moved = false;
 
         foreach (var item in GetFloorItems(selection))
         {
             var itemIdx = map.ToIdx(item.X, item.Y);
 
-            if (
-                !_roomGrain.AvatarModule.TryGetNearestPlayer(
-                    itemIdx,
-                    FLEE_RANGE,
-                    out var nearest,
-                    out _
-                )
-            )
+            if (!AvatarModule.TryGetNearestPlayer(itemIdx, FLEE_RANGE, out var nearest, out _))
                 continue;
 
             // Which tiles lead away from the player is the map's to say. A player standing on

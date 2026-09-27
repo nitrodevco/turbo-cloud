@@ -1,4 +1,5 @@
 using Orleans;
+using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Object;
 
@@ -19,7 +20,7 @@ public sealed record FavoriteMembershipUpdateMessageComposer : IComposer
     public required int GuildId { get; init; }
 
     [Id(2)]
-    public required int Status { get; init; }
+    public required GuildMembershipStatus Status { get; init; }
 
     [Id(3)]
     public required string GuildName { get; init; }

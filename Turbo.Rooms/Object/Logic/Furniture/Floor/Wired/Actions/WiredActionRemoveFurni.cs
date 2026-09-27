@@ -33,7 +33,7 @@ public class WiredActionRemoveFurni(
         var removed = false;
 
         foreach (var item in GetFloorItems(ctx.GetSelection(this)))
-            removed |= await _roomGrain.FurniModule.RemoveTemporaryItemAsync(actionCtx, item, ct);
+            removed |= await FurniModule.RemoveTemporaryItemAsync(actionCtx, item, ct);
 
         return removed;
     }

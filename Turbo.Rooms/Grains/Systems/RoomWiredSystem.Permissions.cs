@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -31,19 +30,19 @@ public sealed partial class RoomWiredSystem
     /// <summary>Tells everyone in the room again, for when the masks change.</summary>
     public async Task RefreshPermissionsForRoomAsync(CancellationToken ct)
     {
-        var updates = new List<Task>();
-
-        foreach (var player in _roomGrain.AvatarModule.Players.ToList())
-            updates.Add(
-                SendPermissionsAsync(
-                    player.PlayerId,
-                    await _roomGrain.SecurityModule.GetControllerLevelAsync(player.PlayerId),
-                    ct
+        // One presence grain per player, and in a group homeroom a question to the group for
+        // each level not known yet, so every player's update goes side by side.
+        await Task.WhenAll(
+            AvatarModule
+                .Players.ToList()
+                .Select(async player =>
+                    await SendPermissionsAsync(
+                        player.PlayerId,
+                        await SecurityModule.GetControllerLevelAsync(player.PlayerId),
+                        ct
+                    )
                 )
-            );
-
-        // One presence grain per player, so the updates do not wait on each other.
-        await Task.WhenAll(updates);
+        );
     }
 
     private Task SendPermissionsAsync(
@@ -54,7 +53,7 @@ public sealed partial class RoomWiredSystem
     {
         // A level also changes for players who are elsewhere (rights given to someone not in
         // the room); only the ones standing here are shown this room's permissions.
-        if (!_roomGrain.AvatarModule.TryGetPlayer(playerId, out _))
+        if (!AvatarModule.TryGetPlayer(playerId, out _))
             return Task.CompletedTask;
 
         var (canModify, canRead) = GetPermissions(controllerLevel);

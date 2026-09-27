@@ -46,7 +46,7 @@ public class WiredActionGiveScore(
             if (team == GameTeamType.None)
                 continue;
 
-            scored |= await _roomGrain.GameSystem.GiveScoreAsync(
+            scored |= await GameSystem.GiveScoreAsync(
                 team,
                 points,
                 ObjectId,
@@ -59,6 +59,5 @@ public class WiredActionGiveScore(
         return scored;
     }
 
-    protected virtual GameTeamType ResolveTeam(int playerId) =>
-        _roomGrain.GameSystem.GetTeam(playerId);
+    protected virtual GameTeamType ResolveTeam(int playerId) => GameSystem.GetTeam(playerId);
 }

@@ -41,10 +41,7 @@ public class FurniturePetBreedingNestLogic(
 
         foreach (var occupantId in _occupantPetIds)
         {
-            if (
-                _roomGrain.PetModule.TryGetPet(occupantId, out var occupant)
-                && occupant.TypeId != pet.TypeId
-            )
+            if (PetModule.TryGetPet(occupantId, out var occupant) && occupant.TypeId != pet.TypeId)
                 return false;
         }
 
@@ -66,7 +63,7 @@ public class FurniturePetBreedingNestLogic(
 
     public override async Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
     {
-        await _roomGrain.PetModule.OnNestRemovedAsync(_ctx.ObjectId, ct);
+        await PetModule.OnNestRemovedAsync(_ctx.ObjectId, ct);
 
         _occupantPetIds.Clear();
 

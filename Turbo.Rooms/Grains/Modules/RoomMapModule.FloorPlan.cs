@@ -299,7 +299,7 @@ public sealed partial class RoomMapModule
                 homeless.Count
             );
 
-            await _roomGrain.ActionModule.ReturnItemsToOwnersAsync(homeless, ct);
+            await ActionModule.ReturnItemsToOwnersAsync(homeless, ct);
         }
 
         var avatars = _roomGrain._state.AvatarsByObjectId.Values.ToList();

@@ -1,7 +1,9 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Room.Session;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms;
 
 namespace Turbo.PacketHandlers.Room.Session;
@@ -9,10 +11,11 @@ namespace Turbo.PacketHandlers.Room.Session;
 /// <summary>
 /// Direct entry request: home room button, a submitted door password, or a doorbell ring.
 /// </summary>
-public class OpenFlatConnectionMessageHandler(IRoomService roomService)
+public class OpenFlatConnectionMessageHandler(IRoomService roomService, IGrainFactory grainFactory)
     : IMessageHandler<OpenFlatConnectionMessage>
 {
     private readonly IRoomService _roomService = roomService;
+    private readonly IGrainFactory _grainFactory = grainFactory;
 
     public async ValueTask HandleAsync(
         OpenFlatConnectionMessage message,
@@ -28,7 +31,9 @@ public class OpenFlatConnectionMessageHandler(IRoomService roomService)
                 ctx.PlayerId,
                 message.RoomId,
                 message.Password,
-                bypassDoor: false,
+                bypassDoor: await _grainFactory
+                    .IsArrivingByTeleportAsync(ctx.PlayerId, message.RoomId, ct)
+                    .ConfigureAwait(false),
                 ct
             )
             .ConfigureAwait(false);

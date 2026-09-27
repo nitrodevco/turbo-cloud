@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Messenger;
@@ -14,6 +15,19 @@ internal sealed class PlayerMessengerLiveState
     public List<PlayerId> BlockedPlayerIds { get; } = [];
     public List<PlayerId> IgnoredPlayerIds { get; } = [];
     public Dictionary<int, List<MessageHistoryEntrySnapshot>> Messages { get; } = [];
+
+    /// <summary>When the friend rows in <see cref="Friends"/> were last read from the database.</summary>
+    public DateTime FriendsLoadedAtUtc { get; set; }
+
+    /// <summary>
+    /// Whether the <c>Online</c> flag of every friend has been asked of their presence since the
+    /// owner came online. Until then every friend reads offline; see
+    /// <c>EnsureFriendsOnlineResolvedAsync</c>.
+    /// </summary>
+    public bool FriendsOnlineResolved { get; set; }
+
+    /// <summary>When the owner last searched for players, for the search rate limit.</summary>
+    public DateTime LastSearchAtUtc { get; set; }
 
     /// <summary>Friend list changes waiting for the next flush to the client, one per friend.</summary>
     public Dictionary<PlayerId, MessengerUpdateSnapshot> PendingUpdates { get; } = [];

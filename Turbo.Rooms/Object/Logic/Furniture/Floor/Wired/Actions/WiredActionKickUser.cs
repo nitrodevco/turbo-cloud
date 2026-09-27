@@ -42,11 +42,7 @@ public class WiredActionKickUser(
         // Who may be kicked, and how a kicked player's session is closed, is the moderation
         // module's business; this box only chooses the players and the parting words.
         foreach (var player in GetPlayers(ctx.GetSelection(this)).ToList())
-            kicked |= await _roomGrain.ModerationModule.KickPlayerBySystemAsync(
-                player.PlayerId,
-                message,
-                ct
-            );
+            kicked |= await ModerationModule.KickPlayerBySystemAsync(player.PlayerId, message, ct);
 
         return kicked;
     }

@@ -28,16 +28,13 @@ public class WiredTriggerHabboJoinRoom(
         if (ctx.Event is not PlayerEnterEvent enter)
             return Task.FromResult(false);
 
-        if (string.IsNullOrWhiteSpace(_wiredData.StringParam))
+        var name = GetStringParam();
+
+        if (name.Length == 0)
             return Task.FromResult(true);
 
         return Task.FromResult(
-            TryGetPlayer(enter.PlayerId, out var player)
-                && string.Equals(
-                    player.Name,
-                    _wiredData.StringParam.Trim(),
-                    StringComparison.OrdinalIgnoreCase
-                )
+            TryGetPlayer(enter.PlayerId, out var player) && NamesMatch(player.Name, name)
         );
     }
 }

@@ -1,21 +1,44 @@
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
-using System.IO;
 using System.Text;
 
 namespace Turbo.Primitives.Packets;
 
-public class ServerPacket(int header) : TurboPacket(header), IServerPacket
+/// <summary>
+/// Writes an outgoing packet into an array rented from the shared pool; disposing the packet
+/// returns it. Every composer sent goes through one of these, so it writes values straight into
+/// the buffer rather than through a stream and a writer, and a string is encoded in place instead
+/// of into a temporary array first.
+///
+/// Positions behave like the <c>MemoryStream</c> this replaced, so the bytes are the same: a
+/// write past the end extends the packet, a write before it overwrites, and a gap left by moving
+/// the position past the end is zero-filled.
+/// </summary>
+public sealed class ServerPacket : TurboPacket, IServerPacket
 {
-    public BinaryWriter Writer { get; } = new(new MemoryStream());
-    public MemoryStream Stream => (MemoryStream)Writer.BaseStream;
+    private const int DEFAULT_CAPACITY = 256;
 
-    public int Length => (int)Writer.BaseStream.Length;
+    private byte[] _buffer;
+    private int _position;
+    private int _length;
+
+    public ServerPacket(int header)
+        : this(header, DEFAULT_CAPACITY) { }
+
+    public ServerPacket(int header, int initialCapacity)
+        : base(header)
+    {
+        _buffer = ArrayPool<byte>.Shared.Rent(Math.Max(initialCapacity, 16));
+    }
+
+    public int Length => _length;
+
+    public ReadOnlySpan<byte> WrittenSpan => _buffer.AsSpan(0, _length);
 
     public IServerPacket WriteByte(byte b)
     {
-        Writer.Write(b);
-        _logger.Append($"{{u:{b}}}");
+        Reserve(1)[0] = b;
 
         return this;
     }
@@ -27,77 +50,104 @@ public class ServerPacket(int header) : TurboPacket(header), IServerPacket
 
     public IServerPacket WriteShort(short s)
     {
-        Span<byte> b = stackalloc byte[2];
-        BinaryPrimitives.WriteInt16BigEndian(b, s);
+        BinaryPrimitives.WriteInt16BigEndian(Reserve(2), s);
 
-        Writer.Write(b);
-
-        _logger.Append($"{{s:{s}}}");
         return this;
     }
 
     public IServerPacket WriteFloat(float f)
     {
-        Span<byte> b = stackalloc byte[4];
-        BinaryPrimitives.WriteSingleBigEndian(b, f);
-
-        Writer.Write(b);
-        _logger.Append($"{{f:{f}}}");
+        BinaryPrimitives.WriteSingleBigEndian(Reserve(4), f);
 
         return this;
     }
 
     public IServerPacket WriteDouble(double d)
     {
-        Span<byte> b = stackalloc byte[8];
-        BinaryPrimitives.WriteInt64BigEndian(b, BitConverter.DoubleToInt64Bits(d));
-
-        Writer.Write(b);
-        _logger.Append($"{{d:{d}}}");
+        BinaryPrimitives.WriteInt64BigEndian(Reserve(8), BitConverter.DoubleToInt64Bits(d));
 
         return this;
     }
 
     public IServerPacket WriteLong(long l)
     {
-        Span<byte> b = stackalloc byte[8];
-        BinaryPrimitives.WriteInt64BigEndian(b, l);
-
-        Writer.Write(b);
-        _logger.Append($"{{l:{l}}}");
+        BinaryPrimitives.WriteInt64BigEndian(Reserve(8), l);
 
         return this;
     }
 
     public IServerPacket WriteInteger(int i)
     {
-        Span<byte> b = stackalloc byte[4];
-        BinaryPrimitives.WriteInt32BigEndian(b, i);
-
-        Writer.Write(b);
-        _logger.Append($"{{i:{i}}}");
+        BinaryPrimitives.WriteInt32BigEndian(Reserve(4), i);
 
         return this;
     }
 
     public IServerPacket WriteString(string s)
     {
-        var data = Encoding.UTF8.GetBytes(s ?? string.Empty);
+        s ??= string.Empty;
 
-        WriteShort((short)data.Length);
-        Writer.Write(data);
+        var byteCount = Encoding.UTF8.GetByteCount(s);
 
-        _logger.Append($"{{s:\"{s}\"}}");
+        WriteShort((short)byteCount);
+        Encoding.UTF8.GetBytes(s, Reserve(byteCount));
 
         return this;
     }
 
     public IServerPacket SetWriterPosition(int position)
     {
-        Stream.Position = position;
+        ArgumentOutOfRangeException.ThrowIfNegative(position);
+
+        _position = position;
 
         return this;
     }
 
-    public byte[] ToArray() => Stream.ToArray();
+    public byte[] ToArray() => WrittenSpan.ToArray();
+
+    public void Dispose()
+    {
+        var buffer = _buffer;
+
+        _buffer = [];
+        _position = 0;
+        _length = 0;
+
+        if (buffer.Length > 0)
+            ArrayPool<byte>.Shared.Return(buffer);
+    }
+
+    private Span<byte> Reserve(int count)
+    {
+        var end = _position + count;
+
+        if (end > _buffer.Length)
+            Grow(end);
+
+        // A rented array is not zeroed, and a stream reads a skipped gap as zeros.
+        if (_position > _length)
+            _buffer.AsSpan(_length, _position - _length).Clear();
+
+        var span = _buffer.AsSpan(_position, count);
+
+        _position = end;
+
+        if (end > _length)
+            _length = end;
+
+        return span;
+    }
+
+    private void Grow(int required)
+    {
+        ObjectDisposedException.ThrowIf(_buffer.Length == 0, this);
+
+        var next = ArrayPool<byte>.Shared.Rent(Math.Max(required, _buffer.Length * 2));
+
+        _buffer.AsSpan(0, _length).CopyTo(next);
+        ArrayPool<byte>.Shared.Return(_buffer);
+
+        _buffer = next;
+    }
 }

@@ -19,7 +19,7 @@ public class FurniturePetReviveLogic(IStuffDataFactory stuffDataFactory, IRoomFl
 
     protected override async Task<bool> ApplyAsync(IRoomPet pet, CancellationToken ct)
     {
-        await _roomGrain.PetModule.ReviveAsync(pet, ct);
+        await PetModule.ReviveAsync(pet, ct);
 
         return true;
     }

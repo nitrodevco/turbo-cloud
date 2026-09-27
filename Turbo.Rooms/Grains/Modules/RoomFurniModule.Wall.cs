@@ -33,7 +33,7 @@ public sealed partial class RoomFurniModule
             return false;
 
         // A limit tells its own kind of furni by the logic, which a new item does not have yet.
-        _roomGrain.ObjectModule.EnsureLogic(item);
+        ObjectModule.EnsureLogic(item);
         EnsureWithinPlacementLimits(item);
 
         // Positioned before it is attached, as a floor item is.
@@ -42,7 +42,7 @@ public sealed partial class RoomFurniModule
         item.SetRotation(rot);
         item.SetWallOffset(wallOffset);
 
-        if (!await _roomGrain.ObjectModule.AttatchObjectAsync(item, ct))
+        if (!await ObjectModule.AttatchObjectAsync(item, ct))
             return false;
 
         await item.Logic.OnPlaceAsync(ctx, ct);
@@ -87,7 +87,7 @@ public sealed partial class RoomFurniModule
         CancellationToken ct
     )
     {
-        if (!_roomGrain.MapModule.MoveWallItem(item, x, y, z, rot, wallOffset))
+        if (!MapModule.MoveWallItem(item, x, y, z, rot, wallOffset))
             return false;
 
         if (announce)
@@ -118,13 +118,6 @@ public sealed partial class RoomFurniModule
         Rotation rot
     ) => Task.FromResult(true);
 
-    public Task<ImmutableArray<RoomWallItemSnapshot>> GetAllWallItemSnapshotsAsync(
-        CancellationToken ct
-    ) =>
-        Task.FromResult(
-            _roomGrain
-                ._state.ItemsById.Values.OfType<IRoomWallItem>()
-                .Select(x => x.GetSnapshot())
-                .ToImmutableArray()
-        );
+    public ImmutableArray<RoomWallItemSnapshot> GetWallItemSnapshots() =>
+        [.. Items.OfType<IRoomWallItem>().Select(x => x.GetSnapshot())];
 }

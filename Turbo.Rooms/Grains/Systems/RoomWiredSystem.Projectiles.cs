@@ -33,20 +33,17 @@ public sealed partial class RoomWiredSystem
         int durationMs
     )
     {
-        var map = _roomGrain.MapModule;
+        var map = MapModule;
         var path = WiredProjectileFlight.BuildPath(map.ToIdx, sourceX, sourceY, targetX, targetY);
 
         _flightsByObjectId[objectId] = new WiredProjectileFlight
         {
             Path = path,
-            AvatarCountsOnPath =
-            [
-                .. path.Select(x => _roomGrain.AvatarModule.GetAvatarsOnTile(x).Count()),
-            ],
+            AvatarCountsOnPath = [.. path.Select(x => AvatarModule.GetAvatarsOnTile(x).Count())],
             ItemCountsOnPath =
             [
                 .. path.Select(x =>
-                    _roomGrain.FurniModule.GetFloorItemsOnTile(x).Count(y => y.ObjectId != objectId)
+                    FurniModule.GetFloorItemsOnTile(x).Count(y => y.ObjectId != objectId)
                 ),
             ],
             SourceX = sourceX,

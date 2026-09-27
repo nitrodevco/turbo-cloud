@@ -24,7 +24,7 @@ public sealed partial class RoomActionModule
         CancellationToken ct
     )
     {
-        if (!await _roomGrain.SecurityModule.CanPlaceFurniAsync(ctx))
+        if (!await SecurityModule.CanPlaceFurniAsync(ctx))
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToPlaceFurni);
 
         var item = _roomGrain._itemsLoader.CreateFromFurnitureItemSnapshot(snapshot);
@@ -33,18 +33,7 @@ public sealed partial class RoomActionModule
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
         // The spot and the room's limits are checked by the placement itself.
-        if (
-            !await _roomGrain.FurniModule.PlaceWallItemAsync(
-                ctx,
-                wallItem,
-                x,
-                y,
-                z,
-                wallOffset,
-                rot,
-                ct
-            )
-        )
+        if (!await FurniModule.PlaceWallItemAsync(ctx, wallItem, x, y, z, wallOffset, rot, ct))
             return false;
 
         var inventory = _roomGrain._grainFactory.GetInventoryGrain(item.OwnerId);
@@ -65,34 +54,15 @@ public sealed partial class RoomActionModule
         CancellationToken ct
     )
     {
-        if (!await _roomGrain.SecurityModule.CanManipulateFurniAsync(ctx))
+        if (!await SecurityModule.CanManipulateFurniAsync(ctx))
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
         if (
-            !await _roomGrain.FurniModule.ValidateWallItemPlacementAsync(
-                ctx,
-                itemId,
-                x,
-                y,
-                z,
-                wallOffset,
-                rot
-            )
+            !await FurniModule.ValidateWallItemPlacementAsync(ctx, itemId, x, y, z, wallOffset, rot)
         )
             throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
 
-        if (
-            !await _roomGrain.FurniModule.MoveWallItemByIdAsync(
-                ctx,
-                itemId,
-                x,
-                y,
-                z,
-                wallOffset,
-                rot,
-                ct
-            )
-        )
+        if (!await FurniModule.MoveWallItemByIdAsync(ctx, itemId, x, y, z, wallOffset, rot, ct))
             return false;
 
         return true;

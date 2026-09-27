@@ -27,7 +27,7 @@ internal class OfficialRoomsMessageComposerSerializer(int header)
                 .WriteInteger(room.Population)
                 .WriteInteger((int)NavigatorOfficialRoomEntryType.GuestRoom);
 
-            RoomSettingsSerializer.Serialize(packet, room);
+            RoomSettingsSerializer.Serialize(packet, room, message.SentAtUtc);
         }
 
         packet

@@ -18,7 +18,7 @@ public class WiredSelectorItemsInNeighborhood(
 
     protected override void CollectTile(int tileId, WiredSelectionSet output)
     {
-        foreach (var item in _roomGrain.FurniModule.GetFloorItemsOnTile(tileId))
+        foreach (var item in FurniModule.GetFloorItemsOnTile(tileId))
             output.SelectedFurniIds.Add(item.ObjectId);
     }
 }

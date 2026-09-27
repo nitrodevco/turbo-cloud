@@ -83,6 +83,16 @@ public sealed record PetSnapshot : IInventoryUnitSnapshot
     [Id(21)]
     public required DateTime? HarvestedAtUtc { get; init; }
 
+    /// <summary>
+    /// When the pet next loses energy and nutrition, in wall-clock time; null until it is placed
+    /// in a room. A room applies every period that fell due while it was not running.
+    /// </summary>
+    [Id(22)]
+    public DateTime? EnergyDecayDueUtc { get; init; }
+
+    [Id(23)]
+    public DateTime? NutritionDecayDueUtc { get; init; }
+
     public int TypeId => Figure.TypeId;
     public int BreedId => Figure.BreedId;
     public bool IsMonsterplant => PetTypes.IsMonsterplant(Figure.TypeId);

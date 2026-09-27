@@ -16,5 +16,5 @@ public sealed class UserIsOwnerVariable(RoomGrain roomGrain)
     protected override ushort Order => 10;
 
     protected override bool HasFlag(IRoomPlayer avatar) =>
-        _roomGrain.SecurityModule.IsRoomOwner(avatar.PlayerId);
+        SecurityModule.IsRoomOwner(avatar.PlayerId);
 }

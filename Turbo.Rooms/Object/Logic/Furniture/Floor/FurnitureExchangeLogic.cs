@@ -5,7 +5,6 @@ using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -41,12 +40,12 @@ public class FurnitureExchangeLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
 
         var credited = await _roomGrain
             ._grainFactory.GetPlayerWalletGrain(ctx.PlayerId)
-            .CreditAsync(new CurrencyKind { CurrencyType = CurrencyType.Credits }, credits, ct);
+            .CreditAsync(CurrencyKind.Credits, credits, ct);
 
         if (!credited)
             return Reject(ctx, interaction, "wallet refused the credit");
 
         // The wallet has the value now; the furni must not survive to be redeemed twice.
-        return await _roomGrain.ActionModule.DeleteItemByIdAsync(ctx, _ctx.ObjectId, ct);
+        return await ActionModule.DeleteItemByIdAsync(ctx, _ctx.ObjectId, ct);
     }
 }

@@ -42,7 +42,7 @@ internal class RoomAvatarSerializer
         packet
             .WriteString(AvatarGenderTypeExtensions.ToLegacyString(snapshot.Gender))
             .WriteInteger(snapshot.GroupId)
-            .WriteInteger(snapshot.GroupStatus)
+            .WriteInteger((int)snapshot.GroupStatus)
             .WriteString(snapshot.GroupName)
             .WriteString(snapshot.SwimFigure)
             .WriteInteger(snapshot.ActivityPoints)

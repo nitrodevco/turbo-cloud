@@ -152,7 +152,8 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
                 .OnHabboClubChangedAsync(entity.ExpiresAt, ct)
                 .LogAndForget(
                     _logger,
-                    $"tell the room of player {PlayerId} about their Habbo Club"
+                    "tell the room of player {PlayerId} about their Habbo Club",
+                    PlayerId
                 );
         }
 
@@ -162,7 +163,11 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
             _grainFactory
                 .GetBuildersClubGrain()
                 .OnSubscriptionChangedAsync(PlayerId, ct)
-                .LogAndForget(_logger, $"refresh the Builders Club rooms of player {PlayerId}");
+                .LogAndForget(
+                    _logger,
+                    "refresh the Builders Club rooms of player {PlayerId}",
+                    PlayerId
+                );
     }
 
     public async Task SendStatusAsync(CancellationToken ct)

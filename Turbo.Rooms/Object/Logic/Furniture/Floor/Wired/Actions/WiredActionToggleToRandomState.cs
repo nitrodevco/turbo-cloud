@@ -31,7 +31,7 @@ public class WiredActionToggleToRandomState(
 
         foreach (var itemId in selection.SelectedFurniIds)
         {
-            if (!_roomGrain.FurniModule.TryGetItem(itemId, out var item))
+            if (!FurniModule.TryGetItem(itemId, out var item))
                 continue;
 
             var totalStates = Math.Max(1, item.Definition.TotalStates);

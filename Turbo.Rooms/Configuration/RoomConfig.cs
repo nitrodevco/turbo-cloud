@@ -38,8 +38,20 @@ public class RoomConfig
     public int RollerTickMs { get; init; } = 2000;
     public int DirtyItemsTickMs { get; init; } = 2000;
     public int MaxDirtyItemsPerFlush { get; init; } = 100;
+
+    /// <summary>
+    /// How many batches of <see cref="MaxDirtyItemsPerFlush"/> furni, pets and bots one
+    /// persistence tick may write before it waits for the next. Deactivation writes everything.
+    /// </summary>
+    public int MaxDirtyBatchesPerFlush { get; init; } = 10;
     public int MaxTileHeightsPerFlush { get; init; } = 200;
     public int MaxPathNodes { get; init; } = 4096;
+
+    /// <summary>
+    /// How long a pet or bot that found no way to the avatar it follows waits before searching
+    /// again, when that avatar has not moved. It searches at once when the avatar moves.
+    /// </summary>
+    public int NpcFollowRetryMs { get; init; } = 2000;
 
     public int ChatMaxLength { get; init; } = 100;
 
@@ -51,6 +63,24 @@ public class RoomConfig
 
     /// <summary>Delay before a one-way door closes behind the avatar that entered it.</summary>
     public int OneWayDoorCloseMs { get; init; } = 2000;
+
+    /// <summary>
+    /// How long each step of a teleport shows: open, shut with the player inside, flashing,
+    /// open again at the other half.
+    /// </summary>
+    public int TeleportStepMs { get; init; } = 500;
+
+    /// <summary>
+    /// How long a teleporter waits for a player to walk up to it, into it or out of it before
+    /// it gives up and lets them go.
+    /// </summary>
+    public int TeleportWalkTimeoutMs { get; init; } = 10000;
+
+    /// <summary>
+    /// How long a teleporter holds a player it forwarded to another room. If they are still
+    /// here after this (the room refused them), it opens and lets them back out.
+    /// </summary>
+    public int TeleportForwardTimeoutMs { get; init; } = 10000;
 
     public int StickieTextMaxLength { get; init; } = 500;
 

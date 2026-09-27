@@ -19,19 +19,10 @@ internal sealed class ExtraDataWriter
         _root = (JsonObject)JsonNode.Parse(extraData)!;
     }
 
-    public string UpdateSection<TSection>(string name, TSection section)
-    {
+    public void SetSection<TSection>(string name, TSection section) =>
         _root[name] = JsonSerializer.SerializeToNode(section, OPTIONS);
 
-        return _root.ToJsonString(OPTIONS);
-    }
-
-    public string DeleteSection(string name)
-    {
-        _root.Remove(name);
-
-        return _root.ToJsonString(OPTIONS);
-    }
+    public void RemoveSection(string name) => _root.Remove(name);
 
     public string ToJsonString() => _root.ToJsonString(OPTIONS);
 

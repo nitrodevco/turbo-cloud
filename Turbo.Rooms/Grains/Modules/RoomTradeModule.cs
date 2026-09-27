@@ -14,20 +14,18 @@ namespace Turbo.Rooms.Grains.Modules;
 /// each side trade, and the trading status on the avatars. The trades themselves live in
 /// <see cref="RoomTradeGrain"/>, which calls in here; nothing here calls it back awaited.
 /// </summary>
-public sealed class RoomTradeModule(RoomGrain roomGrain)
+public sealed class RoomTradeModule(RoomGrain roomGrain) : RoomGrainComponent(roomGrain)
 {
-    private readonly RoomGrain _roomGrain = roomGrain;
-
     public async Task<TradePartiesSnapshot?> GetPartiesAsync(
         ActionContext ctx,
         RoomObjectId targetObjectId
     )
     {
-        if (!_roomGrain.AvatarModule.TryGetPlayer(ctx.PlayerId, out _))
+        if (!AvatarModule.TryGetPlayer(ctx.PlayerId, out _))
             return null;
 
         if (
-            !_roomGrain.AvatarModule.TryGetAvatar(targetObjectId, out var avatar)
+            !AvatarModule.TryGetAvatar(targetObjectId, out var avatar)
             || avatar is not IRoomPlayer partner
             || partner.PlayerId == ctx.PlayerId
         )
@@ -47,7 +45,7 @@ public sealed class RoomTradeModule(RoomGrain roomGrain)
     {
         foreach (var playerId in playerIds)
         {
-            if (!_roomGrain.AvatarModule.TryGetPlayer(playerId, out var player))
+            if (!AvatarModule.TryGetPlayer(playerId, out var player))
                 continue;
 
             if (trading)
@@ -59,16 +57,16 @@ public sealed class RoomTradeModule(RoomGrain roomGrain)
 
     /// <summary>Whether a leaving player had a trade open, judged by the status the trade put on them.</summary>
     public bool IsTrading(PlayerId playerId) =>
-        _roomGrain.AvatarModule.TryGetPlayer(playerId, out var player)
+        AvatarModule.TryGetPlayer(playerId, out var player)
         && player.HasStatus(AvatarStatusType.Trading);
 
     private async Task<bool> AllowsTradeByAsync(PlayerId playerId) =>
         _roomGrain._state.RoomSnapshot.TradeType switch
         {
             RoomTradeModeType.Disabled => false,
-            RoomTradeModeType.RoomOwnerAndRights =>
-                await _roomGrain.SecurityModule.GetControllerLevelAsync(playerId)
-                    >= RoomControllerType.Rights,
+            RoomTradeModeType.RoomOwnerAndRights => await SecurityModule.GetControllerLevelAsync(
+                playerId
+            ) >= RoomControllerType.Rights,
             _ => true,
         };
 }

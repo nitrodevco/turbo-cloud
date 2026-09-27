@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,11 +9,13 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Navigator.Configuration;
+using Turbo.Players.Configuration;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Navigator.Snapshots;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Messenger;
 using Turbo.Primitives.Players.Snapshots.Navigator;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -30,15 +33,17 @@ public sealed class NavigatorService(
     ILogger<INavigatorService> logger,
     INavigatorProvider navigatorProvider,
     IGrainFactory grainFactory,
-    IOptions<NavigatorConfig> config
+    IOptions<NavigatorConfig> config,
+    IOptions<PlayerNavigatorConfig> playerNavigatorConfig
 ) : INavigatorService
 {
     private readonly ILogger<INavigatorService> _logger = logger;
     private readonly INavigatorProvider _navigatorProvider = navigatorProvider;
     private readonly IGrainFactory _grainFactory = grainFactory;
     private readonly NavigatorConfig _config = config.Value;
+    private readonly PlayerNavigatorConfig _playerNavigatorConfig = playerNavigatorConfig.Value;
 
-    public int FavouriteRoomLimit => _config.MaxFavouriteRooms;
+    public int FavouriteRoomLimit => _playerNavigatorConfig.MaxFavouriteRooms;
     public int MaxSearchCodeLength => _config.MaxSearchCodeLength;
     public int MaxTagsPerRoom => _config.MaxTagsPerRoom;
     public int MaxTagLength => _config.MaxTagLength;
@@ -57,14 +62,17 @@ public sealed class NavigatorService(
         // Both values are echoed back to the client and used as cache and preference keys.
         var code = ClientText.Truncate(searchCode, _config.MaxSearchCodeLength);
         var filterText = ClientText.Truncate(filter, _config.MaxSearchCodeLength);
-        var preferences = await _grainFactory
-            .GetPlayerNavigatorGrain(playerId)
-            .GetSnapshotAsync(ct)
-            .ConfigureAwait(false);
+
+        // Two different grains, so asked side by side.
+        var preferencesTask = _grainFactory.GetPlayerNavigatorGrain(playerId).GetSnapshotAsync(ct);
+        var liveRoomsTask = GetLiveRoomsAsync(ct);
+
+        await Task.WhenAll(preferencesTask, liveRoomsTask).ConfigureAwait(false);
+
         var query = new SearchQuery(
             playerId,
-            preferences,
-            await GetLiveRoomsAsync(ct).ConfigureAwait(false)
+            await preferencesTask.ConfigureAwait(false),
+            await liveRoomsTask.ConfigureAwait(false)
         );
 
         if (filterText.Length > 0)
@@ -149,6 +157,8 @@ public sealed class NavigatorService(
         {
             NavigatorSearchType.PopularRooms or NavigatorSearchType.Categories => int.TryParse(
                 param,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
                 out var categoryId
             )
             && categoryId > 0
@@ -470,7 +480,7 @@ public sealed class NavigatorService(
 
         await _grainFactory
             .GetPlayerNavigatorGrain(playerId)
-            .AddFavouriteRoomAsync(roomId, _config.MaxFavouriteRooms, ct)
+            .AddFavouriteRoomAsync(roomId, ct)
             .ConfigureAwait(false);
     }
 
@@ -496,28 +506,21 @@ public sealed class NavigatorService(
         string filter,
         CancellationToken ct
     ) =>
-        _grainFactory
-            .GetPlayerNavigatorGrain(playerId)
-            .AddSavedSearchAsync(searchCode, filter, _config.MaxSavedSearches, ct);
+        _grainFactory.GetPlayerNavigatorGrain(playerId).AddSavedSearchAsync(searchCode, filter, ct);
 
     public Task AddCollapsedSearchCodeAsync(
         PlayerId playerId,
         string searchCode,
         CancellationToken ct
     ) =>
-        _grainFactory
-            .GetPlayerNavigatorGrain(playerId)
-            .AddCollapsedSearchCodeAsync(searchCode, _config.MaxCollapsedSearchCodes, ct);
+        _grainFactory.GetPlayerNavigatorGrain(playerId).AddCollapsedSearchCodeAsync(searchCode, ct);
 
     public Task SetViewModeAsync(
         PlayerId playerId,
         string searchCode,
         NavigatorViewModeType viewMode,
         CancellationToken ct
-    ) =>
-        _grainFactory
-            .GetPlayerNavigatorGrain(playerId)
-            .SetViewModeAsync(searchCode, viewMode, _config.MaxViewModes, ct);
+    ) => _grainFactory.GetPlayerNavigatorGrain(playerId).SetViewModeAsync(searchCode, viewMode, ct);
 
     private async Task<ImmutableArray<NavigatorSearchResultBlockSnapshot>> CreatePreviewBlocksAsync(
         SearchQuery query,
@@ -653,7 +656,11 @@ public sealed class NavigatorService(
             }
             case NavigatorSearchCodes.FAVOURITES:
             {
-                var roomIds = await GetFavouriteRoomIdsAsync(playerId, ct).ConfigureAwait(false);
+                // The new navigator already holds the player's navigator snapshot; only a
+                // legacy search has to ask for it.
+                var roomIds =
+                    query.Preferences?.FavouriteRoomIds
+                    ?? await GetFavouriteRoomIdsAsync(playerId, ct).ConfigureAwait(false);
 
                 return await GetRoomsInOrderAsync(query, roomIds, limit, ct).ConfigureAwait(false);
             }
@@ -661,7 +668,7 @@ public sealed class NavigatorService(
             {
                 var roomIds = await _grainFactory
                     .GetPlayerNavigatorGrain(playerId)
-                    .GetRecentRoomIdsAsync(Math.Min(limit, _config.HistoryLimit), ct)
+                    .GetRecentRoomIdsAsync(limit, ct)
                     .ConfigureAwait(false);
 
                 return await GetRoomsInOrderAsync(query, roomIds, limit, ct).ConfigureAwait(false);
@@ -670,17 +677,14 @@ public sealed class NavigatorService(
             {
                 var roomIds = await _grainFactory
                     .GetPlayerNavigatorGrain(playerId)
-                    .GetFrequentRoomIdsAsync(Math.Min(limit, _config.HistoryLimit), ct)
+                    .GetFrequentRoomIdsAsync(limit, ct)
                     .ConfigureAwait(false);
 
                 return await GetRoomsInOrderAsync(query, roomIds, limit, ct).ConfigureAwait(false);
             }
             case NavigatorSearchCodes.FRIENDS_ROOMS:
             {
-                var friends = await _grainFactory
-                    .GetPlayerMessengerGrain(playerId)
-                    .GetFriendsAsync(ct)
-                    .ConfigureAwait(false);
+                var friends = await query.GetFriendsAsync(_grainFactory, ct).ConfigureAwait(false);
                 var friendIds = friends.Select(x => x.PlayerId).ToHashSet();
                 var cached = await _navigatorProvider
                     .GetRoomsByOwnersAsync(friendIds, _config.SearchResultLimit, ct)
@@ -696,8 +700,7 @@ public sealed class NavigatorService(
             }
             case NavigatorSearchCodes.WITH_FRIENDS:
             {
-                var roomIds = await GetRoomsWithOnlineFriendsAsync(playerId, ct)
-                    .ConfigureAwait(false);
+                var roomIds = await GetRoomsWithOnlineFriendsAsync(query, ct).ConfigureAwait(false);
 
                 return await GetRoomsInOrderAsync(query, roomIds, limit, ct).ConfigureAwait(false);
             }
@@ -776,11 +779,7 @@ public sealed class NavigatorService(
             && !_navigatorProvider.IsSearchCached(filterType, value)
             && !await _grainFactory
                 .GetPlayerNavigatorGrain(query.PlayerId)
-                .TryConsumeSearchQuotaAsync(
-                    _config.SearchRateLimitCount,
-                    TimeSpan.FromSeconds(_config.SearchRateLimitWindowSeconds),
-                    ct
-                )
+                .TryConsumeSearchQuotaAsync(ct)
                 .ConfigureAwait(false)
         )
             return [];
@@ -928,14 +927,11 @@ public sealed class NavigatorService(
     }
 
     private async Task<List<RoomId>> GetRoomsWithOnlineFriendsAsync(
-        PlayerId playerId,
+        SearchQuery query,
         CancellationToken ct
     )
     {
-        var friends = await _grainFactory
-            .GetPlayerMessengerGrain(playerId)
-            .GetFriendsAsync(ct)
-            .ConfigureAwait(false);
+        var friends = await query.GetFriendsAsync(_grainFactory, ct).ConfigureAwait(false);
 
         var pointers = await Task.WhenAll(
                 friends
@@ -1105,5 +1101,24 @@ public sealed class NavigatorService(
         PlayerId PlayerId,
         PlayerNavigatorSnapshot? Preferences,
         IReadOnlyDictionary<RoomId, RoomActiveSnapshot> LiveRooms
-    );
+    )
+    {
+        private readonly Lock _friendsLock = new();
+        private Task<List<MessengerFriendDto>>? _friends;
+
+        /// <summary>
+        /// The player's friends, asked of their messenger once per request however many
+        /// sections want them (a preview of "my world" wants them twice, concurrently).
+        /// </summary>
+        public Task<List<MessengerFriendDto>> GetFriendsAsync(
+            IGrainFactory grainFactory,
+            CancellationToken ct
+        )
+        {
+            lock (_friendsLock)
+                return _friends ??= grainFactory
+                    .GetPlayerMessengerGrain(PlayerId)
+                    .GetFriendsAsync(ct);
+        }
+    }
 }

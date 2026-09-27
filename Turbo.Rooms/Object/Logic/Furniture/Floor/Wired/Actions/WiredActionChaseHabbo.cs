@@ -33,7 +33,7 @@ public class WiredActionChaseHabbo(
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        var map = _roomGrain.MapModule;
+        var map = MapModule;
 
         foreach (var floorItem in GetFloorItems(ctx.GetSelection(this)))
         {
@@ -41,7 +41,7 @@ public class WiredActionChaseHabbo(
             var targetIdx = NO_TILE;
 
             if (
-                _roomGrain.AvatarModule.TryGetNearestPlayer(
+                AvatarModule.TryGetNearestPlayer(
                     floorIdx,
                     CHASE_RANGE,
                     out var player,

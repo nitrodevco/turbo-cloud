@@ -20,7 +20,7 @@ public class FurniturePetSaddleLogic(IStuffDataFactory stuffDataFactory, IRoomFl
 
     protected override async Task<bool> ApplyAsync(IRoomPet pet, CancellationToken ct)
     {
-        await _roomGrain.PetModule.SetSaddleAsync(pet, true, ct);
+        await PetModule.SetSaddleAsync(pet, true, ct);
 
         return true;
     }

@@ -33,7 +33,7 @@ public class WiredSelectorEntitiesWithHanditem(
         var output = new WiredSelectionSet();
         var handItemId = GetIntParamOrDefault(0, 0);
 
-        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
+        foreach (var avatar in AvatarModule.Avatars)
         {
             if (handItemId == 0 ? avatar.HandItemId != 0 : avatar.HandItemId == handItemId)
                 output.SelectedAvatarIds.Add(avatar.ObjectId);

@@ -18,13 +18,15 @@ internal sealed partial class PlayerPresenceGrain
                 .UpdateAvatarWithPlayerAsync(snapshot, CancellationToken.None)
                 .LogAndForget(
                     _logger,
-                    $"show the update of player {_state.PlayerId} in room {_state.ActiveRoomId}"
+                    "show the update of player {PlayerId} in room {RoomId}",
+                    _state.PlayerId,
+                    _state.ActiveRoomId
                 );
 
         _grainFactory
             .GetPlayerMessengerGrain(_state.PlayerId)
             .UpdateFriendsAsync(snapshot, CancellationToken.None)
-            .LogAndForget(_logger, $"update friends of player {_state.PlayerId}");
+            .LogAndForget(_logger, "update friends of player {PlayerId}", _state.PlayerId);
 
         return Task.CompletedTask;
     }
@@ -41,7 +43,9 @@ internal sealed partial class PlayerPresenceGrain
             .UpdateAvatarWithPlayerAsync(snapshot, CancellationToken.None)
             .LogAndForget(
                 _logger,
-                $"show the badges rank of player {_state.PlayerId} in room {_state.ActiveRoomId}"
+                "show the badges rank of player {PlayerId} in room {RoomId}",
+                _state.PlayerId,
+                _state.ActiveRoomId
             );
 
         return Task.CompletedTask;

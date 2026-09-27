@@ -1,16 +1,20 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Navigator;
-using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Navigator;
+using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Navigator;
 
-public class ForwardToARandomPromotedRoomMessageHandler(INavigatorService navigatorService)
-    : IMessageHandler<ForwardToARandomPromotedRoomMessage>
+public class ForwardToARandomPromotedRoomMessageHandler(
+    INavigatorService navigatorService,
+    IGrainFactory grainFactory
+) : IMessageHandler<ForwardToARandomPromotedRoomMessage>
 {
     private readonly INavigatorService _navigatorService = navigatorService;
+    private readonly IGrainFactory _grainFactory = grainFactory;
 
     public async ValueTask HandleAsync(
         ForwardToARandomPromotedRoomMessage message,
@@ -28,7 +32,8 @@ public class ForwardToARandomPromotedRoomMessageHandler(INavigatorService naviga
         if (roomId is null)
             return;
 
-        await ctx.SendComposerAsync(new RoomForwardMessageComposer { RoomId = roomId.Value }, ct)
+        await _grainFactory
+            .ForwardPlayerToRoomAsync(ctx.PlayerId, roomId.Value, ct)
             .ConfigureAwait(false);
     }
 }

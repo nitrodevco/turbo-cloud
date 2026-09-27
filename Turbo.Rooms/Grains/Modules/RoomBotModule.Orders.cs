@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,23 +20,18 @@ namespace Turbo.Rooms.Grains.Modules;
 public sealed partial class RoomBotModule
 {
     /// <summary>The first bot in the room with this name, case-insensitive.</summary>
-    public bool TryGetBotByName(string name, out IRoomBot bot)
+    public bool TryGetBotByName(string name, [NotNullWhen(true)] out IRoomBot? bot)
     {
-        bot = null!;
+        bot = null;
 
         if (string.IsNullOrWhiteSpace(name))
             return false;
 
-        var found = Bots.FirstOrDefault(x =>
+        bot = Bots.FirstOrDefault(x =>
             string.Equals(x.Name, name.Trim(), StringComparison.OrdinalIgnoreCase)
         );
 
-        if (found is null)
-            return false;
-
-        bot = found;
-
-        return true;
+        return bot is not null;
     }
 
     /// <summary>A bot speaks or shouts to the whole room.</summary>
@@ -46,7 +42,7 @@ public sealed partial class RoomBotModule
         int? bubbleWidth,
         CancellationToken ct
     ) =>
-        _roomGrain.ChatSystem.SayAsAvatarAsync(
+        ChatSystem.SayAsAvatarAsync(
             bot,
             text,
             new AvatarSpeech
@@ -66,7 +62,7 @@ public sealed partial class RoomBotModule
         int? bubbleWidth,
         CancellationToken ct
     ) =>
-        _roomGrain.ChatSystem.SayAsAvatarAsync(
+        ChatSystem.SayAsAvatarAsync(
             bot,
             text,
             new AvatarSpeech
@@ -84,14 +80,14 @@ public sealed partial class RoomBotModule
         bot.FollowObjectId = -1;
         bot.TargetItemId = item.ObjectId;
 
-        if (_roomGrain.MapModule.ToIdx(bot.X, bot.Y) == _roomGrain.MapModule.ToIdx(item.X, item.Y))
+        if (MapModule.ToIdx(bot.X, bot.Y) == MapModule.ToIdx(item.X, item.Y))
         {
-            await _roomGrain.BotTickSystem.NotifyItemReachedAsync(bot, ct);
+            await BotTickSystem.NotifyItemReachedAsync(bot, ct);
 
             return true;
         }
 
-        return await _roomGrain.AvatarModule.WalkAvatarToAsync(bot, item.X, item.Y, ct);
+        return await AvatarModule.WalkAvatarToAsync(bot, item.X, item.Y, ct);
     }
 
     /// <summary>Places a bot on a furni tile without walking.</summary>
@@ -101,13 +97,13 @@ public sealed partial class RoomBotModule
         CancellationToken ct
     )
     {
-        var tileIdx = _roomGrain.MapModule.ToIdx(item.X, item.Y);
+        var tileIdx = MapModule.ToIdx(item.X, item.Y);
 
-        if (!_roomGrain.PetModule.IsTileFreeForNpc(tileIdx) && !CanShareTile(bot, tileIdx))
+        if (!PetModule.IsTileFreeForNpc(tileIdx) && !CanShareTile(bot, tileIdx))
             return false;
 
-        await _roomGrain.AvatarModule.RelocateAvatarAsync(bot, tileIdx, ct);
-        await PersistAsync(bot, ct);
+        await AvatarModule.RelocateAvatarAsync(bot, tileIdx, ct);
+        Persist(bot);
 
         return true;
     }
@@ -147,7 +143,7 @@ public sealed partial class RoomBotModule
             ct
         );
 
-        await PersistAsync(bot, ct);
+        Persist(bot);
     }
 
     private bool CanShareTile(IRoomBot bot, int tileIdx) =>

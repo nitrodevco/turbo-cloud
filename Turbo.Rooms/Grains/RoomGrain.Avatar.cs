@@ -12,7 +12,6 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots;
-using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Rooms.Grains;
 
@@ -82,7 +81,9 @@ public sealed partial class RoomGrain
                     .CloseForPlayerAsync(playerId, CancellationToken.None)
                     .LogAndForget(
                         _logger,
-                        $"close the trade of player {playerId} leaving room {_state.RoomId}"
+                        "close the trade of player {PlayerId} leaving room {RoomId}",
+                        playerId,
+                        _state.RoomId
                     );
 
             // Read before the avatar goes: what left is told with the event, because by then
@@ -353,8 +354,4 @@ public sealed partial class RoomGrain
             (targetX, targetY),
             () => AvatarModule.LookToAsync(ctx, targetX, targetY, ct)
         );
-
-    public Task<ImmutableArray<RoomAvatarSnapshot>> GetAllAvatarSnapshotsAsync(
-        CancellationToken ct
-    ) => AvatarModule.GetAllAvatarSnapshotsAsync(ct);
 }

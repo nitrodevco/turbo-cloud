@@ -98,6 +98,24 @@ public interface IPlayerMessengerGrain : IGrainWithIntegerKey
     public Task<List<MessengerRequestDto>> GetRequestsAsync(CancellationToken ct);
     public Task<List<PlayerId>> GetIgnoredAsync(CancellationToken ct);
     public Task<List<MessengerUpdateSnapshot>> GetPendingUpdatesAsync(CancellationToken ct);
+
+    /// <summary>
+    /// How many friends this player has. Interleaved and memory-only: the player grain's
+    /// profile readers (the LTD raffle) may ask while this grain waits on the player grain.
+    /// </summary>
+    [AlwaysInterleave]
+    public Task<int> GetFriendCountAsync(CancellationToken ct);
+
+    /// <summary>
+    /// The friends-list part of this player's profile as <paramref name="viewerId"/> sees it.
+    /// Interleaved and memory-only, like <see cref="GetFriendCountAsync"/>.
+    /// </summary>
+    [AlwaysInterleave]
+    public Task<MessengerProfileRelationSnapshot> GetProfileRelationAsync(
+        PlayerId viewerId,
+        CancellationToken ct
+    );
+
     public Task<List<RelationshipStatusEntrySnapshot>> GetRelationshipStatusInfoAsync(
         CancellationToken ct
     );

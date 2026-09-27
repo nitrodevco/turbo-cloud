@@ -18,6 +18,9 @@ public sealed class PlayerModule : IHostPluginModule
             builder.Configuration.GetSection(PlayerConfig.SECTION_NAME)
         );
         services.Configure<BadgeConfig>(builder.Configuration.GetSection(BadgeConfig.SECTION_NAME));
+        services.Configure<PlayerNavigatorConfig>(
+            builder.Configuration.GetSection(PlayerNavigatorConfig.SECTION_NAME)
+        );
 
         services.AddSingleton<ICurrencyTypeProvider, CurrencyTypeProvider>();
         services.AddSingleton<IPlayerService, PlayerService>();

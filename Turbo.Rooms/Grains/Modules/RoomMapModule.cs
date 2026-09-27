@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,10 +19,8 @@ using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-public sealed partial class RoomMapModule(RoomGrain roomGrain)
+public sealed partial class RoomMapModule(RoomGrain roomGrain) : RoomGrainComponent(roomGrain)
 {
-    private readonly RoomGrain _roomGrain = roomGrain;
-
     /// <summary>
     /// What a tile's highest-item slot holds when no furni stands there. Zero, never -1:
     /// temporary furni count their ids down from -1, and with -1 as "none" every empty tile
@@ -95,9 +94,9 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
     /// The furni on top of a tile, the one an avatar there stands on. None off the map. The one
     /// read of the top-item slot, so nothing else has to know what "none" is stored as.
     /// </summary>
-    public bool TryGetHighestFloorItem(int tileIdx, out IRoomFloorItem item)
+    public bool TryGetHighestFloorItem(int tileIdx, [NotNullWhen(true)] out IRoomFloorItem? item)
     {
-        item = null!;
+        item = null;
 
         if (
             !InBounds(tileIdx)
@@ -282,7 +281,7 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
 
             foreach (var objectId in avatarStack)
             {
-                if (!_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var avatar))
+                if (!AvatarModule.TryGetAvatar(objectId, out var avatar))
                     continue;
 
                 avatar.NeedsInvoke = true;

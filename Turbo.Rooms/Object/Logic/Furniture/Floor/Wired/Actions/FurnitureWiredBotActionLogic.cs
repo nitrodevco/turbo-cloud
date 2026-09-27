@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -48,8 +49,8 @@ public abstract class FurnitureWiredBotActionLogic(
             : (raw[..index].Trim(), raw[(index + 1)..].Trim());
     }
 
-    protected bool TryGetBot(string name, out IRoomBot bot) =>
-        _roomGrain.BotModule.TryGetBotByName(name, out bot);
+    protected bool TryGetBot(string name, [NotNullWhen(true)] out IRoomBot? bot) =>
+        BotModule.TryGetBotByName(name, out bot);
 
     /// <summary>
     /// The bot the box names, by the box's own rule: false when a bot is needed and none by

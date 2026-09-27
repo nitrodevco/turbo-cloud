@@ -2,6 +2,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
+using Turbo.Primitives.Guilds;
+using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Messages.Incoming.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Orleans;
@@ -46,15 +48,28 @@ public class GetGuestRoomMessageHandler(IRoomService roomService, IGrainFactory 
                     ctx.PlayerId,
                     message.RoomId,
                     password: null,
-                    bypassDoor: false,
+                    bypassDoor: await _grainFactory
+                        .IsArrivingByTeleportAsync(ctx.PlayerId, message.RoomId, ct)
+                        .ConfigureAwait(false),
                     ct
                 )
                 .ConfigureAwait(false);
 
         var isOpening = isNavigatorForward && access == RoomEntryAccessType.Allowed;
 
-        var groupMember = false;
-        var canMute = false;
+        // Two different grains, asked side by side. A handler may await both: neither the room
+        // nor the group grain is waiting on the session that sent this.
+        var controllerLevelTask = roomGrain.GetControllerLevelAsync(ctx.PlayerId, ct);
+        var guildRankTask = snapshot.Guild is { } guild
+            ? _grainFactory.GetGuildGrain(guild.GuildId).GetMemberRankAsync(ctx.PlayerId, ct)
+            : Task.FromResult<GuildMemberRank?>(null);
+
+        await Task.WhenAll(controllerLevelTask, guildRankTask).ConfigureAwait(false);
+
+        var groupMember = GuildMemberRanks.IsMember(await guildRankTask.ConfigureAwait(false));
+        var canMute = (await controllerLevelTask.ConfigureAwait(false)).IsAllowedBy(
+            snapshot.ModSettings.WhoCanMute
+        );
 
         await ctx.SendComposerAsync(
                 new GetGuestRoomResultMessageComposer

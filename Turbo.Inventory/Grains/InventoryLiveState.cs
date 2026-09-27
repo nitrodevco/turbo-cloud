@@ -21,6 +21,13 @@ internal sealed class InventoryLiveState
     public Dictionary<int, IFurnitureItem> FurnitureById { get; } = [];
     public bool IsFurnitureReady { get; set; } = false;
 
+    /// <summary>
+    /// Bumped by every furniture receive. The receive is interleaved, so it can land while a
+    /// load is reading rows; a load that sees this move may have missed them and does not call
+    /// the section ready.
+    /// </summary>
+    public int FurnitureReceiveCount { get; set; }
+
     public InventoryUnitSection<PetSnapshot> Pets { get; } = new();
     public InventoryUnitSection<BotSnapshot> Bots { get; } = new();
 

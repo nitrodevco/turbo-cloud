@@ -1,3 +1,5 @@
+using System;
+
 namespace Turbo.Primitives.Crypto;
 
 public interface IRc4Engine
@@ -10,6 +12,13 @@ public interface IRc4Engine
         byte[] outputData,
         int outputOffset
     );
+
+    /// <summary>
+    /// Encrypts or decrypts <paramref name="data"/> where it lies, advancing the key stream.
+    /// The per-packet paths use this so a packet is not copied just to be transformed.
+    /// </summary>
+    public void ProcessInPlace(Span<byte> data);
+
     public byte[] Peek(byte[] inputData, int inputOffset = 0, int? length = null);
     public void Peek(
         byte[] inputData,
@@ -18,4 +27,10 @@ public interface IRc4Engine
         int outputOffset,
         int length
     );
+
+    /// <summary>
+    /// Transforms <paramref name="input"/> into <paramref name="output"/> without advancing the
+    /// key stream. The two may be the same span.
+    /// </summary>
+    public void Peek(ReadOnlySpan<byte> input, Span<byte> output);
 }

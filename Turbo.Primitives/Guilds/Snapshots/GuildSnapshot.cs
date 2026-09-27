@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using Orleans;
-using Turbo.Primitives.Guilds.Enums;
 
 namespace Turbo.Primitives.Guilds.Snapshots;
 
@@ -29,10 +28,6 @@ public sealed record GuildSnapshot : GuildSummarySnapshot
 
     [Id(0)]
     public required string Description { get; init; } = string.Empty;
-
-    /// <summary>How far down the group's rights in its homeroom reach.</summary>
-    [Id(1)]
-    public required GuildRightsLevel RightsLevel { get; init; } = GuildRightsLevel.Admins;
 
     [Id(2)]
     public required DateTime CreatedAt { get; init; }

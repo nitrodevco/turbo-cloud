@@ -58,7 +58,7 @@ public abstract class FurnitureWiredConditionLogic(
         }
         catch (Exception ex)
         {
-            _roomGrain.WiredSystem.RecordError(
+            WiredSystem.RecordError(
                 ex.GetType().Name,
                 Grains.Systems.RoomWiredSystem.GetErrorCategory(this),
                 _roomGrain.NowMs()

@@ -22,7 +22,7 @@ public class FurniturePetFertilizerLogic(
 
     protected override async Task<bool> ApplyAsync(IRoomPet pet, CancellationToken ct)
     {
-        await _roomGrain.PetModule.FertilizeAsync(pet, ct);
+        await PetModule.FertilizeAsync(pet, ct);
 
         return true;
     }

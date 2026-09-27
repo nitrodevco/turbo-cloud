@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
-using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.FriendList;
@@ -39,10 +38,8 @@ public class VisitUserMessageHandler(IGrainFactory grainFactory) : IMessageHandl
         if (activeRoom.RoomId <= 0)
             return;
 
-        await ctx.SendComposerAsync(
-                new RoomForwardMessageComposer { RoomId = activeRoom.RoomId },
-                ct
-            )
+        await _grainFactory
+            .ForwardPlayerToRoomAsync(ctx.PlayerId, activeRoom.RoomId, ct)
             .ConfigureAwait(false);
     }
 }

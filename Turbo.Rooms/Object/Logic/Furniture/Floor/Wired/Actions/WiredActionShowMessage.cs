@@ -68,7 +68,7 @@ public class WiredActionShowMessage(
         // The bubble appears over each chosen player: for the whole room to see, or as a whisper
         // only that player sees.
         foreach (var player in players)
-            await _roomGrain.ChatSystem.SayAsAvatarAsync(
+            await ChatSystem.SayAsAvatarAsync(
                 player,
                 text,
                 new AvatarSpeech

@@ -56,7 +56,7 @@ public class WiredActionGiveVariable(
             try
             {
                 var id = WiredVariableId.Parse(variableId);
-                var variable = _roomGrain.WiredSystem.GetVariableById(id);
+                var variable = WiredSystem.GetVariableById(id);
 
                 if (variable is null)
                     continue;

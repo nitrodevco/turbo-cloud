@@ -56,7 +56,7 @@ public class FurniturePresentLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
         var (x, y, rotation) = (_ctx.RoomObject.X, _ctx.RoomObject.Y, _ctx.RoomObject.Rotation);
 
         // The wrapping goes first so the tile is free for what was inside.
-        await _roomGrain.ActionModule.DeleteItemByIdAsync(ctx, _ctx.ObjectId, ct);
+        await ActionModule.DeleteItemByIdAsync(ctx, _ctx.ObjectId, ct);
 
         var placedInRoom = false;
 
@@ -64,7 +64,7 @@ public class FurniturePresentLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
         {
             try
             {
-                placedInRoom = await _roomGrain.ActionModule.PlaceFloorItemAsync(
+                placedInRoom = await ActionModule.PlaceFloorItemAsync(
                     ctx,
                     wrapped,
                     x,

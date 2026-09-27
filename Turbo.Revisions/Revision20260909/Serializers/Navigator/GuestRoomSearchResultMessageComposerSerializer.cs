@@ -18,7 +18,7 @@ internal class GuestRoomSearchResultMessageComposerSerializer(int header)
             .WriteInteger(message.Rooms.Length);
 
         foreach (var room in message.Rooms)
-            RoomSettingsSerializer.Serialize(packet, room);
+            RoomSettingsSerializer.Serialize(packet, room, message.SentAtUtc);
 
         packet.WriteBoolean(false); // no ad room
     }

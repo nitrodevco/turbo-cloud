@@ -48,72 +48,71 @@ public sealed partial class RoomWiredSystem
     {
         var elapsedMs = GetElapsedTimerMs(now);
 
-        foreach (var stack in _stacksById.Values)
+        // Listed when the stacks were rebuilt, in the order the stacks and their triggers are
+        // walked there, which is the order this loop used to find them in.
+        foreach (var (stack, trigger) in _timedTriggers)
         {
-            foreach (var trigger in stack.Triggers)
+            switch (trigger)
             {
-                switch (trigger)
+                case WiredTriggerPeriodically periodic:
                 {
-                    case WiredTriggerPeriodically periodic:
+                    var objectId = periodic.ObjectId;
+                    var delayMs = periodic.GetPeriodicDelayMs();
+
+                    if (!_nextPeriodicAtMs.TryGetValue(objectId, out var nextAt))
                     {
-                        var objectId = periodic.ObjectId;
-                        var delayMs = periodic.GetPeriodicDelayMs();
-
-                        if (!_nextPeriodicAtMs.TryGetValue(objectId, out var nextAt))
-                        {
-                            _nextPeriodicAtMs[objectId] = now + delayMs;
-
-                            continue;
-                        }
-
-                        if (now < nextAt)
-                            continue;
-
                         _nextPeriodicAtMs[objectId] = now + delayMs;
 
-                        await FireTriggerWithEventAsync(
-                            trigger,
-                            new PeriodicRoomEvent
-                            {
-                                RoomId = _roomGrain.RoomId,
-                                CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
-                            },
-                            stack,
-                            now,
-                            ct
-                        );
-
-                        break;
+                        continue;
                     }
-                    case WiredTriggerAtTime atTime:
-                    {
-                        var objectId = atTime.ObjectId;
 
-                        if (
-                            _atTimeFiredVersion.TryGetValue(objectId, out var firedVersion)
-                            && firedVersion == _timersEpochVersion
-                        )
-                            continue;
+                    if (now < nextAt)
+                        continue;
 
-                        if (elapsedMs < atTime.GetTargetMs())
-                            continue;
+                    _nextPeriodicAtMs[objectId] = now + delayMs;
 
-                        _atTimeFiredVersion[objectId] = _timersEpochVersion;
+                    await FireTriggerWithEventAsync(
+                        trigger,
+                        new PeriodicRoomEvent
+                        {
+                            RoomId = _roomGrain.RoomId,
+                            CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
+                        },
+                        stack,
+                        now,
+                        ct
+                    );
 
-                        await FireTriggerWithEventAsync(
-                            trigger,
-                            new PeriodicRoomEvent
-                            {
-                                RoomId = _roomGrain.RoomId,
-                                CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
-                            },
-                            stack,
-                            now,
-                            ct
-                        );
+                    break;
+                }
+                case WiredTriggerAtTime atTime:
+                {
+                    var objectId = atTime.ObjectId;
 
-                        break;
-                    }
+                    if (
+                        _atTimeFiredVersion.TryGetValue(objectId, out var firedVersion)
+                        && firedVersion == _timersEpochVersion
+                    )
+                        continue;
+
+                    if (elapsedMs < atTime.GetTargetMs())
+                        continue;
+
+                    _atTimeFiredVersion[objectId] = _timersEpochVersion;
+
+                    await FireTriggerWithEventAsync(
+                        trigger,
+                        new PeriodicRoomEvent
+                        {
+                            RoomId = _roomGrain.RoomId,
+                            CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
+                        },
+                        stack,
+                        now,
+                        ct
+                    );
+
+                    break;
                 }
             }
         }

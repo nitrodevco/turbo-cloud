@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Avatar;
@@ -27,7 +28,9 @@ public static class WiredAvatarActionMatcher
         )
             text = text[6..].Trim();
 
-        return int.TryParse(text, out var value) ? value : null;
+        return int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : null;
     }
 
     /// <summary>

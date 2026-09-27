@@ -39,7 +39,7 @@ public class WiredActionUnfreezeUser(
             // Whatever the freeze put on comes back off, and only that: an effect the avatar was
             // already wearing is not a freeze effect and is left alone.
             if (avatar.EffectId > 0 && freezeEffects.Contains(avatar.EffectId))
-                await _roomGrain.AvatarModule.SetAvatarEffectAsync(avatar.ObjectId, 0, ct);
+                await AvatarModule.SetAvatarEffectAsync(avatar.ObjectId, 0, ct);
 
             thawed = true;
         }

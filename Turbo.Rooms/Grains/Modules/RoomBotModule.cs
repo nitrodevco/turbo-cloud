@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,15 +29,14 @@ namespace Turbo.Rooms.Grains.Modules;
 /// and the skills their owner uses on them. Roaming and chatter run in
 /// <see cref="Systems.RoomBotTickSystem"/>.
 /// </summary>
-public sealed partial class RoomBotModule(RoomGrain roomGrain)
+public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainComponent(roomGrain)
 {
-    private readonly RoomGrain _roomGrain = roomGrain;
     private readonly Dictionary<int, int> _lastPersistedTileByBotId = [];
     private readonly Random _random = new();
 
     private BotConfig Config => _roomGrain._botConfig;
 
-    public IEnumerable<IRoomBot> Bots => _roomGrain.AvatarModule.Avatars.OfType<IRoomBot>();
+    public IReadOnlyList<IRoomBot> Bots => _roomGrain._state.Bots;
 
     internal async Task EnsureBotsLoadedAsync(CancellationToken ct)
     {
@@ -47,11 +47,9 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
 
         foreach (var bot in bots)
         {
-            var tileIdx = _roomGrain.MapModule.InBounds(bot.X, bot.Y)
-                ? _roomGrain.MapModule.ToIdx(bot.X, bot.Y)
-                : -1;
+            var tileIdx = MapModule.InBounds(bot.X, bot.Y) ? MapModule.ToIdx(bot.X, bot.Y) : -1;
 
-            if (tileIdx < 0 && !_roomGrain.PetModule.TryFindFreeTile(0, 0, out tileIdx))
+            if (tileIdx < 0 && !PetModule.TryFindFreeTile(0, 0, out tileIdx))
             {
                 _roomGrain._logger.LogWarning(
                     "Bot {BotId} has no tile to stand on in room {RoomId}; leaving it unplaced",
@@ -68,13 +66,13 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
         _roomGrain._state.IsBotsLoaded = true;
     }
 
-    public bool TryGetBot(int botId, out IRoomBot bot)
+    public bool TryGetBot(int botId, [NotNullWhen(true)] out IRoomBot? bot)
     {
-        bot = null!;
+        bot = null;
 
         if (
             !_roomGrain._state.AvatarsByBotId.TryGetValue(botId, out var objectId)
-            || !_roomGrain.AvatarModule.TryGetAvatar(objectId, out var avatar)
+            || !AvatarModule.TryGetAvatar(objectId, out var avatar)
             || avatar is not IRoomBot roomBot
         )
             return false;
@@ -94,8 +92,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
     /// <summary>The bot's owner or any room controller may move or pick it up.</summary>
     private async Task<bool> CanManageAsync(ActionContext ctx, IRoomBot bot) =>
         bot.OwnerId == ctx.PlayerId
-        || await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx)
-            >= RoomControllerType.Rights;
+        || await SecurityModule.GetControllerLevelAsync(ctx) >= RoomControllerType.Rights;
 
     public async Task<bool> PlaceBotAsync(
         ActionContext ctx,
@@ -105,26 +102,26 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
-        if (!_roomGrain.AvatarModule.TryGetPlayer(ctx.PlayerId, out _))
+        if (!AvatarModule.TryGetPlayer(ctx.PlayerId, out _))
             return false;
 
         // Only the room owner places a bot, whatever the room's settings. Pets have a rule of
         // their own (RoomPetModule.PlacePetAsync); the two differ on purpose.
-        if (!await _roomGrain.SecurityModule.GetIsRoomOwnerAsync(ctx))
+        if (!await SecurityModule.GetIsRoomOwnerAsync(ctx))
         {
             await SendErrorAsync(ctx, BotErrorType.ForbiddenInFlat, ct);
 
             return false;
         }
 
-        if (Bots.Count() >= Config.MaxBotsPerRoom)
+        if (Bots.Count >= Config.MaxBotsPerRoom)
         {
             await SendErrorAsync(ctx, BotErrorType.LimitReached, ct);
 
             return false;
         }
 
-        var placed = await _roomGrain.PetModule.PlaceFromInventoryAsync(
+        var placed = await PetModule.PlaceFromInventoryAsync(
             ctx,
             "bot",
             botId,
@@ -140,7 +137,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
                     .ReturnBotAsync(snapshot, ct),
             (snapshot, tileIdx, z) =>
             {
-                var (tileX, tileY) = _roomGrain.MapModule.GetTileXY(tileIdx);
+                var (tileX, tileY) = MapModule.GetTileXY(tileIdx);
                 var standing = snapshot with
                 {
                     RoomId = _roomGrain.RoomId,
@@ -159,7 +156,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
             return false;
 
         if (TryGetBot(botId, out var bot))
-            await PersistAsync(bot, ct);
+            Persist(bot);
 
         // A bot that was just placed is about to be set up, so the client is asked to open its
         // menu. Told, not awaited: the presence may be waiting on this room.
@@ -171,7 +168,9 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
             )
             .LogAndForget(
                 _roomGrain._logger,
-                $"open the menu of bot {botId} for player {ctx.PlayerId}"
+                "open the menu of bot {BotId} for player {PlayerId}",
+                botId,
+                ctx.PlayerId
             );
 
         return true;
@@ -186,23 +185,20 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
-        if (
-            !_roomGrain.AvatarModule.TryGetAvatar(objectId, out var avatar)
-            || avatar is not IRoomBot bot
-        )
+        if (!AvatarModule.TryGetAvatar(objectId, out var avatar) || avatar is not IRoomBot bot)
             return false;
 
-        if (!await CanManageAsync(ctx, bot) || !_roomGrain.MapModule.InBounds(x, y))
+        if (!await CanManageAsync(ctx, bot) || !MapModule.InBounds(x, y))
             return false;
 
-        var tileIdx = _roomGrain.MapModule.ToIdx(x, y);
+        var tileIdx = MapModule.ToIdx(x, y);
 
-        if (tileIdx != _roomGrain.MapModule.ToIdx(bot.X, bot.Y))
+        if (tileIdx != MapModule.ToIdx(bot.X, bot.Y))
         {
-            if (!_roomGrain.PetModule.IsTileFreeForNpc(tileIdx))
+            if (!PetModule.IsTileFreeForNpc(tileIdx))
                 return false;
 
-            await _roomGrain.AvatarModule.RelocateAvatarAsync(bot, tileIdx, ct);
+            await AvatarModule.RelocateAvatarAsync(bot, tileIdx, ct);
         }
 
         if (rotation != Rotation.None)
@@ -210,7 +206,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
 
         bot.MarkDirty();
 
-        await PersistAsync(bot, ct);
+        Persist(bot);
 
         return true;
     }
@@ -223,7 +219,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
         if (!await CanManageAsync(ctx, bot))
             return false;
 
-        await _roomGrain.ObjectModule.RemoveObjectAsync(ctx, bot, ct);
+        await ObjectModule.RemoveObjectAsync(ctx, bot, ct);
 
         _roomGrain._state.AvatarsByBotId.Remove(botId);
         _lastPersistedTileByBotId.Remove(botId);
@@ -269,9 +265,9 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
                 bot.SetFreeRoam(!bot.FreeRoam);
 
                 if (!bot.FreeRoam)
-                    await _roomGrain.AvatarModule.StopWalkingAsync(bot, ct);
+                    await AvatarModule.StopWalkingAsync(bot, ct);
 
-                await PersistAsync(bot, ct);
+                Persist(bot);
 
                 return true;
             case BotSkillType.Dance:
@@ -381,7 +377,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
         bot.SetChatter(text, autoChat, delay, mix);
         bot.NextChatAtMs = _roomGrain.NowMs() + delay * 1000L;
 
-        await PersistAsync(bot, ct);
+        Persist(bot);
 
         return true;
     }
@@ -393,10 +389,10 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
 
         // The shared avatar path sets the dance and tells the room, the same one a dancing player
         // goes through. A bot's dance is also part of how it was left configured, so it persists.
-        if (!await _roomGrain.AvatarModule.SetAvatarDanceAsync(bot.ObjectId, next, ct))
+        if (!await AvatarModule.SetAvatarDanceAsync(bot.ObjectId, next, ct))
             return false;
 
-        await PersistAsync(bot, ct);
+        Persist(bot);
 
         return true;
     }
@@ -428,7 +424,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
             new UsersMessageComposer { Avatars = [bot.GetSnapshot()] },
             ct
         );
-        await PersistAsync(bot, ct);
+        Persist(bot);
 
         return true;
     }
@@ -443,12 +439,12 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
-        var objectId = _roomGrain.AvatarModule.GetNextObjectId();
+        var objectId = AvatarModule.GetNextObjectId();
         var bot = _roomGrain._avatarProvider.CreateAvatarFromBotSnapshot(objectId, snapshot);
 
         bot.NextTileId = tileIdx;
 
-        if (!await _roomGrain.ObjectModule.AttatchObjectAsync(bot, ct))
+        if (!await ObjectModule.AttatchObjectAsync(bot, ct))
             return false;
 
         bot.SetRotation(rotation == Rotation.None ? Rotation.South : rotation);
@@ -487,7 +483,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
 
         foreach (var bot in bots)
         {
-            await _roomGrain.ObjectModule.RemoveObjectAsync(
+            await ObjectModule.RemoveObjectAsync(
                 ActionContext.CreateForSystem(_roomGrain.RoomId),
                 bot,
                 ct
@@ -522,26 +518,51 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain)
         }
     }
 
-    internal Task PersistAsync(IRoomBot bot, CancellationToken ct)
+    /// <summary>Marks the bot's row out of date, as <see cref="RoomPetModule.Persist"/> does a pet's.</summary>
+    internal void Persist(IRoomBot bot)
     {
-        _lastPersistedTileByBotId[bot.BotId] = _roomGrain.MapModule.ToIdx(bot.X, bot.Y);
-
-        return _roomGrain
-            ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
-            .EnqueueDirtyBotAsync(bot.GetBotSnapshot(), ct);
+        _lastPersistedTileByBotId[bot.BotId] = MapModule.ToIdx(bot.X, bot.Y);
+        _roomGrain._state.DirtyBotIds.Add(bot.BotId);
     }
 
-    internal Task PersistPositionIfMovedAsync(IRoomBot bot, CancellationToken ct)
+    /// <summary>The rows of the bots marked since the last hand-over, as <see cref="RoomPetModule.TakeDirtySnapshots"/>.</summary>
+    internal List<BotSnapshot> TakeDirtySnapshots()
     {
-        if (bot.IsWalking)
-            return Task.CompletedTask;
+        foreach (var bot in Bots)
+        {
+            if (bot.IsWalking)
+                continue;
 
-        var tileIdx = _roomGrain.MapModule.ToIdx(bot.X, bot.Y);
+            var tileIdx = MapModule.ToIdx(bot.X, bot.Y);
 
-        if (_lastPersistedTileByBotId.TryGetValue(bot.BotId, out var last) && last == tileIdx)
-            return Task.CompletedTask;
+            if (!_lastPersistedTileByBotId.TryGetValue(bot.BotId, out var last) || last != tileIdx)
+                Persist(bot);
+        }
 
-        return PersistAsync(bot, ct);
+        var dirtyIds = _roomGrain._state.DirtyBotIds;
+        var snapshots = new List<BotSnapshot>(dirtyIds.Count);
+
+        foreach (var botId in dirtyIds)
+        {
+            if (TryGetBot(botId, out var bot))
+                snapshots.Add(bot.GetBotSnapshot());
+        }
+
+        dirtyIds.Clear();
+
+        return snapshots;
+    }
+
+    /// <summary>Whether any bot is still on its way somewhere, which keeps the room awake.</summary>
+    internal bool AnyWalking()
+    {
+        foreach (var bot in Bots)
+        {
+            if (bot.IsWalking)
+                return true;
+        }
+
+        return false;
     }
 
     internal int NextRandom(int minInclusive, int maxExclusive) =>

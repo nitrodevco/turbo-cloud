@@ -22,9 +22,8 @@ namespace Turbo.Rooms.Grains.Modules;
 public sealed class RoomEntryModule(
     RoomGrain roomGrain,
     IDbContextFactory<TurboDbContext> dbCtxFactory
-)
+) : RoomGrainComponent(roomGrain)
 {
-    private readonly RoomGrain _roomGrain = roomGrain;
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
 
     public async Task<RoomEntryAccessType> CheckAccessAsync(
@@ -36,7 +35,7 @@ public sealed class RoomEntryModule(
         if (_roomGrain._state.IsDeleting)
             return RoomEntryAccessType.Closed;
 
-        var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(playerId);
+        var controllerLevel = await SecurityModule.GetControllerLevelAsync(playerId);
         var snapshot = _roomGrain._state.RoomSnapshot;
 
         // A player with an avatar here is reloading the room they are already standing in. They
@@ -56,13 +55,14 @@ public sealed class RoomEntryModule(
             if (snapshot.HiddenByBc)
                 return RoomEntryAccessType.HiddenByBuildersClub;
 
-            if (!isReentering && snapshot.PlayersMax > 0)
-            {
-                var population = await _roomGrain.GetRoomPopulationAsync(CancellationToken.None);
-
-                if (population >= snapshot.PlayersMax)
-                    return RoomEntryAccessType.Full;
-            }
+            // Counted here, not asked of the room directory: the singleton only knows this
+            // room's head count because this room's players told it.
+            if (
+                !isReentering
+                && snapshot.PlayersMax > 0
+                && _roomGrain._state.AvatarsByPlayerId.Count >= snapshot.PlayersMax
+            )
+                return RoomEntryAccessType.Full;
         }
 
         if (isReentering || bypassDoor || controllerLevel >= RoomControllerType.Rights)
@@ -116,7 +116,7 @@ public sealed class RoomEntryModule(
         CancellationToken ct
     )
     {
-        var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx);
+        var controllerLevel = await SecurityModule.GetControllerLevelAsync(ctx);
 
         if (controllerLevel < RoomControllerType.Rights)
             return null;
@@ -198,16 +198,22 @@ public sealed class RoomEntryModule(
             : RoomEntryAccessType.InvalidPassword;
     }
 
+    /// <summary>
+    /// Who in the room may answer the door. The levels are asked side by side: in a group
+    /// homeroom each one not known yet is a question to the group.
+    /// </summary>
     private async Task<List<PlayerId>> GetPresentControllerIdsAsync()
     {
+        var playerIds = _roomGrain._state.AvatarsByPlayerId.Keys.ToList();
+        var levels = await Task.WhenAll(
+            playerIds.Select(x => SecurityModule.GetControllerLevelAsync(x))
+        );
         var result = new List<PlayerId>();
 
-        foreach (var playerId in _roomGrain._state.AvatarsByPlayerId.Keys)
+        for (var i = 0; i < playerIds.Count; i++)
         {
-            var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(playerId);
-
-            if (controllerLevel >= RoomControllerType.Rights)
-                result.Add(playerId);
+            if (levels[i] >= RoomControllerType.Rights)
+                result.Add(playerIds[i]);
         }
 
         return result;

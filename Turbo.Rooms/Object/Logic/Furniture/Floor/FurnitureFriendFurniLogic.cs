@@ -79,7 +79,7 @@ public class FurnitureFriendFurniLogic(
             ct
         );
 
-        _roomGrain.TimerSystem.Schedule(
+        TimerSystem.Schedule(
             _ctx.ObjectId,
             _roomGrain._roomConfig.FriendFurniLockTimeoutMs,
             CancelAsync
@@ -131,7 +131,7 @@ public class FurnitureFriendFurniLogic(
 
     public override Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
     {
-        _roomGrain.TimerSystem.Cancel(_ctx.ObjectId);
+        TimerSystem.Cancel(_ctx.ObjectId);
         _roomGrain._state.PendingFriendFurniLocks.Remove(_ctx.ObjectId);
 
         return base.OnPickupAsync(ctx, ct);
@@ -139,7 +139,7 @@ public class FurnitureFriendFurniLogic(
 
     private async Task LockAsync(FriendFurniLockRequest request, CancellationToken ct)
     {
-        _roomGrain.TimerSystem.Cancel(_ctx.ObjectId);
+        TimerSystem.Cancel(_ctx.ObjectId);
         _roomGrain._state.PendingFriendFurniLocks.Remove(_ctx.ObjectId);
 
         var left = await _roomGrain
@@ -165,7 +165,7 @@ public class FurnitureFriendFurniLogic(
 
     private async Task CancelAsync(CancellationToken ct)
     {
-        _roomGrain.TimerSystem.Cancel(_ctx.ObjectId);
+        TimerSystem.Cancel(_ctx.ObjectId);
 
         if (!_roomGrain._state.PendingFriendFurniLocks.Remove(_ctx.ObjectId, out var request))
             return;
@@ -181,8 +181,8 @@ public class FurnitureFriendFurniLogic(
     {
         var footprint = FloorFootprint.Of(_ctx.RoomObject);
 
-        var partners = _roomGrain
-            .AvatarModule.Players.Where(player =>
+        var partners = AvatarModule
+            .Players.Where(player =>
                 player.PlayerId != initiatorId && footprint.IsOnOrNextTo(player.X, player.Y)
             )
             .Select(player => player.PlayerId)

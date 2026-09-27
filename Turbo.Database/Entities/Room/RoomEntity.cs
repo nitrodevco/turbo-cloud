@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Navigator.Enums;
@@ -12,6 +13,12 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 namespace Turbo.Database.Entities.Room;
 
 [Table("rooms")]
+// The navigator lists: a category by score, the highest scored, the staff picks by score; and
+// the Builders Club sweep looks up the rooms it hid.
+[Index(nameof(NavigatorCategoryEntityId), nameof(Score))]
+[Index(nameof(Score))]
+[Index(nameof(StaffPick), nameof(Score))]
+[Index(nameof(HiddenByBc))]
 public class RoomEntity : TurboEntity
 {
     public const WiredPermissionFlags DEFAULT_WIRED_PERMISSION_MASK = WiredPermissionFlags.Rights;

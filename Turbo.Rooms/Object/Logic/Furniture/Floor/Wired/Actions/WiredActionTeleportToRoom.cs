@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
-using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -50,20 +49,21 @@ public class WiredActionTeleportToRoom(
         if (players.Count == 0)
             return false;
 
+        // Told, not awaited: this runs in the room tick.
         foreach (var player in players)
-        {
-            // How they are arriving is told first: the forward is what makes the client ask to
-            // enter, and the room reads the entry as they land.
-            await _roomGrain
-                ._grainFactory.GetPlayerPresenceGrain(player.PlayerId)
-                .SetPendingRoomEntryAsync(roomId, entry, ct);
-
-            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
-                player.PlayerId,
-                new RoomForwardMessageComposer { RoomId = roomId },
-                ct
-            );
-        }
+            _roomGrain
+                ._grainFactory.ForwardPlayerToRoomAsync(
+                    player.PlayerId,
+                    roomId,
+                    entry,
+                    CancellationToken.None
+                )
+                .LogAndForget(
+                    _roomGrain._logger,
+                    "forward player {PlayerId} to room {RoomId}",
+                    player.PlayerId,
+                    roomId
+                );
 
         return true;
     }
@@ -100,10 +100,7 @@ public class WiredActionTeleportToRoom(
 
             if (linker is { ItemId: > 0 })
             {
-                var pairedRoomId = await _roomGrain.FurniModule.GetRoomIdOfItemAsync(
-                    linker.ItemId,
-                    ct
-                );
+                var pairedRoomId = await FurniModule.GetRoomIdOfItemAsync(linker.ItemId, ct);
 
                 if (pairedRoomId is not null)
                     return (

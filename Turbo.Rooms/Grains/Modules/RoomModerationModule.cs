@@ -24,9 +24,8 @@ namespace Turbo.Rooms.Grains.Modules;
 public sealed class RoomModerationModule(
     RoomGrain roomGrain,
     IDbContextFactory<TurboDbContext> dbCtxFactory
-)
+) : RoomGrainComponent(roomGrain)
 {
-    private readonly RoomGrain _roomGrain = roomGrain;
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
 
     /// <summary>
@@ -58,7 +57,7 @@ public sealed class RoomModerationModule(
         if (!_roomGrain._state.IsRoomMuted)
             return false;
 
-        var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(playerId);
+        var controllerLevel = await SecurityModule.GetControllerLevelAsync(playerId);
 
         return controllerLevel < RoomControllerType.Rights;
     }
@@ -85,10 +84,10 @@ public sealed class RoomModerationModule(
         CancellationToken ct
     )
     {
-        if (durationMinutes <= 0 || !_roomGrain.AvatarModule.TryGetPlayer(playerId, out _))
+        if (durationMinutes <= 0 || !AvatarModule.TryGetPlayer(playerId, out _))
             return false;
 
-        var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(playerId);
+        var controllerLevel = await SecurityModule.GetControllerLevelAsync(playerId);
 
         if (controllerLevel >= RoomControllerType.Owner)
             return false;
@@ -160,7 +159,7 @@ public sealed class RoomModerationModule(
 
     public async Task<bool> ToggleRoomMuteAsync(ActionContext ctx, CancellationToken ct)
     {
-        var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx);
+        var controllerLevel = await SecurityModule.GetControllerLevelAsync(ctx);
 
         if (controllerLevel < RoomControllerType.Owner)
             return false;
@@ -211,10 +210,10 @@ public sealed class RoomModerationModule(
         )
             return false;
 
-        if (!_roomGrain.AvatarModule.TryGetPlayer(playerId, out _))
+        if (!AvatarModule.TryGetPlayer(playerId, out _))
             return false;
 
-        await _roomGrain.AvatarModule.RemoveAvatarFromPlayerAsync(ctx, playerId, ct);
+        await AvatarModule.RemoveAvatarFromPlayerAsync(ctx, playerId, ct);
 
         return true;
     }
@@ -232,18 +231,18 @@ public sealed class RoomModerationModule(
         CancellationToken ct
     )
     {
-        if (!_roomGrain.AvatarModule.TryGetPlayer(playerId, out var player))
+        if (!AvatarModule.TryGetPlayer(playerId, out var player))
             return false;
 
-        var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(playerId);
+        var controllerLevel = await SecurityModule.GetControllerLevelAsync(playerId);
 
         if (controllerLevel >= RoomControllerType.Owner)
             return false;
 
         if (partingWords.Length > 0)
-            await _roomGrain.ChatSystem.WhisperToPlayerAsync(player, partingWords, ct);
+            await ChatSystem.WhisperToPlayerAsync(player, partingWords, ct);
 
-        await _roomGrain.AvatarModule.RemoveAvatarFromPlayerAsync(
+        await AvatarModule.RemoveAvatarFromPlayerAsync(
             ActionContext.CreateForSystem(_roomGrain.RoomId),
             playerId,
             ct
@@ -254,7 +253,9 @@ public sealed class RoomModerationModule(
             .OnRemovedFromRoomAsync(_roomGrain.RoomId, true, CancellationToken.None)
             .LogAndForget(
                 _roomGrain._logger,
-                $"close the room session of player {playerId} kicked from room {_roomGrain.RoomId}"
+                "close the room session of player {PlayerId} kicked from room {RoomId}",
+                playerId,
+                _roomGrain.RoomId
             );
 
         return true;
@@ -314,8 +315,8 @@ public sealed class RoomModerationModule(
 
         _roomGrain._state.BannedUntilByPlayerId[playerId] = expiresAt;
 
-        if (_roomGrain.AvatarModule.TryGetPlayer(playerId, out _))
-            await _roomGrain.AvatarModule.RemoveAvatarFromPlayerAsync(ctx, playerId, ct);
+        if (AvatarModule.TryGetPlayer(playerId, out _))
+            await AvatarModule.RemoveAvatarFromPlayerAsync(ctx, playerId, ct);
 
         return true;
     }
@@ -374,7 +375,7 @@ public sealed class RoomModerationModule(
     /// <summary>The ban list is part of room settings: owners, or whoever the ban setting allows.</summary>
     private async Task<bool> CanManageBansAsync(ActionContext ctx)
     {
-        var level = await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx);
+        var level = await SecurityModule.GetControllerLevelAsync(ctx);
 
         return level.IsAllowedBy(_roomGrain._state.RoomSnapshot.ModSettings.WhoCanBan);
     }
@@ -384,7 +385,7 @@ public sealed class RoomModerationModule(
         CancellationToken ct
     )
     {
-        if (!await _roomGrain.SecurityModule.GetIsRoomOwnerAsync(ctx))
+        if (!await SecurityModule.GetIsRoomOwnerAsync(ctx))
             return null;
 
         await EnsureFilterLoadedAsync(ct);
@@ -399,7 +400,7 @@ public sealed class RoomModerationModule(
         CancellationToken ct
     )
     {
-        if (!await _roomGrain.SecurityModule.GetIsRoomOwnerAsync(ctx))
+        if (!await SecurityModule.GetIsRoomOwnerAsync(ctx))
             return false;
 
         await EnsureFilterLoadedAsync(ct);
@@ -518,8 +519,8 @@ public sealed class RoomModerationModule(
         if (targetId <= 0 || ctx.PlayerId == targetId)
             return false;
 
-        var actorLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx);
-        var targetLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(targetId);
+        var actorLevel = await SecurityModule.GetControllerLevelAsync(ctx);
+        var targetLevel = await SecurityModule.GetControllerLevelAsync(targetId);
 
         if (targetLevel >= actorLevel)
             return false;

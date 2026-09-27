@@ -60,7 +60,7 @@ public abstract class FurniturePlacementVariable(RoomGrain roomGrain)
                 );
             case IRoomWallItem wallItem:
                 if (
-                    !await _roomGrain.FurniModule.ValidateWallItemPlacementAsync(
+                    !await FurniModule.ValidateWallItemPlacementAsync(
                         ctx.AsActionContext(),
                         wallItem.ObjectId,
                         target.X,

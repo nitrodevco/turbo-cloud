@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
@@ -72,8 +71,6 @@ public partial interface IRoomGrain
         RoomObjectId itemId,
         CancellationToken ct
     );
-
-    public Task<ImmutableDictionary<PlayerId, string>> GetAllOwnersAsync(CancellationToken ct);
 
     /// <summary>
     /// How many items this player has standing in this room. Counted from the live room rather

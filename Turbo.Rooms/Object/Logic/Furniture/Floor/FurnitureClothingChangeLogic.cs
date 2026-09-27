@@ -35,7 +35,7 @@ public class FurnitureClothingChangeLogic(
         var look = player.Gender == AvatarGenderType.Female ? girl : boy;
 
         if (look.Length > 0 && look != player.Figure)
-            _roomGrain.AvatarModule.ChangePlayerFigure(player.PlayerId, look, player.Gender);
+            AvatarModule.ChangePlayerFigure(player.PlayerId, look, player.Gender);
     }
 
     public override async Task<bool> OnInteractAsync(

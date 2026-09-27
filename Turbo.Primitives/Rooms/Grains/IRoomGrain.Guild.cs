@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Players;
 
@@ -67,7 +68,7 @@ public partial interface IRoomGrain
     public Task SetPlayerFavouriteGuildAsync(
         PlayerId playerId,
         int guildId,
-        int guildStatus,
+        GuildMembershipStatus guildStatus,
         string guildName,
         CancellationToken ct
     );

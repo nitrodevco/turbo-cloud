@@ -1,14 +1,15 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Furniture;
+using Turbo.Database.Extensions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
-using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
@@ -21,10 +22,8 @@ using Turbo.Primitives.Rooms.Snapshots.Furniture;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-public sealed partial class RoomFurniModule(RoomGrain roomGrain)
+public sealed partial class RoomFurniModule(RoomGrain roomGrain) : RoomGrainComponent(roomGrain)
 {
-    private readonly RoomGrain _roomGrain = roomGrain;
-
     private readonly List<IRoomPlacementLimit> _placementLimits = [];
 
     /// <summary>A system that caps its own kind of furni registers here; see <see cref="IRoomPlacementLimit"/>.</summary>
@@ -40,23 +39,15 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain)
 
     public bool HasItem(RoomObjectId itemId) => _roomGrain._state.ItemsById.ContainsKey(itemId);
 
-    public bool TryGetItem(RoomObjectId itemId, out IRoomItem item)
+    /// <inheritdoc cref="RoomLiveState.ItemsVersion"/>
+    public long ItemsVersion => _roomGrain._state.ItemsVersion;
+
+    public bool TryGetItem(RoomObjectId itemId, [NotNullWhen(true)] out IRoomItem? item) =>
+        _roomGrain._state.ItemsById.TryGetValue(itemId, out item);
+
+    public bool TryGetFloorItem(RoomObjectId itemId, [NotNullWhen(true)] out IRoomFloorItem? item)
     {
-        if (_roomGrain._state.ItemsById.TryGetValue(itemId, out var found))
-        {
-            item = found;
-
-            return true;
-        }
-
-        item = null!;
-
-        return false;
-    }
-
-    public bool TryGetFloorItem(RoomObjectId itemId, out IRoomFloorItem item)
-    {
-        item = null!;
+        item = null;
 
         if (!TryGetItem(itemId, out var found) || found is not IRoomFloorItem floorItem)
             return false;
@@ -69,7 +60,7 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain)
     /// <summary>The floor items stacked on a tile; none for a tile outside the room.</summary>
     public IEnumerable<IRoomFloorItem> GetFloorItemsOnTile(int tileIdx)
     {
-        if (!_roomGrain.MapModule.InBounds(tileIdx))
+        if (!MapModule.InBounds(tileIdx))
             yield break;
 
         foreach (var itemId in _roomGrain._state.TileFloorStacks[tileIdx])
@@ -81,7 +72,7 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain)
 
     /// <summary>Whether this item is the top of the stack on a tile, the one an avatar there stands on.</summary>
     public bool IsHighestOnTile(IRoomFloorItem item, int tileIdx) =>
-        _roomGrain.MapModule.InBounds(tileIdx)
+        MapModule.InBounds(tileIdx)
         && _roomGrain._state.TileHighestFloorItems[tileIdx] == item.ObjectId;
 
     /// <summary>
@@ -97,7 +88,7 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain)
     )
     {
         if (
-            !_roomGrain.MapModule.GetTileIdForSize(
+            !MapModule.GetTileIdForSize(
                 x,
                 y,
                 rot,
@@ -125,8 +116,8 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain)
             limit.EnsureCanPlace(item);
     }
 
-    public Task<ImmutableDictionary<PlayerId, string>> GetAllOwnersAsync(CancellationToken ct) =>
-        Task.FromResult(_roomGrain._state.OwnerNamesById.ToImmutableDictionary());
+    public ImmutableDictionary<PlayerId, string> GetOwnerNames() =>
+        _roomGrain._state.OwnerNamesById.ToImmutableDictionary();
 
     public Task<int> GetItemCountByOwnerAsync(PlayerId ownerId, CancellationToken ct) =>
         Task.FromResult(Items.Count(item => item.OwnerId == ownerId));
@@ -185,19 +176,8 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain)
 
         await dbCtx.SaveChangesAsync(ct);
 
-        var snapshot = new FurnitureItemSnapshot
-        {
-            ItemId = entity.Id,
-            SpriteId = definition.SpriteId,
-            OwnerId = ownerId,
-            OwnerName = string.Empty,
-            Definition = definition,
-            StuffData = stuffData,
-            ExtraData = extraDataJson,
-            SecondsToExpiration = -1,
-            HasRentPeriodStarted = false,
-            RoomId = _roomGrain.RoomId,
-        };
+        // No owner name: the room fills it in from its own table as the item attaches.
+        var snapshot = entity.ToItemSnapshot(definition, stuffData, string.Empty);
 
         var placed = false;
 
@@ -249,15 +229,15 @@ public sealed partial class RoomFurniModule(RoomGrain roomGrain)
         _roomGrain._state.IsTileComputationPaused = true;
 
         foreach (var item in floorItems)
-            await _roomGrain.ObjectModule.AttatchObjectAsync(item, ct);
+            await ObjectModule.AttatchObjectAsync(item, ct);
 
         _roomGrain._state.IsTileComputationPaused = false;
 
-        _roomGrain.MapModule.ComputeAllTiles();
+        MapModule.ComputeAllTiles();
         _roomGrain._state.DirtyHeightTileIds.Clear();
 
         foreach (var item in wallItems)
-            await _roomGrain.ObjectModule.AttatchObjectAsync(item, ct);
+            await ObjectModule.AttatchObjectAsync(item, ct);
 
         _roomGrain._state.IsFurniLoaded = true;
     }

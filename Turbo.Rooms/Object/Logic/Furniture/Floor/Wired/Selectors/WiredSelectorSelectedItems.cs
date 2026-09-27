@@ -37,17 +37,8 @@ public class WiredSelectorSelectedItems(
 
         foreach (var id in input.SelectedFurniIds)
         {
-            try
-            {
-                if (!_roomGrain.FurniModule.TryGetItem(id, out var item))
-                    continue;
-
+            if (FurniModule.TryGetItem(id, out var item))
                 output.SelectedFurniIds.Add((int)item.ObjectId);
-            }
-            catch
-            {
-                continue;
-            }
         }
 
         return Task.FromResult<IWiredSelectionSet>(output);

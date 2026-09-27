@@ -28,5 +28,5 @@ public sealed class UserTeamColorVariable(RoomGrain roomGrain)
             .ToDictionary(v => WiredVariableValue.Parse((int)v), v => v.ToString());
 
     protected override WiredVariableValue GetValueForAvatar(IRoomPlayer avatar) =>
-        WiredVariableValue.Parse((int)_roomGrain.GameSystem.GetTeam(avatar.PlayerId));
+        WiredVariableValue.Parse((int)GameSystem.GetTeam(avatar.PlayerId));
 }

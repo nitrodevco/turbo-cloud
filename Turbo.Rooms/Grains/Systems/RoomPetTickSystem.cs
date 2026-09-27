@@ -1,5 +1,5 @@
 using System;
-using System.Linq;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -7,23 +7,34 @@ using Turbo.Primitives.Pets.Enums;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Rooms.Configuration;
+using Turbo.Rooms.Grains.Modules;
 
 namespace Turbo.Rooms.Grains.Systems;
 
 /// <summary>
 /// What pets do on their own between commands: wander, rest, look for food when hungry, follow
 /// their owner, and let their stats drift. Monsterplants grow and dry out instead of walking.
-/// Runs every room tick; each pet paces itself with its own next-action time.
+/// Runs on every avatar boundary, the only moment a walk moves; each pet paces itself with its
+/// own next-action time.
 /// </summary>
-public sealed class RoomPetTickSystem(RoomGrain roomGrain)
+public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(roomGrain)
 {
-    private readonly RoomGrain _roomGrain = roomGrain;
+    // A pet can leave the room during its own turn (a breeding, a compost), so the loop walks a
+    // copy; the list is kept rather than made again every boundary.
+    private readonly List<IRoomPet> _pets = [];
 
     private PetConfig Config => _roomGrain._petConfig;
 
+    // Decay runs on wall-clock time; read once per pass so every pet in it agrees.
+    private DateTime _utcNow;
+
     public async Task ProcessPetsAsync(long now, CancellationToken ct)
     {
-        foreach (var pet in _roomGrain.PetModule.Pets.ToList())
+        _utcNow = DateTime.UtcNow;
+        _pets.Clear();
+        _pets.AddRange(PetModule.Pets);
+
+        foreach (var pet in _pets)
         {
             try
             {
@@ -43,7 +54,7 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain)
 
     private async Task ProcessPetAsync(IRoomPet pet, long now, CancellationToken ct)
     {
-        var module = _roomGrain.PetModule;
+        var module = PetModule;
 
         if (pet.IsRiding)
             return;
@@ -53,7 +64,7 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain)
         if (pet.ActionExpiresAtMs > 0 && now >= pet.ActionExpiresAtMs)
             module.ClearActionStatuses(pet);
 
-        await DecayAsync(pet, now, ct);
+        Decay(pet);
 
         if (pet.IsMonsterplant)
         {
@@ -62,10 +73,9 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain)
             return;
         }
 
+        // Where a pet came to rest is written with the room's next hand-over to persistence.
         if (pet.IsWalking)
             return;
-
-        await module.PersistPositionIfMovedAsync(pet, ct);
 
         if (pet.TargetItemId > 0)
         {
@@ -76,7 +86,7 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain)
 
         if (pet.FollowObjectId > 0)
         {
-            await FollowAsync(pet, ct);
+            await FollowAsync(pet, now, ct);
 
             return;
         }
@@ -123,43 +133,65 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain)
         await IdleAsync(pet, ct);
     }
 
-    private async Task DecayAsync(IRoomPet pet, long now, CancellationToken ct)
+    /// <summary>
+    /// Takes every point of energy and nutrition that has fallen due, however long ago. The due
+    /// times are wall-clock and persisted with the pet, so the time a room spent unloaded or
+    /// dormant is caught up on the pet's first tick back rather than lost. A resting pet does not
+    /// lose energy; for a catch-up that is judged by how it lies now.
+    /// </summary>
+    private void Decay(IRoomPet pet)
     {
-        var changed = false;
+        var energyDue = pet.EnergyDecayDueUtc;
+        var nutritionDue = pet.NutritionDecayDueUtc;
 
-        if (pet.NextEnergyDecayAtMs == 0)
-            pet.NextEnergyDecayAtMs = now + Config.EnergyDecayMs;
-        else if (now >= pet.NextEnergyDecayAtMs)
+        var energyLost = TakeElapsedPeriods(ref energyDue, Config.EnergyDecayMs);
+        var nutritionLost = TakeElapsedPeriods(ref nutritionDue, Config.NutritionDecayMs);
+
+        if (energyDue == pet.EnergyDecayDueUtc && nutritionDue == pet.NutritionDecayDueUtc)
+            return;
+
+        pet.EnergyDecayDueUtc = energyDue;
+        pet.NutritionDecayDueUtc = nutritionDue;
+
+        if (energyLost > 0 && !pet.HasStatus(AvatarStatusType.Lay))
+            pet.SetEnergy(Math.Max(0, pet.Energy - energyLost));
+
+        if (nutritionLost > 0)
+            pet.SetNutrition(Math.Max(0, pet.Nutrition - nutritionLost));
+
+        // Written whenever a due time moves, not only when a stat did: a due time left behind in
+        // the database would be decayed again after the next load.
+        PetModule.Persist(pet);
+    }
+
+    /// <summary>
+    /// How many whole periods have passed since <paramref name="due"/>, moving it past now. A
+    /// pet with no due time yet starts its clock here and loses nothing.
+    /// </summary>
+    private int TakeElapsedPeriods(ref DateTime? due, int periodMs)
+    {
+        var period = TimeSpan.FromMilliseconds(Math.Max(1, periodMs));
+
+        if (due is not { } dueAt)
         {
-            pet.NextEnergyDecayAtMs = now + Config.EnergyDecayMs;
+            due = _utcNow + period;
 
-            if (!pet.HasStatus(AvatarStatusType.Lay) && pet.Energy > 0)
-            {
-                pet.SetEnergy(pet.Energy - 1);
-                changed = true;
-            }
+            return 0;
         }
 
-        if (pet.NextNutritionDecayAtMs == 0)
-            pet.NextNutritionDecayAtMs = now + Config.NutritionDecayMs;
-        else if (now >= pet.NextNutritionDecayAtMs)
-        {
-            pet.NextNutritionDecayAtMs = now + Config.NutritionDecayMs;
+        if (_utcNow < dueAt)
+            return 0;
 
-            if (pet.Nutrition > 0)
-            {
-                pet.SetNutrition(pet.Nutrition - 1);
-                changed = true;
-            }
-        }
+        var periods = (_utcNow - dueAt).Ticks / period.Ticks + 1;
 
-        if (changed)
-            await _roomGrain.PetModule.PersistAsync(pet, ct);
+        due = dueAt + TimeSpan.FromTicks(period.Ticks * periods);
+
+        return (int)Math.Min(periods, int.MaxValue);
     }
 
     private async Task ProcessMonsterplantAsync(IRoomPet pet, long now, CancellationToken ct)
     {
-        var module = _roomGrain.PetModule;
+        var module = PetModule;
 
         if (now < pet.NextActionAtMs)
             return;
@@ -173,7 +205,7 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain)
         )
         {
             await module.LevelUpAsync(pet, ct);
-            await module.PersistAsync(pet, ct);
+            module.Persist(pet);
 
             return;
         }
@@ -188,7 +220,7 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain)
 
     private async Task ArriveAtTargetAsync(IRoomPet pet, CancellationToken ct)
     {
-        if (!_roomGrain._state.ItemsById.TryGetValue(pet.TargetItemId, out var item))
+        if (!FurniModule.TryGetItem(pet.TargetItemId, out var item))
         {
             pet.TargetItemId = -1;
 
@@ -197,7 +229,7 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain)
 
         if (pet.X == item.X && pet.Y == item.Y)
         {
-            await _roomGrain.PetModule.OnPetReachedItemAsync(pet, ct);
+            await PetModule.OnPetReachedItemAsync(pet, ct);
 
             return;
         }
@@ -206,16 +238,16 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain)
         pet.TargetItemId = -1;
     }
 
-    private async Task FollowAsync(IRoomPet pet, CancellationToken ct)
+    private async Task FollowAsync(IRoomPet pet, long now, CancellationToken ct)
     {
-        if (!_roomGrain.AvatarModule.TryGetAvatar(pet.FollowObjectId, out var target))
+        if (!AvatarModule.TryGetAvatar(pet.FollowObjectId, out var target))
         {
             pet.FollowObjectId = -1;
 
             return;
         }
 
-        if (Modules.RoomAvatarModule.AreAdjacent(pet, target))
+        if (RoomAvatarModule.AreAdjacent(pet, target))
         {
             if (!pet.IsWalking && !target.IsWalking)
                 pet.SetBodyRotation(target.Rotation);
@@ -223,13 +255,20 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain)
             return;
         }
 
-        await _roomGrain.PetModule.WalkNextToAsync(pet, target, ct);
+        var targetIdx = MapModule.ToIdx(target.X, target.Y);
+
+        if (!RoomAvatarModule.IsFollowDue(pet, targetIdx, now))
+            return;
+
+        var found = await PetModule.WalkNextToAsync(pet, target, ct);
+
+        AvatarModule.RecordFollow(pet, targetIdx, found, now);
     }
 
     private async Task WanderAsync(IRoomPet pet, CancellationToken ct)
     {
-        var module = _roomGrain.PetModule;
-        var map = _roomGrain.MapModule;
+        var module = PetModule;
+        var map = MapModule;
         var range = Config.FreeRoamMaxDistance;
 
         for (var attempt = 0; attempt < 5; attempt++)
@@ -246,14 +285,14 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain)
             pet.Sit(false);
             pet.Lay(false);
 
-            if (await _roomGrain.AvatarModule.WalkAvatarToAsync(pet, x, y, ct))
+            if (await AvatarModule.WalkAvatarToAsync(pet, x, y, ct))
                 return;
         }
     }
 
     private async Task IdleAsync(IRoomPet pet, CancellationToken ct)
     {
-        var module = _roomGrain.PetModule;
+        var module = PetModule;
 
         switch (module.NextRandom(0, 6))
         {

@@ -32,7 +32,7 @@ public class WiredSelectorEntitiesOnItem(
 
         foreach (var item in GetFloorItems(ctx.GetSelection(this)))
         {
-            foreach (var avatar in _roomGrain.AvatarModule.GetAvatarsOnItem(item))
+            foreach (var avatar in AvatarModule.GetAvatarsOnItem(item))
             {
                 output.SelectedAvatarIds.Add(avatar.ObjectId);
             }

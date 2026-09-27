@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -38,7 +39,14 @@ public class WiredAddonVariableTextConnector(
             if (index <= 0)
                 continue;
 
-            if (!int.TryParse(line[..index].Trim(), out var value))
+            if (
+                !int.TryParse(
+                    line[..index].Trim(),
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out var value
+                )
+            )
                 continue;
 
             var label = line[(index + 1)..].Trim();

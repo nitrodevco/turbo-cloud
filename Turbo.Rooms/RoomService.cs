@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -31,13 +32,11 @@ namespace Turbo.Rooms;
 internal sealed partial class RoomService(
     ILogger<IRoomService> logger,
     IOptions<RoomConfig> roomConfig,
-    ISessionGateway sessionGateway,
     IGrainFactory grainFactory
 ) : IRoomService
 {
     private readonly ILogger<IRoomService> _logger = logger;
     private readonly RoomConfig _roomConfig = roomConfig.Value;
-    private readonly ISessionGateway _sessionGateway = sessionGateway;
     private readonly IGrainFactory _grainFactory = grainFactory;
 
     public async Task<RoomEntryAccessType> CheckRoomEntryAccessAsync(
@@ -81,8 +80,12 @@ internal sealed partial class RoomService(
         await LeavePendingDoorbellAsync(playerPresence, playerId, roomId, ct).ConfigureAwait(false);
         await playerPresence.ClearActiveRoomAsync(ct).ConfigureAwait(false);
 
-        await playerPresence
-            .SendComposerAsync(new OpenConnectionMessageComposer { RoomId = roomId }, ct)
+        await _grainFactory
+            .SendComposerToPlayerAsync(
+                playerId,
+                new OpenConnectionMessageComposer { RoomId = roomId },
+                ct
+            )
             .ConfigureAwait(false);
 
         var room = _grainFactory.GetRoomGrain(roomId);
@@ -130,22 +133,17 @@ internal sealed partial class RoomService(
             case RoomEntryAccessType.HiddenByBuildersClub:
                 // The pop-up says what the generic refusal cannot: the room is not gone, its
                 // owner has let a Builders Club membership lapse.
-                await playerPresence
-                    .SendComposerAsync(
-                        new NotificationDialogMessageComposer
-                        {
-                            NotificationType = BuildersClubNotifications.VISIT_DENIED_FOR_VISITOR,
-                        },
-                        ct
-                    )
-                    .ConfigureAwait(false);
                 await RejectEntryAsync(
                         playerPresence,
                         new CantConnectMessageComposer
                         {
                             ErrorType = RoomConnectionErrorType.NoEntry,
                         },
-                        ct
+                        ct,
+                        new NotificationDialogMessageComposer
+                        {
+                            NotificationType = BuildersClubNotifications.VISIT_DENIED_FOR_VISITOR,
+                        }
                     )
                     .ConfigureAwait(false);
                 return;
@@ -290,8 +288,9 @@ internal sealed partial class RoomService(
         if (!accepted)
         {
             await ringerPresence.ClearPendingRoomAsync(ct).ConfigureAwait(false);
-            await ringerPresence
-                .SendComposerAsync(
+            await _grainFactory
+                .SendComposerToPlayerAsync(
+                    ringerId.Value,
                     new FlatAccessDeniedMessageComposer
                     {
                         RoomId = ctx.RoomId,
@@ -329,8 +328,8 @@ internal sealed partial class RoomService(
             .ConfigureAwait(false);
         await playerPresence.ClearActiveRoomAsync(ct).ConfigureAwait(false);
 
-        await playerPresence
-            .SendComposerAsync(new CloseConnectionMessageComposer(), ct)
+        await _grainFactory
+            .SendComposerToPlayerAsync(playerId, new CloseConnectionMessageComposer(), ct)
             .ConfigureAwait(false);
     }
 
@@ -358,8 +357,9 @@ internal sealed partial class RoomService(
             return;
 
         await playerPresence.ClearPendingRoomAsync(ct).ConfigureAwait(false);
-        await playerPresence
-            .SendComposerAsync(
+        await _grainFactory
+            .SendComposerToPlayerAsync(
+                playerId,
                 new FlatAccessDeniedMessageComposer { RoomId = roomId, Username = string.Empty },
                 ct
             )
@@ -391,15 +391,22 @@ internal sealed partial class RoomService(
         await playerPresence.ClearPendingRoomAsync(ct).ConfigureAwait(false);
     }
 
+    /// <param name="notice">Shown before the refusal, in the same batch, when the refusal needs explaining.</param>
     private static async Task RejectEntryAsync(
         IPlayerPresenceGrain playerPresence,
         IComposer error,
-        CancellationToken ct
+        CancellationToken ct,
+        IComposer? notice = null
     )
     {
         await playerPresence.ClearPendingRoomAsync(ct).ConfigureAwait(false);
         await playerPresence
-            .SendComposerAsync([error, new CloseConnectionMessageComposer()], ct)
+            .SendComposerAsync(
+                notice is null
+                    ? [error, new CloseConnectionMessageComposer()]
+                    : [notice, error, new CloseConnectionMessageComposer()],
+                ct
+            )
             .ConfigureAwait(false);
     }
 
@@ -417,45 +424,10 @@ internal sealed partial class RoomService(
     {
         var roomCtx = ctx with { RoomId = roomId };
 
-        var snapshot = await room.GetSnapshotAsync(ct).ConfigureAwait(false);
-        var mapSnapshot = await room.GetMapSnapshotAsync(ct).ConfigureAwait(false);
-        var ownersSnapshot = await room.GetAllOwnersAsync(ct).ConfigureAwait(false);
-        var floorSnapshot = await room.GetAllFloorItemSnapshotsAsync(ct).ConfigureAwait(false);
-        var wallSnapshot = await room.GetAllWallItemSnapshotsAsync(ct).ConfigureAwait(false);
-        var avatarSnapshots = await room.GetAllAvatarSnapshotsAsync(ct).ConfigureAwait(false);
-        // Neither a dance, an effect nor a sleep travels in the Users packet, so all three are
-        // replayed to the arriving player as their own updates. Any avatar can carry them; one
-        // that the client does not draw as a user simply never has one to replay.
-        var danceComposers = avatarSnapshots
-            .Where(x => x.DanceType != AvatarDanceType.None)
-            .Select(x => new DanceMessageComposer
-            {
-                ObjectId = x.ObjectId,
-                DanceType = x.DanceType,
-            })
-            .ToArray();
-        var effectComposers = avatarSnapshots
-            .Where(x => x.EffectId > 0)
-            .Select(x => new AvatarEffectMessageComposer
-            {
-                ObjectId = x.ObjectId,
-                EffectId = x.EffectId,
-                DelayMilliseconds = 0,
-            })
-            .ToArray();
-        var sleepComposers = avatarSnapshots
-            .Where(x => x.IsIdle)
-            .Select(x => new SleepMessageComposer { ObjectId = x.ObjectId, IsSleeping = true })
-            .ToArray();
-
-        var roomProperties = await room.GetRoomPropertiesAsync(ct).ConfigureAwait(false);
-        var roomPropertyComposers = roomProperties
-            .Select(x => new RoomPropertyMessageComposer
-            {
-                Key = RoomPropertyTypeExtensions.GetString(x.Key),
-                Value = x.Value,
-            })
-            .ToArray();
+        // One call for everything the room shows, taken in one of its turns.
+        var view = await room.GetEntryViewAsync(ctx.PlayerId, ct).ConfigureAwait(false);
+        var snapshot = view.Room;
+        var mapSnapshot = view.Map;
 
         // The client's initial camera target is the door tile.
         var doorTileIndex = mapSnapshot.DoorY * mapSnapshot.Width + mapSnapshot.DoorX;
@@ -464,109 +436,106 @@ internal sealed partial class RoomService(
                 ? Altitude.FromInt(mapSnapshot.TileEncodedHeights[doorTileIndex])
                 : Altitude.Zero;
 
-        await playerPresence
-            .SendComposerAsync(
-                new RoomReadyMessageComposer { WorldType = snapshot.WorldType, RoomId = roomId },
-                ct
-            )
-            .ConfigureAwait(false);
+        // The whole entry sequence as one batch to the player, in the order the client expects
+        // it; it used to go out in eleven sends with a grain call between some of them.
+        var composers = new List<IComposer>
+        {
+            new RoomReadyMessageComposer { WorldType = snapshot.WorldType, RoomId = roomId },
+            new RoomRatingMessageComposer { Rating = snapshot.Score, CanRate = view.CanRate },
+            new RoomEntryTileMessageComposer
+            {
+                X = mapSnapshot.DoorX,
+                Y = mapSnapshot.DoorY,
+                Rotation = mapSnapshot.DoorRotation,
+            },
+            new HeightMapMessageComposer
+            {
+                Width = mapSnapshot.Width,
+                Size = mapSnapshot.Size,
+                Heights = mapSnapshot.TileEncodedHeights,
+            },
+            new FloorHeightMapMessageComposer
+            {
+                ScaleType = _roomConfig.DefaultRoomScale,
+                // The room's own choice, made in the floor plan editor; a room that has
+                // never been drawn keeps the hotel's default.
+                FixedWallsHeight =
+                    snapshot.WallHeight >= 0 ? snapshot.WallHeight : _roomConfig.DefaultWallHeight,
+                ModelData = mapSnapshot.ModelData,
+                AreaHideData = [],
+                CameraInitX = mapSnapshot.DoorX,
+                CameraInitY = mapSnapshot.DoorY,
+                CameraInitZ = doorAltitude,
+            },
+            new RoomVisualizationSettingsMessageComposer
+            {
+                WallsHidden = snapshot.HideWalls,
+                WallThickness = snapshot.WallThickness,
+                FloorThickness = snapshot.FloorThickness,
+            },
+            new RoomChatSettingsMessageComposer { ChatProtection = snapshot.ChatProtection },
+        };
 
-        var canRate = await room.GetCanRateAsync(ctx.PlayerId, ct).ConfigureAwait(false);
+        if (view.ActiveEvent is not null)
+            composers.Add(
+                new RoomEventMessageComposer
+                {
+                    Event = view.ActiveEvent,
+                    SentAtUtc = DateTime.UtcNow,
+                }
+            );
 
-        await playerPresence
-            .SendComposerAsync(
-                [
-                    new RoomRatingMessageComposer { Rating = snapshot.Score, CanRate = canRate },
-                    new RoomEntryTileMessageComposer
-                    {
-                        X = mapSnapshot.DoorX,
-                        Y = mapSnapshot.DoorY,
-                        Rotation = mapSnapshot.DoorRotation,
-                    },
-                    new HeightMapMessageComposer
-                    {
-                        Width = mapSnapshot.Width,
-                        Size = mapSnapshot.Size,
-                        Heights = mapSnapshot.TileEncodedHeights,
-                    },
-                    new FloorHeightMapMessageComposer
-                    {
-                        ScaleType = _roomConfig.DefaultRoomScale,
-                        // The room's own choice, made in the floor plan editor; a room that has
-                        // never been drawn keeps the hotel's default.
-                        FixedWallsHeight =
-                            snapshot.WallHeight >= 0
-                                ? snapshot.WallHeight
-                                : _roomConfig.DefaultWallHeight,
-                        ModelData = mapSnapshot.ModelData,
-                        AreaHideData = [],
-                        CameraInitX = mapSnapshot.DoorX,
-                        CameraInitY = mapSnapshot.DoorY,
-                        CameraInitZ = doorAltitude,
-                    },
-                    new RoomVisualizationSettingsMessageComposer
-                    {
-                        WallsHidden = snapshot.HideWalls,
-                        WallThickness = snapshot.WallThickness,
-                        FloorThickness = snapshot.FloorThickness,
-                    },
-                    new RoomChatSettingsMessageComposer
-                    {
-                        ChatProtection = snapshot.ChatProtection,
-                    },
-                ],
-                ct
-            )
-            .ConfigureAwait(false);
+        if (view.IsMuted)
+            composers.Add(new MuteAllInRoomEventMessageComposer { IsMuted = true });
 
-        var activeEvent = await room.GetActiveEventAsync(ct).ConfigureAwait(false);
+        composers.AddRange(
+            view.Properties.Select(x => new RoomPropertyMessageComposer
+            {
+                Key = RoomPropertyTypeExtensions.GetString(x.Key),
+                Value = x.Value,
+            })
+        );
 
-        if (activeEvent is not null)
-            await playerPresence
-                .SendComposerAsync(
-                    new RoomEventMessageComposer
-                    {
-                        Event = activeEvent,
-                        SentAtUtc = DateTime.UtcNow,
-                    },
-                    ct
-                )
-                .ConfigureAwait(false);
+        composers.Add(
+            new ObjectsMessageComposer
+            {
+                OwnerNames = view.OwnerNames,
+                FloorItems = view.FloorItems,
+            }
+        );
+        composers.Add(
+            new ItemsMessageComposer { OwnerNames = view.OwnerNames, WallItems = view.WallItems }
+        );
+        composers.Add(new UsersMessageComposer { Avatars = view.Avatars });
+        composers.Add(new UserUpdateMessageComposer { Avatars = view.Avatars });
 
-        if (await room.GetIsRoomMutedAsync(ct).ConfigureAwait(false))
-            await playerPresence
-                .SendComposerAsync(new MuteAllInRoomEventMessageComposer { IsMuted = true }, ct)
-                .ConfigureAwait(false);
+        // Neither a dance, an effect nor a sleep travels in the Users packet, so all three are
+        // replayed to the arriving player as their own updates. Any avatar can carry them; one
+        // that the client does not draw as a user simply never has one to replay.
+        composers.AddRange(
+            view.Avatars.Where(x => x.DanceType != AvatarDanceType.None)
+                .Select(x => new DanceMessageComposer
+                {
+                    ObjectId = x.ObjectId,
+                    DanceType = x.DanceType,
+                })
+        );
+        composers.AddRange(
+            view.Avatars.Where(x => x.EffectId > 0)
+                .Select(x => new AvatarEffectMessageComposer
+                {
+                    ObjectId = x.ObjectId,
+                    EffectId = x.EffectId,
+                    DelayMilliseconds = 0,
+                })
+        );
+        composers.AddRange(
+            view.Avatars.Where(x => x.IsIdle)
+                .Select(x => new SleepMessageComposer { ObjectId = x.ObjectId, IsSleeping = true })
+        );
 
-        if (roomPropertyComposers.Length > 0)
-            await playerPresence.SendComposerAsync(roomPropertyComposers, ct).ConfigureAwait(false);
-
-        await playerPresence
-            .SendComposerAsync(
-                [
-                    new ObjectsMessageComposer
-                    {
-                        OwnerNames = ownersSnapshot,
-                        FloorItems = floorSnapshot,
-                    },
-                    new ItemsMessageComposer
-                    {
-                        OwnerNames = ownersSnapshot,
-                        WallItems = wallSnapshot,
-                    },
-                    new UsersMessageComposer { Avatars = avatarSnapshots },
-                    new UserUpdateMessageComposer { Avatars = avatarSnapshots },
-                ],
-                ct
-            )
-            .ConfigureAwait(false);
-
-        if (danceComposers.Length > 0)
-            await playerPresence.SendComposerAsync(danceComposers, ct).ConfigureAwait(false);
-        if (effectComposers.Length > 0)
-            await playerPresence.SendComposerAsync(effectComposers, ct).ConfigureAwait(false);
-        if (sleepComposers.Length > 0)
-            await playerPresence.SendComposerAsync(sleepComposers, ct).ConfigureAwait(false);
+        // A batch for one player is the one direct presence send AGENTS.md allows.
+        await playerPresence.SendComposerAsync(composers, ct).ConfigureAwait(false);
 
         await playerPresence.SetActiveRoomAsync(roomId, ct).ConfigureAwait(false);
 
@@ -577,8 +546,9 @@ internal sealed partial class RoomService(
         var controllerLevel = await room.GetControllerLevelAsync(ctx.PlayerId, ct)
             .ConfigureAwait(false);
 
-        await playerPresence
-            .SendComposerAsync(
+        await _grainFactory
+            .SendComposerToPlayerAsync(
+                ctx.PlayerId,
                 new RoomEntryInfoMessageComposer
                 {
                     RoomId = roomId,

@@ -58,7 +58,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly PetConfig _petConfig;
     internal readonly BotConfig _botConfig;
     internal readonly WiredConfig _wiredConfig;
-    internal readonly ILogger<IRoomGrain> _logger;
+    internal readonly IGrainFactory _grainFactory;
     internal readonly IRoomModelProvider _roomModelProvider;
     internal readonly IRoomItemsProvider _itemsLoader;
     internal readonly IRoomNpcProvider _npcProvider;
@@ -69,8 +69,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly IFurnitureDefinitionProvider _definitionProvider;
     internal readonly IHotelTextProvider _hotelTextProvider;
     internal readonly ICatalogService _catalogService;
-    internal readonly IGrainFactory _grainFactory;
     internal readonly EventSystem _eventSystem;
+    internal readonly ILogger<IRoomGrain> _logger;
 
     internal readonly RoomLiveState _state;
 
@@ -99,7 +99,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public readonly RoomTimerSystem TimerSystem;
 
     internal IAsyncStream<RoomOutboundSnapshot> _roomOutbound = default!;
-    private IGrainTimer? _roomTimer;
+    private IGrainTimer? _tickTimer;
 
     public RoomId RoomId => _state.RoomId;
 
@@ -129,7 +129,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _petConfig = petConfig.Value;
         _botConfig = botConfig.Value;
         _wiredConfig = wiredConfig.Value;
-        _logger = logger;
+        _grainFactory = grainFactory;
         _roomModelProvider = roomModelProvider;
         _itemsLoader = itemsLoader;
         _npcProvider = npcProvider;
@@ -140,8 +140,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _definitionProvider = definitionProvider;
         _hotelTextProvider = hotelTextProvider;
         _catalogService = catalogService;
-        _grainFactory = grainFactory;
         _eventSystem = eventSystem;
+        _logger = logger;
 
         _state = new() { RoomId = this.GetRoomId() };
         PathingSystem = new(this);
@@ -187,6 +187,10 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             _state.NextAvatarBoundaryMs = AlignToNextBoundary(now, _roomConfig.AvatarTickMs);
             _state.NextRollerBoundaryMs = AlignToNextBoundary(now, _roomConfig.RollerTickMs);
             _state.NextWiredBoundaryMs = AlignToNextBoundary(now, _wiredConfig.TickMs);
+            _state.NextPersistenceBoundaryMs = AlignToNextBoundary(
+                now,
+                _roomConfig.DirtyItemsTickMs
+            );
         }
 
         await HydrateRoomStateAsync(ct);
@@ -204,7 +208,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         // so tick phase would drift by the callback's execution time and the avatar/wired/roller
         // boundaries (all multiples of RoomTickMs from EpochMs) would be crossed late by a
         // varying amount each cycle.
-        _roomTimer = this.RegisterGrainTimer<object?>(
+        _tickTimer = this.RegisterGrainTimer<object?>(
             static async (self, ct) => await ((RoomGrain)self!).ProcessRoomTickAsync(ct),
             this,
             TimeSpan.FromMilliseconds(_roomConfig.RoomTickMs),
@@ -217,17 +221,33 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         try
         {
             var now = NowMs();
+            var dormant = IsDormant();
 
-            // Pets and bots pick their next walk before avatars step, so it starts this tick.
-            await PetTickSystem.ProcessPetsAsync(now, ct);
-            await BotTickSystem.ProcessBotsAsync(now, ct);
-            await AvatarTickSystem.ProcessAvatarsAsync(now, ct);
-            await WiredSystem.ProcessWiredAsync(now, ct);
-            await VariableFxSystem.ProcessAsync(now, ct);
-            await RollerSystem.ProcessRollersAsync(now, ct);
+            if (!dormant)
+            {
+                // Pets and bots decide on the avatar boundary only, just before avatars step, so
+                // a walk they pick starts this tick. A walk advances only on that boundary, and
+                // deciding on every tick in between re-planned the same walk ten times over.
+                if (now >= _state.NextAvatarBoundaryMs)
+                {
+                    await PetTickSystem.ProcessPetsAsync(now, ct);
+                    await BotTickSystem.ProcessBotsAsync(now, ct);
+                }
+
+                await AvatarTickSystem.ProcessAvatarsAsync(now, ct);
+            }
+
+            await WiredSystem.ProcessWiredAsync(now, dormant, ct);
+
+            if (!dormant)
+            {
+                await VariableFxSystem.ProcessAsync(now, ct);
+                await RollerSystem.ProcessRollersAsync(now, ct);
+            }
+
             await TimerSystem.ProcessTimersAsync(now, ct);
             await FlushDirtyTilesAsync(ct);
-            await FlushDirtyItemsAsync(ct);
+            await HandOverToPersistenceIfDueAsync(now, ct);
         }
         catch (Exception ex)
         {
@@ -236,38 +256,53 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         finally
         {
             // Always re-arm: a failed tick must not stop the room.
-            RearmRoomTimer();
+            RearmTickTimer();
         }
     }
 
-    private void RearmRoomTimer()
+    /// <summary>
+    /// A room nobody is in, where no pet or bot is still on its way anywhere, has nothing to
+    /// show: it stays loaded until the directory unloads it, and for that while it skips the
+    /// pets, bots, avatars, rollers, variable fx and wired's periodic triggers and ticks at the
+    /// avatar pace. Wired events, scheduled wired actions, item timers and persistence still
+    /// run, because they change what is saved. A player walking in wakes it
+    /// (<see cref="WakeTick"/>).
+    /// </summary>
+    private bool IsDormant() =>
+        _state.AvatarsByPlayerId.Count == 0 && !PetModule.AnyWalking() && !BotModule.AnyWalking();
+
+    private void RearmTickTimer()
     {
         var now = NowMs();
-        var next = AlignToNextBoundary(now, _roomConfig.RoomTickMs);
+        var period = IsDormant() ? _roomConfig.AvatarTickMs : _roomConfig.RoomTickMs;
+        var next = AlignToNextBoundary(now, period);
 
         // AlignToNextBoundary returns `now` when it lands exactly on a boundary; firing again
         // with a zero due time would double-tick the same boundary.
         if (next <= now)
-            next = now + _roomConfig.RoomTickMs;
+            next = now + period;
 
-        _roomTimer?.Change(TimeSpan.FromMilliseconds(next - now), Timeout.InfiniteTimeSpan);
+        _tickTimer?.Change(TimeSpan.FromMilliseconds(next - now), Timeout.InfiniteTimeSpan);
     }
+
+    /// <summary>Brings a dormant room back to the full tick rate at once, not on its slow beat.</summary>
+    internal void WakeTick() => RearmTickTimer();
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
-        _roomTimer?.Dispose();
-        _roomTimer = null;
+        _tickTimer?.Dispose();
+        _tickTimer = null;
 
-        // Each step is isolated: a failed flush must not leave the room listed as active.
+        // Each step is isolated: a failed hand-over must not leave the room listed as active.
         try
         {
-            await FlushDirtyItemsAsync(ct);
+            await HandOverToPersistenceAsync(ct);
         }
         catch (Exception ex)
         {
             _logger.LogError(
                 ex,
-                "Failed to flush dirty items of room {RoomId} on deactivation",
+                "Failed to hand the changes of room {RoomId} to persistence on deactivation",
                 _state.RoomId
             );
         }
@@ -310,28 +345,26 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public Task<RoomSnapshot> GetSnapshotAsync(CancellationToken ct) =>
         Task.FromResult(_state.RoomSnapshot);
 
-    public async Task<RoomSummarySnapshot> GetSummaryAsync(CancellationToken ct)
-    {
-        var population = await GetRoomPopulationAsync(ct);
+    public Task<RoomSummarySnapshot> GetSummaryAsync(CancellationToken ct) =>
+        Task.FromResult(
+            new RoomSummarySnapshot
+            {
+                RoomId = _state.RoomSnapshot.RoomId,
+                Name = _state.RoomSnapshot.Name,
+                Description = _state.RoomSnapshot.Description,
+                OwnerId = _state.RoomSnapshot.OwnerId,
+                OwnerName = _state.RoomSnapshot.OwnerName,
+                Population = _state.AvatarsByPlayerId.Count,
+                LastUpdatedUtc = DateTime.UtcNow,
+            }
+        );
 
-        return new RoomSummarySnapshot
-        {
-            RoomId = _state.RoomSnapshot.RoomId,
-            Name = _state.RoomSnapshot.Name,
-            Description = _state.RoomSnapshot.Description,
-            OwnerId = _state.RoomSnapshot.OwnerId,
-            OwnerName = _state.RoomSnapshot.OwnerName,
-            Population = population,
-            LastUpdatedUtc = DateTime.UtcNow,
-        };
-    }
-
-    public async Task<int> GetRoomPopulationAsync(CancellationToken ct) =>
-        await _grainFactory.GetRoomDirectoryGrain().GetRoomPopulationAsync(_state.RoomId, ct);
-
-    public Task<ImmutableArray<KeyValuePair<RoomPropertyType, string>>> GetRoomPropertiesAsync(
-        CancellationToken ct
-    ) => Task.FromResult(_state.RoomProperties.ToImmutableArray());
+    /// <summary>
+    /// Counted here, where the players are. It used to ask the room directory, a hotel-wide
+    /// singleton, for the room's own head count, which it only knows because this room told it.
+    /// </summary>
+    public Task<int> GetRoomPopulationAsync(CancellationToken ct) =>
+        Task.FromResult(_state.AvatarsByPlayerId.Count);
 
     /// <summary>
     /// The shell a player's request runs in once it reaches this grain: the player counts as
@@ -375,8 +408,24 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     public Task SendComposerToRoomAsync(IComposer composer, CancellationToken ct) =>
         _roomOutbound.OnNextAsync(
-            new RoomOutboundSnapshot { RoomId = _state.RoomId, Composer = composer }
+            new RoomOutboundSnapshot { RoomId = _state.RoomId, Composers = [composer] }
         );
+
+    /// <summary>
+    /// <see cref="SendComposerToRoomAsync"/> for several composers that go out together, such as
+    /// everything one tick of rollers or wired produced. They are one stream item, so every
+    /// player's presence receives them in one call and flushes them to the session in one send,
+    /// in this order. An empty batch publishes nothing.
+    /// </summary>
+    public Task SendComposersToRoomAsync(ImmutableArray<IComposer> composers, CancellationToken ct)
+    {
+        if (composers.IsDefaultOrEmpty)
+            return Task.CompletedTask;
+
+        return _roomOutbound.OnNextAsync(
+            new RoomOutboundSnapshot { RoomId = _state.RoomId, Composers = composers }
+        );
+    }
 
     /// <summary>
     /// <see cref="SendComposerToRoomAsync"/> for code that must not wait on it: the tick, and a
@@ -386,7 +435,15 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     /// </summary>
     public void SendComposerToRoomAndForget(IComposer composer) =>
         SendComposerToRoomAsync(composer, CancellationToken.None)
-            .LogAndForget(_logger, $"send a composer to room {_state.RoomId}");
+            .LogAndForget(_logger, "send a composer to room {RoomId}", _state.RoomId);
+
+    /// <summary>
+    /// <see cref="SendComposersToRoomAsync"/> for code that must not wait on it, as
+    /// <see cref="SendComposerToRoomAndForget"/> is for one composer.
+    /// </summary>
+    public void SendComposersToRoomAndForget(ImmutableArray<IComposer> composers) =>
+        SendComposersToRoomAsync(composers, CancellationToken.None)
+            .LogAndForget(_logger, "send composers to room {RoomId}", _state.RoomId);
 
     private async Task HydrateRoomStateAsync(CancellationToken ct)
     {

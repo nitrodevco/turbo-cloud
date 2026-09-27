@@ -13,9 +13,8 @@ namespace Turbo.Rooms.Grains.Systems;
 /// so they may touch room state freely. Timers are keyed by the object that owns them, so an
 /// item can replace or cancel its pending work and everything dies with the item on pickup.
 /// </summary>
-public sealed class RoomTimerSystem(RoomGrain roomGrain)
+public sealed class RoomTimerSystem(RoomGrain roomGrain) : RoomGrainComponent(roomGrain)
 {
-    private readonly RoomGrain _roomGrain = roomGrain;
     private readonly Dictionary<RoomObjectId, RoomTimer> _timersByObjectId = [];
     private readonly PriorityQueue<(RoomObjectId objectId, long version), long> _schedule = new();
 

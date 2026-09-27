@@ -154,11 +154,7 @@ public sealed class CatalogService(
             return null;
 
         var catalogSnap = GetCatalogSnapshot(CatalogType.Normal);
-        var product = catalogSnap.ProductsById.Values.FirstOrDefault(p =>
-            p.LtdSeriesId == nextSeries.Id
-        );
-
-        if (product == null)
+        if (!catalogSnap.TryGetLtdProduct(nextSeries.Id, out var product))
             return null;
 
         // Resolve PageId from Offer

@@ -23,7 +23,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
     : WiredContext(roomGrain),
         IWiredExecutionContext
 {
-    public DateTimeOffset RoomLocalTime => _roomGrain.WiredSystem.GetRoomLocalTime();
+    public DateTimeOffset RoomLocalTime => WiredSystem.GetRoomLocalTime();
 
     public List<WiredUserMovementSnapshot> UserMoves { get; } = [];
     public List<WiredFloorItemMovementSnapshot> FloorItemMoves { get; } = [];
@@ -70,13 +70,8 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         Altitude? z = null,
         Rotation? rotation = null
     ) =>
-        _roomGrain.FurniModule.CanPlaceFloorItem(floorItem, x, y, rotation ?? floorItem.Rotation)
-        && await ProcessFloorItemMovementAsync(
-            floorItem,
-            _roomGrain.MapModule.ToIdx(x, y),
-            z,
-            rotation
-        );
+        FurniModule.CanPlaceFloorItem(floorItem, x, y, rotation ?? floorItem.Rotation)
+        && await ProcessFloorItemMovementAsync(floorItem, MapModule.ToIdx(x, y), z, rotation);
 
     public async Task<bool> ProcessFloorItemMovementAsync(
         IRoomFloorItem floorItem,
@@ -91,7 +86,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         try
         {
             var (sourceX, sourceY, sourceZ) = (floorItem.X, floorItem.Y, floorItem.Z);
-            var sourceIdx = _roomGrain.MapModule.ToIdx(sourceX, sourceY);
+            var sourceIdx = MapModule.ToIdx(sourceX, sourceY);
             var carried = CollectCarriedAvatars(floorItem);
 
             if (Policy.MovePhysics.HasFlag(WiredMovePhysicsFlags.KeepAltitude))
@@ -103,7 +98,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
                 && settings.ProjectileIds.Contains(floorItem.ObjectId)
                     ? settings
                     : null;
-            var (flightToX, flightToY) = _roomGrain.MapModule.GetTileXY(tileIdx);
+            var (flightToX, flightToY) = MapModule.GetTileXY(tileIdx);
             var (flightX, flightY) = (flightToX - sourceX, flightToY - sourceY);
 
             if (
@@ -115,7 +110,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
             // Through the furni module, so the item's logic hears of the move as it would from a
             // player; only the announcing stays here, batched into the action's one packet.
             if (
-                !await _roomGrain.FurniModule.MoveFloorItemAsync(
+                !await FurniModule.MoveFloorItemAsync(
                     AsActionContext(),
                     floorItem,
                     tileIdx,
@@ -128,7 +123,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
                 return false;
 
             if (projectile is not null)
-                _roomGrain.WiredSystem.BeginProjectileFlight(
+                WiredSystem.BeginProjectileFlight(
                     floorItem.ObjectId,
                     sourceX,
                     sourceY,
@@ -174,12 +169,12 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
                     var targetX = avatar.X + dx;
                     var targetY = avatar.Y + dy;
 
-                    if (!_roomGrain.MapModule.InBounds(targetX, targetY))
+                    if (!MapModule.InBounds(targetX, targetY))
                         continue;
 
                     await ProcessUserMovementAsync(
                         avatar,
-                        _roomGrain.MapModule.ToIdx(targetX, targetY),
+                        MapModule.ToIdx(targetX, targetY),
                         SlideAvatarMoveType.Slide
                     );
                 }
@@ -223,7 +218,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
             );
 
             if (
-                await _roomGrain.FurniModule.MoveWallItemAsync(
+                await FurniModule.MoveWallItemAsync(
                     AsActionContext(),
                     wallItem,
                     x,
@@ -276,7 +271,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
 
         try
         {
-            var map = _roomGrain.MapModule;
+            var map = MapModule;
 
             if (!map.InBounds(tileIdx))
                 return false;
@@ -303,7 +298,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
             // What wired decides is above: whether its movement policy lets the avatar go there.
             // Putting it there is the avatar module's; only the announcing stays here, batched
             // into the action's one packet.
-            await _roomGrain.AvatarModule.RelocateAvatarAsync(avatar, tileIdx, CancellationToken);
+            await AvatarModule.RelocateAvatarAsync(avatar, tileIdx, CancellationToken);
 
             UserMoves.Add(
                 new()
@@ -382,12 +377,11 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         }
 
         // Placeholders expand the text, and a box can repeat one many times over.
+        // Cut by hand rather than through ClientText.Truncate, which also trims: the text is
+        // the box's own, spacing included, and only its length is capped here.
         var maxLength = _roomGrain._wiredConfig.StringParamMaxLength;
 
-        if (text.Length > maxLength)
-            text = text[..maxLength];
-
-        return text;
+        return text.Length > maxLength ? text[..maxLength] : text;
     }
 
     public ActionContext AsActionContext() => ActionContext.CreateForWired(_roomGrain.RoomId);
@@ -408,7 +402,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
             return carried;
 
         carried.AddRange(
-            _roomGrain.AvatarModule.GetAvatarsOnItem(
+            AvatarModule.GetAvatarsOnItem(
                 floorItem,
                 standingOnIt: carryMode == WiredCarryUserType.StandingOnFurni
             )

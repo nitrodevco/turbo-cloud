@@ -19,7 +19,7 @@ internal class NavigatorSearchResultBlocksMessageSerializer(int header)
 
         foreach (var block in message.Blocks)
         {
-            NavigatorSearchResultBlockSerializer.Serialize(packet, block);
+            NavigatorSearchResultBlockSerializer.Serialize(packet, block, message.SentAtUtc);
         }
     }
 }

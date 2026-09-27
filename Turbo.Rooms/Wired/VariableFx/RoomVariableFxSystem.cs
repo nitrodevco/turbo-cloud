@@ -47,11 +47,10 @@ namespace Turbo.Rooms.Wired.VariableFx;
 /// which is what a player walking in, or a holder walking in, should get.
 /// </summary>
 public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
-    : IRoomEventListener,
+    : RoomGrainComponent(roomGrain),
+        IRoomEventListener,
         IRoomPlacementLimit
 {
-    private readonly RoomGrain _roomGrain = roomGrain;
-
     private readonly Dictionary<int, VariableFxBinding> _bindingsByConfigId = [];
     private readonly Dictionary<PlayerId, VariableFxViewer> _viewersByPlayerId = [];
 
@@ -59,6 +58,9 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
     // first be sent or shown.
     private readonly Dictionary<PlayerId, long> _playerReadyAtMs = [];
     private readonly Dictionary<int, long> _furniReadyAtMs = [];
+
+    // The viewers of the flush under way, beside the player each one is.
+    private readonly List<(IRoomPlayer Player, VariableFxViewer Viewer)> _flushViewers = [];
 
     private bool _configsDirty = true;
     private bool _statusesDirty = true;
@@ -104,9 +106,7 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
         if (item.Logic is not FurnitureWiredVariableFxLogic)
             return;
 
-        var placed = _roomGrain.FurniModule.Items.Count(x =>
-            x.Logic is FurnitureWiredVariableFxLogic
-        );
+        var placed = FurniModule.Items.Count(x => x.Logic is FurnitureWiredVariableFxLogic);
 
         if (placed >= _roomGrain._wiredConfig.VariableFxMaxBoxes)
             throw new TurboException(TurboErrorCodeEnum.WiredVariableFxLimitReached);
@@ -146,7 +146,7 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
 
         var found = new Dictionary<int, VariableFxBinding>();
 
-        foreach (var item in _roomGrain.FurniModule.Items)
+        foreach (var item in FurniModule.Items)
         {
             if (item.Logic is not FurnitureWiredVariableFxLogic box)
                 continue;
@@ -206,8 +206,8 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
         // Someone is still inside their entry delay: look again next round.
         _statusesDirty = waiting;
 
-        var players = _roomGrain
-            .AvatarModule.Players.Where(x => !_playerReadyAtMs.ContainsKey(x.PlayerId))
+        var players = AvatarModule
+            .Players.Where(x => !_playerReadyAtMs.ContainsKey(x.PlayerId))
             .ToList();
 
         foreach (var player in players)
@@ -229,16 +229,23 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
             _viewersByPlayerId[player.PlayerId] = viewer;
         }
 
-        var wanted = players.ToDictionary(
-            x => x.PlayerId,
-            _ => new Dictionary<VariableFxStatusKeySnapshot, VariableFxStatusSnapshot>()
-        );
-
-        foreach (var binding in _bindingsByConfigId.Values)
-            Collect(binding, players, newPlayers, newFurni, wanted);
+        // Each viewer's wanted statuses are rebuilt in the dictionary the viewer keeps, and the
+        // viewers are looked up once here rather than once per status handed to them.
+        _flushViewers.Clear();
 
         foreach (var player in players)
-            Send(player.PlayerId, _viewersByPlayerId[player.PlayerId], wanted[player.PlayerId]);
+        {
+            var viewer = _viewersByPlayerId[player.PlayerId];
+
+            viewer.Wanted.Clear();
+            _flushViewers.Add((player, viewer));
+        }
+
+        foreach (var binding in _bindingsByConfigId.Values)
+            Collect(binding, players, newPlayers, newFurni);
+
+        foreach (var (player, viewer) in _flushViewers)
+            Send(player.PlayerId, viewer);
     }
 
     /// <summary>Every holder of one fx's variable, handed to the viewers allowed to see it.</summary>
@@ -246,11 +253,7 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
         VariableFxBinding binding,
         List<IRoomPlayer> players,
         HashSet<PlayerId> newPlayers,
-        HashSet<int> newFurni,
-        Dictionary<
-            PlayerId,
-            Dictionary<VariableFxStatusKeySnapshot, VariableFxStatusSnapshot>
-        > wanted
+        HashSet<int> newFurni
     )
     {
         var box = binding.Box;
@@ -264,15 +267,16 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
 
         void Hand(VariableFxStatusSnapshot status, IRoomPlayer? holder)
         {
-            foreach (var viewer in players)
+            // What the status says is the same for every viewer, so it is signed once.
+            var wanted = new VariableFxWantedStatus(status, VariableFxBinding.SignatureOf(status));
+
+            foreach (var (player, viewer) in _flushViewers)
             {
-                if (!CanSee(box, audience, viewer, holder))
+                if (!CanSee(box, audience, player, holder))
                     continue;
 
-                var statuses = wanted[viewer.PlayerId];
-
-                if (statuses.Count < cap)
-                    statuses[status.Key] = status;
+                if (viewer.Wanted.Count < cap)
+                    viewer.Wanted[status.Key] = wanted;
             }
         }
 
@@ -289,9 +293,7 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
                 if (!variable.TryGetValue(key, out var value))
                     continue;
 
-                var teamColor = VariableFxStyles.GetTeamColor(
-                    _roomGrain.GameSystem.GetTeam(holder.PlayerId)
-                );
+                var teamColor = VariableFxStyles.GetTeamColor(GameSystem.GetTeam(holder.PlayerId));
                 var status = box.ResolveStatus(
                     new VariableFxStatusKeySnapshot(
                         binding.Config.ConfigId,
@@ -311,7 +313,7 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
         }
 
         // The client can only draw over floor furni.
-        foreach (var item in _roomGrain.FurniModule.Items)
+        foreach (var item in FurniModule.Items)
         {
             if (item is not IRoomFloorItem || _furniReadyAtMs.ContainsKey(item.ObjectId))
                 continue;
@@ -409,10 +411,9 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
                 if (holder is null || holder.PlayerId == viewer.PlayerId)
                     return holder is not null;
 
-                var team = _roomGrain.GameSystem.GetTeam(holder.PlayerId);
+                var team = GameSystem.GetTeam(holder.PlayerId);
 
-                return team != GameTeamType.None
-                    && team == _roomGrain.GameSystem.GetTeam(viewer.PlayerId);
+                return team != GameTeamType.None && team == GameSystem.GetTeam(viewer.PlayerId);
             }
             default:
                 return true;
@@ -420,19 +421,14 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
     }
 
     /// <summary>Sends one viewer what differs from what they were last sent, as one ordered batch.</summary>
-    private void Send(
-        PlayerId playerId,
-        VariableFxViewer viewer,
-        Dictionary<VariableFxStatusKeySnapshot, VariableFxStatusSnapshot> wanted
-    )
+    private void Send(PlayerId playerId, VariableFxViewer viewer)
     {
+        var wanted = viewer.Wanted;
         var gone = viewer.Sent.Keys.Where(key => !wanted.ContainsKey(key)).ToImmutableArray();
         var updates = ImmutableArray.CreateBuilder<VariableFxStatusSnapshot>();
 
-        foreach (var (key, status) in wanted)
+        foreach (var (key, (status, signature)) in wanted)
         {
-            var signature = VariableFxBinding.SignatureOf(status);
-
             if (viewer.Sent.TryGetValue(key, out var sent) && sent == signature)
                 continue;
 
@@ -472,7 +468,9 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
             .SendComposerAsync(batch, CancellationToken.None)
             .LogAndForget(
                 _roomGrain._logger,
-                $"send variable fx to player {playerId} in room {_roomGrain.RoomId}"
+                "send variable fx to player {PlayerId} in room {RoomId}",
+                playerId,
+                _roomGrain.RoomId
             );
     }
 

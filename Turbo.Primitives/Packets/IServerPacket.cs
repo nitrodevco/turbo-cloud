@@ -1,12 +1,18 @@
-using System.IO;
+using System;
 
 namespace Turbo.Primitives.Packets;
 
-public interface IServerPacket : ITurboPacket
+/// <summary>
+/// An outgoing packet being written. Its bytes live in a pooled buffer, so whoever takes the
+/// packet from a serializer copies the bytes out (<see cref="ToArray"/> or
+/// <see cref="WrittenSpan"/>) and then disposes it.
+/// </summary>
+public interface IServerPacket : ITurboPacket, IDisposable
 {
-    public BinaryWriter Writer { get; }
-    public MemoryStream Stream { get; }
     public int Length { get; }
+
+    /// <summary>The bytes written so far. Only valid until the packet is disposed.</summary>
+    public ReadOnlySpan<byte> WrittenSpan { get; }
 
     IServerPacket WriteByte(byte b);
 

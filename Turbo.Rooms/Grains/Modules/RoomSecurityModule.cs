@@ -6,8 +6,8 @@ using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
+using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Roomsettings;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
@@ -21,10 +21,9 @@ namespace Turbo.Rooms.Grains.Modules;
 public sealed class RoomSecurityModule(
     RoomGrain roomGrain,
     IDbContextFactory<TurboDbContext> dbCtxFactory
-)
+) : RoomGrainComponent(roomGrain)
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
-    private readonly RoomGrain _roomGrain = roomGrain;
 
     public async Task<bool> CanManipulateFurniAsync(ActionContext ctx)
     {
@@ -51,21 +50,18 @@ public sealed class RoomSecurityModule(
         return false;
     }
 
-    public async Task<bool> CanUseFurniAsync(ActionContext ctx, FurnitureUsageType usageType)
-    {
-        var controllerLevel = await GetControllerLevelAsync(ctx);
-
-        if (usageType == FurnitureUsageType.Nobody)
-            return false;
-
-        if (usageType == FurnitureUsageType.Controller)
+    /// <summary>
+    /// The usage type decides first: only a controller-only furni needs the player's level,
+    /// which in a group homeroom is a question to the group.
+    /// </summary>
+    public async Task<bool> CanUseFurniAsync(ActionContext ctx, FurnitureUsageType usageType) =>
+        usageType switch
         {
-            if (controllerLevel < RoomControllerType.Rights)
-                return false;
-        }
-
-        return true;
-    }
+            FurnitureUsageType.Nobody => false,
+            FurnitureUsageType.Controller => await GetControllerLevelAsync(ctx)
+                >= RoomControllerType.Rights,
+            _ => true,
+        };
 
     public async Task<bool> CanPlaceFurniAsync(ActionContext ctx)
     {
@@ -123,20 +119,7 @@ public sealed class RoomSecurityModule(
         var guild = await _roomGrain.GetGuildAsync(CancellationToken.None);
 
         if (guild is not null)
-        {
-            // Rights in a homeroom are the group's, not the room's: room_rights rows are ignored
-            // here, and giving or taking them is refused for a group room elsewhere in this file.
-            var rank = await _roomGrain
-                ._grainFactory.GetGuildGrain(guild.GuildId)
-                .GetMemberRankAsync(playerId, CancellationToken.None);
-
-            return rank switch
-            {
-                GuildMemberRank.Owner or GuildMemberRank.Admin => RoomControllerType.GroupAdmin,
-                GuildMemberRank.Member => await GetGroupMemberLevelAsync(guild.GuildId),
-                _ => RoomControllerType.None,
-            };
-        }
+            return await GetGroupLevelAsync(guild, playerId);
 
         if (HasRights(playerId))
             return RoomControllerType.Rights;
@@ -145,19 +128,51 @@ public sealed class RoomSecurityModule(
     }
 
     /// <summary>
-    /// What a plain member of the group gets here, which is the group's decoration setting and
-    /// nothing else.
+    /// A player's level in a group homeroom. Rights there are the group's, not the room's:
+    /// room_rights rows are ignored, and giving or taking them is refused for a group room
+    /// elsewhere in this file. Admins and the owner manage; a plain member gets whatever the
+    /// group's decoration setting gives, which the room already holds on the group summary.
+    /// <para>
+    /// The rank is asked of the group once per player and kept, because every build, pick-up
+    /// and wired check asks it. The group tells the room whenever the answer can change
+    /// (<see cref="ForgetGroupLevel"/> from a member's rank, <see cref="ForgetGroupLevels"/>
+    /// from the group's own settings, which also re-reads the summary), and the room forgets a
+    /// player when they leave.
+    /// </para>
     /// </summary>
-    private async Task<RoomControllerType> GetGroupMemberLevelAsync(GuildId guildId)
+    private async Task<RoomControllerType> GetGroupLevelAsync(
+        GuildSummarySnapshot guild,
+        PlayerId playerId
+    )
     {
-        var guild = await _roomGrain
-            ._grainFactory.GetGuildGrain(guildId)
-            .GetSnapshotAsync(CancellationToken.None);
+        var levels = _roomGrain._state.GroupLevelByPlayerId;
 
-        return guild?.RightsLevel == GuildRightsLevel.Members
-            ? RoomControllerType.GroupRights
-            : RoomControllerType.None;
+        if (levels.TryGetValue(playerId, out var known))
+            return known;
+
+        var rank = await _roomGrain
+            ._grainFactory.GetGuildGrain(guild.GuildId)
+            .GetMemberRankAsync(playerId, CancellationToken.None);
+
+        var level = rank switch
+        {
+            GuildMemberRank.Owner or GuildMemberRank.Admin => RoomControllerType.GroupAdmin,
+            GuildMemberRank.Member when guild.RightsLevel == GuildRightsLevel.Members =>
+                RoomControllerType.GroupRights,
+            _ => RoomControllerType.None,
+        };
+
+        levels[playerId] = level;
+
+        return level;
     }
+
+    /// <summary>One player's standing in the group changed, or they left the room.</summary>
+    internal void ForgetGroupLevel(PlayerId playerId) =>
+        _roomGrain._state.GroupLevelByPlayerId.Remove(playerId);
+
+    /// <summary>The group changed, or the room stopped or started being its homeroom.</summary>
+    internal void ForgetGroupLevels() => _roomGrain._state.GroupLevelByPlayerId.Clear();
 
     public async Task RefreshControllerLevelForPlayerAsync(PlayerId playerId, CancellationToken ct)
     {
@@ -181,7 +196,7 @@ public sealed class RoomSecurityModule(
             ct
         );
 
-        if (!_roomGrain.AvatarModule.TryGetPlayer(playerId, out var avatar))
+        if (!AvatarModule.TryGetPlayer(playerId, out var avatar))
             return;
 
         avatar.AddStatus(AvatarStatusType.FlatControl, ((int)controllerLevel).ToString());

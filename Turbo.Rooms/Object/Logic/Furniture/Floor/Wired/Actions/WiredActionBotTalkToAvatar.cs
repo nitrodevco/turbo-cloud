@@ -48,13 +48,13 @@ public class WiredActionBotTalkToAvatar(
 
         if (!whisper)
         {
-            await _roomGrain.BotModule.TalkAsync(bot, text, false, bubbleWidth, ct);
+            await BotModule.TalkAsync(bot, text, false, bubbleWidth, ct);
 
             return true;
         }
 
         foreach (var player in players)
-            await _roomGrain.BotModule.WhisperAsync(bot, player, text, bubbleWidth, ct);
+            await BotModule.WhisperAsync(bot, player, text, bubbleWidth, ct);
 
         return true;
     }

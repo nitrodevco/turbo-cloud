@@ -43,7 +43,7 @@ public class WiredActionTeleportTo(
             return false;
 
         var stayIfAlreadyThere = GetIntParamOrDefault(0, false);
-        var map = _roomGrain.MapModule;
+        var map = MapModule;
         var moved = false;
 
         foreach (var player in players)

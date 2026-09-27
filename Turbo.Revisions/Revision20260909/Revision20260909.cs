@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using Turbo.Primitives.Messages.Outgoing.Advertisement;
 using Turbo.Primitives.Messages.Outgoing.Availability;
@@ -199,6 +200,7 @@ public class Revision20260909 : IRevision
     public string Revision => "WIN63-202609091217-117204808";
 
     #region Incoming
+    // Frozen: built once at startup and read for every packet in and out.
     public IDictionary<int, IParser> Parsers { get; } =
         new Dictionary<int, IParser>
         {
@@ -1521,10 +1523,11 @@ public class Revision20260909 : IRevision
                 new WithdrawCreditVaultMessageParser()
             },
             #endregion
-        };
+        }.ToFrozenDictionary();
     #endregion
 
     #region Outgoing
+    // Frozen for the same reason as the parsers.
     public IDictionary<Type, ISerializer> Serializers { get; } =
         new Dictionary<Type, ISerializer>
         {
@@ -4635,6 +4638,6 @@ public class Revision20260909 : IRevision
                 )
             },
             #endregion
-        };
+        }.ToFrozenDictionary();
     #endregion
 }

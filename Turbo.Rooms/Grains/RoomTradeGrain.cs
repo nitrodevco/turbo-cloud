@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -486,8 +487,11 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
         return summary.Perks.HasFlag(PlayerPerkFlags.Trade);
     }
 
-    private bool TryGetOpenSession(PlayerId playerId, out TradeSession session) =>
-        _state.TradesByPlayerId.TryGetValue(playerId, out session!)
+    private bool TryGetOpenSession(
+        PlayerId playerId,
+        [NotNullWhen(true)] out TradeSession? session
+    ) =>
+        _state.TradesByPlayerId.TryGetValue(playerId, out session)
         && session.State == TradeStateType.Open;
 
     private async Task<bool> RunAsync(ActionContext ctx, string action, Func<Task<bool>> body)

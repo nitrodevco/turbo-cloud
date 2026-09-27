@@ -133,7 +133,7 @@ public class WiredAddonVariableTimeUtil(
         if (ResolveInstant(parent, key) is not { } instant)
             return null;
 
-        var local = TimeZoneInfo.ConvertTime(instant, _roomGrain.WiredSystem.GetRoomTimeZone());
+        var local = TimeZoneInfo.ConvertTime(instant, WiredSystem.GetRoomTimeZone());
 
         return field switch
         {

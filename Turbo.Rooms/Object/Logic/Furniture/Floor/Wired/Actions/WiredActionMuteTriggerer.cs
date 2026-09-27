@@ -40,13 +40,7 @@ public class WiredActionMuteTriggerer(
 
         foreach (var player in GetPlayers(ctx.GetSelection(this)))
         {
-            if (
-                !await _roomGrain.ModerationModule.MutePlayerBySystemAsync(
-                    player.PlayerId,
-                    minutes,
-                    ct
-                )
-            )
+            if (!await ModerationModule.MutePlayerBySystemAsync(player.PlayerId, minutes, ct))
                 continue;
 
             muted = true;
@@ -54,7 +48,7 @@ public class WiredActionMuteTriggerer(
             if (message.Length == 0)
                 continue;
 
-            await _roomGrain.ChatSystem.WhisperToPlayerAsync(player, message, ct);
+            await ChatSystem.WhisperToPlayerAsync(player, message, ct);
         }
 
         return muted;

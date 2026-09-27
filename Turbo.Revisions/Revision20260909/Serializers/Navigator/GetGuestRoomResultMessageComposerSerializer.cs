@@ -14,7 +14,7 @@ internal class GetGuestRoomResultMessageComposerSerializer(int header)
     {
         packet.WriteBoolean(message.EnterRoom);
 
-        RoomSettingsSerializer.Serialize(packet, message.RoomInfo);
+        RoomSettingsSerializer.Serialize(packet, message.RoomInfo, message.SentAtUtc);
 
         packet
             .WriteBoolean(message.RoomForward)

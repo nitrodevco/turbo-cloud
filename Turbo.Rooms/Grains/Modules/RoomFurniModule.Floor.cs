@@ -38,18 +38,16 @@ public sealed partial class RoomFurniModule
             return false;
 
         // A limit tells its own kind of furni by the logic, which a new item does not have yet.
-        _roomGrain.ObjectModule.EnsureLogic(item);
+        ObjectModule.EnsureLogic(item);
         EnsureWithinPlacementLimits(item);
 
         // The item stands where it goes before it is attached, so its logic and the map see
         // it there from the start rather than at the origin tile it was created on.
         item.SetPosition(x, y);
-        item.SetPositionZ(
-            z ?? _roomGrain.MapModule.GetTileHeight(_roomGrain.MapModule.ToIdx(x, y))
-        );
+        item.SetPositionZ(z ?? MapModule.GetTileHeight(MapModule.ToIdx(x, y)));
         item.SetRotation(rot);
 
-        if (!await _roomGrain.ObjectModule.AttatchObjectAsync(item, ct))
+        if (!await ObjectModule.AttatchObjectAsync(item, ct))
             return false;
 
         await item.Logic.OnPlaceAsync(ctx, ct);
@@ -80,7 +78,7 @@ public sealed partial class RoomFurniModule
         return await MoveFloorItemAsync(
             ctx,
             floor,
-            _roomGrain.MapModule.ToIdx(x, y),
+            MapModule.ToIdx(x, y),
             z,
             rot,
             announce: true,
@@ -104,9 +102,9 @@ public sealed partial class RoomFurniModule
         CancellationToken ct
     )
     {
-        var prevIdx = _roomGrain.MapModule.ToIdx(item.X, item.Y);
+        var prevIdx = MapModule.ToIdx(item.X, item.Y);
 
-        if (!_roomGrain.MapModule.MoveFloorItem(item, tileIdx, z, rot))
+        if (!MapModule.MoveFloorItem(item, tileIdx, z, rot))
             return false;
 
         if (announce)
@@ -132,8 +130,8 @@ public sealed partial class RoomFurniModule
     public bool CanPlaceFloorItem(IRoomFloorItem item, int x, int y, Rotation rot)
     {
         if (
-            !_roomGrain.MapModule.InBounds(x, y)
-            || !_roomGrain.MapModule.GetTileIdForSize(
+            !MapModule.InBounds(x, y)
+            || !MapModule.GetTileIdForSize(
                 x,
                 y,
                 rot,
@@ -151,7 +149,7 @@ public sealed partial class RoomFurniModule
             var tileFlags = _roomGrain._state.TileFlags[idx];
             var tileHeight = _roomGrain._state.TileHeights[idx];
 
-            _roomGrain.MapModule.TryGetHighestFloorItem(idx, out var top);
+            MapModule.TryGetHighestFloorItem(idx, out var top);
 
             // An item already standing here is moved or turned in place: it is not in its own way.
             var isSelf = ReferenceEquals(top, item);
@@ -206,18 +204,11 @@ public sealed partial class RoomFurniModule
             ? logic.CanWalk() || logic.CanSit() || logic.CanLay()
             : item.Definition.CanWalk || item.Definition.CanSit || item.Definition.CanLay;
 
-    public Task<ImmutableArray<RoomFloorItemSnapshot>> GetAllFloorItemSnapshotsAsync(
-        CancellationToken ct
-    ) =>
-        Task.FromResult(
-            _roomGrain
-                ._state.ItemsById.Values.OfType<IRoomFloorItem>()
-                .Select(x => x.GetSnapshot())
-                .ToImmutableArray()
-        );
+    public ImmutableArray<RoomFloorItemSnapshot> GetFloorItemSnapshots() =>
+        [.. Items.OfType<IRoomFloorItem>().Select(x => x.GetSnapshot())];
 
     public bool GetTileIdForFloorItem(IRoomFloorItem item, out List<int> tileIds) =>
-        _roomGrain.MapModule.GetTileIdForSize(
+        MapModule.GetTileIdForSize(
             item.X,
             item.Y,
             item.Rotation,

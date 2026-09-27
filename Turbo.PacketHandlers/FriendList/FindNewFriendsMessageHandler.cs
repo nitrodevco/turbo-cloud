@@ -4,7 +4,6 @@ using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
 using Turbo.Primitives.Messages.Outgoing.FriendList;
-using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.FriendList;
@@ -37,11 +36,8 @@ public class FindNewFriendsMessageHandler(IGrainFactory grainFactory)
                 )
                 .ConfigureAwait(false);
 
-            // Navigate the player to the random room
-            await ctx.SendComposerAsync(
-                    new RoomForwardMessageComposer { RoomId = randomRoomId.Value },
-                    ct
-                )
+            await _grainFactory
+                .ForwardPlayerToRoomAsync(ctx.PlayerId, randomRoomId.Value, ct)
                 .ConfigureAwait(false);
         }
         else

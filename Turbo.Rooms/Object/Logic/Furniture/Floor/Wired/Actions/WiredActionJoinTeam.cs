@@ -59,14 +59,12 @@ public class WiredActionJoinTeam(
             var playerId = player.PlayerId;
             var team = mode switch
             {
-                MODE_SMALLEST => TEAMS
-                    .OrderBy(t => _roomGrain.GameSystem.GetTeamMembers(t).Count())
-                    .First(),
+                MODE_SMALLEST => TEAMS.OrderBy(t => GameSystem.GetTeamMembers(t).Count()).First(),
                 MODE_RANDOM => TEAMS[Random.Shared.Next(TEAMS.Length)],
                 _ => GetIntParamOrDefault(0, GameTeamType.Red),
             };
 
-            joined |= await _roomGrain.GameSystem.JoinTeamAsync(playerId, team, ct);
+            joined |= await GameSystem.JoinTeamAsync(playerId, team, ct);
         }
 
         return joined;

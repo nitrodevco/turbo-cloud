@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Guilds;
+using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
@@ -71,6 +72,9 @@ public sealed partial class RoomGrain
         _guildResolved = false;
         _guild = null;
 
+        // Levels the group gave are the group's settings applied; any of those may have moved.
+        SecurityModule.ForgetGroupLevels();
+
         // Cleared here as well as in GetGuildAsync: if the re-read fails, the room must not go
         // on advertising a group it can no longer confirm.
         if (_state.RoomSnapshot is not null)
@@ -79,15 +83,21 @@ public sealed partial class RoomGrain
         await GetGuildAsync(ct);
 
         // Rights here are the group's, so whoever is standing in the room may now build when
-        // they could not, or the other way round.
-        foreach (var playerId in _state.AvatarsByPlayerId.Keys.ToList())
-            await SecurityModule.RefreshControllerLevelForPlayerAsync(playerId, ct);
+        // they could not, or the other way round. Each player's refresh asks the group and tells
+        // that player's own presence, so they go side by side.
+        await Task.WhenAll(
+            _state
+                .AvatarsByPlayerId.Keys.ToList()
+                .Select(playerId =>
+                    SecurityModule.RefreshControllerLevelForPlayerAsync(playerId, ct)
+                )
+        );
     }
 
     public async Task SetPlayerFavouriteGuildAsync(
         PlayerId playerId,
         int guildId,
-        int guildStatus,
+        GuildMembershipStatus guildStatus,
         string guildName,
         CancellationToken ct
     )
@@ -114,6 +124,9 @@ public sealed partial class RoomGrain
 
     public async Task RefreshGuildMemberAsync(PlayerId playerId, CancellationToken ct)
     {
+        // Forgotten whether or not they are here: a level is also asked for players elsewhere.
+        SecurityModule.ForgetGroupLevel(playerId);
+
         if (!_state.AvatarsByPlayerId.ContainsKey(playerId))
             return;
 

@@ -77,7 +77,11 @@ public abstract class FurnitureWiredActionLogic(
                 },
                 CancellationToken.None
             )
-            .LogAndForget(_roomGrain._logger, $"publish an event in room {_roomGrain.RoomId}");
+            .LogAndForget(
+                _roomGrain._logger,
+                "publish an event in room {RoomId}",
+                _roomGrain.RoomId
+            );
 
     /// <summary>
     /// Asked first by a box that sets more wired off (a signal, a stack call): past
@@ -89,7 +93,7 @@ public abstract class FurnitureWiredActionLogic(
         if (ctx.Depth < _roomGrain._wiredConfig.MaxDepth)
             return false;
 
-        _roomGrain.WiredSystem.RecordError(
+        WiredSystem.RecordError(
             "WiredCallDepthExceeded",
             Grains.Systems.RoomWiredSystem.GetErrorCategory(this),
             _roomGrain.NowMs()

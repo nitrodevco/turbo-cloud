@@ -35,13 +35,13 @@ public class WiredActionBotFollowAvatar(
         var start = GetIntParamOrDefault(0, true);
 
         if (!start)
-            return await _roomGrain.BotModule.FollowAsync(bot, -1, false);
+            return await BotModule.FollowAsync(bot, -1, false);
 
         var players = GetPlayers(ctx.GetSelection(this));
 
         if (players.Count == 0)
             return false;
 
-        return await _roomGrain.BotModule.FollowAsync(bot, players[0].ObjectId, true);
+        return await BotModule.FollowAsync(bot, players[0].ObjectId, true);
     }
 }

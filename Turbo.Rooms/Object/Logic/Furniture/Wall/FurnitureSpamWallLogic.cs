@@ -87,7 +87,7 @@ public class FurnitureSpamWallLogic(
             new { stuff = JsonSerializer.SerializeToNode(stuffData, stuffData.GetType()) }
         );
 
-        return await _roomGrain.FurniModule.CreateWallItemAsync(
+        return await FurniModule.CreateWallItemAsync(
             ctx,
             definition,
             _ctx.RoomObject.OwnerId,

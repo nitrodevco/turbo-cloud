@@ -148,9 +148,9 @@ public sealed partial class RoomPetModule
             return false;
         }
 
-        _roomGrain.AvatarModule.TryGetPlayer(pet.OwnerId, out var owner);
+        AvatarModule.TryGetPlayer(pet.OwnerId, out var owner);
 
-        await _roomGrain.AvatarModule.StopWalkingAsync(pet, ct);
+        await AvatarModule.StopWalkingAsync(pet, ct);
 
         ClearActionStatuses(pet);
 
@@ -266,7 +266,7 @@ public sealed partial class RoomPetModule
         pet.AddStatus(AvatarStatusType.Gesture, AvatarStatusType.Speak.ToLegacyString());
         pet.ActionExpiresAtMs = _roomGrain.NowMs() + Config.SpeakDurationMs;
 
-        await _roomGrain.ChatSystem.SayAsAvatarAsync(pet, line, new AvatarSpeech(), ct);
+        await ChatSystem.SayAsAvatarAsync(pet, line, new AvatarSpeech(), ct);
     }
 
     /// <summary>Walks <paramref name="walker"/> to a free tile next to <paramref name="target"/>; false when none is reachable.</summary>
@@ -281,20 +281,22 @@ public sealed partial class RoomPetModule
 
         foreach (var (x, y) in TilesAround(target.X, target.Y))
         {
-            if (!IsTileFreeForNpc(_roomGrain.MapModule.ToIdx(x, y)))
+            if (!IsTileFreeForNpc(MapModule.ToIdx(x, y)))
                 continue;
 
-            if (await _roomGrain.AvatarModule.WalkAvatarToAsync(walker, x, y, ct))
+            if (await AvatarModule.WalkAvatarToAsync(walker, x, y, ct))
                 return true;
         }
 
         return false;
     }
 
+    /// <summary>The tiles around one, in a random order, so a pet does not always pick the same side.</summary>
     internal (int X, int Y)[] TilesAround(int x, int y)
     {
-        var map = _roomGrain.MapModule;
-        var tiles = new System.Collections.Generic.List<(int, int)>();
+        var map = MapModule;
+        var tiles = new (int X, int Y)[8];
+        var count = 0;
 
         for (var dx = -1; dx <= 1; dx++)
         {
@@ -304,11 +306,15 @@ public sealed partial class RoomPetModule
                     continue;
 
                 if (map.InBounds(x + dx, y + dy))
-                    tiles.Add((x + dx, y + dy));
+                    tiles[count++] = (x + dx, y + dy);
             }
         }
 
-        return [.. tiles.OrderBy(_ => NextRandom(0, int.MaxValue))];
+        var around = count == tiles.Length ? tiles : tiles[..count];
+
+        _random.Shuffle(around);
+
+        return around;
     }
 
     internal async Task AddExperienceAsync(IRoomPet pet, int amount, CancellationToken ct)
@@ -331,7 +337,7 @@ public sealed partial class RoomPetModule
         while (pet.Level < MaxLevelFor(pet) && pet.Experience >= ExperienceToLevel(pet.Level))
             await LevelUpAsync(pet, ct);
 
-        await PersistAsync(pet, ct);
+        Persist(pet);
     }
 
     internal async Task LevelUpAsync(IRoomPet pet, CancellationToken ct)
@@ -383,7 +389,7 @@ public sealed partial class RoomPetModule
         if (pet.X == item.X && pet.Y == item.Y)
             return true;
 
-        if (await _roomGrain.AvatarModule.WalkAvatarToAsync(pet, item.X, item.Y, ct))
+        if (await AvatarModule.WalkAvatarToAsync(pet, item.X, item.Y, ct))
             return true;
 
         pet.TargetItemId = -1;
@@ -391,13 +397,34 @@ public sealed partial class RoomPetModule
         return false;
     }
 
-    internal IRoomObject? FindSupplyItem(PetSupplyType type) =>
-        _roomGrain
-            ._state.ItemsById.Values.Where(x =>
-                x.Logic is Object.Logic.Furniture.Floor.Pets.IPetSupplyLogic supply
-                && supply.SupplyType == type
-                && supply.HasSuppliesLeft
+    /// <summary>
+    /// A supply item of the wanted kind with something left, picked at random among them. One
+    /// pass with a reservoir of one: every candidate is equally likely, as when the whole list
+    /// was shuffled to take its first.
+    /// </summary>
+    internal IRoomObject? FindSupplyItem(PetSupplyType type)
+    {
+        IRoomObject? picked = null;
+        var seen = 0;
+
+        foreach (var item in FurniModule.Items)
+        {
+            if (
+                item.Logic
+                    is not Object.Logic.Furniture.Floor.Pets.IPetSupplyLogic
+                    {
+                        HasSuppliesLeft: true,
+                    } supply
+                || supply.SupplyType != type
             )
-            .OrderBy(_ => NextRandom(0, int.MaxValue))
-            .FirstOrDefault();
+                continue;
+
+            seen++;
+
+            if (_random.Next(seen) == 0)
+                picked = item;
+        }
+
+        return picked;
+    }
 }

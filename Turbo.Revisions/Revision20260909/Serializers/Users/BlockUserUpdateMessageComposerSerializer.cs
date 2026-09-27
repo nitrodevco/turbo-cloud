@@ -8,7 +8,7 @@ internal class BlockUserUpdateMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, BlockUserUpdateMessageComposer message)
     {
-        packet.WriteInteger(message.Result);
+        packet.WriteInteger((int)message.Result);
         packet.WriteInteger(message.UserId);
     }
 }

@@ -190,9 +190,9 @@ namespace Turbo.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PlayerEntityId");
-
                     b.HasIndex("RoomEntityId");
+
+                    b.HasIndex("PlayerEntityId", "RoomEntityId");
 
                     b.ToTable("bots");
                 });
@@ -579,7 +579,9 @@ namespace Turbo.Database.Migrations
 
                     b.HasIndex("PlayerEntityId");
 
-                    b.HasIndex("SeriesEntityId");
+                    b.HasIndex("BatchId", "PlayerEntityId");
+
+                    b.HasIndex("SeriesEntityId", "PlayerEntityId", "Result");
 
                     b.ToTable("ltd_raffle_entries");
                 });
@@ -952,9 +954,9 @@ namespace Turbo.Database.Migrations
 
                     b.HasIndex("FurnitureDefinitionEntityId");
 
-                    b.HasIndex("PlayerEntityId");
-
                     b.HasIndex("RoomEntityId");
+
+                    b.HasIndex("PlayerEntityId", "RoomEntityId");
 
                     b.ToTable("furniture");
                 });
@@ -1837,6 +1839,10 @@ namespace Turbo.Database.Migrations
                         .HasDefaultValue(100)
                         .HasColumnName("energy");
 
+                    b.Property<DateTime?>("EnergyDecayDueAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("energy_decay_due_at");
+
                     b.Property<int>("Experience")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
@@ -1876,6 +1882,10 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(100)
                         .HasColumnName("nutrition");
+
+                    b.Property<DateTime?>("NutritionDecayDueAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("nutrition_decay_due_at");
 
                     b.Property<int>("PaletteId")
                         .HasColumnType("int")
@@ -1941,9 +1951,9 @@ namespace Turbo.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PlayerEntityId");
-
                     b.HasIndex("RoomEntityId");
+
+                    b.HasIndex("PlayerEntityId", "RoomEntityId");
 
                     b.ToTable("pets");
                 });
@@ -3177,11 +3187,17 @@ namespace Turbo.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("NavigatorCategoryEntityId");
+                    b.HasIndex("HiddenByBc");
 
                     b.HasIndex("PlayerEntityId");
 
                     b.HasIndex("RoomModelEntityId");
+
+                    b.HasIndex("Score");
+
+                    b.HasIndex("NavigatorCategoryEntityId", "Score");
+
+                    b.HasIndex("StaffPick", "Score");
 
                     b.ToTable("rooms");
                 });
@@ -3226,9 +3242,9 @@ namespace Turbo.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PlayerEntityId");
-
                     b.HasIndex("RoomEntityId");
+
+                    b.HasIndex("PlayerEntityId", "RoomEntityId", "CreatedAt");
 
                     b.ToTable("room_entry_logs");
                 });

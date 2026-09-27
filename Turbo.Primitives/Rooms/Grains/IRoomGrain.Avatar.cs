@@ -8,7 +8,6 @@ using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots;
-using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Primitives.Rooms.Grains;
 
@@ -94,9 +93,6 @@ public partial interface IRoomGrain
     public Task<bool> SetAvatarPostureAsync(
         ActionContext ctx,
         AvatarPostureType postureType,
-        CancellationToken ct
-    );
-    public Task<ImmutableArray<RoomAvatarSnapshot>> GetAllAvatarSnapshotsAsync(
         CancellationToken ct
     );
 }

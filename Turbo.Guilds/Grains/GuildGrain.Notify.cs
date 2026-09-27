@@ -34,7 +34,7 @@ internal sealed partial class GuildGrain
         _grainFactory
             .GetRoomGrain(guild.RoomId)
             .OnGuildChangedAsync(CancellationToken.None)
-            .LogAndForget(_logger, $"refresh the homeroom of group {GuildId.Value}");
+            .LogAndForget(_logger, "refresh the homeroom of group {GuildId}", GuildId.Value);
     }
 
     /// <summary>
@@ -51,7 +51,9 @@ internal sealed partial class GuildGrain
             .RefreshGuildMemberAsync(playerId, CancellationToken.None)
             .LogAndForget(
                 _logger,
-                $"refresh member {playerId.Value} in the homeroom of group {GuildId.Value}"
+                "refresh member {PlayerId} in the homeroom of group {GuildId}",
+                playerId.Value,
+                GuildId.Value
             );
     }
 
@@ -62,7 +64,7 @@ internal sealed partial class GuildGrain
     /// </summary>
     private void NotifyGuildFurniChanged() =>
         RepaintGuildFurniAsync()
-            .LogAndForget(_logger, $"repaint the furni of group {GuildId.Value}");
+            .LogAndForget(_logger, "repaint the furni of group {GuildId}", GuildId.Value);
 
     private async Task RepaintGuildFurniAsync()
     {
@@ -78,7 +80,12 @@ internal sealed partial class GuildGrain
             _grainFactory
                 .GetRoomGrain(roomId)
                 .RefreshGuildFurniAsync(guildId, CancellationToken.None)
-                .LogAndForget(_logger, $"repaint group {guildId.Value} furni in room {roomId}");
+                .LogAndForget(
+                    _logger,
+                    "repaint group {GuildId} furni in room {RoomId}",
+                    guildId.Value,
+                    roomId
+                );
         }
     }
 }

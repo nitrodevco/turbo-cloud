@@ -55,12 +55,12 @@ public abstract class UserPlacementVariable(RoomGrain roomGrain)
 
         var (x, y) = ApplyTile(avatar, value);
 
-        if (!_roomGrain.MapModule.InBounds(x, y))
+        if (!MapModule.InBounds(x, y))
             return false;
 
         return await ctx.ProcessUserMovementAsync(
             avatar,
-            _roomGrain.MapModule.ToIdx(x, y),
+            MapModule.ToIdx(x, y),
             SlideAvatarMoveType.Move
         );
     }

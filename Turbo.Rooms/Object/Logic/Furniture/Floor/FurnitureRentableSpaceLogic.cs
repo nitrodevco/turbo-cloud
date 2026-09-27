@@ -12,7 +12,6 @@ using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -48,7 +47,7 @@ public class FurnitureRentableSpaceLogic(
 
     public override Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
     {
-        _roomGrain.TimerSystem.Cancel(_ctx.ObjectId);
+        TimerSystem.Cancel(_ctx.ObjectId);
 
         return base.OnPickupAsync(ctx, ct);
     }
@@ -56,7 +55,7 @@ public class FurnitureRentableSpaceLogic(
     public bool GrantsBuildRights(PlayerId playerId, IReadOnlyCollection<int> tileIds) =>
         GetActiveRent() is { } rent
         && rent.RenterId == playerId
-        && _roomGrain.FurniModule.GetTileIdForFloorItem(_ctx.RoomObject, out var area)
+        && FurniModule.GetTileIdForFloorItem(_ctx.RoomObject, out var area)
         && tileIds.All(area.Contains);
 
     public override async Task<bool> OnInteractAsync(
@@ -87,8 +86,12 @@ public class FurnitureRentableSpaceLogic(
     )
     {
         var refusal = await GetRentRefusalAsync(ctx, ct);
+        List<WalletDebitRequest>? paid = null;
 
-        if (refusal == RentableSpaceRentFailedType.None && !await TryPayAsync(ctx, ct))
+        if (
+            refusal == RentableSpaceRentFailedType.None
+            && (paid = await TryPayAsync(ctx, ct)) is null
+        )
             refusal = RentableSpaceRentFailedType.NotEnoughCredits;
 
         if (refusal != RentableSpaceRentFailedType.None)
@@ -102,22 +105,42 @@ public class FurnitureRentableSpaceLogic(
             return Reject(ctx, interaction, refusal.ToString());
         }
 
-        var renter = await _roomGrain
-            ._grainFactory.GetPlayerGrain(ctx.PlayerId)
-            .GetSummaryAsync(ct);
-        var expiresAt =
-            DateTimeOffset.UtcNow.ToUnixTimeSeconds()
-            + _roomGrain._roomConfig.RentableSpaceDurationSeconds;
+        long expiresAt;
 
-        _ctx.RoomObject.ExtraData.UpdateSection(
-            RentableSpaceData.SECTION,
-            new RentableSpaceData
-            {
-                RenterId = ctx.PlayerId,
-                RenterName = renter.Name,
-                ExpiresAt = expiresAt,
-            }
-        );
+        // The credits are gone before the rent exists; a rent that cannot be written gives them
+        // back, and the failure still surfaces.
+        try
+        {
+            var renter = await _roomGrain
+                ._grainFactory.GetPlayerGrain(ctx.PlayerId)
+                .GetSummaryAsync(ct);
+
+            expiresAt =
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+                + _roomGrain._roomConfig.RentableSpaceDurationSeconds;
+
+            _ctx.RoomObject.ExtraData.UpdateSection(
+                RentableSpaceData.SECTION,
+                new RentableSpaceData
+                {
+                    RenterId = ctx.PlayerId,
+                    RenterName = renter.Name,
+                    ExpiresAt = expiresAt,
+                }
+            );
+        }
+        catch
+        {
+            if (paid is { Count: > 0 })
+                await _roomGrain._grainFactory.RefundAsync(
+                    ctx.PlayerId,
+                    paid,
+                    _roomGrain._logger,
+                    $"renting space {_ctx.ObjectId} in room {_ctx.RoomId}"
+                );
+
+            throw;
+        }
 
         ScheduleExpiry();
 
@@ -145,7 +168,7 @@ public class FurnitureRentableSpaceLogic(
             null => RentableSpaceRentFailedType.NotRented,
             var rent
                 when rent.RenterId != ctx.PlayerId
-                    && !await _roomGrain.SecurityModule.GetIsRoomOwnerAsync(ctx) =>
+                    && !await SecurityModule.GetIsRoomOwnerAsync(ctx) =>
                 RentableSpaceRentFailedType.NotRentedByYou,
             _ => RentableSpaceRentFailedType.None,
         };
@@ -186,10 +209,7 @@ public class FurnitureRentableSpaceLogic(
 
         var credits = await _roomGrain
             ._grainFactory.GetPlayerWalletGrain(ctx.PlayerId)
-            .GetAmountForCurrencyAsync(
-                new CurrencyKind { CurrencyType = CurrencyType.Credits },
-                ct
-            );
+            .GetAmountForCurrencyAsync(CurrencyKind.Credits, ct);
 
         return credits < price
             ? RentableSpaceRentFailedType.NotEnoughCredits
@@ -197,33 +217,33 @@ public class FurnitureRentableSpaceLogic(
     }
 
     private bool RentsAnotherSpace(PlayerId playerId) =>
-        _roomGrain.FurniModule.Items.Any(x =>
+        FurniModule.Items.Any(x =>
             x.ObjectId != _ctx.ObjectId
             && x.Logic is FurnitureRentableSpaceLogic other
             && other.GetActiveRent()?.RenterId == playerId
         );
 
-    private async Task<bool> TryPayAsync(ActionContext ctx, CancellationToken ct)
+    /// <summary>What was taken for the rent, empty when it is free; null when the wallet refused.</summary>
+    private async Task<List<WalletDebitRequest>?> TryPayAsync(
+        ActionContext ctx,
+        CancellationToken ct
+    )
     {
         var price = _roomGrain._roomConfig.RentableSpacePriceCredits;
 
         if (price <= 0)
-            return true;
+            return [];
+
+        List<WalletDebitRequest> debits =
+        [
+            new WalletDebitRequest { CurrencyKind = CurrencyKind.Credits, Amount = price },
+        ];
 
         var result = await _roomGrain
             ._grainFactory.GetPlayerWalletGrain(ctx.PlayerId)
-            .TryDebitAsync(
-                [
-                    new WalletDebitRequest
-                    {
-                        CurrencyKind = new CurrencyKind { CurrencyType = CurrencyType.Credits },
-                        Amount = price,
-                    },
-                ],
-                ct
-            );
+            .TryDebitAsync(debits, ct);
 
-        return result.Succeeded;
+        return result.Succeeded ? debits : null;
     }
 
     /// <summary>Frees the space and sends what the renter built on it back to them.</summary>
@@ -231,24 +251,24 @@ public class FurnitureRentableSpaceLogic(
     {
         var rent = ReadRent();
 
-        _roomGrain.TimerSystem.Cancel(_ctx.ObjectId);
+        TimerSystem.Cancel(_ctx.ObjectId);
         _ctx.RoomObject.ExtraData.UpdateSection(RentableSpaceData.SECTION, new RentableSpaceData());
 
         await SetStateAsync(RentableSpaceStates.FREE);
 
         if (
             rent is not { RenterId: > 0 }
-            || !_roomGrain.FurniModule.GetTileIdForFloorItem(_ctx.RoomObject, out var area)
+            || !FurniModule.GetTileIdForFloorItem(_ctx.RoomObject, out var area)
         )
             return;
 
-        var built = area.SelectMany(_roomGrain.FurniModule.GetFloorItemsOnTile)
+        var built = area.SelectMany(FurniModule.GetFloorItemsOnTile)
             .Where(x => x.ObjectId != _ctx.ObjectId && x.OwnerId == rent.RenterId)
             .DistinctBy(x => x.ObjectId)
             .Cast<IRoomItem>()
             .ToList();
 
-        await _roomGrain.ActionModule.ReturnItemsToOwnersAsync(built, ct);
+        await ActionModule.ReturnItemsToOwnersAsync(built, ct);
     }
 
     private void ScheduleExpiry()
@@ -258,7 +278,7 @@ public class FurnitureRentableSpaceLogic(
 
         var remaining = DateTimeOffset.FromUnixTimeSeconds(rent.ExpiresAt) - DateTimeOffset.UtcNow;
 
-        _roomGrain.TimerSystem.Schedule(
+        TimerSystem.Schedule(
             _ctx.ObjectId,
             (int)Math.Clamp(remaining.TotalMilliseconds, 1, int.MaxValue),
             EndRentAsync

@@ -38,17 +38,30 @@ internal sealed partial class PlayerPresenceGrain
             }
         );
 
-    public Task SetPendingRoomEntryAsync(
-        RoomId roomId,
-        RoomEntrySnapshot entry,
-        CancellationToken ct
-    )
+    public Task ForwardToRoomAsync(RoomId roomId, RoomEntrySnapshot entry, CancellationToken ct)
     {
+        // Recorded before the forward is queued, in the same turn, so the entry is in place by
+        // the time the client asks to come in.
         _state.PendingEntryRoomId = roomId;
         _state.PendingEntry = entry;
+        _state.PendingEntrySetAtUtc = DateTime.UtcNow;
 
-        return Task.CompletedTask;
+        return SendComposerAsync(new RoomForwardMessageComposer { RoomId = roomId }, ct);
     }
+
+    public Task<RoomEntrySnapshot> GetPendingRoomEntryAsync(RoomId roomId, CancellationToken ct) =>
+        Task.FromResult(PendingEntryFor(roomId));
+
+    /// <summary>
+    /// The entry a forward named for <paramref name="roomId"/>, while it is fresh; a plain
+    /// entry otherwise.
+    /// </summary>
+    private RoomEntrySnapshot PendingEntryFor(RoomId roomId) =>
+        _state.PendingEntryRoomId == roomId
+        && DateTime.UtcNow - _state.PendingEntrySetAtUtc
+            <= TimeSpan.FromMilliseconds(_playerConfig.PendingRoomEntryTtlMs)
+            ? _state.PendingEntry
+            : RoomEntrySnapshot.Default;
 
     public async Task SetActiveRoomAsync(RoomId roomId, CancellationToken ct)
     {
@@ -60,6 +73,7 @@ internal sealed partial class PlayerPresenceGrain
 
         _state.ActiveRoomId = roomId;
         _state.ActiveRoomSinceUtc = DateTime.UtcNow;
+        OnActiveRoomChanged();
 
         await _grainFactory
             .GetRoomDirectoryGrain()
@@ -68,7 +82,12 @@ internal sealed partial class PlayerPresenceGrain
         _grainFactory
             .GetPlayerNavigatorGrain(_state.PlayerId)
             .RecordRoomVisitAsync(roomId, CancellationToken.None)
-            .LogAndForget(_logger, $"record visit of player {_state.PlayerId} to room {roomId}");
+            .LogAndForget(
+                _logger,
+                "record visit of player {PlayerId} to room {RoomId}",
+                _state.PlayerId,
+                roomId
+            );
 
         var stream = GetRoomStream(roomId);
 
@@ -81,8 +100,7 @@ internal sealed partial class PlayerPresenceGrain
             .GetSummaryAsync(ct);
 
         // Only the room a furni named gets the entry it named; anywhere else is a plain walk in.
-        var entry =
-            _state.PendingEntryRoomId == roomId ? _state.PendingEntry : RoomEntrySnapshot.Default;
+        var entry = PendingEntryFor(roomId);
 
         _state.PendingEntryRoomId = -1;
         _state.PendingEntry = RoomEntrySnapshot.Default;
@@ -102,7 +120,7 @@ internal sealed partial class PlayerPresenceGrain
         _grainFactory
             .GetInventoryGrain(_state.PlayerId)
             .RefreshBadgesRankAsync(CancellationToken.None)
-            .LogAndForget(_logger, $"refresh the badges rank of player {_state.PlayerId}");
+            .LogAndForget(_logger, "refresh the badges rank of player {PlayerId}", _state.PlayerId);
     }
 
     /// <summary>
@@ -174,6 +192,7 @@ internal sealed partial class PlayerPresenceGrain
 
         _state.ActiveRoomId = -1;
         _state.ActiveRoomSinceUtc = DateTime.UtcNow;
+        OnActiveRoomChanged();
 
         try
         {

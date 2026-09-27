@@ -1,5 +1,5 @@
 using System;
-using System.Linq;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -7,6 +7,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Rooms.Events.Bot;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Rooms.Configuration;
+using Turbo.Rooms.Grains.Modules;
 
 namespace Turbo.Rooms.Grains.Systems;
 
@@ -15,15 +16,19 @@ namespace Turbo.Rooms.Grains.Systems;
 /// (follow an avatar, walk to a furni) take precedence over free roaming and raise the bot
 /// arrival triggers when they complete.
 /// </summary>
-public sealed class RoomBotTickSystem(RoomGrain roomGrain)
+public sealed class RoomBotTickSystem(RoomGrain roomGrain) : RoomGrainComponent(roomGrain)
 {
-    private readonly RoomGrain _roomGrain = roomGrain;
+    // The loop walks a copy, kept rather than made again every boundary, as the pet tick does.
+    private readonly List<IRoomBot> _bots = [];
 
     private BotConfig Config => _roomGrain._botConfig;
 
     public async Task ProcessBotsAsync(long now, CancellationToken ct)
     {
-        foreach (var bot in _roomGrain.BotModule.Bots.ToList())
+        _bots.Clear();
+        _bots.AddRange(BotModule.Bots);
+
+        foreach (var bot in _bots)
         {
             try
             {
@@ -48,7 +53,7 @@ public sealed class RoomBotTickSystem(RoomGrain roomGrain)
 
         bot.TargetItemId = -1;
 
-        if (itemId <= 0 || !_roomGrain._state.ItemsById.ContainsKey(itemId))
+        if (itemId <= 0 || !FurniModule.HasItem(itemId))
             return;
 
         await _roomGrain.PublishRoomEventAsync(
@@ -66,7 +71,7 @@ public sealed class RoomBotTickSystem(RoomGrain roomGrain)
 
     private async Task ProcessBotAsync(IRoomBot bot, long now, CancellationToken ct)
     {
-        var module = _roomGrain.BotModule;
+        var module = BotModule;
 
         if (bot.AutoChat && bot.ChatLines.Length > 0 && now >= bot.NextChatAtMs)
         {
@@ -83,10 +88,9 @@ public sealed class RoomBotTickSystem(RoomGrain roomGrain)
             await module.TalkAsync(bot, bot.ChatLines[index], ct);
         }
 
+        // Where a bot came to rest is written with the room's next hand-over to persistence.
         if (bot.IsWalking)
             return;
-
-        await module.PersistPositionIfMovedAsync(bot, ct);
 
         if (bot.TargetItemId > 0)
         {
@@ -108,7 +112,7 @@ public sealed class RoomBotTickSystem(RoomGrain roomGrain)
         bot.NextWalkAtMs =
             now + module.NextRandom(Config.FreeRoamMinIntervalMs, Config.FreeRoamMaxIntervalMs);
 
-        var map = _roomGrain.MapModule;
+        var map = MapModule;
         var range = Config.FreeRoamMaxDistance;
 
         for (var attempt = 0; attempt < 5; attempt++)
@@ -119,10 +123,10 @@ public sealed class RoomBotTickSystem(RoomGrain roomGrain)
             if (!map.InBounds(x, y) || (x == bot.X && y == bot.Y))
                 continue;
 
-            if (!_roomGrain.PetModule.IsTileFreeForNpc(map.ToIdx(x, y)))
+            if (!PetModule.IsTileFreeForNpc(map.ToIdx(x, y)))
                 continue;
 
-            if (await _roomGrain.AvatarModule.WalkAvatarToAsync(bot, x, y, ct))
+            if (await AvatarModule.WalkAvatarToAsync(bot, x, y, ct))
                 return;
         }
     }
@@ -130,14 +134,14 @@ public sealed class RoomBotTickSystem(RoomGrain roomGrain)
     /// <summary>A bot that stopped walking while sent to a furni either arrived or gave up.</summary>
     private async Task ProcessItemTargetAsync(IRoomBot bot, CancellationToken ct)
     {
-        if (!_roomGrain._state.ItemsById.TryGetValue(bot.TargetItemId, out var item))
+        if (!FurniModule.TryGetItem(bot.TargetItemId, out var item))
         {
             bot.TargetItemId = -1;
 
             return;
         }
 
-        var map = _roomGrain.MapModule;
+        var map = MapModule;
 
         if (map.ToIdx(bot.X, bot.Y) == map.ToIdx(item.X, item.Y))
         {
@@ -146,21 +150,21 @@ public sealed class RoomBotTickSystem(RoomGrain roomGrain)
             return;
         }
 
-        if (!await _roomGrain.AvatarModule.WalkAvatarToAsync(bot, item.X, item.Y, ct))
+        if (!await AvatarModule.WalkAvatarToAsync(bot, item.X, item.Y, ct))
             bot.TargetItemId = -1;
     }
 
     /// <summary>Keeps a following bot within reach of its avatar and reports each catch-up.</summary>
     private async Task ProcessFollowAsync(IRoomBot bot, long now, CancellationToken ct)
     {
-        if (!_roomGrain.AvatarModule.TryGetAvatar(bot.FollowObjectId, out var target))
+        if (!AvatarModule.TryGetAvatar(bot.FollowObjectId, out var target))
         {
             bot.FollowObjectId = -1;
 
             return;
         }
 
-        var map = _roomGrain.MapModule;
+        var map = MapModule;
         var botIdx = map.ToIdx(bot.X, bot.Y);
         var targetIdx = map.ToIdx(target.X, target.Y);
         var distance = map.GetDistanceBetween(botIdx, targetIdx);
@@ -187,18 +191,28 @@ public sealed class RoomBotTickSystem(RoomGrain roomGrain)
             return;
         }
 
-        foreach (var direction in Primitives.Rooms.Enums.RotationExtensions.CARDINAL)
+        if (!RoomAvatarModule.IsFollowDue(bot, targetIdx, now))
+            return;
+
+        AvatarModule.RecordFollow(bot, targetIdx, await WalkBesideAsync(), now);
+
+        async Task<bool> WalkBesideAsync()
         {
-            if (!map.TryGetTileInFront(targetIdx, direction, out var nextIdx))
-                continue;
+            foreach (var direction in Primitives.Rooms.Enums.RotationExtensions.CARDINAL)
+            {
+                if (!map.TryGetTileInFront(targetIdx, direction, out var nextIdx))
+                    continue;
 
-            if (nextIdx != botIdx && !_roomGrain.PetModule.IsTileFreeForNpc(nextIdx))
-                continue;
+                if (nextIdx != botIdx && !PetModule.IsTileFreeForNpc(nextIdx))
+                    continue;
 
-            var (x, y) = map.GetTileXY(nextIdx);
+                var (x, y) = map.GetTileXY(nextIdx);
 
-            if (await _roomGrain.AvatarModule.WalkAvatarToAsync(bot, x, y, ct))
-                return;
+                if (await AvatarModule.WalkAvatarToAsync(bot, x, y, ct))
+                    return true;
+            }
+
+            return false;
         }
     }
 }

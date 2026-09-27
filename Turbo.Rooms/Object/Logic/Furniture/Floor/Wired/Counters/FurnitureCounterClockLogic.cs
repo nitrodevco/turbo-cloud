@@ -61,7 +61,7 @@ public class FurnitureCounterClockLogic(
 
     public override Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
     {
-        _roomGrain.TimerSystem.Cancel(_ctx.ObjectId);
+        TimerSystem.Cancel(_ctx.ObjectId);
         _isRunning = false;
 
         return base.OnPickupAsync(ctx, ct);
@@ -109,7 +109,7 @@ public class FurnitureCounterClockLogic(
     {
         _isRunning = false;
 
-        _roomGrain.TimerSystem.Cancel(_ctx.ObjectId);
+        TimerSystem.Cancel(_ctx.ObjectId);
 
         return Task.CompletedTask;
     }
@@ -131,8 +131,7 @@ public class FurnitureCounterClockLogic(
         await StartAsync();
     }
 
-    private void Schedule() =>
-        _roomGrain.TimerSystem.Schedule(_ctx.ObjectId, WiredPulses.MS, TickAsync);
+    private void Schedule() => TimerSystem.Schedule(_ctx.ObjectId, WiredPulses.MS, TickAsync);
 
     private async Task TickAsync(CancellationToken ct)
     {

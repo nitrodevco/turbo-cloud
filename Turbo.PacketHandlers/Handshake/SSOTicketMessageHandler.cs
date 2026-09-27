@@ -55,6 +55,19 @@ public class SSOTicketMessageHandler(
             .AddSessionToPlayerAsync(ctx.SessionKey, playerId)
             .ConfigureAwait(false);
 
+        // Three reads from three different grains, none depending on another, so they are asked
+        // side by side and awaited where their answers are sent. The composers still go out in
+        // the order below.
+        var settingsTask = _grainFactory.GetPlayerSettingsGrain(playerId).GetSettingsAsync(ct);
+        var favouriteRoomIdsTask = _navigatorService.GetFavouriteRoomIdsAsync(playerId, ct);
+        // Club gifts waiting to be collected. A hotel that offers none answers this from memory,
+        // so it costs a login nothing; the client draws nothing for a count below one.
+        var clubGiftsTask = _grainFactory
+            .GetCatalogPurchaseGrain(playerId)
+            .GetClubGiftInfoAsync(ct);
+
+        await Task.WhenAll(settingsTask, favouriteRoomIdsTask, clubGiftsTask).ConfigureAwait(false);
+
         await ctx.SendComposerAsync(
                 new AuthenticationOKMessage
                 {
@@ -67,13 +80,8 @@ public class SSOTicketMessageHandler(
             .ConfigureAwait(false);
         await ctx.SendComposerAsync(new AvatarEffectsMessageComposer { Effects = [] }, ct)
             .ConfigureAwait(false);
-        var settings = await _grainFactory
-            .GetPlayerSettingsGrain(playerId)
-            .GetSettingsAsync(ct)
-            .ConfigureAwait(false);
-        var favouriteRoomIds = await _navigatorService
-            .GetFavouriteRoomIdsAsync(playerId, ct)
-            .ConfigureAwait(false);
+        var settings = await settingsTask.ConfigureAwait(false);
+        var favouriteRoomIds = await favouriteRoomIdsTask.ConfigureAwait(false);
 
         // The client enters the home room on login.
         await ctx.SendComposerAsync(
@@ -128,12 +136,7 @@ public class SSOTicketMessageHandler(
         await ctx.SendComposerAsync(new InfoFeedEnableMessageComposer { Enabled = true }, ct)
             .ConfigureAwait(false);
 
-        // Club gifts waiting to be collected. A hotel that offers none answers this from memory,
-        // so it costs a login nothing; the client draws nothing for a count below one.
-        var clubGifts = await _grainFactory
-            .GetCatalogPurchaseGrain(playerId)
-            .GetClubGiftInfoAsync(ct)
-            .ConfigureAwait(false);
+        var clubGifts = await clubGiftsTask.ConfigureAwait(false);
 
         if (clubGifts.GiftsAvailable > 0)
             await ctx.SendComposerAsync(

@@ -41,6 +41,22 @@ public sealed class NetworkManager(
     private readonly ILoggerFactory _loggerFactory = loggerFactory;
     private readonly IGrainFactory _grainFactory = grainFactory;
 
+    // One of each for both hosts. They are stateless apart from the encoder's payload cache,
+    // which is shared on purpose so a broadcast reaching TCP and WebSocket players is still
+    // serialized once. The WebSocket receive loop uses these fields directly instead of
+    // resolving them from the host for every message.
+    private readonly ClientPacketDecoder _packetDecoder = new();
+    private readonly PackageHandler _packageHandler = new(
+        revisionManager,
+        messageSystem,
+        loggerFactory.CreateLogger<PackageHandler>()
+    );
+    private readonly PackageEncoder _packageEncoder = new(
+        revisionManager,
+        new ComposerPayloadCache(),
+        loggerFactory.CreateLogger<PackageEncoder>()
+    );
+
     private readonly object _tcpGate = new();
     private readonly object _wsGate = new();
 
@@ -109,7 +125,6 @@ public sealed class NetworkManager(
         builder.UseSession<TcpSessionContext>();
         builder.UsePipelineFilter<TcpFilter>();
         builder.UseSessionGateway();
-        //builder.UsePingPong();
 
         _tcpHost = builder.Build();
     }
@@ -124,44 +139,45 @@ public sealed class NetworkManager(
             {
                 ArgumentNullException.ThrowIfNull(package);
 
-                if (session is not ISessionContext ctx || package.OpCode != OpCode.Binary)
-                    return;
-
-                var sp = session.Server?.ServiceProvider;
-                var decoder = sp?.GetService<IClientPacketDecoder>();
-                var handler = sp?.GetService<IPackageHandler<IClientPacket>>();
-
-                if (decoder is null || handler is null)
+                if (
+                    session is not ISessionContext ctx
+                    || ctx.WsBuffer is not { } buffer
+                    || package.OpCode != OpCode.Binary
+                )
                     return;
 
                 foreach (var segment in package.Data)
-                    ctx.WsBuffer?.Write(segment.Span);
+                    buffer.Write(segment.Span);
 
-                while (true)
+                var memory = buffer.WrittenMemory;
+                var consumed = 0;
+
+                // Packets are decoded one at a time and each is handled before the next is read:
+                // the handshake's handler switches decryption on, and a packet behind it in the
+                // same frame must be decoded with the new key. The reader is rebuilt from the
+                // offset after each await (it cannot live across one), and whatever is left is
+                // moved to the front once, instead of recopying the tail after every packet.
+                try
                 {
-                    if (ctx.WsBuffer is null)
-                        break;
+                    while (consumed < memory.Length)
+                    {
+                        var packet = TryReadPacket(memory[consumed..], ctx, out var read);
 
-                    var memory = ctx.WsBuffer.WrittenMemory;
+                        if (packet is null)
+                            break;
 
-                    if (memory.Length == 0)
-                        break;
+                        consumed += read;
 
-                    var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
-
-                    var packet = decoder.TryRead(ref reader, ctx);
-
-                    if (packet is null)
-                        break;
-
-                    var remaining = memory.Span[(int)reader.Consumed..].ToArray();
-
-                    ctx.WsBuffer?.Clear();
-                    ctx.WsBuffer?.Write(remaining);
-
-                    await handler
-                        .Handle(session, packet, CancellationToken.None)
-                        .ConfigureAwait(false);
+                        await _packageHandler
+                            .Handle(session, packet, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    // Even on a failure, so packets already handled are not handled again with
+                    // the next frame.
+                    CompactReceiveBuffer(buffer, memory, consumed);
                 }
             }
         );
@@ -169,6 +185,44 @@ public sealed class NetworkManager(
         builder.UseSessionGateway();
 
         _wsHost = builder.Build();
+    }
+
+    // A SequenceReader is a ref struct and cannot sit in the async receive loop, so the decode
+    // step lives here and reports how far it read.
+    private IClientPacket? TryReadPacket(
+        ReadOnlyMemory<byte> unread,
+        ISessionContext ctx,
+        out int consumed
+    )
+    {
+        var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(unread));
+        var packet = _packetDecoder.TryRead(ref reader, ctx);
+
+        consumed = (int)reader.Consumed;
+
+        return packet;
+    }
+
+    // Moves the unread tail of a WebSocket receive buffer to its front. ResetWrittenCount keeps
+    // the backing array (Clear would zero it first), and the copy handles the overlap.
+    private static void CompactReceiveBuffer(
+        ArrayBufferWriter<byte> buffer,
+        ReadOnlyMemory<byte> written,
+        int consumed
+    )
+    {
+        if (consumed == 0)
+            return;
+
+        var remaining = written[consumed..];
+
+        buffer.ResetWrittenCount();
+
+        if (remaining.Length == 0)
+            return;
+
+        remaining.Span.CopyTo(buffer.GetSpan(remaining.Length));
+        buffer.Advance(remaining.Length);
     }
 
     // Both hosts read their own server section, log through the application's logger factory
@@ -190,8 +244,9 @@ public sealed class NetworkManager(
         services.AddSingleton(_messageSystem);
         services.AddSingleton(_loggerFactory);
         services.AddSingleton(_grainFactory);
-        services.AddSingleton<IPackageHandler<IClientPacket>, PackageHandler>();
-        services.AddSingleton<IClientPacketDecoder, ClientPacketDecoder>();
-        services.AddSingleton<IPackageEncoder<OutgoingPackage>, PackageEncoder>();
+        services.AddSingleton<IPackageHandler<IClientPacket>>(_packageHandler);
+        services.AddSingleton<IClientPacketDecoder>(_packetDecoder);
+        services.AddSingleton(_packageEncoder);
+        services.AddSingleton<IPackageEncoder<OutgoingPackage>>(_packageEncoder);
     }
 }

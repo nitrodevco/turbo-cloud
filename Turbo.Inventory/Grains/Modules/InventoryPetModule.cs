@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -78,7 +79,10 @@ internal sealed class InventoryPetModule(
                         PetFigure.SerializeCustomParts(snapshot.Figure.CustomParts)
                     )
                     .SetProperty(p => p.WateredAt, snapshot.WateredAtUtc)
-                    .SetProperty(p => p.HarvestedAt, snapshot.HarvestedAtUtc),
+                    .SetProperty(p => p.HarvestedAt, snapshot.HarvestedAtUtc)
+                    // A pet does not decay in the inventory; its clock starts again when placed.
+                    .SetProperty(p => p.EnergyDecayDueAt, (DateTime?)null)
+                    .SetProperty(p => p.NutritionDecayDueAt, (DateTime?)null),
             ct
         );
 
@@ -134,7 +138,12 @@ internal sealed class InventoryPetModule(
     {
         if (
             !PetProductCodes.TryGetTypeId(product.ClassName, out var typeId)
-            && !int.TryParse(product.ExtraParam, out typeId)
+            && !int.TryParse(
+                product.ExtraParam,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out typeId
+            )
         )
         {
             _logger.LogError(

@@ -36,6 +36,10 @@ namespace Turbo.Guilds.Grains;
 /// It is keyed by player but lives in the guild module, the way <c>CatalogPurchaseGrain</c> is
 /// keyed by player and lives in the catalog: what it enforces are the group system's rules, and
 /// those belong with the group system.
+///
+/// Write-through: a new group and a changed favourite are saved before the state here moves,
+/// and memberships are re-read from the rows when a group grain says they changed, so there is
+/// nothing to flush on deactivation.
 /// </summary>
 internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
 {
@@ -44,7 +48,9 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
     private readonly GuildConfig _guildConfig;
     private readonly ILogger<IPlayerGuildGrain> _logger;
 
-    private readonly PlayerGuildLiveState _state = new();
+    private readonly PlayerGuildLiveState _state;
+
+    private PlayerId PlayerId => _state.PlayerId;
 
     public PlayerGuildGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
@@ -57,9 +63,9 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
         _grainFactory = grainFactory;
         _guildConfig = guildConfig.Value;
         _logger = logger;
-    }
 
-    private PlayerId PlayerId => this.GetPlayerId();
+        _state = new() { PlayerId = this.GetPlayerId() };
+    }
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
@@ -298,7 +304,7 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
         _grainFactory
             .GetRoomGrain(RoomId.Parse(entity.RoomEntityId))
             .OnGuildChangedAsync(CancellationToken.None)
-            .LogAndForget(_logger, $"refresh the homeroom of the new group {entity.Id}");
+            .LogAndForget(_logger, "refresh the homeroom of the new group {GuildId}", entity.Id);
 
         return GuildCreationResultSnapshot.Success(
             GuildId.Parse(entity.Id),
@@ -356,13 +362,15 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
             .SetPlayerFavouriteGuildAsync(
                 PlayerId,
                 guild?.GuildId ?? -1,
-                guild is null ? -1 : (int)GuildMembershipStatus.Member,
+                guild is null ? GuildMembershipStatus.None : GuildMembershipStatus.Member,
                 guild?.Name ?? string.Empty,
                 CancellationToken.None
             )
             .LogAndForget(
                 _logger,
-                $"tell room {activeRoom.RoomId} that player {PlayerId.Value} changed group badge"
+                "tell room {RoomId} that player {PlayerId} changed group badge",
+                activeRoom.RoomId,
+                PlayerId.Value
             );
     }
 

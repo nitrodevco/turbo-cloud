@@ -19,12 +19,10 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-public sealed partial class RoomActionModule(RoomGrain roomGrain)
+public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainComponent(roomGrain)
 {
-    private readonly RoomGrain _roomGrain = roomGrain;
-
     public Task<bool> AddItemAsync(IRoomItem item, CancellationToken ct) =>
-        _roomGrain.ObjectModule.AttatchObjectAsync(item, ct);
+        ObjectModule.AttatchObjectAsync(item, ct);
 
     public async Task<bool> RemoveItemByIdAsync(
         ActionContext ctx,
@@ -44,16 +42,13 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain)
         // that it cannot be borrowed again before it asks for this.
         if (item.IsBuildersClub)
         {
-            if (
-                await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx)
-                < RoomControllerType.GroupAdmin
-            )
+            if (await SecurityModule.GetControllerLevelAsync(ctx) < RoomControllerType.GroupAdmin)
                 throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
-            return await _roomGrain.ObjectModule.RemoveObjectAsync(ctx, item, ct, ctx.PlayerId);
+            return await ObjectModule.RemoveObjectAsync(ctx, item, ct, ctx.PlayerId);
         }
 
-        var pickupType = await _roomGrain.SecurityModule.GetFurniPickupTypeAsync(ctx);
+        var pickupType = await SecurityModule.GetFurniPickupTypeAsync(ctx);
 
         // Whatever a player may do in the room, their own furni is theirs to take back: someone
         // who built on a rented space, or whose rights were taken away, is not stuck with it here.
@@ -70,7 +65,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain)
 
         item.SetOwnerId(pickerId);
 
-        await _roomGrain.ObjectModule.RemoveObjectAsync(ctx, item, ct, pickerId);
+        await ObjectModule.RemoveObjectAsync(ctx, item, ct, pickerId);
 
         var snapshot = item.GetSnapshot();
 
@@ -104,7 +99,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain)
             var isFloorItem = item is IRoomFloorItem;
 
             if (
-                !await _roomGrain.ObjectModule.RemoveObjectAsync(
+                !await ObjectModule.RemoveObjectAsync(
                     ctx,
                     item,
                     ct,
@@ -315,7 +310,7 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain)
         if (!await CanEditItemAsync(ctx, item))
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
-        await _roomGrain.ObjectModule.RemoveObjectAsync(ctx, item, ct, item.OwnerId);
+        await ObjectModule.RemoveObjectAsync(ctx, item, ct, item.OwnerId);
 
         await _roomGrain
             ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
@@ -326,6 +321,5 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain)
 
     /// <summary>The item's owner may always edit it; otherwise room rights are needed.</summary>
     private async Task<bool> CanEditItemAsync(ActionContext ctx, IRoomItem item) =>
-        item.OwnerId == ctx.PlayerId
-        || await _roomGrain.SecurityModule.CanManipulateFurniAsync(ctx);
+        item.OwnerId == ctx.PlayerId || await SecurityModule.CanManipulateFurniAsync(ctx);
 }

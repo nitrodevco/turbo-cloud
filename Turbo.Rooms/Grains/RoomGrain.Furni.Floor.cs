@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -83,8 +82,4 @@ public sealed partial class RoomGrain
                 ? floorItem.GetSnapshot()
                 : null
         );
-
-    public Task<ImmutableArray<RoomFloorItemSnapshot>> GetAllFloorItemSnapshotsAsync(
-        CancellationToken ct
-    ) => FurniModule.GetAllFloorItemSnapshotsAsync(ct);
 }

@@ -51,7 +51,7 @@ public abstract class FurniturePetProductLogic(
         if (Prepare() is { } unusable)
             return Reject(ctx, interaction, unusable);
 
-        if (!_roomGrain.PetModule.TryGetPet(use.PetId, out var pet) || pet.OwnerId != ctx.PlayerId)
+        if (!PetModule.TryGetPet(use.PetId, out var pet) || pet.OwnerId != ctx.PlayerId)
             return Reject(ctx, interaction, "no pet of the owner with that id");
 
         if (GetRefusal(pet) is { } refusal)
@@ -60,7 +60,7 @@ public abstract class FurniturePetProductLogic(
         if (!await ApplyAsync(pet, ct))
             return Reject(ctx, interaction, ApplyRefusal);
 
-        await _roomGrain.ActionModule.DeleteItemByIdAsync(ctx, _ctx.ObjectId, ct);
+        await ActionModule.DeleteItemByIdAsync(ctx, _ctx.ObjectId, ct);
 
         return true;
     }

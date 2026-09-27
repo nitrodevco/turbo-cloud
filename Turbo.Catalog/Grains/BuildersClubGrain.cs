@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Orleans.Runtime;
 using Turbo.Catalog.Configuration;
 using Turbo.Database.Context;
 using Turbo.Players.Configuration;
@@ -71,18 +72,29 @@ internal sealed partial class BuildersClubGrain : Grain, IBuildersClubGrain
             throw;
         }
 
+        // Both timers are interleaved: their queries must not hold up the placements that ask
+        // for a count. The recount swaps its result in after its last await, and the sweep
+        // touches no state at all.
         _refreshTimer = this.RegisterGrainTimer<object?>(
             static async (self, ct) => await ((BuildersClubGrain)self!).RefreshAsync(ct),
             this,
-            TimeSpan.FromMilliseconds(_buildersClubConfig.BorrowedCountRefreshMs),
-            TimeSpan.FromMilliseconds(_buildersClubConfig.BorrowedCountRefreshMs)
+            new GrainTimerCreationOptions
+            {
+                DueTime = TimeSpan.FromMilliseconds(_buildersClubConfig.BorrowedCountRefreshMs),
+                Period = TimeSpan.FromMilliseconds(_buildersClubConfig.BorrowedCountRefreshMs),
+                Interleave = true,
+            }
         );
 
         _lapseSweepTimer = this.RegisterGrainTimer<object?>(
             static async (self, ct) => await ((BuildersClubGrain)self!).SweepAsync(ct),
             this,
-            TimeSpan.FromMilliseconds(_buildersClubConfig.LapseSweepMs),
-            TimeSpan.FromMilliseconds(_buildersClubConfig.LapseSweepMs)
+            new GrainTimerCreationOptions
+            {
+                DueTime = TimeSpan.FromMilliseconds(_buildersClubConfig.LapseSweepMs),
+                Period = TimeSpan.FromMilliseconds(_buildersClubConfig.LapseSweepMs),
+                Interleave = true,
+            }
         );
     }
 
@@ -160,6 +172,7 @@ internal sealed partial class BuildersClubGrain : Grain, IBuildersClubGrain
             .Select(g => new { PlayerId = g.Key, Count = g.Count() })
             .ToListAsync(ct);
 
+        // Nothing below awaits: the recount is interleaved with the reads.
         _state.BorrowedCountByPlayerId.Clear();
 
         foreach (var entry in counts)

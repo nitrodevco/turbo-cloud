@@ -29,7 +29,7 @@ public class WiredSelectorEntitiesFromSignal(
 
         foreach (var avatarId in ctx.Signal.SelectedAvatarIds)
         {
-            if (_roomGrain.AvatarModule.TryGetAvatar(avatarId, out _))
+            if (AvatarModule.TryGetAvatar(avatarId, out _))
                 output.SelectedAvatarIds.Add(avatarId);
         }
 

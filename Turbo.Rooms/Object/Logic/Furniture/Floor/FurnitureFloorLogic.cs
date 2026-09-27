@@ -57,7 +57,7 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
 
     /// <summary>The acting player's avatar, or null when they are not in the room.</summary>
     protected IRoomAvatar? GetAvatar(ActionContext ctx) =>
-        _roomGrain.AvatarModule.TryGetPlayer(ctx.PlayerId, out var player) ? player : null;
+        AvatarModule.TryGetPlayer(ctx.PlayerId, out var player) ? player : null;
 
     /// <summary>
     /// Whether the acting player's avatar stands on or next to this item. The client only offers

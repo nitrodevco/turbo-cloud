@@ -29,7 +29,7 @@ public class WiredSelectorEntitiesInGroup(
         var output = new WiredSelectionSet();
         var wantedGroupId = GetPositiveIdParam();
 
-        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
+        foreach (var avatar in AvatarModule.Avatars)
         {
             if (avatar is not RoomPlayerAvatar player || player.GuildId <= 0)
                 continue;

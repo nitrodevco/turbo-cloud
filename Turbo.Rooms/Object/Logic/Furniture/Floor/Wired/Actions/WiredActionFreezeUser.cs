@@ -40,12 +40,12 @@ public class WiredActionFreezeUser(
 
         foreach (var player in GetAvatars(ctx.GetSelection(this)))
         {
-            await _roomGrain.AvatarModule.StopWalkingAsync(player, ct);
+            await AvatarModule.StopWalkingAsync(player, ct);
 
             player.SetFrozen(true, cancelOnTeleport);
 
             if (effectId > 0)
-                await _roomGrain.AvatarModule.SetAvatarEffectAsync(player.ObjectId, effectId, ct);
+                await AvatarModule.SetAvatarEffectAsync(player.ObjectId, effectId, ct);
 
             frozen = true;
         }

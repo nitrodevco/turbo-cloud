@@ -21,7 +21,7 @@ public abstract partial class FurnitureWiredLogic
             return null;
 
         return WiredVariableId.TryParse(_wiredData.VariableIds[index], out var variableId)
-            ? _roomGrain.WiredSystem.GetVariableById(variableId)
+            ? WiredSystem.GetVariableById(variableId)
             : null;
     }
 
@@ -38,7 +38,7 @@ public abstract partial class FurnitureWiredLogic
             new WiredVariableAllInRoomSnapshot()
             {
                 ContextType = WiredContextType.AllVariablesInRoom,
-                AllVariablesHash = _roomGrain.WiredSystem.AllVariablesHash,
+                AllVariablesHash = WiredSystem.AllVariablesHash,
             },
         ];
 

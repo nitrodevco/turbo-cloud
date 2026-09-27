@@ -1,5 +1,3 @@
-using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -19,8 +17,6 @@ public class WiredSelectorEntitiesByName(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredSelectorLogic(grainFactory, stuffDataFactory, ctx)
 {
-    private static readonly char[] NAME_SEPARATORS = ['\t', '\r', '\n'];
-
     public override int WiredCode => (int)WiredSelectorType.USERS_BY_NAME;
 
     public override Task<IWiredSelectionSet> SelectAsync(
@@ -29,17 +25,9 @@ public class WiredSelectorEntitiesByName(
     )
     {
         var output = new WiredSelectionSet();
-        // The editor is a text area with one name per line, and it sends the lines joined by
-        // tabs (UsersByName.readStringParamFromForm). This split on '/' before, so a list of
-        // names matched nobody.
-        var names = GetStringParam()
-            .Split(
-                NAME_SEPARATORS,
-                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-            )
-            .ToHashSet(NameComparer);
+        var names = WiredNameList.Parse(GetStringParam());
 
-        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
+        foreach (var avatar in AvatarModule.Avatars)
         {
             if (!names.Contains(avatar.Name))
                 continue;

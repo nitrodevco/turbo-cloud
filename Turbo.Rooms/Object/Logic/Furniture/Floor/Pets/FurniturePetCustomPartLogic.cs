@@ -40,13 +40,7 @@ public class FurniturePetCustomPartLogic(
 
     protected override async Task<bool> ApplyAsync(IRoomPet pet, CancellationToken ct)
     {
-        await _roomGrain.PetModule.SetCustomPartAsync(
-            pet,
-            _part!.LayerId,
-            _part.PartId,
-            _part.PaletteId,
-            ct
-        );
+        await PetModule.SetCustomPartAsync(pet, _part!.LayerId, _part.PartId, _part.PaletteId, ct);
 
         return true;
     }

@@ -96,25 +96,45 @@ public sealed class Rc4Engine : IRc4Engine
         if (outputData.Length - outputOffset < length)
             throw new ArgumentException("Output buffer too short.");
 
-        byte[] sClone = new byte[256];
+        Peek(inputData.AsSpan(inputOffset, length), outputData.AsSpan(outputOffset, length));
+    }
+
+    public void Peek(ReadOnlySpan<byte> input, Span<byte> output)
+    {
+        if (output.Length < input.Length)
+            throw new ArgumentException("Output buffer too short.");
+
+        // The state is copied onto the stack so a peek at every incoming header costs no
+        // allocation. Each output[k] is written after input[k] is read, so the decoder can peek
+        // a header in place with input and output being the same span.
+        Span<byte> sClone = stackalloc byte[256];
         int ic,
             jc;
         lock (_sync)
         {
-            Buffer.BlockCopy(_data, 0, sClone, 0, 256);
+            _data.CopyTo(sClone);
             ic = _i;
             jc = _j;
         }
 
-        for (int k = 0; k < length; k++)
+        for (int k = 0; k < input.Length; k++)
         {
             ic = (ic + 1) & 0xFF;
             jc = (jc + sClone[ic]) & 0xFF;
-            Swap(sClone, ic, jc);
+            (sClone[jc], sClone[ic]) = (sClone[ic], sClone[jc]);
             int t = (sClone[ic] + sClone[jc]) & 0xFF;
             byte ks = sClone[t];
 
-            outputData[outputOffset + k] = (byte)(inputData[inputOffset + k] ^ ks);
+            output[k] = (byte)(input[k] ^ ks);
+        }
+    }
+
+    public void ProcessInPlace(Span<byte> data)
+    {
+        lock (_sync)
+        {
+            for (int k = 0; k < data.Length; k++)
+                data[k] ^= NextKeyStreamByte_NoLock();
         }
     }
 

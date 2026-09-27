@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Immutable;
 using Turbo.Primitives.Badges;
+using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
@@ -30,7 +31,7 @@ public sealed class RoomPlayerAvatar
     public void SetRoomEntry(RoomEntrySnapshot entry) => RoomEntry = entry;
 
     public int GuildId { get; private set; } = -1;
-    public int GuildStatus { get; private set; } = -1;
+    public GuildMembershipStatus GuildStatus { get; private set; } = GuildMembershipStatus.None;
     public string GuildName { get; private set; } = string.Empty;
     public string SwimFigure { get; init; } = string.Empty;
     public int ActivityPoints { get; init; } = 0;
@@ -48,7 +49,7 @@ public sealed class RoomPlayerAvatar
         return true;
     }
 
-    public void SetFavouriteGuild(int guildId, int guildStatus, string guildName)
+    public void SetFavouriteGuild(int guildId, GuildMembershipStatus guildStatus, string guildName)
     {
         GuildId = guildId;
         GuildStatus = guildStatus;

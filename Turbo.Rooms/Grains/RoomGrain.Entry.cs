@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Rooms.Grains;
 
@@ -82,6 +83,23 @@ public sealed partial class RoomGrain
             return null;
         }
     }
+
+    public Task<RoomEntryViewSnapshot> GetEntryViewAsync(PlayerId playerId, CancellationToken ct) =>
+        Task.FromResult(
+            new RoomEntryViewSnapshot
+            {
+                Room = _state.RoomSnapshot,
+                Map = MapModule.GetMapSnapshot(ct),
+                OwnerNames = FurniModule.GetOwnerNames(),
+                FloorItems = FurniModule.GetFloorItemSnapshots(),
+                WallItems = FurniModule.GetWallItemSnapshots(),
+                Avatars = AvatarModule.GetAvatarSnapshots(),
+                Properties = [.. _state.RoomProperties],
+                CanRate = CanRate(playerId),
+                ActiveEvent = GetActiveEvent(),
+                IsMuted = _state.IsRoomMuted,
+            }
+        );
 
     public Task RemoveDoorbellRingerAsync(PlayerId playerId, CancellationToken ct)
     {

@@ -13,6 +13,6 @@ internal class FavoriteMembershipUpdateMessageComposerSerializer(int header)
         packet
             .WriteInteger(message.RoomIndex)
             .WriteInteger(message.GuildId)
-            .WriteInteger(message.Status)
+            .WriteInteger((int)message.Status)
             .WriteString(message.GuildName);
 }

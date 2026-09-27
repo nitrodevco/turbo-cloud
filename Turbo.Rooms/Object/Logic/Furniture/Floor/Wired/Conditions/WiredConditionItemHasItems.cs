@@ -34,12 +34,12 @@ public class WiredConditionItemHasItems(
 
     private bool HasItemOnTop(IRoomFloorItem item)
     {
-        if (!_roomGrain.FurniModule.GetTileIdForFloorItem(item, out var tileIds))
+        if (!FurniModule.GetTileIdForFloorItem(item, out var tileIds))
             return false;
 
         return tileIds.Any(tileId =>
-            _roomGrain
-                .FurniModule.GetFloorItemsOnTile(tileId)
+            FurniModule
+                .GetFloorItemsOnTile(tileId)
                 .Any(other => other.ObjectId != item.ObjectId && other.Z > item.Z)
         );
     }

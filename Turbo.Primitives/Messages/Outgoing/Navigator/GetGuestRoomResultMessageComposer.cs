@@ -1,3 +1,4 @@
+using System;
 using Orleans;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -30,4 +31,11 @@ public sealed record GetGuestRoomResultMessageComposer : IComposer
 
     [Id(7)]
     public required bool OpeningConnection { get; init; }
+
+    /// <summary>
+    /// When this was built. Serializers read time from here, never from the clock: one
+    /// instance is serialized once and its bytes are sent to every recipient.
+    /// </summary>
+    [Id(8)]
+    public DateTime SentAtUtc { get; init; } = DateTime.UtcNow;
 }

@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
+using Orleans.Concurrency;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Players;
@@ -78,7 +79,13 @@ public partial interface IInventoryGrain
         CancellationToken ct
     );
 
-    /// <summary>Items whose rows were just re-owned to this player by another inventory.</summary>
+    /// <summary>
+    /// Items whose rows were just re-owned to this player by another inventory. An interleaved,
+    /// memory-only tell: one inventory awaits another here, and two trades moving items in
+    /// opposite directions at once would otherwise leave both waiting on each other. A section
+    /// that is not loaded only tells the client; the rows are read when it loads.
+    /// </summary>
+    [AlwaysInterleave]
     public Task ReceiveFurnitureAsync(
         ImmutableArray<FurnitureItemSnapshot> items,
         CancellationToken ct

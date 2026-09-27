@@ -10,7 +10,8 @@ using Turbo.Primitives.Rooms.Enums;
 namespace Turbo.Database.Entities.Pets;
 
 [Table("pets")]
-[Index(nameof(PlayerEntityId))]
+// An inventory is the owner's units in no room (player_id = ? AND room_id IS NULL).
+[Index(nameof(PlayerEntityId), nameof(RoomEntityId))]
 [Index(nameof(RoomEntityId))]
 public class PetEntity : TurboEntity, IInventoryUnitEntity
 {
@@ -106,6 +107,19 @@ public class PetEntity : TurboEntity, IInventoryUnitEntity
 
     [Column("harvested_at")]
     public DateTime? HarvestedAt { get; set; }
+
+    /// <summary>
+    /// When the pet next loses a point of energy, in wall-clock time so it survives the room
+    /// unloading: a room that loads applies every point that fell due while it was away. Null
+    /// while the pet is in an inventory, where it does not decay; the clock starts when it is
+    /// placed.
+    /// </summary>
+    [Column("energy_decay_due_at")]
+    public DateTime? EnergyDecayDueAt { get; set; }
+
+    /// <summary>The same as <see cref="EnergyDecayDueAt"/>, for nutrition.</summary>
+    [Column("nutrition_decay_due_at")]
+    public DateTime? NutritionDecayDueAt { get; set; }
 
     [ForeignKey(nameof(PlayerEntityId))]
     public PlayerEntity? PlayerEntity { get; set; }

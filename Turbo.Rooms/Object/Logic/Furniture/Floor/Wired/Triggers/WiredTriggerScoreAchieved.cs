@@ -54,9 +54,9 @@ public class WiredTriggerScoreAchieved(
         if (ctx.Event is not GameScoreChangedEvent score)
             return Task.FromResult(false);
 
-        foreach (var playerId in _roomGrain.GameSystem.GetTeamMembers(score.Team))
+        foreach (var playerId in GameSystem.GetTeamMembers(score.Team))
         {
-            if (_roomGrain.AvatarModule.TryGetPlayer(playerId, out var member))
+            if (AvatarModule.TryGetPlayer(playerId, out var member))
                 ctx.Selected.SelectedAvatarIds.Add(member.ObjectId);
         }
 

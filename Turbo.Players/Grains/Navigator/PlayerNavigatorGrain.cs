@@ -32,6 +32,7 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly PlayerConfig _playerConfig;
+    private readonly PlayerNavigatorConfig _navigatorConfig;
     private readonly IGrainFactory _grainFactory;
     private readonly ILogger<IPlayerNavigatorGrain> _logger;
 
@@ -42,12 +43,14 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
     public PlayerNavigatorGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IOptions<PlayerConfig> playerConfig,
+        IOptions<PlayerNavigatorConfig> navigatorConfig,
         IGrainFactory grainFactory,
         ILogger<IPlayerNavigatorGrain> logger
     )
     {
         _dbCtxFactory = dbCtxFactory;
         _playerConfig = playerConfig.Value;
+        _navigatorConfig = navigatorConfig.Value;
         _grainFactory = grainFactory;
         _logger = logger;
 
@@ -98,10 +101,12 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
             }
         );
 
-    public async Task AddFavouriteRoomAsync(RoomId roomId, int limit, CancellationToken ct)
+    public async Task AddFavouriteRoomAsync(RoomId roomId, CancellationToken ct)
     {
         if (roomId.Value <= 0 || _state.FavouriteRoomIds.Contains(roomId))
             return;
+
+        var limit = _navigatorConfig.MaxFavouriteRooms;
 
         if (_state.FavouriteRoomIds.Count >= limit)
         {
@@ -139,25 +144,20 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
         );
     }
 
-    public async Task AddSavedSearchAsync(
-        string searchCode,
-        string filter,
-        int limit,
-        CancellationToken ct
-    )
+    public async Task AddSavedSearchAsync(string searchCode, string filter, CancellationToken ct)
     {
-        searchCode = searchCode?.Trim() ?? string.Empty;
         filter = filter?.Trim() ?? string.Empty;
 
         if (
-            searchCode.Length == 0
-            || searchCode.Length > PlayerNavigatorSavedSearchEntity.SEARCH_CODE_MAX_LENGTH
+            !TryNormalizeSearchCode(searchCode, out var code)
             || filter.Length > PlayerNavigatorSavedSearchEntity.FILTER_MAX_LENGTH
         )
             return;
 
-        if (_state.SavedSearches.Any(x => x.SearchCode == searchCode && x.Filter == filter))
+        if (_state.SavedSearches.Any(x => x.SearchCode == code && x.Filter == filter))
             return;
+
+        var limit = _navigatorConfig.MaxSavedSearches;
 
         if (_state.SavedSearches.Count >= limit)
         {
@@ -170,7 +170,7 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
             return;
         }
 
-        _state.SavedSearches.Add(CreateSavedSearch(_state.NextSavedSearchId++, searchCode, filter));
+        _state.SavedSearches.Add(CreateSavedSearch(_state.NextSavedSearchId++, code, filter));
         _state.PreferencesVersion++;
 
         await SendSavedSearchesAsync(ct);
@@ -186,12 +186,12 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
         await SendSavedSearchesAsync(ct);
     }
 
-    public Task AddCollapsedSearchCodeAsync(string searchCode, int limit, CancellationToken ct)
+    public Task AddCollapsedSearchCodeAsync(string searchCode, CancellationToken ct)
     {
         if (
-            IsValidSearchCode(searchCode)
-            && _state.CollapsedSearchCodes.Count < limit
-            && _state.CollapsedSearchCodes.Add(searchCode)
+            TryNormalizeSearchCode(searchCode, out var code)
+            && _state.CollapsedSearchCodes.Count < _navigatorConfig.MaxCollapsedSearchCodes
+            && _state.CollapsedSearchCodes.Add(code)
         )
             _state.PreferencesVersion++;
 
@@ -200,7 +200,10 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
 
     public Task RemoveCollapsedSearchCodeAsync(string searchCode, CancellationToken ct)
     {
-        if (_state.CollapsedSearchCodes.Remove(searchCode))
+        if (
+            TryNormalizeSearchCode(searchCode, out var code)
+            && _state.CollapsedSearchCodes.Remove(code)
+        )
             _state.PreferencesVersion++;
 
         return Task.CompletedTask;
@@ -209,19 +212,21 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
     public Task SetViewModeAsync(
         string searchCode,
         NavigatorViewModeType viewMode,
-        int limit,
         CancellationToken ct
     )
     {
-        if (!IsValidSearchCode(searchCode) || !Enum.IsDefined(viewMode))
+        if (!TryNormalizeSearchCode(searchCode, out var code) || !Enum.IsDefined(viewMode))
             return Task.CompletedTask;
 
-        var exists = _state.ViewModes.TryGetValue(searchCode, out var current);
+        var exists = _state.ViewModes.TryGetValue(code, out var current);
 
-        if ((exists && current == viewMode) || (!exists && _state.ViewModes.Count >= limit))
+        if (
+            (exists && current == viewMode)
+            || (!exists && _state.ViewModes.Count >= _navigatorConfig.MaxViewModes)
+        )
             return Task.CompletedTask;
 
-        _state.ViewModes[searchCode] = viewMode;
+        _state.ViewModes[code] = viewMode;
         _state.PreferencesVersion++;
 
         return Task.CompletedTask;
@@ -248,8 +253,10 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
         return Task.CompletedTask;
     }
 
-    public Task<bool> TryConsumeSearchQuotaAsync(int limit, TimeSpan window, CancellationToken ct)
+    public Task<bool> TryConsumeSearchQuotaAsync(CancellationToken ct)
     {
+        var limit = _navigatorConfig.SearchRateLimitCount;
+        var window = TimeSpan.FromSeconds(_navigatorConfig.SearchRateLimitWindowSeconds);
         var now = DateTime.UtcNow;
 
         while (
@@ -270,7 +277,7 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
         Task.FromResult<ImmutableArray<RoomId>>([
             .. _state
                 .VisitsByRoomId.OrderByDescending(x => x.Value.LastVisitUtc)
-                .Take(limit)
+                .Take(ClampHistoryLimit(limit))
                 .Select(x => x.Key),
         ]);
 
@@ -279,9 +286,12 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
             .. _state
                 .VisitsByRoomId.OrderByDescending(x => x.Value.Visits)
                 .ThenByDescending(x => x.Value.LastVisitUtc)
-                .Take(limit)
+                .Take(ClampHistoryLimit(limit))
                 .Select(x => x.Key),
         ]);
+
+    /// <summary>The caller's page size, within the configured history limit.</summary>
+    private int ClampHistoryLimit(int limit) => Math.Clamp(limit, 0, _navigatorConfig.HistoryLimit);
 
     private async Task HydrateAsync(CancellationToken ct)
     {
@@ -399,6 +409,26 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
             dbCtx.PlayerFavouriteRooms.RemoveRange(
                 favouriteRows.Where(x => !favouriteRoomIds.Remove(x.RoomEntityId)).ToList()
             );
+
+            // A deleted room takes its favourite rows with it, but a live grain still remembers
+            // the room. Re-inserting it would fail the foreign key, and a failed flush retries
+            // every tick, so one deleted room would stop this player's preferences ever saving.
+            // Only rooms that still exist are written back; the rest are forgotten.
+            if (favouriteRoomIds.Count > 0)
+            {
+                var existing = await dbCtx
+                    .Rooms.AsNoTracking()
+                    .Where(x => favouriteRoomIds.Contains(x.Id))
+                    .Select(x => x.Id)
+                    .ToListAsync(ct);
+
+                foreach (var gone in favouriteRoomIds.Except(existing).ToList())
+                {
+                    favouriteRoomIds.Remove(gone);
+                    _state.FavouriteRoomIds.Remove(RoomId.Parse(gone));
+                }
+            }
+
             dbCtx.PlayerFavouriteRooms.AddRange(
                 favouriteRoomIds.Select(roomId => new PlayerFavoriteRoomsEntity
                 {
@@ -573,7 +603,16 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
             ct
         );
 
-    private static bool IsValidSearchCode(string searchCode) =>
-        !string.IsNullOrWhiteSpace(searchCode)
-        && searchCode.Length <= PlayerNavigatorSavedSearchEntity.SEARCH_CODE_MAX_LENGTH;
+    /// <summary>
+    /// The one check on a search code the client wants stored (saved search, collapsed block,
+    /// view mode): trimmed, not empty, and within the column it is stored in. The saved search
+    /// used to trim and the other two did not, so the same code could be stored two ways.
+    /// </summary>
+    private static bool TryNormalizeSearchCode(string? searchCode, out string code)
+    {
+        code = searchCode?.Trim() ?? string.Empty;
+
+        return code.Length > 0
+            && code.Length <= PlayerNavigatorSavedSearchEntity.SEARCH_CODE_MAX_LENGTH;
+    }
 }

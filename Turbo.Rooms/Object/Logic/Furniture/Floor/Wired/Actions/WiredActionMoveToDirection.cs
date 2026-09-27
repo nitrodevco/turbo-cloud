@@ -62,7 +62,7 @@ public class WiredActionMoveToDirection(
         var startDirection = (Rotation)GetIntParamOrDefault(0, 0);
         var turnMode = GetIntParamOrDefault(1, TURN_BACK);
         var blockOnUsers = GetIntParamOrDefault(2, false);
-        var map = _roomGrain.MapModule;
+        var map = MapModule;
         var moved = false;
 
         foreach (var item in GetFloorItems(selection))
@@ -104,10 +104,10 @@ public class WiredActionMoveToDirection(
 
     private bool IsBlockedByUser(int tileIdx, bool blockOnUsers, IRoomFloorItem item)
     {
-        if (!blockOnUsers || !_roomGrain.AvatarModule.HasAvatarOnTile(tileIdx))
+        if (!blockOnUsers || !AvatarModule.HasAvatarOnTile(tileIdx))
             return false;
 
-        foreach (var avatar in _roomGrain.AvatarModule.GetAvatarsOnTile(tileIdx))
+        foreach (var avatar in AvatarModule.GetAvatarsOnTile(tileIdx))
         {
             if (avatar is IRoomPlayer player)
                 PublishCollision(item, player);

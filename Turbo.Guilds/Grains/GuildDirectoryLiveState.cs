@@ -41,6 +41,13 @@ internal sealed class GuildDirectoryLiveState
             SecondaryColors = [],
         };
 
+    /// <summary>
+    /// Changes the group grains told while a reload's queries were in flight (a null summary is
+    /// a removal), replayed over what the reload read, which may predate them. Null while no
+    /// reload runs.
+    /// </summary>
+    public List<(int GuildId, GuildSummarySnapshot? Summary)>? ChangesDuringReload { get; set; }
+
     public void Clear()
     {
         SummaryByGuildId.Clear();

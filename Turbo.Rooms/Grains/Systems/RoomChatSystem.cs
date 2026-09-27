@@ -24,12 +24,12 @@ namespace Turbo.Rooms.Grains.Systems;
 /// to the global event pipeline (chat commands, filters), then broadcast, then published to the
 /// room event module so room listeners such as the wired system can react to it.
 /// </summary>
-public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
+public sealed class RoomChatSystem(RoomGrain roomGrain)
+    : RoomGrainComponent(roomGrain),
+        IRoomEventListener
 {
     // What the client is sent for a line no player typed, so it has no message to track.
     private const int NO_TRACKING_ID = -1;
-
-    private readonly RoomGrain _roomGrain = roomGrain;
 
     private readonly Dictionary<PlayerId, Queue<long>> _chatTimestampsByPlayerId = [];
     private readonly Dictionary<PlayerId, long> _floodMutedUntilByPlayerId = [];
@@ -44,13 +44,13 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
         CancellationToken ct
     )
     {
-        if (!_roomGrain.AvatarModule.TryGetPlayer(ctx.PlayerId, out var speaker))
+        if (!AvatarModule.TryGetPlayer(ctx.PlayerId, out var speaker))
             return false;
 
         // A chat limit of zero means none, which ClientText would read as "nothing fits".
         var maxLength = _roomGrain._roomConfig.ChatMaxLength;
 
-        text = _roomGrain.ModerationModule.ApplyFilter(
+        text = ModerationModule.ApplyFilter(
             ClientText.Truncate(text, maxLength > 0 ? maxLength : int.MaxValue)
         );
 
@@ -97,21 +97,20 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
         if (chatType != RoomChatType.Whisper)
             TurnHeadsTowards(speaker, chatType);
 
-        await _roomGrain.PetModule.HandleChatAsync(evt, ct);
+        await PetModule.HandleChatAsync(evt, ct);
 
+        // Kept by the room and handed to persistence with the rest of what changed, rather than
+        // a grain call per line.
         if (_roomGrain._roomConfig.ChatlogEnabled)
-            await _roomGrain
-                ._grainFactory.GetRoomPersistenceGrain(_roomGrain._state.RoomId)
-                .EnqueueChatlogAsync(
-                    new RoomChatlogSnapshot
-                    {
-                        RoomId = evt.RoomId,
-                        PlayerId = evt.PlayerId,
-                        TargetPlayerId = evt.TargetPlayerId,
-                        Text = evt.Text,
-                    },
-                    ct
-                );
+            _roomGrain.QueueChatlog(
+                new RoomChatlogSnapshot
+                {
+                    RoomId = evt.RoomId,
+                    PlayerId = evt.PlayerId,
+                    TargetPlayerId = evt.TargetPlayerId,
+                    Text = evt.Text,
+                }
+            );
 
         await _roomGrain.PublishRoomEventAsync(evt, ct);
 
@@ -134,7 +133,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
         if (string.IsNullOrWhiteSpace(text))
             return Task.CompletedTask;
 
-        text = _roomGrain.ModerationModule.ApplyFilter(text);
+        text = ModerationModule.ApplyFilter(text);
 
         if (speech.OnlyFor is { } listener)
             return _roomGrain._grainFactory.SendComposerToPlayerAsync(
@@ -176,7 +175,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
 
     public Task<bool> SetAvatarTypingAsync(ActionContext ctx, bool isTyping, CancellationToken ct)
     {
-        if (!_roomGrain.AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar))
+        if (!AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar))
             return Task.FromResult(false);
 
         _roomGrain.SendComposerToRoomAndForget(
@@ -288,7 +287,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
     {
         var range = _roomGrain._roomConfig.ChatLookAtRange;
 
-        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
+        foreach (var avatar in AvatarModule.Avatars)
         {
             if (avatar.ObjectId == speaker.ObjectId || avatar.IsWalking)
                 continue;
@@ -312,7 +311,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
 
     private async Task<bool> IsMutedAsync(PlayerId playerId, CancellationToken ct)
     {
-        var remainingSeconds = _roomGrain.ModerationModule.GetRemainingMuteSeconds(playerId);
+        var remainingSeconds = ModerationModule.GetRemainingMuteSeconds(playerId);
 
         if (remainingSeconds > 0)
         {
@@ -325,7 +324,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
             return true;
         }
 
-        return await _roomGrain.ModerationModule.IsSilencedByRoomMuteAsync(playerId);
+        return await ModerationModule.IsSilencedByRoomMuteAsync(playerId);
     }
 
     private int GetFloodMaxMessages()
@@ -394,7 +393,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain) : IRoomEventListener
         if (string.IsNullOrWhiteSpace(name))
             return null;
 
-        return _roomGrain.AvatarModule.Players.FirstOrDefault(x =>
+        return AvatarModule.Players.FirstOrDefault(x =>
             string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)
         );
     }

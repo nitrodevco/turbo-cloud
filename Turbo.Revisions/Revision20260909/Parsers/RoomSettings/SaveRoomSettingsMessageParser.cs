@@ -39,14 +39,6 @@ internal class SaveRoomSettingsMessageParser : IParser
             MuteAllPets = packet.PopBoolean(),
         };
 
-    private static List<string> ParseTags(IClientPacket packet)
-    {
-        var tagCount = packet.PopCount(bytesPerItem: 2);
-        var tags = new List<string>();
-
-        for (var i = 0; i < tagCount; i++)
-            tags.Add(packet.PopString());
-
-        return tags;
-    }
+    private static List<string> ParseTags(IClientPacket packet) =>
+        packet.PopList(bytesPerItem: 2, static p => p.PopString());
 }

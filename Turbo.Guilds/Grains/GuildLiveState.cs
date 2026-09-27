@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Snapshots;
 
@@ -7,6 +8,8 @@ namespace Turbo.Guilds.Grains;
 /// <summary>What one group grain holds between calls.</summary>
 internal sealed class GuildLiveState
 {
+    public required GuildId GuildId { get; init; }
+
     /// <summary>Null until the group is loaded, and still null when there is no such group.</summary>
     public GuildSnapshot? Guild { get; set; }
 

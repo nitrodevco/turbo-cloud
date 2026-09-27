@@ -27,7 +27,7 @@ public class WiredActionBotChangeFigure(
         if (!FigureString.IsWellFormed(figure) || !TryGetBot(botName, out var bot))
             return false;
 
-        await _roomGrain.BotModule.SetFigureAsync(bot, figure, bot.Gender, ct);
+        await BotModule.SetFigureAsync(bot, figure, bot.Gender, ct);
 
         return true;
     }

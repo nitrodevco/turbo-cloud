@@ -16,5 +16,5 @@ public sealed class UserHasRightsVariable(RoomGrain roomGrain)
     protected override ushort Order => 30;
 
     protected override bool HasFlag(IRoomPlayer avatar) =>
-        _roomGrain.SecurityModule.HasRights(avatar.PlayerId);
+        SecurityModule.HasRights(avatar.PlayerId);
 }

@@ -36,10 +36,7 @@ public abstract class FurnitureVariable<TItem>(RoomGrain roomGrain)
     {
         item = default;
 
-        if (
-            !_roomGrain.FurniModule.TryGetItem(key.TargetId, out var found)
-            || found is not TItem typed
-        )
+        if (!FurniModule.TryGetItem(key.TargetId, out var found) || found is not TItem typed)
             return false;
 
         item = typed;

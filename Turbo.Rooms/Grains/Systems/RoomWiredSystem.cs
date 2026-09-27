@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
@@ -34,10 +36,10 @@ namespace Turbo.Rooms.Grains.Systems;
 /// accepts runs the selectors, addons and conditions of that stack and schedules its actions.
 /// Signals, stack calls, periodic triggers and timers are driven from here as well.
 /// </summary>
-public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventListener
+public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
+    : RoomGrainComponent(roomGrain),
+        IRoomEventListener
 {
-    private readonly RoomGrain _roomGrain = roomGrain;
-
     private readonly HashSet<int> _dirtyStackIds = [];
     private readonly Dictionary<int, IWiredStack> _stacksById = [];
     private readonly Dictionary<Type, List<int>> _stackIdsByEventType = [];
@@ -50,17 +52,44 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
     private readonly PriorityQueue<(WiredExecutionKey key, long version), long> _stackSchedule =
         new();
 
+    // The periodic and "at given time" triggers of every stack, listed when the stacks are
+    // rebuilt, so the tick does not walk every trigger of every stack to find them.
+    private readonly List<(IWiredStack Stack, IWiredTrigger Trigger)> _timedTriggers = [];
+
+    // Scratch lists for a filter selector, reused across firings.
+    private readonly List<int> _keptFurni = [];
+    private readonly List<RoomObjectId> _keptAvatars = [];
+
+    // Events turned away because the queue was full, reported once per tick.
+    private int _droppedEvents;
+
     private int _tickMs => _roomGrain._wiredConfig.TickMs;
     private bool _firstRun = true;
     private long _nextStackExecutionId = 0;
 
-    public async Task ProcessWiredAsync(long now, CancellationToken ct)
+    /// <param name="dormant">
+    /// Nobody is in the room: periodic and "at given time" triggers wait until someone is, and
+    /// fire once then rather than for every period missed. Events and scheduled actions still run.
+    /// </param>
+    public async Task ProcessWiredAsync(long now, bool dormant, CancellationToken ct)
     {
         if (now < _roomGrain._state.NextWiredBoundaryMs)
             return;
 
         while (now >= _roomGrain._state.NextWiredBoundaryMs)
             _roomGrain._state.NextWiredBoundaryMs += _tickMs;
+
+        if (_droppedEvents > 0)
+        {
+            _roomGrain._logger.LogWarning(
+                "Wired event queue of room {RoomId} was full ({Max}); {Count} events were dropped",
+                _roomGrain.RoomId,
+                _roomGrain._wiredConfig.MaxQueuedEvents,
+                _droppedEvents
+            );
+
+            _droppedEvents = 0;
+        }
 
         RollExecutionWindow(now);
 
@@ -82,7 +111,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
             return;
         }
 
-        await ProcessTimedTriggersAsync(now, ct);
+        if (!dormant)
+            await ProcessTimedTriggersAsync(now, ct);
 
         var budget = _roomGrain._wiredConfig.MaxEventsPerTick;
 
@@ -117,7 +147,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
                 return SendPermissionsAsync(levelEvt.PlayerId, levelEvt.ControllerLevel, ct);
             case PlayerLeftEvent playerLeftEvt:
                 _playerActiveStore.RemoveAvatarStore(playerLeftEvt.ObjectId);
-                _eventQueue.Enqueue(evt);
+                QueueEvent(evt);
                 break;
             case RoomItemDetachedEvent detatchedEvt:
                 _furnitureActiveStore.RemoveFurnitureStore(detatchedEvt.ObjectId);
@@ -126,11 +156,37 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
                 ForgetTimedTrigger(detatchedEvt.ObjectId);
                 break;
             default:
-                _eventQueue.Enqueue(evt);
+                QueueEvent(evt);
                 break;
         }
 
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Keeps an event for the next wired tick when a stack could want it: a stack call, an event
+    /// type some trigger listens to, or anything while stacks are waiting to be rebuilt (a box
+    /// placed a moment ago may listen to it). Every walk, chat and item change used to be
+    /// queued in any room with a wired box in it, only to be looked up and dropped. The queue
+    /// is bounded by <c>WiredConfig.MaxQueuedEvents</c>.
+    /// </summary>
+    private void QueueEvent(RoomEvent evt)
+    {
+        if (
+            evt is not WiredStackCalledEvent
+            && _dirtyStackIds.Count == 0
+            && !_stackIdsByEventType.ContainsKey(evt.GetType())
+        )
+            return;
+
+        if (_eventQueue.Count >= _roomGrain._wiredConfig.MaxQueuedEvents)
+        {
+            _droppedEvents++;
+
+            return;
+        }
+
+        _eventQueue.Enqueue(evt);
     }
 
     private async Task ProcessRoomEventAsync(RoomEvent evt, long now, CancellationToken ct)
@@ -230,18 +286,18 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
         if (ctx.Trigger is not null && !await ctx.Trigger.CanTriggerAsync(ctx, ct))
             return;
 
-        List<IWiredAction> pool;
+        if (negativeCall is bool negative && negative == passed)
+            return;
 
-        if (negativeCall is bool negative)
-        {
-            if (negative == passed)
-                return;
+        // A stack call runs the positive actions whichever way it went; a trigger runs the side
+        // its conditions chose.
+        var runNegative = negativeCall is null && !passed;
+        var pool = new List<IWiredAction>(ctx.Stack.Actions.Count);
 
-            pool = ctx.Stack.Actions.Where(x => !x.IsNegative).ToList();
-        }
-        else
+        foreach (var action in ctx.Stack.Actions)
         {
-            pool = ctx.Stack.Actions.Where(x => x.IsNegative != passed).ToList();
+            if (action.IsNegative == runNegative)
+                pool.Add(action);
         }
 
         if (pool.Count == 0)
@@ -249,7 +305,11 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
 
         if (ctx.Trigger is not null)
             ctx.Trigger.FlashActivationStateAsync(ct)
-                .LogAndForget(_roomGrain._logger, $"flash a wired box in room {_roomGrain.RoomId}");
+                .LogAndForget(
+                    _roomGrain._logger,
+                    "flash a wired box in room {RoomId}",
+                    _roomGrain.RoomId
+                );
 
         foreach (var addon in ctx.Stack.Addons)
             await addon.BeforeEffectsAsync(ctx, ct);
@@ -287,26 +347,41 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
             ctx.SelectorPool.HasFurni || ctx.SelectorPool.HasAvatars
                 ? ctx.SelectorPool
                 : ctx.Selected;
-        var furni = basis.SelectedFurniIds.Intersect(set.SelectedFurniIds).ToList();
-        var players = basis.SelectedAvatarIds.Intersect(set.SelectedAvatarIds).ToList();
+
+        // The pool is rebuilt from the kept ids in the basis' own order, as before, but through
+        // buffers this system keeps: the basis can be the pool itself, so it is read out first.
+        _keptFurni.Clear();
+        _keptAvatars.Clear();
+
+        foreach (var furniId in basis.SelectedFurniIds)
+        {
+            if (set.SelectedFurniIds.Contains(furniId))
+                _keptFurni.Add(furniId);
+        }
+
+        foreach (var avatarId in basis.SelectedAvatarIds)
+        {
+            if (set.SelectedAvatarIds.Contains(avatarId))
+                _keptAvatars.Add(avatarId);
+        }
 
         ctx.SelectorPool.SelectedFurniIds.Clear();
         ctx.SelectorPool.SelectedAvatarIds.Clear();
-        ctx.SelectorPool.SelectedFurniIds.UnionWith(furni);
-        ctx.SelectorPool.SelectedAvatarIds.UnionWith(players);
+        ctx.SelectorPool.SelectedFurniIds.UnionWith(_keptFurni);
+        ctx.SelectorPool.SelectedAvatarIds.UnionWith(_keptAvatars);
     }
 
     private WiredSelectionSet InvertSelection(IWiredSelectionSet set)
     {
         var inverted = new WiredSelectionSet();
 
-        foreach (var item in _roomGrain.FurniModule.Items)
+        foreach (var item in FurniModule.Items)
         {
             if (!set.SelectedFurniIds.Contains(item.ObjectId))
                 inverted.SelectedFurniIds.Add(item.ObjectId);
         }
 
-        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
+        foreach (var avatar in AvatarModule.Avatars)
         {
             if (!set.SelectedAvatarIds.Contains(avatar.ObjectId))
                 inverted.SelectedAvatarIds.Add(avatar.ObjectId);
@@ -363,14 +438,14 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
 
     private void AddAvatarByObjectId(WiredProcessingContext ctx, RoomObjectId objectId)
     {
-        if (_roomGrain.AvatarModule.TryGetAvatar(objectId, out _))
+        if (AvatarModule.TryGetAvatar(objectId, out _))
             ctx.Selected.SelectedAvatarIds.Add(objectId);
     }
 
     /// <summary>An event names the player; a selection names the avatar they are here.</summary>
     private void AddPlayerById(WiredProcessingContext ctx, PlayerId playerId)
     {
-        if (_roomGrain.AvatarModule.TryGetPlayer(playerId, out var player))
+        if (AvatarModule.TryGetPlayer(playerId, out var player))
             ctx.Selected.SelectedAvatarIds.Add(player.ObjectId);
     }
 
@@ -527,12 +602,14 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
 
             try
             {
+                // The three sets are shared by every action of the chain, not copied for each:
+                // an action reads its targets through them and never changes them.
                 var ctx = new WiredExecutionContext(_roomGrain)
                 {
                     Policy = pending.Policy,
-                    Selected = new WiredSelectionSet().UnionWith(pending.Selected),
-                    SelectorPool = new WiredSelectionSet().UnionWith(pending.SelectorPool),
-                    Signal = new WiredSelectionSet().UnionWith(pending.Signal),
+                    Selected = pending.Selected,
+                    SelectorPool = pending.SelectorPool,
+                    Signal = pending.Signal,
                     Depth = pending.Depth,
                     CancellationToken = ct,
                 };
@@ -541,18 +618,15 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
                     .FlashActivationStateAsync(ct)
                     .LogAndForget(
                         _roomGrain._logger,
-                        $"flash a wired box in room {_roomGrain.RoomId}"
+                        "flash a wired box in room {RoomId}",
+                        _roomGrain.RoomId
                     );
 
                 succeeded = await action.ExecuteAsync(ctx, ct);
 
                 CountExecution();
 
-                FlushWiredContextAsync(ctx)
-                    .LogAndForget(
-                        _roomGrain._logger,
-                        $"flush wired results in room {_roomGrain.RoomId}"
-                    );
+                FlushWiredContext(ctx);
             }
             catch (Exception ex)
             {
@@ -591,15 +665,23 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
         _stackSchedule.Enqueue((key, pending.Version), pending.DueAtMs);
     }
 
-    private Task FlushWiredContextAsync(WiredExecutionContext ctx)
+    /// <summary>
+    /// What one action moved and changed, as one room message in the order it always went out:
+    /// the moves, then the floor states, then the wall states. It is one message per action, not
+    /// per tick, because an action also reaches the room by other routes (a chat bubble, a furni
+    /// put down or taken away) and a later action's moves must not overtake those.
+    /// </summary>
+    private void FlushWiredContext(WiredExecutionContext ctx)
     {
+        var composers = ImmutableArray.CreateBuilder<IComposer>(3);
+
         if (
             ctx.UserMoves.Count > 0
             || ctx.UserDirections.Count > 0
             || ctx.FloorItemMoves.Count > 0
             || ctx.WallItemMoves.Count > 0
         )
-            _roomGrain.SendComposerToRoomAndForget(
+            composers.Add(
                 new WiredMovementsMessageComposer
                 {
                     Users = ctx.UserMoves,
@@ -610,16 +692,16 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
             );
 
         if (ctx.FloorItemStateUpdates.Count > 0)
-            _roomGrain.SendComposerToRoomAndForget(
+            composers.Add(
                 new ObjectsDataUpdateMessageComposer { StuffDatas = ctx.FloorItemStateUpdates }
             );
 
         if (ctx.WallItemStateUpdates.Count > 0)
-            _roomGrain.SendComposerToRoomAndForget(
+            composers.Add(
                 new ItemsStateUpdateMessageComposer { ObjectStates = ctx.WallItemStateUpdates }
             );
 
-        return Task.CompletedTask;
+        _roomGrain.SendComposersToRoomAndForget(composers.ToImmutable());
     }
 
     private async Task ProcessWiredStacksAsync(long now, CancellationToken ct)
@@ -635,11 +717,15 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
             await ProcessWiredStackAsync(stackId, ct);
 
         _stackIdsByEventType.Clear();
+        _timedTriggers.Clear();
 
         foreach (var stack in _stacksById.Values)
         {
             foreach (var trigger in stack.Triggers)
             {
+                if (trigger is WiredTriggerPeriodically or WiredTriggerAtTime)
+                    _timedTriggers.Add((stack, trigger));
+
                 foreach (var eventType in trigger.SupportedEventTypes)
                 {
                     if (!_stackIdsByEventType.TryGetValue(eventType, out var list))
@@ -660,8 +746,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
         _stacksById.Remove(stackId);
         _nextUnseenIndexByStackId.Remove(stackId);
 
-        var wiredItems = _roomGrain
-            .FurniModule.GetFloorItemsOnTile(stackId)
+        var wiredItems = FurniModule
+            .GetFloorItemsOnTile(stackId)
             .Where(x =>
                 x.Logic is FurnitureWiredLogic && x.Logic is not FurnitureWiredVariableLogic
             )
@@ -735,14 +821,26 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain) : IRoomEventLis
                 return [actions[0]];
             case WiredEffectModeType.Random:
             {
-                var candidates = actions.Skip(Math.Max(0, policy.RandomSkipCount)).ToList();
+                var skip = Math.Min(Math.Max(0, policy.RandomSkipCount), actions.Count);
+                var candidates = actions.GetRange(skip, actions.Count - skip);
 
                 if (candidates.Count == 0)
                     return [];
 
                 var picks = Math.Clamp(policy.RandomPickCount, 1, candidates.Count);
 
-                return candidates.OrderBy(_ => Random.Shared.Next()).Take(picks).ToList();
+                // A partial Fisher-Yates: only as many swaps as picks, each pick uniform over
+                // what is left, which is what shuffling the whole list and taking its head gave.
+                for (var i = 0; i < picks; i++)
+                {
+                    var j = Random.Shared.Next(i, candidates.Count);
+
+                    (candidates[i], candidates[j]) = (candidates[j], candidates[i]);
+                }
+
+                candidates.RemoveRange(picks, candidates.Count - picks);
+
+                return candidates;
             }
             case WiredEffectModeType.Unseen:
             {

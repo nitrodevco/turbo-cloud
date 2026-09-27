@@ -21,7 +21,7 @@ public sealed partial class RoomGrain
     public async Task<bool> RateRoomAsync(ActionContext ctx, int points, CancellationToken ct)
     {
         // One vote per player, up or down.
-        if (points is not (1 or -1) || !await GetCanRateAsync(ctx.PlayerId, ct))
+        if (points is not (1 or -1) || !CanRate(ctx.PlayerId))
             return false;
 
         try
@@ -72,10 +72,11 @@ public sealed partial class RoomGrain
         return true;
     }
 
-    public async Task<bool> GetCanRateAsync(PlayerId playerId, CancellationToken ct) =>
+    /// <summary>One vote per player, and none for the owner.</summary>
+    private bool CanRate(PlayerId playerId) =>
         playerId.Value > 0
         && !_state.PlayerIdsWhoRated.Contains(playerId)
-        && !await SecurityModule.GetIsRoomOwnerAsync(playerId);
+        && !SecurityModule.IsRoomOwner(playerId);
 
     public async Task SetStaffPickAsync(bool staffPick, CancellationToken ct)
     {

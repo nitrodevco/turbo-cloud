@@ -59,7 +59,8 @@ public class WiredActionClickSettings(
             )
             .LogAndForget(
                 _roomGrain._logger,
-                $"send wired click settings in room {_roomGrain.RoomId}"
+                "send wired click settings in room {RoomId}",
+                _roomGrain.RoomId
             );
 
         return Task.FromResult(true);

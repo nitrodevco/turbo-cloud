@@ -37,7 +37,7 @@ public class WiredSelectorEntitiesInArea(
             GetIntParamOrDefault(2, 0),
             GetIntParamOrDefault(3, 0)
         );
-        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
+        foreach (var avatar in AvatarModule.Avatars)
         {
             if (area.Contains(avatar.X, avatar.Y))
                 output.SelectedAvatarIds.Add(avatar.ObjectId);

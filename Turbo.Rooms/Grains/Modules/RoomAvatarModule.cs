@@ -1,12 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Turbo.Logging;
-using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Messages.Outgoing.Room.Action;
@@ -23,13 +22,12 @@ using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;
+using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
+public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainComponent(roomGrain)
 {
-    private readonly RoomGrain _roomGrain = roomGrain;
-
     private int _nextObjectId = 0;
 
     public async Task<IRoomAvatar> CreateAvatarFromPlayerAsync(
@@ -44,7 +42,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         var startY = _roomGrain._state.Model?.DoorY ?? 0;
         var startRot = _roomGrain._state.Model?.DoorRotation ?? Rotation.North;
 
-        if (!_roomGrain.MapModule.InBounds(startX, startY))
+        if (!MapModule.InBounds(startX, startY))
         {
             // TODO get a valid tile
             startX = 0;
@@ -52,23 +50,64 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
             startRot = Rotation.North;
         }
 
+        // Arriving through a teleporter starts the player inside it rather than at the door,
+        // when it is still here and free; otherwise they walk in the ordinary way.
+        var arrival = FindArrivalPoint(entry, out var arrivalItem);
+
+        if (arrival is not null && arrivalItem is not null)
+        {
+            startX = arrivalItem.X;
+            startY = arrivalItem.Y;
+            startRot = arrivalItem.Rotation;
+        }
+
         var avatar = _roomGrain._avatarProvider.CreateAvatarFromPlayerSnapshot(objectId, snapshot);
 
         avatar.SetRoomEntry(entry);
 
-        avatar.NextTileId = _roomGrain.MapModule.ToIdx(startX, startY);
+        avatar.NextTileId = MapModule.ToIdx(startX, startY);
 
-        await _roomGrain.ObjectModule.AttatchObjectAsync(avatar, ct);
+        await ObjectModule.AttatchObjectAsync(avatar, ct);
 
         _roomGrain._state.AvatarsByPlayerId[snapshot.PlayerId] = avatar.ObjectId;
 
         avatar.SetRotation(startRot);
 
-        await LoadBadgesAsync(avatar, ct);
-        await LoadHabboClubAsync(avatar, ct);
-        await LoadFavouriteGuildAsync(avatar, ct);
+        _roomGrain.WakeTick();
+
+        if (arrival is not null)
+            await arrival.ReceiveArrivalAsync(avatar, ct);
+
+        // Three grains that answer from what they hold and never call a room, asked side by
+        // side: each load only sets its own field on the avatar and logs its own failure.
+        await Task.WhenAll(
+            LoadBadgesAsync(avatar, ct),
+            LoadHabboClubAsync(avatar, ct),
+            LoadFavouriteGuildAsync(avatar, ct)
+        );
 
         return avatar;
+    }
+
+    /// <summary>
+    /// The furni an entry names for the player to arrive in (a teleporter's far half), when it
+    /// stands in this room and can take them now.
+    /// </summary>
+    private IRoomArrivalLogic? FindArrivalPoint(RoomEntrySnapshot entry, out IRoomFloorItem? item)
+    {
+        item = null;
+
+        if (
+            entry.Method != RoomEntryMethodType.Teleport
+            || entry.TeleportId <= 0
+            || !FurniModule.TryGetFloorItem(entry.TeleportId, out var found)
+            || found.Logic is not IRoomArrivalLogic { CanReceiveArrival: true } arrival
+        )
+            return null;
+
+        item = found;
+
+        return arrival;
     }
 
     /// <summary>The badges a player wears feed the "wearing badge" wired condition.</summary>
@@ -147,7 +186,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
 
             if (guildId is not { } favourite)
             {
-                player.SetFavouriteGuild(-1, -1, string.Empty);
+                player.SetFavouriteGuild(-1, GuildMembershipStatus.None, string.Empty);
 
                 return;
             }
@@ -158,12 +197,12 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
 
             if (guild is null)
             {
-                player.SetFavouriteGuild(-1, -1, string.Empty);
+                player.SetFavouriteGuild(-1, GuildMembershipStatus.None, string.Empty);
 
                 return;
             }
 
-            player.SetFavouriteGuild(guild.GuildId, (int)GuildMembershipStatus.Member, guild.Name);
+            player.SetFavouriteGuild(guild.GuildId, GuildMembershipStatus.Member, guild.Name);
         }
         catch (Exception ex)
         {
@@ -227,9 +266,12 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
             if (!TryGetPlayer(playerId, out var avatar))
                 return;
 
-            await _roomGrain.ObjectModule.RemoveObjectAsync(ctx, avatar, ct, -1);
+            await ObjectModule.RemoveObjectAsync(ctx, avatar, ct, -1);
 
             _roomGrain._state.AvatarsByPlayerId.Remove(playerId);
+
+            // Keeps the group level cache to the people in the room; one who comes back is asked again.
+            SecurityModule.ForgetGroupLevel(playerId);
         }
         catch (Exception ex)
         {
@@ -250,24 +292,13 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
 
     public IEnumerable<IRoomPlayer> Players => Avatars.OfType<IRoomPlayer>();
 
-    public bool TryGetAvatar(RoomObjectId objectId, out IRoomAvatar avatar)
-    {
-        if (_roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out var found))
-        {
-            avatar = found;
-
-            return true;
-        }
-
-        avatar = null!;
-
-        return false;
-    }
+    public bool TryGetAvatar(RoomObjectId objectId, [NotNullWhen(true)] out IRoomAvatar? avatar) =>
+        _roomGrain._state.AvatarsByObjectId.TryGetValue(objectId, out avatar);
 
     /// <summary>The avatars on a tile; none for a tile outside the room.</summary>
     public IEnumerable<IRoomAvatar> GetAvatarsOnTile(int tileIdx)
     {
-        if (!_roomGrain.MapModule.InBounds(tileIdx))
+        if (!MapModule.InBounds(tileIdx))
             yield break;
 
         foreach (var objectId in _roomGrain._state.TileAvatarStacks[tileIdx])
@@ -278,8 +309,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
     }
 
     public bool HasAvatarOnTile(int tileIdx) =>
-        _roomGrain.MapModule.InBounds(tileIdx)
-        && _roomGrain._state.TileAvatarStacks[tileIdx].Count > 0;
+        MapModule.InBounds(tileIdx) && _roomGrain._state.TileAvatarStacks[tileIdx].Count > 0;
 
     /// <summary>
     /// The avatars on any tile a floor item covers. With <paramref name="standingOnIt"/> only
@@ -287,12 +317,12 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
     /// </summary>
     public IEnumerable<IRoomAvatar> GetAvatarsOnItem(IRoomFloorItem item, bool standingOnIt = false)
     {
-        if (!_roomGrain.FurniModule.GetTileIdForFloorItem(item, out var tileIds))
+        if (!FurniModule.GetTileIdForFloorItem(item, out var tileIds))
             yield break;
 
         foreach (var tileIdx in tileIds)
         {
-            if (standingOnIt && !_roomGrain.FurniModule.IsHighestOnTile(item, tileIdx))
+            if (standingOnIt && !FurniModule.IsHighestOnTile(item, tileIdx))
                 continue;
 
             foreach (var avatar in GetAvatarsOnTile(tileIdx))
@@ -311,7 +341,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         nearest = null!;
         distance = int.MaxValue;
 
-        var map = _roomGrain.MapModule;
+        var map = MapModule;
 
         foreach (var player in Players)
         {
@@ -339,9 +369,9 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
     /// avatar; modules, systems and wired boxes all come here instead of walking
     /// <c>AvatarsByPlayerId</c> and <c>AvatarsByObjectId</c> themselves.
     /// </summary>
-    internal bool TryGetPlayer(PlayerId playerId, out IRoomPlayer player)
+    internal bool TryGetPlayer(PlayerId playerId, [NotNullWhen(true)] out IRoomPlayer? player)
     {
-        player = null!;
+        player = null;
 
         if (
             playerId <= 0
@@ -363,9 +393,12 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
+        // A player inside a teleporter asks to walk and is refused without stopping the walk
+        // the teleporter itself has them on.
         if (
             ctx.PlayerId <= 0
             || !TryGetPlayer(ctx.PlayerId, out var avatar)
+            || avatar.IsTeleporting
             || !await WalkAvatarToAsync(avatar, targetX, targetY, ct)
         )
             return false;
@@ -389,6 +422,12 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         return true;
     }
 
+    /// <summary>
+    /// Sends an avatar walking to a tile. False, with the avatar stopped, when it cannot go: it
+    /// is frozen, already there, or no way leads there. Those are ordinary answers, asked for by
+    /// every pet and bot that looks for a tile, so they are guard clauses; they used to be thrown
+    /// and caught here, which also hid any real failure of the walk behind the same false.
+    /// </summary>
     public async Task<bool> WalkAvatarToAsync(
         IRoomAvatar avatar,
         int targetX,
@@ -398,53 +437,70 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
     {
         try
         {
-            if (avatar.IsFrozen)
-                throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
+            if (!TryStartWalk(avatar, targetX, targetY))
+            {
+                await StopWalkingAsync(avatar, ct);
 
-            var goalTileId = _roomGrain.MapModule.ToIdx(targetX, targetY);
-            var currentTileId =
-                avatar.NextTileId > 0
-                    ? avatar.NextTileId
-                    : _roomGrain.MapModule.ToIdx(avatar.X, avatar.Y);
-            var (currentX, currentY) = _roomGrain.MapModule.GetTileXY(currentTileId);
-
-            if ((goalTileId == currentTileId) || !avatar.SetGoalTileId(goalTileId))
-                throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
-
-            var path = _roomGrain.PathingSystem.FindPath(
-                avatar,
-                (currentX, currentY),
-                (targetX, targetY)
-            );
-
-            if (path.Count == 0)
-                throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
-
-            avatar.TilePath.Clear();
-            avatar.TilePath.AddRange(
-                path.Skip(1).Select(pos => _roomGrain.MapModule.ToIdx(pos.X, pos.Y))
-            );
+                return false;
+            }
 
             avatar.IsWalking = true;
 
             return true;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _roomGrain._logger.LogError(
+                ex,
+                "Avatar {ObjectId} failed to set out for ({X}, {Y}) in room {RoomId}",
+                avatar.ObjectId,
+                targetX,
+                targetY,
+                _roomGrain.RoomId
+            );
+
             await StopWalkingAsync(avatar, ct);
 
             return false;
         }
     }
 
-    public Task<ImmutableArray<RoomAvatarSnapshot>> GetAllAvatarSnapshotsAsync(
-        CancellationToken ct
-    ) =>
-        Task.FromResult(
-            _roomGrain
-                ._state.AvatarsByObjectId.Values.Select(x => x.GetSnapshot())
-                .ToImmutableArray()
-        );
+    private bool TryStartWalk(IRoomAvatar avatar, int targetX, int targetY)
+    {
+        if (avatar.IsFrozen)
+            return false;
+
+        var map = MapModule;
+        var goalTileId = map.ToIdx(targetX, targetY);
+        var currentTileId =
+            avatar.NextTileId > 0 ? avatar.NextTileId : map.ToIdx(avatar.X, avatar.Y);
+
+        if (goalTileId == currentTileId || !avatar.SetGoalTileId(goalTileId))
+            return false;
+
+        // A goal off the map is refused by coordinate: its index can land on a real tile of the
+        // next row, which the search would then happily walk to.
+        return map.InBounds(targetX, targetY)
+            && PathingSystem.TryFindPath(avatar, currentTileId, goalTileId, avatar.TilePath);
+    }
+
+    /// <summary>
+    /// Whether a pet or bot following an avatar on <paramref name="targetIdx"/> should look for a
+    /// way to it now. After a search that found none it waits until the avatar moves or
+    /// <c>RoomConfig.NpcFollowRetryMs</c> passes, since the room may have opened up meanwhile.
+    /// </summary>
+    internal static bool IsFollowDue(IRoomFollower follower, int targetIdx, long now) =>
+        follower.FollowBlockedTileIdx != targetIdx || now >= follower.FollowRetryAtMs;
+
+    /// <summary>Remembers how a follower's search for <paramref name="targetIdx"/> went.</summary>
+    internal void RecordFollow(IRoomFollower follower, int targetIdx, bool found, long now)
+    {
+        follower.FollowBlockedTileIdx = found ? -1 : targetIdx;
+        follower.FollowRetryAtMs = found ? 0 : now + _roomGrain._roomConfig.NpcFollowRetryMs;
+    }
+
+    public ImmutableArray<RoomAvatarSnapshot> GetAvatarSnapshots() =>
+        [.. Avatars.Select(x => x.GetSnapshot())];
 
     public async Task StopWalkingAsync(IRoomAvatar avatar, CancellationToken ct)
     {
@@ -488,21 +544,28 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
 
             avatar.NextTileId = -1;
 
-            var prevTileId = _roomGrain.MapModule.ToIdx(avatar.X, avatar.Y);
-            var (nextX, nextY) = _roomGrain.MapModule.GetTileXY(nextTileId);
+            var prevTileId = MapModule.ToIdx(avatar.X, avatar.Y);
+            var (nextX, nextY) = MapModule.GetTileXY(nextTileId);
 
             if (prevTileId == nextTileId)
                 return;
 
-            _roomGrain.MapModule.RemoveAvatar(avatar, false);
+            MapModule.RemoveAvatar(avatar, false);
 
             avatar.SetPosition(nextX, nextY);
 
-            _roomGrain.MapModule.AddAvatar(avatar, false);
-            _roomGrain.MapModule.UpdateHeightForAvatar(avatar);
+            MapModule.AddAvatar(avatar, false);
+            MapModule.UpdateHeightForAvatar(avatar);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _roomGrain._logger.LogError(
+                ex,
+                "Avatar {ObjectId} failed to finish its step in room {RoomId}; stopping the walk",
+                avatar.ObjectId,
+                _roomGrain.RoomId
+            );
+
             await StopWalkingAsync(avatar, ct);
         }
     }
@@ -526,7 +589,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
         bool notifyFurni = true
     )
     {
-        var map = _roomGrain.MapModule;
+        var map = MapModule;
 
         if (map.ToIdx(avatar.X, avatar.Y) == tileIdx)
             return;
@@ -559,13 +622,13 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
 
     /// <summary>Tells the furni an avatar stands on that the avatar is leaving it.</summary>
     public Task NotifyWalkOffAsync(IRoomAvatar avatar, int tileIdx, CancellationToken ct) =>
-        _roomGrain.MapModule.TryGetHighestFloorItem(tileIdx, out var item)
+        MapModule.TryGetHighestFloorItem(tileIdx, out var item)
             ? item.Logic.OnWalkOffAsync((IRoomAvatarContext)avatar.Logic.Context, ct)
             : Task.CompletedTask;
 
     /// <summary>Tells the furni on a tile that an avatar arrived on it.</summary>
     public Task NotifyWalkOnAsync(IRoomAvatar avatar, int tileIdx, CancellationToken ct) =>
-        _roomGrain.MapModule.TryGetHighestFloorItem(tileIdx, out var item)
+        MapModule.TryGetHighestFloorItem(tileIdx, out var item)
             ? item.Logic.OnWalkOnAsync((IRoomAvatarContext)avatar.Logic.Context, ct)
             : Task.CompletedTask;
 
@@ -580,7 +643,9 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
             .SetFigureAsync(figure, gender, CancellationToken.None)
             .LogAndForget(
                 _roomGrain._logger,
-                $"change the figure of player {playerId} from room {_roomGrain.RoomId}"
+                "change the figure of player {PlayerId} from room {RoomId}",
+                playerId,
+                _roomGrain.RoomId
             );
 
     public Task<bool> UpdateAvatarWithPlayerAsync(
@@ -685,10 +750,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
 
     public Task<bool> LookToAsync(ActionContext ctx, int targetX, int targetY, CancellationToken ct)
     {
-        if (
-            !_roomGrain.MapModule.InBounds(targetX, targetY)
-            || !TryGetPlayer(ctx.PlayerId, out var avatar)
-        )
+        if (!MapModule.InBounds(targetX, targetY) || !TryGetPlayer(ctx.PlayerId, out var avatar))
             return Task.FromResult(false);
 
         // Turning mid-walk would fight the next step's rotation; the walk already faces its path.
@@ -730,13 +792,13 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
             return Task.CompletedTask;
 
         if (handItemId > 0)
-            _roomGrain.TimerSystem.Schedule(
+            TimerSystem.Schedule(
                 avatar.ObjectId,
                 _roomGrain._roomConfig.HandItemExpireMs,
                 _ => SetHandItemAsync(avatar, 0, CancellationToken.None)
             );
         else
-            _roomGrain.TimerSystem.Cancel(avatar.ObjectId);
+            TimerSystem.Cancel(avatar.ObjectId);
 
         return _roomGrain.SendComposerToRoomAsync(
             new CarryObjectMessageComposer { UserId = avatar.ObjectId, ItemType = handItemId },
@@ -834,7 +896,11 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain)
                 },
                 CancellationToken.None
             )
-            .LogAndForget(_roomGrain._logger, $"publish an event in room {_roomGrain.RoomId}");
+            .LogAndForget(
+                _roomGrain._logger,
+                "publish an event in room {RoomId}",
+                _roomGrain.RoomId
+            );
 
     internal int GetNextObjectId()
     {

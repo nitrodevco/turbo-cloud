@@ -44,9 +44,7 @@ public class WiredActionMoveFurniTo(
     public override Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
         var tiles = GetIntParamOrDefault(1, 1);
-        var (dx, dy) = _roomGrain.MapModule.GetDirectionOffset(
-            GetIntParamOrDefault(0, Rotation.North)
-        );
+        var (dx, dy) = MapModule.GetDirectionOffset(GetIntParamOrDefault(0, Rotation.North));
 
         return MoveOntoTargetFurniAsync(ctx, dx * tiles, dy * tiles);
     }

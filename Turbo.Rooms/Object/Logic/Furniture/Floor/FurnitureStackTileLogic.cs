@@ -10,7 +10,6 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 
@@ -54,7 +53,7 @@ public class FurnitureStackTileLogic(IStuffDataFactory stuffDataFactory, IRoomFl
         var item = _ctx.RoomObject;
 
         if (
-            !await _roomGrain.FurniModule.MoveFloorItemByIdAsync(
+            !await FurniModule.MoveFloorItemByIdAsync(
                 ctx,
                 item.ObjectId,
                 item.X,
@@ -106,16 +105,10 @@ public class FurnitureStackTileLogic(IStuffDataFactory stuffDataFactory, IRoomFl
     /// <summary>Top surfaces of every other floor item sharing this tile.</summary>
     private IEnumerable<Altitude> OtherTops()
     {
-        var idx = _ctx.GetTileIdx();
-        var stacks = _roomGrain._state.TileFloorStacks;
-
-        if (idx < 0 || idx >= stacks.Length)
-            return [];
-
-        return stacks[idx]
-            .Where(id => id != _ctx.ObjectId)
-            .Select(id => _roomGrain._state.ItemsById.TryGetValue(id, out var other) ? other : null)
-            .OfType<IRoomItem>()
+        // The furni module reads the stack, and answers nothing for a tile off the map.
+        return FurniModule
+            .GetFloorItemsOnTile(_ctx.GetTileIdx())
+            .Where(other => other.ObjectId != _ctx.ObjectId)
             .Select(other => (Altitude)(other.Z.Value + other.GetStackHeight().Value));
     }
 }

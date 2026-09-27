@@ -44,7 +44,7 @@ public class WiredActionUserToFurni(
             return false;
 
         var mode = GetIntParamOrDefault(0, WiredUserWalkModeType.Walk);
-        var map = _roomGrain.MapModule;
+        var map = MapModule;
         var moved = false;
 
         foreach (var player in players)
@@ -55,12 +55,7 @@ public class WiredActionUserToFurni(
             moved |= mode switch
             {
                 WiredUserWalkModeType.Walk => !player.IsFrozen
-                    && await _roomGrain.AvatarModule.WalkAvatarToAsync(
-                        player,
-                        target.X,
-                        target.Y,
-                        ct
-                    ),
+                    && await AvatarModule.WalkAvatarToAsync(player, target.X, target.Y, ct),
                 WiredUserWalkModeType.Slide => await ctx.ProcessUserMovementAsync(
                     player,
                     tileIdx,

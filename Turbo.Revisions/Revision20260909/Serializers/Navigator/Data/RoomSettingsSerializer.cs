@@ -7,7 +7,8 @@ namespace Turbo.Revisions.Revision20260909.Serializers.Navigator.Data;
 
 internal class RoomSettingsSerializer
 {
-    public static void Serialize(IServerPacket packet, RoomInfoSnapshot message)
+    /// <param name="nowUtc">The composer's own time: whether the room's event is still on.</param>
+    public static void Serialize(IServerPacket packet, RoomInfoSnapshot message, DateTime nowUtc)
     {
         packet
             .WriteInteger(message.RoomId)
@@ -27,8 +28,7 @@ internal class RoomSettingsSerializer
         foreach (var tag in message.Tags)
             packet.WriteString(tag);
 
-        var now = DateTime.UtcNow;
-        var activeEvent = message.ActiveEvent is { } evt && evt.IsActiveAt(now) ? evt : null;
+        var activeEvent = message.ActiveEvent is { } evt && evt.IsActiveAt(nowUtc) ? evt : null;
         var bitmask = RoomBitmaskFlags.ShowOwner;
 
         if (message.AllowPets)
@@ -60,7 +60,7 @@ internal class RoomSettingsSerializer
             packet
                 .WriteString(activeEvent!.Name)
                 .WriteString(activeEvent.Description)
-                .WriteInteger(activeEvent.MinutesUntilExpiry(now));
+                .WriteInteger(activeEvent.MinutesUntilExpiry(nowUtc));
         }
     }
 }

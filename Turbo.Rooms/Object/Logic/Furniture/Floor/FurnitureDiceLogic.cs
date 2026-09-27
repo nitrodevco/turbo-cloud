@@ -43,16 +43,12 @@ public class FurnitureDiceLogic(IStuffDataFactory stuffDataFactory, IRoomFloorIt
 
                 await SetStateAsync(DiceStates.ROLLING);
 
-                _roomGrain.TimerSystem.Schedule(
-                    _ctx.ObjectId,
-                    _roomGrain._roomConfig.DiceRollMs,
-                    LandAsync
-                );
+                TimerSystem.Schedule(_ctx.ObjectId, _roomGrain._roomConfig.DiceRollMs, LandAsync);
 
                 return true;
 
             case DiceOffInteraction:
-                _roomGrain.TimerSystem.Cancel(_ctx.ObjectId);
+                TimerSystem.Cancel(_ctx.ObjectId);
 
                 await SetStateAsync(DiceStates.OFF);
 
@@ -65,7 +61,7 @@ public class FurnitureDiceLogic(IStuffDataFactory stuffDataFactory, IRoomFloorIt
 
     public override Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
     {
-        _roomGrain.TimerSystem.Cancel(_ctx.ObjectId);
+        TimerSystem.Cancel(_ctx.ObjectId);
 
         return base.OnPickupAsync(ctx, ct);
     }

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,27 +38,16 @@ public class WiredSelectorItemsByType(
     )
     {
         var input = ctx.GetSelection(this);
-        var allowedDefinitionIds = new List<int>();
+        var allowedDefinitionIds = new HashSet<int>();
         var output = new WiredSelectionSet();
 
         foreach (var id in input.SelectedFurniIds)
         {
-            try
-            {
-                if (!_roomGrain.FurniModule.TryGetItem(id, out var item))
-                    continue;
-
+            if (FurniModule.TryGetItem(id, out var item))
                 allowedDefinitionIds.Add(item.Definition.Id);
-            }
-            catch (Exception ex)
-            {
-                LogWiredDataFault(ex);
-
-                continue;
-            }
         }
 
-        foreach (var item in _roomGrain.FurniModule.Items)
+        foreach (var item in FurniModule.Items)
         {
             if (allowedDefinitionIds.Contains(item.Definition.Id))
                 output.SelectedFurniIds.Add((int)item.ObjectId);

@@ -29,6 +29,8 @@ public class FurniturePetFoodLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
         pet.ActionExpiresAtMs = _roomGrain.NowMs() + config.ActionDurationMs;
         pet.MarkDirty();
 
-        return _roomGrain.PetModule.PersistAsync(pet, ct);
+        PetModule.Persist(pet);
+
+        return Task.CompletedTask;
     }
 }

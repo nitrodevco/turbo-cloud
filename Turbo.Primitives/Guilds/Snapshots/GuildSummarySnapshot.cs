@@ -55,4 +55,12 @@ public record GuildSummarySnapshot
     /// </summary>
     [Id(10)]
     public required bool HasForum { get; init; }
+
+    /// <summary>
+    /// How far down the group's rights in its homeroom reach. On the summary, not only the full
+    /// snapshot, because the homeroom reads it on every rights check and holds the summary
+    /// already; it used to fetch the whole group for this one setting.
+    /// </summary>
+    [Id(11)]
+    public required GuildRightsLevel RightsLevel { get; init; } = GuildRightsLevel.Admins;
 }

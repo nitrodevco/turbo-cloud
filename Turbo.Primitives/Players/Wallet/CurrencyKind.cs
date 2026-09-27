@@ -16,6 +16,8 @@ public readonly record struct CurrencyKind
 
     public static CurrencyKind Silver => new() { CurrencyType = CurrencyType.Silver };
 
+    public static CurrencyKind Emeralds => new() { CurrencyType = CurrencyType.Emeralds };
+
     public static CurrencyKind ActivityPoints(int? activityPointType) =>
         new() { CurrencyType = CurrencyType.ActivityPoints, ActivityPointType = activityPointType };
 }

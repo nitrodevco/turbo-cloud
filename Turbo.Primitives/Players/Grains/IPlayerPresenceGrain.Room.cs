@@ -26,16 +26,23 @@ public partial interface IPlayerPresenceGrain
     public Task ClearPendingRoomAsync(CancellationToken ct);
 
     /// <summary>
-    /// Says how the player is about to arrive somewhere, for the furni that is sending them
-    /// there. It is kept until they enter <paramref name="roomId"/> and is dropped if they go
-    /// anywhere else, so a forward they never followed cannot colour a later entry.
+    /// Sends the player to a room: records how they will arrive, then tells the client to go.
+    /// One call so the two cannot come apart — the forward is what makes the client ask to
+    /// enter, and the room reads the entry as they land. The entry is kept until they enter
+    /// <paramref name="roomId"/> and dropped if they go anywhere else; a plain forward records a
+    /// plain entry, so an earlier furni's entry cannot colour this one. Reach it through
+    /// <c>IGrainFactory.ForwardPlayerToRoomAsync</c>.
     /// </summary>
     [AlwaysInterleave]
-    public Task SetPendingRoomEntryAsync(
-        RoomId roomId,
-        RoomEntrySnapshot entry,
-        CancellationToken ct
-    );
+    public Task ForwardToRoomAsync(RoomId roomId, RoomEntrySnapshot entry, CancellationToken ct);
+
+    /// <summary>
+    /// How the last forward said the player would arrive in <paramref name="roomId"/>, while it
+    /// is fresh (<c>PlayerConfig.PendingRoomEntryTtlMs</c>); a plain entry otherwise. Read by
+    /// the entry handlers: a teleporter's entry lets the player past the room's door.
+    /// </summary>
+    [AlwaysInterleave]
+    public Task<RoomEntrySnapshot> GetPendingRoomEntryAsync(RoomId roomId, CancellationToken ct);
 
     [AlwaysInterleave]
     public Task OnControllerLevelUpdatedAsync(

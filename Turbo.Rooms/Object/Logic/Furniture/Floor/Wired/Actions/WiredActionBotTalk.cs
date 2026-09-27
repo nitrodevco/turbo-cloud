@@ -33,7 +33,7 @@ public class WiredActionBotTalk(
 
         var width = GetIntParamOrDefault(1, -1);
 
-        await _roomGrain.BotModule.TalkAsync(
+        await BotModule.TalkAsync(
             bot,
             await ctx.FormatTextAsync(text, ct),
             GetIntParamOrDefault(0, false),

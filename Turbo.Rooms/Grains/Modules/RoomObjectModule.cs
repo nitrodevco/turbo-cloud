@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Logging;
@@ -6,7 +5,6 @@ using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
@@ -20,13 +18,8 @@ using Turbo.Rooms.Object.Furniture.Wall;
 
 namespace Turbo.Rooms.Grains.Modules;
 
-public sealed partial class RoomObjectModule(RoomGrain roomGrain)
+public sealed partial class RoomObjectModule(RoomGrain roomGrain) : RoomGrainComponent(roomGrain)
 {
-    private readonly RoomGrain _roomGrain = roomGrain;
-
-    public Task<ImmutableDictionary<PlayerId, string>> GetAllOwnersAsync(CancellationToken ct) =>
-        Task.FromResult(_roomGrain._state.OwnerNamesById.ToImmutableDictionary());
-
     public async Task<bool> AttatchObjectAsync(IRoomObject roomObject, CancellationToken ct)
     {
         switch (roomObject)
@@ -35,6 +28,8 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
             {
                 if (!_roomGrain._state.ItemsById.TryAdd(item.ObjectId, item))
                     throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
+
+                _roomGrain._state.ItemsVersion++;
 
                 if (!_roomGrain._state.OwnerNamesById.TryGetValue(item.OwnerId, out string? value))
                 {
@@ -52,7 +47,7 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
                 if (!item.IsTemporary)
                     item.SetAction(objectId => _roomGrain._state.DirtyItemIds.Add(objectId));
 
-                if (!await AttatchLogicAsync(roomObject, ct) || !_roomGrain.MapModule.AddItem(item))
+                if (!await AttatchLogicAsync(roomObject, ct) || !MapModule.AddItem(item))
                     return false;
                 break;
             }
@@ -61,8 +56,13 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
                 if (!_roomGrain._state.AvatarsByObjectId.TryAdd(avatar.ObjectId, avatar))
                     throw new TurboException(TurboErrorCodeEnum.AvatarNotFound);
 
+                if (avatar is IRoomPet pet)
+                    _roomGrain._state.Pets.Add(pet);
+                else if (avatar is IRoomBot bot)
+                    _roomGrain._state.Bots.Add(bot);
+
                 await AttatchLogicAsync(avatar, ct);
-                await _roomGrain.AvatarModule.ProcessNextAvatarStepAsync(avatar, ct);
+                await AvatarModule.ProcessNextAvatarStepAsync(avatar, ct);
 
                 _roomGrain.SendComposerToRoomAndForget(
                     new UsersMessageComposer { Avatars = [avatar.GetSnapshot()] }
@@ -93,7 +93,7 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
         {
             case IRoomItem item:
             {
-                if (!_roomGrain.MapModule.RemoveItem(item))
+                if (!MapModule.RemoveItem(item))
                     return false;
 
                 // A caller removing many items at once tells the room once for all of them.
@@ -106,6 +106,7 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
                 item.SetAction(null);
 
                 _roomGrain._state.ItemsById.Remove(item.ObjectId);
+                _roomGrain._state.ItemsVersion++;
 
                 if (item.IsBuildersClub)
                 {
@@ -131,9 +132,9 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
             }
             case IRoomAvatar avatar:
             {
-                await _roomGrain.AvatarModule.StopWalkingAsync(avatar, ct);
+                await AvatarModule.StopWalkingAsync(avatar, ct);
 
-                _roomGrain.MapModule.RemoveAvatar(avatar, false);
+                MapModule.RemoveAvatar(avatar, false);
 
                 await avatar.Logic.OnDetachAsync(ct);
 
@@ -143,6 +144,11 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain)
                 );
 
                 _roomGrain._state.AvatarsByObjectId.Remove(avatar.ObjectId);
+
+                if (avatar is IRoomPet pet)
+                    _roomGrain._state.Pets.Remove(pet);
+                else if (avatar is IRoomBot bot)
+                    _roomGrain._state.Bots.Remove(bot);
                 break;
             }
         }

@@ -42,9 +42,9 @@ public class WiredActionCallStacks(
 
         foreach (var item in GetFloorItems(ctx.GetSelection(this)))
         {
-            var stackId = _roomGrain.MapModule.ToIdx(item.X, item.Y);
+            var stackId = MapModule.ToIdx(item.X, item.Y);
 
-            if (stackId != ownStackId && _roomGrain.WiredSystem.HasStack(stackId))
+            if (stackId != ownStackId && WiredSystem.HasStack(stackId))
                 stackIds.Add(stackId);
         }
 

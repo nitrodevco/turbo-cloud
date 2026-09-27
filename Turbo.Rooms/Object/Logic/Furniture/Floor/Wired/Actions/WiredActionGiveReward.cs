@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -262,8 +263,18 @@ public class WiredActionGiveReward(
                 continue;
 
             if (
-                !int.TryParse(parts[0], out var type)
-                || !int.TryParse(parts[2], out var probability)
+                !int.TryParse(
+                    parts[0],
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out var type
+                )
+                || !int.TryParse(
+                    parts[2],
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out var probability
+                )
                 || string.IsNullOrWhiteSpace(parts[1])
             )
                 continue;

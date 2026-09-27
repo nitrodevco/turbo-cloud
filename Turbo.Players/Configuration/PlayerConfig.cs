@@ -13,10 +13,29 @@ public class PlayerConfig
     public SubscriptionConfig Subscriptions { get; init; } = new();
 
     public int PlayerPresenceTickMs { get; init; } = 5000;
+
+    /// <summary>
+    /// Players whose id and name the hotel-wide player directory keeps in memory; the least
+    /// recently asked-for is dropped past this and read from the database again when needed.
+    /// </summary>
+    public int DirectoryMaxCachedPlayers { get; init; } = 100_000;
     public int MessengerUserFriendLimit { get; init; } = 100;
     public int MessengerNormalFriendLimit { get; init; } = 100;
     public int MessengerExtendedFriendLimit { get; init; } = 100;
     public int MessengerSearchLimit { get; init; } = 25;
+
+    /// <summary>
+    /// Shortest time between two player searches by one player. A search inside it is answered
+    /// with no results rather than another query.
+    /// </summary>
+    public int MessengerSearchMinIntervalMs { get; init; } = 500;
+
+    /// <summary>
+    /// How old a messenger's friend rows may be when its owner comes online and they are still
+    /// used as loaded. A messenger woken while its owner was offline (someone viewed their
+    /// profile) hears no friend updates, so older rows are read again.
+    /// </summary>
+    public int MessengerFriendRowsFreshSeconds { get; init; } = 30;
     public int MessengerMaxIgnore { get; init; } = 100;
     public int MaxSessionMessagesPerConversation { get; init; } = 20;
     public int WardrobeMaxSlots { get; init; } = 10;
@@ -36,6 +55,13 @@ public class PlayerConfig
     public int MessengerMaxPendingDelivered { get; init; } = 500;
 
     public int MaxPendingComposers { get; init; } = 500;
+
+    /// <summary>
+    /// How long a forward's pending entry (how a furni said the player will arrive) is honoured.
+    /// A teleporter's entry lets the player past the target room's door, so one they never
+    /// followed must not wait for them indefinitely.
+    /// </summary>
+    public int PendingRoomEntryTtlMs { get; init; } = 30000;
 
     /// <summary>Items per fragment when the furniture inventory is sent to the client.</summary>
     public int FurnitureInventoryFragmentSize { get; init; } = 100;

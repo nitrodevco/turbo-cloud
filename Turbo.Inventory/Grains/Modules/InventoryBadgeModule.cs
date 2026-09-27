@@ -248,7 +248,11 @@ internal sealed class InventoryBadgeModule(
 
         _inventoryGrain
             .Player.SetBadgesRankAsync(rank, CancellationToken.None)
-            .LogAndForget(_logger, $"tell player {_inventoryGrain.PlayerId} their badges rank");
+            .LogAndForget(
+                _logger,
+                "tell player {PlayerId} their badges rank",
+                _inventoryGrain.PlayerId
+            );
     }
 
     public async Task<PlayerBadgeSummarySnapshot> GetSummaryAsync(CancellationToken ct)

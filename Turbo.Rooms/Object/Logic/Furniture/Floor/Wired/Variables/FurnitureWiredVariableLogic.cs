@@ -55,7 +55,7 @@ public abstract class FurnitureWiredVariableLogic
             && index < update.IntParams.Count
             && (WiredAvailabilityType)update.IntParams[index] == WiredAvailabilityType.Persistent
             && GetVarSnapshot().AvailabilityType != WiredAvailabilityType.Persistent
-            && await _roomGrain.WiredSystem.IsPermanentVariableCapReachedAsync(TargetType, ct)
+            && await WiredSystem.IsPermanentVariableCapReachedAsync(TargetType, ct)
         )
             throw new TurboException(TurboErrorCodeEnum.WiredPermanentVariableLimitReached);
 
@@ -240,14 +240,18 @@ public abstract class FurnitureWiredVariableLogic
                 },
                 System.Threading.CancellationToken.None
             )
-            .LogAndForget(_roomGrain._logger, $"publish an event in room {_roomGrain.RoomId}");
+            .LogAndForget(
+                _roomGrain._logger,
+                "publish an event in room {RoomId}",
+                _roomGrain.RoomId
+            );
 
     /// <summary>The labels a text connector addon on the same tile gives the values.</summary>
     public virtual Dictionary<WiredVariableValue, string> GetTextConnectors()
     {
         var connectors = new Dictionary<WiredVariableValue, string>();
 
-        foreach (var item in _roomGrain.FurniModule.GetFloorItemsOnTile(_ctx.GetTileIdx()))
+        foreach (var item in FurniModule.GetFloorItemsOnTile(_ctx.GetTileIdx()))
         {
             if (item.Logic is not Addons.WiredAddonVariableTextConnector connector)
                 continue;
@@ -306,7 +310,7 @@ public abstract class FurnitureWiredVariableLogic
             return true;
         }
 
-        return _roomGrain.WiredSystem.TryGetStoreForKey(key, out store);
+        return WiredSystem.TryGetStoreForKey(key, out store);
     }
 
     public WiredVariableSnapshot GetVarSnapshot() => _varSnapshot ??= BuildVarSnapshot();

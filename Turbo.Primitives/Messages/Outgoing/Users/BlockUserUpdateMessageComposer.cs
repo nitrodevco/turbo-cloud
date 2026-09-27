@@ -1,5 +1,6 @@
 using Orleans;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players.Enums.Messenger;
 
 namespace Turbo.Primitives.Messages.Outgoing.Users;
 
@@ -7,7 +8,7 @@ namespace Turbo.Primitives.Messages.Outgoing.Users;
 public sealed record BlockUserUpdateMessageComposer : IComposer
 {
     [Id(0)]
-    public required int Result { get; init; }
+    public required MessengerBlockResultType Result { get; init; }
 
     [Id(1)]
     public required int UserId { get; init; }

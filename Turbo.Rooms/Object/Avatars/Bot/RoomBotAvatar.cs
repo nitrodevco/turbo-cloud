@@ -34,6 +34,8 @@ public sealed class RoomBotAvatar : RoomAvatar<IRoomBot, IRoomBotLogic, IRoomBot
     public long NextChatAtMs { get; set; }
     public int NextChatLineIndex { get; set; }
     public RoomObjectId FollowObjectId { get; set; } = -1;
+    public int FollowBlockedTileIdx { get; set; } = -1;
+    public long FollowRetryAtMs { get; set; }
     public RoomObjectId TargetItemId { get; set; } = -1;
 
     public static RoomBotAvatar FromSnapshot(

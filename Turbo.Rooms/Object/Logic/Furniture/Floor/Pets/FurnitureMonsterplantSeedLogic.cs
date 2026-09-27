@@ -35,11 +35,6 @@ public class FurnitureMonsterplantSeedLogic(
             _roomGrain._logger
         );
 
-        await _roomGrain.PetModule.PlantSeedAsync(
-            ctx,
-            _ctx.RoomObject,
-            data?.MinRarityLevel ?? 0,
-            ct
-        );
+        await PetModule.PlantSeedAsync(ctx, _ctx.RoomObject, data?.MinRarityLevel ?? 0, ct);
     }
 }

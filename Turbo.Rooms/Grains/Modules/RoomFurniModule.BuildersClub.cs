@@ -170,14 +170,14 @@ public sealed partial class RoomFurniModule
         if (ctx.PlayerId <= 0)
             return null;
 
-        var controllerLevel = await _roomGrain.SecurityModule.GetControllerLevelAsync(ctx);
+        var controllerLevel = await SecurityModule.GetControllerLevelAsync(ctx);
 
         // The client refuses below its own controller level 3, which is a group admin here.
         if (controllerLevel < RoomControllerType.GroupAdmin)
             return Refuse(ctx, offerId, "they do not control the room");
 
         if (
-            !_roomGrain.SecurityModule.IsRoomOwner(ctx.PlayerId)
+            !SecurityModule.IsRoomOwner(ctx.PlayerId)
             && await _roomGrain.GetIsGroupRoomAsync(ct)
             && !_roomGrain._roomConfig.BuildersClubInGroupRooms
         )
@@ -245,7 +245,7 @@ public sealed partial class RoomFurniModule
 
         // A trial build is a private one. There are no staff ranks yet, so anyone else present
         // counts.
-        if (_roomGrain.AvatarModule.Players.Any(x => x.PlayerId != ctx.PlayerId))
+        if (AvatarModule.Players.Any(x => x.PlayerId != ctx.PlayerId))
         {
             Refuse(ctx, warning.OfferId, "somebody else is in the room and they are on trial");
 
@@ -282,7 +282,7 @@ public sealed partial class RoomFurniModule
         if (!written)
         {
             // The removal counts no borrow back, because none was ever counted.
-            await _roomGrain.ObjectModule.RemoveObjectAsync(ctx, item, ct, reportBorrow: false);
+            await ObjectModule.RemoveObjectAsync(ctx, item, ct, reportBorrow: false);
 
             return false;
         }

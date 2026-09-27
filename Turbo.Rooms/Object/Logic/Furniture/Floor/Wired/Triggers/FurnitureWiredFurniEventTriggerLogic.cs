@@ -35,6 +35,47 @@ public abstract class FurnitureWiredFurniEventTriggerLogic<TEvent>(
     /// <summary>The furni the event happened to.</summary>
     protected abstract RoomObjectId GetFurniId(TEvent evt);
 
+    /// <summary>
+    /// When the box takes its furni from its own picks, only an event about one of them.
+    /// <see cref="CanTriggerAsync"/> asks the same of the resolved selection, which is then the
+    /// picks and nothing else; asking it here as well keeps a walk onto any furni in the room
+    /// from running the selectors, addons and conditions of every walk-on stack before being
+    /// turned away. A box reading the selector pool is left to <see cref="CanTriggerAsync"/>,
+    /// because the pool is only filled once the selectors have run.
+    /// </summary>
+    public override async Task<bool> MatchesEventAsync(RoomEvent evt, CancellationToken ct)
+    {
+        if (!await base.MatchesEventAsync(evt, ct) || evt is not TEvent furniEvt)
+            return false;
+
+        if (!TakesOnlyPickedFurni())
+            return true;
+
+        var furniId = GetFurniId(furniEvt).Value;
+
+        return GetStuffIds().Contains(furniId) || GetStuffIds2().Contains(furniId);
+    }
+
+    private bool TakesOnlyPickedFurni()
+    {
+        foreach (var slot in GetFurniSources())
+        {
+            foreach (var source in slot)
+            {
+                if (
+                    source
+                    is not (
+                        WiredFurniSourceType.SelectedItems
+                        or WiredFurniSourceType.SnapshotItems
+                    )
+                )
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
     public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct) =>
         Task.FromResult(
             ctx.Event is TEvent evt

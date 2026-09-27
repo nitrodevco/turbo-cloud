@@ -32,13 +32,11 @@ public sealed class UserTeamScoreVariable(RoomGrain roomGrain)
         if (!CanBind(key) || !TryGetAvatarForKey(key, out var avatar))
             return false;
 
-        var team = _roomGrain.GameSystem.GetTeam(avatar.PlayerId);
+        var team = GameSystem.GetTeam(avatar.PlayerId);
 
-        return await _roomGrain.GameSystem.SetScoreAsync(team, value, CancellationToken.None);
+        return await GameSystem.SetScoreAsync(team, value, CancellationToken.None);
     }
 
     protected override WiredVariableValue GetValueForAvatar(IRoomPlayer avatar) =>
-        WiredVariableValue.Parse(
-            _roomGrain.GameSystem.GetScore(_roomGrain.GameSystem.GetTeam(avatar.PlayerId))
-        );
+        WiredVariableValue.Parse(GameSystem.GetScore(GameSystem.GetTeam(avatar.PlayerId)));
 }

@@ -40,7 +40,7 @@ public class WiredActionSetAltitude(
         var amount = GetIntParamOrDefault(0, 0);
         var op = GetIntParamOrDefault(1, WiredOperatorType.Set);
         var maxAltitude = _roomGrain._roomConfig.MaxStackHeight.ToInt();
-        var map = _roomGrain.MapModule;
+        var map = MapModule;
         var moved = false;
 
         foreach (var item in GetFloorItems(ctx.GetSelection(this)))
@@ -58,6 +58,8 @@ public class WiredActionSetAltitude(
             if (next == current)
                 continue;
 
+            // Not TryMoveFloorItemAsync: the furni stays on its own tile and only its height
+            // changes, which is this box's to set, so there is no placement to ask about.
             moved |= await ctx.ProcessFloorItemMovementAsync(
                 item,
                 map.ToIdx(item.X, item.Y),

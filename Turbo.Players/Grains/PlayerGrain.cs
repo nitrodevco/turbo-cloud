@@ -145,7 +145,7 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         // presence pushes this value on every session open and close anyway, so all this
         // recovers is the case of being collected mid-session, and it self-corrects a turn in.
         RefreshOnlineStatusAsync()
-            .LogAndForget(_logger, $"refresh online status of player {_state.PlayerId}");
+            .LogAndForget(_logger, "refresh online status of player {PlayerId}", _state.PlayerId);
 
         ResetDailyRespectIfDue();
 
@@ -283,7 +283,11 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         _grainFactory
             .GetPlayerPresenceGrain(PlayerId)
             .OnBadgesRankChangedAsync(summary, CancellationToken.None)
-            .LogAndForget(_logger, $"tell player {PlayerId} presence of a new badges rank");
+            .LogAndForget(
+                _logger,
+                "tell player {PlayerId} presence of a new badges rank",
+                PlayerId
+            );
     }
 
     // The badge figures of a profile are not here: they are the inventory's, and this grain must
@@ -310,6 +314,8 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
                 Motto = _state.Motto,
                 CreationDate = ClientDates.Format(_state.CreatedAt),
                 AchievementScore = _state.AchievementScore,
+                // The friends list is the messenger's, and the messenger awaits this grain,
+                // so the profile's readers fill these in (ExtendedProfileExtensions).
                 FriendCount = 0,
                 IsFriend = false,
                 IsFriendRequestSent = false,

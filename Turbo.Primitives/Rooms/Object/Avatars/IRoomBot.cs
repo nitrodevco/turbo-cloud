@@ -8,7 +8,7 @@ using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 namespace Turbo.Primitives.Rooms.Object.Avatars;
 
 /// <summary>A rentable bot in a room: an avatar its owner configures through bot skills.</summary>
-public interface IRoomBot : IRoomAvatar<IRoomBot, IRoomBotLogic, IRoomBotContext>
+public interface IRoomBot : IRoomAvatar<IRoomBot, IRoomBotLogic, IRoomBotContext>, IRoomFollower
 {
     new IRoomBotLogic Logic { get; }
     public int BotId { get; }
@@ -25,9 +25,6 @@ public interface IRoomBot : IRoomAvatar<IRoomBot, IRoomBotLogic, IRoomBotContext
     public long NextWalkAtMs { get; set; }
     public long NextChatAtMs { get; set; }
     public int NextChatLineIndex { get; set; }
-
-    /// <summary>The avatar a "follow" order attached the bot to, or -1.</summary>
-    public RoomObjectId FollowObjectId { get; set; }
 
     /// <summary>The furni a "move" order sent the bot to, or -1.</summary>
     public RoomObjectId TargetItemId { get; set; }

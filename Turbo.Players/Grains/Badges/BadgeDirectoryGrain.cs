@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Orleans.Runtime;
 using Turbo.Database.Context;
 using Turbo.Players.Badges;
 using Turbo.Players.Configuration;
@@ -63,11 +64,17 @@ internal sealed class BadgeDirectoryGrain : Grain, IBadgeDirectoryGrain
             throw;
         }
 
+        // Interleaved: the recount is a grouped query over every badge row, and every badge
+        // shown anywhere must not wait for it. It swaps its result in after its last await.
         _refreshTimer = this.RegisterGrainTimer<object?>(
             static async (self, ct) => await ((BadgeDirectoryGrain)self!).RefreshAsync(ct),
             this,
-            TimeSpan.FromMilliseconds(_badgeConfig.OwnerCountRefreshMs),
-            TimeSpan.FromMilliseconds(_badgeConfig.OwnerCountRefreshMs)
+            new GrainTimerCreationOptions
+            {
+                DueTime = TimeSpan.FromMilliseconds(_badgeConfig.OwnerCountRefreshMs),
+                Period = TimeSpan.FromMilliseconds(_badgeConfig.OwnerCountRefreshMs),
+                Interleave = true,
+            }
         );
     }
 
@@ -169,6 +176,8 @@ internal sealed class BadgeDirectoryGrain : Grain, IBadgeDirectoryGrain
             .ToListAsync(ct);
         var totalPlayers = await dbCtx.Players.CountAsync(ct);
 
+        // Nothing below awaits: the refresh timer is interleaved with the reads, which must
+        // never see the counts half replaced.
         _state.OwnerCountByCode.Clear();
 
         foreach (var count in counts)

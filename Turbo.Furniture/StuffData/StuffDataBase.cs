@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
@@ -32,7 +33,7 @@ internal abstract class StuffDataBase : IStuffData
 
     public bool IsUnique() => UniqueNumber > 0 && UniqueSeries > 0;
 
-    public virtual int GetState() => int.Parse(GetLegacyString());
+    public virtual int GetState() => int.Parse(GetLegacyString(), CultureInfo.InvariantCulture);
 
     public virtual void SetState(string state) { }
 

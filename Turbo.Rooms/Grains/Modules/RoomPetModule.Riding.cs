@@ -26,7 +26,7 @@ public sealed partial class RoomPetModule
     {
         if (
             !TryGetPet(petId, out var pet)
-            || !_roomGrain.AvatarModule.TryGetPlayer(ctx.PlayerId, out var rider)
+            || !AvatarModule.TryGetPlayer(ctx.PlayerId, out var rider)
         )
             return false;
 
@@ -71,7 +71,7 @@ public sealed partial class RoomPetModule
         if (pet.PendingRiderObjectId <= 0 || pet.IsRiding)
             return;
 
-        if (!_roomGrain.AvatarModule.TryGetAvatar(pet.PendingRiderObjectId, out var rider))
+        if (!AvatarModule.TryGetAvatar(pet.PendingRiderObjectId, out var rider))
         {
             pet.PendingRiderObjectId = -1;
 
@@ -89,8 +89,8 @@ public sealed partial class RoomPetModule
 
     private async Task CompleteMountAsync(IRoomPet pet, IRoomAvatar rider, CancellationToken ct)
     {
-        await _roomGrain.AvatarModule.StopWalkingAsync(pet, ct);
-        await _roomGrain.AvatarModule.StopWalkingAsync(rider, ct);
+        await AvatarModule.StopWalkingAsync(pet, ct);
+        await AvatarModule.StopWalkingAsync(rider, ct);
 
         ClearActionStatuses(pet);
         await LeaveNestAsync(pet, ct);
@@ -104,24 +104,16 @@ public sealed partial class RoomPetModule
         rider.Sit(false);
         rider.Lay(false);
 
-        await _roomGrain.AvatarModule.RelocateAvatarAsync(
-            rider,
-            _roomGrain.MapModule.ToIdx(pet.X, pet.Y),
-            ct
-        );
+        await AvatarModule.RelocateAvatarAsync(rider, MapModule.ToIdx(pet.X, pet.Y), ct);
 
         rider.SetRotation(pet.Rotation);
         rider.MarkDirty();
 
         pet.SetRider(rider.ObjectId);
 
-        await _roomGrain.AvatarModule.SetAvatarEffectAsync(
-            rider.ObjectId,
-            PetRiding.RIDER_EFFECT_ID,
-            ct
-        );
+        await AvatarModule.SetAvatarEffectAsync(rider.ObjectId, PetRiding.RIDER_EFFECT_ID, ct);
         await BroadcastFigureAsync(pet, ct);
-        await PersistAsync(pet, ct);
+        Persist(pet);
     }
 
     internal async Task DismountAsync(IRoomPet pet, CancellationToken ct)
@@ -131,43 +123,50 @@ public sealed partial class RoomPetModule
         pet.SetRider(-1);
         pet.IsFreeRoaming = true;
 
-        if (_roomGrain.AvatarModule.TryGetAvatar(riderObjectId, out var rider))
+        if (AvatarModule.TryGetAvatar(riderObjectId, out var rider))
         {
-            await _roomGrain.AvatarModule.SetAvatarEffectAsync(rider.ObjectId, 0, ct);
+            await AvatarModule.SetAvatarEffectAsync(rider.ObjectId, 0, ct);
 
             // Step the rider off the pet so the two do not share a tile.
             foreach (var (x, y) in TilesAround(pet.X, pet.Y))
             {
-                var idx = _roomGrain.MapModule.ToIdx(x, y);
+                var idx = MapModule.ToIdx(x, y);
 
                 if (!IsTileFreeForNpc(idx))
                     continue;
 
-                await _roomGrain.AvatarModule.RelocateAvatarAsync(rider, idx, ct);
+                await AvatarModule.RelocateAvatarAsync(rider, idx, ct);
 
                 break;
             }
         }
 
         await BroadcastFigureAsync(pet, ct);
-        await PersistAsync(pet, ct);
+        Persist(pet);
     }
 
     /// <summary>A ridden pet shadows its rider: same tile, height, facing and movement.</summary>
     internal async Task SyncRidingPetsAsync(CancellationToken ct)
     {
-        foreach (var pet in Pets.Where(x => x.IsRiding).ToList())
+        // Runs on every avatar boundary, mostly with nobody riding, so it walks the list by index
+        // instead of filtering it into a new one. Nothing here takes a pet out of the room.
+        for (var i = 0; i < Pets.Count; i++)
         {
-            if (!_roomGrain.AvatarModule.TryGetAvatar(pet.RiderObjectId, out var rider))
+            var pet = Pets[i];
+
+            if (!pet.IsRiding)
+                continue;
+
+            if (!AvatarModule.TryGetAvatar(pet.RiderObjectId, out var rider))
             {
                 await DismountAsync(pet, ct);
 
                 continue;
             }
 
-            await _roomGrain.AvatarModule.RelocateAvatarAsync(
+            await AvatarModule.RelocateAvatarAsync(
                 pet,
-                _roomGrain.MapModule.ToIdx(rider.X, rider.Y),
+                MapModule.ToIdx(rider.X, rider.Y),
                 ct,
                 notifyFurni: false
             );
@@ -220,7 +219,7 @@ public sealed partial class RoomPetModule
         pet.SetSaddle(hasSaddle);
 
         await BroadcastFigureAsync(pet, ct);
-        await PersistAsync(pet, ct);
+        Persist(pet);
         await SendInfoToOwnerAsync(pet, ct);
     }
 
@@ -235,7 +234,7 @@ public sealed partial class RoomPetModule
 
         pet.SetAnyoneCanRide(!pet.AnyoneCanRide);
 
-        await PersistAsync(pet, ct);
+        Persist(pet);
         await SendInfoToOwnerAsync(pet, ct);
 
         return true;
@@ -253,7 +252,7 @@ public sealed partial class RoomPetModule
         pet.SetBreedingPermission(!pet.HasBreedingPermission);
 
         await BroadcastStatusAsync(pet, ct);
-        await PersistAsync(pet, ct);
+        Persist(pet);
         await SendInfoToOwnerAsync(pet, ct);
 
         return true;

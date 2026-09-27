@@ -7,6 +7,9 @@ namespace Turbo.Primitives.Guilds.Enums;
 /// </summary>
 public enum GuildMembershipStatus
 {
+    /// <summary>No group at all: what an avatar wearing no group badge carries.</summary>
+    None = -1,
+
     NotMember = 0,
     Member = 1,
 

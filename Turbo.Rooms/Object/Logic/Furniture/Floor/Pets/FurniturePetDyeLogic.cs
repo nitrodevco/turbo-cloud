@@ -39,5 +39,5 @@ public class FurniturePetDyeLogic(IStuffDataFactory stuffDataFactory, IRoomFloor
             : null;
 
     protected override Task<bool> ApplyAsync(IRoomPet pet, CancellationToken ct) =>
-        _roomGrain.PetModule.DyeAsync(pet, _dye!.ColorTag, ct);
+        PetModule.DyeAsync(pet, _dye!.ColorTag, ct);
 }

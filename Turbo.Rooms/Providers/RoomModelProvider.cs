@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Room;
+using Turbo.Database.Extensions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Providers;
@@ -85,26 +86,12 @@ public sealed class RoomModelProvider(
     private static RoomModelSnapshot ToSnapshot(RoomModelEntity entity)
     {
         var modelData = CleanModelString(entity.Model);
-        var compiledModel = CompileModelFromString(modelData);
 
-        return new RoomModelSnapshot
-        {
-            Id = entity.Id,
-            Name = entity.Name,
-            Model = modelData,
-            DoorX = entity.DoorX,
-            DoorY = entity.DoorY,
-            DoorRotation = entity.DoorRotation,
-            Width = compiledModel.Width,
-            Height = compiledModel.Height,
-            Size = compiledModel.Width * compiledModel.Height,
-            BaseHeights = compiledModel.Heights,
-            BaseFlags = compiledModel.Flags,
-        };
+        return entity.ToSnapshot(modelData, CompileModelFromString(modelData));
     }
 
     private static string CleanModelString(string model) =>
-        model.Trim().ToLower().Replace("\r\n", "\r").Replace("\n", "\r");
+        model.Trim().ToLowerInvariant().Replace("\r\n", "\r").Replace("\n", "\r");
 
     private static CompiledRoomModelSnapshot CompileModelFromString(string model)
     {
@@ -138,7 +125,13 @@ public sealed class RoomModelProvider(
                     var heightIndex = "abcdefghijklmnopqrstuvwxyz".IndexOf(ch);
                     var tileHeight =
                         heightIndex == -1
-                            ? Altitude.FromInt(int.Parse(ch.ToString()))
+                            ? Altitude.FromInt(
+                                char.IsAsciiDigit(ch)
+                                    ? ch - '0'
+                                    : throw new RoomModelDataInvalidException(
+                                        $"tile ({x}, {y}) has no height the model format knows"
+                                    )
+                            )
                             : Altitude.FromInt(heightIndex + 10);
 
                     heights[idx] = tileHeight;

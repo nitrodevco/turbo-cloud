@@ -38,18 +38,14 @@ public class FurnitureHabboWheelLogic(IStuffDataFactory stuffDataFactory, IRoomF
 
         await SetStateAsync(WheelStates.SPINNING);
 
-        _roomGrain.TimerSystem.Schedule(
-            _ctx.ObjectId,
-            _roomGrain._roomConfig.WheelSpinMs,
-            StopAsync
-        );
+        TimerSystem.Schedule(_ctx.ObjectId, _roomGrain._roomConfig.WheelSpinMs, StopAsync);
 
         return true;
     }
 
     public override Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
     {
-        _roomGrain.TimerSystem.Cancel(_ctx.ObjectId);
+        TimerSystem.Cancel(_ctx.ObjectId);
 
         return base.OnPickupAsync(ctx, ct);
     }

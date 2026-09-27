@@ -134,7 +134,7 @@ public class WiredActionPlaceFurni(
         var altitudeOffset = Altitude.FromInt(GetIntParamOrDefault(PARAM_OFFSET_ALTITUDE, 0));
         var spawn = GetSpawnVariable(ctx);
         var actionCtx = ctx.AsActionContext();
-        var map = _roomGrain.MapModule;
+        var map = MapModule;
         var placed = false;
 
         foreach (var source in sources)
@@ -159,7 +159,7 @@ public class WiredActionPlaceFurni(
                     _ => map.GetTileHeight(map.ToIdx(x, y)),
                 } + altitudeOffset;
 
-            var item = await _roomGrain.FurniModule.PlaceTemporaryFloorItemAsync(
+            var item = await FurniModule.PlaceTemporaryFloorItemAsync(
                 actionCtx,
                 definition,
                 _ctx.RoomObject.OwnerId,

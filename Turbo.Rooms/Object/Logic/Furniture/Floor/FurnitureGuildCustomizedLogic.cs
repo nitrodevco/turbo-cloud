@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -54,7 +55,12 @@ public class FurnitureGuildCustomizedLogic(
     public GuildId GuildId =>
         StuffData is IStringStuffData data
         && data.Data.Count > SLOT_GUILD_ID
-        && int.TryParse(data.Data[SLOT_GUILD_ID], out var guildId)
+        && int.TryParse(
+            data.Data[SLOT_GUILD_ID],
+            NumberStyles.Integer,
+            CultureInfo.InvariantCulture,
+            out var guildId
+        )
             ? GuildId.Parse(guildId)
             : GuildId.Invalid;
 
@@ -142,7 +148,12 @@ public class FurnitureGuildCustomizedLogic(
     public override int GetState() =>
         StuffData is IStringStuffData data
         && data.Data.Count > SLOT_STATE
-        && int.TryParse(data.Data[SLOT_STATE], out var state)
+        && int.TryParse(
+            data.Data[SLOT_STATE],
+            NumberStyles.Integer,
+            CultureInfo.InvariantCulture,
+            out var state
+        )
             ? state
             : 0;
 }

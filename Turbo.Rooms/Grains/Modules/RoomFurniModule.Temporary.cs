@@ -71,8 +71,5 @@ public sealed partial class RoomFurniModule
         ActionContext ctx,
         IRoomItem item,
         CancellationToken ct
-    ) =>
-        item.IsTemporary
-            ? _roomGrain.ObjectModule.RemoveObjectAsync(ctx, item, ct)
-            : Task.FromResult(false);
+    ) => item.IsTemporary ? ObjectModule.RemoveObjectAsync(ctx, item, ct) : Task.FromResult(false);
 }

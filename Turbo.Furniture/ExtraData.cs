@@ -5,38 +5,48 @@ using Turbo.Primitives.Furniture;
 
 namespace Turbo.Furniture;
 
+/// <summary>
+/// A furni's extra data: named JSON sections kept as one tree. A change edits the tree only; the
+/// JSON text, and the parsed copy sections are read from, are rebuilt the next time something
+/// asks for them. A dice or a lamp changes state many times between two writes to the database,
+/// and every change used to write the whole document out and parse it back in.
+/// </summary>
 public sealed class ExtraData(string? extraData) : IExtraData
 {
-    private ExtraDataReader _reader = new(extraData);
     private readonly ExtraDataWriter _writer = new(extraData);
 
-    private string _snapshot = extraData ?? "{}";
+    // Null when the tree has changed since they were last built.
+    private ExtraDataReader? _reader = new(extraData);
+    private string? _snapshot = extraData ?? "{}";
+
     private Func<Task>? _onSnapshotChanged;
 
     public void SetAction(Func<Task>? onSnapshotChanged) => _onSnapshotChanged = onSnapshotChanged;
 
     public bool TryGetSection(string name, out JsonElement element) =>
-        _reader.TryGet(name, out element);
+        (_reader ??= new ExtraDataReader(GetJsonString())).TryGet(name, out element);
 
     public void UpdateSection<TSection>(string name, TSection section)
     {
-        var updated = _writer.UpdateSection(name, section);
+        _writer.SetSection(name, section);
 
-        _snapshot = updated;
-        _reader = new ExtraDataReader(updated);
-
-        _ = _onSnapshotChanged?.Invoke();
+        Changed();
     }
 
     public void DeleteSection(string name)
     {
-        var updated = _writer.DeleteSection(name);
+        _writer.RemoveSection(name);
 
-        _snapshot = updated;
-        _reader = new ExtraDataReader(updated);
+        Changed();
+    }
+
+    public string GetJsonString() => _snapshot ??= _writer.ToJsonString();
+
+    private void Changed()
+    {
+        _snapshot = null;
+        _reader = null;
 
         _ = _onSnapshotChanged?.Invoke();
     }
-
-    public string GetJsonString() => _snapshot;
 }

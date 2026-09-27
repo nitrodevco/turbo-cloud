@@ -71,7 +71,7 @@ public sealed class DiffieService : IDiffieService
         // Use RSA to sign the byte array
         var encrypted = _rsaService.Sign(bytes);
 
-        return Hex.ToHexString(encrypted).ToLower();
+        return Hex.ToHexString(encrypted).ToLowerInvariant();
     }
 
     public byte[] GetSharedKey(string publicKeyStr)

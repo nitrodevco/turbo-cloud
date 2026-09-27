@@ -25,7 +25,7 @@ public sealed partial class RoomPetModule
         CancellationToken ct
     )
     {
-        if (Pets.Count() >= Config.MaxPetsPerRoom)
+        if (Pets.Count >= Config.MaxPetsPerRoom)
         {
             _roomGrain._logger.LogDebug(
                 "Seed {ItemId} in room {RoomId} not planted: the room holds its maximum of pets",
@@ -67,7 +67,7 @@ public sealed partial class RoomPetModule
         if (plant is null)
             return false;
 
-        await _roomGrain.ActionModule.DeleteItemByIdAsync(ctx, seed.ObjectId, ct);
+        await ActionModule.DeleteItemByIdAsync(ctx, seed.ObjectId, ct);
 
         return await PlacePetAsync(ctx, plant.Id, x, y, ct);
     }
@@ -105,7 +105,7 @@ public sealed partial class RoomPetModule
         pet.SetPetFigure(pet.PetFigure with { CustomParts = builder.ToImmutable() });
 
         await BroadcastFigureAsync(pet, ct);
-        await PersistAsync(pet, ct);
+        Persist(pet);
     }
 
     /// <summary>
@@ -125,7 +125,7 @@ public sealed partial class RoomPetModule
         pet.SetPetFigure(figure with { PaletteId = palette.PaletteId });
 
         await BroadcastFigureAsync(pet, ct);
-        await PersistAsync(pet, ct);
+        Persist(pet);
 
         return true;
     }
@@ -134,7 +134,7 @@ public sealed partial class RoomPetModule
     internal async Task FertilizeAsync(IRoomPet pet, CancellationToken ct)
     {
         await LevelUpAsync(pet, ct);
-        await PersistAsync(pet, ct);
+        Persist(pet);
         await SendInfoToOwnerAsync(pet, ct);
     }
 }

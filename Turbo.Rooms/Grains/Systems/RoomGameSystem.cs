@@ -25,11 +25,11 @@ namespace Turbo.Rooms.Grains.Systems;
 /// move players between teams and hand out points, and wired triggers listen for the events;
 /// game furni that comes later (banzai, freeze) uses the same teams and scores.
 /// </summary>
-public sealed class RoomGameSystem(RoomGrain roomGrain) : IRoomEventListener
+public sealed class RoomGameSystem(RoomGrain roomGrain)
+    : RoomGrainComponent(roomGrain),
+        IRoomEventListener
 {
     private const int NO_EFFECT = 0;
-
-    private readonly RoomGrain _roomGrain = roomGrain;
 
     private readonly Dictionary<PlayerId, GameTeamType> _teamByPlayerId = [];
     private readonly int[] _teamScores = new int[(int)GameTeamType.Yellow + 1];
@@ -80,7 +80,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain) : IRoomEventListener
         if (!IsTeam(team))
             return false;
 
-        if (!_roomGrain.AvatarModule.TryGetPlayer(playerId, out var player))
+        if (!AvatarModule.TryGetPlayer(playerId, out var player))
             return false;
 
         if (GetTeam(playerId) == team)
@@ -88,11 +88,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain) : IRoomEventListener
 
         _teamByPlayerId[playerId] = team;
 
-        await _roomGrain.AvatarModule.SetAvatarEffectAsync(
-            player.ObjectId,
-            GetTeamEffectId(team),
-            ct
-        );
+        await AvatarModule.SetAvatarEffectAsync(player.ObjectId, GetTeamEffectId(team), ct);
         await PublishTeamChangedAsync(playerId, team, ct);
 
         return true;
@@ -105,10 +101,10 @@ public sealed class RoomGameSystem(RoomGrain roomGrain) : IRoomEventListener
 
         // Only the team colour is taken off. An effect the player put on since is theirs.
         if (
-            _roomGrain.AvatarModule.TryGetPlayer(playerId, out var player)
+            AvatarModule.TryGetPlayer(playerId, out var player)
             && player.EffectId == GetTeamEffectId(team)
         )
-            await _roomGrain.AvatarModule.SetAvatarEffectAsync(player.ObjectId, NO_EFFECT, ct);
+            await AvatarModule.SetAvatarEffectAsync(player.ObjectId, NO_EFFECT, ct);
 
         await PublishTeamChangedAsync(playerId, GameTeamType.None, ct);
 
@@ -241,7 +237,11 @@ public sealed class RoomGameSystem(RoomGrain roomGrain) : IRoomEventListener
                 new YouArePlayingGameMessageComposer { IsPlaying = team != GameTeamType.None },
                 CancellationToken.None
             )
-            .LogAndForget(_roomGrain._logger, $"tell player {playerId} whether they are playing");
+            .LogAndForget(
+                _roomGrain._logger,
+                "tell player {PlayerId} whether they are playing",
+                playerId
+            );
 
         return _roomGrain.PublishRoomEventAsync(
             new GameTeamChangedEvent

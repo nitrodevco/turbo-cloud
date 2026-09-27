@@ -8,7 +8,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Orleans.Runtime;
 using Turbo.Database.Context;
+using Turbo.Database.Entities.Guilds;
 using Turbo.Database.Extensions;
 using Turbo.Guilds.Configuration;
 using Turbo.Primitives.Guilds;
@@ -67,11 +69,16 @@ internal sealed class GuildDirectoryGrain : Grain, IGuildDirectoryGrain
             throw;
         }
 
+        // Interleaved, so the reads go on answering while the reload queries; see HydrateAsync.
         _refreshTimer = this.RegisterGrainTimer<object?>(
             static async (self, ct) => await ((GuildDirectoryGrain)self!).RefreshAsync(ct),
             this,
-            TimeSpan.FromMilliseconds(_guildConfig.DirectoryRefreshMs),
-            TimeSpan.FromMilliseconds(_guildConfig.DirectoryRefreshMs)
+            new GrainTimerCreationOptions
+            {
+                DueTime = TimeSpan.FromMilliseconds(_guildConfig.DirectoryRefreshMs),
+                Period = TimeSpan.FromMilliseconds(_guildConfig.DirectoryRefreshMs),
+                Interleave = true,
+            }
         );
     }
 
@@ -172,6 +179,24 @@ internal sealed class GuildDirectoryGrain : Grain, IGuildDirectoryGrain
 
     public Task OnGuildChangedAsync(GuildSummarySnapshot summary, CancellationToken ct)
     {
+        ApplyChanged(summary);
+
+        _state.ChangesDuringReload?.Add((summary.GuildId.Value, summary));
+
+        return Task.CompletedTask;
+    }
+
+    public Task OnGuildRemovedAsync(GuildId guildId, CancellationToken ct)
+    {
+        ApplyRemoved(guildId);
+
+        _state.ChangesDuringReload?.Add((guildId.Value, null));
+
+        return Task.CompletedTask;
+    }
+
+    private void ApplyChanged(GuildSummarySnapshot summary)
+    {
         // A group that moved rooms or changed hands would otherwise leave its old keys behind.
         // Neither is possible today, and this is what keeps that from being load-bearing.
         Forget(summary.GuildId);
@@ -180,17 +205,13 @@ internal sealed class GuildDirectoryGrain : Grain, IGuildDirectoryGrain
         _state.GuildIdByRoomId[summary.RoomId.Value] = summary.GuildId.Value;
         _state.OwnedCountByPlayerId[summary.OwnerId.Value] =
             _state.OwnedCountByPlayerId.GetValueOrDefault(summary.OwnerId.Value) + 1;
-
-        return Task.CompletedTask;
     }
 
-    public Task OnGuildRemovedAsync(GuildId guildId, CancellationToken ct)
+    private void ApplyRemoved(GuildId guildId)
     {
         Forget(guildId);
 
         _state.MemberCountByGuildId.Remove(guildId.Value);
-
-        return Task.CompletedTask;
     }
 
     public Task<int> GetOwnedCountAsync(PlayerId playerId, CancellationToken ct) =>
@@ -225,29 +246,56 @@ internal sealed class GuildDirectoryGrain : Grain, IGuildDirectoryGrain
         }
     }
 
+    /// <summary>
+    /// Reads every group, then replaces the whole copy in one synchronous stretch. The reload
+    /// timer is interleaved, so the reads keep answering from the old copy while the queries
+    /// run; whatever the group grains told meanwhile is replayed on top, since the queries may
+    /// have read the rows before those changes.
+    /// </summary>
     private async Task HydrateAsync(CancellationToken ct)
     {
-        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+        List<(int GuildId, GuildSummarySnapshot? Summary)> changes = [];
 
-        var guilds = await dbCtx.Guilds.AsNoTracking().ToListAsync(ct);
-        var memberCounts = await dbCtx
-            .GuildMembers.AsNoTracking()
-            .Where(x => GuildMemberRanks.MemberRanks().Contains(x.Rank))
-            .GroupBy(x => x.GuildEntityId)
-            .Select(g => new { GuildEntityId = g.Key, Members = g.Count() })
-            .ToListAsync(ct);
+        _state.ChangesDuringReload = changes;
+
+        List<GuildEntity> guilds;
+        List<(int GuildEntityId, int Members)> memberCounts;
+        GuildEditorDataSnapshot editorData;
+
+        try
+        {
+            await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+            guilds = await dbCtx.Guilds.AsNoTracking().ToListAsync(ct);
+            memberCounts =
+            [
+                .. (
+                    await dbCtx
+                        .GuildMembers.AsNoTracking()
+                        .Where(x => GuildMemberRanks.MemberRanks().Contains(x.Rank))
+                        .GroupBy(x => x.GuildEntityId)
+                        .Select(g => new { GuildEntityId = g.Key, Members = g.Count() })
+                        .ToListAsync(ct)
+                ).Select(x => (x.GuildEntityId, x.Members)),
+            ];
+
+            // The palette before the guilds: a guild row stores colour ids and the summary
+            // carries the hex, so the mapping below needs it in hand.
+            editorData = await ReadEditorDataAsync(dbCtx, ct);
+        }
+        finally
+        {
+            _state.ChangesDuringReload = null;
+        }
 
         _state.Clear();
-
-        // The palette before the guilds: a guild row stores colour ids and the summary carries
-        // the hex, so the mapping below needs it in hand.
-        await HydrateEditorDataAsync(dbCtx, ct);
+        _state.EditorData = editorData;
 
         foreach (var guild in guilds)
         {
             // No group has a forum until the forum ship lands; the client draws no forum link
             // for a group that says false, which is the truth rather than a stub.
-            var summary = guild.ToSummarySnapshot(_state.EditorData, hasForum: false);
+            var summary = guild.ToSummarySnapshot(editorData, hasForum: false);
 
             _state.SummaryByGuildId[guild.Id] = summary;
             _state.GuildIdByRoomId[guild.RoomEntityId] = guild.Id;
@@ -255,11 +303,22 @@ internal sealed class GuildDirectoryGrain : Grain, IGuildDirectoryGrain
                 _state.OwnedCountByPlayerId.GetValueOrDefault(guild.PlayerEntityId) + 1;
         }
 
-        foreach (var count in memberCounts)
-            _state.MemberCountByGuildId[count.GuildEntityId] = count.Members;
+        foreach (var (guildId, members) in memberCounts)
+            _state.MemberCountByGuildId[guildId] = members;
+
+        foreach (var (guildId, summary) in changes)
+        {
+            if (summary is null)
+                ApplyRemoved(GuildId.Parse(guildId));
+            else
+                ApplyChanged(summary);
+        }
     }
 
-    private async Task HydrateEditorDataAsync(TurboDbContext dbCtx, CancellationToken ct)
+    private static async Task<GuildEditorDataSnapshot> ReadEditorDataAsync(
+        TurboDbContext dbCtx,
+        CancellationToken ct
+    )
     {
         var parts = await dbCtx
             .GuildBadgeParts.AsNoTracking()
@@ -267,7 +326,7 @@ internal sealed class GuildDirectoryGrain : Grain, IGuildDirectoryGrain
             .ToListAsync(ct);
         var colors = await dbCtx.GuildColors.AsNoTracking().OrderBy(x => x.ColorId).ToListAsync(ct);
 
-        _state.EditorData = new GuildEditorDataSnapshot
+        return new GuildEditorDataSnapshot
         {
             BaseParts =
             [

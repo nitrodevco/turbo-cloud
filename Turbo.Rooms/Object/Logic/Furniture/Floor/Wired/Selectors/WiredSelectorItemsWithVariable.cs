@@ -77,7 +77,7 @@ public class WiredSelectorItemsWithVariable(
 
         var comparison = GetIntParamOrDefault(0, WiredComparisonType.GreaterThan);
 
-        foreach (var targetId in _roomGrain.WiredSystem.GetLiveTargetIds(TargetType))
+        foreach (var targetId in WiredSystem.GetLiveTargetIds(TargetType))
         {
             var value = ReadVariable(variable, TargetType, targetId);
 

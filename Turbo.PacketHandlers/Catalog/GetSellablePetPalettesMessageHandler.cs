@@ -1,14 +1,13 @@
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Messages.Incoming.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
-using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Providers;
 
@@ -20,12 +19,10 @@ namespace Turbo.PacketHandlers.Catalog;
 /// an offer named otherwise is resolved through its pet product.
 /// </summary>
 public class GetSellablePetPalettesMessageHandler(
-    IGrainFactory grainFactory,
     ICatalogService catalogService,
     IPetBreedProvider petBreedProvider
 ) : IMessageHandler<GetSellablePetPalettesMessage>
 {
-    private readonly IGrainFactory _grainFactory = grainFactory;
     private readonly ICatalogService _catalogService = catalogService;
     private readonly IPetBreedProvider _petBreedProvider = petBreedProvider;
 
@@ -38,9 +35,7 @@ public class GetSellablePetPalettesMessageHandler(
         if (ctx.PlayerId <= 0 || !TryResolveTypeId(message.ProductCode, out var typeId))
             return;
 
-        await _grainFactory
-            .SendComposerToPlayerAsync(
-                ctx.PlayerId,
+        await ctx.SendComposerAsync(
                 new SellablePetPalettesMessageComposer
                 {
                     ProductCode = message.ProductCode,
@@ -64,6 +59,11 @@ public class GetSellablePetPalettesMessageHandler(
             return false;
 
         return PetProductCodes.TryGetTypeId(product.ClassName, out typeId)
-            || int.TryParse(product.ExtraParam, out typeId);
+            || int.TryParse(
+                product.ExtraParam,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out typeId
+            );
     }
 }

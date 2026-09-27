@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,15 +24,14 @@ namespace Turbo.Rooms.Grains.Modules;
 /// stand, and the stats the room mutates while the pet is here. Behaviour over time runs in
 /// <see cref="Systems.RoomPetTickSystem"/>.
 /// </summary>
-public sealed partial class RoomPetModule(RoomGrain roomGrain)
+public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainComponent(roomGrain)
 {
-    private readonly RoomGrain _roomGrain = roomGrain;
     private readonly Dictionary<int, int> _lastPersistedTileByPetId = [];
     private readonly Random _random = new();
 
     private PetConfig Config => _roomGrain._petConfig;
 
-    public IEnumerable<IRoomPet> Pets => _roomGrain.AvatarModule.Avatars.OfType<IRoomPet>();
+    public IReadOnlyList<IRoomPet> Pets => _roomGrain._state.Pets;
 
     internal async Task EnsurePetsLoadedAsync(CancellationToken ct)
     {
@@ -42,9 +42,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
 
         foreach (var pet in pets)
         {
-            var tileIdx = _roomGrain.MapModule.InBounds(pet.X, pet.Y)
-                ? _roomGrain.MapModule.ToIdx(pet.X, pet.Y)
-                : -1;
+            var tileIdx = MapModule.InBounds(pet.X, pet.Y) ? MapModule.ToIdx(pet.X, pet.Y) : -1;
 
             if (tileIdx < 0 && !TryFindFreeTile(0, 0, out tileIdx))
             {
@@ -63,13 +61,13 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
         _roomGrain._state.IsPetsLoaded = true;
     }
 
-    public bool TryGetPet(int petId, out IRoomPet pet)
+    public bool TryGetPet(int petId, [NotNullWhen(true)] out IRoomPet? pet)
     {
-        pet = null!;
+        pet = null;
 
         if (
             !_roomGrain._state.AvatarsByPetId.TryGetValue(petId, out var objectId)
-            || !_roomGrain.AvatarModule.TryGetAvatar(objectId, out var avatar)
+            || !AvatarModule.TryGetAvatar(objectId, out var avatar)
             || avatar is not IRoomPet roomPet
         )
             return false;
@@ -92,7 +90,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
 
     /// <summary>The pet's owner, or the room owner, may manage a placed pet.</summary>
     internal async Task<bool> CanManageAsync(ActionContext ctx, IRoomPet pet) =>
-        pet.OwnerId == ctx.PlayerId || await _roomGrain.SecurityModule.GetIsRoomOwnerAsync(ctx);
+        pet.OwnerId == ctx.PlayerId || await SecurityModule.GetIsRoomOwnerAsync(ctx);
 
     public async Task<bool> PlacePetAsync(
         ActionContext ctx,
@@ -102,7 +100,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
-        if (!_roomGrain.AvatarModule.TryGetPlayer(ctx.PlayerId, out _))
+        if (!AvatarModule.TryGetPlayer(ctx.PlayerId, out _))
             return false;
 
         // Anyone may place a pet in a room that allows pets, and only the room owner in one that
@@ -110,14 +108,14 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
         // purpose.
         var room = _roomGrain._state.RoomSnapshot;
 
-        if (!room.AllowPets && !await _roomGrain.SecurityModule.GetIsRoomOwnerAsync(ctx))
+        if (!room.AllowPets && !await SecurityModule.GetIsRoomOwnerAsync(ctx))
         {
             await SendPlacingErrorAsync(ctx, PetPlacingErrorType.ForbiddenInFlat, ct);
 
             return false;
         }
 
-        if (Pets.Count() >= Config.MaxPetsPerRoom)
+        if (Pets.Count >= Config.MaxPetsPerRoom)
         {
             await SendPlacingErrorAsync(ctx, PetPlacingErrorType.MaxPetsInRoom, ct);
 
@@ -140,7 +138,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
                     .ReturnPetAsync(snapshot, ct),
             (snapshot, tileIdx, z) =>
             {
-                var (tileX, tileY) = _roomGrain.MapModule.GetTileXY(tileIdx);
+                var (tileX, tileY) = MapModule.GetTileXY(tileIdx);
                 var standing = snapshot with
                 {
                     RoomId = _roomGrain.RoomId,
@@ -165,7 +163,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
             return false;
 
         if (TryGetPet(petId, out var pet))
-            await PersistAsync(pet, ct);
+            Persist(pet);
 
         return true;
     }
@@ -186,18 +184,18 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
         if (!await CanManageAsync(ctx, pet))
             return false;
 
-        if (!_roomGrain.MapModule.InBounds(x, y))
+        if (!MapModule.InBounds(x, y))
             return false;
 
-        var tileIdx = _roomGrain.MapModule.ToIdx(x, y);
-        var currentIdx = _roomGrain.MapModule.ToIdx(pet.X, pet.Y);
+        var tileIdx = MapModule.ToIdx(x, y);
+        var currentIdx = MapModule.ToIdx(pet.X, pet.Y);
 
         if (tileIdx != currentIdx)
         {
             if (!IsTileFreeForNpc(tileIdx))
                 return false;
 
-            await _roomGrain.AvatarModule.RelocateAvatarAsync(pet, tileIdx, ct);
+            await AvatarModule.RelocateAvatarAsync(pet, tileIdx, ct);
         }
 
         if (rotation != Rotation.None)
@@ -205,7 +203,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
 
         pet.MarkDirty();
 
-        await PersistAsync(pet, ct);
+        Persist(pet);
 
         return true;
     }
@@ -246,7 +244,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
         CancellationToken ct
     )
     {
-        var objectId = _roomGrain.AvatarModule.GetNextObjectId();
+        var objectId = AvatarModule.GetNextObjectId();
         var pet = _roomGrain._avatarProvider.CreateAvatarFromPetSnapshot(objectId, snapshot);
 
         pet.NextTileId = tileIdx;
@@ -254,7 +252,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
         RefreshFlags(pet);
         RefreshPosture(pet);
 
-        if (!await _roomGrain.ObjectModule.AttatchObjectAsync(pet, ct))
+        if (!await ObjectModule.AttatchObjectAsync(pet, ct))
             return false;
 
         pet.SetRotation(rotation == Rotation.None ? Rotation.South : rotation);
@@ -273,7 +271,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
         await LeaveNestAsync(pet, ct);
         await CancelPlantBreedingsInvolvingAsync(pet.PetId, ct);
 
-        await _roomGrain.ObjectModule.RemoveObjectAsync(ctx, pet, ct);
+        await ObjectModule.RemoveObjectAsync(ctx, pet, ct);
 
         _roomGrain._state.AvatarsByPetId.Remove(pet.PetId);
         _lastPersistedTileByPetId.Remove(pet.PetId);
@@ -374,7 +372,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
             return false;
         }
 
-        if (!await attach(snapshot, tileIdx, _roomGrain.MapModule.GetTileHeight(tileIdx)))
+        if (!await attach(snapshot, tileIdx, MapModule.GetTileHeight(tileIdx)))
         {
             await GiveBackAsync(snapshot);
 
@@ -404,7 +402,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
     {
         tileIdx = -1;
 
-        var map = _roomGrain.MapModule;
+        var map = MapModule;
 
         if (exact)
         {
@@ -457,7 +455,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
 
     internal bool IsTileFreeForNpc(int tileIdx)
     {
-        if (!_roomGrain.MapModule.InBounds(tileIdx))
+        if (!MapModule.InBounds(tileIdx))
             return false;
 
         var flags = _roomGrain._state.TileFlags[tileIdx];
@@ -506,27 +504,58 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
             pet.SetPosture(PetPostures.ForMonsterplant(pet.Level));
     }
 
-    internal Task PersistAsync(IRoomPet pet, CancellationToken ct)
+    /// <summary>
+    /// Marks the pet's row out of date. The room snapshots it and hands it to persistence on its
+    /// next hand-over, so a pet changed many times in between is written once, as it is then.
+    /// </summary>
+    internal void Persist(IRoomPet pet)
     {
-        _lastPersistedTileByPetId[pet.PetId] = _roomGrain.MapModule.ToIdx(pet.X, pet.Y);
-
-        return _roomGrain
-            ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
-            .EnqueueDirtyPetAsync(pet.GetPetSnapshot(), ct);
+        _lastPersistedTileByPetId[pet.PetId] = MapModule.ToIdx(pet.X, pet.Y);
+        _roomGrain._state.DirtyPetIds.Add(pet.PetId);
     }
 
-    /// <summary>Writes the position once a pet has come to rest somewhere new.</summary>
-    internal Task PersistPositionIfMovedAsync(IRoomPet pet, CancellationToken ct)
+    /// <summary>
+    /// The rows of the pets marked since the last hand-over, as they stand now. A pet that left
+    /// meanwhile is skipped: whoever took it wrote it back. A pet that has come to rest
+    /// somewhere new since its position was last written is marked first.
+    /// </summary>
+    internal List<PetSnapshot> TakeDirtySnapshots()
     {
-        if (pet.IsWalking || pet.IsRiding)
-            return Task.CompletedTask;
+        foreach (var pet in Pets)
+        {
+            if (pet.IsWalking || pet.IsRiding)
+                continue;
 
-        var tileIdx = _roomGrain.MapModule.ToIdx(pet.X, pet.Y);
+            var tileIdx = MapModule.ToIdx(pet.X, pet.Y);
 
-        if (_lastPersistedTileByPetId.TryGetValue(pet.PetId, out var last) && last == tileIdx)
-            return Task.CompletedTask;
+            if (!_lastPersistedTileByPetId.TryGetValue(pet.PetId, out var last) || last != tileIdx)
+                Persist(pet);
+        }
 
-        return PersistAsync(pet, ct);
+        var dirtyIds = _roomGrain._state.DirtyPetIds;
+        var snapshots = new List<PetSnapshot>(dirtyIds.Count);
+
+        foreach (var petId in dirtyIds)
+        {
+            if (TryGetPet(petId, out var pet))
+                snapshots.Add(pet.GetPetSnapshot());
+        }
+
+        dirtyIds.Clear();
+
+        return snapshots;
+    }
+
+    /// <summary>Whether any pet is still on its way somewhere, which keeps the room awake.</summary>
+    internal bool AnyWalking()
+    {
+        foreach (var pet in Pets)
+        {
+            if (pet.IsWalking)
+                return true;
+        }
+
+        return false;
     }
 
     public Task<bool> SelectPetAsync(ActionContext ctx, int petId, CancellationToken ct)
@@ -534,7 +563,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain)
         if (!TryGetPet(petId, out _))
             return Task.FromResult(false);
 
-        _roomGrain.AvatarModule.TouchAvatar(ctx.PlayerId, _roomGrain.NowMs());
+        AvatarModule.TouchAvatar(ctx.PlayerId, _roomGrain.NowMs());
 
         return Task.FromResult(true);
     }

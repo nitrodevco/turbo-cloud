@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,11 +19,18 @@ using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Systems;
 
-public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
+public sealed class RoomRollerSystem(RoomGrain roomGrain)
+    : RoomGrainComponent(roomGrain),
+        IRoomEventListener
 {
-    private readonly RoomGrain _roomGrain = roomGrain;
-
     private readonly List<List<int>> _rollerIdSets = [];
+
+    // Per-tick scratch, reused: the tiles taken this tick, the tiles avatars are stepping onto,
+    // and what one roller carries.
+    private readonly HashSet<int> _reservedTileIdxs = [];
+    private readonly HashSet<int> _nextAvatarTiles = [];
+    private readonly List<IRoomItem> _items = [];
+    private readonly List<IRoomAvatar> _avatars = [];
 
     private bool _isDirtyRollers = true;
 
@@ -37,10 +45,15 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
         if (_rollerIdSets.Count == 0)
             return Task.CompletedTask;
         var currentPlans = new List<RollerMovePlanSnapshot>();
-        var reservedTileIdxs = new HashSet<int>();
-        var nextAvatarTiles = new HashSet<int>(
-            _roomGrain.AvatarModule.Avatars.Where(x => x.NextTileId >= 0).Select(x => x.NextTileId)
-        );
+
+        _reservedTileIdxs.Clear();
+        _nextAvatarTiles.Clear();
+
+        foreach (var avatar in AvatarModule.Avatars)
+        {
+            if (avatar.NextTileId >= 0)
+                _nextAvatarTiles.Add(avatar.NextTileId);
+        }
 
         foreach (var rollerIds in _rollerIdSets)
         {
@@ -51,20 +64,16 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
             {
                 try
                 {
-                    if (!_roomGrain._state.ItemsById.TryGetValue(rollerId, out var roller))
+                    if (!FurniModule.TryGetItem(rollerId, out var roller))
                         continue;
 
-                    var fromIdx = _roomGrain.MapModule.ToIdx(roller.X, roller.Y);
+                    var fromIdx = MapModule.ToIdx(roller.X, roller.Y);
 
                     if (
-                        !_roomGrain.MapModule.TryGetTileInFront(
-                            fromIdx,
-                            roller.Rotation,
-                            out var toIdx
-                        )
+                        !MapModule.TryGetTileInFront(fromIdx, roller.Rotation, out var toIdx)
                         || fromIdx == toIdx
-                        || reservedTileIdxs.Contains(toIdx)
-                        || nextAvatarTiles.Contains(toIdx)
+                        || _reservedTileIdxs.Contains(toIdx)
+                        || _nextAvatarTiles.Contains(toIdx)
                     )
                         continue;
 
@@ -78,14 +87,18 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
                     )
                         continue;
 
-                    var items = new List<IRoomItem>();
-                    var avatars = new List<IRoomAvatar>();
+                    // Kept across rollers and ticks: most rollers carry nothing on most ticks.
+                    var items = _items;
+                    var avatars = _avatars;
                     var canAvatarMove = true;
+
+                    items.Clear();
+                    avatars.Clear();
 
                     foreach (var itemId in _roomGrain._state.TileFloorStacks[fromIdx])
                     {
                         if (
-                            !_roomGrain._state.ItemsById.TryGetValue(itemId, out var item)
+                            !FurniModule.TryGetItem(itemId, out var item)
                             || item.Definition.Width > 1
                             || item.Definition.Length > 1
                             || item.Z < rollerHeight
@@ -100,15 +113,12 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
                     foreach (var avatarId in _roomGrain._state.TileAvatarStacks[fromIdx])
                     {
                         if (
-                            !_roomGrain.AvatarModule.TryGetAvatar(avatarId, out var avatar)
+                            !AvatarModule.TryGetAvatar(avatarId, out var avatar)
                             || avatar.Z < rollerHeight
                         )
                             continue;
 
-                        if (
-                            !avatar.Logic.CanRoll()
-                            || !_roomGrain.MapModule.CanAvatarWalk(avatar, toIdx)
-                        )
+                        if (!avatar.Logic.CanRoll() || !MapModule.CanAvatarWalk(avatar, toIdx))
                         {
                             canAvatarMove = false;
 
@@ -153,7 +163,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
                         }
                     );
 
-                    reservedTileIdxs.Add(toIdx);
+                    _reservedTileIdxs.Add(toIdx);
                 }
                 catch (Exception ex)
                 {
@@ -170,25 +180,17 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
 
         if (currentPlans.Count == 0)
             return Task.CompletedTask;
-        var composers = new List<IComposer>();
+        var composers = ImmutableArray.CreateBuilder<IComposer>();
 
         foreach (var plan in currentPlans)
         {
-            var (fromX, fromY) = _roomGrain.MapModule.GetTileXY(plan.FromIdx);
-            var (toX, toY) = _roomGrain.MapModule.GetTileXY(plan.ToIdx);
+            var (fromX, fromY) = MapModule.GetTileXY(plan.FromIdx);
+            var (toX, toY) = MapModule.GetTileXY(plan.ToIdx);
 
             foreach (var item in plan.MovedFloorItems)
-                _roomGrain.MapModule.RollFloorItem(
-                    (IRoomFloorItem)item.RoomObject,
-                    plan.ToIdx,
-                    item.ToZ
-                );
+                MapModule.RollFloorItem((IRoomFloorItem)item.RoomObject, plan.ToIdx, item.ToZ);
             foreach (var avatar in plan.MovedAvatars)
-                _roomGrain.MapModule.RollAvatar(
-                    (IRoomAvatar)avatar.RoomObject,
-                    plan.ToIdx,
-                    avatar.ToZ
-                );
+                MapModule.RollAvatar((IRoomAvatar)avatar.RoomObject, plan.ToIdx, avatar.ToZ);
 
             // The furni ride with the first avatar's packet, or alone when nobody is on the
             // roller; each further avatar gets a packet of its own.
@@ -201,8 +203,8 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
                 );
         }
 
-        foreach (var composer in composers)
-            _roomGrain.SendComposerToRoomAndForget(composer);
+        // Every slide of the tick as one room message, in the order the moves were made.
+        _roomGrain.SendComposersToRoomAndForget(composers.ToImmutable());
         return Task.CompletedTask;
     }
 
@@ -243,9 +245,11 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
 
         _rollerIdSets.Clear();
 
-        var rollers = _roomGrain
-            ._state.ItemsById.Values.Where(x => x.Logic is FurnitureRollerLogic)
-            .ToList();
+        // Clean before the room is known to have none: a room without rollers used to return
+        // early, stay dirty, and scan every item again on every roller tick for good.
+        _isDirtyRollers = false;
+
+        var rollers = FurniModule.Items.Where(x => x.Logic is FurnitureRollerLogic).ToList();
 
         if (rollers.Count == 0)
             return;
@@ -256,8 +260,6 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain) : IRoomEventListener
 
             _rollerIdSets.Add([.. stack.Select(x => x.ObjectId)]);
         }
-
-        _isDirtyRollers = false;
     }
 
     public Task OnRoomEventAsync(RoomEvent evt, CancellationToken ct) =>

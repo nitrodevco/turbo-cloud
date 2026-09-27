@@ -1,4 +1,3 @@
-using System;
 using Turbo.Primitives.Messages.Outgoing.FriendList;
 using Turbo.Primitives.Packets;
 using Turbo.Primitives.Players.Enums.Messenger;
@@ -23,7 +22,7 @@ internal class ConsoleMessageHistoryMessageSerializer(int header)
             packet.WriteString(consoleMessage.SenderFigure);
             packet.WriteInteger((int)MessengerMessageContentType.Text);
             packet.WriteString(consoleMessage.Message);
-            packet.WriteInteger((int)(DateTime.UtcNow - consoleMessage.SentAtUtc).TotalSeconds);
+            packet.WriteInteger((int)(message.SentAtUtc - consoleMessage.SentAtUtc).TotalSeconds);
             packet.WriteString(consoleMessage.MessageId);
         }
     }

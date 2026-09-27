@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Primitives.Rooms.Grains;
 
@@ -22,4 +23,7 @@ public partial interface IRoomGrain
         CancellationToken ct
     );
     public Task RemoveDoorbellRingerAsync(PlayerId playerId, CancellationToken ct);
+
+    /// <summary>What <paramref name="playerId"/> is shown of the room as they walk in, all at once.</summary>
+    public Task<RoomEntryViewSnapshot> GetEntryViewAsync(PlayerId playerId, CancellationToken ct);
 }

@@ -208,7 +208,8 @@ internal sealed partial class GuildGrain
             .OnGuildDeletedAsync(CancellationToken.None)
             .LogAndForget(
                 _logger,
-                $"return the homeroom furni of deleted group {guild.GuildId.Value}"
+                "return the homeroom furni of deleted group {GuildId}",
+                guild.GuildId.Value
             );
 
         // Each member's own grain caches its memberships, so each is told; the presences are

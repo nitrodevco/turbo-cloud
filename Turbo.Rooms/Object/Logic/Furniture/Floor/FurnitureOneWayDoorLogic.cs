@@ -44,7 +44,7 @@ public class FurnitureOneWayDoorLogic(IStuffDataFactory stuffDataFactory, IRoomF
         if (avatar is null || avatar.IsWalking)
             return false;
 
-        var map = _roomGrain.MapModule;
+        var map = MapModule;
         var doorIdx = _ctx.GetTileIdx();
         var rotation = _ctx.RoomObject.Rotation;
 
@@ -69,20 +69,16 @@ public class FurnitureOneWayDoorLogic(IStuffDataFactory stuffDataFactory, IRoomF
 
         var (exitX, exitY) = map.GetTileXY(backIdx);
 
-        await _roomGrain.AvatarModule.WalkAvatarToAsync(avatar, exitX, exitY, ct);
+        await AvatarModule.WalkAvatarToAsync(avatar, exitX, exitY, ct);
 
-        _roomGrain.TimerSystem.Schedule(
-            _ctx.ObjectId,
-            _roomGrain._roomConfig.OneWayDoorCloseMs,
-            CloseAsync
-        );
+        TimerSystem.Schedule(_ctx.ObjectId, _roomGrain._roomConfig.OneWayDoorCloseMs, CloseAsync);
 
         return true;
     }
 
     public override Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
     {
-        _roomGrain.TimerSystem.Cancel(_ctx.ObjectId);
+        TimerSystem.Cancel(_ctx.ObjectId);
 
         return base.OnPickupAsync(ctx, ct);
     }
@@ -94,7 +90,7 @@ public class FurnitureOneWayDoorLogic(IStuffDataFactory stuffDataFactory, IRoomF
         // Never close on top of someone still crossing; try again shortly.
         if (tile.Flags.Has(RoomTileFlags.AvatarOccupied))
         {
-            _roomGrain.TimerSystem.Schedule(
+            TimerSystem.Schedule(
                 _ctx.ObjectId,
                 _roomGrain._roomConfig.OneWayDoorCloseMs,
                 CloseAsync

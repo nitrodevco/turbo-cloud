@@ -1,5 +1,5 @@
+using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
@@ -32,6 +32,7 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
     public int GoalTileId { get; private set; } = -1;
     public int NextTileId { get; set; } = -1;
     public bool IsWalking { get; set; } = false;
+    public bool IsTeleporting { get; set; } = false;
     public bool NeedsInvoke { get; set; } = false;
     public List<int> TilePath { get; } = [];
 
@@ -239,9 +240,20 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
         MarkDirty();
     }
 
-    public bool HasStatus(params AvatarStatusType[] types) => types.Any(Statuses.ContainsKey);
+    // Spans, not arrays: these run for every avatar on every step, and a params array was a
+    // fresh allocation per call.
+    public bool HasStatus(params ReadOnlySpan<AvatarStatusType> types)
+    {
+        foreach (var type in types)
+        {
+            if (Statuses.ContainsKey(type))
+                return true;
+        }
 
-    public void RemoveStatus(params AvatarStatusType[] types)
+        return false;
+    }
+
+    public void RemoveStatus(params ReadOnlySpan<AvatarStatusType> types)
     {
         if (types.Length == 0)
             return;

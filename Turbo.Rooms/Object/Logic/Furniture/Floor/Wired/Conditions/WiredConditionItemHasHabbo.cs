@@ -32,6 +32,5 @@ public class WiredConditionItemHasHabbo(
         return Quantify(items.Select(HasAvatar), RequiresAll());
     }
 
-    private bool HasAvatar(IRoomFloorItem item) =>
-        _roomGrain.AvatarModule.GetAvatarsOnItem(item).Any();
+    private bool HasAvatar(IRoomFloorItem item) => AvatarModule.GetAvatarsOnItem(item).Any();
 }

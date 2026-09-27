@@ -66,7 +66,7 @@ public class NewNavigatorInitMessageHandler(
                     WindowWidth = settings.NavigatorWindowWidth,
                     WindowHeight = settings.NavigatorWindowHeight,
                     LeftPaneHidden = settings.NavigatorLeftPaneHidden,
-                    ResultsMode = (int)settings.NavigatorResultsMode,
+                    ResultsMode = settings.NavigatorResultsMode,
                 },
                 ct
             )

@@ -8,10 +8,10 @@ using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired.Variables;
 
-public abstract class WiredInternalVariable(RoomGrain roomGrain) : IWiredInternalVariable
+public abstract class WiredInternalVariable(RoomGrain roomGrain)
+    : RoomGrainComponent(roomGrain),
+        IWiredInternalVariable
 {
-    protected readonly RoomGrain _roomGrain = roomGrain;
-
     protected abstract string VariableName { get; }
 
     protected virtual WiredVariableGroupSubBandType SubBandType =>

@@ -37,7 +37,8 @@ public sealed class PackageHandler(
             {
                 var message = parser.Parse(packet);
 
-                _logger.LogDebug("Incoming {Message}", message);
+                if (_logger.IsEnabled(LogLevel.Debug))
+                    _logger.LogDebug("Incoming {Message}", message);
 
                 await _messageSystem
                     .PublishAsync(message, ctx, CancellationToken.None)

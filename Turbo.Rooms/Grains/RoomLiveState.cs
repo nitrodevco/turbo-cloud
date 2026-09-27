@@ -7,6 +7,7 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Chat;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 
 namespace Turbo.Rooms.Grains;
@@ -17,10 +18,20 @@ internal sealed class RoomLiveState
     public RoomSnapshot RoomSnapshot { get; set; } = default!;
 
     public Dictionary<RoomObjectId, IRoomItem> ItemsById { get; } = [];
+
+    /// <summary>Counts up each time an item enters or leaves the room; caches of "which of these are here" key on it.</summary>
+    public long ItemsVersion { get; set; }
     public Dictionary<RoomObjectId, IRoomAvatar> AvatarsByObjectId { get; } = [];
     public Dictionary<PlayerId, RoomObjectId> AvatarsByPlayerId { get; } = [];
     public Dictionary<int, RoomObjectId> AvatarsByPetId { get; } = [];
     public Dictionary<int, RoomObjectId> AvatarsByBotId { get; } = [];
+
+    /// <summary>
+    /// The pets and bots among <see cref="AvatarsByObjectId"/>, kept as they attach and detach,
+    /// so the ticks that walk them every boundary do not filter every avatar in the room.
+    /// </summary>
+    public List<IRoomPet> Pets { get; } = [];
+    public List<IRoomBot> Bots { get; } = [];
     public Dictionary<PlayerId, string> OwnerNamesById { get; } = [];
 
     public RoomModelSnapshot? Model { get; internal set; } = null;
@@ -32,6 +43,13 @@ internal sealed class RoomLiveState
     public HashSet<RoomObjectId>[] TileAvatarStacks { get; internal set; } = [];
 
     public HashSet<PlayerId> PlayerIdsWithRights { get; } = [];
+
+    /// <summary>
+    /// In a group homeroom, each player's controller level as the group last answered it; see
+    /// <c>RoomSecurityModule.GetGroupLevelAsync</c> for what forgets an entry.
+    /// </summary>
+    public Dictionary<PlayerId, RoomControllerType> GroupLevelByPlayerId { get; } = [];
+
     public Dictionary<PlayerId, DateTime> MutedUntilByPlayerId { get; } = [];
     public Dictionary<PlayerId, DateTime> BannedUntilByPlayerId { get; } = [];
     public Dictionary<string, PlayerId> DoorbellRingersByName { get; } =
@@ -59,6 +77,16 @@ internal sealed class RoomLiveState
     public HashSet<int> DirtyHeightTileIds { get; set; } = [];
     public HashSet<RoomObjectId> DirtyItemIds { get; set; } = [];
 
+    /// <summary>Pets and bots whose row is out of date, by pet or bot id; handed over with the items.</summary>
+    public HashSet<int> DirtyPetIds { get; } = [];
+    public HashSet<int> DirtyBotIds { get; } = [];
+
+    /// <summary>
+    /// Chat lines not yet handed to the persistence grain, oldest first, bounded by
+    /// <c>RoomConfig.MaxPendingChatlogs</c>.
+    /// </summary>
+    public Queue<RoomChatlogSnapshot> PendingChatlogs { get; } = new();
+
     /// <summary>The id the next temporary furni gets; they count down from -1 and are never reused.</summary>
     public int NextTemporaryItemId { get; set; } = -1;
     public HashSet<RoomObjectId> DirtyFloorItemIds { get; set; } = [];
@@ -77,4 +105,7 @@ internal sealed class RoomLiveState
     public long NextAvatarBoundaryMs { get; set; } = 0;
     public long NextRollerBoundaryMs { get; set; } = 0;
     public long NextWiredBoundaryMs { get; set; } = 0;
+
+    /// <summary>When the room next hands what changed to its persistence grain.</summary>
+    public long NextPersistenceBoundaryMs { get; set; } = 0;
 }

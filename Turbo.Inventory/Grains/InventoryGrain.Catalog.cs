@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Catalog.Snapshots;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Guilds;
@@ -28,6 +29,7 @@ internal sealed partial class InventoryGrain
         quantity = Math.Max(1, quantity);
 
         var furniture = new List<(FurnitureDefinitionSnapshot, string?)>();
+        var teleportPairs = new List<FurnitureDefinitionSnapshot>();
         var pets = new List<Modules.PetProductGrant>();
         var bots = new List<Modules.BotProductGrant>();
 
@@ -39,6 +41,15 @@ internal sealed partial class InventoryGrain
                 case ProductType.Wall:
                 {
                     var definition = _furniModule.GetDefinitionOrThrow(product.FurniDefinitionId);
+
+                    // As in Habbo, one teleporter bought is a pair, linked to each other.
+                    if (TeleportFurniture.IsTeleport(definition.LogicName))
+                    {
+                        for (var i = 0; i < quantity; i++)
+                            teleportPairs.Add(definition);
+
+                        break;
+                    }
 
                     // Guild furni is bought for a group: the item carries the group id and looks
                     // the badge and the colours up from it when it attaches, so nothing stale is
@@ -70,6 +81,7 @@ internal sealed partial class InventoryGrain
             await _botModule.GrantProductAsync(bot, ct);
 
         await _furniModule.GrantAsync(furniture, ct);
+        await _furniModule.GrantTeleportPairsAsync(teleportPairs, ct);
     }
 
     /// <summary>
@@ -80,7 +92,16 @@ internal sealed partial class InventoryGrain
     /// </summary>
     private static string BuildGuildFurnitureExtraData(string extraParam)
     {
-        var guildId = int.TryParse(extraParam, out var parsed) && parsed > 0 ? parsed : 0;
+        var guildId =
+            int.TryParse(
+                extraParam,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var parsed
+            )
+            && parsed > 0
+                ? parsed
+                : 0;
 
         return JsonSerializer.Serialize(
             new Dictionary<string, object>

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -21,4 +22,12 @@ internal sealed class RoomDirectoryLiveState
     public long ListingSequence { get; set; }
     public Dictionary<RoomId, List<PlayerId>> RoomPlayers { get; } = [];
     public Dictionary<RoomId, int> RoomPopulations { get; } = [];
+
+    /// <summary>
+    /// Every active room with its population, as the navigator's listing view hands it out.
+    /// Derived from <see cref="ActiveRooms"/> and <see cref="RoomPopulations"/>: cleared whenever
+    /// either changes and rebuilt by the next request, because building it on every request
+    /// copied every active room inside this hotel-wide grain's turn.
+    /// </summary>
+    public ImmutableArray<RoomActiveSnapshot>? ActiveRoomsView { get; set; }
 }

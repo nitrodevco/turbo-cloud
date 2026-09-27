@@ -59,5 +59,5 @@ public sealed class ServicePattern(
     }
 
     /// <summary>A limit is read from the config class, never passed in by a caller.</summary>
-    public int FavouriteRoomLimit => _config.MaxFavouriteRooms;
+    public int BlockPreviewLimit => _config.BlockPreviewLimit;
 }

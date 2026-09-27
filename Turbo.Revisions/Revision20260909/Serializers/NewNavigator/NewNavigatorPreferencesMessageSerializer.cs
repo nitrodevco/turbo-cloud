@@ -16,6 +16,6 @@ internal class NewNavigatorPreferencesMessageSerializer(int header)
         packet.WriteInteger(message.WindowWidth);
         packet.WriteInteger(message.WindowHeight);
         packet.WriteBoolean(message.LeftPaneHidden);
-        packet.WriteInteger(message.ResultsMode);
+        packet.WriteInteger((int)message.ResultsMode);
     }
 }

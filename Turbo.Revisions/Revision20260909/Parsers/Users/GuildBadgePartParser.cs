@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Linq;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Snapshots;
@@ -13,31 +14,33 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Users;
 /// </summary>
 internal static class GuildBadgePartParser
 {
+    /// <summary>Part, colour and position: three ints a layer.</summary>
+    private const int BYTES_PER_LAYER = 12;
+
     public static ImmutableArray<GuildBadgePartSnapshot> Parse(IClientPacket packet)
     {
-        var count = packet.PopInt();
+        // A client is free to claim any count; PopList bounds it by what the packet holds. Only
+        // as many layers as a badge can hold are kept, but every layer it claimed is read (no
+        // maxItems here), or the rest of the packet would be misaligned.
+        var layers = packet.PopList(
+            BYTES_PER_LAYER,
+            static p => (PartId: p.PopInt(), ColorId: p.PopInt(), Position: p.PopInt())
+        );
 
-        if (count <= 0)
-            return [];
-
-        // A client is free to claim any count. Only as many layers as a badge can hold are kept,
-        // but every layer it claimed is read, or the rest of the packet would be misaligned.
-        var parts = ImmutableArray.CreateBuilder<GuildBadgePartSnapshot>();
-
-        for (var layer = 0; layer < count; layer++)
-        {
-            var part = new GuildBadgePartSnapshot
-            {
-                Type = layer == 0 ? GuildBadgePartType.Base : GuildBadgePartType.Symbol,
-                PartId = packet.PopInt(),
-                ColorId = packet.PopInt(),
-                Position = packet.PopInt(),
-            };
-
-            if (layer < GuildBadgeCodes.MAX_PARTS)
-                parts.Add(part);
-        }
-
-        return parts.ToImmutable();
+        return
+        [
+            .. layers
+                .Take(GuildBadgeCodes.MAX_PARTS)
+                .Select(
+                    (layer, index) =>
+                        new GuildBadgePartSnapshot
+                        {
+                            Type = index == 0 ? GuildBadgePartType.Base : GuildBadgePartType.Symbol,
+                            PartId = layer.PartId,
+                            ColorId = layer.ColorId,
+                            Position = layer.Position,
+                        }
+                ),
+        ];
     }
 }

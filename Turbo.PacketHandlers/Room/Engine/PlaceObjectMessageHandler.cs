@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
@@ -24,7 +25,15 @@ public class PlaceObjectMessageHandler(IRoomService roomService)
 
         var separator = message.Data.IndexOf(' ');
 
-        if (separator <= 0 || !int.TryParse(message.Data[..separator], out var id))
+        if (
+            separator <= 0
+            || !int.TryParse(
+                message.Data[..separator],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var id
+            )
+        )
             return;
 
         var itemId = Math.Abs(id);
@@ -56,9 +65,28 @@ public class PlaceObjectMessageHandler(IRoomService roomService)
                 .PlaceFloorItemInRoomAsync(
                     ctx.AsActionContext(),
                     itemId,
-                    int.TryParse(position[0], out var xPos) ? xPos : 0,
-                    int.TryParse(position[1], out var yPos) ? yPos : 0,
-                    int.TryParse(position[2], out var rotation)
+                    int.TryParse(
+                        position[0],
+                        NumberStyles.Integer,
+                        CultureInfo.InvariantCulture,
+                        out var xPos
+                    )
+                        ? xPos
+                        : 0,
+                    int.TryParse(
+                        position[1],
+                        NumberStyles.Integer,
+                        CultureInfo.InvariantCulture,
+                        out var yPos
+                    )
+                        ? yPos
+                        : 0,
+                    int.TryParse(
+                        position[2],
+                        NumberStyles.Integer,
+                        CultureInfo.InvariantCulture,
+                        out var rotation
+                    )
                         ? (Rotation)rotation
                         : Rotation.North,
                     ct

@@ -16,5 +16,5 @@ public sealed class UserIsMutedVariable(RoomGrain roomGrain)
     protected override ushort Order => 90;
 
     protected override bool HasFlag(IRoomPlayer avatar) =>
-        _roomGrain.ModerationModule.GetRemainingMuteSeconds(avatar.PlayerId) > 0;
+        ModerationModule.GetRemainingMuteSeconds(avatar.PlayerId) > 0;
 }

@@ -80,6 +80,7 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
 
         _state.ActiveRooms[snapshot.RoomId] = room;
         _state.ActivatedRooms.TryAdd(snapshot.RoomId, room);
+        _state.ActiveRoomsView = null;
 
         return Task.CompletedTask;
     }
@@ -88,6 +89,7 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
     {
         _state.ActiveRooms.Remove(roomId, out var current);
         _state.ActivatedRooms.Remove(roomId, out var activated);
+        _state.ActiveRoomsView = null;
 
         if (listingChanged && current is not null)
         {
@@ -141,17 +143,7 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
         return Task.FromResult(
             new RoomListingViewSnapshot
             {
-                ActiveRooms = includeActiveRooms
-                    ?
-                    [
-                        .. _state.ActiveRooms.Values.Select(x =>
-                            RoomActiveSnapshot.From(
-                                x,
-                                _state.RoomPopulations.TryGetValue(x.RoomId, out var pop) ? pop : 0
-                            )
-                        ),
-                    ]
-                    : [],
+                ActiveRooms = includeActiveRooms ? GetActiveRoomsView() : [],
                 Epoch = _state.ListingEpoch,
                 Sequence = _state.ListingSequence,
                 ChangedKeys = isReset
@@ -167,6 +159,20 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
             }
         );
     }
+
+    /// <summary>
+    /// The active rooms with their populations, built once per change rather than per request.
+    /// The array and its snapshots are immutable, so every caller can share one.
+    /// </summary>
+    private ImmutableArray<RoomActiveSnapshot> GetActiveRoomsView() =>
+        _state.ActiveRoomsView ??= [
+            .. _state.ActiveRooms.Values.Select(x =>
+                RoomActiveSnapshot.From(
+                    x,
+                    _state.RoomPopulations.TryGetValue(x.RoomId, out var pop) ? pop : 0
+                )
+            ),
+        ];
 
     private void AppendListingChanges(IEnumerable<string> keys)
     {
@@ -230,6 +236,7 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
         _state.RoomPopulations[roomId] = _state.RoomPlayers.TryGetValue(roomId, out var players)
             ? players.Count
             : 0;
+        _state.ActiveRoomsView = null;
 
         return Task.CompletedTask;
     }

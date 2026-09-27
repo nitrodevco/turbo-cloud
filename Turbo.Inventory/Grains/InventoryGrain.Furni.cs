@@ -59,5 +59,10 @@ internal sealed partial class InventoryGrain
     public Task ReceiveFurnitureAsync(
         ImmutableArray<FurnitureItemSnapshot> items,
         CancellationToken ct
-    ) => _furniModule.ReceiveAsync(items, ct);
+    )
+    {
+        _furniModule.Receive(items);
+
+        return Task.CompletedTask;
+    }
 }

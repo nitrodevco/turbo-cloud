@@ -15,7 +15,6 @@ public partial interface IRoomGrain
     /// the new score is sent back to the voter.
     /// </summary>
     public Task<bool> RateRoomAsync(ActionContext ctx, int points, CancellationToken ct);
-    public Task<bool> GetCanRateAsync(PlayerId playerId, CancellationToken ct);
 
     /// <summary>Staff permission is checked by the caller.</summary>
     public Task SetStaffPickAsync(bool staffPick, CancellationToken ct);

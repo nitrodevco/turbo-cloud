@@ -13,12 +13,11 @@ namespace Turbo.Rooms.Object;
 public abstract class RoomObjectContext<TObject, TLogic, TSelf>(
     RoomGrain roomGrain,
     TObject roomObject
-) : IRoomObjectContext<TObject, TLogic, TSelf>
+) : RoomGrainComponent(roomGrain), IRoomObjectContext<TObject, TLogic, TSelf>
     where TObject : IRoomObject<TObject, TLogic, TSelf>
     where TSelf : IRoomObjectContext<TObject, TLogic, TSelf>
     where TLogic : IRoomObjectLogic<TObject, TLogic, TSelf>
 {
-    protected readonly RoomGrain _roomGrain = roomGrain;
     protected readonly TObject _roomObject = roomObject;
 
     public RoomId RoomId => _roomGrain._state.RoomId;

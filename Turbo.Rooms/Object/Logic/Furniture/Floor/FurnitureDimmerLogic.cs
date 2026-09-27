@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -127,13 +128,23 @@ public class FurnitureDimmerLogic(IStuffDataFactory stuffDataFactory, IRoomFloor
 
         var state =
             fields.Length > STATE_FIELD
-            && int.TryParse(fields[STATE_FIELD], out var s)
+            && int.TryParse(
+                fields[STATE_FIELD],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var s
+            )
             && s == DimmerStates.ON
                 ? DimmerStates.ON
                 : DimmerStates.OFF;
         var presetId =
             fields.Length > PRESET_FIELD
-            && int.TryParse(fields[PRESET_FIELD], out var p)
+            && int.TryParse(
+                fields[PRESET_FIELD],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var p
+            )
             && p >= 1
             && p <= DimmerStates.PRESET_COUNT
                 ? p

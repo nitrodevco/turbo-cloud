@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.Crypto;
 using Turbo.Primitives.Crypto;
 using Turbo.Primitives.Networking;
-using Turbo.Runtime;
+using Turbo.Primitives.Rooms;
 
 namespace Turbo.Networking.Session;
 
@@ -20,18 +20,17 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
     private readonly ILogger<ISessionContext> _logger = logger;
     private readonly SemaphoreSlim _sendSemaphore = new(1, 1);
 
+    // Written by the session observer, read by every incoming packet on the receive loop.
+    private int _activeRoomId = -1;
+
     public bool PolicyDone { get; set; } = true;
     public string RevisionId { get; set; } = "Default";
-    public DateTime LastActivityUtc { get; private set; } = DateTime.UtcNow;
-    public AsyncSignal PongWaiter { get; } = new();
-    public CancellationTokenSource HeartbeatCts { get; } = new();
     public IRc4Engine? CryptoIn { get; private set; }
     public IRc4Engine? CryptoOut { get; private set; }
 
-    public void Touch()
-    {
-        LastActivityUtc = DateTime.UtcNow;
-    }
+    public RoomId ActiveRoomId => Volatile.Read(ref _activeRoomId);
+
+    public void SetActiveRoomId(RoomId roomId) => Volatile.Write(ref _activeRoomId, roomId.Value);
 
     public void SetupEncryption(byte[] key, bool setCryptoOut = false)
     {
@@ -42,15 +41,23 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
     }
 
     /// <summary>
-    /// Serialises sends on one connection and runs <paramref name="send"/>. A send failure is
-    /// logged and not rethrown, because callers broadcast to many sessions and one bad connection
-    /// must not fail the rest. A connection that closed while the send was in flight is an
-    /// ordinary race with the client leaving, so it is logged at debug only.
+    /// Serialises sends on one connection and runs <paramref name="send"/>, which writes
+    /// <paramref name="count"/> composers starting with <paramref name="first"/> (named in the
+    /// log if it fails). A send failure is logged and not rethrown, because callers broadcast to
+    /// many sessions and one bad connection must not fail the rest. A connection that closed
+    /// while the send was in flight is an ordinary race with the client leaving, so it is logged
+    /// at debug only.
     /// </summary>
-    public async Task SendAsync(
+    /// <remarks>
+    /// <paramref name="send"/> takes its state explicitly so the per-send callers can pass a
+    /// static lambda instead of allocating a closure for every composer.
+    /// </remarks>
+    public async Task SendAsync<TState>(
         ISessionContext session,
-        IComposer composer,
-        Func<CancellationToken, ValueTask> send,
+        TState state,
+        Func<TState, CancellationToken, ValueTask> send,
+        IComposer first,
+        int count,
         CancellationToken ct
     )
     {
@@ -61,7 +68,7 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
             if (session.Connection.IsClosed)
                 return;
 
-            await send(ct).ConfigureAwait(false);
+            await send(state, ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -71,8 +78,9 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
         {
             _logger.LogDebug(
                 ex,
-                "Dropped {Composer} for session {SessionKey}: connection closed during send",
-                composer.GetType().Name,
+                "Dropped {Count} composer(s) starting with {Composer} for session {SessionKey}: connection closed during send",
+                count,
+                first.GetType().Name,
                 session.SessionKey
             );
         }
@@ -80,8 +88,9 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
         {
             _logger.LogError(
                 ex,
-                "Failed to send {Composer} to session {SessionKey}",
-                composer.GetType().Name,
+                "Failed to send {Count} composer(s) starting with {Composer} to session {SessionKey}",
+                count,
+                first.GetType().Name,
                 session.SessionKey
             );
         }

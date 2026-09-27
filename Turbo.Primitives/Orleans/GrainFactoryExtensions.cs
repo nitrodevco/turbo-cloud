@@ -22,7 +22,9 @@ using Turbo.Primitives.Players.Grains.Subscriptions;
 using Turbo.Primitives.Players.Grains.Wardrobe;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Primitives.Orleans;
 
@@ -147,6 +149,46 @@ public static class GrainFactoryExtensions
         CancellationToken ct
     ) =>
         factory.GetPlayerSubscriptionGrain(playerId).HasActiveAsync(SubscriptionType.HabboClub, ct);
+
+    /// <summary>
+    /// Sends a player to a room. The only way to forward a player, from a handler, a grain or a
+    /// wired box: never send <c>RoomForwardMessageComposer</c> yourself. The presence records
+    /// how they arrive (<paramref name="entry"/>: a teleporter's far half, a room network, or a
+    /// plain entry) and queues the forward in one call.
+    /// </summary>
+    public static Task ForwardPlayerToRoomAsync(
+        this IGrainFactory factory,
+        PlayerId playerId,
+        RoomId roomId,
+        RoomEntrySnapshot entry,
+        CancellationToken ct
+    ) => factory.GetPlayerPresenceGrain(playerId).ForwardToRoomAsync(roomId, entry, ct);
+
+    /// <summary>
+    /// Whether the player is on their way into <paramref name="roomId"/> through a teleporter,
+    /// which passes the room's door (doorbell, password) the way Habbo's does. Bans and
+    /// capacity still apply.
+    /// </summary>
+    public static async Task<bool> IsArrivingByTeleportAsync(
+        this IGrainFactory factory,
+        PlayerId playerId,
+        RoomId roomId,
+        CancellationToken ct
+    ) =>
+        (
+            await factory
+                .GetPlayerPresenceGrain(playerId)
+                .GetPendingRoomEntryAsync(roomId, ct)
+                .ConfigureAwait(false)
+        ).Method == RoomEntryMethodType.Teleport;
+
+    /// <summary>A plain forward: the player arrives the ordinary way.</summary>
+    public static Task ForwardPlayerToRoomAsync(
+        this IGrainFactory factory,
+        PlayerId playerId,
+        RoomId roomId,
+        CancellationToken ct
+    ) => factory.ForwardPlayerToRoomAsync(playerId, roomId, RoomEntrySnapshot.Default, ct);
 
     /// <summary>
     /// Gives back what a charge took, after the charge went through but the thing it paid for

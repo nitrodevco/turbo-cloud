@@ -32,7 +32,7 @@ public class WiredConditionValidMoves(
 
     private bool CanMoveAnywhere(IRoomFloorItem item)
     {
-        var map = _roomGrain.MapModule;
+        var map = MapModule;
         var idx = map.ToIdx(item.X, item.Y);
 
         foreach (var direction in RotationExtensions.CARDINAL)
@@ -42,7 +42,7 @@ public class WiredConditionValidMoves(
 
             var (x, y) = map.GetTileXY(nextIdx);
 
-            if (_roomGrain.FurniModule.CanPlaceFloorItem(item.ObjectId, x, y, item.Rotation))
+            if (FurniModule.CanPlaceFloorItem(item.ObjectId, x, y, item.Rotation))
                 return true;
         }
 

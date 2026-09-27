@@ -143,6 +143,12 @@ public sealed class CatalogSnapshotProvider<TTag>(
                 PageChildrenIds = pageChildrenIds,
                 PageOfferIds = pageOfferIds,
                 OfferProductIds = offerProductIds,
+                // A series is sold by one product; should two claim it, the lower id wins, so
+                // the choice does not depend on dictionary order.
+                ProductIdByLtdSeriesId = productsById
+                    .Values.Where(x => x.LtdSeriesId is not null)
+                    .GroupBy(x => x.LtdSeriesId!.Value)
+                    .ToImmutableDictionary(g => g.Key, g => g.Min(x => x.Id)),
             };
 
             _logger.LogInformation(

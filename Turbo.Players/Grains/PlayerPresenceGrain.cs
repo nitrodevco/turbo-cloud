@@ -36,6 +36,10 @@ internal sealed partial class PlayerPresenceGrain
     private StreamSubscriptionHandle<RoomOutboundSnapshot>? _roomOutboundSub;
     private IGrainTimer? _presenceTimer;
 
+    // The active room changed and the session has not been told yet. The next flush carries it,
+    // even with no composers queued; see ProcessOutgoingQueueAsync.
+    private bool _activeRoomDirty;
+
     public PlayerId PlayerId => _state.PlayerId;
 
     public PlayerPresenceGrain(
@@ -65,10 +69,15 @@ internal sealed partial class PlayerPresenceGrain
     {
         _sessionObserver = observer;
 
+        // A new session starts outside any room; the first flush tells it otherwise. No flush is
+        // started here: whatever queued before the session attached must not overtake what the
+        // login handler sends it directly.
+        _activeRoomDirty = true;
+
         _grainFactory
             .GetPlayerGrain(_state.PlayerId)
             .SetOnlineStatusAsync(true, CancellationToken.None)
-            .LogAndForget(_logger, $"set player {_state.PlayerId} online");
+            .LogAndForget(_logger, "set player {PlayerId} online", _state.PlayerId);
 
         _presenceTimer?.Dispose();
 
@@ -112,7 +121,7 @@ internal sealed partial class PlayerPresenceGrain
         _grainFactory
             .GetPlayerGrain(_state.PlayerId)
             .SetOnlineStatusAsync(false, CancellationToken.None)
-            .LogAndForget(_logger, $"set player {_state.PlayerId} offline");
+            .LogAndForget(_logger, "set player {PlayerId} offline", _state.PlayerId);
 
         _sessionObserver = null;
     }
@@ -125,9 +134,7 @@ internal sealed partial class PlayerPresenceGrain
         if (composer is not null)
         {
             Enqueue(composer);
-
-            ProcessOutgoingQueueAsync()
-                .LogAndForget(_logger, $"flush outgoing composers for player {_state.PlayerId}");
+            StartOutgoingFlush();
         }
 
         return Task.CompletedTask;
@@ -140,8 +147,7 @@ internal sealed partial class PlayerPresenceGrain
             foreach (var composer in composers)
                 Enqueue(composer);
 
-            ProcessOutgoingQueueAsync()
-                .LogAndForget(_logger, $"flush outgoing composers for player {_state.PlayerId}");
+            StartOutgoingFlush();
         }
 
         return Task.CompletedTask;
@@ -151,11 +157,17 @@ internal sealed partial class PlayerPresenceGrain
     {
         if (
             _sessionObserver is null
+            || item.Composers.IsDefaultOrEmpty
             || item.ExcludedPlayerIds is not null && item.ExcludedPlayerIds.Contains(PlayerId)
         )
             return Task.CompletedTask;
 
-        return SendComposerAsync(item.Composer, CancellationToken.None);
+        foreach (var composer in item.Composers)
+            Enqueue(composer);
+
+        StartOutgoingFlush();
+
+        return Task.CompletedTask;
     }
 
     public Task OnCompletedAsync() => Task.CompletedTask;
@@ -190,24 +202,75 @@ internal sealed partial class PlayerPresenceGrain
         _state.OutgoingQueue.Enqueue(composer);
     }
 
-    private async Task ProcessOutgoingQueueAsync()
+    /// <summary>
+    /// The active room changed: the session caches it for incoming packets (see
+    /// <see cref="ISessionContextObserver"/>), so it is pushed with the next flush.
+    /// </summary>
+    internal void OnActiveRoomChanged()
     {
-        if (_state.IsProcessingQueue)
+        _activeRoomDirty = true;
+        StartOutgoingFlush();
+    }
+
+    // Starts the flush unless one is already running: that one drains what was just queued too.
+    // Tells call this for every composer, so the running case costs nothing, not a task and a
+    // continuation each.
+    private void StartOutgoingFlush()
+    {
+        if (_state.IsProcessingQueue || _sessionObserver is null)
             return;
 
         _state.IsProcessingQueue = true;
 
+        // ProcessOutgoingQueueAsync catches and logs everything itself; this only guards the
+        // task from being dropped unobserved.
+        ProcessOutgoingQueueAsync()
+            .LogAndForget(
+                _logger,
+                "flush outgoing composers for player {PlayerId}",
+                _state.PlayerId
+            );
+    }
+
+    /// <summary>
+    /// Sends everything queued, a whole queue per observer call, and the active room with it.
+    /// One call at a time, awaited, so the session receives the flushes in order; composers
+    /// queued while a call is in flight go in the next one. The room is read when each call is
+    /// made, so the session never lags the presence by more than the flush in flight, and never
+    /// sees a composer from a room before it has been told it is in that room.
+    /// </summary>
+    private async Task ProcessOutgoingQueueAsync()
+    {
         try
         {
+            // Lets the tell that started the flush finish first, so a burst of sends in one turn
+            // goes out as one batch.
             await Task.Yield();
 
-            if (_sessionObserver is not null)
+            while (
+                _sessionObserver is { } observer
+                && (_state.OutgoingQueue.Count > 0 || _activeRoomDirty)
+            )
             {
-                while (_state.OutgoingQueue.Count > 0)
-                {
-                    var payload = _state.OutgoingQueue.Dequeue();
+                var batch = _state.OutgoingQueue.ToArray();
 
-                    await _sessionObserver.SendComposerAsync(payload);
+                _state.OutgoingQueue.Clear();
+                _activeRoomDirty = false;
+
+                var delivered = false;
+
+                try
+                {
+                    await observer.SendComposersAsync(batch, _state.ActiveRoomId);
+
+                    delivered = true;
+                }
+                finally
+                {
+                    // A failed call may not have set the room, so the next flush repeats it. The
+                    // batch itself is lost (and logged below), as a single composer was before.
+                    if (!delivered)
+                        _activeRoomDirty = true;
                 }
             }
         }

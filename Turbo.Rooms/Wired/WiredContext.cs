@@ -9,10 +9,10 @@ using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired;
 
-public abstract class WiredContext(RoomGrain roomGrain) : IWiredContext
+public abstract class WiredContext(RoomGrain roomGrain)
+    : RoomGrainComponent(roomGrain),
+        IWiredContext
 {
-    protected RoomGrain _roomGrain = roomGrain;
-
     public IRoomGrain Room => _roomGrain;
 
     public IWiredPolicy Policy { get; init; } = new WiredPolicy();
@@ -73,7 +73,7 @@ public abstract class WiredContext(RoomGrain roomGrain) : IWiredContext
                         set.SelectedFurniIds.UnionWith(Signal.SelectedFurniIds);
                         break;
                     case WiredFurniSourceType.AllRoomItems:
-                        foreach (var item in _roomGrain.FurniModule.Items)
+                        foreach (var item in FurniModule.Items)
                             set.SelectedFurniIds.Add(item.ObjectId);
                         break;
                 }
@@ -101,7 +101,7 @@ public abstract class WiredContext(RoomGrain roomGrain) : IWiredContext
                         AddPlayersByName(set, wired.GetSnapshot().StringParam);
                         break;
                     case WiredPlayerSourceType.AllRoomUsers:
-                        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
+                        foreach (var avatar in AvatarModule.Avatars)
                             set.SelectedAvatarIds.Add(avatar.ObjectId);
                         break;
                     case WiredPlayerSourceType.BotByName:
@@ -128,24 +128,21 @@ public abstract class WiredContext(RoomGrain roomGrain) : IWiredContext
 
         foreach (var id in stuffIds)
         {
-            if (_roomGrain.FurniModule.HasItem(id))
+            if (FurniModule.HasItem(id))
                 set.SelectedFurniIds.Add(id);
         }
     }
 
     private void AddPlayersByName(WiredSelectionSet set, string names)
     {
-        if (string.IsNullOrWhiteSpace(names))
+        var wanted = WiredNameList.Parse(names);
+
+        if (wanted.Count == 0)
             return;
 
-        var wanted = new HashSet<string>(
-            names.Split(['\t', '\r', '\n', ','], System.StringSplitOptions.RemoveEmptyEntries),
-            System.StringComparer.OrdinalIgnoreCase
-        );
-
-        foreach (var avatar in _roomGrain.AvatarModule.Avatars)
+        foreach (var avatar in AvatarModule.Avatars)
         {
-            if (wanted.Contains(avatar.Name.Trim()))
+            if (wanted.Contains(avatar.Name))
                 set.SelectedAvatarIds.Add(avatar.ObjectId);
         }
     }

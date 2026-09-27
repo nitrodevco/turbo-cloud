@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
@@ -30,7 +31,18 @@ public interface IRoomAvatar : IRoomObject
     public int GoalTileId { get; }
     public int NextTileId { get; set; }
     public bool IsWalking { get; set; }
+
+    /// <summary>
+    /// Inside a teleporter's sequence: the player's own walk requests are refused until it lets
+    /// them out, but the teleporter's walks (in and out of it) still go through.
+    /// </summary>
+    public bool IsTeleporting { get; set; }
     public bool NeedsInvoke { get; set; }
+
+    /// <summary>
+    /// The tiles still ahead on the walk, in reverse: the goal first and the next step last, so
+    /// taking a step removes the last entry instead of shifting the whole list.
+    /// </summary>
     public List<int> TilePath { get; }
 
     public long NextMoveStepAtMs { get; set; }
@@ -84,8 +96,8 @@ public interface IRoomAvatar : IRoomObject
     public void Lay(bool flag = true, Altitude? height = null, Rotation? rot = null);
 
     public void AddStatus(AvatarStatusType type, string value);
-    public bool HasStatus(params AvatarStatusType[] types);
-    public void RemoveStatus(params AvatarStatusType[] types);
+    public bool HasStatus(params ReadOnlySpan<AvatarStatusType> types);
+    public void RemoveStatus(params ReadOnlySpan<AvatarStatusType> types);
 
     public RoomAvatarSnapshot GetSnapshot();
 }

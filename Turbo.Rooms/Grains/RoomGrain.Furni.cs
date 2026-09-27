@@ -1,13 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Interactions;
-using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
@@ -223,9 +220,6 @@ public sealed partial class RoomGrain
         }
     }
 
-    public Task<ImmutableDictionary<PlayerId, string>> GetAllOwnersAsync(CancellationToken ct) =>
-        FurniModule.GetAllOwnersAsync(ct);
-
     public Task<int> GetItemCountByOwnerAsync(PlayerId ownerId, CancellationToken ct) =>
         FurniModule.GetItemCountByOwnerAsync(ownerId, ct);
 
@@ -236,26 +230,4 @@ public sealed partial class RoomGrain
         Task.FromResult(
             _state.ItemsById.TryGetValue(itemId, out var item) ? item.GetSnapshot() : null
         );
-
-    private async Task FlushDirtyItemsAsync(CancellationToken ct)
-    {
-        if (_state.DirtyItemIds.Count == 0)
-            return;
-
-        var batch = new List<RoomItemSnapshot>();
-
-        batch.AddRange(
-            _state
-                .DirtyItemIds.Select(x =>
-                    _state.ItemsById.TryGetValue(x, out var item) ? item.GetSnapshot() : null
-                )
-                .Where(x => x is not null)!
-        );
-
-        _state.DirtyItemIds.Clear();
-
-        await _grainFactory
-            .GetRoomPersistenceGrain(_state.RoomId)
-            .EnqueueDirtyItemsAsync(_state.RoomId, batch, ct);
-    }
 }

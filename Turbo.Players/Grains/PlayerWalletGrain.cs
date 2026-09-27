@@ -9,7 +9,6 @@ using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Extensions;
-using Turbo.Players.Exceptions;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums.Wallet;
@@ -65,79 +64,117 @@ internal sealed class PlayerWalletGrain : Grain, IPlayerWalletGrain
         }
     }
 
+    /// <summary>
+    /// Takes every requested currency or none. Each currency is one conditional update
+    /// (<c>amount = amount - cost WHERE amount &gt;= cost</c>), so the database refuses a short
+    /// balance itself; with more than one currency they share a transaction, and the first one
+    /// the balance cannot cover rolls the others back. Memory moves only after the commit.
+    /// </summary>
     public async Task<WalletDebitResult> TryDebitAsync(
         List<WalletDebitRequest> requests,
         CancellationToken ct
     )
     {
         if (
-            TryNormalizeRequests(requests, out var normalizedRequests)
-            && normalizedRequests.Count > 0
+            !TryNormalizeRequests(requests, out var normalizedRequests)
+            || normalizedRequests.Count == 0
         )
+            return WalletDebitResult.Success();
+
+        var updates = new List<WalletCurrencyUpdateSnapshot>(normalizedRequests.Count);
+        WalletDebitRequest? current = null;
+
+        try
         {
             await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
-            await using var tx = await dbCtx.Database.BeginTransactionAsync(ct);
-
-            var updates = new List<WalletCurrencyUpdateSnapshot>(normalizedRequests.Count);
+            // One statement is atomic on its own; only several need a transaction around them.
+            await using var tx =
+                normalizedRequests.Count > 1
+                    ? await dbCtx.Database.BeginTransactionAsync(ct)
+                    : null;
 
             foreach (var request in normalizedRequests)
             {
-                try
+                current = request;
+
+                var cost = request.Amount;
+                var debited =
+                    _state.CurrenciesByKind.TryGetValue(request.CurrencyKind, out var snapshot)
+                    && await dbCtx
+                        .PlayerCurrencies.Where(x =>
+                            x.Id == snapshot.Id
+                            && x.PlayerEntityId == PlayerId.Value
+                            && x.Amount >= cost
+                        )
+                        .ExecuteUpdateAsync(
+                            up => up.SetProperty(x => x.Amount, x => x.Amount - cost),
+                            ct
+                        ) == 1;
+
+                if (!debited)
                 {
-                    var update = await ProcessDebitRequestAsync(dbCtx, request, ct);
-
-                    if (update.ChangedBy != -request.Amount)
-                        throw new WalletDebitFailedException(
-                            request.CurrencyKind,
-                            request.Amount,
-                            update.ChangedBy
-                        );
-
-                    updates.Add(update);
-                }
-                catch (Exception ex)
-                {
-                    // An insufficient balance is expected; anything else is a real failure.
-                    if (ex is WalletDebitFailedException)
-                        _logger.LogWarning(
-                            "Player {PlayerId} could not be debited {Amount} of {CurrencyKind}",
-                            PlayerId,
-                            request.Amount,
-                            request.CurrencyKind
-                        );
-                    else
-                        _logger.LogError(
-                            ex,
-                            "Failed to debit {Amount} of {CurrencyKind} from player {PlayerId}",
-                            request.Amount,
-                            request.CurrencyKind,
-                            PlayerId
-                        );
-
-                    await tx.RollbackAsync(ct);
-                    await RollbackUpdatesAsync(updates, ct);
-
-                    return WalletDebitResult.InsufficientBalance(
-                        new WalletDebitFailure
-                        {
-                            CurrencyKind = request.CurrencyKind,
-                            Amount = request.Amount,
-                        }
+                    // An insufficient balance is an answer, not a failure.
+                    _logger.LogWarning(
+                        "Player {PlayerId} could not be debited {Amount} of {CurrencyKind}",
+                        PlayerId,
+                        request.Amount,
+                        request.CurrencyKind
                     );
+
+                    if (tx is not null)
+                        await tx.RollbackAsync(ct);
+
+                    return InsufficientBalance(request);
                 }
+
+                // ChangedBy is the signed delta: a debit is negative, so the client shows it as
+                // spent rather than received.
+                updates.Add(
+                    new WalletCurrencyUpdateSnapshot
+                    {
+                        CurrencyKind = request.CurrencyKind,
+                        ChangedBy = -cost,
+                        Amount = snapshot!.Amount - cost,
+                    }
+                );
             }
 
-            await dbCtx.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-
-            var playerPresence = _grainFactory.GetPlayerPresenceGrain(PlayerId.Value);
-
-            foreach (var update in updates)
-                await playerPresence.OnCurrencyUpdateAsync(update, ct);
+            if (tx is not null)
+                await tx.CommitAsync(ct);
         }
+        catch (Exception ex)
+        {
+            // Disposing the transaction rolled back whatever it had done.
+            _logger.LogError(
+                ex,
+                "Failed to debit {Amount} of {CurrencyKind} from player {PlayerId}",
+                current?.Amount,
+                current?.CurrencyKind,
+                PlayerId
+            );
+
+            return InsufficientBalance(current ?? normalizedRequests[0]);
+        }
+
+        foreach (var update in updates)
+        {
+            var snapshot = _state.CurrenciesByKind[update.CurrencyKind];
+
+            _state.CurrenciesByKind[update.CurrencyKind] = snapshot with { Amount = update.Amount };
+        }
+
+        var playerPresence = _grainFactory.GetPlayerPresenceGrain(PlayerId.Value);
+
+        foreach (var update in updates)
+            await playerPresence.OnCurrencyUpdateAsync(update, ct);
 
         return WalletDebitResult.Success();
     }
+
+    private static WalletDebitResult InsufficientBalance(WalletDebitRequest request) =>
+        WalletDebitResult.InsufficientBalance(
+            new WalletDebitFailure { CurrencyKind = request.CurrencyKind, Amount = request.Amount }
+        );
 
     public async Task<bool> CreditAsync(CurrencyKind kind, int amount, CancellationToken ct)
     {
@@ -210,30 +247,6 @@ internal sealed class PlayerWalletGrain : Grain, IPlayerWalletGrain
         return true;
     }
 
-    public Task RollbackUpdatesAsync(
-        List<WalletCurrencyUpdateSnapshot> updates,
-        CancellationToken ct
-    )
-    {
-        if (updates.Count == 0)
-            return Task.CompletedTask;
-        foreach (var update in updates)
-        {
-            if (update is null || update.ChangedBy == 0)
-                continue;
-
-            if (_state.CurrenciesByKind.TryGetValue(update.CurrencyKind, out var snapshot))
-            {
-                _state.CurrenciesByKind[update.CurrencyKind] = snapshot with
-                {
-                    Amount = snapshot.Amount - update.ChangedBy,
-                };
-            }
-        }
-
-        return Task.CompletedTask;
-    }
-
     public Task<int> GetAmountForCurrencyAsync(CurrencyKind kind, CancellationToken ct) =>
         Task.FromResult(
             _state.CurrenciesByKind.TryGetValue(kind, out var snapshot) ? snapshot.Amount : 0
@@ -288,52 +301,6 @@ internal sealed class PlayerWalletGrain : Grain, IPlayerWalletGrain
         }
 
         return true;
-    }
-
-    private async Task<WalletCurrencyUpdateSnapshot> ProcessDebitRequestAsync(
-        TurboDbContext dbCtx,
-        WalletDebitRequest request,
-        CancellationToken ct
-    )
-    {
-        var changedBy = 0;
-        var currentAmount = 0;
-        var cost = request.Amount;
-
-        if (_state.CurrenciesByKind.TryGetValue(request.CurrencyKind, out var snapshot))
-        {
-            var entity = await dbCtx
-                .PlayerCurrencies.Where(x =>
-                    x.Id == snapshot.Id && x.PlayerEntityId == PlayerId.Value
-                )
-                .FirstOrDefaultAsync(ct);
-
-            if (entity is not null)
-            {
-                currentAmount = entity.Amount;
-
-                if ((cost > 0) && (currentAmount >= cost))
-                {
-                    // ChangedBy is the signed delta: a debit is negative, so the client shows
-                    // it as spent rather than received.
-                    changedBy = -cost;
-                    entity.Amount += changedBy;
-                    currentAmount = entity.Amount;
-                }
-            }
-
-            _state.CurrenciesByKind[request.CurrencyKind] = snapshot with
-            {
-                Amount = currentAmount,
-            };
-        }
-
-        return new()
-        {
-            CurrencyKind = request.CurrencyKind,
-            ChangedBy = changedBy,
-            Amount = currentAmount,
-        };
     }
 
     private async Task HydrateAsync(CancellationToken ct)

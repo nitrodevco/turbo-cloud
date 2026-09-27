@@ -1,4 +1,5 @@
 using Orleans;
+using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Primitives.Rooms.Snapshots.Avatars;
@@ -13,7 +14,7 @@ public sealed record RoomPlayerAvatarSnapshot : RoomAvatarSnapshot
     public required int GroupId { get; init; }
 
     [Id(16)]
-    public required int GroupStatus { get; init; }
+    public required GuildMembershipStatus GroupStatus { get; init; }
 
     [Id(17)]
     public required string GroupName { get; init; }

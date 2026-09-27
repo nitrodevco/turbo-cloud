@@ -42,7 +42,7 @@ public abstract class FurniturePetSupplyLogic(
 
         if (next >= LastState)
         {
-            await _roomGrain.ActionModule.DeleteItemByIdAsync(
+            await ActionModule.DeleteItemByIdAsync(
                 ActionContext.CreateForSystem(_ctx.RoomId),
                 _ctx.ObjectId,
                 ct

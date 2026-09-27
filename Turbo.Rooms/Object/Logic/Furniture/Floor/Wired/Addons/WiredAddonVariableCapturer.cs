@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -34,9 +35,6 @@ public class WiredAddonVariableCapturer(
     private const char SIGIL = '#';
 
     public override int WiredCode => (int)WiredAddonType.VARIABLE_CAPTURER;
-
-    // Both the keyword and the chat line come from players, so the match is time boxed.
-    private static readonly TimeSpan MATCH_TIMEOUT = TimeSpan.FromMilliseconds(50);
 
     public override int GetMaxVariableIds() => 1;
 
@@ -74,7 +72,13 @@ public class WiredAddonVariableCapturer(
 
         try
         {
-            match = Regex.Match(chat.Text.Trim(), pattern, RegexOptions.IgnoreCase, MATCH_TIMEOUT);
+            // Both the keyword and the chat line come from players, so the match is time boxed.
+            match = Regex.Match(
+                chat.Text.Trim(),
+                pattern,
+                RegexOptions.IgnoreCase,
+                TimeSpan.FromMilliseconds(_roomGrain._wiredConfig.RegexMatchTimeoutMs)
+            );
         }
         catch (RegexMatchTimeoutException ex)
         {
@@ -101,7 +105,9 @@ public class WiredAddonVariableCapturer(
 
             value = connector.Key;
         }
-        else if (!int.TryParse(typed, out value))
+        else if (
+            !int.TryParse(typed, NumberStyles.Integer, CultureInfo.InvariantCulture, out value)
+        )
         {
             return;
         }

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -12,9 +11,9 @@ using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Rooms.Grains.Systems;
 
-public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
+public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainComponent(roomGrain)
 {
-    private readonly RoomGrain _roomGrain = roomGrain;
+    private readonly List<IRoomAvatar> _avatars = [];
 
     public async Task ProcessAvatarsAsync(long now, CancellationToken ct)
     {
@@ -26,21 +25,26 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
 
         var dirtySnapshots = new List<RoomAvatarSnapshot>();
 
-        foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values.ToList())
+        // A step can take an avatar out of the room (a furni it lands on), so the loop walks a
+        // copy; the copy's list is kept rather than made again every boundary.
+        _avatars.Clear();
+        _avatars.AddRange(_roomGrain._state.AvatarsByObjectId.Values);
+
+        foreach (var avatar in _avatars)
         {
             try
             {
-                await _roomGrain.AvatarModule.ProcessNextAvatarStepAsync(avatar, ct);
+                await AvatarModule.ProcessNextAvatarStepAsync(avatar, ct);
 
                 if (avatar.TilePath.Count <= 0)
                 {
                     if (avatar.PendingStopAtMs > 0 && now < avatar.PendingStopAtMs)
                         continue;
 
-                    await _roomGrain.AvatarModule.StopWalkingAsync(avatar, ct);
+                    await AvatarModule.StopWalkingAsync(avatar, ct);
 
                     if (avatar.NeedsInvoke)
-                        await _roomGrain.MapModule.InvokeAvatarAsync(avatar, ct);
+                        await MapModule.InvokeAvatarAsync(avatar, ct);
                 }
                 else
                 {
@@ -61,7 +65,7 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
         }
 
         // Ridden pets copy their rider's step, so they are updated once every rider has moved.
-        await _roomGrain.PetModule.SyncRidingPetsAsync(ct);
+        await PetModule.SyncRidingPetsAsync(ct);
 
         foreach (var avatar in _roomGrain._state.AvatarsByObjectId.Values)
         {
@@ -112,8 +116,9 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
 
     private async Task ProcessAvatarAsync(IRoomAvatar avatar, long now, CancellationToken ct)
     {
-        var nextTileId = avatar.TilePath[0];
-        avatar.TilePath.RemoveAt(0);
+        // The path is stored goal first, so the next step is the last entry.
+        var nextTileId = avatar.TilePath[^1];
+        avatar.TilePath.RemoveAt(avatar.TilePath.Count - 1);
 
         if (avatar.TilePath.Count == 0)
             avatar.PendingStopAtMs = _roomGrain.AlignToNextBoundary(
@@ -134,28 +139,28 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
         try
         {
             var isGoal = avatar.TilePath.Count == 0;
-            var prevTileId = _roomGrain.MapModule.ToIdx(avatar.X, avatar.Y);
-            var (nextX, nextY) = _roomGrain.MapModule.GetTileXY(nextTileId);
-            var prevHeight = _roomGrain.MapModule.GetTileHeightForAvatar(prevTileId);
-            var nextHeight = _roomGrain.MapModule.GetTileHeightForAvatar(nextTileId);
+            var prevTileId = MapModule.ToIdx(avatar.X, avatar.Y);
+            var (nextX, nextY) = MapModule.GetTileXY(nextTileId);
+            var prevHeight = MapModule.GetTileHeightForAvatar(prevTileId);
+            var nextHeight = MapModule.GetTileHeightForAvatar(nextTileId);
 
             // A step the map refuses is the normal end of a walk, not a failure: the tile was
             // taken or raised while the avatar was on its way. Stop and say nothing; this runs
             // for every avatar on every tick.
             if (Math.Abs(nextHeight - prevHeight) > Math.Abs(_roomGrain._roomConfig.MaxStepHeight))
             {
-                await _roomGrain.AvatarModule.StopWalkingAsync(avatar, ct);
+                await AvatarModule.StopWalkingAsync(avatar, ct);
 
                 return;
             }
 
-            if (!_roomGrain.MapModule.CanAvatarWalkBetween(avatar, prevTileId, nextTileId, isGoal))
+            if (!MapModule.CanAvatarWalkBetween(avatar, prevTileId, nextTileId, isGoal))
             {
                 if (!isGoal)
                 {
-                    var (goalX, goalY) = _roomGrain.MapModule.GetTileXY(avatar.GoalTileId);
+                    var (goalX, goalY) = MapModule.GetTileXY(avatar.GoalTileId);
 
-                    if (await _roomGrain.AvatarModule.WalkAvatarToAsync(avatar, goalX, goalY, ct))
+                    if (await AvatarModule.WalkAvatarToAsync(avatar, goalX, goalY, ct))
                     {
                         await ProcessAvatarAsync(avatar, now, ct);
 
@@ -163,17 +168,17 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
                     }
                 }
 
-                await _roomGrain.AvatarModule.StopWalkingAsync(avatar, ct);
+                await AvatarModule.StopWalkingAsync(avatar, ct);
 
                 return;
             }
 
-            await _roomGrain.AvatarModule.NotifyWalkOffAsync(avatar, prevTileId, ct);
+            await AvatarModule.NotifyWalkOffAsync(avatar, prevTileId, ct);
 
-            _roomGrain.MapModule.RemoveAvatarAtIdx(avatar, prevTileId, false);
-            _roomGrain.MapModule.AddAvatarAtIdx(avatar, nextTileId, false);
+            MapModule.RemoveAvatarAtIdx(avatar, prevTileId, false);
+            MapModule.AddAvatarAtIdx(avatar, nextTileId, false);
 
-            await _roomGrain.AvatarModule.NotifyWalkOnAsync(avatar, nextTileId, ct);
+            await AvatarModule.NotifyWalkOnAsync(avatar, nextTileId, ct);
 
             avatar.RemoveStatus(AvatarStatusType.Lay, AvatarStatusType.Sit);
             avatar.AddStatus(AvatarStatusType.Move, $"{nextX},{nextY},{nextHeight}");
@@ -190,7 +195,7 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain)
                 _roomGrain.RoomId
             );
 
-            await _roomGrain.AvatarModule.StopWalkingAsync(avatar, ct);
+            await AvatarModule.StopWalkingAsync(avatar, ct);
         }
     }
 }

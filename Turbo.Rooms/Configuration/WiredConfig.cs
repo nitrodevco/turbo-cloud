@@ -17,6 +17,13 @@ public class WiredConfig
     public int MaxScheduledPerTick { get; init; } = 64;
     public int MaxEventsPerTick { get; init; } = 64;
 
+    /// <summary>
+    /// Events a room keeps waiting for its wired ticks; past this, new ones are dropped and the
+    /// drop is logged. A room that raises more than <see cref="MaxEventsPerTick"/> each tick
+    /// would otherwise queue without end.
+    /// </summary>
+    public int MaxQueuedEvents { get; init; } = 1024;
+
     /// <summary>Executions in one window that mark a room as heavy in the wired monitor.</summary>
     public int ExecutionCostCap { get; init; } = 500;
     public int ExecutionCostWindowMs { get; init; } = 1000;
@@ -39,6 +46,12 @@ public class WiredConfig
     public int MaxHandItemId { get; init; } = 10000;
     public int MaxEffectId { get; init; } = 10000;
     public int ShowMessageMaxLength { get; init; } = 200;
+
+    /// <summary>
+    /// How long a pattern built from player text may take to match a chat line before the
+    /// match is given up and logged.
+    /// </summary>
+    public int RegexMatchTimeoutMs { get; init; } = 50;
     public int KickMessageMaxLength { get; init; } = 100;
     public int LogMessageMaxLength { get; init; } = 400;
     public int MaxRewardsPerBox { get; init; } = 20;

@@ -398,6 +398,29 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   menu (no guilds), the room queue and spectators, `ConfigurationItemStates`, `UseObject`,
   `SpecialRoomEffect` and `BotSkillListUpdate` (nothing on the server causes them).
 
+### Teleporters
+- A teleporter (`FurnitureTeleportLogic`, logic `teleport`) is half of a pair. The pair is made
+  at purchase — one unit bought is two items, inserted, linked and committed in one transaction
+  (`InventoryFurniModule.GrantTeleportPairsAsync`) — and each half names the other in its
+  `room_linker` section by **item id only**. Where the other half stands is looked up when it
+  is used (`RoomFurniModule.GetRoomIdOfItemAsync`), because either half can be picked up and
+  placed anywhere.
+- The sequence is Habbo's, one `RoomConfig.TeleportStepMs` step at a time, in the three states
+  the client draws (`TeleportStates`: closed, open, flashing): used from anywhere, it walks the
+  player to the tile in front; opens; they step in; it shuts; it flashes; then the other half
+  in this room flashes, opens and lets them walk out, or they are forwarded to the other half's
+  room. With no usable other half it opens again and lets them back out.
+- Arriving from another room goes through `IRoomArrivalLogic`: the forward carries a
+  `RoomEntryMethodType.Teleport` entry naming the far half, the avatar module starts the player
+  inside it instead of at the door (a module asks the interface; it never names the furni), and
+  the entry handlers let a teleport arrival past the door — doorbell and password, not bans or
+  capacity (`IGrainFactory.IsArrivingByTeleportAsync`). The pending entry expires after
+  `PlayerConfig.PendingRoomEntryTtlMs`, so a forward never followed cannot open a door later.
+- One player at a time. While a teleporter holds someone, their own walk requests are refused
+  (`IRoomAvatar.IsTeleporting`) without stopping the walk the teleporter has them on; every
+  step re-checks the player is still where it left them and lets go the moment they are not
+  (left, disconnected, moved by wired). Picking it up lets them go.
+
 ### Temporary furni
 - A temporary furni is a floor item the room makes from a definition alone
   (`RoomFurniModule.PlaceTemporaryFloorItemAsync`): on the map, in the furni list players are
@@ -417,7 +440,7 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   a repeater would otherwise fill the room. Reaching the cap or a blocked tile is not an error.
 - The ids start again at -1 each time the room loads, so anything keyed by furni id that
   outlives the room must let go when one leaves: the wired system drops the stored variable
-  values of a temporary furni on detach (`ForgetStoredValuesOfTemporaryFurni`), or the next
+  values of a temporary furni on detach (`ForgetStoredValuesOfUnownedFurni`), or the next
   furni to get that id would inherit them.
 - A new item has no logic until it is attached, and a check that type-tests `Logic` before
   then silently answers "not mine": the wired and variable-fx placement caps tested it and so
@@ -485,13 +508,14 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   which updates the codes the wired "wearing badge" condition reads and broadcasts
   `HabboUserBadges`, since the client's room handler listens for it for every user.
 - Leaderboards (`BadgeLeaderboardType`: total badges, one rarity tier, achievement level) are
-  grouped queries over `player_badges` in `BadgeLeaderboardGrain`, cached per chunk for as long
-  as the client treats a chunk as fresh. Players on the same score share a rank. The
+  held by `BadgeLeaderboardGrain` as a score histogram plus the top `LeaderboardHeldEntries`
+  entries per board, refreshed on an interleaved timer; requests are answered from memory, and
+  only a chunk deeper than the held entries queries. Players on the same score share a rank. The
   achievement board is empty until achievements exist. Type, tier, chunk index and size all
   come from the client and are bounded in the leaderboard grain.
 - A player's badges rank (info stand, profile) is asked of the leaderboard grain with the number
-  of badges, not the player: it keeps how many players hold each total (one grouped query per
-  cache window, one row per distinct total) and answers from that, so ranking every avatar in
+  of badges, not the player: it keeps how many players hold each total (the histogram,
+  refreshed on the timer) and answers from that, so ranking every avatar in
   every room costs no query. The client shows a rank of zero or more and hides a negative one;
   no badges, bots and "not known yet" are `BadgeRanks.NONE`.
 - The rank is worked out where the badge count is, in the inventory
@@ -1077,6 +1101,16 @@ out of pulling it apart; they hold for any system that grows the same way.
     broadcast made once the answer is known). The second is the first with `LogAndForget`, not
     another route; fifteen call sites were spelling the log line out. A "local send helper" is
     one that wraps a *player* send or reaches the presence directly — those stay forbidden.
+- **Sending a player to another room is `IGrainFactory.ForwardPlayerToRoomAsync`**, from a
+  handler, a grain or a wired box alike; nothing else builds `RoomForwardMessageComposer`. The
+  presence owns both halves of a forward — how the player will arrive (the pending entry a
+  teleporter or room network names) and the queue the forward goes out on — so
+  `IPlayerPresenceGrain.ForwardToRoomAsync` records the entry and queues the forward in one
+  interleaved call. Before, the wired teleport made two grain calls that had to be chained to
+  stay in order, and four handlers sent the forward themselves without touching the entry, so
+  an earlier furni's entry could colour a later plain forward to the same room. Pass a
+  `RoomEntrySnapshot` only when a furni decides how they land; the overload without one records
+  a plain entry.
 - Do not send directly to raw sockets/session transports from packet handlers.
 - Active-room membership/discovery belongs to `RoomDirectoryGrain`; do not bypass it with ad-hoc room tracking.
 - Grain lifetime remains Orleans-managed by default; use `[KeepAlive]` only for explicitly justified directory/manager grains.
@@ -1237,6 +1271,14 @@ finishing a change, check it against this list; each line is a mistake that was 
     `TryGetValue`, a bounds check or `GetIntParamOrDefault`. The only commented swallows left are
     in runtime primitives that have no logger and run during unload (`ReloadableExport`,
     `CompositeDisposable`); do not add new ones.
+- **Room code names its siblings the way the grain does.** Every module, system, object logic and
+  wired context derives from `RoomGrainComponent`, which exposes the grain's modules and systems
+  by name: write `ObjectModule.RemoveObjectAsync(...)`, not
+  `_roomGrain.ObjectModule.RemoveObjectAsync(...)`. `_roomGrain` stays for the grain's state,
+  config and services. A new module or system gets its shorthand in `RoomGrainComponent` (the one
+  list), and a new class that holds the room grain derives from it rather than keeping its own
+  `_roomGrain` field. Static helpers that take the grain as a parameter (`WiredArea`,
+  `WiredTimeZones`) are the exception.
 - **Shared room lookups have one home.** Player id → avatar is `RoomAvatarModule.TryGetPlayer`;
   do not walk `AvatarsByPlayerId` then `AvatarsByObjectId` inline, and do not park a general
   helper in whichever module needed it first (it lived in the pet module, and trading reached
@@ -1407,22 +1449,22 @@ finishing a change, check it against this list; each line is a mistake that was 
   wait for ever. The group system has three such pairs and every one of them was written the
   wrong way round first:
   - the room grain asks the **group** grain for a member's rank on every controller-level check,
-    so the group grain may never call a room grain;
+    so the group grain may never *await* a room grain;
   - the group grain asks the **player's** guild grain for their membership count before a join,
-    so that grain may never call a group grain;
+    so that grain may never await a group grain;
   - the player's guild grain tells the **room** its owner's badge changed, so the room may not
     read that badge back out of the player's grain — it arrives as arguments.
 
-  Where a push is genuinely needed in the barred direction it goes **in the handler**, after the
-  grain call has returned: `GuildFurniRefreshExtensions`, `GuildRoomRefreshExtensions` and the
-  settings push in `UpdateGuildSettingsMessageHandler` all exist for that reason and say so. The
-  one exception in the tree is `GuildGrain.DeactivateAsync` calling `RoomGrain.OnGuildDeletedAsync`,
-  and it is safe only because the group is already gone from the directory by then, so the room
-  resolves no group and cannot ask the group grain anything. That ordering is load-bearing, not
-  incidental.
+  A push in the barred direction is still the owner's to make: it goes out from the grain that
+  changed, fire-and-forget. `GuildGrain.Notify` tells rooms and the player's guild grain with
+  `LogAndForget` (see "Moving the call to the caller is the wrong half of the fix" above);
+  `GuildGrain.DeactivateAsync` tells the homeroom `OnGuildDeletedAsync` the same way. An
+  earlier version put these pushes in handlers (`GuildFurniRefreshExtensions` and friends);
+  they are gone, and handlers are guard, call, report.
 
-  Before adding a call between two grains, ask what the callee already calls. If the answer is
-  "me", the call belongs in a handler or a service.
+  Before adding an awaited call between two grains, ask what the callee already awaits. If the
+  answer leads back to the caller, make it a tell — `LogAndForget`, or an interleaved
+  memory-only method on the callee.
 - **A cache that answers "no" must be invalidated when the answer becomes "yes".** `RoomGrain`
   holds whether it is a group's homeroom, and a room that is nobody's homeroom caches that so it
   does not re-ask on every rights check. Creating a group whose homeroom was already loaded —
@@ -1431,8 +1473,9 @@ finishing a change, check it against this list; each line is a mistake that was 
   A negative answer needs the same invalidation path as a positive one.
 - **A change to who may do something has to reach whoever is standing in the room.** Joining,
   leaving, being approved, promoted or demoted changes a player's rights in the group's
-  homeroom. Nothing re-derives that on its own: the handler calls
-  `RefreshGuildRoomMemberAsync`, which refreshes that one player if they are in the room.
+  homeroom. Nothing re-derives that on its own: the group grain's
+  `NotifyHomeroomMemberChanged` tells the homeroom `RefreshGuildMemberAsync`, which refreshes
+  that one player if they are in the room.
   Without it a player keeps whatever they walked in with until they leave and come back.
 - **A fixed-width wire format needs a guard where the value enters, not a comment.**
   `GuildBadgeCodes` writes a badge as six-character tokens: prefix, two digits of part, two of
@@ -1573,7 +1616,7 @@ finishing a change, check it against this list; each line is a mistake that was 
 - **An offer's price is read in one place.** `CatalogOfferSnapshot.ToDebitRequests(quantity)` is
   what buying it takes out of a wallet. The LTD raffle had its own copy that left out silver, so
   a silver-priced LTD was handed out for free. Do not build `WalletDebitRequest`s from an offer
-  by hand; `CurrencyKind.Credits` / `Silver` / `ActivityPoints(type)` name the kinds.
+  by hand; `CurrencyKind.Credits` / `Silver` / `Emeralds` / `ActivityPoints(type)` name the kinds.
 - **Who may buy an offer is checked on every path that sells it.** `CatalogOfferSnapshot.
   RequiresClub` (club level above none; this client collapses the tiers, so any active
   membership meets it) is checked by the shop purchase, the room ad and the LTD entry. The level
@@ -1644,6 +1687,101 @@ finishing a change, check it against this list; each line is a mistake that was 
   `BuildersClubFurnitureEntity` share their placement columns through `IPlacedFurnitureEntity`,
   and the persistence grain marks exactly those modified, by name, for both. Two hand-written
   copies of that block had already grown apart (one marked the room column three times).
+
+- **The per-packet path is shared by every player, so it is held to a stricter budget.**
+  - Nothing on it awaits a grain. Decoding, `MessageRegistry.CreateContextAsync` and encoding
+    used to cost a presence-grain round trip per incoming packet just to read the active room;
+    the room now lives on the session (`ISessionContext.ActiveRoomId`), pushed by the presence
+    grain. Any change to the presence's `_state.ActiveRoomId` calls `OnActiveRoomChanged()`.
+  - A broadcast is serialized once, not once per recipient: `ComposerPayloadCache` keeps the
+    framed, unencrypted bytes per composer instance and each session encrypts its own copy. So
+    **a composer, and any collection it holds, is never changed after it is handed to a send**,
+    and **a serializer is a pure function of its composer** — no clock, no randomness, no
+    session state. Compute "seconds ago" where the composer is built.
+  - A `ServerPacket` writes into a pooled buffer: copy its bytes out, dispose it, never keep its
+    `WrittenSpan`.
+  - The presence drains its whole queue into one observer call, and a room tick that emits
+    several composers sends them as one `SendComposersToRoomAsync` / `SendComposersToRoomAndForget`:
+    one stream item is one flush per recipient.
+  - A debug log on this path is guarded with `IsEnabled`; `LogDebug(template, args)` allocates
+    its argument array before it checks the level.
+  - The byte-for-byte harness that proved the pooled writer, the RC4 span path and the cache
+    changed nothing on the wire lives outside the repo; rebuild one before changing
+    `ServerPacket`, `PackageEncoder` or the RC4 engine.
+- **`LogAndForget` names its ids as template arguments.**
+  `.LogAndForget(_logger, "set player {PlayerId} online", playerId)` makes the id a searchable
+  log property and formats nothing unless the task fails; `$"..."` built the string on every
+  call, success or not, about seventy-five times on hot paths.
+
+- **A hotel-wide singleton never makes its readers wait for its own refresh.** The badge
+  directory, guild directory, Builders Club and leaderboard refresh on a timer registered with
+  `GrainTimerCreationOptions.Interleave = true`: the query reads into locals and the result is
+  swapped into state with no await in between. A tell that lands during the read is recorded
+  and replayed after the swap (`GuildDirectoryGrain`'s changes-during-reload). Before, every
+  badge display, room activation and Builders Club placement queued behind a hotel-wide
+  `GROUP BY`. The same goes for a directory's cache miss: `PlayerDirectoryGrain`'s reads are
+  interleaved and only fill the cache for a player it does not already hold.
+- **A fan-out tells only the recipients that can act on it now.** A player's profile change
+  went to every friend's messenger, offline ones included, and each woke up, loaded five
+  queries and asked all of *its* friends' presences whether they were online — one login cost
+  hundreds of queries and thousands of activations. Online friends are told; offline ones read
+  fresh rows when they next load. Never wake a grain so that it can drop a message.
+- **An activation most callers make for a cheap read loads rows and nothing else.** The
+  messenger is woken by profile views, the raffle's weighting and friend requests; it resolves
+  who is online, starts its timer and fans out only on its owner's first real use
+  (`EnsureFriendsOnlineResolvedAsync`). Say which calls pay for what in the grain's summary.
+- **A lazy step that awaits must not overwrite what interleaved tells changed meanwhile.** The
+  online resolution replaces a friend entry only if it is the same object it read before the
+  first await; a `RecieveFriendUpdateAsync` that ran during the await wins.
+- **A migration that swaps a single-column foreign-key index for a composite creates the new
+  one before dropping the old.** EF emits the drop first and MySQL refuses to drop an index a
+  foreign key still needs; reorder `Up` and `Down` by hand and read the generated SQL.
+
+- **The room tick never waits on a database write.** The room awaited the persistence grain
+  on every 50 ms tick and every chat line, and that grain's timer was mid-`SaveChanges` often
+  enough to stall the room for the length of a write. Now:
+  - a buffer grain's `Enqueue*` methods are `[AlwaysInterleave]` and memory-only, and stay
+    awaited, because the order of hand-overs matters (a pick-up then a re-place);
+  - the room hands things over once per `DirtyItemsTickMs` (`RoomGrain.Persistence`), not per
+    tick — pets and bots are *marked* dirty and snapshotted at hand-over, so one changed ten
+    times is written once and one that left the room is skipped; chat lines are buffered.
+- **A room with no players and no NPC still walking is dormant.** It skips NPC, avatar, roller,
+  variable-fx and periodic-wired work and slows its tick to `AvatarTickMs`, but keeps
+  persistence, scheduled actions and item timers; a player entering wakes it
+  (`WakeTick`). Anything that must happen in an empty room goes in the kept list — or, like pet
+  decay, runs on wall-clock time and catches up: a pet's next energy and nutrition decay are
+  persisted as UTC due times (`EnergyDecayDueUtc` / `NutritionDecayDueUtc`), and its first tick
+  after the room loads or wakes takes every period that fell due meanwhile. Game time that
+  should pass while a room is away is never kept on the room's own clock (`NowMs`), which
+  starts again with each activation.
+- **NPCs decide on the avatar tick, and a failed follow backs off.** A pet following an
+  unreachable player ran up to eight full path searches, each ending in an exception, every
+  50 ms. Pets and bots decide at the 500 ms boundary (walking only advances then);
+  `RoomAvatarModule.IsFollowDue` re-searches only when the target moved or after
+  `NpcFollowRetryMs`. `WalkAvatarToAsync` refuses with `false`, never an exception.
+- **Group-derived controller levels are cached in the room** and cleared from the hooks that
+  already refresh rights (`RefreshGuildMemberAsync`, `OnGuildChangedAsync`) and when the
+  player leaves. Every furni use in a homeroom used to await the group grain.
+- **A cache of "which items are still in the room" keys on `RoomLiveState.ItemsVersion`**,
+  which moves on every attach and detach (the wired boxes' validated stuff ids use it).
+- **A cheap trigger pre-match may only reject what `CanTriggerAsync` would reject**, and stays
+  out of the way when the trigger's selection comes from the selector pool, which is not filled
+  until the selectors have run.
+- **Composers are batched per wired action, not per tick.** Other routes (chat, furni added or
+  removed) send mid-tick, and a per-tick batch would reorder against them. The roller, which
+  has no such interleaving, batches its whole tick.
+- **Walking paths are stored goal-first**, so the next step comes off the end.
+- **An entry-time read of room state is one call** (`IRoomGrain.GetEntryViewAsync`); entry used
+  to make nine sequential calls to the same room, each queued behind its tick.
+
+- **A copy the reader already holds carries what the reader needs.** A group homeroom works out a
+  member's rights on every build and pick-up. It held the group's summary, but the decoration
+  setting lived only on the full snapshot, so a second method fetched the whole group from the
+  group grain for that one field and kept a second cache for it, with its own invalidation. The
+  setting is on `GuildSummarySnapshot` now and the level is one method: one rank call per player,
+  the rest from the summary. Before adding a grain call for one field, check whether the copy in
+  hand can carry it; the copy's existing refresh path (here `OnGuildChangedAsync`) then keeps it
+  current for free.
 
 - When a fix teaches a rule that is not in this file yet, add it here in the same change.
 

@@ -27,9 +27,11 @@ namespace Turbo.Guilds.Grains;
 /// resolved when a packet needs them, so a group of five thousand costs five thousand ints
 /// rather than five thousand profiles.
 ///
-/// The one grain it does call is the directory, for the badge palette its colour ids point
-/// into. The directory never calls back into a group, so that direction is safe; the room grain
-/// is the one that must stay out of reach.
+/// The grains it awaits are the directory (the badge palette its colour ids point into, and
+/// telling it the group changed), the players' own guild grains (their membership changed) and
+/// the presences it sends through. None of them calls back into a group. The room grain asks
+/// this grain for ranks, so rooms are only ever told, with <c>LogAndForget</c> (see
+/// <c>GuildGrain.Notify</c>), and never awaited.
 /// </summary>
 internal sealed partial class GuildGrain : Grain, IGuildGrain
 {
@@ -38,7 +40,9 @@ internal sealed partial class GuildGrain : Grain, IGuildGrain
     private readonly GuildConfig _guildConfig;
     private readonly ILogger<IGuildGrain> _logger;
 
-    private readonly GuildLiveState _state = new();
+    private readonly GuildLiveState _state;
+
+    private GuildId GuildId => _state.GuildId;
 
     public GuildGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
@@ -51,9 +55,9 @@ internal sealed partial class GuildGrain : Grain, IGuildGrain
         _grainFactory = grainFactory;
         _guildConfig = guildConfig.Value;
         _logger = logger;
-    }
 
-    private GuildId GuildId => this.GetGuildId();
+        _state = new() { GuildId = this.GetGuildId() };
+    }
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
@@ -87,13 +91,11 @@ internal sealed partial class GuildGrain : Grain, IGuildGrain
                 Guild = guild,
                 Description = guild.Description,
                 CreatedAt = guild.CreatedAt,
-                MemberCount = CountOfRanks(
-                    GuildMemberRank.Owner,
-                    GuildMemberRank.Admin,
-                    GuildMemberRank.Member
-                ),
+                MemberCount = CountOfMembers(),
                 PendingMemberCount =
-                    isOwner || isAdmin ? CountOfRanks(GuildMemberRank.Requested) : 0,
+                    isOwner || GuildMemberRanks.CanManage(rank)
+                        ? CountOfRanks(GuildMemberRank.Requested)
+                        : 0,
                 Status = ToStatus(rank),
                 IsOwner = isOwner,
                 IsAdmin = isAdmin,

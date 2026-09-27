@@ -18,7 +18,7 @@ public class WiredSelectorEntitiesInNeighborhood(
 
     protected override void CollectTile(int tileId, WiredSelectionSet output)
     {
-        foreach (var avatar in _roomGrain.AvatarModule.GetAvatarsOnTile(tileId))
+        foreach (var avatar in AvatarModule.GetAvatarsOnTile(tileId))
         {
             output.SelectedAvatarIds.Add(avatar.ObjectId);
         }

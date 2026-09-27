@@ -70,7 +70,11 @@ internal sealed partial class PlayerPresenceGrain
     public Task OnReceiveFriendRequestAsync(MessengerRequestDto requestDto, CancellationToken ct) =>
         SendComposerAsync(new NewFriendRequestMessageComposer { Request = requestDto }, ct);
 
-    public Task OnBlockPlayerUpdatedAsync(PlayerId playerId, int result, CancellationToken ct) =>
+    public Task OnBlockPlayerUpdatedAsync(
+        PlayerId playerId,
+        MessengerBlockResultType result,
+        CancellationToken ct
+    ) =>
         SendComposerAsync(
             new BlockUserUpdateMessageComposer { Result = result, UserId = playerId },
             ct

@@ -38,7 +38,7 @@ public class FurnitureYoutubeLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
 
     public override Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
     {
-        _roomGrain.TimerSystem.Cancel(_ctx.ObjectId);
+        TimerSystem.Cancel(_ctx.ObjectId);
 
         return base.OnPickupAsync(ctx, ct);
     }
@@ -100,7 +100,7 @@ public class FurnitureYoutubeLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
                 _pausedAtSeconds = GetPositionSeconds();
                 _isPaused = true;
 
-                _roomGrain.TimerSystem.Cancel(_ctx.ObjectId);
+                TimerSystem.Cancel(_ctx.ObjectId);
                 break;
             case YoutubePlaybackCommandType.Play when _isPaused:
                 _isPaused = false;
@@ -147,7 +147,7 @@ public class FurnitureYoutubeLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
     {
         var remainingSeconds = Math.Max(1, video.DurationSeconds - GetPositionSeconds());
 
-        _roomGrain.TimerSystem.Schedule(
+        TimerSystem.Schedule(
             _ctx.ObjectId,
             (int)Math.Min(int.MaxValue, TimeSpan.FromSeconds(remainingSeconds).TotalMilliseconds),
             ct => StartVideoAsync(_videoIndex + 1, ct)

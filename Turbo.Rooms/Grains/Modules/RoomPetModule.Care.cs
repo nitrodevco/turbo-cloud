@@ -18,10 +18,7 @@ public sealed partial class RoomPetModule
 {
     public async Task<bool> RespectPetAsync(ActionContext ctx, int petId, CancellationToken ct)
     {
-        if (
-            !TryGetPet(petId, out var pet)
-            || !_roomGrain.AvatarModule.TryGetPlayer(ctx.PlayerId, out _)
-        )
+        if (!TryGetPet(petId, out var pet) || !AvatarModule.TryGetPlayer(ctx.PlayerId, out _))
             return false;
 
         var playerGrain = _roomGrain._grainFactory.GetPlayerGrain(ctx.PlayerId);
@@ -79,7 +76,7 @@ public sealed partial class RoomPetModule
 
         if (pet.IsMonsterplant)
         {
-            await PersistAsync(pet, ct);
+            Persist(pet);
             await SendInfoToOwnerAsync(pet, ct);
         }
 
@@ -122,7 +119,7 @@ public sealed partial class RoomPetModule
             ct
         );
         await BroadcastStatusAsync(pet, ct);
-        await PersistAsync(pet, ct);
+        Persist(pet);
         await SendInfoToOwnerAsync(pet, ct);
 
         return true;
@@ -165,7 +162,7 @@ public sealed partial class RoomPetModule
         RefreshFlags(pet);
 
         await BroadcastStatusAsync(pet, ct);
-        await PersistAsync(pet, ct);
+        Persist(pet);
 
         return true;
     }
@@ -194,7 +191,7 @@ public sealed partial class RoomPetModule
         RefreshFlags(pet);
 
         await BroadcastStatusAsync(pet, ct);
-        await PersistAsync(pet, ct);
+        Persist(pet);
         await SendInfoToOwnerAsync(pet, ct);
     }
 
@@ -206,7 +203,7 @@ public sealed partial class RoomPetModule
     {
         if (
             !TryGetPet(petId, out var pet)
-            || !_roomGrain.AvatarModule.TryGetPlayer(ctx.PlayerId, out var player)
+            || !AvatarModule.TryGetPlayer(ctx.PlayerId, out var player)
         )
             return false;
 
@@ -217,7 +214,7 @@ public sealed partial class RoomPetModule
         )
             return false;
 
-        await _roomGrain.AvatarModule.SetHandItemAsync(player, 0, ct);
+        await AvatarModule.SetHandItemAsync(player, 0, ct);
 
         pet.SetNutrition(Math.Min(Config.MaxNutrition, pet.Nutrition + Config.HandItemNutrition));
         pet.SetEnergy(Math.Min(Config.MaxEnergy, pet.Energy + Config.HandItemEnergy));
@@ -227,7 +224,7 @@ public sealed partial class RoomPetModule
         pet.AddStatus(AvatarStatusType.Eat, string.Empty);
         pet.ActionExpiresAtMs = _roomGrain.NowMs() + Config.HandItemEatDurationMs;
 
-        await PersistAsync(pet, ct);
+        Persist(pet);
 
         return true;
     }

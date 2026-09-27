@@ -51,7 +51,7 @@ public class FurnitureMannequinLogic(IStuffDataFactory stuffDataFactory, IRoomFl
         )
             return;
 
-        _roomGrain.AvatarModule.ChangePlayerFigure(
+        AvatarModule.ChangePlayerFigure(
             ctx.PlayerId,
             MannequinData.Dress(wearer.Figure, figure),
             wearer.Gender

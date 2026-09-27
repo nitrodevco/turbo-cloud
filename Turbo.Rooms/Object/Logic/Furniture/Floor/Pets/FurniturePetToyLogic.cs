@@ -23,6 +23,6 @@ public class FurniturePetToyLogic(IStuffDataFactory stuffDataFactory, IRoomFloor
         pet.AddStatus(AvatarStatusType.Play, string.Empty);
         pet.ActionExpiresAtMs = _roomGrain.NowMs() + config.ActionDurationMs;
 
-        return _roomGrain.PetModule.AddExperienceAsync(pet, config.ToyExperience, ct);
+        return PetModule.AddExperienceAsync(pet, config.ToyExperience, ct);
     }
 }

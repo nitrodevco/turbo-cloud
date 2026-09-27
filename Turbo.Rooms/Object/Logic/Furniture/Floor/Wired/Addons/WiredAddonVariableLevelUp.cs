@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -203,8 +204,18 @@ public class WiredAddonVariableLevelUp(
 
                     if (
                         parts.Length == 2
-                        && int.TryParse(parts[0].Trim(), out var level)
-                        && long.TryParse(parts[1].Trim(), out var xp)
+                        && int.TryParse(
+                            parts[0].Trim(),
+                            NumberStyles.Integer,
+                            CultureInfo.InvariantCulture,
+                            out var level
+                        )
+                        && long.TryParse(
+                            parts[1].Trim(),
+                            NumberStyles.Integer,
+                            CultureInfo.InvariantCulture,
+                            out var xp
+                        )
                         && level >= 2
                     )
                         table[level] = xp;

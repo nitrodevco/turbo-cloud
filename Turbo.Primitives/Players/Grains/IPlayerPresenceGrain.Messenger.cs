@@ -23,7 +23,11 @@ public partial interface IPlayerPresenceGrain
     public Task OnReceiveFriendRequestAsync(MessengerRequestDto requestDto, CancellationToken ct);
 
     [AlwaysInterleave]
-    public Task OnBlockPlayerUpdatedAsync(PlayerId playerId, int result, CancellationToken ct);
+    public Task OnBlockPlayerUpdatedAsync(
+        PlayerId playerId,
+        MessengerBlockResultType result,
+        CancellationToken ct
+    );
 
     [AlwaysInterleave]
     public Task OnIgnorePlayerUpdatedAsync(

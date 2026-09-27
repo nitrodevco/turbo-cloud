@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
@@ -39,11 +40,11 @@ public interface IRoomPlayer : IRoomAvatar<IRoomPlayer, IRoomPlayerLogic, IRoomP
     public int GuildId { get; }
 
     /// <summary>The wearer's standing in that group, as the client numbers membership.</summary>
-    public int GuildStatus { get; }
+    public GuildMembershipStatus GuildStatus { get; }
 
     public string GuildName { get; }
 
-    public void SetFavouriteGuild(int guildId, int guildStatus, string guildName);
+    public void SetFavouriteGuild(int guildId, GuildMembershipStatus guildStatus, string guildName);
 
     public void SetBadges(ImmutableArray<string> badgeCodes);
     public void SetHabboClubExpiresAt(DateTime? expiresAt);

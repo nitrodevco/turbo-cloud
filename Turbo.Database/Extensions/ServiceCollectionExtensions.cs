@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,23 @@ namespace Turbo.Database.Extensions;
 
 public static class ServiceCollectionExtensions
 {
+    /// <summary>
+    /// The server version per connection string, asked of the server once. A plugin context's
+    /// options are built per scope, and <see cref="ServerVersion.AutoDetect(string)"/> opens a
+    /// connection and queries the version each time it is called.
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, Lazy<ServerVersion>> SERVER_VERSIONS = new(
+        StringComparer.Ordinal
+    );
+
+    private static ServerVersion GetServerVersion(string connectionString) =>
+        SERVER_VERSIONS
+            .GetOrAdd(
+                connectionString,
+                static key => new Lazy<ServerVersion>(() => ServerVersion.AutoDetect(key))
+            )
+            .Value;
+
     public static IServiceCollection AddTurboDatabaseContext(
         this IServiceCollection services,
         HostApplicationBuilder builder
@@ -23,7 +41,10 @@ public static class ServiceCollectionExtensions
             builder.Configuration.GetSection(DatabaseConfig.SECTION_NAME)
         );
 
-        services.AddDbContextFactory<TurboDbContext>(
+        // Pooled: every grain turn that touches the database creates a context, and TurboDbContext
+        // holds nothing but its options, so a reset context from the pool serves as a new one.
+        // Consumers still take IDbContextFactory<TurboDbContext>.
+        services.AddPooledDbContextFactory<TurboDbContext>(
             (sp, options) =>
                 UseTurboMySql(
                     options,
@@ -93,11 +114,7 @@ public static class ServiceCollectionExtensions
     {
         var connectionString = dbConfig.ConnectionString;
 
-        options.UseMySql(
-            connectionString,
-            ServerVersion.AutoDetect(connectionString),
-            configureMySql
-        );
+        options.UseMySql(connectionString, GetServerVersion(connectionString), configureMySql);
 
         if (!dbConfig.LoggingEnabled)
             options.UseLoggerFactory(NullLoggerFactory.Instance);

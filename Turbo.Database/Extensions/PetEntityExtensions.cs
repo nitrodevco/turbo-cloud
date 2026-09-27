@@ -42,6 +42,8 @@ public static class PetEntityExtensions
             CreatedAtUtc = entity.CreatedAt,
             WateredAtUtc = entity.WateredAt,
             HarvestedAtUtc = entity.HarvestedAt,
+            EnergyDecayDueUtc = entity.EnergyDecayDueAt,
+            NutritionDecayDueUtc = entity.NutritionDecayDueAt,
         };
 
     public static PetBreedSnapshot ToSnapshot(this PetBreedEntity entity) =>

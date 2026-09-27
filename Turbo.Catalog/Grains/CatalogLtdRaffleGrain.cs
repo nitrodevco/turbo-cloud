@@ -56,7 +56,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         _logger = logger;
 
         // The grain is keyed by the limited series it raffles.
-        _state = new() { SeriesId = (int)this.GetPrimaryKeyLong() };
+        _state = new() { SeriesId = this.GetLtdSeriesId() };
     }
 
     public override async Task OnActivateAsync(CancellationToken ct)
@@ -113,24 +113,32 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         }
 
         var snap = _catalogService.GetCatalogSnapshot(CatalogType.Normal);
-        var product = snap.ProductsById.Values.FirstOrDefault(p =>
-            p.LtdSeriesId == _state.Series.Id
-        );
 
-        if (product == null || !snap.OffersById.TryGetValue(product.OfferId, out var offer))
+        if (
+            !snap.TryGetLtdProduct(_state.Series.Id, out var product)
+            || !snap.OffersById.TryGetValue(product.OfferId, out var offer)
+        )
             return LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.None);
 
         // The same club rule as a shop purchase: an LTD is an offer like any other.
         if (offer.RequiresClub && !await _grainFactory.HasActiveClubAsync(playerId, ct))
             return LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.RequiresHabboClub);
 
+        // Three reads of one wallet grain: sent together, they queue there instead of each
+        // waiting for the previous round trip.
         var walletGrain = _grainFactory.GetPlayerWalletGrain(playerId);
-        var credits = await walletGrain.GetAmountForCurrencyAsync(CurrencyKind.Credits, ct);
-        var silver =
+        var creditsTask = walletGrain.GetAmountForCurrencyAsync(CurrencyKind.Credits, ct);
+        var silverTask =
             offer.CostSilver > 0
-                ? await walletGrain.GetAmountForCurrencyAsync(CurrencyKind.Silver, ct)
-                : 0;
-        var activityPoints = await walletGrain.GetActivityPointsAsync(ct);
+                ? walletGrain.GetAmountForCurrencyAsync(CurrencyKind.Silver, ct)
+                : Task.FromResult(0);
+        var activityPointsTask = walletGrain.GetActivityPointsAsync(ct);
+
+        await Task.WhenAll(creditsTask, silverTask, activityPointsTask);
+
+        var credits = await creditsTask;
+        var silver = await silverTask;
+        var activityPoints = await activityPointsTask;
 
         // The client has no "not enough silver" alert; the balance packet's credits flag is the
         // nearest it draws, and the charge at the draw refuses a short silver balance anyway.
@@ -284,8 +292,8 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         CancellationToken ct
     )
     {
-        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync();
-        await using var tx = await dbCtx.Database.BeginTransactionAsync();
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+        await using var tx = await dbCtx.Database.BeginTransactionAsync(ct);
 
         // The wallet is another grain, so the charge cannot join the transaction. If anything
         // between the charge and the commit fails, the rollback undoes the serial and the charge
@@ -307,8 +315,21 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
                 return false;
 
             var snap = _catalogService.GetCatalogSnapshot(CatalogType.Normal);
-            var prod = snap.ProductsById.Values.First(p => p.LtdSeriesId == series.Id);
-            var offer = snap.OffersById[prod.OfferId];
+
+            // Nothing is charged yet, so a series the catalog no longer sells is a plain refusal.
+            if (
+                !snap.TryGetLtdProduct(series.Id, out var prod)
+                || !snap.OffersById.TryGetValue(prod.OfferId, out var offer)
+            )
+            {
+                _logger.LogWarning(
+                    "No catalog offer sells LTD series {SeriesId}; player {PlayerId} was not given one",
+                    series.Id,
+                    playerId
+                );
+
+                return false;
+            }
 
             var debits = offer.ToDebitRequests(1);
             var debitResult = await _grainFactory
@@ -419,52 +440,25 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
 
     private async Task<double> CalculateWeightAsync(int playerId, CancellationToken ct)
     {
-        var playerGrain = _grainFactory.GetPlayerGrain(PlayerId.Parse(playerId));
-        var summary = await playerGrain.GetSummaryAsync(ct);
-        var profile = await playerGrain.GetExtendedProfileSnapshotAsync(ct);
-
         var cfg = _config.LtdRaffle;
-        var weight = cfg.BaseWeight;
+        var playerGrain = _grainFactory.GetPlayerGrain(PlayerId.Parse(playerId));
 
-        // TODO: Replace DB queries with snapshot-based lookups once PlayerGrain exposes
-        // badge count, room count, and furniture count in PlayerSummarySnapshot or a dedicated snapshot.
-        var needsDbQuery =
-            cfg.BadgeCount.Enabled || cfg.RoomCount.Enabled || cfg.FurnitureCount.Enabled;
+        // The inputs come from the player grain, the messenger and the database, none waiting
+        // on another, so they are read side by side.
+        var summaryTask = playerGrain.GetSummaryAsync(ct);
+        var profileTask = playerGrain.GetExtendedProfileSnapshotAsync(ct);
+        var friendCountTask = cfg.FriendCount.Enabled
+            ? _grainFactory
+                .GetPlayerMessengerGrain(PlayerId.Parse(playerId))
+                .GetFriendCountAsync(ct)
+            : Task.FromResult(0);
+        var dbWeightTask = CalculateDatabaseWeightAsync(playerId, ct);
 
-        if (needsDbQuery)
-        {
-            await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
+        await Task.WhenAll(summaryTask, profileTask, friendCountTask, dbWeightTask);
 
-            if (cfg.BadgeCount.Enabled)
-            {
-                var badgeCount = await db.PlayerBadges.CountAsync(
-                    b => b.PlayerEntityId == playerId,
-                    ct
-                );
-                weight += Math.Min(
-                    badgeCount * cfg.BadgeCount.BonusPerUnit,
-                    cfg.BadgeCount.MaxBonus
-                );
-            }
-
-            if (cfg.RoomCount.Enabled)
-            {
-                var roomCount = await db.Rooms.CountAsync(r => r.PlayerEntityId == playerId, ct);
-                weight += Math.Min(roomCount * cfg.RoomCount.BonusPerUnit, cfg.RoomCount.MaxBonus);
-            }
-
-            if (cfg.FurnitureCount.Enabled)
-            {
-                var furniCount = await db.Furnitures.CountAsync(
-                    f => f.PlayerEntityId == playerId,
-                    ct
-                );
-                weight += Math.Min(
-                    furniCount * cfg.FurnitureCount.BonusPerUnit,
-                    cfg.FurnitureCount.MaxBonus
-                );
-            }
-        }
+        var summary = await summaryTask;
+        var profile = await profileTask;
+        var weight = cfg.BaseWeight + await dbWeightTask;
 
         // Snapshot-based weighting (no DB round-trip needed)
         if (cfg.AccountAgeDays.Enabled)
@@ -481,7 +475,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
 
         if (cfg.FriendCount.Enabled)
             weight += Math.Min(
-                profile.FriendCount * cfg.FriendCount.BonusPerUnit,
+                await friendCountTask * cfg.FriendCount.BonusPerUnit,
                 cfg.FriendCount.MaxBonus
             );
 
@@ -490,6 +484,50 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
                 profile.StarGemCount * cfg.RespectsReceived.BonusPerUnit,
                 cfg.RespectsReceived.MaxBonus
             );
+
+        return weight;
+    }
+
+    /// <summary>
+    /// The weight counted from rows: badges, rooms and furniture owned. One context, so the
+    /// counts run one after another; together they still run beside the grain reads.
+    /// </summary>
+    private async Task<double> CalculateDatabaseWeightAsync(int playerId, CancellationToken ct)
+    {
+        // TODO: Replace these with snapshot-based lookups once PlayerGrain exposes badge count,
+        // room count and furniture count in PlayerSummarySnapshot or a dedicated snapshot.
+        var cfg = _config.LtdRaffle;
+
+        if (!cfg.BadgeCount.Enabled && !cfg.RoomCount.Enabled && !cfg.FurnitureCount.Enabled)
+            return 0;
+
+        var weight = 0.0;
+
+        await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        if (cfg.BadgeCount.Enabled)
+        {
+            var badgeCount = await db.PlayerBadges.CountAsync(
+                b => b.PlayerEntityId == playerId,
+                ct
+            );
+            weight += Math.Min(badgeCount * cfg.BadgeCount.BonusPerUnit, cfg.BadgeCount.MaxBonus);
+        }
+
+        if (cfg.RoomCount.Enabled)
+        {
+            var roomCount = await db.Rooms.CountAsync(r => r.PlayerEntityId == playerId, ct);
+            weight += Math.Min(roomCount * cfg.RoomCount.BonusPerUnit, cfg.RoomCount.MaxBonus);
+        }
+
+        if (cfg.FurnitureCount.Enabled)
+        {
+            var furniCount = await db.Furnitures.CountAsync(f => f.PlayerEntityId == playerId, ct);
+            weight += Math.Min(
+                furniCount * cfg.FurnitureCount.BonusPerUnit,
+                cfg.FurnitureCount.MaxBonus
+            );
+        }
 
         return weight;
     }
@@ -549,15 +587,19 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         CancellationToken ct
     )
     {
-        var product = _catalogService
-            .GetCatalogSnapshot(CatalogType.Normal)
-            .ProductsById.Values.FirstOrDefault(p => p.LtdSeriesId == _state.Series?.Id);
+        var className =
+            _state.Series is { } series
+            && _catalogService
+                .GetCatalogSnapshot(CatalogType.Normal)
+                .TryGetLtdProduct(series.Id, out var product)
+                ? product.ClassName
+                : null;
 
         await _grainFactory.SendComposerToPlayerAsync(
             playerId,
             new LtdRaffleResultMessageComposer
             {
-                ClassName = product?.ClassName ?? "LTD",
+                ClassName = className ?? "LTD",
                 ResultCode = resultCode,
             },
             ct

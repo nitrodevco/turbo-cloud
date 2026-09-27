@@ -42,7 +42,7 @@ public class WiredActionBotGiveHandItem(
         var players = GetPlayers(ctx.GetSelection(this));
 
         foreach (var player in players)
-            await _roomGrain.AvatarModule.SetHandItemAsync(player, handItemId, ct);
+            await AvatarModule.SetHandItemAsync(player, handItemId, ct);
 
         return players.Count > 0;
     }

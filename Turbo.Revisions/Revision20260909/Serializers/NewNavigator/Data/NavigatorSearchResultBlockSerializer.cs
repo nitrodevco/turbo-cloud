@@ -1,3 +1,4 @@
+using System;
 using Turbo.Primitives.Navigator.Snapshots;
 using Turbo.Primitives.Packets;
 using Turbo.Revisions.Revision20260909.Serializers.Navigator.Data;
@@ -6,7 +7,11 @@ namespace Turbo.Revisions.Revision20260909.Serializers.NewNavigator.Data;
 
 internal class NavigatorSearchResultBlockSerializer
 {
-    public static void Serialize(IServerPacket packet, NavigatorSearchResultBlockSnapshot message)
+    public static void Serialize(
+        IServerPacket packet,
+        NavigatorSearchResultBlockSnapshot message,
+        DateTime nowUtc
+    )
     {
         packet
             .WriteString(message.SearchCode)
@@ -18,7 +23,7 @@ internal class NavigatorSearchResultBlockSerializer
 
         foreach (var result in message.Results)
         {
-            RoomSettingsSerializer.Serialize(packet, result);
+            RoomSettingsSerializer.Serialize(packet, result, nowUtc);
         }
     }
 }

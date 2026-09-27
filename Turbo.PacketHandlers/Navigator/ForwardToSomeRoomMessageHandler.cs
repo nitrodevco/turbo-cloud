@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Navigator;
-using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Navigator;
@@ -29,10 +28,8 @@ public class ForwardToSomeRoomMessageHandler(IGrainFactory grainFactory)
 
         if (randomRoomId is not null && randomRoomId.Value > 0)
         {
-            await ctx.SendComposerAsync(
-                    new RoomForwardMessageComposer { RoomId = randomRoomId.Value },
-                    ct
-                )
+            await _grainFactory
+                .ForwardPlayerToRoomAsync(ctx.PlayerId, randomRoomId.Value, ct)
                 .ConfigureAwait(false);
         }
     }
