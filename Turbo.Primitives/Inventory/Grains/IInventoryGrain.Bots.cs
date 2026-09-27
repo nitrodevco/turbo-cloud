@@ -9,6 +9,9 @@ namespace Turbo.Primitives.Inventory.Grains;
 
 public partial interface IInventoryGrain
 {
+    /// <summary>Sends the player their bots tab.</summary>
+    public Task SendBotInventoryAsync(CancellationToken ct);
+
     public Task<ImmutableArray<BotSnapshot>> GetAllBotSnapshotsAsync(CancellationToken ct);
     public Task<BotSnapshot?> GetBotSnapshotAsync(int botId, CancellationToken ct);
 

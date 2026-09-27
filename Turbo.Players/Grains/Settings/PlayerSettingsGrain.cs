@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Frozen;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -20,7 +22,7 @@ namespace Turbo.Players.Grains.Settings;
 
 /// <summary>
 /// Owns a player's account preferences (sound, chat, UI flags, room invite/camera toggles, wired
-/// editor preferences). Mutations are applied in memory immediately and flushed to the database
+/// editor preferences) and the chat styles they own. Mutations are applied in memory immediately and flushed to the database
 /// on a timer and on deactivation, so bursts of preference changes do not each block the grain
 /// turn on a DB write.
 /// </summary>
@@ -89,6 +91,9 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
 
     public Task<PlayerSettingsSnapshot> GetSettingsAsync(CancellationToken ct) =>
         Task.FromResult(_state.Settings);
+
+    public Task<bool> OwnsChatStyleAsync(int clientStyleId, CancellationToken ct) =>
+        Task.FromResult(_state.OwnedChatStyleIds.Contains(clientStyleId));
 
     public Task SetSoundSettingsAsync(
         int genericVolume,
@@ -329,6 +334,14 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
             entity ?? new PlayerSettingsEntity { PlayerEntityId = _state.PlayerId.Value }
         );
         _state.IsDirty = false;
+
+        var ownedChatStyleIds = await dbCtx
+            .PlayerOwnedChatStyles.AsNoTracking()
+            .Where(x => x.PlayerEntityId == _state.PlayerId.Value)
+            .Select(x => x.ChatStyle.ClientStyleId)
+            .ToListAsync(ct);
+
+        _state.OwnedChatStyleIds = ownedChatStyleIds.ToFrozenSet();
     }
 
     private async Task FlushAsync(CancellationToken ct)

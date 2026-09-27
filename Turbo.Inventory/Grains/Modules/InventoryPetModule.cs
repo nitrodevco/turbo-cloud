@@ -11,6 +11,9 @@ using Turbo.Database.Extensions;
 using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Catalog.Snapshots;
+using Turbo.Primitives.Inventory;
+using Turbo.Primitives.Messages.Outgoing.Inventory.Pets;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
 using Turbo.Primitives.Pets.Providers;
@@ -42,7 +45,9 @@ internal sealed class InventoryPetModule(
 
     protected override string Kind => "pet";
 
-    protected override int MaxOwned => _inventoryGrain._inventoryConfig.MaxPets;
+    protected override UnseenItemCategory UnseenCategory => UnseenItemCategory.Pet;
+
+    protected override int MaxOwned => Config.MaxPets;
 
     protected override DbSet<PetEntity> Table(TurboDbContext dbCtx) => dbCtx.Pets;
 
@@ -90,10 +95,23 @@ internal sealed class InventoryPetModule(
         PetSnapshot snapshot,
         bool openInventory,
         CancellationToken ct
-    ) => _inventoryGrain.Presence.OnPetAddedAsync(snapshot, openInventory, ct);
+    ) =>
+        GrainFactory.SendComposerToPlayerAsync(
+            PlayerId,
+            new PetAddedToInventoryEventMessageComposer
+            {
+                Pet = snapshot,
+                OpenInventory = openInventory,
+            },
+            ct
+        );
 
     protected override Task OnRemovedAsync(int id, CancellationToken ct) =>
-        _inventoryGrain.Presence.OnPetRemovedAsync(id, ct);
+        GrainFactory.SendComposerToPlayerAsync(
+            PlayerId,
+            new PetRemovedFromInventoryEventMessageComposer { PetId = id },
+            ct
+        );
 
     public Task<PetSnapshot?> CreateAsync(
         string name,
@@ -105,12 +123,12 @@ internal sealed class InventoryPetModule(
         CancellationToken ct
     )
     {
-        var config = _inventoryGrain._inventoryConfig;
+        var config = Config;
 
         return CreateAsync(
             new PetEntity
             {
-                PlayerEntityId = OwnerId,
+                PlayerEntityId = PlayerId.Value,
                 Name = name,
                 TypeId = typeId,
                 PaletteId = paletteId,
@@ -150,7 +168,7 @@ internal sealed class InventoryPetModule(
                 "Pet product {ProductId} of offer {OfferId} names no pet type; cannot grant it to player {PlayerId}",
                 product.Id,
                 offer.Id,
-                _inventoryGrain.PlayerId
+                PlayerId
             );
 
             throw new TurboException(TurboErrorCodeEnum.CatalogProductNotFound);
@@ -160,7 +178,7 @@ internal sealed class InventoryPetModule(
         {
             _logger.LogWarning(
                 "Player {PlayerId} bought pet offer {OfferId} with an unreadable extra param; refusing",
-                _inventoryGrain.PlayerId,
+                PlayerId,
                 offer.Id
             );
 
@@ -173,7 +191,7 @@ internal sealed class InventoryPetModule(
         {
             _logger.LogWarning(
                 "Player {PlayerId} bought pet type {TypeId} palette {PaletteId}, which is not sellable; refusing",
-                _inventoryGrain.PlayerId,
+                PlayerId,
                 typeId,
                 purchase.PaletteId
             );
@@ -181,7 +199,7 @@ internal sealed class InventoryPetModule(
             throw new TurboException(TurboErrorCodeEnum.CatalogProductNotFound);
         }
 
-        var config = _inventoryGrain._inventoryConfig;
+        var config = Config;
         var nameStatus = PetNames.Validate(
             purchase.Name,
             config.PetNameMinLength,
@@ -192,7 +210,7 @@ internal sealed class InventoryPetModule(
         {
             _logger.LogWarning(
                 "Player {PlayerId} bought pet offer {OfferId} with a rejected name ({Status}); refusing",
-                _inventoryGrain.PlayerId,
+                PlayerId,
                 offer.Id,
                 nameStatus
             );

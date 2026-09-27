@@ -92,6 +92,16 @@ public static class GrainFactoryExtensions
         PlayerId playerId
     ) => factory.GetGrain<IPlayerGuildGrain>(playerId.Value);
 
+    public static IPlayerUnseenItemsGrain GetPlayerUnseenItemsGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerUnseenItemsGrain>(playerId.Value);
+
+    public static IPlayerBadgeGrain GetPlayerBadgeGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerBadgeGrain>(playerId.Value);
+
     public static IBadgeLeaderboardGrain GetBadgeLeaderboardGrain(this IGrainFactory factory) =>
         factory.GetGrain<IBadgeLeaderboardGrain>(SingletonGrainId.GLOBAL);
 

@@ -15,6 +15,10 @@ namespace Turbo.Primitives.Players.Grains.Settings;
 public interface IPlayerSettingsGrain : IGrainWithIntegerKey
 {
     public Task<PlayerSettingsSnapshot> GetSettingsAsync(CancellationToken ct);
+
+    /// <summary>Whether the player owns the purchasable chat style the client knows by this id.</summary>
+    public Task<bool> OwnsChatStyleAsync(int clientStyleId, CancellationToken ct);
+
     public Task SetSoundSettingsAsync(
         int genericVolume,
         int furniVolume,

@@ -102,7 +102,19 @@ public class SSOTicketMessageHandler(
                 ct
             )
             .ConfigureAwait(false);
-        // unseen items
+        // What arrived since they last looked, including while they were offline.
+        var unseenItems = await _grainFactory
+            .GetPlayerUnseenItemsGrain(playerId)
+            .GetUnseenItemsAsync(ct)
+            .ConfigureAwait(false);
+
+        if (!unseenItems.IsEmpty)
+            await ctx.SendComposerAsync(
+                    new UnseenItemsEventMessageComposer { Items = unseenItems },
+                    ct
+                )
+                .ConfigureAwait(false);
+
         await ctx.SendComposerAsync(
                 new FigureSetIdsEventMessageComposer
                 {

@@ -22,8 +22,8 @@ public class GetBotInventoryMessageHandler(IGrainFactory grainFactory)
             return;
 
         await _grainFactory
-            .GetPlayerPresenceGrain(ctx.PlayerId)
-            .OpenBotInventoryAsync(ct)
+            .GetInventoryGrain(ctx.PlayerId)
+            .SendBotInventoryAsync(ct)
             .ConfigureAwait(false);
     }
 }

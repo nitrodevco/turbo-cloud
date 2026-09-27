@@ -92,4 +92,15 @@ public static class PlayerEntityExtensions
             ActivityPointType = entity.ActivityPointType,
             Enabled = entity.Enabled,
         };
+
+    public static ChatStyleSnapshot ToSnapshot(this PlayerChatStyleEntity entity) =>
+        new()
+        {
+            ClientStyleId = entity.ClientStyleId,
+            ClubOnly = entity.ClubOnly,
+            AmbassadorOnly = entity.AmbassadorOnly,
+            StaffOnly = entity.StaffOnly,
+            Purchasable = entity.Purchasable,
+            System = entity.System,
+        };
 }

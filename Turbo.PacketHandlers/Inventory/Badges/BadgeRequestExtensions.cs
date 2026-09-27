@@ -24,7 +24,7 @@ internal static class BadgeRequestExtensions
         var fulfilled =
             badgeCode is not null
             && await grainFactory
-                .GetInventoryGrain(ctx.PlayerId)
+                .GetPlayerBadgeGrain(ctx.PlayerId)
                 .HasBadgeAsync(badgeCode, ct)
                 .ConfigureAwait(false);
 

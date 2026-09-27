@@ -12,6 +12,21 @@ public class InventoryConfig
 
     /// <summary>Badges a player can wear at once; the client has five slots.</summary>
     public int MaxActiveBadges { get; init; } = 5;
+
+    /// <summary>Items per fragment of the furni tab.</summary>
+    public int FurnitureInventoryFragmentSize { get; init; } = 100;
+
+    /// <summary>Pets per fragment of the pets tab.</summary>
+    public int PetInventoryFragmentSize { get; init; } = 100;
+
+    /// <summary>Badges per fragment of the badges tab.</summary>
+    public int BadgeInventoryFragmentSize { get; init; } = 500;
+
+    /// <summary>
+    /// How many "new" items a player keeps per inventory tab. A player who never opens a tab
+    /// would otherwise grow the list forever; past this, the oldest stop being new.
+    /// </summary>
+    public int MaxUnseenItemsPerCategory { get; init; } = 500;
     public int PetStartEnergy { get; init; } = 100;
     public int PetStartNutrition { get; init; } = 100;
     public int PetNameMinLength { get; init; } = 1;

@@ -119,7 +119,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         try
         {
             var badges = await _roomGrain
-                ._grainFactory.GetInventoryGrain(player.PlayerId)
+                ._grainFactory.GetPlayerBadgeGrain(player.PlayerId)
                 .GetSelectedBadgesAsync(ct);
 
             player.SetBadges([.. badges.Select(x => x.BadgeCode)]);

@@ -21,8 +21,9 @@ public class RequestFurniInventoryWhenNotInRoomMessageHandler(IGrainFactory grai
         if (ctx.PlayerId <= 0)
             return;
 
-        var presence = _grainFactory.GetPlayerPresenceGrain(ctx.PlayerId);
-
-        await presence.OpenFurnitureInventoryAsync(ct).ConfigureAwait(false);
+        await _grainFactory
+            .GetInventoryGrain(ctx.PlayerId)
+            .SendFurnitureInventoryAsync(ct)
+            .ConfigureAwait(false);
     }
 }

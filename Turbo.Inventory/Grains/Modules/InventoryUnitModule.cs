@@ -6,7 +6,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
 using Turbo.Database.Entities;
+using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms;
 
 namespace Turbo.Inventory.Grains.Modules;
@@ -24,19 +26,19 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
     InventoryUnitSection<TSnapshot> section,
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     ILogger logger
-)
+) : InventoryGrainComponent(inventoryGrain)
     where TEntity : TurboEntity, IInventoryUnitEntity
     where TSnapshot : class, IInventoryUnitSnapshot
 {
-    protected readonly InventoryGrain _inventoryGrain = inventoryGrain;
     protected readonly InventoryUnitSection<TSnapshot> _section = section;
     protected readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
     protected readonly ILogger _logger = logger;
 
-    protected int OwnerId => (int)_inventoryGrain.PlayerId;
-
     /// <summary>"pet" or "bot", for the logs.</summary>
     protected abstract string Kind { get; }
+
+    /// <summary>The inventory tab a new one is marked "new" in.</summary>
+    protected abstract UnseenItemCategory UnseenCategory { get; }
 
     /// <summary>How many a player may own, counting the ones standing in rooms.</summary>
     protected abstract int MaxOwned { get; }
@@ -70,13 +72,13 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
         if (_section.IsReady)
             return;
 
-        var ownerName = await _inventoryGrain.GetOwnerNameAsync(ct);
+        var ownerName = await GetOwnerNameAsync(ct);
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         var entities = await Table(dbCtx)
             .AsNoTracking()
-            .Where(x => x.PlayerEntityId == OwnerId && x.RoomEntityId == null)
+            .Where(x => x.PlayerEntityId == PlayerId.Value && x.RoomEntityId == null)
             .ToListAsync(ct);
 
         _section.ById.Clear();
@@ -114,7 +116,9 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
         await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
         {
             updated = await Table(dbCtx)
-                .Where(x => x.Id == id && x.PlayerEntityId == OwnerId && x.RoomEntityId == null)
+                .Where(x =>
+                    x.Id == id && x.PlayerEntityId == PlayerId.Value && x.RoomEntityId == null
+                )
                 .ExecuteUpdateAsync(up => up.SetProperty(x => x.RoomEntityId, roomId.Value), ct);
         }
 
@@ -124,7 +128,7 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
                 "{Kind} {UnitId} of player {PlayerId} is listed in the inventory but its row is elsewhere; reloading",
                 Kind,
                 id,
-                _inventoryGrain.PlayerId
+                PlayerId
             );
 
             _section.IsReady = false;
@@ -142,7 +146,7 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
     /// <summary>Takes a unit back from a room, with what it brought back.</summary>
     public async Task<bool> ReturnAsync(TSnapshot snapshot, CancellationToken ct)
     {
-        if (snapshot.OwnerId != _inventoryGrain.PlayerId)
+        if (snapshot.OwnerId != PlayerId)
             return false;
 
         await EnsureReadyAsync(ct);
@@ -152,7 +156,7 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
         await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
         {
             updated = await WriteReturnedAsync(
-                Table(dbCtx).Where(x => x.Id == snapshot.Id && x.PlayerEntityId == OwnerId),
+                Table(dbCtx).Where(x => x.Id == snapshot.Id && x.PlayerEntityId == PlayerId.Value),
                 snapshot,
                 ct
             );
@@ -164,7 +168,7 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
                 "{Kind} {UnitId} returned to player {PlayerId} has no row to update",
                 Kind,
                 snapshot.Id,
-                _inventoryGrain.PlayerId
+                PlayerId
             );
 
             return false;
@@ -189,13 +193,13 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
 
         await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
         {
-            var owned = await Table(dbCtx).CountAsync(x => x.PlayerEntityId == OwnerId, ct);
+            var owned = await Table(dbCtx).CountAsync(x => x.PlayerEntityId == PlayerId.Value, ct);
 
             if (owned >= MaxOwned)
             {
                 _logger.LogWarning(
                     "Player {PlayerId} owns {Count} of kind {Kind}, the configured maximum; not creating another",
-                    _inventoryGrain.PlayerId,
+                    PlayerId,
                     owned,
                     Kind
                 );
@@ -208,11 +212,16 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
             await dbCtx.SaveChangesAsync(ct);
         }
 
-        var snapshot = ToSnapshot(entity, await _inventoryGrain.GetOwnerNameAsync(ct));
+        var snapshot = ToSnapshot(entity, await GetOwnerNameAsync(ct));
 
         _section.ById[snapshot.Id] = snapshot;
 
         await OnAddedAsync(snapshot, true, ct);
+
+        // New until the player opens the tab; one coming back from a room is not.
+        UnseenItems
+            .AddAsync(UnseenCategory, [snapshot.Id], CancellationToken.None)
+            .LogAndForget(_logger, "mark a new {Kind} for player {PlayerId}", Kind, PlayerId);
 
         return snapshot;
     }
@@ -226,7 +235,7 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
         await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
         {
             deleted = await Table(dbCtx)
-                .Where(x => x.Id == id && x.PlayerEntityId == OwnerId)
+                .Where(x => x.Id == id && x.PlayerEntityId == PlayerId.Value)
                 .ExecuteDeleteAsync(ct);
         }
 

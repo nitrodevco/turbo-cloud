@@ -26,7 +26,7 @@ public class GetSelectedBadgesMessageHandler(IGrainFactory grainFactory)
             return;
 
         var badges = await _grainFactory
-            .GetInventoryGrain(message.PlayerId)
+            .GetPlayerBadgeGrain(message.PlayerId)
             .GetSelectedBadgesAsync(ct)
             .ConfigureAwait(false);
 

@@ -1,6 +1,8 @@
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Messages.Outgoing.Inventory.Pets;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Rooms;
 
@@ -9,16 +11,16 @@ namespace Turbo.Inventory.Grains;
 internal sealed partial class InventoryGrain
 {
     public Task<ImmutableArray<PetSnapshot>> GetAllPetSnapshotsAsync(CancellationToken ct) =>
-        _petModule.GetAllAsync(ct);
+        PetModule.GetAllAsync(ct);
 
     public Task<PetSnapshot?> GetPetSnapshotAsync(int petId, CancellationToken ct) =>
-        _petModule.GetAsync(petId, ct);
+        PetModule.GetAsync(petId, ct);
 
     public Task<PetSnapshot?> TryCheckOutPetAsync(int petId, RoomId roomId, CancellationToken ct) =>
-        _petModule.TryCheckOutAsync(petId, roomId, ct);
+        PetModule.TryCheckOutAsync(petId, roomId, ct);
 
     public Task<bool> ReturnPetAsync(PetSnapshot snapshot, CancellationToken ct) =>
-        _petModule.ReturnAsync(snapshot, ct);
+        PetModule.ReturnAsync(snapshot, ct);
 
     public Task<PetSnapshot?> CreatePetAsync(
         string name,
@@ -28,8 +30,24 @@ internal sealed partial class InventoryGrain
         string color,
         int rarityLevel,
         CancellationToken ct
-    ) => _petModule.CreateAsync(name, typeId, paletteId, breedId, color, rarityLevel, ct);
+    ) => PetModule.CreateAsync(name, typeId, paletteId, breedId, color, rarityLevel, ct);
 
     public Task<bool> DeletePetAsync(int petId, CancellationToken ct) =>
-        _petModule.DeleteAsync(petId, ct);
+        PetModule.DeleteAsync(petId, ct);
+
+    public async Task SendPetInventoryAsync(CancellationToken ct) =>
+        await Presence.SendComposerAsync(
+            ComposerFragments.Build(
+                await GetAllPetSnapshotsAsync(ct),
+                _inventoryConfig.PetInventoryFragmentSize,
+                (total, current, fragment) =>
+                    new PetInventoryEventMessageComposer
+                    {
+                        TotalFragments = total,
+                        CurrentFragment = current,
+                        Pets = fragment,
+                    }
+            ),
+            ct
+        );
 }

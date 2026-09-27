@@ -1,18 +1,32 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Orleans;
 using Turbo.Messages.Registry;
+using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Messages.Incoming.Notifications;
+using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Notifications;
 
-public class ResetUnseenItemsMessageHandler : IMessageHandler<ResetUnseenItemsMessage>
+/// <summary>An inventory tab was opened; its items stop being new.</summary>
+public class ResetUnseenItemsMessageHandler(IGrainFactory grainFactory)
+    : IMessageHandler<ResetUnseenItemsMessage>
 {
+    private readonly IGrainFactory _grainFactory = grainFactory;
+
     public async ValueTask HandleAsync(
         ResetUnseenItemsMessage message,
         MessageContext ctx,
         CancellationToken ct
     )
     {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        if (ctx.PlayerId <= 0 || !Enum.IsDefined((UnseenItemCategory)message.Category))
+            return;
+
+        await _grainFactory
+            .GetPlayerUnseenItemsGrain(ctx.PlayerId)
+            .ResetCategoryAsync((UnseenItemCategory)message.Category, ct)
+            .ConfigureAwait(false);
     }
 }

@@ -93,6 +93,13 @@ public interface IPlayerMessengerGrain : IGrainWithIntegerKey
         CancellationToken ct,
         int dbMessageId = 0
     );
+
+    /// <summary>
+    /// Sends the player the messenger's first load: the limits and categories, then the friend
+    /// list in fragments, as one batch.
+    /// </summary>
+    public Task SendInitAsync(CancellationToken ct);
+
     public Task<List<MessengerCategoryDto>> GetCategoriesAsync(CancellationToken ct);
     public Task<List<MessengerFriendDto>> GetFriendsAsync(CancellationToken ct);
     public Task<List<MessengerRequestDto>> GetRequestsAsync(CancellationToken ct);

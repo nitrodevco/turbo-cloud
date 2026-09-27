@@ -198,7 +198,7 @@ public class WiredActionGiveReward(
             {
                 case WiredRewardType.Badge:
                     return await _grainFactory
-                        .GetInventoryGrain(player.PlayerId)
+                        .GetPlayerBadgeGrain(player.PlayerId)
                         .GiveBadgeAsync(reward.Code, ct)
                         ? WiredRewardResultType.RewardReceivedBadge
                         : WiredRewardResultType.RewardAlreadyReceived;

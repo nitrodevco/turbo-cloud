@@ -10,8 +10,10 @@ namespace Turbo.Primitives.Players.Grains;
 
 /// <summary>
 /// The hub every other grain reports to, which is why it is the grain most likely to close a
-/// deadlock: nearly every grain awaits it, and it awaits the room, the player, the messenger and
-/// the inventory.
+/// deadlock: nearly every grain awaits it, and it awaits the room, the player and the messenger.
+/// It is the transport, not the place that knows every domain's packets: a grain sends its own
+/// composers with <c>SendComposerToPlayerAsync</c>, and a method here exists only when this
+/// grain's state (the active room, the pending entry) decides what is sent or where.
 ///
 /// Two kinds of method, and a method is one or the other:
 /// <list type="bullet">
@@ -21,7 +23,7 @@ namespace Turbo.Primitives.Players.Grains;
 /// <c>LogAndForget</c>. Any grain may await these, even while this grain is waiting on it.
 /// </item>
 /// <item>
-/// <b>Flows</b> — entering and leaving a room, opening an inventory, the session lifecycle. Not
+/// <b>Flows</b> — entering and leaving a room, the session lifecycle. Not
 /// interleaved, and they await other grains. Only handlers and this grain's own session drive
 /// them; no grain awaits one.
 /// </item>

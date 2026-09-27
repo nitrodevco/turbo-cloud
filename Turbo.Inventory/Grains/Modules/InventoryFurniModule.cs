@@ -16,9 +16,11 @@ using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
+using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Snapshots;
+using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
@@ -39,9 +41,8 @@ internal sealed class InventoryFurniModule(
     IFurnitureDefinitionProvider definitionProvider,
     ICatalogService catalogService,
     ILogger logger
-)
+) : InventoryGrainComponent(inventoryGrain)
 {
-    private readonly InventoryGrain _inventoryGrain = inventoryGrain;
     private readonly InventoryLiveState _state = liveState;
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
     private readonly IInventoryFurnitureLoader _furnitureLoader = furnitureLoader;
@@ -56,8 +57,8 @@ internal sealed class InventoryFurniModule(
 
         var receivesBefore = _state.FurnitureReceiveCount;
         var items = await _furnitureLoader.LoadByPlayerIdAsync(
-            _inventoryGrain.PlayerId,
-            await _inventoryGrain.GetOwnerNameAsync(ct),
+            PlayerId,
+            await GetOwnerNameAsync(ct),
             ct
         );
 
@@ -122,13 +123,13 @@ internal sealed class InventoryFurniModule(
 
         foreach (var snapshot in snapshots)
         {
-            if (snapshot.OwnerId != _inventoryGrain.PlayerId)
+            if (snapshot.OwnerId != PlayerId)
             {
                 _logger.LogWarning(
                     "Item {ItemId} of player {OwnerId} was handed to the inventory of player {PlayerId}; refused",
                     snapshot.ObjectId,
                     snapshot.OwnerId,
-                    _inventoryGrain.PlayerId
+                    PlayerId
                 );
 
                 continue;
@@ -147,7 +148,7 @@ internal sealed class InventoryFurniModule(
         if (!_state.FurnitureById.Remove(itemId))
             return false;
 
-        await _inventoryGrain.Presence.OnFurnitureRemovedAsync([itemId], ct);
+        await SendRemovedAsync([itemId], ct);
 
         return true;
     }
@@ -169,7 +170,7 @@ internal sealed class InventoryFurniModule(
         var entities = grants
             .Select(grant => new FurnitureEntity
             {
-                PlayerEntityId = (int)_inventoryGrain.PlayerId,
+                PlayerEntityId = (int)PlayerId,
                 FurnitureDefinitionEntityId = grant.Definition.Id,
                 ExtraData = grant.ExtraDataJson,
             })
@@ -208,7 +209,7 @@ internal sealed class InventoryFurniModule(
         var entities = pairDefinitions
             .Select(definition => new FurnitureEntity
             {
-                PlayerEntityId = (int)_inventoryGrain.PlayerId,
+                PlayerEntityId = (int)PlayerId,
                 FurnitureDefinitionEntityId = definition.Id,
             })
             .ToList();
@@ -245,7 +246,7 @@ internal sealed class InventoryFurniModule(
         CancellationToken ct
     )
     {
-        var ownerName = await _inventoryGrain.GetOwnerNameAsync(ct);
+        var ownerName = await GetOwnerNameAsync(ct);
         var items = new List<IFurnitureItem>(entities.Count);
 
         for (var i = 0; i < entities.Count; i++)
@@ -255,7 +256,7 @@ internal sealed class InventoryFurniModule(
             items.Add(
                 _furnitureLoader.Create(
                     entity.Id,
-                    _inventoryGrain.PlayerId,
+                    PlayerId,
                     ownerName,
                     definitions[i],
                     entity.ExtraData,
@@ -270,9 +271,65 @@ internal sealed class InventoryFurniModule(
         if (_state.IsFurnitureReady)
             await AddAsync(items, ct);
         else
-            await _inventoryGrain.Presence.OnFurnitureAddedAsync(snapshots, ct);
+            await SendAddedAsync(snapshots, ct);
+
+        MarkUnseen(snapshots);
 
         return snapshots;
+    }
+
+    /// <summary>
+    /// Items joined the section. The client refetches its list rather than splicing items in,
+    /// so one "list changed" per change covers any number of items.
+    /// </summary>
+    private Task SendAddedAsync(
+        ImmutableArray<FurnitureItemSnapshot> items,
+        CancellationToken ct
+    ) =>
+        items.IsDefaultOrEmpty
+            ? Task.CompletedTask
+            : GrainFactory.SendComposerToPlayerAsync(
+                PlayerId,
+                new FurniListInvalidateEventMessageComposer(),
+                ct
+            );
+
+    /// <summary>Items left the section: one removal each, as one batch to the one player.</summary>
+    private Task SendRemovedAsync(ImmutableArray<RoomObjectId> itemIds, CancellationToken ct) =>
+        itemIds.IsDefaultOrEmpty
+            ? Task.CompletedTask
+            : Presence.SendComposerAsync(
+                [
+                    .. itemIds.Select(itemId => new FurniListRemoveEventMessageComposer
+                    {
+                        ItemId = itemId,
+                    }),
+                ],
+                ct
+            );
+
+    /// <summary>
+    /// Furni the player received (bought, rewarded, traded in) is new until they open the tab;
+    /// a pick-up from their own room is not, and never comes through here. A rental goes under
+    /// the rentals tab. Told, never awaited: this runs where nothing may be awaited (a trade
+    /// receipt is interleaved).
+    /// </summary>
+    private void MarkUnseen(IEnumerable<FurnitureItemSnapshot> snapshots)
+    {
+        foreach (
+            var byCategory in snapshots.GroupBy(snapshot =>
+                snapshot.SecondsToExpiration > 0 || snapshot.HasRentPeriodStarted
+                    ? UnseenItemCategory.RentedFurni
+                    : UnseenItemCategory.OwnedFurni
+            )
+        )
+            UnseenItems
+                .AddAsync(
+                    byCategory.Key,
+                    [.. byCategory.Select(snapshot => snapshot.ItemId.Value)],
+                    CancellationToken.None
+                )
+                .LogAndForget(_logger, "mark new furni for player {PlayerId}", PlayerId);
     }
 
     /// <summary>One item of a definition (a saddle taken off a horse, a harvested seed).</summary>
@@ -289,7 +346,7 @@ internal sealed class InventoryFurniModule(
             _logger.LogError(
                 "Furniture definition {DefinitionId} is missing; cannot grant it to player {PlayerId}",
                 definitionId,
-                _inventoryGrain.PlayerId
+                PlayerId
             );
 
             return null;
@@ -315,7 +372,7 @@ internal sealed class InventoryFurniModule(
             _logger.LogError(
                 "Catalog product {CatalogProductId} is missing; cannot grant the limited item to player {PlayerId}",
                 catalogProductId,
-                _inventoryGrain.PlayerId
+                PlayerId
             );
 
             throw new TurboException(TurboErrorCodeEnum.CatalogProductNotFound);
@@ -350,11 +407,11 @@ internal sealed class InventoryFurniModule(
             return true;
 
         // Handing items to yourself would change nothing, and a trade never does it.
-        if (toPlayerId == _inventoryGrain.PlayerId)
+        if (toPlayerId == PlayerId)
         {
             _logger.LogWarning(
                 "Player {PlayerId} was asked to transfer {Count} items to themselves; refused",
-                _inventoryGrain.PlayerId,
+                PlayerId,
                 itemIds.Length
             );
 
@@ -371,7 +428,7 @@ internal sealed class InventoryFurniModule(
             {
                 _logger.LogWarning(
                     "Player {PlayerId} no longer holds item {ItemId}; the transfer to {ToPlayerId} is refused",
-                    _inventoryGrain.PlayerId,
+                    PlayerId,
                     itemId,
                     toPlayerId
                 );
@@ -390,7 +447,7 @@ internal sealed class InventoryFurniModule(
             var updated = await dbCtx
                 .Furnitures.Where(x =>
                     ids.Contains(x.Id)
-                    && x.PlayerEntityId == (int)_inventoryGrain.PlayerId
+                    && x.PlayerEntityId == (int)PlayerId
                     && x.RoomEntityId == null
                 )
                 .ExecuteUpdateAsync(
@@ -405,7 +462,7 @@ internal sealed class InventoryFurniModule(
                 _logger.LogError(
                     "Transfer of {Count} items from player {PlayerId} to {ToPlayerId} changed {Updated} rows; rolled back",
                     ids.Count,
-                    _inventoryGrain.PlayerId,
+                    PlayerId,
                     toPlayerId,
                     updated
                 );
@@ -422,10 +479,7 @@ internal sealed class InventoryFurniModule(
         foreach (var item in items)
             _state.FurnitureById.Remove(item.ItemId);
 
-        await _inventoryGrain.Presence.OnFurnitureRemovedAsync(
-            [.. items.Select(x => x.ItemId)],
-            ct
-        );
+        await SendRemovedAsync([.. items.Select(x => x.ItemId)], ct);
         await _inventoryGrain
             .GetInventoryOf(toPlayerId)
             .ReceiveFurnitureAsync([.. items.Select(x => x.GetSnapshot())], ct);
@@ -446,6 +500,8 @@ internal sealed class InventoryFurniModule(
 
         _state.FurnitureReceiveCount++;
 
+        MarkUnseen(snapshots);
+
         var added = snapshots;
 
         if (_state.IsFurnitureReady && _state.OwnerName is { } ownerName)
@@ -457,7 +513,7 @@ internal sealed class InventoryFurniModule(
                         snapshot.ItemId,
                         _furnitureLoader.CreateFromFurnitureItemSnapshot(
                             snapshot,
-                            _inventoryGrain.PlayerId,
+                            PlayerId,
                             ownerName
                         )
                     )
@@ -474,12 +530,11 @@ internal sealed class InventoryFurniModule(
         if (added.IsDefaultOrEmpty)
             return;
 
-        _inventoryGrain
-            .Presence.OnFurnitureAddedAsync(added, CancellationToken.None)
+        SendAddedAsync(added, CancellationToken.None)
             .LogAndForget(
                 _logger,
                 "tell player {PlayerId} about {ItemCount} received items",
-                _inventoryGrain.PlayerId,
+                PlayerId,
                 added.Length
             );
     }
@@ -498,7 +553,7 @@ internal sealed class InventoryFurniModule(
         _logger.LogError(
             "Furniture definition {DefinitionId} is missing; cannot grant it to player {PlayerId}",
             definitionId,
-            _inventoryGrain.PlayerId
+            PlayerId
         );
 
         throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
@@ -517,7 +572,7 @@ internal sealed class InventoryFurniModule(
         }
 
         if (added.Count > 0)
-            await _inventoryGrain.Presence.OnFurnitureAddedAsync(added.ToImmutable(), ct);
+            await SendAddedAsync(added.ToImmutable(), ct);
 
         return added.Count;
     }

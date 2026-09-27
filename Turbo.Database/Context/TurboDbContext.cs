@@ -33,6 +33,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<BadgeDefinitionEntity> BadgeDefinitions { get; init; }
     public DbSet<PlayerBadgeEntity> PlayerBadges { get; init; }
 
+    public DbSet<PlayerUnseenItemEntity> PlayerUnseenItems { get; init; }
+
     public DbSet<PlayerCurrencyEntity> PlayerCurrencies { get; init; }
 
     public DbSet<PlayerOutfitEntity> PlayerOutfits { get; init; }

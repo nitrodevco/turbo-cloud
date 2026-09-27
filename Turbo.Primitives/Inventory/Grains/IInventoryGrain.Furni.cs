@@ -90,6 +90,10 @@ public partial interface IInventoryGrain
         ImmutableArray<FurnitureItemSnapshot> items,
         CancellationToken ct
     );
+
+    /// <summary>Sends the player their furni tab, in fragments.</summary>
+    public Task SendFurnitureInventoryAsync(CancellationToken ct);
+
     public Task<ImmutableArray<FurnitureItemSnapshot>> GetAllItemSnapshotsAsync(
         CancellationToken ct
     );

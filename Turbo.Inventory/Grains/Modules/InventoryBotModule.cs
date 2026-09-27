@@ -10,6 +10,9 @@ using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Catalog.Snapshots;
+using Turbo.Primitives.Inventory;
+using Turbo.Primitives.Messages.Outgoing.Inventory.Bots;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 
@@ -35,7 +38,9 @@ internal sealed class InventoryBotModule(
 {
     protected override string Kind => "bot";
 
-    protected override int MaxOwned => _inventoryGrain._inventoryConfig.MaxBots;
+    protected override UnseenItemCategory UnseenCategory => UnseenItemCategory.Bot;
+
+    protected override int MaxOwned => Config.MaxBots;
 
     protected override DbSet<BotEntity> Table(TurboDbContext dbCtx) => dbCtx.Bots;
 
@@ -73,10 +78,23 @@ internal sealed class InventoryBotModule(
         BotSnapshot snapshot,
         bool openInventory,
         CancellationToken ct
-    ) => _inventoryGrain.Presence.OnBotAddedAsync(snapshot, openInventory, ct);
+    ) =>
+        GrainFactory.SendComposerToPlayerAsync(
+            PlayerId,
+            new BotAddedToInventoryEventMessageComposer
+            {
+                Bot = snapshot,
+                OpenInventory = openInventory,
+            },
+            ct
+        );
 
     protected override Task OnRemovedAsync(int id, CancellationToken ct) =>
-        _inventoryGrain.Presence.OnBotRemovedAsync(id, ct);
+        GrainFactory.SendComposerToPlayerAsync(
+            PlayerId,
+            new BotRemovedFromInventoryEventMessageComposer { BotId = id },
+            ct
+        );
 
     public Task<BotSnapshot?> CreateAsync(
         string name,
@@ -88,12 +106,12 @@ internal sealed class InventoryBotModule(
         CreateAsync(
             new BotEntity
             {
-                PlayerEntityId = OwnerId,
+                PlayerEntityId = PlayerId.Value,
                 Name = name,
                 Motto = motto,
                 Figure = figure,
                 Gender = gender,
-                ChatDelaySeconds = _inventoryGrain._inventoryConfig.BotDefaultChatDelaySeconds,
+                ChatDelaySeconds = Config.BotDefaultChatDelaySeconds,
             },
             ct
         );
@@ -113,14 +131,14 @@ internal sealed class InventoryBotModule(
                 "Bot product {ProductId} of offer {OfferId} has no figure; cannot grant it to player {PlayerId}",
                 product.Id,
                 offer.Id,
-                _inventoryGrain.PlayerId
+                PlayerId
             );
 
             throw new TurboException(TurboErrorCodeEnum.CatalogProductNotFound);
         }
 
         var name = string.IsNullOrWhiteSpace(product.ClassName)
-            ? _inventoryGrain._inventoryConfig.BotDefaultName
+            ? Config.BotDefaultName
             : product.ClassName;
 
         return new BotProductGrant(name, product.ExtraParam);
@@ -130,7 +148,7 @@ internal sealed class InventoryBotModule(
     {
         var bot = await CreateAsync(
             grant.Name,
-            _inventoryGrain._inventoryConfig.BotDefaultMotto,
+            Config.BotDefaultMotto,
             grant.Figure,
             AvatarGenderType.Male,
             ct

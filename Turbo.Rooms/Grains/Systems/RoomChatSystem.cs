@@ -63,6 +63,8 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         if (await IsFloodingAsync(ctx.PlayerId, ct))
             return false;
 
+        styleId = await ResolveStyleIdAsync(speaker, styleId, ct);
+
         IRoomPlayer? recipient = null;
 
         if (chatType == RoomChatType.Whisper)
@@ -386,6 +388,45 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         timestamps.Enqueue(now);
 
         return false;
+    }
+
+    /// <summary>
+    /// The bubble a player's line goes out in: the one they picked when they may speak with it,
+    /// otherwise the default. The client only offers styles it believes are allowed, so anything
+    /// else is a lapsed club or a modified client, and the line is still worth sending.
+    /// </summary>
+    private async Task<int> ResolveStyleIdAsync(
+        IRoomPlayer speaker,
+        int styleId,
+        CancellationToken ct
+    )
+    {
+        if (styleId == ChatStyles.DEFAULT_STYLE_ID)
+            return styleId;
+
+        var style = _roomGrain._chatStyleProvider.GetChatStyle(styleId);
+
+        if (style is null)
+            return ChatStyles.DEFAULT_STYLE_ID;
+
+        // Only a purchasable style costs a grain call, and only then is ownership the question.
+        var ownsStyle =
+            style.Purchasable
+            && await _roomGrain
+                ._grainFactory.GetPlayerSettingsGrain(speaker.PlayerId)
+                .OwnsChatStyleAsync(styleId, ct);
+
+        var canSpeakWith = ChatStyles.CanSpeakWith(
+            style,
+            hasClub: speaker.HabboClubExpiresAt is { } expiresAt && expiresAt > DateTime.UtcNow,
+            // Neither ambassadors nor staff ranks exist yet (see PlayerSubscriptionGrain's
+            // UserRightsMessage); until something grants them, their bubbles stay closed.
+            isAmbassador: false,
+            isStaff: false,
+            ownsStyle
+        );
+
+        return canSpeakWith ? styleId : ChatStyles.DEFAULT_STYLE_ID;
     }
 
     private IRoomPlayer? FindPlayerAvatarByName(string? name)

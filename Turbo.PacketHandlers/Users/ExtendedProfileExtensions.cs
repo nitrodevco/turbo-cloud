@@ -12,9 +12,9 @@ internal static class ExtendedProfileExtensions
 {
     /// <summary>
     /// Answers a profile request, by id or by name. The profile is the player grain's, its
-    /// badge figures are the inventory's, its groups are the player's guild grain's and its
+    /// badge figures are the badge grain's, its groups are the player's guild grain's and its
     /// friends are the messenger's; they are read here, side by side, because the player grain
-    /// must not await the inventory or the messenger (both await it).
+    /// must not await the badge grain or the messenger (both await it).
     /// </summary>
     public static async Task SendExtendedProfileAsync(
         this MessageContext ctx,
@@ -24,7 +24,7 @@ internal static class ExtendedProfileExtensions
     )
     {
         var profileTask = grainFactory.GetPlayerGrain(playerId).GetExtendedProfileSnapshotAsync(ct);
-        var badgesTask = grainFactory.GetInventoryGrain(playerId).GetBadgeSummaryAsync(ct);
+        var badgesTask = grainFactory.GetPlayerBadgeGrain(playerId).GetBadgeSummaryAsync(ct);
         var guildsTask = grainFactory.GetPlayerGuildGrain(playerId).GetMembershipsAsync(ct);
         var friendsTask = grainFactory
             .GetPlayerMessengerGrain(playerId)

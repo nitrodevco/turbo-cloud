@@ -46,7 +46,9 @@ internal sealed partial class RoomService
                     .ConfigureAwait(false)
             )
             {
-                // failed
+                // The wall does not take the item: it stays in the inventory, and the player is told.
+                await SendPlacementErrorAsync(ctx.PlayerId, ct).ConfigureAwait(false);
+
                 return;
             }
         }
@@ -98,5 +100,7 @@ internal sealed partial class RoomService
                 ct
             )
             .ConfigureAwait(false);
+
+        await SendPlacementErrorAsync(ctx.PlayerId, ct).ConfigureAwait(false);
     }
 }

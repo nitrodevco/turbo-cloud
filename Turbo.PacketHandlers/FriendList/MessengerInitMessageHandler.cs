@@ -21,8 +21,9 @@ public class MessengerInitMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0)
             return;
 
-        var presence = _grainFactory.GetPlayerPresenceGrain(ctx.PlayerId);
-
-        await presence.OnInitMessengerAsync(ct).ConfigureAwait(false);
+        await _grainFactory
+            .GetPlayerMessengerGrain(ctx.PlayerId)
+            .SendInitAsync(ct)
+            .ConfigureAwait(false);
     }
 }

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Inventory.Furniture;
@@ -30,9 +29,4 @@ internal sealed class InventoryLiveState
 
     public InventoryUnitSection<PetSnapshot> Pets { get; } = new();
     public InventoryUnitSection<BotSnapshot> Bots { get; } = new();
-
-    // Badges are not placed anywhere, so unlike the other sections this one lists every badge.
-    public Dictionary<string, InventoryBadge> BadgesByCode { get; } =
-        new(StringComparer.OrdinalIgnoreCase);
-    public bool IsBadgesReady { get; set; } = false;
 }

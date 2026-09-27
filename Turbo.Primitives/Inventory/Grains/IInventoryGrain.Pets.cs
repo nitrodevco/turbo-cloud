@@ -8,6 +8,9 @@ namespace Turbo.Primitives.Inventory.Grains;
 
 public partial interface IInventoryGrain
 {
+    /// <summary>Sends the player their pets tab, in fragments.</summary>
+    public Task SendPetInventoryAsync(CancellationToken ct);
+
     public Task<ImmutableArray<PetSnapshot>> GetAllPetSnapshotsAsync(CancellationToken ct);
     public Task<PetSnapshot?> GetPetSnapshotAsync(int petId, CancellationToken ct);
 

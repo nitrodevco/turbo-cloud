@@ -60,7 +60,8 @@ public sealed partial class RoomActionModule
         if (
             !await FurniModule.ValidateWallItemPlacementAsync(ctx, itemId, x, y, z, wallOffset, rot)
         )
-            throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
+            // A refusal, as for a floor item: the caller puts it back and tells the mover.
+            return false;
 
         if (!await FurniModule.MoveWallItemByIdAsync(ctx, itemId, x, y, z, wallOffset, rot, ct))
             return false;

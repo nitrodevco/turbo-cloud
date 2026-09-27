@@ -27,7 +27,7 @@ public class GetBadgeInfoMessageHandler(IGrainFactory grainFactory)
         // Independent grains: the hotel-wide figures for the badge, and whether the asker owns it.
         var infoTask = _grainFactory.GetBadgeDirectoryGrain().GetInfoAsync([message.BadgeCode], ct);
         var ownedTask = _grainFactory
-            .GetInventoryGrain(ctx.PlayerId)
+            .GetPlayerBadgeGrain(ctx.PlayerId)
             .GetBadgeSnapshotAsync(message.BadgeCode, ct);
 
         await Task.WhenAll(infoTask, ownedTask).ConfigureAwait(false);

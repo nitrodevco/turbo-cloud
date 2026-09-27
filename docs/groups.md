@@ -481,11 +481,12 @@ room grain builds it, and asking the group grain from there is the allowed direc
 `GuildFurnitureLogicNames` lives in `Turbo.Primitives/Guilds/` rather than in the room module,
 because the catalog has to recognise a guild furni before the item exists.
 
-The fan-out that repaints a group's furni is in `GuildFurniRefreshExtensions`, beside the
-handlers that trigger it, not in the group grain — the room answers a rights check by asking the
-group grain, so a group grain calling out to rooms while it was still running would have the two
-waiting on each other. It is the same rule that put the settings push in a handler in section 7,
-and it is worth checking against any new push out of the group grain.
+The fan-out that repaints a group's furni lives in `GuildGrain.Notify`, with everything else the
+group publishes when it changes. The room answers a rights check by asking the group grain, so
+none of it is **awaited**: it goes out with `LogAndForget`, which holds no turn, so the group
+finishes and the room's question is answered on the next one. That is the same rule `AGENTS.md`
+states for `RoomTradeGrain`, and it is what to check against any new call out of the group grain —
+tell it, do not ask it.
 
 Buying one is an ordinary catalog purchase whose `ExtraParam` is the group id. The purchase path
 validates that the buyer belongs to that group before writing the item, and the group's badge and
@@ -605,8 +606,8 @@ and released separately afterwards. Nothing in 1–7 may be shaped around the fo
    belongs in a service rather than in either grain. It is phase 5's to finish, and nothing
    about the current deletion has to change for it.
 
-   `GroupDetailsChanged` goes to the actor alone, for the same reason: reaching everyone who
-   might have the group open means the room.
+   `GroupDetailsChanged` goes to the actor alone: reaching everyone who might have the group open
+   would mean asking the room who is in it.
 
    The group and its owner's membership are written in one `SaveChangesAsync`; two saves would
    let a group exist with nobody in it, whose owner then had no rank and so no rights in their
@@ -686,9 +687,9 @@ and released separately afterwards. Nothing in 1–7 may be shaped around the fo
    homeroom's, and would otherwise keep wearing a badge that no longer resolves.
 
    The homeroom keeps its **own** copy of the group's summary, which its navigator listing draws
-   the name and badge from, and the furni fan-out does not touch it — the furni reads the
-   directory. So all four `UpdateGuild*` handlers refresh that copy as well; without it a rename
-   left the room advertising the old name for as long as it stayed loaded.
+   the name and badge from, and repainting furni does not touch it — the furni reads the
+   directory. Both are published by `GuildGrain` itself, from `PublishChangedAsync`, so no caller
+   has to remember either.
 
    `guild_forum` is `guild_customized` with a different logic name. The client picks its menu
    entries from the furni's own class name, not from anything the server sends, so there is

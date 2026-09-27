@@ -8,6 +8,14 @@ internal class UnseenItemsEventMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, UnseenItemsEventMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.Items.Count);
+
+        foreach (var (category, ids) in message.Items)
+        {
+            packet.WriteInteger((int)category).WriteInteger(ids.Length);
+
+            foreach (var id in ids)
+                packet.WriteInteger(id);
+        }
     }
 }

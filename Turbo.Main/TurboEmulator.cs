@@ -24,6 +24,7 @@ public class TurboEmulator(
     ICatalogSnapshotProvider<NormalCatalog> catalogProvider,
     ICatalogSnapshotProvider<BuildersClubCatalog> buildersClubCatalogProvider,
     ICurrencyTypeProvider currencyTypeProvider,
+    IChatStyleProvider chatStyleProvider,
     INavigatorProvider topLevelContextProvider,
     IRoomModelProvider roomModelProvider,
     IPetBreedProvider petBreedProvider,
@@ -38,6 +39,7 @@ public class TurboEmulator(
     private readonly ICatalogSnapshotProvider<BuildersClubCatalog> _buildersClubCatalogProvider =
         buildersClubCatalogProvider;
     private readonly ICurrencyTypeProvider _currencyTypeProvider = currencyTypeProvider;
+    private readonly IChatStyleProvider _chatStyleProvider = chatStyleProvider;
     private readonly INavigatorProvider _topLevelContextProvider = topLevelContextProvider;
     private readonly IRoomModelProvider _roomModelProvider = roomModelProvider;
     private readonly IPetBreedProvider _petBreedProvider = petBreedProvider;
@@ -53,6 +55,7 @@ public class TurboEmulator(
             await _catalogProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _buildersClubCatalogProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _currencyTypeProvider.ReloadAsync(ct).ConfigureAwait(false);
+            await _chatStyleProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _topLevelContextProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _roomModelProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _petBreedProvider.ReloadAsync(ct).ConfigureAwait(false);

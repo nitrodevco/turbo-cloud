@@ -115,10 +115,10 @@ internal sealed partial class PlayerPresenceGrain
             );
 
         // A rank moves when other players get badges too, so entering a room is when it is
-        // looked at again. Told, not awaited: the presence never awaits the inventory. A rank
+        // looked at again. Told, not awaited: the presence never awaits the badge grain. A rank
         // that did change comes back as OnBadgesRankChangedAsync, now that the avatar exists.
         _grainFactory
-            .GetInventoryGrain(_state.PlayerId)
+            .GetPlayerBadgeGrain(_state.PlayerId)
             .RefreshBadgesRankAsync(CancellationToken.None)
             .LogAndForget(_logger, "refresh the badges rank of player {PlayerId}", _state.PlayerId);
     }

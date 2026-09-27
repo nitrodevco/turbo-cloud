@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,6 +10,10 @@ using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Extensions;
+using Turbo.Primitives.Messages.Outgoing.Collectibles;
+using Turbo.Primitives.Messages.Outgoing.Inventory.Purse;
+using Turbo.Primitives.Messages.Outgoing.Notifications;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums.Wallet;
@@ -163,13 +168,45 @@ internal sealed class PlayerWalletGrain : Grain, IPlayerWalletGrain
             _state.CurrenciesByKind[update.CurrencyKind] = snapshot with { Amount = update.Amount };
         }
 
-        var playerPresence = _grainFactory.GetPlayerPresenceGrain(PlayerId.Value);
+        IReadOnlyList<IComposer> balances =
+        [
+            .. updates.Select(ToBalanceComposer).OfType<IComposer>(),
+        ];
 
-        foreach (var update in updates)
-            await playerPresence.OnCurrencyUpdateAsync(update, ct);
+        // Several currencies moved at once: one batch to the one player, in order.
+        if (balances.Count > 0)
+            await _grainFactory.GetPlayerPresenceGrain(PlayerId).SendComposerAsync(balances, ct);
 
         return WalletDebitResult.Success();
     }
+
+    /// <summary>
+    /// The packet the client redraws a balance from; each currency has its own. Null for a
+    /// currency the client has no balance display for.
+    /// </summary>
+    private static IComposer? ToBalanceComposer(WalletCurrencyUpdateSnapshot update) =>
+        update.CurrencyKind.CurrencyType switch
+        {
+            CurrencyType.Credits => new CreditBalanceEventMessageComposer
+            {
+                Balance = update.Amount.ToString(CultureInfo.InvariantCulture),
+            },
+            CurrencyType.Emeralds => new EmeraldBalanceMessageComposer
+            {
+                EmeraldBalance = update.Amount,
+            },
+            CurrencyType.Silver => new SilverBalanceMessageComposer
+            {
+                SilverBalance = update.Amount,
+            },
+            CurrencyType.ActivityPoints => new HabboActivityPointNotificationMessageComposer
+            {
+                Amount = update.Amount,
+                Change = update.ChangedBy,
+                ActivityPointType = update.CurrencyKind.ActivityPointType ?? -1,
+            },
+            _ => null,
+        };
 
     private static WalletDebitResult InsufficientBalance(WalletDebitRequest request) =>
         WalletDebitResult.InsufficientBalance(
@@ -232,17 +269,18 @@ internal sealed class PlayerWalletGrain : Grain, IPlayerWalletGrain
             _state.CurrenciesByKind[kind] = entity.ToSnapshot(kind);
         }
 
-        await _grainFactory
-            .GetPlayerPresenceGrain(PlayerId)
-            .OnCurrencyUpdateAsync(
+        if (
+            ToBalanceComposer(
                 new WalletCurrencyUpdateSnapshot
                 {
                     CurrencyKind = kind,
                     ChangedBy = amount,
                     Amount = newAmount,
-                },
-                ct
-            );
+                }
+            ) is
+            { } balance
+        )
+            await _grainFactory.SendComposerToPlayerAsync(PlayerId, balance, ct);
 
         return true;
     }

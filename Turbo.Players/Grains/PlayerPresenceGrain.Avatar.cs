@@ -1,6 +1,5 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Turbo.Primitives.Messages.Outgoing.Avatar;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Snapshots;
 
@@ -49,19 +48,5 @@ internal sealed partial class PlayerPresenceGrain
             );
 
         return Task.CompletedTask;
-    }
-
-    public async Task OnFigureUpdatedAsync(PlayerSummarySnapshot snapshot, CancellationToken ct)
-    {
-        await SendComposerAsync(
-            new FigureUpdateEventMessageComposer
-            {
-                Figure = snapshot.Figure,
-                Gender = snapshot.Gender,
-            },
-            ct
-        );
-
-        await OnPlayerUpdatedAsync(snapshot, ct);
     }
 }

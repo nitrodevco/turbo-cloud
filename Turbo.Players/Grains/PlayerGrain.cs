@@ -10,6 +10,7 @@ using Turbo.Database.Context;
 using Turbo.Logging;
 using Turbo.Players.Configuration;
 using Turbo.Primitives;
+using Turbo.Primitives.Messages.Outgoing.Avatar;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains;
@@ -96,9 +97,17 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
 
         await WriteToDatabaseAsync(ct);
 
-        var playerPresence = _grainFactory.GetPlayerPresenceGrain(PlayerId);
+        await _grainFactory.SendComposerToPlayerAsync(
+            PlayerId,
+            new FigureUpdateEventMessageComposer { Figure = figure, Gender = gender },
+            ct
+        );
 
-        await playerPresence.OnFigureUpdatedAsync(await GetSummaryAsync(ct), ct);
+        // Whoever else sees the player (their room, their friends) hears through the presence,
+        // which knows where they are.
+        await _grainFactory
+            .GetPlayerPresenceGrain(PlayerId)
+            .OnPlayerUpdatedAsync(await GetSummaryAsync(ct), ct);
     }
 
     public async Task SetMottoAsync(string text, CancellationToken ct)
@@ -290,9 +299,9 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
             );
     }
 
-    // The badge figures of a profile are not here: they are the inventory's, and this grain must
-    // not await the inventory (inventory -> presence -> this grain is already a chain). The
-    // handler reads both and sends them side by side.
+    // The badge figures of a profile are not here: they are the badge grain's, and this grain
+    // must not await it (badge grain -> presence -> this grain is already a chain). The handler
+    // reads both and sends them side by side.
     /// <summary>
     /// Re-reads whether the player has a live session. Runs a turn after activation rather than
     /// during it; see the call site for why.

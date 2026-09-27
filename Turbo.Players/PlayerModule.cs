@@ -23,6 +23,7 @@ public sealed class PlayerModule : IHostPluginModule
         );
 
         services.AddSingleton<ICurrencyTypeProvider, CurrencyTypeProvider>();
+        services.AddSingleton<IChatStyleProvider, ChatStyleProvider>();
         services.AddSingleton<IPlayerService, PlayerService>();
     }
 }

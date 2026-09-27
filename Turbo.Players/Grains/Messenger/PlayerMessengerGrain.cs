@@ -12,6 +12,8 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Messenger;
 using Turbo.Players.Configuration;
 using Turbo.Primitives.Messages.Outgoing.FriendList;
+using Turbo.Primitives.Messages.Outgoing.Users;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums.Messenger;
@@ -456,8 +458,11 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
 
         // Told, not awaited: this is an interleaved tell, and tells await nothing.
         _grainFactory
-            .GetPlayerPresenceGrain(_state.PlayerId)
-            .OnReceiveFriendRequestAsync(requestDto, CancellationToken.None)
+            .SendComposerToPlayerAsync(
+                _state.PlayerId,
+                new NewFriendRequestMessageComposer { Request = requestDto },
+                CancellationToken.None
+            )
             .LogAndForget(_logger, "show player {PlayerId} a friend request", _state.PlayerId);
 
         return Task.FromResult(
@@ -488,9 +493,15 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
 
         await RemoveFriendsAsync([targetId], ct);
 
-        await _grainFactory
-            .GetPlayerPresenceGrain(_state.PlayerId)
-            .OnBlockPlayerUpdatedAsync(targetId, MessengerBlockResultType.Blocked, ct);
+        await _grainFactory.SendComposerToPlayerAsync(
+            _state.PlayerId,
+            new BlockUserUpdateMessageComposer
+            {
+                Result = MessengerBlockResultType.Blocked,
+                UserId = targetId,
+            },
+            ct
+        );
     }
 
     public async Task UnblockPlayerAsync(PlayerId targetId, CancellationToken ct)
@@ -509,9 +520,15 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
 
         _state.BlockedPlayerIds.Remove(targetId);
 
-        await _grainFactory
-            .GetPlayerPresenceGrain(_state.PlayerId)
-            .OnBlockPlayerUpdatedAsync(targetId, MessengerBlockResultType.Unblocked, ct);
+        await _grainFactory.SendComposerToPlayerAsync(
+            _state.PlayerId,
+            new BlockUserUpdateMessageComposer
+            {
+                Result = MessengerBlockResultType.Unblocked,
+                UserId = targetId,
+            },
+            ct
+        );
     }
 
     public async Task<MessengerIgnoreResultType> IgnorePlayerAsync(
@@ -559,9 +576,11 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
 
             _state.IgnoredPlayerIds.Add(targetId);
 
-            await _grainFactory
-                .GetPlayerPresenceGrain(_state.PlayerId)
-                .OnIgnoredUpdatedAsync([.. _state.IgnoredPlayerIds], ct);
+            await _grainFactory.SendComposerToPlayerAsync(
+                _state.PlayerId,
+                new IgnoredUsersMessageComposer { IgnoredUserIds = [.. _state.IgnoredPlayerIds] },
+                ct
+            );
         }
 
         return result;
@@ -585,9 +604,11 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
 
             _state.IgnoredPlayerIds.Remove(targetId);
 
-            await _grainFactory
-                .GetPlayerPresenceGrain(_state.PlayerId)
-                .OnIgnoredUpdatedAsync([.. _state.IgnoredPlayerIds], ct);
+            await _grainFactory.SendComposerToPlayerAsync(
+                _state.PlayerId,
+                new IgnoredUsersMessageComposer { IgnoredUserIds = [.. _state.IgnoredPlayerIds] },
+                ct
+            );
         }
 
         return MessengerIgnoreResultType.Unignored;
@@ -957,13 +978,52 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
             return;
 
         _grainFactory
-            .GetPlayerPresenceGrain(_state.PlayerId)
-            .FlushMessengerUpdatesAsync([.. _state.Categories], updates, CancellationToken.None)
+            .SendComposerToPlayerAsync(
+                _state.PlayerId,
+                new FriendListUpdateMessageComposer
+                {
+                    Categories = [.. _state.Categories],
+                    Updates = updates,
+                },
+                CancellationToken.None
+            )
             .LogAndForget(
                 _logger,
                 "send friend list updates to player {PlayerId}",
                 _state.PlayerId
             );
+    }
+
+    public async Task SendInitAsync(CancellationToken ct)
+    {
+        var categories = await GetCategoriesAsync(ct);
+        var friends = await GetFriendsAsync(ct);
+
+        List<IComposer> composers =
+        [
+            new MessengerInitMessageComposer
+            {
+                UserFriendLimit = _playerConfig.MessengerUserFriendLimit,
+                NormalFriendLimit = _playerConfig.MessengerNormalFriendLimit,
+                ExtendedFriendLimit = _playerConfig.MessengerExtendedFriendLimit,
+                FriendCategories = categories,
+            },
+            .. ComposerFragments.Build(
+                friends,
+                _playerConfig.FriendListFragmentSize,
+                (total, index, fragment) =>
+                    new FriendListFragmentMessageComposer
+                    {
+                        TotalFragments = total,
+                        FragmentIndex = index,
+                        Fragment = [.. fragment],
+                    }
+            ),
+        ];
+
+        await _grainFactory
+            .GetPlayerPresenceGrain(_state.PlayerId)
+            .SendComposerAsync(composers, ct);
     }
 
     public async Task<List<MessengerCategoryDto>> GetCategoriesAsync(CancellationToken ct)

@@ -321,9 +321,29 @@ Orleans grains are single-threaded by design. Use this for concurrency-sensitive
 - Do not add manual locking (`lock`, `SemaphoreSlim`) inside grains — that fights the actor model.
 
 ### Grains orchestrate their own outbound communication
-When grain state changes (e.g. wallet balance updates), the grain itself sends the snapshot to `PlayerPresenceGrain.SendComposerAsync`. The caller that triggered the change does not pass or send the composer — the grain owns that responsibility.
-- **Correct**: handler calls `grain.UpdateWalletAsync(...)` → grain updates state → grain calls `PlayerPresenceGrain.SendComposerAsync(...)`.
+When grain state changes (e.g. wallet balance updates), the grain itself builds the composer and
+sends it: `grainFactory.SendComposerToPlayerAsync(playerId, composer, ct)`, or one batch with
+`GetPlayerPresenceGrain(id).SendComposerAsync(composers, ct)` when it sends several to the one
+player. The caller that triggered the change does not pass or send the composer — the grain owns
+that responsibility.
+- **Correct**: handler calls `grain.UpdateWalletAsync(...)` → grain updates state → grain sends its balance composer.
 - **Wrong**: handler calls `grain.UpdateWalletAsync(...)` → handler builds composer → handler sends composer to player.
+- **Also wrong**: grain calls a presence method (`OnCurrencyUpdateAsync`) whose only job is to build
+  that composer. The presence is the transport, not the place that knows every domain's packets.
+  It kept fifteen such pass-throughs (balances, inventory adds and removes, badges, friend
+  requests, block and ignore lists, the figure, the friend-list update) and five "open a list"
+  flows that only fetched from the owner and sent; each owner sends its own now, and the
+  presence interface stopped growing with every feature.
+- **When a presence method is right**: only when the presence's own state decides what is sent or
+  where — the active room (`OnSelectedBadgesChangedAsync`, `OnPlayerUpdatedAsync`,
+  `OnHabboClubChangedAsync`, `OnControllerLevelUpdatedAsync`), the pending entry
+  (`ForwardToRoomAsync`). Such a method is a tell: interleaved, awaiting no grain.
+- **A list the client asks for** is answered by the handler from a snapshot with
+  `ctx.SendComposerAsync` when that is all it takes (the wardrobe). When the packet needs the
+  owner's settings (fragment sizes, limits) or the owner also pushes it, the owner has a
+  `Send…Async` the handler calls: `IInventoryGrain.SendFurnitureInventoryAsync` / pets / bots,
+  `IPlayerBadgeGrain.SendBadgeInventoryAsync`, `IPlayerMessengerGrain.SendInitAsync`. Split a list
+  into fragments with `ComposerFragments.Build`.
 
 ### Do not mutate the database directly for grain-owned state
 Grains may hold cached or in-memory state that will not reflect direct DB changes. All mutations to grain-owned data must go through the grain's methods, even when the player is offline.
@@ -476,21 +496,45 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   `ExecuteUpdate` and `ExecuteDelete` in the base to plain column SQL; checked against MySQL.)
 - Inventory items are built by `IInventoryFurnitureLoader` and nowhere else, so loaded, granted,
   picked-up and traded items read their extra data and stuff data the same way.
-- Tell the presence once per change, not once per item: `OnFurnitureAddedAsync` and
-  `OnFurnitureRemovedAsync` take the whole batch, and a grant of N items is one insert. The
+- Tell the client once per change, not once per item: an addition is one "list changed", a
+  removal one batch of removals (`InventoryFurniModule.SendAddedAsync` / `SendRemovedAsync`), and
+  a grant of N items is one insert. The
   owner name comes from `InventoryGrain.GetOwnerNameAsync`, cached per activation.
 - Ownership caps (`MaxPets`, `MaxBots`) count rows, placed or not, in the same context as the
   insert. A catalog purchase validates every product before it creates anything
   (`ValidateProduct` then `GrantProductAsync`).
 
+### Unseen items
+- What a player received and has not looked at yet is `IPlayerUnseenItemsGrain`
+  (`GetPlayerUnseenItemsGrain`), per inventory tab (`UnseenItemCategory`: owned furni, rented
+  furni, pets, badges, bots — the client's numbers). Kept in `player_unseen_items`, so a gift or
+  trade that arrived while the player was offline is still new at login (sent in the login
+  burst); a new arrival is sent to the client at once.
+- **Who marks what.** Whatever gives the player something new tells the grain, never awaiting
+  it: furni grants and teleporter pairs and trade receipts (`InventoryFurniModule.MarkUnseen`),
+  a new pet or bot (`InventoryUnitModule.CreateAsync`), a new badge (`PlayerBadgeGrain`). A
+  pick-up from a room, or a pet or bot coming back from one, is not new — do not mark it. A new
+  way to receive something marks it too.
+- The ids are the client's: a furni's item id (not the signed ref), a pet's or bot's id, a
+  badge's row id.
+- **Stale ids are the grain's to drop.** The client resets a whole tab when it is opened, but
+  drops a single new item on its own without telling the server, and an item can be placed,
+  traded or sold while still new. So the grain prunes its rows against what the player still
+  holds in the inventory whenever it loads, and caps each tab
+  (`InventoryConfig.MaxUnseenItemsPerCategory`). It reads the inventory's tables and writes
+  only its own.
+
 ### Badges
-- A badge is a code a player owns (`player_badges`); it needs no definition to exist. Badges are
-  the fourth section of `InventoryGrain` (`InventoryBadgeModule`), with the shape of the other
-  three, and every grant, removal and "wear these" goes through it. `PlayerGrain` no longer
-  knows about badges; do not add a second way to give one.
+- A badge is a code a player owns (`player_badges`); it needs no definition to exist. A player's
+  badges are their own grain, `IPlayerBadgeGrain` (`GetPlayerBadgeGrain(playerId)`), and every
+  grant, removal and "wear these" goes through it; do not add a second way to give one. They
+  were a section of the inventory until it was clear rooms read a player's worn badges on every
+  entry: that read queued behind whatever the inventory was doing — loading thousands of furni,
+  a trade, a purchase — and the room's whole turn waited with it. The badge grain's reads are
+  `[AlwaysInterleave]`; nothing it awaits calls it back.
 - Owner count and rarity are the hotel's, not the player's. They live in `BadgeDirectoryGrain`
   (one grain: owner counts per code, recounted on a timer and adjusted on each grant) and are
-  filled into a `PlayerBadgeSnapshot` on every read. The inventory never stores them, because a
+  filled into a `PlayerBadgeSnapshot` on every read. The badge grain never stores them, because a
   copy would go stale the moment someone else got the badge.
 - Because every badge shown anywhere asks the directory, it answers from memory only; its one
   query is the recount. Work that queries per request lives in `BadgeLeaderboardGrain`
@@ -518,16 +562,16 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   refreshed on the timer) and answers from that, so ranking every avatar in
   every room costs no query. The client shows a rank of zero or more and hides a negative one;
   no badges, bots and "not known yet" are `BadgeRanks.NONE`.
-- The rank is worked out where the badge count is, in the inventory
-  (`InventoryBadgeModule.RefreshRankAsync`): when a badge is given or removed, and when the
+- The rank is worked out where the badge count is, in the badge grain
+  (`IPlayerBadgeGrain.RefreshBadgesRankAsync`): when a badge is given or removed, and when the
   presence asks on room entry, because a rank also moves when other players get badges. The
-  inventory *tells* the player grain (`IPlayerGrain.SetBadgesRankAsync`, `LogAndForget`), which
+  badge grain *tells* the player grain (`IPlayerGrain.SetBadgesRankAsync`, `LogAndForget`), which
   keeps it for `PlayerSummarySnapshot.BadgesRank`; a changed rank goes presence → room as a
   `UserChange`. A first entry after activation therefore shows no rank for a moment and then
   the rank. Do not make `GetSummaryAsync` fetch it: that call is on every hot path.
-- The player grain never awaits the inventory (inventory → presence → player grain is already a
-  chain). So a profile's badge figures do not pass through it: the handler reads
-  `GetExtendedProfileSnapshotAsync` and `IInventoryGrain.GetBadgeSummaryAsync` side by side
+- The player grain never awaits the badge grain (badge grain → presence → player grain is
+  already a chain). So a profile's badge figures do not pass through it: the handler reads
+  `GetExtendedProfileSnapshotAsync` and `IPlayerBadgeGrain.GetBadgeSummaryAsync` side by side
   (`ExtendedProfileExtensions.SendExtendedProfileAsync`) and the composer carries both.
 - A client may claim a badge only through a request code the hotel lists
   (`BadgeConfig.RequestableBadges`); the badge code itself is never taken from the client.
@@ -1012,7 +1056,7 @@ out of pulling it apart; they hold for any system that grows the same way.
     (`OnPlayerUpdatedAsync` used to await the room, which made player → presence → room → player
     a three-grain cycle through respect and mannequins). Any grain may await a tell, even while
     the presence is waiting on that grain.
-  - **Flows** — entering and leaving a room, opening an inventory, the session lifecycle. Not
+  - **Flows** — entering and leaving a room, the session lifecycle. Not
     interleaved; they await other grains; only handlers and the presence's own session drive
     them. No grain awaits a flow.
   - A new presence method another grain will await is a tell. If it needs to ask something, it is
@@ -1245,7 +1289,7 @@ finishing a change, check it against this list; each line is a mistake that was 
   when one gets a capability (batching, a `GetAsync`, a delete), give it to its siblings or say
   why not. Behaviour lives in the module; grain partials forward.
 - **Batch across grain boundaries.** A loop that makes a grain call per item is a bug in waiting.
-  Pass the whole set (`OnFurnitureAddedAsync`, `AddFurnitureFromRoomItemSnapshotsAsync`), group
+  Pass the whole set (`AddFurnitureFromRoomItemSnapshotsAsync`), group
   by target grain, and run independent targets with `Task.WhenAll`. Returning furni, pets and bots
   on room deletion all follow that shape: the room lets go first, then each owner's inventory
   takes its share back concurrently.
@@ -1279,6 +1323,13 @@ finishing a change, check it against this list; each line is a mistake that was 
   list), and a new class that holds the room grain derives from it rather than keeping its own
   `_roomGrain` field. Static helpers that take the grain as a parameter (`WiredArea`,
   `WiredTimeZones`) are the exception.
+- **The same holds for every grain that splits its work into helper classes.** A grain with
+  modules holds them as named fields and gives them one `<Grain>Component` base that names what
+  they share: `InventoryGrainComponent` exposes the owner (`PlayerId`), `Presence`, `Config`,
+  `GetOwnerNameAsync` and the sibling modules, so an inventory module writes
+  `Presence.SendComposerAsync(...)`, not `_inventoryGrain.Presence.SendComposerAsync(...)`. The room
+  and the inventory are the two grains built this way today; a grain that grows its first module
+  starts with its component base rather than a `_<grain>` field in the module.
 - **Shared room lookups have one home.** Player id → avatar is `RoomAvatarModule.TryGetPlayer`;
   do not walk `AvatarsByPlayerId` then `AvatarsByObjectId` inline, and do not park a general
   helper in whichever module needed it first (it lived in the pet module, and trading reached

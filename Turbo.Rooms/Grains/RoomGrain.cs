@@ -23,6 +23,7 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events;
@@ -68,6 +69,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly IPetBreedProvider _petBreedProvider;
     internal readonly IFurnitureDefinitionProvider _definitionProvider;
     internal readonly IHotelTextProvider _hotelTextProvider;
+    internal readonly IChatStyleProvider _chatStyleProvider;
     internal readonly ICatalogService _catalogService;
     internal readonly EventSystem _eventSystem;
     internal readonly ILogger<IRoomGrain> _logger;
@@ -119,6 +121,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IPetBreedProvider petBreedProvider,
         IFurnitureDefinitionProvider definitionProvider,
         IHotelTextProvider hotelTextProvider,
+        IChatStyleProvider chatStyleProvider,
         ICatalogService catalogService,
         EventSystem eventSystem,
         ILogger<IRoomGrain> logger
@@ -139,6 +142,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _petBreedProvider = petBreedProvider;
         _definitionProvider = definitionProvider;
         _hotelTextProvider = hotelTextProvider;
+        _chatStyleProvider = chatStyleProvider;
         _catalogService = catalogService;
         _eventSystem = eventSystem;
         _logger = logger;

@@ -22,8 +22,8 @@ public class GetPetInventoryMessageHandler(IGrainFactory grainFactory)
             return;
 
         await _grainFactory
-            .GetPlayerPresenceGrain(ctx.PlayerId)
-            .OpenPetInventoryAsync(ct)
+            .GetInventoryGrain(ctx.PlayerId)
+            .SendPetInventoryAsync(ct)
             .ConfigureAwait(false);
     }
 }

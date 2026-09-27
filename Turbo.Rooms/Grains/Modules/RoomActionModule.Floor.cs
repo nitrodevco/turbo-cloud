@@ -67,8 +67,10 @@ public sealed partial class RoomActionModule
         )
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
+        // A spot that does not take the item is a refusal, not a fault: the caller puts the furni
+        // back and tells the mover, as it does for any other refused move.
         if (!FurniModule.CanPlaceFloorItem(itemId, x, y, rot))
-            throw new TurboException(TurboErrorCodeEnum.InvalidMoveTarget);
+            return false;
 
         if (!await FurniModule.MoveFloorItemByIdAsync(ctx, itemId, x, y, null, rot, ct))
             return false;

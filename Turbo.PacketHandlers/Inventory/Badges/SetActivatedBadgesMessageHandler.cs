@@ -22,7 +22,7 @@ public class SetActivatedBadgesMessageHandler(IGrainFactory grainFactory)
             return;
 
         await _grainFactory
-            .GetInventoryGrain(ctx.PlayerId)
+            .GetPlayerBadgeGrain(ctx.PlayerId)
             .SetActivatedBadgesAsync([.. message.BadgeCodes], ct)
             .ConfigureAwait(false);
     }

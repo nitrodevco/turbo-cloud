@@ -1,11 +1,15 @@
 using System;
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 
@@ -49,7 +53,9 @@ internal sealed partial class RoomService
                     .ConfigureAwait(false)
             )
             {
-                // failed
+                // The spot does not take the item: it stays in the inventory, and the player is told.
+                await SendPlacementErrorAsync(ctx.PlayerId, ct).ConfigureAwait(false);
+
                 return;
             }
         }
@@ -97,5 +103,26 @@ internal sealed partial class RoomService
                 ct
             )
             .ConfigureAwait(false);
+
+        await SendPlacementErrorAsync(ctx.PlayerId, ct).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Tells a player the room would not take their furni where they put it - the hotel's
+    /// <c>furni_placement_error</c> bubble, "Sorry, you cannot place this item here.", which the
+    /// client shows for a refused placement or move of a floor or wall item alike.
+    /// </summary>
+    private Task SendPlacementErrorAsync(PlayerId playerId, CancellationToken ct) =>
+        _grainFactory.SendComposerToPlayerAsync(
+            playerId,
+            new NotificationDialogMessageComposer
+            {
+                NotificationType = FurniturePlacementNotifications.PLACEMENT_ERROR,
+                Parameters = ImmutableDictionary<string, string>.Empty.Add(
+                    "message",
+                    FurniturePlacementNotifications.CANT_SET_ITEM_MESSAGE
+                ),
+            },
+            ct
+        );
 }

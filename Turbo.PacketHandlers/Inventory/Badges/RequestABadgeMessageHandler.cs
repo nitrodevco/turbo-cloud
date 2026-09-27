@@ -30,7 +30,7 @@ public class RequestABadgeMessageHandler(IGrainFactory grainFactory)
 
         if (badgeCode is not null)
             await _grainFactory
-                .GetInventoryGrain(ctx.PlayerId)
+                .GetPlayerBadgeGrain(ctx.PlayerId)
                 .GiveBadgeAsync(badgeCode, ct)
                 .ConfigureAwait(false);
 

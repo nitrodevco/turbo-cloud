@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Notifications;
 
 internal class ResetUnseenItemsMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new ResetUnseenItemsMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new ResetUnseenItemsMessage { Category = packet.PopInt() };
 }

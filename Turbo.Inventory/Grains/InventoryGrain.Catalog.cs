@@ -40,7 +40,7 @@ internal sealed partial class InventoryGrain
                 case ProductType.Floor:
                 case ProductType.Wall:
                 {
-                    var definition = _furniModule.GetDefinitionOrThrow(product.FurniDefinitionId);
+                    var definition = FurniModule.GetDefinitionOrThrow(product.FurniDefinitionId);
 
                     // As in Habbo, one teleporter bought is a pair, linked to each other.
                     if (TeleportFurniture.IsTeleport(definition.LogicName))
@@ -66,22 +66,22 @@ internal sealed partial class InventoryGrain
                     break;
                 }
                 case ProductType.Pet:
-                    pets.Add(_petModule.ValidateProduct(offer, product, extraParam));
+                    pets.Add(PetModule.ValidateProduct(offer, product, extraParam));
                     break;
                 case ProductType.Robot:
-                    bots.Add(_botModule.ValidateProduct(offer, product));
+                    bots.Add(BotModule.ValidateProduct(offer, product));
                     break;
             }
         }
 
         foreach (var pet in pets)
-            await _petModule.GrantProductAsync(pet, ct);
+            await PetModule.GrantProductAsync(pet, ct);
 
         foreach (var bot in bots)
-            await _botModule.GrantProductAsync(bot, ct);
+            await BotModule.GrantProductAsync(bot, ct);
 
-        await _furniModule.GrantAsync(furniture, ct);
-        await _furniModule.GrantTeleportPairsAsync(teleportPairs, ct);
+        await FurniModule.GrantAsync(furniture, ct);
+        await FurniModule.GrantTeleportPairsAsync(teleportPairs, ct);
     }
 
     /// <summary>

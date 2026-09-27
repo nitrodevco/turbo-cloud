@@ -7,7 +7,6 @@ using Orleans;
 using Turbo.Database.Context;
 using Turbo.Inventory.Configuration;
 using Turbo.Inventory.Grains.Modules;
-using Turbo.Primitives.Badges.Grains;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Inventory.Factories;
@@ -30,14 +29,13 @@ namespace Turbo.Inventory.Grains;
 internal sealed partial class InventoryGrain : Grain, IInventoryGrain
 {
     internal readonly InventoryConfig _inventoryConfig;
-    private readonly IGrainFactory _grainFactory;
+    internal readonly IGrainFactory _grainFactory;
     private readonly ILogger<IInventoryGrain> _logger;
 
     private readonly InventoryLiveState _state;
-    private readonly InventoryFurniModule _furniModule;
-    private readonly InventoryPetModule _petModule;
-    private readonly InventoryBotModule _botModule;
-    private readonly InventoryBadgeModule _badgeModule;
+    internal readonly InventoryFurniModule FurniModule;
+    internal readonly InventoryPetModule PetModule;
+    internal readonly InventoryBotModule BotModule;
 
     public PlayerId PlayerId => _state.PlayerId;
 
@@ -57,7 +55,7 @@ internal sealed partial class InventoryGrain : Grain, IInventoryGrain
         _logger = logger;
 
         _state = new() { PlayerId = this.GetPlayerId() };
-        _furniModule = new InventoryFurniModule(
+        FurniModule = new InventoryFurniModule(
             this,
             _state,
             dbContextFactory,
@@ -66,25 +64,22 @@ internal sealed partial class InventoryGrain : Grain, IInventoryGrain
             catalogService,
             logger
         );
-        _petModule = new InventoryPetModule(
+        PetModule = new InventoryPetModule(
             this,
             _state,
             dbContextFactory,
             petBreedProvider,
             logger
         );
-        _botModule = new InventoryBotModule(this, _state, dbContextFactory, logger);
-        _badgeModule = new InventoryBadgeModule(this, _state, dbContextFactory, logger);
+        BotModule = new InventoryBotModule(this, _state, dbContextFactory, logger);
     }
 
     /// <summary>The presence that mirrors inventory changes to the player's client.</summary>
     internal IPlayerPresenceGrain Presence => _grainFactory.GetPlayerPresenceGrain(PlayerId);
 
-    internal IBadgeDirectoryGrain BadgeDirectory => _grainFactory.GetBadgeDirectoryGrain();
-
-    internal IBadgeLeaderboardGrain BadgeLeaderboard => _grainFactory.GetBadgeLeaderboardGrain();
-
-    internal IPlayerGrain Player => _grainFactory.GetPlayerGrain(PlayerId);
+    /// <summary>What the player has not looked at yet; told, never awaited.</summary>
+    internal IPlayerUnseenItemsGrain UnseenItems =>
+        _grainFactory.GetPlayerUnseenItemsGrain(PlayerId);
 
     internal IInventoryGrain GetInventoryOf(PlayerId playerId) =>
         _grainFactory.GetInventoryGrain(playerId);
