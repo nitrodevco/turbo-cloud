@@ -2,23 +2,115 @@ name: Code Quality
 
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Replace obsolete PR runs; main pushes and manual runs keep their own run groups.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   quality:
     name: quality-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+
+      # Keep all existing status jobs reporting success for documentation-only PRs.
+      - name: Classify changes and check documentation
+        id: scope
+        run: python scripts/ci_scope.py
+
+      - name: Check documentation classifier
+        if: runner.os == 'Linux' && steps.scope.outputs.docs_only != 'true'
+        run: python -m unittest discover -s scripts/tests -v
+
+      - name: Lint workflows
+        if: runner.os == 'Linux' && steps.scope.outputs.docs_only != 'true'
+        shell: bash
+        run: |
+          archive="$RUNNER_TEMP/actionlint.tar.gz"
+          curl --fail --silent --show-error --location --retry 3 \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz \
+            --output "$archive"
+          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $archive" | sha256sum --check
+          tar -xzf "$archive" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -color
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        if: steps.scope.outputs.docs_only != 'true'
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
 
-      - name: Run quality gate
-        run: dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudQualityGate -p:TurboAIPolicyPhase=1
+      - name: Cache NuGet packages
+        if: steps.scope.outputs.docs_only != 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.nuget/packages
+          key: nuget-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('global.json', '**/*.csproj', '**/*.props', '**/*.targets', '.config/dotnet-tools.json', '**/packages.lock.json', '**/nuget.config', '**/NuGet.Config') }}
+          restore-keys: |
+            nuget-v1-${{ runner.os }}-${{ runner.arch }}-
+
+      # Formatting and governance are independent of the build platform.
+      - name: Restore formatting tools
+        if: runner.os == 'Linux' && steps.scope.outputs.docs_only != 'true'
+        run: dotnet tool restore
+
+      - name: Check formatting
+        if: runner.os == 'Linux' && steps.scope.outputs.docs_only != 'true'
+        run: dotnet csharpier check .
+
+      - name: Check governance files
+        if: runner.os == 'Linux' && steps.scope.outputs.docs_only != 'true'
+        run: dotnet msbuild Turbo.Main/Turbo.Main.csproj -t:TurboCloudAiGovernanceCheck -p:TurboAIPolicyPhase=1
+
+      - name: Prepare build diagnostics
+        if: steps.scope.outputs.docs_only != 'true'
+        shell: python
+        run: |
+          import os
+          from pathlib import Path
+          (Path(os.environ['RUNNER_TEMP']) / 'turbo-build-logs').mkdir(parents=True, exist_ok=True)
+
+      - name: Restore dependencies
+        id: restore
+        if: steps.scope.outputs.docs_only != 'true'
+        # Package downloads are cached; dependency resolution still runs on every build.
+        run: dotnet restore Turbo.Main/Turbo.Main.csproj "-bl:${{ runner.temp }}/turbo-build-logs/restore.binlog;ProjectImports=None"
+
+      # Keep compilation, Orleans generators and build analyzers on every platform.
+      - name: Build
+        id: build
+        if: steps.scope.outputs.docs_only != 'true'
+        run: dotnet build Turbo.Main/Turbo.Main.csproj --no-restore -p:TurboAIPolicyPhase=1 "-bl:${{ runner.temp }}/turbo-build-logs/build.binlog;ProjectImports=None"
+
+      - name: Upload failed build diagnostics
+        if: failure() && (steps.restore.outcome == 'failure' || steps.build.outcome == 'failure')
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: build-diagnostics-${{ matrix.os }}
+          path: ${{ runner.temp }}/turbo-build-logs/*.binlog
+          if-no-files-found: warn
+          retention-days: 3
+
+      - name: Check code style
+        if: runner.os == 'Linux' && steps.scope.outputs.docs_only != 'true'
+        run: dotnet format Turbo.Main/Turbo.Main.csproj style --verify-no-changes --no-restore
+
+      - name: Check analyzer fixes
+        if: runner.os == 'Linux' && steps.scope.outputs.docs_only != 'true'
+        run: dotnet format Turbo.Main/Turbo.Main.csproj analyzers --verify-no-changes --no-restore
