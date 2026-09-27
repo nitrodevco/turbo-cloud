@@ -125,14 +125,14 @@ public sealed class RoomModelProvider(
                     var heightIndex = "abcdefghijklmnopqrstuvwxyz".IndexOf(ch);
                     var tileHeight =
                         heightIndex == -1
-                            ? Altitude.FromInt(
+                            ? Altitude.FromValue(
                                 char.IsAsciiDigit(ch)
                                     ? ch - '0'
                                     : throw new RoomModelDataInvalidException(
                                         $"tile ({x}, {y}) has no height the model format knows"
                                     )
                             )
-                            : Altitude.FromInt(heightIndex + 10);
+                            : Altitude.FromValue(heightIndex + 10);
 
                     heights[idx] = tileHeight;
                     flags[idx] = RoomTileFlags.Open;

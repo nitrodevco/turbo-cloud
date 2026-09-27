@@ -10,7 +10,9 @@ public class RoomConfig
 
     public Altitude MaxStackHeight { get; init; } = Altitude.FromInt(4000);
     public RoomScaleType DefaultRoomScale { get; init; } = RoomScaleType.Normal;
-    public int DefaultWallHeight { get; init; } = 0;
+
+    // FloorHeightMap uses -1 for automatic walls above the highest floor; zero is fixed.
+    public int DefaultWallHeight { get; init; } = -1;
     public Altitude MaxStepHeight { get; init; } = Altitude.FromInt(200);
     public bool PlaceItemsOnAvatars { get; init; } = true;
     public bool EnableDiagonalChecking { get; init; } = true;
