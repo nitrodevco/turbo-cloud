@@ -11,6 +11,8 @@ namespace Turbo.Players.Grains;
 internal sealed class PlayerPresenceLiveState
 {
     public required PlayerId PlayerId { get; init; }
+    public SessionKey SessionKey { get; set; } = SessionKey.Invalid;
+    public long SessionGeneration { get; set; }
     public RoomId ActiveRoomId { get; set; } = -1;
     public RoomId PendingRoomId { get; set; } = -1;
     public RoomEntryState PendingRoomState { get; set; } = RoomEntryState.None;

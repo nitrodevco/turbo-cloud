@@ -11,6 +11,6 @@ internal class DisconnectReasonEventMessageComposerSerializer(int header)
         DisconnectReasonEventMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.Reason);
     }
 }

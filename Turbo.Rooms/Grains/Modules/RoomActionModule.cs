@@ -217,8 +217,10 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         int param = -1
     )
     {
+        // The client can click its placement preview before PlaceObject arrives, or an item
+        // another player has just picked up. Neither click targets a live room item yet.
         if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
-            throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
+            return false;
 
         await item.Logic.OnClickAsync(ctx, param, ct);
 
