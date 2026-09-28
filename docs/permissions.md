@@ -538,17 +538,28 @@ Seeded groups, all editable afterwards:
 | Group | Weight | Parents | Nodes | Client level |
 | --- | --- | --- | --- | --- |
 | `default` | 0 | — | the perks the SSO handler sent `true`, `trade`, `chat.speak` | 0 |
+| `vip` | 10 | `default` | `room.floorplan.large`; meta `limit.friends = 500`, `limit.rooms = 100`, `limit.favourite_rooms = 60` | 0 |
 | `ambassador` | 20 | `default` | `role.ambassador`, `chat.furni_chooser`, `perk.no_video_offers` | 2 |
-| `helper` | 30 | `default` | `perk.guide_tool`, `perk.judge_chat_reviews` | 0 |
-| `moderator` | 50 | `helper` | `room.*`, `moderation.tool`, `wired.menu`, `catalog.builders_club.without_membership`, `catalog.guild.any_group`, `catalog.gift.hide_sender`, `guild.delete_any`, `chat.style.staff`, `chat.furni_chooser`, `perk.no_video_offers` | 5 |
-| `community` | 70 | `moderator` | `navigator.category.staff`, `navigator.staff_pick` | 7 |
+| `helper` | 30 | `default` | `perk.guide_tool`, `perk.judge_chat_reviews`, `perk.vote_in_competitions` | 0 |
+| `builder` | 35 | `default` | `room.floorplan.save_without_club`, `room.floorplan.large`, `room.furni.branding`, `wired.menu`, `chat.furni_chooser` | 4 |
+| `events` | 40 | `default` | `room.event.edit_any`, `room.enter.locked`, `room.enter.full`, `room.furni.youtube_any`, `room.furni.vimeo_edit`, `chat.furni_chooser` | 5 |
+| `trial_moderator` | 45 | `helper` | `moderation.tool`, `room.moderate.any`, `room.enter.locked`, `room.enter.full`, `chat.style.staff`, `perk.no_video_offers` | 5 |
+| `moderator` | 50 | `trial_moderator` | `room.*`, `moderation.tool`, `wired.menu`, `catalog.builders_club.without_membership`, `catalog.guild.any_group`, `catalog.gift.hide_sender`, `guild.delete_any`, `chat.style.staff`, `chat.furni_chooser`, `perk.no_video_offers` | 5 |
+| `community` | 70 | `moderator`, `builder`, `events` | `navigator.category.staff`, `navigator.staff_pick` | 7 |
 | `admin` | 100 | `community` | `*`, meta `client.security_level = 8` | 8 |
 
 The levels are the real hotel's, so every client draws staff UI as expected without knowing
 anything about nodes (`SeedCommunityGroup`; the first seed had `navigator.category.staff` on
-`moderator`, which put every moderator on 7). Each group also holds the lower-level nodes its
-level makes the client offer anyway, so `perm group <g> info` reports nothing shown-but-refused
-for any seeded group.
+`moderator`, which put every moderator on 7). The ladder — `moderator`, `community`, `admin` —
+holds every lower-level node its level makes the client offer, so `perm group <g> info` reports
+nothing shown-but-refused for it.
+
+The specialist groups (`SeedRetroStaffGroups`) cannot: a builder, event staff or a trial moderator
+given every node at their level would be given moderation or every room. They hold only their job,
+and a level-only client (Flash) offers them some buttons the server refuses — the acceptable
+failure (§8). `builder` stays at 4, the lowest its nodes allow; `events` and `trial_moderator` need
+5, because the client itself gates event editing and the moderation tool there. A client using the
+`permission.nodes` extension (nitro-next) shows each of them exactly their own buttons.
 
 `room.floorplan.large` is a node rather than meta because the client's `BUILDER_AT_WORK` perk is a
 yes/no and the server must agree with it; if a hotel later wants graded area limits, it becomes
