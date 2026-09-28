@@ -83,11 +83,13 @@ public class FurnitureYoutubeLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
     }
 
     /// <summary>
-    /// Rights in the room, or staff who may run any display (the client offers its controls to the
-    /// furni's owner or at security level 4).
+    /// The display's owner, rights in the room, or staff who may run any display. The client
+    /// offers its controls to the furni's owner or at security level 4
+    /// (<c>FurnitureYoutubeDisplayWidgetHandler</c>); rights are kept for other clients.
     /// </summary>
     private async Task<bool> CanControlAsync(ActionContext ctx) =>
-        await HasRightsAsync(ctx)
+        IsItemOwner(ctx)
+        || await HasRightsAsync(ctx)
         || await SecurityModule.HasPermissionAsync(
             ctx.PlayerId,
             PermissionNodes.Room.FURNI_YOUTUBE_ANY

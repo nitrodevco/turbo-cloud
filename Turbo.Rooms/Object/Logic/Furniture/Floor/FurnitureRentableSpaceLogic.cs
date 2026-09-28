@@ -168,7 +168,11 @@ public class FurnitureRentableSpaceLogic(
         {
             null => RentableSpaceRentFailedType.NotRented,
             var rent
+                // The renter, the room's owner, and - as the Flash client offers the button to
+                // (RentableSpaceDisplayWidget: isOwnerOfFurniture || hasSecurity(5)) - the
+                // space's own owner and staff.
                 when rent.RenterId != ctx.PlayerId
+                    && !IsItemOwner(ctx)
                     && !await SecurityModule.GetIsRoomOwnerAsync(ctx)
                     && !await SecurityModule.HasPermissionAsync(
                         ctx.PlayerId,
