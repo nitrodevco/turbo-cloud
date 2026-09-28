@@ -138,7 +138,6 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         _state.AchievementScore = 0;
         _state.CreatedAt = entity.CreatedAt;
         _state.LastUpdated = entity.UpdatedAt;
-        _state.Perks = entity.PlayerPerks;
         _state.RespectPoints = entity.RespectPoints;
         _state.RespectsLeft = entity.RespectsLeft;
         _state.PetRespectsLeft = entity.PetRespectsLeft;
@@ -204,7 +203,6 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
                 RespectsLeft = _state.RespectsLeft,
                 PetRespectsLeft = _state.PetRespectsLeft,
                 RespectReplenishesLeft = _state.RespectReplenishesLeft,
-                Perks = _state.Perks,
             }
         );
 

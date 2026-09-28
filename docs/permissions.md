@@ -258,7 +258,7 @@ button the server refuses is the acceptable failure; the server allowing somethi
 cannot reach is not.** A hotel avoids the first by granting staff nodes in coherent groups.
 
 `players.perk_flags` and `PlayerLiveState.Perks` are retired: the data migration turns each
-player's non-default flags into player nodes, and a later migration drops the column.
+player's non-default flags into player nodes, and `UnmapPerkFlags` stops mapping the column (§13).
 
 ## 9. Where the authority lives
 
@@ -475,7 +475,7 @@ mapping is `PermissionEntityExtensions`.
 `SeedPermissions` also carries `players.perk_flags` over: a set flag that `default` does not
 already grant becomes a granted player node. An unset flag becomes nothing — the column was
 never read, so it is zero for nearly everyone, and reading that as a denial would take the camera
-and trading away from the whole hotel. The column stays until phase 4 stops loading it.
+and trading away from the whole hotel. Nothing reads the column any more: `UnmapPerkFlags` takes it out of the model (and `PlayerSummarySnapshot.Perks` with it) but leaves it in the table, because a CMS that still inserts `perk_flags` would fail against a table without it. Drop it once nothing writes it.
 Seeded groups, all editable afterwards:
 
 | Group | Weight | Parents | Nodes | Client level |
