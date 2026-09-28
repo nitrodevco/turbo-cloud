@@ -497,6 +497,15 @@ for any seeded group.
 yes/no and the server must agree with it; if a hotel later wants graded area limits, it becomes
 meta and the perk is projected from "limit above the client's 3025".
 
+### Floor plans and Builders Club, as built
+
+`RoomGrain.SaveFloorPlanAsync` accepts a save without a Builders Club membership from a holder of
+`room.floorplan.save_without_club`, and passes `room.floorplan.large` down so the area limit
+(`RoomConfig.FloorPlanMaxArea`) is lifted for exactly the players the client lets past it; the axis
+limit still holds. The Builders Club trial rule ("nobody else in the room") leaves out avatars that
+moderate every room, as the client's own check does. Opening the Builders Club catalog without a
+membership is gated by the client alone, on the level `catalog.builders_club.without_membership`
+projects to.
 ## 14. Build order
 
 The nodes the audit found (§17.2) are registered as of phase 4 — so the projection already
@@ -573,6 +582,14 @@ A category is visible and usable when **all** of these hold:
 
 `MinRank` is the one place outside the projection that reads a security level, and it is allowed
 to because the column *is* a security level by definition. It is still read through the resolved
+
+Built in phase 6, in `NavigatorCategoryAccess.CanSee`, which `NavigatorService.GetFlatCategoriesForPlayerAsync`
+uses. That one method answers the category list the client is sent, the categories the hotel view
+previews, the category search, and which category a player may create a room in or move one to
+(`RoomSettingsSaveExtensions`), so a staff-only category is closed to a crafted packet as well as
+hidden. A regular player (security level 0) counts as rank 1, as in the retro emulators, so a
+category left at the retro default of `min_rank = 1` is everyone's. `required_node` is added by
+`AddNavigatorCategoryRequiredNode`.
 set's derived level, never by comparing groups.
 
 ## 17. Audit against LuckPerms and the clients (2026-09-28)

@@ -243,9 +243,9 @@ public sealed partial class RoomFurniModule
         if (borrow.IsMember)
             return true;
 
-        // A trial build is a private one. There are no staff ranks yet, so anyone else present
-        // counts.
-        if (AvatarModule.Players.Any(x => x.PlayerId != ctx.PlayerId))
+        // A trial build is a private one. Staff who moderate every room do not count as company,
+        // as the client's own check leaves moderators out.
+        if (AvatarModule.Players.Any(x => x.PlayerId != ctx.PlayerId && !x.IsModerator))
         {
             Refuse(ctx, warning.OfferId, "somebody else is in the room and they are on trial");
 

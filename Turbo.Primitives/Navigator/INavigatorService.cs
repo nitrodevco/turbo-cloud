@@ -34,8 +34,14 @@ public interface INavigatorService
         CancellationToken ct
     );
 
-    public ImmutableArray<NavigatorFlatCategorySnapshot> GetFlatCategoriesForPlayer(
-        PlayerId playerId
+    /// <summary>
+    /// The flat categories this player may see and list a room in: visible, staff-only ones only
+    /// for <c>navigator.category.staff</c>, <c>MinRank</c> against their security level, and the
+    /// category's required node if it names one. See <c>docs/permissions.md</c> §16.
+    /// </summary>
+    public Task<ImmutableArray<NavigatorFlatCategorySnapshot>> GetFlatCategoriesForPlayerAsync(
+        PlayerId playerId,
+        CancellationToken ct
     );
     public ImmutableArray<NavigatorEventCategorySnapshot> GetEventCategories();
     public Task<ImmutableArray<NavigatorPopularTagSnapshot>> GetPopularTagsAsync(

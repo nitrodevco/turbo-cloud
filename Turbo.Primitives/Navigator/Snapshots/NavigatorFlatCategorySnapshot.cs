@@ -31,4 +31,8 @@ public sealed record NavigatorFlatCategorySnapshot
 
     [Id(8)]
     public required int OrderNum { get; init; }
+
+    /// <summary>A permission node the player must hold to see the category, or null for none.</summary>
+    [Id(9)]
+    public string? RequiredNode { get; init; }
 }
