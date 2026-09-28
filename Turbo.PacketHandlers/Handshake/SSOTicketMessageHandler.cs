@@ -17,6 +17,7 @@ using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.PacketHandlers.Handshake;
 
@@ -95,7 +96,14 @@ public class SSOTicketMessageHandler(
         await ctx.SendComposerAsync(
                 new FavouritesMessageComposer
                 {
-                    Limit = _navigatorService.FavouriteRoomLimit,
+                    Limit = await _grainFactory
+                        .GetLimitAsync(
+                            playerId,
+                            PermissionMetaKeys.Limit.FAVOURITE_ROOMS,
+                            _navigatorService.FavouriteRoomLimit,
+                            ct
+                        )
+                        .ConfigureAwait(false),
                     FavoriteRoomIds = [.. favouriteRoomIds.Select(x => x.Value)],
                 },
                 ct

@@ -18,6 +18,7 @@ using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Navigator.Snapshots;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Grains.Navigator;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Snapshots.Navigator;
 using Turbo.Primitives.Rooms;
 
@@ -106,7 +107,12 @@ internal sealed class PlayerNavigatorGrain : Grain, IPlayerNavigatorGrain
         if (roomId.Value <= 0 || _state.FavouriteRoomIds.Contains(roomId))
             return;
 
-        var limit = _navigatorConfig.MaxFavouriteRooms;
+        var limit = await _grainFactory.GetLimitAsync(
+            _state.PlayerId,
+            PermissionMetaKeys.Limit.FAVOURITE_ROOMS,
+            _navigatorConfig.MaxFavouriteRooms,
+            ct
+        );
 
         if (_state.FavouriteRoomIds.Count >= limit)
         {

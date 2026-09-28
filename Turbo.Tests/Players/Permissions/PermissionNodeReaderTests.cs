@@ -68,6 +68,22 @@ public class PermissionNodeReaderTests
     }
 
     [Fact]
+    public void EveryMetaKey_IsReadSomewhere()
+    {
+        var unread = REGISTRY
+            .MetaKeys.Keys.Where(x => !READ.Value.Contains(x))
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        unread
+            .Should()
+            .BeEmpty(
+                "a registered meta key nothing reads sets nothing; unread: {0}",
+                string.Join(", ", unread)
+            );
+    }
+
+    [Fact]
     public void TheList_OnlyHoldsRegisteredNodesThatAreStillUnread()
     {
         UNREAD.Keys.Should().OnlyContain(x => REGISTRY.IsRegistered(x));

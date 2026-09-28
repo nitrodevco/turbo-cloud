@@ -21,6 +21,7 @@ using Turbo.Primitives.Players.Grains.Permissions;
 using Turbo.Primitives.Players.Grains.Settings;
 using Turbo.Primitives.Players.Grains.Subscriptions;
 using Turbo.Primitives.Players.Grains.Wardrobe;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -98,6 +99,26 @@ public static class GrainFactoryExtensions
         string node,
         CancellationToken ct
     ) => factory.GetPlayerPermissionGrain(playerId).HasAsync(node, ct);
+
+    /// <summary>
+    /// A limit for one player: the meta key's value when their groups or they set one, otherwise
+    /// <paramref name="fallback"/>, the hotel's configured default. The grain that enforces the
+    /// limit passes its own config option.
+    /// </summary>
+    public static async Task<int> GetLimitAsync(
+        this IGrainFactory factory,
+        PlayerId playerId,
+        string key,
+        int fallback,
+        CancellationToken ct
+    ) =>
+        PermissionMeta.ReadLimit(
+            await factory
+                .GetPlayerPermissionGrain(playerId)
+                .GetMetaAsync(key, ct)
+                .ConfigureAwait(false),
+            fallback
+        );
 
     public static IBadgeDirectoryGrain GetBadgeDirectoryGrain(this IGrainFactory factory) =>
         factory.GetGrain<IBadgeDirectoryGrain>(SingletonGrainId.GLOBAL);

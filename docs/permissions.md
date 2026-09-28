@@ -1,11 +1,11 @@
 # Permissions, groups and security levels
 
-Implementation plan for a permission system. **Phases 1 to 6 and 8 of §14 are built**: the node
+Implementation plan for a permission system. **Every phase of §14 is built**: the node
 constants, registry and resolver (`Turbo.Primitives/Players/Permissions/`, tested in `Turbo.Tests`);
 the tables and seeds (§13); the grains, audit, expiry and the `perm` console command (§9); the
 projection that tells the client (§8); the packet-boundary gate (§11); the gates in rooms, the
 navigator, chat, trading, groups and the catalog (§11, §16 and the "as built" sections before §14);
-and the check that every node has a reader (§14, phase 8). Phase 7, limits through meta, is next.
+limits through meta (§6); and the check that every node has a reader (§14, phase 8). What is left is in §17.4 and the Nitro opt-in of §8.
 
 The shape is borrowed from LuckPerms rather than from the Habbo retros, on purpose. The retro
 pattern — one rank per player, a `permissions` table with a column per permission, code comparing
@@ -163,20 +163,25 @@ This is LuckPerms' order with contexts removed — see §12.
 
 Meta is for the limits retros kept as per-rank columns. `AGENTS.md` already says a limit is a
 config option on its module's config class; meta does not change that. **The config option stays
-the hotel default, and meta overrides it per group or per player.**
+the hotel default, and meta overrides it per group or per player.** Built in phase 7.
 
-```csharp
-registry.AddMeta(MetaKeys.Messenger.FriendLimit, (PlayerConfig c) => c.MessengerNormalFriendLimit);
-```
+| Meta key | Hotel default | Read by |
+| --- | --- | --- |
+| `limit.friends` | `PlayerConfig.MessengerNormalFriendLimit` | `PlayerMessengerGrain`: every friend check, and the player's own limit in `MessengerInit` (the normal and extended tiers beside it stay the hotel's) |
+| `limit.rooms` | `NavigatorConfig.MaxRoomsPerPlayer` | `NavigatorService.CanCreateRoomAsync`, which room creation goes through |
+| `limit.favourite_rooms` | `PlayerNavigatorConfig.MaxFavouriteRooms` | `PlayerNavigatorGrain.AddFavouriteRoomAsync`, and the limit sent at login |
 
-The grain that enforces the limit asks the player's resolved meta instead of reading the config
-directly, and the answer already has the config default folded in. A key is registered with its
-type (`int`, `bool`, `string`); a stored value that does not parse is logged and treated as unset.
+The code that enforces a limit asks for it with `IGrainFactory.GetLimitAsync(player, key,
+configDefault)`, passing its own config option, so the default still lives where `AGENTS.md` puts
+it and the grain still reads its own config. `PermissionMeta.ReadLimit` turns the meta value into
+the limit: a whole number of zero or more replaces the default, anything else is ignored. All three
+keys are registered with `HighestNumber`, so a player in two groups that both raise a limit gets
+the larger — and a group can lower one too, since any value it sets replaces the default.
 
-Start with the limits that exist and that a VIP group would plausibly raise: friends, rooms owned,
-and the floor plan area (which `LargeFloorPlans` in §7 currently models as a node — see §13).
-Display meta (name prefixes, colours) waits for a client that draws it.
-
+The floor plan area stays a node (`room.floorplan.large`, §13), because the client's
+`BUILDER_AT_WORK` perk it has to agree with is a yes or no. Display meta (name prefixes, colours)
+waits for a client that draws it. `PermissionNodeReaderTests` fails for a registered meta key that
+nothing reads, as it does for nodes.
 ## 7. The node catalogue
 
 The first members are not invented — they are the comments already sitting in the code and the
@@ -558,7 +563,7 @@ Each phase is testable on its own and ends with the tree building.
    §7 converted one at a time. Each is a line, and each removes a comment. Then the navigator
    (§16: `MinRank` against the derived level, `StaffOnly`, and the `required_node` column), and the
    Builders Club gates.
-7. **Meta.** The friend, room and area limits read through resolved meta.
+7. **Meta.** The friend, room and favourite-room limits read through resolved meta (§6).
 8. **The reader check.** Built as a test rather than a script, so CI enforces it:
    `PermissionNodeReaderTests` reads the IL of every server assembly and fails for a registered
    node that nothing reads, unless it is listed with the reason nothing on the server can (a perk,

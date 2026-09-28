@@ -207,5 +207,20 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "A minimum security level sent to the client, over the one the player's nodes give.",
             PermissionMetaSelectionType.HighestNumber
         ),
+        new(
+            PermissionMetaKeys.Limit.FRIENDS,
+            "Friends the player may have, in place of the hotel's default.",
+            PermissionMetaSelectionType.HighestNumber
+        ),
+        new(
+            PermissionMetaKeys.Limit.ROOMS,
+            "Rooms the player may own, in place of the hotel's default.",
+            PermissionMetaSelectionType.HighestNumber
+        ),
+        new(
+            PermissionMetaKeys.Limit.FAVOURITE_ROOMS,
+            "Favourite rooms the player may keep, in place of the hotel's default.",
+            PermissionMetaSelectionType.HighestNumber
+        ),
     ];
 }

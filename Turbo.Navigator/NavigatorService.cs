@@ -362,7 +362,11 @@ public sealed class NavigatorService(
             .GetRoomCountForOwnerAsync(playerId, ct)
             .ConfigureAwait(false);
 
-        return (roomCount < _config.MaxRoomsPerPlayer, _config.MaxRoomsPerPlayer);
+        var limit = await _grainFactory
+            .GetLimitAsync(playerId, PermissionMetaKeys.Limit.ROOMS, _config.MaxRoomsPerPlayer, ct)
+            .ConfigureAwait(false);
+
+        return (roomCount < limit, limit);
     }
 
     public async Task<RoomId?> CreateRoomAsync(
