@@ -8,6 +8,7 @@ using Turbo.Messages.Registry;
 using Turbo.PacketHandlers.Navigator;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Permissions;
+using Turbo.Tests.Support;
 using Xunit;
 
 namespace Turbo.Tests.PacketHandlers;
@@ -43,7 +44,7 @@ public class PermissionGateTests
     public void Handler_ChecksExactlyWhatItDeclares(Type handler)
     {
         var declared = handler.GetCustomAttribute<RequiresPermissionAttribute>()?.Nodes ?? [];
-        var (strings, calls) = ReadHandleAsync(handler);
+        var (strings, calls) = ReadHandleAsyncBody(handler);
         var checks = calls.Contains(HAS_PERMISSION);
 
         if (declared.Count == 0)
@@ -95,7 +96,7 @@ public class PermissionGateTests
             .OrderBy(x => x.FullName, StringComparer.Ordinal);
 
     /// <summary>The string literals and the methods <c>HandleAsync</c> loads and calls.</summary>
-    private static (HashSet<string> Strings, HashSet<MethodBase> Calls) ReadHandleAsync(
+    private static (HashSet<string> Strings, HashSet<MethodBase> Calls) ReadHandleAsyncBody(
         Type handler
     )
     {
@@ -107,38 +108,10 @@ public class PermissionGateTests
             )!
             : method;
 
-        var il = body.GetMethodBody()!.GetILAsByteArray()!;
-        var module = body.Module;
         var strings = new HashSet<string>(StringComparer.Ordinal);
         var calls = new HashSet<MethodBase>();
 
-        // A byte-level scan rather than a full decoder: an ldstr (0x72) or call/callvirt
-        // (0x28/0x6F) byte followed by a token of the right table is taken as that instruction.
-        // A stray match can only add to what is found, never hide a call that is there.
-        for (var i = 0; i + 4 < il.Length; i++)
-        {
-            var token = BitConverter.ToInt32(il, i + 1);
-            var table = (uint)token >> 24;
-
-            if (il[i] == 0x72 && table == 0x70)
-            {
-                try
-                {
-                    strings.Add(module.ResolveString(token));
-                }
-                catch (ArgumentException) { }
-            }
-            else if ((il[i] == 0x28 || il[i] == 0x6F) && table is 0x06 or 0x0A or 0x2B)
-            {
-                try
-                {
-                    if (module.ResolveMethod(token) is { } called)
-                        calls.Add(called);
-                }
-                catch (ArgumentException) { }
-                catch (BadImageFormatException) { }
-            }
-        }
+        IlScanner.Scan(body, strings, calls);
 
         return (strings, calls);
     }

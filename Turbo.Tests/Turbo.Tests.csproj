@@ -16,5 +16,9 @@
     <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
     <!-- For PermissionGateTests, which reads the handlers' IL; nothing here runs a handler. -->
     <ProjectReference Include="..\Turbo.PacketHandlers\Turbo.PacketHandlers.csproj" />
+    <!-- For PermissionNodeReaderTests, which reads every server assembly's IL. -->
+    <ProjectReference Include="..\Turbo.Guilds\Turbo.Guilds.csproj" />
+    <ProjectReference Include="..\Turbo.Inventory\Turbo.Inventory.csproj" />
+    <ProjectReference Include="..\Turbo.Navigator\Turbo.Navigator.csproj" />
   </ItemGroup>
 </Project>

@@ -1,11 +1,11 @@
 # Permissions, groups and security levels
 
-Implementation plan for a permission system. **Phases 1 to 5 of §14 are built**: the node constants,
-the registry and the resolver in `Turbo.Primitives/Players/Permissions/`, tested in
-`Turbo.Tests`; the tables, seeded groups and perk-flag carry-over (§13); and the grains, audit, expiry and
-the `perm` console command (§9); the projection that tells the client (§8); and the packet-boundary gate (§11), on the
-moderation packets, staff picks and the ambassador alert. The gates inside rooms and grains are
-next.
+Implementation plan for a permission system. **Phases 1 to 6 and 8 of §14 are built**: the node
+constants, registry and resolver (`Turbo.Primitives/Players/Permissions/`, tested in `Turbo.Tests`);
+the tables and seeds (§13); the grains, audit, expiry and the `perm` console command (§9); the
+projection that tells the client (§8); the packet-boundary gate (§11); the gates in rooms, the
+navigator, chat, trading, groups and the catalog (§11, §16 and the "as built" sections before §14);
+and the check that every node has a reader (§14, phase 8). Phase 7, limits through meta, is next.
 
 The shape is borrowed from LuckPerms rather than from the Habbo retros, on purpose. The retro
 pattern — one rank per player, a `permissions` table with a column per permission, code comparing
@@ -559,9 +559,14 @@ Each phase is testable on its own and ends with the tree building.
    (§16: `MinRank` against the derived level, `StaffOnly`, and the `required_node` column), and the
    Builders Club gates.
 7. **Meta.** The friend, room and area limits read through resolved meta.
-8. **`scripts/permgap.py`.** Lists every registered node that nothing reads, in the style of
-   `packetgap.py` and `wiredgap.py`. A node with no reader is a gate somebody meant to write and
-   did not, which is exactly the failure this system invites.
+8. **The reader check.** Built as a test rather than a script, so CI enforces it:
+   `PermissionNodeReaderTests` reads the IL of every server assembly and fails for a registered
+   node that nothing reads, unless it is listed with the reason nothing on the server can (a perk,
+   a node only the client gates on, or one waiting on an unbuilt feature). A node that gains a
+   reader must come off the list. Its first run found `wired.menu` unread: the client's wired menu
+   treats staff at level 4 as the room's owner (`WiredMenuController.isRoomOwnerOrStaff`), and the
+   server had no such rule, so `RoomGrain.GetWiredPermissionsAsync` now gives holders of
+   `wired.menu` the owner's wired permissions in any room.
 
 ## 15. Decisions
 
