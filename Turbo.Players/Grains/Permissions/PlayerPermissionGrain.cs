@@ -16,6 +16,9 @@ using Turbo.Players.Configuration;
 using Turbo.Players.Permissions;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Perk;
+using Turbo.Primitives.Messages.Outgoing.Turbo;
+using Turbo.Primitives.Networking;
+using Turbo.Primitives.Networking.Capabilities;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
@@ -688,32 +691,41 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
     {
         var client = _state.Client!;
         var hasClub = await _grainFactory.HasActiveClubAsync(PlayerId, ct);
+        var presence = _grainFactory.GetPlayerPresenceGrain(PlayerId);
+        var sendsNodes =
+            await presence.GetClientCapabilityVersionAsync(ClientCapabilities.PERMISSION_NODES, ct)
+            >= 1;
 
-        await _grainFactory
-            .GetPlayerPresenceGrain(PlayerId)
-            .SendComposerAsync(
-                [
-                    new UserRightsMessage
-                    {
-                        ClubLevel = hasClub ? ClubLevelType.Vip : ClubLevelType.None,
-                        SecurityLevel = client.SecurityLevel,
-                        IsAmbassador = client.IsAmbassador,
-                    },
-                    new PerkAllowancesMessageComposer
-                    {
-                        Perks =
-                        [
-                            .. client.Perks.Select(x => new PerkAllowanceItem
-                            {
-                                Code = PlayerPerkExtensions.ToLegacyString(x.Perk),
-                                IsAllowed = x.IsAllowed,
-                                ErrorMessage = x.Refusal,
-                            }),
-                        ],
-                    },
-                ],
-                ct
-            );
+        await presence.SendComposerAsync(
+            [
+                new UserRightsMessage
+                {
+                    ClubLevel = hasClub ? ClubLevelType.Vip : ClubLevelType.None,
+                    SecurityLevel = client.SecurityLevel,
+                    IsAmbassador = client.IsAmbassador,
+                },
+                new PerkAllowancesMessageComposer
+                {
+                    Perks =
+                    [
+                        .. client.Perks.Select(x => new PerkAllowanceItem
+                        {
+                            Code = PlayerPerkExtensions.ToLegacyString(x.Perk),
+                            IsAllowed = x.IsAllowed,
+                            ErrorMessage = x.Refusal,
+                        }),
+                    ],
+                },
+                // After UserRights, so a client falling back to the level never sees the
+                // nodes disagree with a level it has not been sent yet.
+                .. (
+                    sendsNodes
+                        ? (IComposer[])[new TurboPermissionNodesMessage { Nodes = client.Nodes }]
+                        : []
+                ),
+            ],
+            ct
+        );
 
         _state.SentClient = client;
 

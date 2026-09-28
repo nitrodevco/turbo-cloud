@@ -33,6 +33,13 @@ public static class PermissionProjection
                         Refusal = x.PerkRefusal ?? string.Empty,
                     }),
             ],
+            Nodes =
+            [
+                .. registry
+                    .Nodes.Values.Where(x => x.IsClientVisible && resolved.Has(x.Node))
+                    .Select(x => x.Node)
+                    .Order(StringComparer.Ordinal),
+            ],
         };
 
     /// <summary>

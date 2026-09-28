@@ -29,10 +29,18 @@ public sealed record PermissionClientSnapshot
     [Id(3)]
     public required ImmutableArray<PerkAllowanceSnapshot> Perks { get; init; }
 
+    /// <summary>
+    /// Every client-facing node held (<see cref="Turbo.Primitives.Players.Permissions.PermissionNodeDefinition.IsClientVisible"/>),
+    /// ordered: <c>TurboPermissionNodesMessage</c>, for a session that accepted it.
+    /// </summary>
+    [Id(4)]
+    public required ImmutableArray<string> Nodes { get; init; }
+
     /// <summary>Whether the client would be told the same thing; record equality compares the array by reference.</summary>
     public bool Matches(PermissionClientSnapshot other) =>
         SecurityLevel == other.SecurityLevel
         && IsAmbassador == other.IsAmbassador
         && IsModerator == other.IsModerator
-        && Perks.SequenceEqual(other.Perks);
+        && Perks.SequenceEqual(other.Perks)
+        && Nodes.SequenceEqual(other.Nodes);
 }

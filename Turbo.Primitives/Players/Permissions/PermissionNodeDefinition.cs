@@ -16,10 +16,23 @@ namespace Turbo.Primitives.Players.Permissions;
 /// The text sent with the perk for a client to show when it is not allowed. The Flash client
 /// never reads it; it is kept because a later client may.
 /// </param>
+/// <param name="ClientVisible">
+/// Sent to a client that accepted the <c>permission.nodes</c> extension although no Habbo client
+/// gate matches it: for a plugin whose own client UI gates on it. A node with a
+/// <paramref name="ClientLevel"/> is sent anyway.
+/// </param>
 public sealed record PermissionNodeDefinition(
     string Node,
     string Description,
     SecurityLevelType? ClientLevel = null,
     PlayerPerkFlags? Perk = null,
-    string? PerkRefusal = null
-);
+    string? PerkRefusal = null,
+    bool ClientVisible = false
+)
+{
+    /// <summary>
+    /// Whether a client gates on this node, so that a client told the nodes it holds
+    /// (<c>permission.nodes</c>) is told of it.
+    /// </summary>
+    public bool IsClientVisible => ClientVisible || ClientLevel is not null;
+}

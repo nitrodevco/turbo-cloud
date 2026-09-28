@@ -74,6 +74,7 @@ internal sealed partial class PlayerPresenceGrain
         // A flush awaiting the previous observer must not stall the replacement connection.
         _state.SessionGeneration++;
         _state.SessionKey = sessionKey;
+        _state.ClientCapabilities = _state.ClientCapabilities.Clear();
         _state.IsProcessingQueue = false;
         _state.OutgoingQueue.Clear();
         _sessionObserver = observer;
@@ -128,6 +129,7 @@ internal sealed partial class PlayerPresenceGrain
 
         _state.SessionGeneration++;
         _state.SessionKey = SessionKey.Invalid;
+        _state.ClientCapabilities = _state.ClientCapabilities.Clear();
         _state.IsProcessingQueue = false;
         _state.OutgoingQueue.Clear();
         _sessionObserver = null;

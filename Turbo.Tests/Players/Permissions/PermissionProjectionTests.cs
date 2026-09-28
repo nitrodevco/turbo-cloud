@@ -54,6 +54,47 @@ public class PermissionProjectionTests
     }
 
     [Fact]
+    public void Nodes_AreTheHeldClientFacingOnes_Ordered()
+    {
+        var client = Project(
+            PermissionNodes.Wired.MENU,
+            PermissionNodes.Catalog.GIFT_HIDE_SENDER,
+            PermissionNodes.Room.ENTER_FULL,
+            PermissionNodes.TRADE
+        );
+
+        // enter.full is server-only and trade reaches the client as a perk: neither is a gate.
+        client
+            .Nodes.Should()
+            .Equal(PermissionNodes.Catalog.GIFT_HIDE_SENDER, PermissionNodes.Wired.MENU);
+    }
+
+    [Fact]
+    public void Nodes_IncludeAPluginNodeMarkedClientVisible()
+    {
+        var registry = new PermissionRegistry([
+            new CorePermissionNodeSource(),
+            new VisibleSource(),
+        ]);
+        var resolved = Resolved(["casino.table.open", "casino.table.rig"]);
+
+        PermissionProjection.Project(registry, resolved).Nodes.Should().Equal("casino.table.open");
+    }
+
+    private sealed class VisibleSource : IPermissionNodeSource
+    {
+        public string? Prefix => "casino";
+
+        public System.Collections.Generic.IEnumerable<PermissionNodeDefinition> Nodes =>
+            [
+                new("casino.table.open", "test", ClientVisible: true),
+                new("casino.table.rig", "test"),
+            ];
+
+        public System.Collections.Generic.IEnumerable<PermissionMetaDefinition> MetaKeys => [];
+    }
+
+    [Fact]
     public void Ambassador_AndModerator_FollowTheirNodes()
     {
         var client = Project(PermissionNodes.Role.AMBASSADOR, PermissionNodes.Room.MODERATE_ANY);

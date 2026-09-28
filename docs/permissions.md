@@ -199,8 +199,8 @@ client gates from §2. Each names the one place that reads it.
 | --- | --- | --- | --- |
 | `room.control.any` | `RoomSecurityModule.IsRoomOwner` and `GetControllerLevelAsync` (returns `Moderator = 5`) | 5 | `// if has perm any_room_owner true`, `// if has perm room_rights Rights`. **One node, not two**: the client's only channel is `securityLevel >= 5`. |
 | `room.furni.steal` | `GetFurniPickupTypeAsync` → `SendToRequester` | — | `// if can steal furni` |
-| `room.furni.pickup_any` | info stand pickup of another player's furni | 4 | client-only today |
-| `room.enter.locked` | `RoomEntryModule.CheckAccessAsync` (`bypassDoor`) | 5 | |
+| `room.furni.pickup_any` | `GetFurniPickupTypeAsync`: pickup of another player's furni | 5 | the client offers it with `isAnyRoomController` (`InfoStandFurniView.updatePickupMode`), so 5, not the 4 an older reading gave |
+| `room.enter.locked` | `RoomEntryModule.CheckAccessAsync` (`bypassDoor`) | — | server-only: no client gate asks. The level 5 it once carried came from `NavigatorData`, whose `hasSecurity(5)` is `canEditRoomSettings` |
 | `room.enter.full` | same | — | staff turned away by capacity |
 | `room.enter.hidden` | `RoomEntryAccessType.HiddenByBuildersClub` | — | staff refused with everyone else |
 | `room.moderate.any` | `RoomModerationModule` kick/mute/ban, over `ModSettings`; `IRoomPlayer.IsModerator` | 4 | |
@@ -246,11 +246,12 @@ names the node (or meta floor) that set the level and every registered node at o
 player does not hold, and `perm user <p> info` and `perm group <g> info` print it as "the client
 will also offer, and the server refuse".
 
-Finer control is for nitro-next only, and opt-in: a Turbo-specific capability message sent by the
-client after the handshake, answered with the client-facing nodes the player holds and pushed on
-the same change path. nitro-next gates on a node when it has the list and falls back to the level
-when it does not, so it still works against other emulators, and a client that never asks never
-sees the packet. Not built; it spans both repositories and needs a header clear of Habbo's.
+Finer control is opt-in, and built: the `permission.nodes` extension of
+`docs/client-capabilities.md`. A client that asks after login is sent `TurboPermissionNodesMessage`
+— every held node that is **client-visible** (it has a `ClientLevel`, or a plugin marked it
+`ClientVisible`) — after `UserRights` and again whenever either changes. nitro-next gates on the
+node when it has the list and on the level when it does not, so it still works against other
+emulators, and a client that never asks never sees the packet.
 
 One place, and only one — a `PermissionProjection` in `Turbo.Players` — turns a resolved set into
 what the client is told:
