@@ -222,6 +222,22 @@ subscription grain asks for a resend when the club changes, without awaiting it,
 permission grain reads the club back from it. The perk refusal texts moved onto the node
 definitions (`PerkRefusal`). `IsModerator` is projected but reaches the room avatar in phase 6.
 
+### What a level leaks, and the Nitro opt-in
+
+The level is a threshold, so a group given one node that needs 7 is also offered everything
+that needs 7 or less. Every client understands only this, so it stays the default contract, and
+it is never capped: a capped level would let the server allow something the client offers no
+button for. Instead operators are shown the consequence. `PermissionProjection.ReportLevel`
+names the node (or meta floor) that set the level and every registered node at or below it the
+player does not hold, and `perm user <p> info` and `perm group <g> info` print it as "the client
+will also offer, and the server refuse".
+
+Finer control is for nitro-next only, and opt-in: a Turbo-specific capability message sent by the
+client after the handshake, answered with the client-facing nodes the player holds and pushed on
+the same change path. nitro-next gates on a node when it has the list and falls back to the level
+when it does not, so it still works against other emulators, and a client that never asks never
+sees the packet. Not built; it spans both repositories and needs a header clear of Habbo's.
+
 One place, and only one — a `PermissionProjection` in `Turbo.Players` — turns a resolved set into
 what the client is told:
 
@@ -427,13 +443,20 @@ never read, so it is zero for nearly everyone, and reading that as a denial woul
 and trading away from the whole hotel. The column stays until phase 4 stops loading it.
 Seeded groups, all editable afterwards:
 
-| Group | Weight | Parents | Nodes |
-| --- | --- | --- | --- |
-| `default` | 0 | — | the perks the SSO handler sends `true` today, and `trade` |
-| `ambassador` | 20 | `default` | `role.ambassador`, `chat.furni_chooser` |
-| `helper` | 30 | `default` | `perk.guide_tool`, `perk.judge_chat_reviews` |
-| `moderator` | 50 | `helper` | `room.*`, `moderation.tool`, `wired.menu`, `catalog.builders_club.without_membership`, `chat.style.staff`, `navigator.category.staff` |
-| `admin` | 100 | `moderator` | `*` |
+| Group | Weight | Parents | Nodes | Client level |
+| --- | --- | --- | --- | --- |
+| `default` | 0 | — | the perks the SSO handler sent `true`, `trade`, `chat.speak` | 0 |
+| `ambassador` | 20 | `default` | `role.ambassador`, `chat.furni_chooser`, `perk.no_video_offers` | 2 |
+| `helper` | 30 | `default` | `perk.guide_tool`, `perk.judge_chat_reviews` | 0 |
+| `moderator` | 50 | `helper` | `room.*`, `moderation.tool`, `wired.menu`, `catalog.builders_club.without_membership`, `catalog.guild.any_group`, `catalog.gift.hide_sender`, `guild.delete_any`, `chat.style.staff`, `chat.furni_chooser`, `perk.no_video_offers` | 5 |
+| `community` | 70 | `moderator` | `navigator.category.staff`, `navigator.staff_pick` | 7 |
+| `admin` | 100 | `community` | `*`, meta `client.security_level = 8` | 8 |
+
+The levels are the real hotel's, so every client draws staff UI as expected without knowing
+anything about nodes (`SeedCommunityGroup`; the first seed had `navigator.category.staff` on
+`moderator`, which put every moderator on 7). Each group also holds the lower-level nodes its
+level makes the client offer anyway, so `perm group <g> info` reports nothing shown-but-refused
+for any seeded group.
 
 `room.floorplan.large` is a node rather than meta because the client's `BUILDER_AT_WORK` perk is a
 yes/no and the server must agree with it; if a hotel later wants graded area limits, it becomes

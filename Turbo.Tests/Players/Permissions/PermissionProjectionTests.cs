@@ -108,6 +108,43 @@ public class PermissionProjectionTests
         Project(PermissionNodes.Perk.CAMERA).Matches(Project()).Should().BeFalse();
     }
 
+    [Fact]
+    public void ReportLevel_NamesTheNodeThatSetIt_AndWhatLeaks()
+    {
+        var report = PermissionProjection.ReportLevel(
+            REGISTRY,
+            Resolved([PermissionNodes.Navigator.CATEGORY_STAFF, PermissionNodes.Wired.MENU])
+        );
+
+        report.Level.Should().Be(SecurityLevelType.Community);
+        report.Source.Should().Be(PermissionNodes.Navigator.CATEGORY_STAFF);
+
+        var refused = report.ShownButRefused.Select(x => x.Node).ToList();
+        refused.Should().Contain(PermissionNodes.Navigator.STAFF_PICK);
+        refused.Should().Contain(PermissionNodes.Moderation.TOOL);
+        refused.Should().NotContain(PermissionNodes.Wired.MENU);
+        refused.Should().NotContain(PermissionNodes.Room.ENTER_FULL); // no client level
+        report.ShownButRefused.Select(x => x.ClientLevel).Should().BeInDescendingOrder();
+    }
+
+    [Fact]
+    public void ReportLevel_FromMetaFloor_NamesTheKey()
+    {
+        var report = PermissionProjection.ReportLevel(REGISTRY, Resolved([], "8"));
+
+        report.Level.Should().Be(SecurityLevelType.Administrator);
+        report.Source.Should().Be(PermissionMetaKeys.Client.SECURITY_LEVEL);
+    }
+
+    [Fact]
+    public void ReportLevel_AtNone_LeaksNothing()
+    {
+        var report = PermissionProjection.ReportLevel(REGISTRY, Resolved([PermissionNodes.TRADE]));
+
+        report.Source.Should().BeNull();
+        report.ShownButRefused.Should().BeEmpty();
+    }
+
     private static PermissionClientSnapshot Project(params string[] nodes) =>
         PermissionProjection.Project(REGISTRY, Resolved(nodes));
 

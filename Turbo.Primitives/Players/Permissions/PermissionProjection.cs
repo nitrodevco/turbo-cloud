@@ -76,4 +76,30 @@ public static class PermissionProjection
 
         return level;
     }
+
+    /// <summary>The level, what set it, and what it leaks to the client. See <see cref="PermissionLevelReport"/>.</summary>
+    public static PermissionLevelReport ReportLevel(
+        PermissionRegistry registry,
+        ResolvedPermissionsSnapshot resolved
+    )
+    {
+        var level = SecurityLevelOf(registry, resolved);
+
+        if (level == SecurityLevelType.None)
+            return new(level, null, []);
+
+        var source = registry
+            .Nodes.Values.Where(x => x.ClientLevel == level && resolved.Has(x.Node))
+            .Select(x => x.Node)
+            .FirstOrDefault();
+
+        var refused = registry
+            .Nodes.Values.Where(x =>
+                x.ClientLevel is { } needed && needed <= level && !resolved.Has(x.Node)
+            )
+            .OrderByDescending(x => x.ClientLevel)
+            .ThenBy(x => x.Node, StringComparer.Ordinal);
+
+        return new(level, source ?? PermissionMetaKeys.Client.SECURITY_LEVEL, [.. refused]);
+    }
 }

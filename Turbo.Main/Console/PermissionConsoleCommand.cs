@@ -9,6 +9,8 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains.Permissions;
+using Turbo.Primitives.Players.Permissions;
+using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Snapshots.Permissions;
 
 namespace Turbo.Main.Console;
@@ -17,7 +19,10 @@ namespace Turbo.Main.Console;
 /// The <c>perm</c> console command: reads and edits groups and players' permissions through the
 /// permission grains, as the console (audited with no actor). See <c>docs/permissions.md</c>.
 /// </summary>
-internal sealed class PermissionConsoleCommand(IGrainFactory grainFactory)
+internal sealed class PermissionConsoleCommand(
+    IGrainFactory grainFactory,
+    IPermissionRegistryProvider permissionRegistryProvider
+)
 {
     public const string USAGE = """
             perm check <player> <node>                         why a player does or does not hold a node
@@ -51,6 +56,8 @@ internal sealed class PermissionConsoleCommand(IGrainFactory grainFactory)
     private const string EXTEND_FLAG = "--extend";
 
     private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly IPermissionRegistryProvider _permissionRegistryProvider =
+        permissionRegistryProvider;
 
     /// <summary>What a temporary write does to one already running; <c>--extend</c> anywhere asks to extend.</summary>
     private PermissionExpiryModeType _mode;
@@ -361,6 +368,8 @@ internal sealed class PermissionConsoleCommand(IGrainFactory grainFactory)
             $"  perks allowed: {OrDash(string.Join(", ", client.Perks.Where(x => x.IsAllowed).Select(x => x.Perk)))}"
         );
 
+        PrintLevel(PermissionProjection.ReportLevel(_permissionRegistryProvider.Current, resolved));
+
         if (resolved.UnregisteredNodes.Length > 0)
             System.Console.WriteLine(
                 $"unregistered: {string.Join(", ", resolved.UnregisteredNodes)}"
@@ -393,6 +402,58 @@ internal sealed class PermissionConsoleCommand(IGrainFactory grainFactory)
         foreach (var meta in group.Meta)
             System.Console.WriteLine(
                 $"  meta {meta.Key} = {meta.Value}{FormatExpiry(meta.ExpiresAt)}"
+            );
+
+        PrintGroupLevel(group, groups);
+    }
+
+    /// <summary>
+    /// What a player holding this group (and default) would be sent, worked out here against the
+    /// directory's groups: the level is a property of the whole inheritance, not of one group's
+    /// own nodes.
+    /// </summary>
+    private void PrintGroupLevel(
+        PermissionGroupSnapshot group,
+        ImmutableDictionary<int, PermissionGroupSnapshot> groups
+    )
+    {
+        var registry = _permissionRegistryProvider.Current;
+        var member = new PlayerPermissionAssignmentsSnapshot
+        {
+            Groups = [new PermissionGroupMembershipSnapshot { GroupId = group.Id }],
+            Nodes = [],
+            Meta = [],
+        };
+
+        PrintLevel(
+            PermissionProjection.ReportLevel(
+                registry,
+                PermissionResolver.Resolve(registry, groups, member, DateTime.UtcNow)
+            )
+        );
+    }
+
+    private static void PrintLevel(PermissionLevelReport report)
+    {
+        if (report.Source is null)
+        {
+            System.Console.WriteLine("client level: None (0)");
+            return;
+        }
+
+        System.Console.WriteLine(
+            $"client level: {report.Level} ({(int)report.Level}), set by {report.Source}"
+        );
+
+        if (report.ShownButRefused.IsEmpty)
+            return;
+
+        // The client reads the level as a threshold: it draws these too, and the server refuses them.
+        System.Console.WriteLine("  the client will also offer, and the server refuse:");
+
+        foreach (var node in report.ShownButRefused)
+            System.Console.WriteLine(
+                $"    {node.Node, -42} ({(int)node.ClientLevel!.Value})  {node.Description}"
             );
     }
 

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans;
 using Turbo.Plugins;
+using Turbo.Primitives.Players.Providers;
 
 namespace Turbo.Main.Console;
 
@@ -110,7 +111,10 @@ public class ConsoleCommandService(IServiceProvider services)
             }
 
             case "perm":
-                await new PermissionConsoleCommand(_services.GetRequiredService<IGrainFactory>())
+                await new PermissionConsoleCommand(
+                    _services.GetRequiredService<IGrainFactory>(),
+                    _services.GetRequiredService<IPermissionRegistryProvider>()
+                )
                     .RunAsync(args, ct)
                     .ConfigureAwait(false);
                 break;
