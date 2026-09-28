@@ -270,6 +270,9 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
         if (!PermissionNodeFormat.IsValidAssignment(node))
             return PermissionChangeResultType.Invalid;
 
+        if (PermissionGroupNames.IsGroupNode(node))
+            return PermissionChangeResultType.ReservedNode;
+
         var now = DateTime.UtcNow;
 
         if (expiresAt <= now)

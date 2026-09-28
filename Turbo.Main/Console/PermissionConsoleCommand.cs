@@ -501,6 +501,8 @@ internal sealed class PermissionConsoleCommand(
                 PermissionChangeResultType.AlreadyExists =>
                     "A group with that name already exists.",
                 PermissionChangeResultType.NotFound => "Nothing of that name was set.",
+                PermissionChangeResultType.ReservedNode =>
+                    "group.<name> follows from holding the group; add the player to it instead.",
                 _ => result.ToString(),
             }
         );

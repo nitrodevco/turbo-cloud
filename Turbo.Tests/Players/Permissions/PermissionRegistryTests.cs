@@ -38,6 +38,26 @@ public class PermissionRegistryTests
     }
 
     [Fact]
+    public void Constructor_RejectsNodesUnderTheMembershipRoot()
+    {
+        var core = () => new PermissionRegistry([new TestSource(null, ["group.vip"])]);
+        var plugin = () => new PermissionRegistry([new TestSource("group", ["group.vip"])]);
+
+        core.Should().Throw<InvalidOperationException>().WithMessage("*membership nodes*");
+        plugin.Should().Throw<InvalidOperationException>().WithMessage("*membership nodes*");
+    }
+
+    [Fact]
+    public void IsCheckable_AcceptsMembershipNodes()
+    {
+        var registry = new PermissionRegistry([new CorePermissionNodeSource()]);
+
+        registry.IsCheckable("group.vip").Should().BeTrue();
+        registry.IsCheckable("group.*").Should().BeFalse();
+        registry.IsCheckable("casino.table.open").Should().BeFalse();
+    }
+
+    [Fact]
     public void Constructor_RejectsPluginNodeOutsideItsPrefix()
     {
         var act = () => new PermissionRegistry([new TestSource("casino", ["dice.roll"])]);

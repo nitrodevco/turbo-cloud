@@ -80,12 +80,25 @@ public sealed class PermissionRegistry
 
     public bool IsRegistered(string node) => _nodes.ContainsKey(node);
 
+    /// <summary>
+    /// Whether a check may ask about <paramref name="node"/>: a registered node, or a membership
+    /// node (<c>group.&lt;name&gt;</c>), which every group implies without registering.
+    /// </summary>
+    public bool IsCheckable(string node) =>
+        IsRegistered(node)
+        || (PermissionGroupNames.IsGroupNode(node) && PermissionNodeFormat.IsValidNode(node));
+
     public bool IsRegisteredMetaKey(string key) => _metaKeys.ContainsKey(key);
 
     private static void Validate(string value, string? prefix, string kind)
     {
         if (!PermissionNodeFormat.IsValidNode(value))
             throw new InvalidOperationException($"Permission {kind} '{value}' is malformed.");
+
+        if (PermissionGroupNames.IsGroupNode(value))
+            throw new InvalidOperationException(
+                $"Permission {kind} '{value}' is under '{PermissionGroupNames.NODE_ROOT}.', which membership nodes reserve."
+            );
 
         if (prefix is not null && !value.StartsWith(prefix + ".", StringComparison.Ordinal))
             throw new InvalidOperationException(

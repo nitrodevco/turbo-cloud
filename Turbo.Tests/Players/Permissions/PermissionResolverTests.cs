@@ -179,7 +179,8 @@ public class PermissionResolverTests
             Player(groups: [Member(1)])
         );
 
-        resolved.Granted.Should().BeEquivalentTo(REGISTRY.Nodes.Keys);
+        // The wildcard reaches registered nodes only; the membership node comes from holding admin.
+        resolved.Granted.Should().BeEquivalentTo(REGISTRY.Nodes.Keys.Append("group.admin"));
     }
 
     // --- inheritance ---
@@ -438,10 +439,75 @@ public class PermissionResolverTests
             Player(groups: [Member(1)])
         );
 
-        resolved.Granted.Should().BeEmpty();
+        resolved.Granted.Should().Equal("group.vip");
         resolved.UnregisteredNodes.Should().Equal("casino.table.open");
         resolved.UnregisteredMetaKeys.Should().Equal("casino.limit.tables");
         resolved.Meta.Should().BeEmpty();
+    }
+
+    // --- membership nodes ---
+
+    [Fact]
+    public void MembershipNodes_CoverHeldInheritedAndDefaultGroups()
+    {
+        var groups = new[]
+        {
+            Group(1, PermissionGroupNames.DEFAULT, 0),
+            Group(2, "helper", 30),
+            Group(3, "moderator", 50, parents: [2]),
+            Group(4, "vip", 10),
+        };
+
+        var resolved = Resolve(groups, Player(groups: [Member(3)]));
+
+        resolved.Has("group.default").Should().BeTrue();
+        resolved.Has("group.moderator").Should().BeTrue();
+        resolved.Has("group.helper").Should().BeTrue();
+        resolved.Has("group.vip").Should().BeFalse();
+    }
+
+    [Fact]
+    public void MembershipNode_GoesWithAnExpiredMembership()
+    {
+        var resolved = Resolve(
+            [Group(1, "vip", 10)],
+            Player(groups: [Member(1, NOW.AddMinutes(-1))])
+        );
+
+        resolved.Has("group.vip").Should().BeFalse();
+    }
+
+    [Fact]
+    public void MembershipNode_CannotBeAssignedOrDenied()
+    {
+        var resolved = Resolve(
+            [Group(1, "vip", 10), Group(2, "moderator", 50, nodes: [Node("*")])],
+            Player(
+                groups: [Member(1), Member(2)],
+                nodes: [Node("group.vip", false), Node("group.admin")]
+            )
+        );
+
+        resolved.Has("group.vip").Should().BeTrue();
+        resolved.Has("group.admin").Should().BeFalse();
+        resolved.UnregisteredNodes.Should().Equal("group.admin", "group.vip");
+    }
+
+    [Fact]
+    public void Explain_MembershipNode_NamesThePathToTheGroup()
+    {
+        var groups = new[] { Group(2, "helper", 30), Group(3, "moderator", 50, parents: [2]) };
+
+        var held = Explain(groups, Player(groups: [Member(3)]), "group.helper");
+        var missing = Explain(groups, Player(groups: [Member(3)]), "group.vip");
+
+        held.IsRegistered.Should().BeTrue();
+        held.Granted.Should().BeTrue();
+        held.Decision!.GroupName.Should().Be("helper");
+        held.Decision.Path.Should().Equal("moderator", "helper");
+        missing.IsRegistered.Should().BeTrue();
+        missing.Granted.Should().BeFalse();
+        missing.Decision.Should().BeNull();
     }
 
     // --- explain ---

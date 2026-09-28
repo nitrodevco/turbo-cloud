@@ -127,7 +127,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
     {
         var resolved = EnsureResolved();
 
-        if (!_state.Registry!.IsRegistered(node))
+        if (!_state.Registry!.IsCheckable(node))
         {
             // A gate asking for a node nobody registered is a bug in the gate, not a denial.
             _logger.LogWarning(
@@ -314,6 +314,9 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
     {
         if (!PermissionNodeFormat.IsValidAssignment(node))
             return PermissionChangeResultType.Invalid;
+
+        if (PermissionGroupNames.IsGroupNode(node))
+            return PermissionChangeResultType.ReservedNode;
 
         var now = DateTime.UtcNow;
 

@@ -29,4 +29,10 @@ public enum PermissionChangeResultType
 
     /// <summary>There was nothing of that name to remove.</summary>
     NotFound = 8,
+
+    /// <summary>
+    /// A node under <c>group.</c>: membership nodes follow from the groups a player holds and
+    /// cannot be assigned.
+    /// </summary>
+    ReservedNode = 9,
 }

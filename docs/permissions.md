@@ -157,6 +157,14 @@ Meta resolves by the selection its key is registered with (`PermissionMetaSelect
 temporary value before a permanent one — while `HighestNumber` and `LowestNumber` take the
 largest or smallest number any live source sets, which is what a limit several groups raise wants.
 
+Every group the player reaches, directly, by inheritance or as `default`, also grants its
+**membership node** `group.<name>`, as LuckPerms' `group.<name>` does. It is not registered and
+cannot be assigned: `group.` is reserved (the registry refuses a node under it, and a write of one
+answers `ReservedNode`), no wildcard reaches it, and a player denial of it changes nothing. Holding
+the group is the only way to hold it, so `required_node = 'group.vip'` (§16) means "is in vip".
+`perm check <player> group.<name>` shows the inheritance path. A membership node a CMS wrote into a
+node table anyway is reported as unregistered, like any other.
+
 This is LuckPerms' order with contexts removed — see §12.
 
 ## 6. Meta
@@ -705,7 +713,7 @@ temporary player denials of `trade` and `chat.speak` once the mod tool is built,
 | Argument-based command permissions (who may grant what) | missing | **take before any in-game editor**: a manager may only grant nodes they hold and groups lighter than their heaviest (`permissions.manage.*`) |
 | Verbose (watch checks live) | missing | **take**: every check goes through `HasAsync`, so `perm verbose <player>` logging checks is cheap and is how a hotel finds which node a feature wants |
 | `group listmembers`, `log recent`/`search`, `search <node>` (who holds it) | missing | take, console only, cheap queries |
-| `group.<name>` as a node (membership checkable like a permission) | missing | take: resolve `group.<name>` for every group held, so `required_node` (§16) can say `group.vip` |
+| `group.<name>` as a node (membership checkable like a permission) | built (§5) | — |
 | Events (`NodeAddEvent`, `UserDataRecalculateEvent`, `UserPromoteEvent`) | missing | take: a `PlayerPermissionsChangedEvent` on the event system for plugins |
 | Log notify (tell online staff of changes) | missing | later, with the mod tool |
 | Tracks, clone/rename group key, clear, bulk update, export/import, web editor | missing | later; bulk renames of a node are a migration, backups are database dumps |

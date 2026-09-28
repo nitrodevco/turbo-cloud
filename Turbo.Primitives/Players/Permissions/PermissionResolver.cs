@@ -21,6 +21,10 @@ namespace Turbo.Primitives.Players.Permissions;
 /// assignments and memberships do not take part. Meta resolves by the selection its key was
 /// registered with; the default takes the first source in the same order, temporary first.
 /// </para>
+/// <para>
+/// Every group reached also grants its membership node, <c>group.&lt;name&gt;</c>, which no
+/// assignment can set or deny: holding the group is the only way to hold it.
+/// </para>
 /// </summary>
 public static class PermissionResolver
 {
@@ -49,6 +53,12 @@ public static class PermissionResolver
 
                 break;
             }
+        }
+
+        foreach (var source in sources)
+        {
+            if (source.Group is { } group)
+                granted.Add(PermissionGroupNames.ToNode(group.Name));
         }
 
         var meta = ImmutableDictionary.CreateBuilder<string, string>(StringComparer.Ordinal);
@@ -104,6 +114,9 @@ public static class PermissionResolver
     {
         var sources = CollectSources(groups, player, now, out _);
 
+        if (PermissionGroupNames.IsGroupNode(node))
+            return ExplainMembership(registry, sources, node);
+
         PermissionAssignmentSourceSnapshot? decision = null;
         var overridden = ImmutableArray.CreateBuilder<PermissionAssignmentSourceSnapshot>();
 
@@ -125,10 +138,44 @@ public static class PermissionResolver
         return new PermissionCheckSnapshot
         {
             Node = node,
-            IsRegistered = registry.IsRegistered(node),
+            IsRegistered = registry.IsCheckable(node),
             Granted = decision?.Value ?? false,
             Decision = decision,
             Overridden = overridden.ToImmutable(),
+        };
+    }
+
+    /// <summary>
+    /// A membership node is decided by the group it names being reached at all; the path says
+    /// how. Nothing overrides it.
+    /// </summary>
+    private static PermissionCheckSnapshot ExplainMembership(
+        PermissionRegistry registry,
+        List<Source> sources,
+        string node
+    )
+    {
+        var source = sources.FirstOrDefault(x =>
+            x.Group is { } group
+            && string.Equals(
+                PermissionGroupNames.ToNode(group.Name),
+                node,
+                StringComparison.Ordinal
+            )
+        );
+
+        return new PermissionCheckSnapshot
+        {
+            Node = node,
+            IsRegistered = registry.IsCheckable(node),
+            Granted = source is not null,
+            Decision = source is null
+                ? null
+                : Describe(
+                    source,
+                    new PermissionNodeAssignmentSnapshot { Node = node, Value = true }
+                ),
+            Overridden = [],
         };
     }
 
