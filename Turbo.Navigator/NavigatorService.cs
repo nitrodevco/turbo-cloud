@@ -457,9 +457,6 @@ public sealed class NavigatorService(
         return rooms.Count == 0 ? null : rooms[Random.Shared.Next(rooms.Count)].RoomId;
     }
 
-    public bool CanManageStaffPicks(PlayerId playerId) =>
-        _config.StaffPickPlayerIds.Contains(playerId.Value);
-
     public async Task<bool> RoomExistsAsync(RoomId roomId, CancellationToken ct)
     {
         if (roomId.Value <= 0)

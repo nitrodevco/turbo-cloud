@@ -3,18 +3,16 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Navigator;
-using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.PacketHandlers.Navigator;
 
-public class ToggleStaffPickMessageHandler(
-    IGrainFactory grainFactory,
-    INavigatorService navigatorService
-) : IMessageHandler<ToggleStaffPickMessage>
+[RequiresPermission(PermissionNodes.Navigator.STAFF_PICK)]
+public class ToggleStaffPickMessageHandler(IGrainFactory grainFactory)
+    : IMessageHandler<ToggleStaffPickMessage>
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
-    private readonly INavigatorService _navigatorService = navigatorService;
 
     public async ValueTask HandleAsync(
         ToggleStaffPickMessage message,
@@ -25,7 +23,9 @@ public class ToggleStaffPickMessageHandler(
         if (
             ctx.PlayerId <= 0
             || message.RoomId <= 0
-            || !_navigatorService.CanManageStaffPicks(ctx.PlayerId)
+            || !await _grainFactory
+                .HasPermissionAsync(ctx.PlayerId, PermissionNodes.Navigator.STAFF_PICK, ct)
+                .ConfigureAwait(false)
         )
             return;
 

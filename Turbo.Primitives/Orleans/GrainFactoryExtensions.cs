@@ -88,6 +88,17 @@ public static class GrainFactoryExtensions
         PlayerId playerId
     ) => factory.GetGrain<IPlayerPermissionGrain>(playerId.Value);
 
+    /// <summary>
+    /// Whether a player holds a permission node: the one check every gate makes. Answered from
+    /// the player's permission grain, in memory. Pass a constant from <c>PermissionNodes</c>.
+    /// </summary>
+    public static Task<bool> HasPermissionAsync(
+        this IGrainFactory factory,
+        PlayerId playerId,
+        string node,
+        CancellationToken ct
+    ) => factory.GetPlayerPermissionGrain(playerId).HasAsync(node, ct);
+
     public static IBadgeDirectoryGrain GetBadgeDirectoryGrain(this IGrainFactory factory) =>
         factory.GetGrain<IBadgeDirectoryGrain>(SingletonGrainId.GLOBAL);
 

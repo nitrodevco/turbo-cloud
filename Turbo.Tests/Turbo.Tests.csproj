@@ -14,5 +14,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
+    <!-- For PermissionGateTests, which reads the handlers' IL; nothing here runs a handler. -->
+    <ProjectReference Include="..\Turbo.PacketHandlers\Turbo.PacketHandlers.csproj" />
   </ItemGroup>
 </Project>

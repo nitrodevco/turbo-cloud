@@ -63,8 +63,6 @@ public interface INavigatorService
 
     public Task<RoomId?> GetRandomPromotedRoomAsync(string eventCategory, CancellationToken ct);
 
-    public bool CanManageStaffPicks(PlayerId playerId);
-
     /// <summary>Whether the room exists, answered from the room cache.</summary>
     public Task<bool> RoomExistsAsync(RoomId roomId, CancellationToken ct);
     public Task AddFavouriteRoomAsync(PlayerId playerId, RoomId roomId, CancellationToken ct);

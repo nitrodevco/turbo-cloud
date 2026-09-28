@@ -1,10 +1,11 @@
 # Permissions, groups and security levels
 
-Implementation plan for a permission system. **Phases 1 to 4 of §14 are built**: the node constants,
+Implementation plan for a permission system. **Phases 1 to 5 of §14 are built**: the node constants,
 the registry and the resolver in `Turbo.Primitives/Players/Permissions/`, tested in
 `Turbo.Tests`; the tables, seeded groups and perk-flag carry-over (§13); and the grains, audit, expiry and
-the `perm` console command (§9); and the projection that tells the client (§8). Nothing on the
-server enforces a permission yet.
+the `perm` console command (§9); the projection that tells the client (§8); and the packet-boundary gate (§11), on the
+moderation packets, staff picks and the ambassador alert. The gates inside rooms and grains are
+next.
 
 The shape is borrowed from LuckPerms rather than from the Habbo retros, on purpose. The retro
 pattern — one rank per player, a `permissions` table with a column per permission, code comparing
@@ -362,26 +363,40 @@ the same record.
 The failure mode of a permission system is a gate nobody remembers to write. Gates live at three
 depths.
 
-1. **At the packet boundary** — "may this player send `ModerateRoom` at all". The handler carries
-   `[RequiresPermission(PermissionNodes.Moderation.TOOL)]`, which declares the gate where a
-   reviewer reads it, and its first line is the check:
+1. **At the packet boundary** — "may this player send `ModerateRoom` at all". Built in phase 5.
+   The handler carries `[RequiresPermission(PermissionNodes.Moderation.TOOL)]`, which declares
+   the gate where a reviewer reads it, and its first step is the check, through the one
+   extension every gate uses:
 
    ```csharp
-   if (!await permissions.HasAsync(ctx, PermissionNodes.Moderation.TOOL, ct))
+   if (!await _grainFactory.HasPermissionAsync(ctx.PlayerId, PermissionNodes.Moderation.TOOL, ct))
        return;
    ```
 
-   A test in `Turbo.Tests` (added in phase 1, §14) inspects every handler: one with the attribute
-   whose body does not call `HasAsync` with the same node fails, and so does a check with no
-   attribute. CI runs it, so the declaration and the enforcement cannot drift apart.
+   `HasPermissionAsync` sits on `IGrainFactory` beside `HasActiveClubAsync`, rather than behind a
+   new service: it is one grain call, and that is where the other "does this player have" helpers
+   already live. The attribute takes several nodes when any one of them will do
+   (`AmbassadorAlertMessageHandler`: `role.ambassador` or `room.moderate.any`, because the client
+   offers the ambassador tools at security level 4 too).
 
-   A pipeline behaviour that reads the attribute would remove the line, but
+   `PermissionGateTests` (`Turbo.Tests/PacketHandlers/`) holds every handler in
+   `Turbo.PacketHandlers` to its declaration, by reading the compiled IL of `HandleAsync`: a
+   handler with the attribute must call `HasPermissionAsync` and load every node it names (a
+   `PermissionNodes` constant compiles to the string), and a handler without it must not call it
+   at all. Every declared node must be registered. CI runs it, so the declaration and the check
+   cannot drift apart; checking the wrong node, or checking without declaring, fails the build.
+
+   Gated so far: the 21 moderation packets (`moderation.tool`; still stubs, so the gate is in place
+   before the tool is), `ToggleStaffPick` (`navigator.staff_pick`, replacing
+   `NavigatorConfig.StaffPickPlayerIds`, which is gone), and the ambassador alert (replacing its
+   "moderator-level controller" stand-in).
+
+   A pipeline behaviour that read the attribute would remove the check line, but
    `AssemblyExplorer.FindAssignees` skips `IsGenericTypeDefinition`, so an open-generic
    `PermissionBehavior<T>` is not discovered, and closing it over every message type means
    changing `MessageFeatureProcessor` — the dispatch every domain and every plugin goes through.
    Not worth that risk for one line per gated handler. If the pipeline gains open-generic
    behaviours for another reason, the attribute is already in place to move onto.
-
 2. **Inside a grain, asynchronously** — `RoomModerationModule.CanModerateAsync`, catalog
    purchases. One call to `IPlayerPermissionGrain.HasAsync`.
 
@@ -487,8 +502,7 @@ Each phase is testable on its own and ends with the tree building.
 4. **The projection.** `UserRights`, `PerkAllowances` replacing the SSO literals, `IsModerator`,
    live resend on change. Testable: a player added to `moderator` sees the mod tool without
    reconnecting, and loses it when a temporary grant expires.
-5. **The packet boundary.** `[RequiresPermission]`, `IPermissionService`, and the reflection test
-   (§11).
+5. **The packet boundary.** `[RequiresPermission]`, `HasPermissionAsync`, and the IL test (§11).
 6. **The room.** `IRoomPlayer.Permissions`, loaded on entry and pushed on change, then the gates in
    §7 converted one at a time. Each is a line, and each removes a comment. Then the navigator
    (§16: `MinRank` against the derived level, `StaffOnly`, and the `required_node` column), and the
