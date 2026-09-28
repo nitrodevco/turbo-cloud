@@ -20,13 +20,7 @@ public class ToggleStaffPickMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (
-            ctx.PlayerId <= 0
-            || message.RoomId <= 0
-            || !await _grainFactory
-                .HasPermissionAsync(ctx.PlayerId, PermissionNodes.Navigator.STAFF_PICK, ct)
-                .ConfigureAwait(false)
-        )
+        if (message.RoomId <= 0)
             return;
 
         // The client sends the room's current state; the request is to flip it.

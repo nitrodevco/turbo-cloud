@@ -14,8 +14,10 @@ namespace Turbo.Tests.Players.Permissions;
 /// A registered node that nothing on the server reads is a gate somebody meant to write and did
 /// not — the failure a permission system invites (<c>docs/permissions.md</c> §14, phase 8). This
 /// reads the IL of every server assembly for each node's string (a <c>PermissionNodes</c> constant
-/// compiles to the string itself) and fails for a node that appears nowhere but its own
-/// registration, unless it is listed below with the reason nothing on the server can read it.
+/// compiles to the string itself), and counts the nodes a handler's <c>[RequiresPermission]</c>
+/// names, which the message pipeline checks for it. It fails for a node that appears nowhere but
+/// its own registration, unless it is listed below with the reason nothing on the server can read
+/// it.
 /// </summary>
 public class PermissionNodeReaderTests
 {
@@ -95,7 +97,8 @@ public class PermissionNodeReaderTests
 
     /// <summary>
     /// Every string literal in every server assembly, except where core registers its own nodes,
-    /// which is not a read.
+    /// which is not a read, and every node a type's <see cref="RequiresPermissionAttribute"/>
+    /// names.
     /// </summary>
     private static HashSet<string> ReadStrings()
     {
@@ -123,6 +126,9 @@ public class PermissionNodeReaderTests
             {
                 if (type == typeof(CorePermissionNodeSource))
                     continue;
+
+                if (type.GetCustomAttribute<RequiresPermissionAttribute>() is { } gate)
+                    strings.UnionWith(gate.Nodes);
 
                 foreach (var method in IlScanner.MethodsOf(type))
                     IlScanner.Scan(method, strings);

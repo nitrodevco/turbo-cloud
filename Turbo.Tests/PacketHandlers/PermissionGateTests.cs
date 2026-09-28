@@ -14,12 +14,12 @@ using Xunit;
 namespace Turbo.Tests.PacketHandlers;
 
 /// <summary>
-/// Holds every packet handler to what <see cref="RequiresPermissionAttribute"/> declares: a
-/// handler with the attribute must call <see cref="GrainFactoryExtensions.HasPermissionAsync"/>
-/// with each node it names, and a handler without it must not call it at all, so the declaration
-/// a reviewer reads and the check that runs cannot drift apart. It reads the compiled IL of
-/// <c>HandleAsync</c> (the async state machine's <c>MoveNext</c> when there is one): a
-/// <c>PermissionNodes</c> constant compiles to the string itself.
+/// Holds every packet handler to how <see cref="RequiresPermissionAttribute"/> works: the pipeline
+/// enforces the attribute (<see cref="PermissionGate"/>), so every node a handler declares must be
+/// registered, and no handler calls <see cref="GrainFactoryExtensions.HasPermissionAsync"/> itself.
+/// A handler-level gate is the attribute or nothing, so what a reviewer reads is what runs. It
+/// reads the compiled IL of <c>HandleAsync</c> (the async state machine's <c>MoveNext</c> when
+/// there is one).
 /// </summary>
 public class PermissionGateTests
 {
@@ -41,35 +41,27 @@ public class PermissionGateTests
 
     [Theory]
     [MemberData(nameof(Handlers))]
-    public void Handler_ChecksExactlyWhatItDeclares(Type handler)
+    public void Handler_DeclaresOnlyRegisteredNodes(Type handler)
     {
         var declared = handler.GetCustomAttribute<RequiresPermissionAttribute>()?.Nodes ?? [];
-        var (strings, calls) = ReadHandleAsyncBody(handler);
-        var checks = calls.Contains(HAS_PERMISSION);
-
-        if (declared.Count == 0)
-        {
-            checks
-                .Should()
-                .BeFalse(
-                    "{0} checks a permission without declaring it with [RequiresPermission]",
-                    handler.Name
-                );
-
-            return;
-        }
-
-        checks
-            .Should()
-            .BeTrue("{0} declares [RequiresPermission] but never checks it", handler.Name);
 
         foreach (var node in declared)
-        {
             REGISTRY.IsRegistered(node).Should().BeTrue("{0} names {1}", handler.Name, node);
-            strings
-                .Should()
-                .Contain(node, "{0} declares {1} but does not check it", handler.Name, node);
-        }
+    }
+
+    [Theory]
+    [MemberData(nameof(Handlers))]
+    public void Handler_LeavesItsGateToThePipeline(Type handler)
+    {
+        var (_, calls) = ReadHandleAsyncBody(handler);
+
+        calls
+            .Should()
+            .NotContain(
+                HAS_PERMISSION,
+                "{0} checks a permission itself; declare it with [RequiresPermission] instead",
+                handler.Name
+            );
     }
 
     [Fact]

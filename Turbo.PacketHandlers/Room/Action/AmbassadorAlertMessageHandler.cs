@@ -26,17 +26,7 @@ public class AmbassadorAlertMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || message.UserId <= 0)
-            return;
-
-        if (
-            !await _grainFactory
-                .HasPermissionAsync(ctx.PlayerId, PermissionNodes.Role.AMBASSADOR, ct)
-                .ConfigureAwait(false)
-            && !await _grainFactory
-                .HasPermissionAsync(ctx.PlayerId, PermissionNodes.Room.MODERATE_ANY, ct)
-                .ConfigureAwait(false)
-        )
+        if (ctx.RoomId <= 0 || message.UserId <= 0)
             return;
 
         await _grainFactory

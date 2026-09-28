@@ -1,9 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Moderator;
-using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.PacketHandlers.Moderator;
@@ -13,22 +11,14 @@ namespace Turbo.PacketHandlers.Moderator;
 /// in place so that when it is, only players who hold the tool reach it.
 /// </summary>
 [RequiresPermission(PermissionNodes.Moderation.TOOL)]
-public class ModBanMessageHandler(IGrainFactory grainFactory) : IMessageHandler<ModBanMessage>
+public class ModBanMessageHandler : IMessageHandler<ModBanMessage>
 {
-    private readonly IGrainFactory _grainFactory = grainFactory;
-
     public async ValueTask HandleAsync(
         ModBanMessage message,
         MessageContext ctx,
         CancellationToken ct
     )
     {
-        if (
-            ctx.PlayerId <= 0
-            || !await _grainFactory
-                .HasPermissionAsync(ctx.PlayerId, PermissionNodes.Moderation.TOOL, ct)
-                .ConfigureAwait(false)
-        )
-            return;
+        await ValueTask.CompletedTask.ConfigureAwait(false);
     }
 }

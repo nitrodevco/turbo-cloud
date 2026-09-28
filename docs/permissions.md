@@ -421,39 +421,39 @@ The failure mode of a permission system is a gate nobody remembers to write. Gat
 depths.
 
 1. **At the packet boundary** — "may this player send `ModerateRoom` at all". Built in phase 5.
-   The handler carries `[RequiresPermission(PermissionNodes.Moderation.TOOL)]`, which declares
-   the gate where a reviewer reads it, and its first step is the check, through the one
-   extension every gate uses:
-
-   ```csharp
-   if (!await _grainFactory.HasPermissionAsync(ctx.PlayerId, PermissionNodes.Moderation.TOOL, ct))
-       return;
-   ```
-
-   `HasPermissionAsync` sits on `IGrainFactory` beside `HasActiveClubAsync`, rather than behind a
-   new service: it is one grain call, and that is where the other "does this player have" helpers
-   already live. The attribute takes several nodes when any one of them will do
+   The handler carries `[RequiresPermission(PermissionNodes.Moderation.TOOL)]`, and the pipeline
+   enforces it: as `MessageFeatureProcessor` registers a handler, it wraps the invoker of any
+   handler with the attribute in `PermissionGate` (`Turbo.Messages/Registry/`). The wrapped
+   handler is reached only by a signed-in player holding one of the declared nodes; anyone else's
+   packet is dropped without a reply, after the behaviours and before the handler is called. The
+   handler's body holds no check. The attribute takes several nodes when any one of them will do
    (`AmbassadorAlertMessageHandler`: `role.ambassador` or `room.moderate.any`, because the client
    offers the ambassador tools at security level 4 too).
 
+   The gate asks through `HasPermissionAsync`, the one extension every gate uses. It sits on
+   `IGrainFactory` beside `HasActiveClubAsync`, rather than behind a new service: it is one grain
+   call, and that is where the other "does this player have" helpers already live.
+
+   The hook is `EnvelopeFeatureProcessor.DecorateHandler`, which runs once per handler at
+   registration and leaves the invoker as it is by default. That is narrower than a pipeline
+   behaviour: `AssemblyExplorer.FindAssignees` skips `IsGenericTypeDefinition`, so an open-generic
+   `PermissionBehavior<T>` would not be discovered, and a behaviour is keyed by message type, so it
+   could not see the handler's attribute anyway. A handler without the attribute, and every other
+   dispatch, is untouched. Plugin handlers are registered through the same processor, so their
+   attributes are enforced the same way.
+
    `PermissionGateTests` (`Turbo.Tests/PacketHandlers/`) holds every handler in
-   `Turbo.PacketHandlers` to its declaration, by reading the compiled IL of `HandleAsync`: a
-   handler with the attribute must call `HasPermissionAsync` and load every node it names (a
-   `PermissionNodes` constant compiles to the string), and a handler without it must not call it
-   at all. Every declared node must be registered. CI runs it, so the declaration and the check
-   cannot drift apart; checking the wrong node, or checking without declaring, fails the build.
+   `Turbo.PacketHandlers` to that: every node a handler declares must be registered, and no
+   handler may call `HasPermissionAsync` itself (read from the compiled IL of `HandleAsync`). A
+   gate at the packet boundary is the attribute or nothing, so what a reviewer reads is what runs.
+   `PermissionGateBehaviorTests` (`Turbo.Tests/Messages/`) covers the gate: held, not held, any of
+   several, no signed-in player, and no attribute. `PermissionNodeReaderTests` counts a declared
+   node as read.
 
    Gated so far: the 21 moderation packets (`moderation.tool`; still stubs, so the gate is in place
    before the tool is), `ToggleStaffPick` (`navigator.staff_pick`, replacing
    `NavigatorConfig.StaffPickPlayerIds`, which is gone), and the ambassador alert (replacing its
    "moderator-level controller" stand-in).
-
-   A pipeline behaviour that read the attribute would remove the check line, but
-   `AssemblyExplorer.FindAssignees` skips `IsGenericTypeDefinition`, so an open-generic
-   `PermissionBehavior<T>` is not discovered, and closing it over every message type means
-   changing `MessageFeatureProcessor` — the dispatch every domain and every plugin goes through.
-   Not worth that risk for one line per gated handler. If the pipeline gains open-generic
-   behaviours for another reason, the attribute is already in place to move onto.
 2. **Inside a grain, asynchronously** — `RoomModerationModule.CanModerateAsync`, catalog
    purchases. One call to `IPlayerPermissionGrain.HasAsync`.
 
@@ -624,7 +624,8 @@ Each phase is testable on its own and ends with the tree building.
 4. **The projection.** `UserRights`, `PerkAllowances` replacing the SSO literals, `IsModerator`,
    live resend on change. Testable: a player added to `moderator` sees the mod tool without
    reconnecting, and loses it when a temporary grant expires.
-5. **The packet boundary.** `[RequiresPermission]`, `HasPermissionAsync`, and the IL test (§11).
+5. **The packet boundary.** `[RequiresPermission]`, enforced by `PermissionGate` at handler
+   registration, and the IL test (§11).
 6. **The room.** `IRoomPlayer.Permissions`, loaded on entry and pushed on change, then the gates in
    §7 converted one at a time. Each is a line, and each removes a comment. Then the navigator
    (§16: `MinRank` against the derived level, `StaffOnly`, and the `required_node` column), and the
@@ -649,16 +650,19 @@ Settled:
 - **Temporary grants**, **meta**, **audit** and **check trace** are in the first ship.
 - **The security level is derived** from held nodes, with an optional meta floor.
 
-- **`[RequiresPermission]` without the pipeline change.** See §11: the attribute is enforced by an
-  explicit check and a build-time test, not by a pipeline behaviour.
+- **`[RequiresPermission]` is enforced at handler registration.** See §11. The first build
+  enforced it with an explicit check in each handler and an IL test tying the two together,
+  because the alternative considered then, a pipeline behaviour closed over every message type,
+  was rated a moderate risk to every domain and plugin. Wrapping only the invokers of handlers
+  that carry the attribute, through a hook that changes nothing by default, avoids that risk and
+  removes the per-handler check, so it replaced the first approach.
 - **`MinRank` stays**, compared against the derived security level, beside a new optional
   `required_node`. See §16.
 
-Both were put to Jev (TypeSafe) with the facts above. Keeping `MinRank` plus a node came out at
-0.70 against 0.24 for dropping it, with a 0.73 probability that dropping it would alienate
+`MinRank` was put to Jev (TypeSafe) with the facts above. Keeping `MinRank` plus a node came out
+at 0.70 against 0.24 for dropping it, with a 0.73 probability that dropping it would alienate
 existing setups; reinterpreting it as a group weight was rejected outright (0.78 that it would
-confuse owners). The explicit-check-plus-test approach came out at 0.89, with the
-`MessageFeatureProcessor` change rated a moderate risk to every domain and plugin.
+confuse owners).
 
 ## 16. Navigator categories: `MinRank`, `StaffOnly` and `required_node`
 
