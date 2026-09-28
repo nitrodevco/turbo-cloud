@@ -23,6 +23,7 @@ using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Enums.Wallet;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -222,7 +223,22 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
             .GetGuildGrain(GuildId.Parse(guildId))
             .GetMemberRankAsync(this.GetPlayerId(), ct);
 
-        if (!GuildMemberRanks.IsMember(rank))
+        if (GuildMemberRanks.IsMember(rank))
+            return;
+
+        // Staff may buy for any group, as the client's group selector offers them at security
+        // level 4; the group still has to exist.
+        if (
+            !await _grainFactory.HasPermissionAsync(
+                this.GetPlayerId(),
+                PermissionNodes.Catalog.GUILD_ANY_GROUP,
+                ct
+            )
+            || await _grainFactory
+                .GetGuildDirectoryGrain()
+                .GetSummaryAsync(GuildId.Parse(guildId), ct)
+                is null
+        )
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
     }
 

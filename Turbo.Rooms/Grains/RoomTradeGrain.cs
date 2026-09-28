@@ -14,6 +14,7 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object;
@@ -476,16 +477,12 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
             ct
         );
 
-    /// <summary>The account's TRADE perk, when the hotel requires it; the room mode is the room's call.</summary>
-    private async Task<bool> HasTradePerkAsync(PlayerId playerId, CancellationToken ct)
-    {
-        if (!_roomConfig.TradeRequiresPerk)
-            return true;
-
-        var summary = await _grainFactory.GetPlayerGrain(playerId).GetSummaryAsync(ct);
-
-        return summary.Perks.HasFlag(PlayerPerkFlags.Trade);
-    }
+    /// <summary>
+    /// Whether the account may trade at all: the <c>trade</c> permission, which the default group
+    /// grants and a trade lock denies. The room's trade mode is the room's call.
+    /// </summary>
+    private Task<bool> HasTradePerkAsync(PlayerId playerId, CancellationToken ct) =>
+        _grainFactory.HasPermissionAsync(playerId, PermissionNodes.TRADE, ct);
 
     private bool TryGetOpenSession(
         PlayerId playerId,

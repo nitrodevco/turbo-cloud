@@ -8,6 +8,8 @@ using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Permissions;
+using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events;
@@ -326,7 +328,41 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
             return true;
         }
 
+        if (await IsHotelMutedAsync(playerId, ct))
+            return true;
+
         return await ModerationModule.IsSilencedByRoomMuteAsync(playerId);
+    }
+
+    /// <summary>
+    /// A hotel mute: the player does not hold <c>chat.speak</c>, which the default group grants and a
+    /// mute denies. A temporary one tells the player how long is left, as a room mute does. An
+    /// avatar whose permissions could not be read holds nothing, and is not muted for that.
+    /// </summary>
+    private async Task<bool> IsHotelMutedAsync(PlayerId playerId, CancellationToken ct)
+    {
+        if (
+            !AvatarModule.TryGetPlayer(playerId, out var player)
+            || ReferenceEquals(player.Permissions, ResolvedPermissionsSnapshot.EMPTY)
+            || player.Permissions.Has(PermissionNodes.Chat.SPEAK)
+        )
+            return false;
+
+        var check = await _roomGrain
+            ._grainFactory.GetPlayerPermissionGrain(playerId)
+            .ExplainAsync(PermissionNodes.Chat.SPEAK, ct);
+
+        if (check.Decision?.ExpiresAt is { } until && until > DateTime.UtcNow)
+            await _roomGrain._grainFactory.SendComposerToPlayerAsync(
+                playerId,
+                new RemainingMutePeriodMessageComposer
+                {
+                    SecondsRemaining = (int)Math.Ceiling((until - DateTime.UtcNow).TotalSeconds),
+                },
+                ct
+            );
+
+        return true;
     }
 
     private int GetFloodMaxMessages()
@@ -419,10 +455,8 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         var canSpeakWith = ChatStyles.CanSpeakWith(
             style,
             hasClub: speaker.HabboClubExpiresAt is { } expiresAt && expiresAt > DateTime.UtcNow,
-            // Neither ambassadors nor staff ranks exist yet (see PlayerSubscriptionGrain's
-            // UserRightsMessage); until something grants them, their bubbles stay closed.
-            isAmbassador: false,
-            isStaff: false,
+            isAmbassador: speaker.Permissions.Has(PermissionNodes.Role.AMBASSADOR),
+            isStaff: speaker.Permissions.Has(PermissionNodes.Chat.STYLE_STAFF),
             ownsStyle
         );
 

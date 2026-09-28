@@ -12,6 +12,7 @@ using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -168,8 +169,11 @@ public class FurnitureRentableSpaceLogic(
             null => RentableSpaceRentFailedType.NotRented,
             var rent
                 when rent.RenterId != ctx.PlayerId
-                    && !await SecurityModule.GetIsRoomOwnerAsync(ctx) =>
-                RentableSpaceRentFailedType.NotRentedByYou,
+                    && !await SecurityModule.GetIsRoomOwnerAsync(ctx)
+                    && !await SecurityModule.HasPermissionAsync(
+                        ctx.PlayerId,
+                        PermissionNodes.Room.FURNI_RENT_CANCEL_ANY
+                    ) => RentableSpaceRentFailedType.NotRentedByYou,
             _ => RentableSpaceRentFailedType.None,
         };
 

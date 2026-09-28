@@ -11,6 +11,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Snapshots;
 
@@ -260,7 +261,7 @@ public sealed partial class RoomGrain
             current is null
             || current.EventId != eventId
             || !IsValidEventText(name, description)
-            || !await SecurityModule.GetIsRoomOwnerAsync(ctx)
+            || !await CanManageEventAsync(ctx)
         )
             return false;
 
@@ -302,15 +303,22 @@ public sealed partial class RoomGrain
         return true;
     }
 
+    /// <summary>
+    /// Editing or ending the room's event: its owner, or staff who may edit any room's event (the
+    /// client's `eventMod`, which it sets at security level 5).
+    /// </summary>
+    private async Task<bool> CanManageEventAsync(ActionContext ctx) =>
+        await SecurityModule.GetIsRoomOwnerAsync(ctx)
+        || await SecurityModule.HasPermissionAsync(
+            ctx.PlayerId,
+            PermissionNodes.Room.EVENT_EDIT_ANY
+        );
+
     public async Task<bool> CancelEventAsync(ActionContext ctx, int eventId, CancellationToken ct)
     {
         var current = GetActiveEvent();
 
-        if (
-            current is null
-            || current.EventId != eventId
-            || !await SecurityModule.GetIsRoomOwnerAsync(ctx)
-        )
+        if (current is null || current.EventId != eventId || !await CanManageEventAsync(ctx))
             return false;
 
         var now = DateTime.UtcNow;

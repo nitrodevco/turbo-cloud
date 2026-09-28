@@ -506,6 +506,28 @@ limit still holds. The Builders Club trial rule ("nobody else in the room") leav
 moderate every room, as the client's own check does. Opening the Builders Club catalog without a
 membership is gated by the client alone, on the level `catalog.builders_club.without_membership`
 projects to.
+### The other gates, as built
+
+| Node | Where | Before |
+| --- | --- | --- |
+| `chat.style.staff`, `role.ambassador` | `RoomChatSystem.ResolveStyleIdAsync`, from the speaker's avatar | both hardcoded `false` |
+| `chat.speak` | `RoomChatSystem.IsHotelMutedAsync`: a player without it is muted everywhere, told the time left when the denial is temporary | — |
+| `trade` | `RoomTradeGrain`, for both sides of a trade | `RoomConfig.TradeRequiresPerk` over `players.perk_flags`; the option is gone |
+| `room.event.edit_any` | `RoomGrain.UpdateEventAsync` / `CancelEventAsync` | owner only |
+| `guild.delete_any` | `GuildGrain.DeactivateAsync` (the member cap still applies) | owner only |
+| `room.furni.rent_cancel_any` | `FurnitureRentableSpaceLogic` | renter or room owner |
+| `room.furni.youtube_any` | `FurnitureYoutubeLogic`, playlist and playback | room rights |
+| `catalog.guild.any_group` | `CatalogPurchaseGrain`, group furni for a group the buyer is not in (which must exist) | members only |
+| `room.furni.branding`, `room.furni.custom_variables`, `room.furni.vimeo_edit` | `RoomActionModule.SetObjectDataAsync`: any one of them | any furni editor could write any object data |
+
+`SetObjectData` has exactly three senders in the Flash client — ad furni branding (security level
+4), the info stand's custom variables and the Vimeo display (both 5) — and nitro-next uses it only
+for Vimeo, so no player without one of those nodes has a client path to it. The gate does not yet
+tell the three furni kinds apart; any of the nodes opens the packet for any furni.
+
+`catalog.gift.hide_sender` has nothing to gate: buying a gift is still a stub
+(`PurchaseFromCatalogAsGiftMessageHandler`), and `ShowPurchaserName` is parsed and unread. When
+gifts are built, a sender may hide their name only with the node.
 ## 14. Build order
 
 The nodes the audit found (§17.2) are registered as of phase 4 — so the projection already

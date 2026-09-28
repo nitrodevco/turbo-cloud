@@ -10,6 +10,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Rooms.Configuration;
@@ -56,7 +57,7 @@ public class FurnitureYoutubeLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
 
                 return true;
             case SetYoutubePlaylistInteraction choose:
-                if (!await HasRightsAsync(ctx))
+                if (!await CanControlAsync(ctx))
                     return Reject(ctx, interaction, "no rights");
 
                 if (FindPlaylist(choose.PlaylistId) is null)
@@ -72,7 +73,7 @@ public class FurnitureYoutubeLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
 
                 return true;
             case ControlYoutubePlaybackInteraction control:
-                if (!await HasRightsAsync(ctx))
+                if (!await CanControlAsync(ctx))
                     return Reject(ctx, interaction, "no rights");
 
                 return await ControlAsync(control.Command, ct);
@@ -80,6 +81,17 @@ public class FurnitureYoutubeLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
                 return false;
         }
     }
+
+    /// <summary>
+    /// Rights in the room, or staff who may run any display (the client offers its controls to the
+    /// furni's owner or at security level 4).
+    /// </summary>
+    private async Task<bool> CanControlAsync(ActionContext ctx) =>
+        await HasRightsAsync(ctx)
+        || await SecurityModule.HasPermissionAsync(
+            ctx.PlayerId,
+            PermissionNodes.Room.FURNI_YOUTUBE_ANY
+        );
 
     private async Task<bool> ControlAsync(YoutubePlaybackCommandType command, CancellationToken ct)
     {

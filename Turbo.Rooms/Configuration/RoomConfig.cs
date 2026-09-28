@@ -162,9 +162,6 @@ public class RoomConfig
     /// <summary>Items one side may offer in a trade.</summary>
     public int TradeMaxItemsPerSide { get; init; } = 50;
 
-    /// <summary>Whether the TRADE perk gates trading, as on the live hotel; off lets every account trade.</summary>
-    public bool TradeRequiresPerk { get; init; } = false;
-
     public int RoomFilterMaxWords { get; init; } = 50;
     public int RoomFilterWordMaxLength { get; init; } = 30;
 
