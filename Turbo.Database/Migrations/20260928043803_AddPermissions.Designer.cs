@@ -1638,6 +1638,11 @@ namespace Turbo.Database.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("order_num");
 
+                    b.Property<string>("RequiredNode")
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("required_node");
+
                     b.Property<bool>("StaffOnly")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
@@ -1873,6 +1878,10 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("int")
                         .HasColumnName("group_id");
 
+                    b.Property<bool>("IsTemporary")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_temporary");
+
                     b.Property<string>("Key")
                         .IsRequired()
                         .HasMaxLength(128)
@@ -1894,7 +1903,7 @@ namespace Turbo.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("GroupEntityId", "Key")
+                    b.HasIndex("GroupEntityId", "Key", "IsTemporary")
                         .IsUnique();
 
                     b.ToTable("permission_group_meta");
@@ -1931,6 +1940,10 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("int")
                         .HasColumnName("group_id");
 
+                    b.Property<bool>("IsTemporary")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_temporary");
+
                     b.Property<string>("Node")
                         .IsRequired()
                         .HasMaxLength(128)
@@ -1950,7 +1963,7 @@ namespace Turbo.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("GroupEntityId", "Node")
+                    b.HasIndex("GroupEntityId", "Node", "IsTemporary")
                         .IsUnique();
 
                     b.ToTable("permission_group_nodes");
@@ -2035,6 +2048,10 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("int")
                         .HasColumnName("group_id");
 
+                    b.Property<bool>("IsTemporary")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_temporary");
+
                     b.Property<int>("PlayerEntityId")
                         .HasColumnType("int")
                         .HasColumnName("player_id");
@@ -2050,7 +2067,7 @@ namespace Turbo.Database.Migrations
 
                     b.HasIndex("GroupEntityId");
 
-                    b.HasIndex("PlayerEntityId", "GroupEntityId")
+                    b.HasIndex("PlayerEntityId", "GroupEntityId", "IsTemporary")
                         .IsUnique();
 
                     b.ToTable("player_permission_groups");
@@ -2083,6 +2100,10 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("expires_at");
 
+                    b.Property<bool>("IsTemporary")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_temporary");
+
                     b.Property<string>("Key")
                         .IsRequired()
                         .HasMaxLength(128)
@@ -2108,7 +2129,7 @@ namespace Turbo.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PlayerEntityId", "Key")
+                    b.HasIndex("PlayerEntityId", "Key", "IsTemporary")
                         .IsUnique();
 
                     b.ToTable("player_permission_meta");
@@ -2141,6 +2162,10 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("expires_at");
 
+                    b.Property<bool>("IsTemporary")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_temporary");
+
                     b.Property<string>("Node")
                         .IsRequired()
                         .HasMaxLength(128)
@@ -2164,7 +2189,7 @@ namespace Turbo.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PlayerEntityId", "Node")
+                    b.HasIndex("PlayerEntityId", "Node", "IsTemporary")
                         .IsUnique();
 
                     b.ToTable("player_permission_nodes");
@@ -2801,11 +2826,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("pet_respects_left");
-
-                    b.Property<int>("PlayerPerks")
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("perk_flags");
 
                     b.Property<int>("PlayerStatus")
                         .HasColumnType("int")

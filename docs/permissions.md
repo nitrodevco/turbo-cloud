@@ -272,7 +272,7 @@ button the server refuses is the acceptable failure; the server allowing somethi
 cannot reach is not.** A hotel avoids the first by granting staff nodes in coherent groups.
 
 `players.perk_flags` and `PlayerLiveState.Perks` are retired: the data migration turns each
-player's non-default flags into player nodes, and `UnmapPerkFlags` stops mapping the column (§13).
+player's non-default flags into player nodes, and the model stops mapping the column (§13).
 
 ## 9. Where the authority lives
 
@@ -485,7 +485,7 @@ depths.
    moderation checks, the room mute and the ban list honour `room.moderate.any`; pick-up honours
    `room.furni.pickup_any` and `room.furni.steal` (`FurniturePickupType.SendToCtx`).
 
-   `SeedDenyFurniSteal` denies `room.furni.steal` to `moderator` and `admin`, whose wildcards would
+   `SeedPermissions` denies `room.furni.steal` to `moderator` and `admin`, whose wildcards would
    otherwise send every furni they picked up into their own inventory, and
    `perk.navigator.phase_one` to `admin`, whose `*` would otherwise switch its members to the
    phase-one navigator. A hotel that wants either grants it on purpose.
@@ -532,7 +532,7 @@ mapping is `PermissionEntityExtensions`.
 `SeedPermissions` also carries `players.perk_flags` over: a set flag that `default` does not
 already grant becomes a granted player node. An unset flag becomes nothing — the column was
 never read, so it is zero for nearly everyone, and reading that as a denial would take the camera
-and trading away from the whole hotel. Nothing reads the column any more: `UnmapPerkFlags` takes it out of the model (and `PlayerSummarySnapshot.Perks` with it) but leaves it in the table, because a CMS that still inserts `perk_flags` would fail against a table without it. Drop it once nothing writes it.
+and trading away from the whole hotel. Nothing reads the column any more: `AddPermissions` takes it out of the model (and `PlayerSummarySnapshot.Perks` with it) but leaves it in the table, because a CMS that still inserts `perk_flags` would fail against a table without it. Drop it once nothing writes it.
 Seeded groups, all editable afterwards:
 
 | Group | Weight | Parents | Nodes | Client level |
@@ -550,14 +550,13 @@ Seeded groups, all editable afterwards:
 | `admin` | 100 | `manager` | `*`, meta `client.security_level = 8` | 8 |
 
 The levels are the real hotel's, so every client draws staff UI as expected without knowing
-anything about nodes (`SeedCommunityGroup`; the first seed had `navigator.category.staff` on
-`moderator`, which put every moderator on 7). The ladder — `senior_moderator`, `manager`, `admin`
+anything about nodes (`navigator.category.staff` sits on `manager`, not `moderator`, which would
+put every moderator on 7). The ladder — `senior_moderator`, `manager`, `admin`
 — holds every lower-level node its level makes the client offer, so `perm group <g> info` reports
-nothing shown-but-refused for it. `moderator` shows one: controlling every room is a senior's
-(`RefineStaffLadder`), but the client ties it to level 5, which the moderation tool needs.
-`community` was renamed `manager` there, and `helper` inherits `ambassador`.
+nothing shown-but-refused for it. `moderator` shows one: controlling every room is a senior's, but the client ties it to level 5, which the moderation tool needs.
+`helper` inherits `ambassador`.
 
-The specialist groups (`SeedRetroStaffGroups`) cannot: a builder, event staff or a trial moderator
+The specialist groups cannot: a builder, event staff or a trial moderator
 given every node at their level would be given moderation or every room. They hold only their job,
 and a level-only client (Flash) offers them some buttons the server refuses — the acceptable
 failure (§8). `builder` stays at 4, the lowest its nodes allow; `events` and `trial_moderator` need
@@ -602,7 +601,7 @@ gifts are built, a sender may hide their name only with the node.
 ## 14. Build order
 
 The nodes the audit found (§17.2) are registered as of phase 4 — so the projection already
-raises the level they need — and `SeedAuditPermissionNodes` grants `chat.speak` to `default`
+raises the level they need — and `SeedPermissions` grants `chat.speak` to `default`
 and the group, gift and group-furni nodes to `moderator`. Their server gates are phase 6 work
 with the rest of §7.
 
@@ -691,7 +690,7 @@ previews, the category search, and which category a player may create a room in 
 (`RoomSettingsSaveExtensions`), so a staff-only category is closed to a crafted packet as well as
 hidden. A regular player (security level 0) counts as rank 1, as in the retro emulators, so a
 category left at the retro default of `min_rank = 1` is everyone's. `required_node` is added by
-`AddNavigatorCategoryRequiredNode`.
+`AddPermissions`.
 set's derived level, never by comparing groups.
 
 ## 17. Audit against LuckPerms and the clients (2026-09-28)
@@ -705,7 +704,7 @@ already has. mikkel matches March exactly.
 
 ### 17.1 Wrong in what is built — fixed
 
-All four are fixed: `AllowTemporaryBesidePermanent` adds `is_temporary` to each unique key, the
+All four are fixed: `is_temporary` is part of each unique key, the
 resolver ranks temporary over permanent at equal specificity, writes take a
 `PermissionExpiryModeType`, meta keys register a `PermissionMetaSelectionType`, and
 `chat.style.staff` carries `Employee`. What follows is the finding as it was made.

@@ -6,12 +6,36 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Turbo.Database.Migrations
 {
-    /// <inheritdoc />
+    /// <summary>
+    /// The permission tables (<c>docs/permissions.md</c>), and <c>navigator_flatcats.required_node</c>
+    /// (§16). A permanent and a temporary assignment of the same node, meta key or group are
+    /// separate rows, so <c>is_temporary</c> is part of each unique key. It defaults to false in the
+    /// table (not in the model), so a CMS or hand-written insert that leaves it out adds a
+    /// permanent row.
+    /// <para>
+    /// <c>players.perk_flags</c> leaves the model but stays in the table, although EF would drop
+    /// it. Perks are projected from permissions now (§8), and <c>SeedPermissions</c> carries every
+    /// flag that meant anything into player nodes, so nothing reads the column. It stays because
+    /// CMS and housekeeping panels write the players table directly, and one that still inserts
+    /// <c>perk_flags</c> would fail against a table without it; its default keeps rows written
+    /// without it valid. Drop it in a later migration once nothing writes it.
+    /// </para>
+    /// </summary>
     public partial class AddPermissions : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder
+                .AddColumn<string>(
+                    name: "required_node",
+                    table: "navigator_flatcats",
+                    type: "varchar(128)",
+                    maxLength: 128,
+                    nullable: true
+                )
+                .Annotation("MySql:CharSet", "utf8mb4");
+
             migrationBuilder
                 .CreateTable(
                     name: "permission_audit",
@@ -123,6 +147,11 @@ namespace Turbo.Database.Migrations
                             .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
                             .Annotation("MySql:CharSet", "utf8mb4"),
                         expires_at = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                        is_temporary = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: false
+                        ),
                         created_at = table
                             .Column<DateTime>(type: "datetime(6)", nullable: false)
                             .Annotation(
@@ -173,6 +202,11 @@ namespace Turbo.Database.Migrations
                             .Annotation("MySql:CharSet", "utf8mb4"),
                         value = table.Column<bool>(type: "tinyint(1)", nullable: false),
                         expires_at = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                        is_temporary = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: false
+                        ),
                         created_at = table
                             .Column<DateTime>(type: "datetime(6)", nullable: false)
                             .Annotation(
@@ -225,6 +259,11 @@ namespace Turbo.Database.Migrations
                             .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
                             .Annotation("MySql:CharSet", "utf8mb4"),
                         expires_at = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                        is_temporary = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: false
+                        ),
                         created_at = table
                             .Column<DateTime>(type: "datetime(6)", nullable: false)
                             .Annotation(
@@ -275,6 +314,11 @@ namespace Turbo.Database.Migrations
                             .Annotation("MySql:CharSet", "utf8mb4"),
                         value = table.Column<bool>(type: "tinyint(1)", nullable: false),
                         expires_at = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                        is_temporary = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: false
+                        ),
                         created_at = table
                             .Column<DateTime>(type: "datetime(6)", nullable: false)
                             .Annotation(
@@ -375,6 +419,11 @@ namespace Turbo.Database.Migrations
                         player_id = table.Column<int>(type: "int", nullable: false),
                         group_id = table.Column<int>(type: "int", nullable: false),
                         expires_at = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                        is_temporary = table.Column<bool>(
+                            type: "tinyint(1)",
+                            nullable: false,
+                            defaultValue: false
+                        ),
                         created_at = table
                             .Column<DateTime>(type: "datetime(6)", nullable: false)
                             .Annotation(
@@ -422,16 +471,16 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "IX_permission_group_meta_group_id_meta_key",
+                name: "IX_permission_group_meta_group_id_meta_key_is_temporary",
                 table: "permission_group_meta",
-                columns: new[] { "group_id", "meta_key" },
+                columns: new[] { "group_id", "meta_key", "is_temporary" },
                 unique: true
             );
 
             migrationBuilder.CreateIndex(
-                name: "IX_permission_group_nodes_group_id_node",
+                name: "IX_permission_group_nodes_group_id_node_is_temporary",
                 table: "permission_group_nodes",
-                columns: new[] { "group_id", "node" },
+                columns: new[] { "group_id", "node", "is_temporary" },
                 unique: true
             );
 
@@ -462,23 +511,23 @@ namespace Turbo.Database.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "IX_player_permission_groups_player_id_group_id",
+                name: "IX_player_permission_groups_player_id_group_id_is_temporary",
                 table: "player_permission_groups",
-                columns: new[] { "player_id", "group_id" },
+                columns: new[] { "player_id", "group_id", "is_temporary" },
                 unique: true
             );
 
             migrationBuilder.CreateIndex(
-                name: "IX_player_permission_meta_player_id_meta_key",
+                name: "IX_player_permission_meta_player_id_meta_key_is_temporary",
                 table: "player_permission_meta",
-                columns: new[] { "player_id", "meta_key" },
+                columns: new[] { "player_id", "meta_key", "is_temporary" },
                 unique: true
             );
 
             migrationBuilder.CreateIndex(
-                name: "IX_player_permission_nodes_player_id_node",
+                name: "IX_player_permission_nodes_player_id_node_is_temporary",
                 table: "player_permission_nodes",
-                columns: new[] { "player_id", "node" },
+                columns: new[] { "player_id", "node", "is_temporary" },
                 unique: true
             );
         }
@@ -501,6 +550,8 @@ namespace Turbo.Database.Migrations
             migrationBuilder.DropTable(name: "player_permission_nodes");
 
             migrationBuilder.DropTable(name: "permission_groups");
+
+            migrationBuilder.DropColumn(name: "required_node", table: "navigator_flatcats");
         }
     }
 }
