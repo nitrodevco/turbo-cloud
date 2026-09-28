@@ -62,7 +62,7 @@ already stands (`Partner = 2`, `Employee = 4`, `Moderator = 5`, `Community = 7`)
 | Guild forum selector in the catalog | `GuildForumSelectorCatalogWidget:20` | security 4 |
 | Staff options in room create | `RoomCreateViewCtrl:353` | security 4 |
 | The "door mode overridden" notice is **hidden** for staff | `RoomSettingsCtrl:726` | shown when `hiddenByBc && !hasSecurity(4)` |
-| Picking up somebody else's furni from the info stand | `handler/§_-J2H§:132` | owns the furni **or** security 4 |
+| ~~Picking up somebody else's furni from the info stand~~ | `handler/§_-J2H§:132` | **Wrong for the 20260909 build**: it has no such call. `InfoStandFurniView.updatePickupMode` gives full pickup to the furni's owner or `isAnyRoomController` (5), and eject to the room owner or `roomControllerLevel >= 3` |
 | An info stand detail | `InfoStandFurniView:467` | security 4 |
 | Chat input styles | `RoomChatInputView:371` | security 4 |
 | Snow war / game manager debug | `SnowWarUI:94`, `HabboGameManager:149` | security 4 |
@@ -78,7 +78,7 @@ already stands (`Partner = 2`, `Employee = 4`, `Moderator = 5`, `Community = 7`)
 | A purchase confirmation path | `PurchaseConfirmationDialog:835` | security 5 |
 | `:reload` and `:rollback` | `ChatInputWidgetHandler:344,350` | `roomControllerLevel >= 4` **or** security 5 |
 | Deleting any guild | `GroupDetailsCtrl:127` | owns it **or** security 5 |
-| Entering any room from the navigator | `NavigatorData:90` | a flag **or** security 5 |
+| Editing room settings (settings, floor plan editor and thumbnail buttons) in any room | `NavigatorData.canEditRoomSettings` | room owner **or** security 5. An older reading called this "entering any room"; nothing in the client gates entry |
 | Cancelling anyone's rentable space | `RentableSpaceDisplayWidget:141` | owns the furni **or** security 5 |
 | An info stand action | `InfoStandWidgetHandler:1553`, `handler/§_-E1f§:77` | security 5 |
 | An info stand furni detail | `InfoStandFurniView:119` | shown when **not** security 5 |

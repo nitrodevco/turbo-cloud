@@ -35,13 +35,9 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
         new(
             PermissionNodes.Room.FURNI_PICKUP_ANY,
             "Pick up anyone's furni from the info stand.",
-            SecurityLevelType.Employee
-        ),
-        new(
-            PermissionNodes.Room.ENTER_LOCKED,
-            "Enter a room past its doorbell or password.",
             SecurityLevelType.Moderator
         ),
+        new(PermissionNodes.Room.ENTER_LOCKED, "Enter a room past its doorbell or password."),
         new(PermissionNodes.Room.ENTER_FULL, "Enter a room that is at capacity."),
         new(PermissionNodes.Room.ENTER_HIDDEN, "Enter a room hidden by Builders Club."),
         new(
