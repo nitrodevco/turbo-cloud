@@ -11,7 +11,7 @@ namespace Turbo.Database.Entities.Permissions;
 [Table("player_permission_meta")]
 // One permanent and one temporary row may coexist: the temporary one wins while it lasts.
 [Index(nameof(PlayerEntityId), nameof(Key), nameof(IsTemporary), IsUnique = true)]
-public class PlayerPermissionMetaEntity : TurboEntity
+public class PlayerPermissionMetaEntity : TurboEntity, IPermissionAssignmentEntity<string>
 {
     [Column("player_id")]
     public required int PlayerEntityId { get; set; }

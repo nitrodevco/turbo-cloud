@@ -10,7 +10,7 @@ namespace Turbo.Database.Entities.Permissions;
 [Table("permission_group_meta")]
 // One permanent and one temporary row may coexist: the temporary one wins while it lasts.
 [Index(nameof(GroupEntityId), nameof(Key), nameof(IsTemporary), IsUnique = true)]
-public class PermissionGroupMetaEntity : TurboEntity
+public class PermissionGroupMetaEntity : TurboEntity, IPermissionAssignmentEntity<string>
 {
     [Column("group_id")]
     public required int GroupEntityId { get; set; }

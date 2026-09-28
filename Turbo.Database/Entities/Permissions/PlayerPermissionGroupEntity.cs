@@ -11,7 +11,7 @@ namespace Turbo.Database.Entities.Permissions;
 [Index(nameof(PlayerEntityId), nameof(GroupEntityId), nameof(IsTemporary), IsUnique = true)]
 // A group edit re-resolves its online members, which reads by group.
 [Index(nameof(GroupEntityId))]
-public class PlayerPermissionGroupEntity : TurboEntity
+public class PlayerPermissionGroupEntity : TurboEntity, IPermissionExpiringEntity
 {
     [Column("player_id")]
     public required int PlayerEntityId { get; set; }
