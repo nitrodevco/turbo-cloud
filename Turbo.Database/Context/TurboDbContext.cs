@@ -6,6 +6,7 @@ using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Guilds;
 using Turbo.Database.Entities.Messenger;
 using Turbo.Database.Entities.Navigator;
+using Turbo.Database.Entities.Permissions;
 using Turbo.Database.Entities.Pets;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
@@ -109,6 +110,15 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<GuildMemberEntity> GuildMembers { get; init; }
     public DbSet<GuildBadgePartEntity> GuildBadgeParts { get; init; }
     public DbSet<GuildColorEntity> GuildColors { get; init; }
+
+    public DbSet<PermissionGroupEntity> PermissionGroups { get; init; }
+    public DbSet<PermissionGroupParentEntity> PermissionGroupParents { get; init; }
+    public DbSet<PermissionGroupNodeEntity> PermissionGroupNodes { get; init; }
+    public DbSet<PermissionGroupMetaEntity> PermissionGroupMeta { get; init; }
+    public DbSet<PlayerPermissionGroupEntity> PlayerPermissionGroups { get; init; }
+    public DbSet<PlayerPermissionNodeEntity> PlayerPermissionNodes { get; init; }
+    public DbSet<PlayerPermissionMetaEntity> PlayerPermissionMeta { get; init; }
+    public DbSet<PermissionAuditEntity> PermissionAudit { get; init; }
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
