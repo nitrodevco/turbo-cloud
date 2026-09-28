@@ -492,3 +492,85 @@ A category is visible and usable when **all** of these hold:
 `MinRank` is the one place outside the projection that reads a security level, and it is allowed
 to because the column *is* a security level by definition. It is still read through the resolved
 set's derived level, never by comparing groups.
+
+## 17. Audit against LuckPerms and the clients (2026-09-28)
+
+Read against the LuckPerms wiki source (`LuckPerms/wiki`, `pages/*.md`) and against every client
+on disk: AIR `WIN63-202603212315-320263584` and `WIN63-202609091217-117204808` (both in
+`SWF Sources`), its TypeScript transpile in `mikkel-project`, and nitro-next. The two AIR
+revisions read the same nine perks and the same `hasSecurity` levels; September adds two level-4
+sites (`RewardTrackController`, `VariableFxVisualizationSettingsPreset`) the client-gates survey
+already has. mikkel matches March exactly.
+
+### 17.1 Wrong in what is built — fix before phase 4
+
+1. **A temporary node overwrites a permanent one.** The unique index is `(target, node)`, so
+   `perm user x set trade false 7d` on a player who holds `trade = true` of their own replaces the
+   grant, and when the sanction runs out the grant is gone too. LuckPerms stores both and lets
+   the temporary one win while it lasts ("temporary permissions will override non-temporary
+   permissions"). Fix: allow one permanent and one temporary row per `(target, node)` (and per
+   meta key and membership), and in the resolver let a live temporary assignment beat a
+   permanent one at equal specificity, before `false` beats `true`.
+2. **Re-adding a temporary assignment silently replaces its expiry.** LuckPerms makes this a
+   choice (`temporary-add-behaviour`: `accumulate`, `replace`, `deny`). Keep replace as the
+   default, and add an `extend` form to the console (`perm user x group add vip 30d --extend`)
+   for "add another month of VIP".
+3. **Meta has one selection rule.** First-by-weight is wrong for limits: a player in `vip`
+   (weight 10, `limit.rooms = 50`) and `builder` (weight 5, `limit.rooms = 200`) gets 50.
+   LuckPerms has `meta-value-selection` per key (`inheritance`, `highest-number`,
+   `lowest-number`). Register the rule with the meta key in `PermissionMetaDefinition`; limits
+   default to highest.
+4. **`chat.style.staff` has no client level.** The client offers staff bubbles only at
+   `hasSecurity(4)` (`RoomChatInputView`), so the node must carry `ClientLevel = Employee` or a
+   holder is allowed a bubble the client never shows.
+
+### 17.2 Client gates the catalogue (§7) is missing
+
+| Node | Client level | Client site | Server today |
+| --- | --- | --- | --- |
+| `room.event.edit_any` | 5 | navigator `eventMod`, set in `IncomingMessages.onUserRights`; `RoomEventInfoCtrl` | `RoomGrain.UpdateEventAsync` checks owner only |
+| `navigator.staff_pick` | 7 | navigator `roomPicker`; `RoomInfoViewCtrl` | **`NavigatorConfig.StaffPickPlayerIds`**, a hardcoded id list — replace |
+| `guild.delete_any` | 5 | `GroupDetailsCtrl` | `GuildGrain.DeactivateAsync`: owner only |
+| `catalog.guild.any_group` | 4 | `GuildForumSelectorCatalogWidget`, nitro `CatalogGuildSelectorWidgetView` | not yet checked |
+| `catalog.gift.hide_sender` | 5 | `PurchaseConfirmationDialog.isModerator` (hide your face on a gift) | field not read |
+| `room.furni.rent_cancel_any` | 5 | `RentableSpaceDisplayWidget` | not yet checked (`CancelSpaceRentInteraction`) |
+| `room.furni.branding` | 4 | `InfoStandFurniView` "save_branding_configuration" → `SetObjectData` | **any furni editor may write any object data** — gate ad furni on this |
+| `room.furni.custom_variables` | 5 | `InfoStandFurniView` custom variable list | — |
+| `room.furni.youtube_any` | 4 | `FurnitureYoutubeDisplayWidgetHandler` (owner or staff) | — |
+| `room.furni.vimeo_edit` | 5 | `FurnitureVimeoDisplayWidgetHandler`, nitro `FurnitureVimeoWidget` | — |
+| `perk.no_video_offers` | 1 | `VideoOfferManager` turns video ads off at `securityLevel >= 1` | — |
+| `chat.speak` | — | server-only: hotel mute | `ModMute` is a stub |
+
+Two more are the ambassador role rather than new nodes: nitro-next lets an ambassador into a
+`NoobLobby` room (`registerNavigatorHandlers`), which the server does not model, and
+`AmbassadorAlertMessageHandler` stands in with "moderator-level controller" until
+`role.ambassador` exists. Note also that the navigator's `eventMod` and `roomPicker` are set on
+`UserRights` and **never cleared**: lowering a player's level live does not take them away until
+relog, like `topSecurityLevel`.
+
+### 17.3 Code already waiting for this system
+
+`NavigatorService` (`MinRank <= 1`), `NavigatorConfig.StaffPickPlayerIds`,
+`AmbassadorAlertMessageHandler`, `PlayerSubscriptionGrain.SendStatusAsync`,
+`RoomFurniModule.BuildersClub` (trial rule counts staff), `RoomChatSystem` (staff and ambassador
+bubbles), and the 21 moderation handlers, all stubs. `ModTradingLock` and `ModMute` are
+temporary player denials of `trade` and `chat.speak` once the mod tool is built, and
+`SanctionStatus` can report them; bans stay their own table.
+
+### 17.4 LuckPerms features, and whether to take them
+
+| LuckPerms | Here | Verdict |
+| --- | --- | --- |
+| Groups, weights, inheritance, negation, wildcards, temporary nodes, meta, action log, `permission check` | built | — |
+| Default group not configurable (rename by display name, extend by parent) | same | keep |
+| Temporary beats permanent; `temporary-add-behaviour` | missing | **fix** (17.1) |
+| `meta-value-selection` per key | missing | **fix** (17.1) |
+| `sync` — reload after the database was edited by something else | missing | **take**: retro CMSes and housekeeping panels write the tables directly. `perm reload` re-hydrates the directory and every subscribed player grain |
+| Argument-based command permissions (who may grant what) | missing | **take before any in-game editor**: a manager may only grant nodes they hold and groups lighter than their heaviest (`permissions.manage.*`) |
+| Verbose (watch checks live) | missing | **take**: every check goes through `HasAsync`, so `perm verbose <player>` logging checks is cheap and is how a hotel finds which node a feature wants |
+| `group listmembers`, `log recent`/`search`, `search <node>` (who holds it) | missing | take, console only, cheap queries |
+| `group.<name>` as a node (membership checkable like a permission) | missing | take: resolve `group.<name>` for every group held, so `required_node` (§16) can say `group.vip` |
+| Events (`NodeAddEvent`, `UserDataRecalculateEvent`, `UserPromoteEvent`) | missing | take: a `PlayerPermissionsChangedEvent` on the event system for plugins |
+| Log notify (tell online staff of changes) | missing | later, with the mod tool |
+| Tracks, clone/rename group key, clear, bulk update, export/import, web editor | missing | later; bulk renames of a node are a migration, backups are database dumps |
+| Contexts (server/world), regex and shorthand nodes, prefix/suffix stacking, messaging service | — | skip: room rights are the context, wildcards cover shorthand, no client draws prefixes, Orleans is the messaging |
