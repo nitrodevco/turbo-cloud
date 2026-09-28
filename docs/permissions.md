@@ -540,19 +540,22 @@ Seeded groups, all editable afterwards:
 | `default` | 0 | — | the perks the SSO handler sent `true`, `trade`, `chat.speak` | 0 |
 | `vip` | 10 | `default` | `room.floorplan.large`; meta `limit.friends = 500`, `limit.rooms = 100`, `limit.favourite_rooms = 60` | 0 |
 | `ambassador` | 20 | `default` | `role.ambassador`, `chat.furni_chooser`, `perk.no_video_offers` | 2 |
-| `helper` | 30 | `default` | `perk.guide_tool`, `perk.judge_chat_reviews`, `perk.vote_in_competitions` | 0 |
+| `helper` | 30 | `ambassador` | `perk.guide_tool`, `perk.judge_chat_reviews`, `perk.vote_in_competitions` | 2 |
 | `builder` | 35 | `default` | `room.floorplan.save_without_club`, `room.floorplan.large`, `room.furni.branding`, `wired.menu`, `chat.furni_chooser` | 4 |
 | `events` | 40 | `default` | `room.event.edit_any`, `room.enter.locked`, `room.enter.full`, `room.furni.youtube_any`, `room.furni.vimeo_edit`, `chat.furni_chooser` | 5 |
 | `trial_moderator` | 45 | `helper` | `moderation.tool`, `room.moderate.any`, `room.enter.locked`, `room.enter.full`, `chat.style.staff`, `perk.no_video_offers` | 5 |
-| `moderator` | 50 | `trial_moderator` | `room.*`, `moderation.tool`, `wired.menu`, `catalog.builders_club.without_membership`, `catalog.guild.any_group`, `catalog.gift.hide_sender`, `guild.delete_any`, `chat.style.staff`, `chat.furni_chooser`, `perk.no_video_offers` | 5 |
-| `community` | 70 | `moderator`, `builder`, `events` | `navigator.category.staff`, `navigator.staff_pick` | 7 |
-| `admin` | 100 | `community` | `*`, meta `client.security_level = 8` | 8 |
+| `moderator` | 50 | `trial_moderator` | `room.*` but not `room.control.any`, `moderation.tool`, `wired.menu`, `catalog.builders_club.without_membership`, `catalog.guild.any_group`, `catalog.gift.hide_sender`, `guild.delete_any`, `chat.style.staff`, `chat.furni_chooser`, `perk.no_video_offers` | 5 |
+| `senior_moderator` | 60 | `moderator` | `room.control.any` | 5 |
+| `manager` | 70 | `senior_moderator`, `builder`, `events` | `navigator.category.staff`, `navigator.staff_pick` | 7 |
+| `admin` | 100 | `manager` | `*`, meta `client.security_level = 8` | 8 |
 
 The levels are the real hotel's, so every client draws staff UI as expected without knowing
 anything about nodes (`SeedCommunityGroup`; the first seed had `navigator.category.staff` on
-`moderator`, which put every moderator on 7). The ladder — `moderator`, `community`, `admin` —
-holds every lower-level node its level makes the client offer, so `perm group <g> info` reports
-nothing shown-but-refused for it.
+`moderator`, which put every moderator on 7). The ladder — `senior_moderator`, `manager`, `admin`
+— holds every lower-level node its level makes the client offer, so `perm group <g> info` reports
+nothing shown-but-refused for it. `moderator` shows one: controlling every room is a senior's
+(`RefineStaffLadder`), but the client ties it to level 5, which the moderation tool needs.
+`community` was renamed `manager` there, and `helper` inherits `ambassador`.
 
 The specialist groups (`SeedRetroStaffGroups`) cannot: a builder, event staff or a trial moderator
 given every node at their level would be given moderation or every room. They hold only their job,
