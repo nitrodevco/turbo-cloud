@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -26,11 +27,10 @@ public static class ClientCapabilities
     public const int MAX_REQUESTED = 32;
 
     /// <summary>Every extension this server speaks, at the highest version it speaks.</summary>
-    public static readonly ImmutableDictionary<string, int> SUPPORTED =
-        ImmutableDictionary.CreateRange(
-            StringComparer.Ordinal,
-            [new KeyValuePair<string, int>(PERMISSION_NODES, 1)]
-        );
+    public static readonly FrozenDictionary<string, int> SUPPORTED = new Dictionary<string, int>
+    {
+        [PERMISSION_NODES] = 1,
+    }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>
     /// What to accept from a client's request: each extension both sides speak, at the lower of

@@ -27,6 +27,7 @@ internal sealed partial class PlayerPresenceGrain
         return Task.CompletedTask;
     }
 
-    public Task<int> GetClientCapabilityVersionAsync(string name, CancellationToken ct) =>
-        Task.FromResult(_state.ClientCapabilities.GetValueOrDefault(name));
+    /// <summary>Whether the current session accepted the extension <paramref name="composer"/> belongs to.</summary>
+    private bool AcceptsExtension(ICapabilityComposer composer) =>
+        _state.ClientCapabilities.ContainsKey(composer.Capability);
 }

@@ -9,6 +9,7 @@ using Orleans.Runtime;
 using Orleans.Streams;
 using Turbo.Players.Configuration;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Networking.Capabilities;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Orleans.Observers;
 using Turbo.Primitives.Players;
@@ -207,6 +208,10 @@ internal sealed partial class PlayerPresenceGrain
 
     private void Enqueue(IComposer composer)
     {
+        // An extension packet is for a session that asked for it; any other client never sees one.
+        if (composer is ICapabilityComposer extension && !AcceptsExtension(extension))
+            return;
+
         // Without a session nothing can drain the queue; keep it bounded so an offline or
         // half-attached presence cannot grow without limit.
         if (_state.OutgoingQueue.Count >= _playerConfig.MaxPendingComposers)

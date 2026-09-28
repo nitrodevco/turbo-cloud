@@ -17,7 +17,9 @@ After `AuthenticationOK` the client may send:
 The server accepts each extension it speaks, at the lower of the two versions
 (`ClientCapabilities.Negotiate`), ignores names it does not know, and answers even when it accepts
 none. Acceptance belongs to the session: the presence grain keeps it, and clears it when a session
-attaches or leaves. A server that does not know header 30000 logs and ignores it, and never
+attaches or leaves. An extension's composers implement `ICapabilityComposer`, naming their
+extension, and the presence drops one bound for a session that did not accept it. The grains that
+compose them send unconditionally and never ask what the client speaks. A server that does not know header 30000 logs and ignores it, and never
 answers: the client keeps behaving as a plain Habbo client.
 
 Headers 30000–30099 are reserved for these extensions, in every revision. Habbo's own ids stop at
@@ -29,8 +31,9 @@ Headers 30000–30099 are reserved for these extensions, in every revision. Habb
 | --- | --- | --- | --- |
 | server → client | 30001 | `TurboPermissionNodesMessage` | `int count`, then `string node` per node: the whole set |
 
-Sent straight after the capability answer, then after `UserRights`/`PerkAllowances` whenever the
-player's client-facing nodes or level change. It carries every node the player holds that a client
+Sent straight after the capability answer, then whenever the player's client-facing nodes change,
+after `UserRights`/`PerkAllowances` when those changed too. Each of the three goes only when what it
+says changed: a node the level already covered sends the node list alone. It carries every node the player holds that a client
 gates on: every node with a `ClientLevel` (the Flash `hasSecurity` threshold of its gate), and any
 node a plugin registered with `ClientVisible: true`. Server-only nodes (`room.enter.full`,
 `chat.speak`), perks and membership nodes are not sent; perks travel in `PerkAllowances` as ever.

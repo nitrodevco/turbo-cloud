@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -18,7 +19,6 @@ using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Perk;
 using Turbo.Primitives.Messages.Outgoing.Turbo;
 using Turbo.Primitives.Networking;
-using Turbo.Primitives.Networking.Capabilities;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
@@ -191,7 +191,14 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
     {
         EnsureResolved();
 
-        return SendClientStateCoreAsync(ct);
+        return SendClientStateCoreAsync(rights: true, nodes: true, ct);
+    }
+
+    public Task SendPermissionNodesAsync(CancellationToken ct)
+    {
+        EnsureResolved();
+
+        return SendClientStateCoreAsync(rights: false, nodes: true, ct);
     }
 
     public Task<PermissionCheckSnapshot> ExplainAsync(string node, CancellationToken ct)
@@ -630,13 +637,13 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
     /// </summary>
     private async Task PublishChangesAsync(bool force, CancellationToken ct)
     {
-        if (
-            force
-            || _state.Client is not { } client
-            || _state.SentClient is not { } sent
-            || !client.Matches(sent)
-        )
-            await SendClientStateCoreAsync(ct);
+        var client = _state.Client!;
+        var sent = force ? null : _state.SentClient;
+        var rights = sent is null || !client.RightsMatch(sent);
+        var nodes = sent is null || !client.NodesMatch(sent);
+
+        if (rights || nodes)
+            await SendClientStateCoreAsync(rights, nodes, ct);
 
         var resolved = _state.Resolved!;
 
@@ -683,27 +690,30 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
     }
 
     /// <summary>
-    /// Tells the player's sessions their security level, ambassador flag and perks. The club level
-    /// shares the <c>UserRights</c> packet, so it is read from the subscription grain, which never
-    /// awaits this one. Sent to an offline player it goes nowhere.
+    /// Tells the player's session what changed: <paramref name="rights"/> sends their security
+    /// level, ambassador flag and perks, <paramref name="nodes"/> their client-facing nodes, which
+    /// the presence passes on only to a session that accepted <c>permission.nodes</c>. The club
+    /// level shares the <c>UserRights</c> packet, so it is read from the subscription grain, which
+    /// never awaits this one. Sent to an offline player it goes nowhere.
     /// </summary>
-    private async Task SendClientStateCoreAsync(CancellationToken ct)
+    private async Task SendClientStateCoreAsync(bool rights, bool nodes, CancellationToken ct)
     {
         var client = _state.Client!;
-        var hasClub = await _grainFactory.HasActiveClubAsync(PlayerId, ct);
-        var presence = _grainFactory.GetPlayerPresenceGrain(PlayerId);
-        var sendsNodes =
-            await presence.GetClientCapabilityVersionAsync(ClientCapabilities.PERMISSION_NODES, ct)
-            >= 1;
+        var composers = new List<IComposer>(3);
 
-        await presence.SendComposerAsync(
-            [
+        if (rights)
+        {
+            var hasClub = await _grainFactory.HasActiveClubAsync(PlayerId, ct);
+
+            composers.Add(
                 new UserRightsMessage
                 {
                     ClubLevel = hasClub ? ClubLevelType.Vip : ClubLevelType.None,
                     SecurityLevel = client.SecurityLevel,
                     IsAmbassador = client.IsAmbassador,
-                },
+                }
+            );
+            composers.Add(
                 new PerkAllowancesMessageComposer
                 {
                     Perks =
@@ -715,19 +725,25 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
                             ErrorMessage = x.Refusal,
                         }),
                     ],
-                },
-                // After UserRights, so a client falling back to the level never sees the
-                // nodes disagree with a level it has not been sent yet.
-                .. (
-                    sendsNodes
-                        ? (IComposer[])[new TurboPermissionNodesMessage { Nodes = client.Nodes }]
-                        : []
-                ),
-            ],
-            ct
-        );
+                }
+            );
+        }
 
-        _state.SentClient = client;
+        // After UserRights, so a client falling back to the level never holds nodes that
+        // disagree with a level it has not been sent yet.
+        if (nodes)
+            composers.Add(new TurboPermissionNodesMessage { Nodes = client.Nodes });
+
+        await _grainFactory.GetPlayerPresenceGrain(PlayerId).SendComposerAsync(composers, ct);
+
+        // What the client knows is the previous state with the parts just sent replaced.
+        _state.SentClient = (rights, nodes, _state.SentClient) switch
+        {
+            (true, true, _) or (_, _, null) => client,
+            (true, false, { } sent) => client with { Nodes = sent.Nodes },
+            (false, true, { } sent) => sent with { Nodes = client.Nodes },
+            _ => _state.SentClient,
+        };
 
         _logger.LogDebug(
             "Sent permissions to player {PlayerId}: security level {SecurityLevel}, ambassador {IsAmbassador}",

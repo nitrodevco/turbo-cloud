@@ -13,7 +13,8 @@ namespace Turbo.PacketHandlers.Turbo;
 /// <summary>
 /// A client opting in to Turbo's protocol extensions. The accepted ones are kept for the session
 /// and answered, then whatever an accepted extension carries is sent: the permission nodes, after
-/// the answer, through the same queue so they cannot overtake it.
+/// the answer, through the same queue so they cannot overtake it. The rights and perks the client
+/// was sent at login are not sent again.
 /// </summary>
 public class TurboClientCapabilitiesMessageHandler(IGrainFactory grainFactory)
     : IMessageHandler<TurboClientCapabilitiesMessage>
@@ -40,7 +41,7 @@ public class TurboClientCapabilitiesMessageHandler(IGrainFactory grainFactory)
         if (accepted.Any(x => x.Name == ClientCapabilities.PERMISSION_NODES))
             await _grainFactory
                 .GetPlayerPermissionGrain(ctx.PlayerId)
-                .SendClientStateAsync(ct)
+                .SendPermissionNodesAsync(ct)
                 .ConfigureAwait(false);
     }
 }

@@ -70,6 +70,17 @@ public class PermissionProjectionTests
     }
 
     [Fact]
+    public void RightsAndNodes_AreComparedApart()
+    {
+        // Both nodes are level 4: the level stays, only the node list moves.
+        var before = Project(PermissionNodes.Wired.MENU);
+        var after = Project(PermissionNodes.Wired.MENU, PermissionNodes.Chat.STYLE_STAFF);
+
+        after.RightsMatch(before).Should().BeTrue();
+        after.NodesMatch(before).Should().BeFalse();
+    }
+
+    [Fact]
     public void Nodes_IncludeAPluginNodeMarkedClientVisible()
     {
         var registry = new PermissionRegistry([
@@ -143,10 +154,10 @@ public class PermissionProjectionTests
     public void Matches_ComparesPerksByValue()
     {
         Project(PermissionNodes.Perk.CAMERA)
-            .Matches(Project(PermissionNodes.Perk.CAMERA))
+            .RightsMatch(Project(PermissionNodes.Perk.CAMERA))
             .Should()
             .BeTrue();
-        Project(PermissionNodes.Perk.CAMERA).Matches(Project()).Should().BeFalse();
+        Project(PermissionNodes.Perk.CAMERA).RightsMatch(Project()).Should().BeFalse();
     }
 
     [Fact]

@@ -36,11 +36,16 @@ public sealed record PermissionClientSnapshot
     [Id(4)]
     public required ImmutableArray<string> Nodes { get; init; }
 
-    /// <summary>Whether the client would be told the same thing; record equality compares the array by reference.</summary>
-    public bool Matches(PermissionClientSnapshot other) =>
+    /// <summary>
+    /// Whether <c>UserRights</c> and <c>PerkAllowances</c> would say the same thing. Record
+    /// equality compares the arrays by reference, and <see cref="IsModerator"/> reaches the room,
+    /// not these packets.
+    /// </summary>
+    public bool RightsMatch(PermissionClientSnapshot other) =>
         SecurityLevel == other.SecurityLevel
         && IsAmbassador == other.IsAmbassador
-        && IsModerator == other.IsModerator
-        && Perks.SequenceEqual(other.Perks)
-        && Nodes.SequenceEqual(other.Nodes);
+        && Perks.SequenceEqual(other.Perks);
+
+    /// <summary>Whether <c>TurboPermissionNodesMessage</c> would say the same thing.</summary>
+    public bool NodesMatch(PermissionClientSnapshot other) => Nodes.SequenceEqual(other.Nodes);
 }

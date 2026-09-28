@@ -44,6 +44,12 @@ public interface IPlayerPermissionGrain : IGrainWithIntegerKey
     /// </summary>
     public Task SendClientStateAsync(CancellationToken ct);
 
+    /// <summary>
+    /// Sends the player's client-facing nodes (<c>permission.nodes</c>), for a session that has
+    /// just accepted the extension; after that they go with every change.
+    /// </summary>
+    public Task SendPermissionNodesAsync(CancellationToken ct);
+
     /// <summary>Why the player does or does not hold <paramref name="node"/>.</summary>
     public Task<PermissionCheckSnapshot> ExplainAsync(string node, CancellationToken ct);
 
