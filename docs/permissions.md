@@ -331,7 +331,8 @@ as the console:
 
 ```text
 perm check <player> <node>
-perm user <player> info | audit [count]
+perm reload
+perm user <player> info | audit [count] | reload
 perm user <player> group add <group> [duration] [--extend] | group remove|removetemp <group>
 perm user <player> set <node> [true|false] [duration] [--extend] | unset|unsettemp <node>
 perm user <player> meta set <key> <value> [duration] [--extend] | meta unset|unsettemp <key>
@@ -348,6 +349,14 @@ temporary assignment is its own row beside any permanent one: `unsettemp` / `rem
 it, `unset` / `remove` the permanent one. Setting a temporary one again replaces its expiry;
 `--extend` adds the new duration to what it has left (`PermissionExpiryModeType`), LuckPerms'
 `temporary-add-behaviour` minus `deny`.
+
+Both grains are write-through and answer from memory, so a row written straight into the tables
+(a retro CMS, a housekeeping panel) is not seen until it is read again. `perm reload` is
+LuckPerms' `sync`: the directory reads every group again and publishes, and every active player
+permission grain reads its own rows again, resolves, and tells the client and room of any
+difference. `perm user <player> reload` does one player. Neither is audited; they change nothing
+in the tables.
+
 ## 10. Audit and the check trace
 
 **`permission_audit`** records every write: when, who (a player id, or null for the console or
@@ -709,7 +718,7 @@ temporary player denials of `trade` and `chat.speak` once the mod tool is built,
 | Default group not configurable (rename by display name, extend by parent) | same | keep |
 | Temporary beats permanent; `temporary-add-behaviour` | missing | **fix** (17.1) |
 | `meta-value-selection` per key | missing | **fix** (17.1) |
-| `sync` — reload after the database was edited by something else | missing | **take**: retro CMSes and housekeeping panels write the tables directly. `perm reload` re-hydrates the directory and every subscribed player grain |
+| `sync` — reload after the database was edited by something else | built: `perm reload` (§9) | — |
 | Argument-based command permissions (who may grant what) | missing | **take before any in-game editor**: a manager may only grant nodes they hold and groups lighter than their heaviest (`permissions.manage.*`) |
 | Verbose (watch checks live) | missing | **take**: every check goes through `HasAsync`, so `perm verbose <player>` logging checks is cheap and is how a hotel finds which node a feature wants |
 | `group listmembers`, `log recent`/`search`, `search <node>` (who holds it) | missing | take, console only, cheap queries |

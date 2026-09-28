@@ -536,6 +536,17 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
         return [.. rows.Select(x => x.ToSnapshot())];
     }
 
+    public async Task ReloadAsync(CancellationToken ct)
+    {
+        await HydrateAsync(ct);
+
+        Resolve();
+
+        _logger.LogInformation("Reloaded the permissions of player {PlayerId}", PlayerId);
+
+        await PublishChangesAsync(force: false, ct);
+    }
+
     public async Task OnGroupsChangedAsync(
         PermissionGroupDirectorySnapshot groups,
         CancellationToken ct

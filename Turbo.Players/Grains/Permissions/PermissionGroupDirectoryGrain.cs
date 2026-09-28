@@ -108,6 +108,27 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
         return Task.CompletedTask;
     }
 
+    public async Task<int> ReloadAsync(CancellationToken ct)
+    {
+        await HydrateAsync(ct);
+
+        // Not awaited, as with a push: one player failing to read its rows keeps its old ones
+        // until its next reload or activation, and must not stop the rest.
+        foreach (var playerId in _state.Subscribers)
+            _grainFactory
+                .GetPlayerPermissionGrain(playerId)
+                .ReloadAsync(CancellationToken.None)
+                .LogAndForget(_logger, "reload the permissions of player {PlayerId}", playerId);
+
+        _logger.LogInformation(
+            "Reloaded {GroupCount} permission groups and {PlayerCount} active players from the database",
+            _state.Snapshot.Groups.Count,
+            _state.Subscribers.Count
+        );
+
+        return _state.Subscribers.Count;
+    }
+
     public async Task<PermissionChangeResultType> CreateGroupAsync(
         string name,
         string displayName,

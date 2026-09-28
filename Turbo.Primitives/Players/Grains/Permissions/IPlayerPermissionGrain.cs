@@ -105,6 +105,12 @@ public interface IPlayerPermissionGrain : IGrainWithIntegerKey
         CancellationToken ct
     );
 
+    /// <summary>
+    /// Reads the player's own groups, nodes and meta from the database again, for rows something
+    /// else wrote, then resolves and tells the client and room of any difference.
+    /// </summary>
+    public Task ReloadAsync(CancellationToken ct);
+
     /// <summary>The directory's push after a group changed: resolve against the new groups.</summary>
     public Task OnGroupsChangedAsync(PermissionGroupDirectorySnapshot groups, CancellationToken ct);
 }

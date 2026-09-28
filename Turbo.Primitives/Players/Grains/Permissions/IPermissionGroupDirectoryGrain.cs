@@ -32,6 +32,14 @@ public interface IPermissionGroupDirectoryGrain : IGrainWithStringKey
 
     public Task UnsubscribeAsync(PlayerId playerId, CancellationToken ct);
 
+    /// <summary>
+    /// Reads every group from the database again, for tables something else wrote (a CMS, a
+    /// housekeeping panel), publishes them, and has every active player permission grain read its
+    /// own rows again too. Not audited: it changes nothing, it catches up. Returns how many player
+    /// grains were told.
+    /// </summary>
+    public Task<int> ReloadAsync(CancellationToken ct);
+
     public Task<PermissionChangeResultType> CreateGroupAsync(
         string name,
         string displayName,

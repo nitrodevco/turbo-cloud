@@ -26,8 +26,10 @@ internal sealed class PermissionConsoleCommand(
 {
     public const string USAGE = """
             perm check <player> <node>                         why a player does or does not hold a node
+            perm reload                                        re-read every group and online player from the database
             perm user <player> info                            groups, nodes, meta and resolved set
             perm user <player> audit [count]
+            perm user <player> reload                          re-read one player's rows from the database
             perm user <player> group add <group> [duration] [--extend]
             perm user <player> group remove|removetemp <group>
             perm user <player> set <node> [true|false] [duration] [--extend]
@@ -79,6 +81,7 @@ internal sealed class PermissionConsoleCommand(
                 ["check", var player, var node] => await CheckAsync(player, node, ct)
                     .ConfigureAwait(false),
                 ["groups"] => await ListGroupsAsync(ct).ConfigureAwait(false),
+                ["reload"] => await ReloadAsync(ct).ConfigureAwait(false),
                 ["user", var player, .. var rest] => await UserAsync(player, rest, ct)
                     .ConfigureAwait(false),
                 ["group", var group, .. var rest] => await GroupAsync(group, rest, ct)
@@ -131,6 +134,17 @@ internal sealed class PermissionConsoleCommand(
         return true;
     }
 
+    private async Task<bool> ReloadAsync(CancellationToken ct)
+    {
+        var players = await Directory.ReloadAsync(ct).ConfigureAwait(false);
+
+        System.Console.WriteLine(
+            $"Groups reloaded; {players} online players are reading their own rows again."
+        );
+
+        return true;
+    }
+
     private async Task<bool> ListGroupsAsync(CancellationToken ct)
     {
         var snapshot = await Directory.GetSnapshotAsync(ct).ConfigureAwait(false);
@@ -169,6 +183,10 @@ internal sealed class PermissionConsoleCommand(
                 return true;
             case ["audit", var count]:
                 PrintAudit(await grain.GetAuditAsync(ParseInt(count), ct).ConfigureAwait(false));
+                return true;
+            case ["reload"]:
+                await grain.ReloadAsync(ct).ConfigureAwait(false);
+                System.Console.WriteLine("Reloaded.");
                 return true;
             case ["group", "add", var group, .. var rest]:
                 Report(
