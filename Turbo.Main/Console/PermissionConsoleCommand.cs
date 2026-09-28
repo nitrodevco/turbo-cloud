@@ -23,12 +23,12 @@ internal sealed class PermissionConsoleCommand(IGrainFactory grainFactory)
             perm check <player> <node>                         why a player does or does not hold a node
             perm user <player> info                            groups, nodes, meta and resolved set
             perm user <player> audit [count]
-            perm user <player> group add <group> [duration]
-            perm user <player> group remove <group>
-            perm user <player> set <node> [true|false] [duration]
-            perm user <player> unset <node>
-            perm user <player> meta set <key> <value> [duration]
-            perm user <player> meta unset <key>
+            perm user <player> group add <group> [duration] [--extend]
+            perm user <player> group remove|removetemp <group>
+            perm user <player> set <node> [true|false] [duration] [--extend]
+            perm user <player> unset|unsettemp <node>
+            perm user <player> meta set <key> <value> [duration] [--extend]
+            perm user <player> meta unset|unsettemp <key>
             perm groups
             perm group <group> info
             perm group <group> audit [count]
@@ -36,23 +36,35 @@ internal sealed class PermissionConsoleCommand(IGrainFactory grainFactory)
             perm group <group> delete
             perm group <group> weight <weight>
             perm group <group> rename <display name>
-            perm group <group> set <node> [true|false] [duration]
-            perm group <group> unset <node>
-            perm group <group> meta set <key> <value> [duration]
-            perm group <group> meta unset <key>
+            perm group <group> set <node> [true|false] [duration] [--extend]
+            perm group <group> unset|unsettemp <node>
+            perm group <group> meta set <key> <value> [duration] [--extend]
+            perm group <group> meta unset|unsettemp <key>
             perm group <group> parent add|remove <parent>
-          durations: 30s, 15m, 12h, 7d, 2w; left out, permanent
+          durations: 30s, 15m, 12h, 7d, 2w; left out, permanent. A temporary assignment sits beside
+          a permanent one of the same node and wins while it lasts; unsettemp removes it, unset the
+          permanent one. --extend adds the duration to one already running instead of replacing it.
         """;
 
     private const int DEFAULT_AUDIT_COUNT = 20;
 
+    private const string EXTEND_FLAG = "--extend";
+
     private readonly IGrainFactory _grainFactory = grainFactory;
+
+    /// <summary>What a temporary write does to one already running; <c>--extend</c> anywhere asks to extend.</summary>
+    private PermissionExpiryModeType _mode;
 
     private IPermissionGroupDirectoryGrain Directory =>
         _grainFactory.GetPermissionGroupDirectoryGrain();
 
     public async Task RunAsync(string[] args, CancellationToken ct)
     {
+        _mode = args.Contains(EXTEND_FLAG)
+            ? PermissionExpiryModeType.Extend
+            : PermissionExpiryModeType.Replace;
+        args = [.. args.Where(x => x != EXTEND_FLAG)];
+
         try
         {
             var handled = args switch
@@ -154,33 +166,47 @@ internal sealed class PermissionConsoleCommand(IGrainFactory grainFactory)
             case ["group", "add", var group, .. var rest]:
                 Report(
                     await grain
-                        .AddGroupAsync(group, ParseExpiry(rest), null, ct)
+                        .AddGroupAsync(group, ParseExpiry(rest), _mode, null, ct)
                         .ConfigureAwait(false)
                 );
                 return true;
-            case ["group", "remove", var group]:
-                Report(await grain.RemoveGroupAsync(group, null, ct).ConfigureAwait(false));
+            case ["group", "remove" or "removetemp", var group]:
+                Report(
+                    await grain
+                        .RemoveGroupAsync(group, args[1] == "removetemp", null, ct)
+                        .ConfigureAwait(false)
+                );
                 return true;
             case ["set", var node, .. var rest]:
             {
                 var (value, expiresAt) = ParseValueAndExpiry(rest);
                 Report(
-                    await grain.SetNodeAsync(node, value, expiresAt, null, ct).ConfigureAwait(false)
+                    await grain
+                        .SetNodeAsync(node, value, expiresAt, _mode, null, ct)
+                        .ConfigureAwait(false)
                 );
                 return true;
             }
-            case ["unset", var node]:
-                Report(await grain.UnsetNodeAsync(node, null, ct).ConfigureAwait(false));
+            case ["unset" or "unsettemp", var node]:
+                Report(
+                    await grain
+                        .UnsetNodeAsync(node, args[0] == "unsettemp", null, ct)
+                        .ConfigureAwait(false)
+                );
                 return true;
             case ["meta", "set", var key, var value, .. var rest]:
                 Report(
                     await grain
-                        .SetMetaAsync(key, value, ParseExpiry(rest), null, ct)
+                        .SetMetaAsync(key, value, ParseExpiry(rest), _mode, null, ct)
                         .ConfigureAwait(false)
                 );
                 return true;
-            case ["meta", "unset", var key]:
-                Report(await grain.UnsetMetaAsync(key, null, ct).ConfigureAwait(false));
+            case ["meta", "unset" or "unsettemp", var key]:
+                Report(
+                    await grain
+                        .UnsetMetaAsync(key, args[1] == "unsettemp", null, ct)
+                        .ConfigureAwait(false)
+                );
                 return true;
             default:
                 return false;
@@ -250,23 +276,31 @@ internal sealed class PermissionConsoleCommand(IGrainFactory grainFactory)
                 var (value, expiresAt) = ParseValueAndExpiry(rest);
                 Report(
                     await directory
-                        .SetNodeAsync(group, node, value, expiresAt, null, ct)
+                        .SetNodeAsync(group, node, value, expiresAt, _mode, null, ct)
                         .ConfigureAwait(false)
                 );
                 return true;
             }
-            case ["unset", var node]:
-                Report(await directory.UnsetNodeAsync(group, node, null, ct).ConfigureAwait(false));
+            case ["unset" or "unsettemp", var node]:
+                Report(
+                    await directory
+                        .UnsetNodeAsync(group, node, args[0] == "unsettemp", null, ct)
+                        .ConfigureAwait(false)
+                );
                 return true;
             case ["meta", "set", var key, var value, .. var rest]:
                 Report(
                     await directory
-                        .SetMetaAsync(group, key, value, ParseExpiry(rest), null, ct)
+                        .SetMetaAsync(group, key, value, ParseExpiry(rest), _mode, null, ct)
                         .ConfigureAwait(false)
                 );
                 return true;
-            case ["meta", "unset", var key]:
-                Report(await directory.UnsetMetaAsync(group, key, null, ct).ConfigureAwait(false));
+            case ["meta", "unset" or "unsettemp", var key]:
+                Report(
+                    await directory
+                        .UnsetMetaAsync(group, key, args[1] == "unsettemp", null, ct)
+                        .ConfigureAwait(false)
+                );
                 return true;
             case ["parent", "add", var parent]:
                 Report(

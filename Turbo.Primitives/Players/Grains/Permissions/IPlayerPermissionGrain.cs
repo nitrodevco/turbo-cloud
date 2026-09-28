@@ -17,6 +17,12 @@ namespace Turbo.Primitives.Players.Grains.Permissions;
 /// <remarks>
 /// <c>actor</c> on every write is who made it, for the audit: a player, or <c>null</c> for the
 /// console. Nothing here checks that the actor may make the change; the caller does.
+/// <para>
+/// A permanent and a temporary assignment of the same node, meta key or group are separate rows:
+/// a write with an expiry touches the temporary one, a write without touches the permanent one,
+/// and a removal says which it means with <c>temporary</c>. While both exist the temporary one
+/// wins. <c>mode</c> says what setting a temporary one that is already running does to its expiry.
+/// </para>
 /// </remarks>
 public interface IPlayerPermissionGrain : IGrainWithIntegerKey
 {
@@ -38,12 +44,14 @@ public interface IPlayerPermissionGrain : IGrainWithIntegerKey
     public Task<PermissionChangeResultType> AddGroupAsync(
         string groupName,
         DateTime? expiresAt,
+        PermissionExpiryModeType mode,
         PlayerId? actor,
         CancellationToken ct
     );
 
     public Task<PermissionChangeResultType> RemoveGroupAsync(
         string groupName,
+        bool temporary,
         PlayerId? actor,
         CancellationToken ct
     );
@@ -53,12 +61,14 @@ public interface IPlayerPermissionGrain : IGrainWithIntegerKey
         string node,
         bool value,
         DateTime? expiresAt,
+        PermissionExpiryModeType mode,
         PlayerId? actor,
         CancellationToken ct
     );
 
     public Task<PermissionChangeResultType> UnsetNodeAsync(
         string node,
+        bool temporary,
         PlayerId? actor,
         CancellationToken ct
     );
@@ -67,12 +77,14 @@ public interface IPlayerPermissionGrain : IGrainWithIntegerKey
         string key,
         string value,
         DateTime? expiresAt,
+        PermissionExpiryModeType mode,
         PlayerId? actor,
         CancellationToken ct
     );
 
     public Task<PermissionChangeResultType> UnsetMetaAsync(
         string key,
+        bool temporary,
         PlayerId? actor,
         CancellationToken ct
     );

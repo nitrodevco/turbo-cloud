@@ -16,6 +16,12 @@ namespace Turbo.Primitives.Players.Grains.Permissions;
 /// <remarks>
 /// <c>actor</c> on every write is who made it, for the audit: a player, or <c>null</c> for the
 /// console. Nothing here checks that the actor may make the change; the caller does.
+/// <para>
+/// A permanent and a temporary assignment of the same node, meta key or group are separate rows:
+/// a write with an expiry touches the temporary one, a write without touches the permanent one,
+/// and a removal says which it means with <c>temporary</c>. While both exist the temporary one
+/// wins. <c>mode</c> says what setting a temporary one that is already running does to its expiry.
+/// </para>
 /// </remarks>
 public interface IPermissionGroupDirectoryGrain : IGrainWithStringKey
 {
@@ -61,6 +67,7 @@ public interface IPermissionGroupDirectoryGrain : IGrainWithStringKey
         string node,
         bool value,
         DateTime? expiresAt,
+        PermissionExpiryModeType mode,
         PlayerId? actor,
         CancellationToken ct
     );
@@ -68,6 +75,7 @@ public interface IPermissionGroupDirectoryGrain : IGrainWithStringKey
     public Task<PermissionChangeResultType> UnsetNodeAsync(
         string name,
         string node,
+        bool temporary,
         PlayerId? actor,
         CancellationToken ct
     );
@@ -77,6 +85,7 @@ public interface IPermissionGroupDirectoryGrain : IGrainWithStringKey
         string key,
         string value,
         DateTime? expiresAt,
+        PermissionExpiryModeType mode,
         PlayerId? actor,
         CancellationToken ct
     );
@@ -84,6 +93,7 @@ public interface IPermissionGroupDirectoryGrain : IGrainWithStringKey
     public Task<PermissionChangeResultType> UnsetMetaAsync(
         string name,
         string key,
+        bool temporary,
         PlayerId? actor,
         CancellationToken ct
     );

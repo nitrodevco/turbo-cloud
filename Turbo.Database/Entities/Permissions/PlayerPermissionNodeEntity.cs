@@ -12,7 +12,8 @@ namespace Turbo.Database.Entities.Permissions;
 /// give, or a denial (a sanction) of one they do.
 /// </summary>
 [Table("player_permission_nodes")]
-[Index(nameof(PlayerEntityId), nameof(Node), IsUnique = true)]
+// One permanent and one temporary row may coexist: the temporary one wins while it lasts.
+[Index(nameof(PlayerEntityId), nameof(Node), nameof(IsTemporary), IsUnique = true)]
 public class PlayerPermissionNodeEntity : TurboEntity
 {
     [Column("player_id")]
@@ -29,6 +30,10 @@ public class PlayerPermissionNodeEntity : TurboEntity
     /// <summary>UTC. Null for a permanent assignment.</summary>
     [Column("expires_at")]
     public DateTime? ExpiresAt { get; set; }
+
+    /// <summary>Whether <see cref="ExpiresAt"/> is set. Kept by the writer; part of the unique key.</summary>
+    [Column("is_temporary")]
+    public bool IsTemporary { get; set; }
 
     [ForeignKey(nameof(PlayerEntityId))]
     public PlayerEntity? PlayerEntity { get; set; }

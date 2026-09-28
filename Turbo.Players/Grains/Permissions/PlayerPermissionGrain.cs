@@ -173,6 +173,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
     public async Task<PermissionChangeResultType> AddGroupAsync(
         string groupName,
         DateTime? expiresAt,
+        PermissionExpiryModeType mode,
         PlayerId? actor,
         CancellationToken ct
     )
@@ -180,19 +181,28 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
         if (groupName == PermissionGroupNames.DEFAULT)
             return PermissionChangeResultType.ProtectedGroup;
 
-        if (expiresAt <= DateTime.UtcNow)
+        var now = DateTime.UtcNow;
+
+        if (expiresAt <= now)
             return PermissionChangeResultType.Expired;
 
         if (FindGroup(groupName) is not { } group)
             return PermissionChangeResultType.UnknownGroup;
 
+        var temporary = expiresAt is not null;
+
         return await WriteAsync(
             async dbCtx =>
             {
                 var row = await dbCtx.PlayerPermissionGroups.FirstOrDefaultAsync(
-                    x => x.PlayerEntityId == PlayerId.Value && x.GroupEntityId == group.Id,
+                    x =>
+                        x.PlayerEntityId == PlayerId.Value
+                        && x.GroupEntityId == group.Id
+                        && x.IsTemporary == temporary,
                     ct
                 );
+
+                var until = PermissionExpiry.Resolve(expiresAt, row?.ExpiresAt, mode, now);
 
                 if (row is null)
                 {
@@ -200,23 +210,24 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
                     {
                         PlayerEntityId = PlayerId.Value,
                         GroupEntityId = group.Id,
-                        ExpiresAt = expiresAt,
+                        ExpiresAt = until,
+                        IsTemporary = temporary,
                     };
 
                     dbCtx.PlayerPermissionGroups.Add(row);
                 }
-                else if (row.ExpiresAt == expiresAt)
+                else if (row.ExpiresAt == until)
                     return (PermissionChangeResultType.Unchanged, null);
                 else
-                    row.ExpiresAt = expiresAt;
+                    row.ExpiresAt = until;
 
                 dbCtx.PermissionAudit.Add(
-                    Audit(PermissionAuditActionType.GroupAdded, groupName, actor, null, expiresAt)
+                    Audit(PermissionAuditActionType.GroupAdded, groupName, actor, null, until)
                 );
 
                 return (
                     PermissionChangeResultType.Changed,
-                    () => _state.MembershipsByGroupId[group.Id] = row.ToSnapshot()
+                    () => _state.MembershipsByGroupId[(group.Id, temporary)] = row.ToSnapshot()
                 );
             },
             ct
@@ -225,6 +236,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
 
     public async Task<PermissionChangeResultType> RemoveGroupAsync(
         string groupName,
+        bool temporary,
         PlayerId? actor,
         CancellationToken ct
     )
@@ -239,7 +251,10 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
             async dbCtx =>
             {
                 var row = await dbCtx.PlayerPermissionGroups.FirstOrDefaultAsync(
-                    x => x.PlayerEntityId == PlayerId.Value && x.GroupEntityId == group.Id,
+                    x =>
+                        x.PlayerEntityId == PlayerId.Value
+                        && x.GroupEntityId == group.Id
+                        && x.IsTemporary == temporary,
                     ct
                 );
 
@@ -248,12 +263,18 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
 
                 dbCtx.PlayerPermissionGroups.Remove(row);
                 dbCtx.PermissionAudit.Add(
-                    Audit(PermissionAuditActionType.GroupRemoved, groupName, actor)
+                    Audit(
+                        PermissionAuditActionType.GroupRemoved,
+                        groupName,
+                        actor,
+                        null,
+                        row.ExpiresAt
+                    )
                 );
 
                 return (
                     PermissionChangeResultType.Changed,
-                    () => _state.MembershipsByGroupId.Remove(group.Id)
+                    () => _state.MembershipsByGroupId.Remove((group.Id, temporary))
                 );
             },
             ct
@@ -264,6 +285,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
         string node,
         bool value,
         DateTime? expiresAt,
+        PermissionExpiryModeType mode,
         PlayerId? actor,
         CancellationToken ct
     )
@@ -271,16 +293,25 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
         if (!PermissionNodeFormat.IsValidAssignment(node))
             return PermissionChangeResultType.Invalid;
 
-        if (expiresAt <= DateTime.UtcNow)
+        var now = DateTime.UtcNow;
+
+        if (expiresAt <= now)
             return PermissionChangeResultType.Expired;
+
+        var temporary = expiresAt is not null;
 
         return await WriteAsync(
             async dbCtx =>
             {
                 var row = await dbCtx.PlayerPermissionNodes.FirstOrDefaultAsync(
-                    x => x.PlayerEntityId == PlayerId.Value && x.Node == node,
+                    x =>
+                        x.PlayerEntityId == PlayerId.Value
+                        && x.Node == node
+                        && x.IsTemporary == temporary,
                     ct
                 );
+
+                var until = PermissionExpiry.Resolve(expiresAt, row?.ExpiresAt, mode, now);
 
                 if (row is null)
                 {
@@ -289,17 +320,18 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
                         PlayerEntityId = PlayerId.Value,
                         Node = node,
                         Value = value,
-                        ExpiresAt = expiresAt,
+                        ExpiresAt = until,
+                        IsTemporary = temporary,
                     };
 
                     dbCtx.PlayerPermissionNodes.Add(row);
                 }
-                else if (row.Value == value && row.ExpiresAt == expiresAt)
+                else if (row.Value == value && row.ExpiresAt == until)
                     return (PermissionChangeResultType.Unchanged, null);
                 else
                 {
                     row.Value = value;
-                    row.ExpiresAt = expiresAt;
+                    row.ExpiresAt = until;
                 }
 
                 dbCtx.PermissionAudit.Add(
@@ -308,13 +340,13 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
                         node,
                         actor,
                         PermissionAuditEntries.Format(value),
-                        expiresAt
+                        until
                     )
                 );
 
                 return (
                     PermissionChangeResultType.Changed,
-                    () => _state.NodesByNode[node] = row.ToSnapshot()
+                    () => _state.NodesByNode[(node, temporary)] = row.ToSnapshot()
                 );
             },
             ct
@@ -323,6 +355,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
 
     public async Task<PermissionChangeResultType> UnsetNodeAsync(
         string node,
+        bool temporary,
         PlayerId? actor,
         CancellationToken ct
     ) =>
@@ -332,7 +365,10 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
                 async dbCtx =>
                 {
                     var row = await dbCtx.PlayerPermissionNodes.FirstOrDefaultAsync(
-                        x => x.PlayerEntityId == PlayerId.Value && x.Node == node,
+                        x =>
+                            x.PlayerEntityId == PlayerId.Value
+                            && x.Node == node
+                            && x.IsTemporary == temporary,
                         ct
                     );
 
@@ -341,12 +377,12 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
 
                     dbCtx.PlayerPermissionNodes.Remove(row);
                     dbCtx.PermissionAudit.Add(
-                        Audit(PermissionAuditActionType.NodeUnset, node, actor)
+                        Audit(PermissionAuditActionType.NodeUnset, node, actor, null, row.ExpiresAt)
                     );
 
                     return (
                         PermissionChangeResultType.Changed,
-                        () => _state.NodesByNode.Remove(node)
+                        () => _state.NodesByNode.Remove((node, temporary))
                     );
                 },
                 ct
@@ -356,6 +392,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
         string key,
         string value,
         DateTime? expiresAt,
+        PermissionExpiryModeType mode,
         PlayerId? actor,
         CancellationToken ct
     )
@@ -363,16 +400,25 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
         if (!PermissionNodeFormat.IsValidNode(key) || !PermissionNodeFormat.IsValidMetaValue(value))
             return PermissionChangeResultType.Invalid;
 
-        if (expiresAt <= DateTime.UtcNow)
+        var now = DateTime.UtcNow;
+
+        if (expiresAt <= now)
             return PermissionChangeResultType.Expired;
+
+        var temporary = expiresAt is not null;
 
         return await WriteAsync(
             async dbCtx =>
             {
                 var row = await dbCtx.PlayerPermissionMeta.FirstOrDefaultAsync(
-                    x => x.PlayerEntityId == PlayerId.Value && x.Key == key,
+                    x =>
+                        x.PlayerEntityId == PlayerId.Value
+                        && x.Key == key
+                        && x.IsTemporary == temporary,
                     ct
                 );
+
+                var until = PermissionExpiry.Resolve(expiresAt, row?.ExpiresAt, mode, now);
 
                 if (row is null)
                 {
@@ -381,26 +427,27 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
                         PlayerEntityId = PlayerId.Value,
                         Key = key,
                         Value = value,
-                        ExpiresAt = expiresAt,
+                        ExpiresAt = until,
+                        IsTemporary = temporary,
                     };
 
                     dbCtx.PlayerPermissionMeta.Add(row);
                 }
-                else if (row.Value == value && row.ExpiresAt == expiresAt)
+                else if (row.Value == value && row.ExpiresAt == until)
                     return (PermissionChangeResultType.Unchanged, null);
                 else
                 {
                     row.Value = value;
-                    row.ExpiresAt = expiresAt;
+                    row.ExpiresAt = until;
                 }
 
                 dbCtx.PermissionAudit.Add(
-                    Audit(PermissionAuditActionType.MetaSet, key, actor, value, expiresAt)
+                    Audit(PermissionAuditActionType.MetaSet, key, actor, value, until)
                 );
 
                 return (
                     PermissionChangeResultType.Changed,
-                    () => _state.MetaByKey[key] = row.ToSnapshot()
+                    () => _state.MetaByKey[(key, temporary)] = row.ToSnapshot()
                 );
             },
             ct
@@ -409,6 +456,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
 
     public async Task<PermissionChangeResultType> UnsetMetaAsync(
         string key,
+        bool temporary,
         PlayerId? actor,
         CancellationToken ct
     ) =>
@@ -418,7 +466,10 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
                 async dbCtx =>
                 {
                     var row = await dbCtx.PlayerPermissionMeta.FirstOrDefaultAsync(
-                        x => x.PlayerEntityId == PlayerId.Value && x.Key == key,
+                        x =>
+                            x.PlayerEntityId == PlayerId.Value
+                            && x.Key == key
+                            && x.IsTemporary == temporary,
                         ct
                     );
 
@@ -427,10 +478,13 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
 
                     dbCtx.PlayerPermissionMeta.Remove(row);
                     dbCtx.PermissionAudit.Add(
-                        Audit(PermissionAuditActionType.MetaUnset, key, actor)
+                        Audit(PermissionAuditActionType.MetaUnset, key, actor, null, row.ExpiresAt)
                     );
 
-                    return (PermissionChangeResultType.Changed, () => _state.MetaByKey.Remove(key));
+                    return (
+                        PermissionChangeResultType.Changed,
+                        () => _state.MetaByKey.Remove((key, temporary))
+                    );
                 },
                 ct
             );
@@ -466,10 +520,10 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
         _state.Groups = groups;
 
         // A deleted group's memberships were cascaded away in the database; forget them here too.
-        foreach (var groupId in _state.MembershipsByGroupId.Keys.ToList())
+        foreach (var key in _state.MembershipsByGroupId.Keys.ToList())
         {
-            if (!groups.Groups.ContainsKey(groupId))
-                _state.MembershipsByGroupId.Remove(groupId);
+            if (!groups.Groups.ContainsKey(key.GroupId))
+                _state.MembershipsByGroupId.Remove(key);
         }
 
         Resolve();
@@ -683,13 +737,13 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
                 await dbCtx.SaveChangesAsync(ct);
 
                 foreach (var row in groups)
-                    _state.MembershipsByGroupId.Remove(row.GroupEntityId);
+                    _state.MembershipsByGroupId.Remove((row.GroupEntityId, row.IsTemporary));
 
                 foreach (var row in nodes)
-                    _state.NodesByNode.Remove(row.Node);
+                    _state.NodesByNode.Remove((row.Node, row.IsTemporary));
 
                 foreach (var row in meta)
-                    _state.MetaByKey.Remove(row.Key);
+                    _state.MetaByKey.Remove((row.Key, row.IsTemporary));
 
                 _logger.LogInformation(
                     "Expired {Count} permission assignments of player {PlayerId}",
@@ -734,12 +788,12 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
         _state.MetaByKey.Clear();
 
         foreach (var row in groups)
-            _state.MembershipsByGroupId[row.GroupEntityId] = row.ToSnapshot();
+            _state.MembershipsByGroupId[(row.GroupEntityId, row.IsTemporary)] = row.ToSnapshot();
 
         foreach (var row in nodes)
-            _state.NodesByNode[row.Node] = row.ToSnapshot();
+            _state.NodesByNode[(row.Node, row.IsTemporary)] = row.ToSnapshot();
 
         foreach (var row in meta)
-            _state.MetaByKey[row.Key] = row.ToSnapshot();
+            _state.MetaByKey[(row.Key, row.IsTemporary)] = row.ToSnapshot();
     }
 }

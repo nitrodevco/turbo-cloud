@@ -262,6 +262,7 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
         string node,
         bool value,
         DateTime? expiresAt,
+        PermissionExpiryModeType mode,
         PlayerId? actor,
         CancellationToken ct
     )
@@ -269,8 +270,12 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
         if (!PermissionNodeFormat.IsValidAssignment(node))
             return PermissionChangeResultType.Invalid;
 
-        if (expiresAt <= DateTime.UtcNow)
+        var now = DateTime.UtcNow;
+
+        if (expiresAt <= now)
             return PermissionChangeResultType.Expired;
+
+        var temporary = expiresAt is not null;
 
         if (FindGroup(name) is not { } group)
             return PermissionChangeResultType.UnknownGroup;
@@ -280,9 +285,12 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
             async dbCtx =>
             {
                 var row = await dbCtx.PermissionGroupNodes.FirstOrDefaultAsync(
-                    x => x.GroupEntityId == group.Id && x.Node == node,
+                    x =>
+                        x.GroupEntityId == group.Id && x.Node == node && x.IsTemporary == temporary,
                     ct
                 );
+
+                var until = PermissionExpiry.Resolve(expiresAt, row?.ExpiresAt, mode, now);
 
                 if (row is null)
                     dbCtx.PermissionGroupNodes.Add(
@@ -291,15 +299,16 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
                             GroupEntityId = group.Id,
                             Node = node,
                             Value = value,
-                            ExpiresAt = expiresAt,
+                            ExpiresAt = until,
+                            IsTemporary = temporary,
                         }
                     );
-                else if (row.Value == value && row.ExpiresAt == expiresAt)
+                else if (row.Value == value && row.ExpiresAt == until)
                     return PermissionChangeResultType.Unchanged;
                 else
                 {
                     row.Value = value;
-                    row.ExpiresAt = expiresAt;
+                    row.ExpiresAt = until;
                 }
 
                 dbCtx.PermissionAudit.Add(
@@ -310,7 +319,7 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
                         node,
                         actor,
                         PermissionAuditEntries.Format(value),
-                        expiresAt
+                        until
                     )
                 );
 
@@ -323,6 +332,7 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
     public async Task<PermissionChangeResultType> UnsetNodeAsync(
         string name,
         string node,
+        bool temporary,
         PlayerId? actor,
         CancellationToken ct
     )
@@ -338,7 +348,8 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
             async dbCtx =>
             {
                 var row = await dbCtx.PermissionGroupNodes.FirstOrDefaultAsync(
-                    x => x.GroupEntityId == group.Id && x.Node == node,
+                    x =>
+                        x.GroupEntityId == group.Id && x.Node == node && x.IsTemporary == temporary,
                     ct
                 );
 
@@ -367,6 +378,7 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
         string key,
         string value,
         DateTime? expiresAt,
+        PermissionExpiryModeType mode,
         PlayerId? actor,
         CancellationToken ct
     )
@@ -374,8 +386,12 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
         if (!PermissionNodeFormat.IsValidNode(key) || !PermissionNodeFormat.IsValidMetaValue(value))
             return PermissionChangeResultType.Invalid;
 
-        if (expiresAt <= DateTime.UtcNow)
+        var now = DateTime.UtcNow;
+
+        if (expiresAt <= now)
             return PermissionChangeResultType.Expired;
+
+        var temporary = expiresAt is not null;
 
         if (FindGroup(name) is not { } group)
             return PermissionChangeResultType.UnknownGroup;
@@ -385,9 +401,11 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
             async dbCtx =>
             {
                 var row = await dbCtx.PermissionGroupMeta.FirstOrDefaultAsync(
-                    x => x.GroupEntityId == group.Id && x.Key == key,
+                    x => x.GroupEntityId == group.Id && x.Key == key && x.IsTemporary == temporary,
                     ct
                 );
+
+                var until = PermissionExpiry.Resolve(expiresAt, row?.ExpiresAt, mode, now);
 
                 if (row is null)
                     dbCtx.PermissionGroupMeta.Add(
@@ -396,15 +414,16 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
                             GroupEntityId = group.Id,
                             Key = key,
                             Value = value,
-                            ExpiresAt = expiresAt,
+                            ExpiresAt = until,
+                            IsTemporary = temporary,
                         }
                     );
-                else if (row.Value == value && row.ExpiresAt == expiresAt)
+                else if (row.Value == value && row.ExpiresAt == until)
                     return PermissionChangeResultType.Unchanged;
                 else
                 {
                     row.Value = value;
-                    row.ExpiresAt = expiresAt;
+                    row.ExpiresAt = until;
                 }
 
                 dbCtx.PermissionAudit.Add(
@@ -415,7 +434,7 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
                         key,
                         actor,
                         value,
-                        expiresAt
+                        until
                     )
                 );
 
@@ -428,6 +447,7 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
     public async Task<PermissionChangeResultType> UnsetMetaAsync(
         string name,
         string key,
+        bool temporary,
         PlayerId? actor,
         CancellationToken ct
     )
@@ -443,7 +463,7 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
             async dbCtx =>
             {
                 var row = await dbCtx.PermissionGroupMeta.FirstOrDefaultAsync(
-                    x => x.GroupEntityId == group.Id && x.Key == key,
+                    x => x.GroupEntityId == group.Id && x.Key == key && x.IsTemporary == temporary,
                     ct
                 );
 

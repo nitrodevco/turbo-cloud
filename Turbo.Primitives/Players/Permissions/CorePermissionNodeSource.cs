@@ -73,7 +73,11 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Use the :furni chooser in any room.",
             SecurityLevelType.Partner
         ),
-        new(PermissionNodes.Chat.STYLE_STAFF, "Speak with staff chat bubbles."),
+        new(
+            PermissionNodes.Chat.STYLE_STAFF,
+            "Speak with staff chat bubbles.",
+            SecurityLevelType.Employee
+        ),
         new(PermissionNodes.Role.AMBASSADOR, "Be an ambassador."),
         new(PermissionNodes.Permissions.MANAGE, "Edit groups and other players' permissions."),
         new(PermissionNodes.Perk.CAMERA, "Use the camera.", Perk: PlayerPerkFlags.Camera),
@@ -133,7 +137,8 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
     [
         new(
             PermissionMetaKeys.Client.SECURITY_LEVEL,
-            "A minimum security level sent to the client, over the one the player's nodes give."
+            "A minimum security level sent to the client, over the one the player's nodes give.",
+            PermissionMetaSelectionType.HighestNumber
         ),
     ];
 }

@@ -8,7 +8,8 @@ namespace Turbo.Database.Entities.Permissions;
 
 /// <summary>A meta value a group sets (<c>client.security_level = 5</c>).</summary>
 [Table("permission_group_meta")]
-[Index(nameof(GroupEntityId), nameof(Key), IsUnique = true)]
+// One permanent and one temporary row may coexist: the temporary one wins while it lasts.
+[Index(nameof(GroupEntityId), nameof(Key), nameof(IsTemporary), IsUnique = true)]
 public class PermissionGroupMetaEntity : TurboEntity
 {
     [Column("group_id")]
@@ -25,6 +26,10 @@ public class PermissionGroupMetaEntity : TurboEntity
     /// <summary>UTC. Null for a permanent assignment.</summary>
     [Column("expires_at")]
     public DateTime? ExpiresAt { get; set; }
+
+    /// <summary>Whether <see cref="ExpiresAt"/> is set. Kept by the writer; part of the unique key.</summary>
+    [Column("is_temporary")]
+    public bool IsTemporary { get; set; }
 
     [ForeignKey(nameof(GroupEntityId))]
     public PermissionGroupEntity? GroupEntity { get; set; }

@@ -13,11 +13,31 @@ public class PermissionResolverTests
 {
     private static readonly DateTime NOW = new(2026, 9, 28, 12, 0, 0, DateTimeKind.Utc);
 
-    private static readonly PermissionRegistry REGISTRY = new([new CorePermissionNodeSource()]);
+    private static readonly PermissionRegistry REGISTRY = new([
+        new CorePermissionNodeSource(),
+        new TestMetaSource(),
+    ]);
 
     private const string LOCKED = PermissionNodes.Room.ENTER_LOCKED;
     private const string FULL = PermissionNodes.Room.ENTER_FULL;
-    private const string LEVEL = PermissionMetaKeys.Client.SECURITY_LEVEL;
+    private const string FIRST = "test.first";
+    private const string HIGH = "test.high";
+    private const string LOW = "test.low";
+
+    /// <summary>One meta key per selection, so each rule is tested on its own.</summary>
+    private sealed class TestMetaSource : IPermissionNodeSource
+    {
+        public string? Prefix => "test";
+
+        public IEnumerable<PermissionNodeDefinition> Nodes => [];
+
+        public IEnumerable<PermissionMetaDefinition> MetaKeys =>
+            [
+                new(FIRST, "test"),
+                new(HIGH, "test", PermissionMetaSelectionType.HighestNumber),
+                new(LOW, "test", PermissionMetaSelectionType.LowestNumber),
+            ];
+    }
 
     // --- denial and defaults ---
 
@@ -297,14 +317,14 @@ public class PermissionResolverTests
     {
         var groups = new[]
         {
-            Group(1, "helper", 30, meta: [Meta(LEVEL, "2")]),
-            Group(2, "moderator", 50, meta: [Meta(LEVEL, "5")]),
+            Group(1, "helper", 30, meta: [Meta(FIRST, "2")]),
+            Group(2, "moderator", 50, meta: [Meta(FIRST, "5")]),
         };
 
-        Resolve(groups, Player(groups: [Member(1), Member(2)])).Meta[LEVEL].Should().Be("5");
+        Resolve(groups, Player(groups: [Member(1), Member(2)])).Meta[FIRST].Should().Be("5");
 
-        Resolve(groups, Player(groups: [Member(1), Member(2)], meta: [Meta(LEVEL, "7")]))
-            .Meta[LEVEL]
+        Resolve(groups, Player(groups: [Member(1), Member(2)], meta: [Meta(FIRST, "7")]))
+            .Meta[FIRST]
             .Should()
             .Be("7");
     }
@@ -313,11 +333,91 @@ public class PermissionResolverTests
     public void ExpiredMeta_FallsThrough()
     {
         var resolved = Resolve(
-            [Group(1, "moderator", 50, meta: [Meta(LEVEL, "5")])],
-            Player(groups: [Member(1)], meta: [Meta(LEVEL, "7", NOW)])
+            [Group(1, "moderator", 50, meta: [Meta(FIRST, "5")])],
+            Player(groups: [Member(1)], meta: [Meta(FIRST, "7", NOW)])
         );
 
-        resolved.Meta[LEVEL].Should().Be("5");
+        resolved.Meta[FIRST].Should().Be("5");
+    }
+
+    [Fact]
+    public void HighestNumber_TakesLargestAcrossSources()
+    {
+        // The lighter group's larger limit wins; inheritance order would have given 50.
+        var groups = new[]
+        {
+            Group(1, "vip", 10, meta: [Meta(HIGH, "50")]),
+            Group(2, "builder", 5, meta: [Meta(HIGH, "200"), Meta(LOW, "3")]),
+        };
+
+        var resolved = Resolve(
+            groups,
+            Player(groups: [Member(1), Member(2)], meta: [Meta(HIGH, "lots"), Meta(LOW, "9")])
+        );
+
+        resolved.Meta[HIGH].Should().Be("200");
+        resolved.Meta[LOW].Should().Be("3");
+    }
+
+    [Fact]
+    public void NumericSelection_WithNoNumbers_SetsNothing()
+    {
+        var resolved = Resolve([], Player(meta: [Meta(HIGH, "lots")]));
+
+        resolved.Meta.Should().NotContainKey(HIGH);
+    }
+
+    [Fact]
+    public void Inheritance_TemporaryMetaBeatsPermanent_InSameSource()
+    {
+        var resolved = Resolve(
+            [],
+            Player(meta: [Meta(FIRST, "permanent"), Meta(FIRST, "temporary", NOW.AddHours(1))])
+        );
+
+        resolved.Meta[FIRST].Should().Be("temporary");
+    }
+
+    // --- temporary against permanent ---
+
+    [Fact]
+    public void TemporaryDenial_SuspendsPermanentGrant_ThenItReturns()
+    {
+        var player = Player(
+            nodes: [Node(PermissionNodes.TRADE), Node(PermissionNodes.TRADE, false, NOW.AddDays(7))]
+        );
+
+        Resolve([], player).Has(PermissionNodes.TRADE).Should().BeFalse();
+
+        PermissionResolver
+            .Resolve(REGISTRY, ById([]), player, NOW.AddDays(8))
+            .Has(PermissionNodes.TRADE)
+            .Should()
+            .BeTrue();
+    }
+
+    [Fact]
+    public void TemporaryGrant_BeatsPermanentDenial()
+    {
+        var resolved = Resolve(
+            [],
+            Player(nodes: [Node(LOCKED, false), Node(LOCKED, true, NOW.AddHours(1))])
+        );
+
+        resolved.Has(LOCKED).Should().BeTrue();
+    }
+
+    [Fact]
+    public void PermanentExactNode_BeatsTemporaryWildcard()
+    {
+        // Specificity is weighed before temporariness, as in LuckPerms.
+        var resolved = Resolve(
+            [],
+            Player(nodes: [Node(LOCKED), Node("room.*", false, NOW.AddHours(1))])
+        );
+
+        resolved.Has(LOCKED).Should().BeTrue();
+        resolved.Has(FULL).Should().BeFalse();
     }
 
     // --- unregistered ---

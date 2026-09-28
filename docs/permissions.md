@@ -144,10 +144,16 @@ For each registered node, the value comes from the **first source that has an op
 3. **Nothing matched: denied.**
 
 Within one source, several assignments can match the same node. The most specific wins: the exact
-node, then the longest wildcard (`room.enter.*` beats `room.*` beats `*`). At equal specificity,
-**`false` beats `true`**. Expired assignments do not exist for resolution.
+node, then the longest wildcard (`room.enter.*` beats `room.*` beats `*`). At equal specificity a
+**temporary assignment beats a permanent one** — a player may hold both, and a timed sanction
+outranks what it suspends without erasing it — and then **`false` beats `true`**. Specificity
+comes first, as in LuckPerms: a permanent exact node beats a temporary wildcard. Expired
+assignments do not exist for resolution.
 
-Meta resolves in the same order: player, then groups by weight, then the registered default.
+Meta resolves by the selection its key is registered with (`PermissionMetaSelectionType`):
+`Inheritance` takes the first source in the same order — player, then groups by weight, a
+temporary value before a permanent one — while `HighestNumber` and `LowestNumber` take the
+largest or smallest number any live source sets, which is what a limit several groups raise wants.
 
 This is LuckPerms' order with contexts removed — see §12.
 
@@ -286,18 +292,22 @@ as the console:
 ```text
 perm check <player> <node>
 perm user <player> info | audit [count]
-perm user <player> group add <group> [duration] | group remove <group>
-perm user <player> set <node> [true|false] [duration] | unset <node>
-perm user <player> meta set <key> <value> [duration] | meta unset <key>
+perm user <player> group add <group> [duration] [--extend] | group remove|removetemp <group>
+perm user <player> set <node> [true|false] [duration] [--extend] | unset|unsettemp <node>
+perm user <player> meta set <key> <value> [duration] [--extend] | meta unset|unsettemp <key>
 perm groups
 perm group <group> info | audit [count] | create [weight] [display name] | delete
 perm group <group> weight <weight> | rename <display name>
-perm group <group> set <node> [true|false] [duration] | unset <node>
-perm group <group> meta set <key> <value> [duration] | meta unset <key>
+perm group <group> set <node> [true|false] [duration] [--extend] | unset|unsettemp <node>
+perm group <group> meta set <key> <value> [duration] [--extend] | meta unset|unsettemp <key>
 perm group <group> parent add|remove <parent>
 ```
 
-Durations are `30s`, `15m`, `12h`, `7d`, `2w`; left out, the assignment is permanent.
+Durations are `30s`, `15m`, `12h`, `7d`, `2w`; left out, the assignment is permanent. A
+temporary assignment is its own row beside any permanent one: `unsettemp` / `removetemp` remove
+it, `unset` / `remove` the permanent one. Setting a temporary one again replaces its expiry;
+`--extend` adds the new duration to what it has left (`PermissionExpiryModeType`), LuckPerms'
+`temporary-add-behaviour` minus `deny`.
 ## 10. Audit and the check trace
 
 **`permission_audit`** records every write: when, who (a player id, or null for the console or
@@ -386,11 +396,11 @@ timestamps — so the pairs below are unique indexes rather than composite keys.
 ```text
 permission_groups             name (unique), display_name, weight
 permission_group_parents      group_id, parent_group_id                    unique (group_id, parent_group_id)
-permission_group_nodes        group_id, node, value, expires_at?           unique (group_id, node)
-permission_group_meta         group_id, meta_key, value, expires_at?       unique (group_id, meta_key)
-player_permission_groups      player_id, group_id, expires_at?             unique (player_id, group_id)
-player_permission_nodes       player_id, node, value, expires_at?          unique (player_id, node)
-player_permission_meta        player_id, meta_key, value, expires_at?      unique (player_id, meta_key)
+permission_group_nodes        group_id, node, value, expires_at?, is_temporary       unique (group_id, node, is_temporary)
+permission_group_meta         group_id, meta_key, value, expires_at?, is_temporary   unique (group_id, meta_key, is_temporary)
+player_permission_groups      player_id, group_id, expires_at?, is_temporary         unique (player_id, group_id, is_temporary)
+player_permission_nodes       player_id, node, value, expires_at?, is_temporary      unique (player_id, node, is_temporary)
+player_permission_meta        player_id, meta_key, value, expires_at?, is_temporary  unique (player_id, meta_key, is_temporary)
 permission_audit              actor_player_id?, target_type, target_id, action, subject, value?,
                               expires_at?                                  index (target_type, target_id, created_at)
 ```
@@ -502,7 +512,12 @@ revisions read the same nine perks and the same `hasSecurity` levels; September 
 sites (`RewardTrackController`, `VariableFxVisualizationSettingsPreset`) the client-gates survey
 already has. mikkel matches March exactly.
 
-### 17.1 Wrong in what is built — fix before phase 4
+### 17.1 Wrong in what is built — fixed
+
+All four are fixed: `AllowTemporaryBesidePermanent` adds `is_temporary` to each unique key, the
+resolver ranks temporary over permanent at equal specificity, writes take a
+`PermissionExpiryModeType`, meta keys register a `PermissionMetaSelectionType`, and
+`chat.style.staff` carries `Employee`. What follows is the finding as it was made.
 
 1. **A temporary node overwrites a permanent one.** The unique index is `(target, node)`, so
    `perm user x set trade false 7d` on a player who holds `trade = true` of their own replaces the

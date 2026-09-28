@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Snapshots.Permissions;
@@ -14,9 +15,11 @@ namespace Turbo.Primitives.Players.Permissions;
 /// The value of a node comes from the first source with an opinion on it: the player's own
 /// assignments, then each group they hold, directly or by inheritance, highest weight first
 /// (name breaks a tie, so the order is stable). Within a source the most specific assignment
-/// wins — the node itself, then the longest wildcard — and at equal specificity a denial beats a
-/// grant. No opinion anywhere: denied. Expired assignments and memberships do not take part.
-/// Meta resolves in the same source order.
+/// wins — the node itself, then the longest wildcard — then a temporary assignment beats a
+/// permanent one (a sanction outranks what it suspends, and the permanent value is still there
+/// when it runs out), then a denial beats a grant. No opinion anywhere: denied. Expired
+/// assignments and memberships do not take part. Meta resolves by the selection its key was
+/// registered with; the default takes the first source in the same order, temporary first.
 /// </para>
 /// </summary>
 public static class PermissionResolver
@@ -49,6 +52,13 @@ public static class PermissionResolver
         }
 
         var meta = ImmutableDictionary.CreateBuilder<string, string>(StringComparer.Ordinal);
+
+        foreach (var (key, definition) in registry.MetaKeys)
+        {
+            if (SelectMeta(sources, key, definition.Selection) is { } value)
+                meta[key] = value;
+        }
+
         var unregisteredNodes = new SortedSet<string>(StringComparer.Ordinal);
         var unregisteredMetaKeys = new SortedSet<string>(StringComparer.Ordinal);
 
@@ -58,8 +68,6 @@ public static class PermissionResolver
             {
                 if (!registry.IsRegisteredMetaKey(assignment.Key))
                     unregisteredMetaKeys.Add(assignment.Key);
-                else
-                    meta.TryAdd(assignment.Key, assignment.Value);
             }
 
             foreach (var assignment in source.Nodes)
@@ -232,7 +240,7 @@ public static class PermissionResolver
 
             if (
                 specificity > bestSpecificity
-                || (specificity == bestSpecificity && !assignment.Value && best!.Value)
+                || (specificity == bestSpecificity && Outranks(assignment, best!))
             )
             {
                 best = assignment;
@@ -241,6 +249,96 @@ public static class PermissionResolver
         }
 
         return best;
+    }
+
+    /// <summary>
+    /// Between two assignments that name a node equally specifically: temporary beats permanent,
+    /// then a denial beats a grant.
+    /// </summary>
+    private static bool Outranks(
+        PermissionNodeAssignmentSnapshot candidate,
+        PermissionNodeAssignmentSnapshot current
+    )
+    {
+        var candidateTemporary = candidate.ExpiresAt is not null;
+        var currentTemporary = current.ExpiresAt is not null;
+
+        if (candidateTemporary != currentTemporary)
+            return candidateTemporary;
+
+        return !candidate.Value && current.Value;
+    }
+
+    /// <summary>The value of one meta key across the sources, by its selection.</summary>
+    private static string? SelectMeta(
+        List<Source> sources,
+        string key,
+        PermissionMetaSelectionType selection
+    )
+    {
+        if (selection == PermissionMetaSelectionType.Inheritance)
+        {
+            foreach (var source in sources)
+            {
+                PermissionMetaAssignmentSnapshot? found = null;
+
+                foreach (var assignment in source.Meta)
+                {
+                    if (
+                        string.Equals(assignment.Key, key, StringComparison.Ordinal)
+                        && (
+                            found is null
+                            || (assignment.ExpiresAt is not null && found.ExpiresAt is null)
+                        )
+                    )
+                        found = assignment;
+                }
+
+                if (found is not null)
+                    return found.Value;
+            }
+
+            return null;
+        }
+
+        // A value that is not a number takes no part in a numeric selection.
+        string? chosen = null;
+        long chosenNumber = 0;
+
+        foreach (var source in sources)
+        {
+            foreach (var assignment in source.Meta)
+            {
+                if (
+                    !string.Equals(assignment.Key, key, StringComparison.Ordinal)
+                    || !long.TryParse(
+                        assignment.Value,
+                        NumberStyles.Integer,
+                        CultureInfo.InvariantCulture,
+                        out var number
+                    )
+                )
+                    continue;
+
+                if (
+                    chosen is null
+                    || (
+                        selection == PermissionMetaSelectionType.HighestNumber
+                        && number > chosenNumber
+                    )
+                    || (
+                        selection == PermissionMetaSelectionType.LowestNumber
+                        && number < chosenNumber
+                    )
+                )
+                {
+                    chosen = assignment.Value;
+                    chosenNumber = number;
+                }
+            }
+        }
+
+        return chosen;
     }
 
     private static PermissionAssignmentSourceSnapshot Describe(
