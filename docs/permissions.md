@@ -340,12 +340,14 @@ as the console:
 ```text
 perm check <player> <node>
 perm reload
+perm search <node> [count]
+perm log [count] | log search <text> [count]
 perm user <player> info | audit [count] | reload | verbose on [prefix] | verbose off
 perm user <player> group add <group> [duration] [--extend] | group remove|removetemp <group>
 perm user <player> set <node> [true|false] [duration] [--extend] | unset|unsettemp <node>
 perm user <player> meta set <key> <value> [duration] [--extend] | meta unset|unsettemp <key>
 perm groups
-perm group <group> info | audit [count] | create [weight] [display name] | delete
+perm group <group> info | audit [count] | members [count] | create [weight] [display name] | delete
 perm group <group> weight <weight> | rename <display name>
 perm group <group> set <node> [true|false] [duration] [--extend] | unset|unsettemp <node>
 perm group <group> meta set <key> <value> [duration] [--extend] | meta unset|unsettemp <key>
@@ -364,6 +366,14 @@ LuckPerms' `sync`: the directory reads every group again and publishes, and ever
 permission grain reads its own rows again, resolves, and tells the client and room of any
 difference. `perm user <player> reload` does one player. Neither is audited; they change nothing
 in the tables.
+
+Three lookups answer "who", which the per-player and per-group commands cannot: `perm group <g>
+members` lists the players in a group directly (default has no rows, so it lists nobody);
+`perm search <node>` lists every group and player given the node, exactly or by a wildcard that
+covers it, granting or denying — who was given it, not who ends up holding it, which `perm check`
+answers for one player; `perm log` is the audit of everyone, newest first, and `perm log search
+<text>` narrows it to rows whose node, key or group name contains the text. All three are queries
+on the directory grain, capped by `Permissions.LookupPageLimit` and `AuditPageLimit`.
 
 ## 10. Audit and the check trace
 
@@ -745,7 +755,7 @@ temporary player denials of `trade` and `chat.speak` once the mod tool is built,
 | `sync` — reload after the database was edited by something else | built: `perm reload` (§9) | — |
 | Argument-based command permissions (who may grant what) | missing | **take before any in-game editor**: a manager may only grant nodes they hold and groups lighter than their heaviest (`permissions.manage.*`) |
 | Verbose (watch checks live) | built: `perm user <player> verbose` (§10) | — |
-| `group listmembers`, `log recent`/`search`, `search <node>` (who holds it) | missing | take, console only, cheap queries |
+| `group listmembers`, `log recent`/`search`, `search <node>` (who holds it) | built: `perm group <g> members`, `perm log [search]`, `perm search` (§9) | — |
 | `group.<name>` as a node (membership checkable like a permission) | built (§5) | — |
 | Events (`NodeAddEvent`, `UserDataRecalculateEvent`, `UserPromoteEvent`) | built: `PlayerPermissionsChangedEvent` (§9) | — |
 | Log notify (tell online staff of changes) | missing | later, with the mod tool |

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
@@ -27,6 +28,9 @@ internal sealed class PermissionConsoleCommand(
     public const string USAGE = """
             perm check <player> <node>                         why a player does or does not hold a node
             perm reload                                        re-read every group and online player from the database
+            perm search <node> [count]                         groups and players given a node, exactly or by wildcard
+            perm log [count]                                   recent changes to anyone
+            perm log search <text> [count]                     recent changes whose node, key or group contains text
             perm user <player> info                            groups, nodes, meta and resolved set
             perm user <player> audit [count]
             perm user <player> reload                          re-read one player's rows from the database
@@ -40,6 +44,7 @@ internal sealed class PermissionConsoleCommand(
             perm groups
             perm group <group> info
             perm group <group> audit [count]
+            perm group <group> members [count]                 players in the group directly
             perm group <group> create [weight] [display name]
             perm group <group> delete
             perm group <group> weight <weight>
@@ -55,6 +60,8 @@ internal sealed class PermissionConsoleCommand(
         """;
 
     private const int DEFAULT_AUDIT_COUNT = 20;
+
+    private const int DEFAULT_LOOKUP_COUNT = 50;
 
     private const string EXTEND_FLAG = "--extend";
 
@@ -83,6 +90,17 @@ internal sealed class PermissionConsoleCommand(
                     .ConfigureAwait(false),
                 ["groups"] => await ListGroupsAsync(ct).ConfigureAwait(false),
                 ["reload"] => await ReloadAsync(ct).ConfigureAwait(false),
+                ["search", var node] => await SearchAsync(node, DEFAULT_LOOKUP_COUNT, ct)
+                    .ConfigureAwait(false),
+                ["search", var node, var count] => await SearchAsync(node, ParseInt(count), ct)
+                    .ConfigureAwait(false),
+                ["log"] => await LogAsync(null, DEFAULT_AUDIT_COUNT, ct).ConfigureAwait(false),
+                ["log", "search", var text] => await LogAsync(text, DEFAULT_AUDIT_COUNT, ct)
+                    .ConfigureAwait(false),
+                ["log", "search", var text, var count] => await LogAsync(text, ParseInt(count), ct)
+                    .ConfigureAwait(false),
+                ["log", var count] => await LogAsync(null, ParseInt(count), ct)
+                    .ConfigureAwait(false),
                 ["user", var player, .. var rest] => await UserAsync(player, rest, ct)
                     .ConfigureAwait(false),
                 ["group", var group, .. var rest] => await GroupAsync(group, rest, ct)
@@ -144,6 +162,109 @@ internal sealed class PermissionConsoleCommand(
         );
 
         return true;
+    }
+
+    private async Task<bool> SearchAsync(string node, int count, CancellationToken ct)
+    {
+        if (!PermissionNodeFormat.IsValidNode(node))
+        {
+            Report(PermissionChangeResultType.Invalid);
+            return true;
+        }
+
+        var holders = await Directory.FindNodeHoldersAsync(node, count, ct).ConfigureAwait(false);
+
+        if (holders.IsEmpty)
+        {
+            System.Console.WriteLine($"Nobody is given {node}, directly or by wildcard.");
+            return true;
+        }
+
+        var names = await NameTargetsAsync(holders.Select(x => (x.TargetType, x.TargetId)), ct)
+            .ConfigureAwait(false);
+
+        foreach (var holder in holders)
+            System.Console.WriteLine(
+                $"{names[(holder.TargetType, holder.TargetId)], -24} {holder.Assignment.Node} = "
+                    + $"{Format(holder.Assignment.Value)}{FormatExpiry(holder.Assignment.ExpiresAt)}"
+            );
+
+        if (holders.Length >= count)
+            System.Console.WriteLine($"(first {holders.Length}; ask for more with a count)");
+
+        return true;
+    }
+
+    private async Task<bool> LogAsync(string? search, int count, CancellationToken ct)
+    {
+        var rows = await Directory.GetRecentAuditAsync(search, count, ct).ConfigureAwait(false);
+        var names = await NameTargetsAsync(rows.Select(x => (x.TargetType, x.TargetId)), ct)
+            .ConfigureAwait(false);
+
+        PrintAudit(rows, row => names[(row.TargetType, row.TargetId)]);
+
+        return true;
+    }
+
+    private async Task PrintMembersAsync(string group, int count, CancellationToken ct)
+    {
+        if (group == PermissionGroupNames.DEFAULT)
+        {
+            System.Console.WriteLine("Every player holds default, without a row.");
+            return;
+        }
+
+        var members = await Directory.GetMembersAsync(group, count, ct).ConfigureAwait(false);
+
+        if (members.IsEmpty)
+        {
+            System.Console.WriteLine("No members (or no such group).");
+            return;
+        }
+
+        var names = await _grainFactory
+            .GetPlayerDirectoryGrain()
+            .GetPlayerNamesAsync([.. members.Select(x => x.PlayerId)], ct)
+            .ConfigureAwait(false);
+
+        foreach (var member in members)
+            System.Console.WriteLine(
+                $"  {names.GetValueOrDefault(member.PlayerId, $"#{member.PlayerId.Value}")}"
+                    + FormatExpiry(member.ExpiresAt)
+            );
+
+        if (members.Length >= count)
+            System.Console.WriteLine($"(first {members.Length}; ask for more with a count)");
+    }
+
+    /// <summary>"group vip" or "player Alice" for each audit or search target, for printing.</summary>
+    private async Task<
+        ImmutableDictionary<(PermissionAuditTargetType, int), string>
+    > NameTargetsAsync(
+        IEnumerable<(PermissionAuditTargetType Type, int Id)> targets,
+        CancellationToken ct
+    )
+    {
+        var all = targets.Distinct().ToList();
+        var groups = (await Directory.GetSnapshotAsync(ct).ConfigureAwait(false)).Groups;
+        var players = await _grainFactory
+            .GetPlayerDirectoryGrain()
+            .GetPlayerNamesAsync(
+                [
+                    .. all.Where(x => x.Type == PermissionAuditTargetType.Player)
+                        .Select(x => PlayerId.Parse(x.Id)),
+                ],
+                ct
+            )
+            .ConfigureAwait(false);
+
+        return all.ToImmutableDictionary(
+            x => (x.Type, x.Id),
+            x =>
+                x.Type == PermissionAuditTargetType.Group
+                    ? $"group {(groups.TryGetValue(x.Id, out var group) ? group.Name : $"#{x.Id}")}"
+                    : $"player {players.GetValueOrDefault(PlayerId.Parse(x.Id), $"#{x.Id}")}"
+        );
     }
 
     private async Task<bool> ListGroupsAsync(CancellationToken ct)
@@ -271,6 +392,12 @@ internal sealed class PermissionConsoleCommand(
                 PrintAudit(
                     await directory.GetAuditAsync(group, ParseInt(count), ct).ConfigureAwait(false)
                 );
+                return true;
+            case ["members"]:
+                await PrintMembersAsync(group, DEFAULT_LOOKUP_COUNT, ct).ConfigureAwait(false);
+                return true;
+            case ["members", var count]:
+                await PrintMembersAsync(group, ParseInt(count), ct).ConfigureAwait(false);
                 return true;
             case ["create"]:
                 Report(
@@ -488,14 +615,20 @@ internal sealed class PermissionConsoleCommand(
             );
     }
 
-    private static void PrintAudit(ImmutableArray<PermissionAuditSnapshot> rows)
+    /// <summary>Prints audit rows; <paramref name="target"/> names whom each is about, for a log of everyone.</summary>
+    private static void PrintAudit(
+        ImmutableArray<PermissionAuditSnapshot> rows,
+        Func<PermissionAuditSnapshot, string>? target = null
+    )
     {
         if (rows.IsEmpty)
             System.Console.WriteLine("no audit rows");
 
         foreach (var row in rows)
             System.Console.WriteLine(
-                $"{row.CreatedAt:yyyy-MM-dd HH:mm:ss}  {row.Action, -16} {row.Subject}"
+                $"{row.CreatedAt:yyyy-MM-dd HH:mm:ss}  "
+                    + (target is null ? "" : $"{target(row), -24} ")
+                    + $"{row.Action, -16} {row.Subject}"
                     + (row.Value is null ? "" : $" = {row.Value}")
                     + FormatExpiry(row.ExpiresAt)
                     + $"  by {(row.ActorPlayerId is { } actor ? $"player {actor}" : "console/system")}"

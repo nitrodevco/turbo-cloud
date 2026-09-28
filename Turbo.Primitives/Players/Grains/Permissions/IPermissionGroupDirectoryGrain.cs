@@ -120,6 +120,37 @@ public interface IPermissionGroupDirectoryGrain : IGrainWithStringKey
         CancellationToken ct
     );
 
+    /// <summary>
+    /// The players who hold a group directly, unexpired, permanent members first. Empty for an
+    /// unknown group, and for default, which everybody holds without a row.
+    /// </summary>
+    public Task<ImmutableArray<PermissionGroupMemberSnapshot>> GetMembersAsync(
+        string name,
+        int count,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Every group, then every player, with an unexpired assignment that names
+    /// <paramref name="node"/> exactly or by wildcard, granting or denying it. Who is given a
+    /// node directly, not who ends up holding it; <c>perm check</c> answers that for one player.
+    /// </summary>
+    public Task<ImmutableArray<PermissionNodeHolderSnapshot>> FindNodeHoldersAsync(
+        string node,
+        int count,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// The most recent audit rows about anyone, newest first; with <paramref name="search"/>, only
+    /// those whose node, key or group name contains it.
+    /// </summary>
+    public Task<ImmutableArray<PermissionAuditSnapshot>> GetRecentAuditAsync(
+        string? search,
+        int count,
+        CancellationToken ct
+    );
+
     /// <summary>The most recent audit rows about a group, newest first.</summary>
     public Task<ImmutableArray<PermissionAuditSnapshot>> GetAuditAsync(
         string name,
