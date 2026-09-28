@@ -145,11 +145,34 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
             return Task.FromResult(false);
         }
 
-        return Task.FromResult(resolved.Has(node));
+        var held = resolved.Has(node);
+
+        if (resolved.IsWatched(node))
+            _logger.LogInformation(
+                "Verbose: player {PlayerId} checked {Node}: {Held}",
+                PlayerId,
+                node,
+                held
+            );
+
+        return Task.FromResult(held);
     }
 
-    public Task<string?> GetMetaAsync(string key, CancellationToken ct) =>
-        Task.FromResult(EnsureResolved().Meta.GetValueOrDefault(key));
+    public Task<string?> GetMetaAsync(string key, CancellationToken ct)
+    {
+        var resolved = EnsureResolved();
+        var value = resolved.Meta.GetValueOrDefault(key);
+
+        if (resolved.IsWatched(key))
+            _logger.LogInformation(
+                "Verbose: player {PlayerId} read meta {Key}: {Value}",
+                PlayerId,
+                key,
+                value ?? "(unset)"
+            );
+
+        return Task.FromResult(value);
+    }
 
     public Task<ResolvedPermissionsSnapshot> GetResolvedAsync(CancellationToken ct) =>
         Task.FromResult(EnsureResolved());
@@ -542,6 +565,26 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
         return [.. rows.Select(x => x.ToSnapshot())];
     }
 
+    public async Task SetVerboseAsync(string? filter, CancellationToken ct)
+    {
+        if (_state.VerboseFilter == filter)
+            return;
+
+        _state.VerboseFilter = filter;
+
+        Resolve();
+
+        _logger.LogInformation(
+            "Verbose permission checks for player {PlayerId}: {Filter}",
+            PlayerId,
+            filter is null ? "off"
+                : filter.Length == 0 ? "every node"
+                : filter + "*"
+        );
+
+        await PublishChangesAsync(force: false, ct);
+    }
+
     public async Task ReloadAsync(CancellationToken ct)
     {
         await HydrateAsync(ct);
@@ -596,7 +639,12 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
 
         Announce(resolved);
 
-        if (!force && _state.SentRoom is { } room && room.Granted.SetEquals(resolved.Granted))
+        if (
+            !force
+            && _state.SentRoom is { } room
+            && room.Granted.SetEquals(resolved.Granted)
+            && room.VerboseFilter == resolved.VerboseFilter
+        )
             return;
 
         await _grainFactory
@@ -755,7 +803,10 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
             _state.Groups.Groups,
             BuildAssignments(),
             DateTime.UtcNow
-        );
+        ) with
+        {
+            VerboseFilter = _state.VerboseFilter,
+        };
 
         _state.Registry = registry;
         _state.Resolved = resolved;

@@ -30,6 +30,9 @@ internal sealed class PlayerPermissionLiveState
         PermissionMetaAssignmentSnapshot
     > MetaByKey { get; } = [];
 
+    /// <summary>The <c>perm verbose</c> filter, copied onto every resolved set; <c>null</c> when off.</summary>
+    public string? VerboseFilter { get; set; }
+
     /// <summary>The directory's groups as last pushed or read.</summary>
     public PermissionGroupDirectorySnapshot Groups { get; set; } =
         PermissionGroupDirectorySnapshot.EMPTY;

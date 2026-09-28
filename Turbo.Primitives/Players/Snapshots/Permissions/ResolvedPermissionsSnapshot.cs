@@ -44,7 +44,19 @@ public sealed record ResolvedPermissionsSnapshot
     [Id(4)]
     public required ImmutableArray<string> UnregisteredMetaKeys { get; init; }
 
+    /// <summary>
+    /// <c>perm verbose</c>: the node prefix whose checks are logged wherever they are made, the
+    /// permission grain or the room; empty logs every check, <c>null</c> none. Carried here so the
+    /// room's copy knows. Not something the player holds.
+    /// </summary>
+    [Id(5)]
+    public string? VerboseFilter { get; init; }
+
     public bool Has(string node) => Granted.Contains(node);
+
+    /// <summary>Whether a check of <paramref name="node"/> is to be logged.</summary>
+    public bool IsWatched(string node) =>
+        VerboseFilter is { } filter && node.StartsWith(filter, StringComparison.Ordinal);
 
     /// <summary>
     /// Whether the player holds the same nodes and meta values in both; record equality compares

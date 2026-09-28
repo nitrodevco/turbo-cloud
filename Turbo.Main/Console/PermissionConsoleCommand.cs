@@ -30,6 +30,7 @@ internal sealed class PermissionConsoleCommand(
             perm user <player> info                            groups, nodes, meta and resolved set
             perm user <player> audit [count]
             perm user <player> reload                          re-read one player's rows from the database
+            perm user <player> verbose on [prefix] | off       log every check made about the player
             perm user <player> group add <group> [duration] [--extend]
             perm user <player> group remove|removetemp <group>
             perm user <player> set <node> [true|false] [duration] [--extend]
@@ -187,6 +188,18 @@ internal sealed class PermissionConsoleCommand(
             case ["reload"]:
                 await grain.ReloadAsync(ct).ConfigureAwait(false);
                 System.Console.WriteLine("Reloaded.");
+                return true;
+            case ["verbose", "on", .. var filter] when filter.Length <= 1:
+                await grain
+                    .SetVerboseAsync(filter.Length == 0 ? "" : filter[0], ct)
+                    .ConfigureAwait(false);
+                System.Console.WriteLine(
+                    "Checks made about the player are logged now, until verbose off or their grain goes idle."
+                );
+                return true;
+            case ["verbose", "off"]:
+                await grain.SetVerboseAsync(null, ct).ConfigureAwait(false);
+                System.Console.WriteLine("Verbose off.");
                 return true;
             case ["group", "add", var group, .. var rest]:
                 Report(

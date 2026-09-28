@@ -111,6 +111,13 @@ public interface IPlayerPermissionGrain : IGrainWithIntegerKey
     /// </summary>
     public Task ReloadAsync(CancellationToken ct);
 
+    /// <summary>
+    /// <c>perm verbose</c>: logs every check of a node starting with <paramref name="filter"/>
+    /// (empty for every node) made about this player, by this grain or by the room they are in,
+    /// with its answer. <c>null</c> stops it. Lasts while the grain is active.
+    /// </summary>
+    public Task SetVerboseAsync(string? filter, CancellationToken ct);
+
     /// <summary>The directory's push after a group changed: resolve against the new groups.</summary>
     public Task OnGroupsChangedAsync(PermissionGroupDirectorySnapshot groups, CancellationToken ct);
 }

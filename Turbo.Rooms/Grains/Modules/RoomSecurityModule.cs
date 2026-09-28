@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Action;
@@ -15,6 +16,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Player;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Settings;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -119,7 +121,27 @@ public sealed class RoomSecurityModule(
     /// the room only. Anyone else holds nothing here.
     /// </summary>
     public bool HasPermission(PlayerId playerId, string node) =>
-        AvatarModule.TryGetPlayer(playerId, out var player) && player.Permissions.Has(node);
+        AvatarModule.TryGetPlayer(playerId, out var player) && HasPermission(player, node);
+
+    /// <summary>
+    /// Whether a player in the room holds a node, from their avatar's copy of their permissions.
+    /// Every room check of a player's node goes through here, so <c>perm verbose</c> sees it.
+    /// </summary>
+    public bool HasPermission(IRoomPlayer player, string node)
+    {
+        var held = player.Permissions.Has(node);
+
+        if (player.Permissions.IsWatched(node))
+            _roomGrain._logger.LogInformation(
+                "Verbose: player {PlayerId} checked {Node} in room {RoomId}: {Held}",
+                player.PlayerId,
+                node,
+                _roomGrain._state.RoomId,
+                held
+            );
+
+        return held;
+    }
 
     /// <summary>
     /// Whether a player holds a permission node: from their avatar when they are in the room,
@@ -128,7 +150,7 @@ public sealed class RoomSecurityModule(
     public async Task<bool> HasPermissionAsync(PlayerId playerId, string node)
     {
         if (AvatarModule.TryGetPlayer(playerId, out var player))
-            return player.Permissions.Has(node);
+            return HasPermission(player, node);
 
         return playerId > 0
             && await _roomGrain._grainFactory.HasPermissionAsync(

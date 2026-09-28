@@ -340,7 +340,7 @@ as the console:
 ```text
 perm check <player> <node>
 perm reload
-perm user <player> info | audit [count] | reload
+perm user <player> info | audit [count] | reload | verbose on [prefix] | verbose off
 perm user <player> group add <group> [duration] [--extend] | group remove|removetemp <group>
 perm user <player> set <node> [true|false] [duration] [--extend] | unset|unsettemp <node>
 perm user <player> meta set <key> <value> [duration] [--extend] | meta unset|unsettemp <key>
@@ -387,6 +387,22 @@ room.enter.locked = true
 `ExplainAsync` returns the deciding assignment, its source, the inheritance path, its expiry, and
 the lower-priority assignments it beat. The console prints it; a later in-game editor can show
 the same record.
+
+**Verbose** answers the question before that one — "which node does this feature want?" —
+by watching the checks as they happen, as LuckPerms' `verbose` does:
+
+```text
+> perm user Alice verbose on room.
+  Verbose: player 12 checked room.enter.locked in room 40: False
+> perm user Alice verbose off
+```
+
+The filter is a node prefix, left out for every node. It lives on the player's permission grain
+and is copied onto every resolved set it makes, so the room's copy carries it too: the grain logs
+the checks and meta reads it answers, and `RoomSecurityModule.HasPermission(IRoomPlayer, node)` —
+which every room check of a player's node goes through — logs those made from the avatar. It is
+not something the player holds, so turning it on raises no `PlayerPermissionsChangedEvent`, and it
+ends with the grain's activation.
 
 ## 11. How gating is enforced
 
@@ -728,7 +744,7 @@ temporary player denials of `trade` and `chat.speak` once the mod tool is built,
 | `meta-value-selection` per key | missing | **fix** (17.1) |
 | `sync` — reload after the database was edited by something else | built: `perm reload` (§9) | — |
 | Argument-based command permissions (who may grant what) | missing | **take before any in-game editor**: a manager may only grant nodes they hold and groups lighter than their heaviest (`permissions.manage.*`) |
-| Verbose (watch checks live) | missing | **take**: every check goes through `HasAsync`, so `perm verbose <player>` logging checks is cheap and is how a hotel finds which node a feature wants |
+| Verbose (watch checks live) | built: `perm user <player> verbose` (§10) | — |
 | `group listmembers`, `log recent`/`search`, `search <node>` (who holds it) | missing | take, console only, cheap queries |
 | `group.<name>` as a node (membership checkable like a permission) | built (§5) | — |
 | Events (`NodeAddEvent`, `UserDataRecalculateEvent`, `UserPromoteEvent`) | built: `PlayerPermissionsChangedEvent` (§9) | — |

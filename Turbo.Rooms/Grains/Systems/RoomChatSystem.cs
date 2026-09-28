@@ -344,7 +344,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         if (
             !AvatarModule.TryGetPlayer(playerId, out var player)
             || ReferenceEquals(player.Permissions, ResolvedPermissionsSnapshot.EMPTY)
-            || player.Permissions.Has(PermissionNodes.Chat.SPEAK)
+            || SecurityModule.HasPermission(player, PermissionNodes.Chat.SPEAK)
         )
             return false;
 
@@ -455,8 +455,8 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         var canSpeakWith = ChatStyles.CanSpeakWith(
             style,
             hasClub: speaker.HabboClubExpiresAt is { } expiresAt && expiresAt > DateTime.UtcNow,
-            isAmbassador: speaker.Permissions.Has(PermissionNodes.Role.AMBASSADOR),
-            isStaff: speaker.Permissions.Has(PermissionNodes.Chat.STYLE_STAFF),
+            isAmbassador: SecurityModule.HasPermission(speaker, PermissionNodes.Role.AMBASSADOR),
+            isStaff: SecurityModule.HasPermission(speaker, PermissionNodes.Chat.STYLE_STAFF),
             ownsStyle
         );
 
