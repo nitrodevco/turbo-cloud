@@ -16,6 +16,12 @@ public static class PermissionNodeFormat
     /// </summary>
     public const int MAX_LENGTH = 128;
 
+    /// <summary>
+    /// The longest meta value, in characters. Fixed by the width of the <c>value</c> columns (the
+    /// schema's default string width), not a tunable.
+    /// </summary>
+    public const int META_VALUE_MAX_LENGTH = 512;
+
     public const string WILDCARD = "*";
 
     private const string WILDCARD_SUFFIX = ".*";
@@ -66,6 +72,9 @@ public static class PermissionNodeFormat
             && value.EndsWith(WILDCARD_SUFFIX, StringComparison.Ordinal)
             && IsValidNode(value[..^WILDCARD_SUFFIX.Length])
         );
+
+    public static bool IsValidMetaValue(string? value) =>
+        !string.IsNullOrEmpty(value) && value.Length <= META_VALUE_MAX_LENGTH;
 
     public static bool IsWildcard(string assignment) =>
         assignment == WILDCARD || assignment.EndsWith(WILDCARD_SUFFIX, StringComparison.Ordinal);

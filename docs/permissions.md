@@ -1,9 +1,9 @@
 # Permissions, groups and security levels
 
-Implementation plan for a permission system. **Phases 1 and 2 of §14 are built**: the node constants,
+Implementation plan for a permission system. **Phases 1 to 3 of §14 are built**: the node constants,
 the registry and the resolver in `Turbo.Primitives/Players/Permissions/`, tested in
-`Turbo.Tests`; and the tables, seeded groups and perk-flag carry-over (§13). Nothing reads the
-tables or enforces a permission yet.
+`Turbo.Tests`; the tables, seeded groups and perk-flag carry-over (§13); and the grains, audit, expiry and
+the `perm` console command (§9). Nothing enforces a permission or tells the client yet.
 
 The shape is borrowed from LuckPerms rather than from the Habbo retros, on purpose. The retro
 pattern — one rank per player, a `permissions` table with a column per permission, code comparing
@@ -229,32 +229,75 @@ player's non-default flags into player nodes, and a later migration drops the co
 
 ## 9. Where the authority lives
 
-Two grains, following the shapes already in the tree.
+Two grains and a registry provider, built in phase 3 (`Turbo.Players/Grains/Permissions/`,
+`Turbo.Players/Permissions/`).
+
+**`IPermissionRegistryProvider`** — a singleton holding the live `PermissionRegistry`. Core's
+source is always in it; `PermissionNodeFeatureProcessor` registers each public
+`IPermissionNodeSource` a plugin assembly declares as the plugin loads, and the registration is
+disposed when it unloads. Every change builds a whole new registry, so a clash fails the plugin's
+load with nothing changed. Nothing is pushed on a registry change: a player grain compares the
+registry it resolved against by reference and resolves again on its next read.
 
 **`IPermissionGroupDirectoryGrain`** — one per hotel, `[KeepAlive]`, shaped like
-`BadgeDirectoryGrain`. Holds every group: nodes, meta, parents, weight. Loaded once on activation
-and answered from memory as an immutable, versioned snapshot. It is also **the only writer of
-group data**, because `AGENTS.md` says grain-owned data changes through the grain: create, delete,
-reweight, set/unset node or meta, add/remove parent. Each write persists, audits (§10), bumps the
-version, and tells the affected online players to re-resolve — the members of the edited group and
-of every group inheriting from it, through their presence.
+`BadgeDirectoryGrain`. Holds every group — nodes, meta, parents, weight — loaded on activation and
+answered from memory as an immutable, versioned `PermissionGroupDirectorySnapshot`. It is **the
+only writer of group data**: create, delete, reweight, rename, set/unset node or meta, add/remove
+parent. Each write is saved with its audit row (§10), the group is read back, and the new snapshot
+is pushed to every **subscribed** player grain. A player permission grain subscribes on activation
+and unsubscribes on deactivation, so the subscribers are exactly the active ones. The push goes
+straight to the grain, not through the presence: `AGENTS.md` keeps the presence as a transport for
+packets, and the directory needs no presence state to decide anything. Group edits are rare
+operator actions, so every subscriber is told rather than working out who is affected; an older
+push arriving after a newer one is dropped by version.
 
-**`IPlayerPermissionGrain`** — one per player, shaped like `PlayerSubscriptionGrain`. Holds the
-player's own nodes, meta and group memberships, and the **resolved set** built from them and the
-directory's snapshot. Answers from memory:
+**`IPlayerPermissionGrain`** — one per player, shaped like `PlayerSubscriptionGrain`, write-through.
+Holds the player's own nodes, meta and memberships, and the **resolved set** built from them, the
+directory's snapshot and the registry. Answers from memory:
 
-- `HasAsync(node)`, `GetMetaAsync<T>(key)`, `GetSnapshotAsync()` — the resolved set, for the room.
-- `ExplainAsync(node)` — the check trace (§10).
+- `HasAsync(node)` — an unregistered node is logged and denied. `GetMetaAsync(key)`,
+  `GetResolvedAsync()` — the resolved set, for the room and the projection.
+- `ExplainAsync(node)` — the check trace (§10). `GetAssignmentsAsync()`, `GetAuditAsync(count)`.
 - Writes for this player: add/remove group, set/unset node or meta, each with an optional expiry.
+  The default group can be neither joined nor left.
 
-After any change to its resolved set it re-projects and sends `UserRights` and `PerkAllowances`
-itself (the client applies both live — no reconnect), and pushes the new snapshot to the room the
-player is in.
+Writes return a `PermissionChangeResultType` (`Changed`, `Unchanged`, `UnknownGroup`, `Invalid`,
+`Expired`, `ProtectedGroup`, `WouldCycle`, `AlreadyExists`, `NotFound`) and take the actor for the
+audit — a player, or `null` for the console. Neither grain checks that the actor may make the
+change; whoever calls it does (`permissions.manage`, once something in game calls it).
 
-**Expiry** is a grain timer, not a sweep: the grain registers one timer for its earliest expiry,
-and when it fires re-resolves, re-projects, audits the expiry, and registers the next. An offline
-player's expired rows are simply ignored by resolution the next time the grain activates.
+After any change to its resolved set it will re-project and send `UserRights` and
+`PerkAllowances` itself (the client applies both live — no reconnect), and push the new snapshot
+to the room the player is in. That is phases 4 and 6.
 
+**Expiry** is a one-shot grain timer on each grain, set for the earliest expiry it knows of and
+capped at `PermissionConfig.ExpiryCheckMaxMs`. The player grain's fires for its own rows and for
+group rows that took part in its resolution; it deletes and audits its own expired rows and
+resolves. The directory's deletes and audits expired group nodes and meta and publishes. Rows
+that ran out while nobody was looking are ignored by resolution anyway, and swept the next time
+the grain activates, because a timer set for a time already passed fires at once. A failed sweep
+retries after `ExpiryRetryMs`.
+
+### The console
+
+`perm` on the server console (`Turbo.Main/Console/PermissionConsoleCommand.cs`) drives both grains
+as the console:
+
+```text
+perm check <player> <node>
+perm user <player> info | audit [count]
+perm user <player> group add <group> [duration] | group remove <group>
+perm user <player> set <node> [true|false] [duration] | unset <node>
+perm user <player> meta set <key> <value> [duration] | meta unset <key>
+perm groups
+perm group <group> info | audit [count] | create [weight] [display name] | delete
+perm group <group> weight <weight> | rename <display name>
+perm group <group> set <node> [true|false] [duration] | unset <node>
+perm group <group> meta set <key> <value> [duration] | meta unset <key>
+perm group <group> parent add|remove <parent>
+```
+
+Durations are `30s`, `15m`, `12h`, `7d`, `2w`; left out, the assignment is permanent.
 ## 10. Audit and the check trace
 
 **`permission_audit`** records every write: when, who (a player id, or null for the console or

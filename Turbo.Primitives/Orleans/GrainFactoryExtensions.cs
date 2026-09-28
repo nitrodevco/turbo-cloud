@@ -17,6 +17,7 @@ using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Grains.Guilds;
 using Turbo.Primitives.Players.Grains.Messenger;
 using Turbo.Primitives.Players.Grains.Navigator;
+using Turbo.Primitives.Players.Grains.Permissions;
 using Turbo.Primitives.Players.Grains.Settings;
 using Turbo.Primitives.Players.Grains.Subscriptions;
 using Turbo.Primitives.Players.Grains.Wardrobe;
@@ -77,6 +78,15 @@ public static class GrainFactoryExtensions
 
     public static IPlayerDirectoryGrain GetPlayerDirectoryGrain(this IGrainFactory factory) =>
         factory.GetGrain<IPlayerDirectoryGrain>(SingletonGrainId.GLOBAL);
+
+    public static IPermissionGroupDirectoryGrain GetPermissionGroupDirectoryGrain(
+        this IGrainFactory factory
+    ) => factory.GetGrain<IPermissionGroupDirectoryGrain>(SingletonGrainId.GLOBAL);
+
+    public static IPlayerPermissionGrain GetPlayerPermissionGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerPermissionGrain>(playerId.Value);
 
     public static IBadgeDirectoryGrain GetBadgeDirectoryGrain(this IGrainFactory factory) =>
         factory.GetGrain<IBadgeDirectoryGrain>(SingletonGrainId.GLOBAL);

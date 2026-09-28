@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Turbo.Database.Entities.Permissions;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots.Permissions;
 
 namespace Turbo.Database.Extensions;
@@ -67,6 +68,19 @@ public static class PermissionEntityExtensions
     public static PermissionGroupMembershipSnapshot ToSnapshot(
         this PlayerPermissionGroupEntity entity
     ) => new() { GroupId = entity.GroupEntityId, ExpiresAt = entity.ExpiresAt };
+
+    public static PermissionAuditSnapshot ToSnapshot(this PermissionAuditEntity entity) =>
+        new()
+        {
+            CreatedAt = entity.CreatedAt,
+            ActorPlayerId = entity.ActorPlayerId is { } actor ? PlayerId.Parse(actor) : null,
+            TargetType = entity.TargetType,
+            TargetId = entity.TargetId,
+            Action = entity.Action,
+            Subject = entity.Subject,
+            Value = entity.Value,
+            ExpiresAt = entity.ExpiresAt,
+        };
 
     /// <summary>One player's rows, read separately, as the resolver's input.</summary>
     public static PlayerPermissionAssignmentsSnapshot ToAssignmentsSnapshot(

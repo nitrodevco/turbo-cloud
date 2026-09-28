@@ -2,9 +2,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
 using Turbo.Players.Configuration;
+using Turbo.Players.Permissions;
 using Turbo.Players.Providers;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Providers;
+using Turbo.Runtime.AssemblyProcessing;
 
 namespace Turbo.Players;
 
@@ -25,5 +27,7 @@ public sealed class PlayerModule : IHostPluginModule
         services.AddSingleton<ICurrencyTypeProvider, CurrencyTypeProvider>();
         services.AddSingleton<IChatStyleProvider, ChatStyleProvider>();
         services.AddSingleton<IPlayerService, PlayerService>();
+        services.AddSingleton<IPermissionRegistryProvider, PermissionRegistryProvider>();
+        services.AddSingleton<IAssemblyFeatureProcessor, PermissionNodeFeatureProcessor>();
     }
 }

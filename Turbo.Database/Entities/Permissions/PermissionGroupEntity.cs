@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Database.Entities.Permissions;
 
@@ -16,11 +17,11 @@ public class PermissionGroupEntity : TurboEntity
 {
     /// <summary>The stable lowercase key (<c>moderator</c>); what the console and the seed name it by.</summary>
     [Column("name")]
-    [MaxLength(64)]
+    [MaxLength(PermissionGroupNames.MAX_LENGTH)]
     public required string Name { get; set; }
 
     [Column("display_name")]
-    [MaxLength(128)]
+    [MaxLength(PermissionGroupNames.DISPLAY_NAME_MAX_LENGTH)]
     public required string DisplayName { get; set; }
 
     /// <summary>Higher wins when two groups a player holds disagree.</summary>
