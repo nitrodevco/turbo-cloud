@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 using Orleans;
 
 namespace Turbo.Primitives.Players.Snapshots.Permissions;
@@ -44,4 +45,16 @@ public sealed record ResolvedPermissionsSnapshot
     public required ImmutableArray<string> UnregisteredMetaKeys { get; init; }
 
     public bool Has(string node) => Granted.Contains(node);
+
+    /// <summary>
+    /// Whether the player holds the same nodes and meta values in both; record equality compares
+    /// the collections by reference. Expiry and unregistered assignments are not what they hold.
+    /// </summary>
+    public bool HoldsSame(ResolvedPermissionsSnapshot other) =>
+        Granted.SetEquals(other.Granted)
+        && Meta.Count == other.Meta.Count
+        && Meta.All(x =>
+            other.Meta.TryGetValue(x.Key, out var value)
+            && string.Equals(value, x.Value, StringComparison.Ordinal)
+        );
 }

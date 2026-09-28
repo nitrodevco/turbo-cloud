@@ -308,13 +308,21 @@ directory's snapshot and the registry. Answers from memory:
   The default group can be neither joined nor left.
 
 Writes return a `PermissionChangeResultType` (`Changed`, `Unchanged`, `UnknownGroup`, `Invalid`,
-`Expired`, `ProtectedGroup`, `WouldCycle`, `AlreadyExists`, `NotFound`) and take the actor for the
+`Expired`, `ProtectedGroup`, `WouldCycle`, `AlreadyExists`, `NotFound`, `ReservedNode`) and take the actor for the
 audit — a player, or `null` for the console. Neither grain checks that the actor may make the
 change; whoever calls it does (`permissions.manage`, once something in game calls it).
 
 After any change to its resolved set it will re-project and send `UserRights` and
 `PerkAllowances` itself (the client applies both live — no reconnect), and push the new snapshot
 to the room the player is in. That is phases 4 and 6.
+
+It also raises **`PlayerPermissionsChangedEvent`** (`Turbo.Primitives/Players/Events/`) on the
+event system whenever a node or meta value the player holds changes, whatever caused it: a write
+to them or a group they reach, an expiry, a reload, a plugin's nodes registering. It carries the
+previous and current resolved sets, with `Gained` and `Lost` worked out. Activation raises
+nothing, since it is not a change. The event is not awaited, so a plugin handler may call back
+into the player's permission grain; LuckPerms' `NodeAddEvent`, `UserDataRecalculateEvent` and
+`UserPromoteEvent` all come down to this one.
 
 **Expiry** is a one-shot grain timer on each grain, set for the earliest expiry it knows of and
 capped at `PermissionConfig.ExpiryCheckMaxMs`. The player grain's fires for its own rows and for
@@ -723,7 +731,7 @@ temporary player denials of `trade` and `chat.speak` once the mod tool is built,
 | Verbose (watch checks live) | missing | **take**: every check goes through `HasAsync`, so `perm verbose <player>` logging checks is cheap and is how a hotel finds which node a feature wants |
 | `group listmembers`, `log recent`/`search`, `search <node>` (who holds it) | missing | take, console only, cheap queries |
 | `group.<name>` as a node (membership checkable like a permission) | built (§5) | — |
-| Events (`NodeAddEvent`, `UserDataRecalculateEvent`, `UserPromoteEvent`) | missing | take: a `PlayerPermissionsChangedEvent` on the event system for plugins |
+| Events (`NodeAddEvent`, `UserDataRecalculateEvent`, `UserPromoteEvent`) | built: `PlayerPermissionsChangedEvent` (§9) | — |
 | Log notify (tell online staff of changes) | missing | later, with the mod tool |
 | Tracks, clone/rename group key, clear, bulk update, export/import, web editor | missing | later; bulk renames of a node are a migration, backups are database dumps |
 | Contexts (server/world), regex and shorthand nodes, prefix/suffix stacking, messaging service | — | skip: room rights are the context, wildcards cover shorthand, no client draws prefixes, Orleans is the messaging |

@@ -11,6 +11,7 @@ using Orleans.Runtime;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Permissions;
 using Turbo.Database.Extensions;
+using Turbo.Events;
 using Turbo.Players.Configuration;
 using Turbo.Players.Permissions;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
@@ -18,6 +19,7 @@ using Turbo.Primitives.Messages.Outgoing.Perk;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Events;
 using Turbo.Primitives.Players.Grains.Permissions;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
@@ -38,6 +40,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
     private readonly PermissionConfig _permissionConfig;
     private readonly IGrainFactory _grainFactory;
     private readonly IPermissionRegistryProvider _permissionRegistryProvider;
+    private readonly EventSystem _eventSystem;
     private readonly ILogger<IPlayerPermissionGrain> _logger;
 
     private readonly PlayerPermissionLiveState _state;
@@ -51,6 +54,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
         IOptions<PlayerConfig> playerConfig,
         IGrainFactory grainFactory,
         IPermissionRegistryProvider permissionRegistryProvider,
+        EventSystem eventSystem,
         ILogger<IPlayerPermissionGrain> logger
     )
     {
@@ -58,6 +62,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
         _permissionConfig = playerConfig.Value.Permissions;
         _grainFactory = grainFactory;
         _permissionRegistryProvider = permissionRegistryProvider;
+        _eventSystem = eventSystem;
         _logger = logger;
 
         _state = new() { PlayerId = this.GetPlayerId() };
@@ -102,6 +107,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
         // expiry missed while inactive is swept, and sent, as soon as the timer set above fires.
         _state.SentClient = _state.Client;
         _state.SentRoom = _state.Resolved;
+        _state.Announced = _state.Resolved;
     }
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
@@ -571,8 +577,8 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
     }
 
     /// <summary>
-    /// Tells whoever needs it about a change: the client when the projection moved, and the room
-    /// the player stands in when what they hold moved. <paramref name="force"/> tells both even when
+    /// Tells whoever needs it about a change: the client when the projection moved, plugins when
+    /// a node or meta value moved, and the room the player stands in when a node moved. <paramref name="force"/> tells both even when
     /// nothing looks different, for rows swept after an activation that may have run out while the
     /// grain was collected and its player online.
     /// </summary>
@@ -588,6 +594,8 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
 
         var resolved = _state.Resolved!;
 
+        Announce(resolved);
+
         if (!force && _state.SentRoom is { } room && room.Granted.SetEquals(resolved.Granted))
             return;
 
@@ -596,6 +604,31 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
             .OnPermissionsChangedAsync(resolved, ct);
 
         _state.SentRoom = resolved;
+    }
+
+    /// <summary>
+    /// Raises <see cref="PlayerPermissionsChangedEvent"/> if what the player holds differs from
+    /// what was last announced. Not awaited: a handler may call back into this grain, which would
+    /// wait on the call raising it.
+    /// </summary>
+    private void Announce(ResolvedPermissionsSnapshot resolved)
+    {
+        if (_state.Announced is not { } previous || previous.HoldsSame(resolved))
+            return;
+
+        _state.Announced = resolved;
+
+        _eventSystem
+            .PublishAsync(
+                new PlayerPermissionsChangedEvent
+                {
+                    PlayerId = PlayerId,
+                    Previous = previous,
+                    Current = resolved,
+                },
+                CancellationToken.None
+            )
+            .LogAndForget(_logger, "announce the permissions of player {PlayerId}", PlayerId);
     }
 
     /// <summary>
