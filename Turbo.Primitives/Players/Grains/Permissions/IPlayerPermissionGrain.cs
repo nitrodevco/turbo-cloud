@@ -34,6 +34,16 @@ public interface IPlayerPermissionGrain : IGrainWithIntegerKey
 
     public Task<ResolvedPermissionsSnapshot> GetResolvedAsync(CancellationToken ct);
 
+    /// <summary>What the client is told about the player: security level, ambassador, moderator, perks.</summary>
+    public Task<PermissionClientSnapshot> GetClientStateAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Sends the player's sessions <c>UserRights</c> and <c>PerkAllowances</c>. Called at login;
+    /// after that the grain sends them itself whenever what they say changes, and when the club
+    /// level they carry changes (the subscription grain asks).
+    /// </summary>
+    public Task SendClientStateAsync(CancellationToken ct);
+
     /// <summary>Why the player does or does not hold <paramref name="node"/>.</summary>
     public Task<PermissionCheckSnapshot> ExplainAsync(string node, CancellationToken ct);
 

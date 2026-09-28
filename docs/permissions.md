@@ -1,9 +1,10 @@
 # Permissions, groups and security levels
 
-Implementation plan for a permission system. **Phases 1 to 3 of §14 are built**: the node constants,
+Implementation plan for a permission system. **Phases 1 to 4 of §14 are built**: the node constants,
 the registry and the resolver in `Turbo.Primitives/Players/Permissions/`, tested in
 `Turbo.Tests`; the tables, seeded groups and perk-flag carry-over (§13); and the grains, audit, expiry and
-the `perm` console command (§9). Nothing enforces a permission or tells the client yet.
+the `perm` console command (§9); and the projection that tells the client (§8). Nothing on the
+server enforces a permission yet.
 
 The shape is borrowed from LuckPerms rather than from the Habbo retros, on purpose. The retro
 pattern — one rank per player, a `permissions` table with a column per permission, code comparing
@@ -211,6 +212,15 @@ trial rule "nobody else in the room" counts staff as ordinary visitors. All four
 changes once this exists.
 
 ## 8. The projection to the client
+
+Built in phase 4: `PermissionProjection` (`Turbo.Primitives/Players/Permissions/`) turns a
+resolved set into a `PermissionClientSnapshot`, and `PlayerPermissionGrain` sends it. The grain
+owns `UserRights` now, reading the club level it carries from the subscription grain, and sends it
+with `PerkAllowances` at login (`SSOTicketMessageHandler`, whose hardcoded perk list is gone) and
+again whenever the projection changes: a write, a group push, an expiry, a registry change. The
+subscription grain asks for a resend when the club changes, without awaiting it, since the
+permission grain reads the club back from it. The perk refusal texts moved onto the node
+definitions (`PerkRefusal`). `IsModerator` is projected but reaches the room avatar in phase 6.
 
 One place, and only one — a `PermissionProjection` in `Turbo.Players` — turns a resolved set into
 what the client is told:
@@ -430,6 +440,11 @@ yes/no and the server must agree with it; if a hotel later wants graded area lim
 meta and the perk is projected from "limit above the client's 3025".
 
 ## 14. Build order
+
+The nodes the audit found (§17.2) are registered as of phase 4 — so the projection already
+raises the level they need — and `SeedAuditPermissionNodes` grants `chat.speak` to `default`
+and the group, gift and group-furni nodes to `moderator`. Their server gates are phase 6 work
+with the rest of §7.
 
 Each phase is testable on its own and ends with the tree building.
 

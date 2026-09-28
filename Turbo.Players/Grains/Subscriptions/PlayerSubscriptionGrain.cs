@@ -144,6 +144,18 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
         {
             await SendClubInfoAsync(ScrUserInfoResponseType.SubscriptionChanged, ct);
 
+            // UserRights carries the club level beside the security level, and the permission
+            // grain sends it. Not awaited: that grain reads the club level back from this one,
+            // which it could not do while this call waited on it.
+            _grainFactory
+                .GetPlayerPermissionGrain(PlayerId)
+                .SendClientStateAsync(ct)
+                .LogAndForget(
+                    _logger,
+                    "resend the rights of player {PlayerId} after a Habbo Club change",
+                    PlayerId
+                );
+
             // The room this player is standing in keeps the new expiry against their avatar for
             // the wired @is_hc variable. Not awaited: the presence has a room to tell and this
             // grain has nothing to do with what it says.
@@ -172,21 +184,7 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
 
     public async Task SendStatusAsync(CancellationToken ct)
     {
-        var club = BuildSnapshot(SubscriptionType.HabboClub);
         var builders = BuildSnapshot(SubscriptionType.BuildersClub);
-
-        await _grainFactory.SendComposerToPlayerAsync(
-            PlayerId,
-            new UserRightsMessage
-            {
-                ClubLevel = club.IsActive ? ClubLevelType.Vip : ClubLevelType.None,
-                // Neither staff ranks nor ambassadors exist yet. They belong to the player, not
-                // to a subscription, and move here when something grants them.
-                SecurityLevel = SecurityLevelType.None,
-                IsAmbassador = false,
-            },
-            ct
-        );
 
         await _grainFactory.SendComposerToPlayerAsync(
             PlayerId,

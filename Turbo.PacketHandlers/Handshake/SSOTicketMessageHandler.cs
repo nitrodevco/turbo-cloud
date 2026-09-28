@@ -13,7 +13,6 @@ using Turbo.Primitives.Messages.Outgoing.Inventory.Clothing;
 using Turbo.Primitives.Messages.Outgoing.Mysterybox;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
-using Turbo.Primitives.Messages.Outgoing.Perk;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
@@ -129,8 +128,13 @@ public class SSOTicketMessageHandler(
                 ct
             )
             .ConfigureAwait(false);
-        // The subscription grain owns both the club level and the Builders Club countdown, and
-        // sends them again itself whenever they change.
+        // Security level, ambassador flag, club level and perks, all worked out from the player's
+        // permissions; the permission grain sends them again itself whenever they change.
+        await _grainFactory
+            .GetPlayerPermissionGrain(playerId)
+            .SendClientStateAsync(ct)
+            .ConfigureAwait(false);
+        // The Builders Club countdown, which the subscription grain resends when it changes.
         await _grainFactory
             .GetPlayerSubscriptionGrain(playerId)
             .SendStatusAsync(ct)
@@ -168,88 +172,6 @@ public class SSOTicketMessageHandler(
                 {
                     BoxColor = string.Empty,
                     KeyColor = string.Empty,
-                },
-                ct
-            )
-            .ConfigureAwait(false);
-        await ctx.SendComposerAsync(
-                new PerkAllowancesMessageComposer
-                {
-                    Perks =
-                    [
-                        new PerkAllowanceItem
-                        {
-                            Code = "NAVIGATOR_ROOM_THUMBNAIL_CAMERA",
-                            ErrorMessage = string.Empty,
-                            IsAllowed = true,
-                        },
-                        new PerkAllowanceItem
-                        {
-                            Code = "JUDGE_CHAT_REVIEWS",
-                            ErrorMessage = "requirement.unfulfilled.helper_level_6",
-                            IsAllowed = false,
-                        },
-                        new PerkAllowanceItem
-                        {
-                            Code = "MOUSE_ZOOM",
-                            ErrorMessage = string.Empty,
-                            IsAllowed = true,
-                        },
-                        new PerkAllowanceItem
-                        {
-                            Code = "HABBO_CLUB_OFFER_BETA",
-                            ErrorMessage = string.Empty,
-                            IsAllowed = true,
-                        },
-                        new PerkAllowanceItem
-                        {
-                            Code = "TRADE",
-                            ErrorMessage = "requirement.unfulfilled.citizenship_level_3",
-                            IsAllowed = true,
-                        },
-                        new PerkAllowanceItem
-                        {
-                            Code = "CAMERA",
-                            ErrorMessage = string.Empty,
-                            IsAllowed = true,
-                        },
-                        new PerkAllowanceItem
-                        {
-                            Code = "NAVIGATOR_PHASE_TWO_2014",
-                            ErrorMessage = string.Empty,
-                            IsAllowed = true,
-                        },
-                        new PerkAllowanceItem
-                        {
-                            Code = "BUILDER_AT_WORK",
-                            ErrorMessage = "requirement.unfulfilled.group_membership",
-                            IsAllowed = false,
-                        },
-                        new PerkAllowanceItem
-                        {
-                            Code = "CALL_ON_HELPERS",
-                            ErrorMessage = string.Empty,
-                            IsAllowed = true,
-                        },
-                        new PerkAllowanceItem
-                        {
-                            Code = "CITIZEN",
-                            ErrorMessage = string.Empty,
-                            IsAllowed = true,
-                        },
-                        new PerkAllowanceItem
-                        {
-                            Code = "USE_GUIDE_TOOL",
-                            ErrorMessage = "requirement.unfulfilled.helper_level_4",
-                            IsAllowed = false,
-                        },
-                        new PerkAllowanceItem
-                        {
-                            Code = "VOTE_IN_COMPETITIONS",
-                            ErrorMessage = "requirement.unfulfilled.helper_level_2",
-                            IsAllowed = false,
-                        },
-                    ],
                 },
                 ct
             )

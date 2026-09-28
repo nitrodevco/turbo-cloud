@@ -13,6 +13,8 @@ using Turbo.Database.Entities.Permissions;
 using Turbo.Database.Extensions;
 using Turbo.Players.Configuration;
 using Turbo.Players.Permissions;
+using Turbo.Primitives.Messages.Outgoing.Handshake;
+using Turbo.Primitives.Messages.Outgoing.Perk;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
@@ -94,6 +96,11 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
         );
 
         Resolve();
+
+        // Taken as what the client already knows: it is sent at login, and a grain collected while
+        // its player stayed online was reactivated by a change that is compared against it. An
+        // expiry missed while inactive is swept, and sent, as soon as the timer set above fires.
+        _state.SentClient = _state.Client;
     }
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
@@ -139,6 +146,20 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
 
     public Task<ResolvedPermissionsSnapshot> GetResolvedAsync(CancellationToken ct) =>
         Task.FromResult(EnsureResolved());
+
+    public Task<PermissionClientSnapshot> GetClientStateAsync(CancellationToken ct)
+    {
+        EnsureResolved();
+
+        return Task.FromResult(_state.Client!);
+    }
+
+    public Task SendClientStateAsync(CancellationToken ct)
+    {
+        EnsureResolved();
+
+        return SendClientStateCoreAsync(ct);
+    }
 
     public Task<PermissionCheckSnapshot> ExplainAsync(string node, CancellationToken ct)
     {
@@ -511,11 +532,14 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
         return [.. rows.Select(x => x.ToSnapshot())];
     }
 
-    public Task OnGroupsChangedAsync(PermissionGroupDirectorySnapshot groups, CancellationToken ct)
+    public async Task OnGroupsChangedAsync(
+        PermissionGroupDirectorySnapshot groups,
+        CancellationToken ct
+    )
     {
         // Pushes are not awaited by the directory, so an older one can arrive after a newer one.
         if (groups.Version <= _state.Groups.Version)
-            return Task.CompletedTask;
+            return;
 
         _state.Groups = groups;
 
@@ -528,7 +552,59 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
 
         Resolve();
 
-        return Task.CompletedTask;
+        await PushClientStateIfChangedAsync(ct);
+    }
+
+    /// <summary>Sends the projection if it differs from what the client was last told.</summary>
+    private Task PushClientStateIfChangedAsync(CancellationToken ct) =>
+        _state.Client is { } client && _state.SentClient is { } sent && client.Matches(sent)
+            ? Task.CompletedTask
+            : SendClientStateCoreAsync(ct);
+
+    /// <summary>
+    /// Tells the player's sessions their security level, ambassador flag and perks. The club level
+    /// shares the <c>UserRights</c> packet, so it is read from the subscription grain, which never
+    /// awaits this one. Sent to an offline player it goes nowhere.
+    /// </summary>
+    private async Task SendClientStateCoreAsync(CancellationToken ct)
+    {
+        var client = _state.Client!;
+        var hasClub = await _grainFactory.HasActiveClubAsync(PlayerId, ct);
+
+        await _grainFactory
+            .GetPlayerPresenceGrain(PlayerId)
+            .SendComposerAsync(
+                [
+                    new UserRightsMessage
+                    {
+                        ClubLevel = hasClub ? ClubLevelType.Vip : ClubLevelType.None,
+                        SecurityLevel = client.SecurityLevel,
+                        IsAmbassador = client.IsAmbassador,
+                    },
+                    new PerkAllowancesMessageComposer
+                    {
+                        Perks =
+                        [
+                            .. client.Perks.Select(x => new PerkAllowanceItem
+                            {
+                                Code = PlayerPerkExtensions.ToLegacyString(x.Perk),
+                                IsAllowed = x.IsAllowed,
+                                ErrorMessage = x.Refusal,
+                            }),
+                        ],
+                    },
+                ],
+                ct
+            );
+
+        _state.SentClient = client;
+
+        _logger.LogDebug(
+            "Sent permissions to player {PlayerId}: security level {SecurityLevel}, ambassador {IsAmbassador}",
+            PlayerId,
+            client.SecurityLevel,
+            client.IsAmbassador
+        );
     }
 
     private PermissionGroupSnapshot? FindGroup(string name) =>
@@ -576,6 +652,8 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
 
         _logger.LogInformation("Permissions of player {PlayerId} changed", PlayerId);
 
+        await PushClientStateIfChangedAsync(ct);
+
         return result;
     }
 
@@ -587,7 +665,14 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
             || !ReferenceEquals(_state.Registry, _permissionRegistryProvider.Current)
             || resolved.NextExpiresAt <= DateTime.UtcNow
         )
-            return Resolve();
+        {
+            resolved = Resolve();
+
+            // Reached from a read, which must not wait on a send; the client hears of a change
+            // a plugin load or an expiry made as soon as it can.
+            PushClientStateIfChangedAsync(CancellationToken.None)
+                .LogAndForget(_logger, "send the permissions of player {PlayerId}", PlayerId);
+        }
 
         return resolved;
     }
@@ -604,6 +689,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
 
         _state.Registry = registry;
         _state.Resolved = resolved;
+        _state.Client = PermissionProjection.Project(registry, resolved);
 
         if (resolved.UnregisteredNodes.Length > 0)
             _logger.LogDebug(
@@ -753,6 +839,14 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
             }
 
             Resolve();
+
+            // Rows swept straight after an activation may have run out while the grain was
+            // collected and its player online, so the client is told even if the projection
+            // looks the same as the one this activation began with.
+            if (groups.Count + nodes.Count + meta.Count > 0)
+                await SendClientStateCoreAsync(ct);
+            else
+                await PushClientStateIfChangedAsync(ct);
         }
         catch (Exception ex)
         {

@@ -321,6 +321,7 @@ internal sealed class PermissionConsoleCommand(IGrainFactory grainFactory)
     {
         var assignments = await grain.GetAssignmentsAsync(ct).ConfigureAwait(false);
         var resolved = await grain.GetResolvedAsync(ct).ConfigureAwait(false);
+        var client = await grain.GetClientStateAsync(ct).ConfigureAwait(false);
         var groups = (await Directory.GetSnapshotAsync(ct).ConfigureAwait(false)).Groups;
 
         System.Console.WriteLine("groups:");
@@ -351,6 +352,14 @@ internal sealed class PermissionConsoleCommand(IGrainFactory grainFactory)
 
         foreach (var (key, value) in resolved.Meta)
             System.Console.WriteLine($"  meta {key} = {value}");
+
+        System.Console.WriteLine(
+            $"client: security level {client.SecurityLevel} ({(int)client.SecurityLevel}), "
+                + $"ambassador {Format(client.IsAmbassador)}, moderator {Format(client.IsModerator)}"
+        );
+        System.Console.WriteLine(
+            $"  perks allowed: {OrDash(string.Join(", ", client.Perks.Where(x => x.IsAllowed).Select(x => x.Perk)))}"
+        );
 
         if (resolved.UnregisteredNodes.Length > 0)
             System.Console.WriteLine(

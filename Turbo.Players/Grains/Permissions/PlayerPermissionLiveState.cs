@@ -37,6 +37,12 @@ internal sealed class PlayerPermissionLiveState
     /// <summary>The registry <see cref="Resolved"/> was worked out against; compared by reference.</summary>
     public PermissionRegistry? Registry { get; set; }
 
+    /// <summary>What the client should be told, from <see cref="Resolved"/>. Null only before the first resolve.</summary>
+    public PermissionClientSnapshot? Client { get; set; }
+
+    /// <summary>What the client was last told, or is taken to know; a change is sent when they differ.</summary>
+    public PermissionClientSnapshot? SentClient { get; set; }
+
     /// <summary>What the player holds. Null only before the first resolve.</summary>
     public ResolvedPermissionsSnapshot? Resolved { get; set; }
 }

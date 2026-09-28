@@ -12,9 +12,14 @@ namespace Turbo.Primitives.Players.Permissions;
 /// anything. Holding the node raises the player's derived security level to at least this.
 /// </param>
 /// <param name="Perk">The <c>PerkAllowances</c> code this node is projected to, if any.</param>
+/// <param name="PerkRefusal">
+/// The text sent with the perk for a client to show when it is not allowed. The Flash client
+/// never reads it; it is kept because a later client may.
+/// </param>
 public sealed record PermissionNodeDefinition(
     string Node,
     string Description,
     SecurityLevelType? ClientLevel = null,
-    PlayerPerkFlags? Perk = null
+    PlayerPerkFlags? Perk = null,
+    string? PerkRefusal = null
 );
