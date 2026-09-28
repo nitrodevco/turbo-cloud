@@ -44,6 +44,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
     private readonly IGrainFactory _grainFactory;
     private readonly IPermissionRegistryProvider _permissionRegistryProvider;
     private readonly EventSystem _eventSystem;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<IPlayerPermissionGrain> _logger;
 
     private readonly PlayerPermissionLiveState _state;
@@ -52,12 +53,15 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
 
     private PlayerId PlayerId => _state.PlayerId;
 
+    private DateTime UtcNow => _timeProvider.GetUtcNow().UtcDateTime;
+
     public PlayerPermissionGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IOptions<PlayerConfig> playerConfig,
         IGrainFactory grainFactory,
         IPermissionRegistryProvider permissionRegistryProvider,
         EventSystem eventSystem,
+        TimeProvider timeProvider,
         ILogger<IPlayerPermissionGrain> logger
     )
     {
@@ -66,6 +70,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
         _grainFactory = grainFactory;
         _permissionRegistryProvider = permissionRegistryProvider;
         _eventSystem = eventSystem;
+        _timeProvider = timeProvider;
         _logger = logger;
 
         _state = new() { PlayerId = this.GetPlayerId() };
@@ -211,14 +216,14 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
                 _state.Groups.Groups,
                 BuildAssignments(),
                 node,
-                DateTime.UtcNow
+                UtcNow
             )
         );
     }
 
     public Task<PlayerPermissionAssignmentsSnapshot> GetAssignmentsAsync(CancellationToken ct)
     {
-        var now = DateTime.UtcNow;
+        var now = UtcNow;
         var all = BuildAssignments();
 
         return Task.FromResult(
@@ -242,7 +247,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
         if (groupName == PermissionGroupNames.DEFAULT)
             return PermissionChangeResultType.ProtectedGroup;
 
-        var now = DateTime.UtcNow;
+        var now = UtcNow;
 
         if (expiresAt <= now)
             return PermissionChangeResultType.Expired;
@@ -359,7 +364,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
         if (PermissionGroupNames.IsGroupNode(node))
             return PermissionChangeResultType.ReservedNode;
 
-        var now = DateTime.UtcNow;
+        var now = UtcNow;
 
         if (expiresAt <= now)
             return PermissionChangeResultType.Expired;
@@ -457,7 +462,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
         if (!PermissionNodeFormat.IsValidNode(key) || !PermissionNodeFormat.IsValidMetaValue(value))
             return PermissionChangeResultType.Invalid;
 
-        var now = DateTime.UtcNow;
+        var now = UtcNow;
 
         if (expiresAt <= now)
             return PermissionChangeResultType.Expired;
@@ -793,7 +798,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
         if (
             _state.Resolved is not { } resolved
             || !ReferenceEquals(_state.Registry, _permissionRegistryProvider.Current)
-            || resolved.NextExpiresAt <= DateTime.UtcNow
+            || resolved.NextExpiresAt <= UtcNow
         )
         {
             resolved = Resolve();
@@ -814,7 +819,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
             registry,
             _state.Groups.Groups,
             BuildAssignments(),
-            DateTime.UtcNow
+            UtcNow
         ) with
         {
             VerboseFilter = _state.VerboseFilter,
@@ -873,7 +878,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
             return;
         }
 
-        ScheduleExpiryIn(due.Value - DateTime.UtcNow);
+        ScheduleExpiryIn(due.Value - UtcNow);
     }
 
     private void ScheduleExpiryIn(TimeSpan due) =>
@@ -893,7 +898,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
     {
         try
         {
-            var now = DateTime.UtcNow;
+            var now = UtcNow;
 
             await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 

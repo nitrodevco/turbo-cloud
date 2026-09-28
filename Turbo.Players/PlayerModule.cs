@@ -1,4 +1,6 @@
+using System;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
 using Turbo.Players.Configuration;
@@ -27,6 +29,9 @@ public sealed class PlayerModule : IHostPluginModule
         services.AddSingleton<ICurrencyTypeProvider, CurrencyTypeProvider>();
         services.AddSingleton<IChatStyleProvider, ChatStyleProvider>();
         services.AddSingleton<IPlayerService, PlayerService>();
+        // The clock the permission grains and console read expiry against; tests swap in a fake.
+        // Orleans may register one already, so this only fills the gap.
+        services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IPermissionRegistryProvider, PermissionRegistryProvider>();
         services.AddSingleton<IAssemblyFeatureProcessor, PermissionNodeFeatureProcessor>();
     }

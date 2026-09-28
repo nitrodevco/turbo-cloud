@@ -38,6 +38,7 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly PermissionConfig _permissionConfig;
     private readonly IGrainFactory _grainFactory;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<IPermissionGroupDirectoryGrain> _logger;
 
     private readonly PermissionGroupDirectoryLiveState _state = new();
@@ -48,14 +49,18 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IOptions<PlayerConfig> playerConfig,
         IGrainFactory grainFactory,
+        TimeProvider timeProvider,
         ILogger<IPermissionGroupDirectoryGrain> logger
     )
     {
         _dbCtxFactory = dbCtxFactory;
         _permissionConfig = playerConfig.Value.Permissions;
         _grainFactory = grainFactory;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
+
+    private DateTime UtcNow => _timeProvider.GetUtcNow().UtcDateTime;
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
@@ -294,7 +299,7 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
         if (PermissionGroupNames.IsGroupNode(node))
             return PermissionChangeResultType.ReservedNode;
 
-        var now = DateTime.UtcNow;
+        var now = UtcNow;
 
         if (expiresAt <= now)
             return PermissionChangeResultType.Expired;
@@ -399,7 +404,7 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
         if (!PermissionNodeFormat.IsValidNode(key) || !PermissionNodeFormat.IsValidMetaValue(value))
             return PermissionChangeResultType.Invalid;
 
-        var now = DateTime.UtcNow;
+        var now = UtcNow;
 
         if (expiresAt <= now)
             return PermissionChangeResultType.Expired;
@@ -606,7 +611,7 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
             return [];
 
         var take = Math.Clamp(count, 1, _permissionConfig.LookupPageLimit);
-        var now = DateTime.UtcNow;
+        var now = UtcNow;
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
@@ -636,7 +641,7 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
             return [];
 
         var take = Math.Clamp(count, 1, _permissionConfig.LookupPageLimit);
-        var now = DateTime.UtcNow;
+        var now = UtcNow;
 
         bool Names(PermissionNodeAssignmentSnapshot assignment) =>
             (assignment.ExpiresAt is null || assignment.ExpiresAt > now)
@@ -899,7 +904,7 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
             return;
         }
 
-        ScheduleExpiryIn(next.Value - DateTime.UtcNow);
+        ScheduleExpiryIn(next.Value - UtcNow);
     }
 
     private void ScheduleExpiryIn(TimeSpan due) =>
@@ -918,7 +923,7 @@ internal sealed class PermissionGroupDirectoryGrain : Grain, IPermissionGroupDir
     {
         try
         {
-            var now = DateTime.UtcNow;
+            var now = UtcNow;
 
             await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 

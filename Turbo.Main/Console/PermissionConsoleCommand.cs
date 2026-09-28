@@ -22,7 +22,8 @@ namespace Turbo.Main.Console;
 /// </summary>
 internal sealed class PermissionConsoleCommand(
     IGrainFactory grainFactory,
-    IPermissionRegistryProvider permissionRegistryProvider
+    IPermissionRegistryProvider permissionRegistryProvider,
+    TimeProvider timeProvider
 )
 {
     public const string USAGE = """
@@ -68,6 +69,9 @@ internal sealed class PermissionConsoleCommand(
     private readonly IGrainFactory _grainFactory = grainFactory;
     private readonly IPermissionRegistryProvider _permissionRegistryProvider =
         permissionRegistryProvider;
+    private readonly TimeProvider _timeProvider = timeProvider;
+
+    private DateTime UtcNow => _timeProvider.GetUtcNow().UtcDateTime;
 
     /// <summary>What a temporary write does to one already running; <c>--extend</c> anywhere asks to extend.</summary>
     private PermissionExpiryModeType _mode;
@@ -586,7 +590,7 @@ internal sealed class PermissionConsoleCommand(
         PrintLevel(
             PermissionProjection.ReportLevel(
                 registry,
-                PermissionResolver.Resolve(registry, groups, member, DateTime.UtcNow)
+                PermissionResolver.Resolve(registry, groups, member, UtcNow)
             )
         );
     }
@@ -694,7 +698,7 @@ internal sealed class PermissionConsoleCommand(
     /// The optional value then optional duration after a node: <c>set room.* false 7d</c>,
     /// <c>set room.* 7d</c>, <c>set room.*</c>. The value defaults to true.
     /// </summary>
-    private static (bool Value, DateTime? ExpiresAt) ParseValueAndExpiry(string[] rest) =>
+    private (bool Value, DateTime? ExpiresAt) ParseValueAndExpiry(string[] rest) =>
         rest switch
         {
             [] => (true, null),
@@ -704,7 +708,7 @@ internal sealed class PermissionConsoleCommand(
             _ => throw new FormatException("Expected [true|false] [duration]."),
         };
 
-    private static DateTime? ParseExpiry(string[] rest)
+    private DateTime? ParseExpiry(string[] rest)
     {
         if (rest.Length == 0)
             return null;
@@ -736,6 +740,6 @@ internal sealed class PermissionConsoleCommand(
             _ => throw new FormatException($"'{text}' is not a duration like 30m, 12h or 7d."),
         };
 
-        return DateTime.UtcNow + span;
+        return UtcNow + span;
     }
 }

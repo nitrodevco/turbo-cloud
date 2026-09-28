@@ -113,7 +113,8 @@ public class ConsoleCommandService(IServiceProvider services)
             case "perm":
                 await new PermissionConsoleCommand(
                     _services.GetRequiredService<IGrainFactory>(),
-                    _services.GetRequiredService<IPermissionRegistryProvider>()
+                    _services.GetRequiredService<IPermissionRegistryProvider>(),
+                    _services.GetRequiredService<TimeProvider>()
                 )
                     .RunAsync(args, ct)
                     .ConfigureAwait(false);
