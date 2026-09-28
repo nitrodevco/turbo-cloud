@@ -43,6 +43,9 @@ internal sealed class PlayerPermissionLiveState
     /// <summary>What the client was last told, or is taken to know; a change is sent when they differ.</summary>
     public PermissionClientSnapshot? SentClient { get; set; }
 
+    /// <summary>The resolved set the player's room was last told of, or is taken to hold.</summary>
+    public ResolvedPermissionsSnapshot? SentRoom { get; set; }
+
     /// <summary>What the player holds. Null only before the first resolve.</summary>
     public ResolvedPermissionsSnapshot? Resolved { get; set; }
 }

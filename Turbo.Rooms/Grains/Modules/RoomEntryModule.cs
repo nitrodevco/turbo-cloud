@@ -11,6 +11,7 @@ using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -52,7 +53,13 @@ public sealed class RoomEntryModule(
             // A room hidden over a lapsed Builders Club membership is the owner's alone until
             // they renew it or give the borrowed furni back. Re-entering does not excuse it:
             // whoever is inside when it is hidden stays, but nobody comes back in.
-            if (snapshot.HiddenByBc)
+            if (
+                snapshot.HiddenByBc
+                && !await SecurityModule.HasPermissionAsync(
+                    playerId,
+                    PermissionNodes.Room.ENTER_HIDDEN
+                )
+            )
                 return RoomEntryAccessType.HiddenByBuildersClub;
 
             // Counted here, not asked of the room directory: the singleton only knows this
@@ -61,11 +68,20 @@ public sealed class RoomEntryModule(
                 !isReentering
                 && snapshot.PlayersMax > 0
                 && _roomGrain._state.AvatarsByPlayerId.Count >= snapshot.PlayersMax
+                && !await SecurityModule.HasPermissionAsync(
+                    playerId,
+                    PermissionNodes.Room.ENTER_FULL
+                )
             )
                 return RoomEntryAccessType.Full;
         }
 
-        if (isReentering || bypassDoor || controllerLevel >= RoomControllerType.Rights)
+        if (
+            isReentering
+            || bypassDoor
+            || controllerLevel >= RoomControllerType.Rights
+            || await SecurityModule.HasPermissionAsync(playerId, PermissionNodes.Room.ENTER_LOCKED)
+        )
             return RoomEntryAccessType.Allowed;
 
         return snapshot.DoorMode switch

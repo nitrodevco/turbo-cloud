@@ -76,7 +76,7 @@ public sealed partial class RoomGrain
     private bool CanRate(PlayerId playerId) =>
         playerId.Value > 0
         && !_state.PlayerIdsWhoRated.Contains(playerId)
-        && !SecurityModule.IsRoomOwner(playerId);
+        && !SecurityModule.IsOwnedBy(playerId);
 
     public async Task SetStaffPickAsync(bool staffPick, CancellationToken ct)
     {

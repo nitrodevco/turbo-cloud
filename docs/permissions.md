@@ -413,6 +413,26 @@ depths.
        || HasPermission(playerId, PermissionNodes.Room.CONTROL_ANY);
    ```
 
+   Built in phase 6. `IRoomPlayer.Permissions` is loaded before the avatar is made rather than
+   beside the badges, so the moderator flag (now `Permissions.Has(room.moderate.any)`) is right
+   when the avatar attaches, and it is replaced when it changes: the permission grain tells the
+   presence and the presence tells the room the player is in, the Habbo Club path, with a change to
+   `room.control.any` re-sending the controller level. `HasPermission` reads the avatar for
+   synchronous callers; `HasPermissionAsync` reads it too when the player is in the room, which
+   every furni move asks, and otherwise asks the permission grain.
+
+   `IsRoomOwner` / `GetIsRoomOwnerAsync` now mean "may act as owner", `room.control.any` included;
+   `IsOwnedBy` means whose room it is, for what ownership itself decides — an owner does not rate
+   their own room, and the wired `@is_owner` flag. `GetControllerLevelAsync` returns `Moderator` for
+   `room.control.any`; the entry check honours `room.enter.locked` / `full` / `hidden`; the room
+   moderation checks, the room mute and the ban list honour `room.moderate.any`; pick-up honours
+   `room.furni.pickup_any` and `room.furni.steal` (`FurniturePickupType.SendToCtx`).
+
+   `SeedDenyFurniSteal` denies `room.furni.steal` to `moderator` and `admin`, whose wildcards would
+   otherwise send every furni they picked up into their own inventory, and
+   `perk.navigator.phase_one` to `admin`, whose `*` would otherwise switch its members to the
+   phase-one navigator. A hotel that wants either grants it on purpose.
+
 In all three, a gate names a node constant. No code outside the projection compares a
 `SecurityLevelType`, and no code asks which group a player is in to decide what they may do.
 

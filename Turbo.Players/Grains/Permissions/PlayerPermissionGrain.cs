@@ -101,6 +101,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
         // its player stayed online was reactivated by a change that is compared against it. An
         // expiry missed while inactive is swept, and sent, as soon as the timer set above fires.
         _state.SentClient = _state.Client;
+        _state.SentRoom = _state.Resolved;
     }
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
@@ -552,14 +553,36 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
 
         Resolve();
 
-        await PushClientStateIfChangedAsync(ct);
+        await PublishChangesAsync(force: false, ct);
     }
 
-    /// <summary>Sends the projection if it differs from what the client was last told.</summary>
-    private Task PushClientStateIfChangedAsync(CancellationToken ct) =>
-        _state.Client is { } client && _state.SentClient is { } sent && client.Matches(sent)
-            ? Task.CompletedTask
-            : SendClientStateCoreAsync(ct);
+    /// <summary>
+    /// Tells whoever needs it about a change: the client when the projection moved, and the room
+    /// the player stands in when what they hold moved. <paramref name="force"/> tells both even when
+    /// nothing looks different, for rows swept after an activation that may have run out while the
+    /// grain was collected and its player online.
+    /// </summary>
+    private async Task PublishChangesAsync(bool force, CancellationToken ct)
+    {
+        if (
+            force
+            || _state.Client is not { } client
+            || _state.SentClient is not { } sent
+            || !client.Matches(sent)
+        )
+            await SendClientStateCoreAsync(ct);
+
+        var resolved = _state.Resolved!;
+
+        if (!force && _state.SentRoom is { } room && room.Granted.SetEquals(resolved.Granted))
+            return;
+
+        await _grainFactory
+            .GetPlayerPresenceGrain(PlayerId)
+            .OnPermissionsChangedAsync(resolved, ct);
+
+        _state.SentRoom = resolved;
+    }
 
     /// <summary>
     /// Tells the player's sessions their security level, ambassador flag and perks. The club level
@@ -652,7 +675,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
 
         _logger.LogInformation("Permissions of player {PlayerId} changed", PlayerId);
 
-        await PushClientStateIfChangedAsync(ct);
+        await PublishChangesAsync(force: false, ct);
 
         return result;
     }
@@ -670,7 +693,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
 
             // Reached from a read, which must not wait on a send; the client hears of a change
             // a plugin load or an expiry made as soon as it can.
-            PushClientStateIfChangedAsync(CancellationToken.None)
+            PublishChangesAsync(force: false, CancellationToken.None)
                 .LogAndForget(_logger, "send the permissions of player {PlayerId}", PlayerId);
         }
 
@@ -843,10 +866,7 @@ internal sealed class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
             // Rows swept straight after an activation may have run out while the grain was
             // collected and its player online, so the client is told even if the projection
             // looks the same as the one this activation began with.
-            if (groups.Count + nodes.Count + meta.Count > 0)
-                await SendClientStateCoreAsync(ct);
-            else
-                await PushClientStateIfChangedAsync(ct);
+            await PublishChangesAsync(force: groups.Count + nodes.Count + meta.Count > 0, ct);
         }
         catch (Exception ex)
         {

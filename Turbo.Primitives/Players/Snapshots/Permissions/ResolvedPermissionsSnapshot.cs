@@ -11,6 +11,15 @@ namespace Turbo.Primitives.Players.Snapshots.Permissions;
 [GenerateSerializer, Immutable]
 public sealed record ResolvedPermissionsSnapshot
 {
+    /// <summary>Holds nothing: what a player is taken to hold when their permissions cannot be read.</summary>
+    public static readonly ResolvedPermissionsSnapshot EMPTY = new()
+    {
+        Granted = [],
+        Meta = ImmutableDictionary<string, string>.Empty,
+        UnregisteredNodes = [],
+        UnregisteredMetaKeys = [],
+    };
+
     /// <summary>The registered nodes the player holds.</summary>
     [Id(0)]
     public required ImmutableHashSet<string> Granted { get; init; }

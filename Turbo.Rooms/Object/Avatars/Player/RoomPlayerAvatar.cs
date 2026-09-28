@@ -3,7 +3,9 @@ using System.Collections.Immutable;
 using Turbo.Primitives.Badges;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Snapshots;
+using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
@@ -35,7 +37,10 @@ public sealed class RoomPlayerAvatar
     public string GuildName { get; private set; } = string.Empty;
     public string SwimFigure { get; init; } = string.Empty;
     public int ActivityPoints { get; init; } = 0;
-    public bool IsModerator { get; init; } = false;
+    public ResolvedPermissionsSnapshot Permissions { get; private set; } =
+        ResolvedPermissionsSnapshot.EMPTY;
+
+    public bool IsModerator => Permissions.Has(PermissionNodes.Room.MODERATE_ANY);
 
     public bool UpdateWithPlayer(PlayerSummarySnapshot snapshot)
     {
@@ -54,6 +59,17 @@ public sealed class RoomPlayerAvatar
         GuildId = guildId;
         GuildStatus = guildStatus;
         GuildName = guildName;
+    }
+
+    public void SetPermissions(ResolvedPermissionsSnapshot permissions)
+    {
+        var wasModerator = IsModerator;
+
+        Permissions = permissions;
+
+        // The flag travels in the avatar snapshot, so a change has to reach the room.
+        if (IsModerator != wasModerator)
+            MarkDirty();
     }
 
     public void SetBadges(ImmutableArray<string> badgeCodes) => BadgeCodes = badgeCodes;

@@ -12,6 +12,7 @@ using Turbo.Primitives.Messages.Outgoing.Roomsettings;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Snapshots.Settings;
@@ -75,9 +76,13 @@ public sealed class RoomSecurityModule(
         if (ctx.Origin == ActionOrigin.System)
             return FurniturePickupType.SendToOwner;
 
-        // if can steal furni, SendToRequester
+        if (await HasPermissionAsync(ctx.PlayerId, PermissionNodes.Room.FURNI_STEAL))
+            return FurniturePickupType.SendToCtx;
 
-        if (await GetControllerLevelAsync(ctx) >= RoomControllerType.GroupAdmin)
+        if (
+            await GetControllerLevelAsync(ctx) >= RoomControllerType.GroupAdmin
+            || await HasPermissionAsync(ctx.PlayerId, PermissionNodes.Room.FURNI_PICKUP_ANY)
+        )
             return FurniturePickupType.SendToOwner;
 
         return FurniturePickupType.None;
@@ -85,16 +90,53 @@ public sealed class RoomSecurityModule(
 
     public Task<bool> GetIsRoomOwnerAsync(ActionContext ctx) => GetIsRoomOwnerAsync(ctx.PlayerId);
 
-    public Task<bool> GetIsRoomOwnerAsync(PlayerId playerId) =>
-        Task.FromResult(IsRoomOwner(playerId));
+    /// <summary>
+    /// Whether the player may act as this room's owner: it is theirs, or they control every room.
+    /// Asks the permission grain for a player who is not here.
+    /// </summary>
+    public async Task<bool> GetIsRoomOwnerAsync(PlayerId playerId) =>
+        _roomGrain._state.RoomSnapshot.OwnerId == playerId
+        || await HasPermissionAsync(playerId, PermissionNodes.Room.CONTROL_ANY);
 
     /// <summary>
-    /// Whether the room is this player's. Synchronous because it only reads room state, for
-    /// callers that cannot await (the wired variables).
+    /// Whether the player may act as this room's owner. Synchronous, for callers that cannot await
+    /// (the wired variables), so it reads the permissions on the player's avatar: a staff member
+    /// not standing in the room counts only through <see cref="GetIsRoomOwnerAsync(PlayerId)"/>.
     /// </summary>
     public bool IsRoomOwner(PlayerId playerId) =>
-        // if has perm any_room_owner true
-        _roomGrain._state.RoomSnapshot.OwnerId == playerId;
+        _roomGrain._state.RoomSnapshot.OwnerId == playerId
+        || HasPermission(playerId, PermissionNodes.Room.CONTROL_ANY);
+
+    /// <summary>
+    /// Whether the room is this player's own, and nobody else's: for what ownership itself means
+    /// (an owner does not rate their own room; the wired `@is_owner` flag), not for what an owner
+    /// may do, which staff controlling every room may do too.
+    /// </summary>
+    public bool IsOwnedBy(PlayerId playerId) => _roomGrain._state.RoomSnapshot.OwnerId == playerId;
+
+    /// <summary>
+    /// Whether a player holds a permission node, from their avatar: synchronous, for a player in
+    /// the room only. Anyone else holds nothing here.
+    /// </summary>
+    public bool HasPermission(PlayerId playerId, string node) =>
+        AvatarModule.TryGetPlayer(playerId, out var player) && player.Permissions.Has(node);
+
+    /// <summary>
+    /// Whether a player holds a permission node: from their avatar when they are in the room,
+    /// which every furni move asks, otherwise from their permission grain.
+    /// </summary>
+    public async Task<bool> HasPermissionAsync(PlayerId playerId, string node)
+    {
+        if (AvatarModule.TryGetPlayer(playerId, out var player))
+            return player.Permissions.Has(node);
+
+        return playerId > 0
+            && await _roomGrain._grainFactory.HasPermissionAsync(
+                playerId,
+                node,
+                CancellationToken.None
+            );
+    }
 
     /// <summary>
     /// Whether this player was given rights here. Rights are loaded with the room, so this
@@ -113,8 +155,14 @@ public sealed class RoomSecurityModule(
 
     public async Task<RoomControllerType> GetControllerLevelAsync(PlayerId playerId)
     {
-        if (IsRoomOwner(playerId))
+        if (IsOwnedBy(playerId))
             return RoomControllerType.Owner;
+
+        // Control of every room is the one hotel-wide permission a room level carries, and the
+        // client knows it only as Moderator (and as security level 5, which the same node
+        // projects to): see docs/permissions-client-gates.md.
+        if (await HasPermissionAsync(playerId, PermissionNodes.Room.CONTROL_ANY))
+            return RoomControllerType.Moderator;
 
         var guild = await _roomGrain.GetGuildAsync(CancellationToken.None);
 
