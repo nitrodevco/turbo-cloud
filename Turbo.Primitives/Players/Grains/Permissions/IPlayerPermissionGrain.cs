@@ -126,4 +126,10 @@ public interface IPlayerPermissionGrain : IGrainWithIntegerKey
 
     /// <summary>The directory's push after a group changed: resolve against the new groups.</summary>
     public Task OnGroupsChangedAsync(PermissionGroupDirectorySnapshot groups, CancellationToken ct);
+
+    /// <summary>
+    /// The directory's push after the registry changed (a plugin loaded or unloaded): resolve
+    /// against the new registry, unless it is already the one resolved against.
+    /// </summary>
+    public Task OnRegistryChangedAsync(CancellationToken ct);
 }

@@ -5,7 +5,7 @@ constants, registry and resolver (`Turbo.Primitives/Players/Permissions/`, teste
 the tables and seeds (§13); the grains, audit, expiry and the `perm` console command (§9); the
 projection that tells the client (§8); the packet-boundary gate (§11); the gates in rooms, the
 navigator, chat, trading, groups and the catalog (§11, §16 and the "as built" sections before §14);
-limits through meta (§6); and the check that every node has a reader (§14, phase 8). What is left is in §17.4 and the Nitro opt-in of §8.
+limits through meta (§6); and the check that every node has a reader (§14, phase 8). What is left is in §17.4 and the Nitro opt-in of §8. Plugin authors: start at §18.
 
 The shape is borrowed from LuckPerms rather than from the Habbo retros, on purpose. The retro
 pattern — one rank per player, a `permissions` table with a column per permission, code comparing
@@ -116,8 +116,11 @@ The registry is what makes wildcards cheap and mistakes visible:
 
 - **Wildcards expand against it.** `room.*` means "every registered node under `room.`", resolved
   once per player, not matched on every check.
-- **A check for an unregistered node throws** in development and logs and denies in production.
-  A gate that asks for a node nobody registered is a bug, not a denial.
+- **A check for an unregistered node is logged as a warning and denied**, by the permission
+  grain and by the room's synchronous check (`RoomSecurityModule.HasPermission`) alike. A gate
+  that asks for a node nobody registered is a bug, not a denial; `PermissionGateTests` holds core
+  handlers to registered nodes at build time, and the warning catches the rest, a plugin's typo
+  most of all.
 - **An assignment of an unregistered node is kept but flagged.** Its plugin may simply be
   unloaded; the check trace (§10) and the console list it as unregistered rather than dropping
   the row.
@@ -283,8 +286,13 @@ Two grains and a registry provider, built in phase 3 (`Turbo.Players/Grains/Perm
 source is always in it; `PermissionNodeFeatureProcessor` registers each public
 `IPermissionNodeSource` a plugin assembly declares as the plugin loads, and the registration is
 disposed when it unloads. Every change builds a whole new registry, so a clash fails the plugin's
-load with nothing changed. Nothing is pushed on a registry change: a player grain compares the
-registry it resolved against by reference and resolves again on its next read.
+load with nothing changed. A change raises `IPermissionRegistryProvider.Changed`, which the
+directory (below) listens to while it is active and passes on to every subscribed player grain,
+so a player standing in a room when a plugin is hot-reloaded with a new node gets it on their
+avatar's copy at once, and `PlayerPermissionsChangedEvent` is raised then rather than whenever
+the grain is next read. A player grain also compares the registry it resolved against by
+reference on every read, which covers a push that failed. A reload unloads and loads close
+together; a grain that has already resolved against the newest registry ignores the second push.
 
 **`IPermissionGroupDirectoryGrain`** — one per hotel, `[KeepAlive]`, shaped like
 `BadgeDirectoryGrain`. Holds every group — nodes, meta, parents, weight — loaded on activation and
@@ -472,7 +480,8 @@ depths.
 
    Built in phase 6. `IRoomPlayer.Permissions` is loaded before the avatar is made rather than
    beside the badges, so the moderator flag (now `Permissions.Has(room.moderate.any)`) is right
-   when the avatar attaches, and it is replaced when it changes: the permission grain tells the
+   when the avatar attaches, and it is replaced when a node or a meta value on it changes (meta
+   too, because plugins read it from the avatar): the permission grain tells the
    presence and the presence tells the room the player is in, the Habbo Club path, with a change to
    `room.control.any` re-sending the controller level. `HasPermission` reads the avatar for
    synchronous callers; `HasPermissionAsync` reads it too when the player is in the room, which
@@ -777,5 +786,149 @@ temporary player denials of `trade` and `chat.speak` once the mod tool is built,
 | `group.<name>` as a node (membership checkable like a permission) | built (§5) | — |
 | Events (`NodeAddEvent`, `UserDataRecalculateEvent`, `UserPromoteEvent`) | built: `PlayerPermissionsChangedEvent` (§9) | — |
 | Log notify (tell online staff of changes) | missing | later, with the mod tool |
+| Transient permissions (held in memory, never saved or audited) | missing | **next PR, for plugins**: state that flips during play (on duty) costs a saved, audited write today (§18). Needs the state to outlive the player grain being collected while its player is online, and the grain tests that PR brings |
 | Tracks, clone/rename group key, clear, bulk update, export/import, web editor | missing | later; bulk renames of a node are a migration, backups are database dumps |
 | Contexts (server/world), regex and shorthand nodes, prefix/suffix stacking, messaging service | — | skip: room rights are the context, wildcards cover shorthand, no client draws prefixes, Orleans is the messaging |
+## 18. Using permissions from a plugin
+
+Everything above is reachable from a plugin; this section gathers it in the order a plugin author
+needs it. The running example is a roleplay plugin with the key `rp`.
+
+### Declare the nodes
+
+Constants, as core does, so a typo is a compile error and `[RequiresPermission]` can name them:
+
+```csharp
+public static class RpPermissions
+{
+    public static class Police
+    {
+        public const string ARREST = "rp.police.arrest";
+        public const string CUFF = "rp.police.cuff";
+    }
+
+    public static class Corp
+    {
+        public const string MANAGE = "rp.corp.manage";
+    }
+
+    public const string MAX_HEALTH = "rp.stats.max_health";
+}
+```
+
+Then a **public** `IPermissionNodeSource` in the plugin assembly. `PermissionNodeFeatureProcessor`
+finds it as the plugin loads (built with the plugin's services, so it may take constructor
+dependencies) and takes its nodes out again when the plugin unloads:
+
+```csharp
+public sealed class RpPermissionSource : IPermissionNodeSource
+{
+    public string? Prefix => "rp";
+
+    public IEnumerable<PermissionNodeDefinition> Nodes =>
+    [
+        new(RpPermissions.Police.ARREST, "Arrest a cuffed player", ClientVisible: true),
+        new(RpPermissions.Police.CUFF, "Cuff a player", ClientVisible: true),
+        new(RpPermissions.Corp.MANAGE, "Create and edit corporations"),
+    ];
+
+    public IEnumerable<PermissionMetaDefinition> MetaKeys =>
+    [
+        new(RpPermissions.MAX_HEALTH, "Health cap", PermissionMetaSelectionType.HighestNumber),
+    ];
+}
+```
+
+- `Prefix` is the plugin's key, and every node and meta key starts with it. The registry refuses a
+  node outside the prefix, a prefix core already uses (`room`, `chat`, ...), `group.` and a node
+  another source registered; any of those fails the plugin's load with nothing registered.
+- `ClientVisible` sends the node to a client that accepted `permission.nodes` (§8), for the
+  plugin's own UI in nitro-next. Leave `ClientLevel` unset: it raises the player's security level
+  and with it Habbo's own staff UI (§8).
+- `PermissionNodeReaderTests` only reads core's assemblies; a plugin keeps its own nodes honest.
+
+### Gate a packet
+
+`[RequiresPermission]` on a plugin handler is enforced exactly as on a core one (§11): the handler
+runs only for a signed-in player holding one of the nodes, and the body holds no check.
+
+```csharp
+[RequiresPermission(RpPermissions.Police.ARREST)]
+public class ArrestMessageHandler(IGrainFactory grainFactory) : IMessageHandler<ArrestMessage> { ... }
+```
+
+### Check anywhere else
+
+| Where the code runs | Ask | Cost |
+| --- | --- | --- |
+| A grain, a service, an event handler | `grainFactory.HasPermissionAsync(playerId, node, ct)` | one in-memory grain call |
+| A limit a group or player may raise | `grainFactory.GetLimitAsync(playerId, key, configDefault, ct)` | one in-memory grain call |
+| Room code, synchronously, for a player in the room | `roomGrain.SecurityModule.HasPermission(player, node)` | a set lookup |
+
+In the room, `SecurityModule.HasPermission` gives the same answer as `IRoomPlayer.Permissions.Has`
+but is seen by `perm verbose` (§10) and warns about an unregistered node (§4), so prefer it.
+`IRoomPlayer.Permissions.Meta` holds the player's resolved meta, kept current on the avatar as the
+nodes are. A player not in the room holds nothing through the synchronous check; use the async
+one for them.
+
+### Create the plugin's groups
+
+Groups are hotel data, not code: an operator may rename, reweight or re-grant them with `perm`.
+So a plugin creates its groups once, at startup, and seeds their nodes only when it has just
+created them, never overwriting what an operator changed since:
+
+```csharp
+var directory = grainFactory.GetPermissionGroupDirectoryGrain();
+
+if (await directory.CreateGroupAsync("rp_police", "Police", 25, actor: null, ct)
+    == PermissionChangeResultType.Changed)
+{
+    await directory.SetNodeAsync("rp_police", "rp.police.*", true, null,
+        PermissionExpiryModeType.Replace, actor: null, ct);
+}
+```
+
+No parent is needed for what everyone has: every player holds `default` anyway (§5).
+
+Putting a player in one is `grainFactory.GetPlayerPermissionGrain(playerId).AddGroupAsync(...)`,
+with an expiry for a temporary membership. `actor` is the player who caused it, for the audit, or
+`null` for the plugin itself. Neither grain checks that the actor may make the change; the plugin
+does, with a node of its own (`rp.corp.manage`).
+
+### React to changes
+
+`PlayerPermissionsChangedEvent` is raised whenever what a player holds changes, whatever the cause
+(a write, a group edit, an expiry, `perm reload`, a plugin loading). A plugin handles it like any
+event, with `Gained` and `Lost` worked out:
+
+```csharp
+public sealed class PoliceLostHandler : IEventHandler<PlayerPermissionsChangedEvent>
+{
+    public ValueTask HandleAsync(PlayerPermissionsChangedEvent e, EventContext ctx, CancellationToken ct) =>
+        e.Lost.Contains(RpPermissions.Police.ARREST) ? EndShiftAsync(e.PlayerId, ct) : ValueTask.CompletedTask;
+}
+```
+
+It is published without being awaited, so the handler may call back into the player's permission
+grain.
+
+### What not to make a node
+
+- **Rights over one thing the plugin owns.** Who is rank 3 of corporation 12, and what rank 3 may
+  do there, is gameplay data in the plugin's own tables, changing with play, not operator policy.
+  A node per corporation or rank would grow the registry with every corporation made, and every
+  registration re-resolves every online player (measured at about 1 ms each with 1000 plugin nodes
+  and 60 groups). Give nodes to capabilities (`rp.corp.manage`) and keep the rest in the plugin.
+- **Where a right applies.** There are no contexts (§12). "Police may arrest only in city rooms"
+  is the node check plus the plugin's own check of the room.
+- **State that flips during play.** Every player write is a database write and an audit row, and
+  survives a restart. Going on or off duty many times a session is the plugin's own state: gate on
+  the node (may this player be police at all) and the plugin's duty flag together. In-memory
+  transient nodes, as LuckPerms has, are the planned answer and not built yet.
+
+### Hot reload
+
+Reloading a plugin takes its nodes out and puts them back; active players resolve again at once
+(§9), so the room copies and `PlayerPermissionsChangedEvent` follow. Assignments of the plugin's
+nodes stay in the tables while it is unloaded and are reported as unregistered (§4) until it is
+back.

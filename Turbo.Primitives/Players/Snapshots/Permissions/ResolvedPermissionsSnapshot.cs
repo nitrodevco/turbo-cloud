@@ -69,4 +69,12 @@ public sealed record ResolvedPermissionsSnapshot
             other.Meta.TryGetValue(x.Key, out var value)
             && string.Equals(value, x.Value, StringComparison.Ordinal)
         );
+
+    /// <summary>
+    /// Whether a room holding <paramref name="other"/> on the player's avatar already knows
+    /// everything here: what the player holds, meta included, since plugins read meta from the
+    /// avatar, and the verbose filter the room's checks log by.
+    /// </summary>
+    public bool RoomCopyMatches(ResolvedPermissionsSnapshot other) =>
+        HoldsSame(other) && VerboseFilter == other.VerboseFilter;
 }

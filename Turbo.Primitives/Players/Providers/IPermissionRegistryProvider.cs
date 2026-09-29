@@ -13,6 +13,13 @@ public interface IPermissionRegistryProvider
     PermissionRegistry Current { get; }
 
     /// <summary>
+    /// Raised after <see cref="Current"/> is replaced, on whichever thread loaded or unloaded the
+    /// plugin. The permission group directory listens while it is active, so the player grains it
+    /// knows of resolve again at once rather than on their next read.
+    /// </summary>
+    event System.Action? Changed;
+
+    /// <summary>
     /// Adds a source. Disposing the result takes it out again.
     /// </summary>
     /// <exception cref="InvalidOperationException">

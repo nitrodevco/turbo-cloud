@@ -40,6 +40,13 @@ public interface IPermissionGroupDirectoryGrain : IGrainWithStringKey
     /// </summary>
     public Task<int> ReloadAsync(CancellationToken ct);
 
+    /// <summary>
+    /// A plugin's nodes were registered or went away: every active player permission grain
+    /// resolves against the new registry and tells the client and room of any difference. The
+    /// directory calls this on itself when <c>IPermissionRegistryProvider.Changed</c> is raised.
+    /// </summary>
+    public Task OnRegistryChangedAsync(CancellationToken ct);
+
     public Task<PermissionChangeResultType> CreateGroupAsync(
         string name,
         string displayName,

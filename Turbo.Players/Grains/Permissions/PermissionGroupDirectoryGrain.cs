@@ -16,6 +16,7 @@ using Turbo.Players.Configuration;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains.Permissions;
+using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Snapshots.Permissions;
 
 namespace Turbo.Players.Grains.Permissions;
@@ -35,17 +36,20 @@ internal sealed partial class PermissionGroupDirectoryGrain : Grain, IPermission
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly PermissionConfig _permissionConfig;
     private readonly IGrainFactory _grainFactory;
+    private readonly IPermissionRegistryProvider _permissionRegistryProvider;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<IPermissionGroupDirectoryGrain> _logger;
 
     private readonly PermissionGroupDirectoryLiveState _state = new();
 
     private IGrainTimer? _expiryTimer;
+    private System.Action? _onRegistryChanged;
 
     public PermissionGroupDirectoryGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IOptions<PlayerConfig> playerConfig,
         IGrainFactory grainFactory,
+        IPermissionRegistryProvider permissionRegistryProvider,
         TimeProvider timeProvider,
         ILogger<IPermissionGroupDirectoryGrain> logger
     )
@@ -53,6 +57,7 @@ internal sealed partial class PermissionGroupDirectoryGrain : Grain, IPermission
         _dbCtxFactory = dbCtxFactory;
         _permissionConfig = playerConfig.Value.Permissions;
         _grainFactory = grainFactory;
+        _permissionRegistryProvider = permissionRegistryProvider;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -83,12 +88,27 @@ internal sealed partial class PermissionGroupDirectoryGrain : Grain, IPermission
         );
 
         ScheduleExpiry();
+
+        // Raised on the thread that loaded the plugin, outside this grain, so it comes back in as
+        // a call. Player grains subscribe through this activation, so while it is inactive there
+        // is nobody to tell.
+        var self = this.AsReference<IPermissionGroupDirectoryGrain>();
+
+        _onRegistryChanged = () =>
+            self.OnRegistryChangedAsync(CancellationToken.None)
+                .LogAndForget(_logger, "push a permission registry change");
+        _permissionRegistryProvider.Changed += _onRegistryChanged;
     }
 
     public override Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {
         _expiryTimer?.Dispose();
         _expiryTimer = null;
+
+        if (_onRegistryChanged is not null)
+            _permissionRegistryProvider.Changed -= _onRegistryChanged;
+
+        _onRegistryChanged = null;
 
         return Task.CompletedTask;
     }
@@ -129,6 +149,22 @@ internal sealed partial class PermissionGroupDirectoryGrain : Grain, IPermission
         );
 
         return _state.Subscribers.Count;
+    }
+
+    public Task OnRegistryChangedAsync(CancellationToken ct)
+    {
+        // Not awaited, as with a group push: one player grain failing must not stop the rest.
+        foreach (var playerId in _state.Subscribers)
+            _grainFactory
+                .GetPlayerPermissionGrain(playerId)
+                .OnRegistryChangedAsync(CancellationToken.None)
+                .LogAndForget(
+                    _logger,
+                    "push a permission registry change to player {PlayerId}",
+                    playerId
+                );
+
+        return Task.CompletedTask;
     }
 
     private PermissionGroupSnapshot? FindGroup(string name) =>

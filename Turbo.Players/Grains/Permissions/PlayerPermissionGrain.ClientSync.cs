@@ -32,7 +32,7 @@ internal sealed partial class PlayerPermissionGrain
 
     /// <summary>
     /// Tells whoever needs it about a change: the client when the projection moved, plugins when
-    /// a node or meta value moved, and the room the player stands in when a node moved. <paramref name="force"/> tells both even when
+    /// a node or meta value moved, and the room the player stands in when either moved. <paramref name="force"/> tells both even when
     /// nothing looks different, for rows swept after an activation that may have run out while the
     /// grain was collected and its player online.
     /// </summary>
@@ -50,12 +50,7 @@ internal sealed partial class PlayerPermissionGrain
 
         Announce(resolved);
 
-        if (
-            !force
-            && _state.SentRoom is { } room
-            && room.Granted.SetEquals(resolved.Granted)
-            && room.VerboseFilter == resolved.VerboseFilter
-        )
+        if (!force && _state.SentRoom is { } room && room.RoomCopyMatches(resolved))
             return;
 
         await _grainFactory

@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using FluentAssertions;
 using Turbo.Primitives.Players.Snapshots.Permissions;
 using Xunit;
@@ -36,5 +37,29 @@ public class ResolvedPermissionsSnapshotTests
         var watched = ResolvedPermissionsSnapshot.EMPTY with { VerboseFilter = "" };
 
         watched.HoldsSame(ResolvedPermissionsSnapshot.EMPTY).Should().BeTrue();
+    }
+
+    [Fact]
+    public void RoomCopyMatches_SeesAMetaOnlyChange()
+    {
+        var limited = ResolvedPermissionsSnapshot.EMPTY with
+        {
+            Meta = ImmutableDictionary<string, string>.Empty.Add("limit.rooms", "50"),
+        };
+        var raised = ResolvedPermissionsSnapshot.EMPTY with
+        {
+            Meta = ImmutableDictionary<string, string>.Empty.Add("limit.rooms", "100"),
+        };
+
+        limited.RoomCopyMatches(raised).Should().BeFalse();
+        limited.RoomCopyMatches(limited with { }).Should().BeTrue();
+    }
+
+    [Fact]
+    public void RoomCopyMatches_SeesAVerboseChange()
+    {
+        var watched = ResolvedPermissionsSnapshot.EMPTY with { VerboseFilter = "room." };
+
+        watched.RoomCopyMatches(ResolvedPermissionsSnapshot.EMPTY).Should().BeFalse();
     }
 }

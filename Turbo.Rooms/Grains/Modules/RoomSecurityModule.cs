@@ -125,11 +125,22 @@ public sealed class RoomSecurityModule(
 
     /// <summary>
     /// Whether a player in the room holds a node, from their avatar's copy of their permissions.
-    /// Every room check of a player's node goes through here, so <c>perm verbose</c> sees it.
+    /// Every room check of a player's node goes through here, so <c>perm verbose</c> sees it, and
+    /// a node nobody registered is logged as the permission grain logs it: a bug in the gate,
+    /// most likely a plugin's typo, not a denial.
     /// </summary>
     public bool HasPermission(IRoomPlayer player, string node)
     {
         var held = player.Permissions.Has(node);
+
+        // Only a denial can be for an unregistered node, so a grant skips the registry.
+        if (!held && !_roomGrain._permissionRegistryProvider.Current.IsCheckable(node))
+            _roomGrain._logger.LogWarning(
+                "Permission check for unregistered node {Node} on player {PlayerId} in room {RoomId}; denied",
+                node,
+                player.PlayerId,
+                _roomGrain._state.RoomId
+            );
 
         if (player.Permissions.IsWatched(node))
             _roomGrain._logger.LogInformation(

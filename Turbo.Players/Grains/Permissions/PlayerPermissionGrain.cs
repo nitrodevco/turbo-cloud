@@ -27,7 +27,8 @@ namespace Turbo.Players.Grains.Permissions;
 /// One player's permissions. Write-through: each change is saved and audited before the
 /// in-memory rows move, so there is nothing to flush on deactivation. The resolved set is worked
 /// out again whenever the player's rows change, the directory pushes new groups, the registry
-/// changes (a plugin loaded or unloaded; noticed on the next read), or an assignment runs out.
+/// changes (a plugin loaded or unloaded; pushed by the directory, and checked on every read
+/// besides), or an assignment runs out.
 /// While active it is subscribed to the directory.
 /// </summary>
 internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
@@ -285,6 +286,18 @@ internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGr
             if (!groups.Groups.ContainsKey(key.GroupId))
                 _state.MembershipsByGroupId.Remove(key);
         }
+
+        Resolve();
+
+        await PublishChangesAsync(force: false, ct);
+    }
+
+    public async Task OnRegistryChangedAsync(CancellationToken ct)
+    {
+        // A plugin reload unloads and loads close together; a push that finds the registry
+        // already resolved against does nothing.
+        if (ReferenceEquals(_state.Registry, _permissionRegistryProvider.Current))
+            return;
 
         Resolve();
 
