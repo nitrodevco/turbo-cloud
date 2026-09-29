@@ -17,7 +17,10 @@ public sealed record PermissionCheckSnapshot
     [Id(2)]
     public required bool Granted { get; init; }
 
-    /// <summary>The assignment that decided, or <c>null</c> when nothing matched and the node is denied by default.</summary>
+    /// <summary>
+    /// The assignment that decided, or <c>null</c> when nothing matched: then <see cref="Granted"/>
+    /// is the node's registered default, denied unless it is granted by default.
+    /// </summary>
     [Id(3)]
     public PermissionAssignmentSourceSnapshot? Decision { get; init; }
 

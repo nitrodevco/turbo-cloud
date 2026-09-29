@@ -56,6 +56,11 @@ public sealed class PermissionRegistry
             {
                 Validate(definition.Node, prefix, "node");
 
+                if (definition.GrantedByDefault && definition.ClientLevel is not null)
+                    throw new InvalidOperationException(
+                        $"Permission node '{definition.Node}' is granted by default and has a client level, which would raise every player's security level."
+                    );
+
                 if (!_nodes.TryAdd(definition.Node, definition))
                     throw new InvalidOperationException(
                         $"Permission node '{definition.Node}' is registered twice."

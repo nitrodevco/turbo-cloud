@@ -572,6 +572,103 @@ public class PermissionResolverTests
             Explain(groups, player, node).Granted.Should().Be(resolved.Has(node), node);
     }
 
+    // --- granted by default ---
+
+    private const string EVERYDAY = "plug.everyday";
+
+    /// <summary>A plugin node every player holds unless something denies it.</summary>
+    private sealed class DefaultGrantSource : IPermissionNodeSource
+    {
+        public string? Prefix => "plug";
+
+        public IEnumerable<PermissionNodeDefinition> Nodes =>
+            [new(EVERYDAY, "test", GrantedByDefault: true)];
+
+        public IEnumerable<PermissionMetaDefinition> MetaKeys => [];
+    }
+
+    private static readonly PermissionRegistry DEFAULTS_REGISTRY = new([
+        new CorePermissionNodeSource(),
+        new DefaultGrantSource(),
+    ]);
+
+    [Fact]
+    public void GrantedByDefault_IsHeldWithNothingAssigned()
+    {
+        var resolved = PermissionResolver.Resolve(
+            DEFAULTS_REGISTRY,
+            ById([]),
+            PlayerPermissionAssignmentsSnapshot.EMPTY,
+            NOW
+        );
+
+        resolved.Has(EVERYDAY).Should().BeTrue();
+        resolved.Has(LOCKED).Should().BeFalse();
+    }
+
+    [Fact]
+    public void GrantedByDefault_GroupDenialDecides()
+    {
+        var groups = new[]
+        {
+            Group(1, PermissionGroupNames.DEFAULT, 0, nodes: [Node(EVERYDAY, false)]),
+        };
+
+        var resolved = PermissionResolver.Resolve(
+            DEFAULTS_REGISTRY,
+            ById(groups),
+            PlayerPermissionAssignmentsSnapshot.EMPTY,
+            NOW
+        );
+
+        resolved.Has(EVERYDAY).Should().BeFalse();
+    }
+
+    [Fact]
+    public void GrantedByDefault_WildcardDenialDecides()
+    {
+        var resolved = PermissionResolver.Resolve(
+            DEFAULTS_REGISTRY,
+            ById([]),
+            Player(nodes: [Node("plug.*", false)]),
+            NOW
+        );
+
+        resolved.Has(EVERYDAY).Should().BeFalse();
+    }
+
+    [Fact]
+    public void GrantedByDefault_ExplainsWithoutADecision()
+    {
+        var check = PermissionResolver.Explain(
+            DEFAULTS_REGISTRY,
+            ById([]),
+            PlayerPermissionAssignmentsSnapshot.EMPTY,
+            EVERYDAY,
+            NOW
+        );
+
+        check.Granted.Should().BeTrue();
+        check.Decision.Should().BeNull();
+    }
+
+    [Fact]
+    public void GrantedByDefault_TemporaryDenialRunsOut()
+    {
+        var sanction = Player(nodes: [Node(EVERYDAY, false, NOW.AddDays(7))]);
+
+        PermissionResolver
+            .Resolve(DEFAULTS_REGISTRY, ById([]), sanction, NOW)
+            .Has(EVERYDAY)
+            .Should()
+            .BeFalse();
+        PermissionResolver
+            .Resolve(DEFAULTS_REGISTRY, ById([]), sanction, NOW.AddDays(8))
+            .Has(EVERYDAY)
+            .Should()
+            .BeTrue();
+    }
+
     // --- helpers ---
 
     private static ResolvedPermissionsSnapshot Resolve(

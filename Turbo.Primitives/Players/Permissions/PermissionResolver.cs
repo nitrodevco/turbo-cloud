@@ -17,7 +17,8 @@ namespace Turbo.Primitives.Players.Permissions;
 /// (name breaks a tie, so the order is stable). Within a source the most specific assignment
 /// wins — the node itself, then the longest wildcard — then a temporary assignment beats a
 /// permanent one (a sanction outranks what it suspends, and the permanent value is still there
-/// when it runs out), then a denial beats a grant. No opinion anywhere: denied. Expired
+/// when it runs out), then a denial beats a grant. No opinion anywhere: denied, unless the node
+/// was registered <see cref="PermissionNodeDefinition.GrantedByDefault"/>. Expired
 /// assignments and memberships do not take part. Meta resolves by the selection its key was
 /// registered with; the default takes the first source in the same order, temporary first.
 /// </para>
@@ -39,8 +40,10 @@ public static class PermissionResolver
 
         var granted = ImmutableHashSet.CreateBuilder<string>(StringComparer.Ordinal);
 
-        foreach (var node in registry.Nodes.Keys)
+        foreach (var (node, definition) in registry.Nodes)
         {
+            var decided = false;
+
             foreach (var source in sources)
             {
                 var match = BestMatch(source, node);
@@ -51,8 +54,13 @@ public static class PermissionResolver
                 if (match.Value)
                     granted.Add(node);
 
+                decided = true;
+
                 break;
             }
+
+            if (!decided && definition.GrantedByDefault)
+                granted.Add(node);
         }
 
         foreach (var source in sources)
@@ -139,7 +147,12 @@ public static class PermissionResolver
         {
             Node = node,
             IsRegistered = registry.IsCheckable(node),
-            Granted = decision?.Value ?? false,
+            Granted =
+                decision?.Value
+                ?? (
+                    registry.Nodes.TryGetValue(node, out var definition)
+                    && definition.GrantedByDefault
+                ),
             Decision = decision,
             Overridden = overridden.ToImmutable(),
         };

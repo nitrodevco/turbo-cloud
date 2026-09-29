@@ -21,13 +21,21 @@ namespace Turbo.Primitives.Players.Permissions;
 /// gate matches it: for a plugin whose own client UI gates on it. A node with a
 /// <paramref name="ClientLevel"/> is sent anyway.
 /// </param>
+/// <param name="GrantedByDefault">
+/// Held by every player on whom neither they nor any group they reach has an opinion: what a
+/// plugin declares for what every player may do (its everyday commands), so it needs no rows
+/// written before anyone can use it. Any assignment that matches, a denial on a group included,
+/// still decides. Not allowed with a <paramref name="ClientLevel"/>, which would raise every
+/// player's security level.
+/// </param>
 public sealed record PermissionNodeDefinition(
     string Node,
     string Description,
     SecurityLevelType? ClientLevel = null,
     PlayerPerkFlags? Perk = null,
     string? PerkRefusal = null,
-    bool ClientVisible = false
+    bool ClientVisible = false,
+    bool GrantedByDefault = false
 )
 {
     /// <summary>

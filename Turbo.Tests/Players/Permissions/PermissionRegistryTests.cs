@@ -48,6 +48,34 @@ public class PermissionRegistryTests
     }
 
     [Fact]
+    public void Constructor_RejectsGrantedByDefaultWithAClientLevel()
+    {
+        var act = () =>
+            new PermissionRegistry([
+                new SingleNodeSource(
+                    new(
+                        "casino.table.open",
+                        "test",
+                        ClientLevel: Turbo.Primitives.Players.Enums.SecurityLevelType.Employee,
+                        GrantedByDefault: true
+                    )
+                ),
+            ]);
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*security level*");
+    }
+
+    private sealed class SingleNodeSource(PermissionNodeDefinition definition)
+        : IPermissionNodeSource
+    {
+        public string? Prefix => "casino";
+
+        public IEnumerable<PermissionNodeDefinition> Nodes => [definition];
+
+        public IEnumerable<PermissionMetaDefinition> MetaKeys => [];
+    }
+
+    [Fact]
     public void IsCheckable_AcceptsMembershipNodes()
     {
         var registry = new PermissionRegistry([new CorePermissionNodeSource()]);

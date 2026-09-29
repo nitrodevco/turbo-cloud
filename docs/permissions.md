@@ -102,8 +102,16 @@ public sealed record PermissionNodeDefinition(
     string Node,
     string Description,
     SecurityLevelType? ClientLevel = null,
-    PlayerPerkFlags? Perk = null);
+    PlayerPerkFlags? Perk = null,
+    string? PerkRefusal = null,
+    bool ClientVisible = false,
+    bool GrantedByDefault = false);
 ```
+
+`GrantedByDefault` is how a plugin says "every player may do this unless denied", as a Bukkit
+plugin's `default: true` or a Sponge `PermissionDescription` for `ROLE_USER` does: its everyday
+nodes work the moment it loads, with no rows written into the `default` group. The registry
+refuses it together with a `ClientLevel`, which would raise every player's security level.
 
 Core registers its catalogue (§7) through `CorePermissionNodeSource`, beside the constants in
 `Turbo.Primitives/Players/Permissions/`, with the registry and the resolver. A plugin registers its own from
@@ -146,7 +154,10 @@ For each registered node, the value comes from the **first source that has an op
    (`trade = false` for seven days) possible without inventing a group.
 2. **Each group the player holds, directly or by inheritance, highest weight first.** A group
    reached through several paths is counted once, at its own weight.
-3. **Nothing matched: denied.**
+3. **Nothing matched: the registered default.** Denied, unless the node was registered
+   `GrantedByDefault` (§4). Any match above decides first, so a hotel takes a default away by
+   denying the node, or a wildcard over it, on the `default` group or a player; `perm check`
+   reports a node held this way as granted by default.
 
 Within one source, several assignments can match the same node. The most specific wins: the exact
 node, then the longest wildcard (`room.enter.*` beats `room.*` beats `*`). At equal specificity a
@@ -786,13 +797,17 @@ temporary player denials of `trade` and `chat.speak` once the mod tool is built,
 | `group.<name>` as a node (membership checkable like a permission) | built (§5) | — |
 | Events (`NodeAddEvent`, `UserDataRecalculateEvent`, `UserPromoteEvent`) | built: `PlayerPermissionsChangedEvent` (§9) | — |
 | Log notify (tell online staff of changes) | missing | later, with the mod tool |
+| Plugin-declared defaults (Bukkit `default: true`, Sponge `ROLE_USER` descriptions) | built: `GrantedByDefault` (§4) | — |
+| Meta for the wired selection limit ("how many wired can I select") | missing | **next PR**: `WiredConfig.SelectedItemsLimit` is applied again whenever a box's shared snapshot is rebuilt (room load, furni removed, sending it), so a per-player limit needs the saver's limit at save, a separate ceiling for those rebuilds, and a per-viewer `FurniLimit` when the box is sent |
 | Transient permissions (held in memory, never saved or audited) | missing | **next PR, for plugins**: state that flips during play (on duty) costs a saved, audited write today (§18). Needs the state to outlive the player grain being collected while its player is online, and the grain tests that PR brings |
 | Tracks, clone/rename group key, clear, bulk update, export/import, web editor | missing | later; bulk renames of a node are a migration, backups are database dumps |
 | Contexts (server/world), regex and shorthand nodes, prefix/suffix stacking, messaging service | — | skip: room rights are the context, wildcards cover shorthand, no client draws prefixes, Orleans is the messaging |
 ## 18. Using permissions from a plugin
 
 Everything above is reachable from a plugin; this section gathers it in the order a plugin author
-needs it. The running example is a roleplay plugin with the key `rp`.
+needs it. The running example is a roleplay plugin with the key `rp`: it lives in the plugin, never in
+core. Core ships the generic pieces (nodes, groups, meta, defaults, events, the gate), and an RP
+is what tests that they are enough.
 
 ### Declare the nodes
 
@@ -810,9 +825,16 @@ public static class RpPermissions
     public static class Corp
     {
         public const string MANAGE = "rp.corp.manage";
+        public const string HIRE = "rp.corp.hire";
+    }
+
+    public static class Command
+    {
+        public const string HIT = "rp.command.hit";
     }
 
     public const string MAX_HEALTH = "rp.stats.max_health";
+    public const string SALARY = "rp.salary";
 }
 ```
 
@@ -830,11 +852,14 @@ public sealed class RpPermissionSource : IPermissionNodeSource
         new(RpPermissions.Police.ARREST, "Arrest a cuffed player", ClientVisible: true),
         new(RpPermissions.Police.CUFF, "Cuff a player", ClientVisible: true),
         new(RpPermissions.Corp.MANAGE, "Create and edit corporations"),
+        new(RpPermissions.Corp.HIRE, "Hire into your own corporation"),
+        new(RpPermissions.Command.HIT, "Use :hit", GrantedByDefault: true),
     ];
 
     public IEnumerable<PermissionMetaDefinition> MetaKeys =>
     [
         new(RpPermissions.MAX_HEALTH, "Health cap", PermissionMetaSelectionType.HighestNumber),
+        new(RpPermissions.SALARY, "Pay per shift, from the rank's group"),
     ];
 }
 ```
@@ -845,6 +870,10 @@ public sealed class RpPermissionSource : IPermissionNodeSource
 - `ClientVisible` sends the node to a client that accepted `permission.nodes` (§8), for the
   plugin's own UI in nitro-next. Leave `ClientLevel` unset: it raises the player's security level
   and with it Habbo's own staff UI (§8).
+- `GrantedByDefault` is for what every player may do (`rp.command.hit`): held without any rows,
+  and still taken away by a denial on a group or a player. Leave it off anything a player should
+  earn. Prefer it to writing the node onto `default` at startup, which saves and audits rows and
+  can undo an operator's denial.
 - `PermissionNodeReaderTests` only reads core's assemblies; a plugin keeps its own nodes honest.
 
 ### Gate a packet
@@ -895,6 +924,21 @@ with an expiry for a temporary membership. `actor` is the player who caused it, 
 `null` for the plugin itself. Neither grain checks that the actor may make the change; the plugin
 does, with a node of its own (`rp.corp.manage`).
 
+### Ranks are groups
+
+A player holds any number of groups, so a moderator can also be a supervisor somewhere. Model each
+rank the plugin has as a group of its own, created as above when the rank is made:
+
+- the group holds **general capability nodes** (`rp.corp.hire`) and **meta** (`rp.salary = 150`);
+- a **promotion changes the group**: `RemoveGroupAsync` from the old rank, `AddGroupAsync` to the
+  new, each audited;
+- **which** corporation, team or zone the player belongs to stays in the plugin's own tables. The
+  node says the player may hire; the plugin says where.
+
+Groups are data, not registrations: making one costs no registry rebuild, and resolving a player
+only walks the groups they hold, so a hotel with hundreds of ranks costs no more per player than
+one with ten.
+
 ### React to changes
 
 `PlayerPermissionsChangedEvent` is raised whenever what a player holds changes, whatever the cause
@@ -914,11 +958,10 @@ grain.
 
 ### What not to make a node
 
-- **Rights over one thing the plugin owns.** Who is rank 3 of corporation 12, and what rank 3 may
-  do there, is gameplay data in the plugin's own tables, changing with play, not operator policy.
-  A node per corporation or rank would grow the registry with every corporation made, and every
-  registration re-resolves every online player (measured at about 1 ms each with 1000 plugin nodes
-  and 60 groups). Give nodes to capabilities (`rp.corp.manage`) and keep the rest in the plugin.
+- **One node per thing the plugin owns.** `rp.corp.12.hire` for corporation 12 would grow the
+  registry with every corporation made, and every registration re-resolves every online player
+  (measured at about 1 ms each with 1000 plugin nodes and 60 groups). The rank is a group holding
+  `rp.corp.hire` (above), and corporation 12 is the plugin's data.
 - **Where a right applies.** There are no contexts (§12). "Police may arrest only in city rooms"
   is the node check plus the plugin's own check of the room.
 - **State that flips during play.** Every player write is a database write and an audit row, and

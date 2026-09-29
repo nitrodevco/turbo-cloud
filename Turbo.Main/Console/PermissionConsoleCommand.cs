@@ -140,7 +140,11 @@ internal sealed class PermissionConsoleCommand(
         );
 
         if (check.Decision is null)
-            System.Console.WriteLine("  decided by  nothing: denied by default");
+            System.Console.WriteLine(
+                check.Granted
+                    ? "  decided by  nothing: granted by default, as its node was registered"
+                    : "  decided by  nothing: denied by default"
+            );
         else
         {
             System.Console.WriteLine($"  decided by  {Describe(check.Decision)}");
