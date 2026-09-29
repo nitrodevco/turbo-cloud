@@ -1,0 +1,31 @@
+{
+  "id": "players-name-lookup",
+  "title": "Name lookup for a single unknown player answers an empty name",
+  "source": {
+    "pr": null,
+    "fix_commits": [
+      "e68ed4d"
+    ],
+    "fix_paths": [
+      "Turbo.Players/Grains/PlayerDirectoryGrain.cs"
+    ],
+    "base": "69c0cfc"
+  },
+  "domain": "players/directory",
+  "difficulty": "easy",
+  "hidden": {
+    "common": [
+      "Fakes.cs",
+      "RoomHarness.cs",
+      "InMemoryDb.cs",
+      "GrainHarness.cs"
+    ]
+  },
+  "leak_patterns": [
+    "single id used to answer",
+    "unknown player is left out"
+  ],
+  "expected_scope": [
+    "Turbo.Players/Grains/PlayerDirectoryGrain.cs"
+  ]
+}

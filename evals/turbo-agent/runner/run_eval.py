@@ -422,7 +422,7 @@ def compute_score(g: dict) -> dict:
     warn = g["arch"]["warnings"]
     contaminated = bool(g["contamination"]) or bool(g["instruction_leaks"])
     j = (g.get("judge") or {}).get("verdict")
-    judge_frac = ((j["mean"] - 1) / 4) if j else 0.0
+    judge_frac = j["pass_rate"] if j else 0.0
 
     parts = {
         "behaviour": 45 * frac,
@@ -515,7 +515,7 @@ def write_state(flow: Path, args, approve: bool) -> None:
         {"id": "hidden_pass_rate", "label": "Hidden tests", "kind": "continuous"},
         {"id": "quality_gate", "label": "Quality gate", "kind": "binary"},
         {"id": "arch_clean", "label": "No crit. arch", "kind": "binary"},
-        {"id": "judge_mean", "label": "Judge (1-5)", "kind": "continuous"},
+        {"id": "judge_pass_rate", "label": "Judge claims", "kind": "continuous"},
     ]
     state["perf_fields"] = ["latency_s", "usage", "cost_usd", "tool_calls"]
     state["prices"] = {"claude-opus-5-5": {"in": 4.0, "out": 20.0}, "claude-sonnet-5-5": {"in": 2.0, "out": 10.0}}
@@ -581,11 +581,11 @@ def run_one(case: dict, rep: int, variant: dict, vdir: Path, args, results_lock:
             "hidden_pass_rate": s["hidden_pass_rate"],
             "quality_gate": 1.0 if g["quality_gate"]["passed"] else 0.0,
             "arch_clean": 1.0 if g["arch"]["critical"] == 0 else 0.0,
-            "judge_mean": round(j["mean"], 2) if j else None,
+            "judge_pass_rate": round(j["pass_rate"], 3) if j else None,
         },
         "explanation": {
             "score": "; ".join(s["caps"]) or "uncapped",
-            "judge_mean": (j or {}).get("rationale", (g.get("judge") or {}).get("error", "")),
+            "judge_pass_rate": (j or {}).get("rationale", (g.get("judge") or {}).get("error", "")),
         },
         "model": (agent["served_models"] or [args.model])[0],
         "usage": agent["usage"],
