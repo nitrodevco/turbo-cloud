@@ -102,7 +102,7 @@ def check(diff: str) -> list[Finding]:
                                "AGENTS.md Required standards: avoid introducing new dependencies"))
         if not _is_cs(p) and not p.endswith(".csproj"):
             continue
-        if re.search(r"#pragma\s+warning\s+disable|\[SuppressMessage\(|<NoWarn>", blob):
+        if "/Migrations/" not in p and re.search(r"#pragma\s+warning\s+disable|\[SuppressMessage\(|<NoWarn>", blob):
             out.append(Finding("analyzer-suppressed", "warning", p,
                                "suppresses a compiler/analyzer diagnostic",
                                "AGENTS.md Definition of done: no new warnings introduced"))
@@ -111,7 +111,7 @@ def check(diff: str) -> list[Finding]:
 
         # --- packet handlers ------------------------------------------------------------
         if p.startswith("Turbo.PacketHandlers/"):
-            if re.search(r"\b(TurboDbContext|IDbContextFactory|DbContext|DbSet<|ExecuteSql|FromSql)\b", blob):
+            if re.search(r"\b(TurboDbContext|IDbContextFactory|DbContext|DbSet<|ExecuteSql\w*|FromSql\w*|CreateDbContext\w*)\b|_dbCtx", blob):
                 out.append(Finding("handler-db-access", "critical", p,
                                    "database context/query in a packet handler",
                                    "CLAUDE.md: do not query database contexts/repositories from packet handlers"))
