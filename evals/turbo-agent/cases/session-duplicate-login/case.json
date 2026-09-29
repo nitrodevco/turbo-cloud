@@ -1,0 +1,32 @@
+{
+  "id": "session-duplicate-login",
+  "title": "A second login for the same player leaves the first connection half-alive",
+  "source": {
+    "pr": 24,
+    "fix_commits": [
+      "6f3e7fc"
+    ],
+    "base": "25e38ff"
+  },
+  "domain": "networking/protocol",
+  "difficulty": "medium",
+  "hidden": {
+    "common": [
+      "Fakes.cs",
+      "RoomHarness.cs",
+      "PacketHarness.cs",
+      "SessionHarness.cs",
+      "SessionAsserts.cs"
+    ]
+  },
+  "leak_patterns": [
+    "ConcurrentLogin",
+    "concurrent-login reason",
+    "Failed to notify replaced session"
+  ],
+  "expected_scope": [
+    "Turbo.Networking/Session/SessionGateway.cs",
+    "Turbo.Primitives/Messages/Outgoing/Handshake/DisconnectReasonEventMessageComposer.cs",
+    "Turbo.Revisions/Revision20260909/Serializers/Handshake/"
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "id": "reception-timing",
+  "title": "Reception timing-code and countdown requests get no reply",
+  "source": {
+    "pr": 22,
+    "fix_commits": [
+      "d02bd82"
+    ],
+    "fix_paths": [
+      "Turbo.PacketHandlers/Competition",
+      "Turbo.Primitives/Competition",
+      "Turbo.Primitives/Messages/Incoming/Competition",
+      "Turbo.Primitives/Messages/Outgoing/Competition",
+      "Turbo.Revisions/Revision20260909/Parsers/Competition",
+      "Turbo.Revisions/Revision20260909/Serializers/Competition"
+    ],
+    "base": "25e38ff"
+  },
+  "domain": "protocol/competition",
+  "difficulty": "medium",
+  "hidden": {
+    "common": [
+      "Fakes.cs",
+      "PacketHarness.cs"
+    ]
+  },
+  "leak_patterns": [
+    "ReceptionSchedule",
+    "GetCurrentCode",
+    "GetSecondsUntil\\(",
+    "reception timing"
+  ],
+  "expected_scope": [
+    "Turbo.PacketHandlers/Competition/",
+    "Turbo.Primitives/",
+    "Turbo.Revisions/Revision20260909/"
+  ]
+}

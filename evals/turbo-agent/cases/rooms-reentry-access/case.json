@@ -1,0 +1,36 @@
+{
+  "id": "rooms-reentry-access",
+  "title": "Reloading the room you are standing in ejects you when it is full or locked",
+  "source": {
+    "pr": null,
+    "fix_commits": [
+      "6feb38e"
+    ],
+    "fix_paths": [
+      "Turbo.Rooms/Grains/Modules/RoomEntryModule.cs"
+    ],
+    "base": "6feb38e",
+    "base_files_from": {
+      "bbc14d0": [
+        "Turbo.Rooms/Grains/Modules/RoomEntryModule.cs"
+      ]
+    },
+    "note": "The true parent bbc14d0 does not compile (a stale using fixed in the same commit), so the base is 6feb38e with only RoomEntryModule.cs restored from its parent."
+  },
+  "domain": "rooms/entry",
+  "difficulty": "medium",
+  "hidden": {
+    "common": [
+      "Fakes.cs",
+      "RoomHarness.cs"
+    ]
+  },
+  "leak_patterns": [
+    "reloading the room",
+    "isReentering",
+    "already standing in"
+  ],
+  "expected_scope": [
+    "Turbo.Rooms/Grains/Modules/RoomEntryModule.cs"
+  ]
+}
