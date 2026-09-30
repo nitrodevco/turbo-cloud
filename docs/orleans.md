@@ -102,6 +102,15 @@ These manifests protect Orleans RPC contracts and grain identities. They do not 
 Habbo packets, serialized state schemas or behavioral compatibility; those still need
 their own tests and review. See the [upstream analyzer guide](https://github.com/dotnet/orleans/blob/v10.3.1/docs/site/src/content/docs/grains/grain-versioning/contract-compatibility-analyzer.md).
 
+## Messenger integration deployment
+
+The messenger integration changes the return type of `IPlayerMessengerGrain.SendMessageAsync`
+from `bool` to a nullable error code and replaces the parameters and return type of
+`ReceiveMessageAsync`. The reviewed baseline records the new signatures and preserves the
+previous declarations as comments. These changes are not compatible with mixed old/new
+silos. Stop all Turbo silos and Orleans clients, deploy the same build everywhere, then
+restart together; do not roll this change through a running cluster. Apply the messenger
+database migrations before starting the updated server.
 ## Request Flow Examples
 ### Example A: Catalog purchase
 `Turbo.PacketHandlers/Catalog/PurchaseFromCatalogMessageHandler.cs`:

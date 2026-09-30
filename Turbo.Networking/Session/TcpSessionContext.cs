@@ -1,3 +1,4 @@
+using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Threading;
@@ -29,6 +30,9 @@ public class TcpSessionContext(PackageEncoder packageEncoder, ILogger<ISessionCo
     public IRc4Engine? CryptoIn => _state.CryptoIn;
     public IRc4Engine? CryptoOut => _state.CryptoOut;
     public RoomId ActiveRoomId => _state.ActiveRoomId;
+    public DateTime LastReceivedUtc => _state.LastReceivedUtc;
+
+    public void MarkReceived() => _state.MarkReceived();
 
     public ArrayBufferWriter<byte>? WsBuffer { get; } = null;
 

@@ -40,7 +40,60 @@ public class PlayerConfig
     /// </summary>
     public int MessengerFriendRowsFreshSeconds { get; init; } = 30;
     public int MessengerMaxIgnore { get; init; } = 100;
-    public int MaxSessionMessagesPerConversation { get; init; } = 20;
+
+    /// <summary>
+    /// Longest console message kept, in characters; longer text is cut before it is stored and
+    /// delivered.
+    /// </summary>
+    public int MessengerMaxMessageLength { get; init; } = 255;
+
+    /// <summary>
+    /// Messages returned per console history request (opening or scrolling back a
+    /// conversation). 0, the default, answers none, as Habbo did: a conversation opens empty
+    /// and only messages that arrived while the player was offline are shown, at login. Any
+    /// other value pages through the stored conversation.
+    /// </summary>
+    public int MessengerHistoryPageSize { get; init; } = 0;
+
+    /// <summary>
+    /// Undelivered console messages replayed when their recipient's messenger starts, newest
+    /// first cut; older undelivered ones are marked delivered with them and stay in history.
+    /// </summary>
+    public int MessengerOfflineReplayLimit { get; init; } = 50;
+
+    /// <summary>Longest room invitation text; the client's own input stops at 120.</summary>
+    public int MessengerRoomInviteMaxLength { get; init; } = 120;
+
+    /// <summary>Friends one room invitation is sent to at most; the rest are reported as failed.</summary>
+    public int MessengerRoomInviteMaxRecipients { get; init; } = 100;
+
+    /// <summary>
+    /// Shortest time between two room invitations by one player. The client holds its own
+    /// minute between invitations; this keeps a client that does not from flooding friends.
+    /// </summary>
+    public int MessengerRoomInviteMinIntervalMs { get; init; } = 30000;
+
+    /// <summary>
+    /// Lists each of a player's groups in their friend list as a group chat, which every online
+    /// member can talk in through the messenger. Group chat lines are not stored.
+    /// </summary>
+    public bool MessengerGroupChatEnabled { get; init; } = true;
+
+    /// <summary>
+    /// How often an online player's messenger joins its group chats again, which is what puts
+    /// them back in a group's chat once that group was loaded afresh (a silo restart).
+    /// </summary>
+    public int MessengerGroupChatRejoinMs { get; init; } = 60000;
+
+    /// <summary>
+    /// Console messages, direct and group together, one player may send per
+    /// <see cref="MessengerMessageWindowMs"/>; past it a message is refused with the client's
+    /// "failed to send" text.
+    /// </summary>
+    public int MessengerMessagesPerWindow { get; init; } = 10;
+
+    /// <summary>The window <see cref="MessengerMessagesPerWindow"/> counts over.</summary>
+    public int MessengerMessageWindowMs { get; init; } = 5000;
     public int WardrobeMaxSlots { get; init; } = 10;
 
     /// <summary>Respects a player may give per day; resets at UTC midnight.</summary>
@@ -50,12 +103,6 @@ public class PlayerConfig
     /// <summary>Times per day a player may refill their respects (0 disables the option).</summary>
     public int RespectReplenishesPerDay { get; init; } = 0;
     public int SettingsFlushMs { get; init; } = 5000;
-
-    /// <summary>How often delivered-message flags are written back to the database.</summary>
-    public int MessengerDeliveredFlushMs { get; init; } = 5000;
-
-    /// <summary>Delivered-message flags buffered between flushes before the oldest are dropped.</summary>
-    public int MessengerMaxPendingDelivered { get; init; } = 500;
 
     public int MaxPendingComposers { get; init; } = 500;
 

@@ -11,10 +11,21 @@ internal sealed class PlayerMessengerLiveState
     public required PlayerId PlayerId { get; init; }
     public List<MessengerCategoryDto> Categories { get; } = [];
     public Dictionary<PlayerId, MessengerFriendDto> Friends { get; } = [];
+
+    /// <summary>
+    /// The owner's groups as friend list entries (id minus the group id), while the owner is
+    /// online and group chats are on. Kept apart from <see cref="Friends"/>: they are no
+    /// friendship, count against no limit, and the navigator's friend rooms must not see them.
+    /// </summary>
+    public Dictionary<PlayerId, MessengerFriendDto> GroupChats { get; } = [];
     public Dictionary<PlayerId, MessengerRequestDto> IncomingRequests { get; } = [];
     public List<PlayerId> BlockedPlayerIds { get; } = [];
+
+    /// <summary>
+    /// Ignored players, oldest first. The client drops the first of its own copy when told the
+    /// oldest was removed (<c>IgnoredUsersManager.onIgnoreResult</c>), so the order must match.
+    /// </summary>
     public List<PlayerId> IgnoredPlayerIds { get; } = [];
-    public Dictionary<int, List<MessageHistoryEntrySnapshot>> Messages { get; } = [];
 
     /// <summary>When the friend rows in <see cref="Friends"/> were last read from the database.</summary>
     public DateTime FriendsLoadedAtUtc { get; set; }
@@ -29,10 +40,12 @@ internal sealed class PlayerMessengerLiveState
     /// <summary>When the owner last searched for players, for the search rate limit.</summary>
     public DateTime LastSearchAtUtc { get; set; }
 
+    /// <summary>When the owner last sent a room invitation, for the invitation rate limit.</summary>
+    public DateTime LastRoomInviteAtUtc { get; set; }
+
     /// <summary>Friend list changes waiting for the next flush to the client, one per friend.</summary>
     public Dictionary<PlayerId, MessengerUpdateSnapshot> PendingUpdates { get; } = [];
 
-    /// <summary>Offline messages shown this session, marked delivered by the flush timer.</summary>
-    public HashSet<int> PendingDeliveredIds { get; } = [];
-    public int NextSessionMessageId { get; set; } = 1;
+    /// <summary>When the owner's recent console messages were sent, oldest first, for the send rate limit.</summary>
+    public Queue<DateTime> RecentMessageTimesUtc { get; } = [];
 }

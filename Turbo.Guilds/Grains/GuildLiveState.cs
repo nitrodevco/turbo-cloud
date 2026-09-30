@@ -18,4 +18,10 @@ internal sealed class GuildLiveState
     /// their rank, which is what lets the counts below be derived rather than stored.
     /// </summary>
     public Dictionary<int, GuildMemberRank> RankByPlayerId { get; } = [];
+
+    /// <summary>
+    /// Members whose sessions are sent the group chat: those online with a messenger that
+    /// joined it. Never persisted; an empty set after a reload fills again as members log in.
+    /// </summary>
+    public HashSet<int> ChatListenerIds { get; } = [];
 }

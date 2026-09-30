@@ -209,8 +209,8 @@ A reader who knows one grain should be able to find their way in any other. `Pla
   furniture on first use, because the grain is also activated for cheap lookups). Say so in a
   comment on the class, so the exception reads as a decision rather than an omission.
 - Every grain's class comment states how its state reaches the database: write-through
-  (`PlayerWalletGrain`, `PlayerWardrobeGrain`) or buffered-and-flushed (`PlayerSettingsGrain`,
-  `PlayerMessengerGrain`). This is what tells a reader whether a missing `OnDeactivateAsync` is
+  (`PlayerWalletGrain`, `PlayerWardrobeGrain`, `PlayerMessengerGrain`) or buffered-and-flushed
+  (`PlayerSettingsGrain`). This is what tells a reader whether a missing `OnDeactivateAsync` is
   correct.
 - Buffered state is flushed on a timer *and* in `OnDeactivateAsync`, and the buffer is bounded by a
   configured limit so a database outage cannot grow it without end.
@@ -573,9 +573,9 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   `UserChange`. A first entry after activation therefore shows no rank for a moment and then
   the rank. Do not make `GetSummaryAsync` fetch it: that call is on every hot path.
 - The player grain never awaits the badge grain (badge grain → presence → player grain is
-  already a chain). So a profile's badge figures do not pass through it: the handler reads
-  `GetExtendedProfileSnapshotAsync` and `IPlayerBadgeGrain.GetBadgeSummaryAsync` side by side
-  (`ExtendedProfileExtensions.SendExtendedProfileAsync`) and the composer carries both.
+  already a chain). So a profile's badge figures do not pass through it: `PlayerService`
+  reads `GetExtendedProfileSnapshotAsync` and `IPlayerBadgeGrain.GetBadgeSummaryAsync` side by
+  side (`GetExtendedProfileAsync`) and the composer carries both.
 - A client may claim a badge only through a request code the hotel lists
   (`BadgeConfig.RequestableBadges`); the badge code itself is never taken from the client.
 
@@ -1186,7 +1186,6 @@ behaviour goes in one extension class, not in each handler.
   | `RoomSettings/RoomSettingsSaveExtensions` | `ResolvePlayerFlatCategory` and `SendRoomSettingsSaveFailureAsync` |
   | `RoomSettings/RoomFilterExtensions` | `SendRoomFilterAsync`, which sends the room's whole word filter |
   | `Inventory/Badges/BadgeRequestExtensions` | `SendBadgeRequestFulfilledAsync` |
-  | `Users/ExtendedProfileExtensions` | `SendExtendedProfileAsync` |
   | `Users/GuildMemberMgmtResultExtensions` | `SendGuildMemberMgmtFailureAsync` |
   | `Userdefinedroomevents/Wiredmenu/WiredVariableHoldersExtensions` | `SendWiredVariableHoldersAsync`, which lists who holds a wired variable |
   | `Userdefinedroomevents/Wiredmenu/WiredVariablesForObjectExtensions` | `SendWiredVariablesForObjectAsync`, which lists the variables one target holds |
@@ -1463,14 +1462,20 @@ finishing a change, check it against this list; each line is a mistake that was 
   server has no system for with `await ValueTask.CompletedTask.ConfigureAwait(false)` and a
   summary saying what is missing. A handler that instead keeps its body commented out, and the
   injections that body needed, is neither working code nor an honest stub:
-  `GetMessengerHistoryMessageHandler` still carried the `IConfiguration` this file says handlers
+  `GetMessengerHistoryMessageHandler` once carried the `IConfiguration` this file says handlers
   no longer take, for a grain method that was never written.
 - **A buffer nothing reads is half a feature, and it does not announce itself.** The messenger
-  grain fills a per-conversation history, caps it with `MaxSessionMessagesPerConversation`, and
-  no caller ever reads it; `ConsoleMessageHistoryMessageComposer`, its serializer and its header
-  are all in place with nothing to send them. Neither end looks wrong on its own. When adding
-  state, add the reader in the same change — or when finding one, say which of the two ends is
-  missing rather than deleting the one you happened to open.
+  grain once filled a per-conversation history, capped it with `MaxSessionMessagesPerConversation`,
+  and no caller ever read it, while `ConsoleMessageHistoryMessageComposer`, its serializer and its
+  header sat in place with nothing to send them. Neither end looked wrong on its own. (History is
+  now paged from the message rows, and the buffer is gone.) When adding state, add the reader in
+  the same change — or when finding one, say which of the two ends is missing rather than
+  deleting the one you happened to open.
+- **A change the client applies itself is sent as that change, not also as a fresh list.** An
+  ignore at the limit sent the whole ignore list and then `IgnoreResult` "oldest removed"; the
+  client took the list and then dropped its first entry again, so two players left its copy for
+  one. Read what the client's handler does with each packet before sending both a snapshot and a
+  delta, and keep the server's copy in the order the client assumes (oldest first there).
 - **Zero warnings is the baseline, and an incremental build hides them.** A clean tree builds
   `Turbo.Main` with no warnings at all, so any warning belongs to the change in front of you.
   MSBuild only reports warnings for projects it actually recompiles, so a project that was
@@ -1609,8 +1614,9 @@ finishing a change, check it against this list; each line is a mistake that was 
   (`GuildMemberMgmtResultExtensions`) now owns that mapping and returns whether the operation
   went through, so the one caller with more to do can stop. Repeated packet-shaping across
   handlers of the same family is worth an extension in the same folder, the way
-  `ExtendedProfileExtensions` and `LegacyRoomSearchExtensions` already are. See **Packet handler
-  extensions** for the shape.
+  `LegacyRoomSearchExtensions` already is, or a domain service when the handlers need more than
+  shaping (the friend list's `IMessengerService`, the profile's `IPlayerService`). See **Packet
+  handler extensions** for the shape.
 - **The copy nobody updated is the one that is wrong.** A sweep for duplicated handler logic
   found drift in almost every family that had more than one copy:
   - The room-ad purchase had its own catalog error mapping. It sent `RequiresHabboClub` as the

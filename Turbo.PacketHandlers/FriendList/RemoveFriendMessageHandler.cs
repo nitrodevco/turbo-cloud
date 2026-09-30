@@ -1,16 +1,18 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
-using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players.Messenger;
 
 namespace Turbo.PacketHandlers.FriendList;
 
-public class RemoveFriendMessageHandler(IGrainFactory grainFactory)
+/// <summary>
+/// Ends friendships (<c>FriendRemoveView</c>). The work is <see cref="IMessengerService"/>'s.
+/// </summary>
+public class RemoveFriendMessageHandler(IMessengerService messengerService)
     : IMessageHandler<RemoveFriendMessage>
 {
-    private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly IMessengerService _messengerService = messengerService;
 
     public async ValueTask HandleAsync(
         RemoveFriendMessage message,
@@ -21,9 +23,8 @@ public class RemoveFriendMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0)
             return;
 
-        await _grainFactory
-            .GetPlayerMessengerGrain(ctx.PlayerId)
-            .RemoveFriendsAsync(message.FriendIds, ct)
+        await _messengerService
+            .RemoveFriendsAsync(ctx.PlayerId, message.FriendIds, ct)
             .ConfigureAwait(false);
     }
 }

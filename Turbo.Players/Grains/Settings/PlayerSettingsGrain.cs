@@ -195,9 +195,41 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         return Task.CompletedTask;
     }
 
+    public Task SetFriendRequestsDisabledAsync(bool friendRequestsDisabled, CancellationToken ct)
+    {
+        Apply(_state.Settings with { FriendRequestsDisabled = friendRequestsDisabled });
+
+        return Task.CompletedTask;
+    }
+
+    public Task SetProfileHiddenAsync(bool profileHidden, CancellationToken ct)
+    {
+        Apply(_state.Settings with { ProfileHidden = profileHidden });
+
+        return Task.CompletedTask;
+    }
+
     public Task SetRoomCameraFollowDisabledAsync(bool cameraFollowDisabled, CancellationToken ct)
     {
         Apply(_state.Settings with { RoomCameraFollowDisabled = cameraFollowDisabled });
+
+        return Task.CompletedTask;
+    }
+
+    public Task SetOnlineIndicatorPreferenceAsync(int preference, CancellationToken ct)
+    {
+        if (!Enum.IsDefined((OnlineIndicatorPreferenceType)preference))
+        {
+            _logger.LogWarning(
+                "Rejected online indicator preference {Preference} for player {PlayerId}",
+                preference,
+                _state.PlayerId
+            );
+
+            return Task.CompletedTask;
+        }
+
+        Apply(_state.Settings with { OnlineIndicatorPreference = preference });
 
         return Task.CompletedTask;
     }
@@ -388,6 +420,8 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
             FurniVolume = entity.FurniVolume,
             TraxVolume = entity.TraxVolume,
             RoomInvitesIgnored = entity.RoomInvitesIgnored,
+            FriendRequestsDisabled = entity.FriendRequestsDisabled,
+            ProfileHidden = entity.ProfileHidden,
             RoomCameraFollowDisabled = entity.RoomCameraFollowDisabled,
             UIFlags = entity.UIFlags,
             ChatStyleId = entity.ChatStyleId,
@@ -418,6 +452,8 @@ internal sealed class PlayerSettingsGrain : Grain, IPlayerSettingsGrain
         entity.FurniVolume = settings.FurniVolume;
         entity.TraxVolume = settings.TraxVolume;
         entity.RoomInvitesIgnored = settings.RoomInvitesIgnored;
+        entity.FriendRequestsDisabled = settings.FriendRequestsDisabled;
+        entity.ProfileHidden = settings.ProfileHidden;
         entity.RoomCameraFollowDisabled = settings.RoomCameraFollowDisabled;
         entity.UIFlags = settings.UIFlags;
         entity.ChatStyleId = settings.ChatStyleId;

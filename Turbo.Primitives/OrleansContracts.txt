@@ -75,8 +75,11 @@ interface [GrainInterfaceType("Turbo.Primitives.Guilds.Grains.IGuildGrain")] Tur
   D5744F16: GetSnapshotAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildSnapshot?>
   B51498AD: GetViewAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildViewSnapshot?>
   E842A1A1: JoinAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildJoinResultSnapshot>
+  57C83AD5: JoinChatAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
   BF359D60: KickAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Players.PlayerId, bool, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildMemberMgmtResultSnapshot>
+  47AD88BE: LeaveChatAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task
   F4566792: RejectRequestAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildMemberMgmtResultSnapshot>
+  D734CC0F: SendChatMessageAsync(Turbo.Primitives.Players.PlayerId, string, string, string, string, System.Threading.CancellationToken) -> Task<bool>
   0C08C9E1: SetAdminAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Players.PlayerId, bool, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildMemberMgmtResultSnapshot>
   DDCDF45D: UnblockAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildMemberMgmtResultSnapshot>
   F8AE35B3: UpdateBadgeAsync(Turbo.Primitives.Players.PlayerId, System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Guilds.Snapshots.GuildBadgePartSnapshot>, System.Threading.CancellationToken) -> Task<bool>
@@ -182,26 +185,37 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Messenger.IPlayer
   2B299D06: AcceptFriendRequestsAsync(System.Collections.Generic.List<int>, System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<Turbo.Primitives.Players.Messenger.MessengerAcceptFriendFailure>>
   8B4AB541: BlockPlayerAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task
   5196A158: CanBeAddedByAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.Messenger.FriendListErrorCodeType>
+  AA0A5EA9: CanReceiveMessageAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.Messenger.InstantMessageErrorCodeType?>
   6C66C1E6: DeclineFriendRequestsAsync(System.Collections.Generic.List<Turbo.Primitives.Players.PlayerId>, bool, System.Threading.CancellationToken) -> Task
   94518EBF: GetCategoriesAsync(System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<Turbo.Primitives.Players.Messenger.MessengerCategoryDto>>
   88F053BA: GetFriendCountAsync(System.Threading.CancellationToken) -> Task<int>
   01171713: GetFriendsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<Turbo.Primitives.Players.Messenger.MessengerFriendDto>>
   219D8D5A: GetIgnoredAsync(System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<Turbo.Primitives.Players.PlayerId>>
+  C41B3DE4: GetMessageHistoryAsync(Turbo.Primitives.Players.PlayerId, string, System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<Turbo.Primitives.Players.Snapshots.Messenger.MessageHistoryEntrySnapshot>>
   EEF2521B: GetPendingUpdatesAsync(System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<Turbo.Primitives.Players.Snapshots.Messenger.MessengerUpdateSnapshot>>
   1FCDBDBE: GetProfileRelationAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.Messenger.MessengerProfileRelationSnapshot>
   8B28985D: GetRelationshipStatusInfoAsync(System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<Turbo.Primitives.Players.Snapshots.Messenger.RelationshipStatusEntrySnapshot>>
   2C3A5DCD: GetRequestsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<Turbo.Primitives.Players.Messenger.MessengerRequestDto>>
   32DC87E6: IgnorePlayerAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.Messenger.MessengerIgnoreResultType>
+  CB72BC5C: IsFriendAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
+  72940F13: NotifyFriendsAsync(Turbo.Primitives.Players.Enums.Messenger.FriendNotificationCodeType, string, System.Threading.CancellationToken) -> Task
   C0622E30: OnFriendAddedAsync(Turbo.Primitives.Players.Snapshots.PlayerSummarySnapshot, System.Threading.CancellationToken) -> Task
   55478B95: OnFriendRemovedAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task
+  57808C51: OnGuildMembershipsChangedAsync(System.Threading.CancellationToken) -> Task
   62020B9E: ReceieveFriendRequestAsync(Turbo.Primitives.Players.Snapshots.PlayerSummarySnapshot, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Messenger.MessengerRequestFriendResult>
-  59E83890: ReceiveMessageAsync(int, string, System.DateTime, string, int, Turbo.Primitives.Players.PlayerId, string, string, System.Threading.CancellationToken, int) -> Task<bool>
+  CBDE514A: ReceiveMessageAsync(Turbo.Primitives.Players.PlayerId, string, System.DateTime, int, string, string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.Messenger.InstantMessageErrorCodeType?>
+# Messenger integration accepts this prior signature break on a coordinated full-cluster restart.
+# Previous declaration: 59E83890: ReceiveMessageAsync(int, string, System.DateTime, string, int, Turbo.Primitives.Players.PlayerId, string, string, System.Threading.CancellationToken, int) -> Task<bool>
+  3D427D61: ReceiveRoomInviteAsync(Turbo.Primitives.Players.PlayerId, string, System.Threading.CancellationToken) -> Task
   745A9E58: RecieveFriendUpdateAsync(Turbo.Primitives.Players.Snapshots.PlayerSummarySnapshot, System.Threading.CancellationToken) -> Task
   4A5359B1: RemoveFriendsAsync(System.Collections.Generic.List<Turbo.Primitives.Players.PlayerId>, System.Threading.CancellationToken) -> Task
   297849C2: SearchPlayersAsync(string, System.Threading.CancellationToken) -> Task<(System.Collections.Generic.List<Turbo.Primitives.Players.Snapshots.Messenger.MessengerSearchResultSnapshot>, System.Collections.Generic.List<Turbo.Primitives.Players.Snapshots.Messenger.MessengerSearchResultSnapshot>)>
   8AC86E0F: SendFriendRequestAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Messenger.MessengerRequestFriendResult>
   FF55C22A: SendInitAsync(System.Threading.CancellationToken) -> Task
-  D680515E: SendMessageAsync(Turbo.Primitives.Players.PlayerId, string, int, string, string, System.Threading.CancellationToken) -> Task<bool>
+  D680515E: SendMessageAsync(Turbo.Primitives.Players.PlayerId, string, int, string, string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.Messenger.InstantMessageErrorCodeType?>
+# Messenger integration accepts this prior signature break on a coordinated full-cluster restart.
+# Previous declaration: D680515E: SendMessageAsync(Turbo.Primitives.Players.PlayerId, string, int, string, string, System.Threading.CancellationToken) -> Task<bool>
+  87FAD154: SendRoomInviteAsync(System.Collections.Generic.List<Turbo.Primitives.Players.PlayerId>, string, System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<Turbo.Primitives.Players.PlayerId>>
   040D0457: SetRelationshipStatusAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Players.Enums.Messenger.MessengerFriendRelationType, System.Threading.CancellationToken) -> Task<bool>
   844F1A2F: UnblockPlayerAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task
   25DF6552: UnignorePlayerAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.Messenger.MessengerIgnoreResultType>
@@ -268,9 +282,12 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Settings.IPlayerS
   195205AF: OwnsChatStyleAsync(int, System.Threading.CancellationToken) -> Task<bool>
   3D0F1463: SetChatPreferencesAsync(Turbo.Primitives.Navigator.Enums.ChatModeType, Turbo.Primitives.Navigator.Enums.ChatBubbleWidthType, Turbo.Primitives.Navigator.Enums.ChatScrollSpeedType, System.Threading.CancellationToken) -> Task
   BB410C01: SetChatStyleAsync(int, Turbo.Primitives.Navigator.Enums.ChatSizeType, System.Threading.CancellationToken) -> Task
+  1B033A04: SetFriendRequestsDisabledAsync(bool, System.Threading.CancellationToken) -> Task
   5E7D3636: SetHomeRoomAsync(Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task
   EA3D9F14: SetIgnoreRoomInvitesAsync(bool, System.Threading.CancellationToken) -> Task
   94052D06: SetNavigatorWindowPreferencesAsync(int, int, int, int, bool, Turbo.Primitives.Navigator.Enums.NavigatorViewModeType, System.Threading.CancellationToken) -> Task
+  00535BE1: SetOnlineIndicatorPreferenceAsync(int, System.Threading.CancellationToken) -> Task
+  5EC2343E: SetProfileHiddenAsync(bool, System.Threading.CancellationToken) -> Task
   09DDBE22: SetRoomCameraFollowDisabledAsync(bool, System.Threading.CancellationToken) -> Task
   36E7D06F: SetSoundSettingsAsync(int, int, int, System.Threading.CancellationToken) -> Task
   40C0C726: SetUIFlagsAsync(Turbo.Primitives.Players.Enums.UIFlags, System.Threading.CancellationToken) -> Task

@@ -63,6 +63,12 @@ public sealed class NetworkManager(
     private IHost? _tcpHost;
     private IHost? _wsHost;
 
+    private readonly SessionHeartbeat _heartbeat = new(
+        config.Value,
+        sessionGateway,
+        loggerFactory.CreateLogger<SessionHeartbeat>()
+    );
+
     public async Task StartAsync(CancellationToken ct)
     {
         bool needTcpStart = false;
@@ -91,12 +97,17 @@ public sealed class NetworkManager(
 
         if (needsWsStart && _wsHost is not null)
             await _wsHost.StartAsync(ct).ConfigureAwait(false);
+
+        _heartbeat.Start();
     }
 
     public async Task StopAsync()
     {
         IHost? tcpHost;
         IHost? wsHost;
+
+        // Before the hosts: a heartbeat closing sessions while they shut down would race them.
+        await _heartbeat.DisposeAsync().ConfigureAwait(false);
 
         lock (_tcpGate)
         {

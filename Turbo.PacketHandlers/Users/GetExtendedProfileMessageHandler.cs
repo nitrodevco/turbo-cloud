@@ -1,15 +1,19 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Users;
+using Turbo.Primitives.Players;
 
 namespace Turbo.PacketHandlers.Users;
 
-public class GetExtendedProfileMessageHandler(IGrainFactory grainFactory)
+/// <summary>
+/// A player's extended profile (<c>GetExtendedProfileMessageComposer</c>) as the asker may see it.
+/// The work is <see cref="IPlayerService"/>'s.
+/// </summary>
+public class GetExtendedProfileMessageHandler(IPlayerService playerService)
     : IMessageHandler<GetExtendedProfileMessage>
 {
-    private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly IPlayerService _playerService = playerService;
 
     public async ValueTask HandleAsync(
         GetExtendedProfileMessage message,
@@ -17,11 +21,14 @@ public class GetExtendedProfileMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        var targetUserId = message.UserId;
-
-        if (targetUserId <= 0)
+        if (ctx.PlayerId <= 0)
             return;
 
-        await ctx.SendExtendedProfileAsync(_grainFactory, targetUserId, ct).ConfigureAwait(false);
+        var reply = await _playerService
+            .GetExtendedProfileAsync(ctx.PlayerId, message.UserId, ct)
+            .ConfigureAwait(false);
+
+        if (reply is not null)
+            await ctx.SendComposerAsync(reply, ct).ConfigureAwait(false);
     }
 }

@@ -1,5 +1,6 @@
 using Turbo.Primitives.Messages.Outgoing.FriendList;
 using Turbo.Primitives.Packets;
+using Turbo.Primitives.Players.Enums.Messenger;
 
 namespace Turbo.Revisions.Revision20260909.Serializers.FriendList;
 
@@ -8,9 +9,9 @@ internal class RoomInviteErrorMessageSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, RoomInviteErrorMessageComposer message)
     {
-        packet.WriteInteger(message.ErrorCode);
+        packet.WriteInteger((int)message.ErrorCode);
 
-        if (message.ErrorCode is 1)
+        if (message.ErrorCode is RoomInviteErrorCodeType.RecipientsFailed)
         {
             packet.WriteInteger(message.FailedRecipients?.Count ?? 0);
 

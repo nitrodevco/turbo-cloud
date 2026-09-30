@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums.Messenger;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 
@@ -9,6 +10,13 @@ namespace Turbo.Primitives.Rooms;
 
 public partial interface IRoomService
 {
+    /// <summary>Follows an online friend into their active room when normal room entry allows it.</summary>
+    public Task<FollowFriendErrorCodeType?> FollowFriendAsync(
+        PlayerId playerId,
+        PlayerId friendId,
+        CancellationToken ct
+    );
+
     /// <summary>
     /// Activates the room and decides whether the player may enter. <paramref name="password"/>
     /// is only consulted for password doors; <paramref name="bypassDoor"/> is for server-driven

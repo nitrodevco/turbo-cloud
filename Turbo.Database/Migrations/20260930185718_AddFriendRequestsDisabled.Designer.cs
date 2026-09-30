@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Turbo.Database.Context;
 
@@ -11,9 +12,11 @@ using Turbo.Database.Context;
 namespace Turbo.Database.Migrations
 {
     [DbContext(typeof(TurboDbContext))]
-    partial class TurboDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260930185718_AddFriendRequestsDisabled")]
+    partial class AddFriendRequestsDisabled
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2807,10 +2810,6 @@ namespace Turbo.Database.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("gender");
 
-                    b.Property<DateTime?>("LastLoginAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("last_login");
-
                     b.Property<string>("Motto")
                         .HasMaxLength(512)
                         .HasColumnType("varchar(512)")
@@ -3248,12 +3247,6 @@ namespace Turbo.Database.Migrations
                     b.Property<int>("PlayerEntityId")
                         .HasColumnType("int")
                         .HasColumnName("player_id");
-
-                    b.Property<bool>("ProfileHidden")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(false)
-                        .HasColumnName("profile_hidden");
 
                     b.Property<bool>("RoomCameraFollowDisabled")
                         .ValueGeneratedOnAdd()

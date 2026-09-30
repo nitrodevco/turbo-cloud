@@ -1,17 +1,19 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
-using Turbo.Primitives.Messages.Outgoing.FriendList;
-using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players.Messenger;
 
 namespace Turbo.PacketHandlers.FriendList;
 
-public class FindNewFriendsMessageHandler(IGrainFactory grainFactory)
+/// <summary>
+/// The friend bar's "find new friends": to a random room with players in it. The work is <see
+/// cref="IMessengerService"/>'s.
+/// </summary>
+public class FindNewFriendsMessageHandler(IMessengerService messengerService)
     : IMessageHandler<FindNewFriendsMessage>
 {
-    private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly IMessengerService _messengerService = messengerService;
 
     public async ValueTask HandleAsync(
         FindNewFriendsMessage message,
@@ -22,31 +24,6 @@ public class FindNewFriendsMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0)
             return;
 
-        // Try to find a random populated room
-        var roomDirectory = _grainFactory.GetRoomDirectoryGrain();
-        var randomRoomId = await roomDirectory
-            .GetRandomPopulatedRoomAsync(ct)
-            .ConfigureAwait(false);
-
-        if (randomRoomId is not null && randomRoomId.Value > 0)
-        {
-            await ctx.SendComposerAsync(
-                    new FindFriendsProcessResultMessageComposer { Success = true },
-                    ct
-                )
-                .ConfigureAwait(false);
-
-            await _grainFactory
-                .ForwardPlayerToRoomAsync(ctx.PlayerId, randomRoomId.Value, ct)
-                .ConfigureAwait(false);
-        }
-        else
-        {
-            await ctx.SendComposerAsync(
-                    new FindFriendsProcessResultMessageComposer { Success = false },
-                    ct
-                )
-                .ConfigureAwait(false);
-        }
+        await _messengerService.FindNewFriendsAsync(ctx.PlayerId, ct).ConfigureAwait(false);
     }
 }
