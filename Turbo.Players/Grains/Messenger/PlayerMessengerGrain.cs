@@ -394,11 +394,19 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         if (_state.BlockedPlayerIds.Contains(playerId))
             return new MessengerRequestFriendResult(false, FriendListErrorCodeType.BlockedByYou);
 
-        if (
-            _state.Friends.TryGetValue(playerId, out var friend)
-            || _state.IncomingRequests.TryGetValue(playerId, out var request)
-        )
+        if (_state.Friends.ContainsKey(playerId))
             return new MessengerRequestFriendResult(false);
+
+        // They asked first: asking them back is agreeing, so their request is accepted rather
+        // than a second one left waiting beside it.
+        if (_state.IncomingRequests.ContainsKey(playerId))
+        {
+            var failures = await AcceptFriendRequestsAsync([playerId.Value], ct);
+
+            return failures.Count == 0
+                ? new MessengerRequestFriendResult(true)
+                : new MessengerRequestFriendResult(false, failures[0].ErrorCode);
+        }
 
         var snapshot = await _grainFactory.GetPlayerGrain(_state.PlayerId).GetSummaryAsync(ct);
         var result = await _grainFactory
