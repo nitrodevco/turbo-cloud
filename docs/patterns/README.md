@@ -20,3 +20,4 @@ commit.
 `Turbo.Tests` (xUnit, run with `dotnet test Turbo.Tests/Turbo.Tests.csproj`); its `Support/`
 folder builds grains, rooms and packet round-trips without an Orleans silo or a database (see
 `Turbo.Tests/Rooms/RoomStackingTests.cs` and `Turbo.Tests/Protocol/LatencyPingTests.cs`).
+The helper quick reference and the verification loop are in `CLAUDE.md` under `## Tests`.

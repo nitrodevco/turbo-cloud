@@ -1840,6 +1840,7 @@ finishing a change, check it against this list; each line is a mistake that was 
 ```bash
 dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudFastCheck
 dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudQualityGate
+dotnet test Turbo.Tests/Turbo.Tests.csproj
 ```
 
 ## Definition of done for AI changes
@@ -1847,6 +1848,9 @@ dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudQualityGate
 - Quality gates pass with no new warnings introduced by the change.
 - Architecture invariants for touched areas are explicitly confirmed in PR.
 - Edge/failure behavior is addressed for logic changes.
+- A behaviour change has a regression test in `Turbo.Tests` that fails without it (see
+  `docs/patterns/UnitTestPattern.cs`; the helper quick reference and verification loop are in
+  `CLAUDE.md` under `## Tests`).
 - Any context-rule updates needed by the change are included in the same PR.
 
 ## PR expectations for AI-assisted work
