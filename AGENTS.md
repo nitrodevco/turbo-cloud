@@ -1481,7 +1481,7 @@ finishing a change, check it against this list; each line is a mistake that was 
   some time, `HandlerPattern` showed a sealed handler with `ct.ThrowIfCancellationRequested()`
   and a null check on the parsed message, which none of the 502 real handlers does, and
   `UnitTestPattern` used `xunit` and `FluentAssertions`, neither of which is in
-  `Directory.Packages.props` (there is no test project at all). Each sample now names the real
+  `Directory.Packages.props` (there was no test project then; there is now, `Turbo.Tests`). Each sample now names the real
   file it mirrors; when a convention changes, change the sample in the same commit, and check
   its type names by hand because nothing else will.
 - **An option is read through its config class, never by key name.**

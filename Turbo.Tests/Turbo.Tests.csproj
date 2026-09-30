@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!--
+      Test names read as sentences (CA1707), tests await without ConfigureAwait like grain code
+      (CA2007), xUnit owns the synchronization context (VSTHRD200 naming), and the Support
+      harnesses finish their in-memory setup synchronously in constructors (VSTHRD002).
+    -->
+    <NoWarn>$(NoWarn);CA1707;CA2007;VSTHRD200;VSTHRD002;CA1515;CA1034;CA1062</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Turbo.Main/Turbo.Main.csproj" />
+  </ItemGroup>
+</Project>

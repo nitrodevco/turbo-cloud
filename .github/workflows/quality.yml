@@ -98,6 +98,10 @@ jobs:
         if: steps.scope.outputs.docs_only != 'true'
         run: dotnet build Turbo.Main/Turbo.Main.csproj --no-restore -p:TurboAIPolicyPhase=1 "-bl:${{ runner.temp }}/turbo-build-logs/build.binlog;ProjectImports=None"
 
+      - name: Run tests
+        if: steps.scope.outputs.docs_only != 'true'
+        run: dotnet test Turbo.Tests/Turbo.Tests.csproj -p:TurboAIPolicyPhase=1
+
       - name: Upload failed build diagnostics
         if: failure() && (steps.restore.outcome == 'failure' || steps.build.outcome == 'failure')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
