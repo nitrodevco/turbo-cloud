@@ -829,20 +829,49 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
             }
         );
 
-        return await _grainFactory
+        // The recipient's copy carries no confirmation id: MainView.addConsoleMessage reads one
+        // above zero as the server confirming a message of its own, and drops it.
+        var delivered = await _grainFactory
             .GetPlayerMessengerGrain(friend.PlayerId)
             .ReceiveMessageAsync(
                 _state.PlayerId,
                 message,
                 now,
                 sessionMsgId,
-                confirmationId,
+                0,
                 _state.PlayerId,
                 senderName,
                 senderFigure,
                 ct,
                 messageEntity.Id
             );
+
+        // The sender's copy does: it turns their pending (grey) bubble into the sent message
+        // (MainView.onConfirmOwnChatMessage). The message is saved, so it is confirmed even
+        // when the friend is offline.
+        _grainFactory
+            .SendComposerToPlayerAsync(
+                _state.PlayerId,
+                new NewConsoleMessageMessageComposer
+                {
+                    ChatId = recipientId,
+                    Message = message,
+                    SecondsSinceSent = 0,
+                    MessageId = sessionMsgId,
+                    ConfirmationId = confirmationId,
+                    SenderId = _state.PlayerId,
+                    SenderName = senderName,
+                    SenderFigure = senderFigure,
+                },
+                CancellationToken.None
+            )
+            .LogAndForget(
+                _logger,
+                "confirm a console message to player {PlayerId}",
+                _state.PlayerId
+            );
+
+        return delivered;
     }
 
     public Task<bool> ReceiveMessageAsync(
