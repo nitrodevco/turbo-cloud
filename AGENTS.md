@@ -58,6 +58,9 @@ Default output format:
 - Keep C# formatting compatible with repo quality gates (`dotnet csharpier check`, `dotnet format`).
 - Follow `.editorconfig` naming/style preferences.
 - Keep diffs focused and minimal; avoid unrelated refactors.
+- Grain contract changes must pass the Orleans compatibility analyzer. Follow
+  `docs/orleans.md` to regenerate and review the owning project's `OrleansContracts.txt`;
+  never refresh baselines merely to silence diagnostics, and preserve retired history.
 - Avoid introducing new dependencies unless required by the task.
 
 ### Type placement

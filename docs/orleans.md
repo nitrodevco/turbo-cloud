@@ -73,6 +73,35 @@ Guidelines:
 - Do not expose mutable grain state objects directly.
 - Version snapshot shapes deliberately when external consumers depend on them.
 
+## Grain contract compatibility
+
+Every project opts into the Orleans contract analyzer through `Directory.Build.props`.
+Projects that declare grain interfaces or concrete grains keep a generated
+`OrleansContracts.txt` beside their project file. The `Versioning` diagnostic category
+is an error locally and in CI, including when a required manifest is missing. Ordinary
+builds validate the baseline; they never regenerate it.
+
+After intentionally changing a grain contract, regenerate the owning project's manifest:
+
+For a project adding its first contract, create an empty `OrleansContracts.txt` beside
+the `.csproj` first. With SDK 10.0.400, `dotnet format` populates an existing additional
+file but can report success without saving a newly created one. Never truncate an
+existing manifest; it contains compatibility history.
+
+```sh
+dotnet format PATH_TO_PROJECT.csproj analyzers --severity info --diagnostics ORLEANS0016 ORLEANS0017 ORLEANS0018 ORLEANS0019 ORLEANS0020 ORLEANS0022 ORLEANS0023 ORLEANS0024
+```
+
+Review every changed identity, version and signature before accepting the result. Keep
+retired declarations and retained removed-method signatures. A removed method continues
+to fail with `ORLEANS0027` until restored or its retained signature is explicitly removed
+after accepting the compatibility break. Do not regenerate baselines simply to silence
+a failing check, or hand-edit active entries.
+
+These manifests protect Orleans RPC contracts and grain identities. They do not validate
+Habbo packets, serialized state schemas or behavioral compatibility; those still need
+their own tests and review. See the [upstream analyzer guide](https://github.com/dotnet/orleans/blob/v10.3.1/docs/site/src/content/docs/grains/grain-versioning/contract-compatibility-analyzer.md).
+
 ## Request Flow Examples
 ### Example A: Catalog purchase
 `Turbo.PacketHandlers/Catalog/PurchaseFromCatalogMessageHandler.cs`:

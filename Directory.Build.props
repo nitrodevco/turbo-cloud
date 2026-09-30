@@ -13,6 +13,7 @@
     >
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
+    <EnableOrleansContractsAnalyzer>true</EnableOrleansContractsAnalyzer>
   </PropertyGroup>
   <ItemGroup>
     <!-- Orleans 10.3 no longer supplies code generation through Core.Abstractions.
