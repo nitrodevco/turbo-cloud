@@ -45,7 +45,29 @@ public sealed class SessionHarness
         Fakes.Instances[(typeof(IPlayerPresenceGrain), (object)PlayerId)] = Presence;
 
         var factory = Fakes.Create<IGrainFactory>();
-        Gateway = new SessionGateway(factory, NullLogger<ISessionGateway>.Instance);
+        // Built by parameter type, so the harness follows the gateway's constructor as it changes.
+        var ctor = typeof(SessionGateway)
+            .GetConstructors()
+            .OrderByDescending(c => c.GetParameters().Length)
+            .First();
+        Gateway = (SessionGateway)
+            ctor.Invoke(
+                ctor.GetParameters()
+                    .Select(p =>
+                        p.ParameterType == typeof(IGrainFactory) ? factory
+                        : p.ParameterType.IsGenericType
+                        && p.ParameterType.GetGenericTypeDefinition().FullName
+                            == "Microsoft.Extensions.Logging.ILogger`1"
+                            ? Activator.CreateInstance(
+                                typeof(NullLogger<>).MakeGenericType(
+                                    p.ParameterType.GetGenericArguments()[0]
+                                )
+                            )
+                        : p.ParameterType.IsInterface ? Fakes.Create(p.ParameterType)
+                        : null
+                    )
+                    .ToArray()
+            );
     }
 
     public IPlayerPresenceGrain PresenceGrain => (IPlayerPresenceGrain)Presence;
