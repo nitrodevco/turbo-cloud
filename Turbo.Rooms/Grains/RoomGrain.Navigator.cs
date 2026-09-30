@@ -11,6 +11,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums.Messenger;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Snapshots;
 
@@ -242,6 +243,24 @@ public sealed partial class RoomGrain
             new RoomEventMessageComposer { Event = next, SentAtUtc = now },
             ct
         );
+
+        // A new event, not one made longer, is news for the owner's friends: their friend bar
+        // shows it on the owner's tab ("started an event" and its name). Told, not awaited - the
+        // messenger asks presences, and this room has nothing to wait on from it.
+        if (current is null)
+            _grainFactory
+                .GetPlayerMessengerGrain(playerId)
+                .NotifyFriendsAsync(
+                    FriendNotificationCodeType.RoomEvent,
+                    name,
+                    CancellationToken.None
+                )
+                .LogAndForget(
+                    _logger,
+                    "tell the friends of player {PlayerId} about the event in room {RoomId}",
+                    playerId,
+                    _state.RoomId
+                );
 
         return next;
     }

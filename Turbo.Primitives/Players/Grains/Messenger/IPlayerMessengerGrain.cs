@@ -95,6 +95,17 @@ public interface IPlayerMessengerGrain : IGrainWithIntegerKey
     );
 
     /// <summary>
+    /// Tells the player's online friends something they did, for their friend bar
+    /// (`FriendNotificationMessage`, which `HabboFriendBarData.onFriendNotification` turns into a
+    /// token on the player's tab): a room event started, an achievement earned, and so on.
+    /// </summary>
+    public Task NotifyFriendsAsync(
+        FriendNotificationCodeType typeCode,
+        string message,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// Sends the player the messenger's first load: the limits and categories, then the friend
     /// list in fragments, as one batch.
     /// </summary>

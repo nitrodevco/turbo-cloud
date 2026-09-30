@@ -658,6 +658,34 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         DeactivateOnIdle();
     }
 
+    public async Task NotifyFriendsAsync(
+        FriendNotificationCodeType typeCode,
+        string message,
+        CancellationToken ct
+    )
+    {
+        await EnsureFriendsOnlineResolvedAsync(ct);
+
+        var onlineFriendIds = _state
+            .Friends.Values.Where(friend => friend.Online)
+            .Select(friend => friend.PlayerId)
+            .ToList();
+
+        if (onlineFriendIds.Count == 0)
+            return;
+
+        await _grainFactory.SendComposerToPlayersAsync(
+            onlineFriendIds,
+            new FriendNotificationMessageComposer
+            {
+                AvatarId = _state.PlayerId.Value.ToString(),
+                TypeCode = typeCode,
+                Message = message,
+            },
+            ct
+        );
+    }
+
     public Task RecieveFriendUpdateAsync(PlayerSummarySnapshot snapshot, CancellationToken ct)
     {
         if (_state.Friends.TryGetValue(snapshot.PlayerId, out var friendDto))
