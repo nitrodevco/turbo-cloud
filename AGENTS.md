@@ -7,7 +7,7 @@ Tool-specific instruction files should reference this file instead of duplicatin
 This repository targets the following core stack. When coding, prefer patterns compatible with these versions:
 - .NET SDK `10.0.400` (from `global.json`)
 - C# / BCL `net10.0`
-- Orleans `10.2.2`
+- Orleans `10.3.1`
 - EF Core `9.0.19` (held on 9.x: Pomelo `9.0.0` pins `Microsoft.EntityFrameworkCore.Relational` to `[9.0.0, 9.0.999]`)
 - Pomelo MySQL provider `9.0.0`
 - SuperSocket `2.1.0`
