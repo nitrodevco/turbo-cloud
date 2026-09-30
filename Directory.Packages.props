@@ -7,7 +7,7 @@
     <PackageVersion Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.14.15" />
   </ItemGroup>
   <ItemGroup>
-    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.400" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.401" />
     <!--
       Roslyn transitives are pinned so central transitive pinning resolves a single version:
       Orleans 10 requires Microsoft.CodeAnalysis 5.x, while EF Core 9 design-time packages
@@ -31,14 +31,14 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
     <PackageVersion
       Include="Microsoft.Extensions.DependencyInjection.Abstractions"
-      Version="10.0.11"
+      Version="10.0.12"
     />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyModel" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Orleans.Serialization.Abstractions" Version="10.2.2" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyModel" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Orleans.Serialization.Abstractions" Version="10.3.1" />
     <PackageVersion Include="Microsoft.Orleans.Persistence.Memory" Version="10.2.2" />
     <PackageVersion Include="Microsoft.Orleans.Server" Version="10.2.2" />
     <PackageVersion Include="Microsoft.Orleans.Streaming" Version="10.2.2" />
@@ -50,7 +50,7 @@
     <PackageVersion Include="SuperSocket.ProtoBase" Version="2.1.0" />
     <PackageVersion Include="SuperSocket.WebSocket.Server" Version="2.1.0" />
     <PackageVersion Include="Scrutor" Version="6.1.0" />
-    <PackageVersion Include="BouncyCastle.Cryptography" Version="2.4.0" />
+    <PackageVersion Include="BouncyCastle.Cryptography" Version="2.7.0" />
   </ItemGroup>
   <ItemGroup>
     <!--
