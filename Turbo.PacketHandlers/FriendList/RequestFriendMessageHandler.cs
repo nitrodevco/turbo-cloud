@@ -37,12 +37,18 @@ public class RequestFriendMessageHandler(IGrainFactory grainFactory)
             .SendFriendRequestAsync(playerId, ct)
             .ConfigureAwait(false);
 
-        if (!result.Success)
+        // A request that already stands, either way, or one to yourself fails with no error:
+        // the client has no text for code 0 (HabboFriendList.showAlertView), so it is dropped.
+        if (
+            !result.Success
+            && result.ErrorType is { } errorType
+            && errorType != FriendListErrorCodeType.None
+        )
             await ctx.SendComposerAsync(
                     new MessengerErrorMessageComposer
                     {
                         ClientMessageId = 0,
-                        ErrorCode = result.ErrorType ?? FriendListErrorCodeType.None,
+                        ErrorCode = errorType,
                     },
                     ct
                 )
