@@ -1,3 +1,4 @@
+using System;
 using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,6 +23,16 @@ public interface ISessionContext : IAppSession
     /// grain call; the presence grain stays the authority.
     /// </summary>
     public RoomId ActiveRoomId { get; }
+
+    /// <summary>
+    /// When a packet last arrived on this connection (UTC). The heartbeat closes a connection that
+    /// has been silent too long: a client that slept or lost its network never sends a close, so
+    /// without this its player would stay online and standing in their room.
+    /// </summary>
+    public DateTime LastReceivedUtc { get; }
+
+    /// <summary>Records that a packet arrived; called for every packet before it is handled.</summary>
+    public void MarkReceived();
 
     public Task CloseSessionAsync();
     public void SetRevisionId(string revisionId);
