@@ -25,5 +25,4 @@ internal sealed class PlayerLiveState
     public int PetRespectsLeft { get; set; } = 0;
     public int RespectReplenishesLeft { get; set; } = 0;
     public DateTime? RespectResetDate { get; set; } = null;
-    public PlayerPerkFlags Perks { get; set; } = PlayerPerkFlags.None;
 }

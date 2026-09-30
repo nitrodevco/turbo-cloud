@@ -98,7 +98,7 @@ jobs:
         if: steps.scope.outputs.docs_only != 'true'
         run: dotnet build Turbo.Main/Turbo.Main.csproj --no-restore -p:TurboAIPolicyPhase=1 "-bl:${{ runner.temp }}/turbo-build-logs/build.binlog;ProjectImports=None"
 
-      - name: Run tests
+      - name: Test
         if: steps.scope.outputs.docs_only != 'true'
         run: dotnet test Turbo.Tests/Turbo.Tests.csproj -p:TurboAIPolicyPhase=1
 

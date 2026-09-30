@@ -23,6 +23,7 @@ public static class NavigatorEntityExtensions
             StaffOnly = entity.StaffOnly,
             MinRank = entity.MinRank,
             OrderNum = entity.OrderNum,
+            RequiredNode = entity.RequiredNode,
         };
 
     public static NavigatorEventCategorySnapshot ToSnapshot(

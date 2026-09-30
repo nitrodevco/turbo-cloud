@@ -3,7 +3,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Orleans;
 using Turbo.Plugins;
+using Turbo.Primitives.Players.Providers;
 
 namespace Turbo.Main.Console;
 
@@ -64,7 +66,7 @@ public class ConsoleCommandService(IServiceProvider services)
         {
             case "help":
                 System.Console.WriteLine(
-                    "Available commands: help, quit, reload-plugins, reload-plugin <key>"
+                    "Available commands: help, quit, reload-plugins, reload-plugin <key>, perm (perm help for usage)"
                 );
                 break;
 
@@ -107,6 +109,16 @@ public class ConsoleCommandService(IServiceProvider services)
                 }
                 break;
             }
+
+            case "perm":
+                await new PermissionConsoleCommand(
+                    _services.GetRequiredService<IGrainFactory>(),
+                    _services.GetRequiredService<IPermissionRegistryProvider>(),
+                    _services.GetRequiredService<TimeProvider>()
+                )
+                    .RunAsync(args, ct)
+                    .ConfigureAwait(false);
+                break;
 
             default:
                 System.Console.WriteLine($"Unknown command: {cmd}");

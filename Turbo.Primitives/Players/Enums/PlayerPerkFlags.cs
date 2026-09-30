@@ -19,6 +19,7 @@ public enum PlayerPerkFlags
     UnityTrade = 1 << 10,
     BuilderAtWork = 1 << 11,
     Camera = 1 << 12,
+    NavigatorPhaseOne2014 = 1 << 13,
 }
 
 public static class PlayerPerkExtensions
@@ -39,6 +40,7 @@ public static class PlayerPerkExtensions
             PlayerPerkFlags.UnityTrade => "UNITY_TRADE",
             PlayerPerkFlags.BuilderAtWork => "BUILDER_AT_WORK",
             PlayerPerkFlags.Camera => "CAMERA",
+            PlayerPerkFlags.NavigatorPhaseOne2014 => "NAVIGATOR_PHASE_ONE_2014",
             _ => throw new ArgumentOutOfRangeException(nameof(perk), perk, null),
         };
 
@@ -58,6 +60,7 @@ public static class PlayerPerkExtensions
             "UNITY_TRADE" => PlayerPerkFlags.UnityTrade,
             "BUILDER_AT_WORK" => PlayerPerkFlags.BuilderAtWork,
             "CAMERA" => PlayerPerkFlags.Camera,
+            "NAVIGATOR_PHASE_ONE_2014" => PlayerPerkFlags.NavigatorPhaseOne2014,
             _ => null,
         };
 }

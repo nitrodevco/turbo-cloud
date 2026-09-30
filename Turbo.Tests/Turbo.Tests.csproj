@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- xunit v3 test projects are executables. -->
+    <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <!--
@@ -13,12 +14,21 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    <PackageReference Include="FluentAssertions" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../Turbo.Main/Turbo.Main.csproj" />
+    <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
+    <!-- For PermissionGateTests, which reads the handlers' IL; nothing here runs a handler. -->
+    <ProjectReference Include="..\Turbo.PacketHandlers\Turbo.PacketHandlers.csproj" />
+    <!-- For PermissionNodeReaderTests, which reads every server assembly's IL. -->
+    <ProjectReference Include="..\Turbo.Guilds\Turbo.Guilds.csproj" />
+    <ProjectReference Include="..\Turbo.Inventory\Turbo.Inventory.csproj" />
+    <ProjectReference Include="..\Turbo.Navigator\Turbo.Navigator.csproj" />
+    <!-- For the Support harnesses, which build grains, rooms and packet round-trips without a silo. -->
+    <ProjectReference Include="..\Turbo.Main\Turbo.Main.csproj" />
   </ItemGroup>
 </Project>

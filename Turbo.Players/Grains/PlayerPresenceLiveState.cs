@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
@@ -13,6 +14,13 @@ internal sealed class PlayerPresenceLiveState
     public required PlayerId PlayerId { get; init; }
     public SessionKey SessionKey { get; set; } = SessionKey.Invalid;
     public long SessionGeneration { get; set; }
+
+    /// <summary>
+    /// Protocol extensions the current session accepted, by name, at the agreed version. Cleared
+    /// with every session change.
+    /// </summary>
+    public ImmutableDictionary<string, int> ClientCapabilities { get; set; } =
+        ImmutableDictionary<string, int>.Empty;
     public RoomId ActiveRoomId { get; set; } = -1;
     public RoomId PendingRoomId { get; set; } = -1;
     public RoomEntryState PendingRoomState { get; set; } = RoomEntryState.None;

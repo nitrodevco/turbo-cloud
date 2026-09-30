@@ -11,6 +11,7 @@ using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Texts;
 
 namespace Turbo.Guilds.Grains;
@@ -162,7 +163,17 @@ internal sealed partial class GuildGrain
 
     public async Task<bool> DeactivateAsync(PlayerId actorId, CancellationToken ct)
     {
-        if (_state.Guild is not { } guild || guild.OwnerId != actorId)
+        if (_state.Guild is not { } guild)
+            return false;
+
+        if (
+            guild.OwnerId != actorId
+            && !await _grainFactory.HasPermissionAsync(
+                actorId,
+                PermissionNodes.Guild.DELETE_ANY,
+                ct
+            )
+        )
             return false;
 
         if (!_guildConfig.DeletionEnabled)

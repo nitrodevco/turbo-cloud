@@ -32,10 +32,9 @@ public class SaveRoomSettingsMessageHandler(
         if (ctx.PlayerId <= 0 || message.RoomId <= 0)
             return;
 
-        var categoryId = _navigatorService.ResolvePlayerFlatCategory(
-            ctx.PlayerId,
-            message.CategoryId
-        );
+        var categoryId = await _navigatorService
+            .ResolvePlayerFlatCategoryAsync(ctx.PlayerId, message.CategoryId, ct)
+            .ConfigureAwait(false);
 
         var result = await _grainFactory
             .GetRoomGrain(message.RoomId)

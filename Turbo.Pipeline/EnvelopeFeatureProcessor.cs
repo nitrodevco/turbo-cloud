@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Pipeline.Attributes;
+using Turbo.Pipeline.Delegates;
 using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
 
@@ -36,7 +37,11 @@ public class EnvelopeFeatureProcessor<TEnvelope, TMeta, TContext>(
         )
         {
             var envType = args[0];
-            var invoker = _invokerFactory.CreateHandlerInvoker(concrete, envType);
+            var invoker = DecorateHandler(
+                concrete,
+                sp,
+                _invokerFactory.CreateHandlerInvoker(concrete, envType)
+            );
             var activator = ActivatorHelpers.BuildActivator(concrete);
 
             batch.Add(_registry.RegisterHandler(envType, concrete, sp, activator, invoker));
@@ -59,4 +64,14 @@ public class EnvelopeFeatureProcessor<TEnvelope, TMeta, TContext>(
 
         return Task.FromResult<IDisposable>(batch);
     }
+
+    /// <summary>
+    /// Wraps one handler's invoker, from what its type declares, as it is registered. Runs once
+    /// per handler, not per envelope. The default leaves every handler as it is.
+    /// </summary>
+    protected virtual HandlerInvoker<TContext> DecorateHandler(
+        Type handlerType,
+        IServiceProvider sp,
+        HandlerInvoker<TContext> invoker
+    ) => invoker;
 }

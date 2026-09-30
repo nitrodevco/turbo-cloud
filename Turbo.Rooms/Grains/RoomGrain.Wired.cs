@@ -11,6 +11,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
@@ -362,7 +363,17 @@ public sealed partial class RoomGrain
     {
         await SecurityModule.EnsureRightsLoadedAsync(ct);
 
-        return WiredSystem.GetPermissions(await SecurityModule.GetControllerLevelAsync(ctx));
+        var level = await SecurityModule.GetControllerLevelAsync(ctx);
+
+        // The client's wired menu treats staff at security level 4 as the room's owner
+        // (WiredMenuController.isRoomOwnerOrStaff), which is what wired.menu projects to.
+        if (
+            level < RoomControllerType.Owner
+            && await SecurityModule.HasPermissionAsync(ctx.PlayerId, PermissionNodes.Wired.MENU)
+        )
+            level = RoomControllerType.Owner;
+
+        return WiredSystem.GetPermissions(level);
     }
 
     private WiredRoomSettingsSnapshot CreateWiredRoomSettingsSnapshot() =>

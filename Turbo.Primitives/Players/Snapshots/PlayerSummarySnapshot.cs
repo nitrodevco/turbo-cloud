@@ -49,7 +49,4 @@ public sealed record PlayerSummarySnapshot
 
     [Id(13)]
     public required int RespectReplenishesLeft { get; init; }
-
-    [Id(14)]
-    public required PlayerPerkFlags Perks { get; init; }
 }
