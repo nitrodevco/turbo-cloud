@@ -16,6 +16,8 @@ that none of the 502 real handlers uses. Each sample now names the real file it 
 that file, not just the sample, and when you change a convention, change the sample in the same
 commit.
 
-`UnitTestPattern.cs` is the exception in another way: the solution has no test project and
-neither `xunit` nor `FluentAssertions` is in `Directory.Packages.props`, so it describes the
-shape to write tests in rather than something that can run today.
+`UnitTestPattern.cs` mirrors `Turbo.Tests/Furniture/DimmerStatesTests.cs`. Tests live in
+`Turbo.Tests` (xUnit, run with `dotnet test Turbo.Tests/Turbo.Tests.csproj`); its `Support/`
+folder builds grains, rooms and packet round-trips without an Orleans silo or a database (see
+`Turbo.Tests/Rooms/RoomStackingTests.cs` and `Turbo.Tests/Protocol/LatencyPingTests.cs`).
+The helper quick reference and the verification loop are in `CLAUDE.md` under `## Tests`.
