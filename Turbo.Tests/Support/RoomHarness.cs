@@ -83,6 +83,10 @@ public sealed class RoomHarness
 
     public IDictionary ItemsById => (IDictionary)GetMember(State, "ItemsById")!;
 
+    /// <summary>The computed height of a tile: the model's floor, or the top of what stands there.</summary>
+    public Altitude TileHeight(int x, int y) =>
+        ((Altitude[])GetMember(State, "TileHeights")!)[(y * Width) + x];
+
     /// <summary>Creates a plain floor item with the default floor logic.</summary>
     public RoomFloorItem CreateFloorItem(
         int id,

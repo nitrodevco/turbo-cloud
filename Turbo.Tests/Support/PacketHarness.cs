@@ -96,16 +96,24 @@ public sealed class PacketHarness
     public static ClientPacket Encode(IComposer composer)
     {
         var serializer = Revision.Serializers[composer.GetType()];
-        using var packet = serializer.Serialize(composer);
-        var framed = packet.ToArray();
-        // Frame: int32 length (of what follows), int16 header, payload.
-        var length = BinaryPrimitives.ReadInt32BigEndian(framed.AsSpan(0, 4));
-        var header = BinaryPrimitives.ReadInt16BigEndian(framed.AsSpan(4, 2));
-        if (length != framed.Length - 4 || header != serializer.Header)
-            throw new InvalidOperationException(
-                $"Malformed frame for {composer.GetType().Name}: length {length}, header {header}"
-            );
-        return new ClientPacket(header, framed.AsMemory(6).ToArray());
+        var packet = serializer.Serialize(composer);
+        try
+        {
+            var framed = packet.ToArray();
+            // Frame: int32 length (of what follows), int16 header, payload.
+            var length = BinaryPrimitives.ReadInt32BigEndian(framed.AsSpan(0, 4));
+            var header = BinaryPrimitives.ReadInt16BigEndian(framed.AsSpan(4, 2));
+            if (length != framed.Length - 4 || header != serializer.Header)
+                throw new InvalidOperationException(
+                    $"Malformed frame for {composer.GetType().Name}: length {length}, header {header}"
+                );
+            return new ClientPacket(header, framed.AsMemory(6).ToArray());
+        }
+        finally
+        {
+            // Older revisions of IServerPacket are not disposable.
+            (packet as IDisposable)?.Dispose();
+        }
     }
 
     private static MessageContext CreateContext(ISessionContext session, int playerId, int roomId)

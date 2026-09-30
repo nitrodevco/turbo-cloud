@@ -1,5 +1,4 @@
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Rooms.Grains.Modules;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -15,7 +14,6 @@ public class RoomStackingTests
     public void ItemOnAnother_RaisesTheTileToTheTopOfTheStack()
     {
         var room = new RoomHarness();
-        var map = room.Module<RoomMapModule>();
         room.AddToRoom(
             room.CreateFloorItem(1, 2, 2, Altitude.Zero, stackHeight: Altitude.FromValue(1.0))
         );
@@ -29,15 +27,14 @@ public class RoomStackingTests
             )
         );
 
-        Assert.Equal(1.5, map.GetTileHeight(map.ToIdx(2, 2)).Value, 3);
+        Assert.Equal(1.5, room.TileHeight(2, 2).Value, 3);
     }
 
     [Fact]
     public void EmptyTile_KeepsTheModelHeight()
     {
         var room = new RoomHarness();
-        var map = room.Module<RoomMapModule>();
 
-        Assert.Equal(0.0, map.GetTileHeight(map.ToIdx(5, 5)).Value, 3);
+        Assert.Equal(0.0, room.TileHeight(5, 5).Value, 3);
     }
 }
