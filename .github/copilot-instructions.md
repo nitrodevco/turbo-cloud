@@ -70,3 +70,5 @@ Include in every request:
 Generated changes should pass:
 - `dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudFastCheck`
 - `dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudQualityGate`
+- `dotnet test Turbo.Tests/Turbo.Tests.csproj`, with a regression test for any behaviour change (helper
+  quick reference and verification loop: `CLAUDE.md`, `## Tests`)

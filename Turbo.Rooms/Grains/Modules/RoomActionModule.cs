@@ -11,6 +11,7 @@ using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object;
@@ -262,6 +263,21 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         return true;
     }
 
+    private async Task<bool> CanSetObjectDataAsync(ActionContext ctx) =>
+        ctx.Origin == ActionOrigin.System
+        || await SecurityModule.HasPermissionAsync(
+            ctx.PlayerId,
+            PermissionNodes.Room.FURNI_BRANDING
+        )
+        || await SecurityModule.HasPermissionAsync(
+            ctx.PlayerId,
+            PermissionNodes.Room.FURNI_CUSTOM_VARIABLES
+        )
+        || await SecurityModule.HasPermissionAsync(
+            ctx.PlayerId,
+            PermissionNodes.Room.FURNI_VIMEO_EDIT
+        );
+
     public async Task<bool> SetObjectDataAsync(
         ActionContext ctx,
         RoomObjectId itemId,
@@ -272,7 +288,10 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
 
-        if (!await CanEditItemAsync(ctx, item))
+        // Every client path that sends object data is a staff one: saving an ad furni's branding
+        // (security level 4), the info stand's custom variables and a Vimeo display's video (both
+        // level 5). Room rights never reached it, so they do not here either.
+        if (!await CanSetObjectDataAsync(ctx))
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
         var config = _roomGrain._roomConfig;

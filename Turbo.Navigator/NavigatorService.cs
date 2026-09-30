@@ -16,6 +16,8 @@ using Turbo.Primitives.Navigator.Snapshots;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Messenger;
+using Turbo.Primitives.Players.Permissions;
+using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Snapshots.Navigator;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -34,7 +36,8 @@ public sealed class NavigatorService(
     INavigatorProvider navigatorProvider,
     IGrainFactory grainFactory,
     IOptions<NavigatorConfig> config,
-    IOptions<PlayerNavigatorConfig> playerNavigatorConfig
+    IOptions<PlayerNavigatorConfig> playerNavigatorConfig,
+    IPermissionRegistryProvider permissionRegistryProvider
 ) : INavigatorService
 {
     private readonly ILogger<INavigatorService> _logger = logger;
@@ -42,6 +45,8 @@ public sealed class NavigatorService(
     private readonly IGrainFactory _grainFactory = grainFactory;
     private readonly NavigatorConfig _config = config.Value;
     private readonly PlayerNavigatorConfig _playerNavigatorConfig = playerNavigatorConfig.Value;
+    private readonly IPermissionRegistryProvider _permissionRegistryProvider =
+        permissionRegistryProvider;
 
     public int FavouriteRoomLimit => _playerNavigatorConfig.MaxFavouriteRooms;
     public int MaxSearchCodeLength => _config.MaxSearchCodeLength;
@@ -107,8 +112,10 @@ public sealed class NavigatorService(
                     query,
                     [
                         (NavigatorSearchCodes.POPULAR, string.Empty),
-                        .. GetFlatCategoriesForPlayer(playerId)
-                            .Select(x => (NavigatorSearchCodes.Category(x.Name), x.Name)),
+                        .. (
+                            await GetFlatCategoriesForPlayerAsync(playerId, ct)
+                                .ConfigureAwait(false)
+                        ).Select(x => (NavigatorSearchCodes.Category(x.Name), x.Name)),
                     ],
                     keepEmpty: false,
                     ct
@@ -258,15 +265,27 @@ public sealed class NavigatorService(
         }
     }
 
-    public ImmutableArray<NavigatorFlatCategorySnapshot> GetFlatCategoriesForPlayer(
-        PlayerId playerId
-    ) =>
-        // There is no staff rank yet, so every player is treated as a rank-one non-staff user.
+    public async Task<
+        ImmutableArray<NavigatorFlatCategorySnapshot>
+    > GetFlatCategoriesForPlayerAsync(PlayerId playerId, CancellationToken ct)
+    {
+        var permissions = await _grainFactory
+            .GetPlayerPermissionGrain(playerId)
+            .GetResolvedAsync(ct)
+            .ConfigureAwait(false);
+
+        var level = PermissionProjection.SecurityLevelOf(
+            _permissionRegistryProvider.Current,
+            permissions
+        );
+
+        return
         [
             .. _navigatorProvider
                 .GetFlatCategories()
-                .Where(x => x.Visible && !x.StaffOnly && x.MinRank <= 1),
+                .Where(x => NavigatorCategoryAccess.CanSee(x, permissions, level)),
         ];
+    }
 
     public ImmutableArray<NavigatorEventCategorySnapshot> GetEventCategories() =>
         _navigatorProvider.GetEventCategories();
@@ -343,7 +362,11 @@ public sealed class NavigatorService(
             .GetRoomCountForOwnerAsync(playerId, ct)
             .ConfigureAwait(false);
 
-        return (roomCount < _config.MaxRoomsPerPlayer, _config.MaxRoomsPerPlayer);
+        var limit = await _grainFactory
+            .GetLimitAsync(playerId, PermissionMetaKeys.Limit.ROOMS, _config.MaxRoomsPerPlayer, ct)
+            .ConfigureAwait(false);
+
+        return (roomCount < limit, limit);
     }
 
     public async Task<RoomId?> CreateRoomAsync(
@@ -401,7 +424,9 @@ public sealed class NavigatorService(
             return null;
         }
 
-        int? category = GetFlatCategoriesForPlayer(playerId).Any(x => x.Id == categoryId)
+        int? category = (
+            await GetFlatCategoriesForPlayerAsync(playerId, ct).ConfigureAwait(false)
+        ).Any(x => x.Id == categoryId)
             ? categoryId
             : null;
 
@@ -456,9 +481,6 @@ public sealed class NavigatorService(
 
         return rooms.Count == 0 ? null : rooms[Random.Shared.Next(rooms.Count)].RoomId;
     }
-
-    public bool CanManageStaffPicks(PlayerId playerId) =>
-        _config.StaffPickPlayerIds.Contains(playerId.Value);
 
     public async Task<bool> RoomExistsAsync(RoomId roomId, CancellationToken ct)
     {
@@ -739,10 +761,9 @@ public sealed class NavigatorService(
         if (code.StartsWith(NavigatorSearchCodes.CATEGORY_PREFIX, StringComparison.Ordinal))
         {
             var name = NavigatorSearchCodes.GetCategoryName(code);
-            var category = GetFlatCategoriesForPlayer(playerId)
-                .FirstOrDefault(x =>
-                    string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)
-                );
+            var category = (
+                await GetFlatCategoriesForPlayerAsync(playerId, ct).ConfigureAwait(false)
+            ).FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
 
             return category is null
                 ? []

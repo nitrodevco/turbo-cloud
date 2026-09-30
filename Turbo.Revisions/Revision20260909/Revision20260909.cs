@@ -60,6 +60,7 @@ using Turbo.Primitives.Messages.Outgoing.Roomsettings;
 using Turbo.Primitives.Messages.Outgoing.Sound;
 using Turbo.Primitives.Messages.Outgoing.Talent;
 using Turbo.Primitives.Messages.Outgoing.Tracking;
+using Turbo.Primitives.Messages.Outgoing.Turbo;
 using Turbo.Primitives.Messages.Outgoing.Userclassification;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
@@ -123,6 +124,7 @@ using Turbo.Revisions.Revision20260909.Parsers.RoomSettings;
 using Turbo.Revisions.Revision20260909.Parsers.Sound;
 using Turbo.Revisions.Revision20260909.Parsers.Talent;
 using Turbo.Revisions.Revision20260909.Parsers.Tracking;
+using Turbo.Revisions.Revision20260909.Parsers.Turbo;
 using Turbo.Revisions.Revision20260909.Parsers.Userclassification;
 using Turbo.Revisions.Revision20260909.Parsers.Userdefinedroomevents;
 using Turbo.Revisions.Revision20260909.Parsers.Userdefinedroomevents.Wiredmenu;
@@ -187,6 +189,7 @@ using Turbo.Revisions.Revision20260909.Serializers.Roomsettings;
 using Turbo.Revisions.Revision20260909.Serializers.Sound;
 using Turbo.Revisions.Revision20260909.Serializers.Talent;
 using Turbo.Revisions.Revision20260909.Serializers.Tracking;
+using Turbo.Revisions.Revision20260909.Serializers.Turbo;
 using Turbo.Revisions.Revision20260909.Serializers.Userclassification;
 using Turbo.Revisions.Revision20260909.Serializers.Userdefinedroomevents;
 using Turbo.Revisions.Revision20260909.Serializers.Userdefinedroomevents.Wiredmenu;
@@ -1343,6 +1346,13 @@ public class Revision20260909 : IRevision
             { MessageEvent.LatencyPingReportMessageEvent, new LatencyPingReportMessageParser() },
             { MessageEvent.LatencyPingRequestMessageEvent, new LatencyPingRequestMessageParser() },
             { MessageEvent.PerformanceLogMessageEvent, new PerformanceLogMessageParser() },
+            #endregion
+
+            #region Turbo
+            {
+                MessageEvent.TurboClientCapabilitiesMessageEvent,
+                new TurboClientCapabilitiesMessageParser()
+            },
             #endregion
 
             #region Userclassification
@@ -4453,6 +4463,21 @@ public class Revision20260909 : IRevision
             {
                 typeof(TalentTrackMessageComposer),
                 new TalentTrackMessageComposerSerializer(MessageComposer.TalentTrackMessageComposer)
+            },
+            #endregion
+
+            #region Turbo
+            {
+                typeof(TurboServerCapabilitiesMessage),
+                new TurboServerCapabilitiesMessageSerializer(
+                    MessageComposer.TurboServerCapabilitiesMessageComposer
+                )
+            },
+            {
+                typeof(TurboPermissionNodesMessage),
+                new TurboPermissionNodesMessageSerializer(
+                    MessageComposer.TurboPermissionNodesMessageComposer
+                )
             },
             #endregion
 

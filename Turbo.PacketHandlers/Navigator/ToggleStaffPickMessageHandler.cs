@@ -3,18 +3,16 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Navigator;
-using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.PacketHandlers.Navigator;
 
-public class ToggleStaffPickMessageHandler(
-    IGrainFactory grainFactory,
-    INavigatorService navigatorService
-) : IMessageHandler<ToggleStaffPickMessage>
+[RequiresPermission(PermissionNodes.Navigator.STAFF_PICK)]
+public class ToggleStaffPickMessageHandler(IGrainFactory grainFactory)
+    : IMessageHandler<ToggleStaffPickMessage>
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
-    private readonly INavigatorService _navigatorService = navigatorService;
 
     public async ValueTask HandleAsync(
         ToggleStaffPickMessage message,
@@ -22,11 +20,7 @@ public class ToggleStaffPickMessageHandler(
         CancellationToken ct
     )
     {
-        if (
-            ctx.PlayerId <= 0
-            || message.RoomId <= 0
-            || !_navigatorService.CanManageStaffPicks(ctx.PlayerId)
-        )
+        if (message.RoomId <= 0)
             return;
 
         // The client sends the room's current state; the request is to flip it.

@@ -19,6 +19,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums.Messenger;
 using Turbo.Primitives.Players.Grains.Messenger;
 using Turbo.Primitives.Players.Messenger;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Snapshots.Messenger;
 
@@ -96,18 +97,22 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         await FlushDeliveredMessagesAsync(ct);
     }
 
-    public Task<FriendListErrorCodeType> CanBeAddedByAsync(PlayerId playerId, CancellationToken ct)
+    public async Task<FriendListErrorCodeType> CanBeAddedByAsync(
+        PlayerId playerId,
+        CancellationToken ct
+    )
     {
-        // Answered from memory, between the accepting side's other awaits, so two accepts in
-        // the same instant can each see one free slot. One friend over the limit is the worst
-        // case, and the alternative is the two grains waiting on each other.
-        if (_state.Friends.Count >= GetFriendLimit())
-            return Task.FromResult(FriendListErrorCodeType.TheyHitFriendLimit);
+        // Answered between the accepting side's other awaits, so two accepts in the same instant
+        // can each see one free slot. One friend over the limit is the worst case, and the
+        // alternative is the two grains waiting on each other. The limit itself is asked of the
+        // permission grain, which never calls a messenger, so waiting on it cannot deadlock.
+        if (_state.Friends.Count >= await GetFriendLimitAsync(ct))
+            return FriendListErrorCodeType.TheyHitFriendLimit;
 
         if (_state.BlockedPlayerIds.Contains(playerId))
-            return Task.FromResult(FriendListErrorCodeType.BlockedByThem);
+            return FriendListErrorCodeType.BlockedByThem;
 
-        return Task.FromResult(FriendListErrorCodeType.None);
+        return FriendListErrorCodeType.None;
     }
 
     public Task OnFriendAddedAsync(PlayerSummarySnapshot snapshot, CancellationToken ct)
@@ -176,11 +181,11 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         ForceUpdate(snapshot.PlayerId);
     }
 
-    private FriendListErrorCodeType CanAddFriend(PlayerId playerId)
+    private FriendListErrorCodeType CanAddFriend(PlayerId playerId, int friendLimit)
     {
         var errorCode = FriendListErrorCodeType.None;
 
-        if (_state.Friends.Count >= GetFriendLimit())
+        if (_state.Friends.Count >= friendLimit)
             errorCode = FriendListErrorCodeType.YouHitFriendLimit;
         else if (!_state.IncomingRequests.TryGetValue(playerId, out var request))
             errorCode = FriendListErrorCodeType.FriendRequestNotFound;
@@ -263,15 +268,16 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
     {
         var failures = new List<MessengerAcceptFriendFailure>();
         var candidates = new List<PlayerId>();
+        var friendLimit = await GetFriendLimitAsync(ct);
 
         // Local checks first, counting the ones already let through against the limit, as the
         // one-at-a-time version did by adding each friend before checking the next.
         foreach (var playerId in playerIds.Distinct().Select(PlayerId.Parse))
         {
             var errorCode =
-                _state.Friends.Count + candidates.Count >= GetFriendLimit()
+                _state.Friends.Count + candidates.Count >= friendLimit
                     ? FriendListErrorCodeType.YouHitFriendLimit
-                    : CanAddFriend(playerId);
+                    : CanAddFriend(playerId, friendLimit);
 
             if (errorCode != FriendListErrorCodeType.None)
             {
@@ -385,7 +391,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         if (playerId == _state.PlayerId)
             return new MessengerRequestFriendResult(false);
 
-        if (_state.Friends.Count >= GetFriendLimit())
+        if (_state.Friends.Count >= await GetFriendLimitAsync(ct))
             return new MessengerRequestFriendResult(
                 false,
                 FriendListErrorCodeType.YouHitFriendLimit
@@ -433,26 +439,27 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         return new MessengerRequestFriendResult(true);
     }
 
-    public Task<MessengerRequestFriendResult> ReceieveFriendRequestAsync(
+    public async Task<MessengerRequestFriendResult> ReceieveFriendRequestAsync(
         PlayerSummarySnapshot snapshot,
         CancellationToken ct
     )
     {
-        if (_state.Friends.Count >= GetFriendLimit())
-            return Task.FromResult(
-                new MessengerRequestFriendResult(false, FriendListErrorCodeType.TheyHitFriendLimit)
+        // The limit is asked of the permission grain, which never calls a messenger, so this
+        // interleaved call waiting on it cannot deadlock.
+        if (_state.Friends.Count >= await GetFriendLimitAsync(ct))
+            return new MessengerRequestFriendResult(
+                false,
+                FriendListErrorCodeType.TheyHitFriendLimit
             );
 
         if (_state.BlockedPlayerIds.Contains(snapshot.PlayerId))
-            return Task.FromResult(
-                new MessengerRequestFriendResult(false, FriendListErrorCodeType.BlockedByThem)
-            );
+            return new MessengerRequestFriendResult(false, FriendListErrorCodeType.BlockedByThem);
 
         if (
             _state.Friends.ContainsKey(snapshot.PlayerId)
             || _state.IncomingRequests.ContainsKey(snapshot.PlayerId)
         )
-            return Task.FromResult(new MessengerRequestFriendResult(false));
+            return new MessengerRequestFriendResult(false);
 
         var requestDto = new MessengerRequestDto
         {
@@ -473,9 +480,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
             )
             .LogAndForget(_logger, "show player {PlayerId} a friend request", _state.PlayerId);
 
-        return Task.FromResult(
-            new MessengerRequestFriendResult(true, FriendListErrorCodeType.None)
-        );
+        return new MessengerRequestFriendResult(true, FriendListErrorCodeType.None);
     }
 
     public async Task BlockPlayerAsync(PlayerId targetId, CancellationToken ct)
@@ -1070,7 +1075,9 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         [
             new MessengerInitMessageComposer
             {
-                UserFriendLimit = _playerConfig.MessengerUserFriendLimit,
+                // The limit this player has; the other two are the hotel's tiers, which the
+                // client shows beside it.
+                UserFriendLimit = await GetFriendLimitAsync(ct),
                 NormalFriendLimit = _playerConfig.MessengerNormalFriendLimit,
                 ExtendedFriendLimit = _playerConfig.MessengerExtendedFriendLimit,
                 FriendCategories = categories,
@@ -1170,7 +1177,17 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         return Task.FromResult(entries);
     }
 
-    private int GetFriendLimit() => _playerConfig.MessengerNormalFriendLimit;
+    /// <summary>
+    /// The player's own friend limit: the hotel's normal limit, or what their permissions raise it
+    /// to through <c>limit.friends</c>.
+    /// </summary>
+    private Task<int> GetFriendLimitAsync(CancellationToken ct) =>
+        _grainFactory.GetLimitAsync(
+            _state.PlayerId,
+            PermissionMetaKeys.Limit.FRIENDS,
+            _playerConfig.MessengerNormalFriendLimit,
+            ct
+        );
 
     /// <summary>The escape character for <see cref="EscapeLikePattern"/>; MySQL's own default.</summary>
     private const string LIKE_ESCAPE = "\\";

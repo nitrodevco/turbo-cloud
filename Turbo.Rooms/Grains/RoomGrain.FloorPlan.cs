@@ -9,6 +9,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
@@ -46,6 +47,10 @@ public sealed partial class RoomGrain
                 !await _grainFactory
                     .GetPlayerSubscriptionGrain(ctx.PlayerId)
                     .HasActiveAsync(SubscriptionType.BuildersClub, ct)
+                && !await SecurityModule.HasPermissionAsync(
+                    ctx.PlayerId,
+                    PermissionNodes.Room.FLOORPLAN_SAVE_WITHOUT_CLUB
+                )
             )
             {
                 _logger.LogWarning(
@@ -57,7 +62,13 @@ public sealed partial class RoomGrain
                 return null;
             }
 
-            if (!await MapModule.SaveFloorPlanAsync(modelData, properties, ct))
+            // Past the area the editor draws, only with the perk it draws it for.
+            var allowLarge = await SecurityModule.HasPermissionAsync(
+                ctx.PlayerId,
+                PermissionNodes.Room.FLOORPLAN_LARGE
+            );
+
+            if (!await MapModule.SaveFloorPlanAsync(modelData, properties, allowLarge, ct))
                 return null;
 
             return

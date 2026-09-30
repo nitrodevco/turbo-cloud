@@ -36,10 +36,11 @@ public sealed partial class RoomMapModule
     public async Task<bool> SaveFloorPlanAsync(
         string modelData,
         FloorPlanPropertiesSnapshot? properties,
+        bool allowLarge,
         CancellationToken ct
     )
     {
-        if (!TryReadFloorPlan(modelData, out var rows, out var reason))
+        if (!TryReadFloorPlan(modelData, allowLarge, out var rows, out var reason))
         {
             _roomGrain._logger.LogWarning(
                 "Room {RoomId} refused a floor plan: {Reason}",
@@ -115,7 +116,12 @@ public sealed partial class RoomMapModule
     /// Reads the plan the client drew into its rows, or says why it will not do. Everything here
     /// is a limit the editor keeps to as well, so none of it should ever be hit by a real save.
     /// </summary>
-    private bool TryReadFloorPlan(string modelData, out List<string> rows, out string reason)
+    private bool TryReadFloorPlan(
+        string modelData,
+        bool allowLarge,
+        out List<string> rows,
+        out string reason
+    )
     {
         rows = [];
         reason = string.Empty;
@@ -160,7 +166,7 @@ public sealed partial class RoomMapModule
         }
 
         // Counted the way the editor counts it, so the two agree on what is too big.
-        if ((width - 1) * (height - 1) > _roomGrain._roomConfig.FloorPlanMaxArea)
+        if (!allowLarge && (width - 1) * (height - 1) > _roomGrain._roomConfig.FloorPlanMaxArea)
         {
             reason = $"it covers more than {_roomGrain._roomConfig.FloorPlanMaxArea} tiles";
 

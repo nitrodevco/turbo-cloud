@@ -125,8 +125,8 @@ public class RoomConfig
     /// <summary>
     /// The largest area a saved floor plan may cover, counted as the editor counts it:
     /// <c>(width - 1) * (height - 1)</c>. The editor lets a player past this only when they hold
-    /// the <c>BUILDER_AT_WORK</c> perk, which nothing grants yet, so for now it is the ceiling
-    /// for everyone.
+    /// the <c>BUILDER_AT_WORK</c> perk, which the <c>room.floorplan.large</c> permission projects
+    /// to; the server lets the same players past it, up to the axis limit above.
     /// </summary>
     public int FloorPlanMaxArea { get; init; } = 3025;
 
@@ -161,9 +161,6 @@ public class RoomConfig
 
     /// <summary>Items one side may offer in a trade.</summary>
     public int TradeMaxItemsPerSide { get; init; } = 50;
-
-    /// <summary>Whether the TRADE perk gates trading, as on the live hotel; off lets every account trade.</summary>
-    public bool TradeRequiresPerk { get; init; } = false;
 
     public int RoomFilterMaxWords { get; init; } = 50;
     public int RoomFilterWordMaxLength { get; init; } = 30;

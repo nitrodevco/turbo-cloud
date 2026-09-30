@@ -52,4 +52,16 @@
     <PackageVersion Include="Scrutor" Version="6.1.0" />
     <PackageVersion Include="BouncyCastle.Cryptography" Version="2.4.0" />
   </ItemGroup>
+  <ItemGroup>
+    <!--
+      Test-only. FluentAssertions is held on 7.x: 8.0 moved to a commercial licence, and 7.x is
+      the last Apache-2.0 line.
+    -->
+    <PackageVersion Include="FluentAssertions" Version="7.2.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageVersion Include="xunit.v3" Version="3.2.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.19" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.19" />
+  </ItemGroup>
 </Project>

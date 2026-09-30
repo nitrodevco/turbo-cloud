@@ -41,10 +41,4 @@ public class NavigatorConfig
 
     /// <summary>Maximum cached entries (rooms and result lists) kept per silo.</summary>
     public int CacheSizeLimit { get; init; } = 10000;
-
-    /// <summary>
-    /// There is no staff rank system yet, so the players allowed to toggle staff picks are listed
-    /// here explicitly.
-    /// </summary>
-    public int[] StaffPickPlayerIds { get; init; } = [];
 }
