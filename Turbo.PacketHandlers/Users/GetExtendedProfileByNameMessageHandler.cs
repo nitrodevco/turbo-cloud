@@ -1,16 +1,19 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Users;
-using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 
 namespace Turbo.PacketHandlers.Users;
 
-public class GetExtendedProfileByNameMessageHandler(IGrainFactory grainFactory)
+/// <summary>
+/// A player's extended profile found by name (a <c>profile/</c> link). The work is <see
+/// cref="IPlayerService"/>'s.
+/// </summary>
+public class GetExtendedProfileByNameMessageHandler(IPlayerService playerService)
     : IMessageHandler<GetExtendedProfileByNameMessage>
 {
-    private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly IPlayerService _playerService = playerService;
 
     public async ValueTask HandleAsync(
         GetExtendedProfileByNameMessage message,
@@ -18,14 +21,14 @@ public class GetExtendedProfileByNameMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        var directoryGrain = _grainFactory.GetPlayerDirectoryGrain();
-        var playerId = await directoryGrain
-            .GetPlayerIdAsync(message.UserName, ct)
-            .ConfigureAwait(false);
-
-        if (playerId is null)
+        if (ctx.PlayerId <= 0)
             return;
 
-        await ctx.SendExtendedProfileAsync(_grainFactory, playerId.Value, ct).ConfigureAwait(false);
+        var reply = await _playerService
+            .GetExtendedProfileByNameAsync(ctx.PlayerId, message.UserName, ct)
+            .ConfigureAwait(false);
+
+        if (reply is not null)
+            await ctx.SendComposerAsync(reply, ct).ConfigureAwait(false);
     }
 }

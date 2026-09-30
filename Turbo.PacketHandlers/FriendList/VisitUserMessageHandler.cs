@@ -1,19 +1,19 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
-using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players.Messenger;
 
 namespace Turbo.PacketHandlers.FriendList;
 
 /// <summary>
-/// Forwards the client to the target player's room. The client then runs the normal navigator
-/// entry flow (GetGuestRoom with roomForward), so door checks and prompts apply as usual.
+/// Goes to the room a player, found by name, is in. The client then enters it the normal way, so
+/// door checks still apply. The work is <see cref="IMessengerService"/>'s.
 /// </summary>
-public class VisitUserMessageHandler(IGrainFactory grainFactory) : IMessageHandler<VisitUserMessage>
+public class VisitUserMessageHandler(IMessengerService messengerService)
+    : IMessageHandler<VisitUserMessage>
 {
-    private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly IMessengerService _messengerService = messengerService;
 
     public async ValueTask HandleAsync(
         VisitUserMessage message,
@@ -24,22 +24,8 @@ public class VisitUserMessageHandler(IGrainFactory grainFactory) : IMessageHandl
         if (ctx.PlayerId <= 0)
             return;
 
-        var playerDirectory = _grainFactory.GetPlayerDirectoryGrain();
-        var targetId = await playerDirectory
-            .GetPlayerIdAsync(message.PlayerName, ct)
-            .ConfigureAwait(false);
-
-        if (targetId is null)
-            return;
-
-        var targetPresence = _grainFactory.GetPlayerPresenceGrain(targetId.Value);
-        var activeRoom = await targetPresence.GetActiveRoomAsync(ct).ConfigureAwait(false);
-
-        if (activeRoom.RoomId <= 0)
-            return;
-
-        await _grainFactory
-            .ForwardPlayerToRoomAsync(ctx.PlayerId, activeRoom.RoomId, ct)
+        await _messengerService
+            .VisitUserAsync(ctx.PlayerId, message.PlayerName, ct)
             .ConfigureAwait(false);
     }
 }

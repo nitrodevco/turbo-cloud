@@ -42,6 +42,9 @@ internal sealed partial class GuildGrain : Grain, IGuildGrain
 
     private readonly GuildLiveState _state;
 
+    /// <summary>The group chat's listener check; running only while someone listens.</summary>
+    private IDisposable? _chatListenerTimer;
+
     private GuildId GuildId => _state.GuildId;
 
     public GuildGrain(
@@ -71,6 +74,14 @@ internal sealed partial class GuildGrain : Grain, IGuildGrain
 
             throw;
         }
+    }
+
+    public override Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
+    {
+        _chatListenerTimer?.Dispose();
+        _chatListenerTimer = null;
+
+        return Task.CompletedTask;
     }
 
     public Task<GuildSnapshot?> GetSnapshotAsync(CancellationToken ct) =>

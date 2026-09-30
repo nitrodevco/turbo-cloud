@@ -85,4 +85,12 @@ public sealed record PlayerSettingsSnapshot
 
     [Id(25)]
     public required NavigatorViewModeType NavigatorResultsMode { get; init; }
+
+    /// <summary>Whether others may not ask this player to be a friend.</summary>
+    [Id(26)]
+    public required bool FriendRequestsDisabled { get; init; }
+
+    /// <summary>Whether the player's profile is hidden from others.</summary>
+    [Id(27)]
+    public required bool ProfileHidden { get; init; }
 }

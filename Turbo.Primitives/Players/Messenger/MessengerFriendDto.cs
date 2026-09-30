@@ -26,7 +26,11 @@ public sealed record MessengerFriendDto
             Figure = snapshot.Figure,
             Gender = snapshot.Gender,
             Online = snapshot.IsOnline,
-            FollowingAllowed = true,
+            // FriendsView.refreshFriendEntry draws the follow button from this flag alone, and
+            // following an offline friend can only fail.
+            FollowingAllowed = snapshot.IsOnline,
+            // Offline friends are sent messages too; see PlayerMessengerGrain.SendInitAsync.
+            PersistedMessageUser = true,
             LastAccess = snapshot.LastUpdated.ToString(
                 LAST_ACCESS_FORMAT,
                 CultureInfo.InvariantCulture
@@ -52,7 +56,7 @@ public sealed record MessengerFriendDto
     public string Figure { get; set; } = string.Empty;
 
     [Id(6)]
-    public int CategoryId { get; set; } = -1;
+    public int CategoryId { get; set; } = 0;
 
     [Id(7)]
     public string Motto { get; set; } = string.Empty;

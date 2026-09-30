@@ -206,6 +206,9 @@ internal sealed partial class GuildGrain
         _state.Guild = null;
         _state.RankByPlayerId.Clear();
 
+        foreach (var listenerId in _state.ChatListenerIds.ToList())
+            StopListening(PlayerId.Parse(listenerId));
+
         await _grainFactory.GetGuildDirectoryGrain().OnGuildRemovedAsync(guild.GuildId, ct);
 
         // The homeroom hands its furni back to whoever owns it, which is what the client's

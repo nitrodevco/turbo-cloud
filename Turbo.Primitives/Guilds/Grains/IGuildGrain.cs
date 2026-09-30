@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Orleans.Concurrency;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Players;
@@ -158,4 +159,30 @@ public interface IGuildGrain : IGrainWithIntegerKey
     /// larger than the hotel allows to be deleted at all.
     /// </summary>
     public Task<bool> DeactivateAsync(PlayerId actorId, CancellationToken ct);
+
+    // The group chat (the messenger's conversation with id minus the group id). Who is listening
+    // is held in memory only: a member's messenger joins when its owner comes online or joins the
+    // group and leaves when they go offline or leave it. The messenger awaits these, so the two
+    // that only touch memory are interleaved; this grain never calls a messenger.
+
+    /// <summary>Starts sending the group chat to a member's session. False for a non-member.</summary>
+    [AlwaysInterleave]
+    public Task<bool> JoinChatAsync(PlayerId playerId, CancellationToken ct);
+
+    /// <summary>Stops sending the group chat to a player.</summary>
+    [AlwaysInterleave]
+    public Task LeaveChatAsync(PlayerId playerId, CancellationToken ct);
+
+    /// <summary>
+    /// Sends a member's line to every other member listening. False, and nothing sent, when the
+    /// sender is not a member.
+    /// </summary>
+    public Task<bool> SendChatMessageAsync(
+        PlayerId senderId,
+        string senderName,
+        string senderFigure,
+        string message,
+        string messageId,
+        CancellationToken ct
+    );
 }

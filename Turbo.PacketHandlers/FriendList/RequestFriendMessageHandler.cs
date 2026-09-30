@@ -1,19 +1,19 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
-using Turbo.Primitives.Messages.Outgoing.FriendList;
-using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Players;
-using Turbo.Primitives.Players.Enums.Messenger;
+using Turbo.Primitives.Players.Messenger;
 
 namespace Turbo.PacketHandlers.FriendList;
 
-public class RequestFriendMessageHandler(IGrainFactory grainFactory)
+/// <summary>
+/// Asks a player, by name, to be a friend and reports a refusal. The work is <see
+/// cref="IMessengerService"/>'s.
+/// </summary>
+public class RequestFriendMessageHandler(IMessengerService messengerService)
     : IMessageHandler<RequestFriendMessage>
 {
-    private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly IMessengerService _messengerService = messengerService;
 
     public async ValueTask HandleAsync(
         RequestFriendMessage message,
@@ -24,34 +24,11 @@ public class RequestFriendMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0)
             return;
 
-        var targetId = await _grainFactory
-            .GetPlayerDirectoryGrain()
-            .GetPlayerIdAsync(message.PlayerName, ct)
+        var reply = await _messengerService
+            .RequestFriendAsync(ctx.PlayerId, message.PlayerName, ct)
             .ConfigureAwait(false);
 
-        if (targetId is not PlayerId playerId)
-            return;
-
-        var result = await _grainFactory
-            .GetPlayerMessengerGrain(ctx.PlayerId)
-            .SendFriendRequestAsync(playerId, ct)
-            .ConfigureAwait(false);
-
-        // A request that already stands, either way, or one to yourself fails with no error:
-        // the client has no text for code 0 (HabboFriendList.showAlertView), so it is dropped.
-        if (
-            !result.Success
-            && result.ErrorType is { } errorType
-            && errorType != FriendListErrorCodeType.None
-        )
-            await ctx.SendComposerAsync(
-                    new MessengerErrorMessageComposer
-                    {
-                        ClientMessageId = 0,
-                        ErrorCode = errorType,
-                    },
-                    ct
-                )
-                .ConfigureAwait(false);
+        if (reply is not null)
+            await ctx.SendComposerAsync(reply, ct).ConfigureAwait(false);
     }
 }

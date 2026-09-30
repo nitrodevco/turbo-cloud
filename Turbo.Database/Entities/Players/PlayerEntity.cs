@@ -58,6 +58,10 @@ public class PlayerEntity : TurboEntity
     [Column("respect_reset_date")]
     public DateTime? RespectResetDate { get; set; }
 
+    /// <summary>When the player last opened a session (UTC); null for one who never has.</summary>
+    [Column("last_login")]
+    public DateTime? LastLoginAt { get; set; }
+
     [InverseProperty("PlayerEntity")]
     public List<PlayerBadgeEntity>? PlayerBadges { get; set; }
 

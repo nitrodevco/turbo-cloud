@@ -1035,6 +1035,10 @@ public class Revision20260909 : IRevision
                 MessageEvent.SetRoomCameraPreferencesMessageEvent,
                 new SetRoomCameraPreferencesMessageParser()
             },
+            {
+                MessageEvent.SetOnlineIndicatorPreferenceMessageEvent,
+                new SetOnlineIndicatorPreferenceMessageParser()
+            },
             { MessageEvent.SetSoundSettingsMessageEvent, new SetSoundSettingsMessageParser() },
             { MessageEvent.SetUIFlagsMessageEvent, new SetUIFlagsMessageParser() },
             #endregion

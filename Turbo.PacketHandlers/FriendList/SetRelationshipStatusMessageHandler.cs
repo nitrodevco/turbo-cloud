@@ -1,17 +1,19 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
-using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Players.Enums.Messenger;
+using Turbo.Primitives.Players.Messenger;
 
 namespace Turbo.PacketHandlers.FriendList;
 
-public class SetRelationshipStatusMessageHandler(IGrainFactory grainFactory)
+/// <summary>
+/// Sets what a friend is to the player (<c>RelationshipStatusSelector</c>). The work is <see
+/// cref="IMessengerService"/>'s.
+/// </summary>
+public class SetRelationshipStatusMessageHandler(IMessengerService messengerService)
     : IMessageHandler<SetRelationshipStatusMessage>
 {
-    private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly IMessengerService _messengerService = messengerService;
 
     public async ValueTask HandleAsync(
         SetRelationshipStatusMessage message,
@@ -22,11 +24,11 @@ public class SetRelationshipStatusMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0)
             return;
 
-        await _grainFactory
-            .GetPlayerMessengerGrain(ctx.PlayerId)
+        await _messengerService
             .SetRelationshipStatusAsync(
+                ctx.PlayerId,
                 message.FriendUserId,
-                (MessengerFriendRelationType)message.RelationType,
+                message.RelationType,
                 ct
             )
             .ConfigureAwait(false);

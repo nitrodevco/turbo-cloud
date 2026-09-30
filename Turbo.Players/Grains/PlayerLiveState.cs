@@ -20,6 +20,9 @@ internal sealed class PlayerLiveState
     public bool IsOnline { get; set; } = false;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
+
+    /// <summary>When the player last opened a session (UTC), for the profile; null if never.</summary>
+    public DateTime? LastLoginAtUtc { get; set; }
     public int RespectPoints { get; set; } = 0;
     public int RespectsLeft { get; set; } = 0;
     public int PetRespectsLeft { get; set; } = 0;

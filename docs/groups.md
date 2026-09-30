@@ -398,7 +398,7 @@ are `internal sealed`, inject `ILogger<T>`, and log every caught exception.
   reentrant, so a call in the other direction deadlocks the pair. That is why `GetViewAsync`
   answers with what the group itself knows and stops there: the homeroom's name, the owner's
   name and whether the viewer wears the badge are read beside it by the handler, the way
-  `ExtendedProfileExtensions` reads a profile and its badges side by side. Anything this grain
+  `PlayerService` reads a profile and its badges side by side. Anything this grain
   ever needs from a room must arrive as an argument or through the directory, never as a call.
 - **`GuildDirectoryGrain`**, singleton, `[KeepAlive]`, a read-through cache in the shape of
   `BadgeDirectoryGrain`. Holds id → name/badge for `HabboGroupBadges`, the room → guild reverse

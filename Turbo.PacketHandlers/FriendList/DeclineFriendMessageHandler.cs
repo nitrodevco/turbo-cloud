@@ -1,16 +1,19 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
-using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players.Messenger;
 
 namespace Turbo.PacketHandlers.FriendList;
 
-public class DeclineFriendMessageHandler(IGrainFactory grainFactory)
+/// <summary>
+/// Declines friend requests, or all of them. The client has already marked them declined. The work
+/// is <see cref="IMessengerService"/>'s.
+/// </summary>
+public class DeclineFriendMessageHandler(IMessengerService messengerService)
     : IMessageHandler<DeclineFriendMessage>
 {
-    private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly IMessengerService _messengerService = messengerService;
 
     public async ValueTask HandleAsync(
         DeclineFriendMessage message,
@@ -21,9 +24,8 @@ public class DeclineFriendMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0)
             return;
 
-        await _grainFactory
-            .GetPlayerMessengerGrain(ctx.PlayerId)
-            .DeclineFriendRequestsAsync(message.Friends, message.DeclineAll, ct)
+        await _messengerService
+            .DeclineFriendRequestsAsync(ctx.PlayerId, message.Friends, message.DeclineAll, ct)
             .ConfigureAwait(false);
     }
 }
