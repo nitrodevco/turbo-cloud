@@ -5,14 +5,16 @@ using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Room.Action;
 using Turbo.Primitives.Messages.Outgoing.Moderation;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms;
-using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.PacketHandlers.Room.Action;
 
 /// <summary>
-/// An ambassador warns a player; the target sees a moderator caution.
+/// An ambassador warns a player; the target sees a moderator caution. Staff who moderate every
+/// room may send it too, as the client offers the ambassador tools at security level 4 as well.
 /// </summary>
+[RequiresPermission(PermissionNodes.Role.AMBASSADOR, PermissionNodes.Room.MODERATE_ANY)]
 public class AmbassadorAlertMessageHandler(IGrainFactory grainFactory)
     : IMessageHandler<AmbassadorAlertMessage>
 {
@@ -24,17 +26,7 @@ public class AmbassadorAlertMessageHandler(IGrainFactory grainFactory)
         CancellationToken ct
     )
     {
-        if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || message.UserId <= 0)
-            return;
-
-        // Ambassadors are a staff perk the server does not model yet; until it does, only
-        // moderator-level controllers may send the caution, and everyone else is logged.
-        var level = await _grainFactory
-            .GetRoomGrain(ctx.RoomId)
-            .GetControllerLevelAsync(ctx.PlayerId, ct)
-            .ConfigureAwait(false);
-
-        if (level < RoomControllerType.Moderator)
+        if (ctx.RoomId <= 0 || message.UserId <= 0)
             return;
 
         await _grainFactory

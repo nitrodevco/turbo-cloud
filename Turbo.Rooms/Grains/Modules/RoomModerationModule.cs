@@ -12,6 +12,7 @@ using Turbo.Primitives.Messages.Outgoing.Roomsettings;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
 
@@ -59,7 +60,11 @@ public sealed class RoomModerationModule(
 
         var controllerLevel = await SecurityModule.GetControllerLevelAsync(playerId);
 
-        return controllerLevel < RoomControllerType.Rights;
+        return controllerLevel < RoomControllerType.Rights
+            && !await SecurityModule.HasPermissionAsync(
+                playerId,
+                PermissionNodes.Room.MODERATE_ANY
+            );
     }
 
     public async Task<bool> MutePlayerAsync(
@@ -372,12 +377,19 @@ public sealed class RoomModerationModule(
         ];
     }
 
-    /// <summary>The ban list is part of room settings: owners, or whoever the ban setting allows.</summary>
+    /// <summary>
+    /// The ban list is part of room settings: owners, whoever the ban setting allows, and staff who
+    /// moderate every room.
+    /// </summary>
     private async Task<bool> CanManageBansAsync(ActionContext ctx)
     {
         var level = await SecurityModule.GetControllerLevelAsync(ctx);
 
-        return level.IsAllowedBy(_roomGrain._state.RoomSnapshot.ModSettings.WhoCanBan);
+        return level.IsAllowedBy(_roomGrain._state.RoomSnapshot.ModSettings.WhoCanBan)
+            || await SecurityModule.HasPermissionAsync(
+                ctx.PlayerId,
+                PermissionNodes.Room.MODERATE_ANY
+            );
     }
 
     public async Task<ImmutableArray<string>?> GetRoomFilterWordsAsync(
@@ -518,6 +530,14 @@ public sealed class RoomModerationModule(
     {
         if (targetId <= 0 || ctx.PlayerId == targetId)
             return false;
+
+        // Staff who moderate every room act whatever the room's setting says, on anyone who does
+        // not moderate every room too; between two of them the room levels below decide.
+        if (
+            await SecurityModule.HasPermissionAsync(ctx.PlayerId, PermissionNodes.Room.MODERATE_ANY)
+            && !await SecurityModule.HasPermissionAsync(targetId, PermissionNodes.Room.MODERATE_ANY)
+        )
+            return true;
 
         var actorLevel = await SecurityModule.GetControllerLevelAsync(ctx);
         var targetLevel = await SecurityModule.GetControllerLevelAsync(targetId);

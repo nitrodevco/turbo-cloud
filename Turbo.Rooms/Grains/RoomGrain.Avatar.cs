@@ -8,6 +8,7 @@ using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots;
+using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object;
@@ -64,6 +65,12 @@ public sealed partial class RoomGrain
         DateTime? expiresAt,
         CancellationToken ct
     ) => AvatarModule.SetPlayerHabboClubAsync(playerId, expiresAt, ct);
+
+    public Task SetPlayerPermissionsAsync(
+        PlayerId playerId,
+        ResolvedPermissionsSnapshot permissions,
+        CancellationToken ct
+    ) => AvatarModule.SetPlayerPermissionsAsync(playerId, permissions, ct);
 
     public async Task<bool> RemoveAvatarFromPlayerAsync(
         ActionContext ctx,

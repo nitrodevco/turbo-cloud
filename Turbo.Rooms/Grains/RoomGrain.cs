@@ -71,6 +71,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly IHotelTextProvider _hotelTextProvider;
     internal readonly IChatStyleProvider _chatStyleProvider;
     internal readonly ICatalogService _catalogService;
+    internal readonly IPermissionRegistryProvider _permissionRegistryProvider;
     internal readonly EventSystem _eventSystem;
     internal readonly ILogger<IRoomGrain> _logger;
 
@@ -124,6 +125,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IHotelTextProvider hotelTextProvider,
         IChatStyleProvider chatStyleProvider,
         ICatalogService catalogService,
+        IPermissionRegistryProvider permissionRegistryProvider,
         EventSystem eventSystem,
         ILogger<IRoomGrain> logger
     )
@@ -145,6 +147,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _hotelTextProvider = hotelTextProvider;
         _chatStyleProvider = chatStyleProvider;
         _catalogService = catalogService;
+        _permissionRegistryProvider = permissionRegistryProvider;
         _eventSystem = eventSystem;
         _logger = logger;
 

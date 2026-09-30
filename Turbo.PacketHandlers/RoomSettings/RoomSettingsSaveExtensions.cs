@@ -23,12 +23,17 @@ internal static class RoomSettingsSaveExtensions
     /// The category the player asked for when it is one they may list a room in, otherwise null,
     /// which the room grain reads as "leave the category as it is".
     /// </summary>
-    public static int? ResolvePlayerFlatCategory(
+    public static async Task<int?> ResolvePlayerFlatCategoryAsync(
         this INavigatorService navigatorService,
         PlayerId playerId,
-        int categoryId
+        int categoryId,
+        CancellationToken ct
     ) =>
-        navigatorService.GetFlatCategoriesForPlayer(playerId).Any(x => x.Id == categoryId)
+        (
+            await navigatorService
+                .GetFlatCategoriesForPlayerAsync(playerId, ct)
+                .ConfigureAwait(false)
+        ).Any(x => x.Id == categoryId)
             ? categoryId
             : null;
 

@@ -38,11 +38,6 @@ public class PlayerEntity : TurboEntity
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public required PlayerStatusType PlayerStatus { get; set; }
 
-    [Column("perk_flags")]
-    [DefaultValue(PlayerPerkFlags.None)]
-    [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public required PlayerPerkFlags PlayerPerks { get; set; }
-
     [Column("respect_points")]
     [DefaultValue(0)]
     public int RespectPoints { get; set; }

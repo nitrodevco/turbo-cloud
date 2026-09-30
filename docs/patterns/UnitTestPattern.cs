@@ -6,11 +6,11 @@ namespace Docs.Patterns;
 
 // Reference-only sample, and nothing compiles it.
 //
-// Read this before copying it: the solution has no test project, and neither xunit nor
-// FluentAssertions is in Directory.Packages.props. This file is the shape to write tests in
-// once there is somewhere to put them, not something you can run today. Until then, the
-// "verification of at least one edge/failure scenario" the PR expectations ask for is done by
-// hand and described in the PR.
+// Tests live in Turbo.Tests (xunit v3, FluentAssertions 7.x), mirroring the folder of the type
+// under test (Turbo.Tests/Players/Permissions/ for Turbo.Primitives/Players/Permissions/), and
+// the Code Quality workflow runs them. It references Turbo.Primitives, and Turbo.PacketHandlers so
+// PermissionGateTests can read handler IL; add a reference to a domain module when there is a pure
+// function there worth testing, not to reach a grain.
 //
 // The shape: one public type per file, here the test class; its subject is something that
 // already exists in the repository, so the sample cannot drift into testing an invented type.

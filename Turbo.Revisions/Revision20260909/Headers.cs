@@ -590,6 +590,13 @@ internal static class MessageEvent
     public const int WithdrawCreditVaultMessageEvent = 2526;
     public const int WithdrawItemsFromChestMessageEvent = 369;
     #endregion
+
+    // Turbo's own extensions, not Habbo's: headers from 30000, clear of every id Habbo uses
+    // (4101 at most in this revision). Only a client that asks sends or receives them; see
+    // docs/client-capabilities.md.
+    #region Turbo
+    public const int TurboClientCapabilitiesMessageEvent = 30000;
+    #endregion
 }
 
 internal static class MessageComposer
@@ -1199,5 +1206,11 @@ internal static class MessageComposer
     public const int YoutubeDisplayPlaylistsMessageComposer = 3562;
     public const int YoutubeDisplayVideoMessageComposer = 2090;
 
+    #endregion
+
+    // Turbo's own extensions; see the note on MessageEvent.
+    #region Turbo
+    public const int TurboServerCapabilitiesMessageComposer = 30000;
+    public const int TurboPermissionNodesMessageComposer = 30001;
     #endregion
 }

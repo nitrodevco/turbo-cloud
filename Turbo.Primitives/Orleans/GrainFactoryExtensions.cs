@@ -17,9 +17,11 @@ using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Grains.Guilds;
 using Turbo.Primitives.Players.Grains.Messenger;
 using Turbo.Primitives.Players.Grains.Navigator;
+using Turbo.Primitives.Players.Grains.Permissions;
 using Turbo.Primitives.Players.Grains.Settings;
 using Turbo.Primitives.Players.Grains.Subscriptions;
 using Turbo.Primitives.Players.Grains.Wardrobe;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -77,6 +79,46 @@ public static class GrainFactoryExtensions
 
     public static IPlayerDirectoryGrain GetPlayerDirectoryGrain(this IGrainFactory factory) =>
         factory.GetGrain<IPlayerDirectoryGrain>(SingletonGrainId.GLOBAL);
+
+    public static IPermissionGroupDirectoryGrain GetPermissionGroupDirectoryGrain(
+        this IGrainFactory factory
+    ) => factory.GetGrain<IPermissionGroupDirectoryGrain>(SingletonGrainId.GLOBAL);
+
+    public static IPlayerPermissionGrain GetPlayerPermissionGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerPermissionGrain>(playerId.Value);
+
+    /// <summary>
+    /// Whether a player holds a permission node: the one check every gate makes. Answered from
+    /// the player's permission grain, in memory. Pass a constant from <c>PermissionNodes</c>.
+    /// </summary>
+    public static Task<bool> HasPermissionAsync(
+        this IGrainFactory factory,
+        PlayerId playerId,
+        string node,
+        CancellationToken ct
+    ) => factory.GetPlayerPermissionGrain(playerId).HasAsync(node, ct);
+
+    /// <summary>
+    /// A limit for one player: the meta key's value when their groups or they set one, otherwise
+    /// <paramref name="fallback"/>, the hotel's configured default. The grain that enforces the
+    /// limit passes its own config option.
+    /// </summary>
+    public static async Task<int> GetLimitAsync(
+        this IGrainFactory factory,
+        PlayerId playerId,
+        string key,
+        int fallback,
+        CancellationToken ct
+    ) =>
+        PermissionMeta.ReadLimit(
+            await factory
+                .GetPlayerPermissionGrain(playerId)
+                .GetMetaAsync(key, ct)
+                .ConfigureAwait(false),
+            fallback
+        );
 
     public static IBadgeDirectoryGrain GetBadgeDirectoryGrain(this IGrainFactory factory) =>
         factory.GetGrain<IBadgeDirectoryGrain>(SingletonGrainId.GLOBAL);

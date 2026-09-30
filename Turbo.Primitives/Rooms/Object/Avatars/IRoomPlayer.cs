@@ -2,7 +2,9 @@ using System;
 using System.Collections.Immutable;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Snapshots;
+using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -45,6 +47,18 @@ public interface IRoomPlayer : IRoomAvatar<IRoomPlayer, IRoomPlayerLogic, IRoomP
     public string GuildName { get; }
 
     public void SetFavouriteGuild(int guildId, GuildMembershipStatus guildStatus, string guildName);
+
+    /// <summary>
+    /// What the player holds, resolved: loaded before the avatar is made, so the moderator flag it
+    /// is sent with is right, and replaced when the player's permissions change. Synchronous rights
+    /// checks read it; see <c>docs/permissions.md</c> §11.
+    /// </summary>
+    public ResolvedPermissionsSnapshot Permissions { get; }
+
+    /// <summary>Holds <see cref="PermissionNodes.Room.MODERATE_ANY"/>; the client reads it from the avatar.</summary>
+    public bool IsModerator { get; }
+
+    public void SetPermissions(ResolvedPermissionsSnapshot permissions);
 
     public void SetBadges(ImmutableArray<string> badgeCodes);
     public void SetHabboClubExpiresAt(DateTime? expiresAt);

@@ -16,5 +16,7 @@ public sealed class UserIsOwnerVariable(RoomGrain roomGrain)
     protected override ushort Order => 10;
 
     protected override bool HasFlag(IRoomPlayer avatar) =>
-        SecurityModule.IsRoomOwner(avatar.PlayerId);
+        // Whose room it is, not who may act as its owner: staff controlling every room are not
+        // the owner of a wired game they walk into.
+        SecurityModule.IsOwnedBy(avatar.PlayerId);
 }

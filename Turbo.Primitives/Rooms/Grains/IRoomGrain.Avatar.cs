@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots;
+using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -57,6 +58,16 @@ public partial interface IRoomGrain
     public Task SetPlayerHabboClubAsync(
         PlayerId playerId,
         DateTime? expiresAt,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// A player in the room had their permissions change. Called by the presence, never awaited by
+    /// it.
+    /// </summary>
+    public Task SetPlayerPermissionsAsync(
+        PlayerId playerId,
+        ResolvedPermissionsSnapshot permissions,
         CancellationToken ct
     );
 

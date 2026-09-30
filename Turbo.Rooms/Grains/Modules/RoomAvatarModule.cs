@@ -14,7 +14,9 @@ using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Snapshots;
+using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Avatar;
 using Turbo.Primitives.Rooms.Object;
@@ -61,7 +63,13 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             startRot = arrivalItem.Rotation;
         }
 
+        // Read before the avatar is made, unlike the badges and the club below: the moderator
+        // flag goes out with the avatar the moment it attaches.
+        var permissions = await LoadPermissionsAsync(snapshot.PlayerId, ct);
+
         var avatar = _roomGrain._avatarProvider.CreateAvatarFromPlayerSnapshot(objectId, snapshot);
+
+        avatar.SetPermissions(permissions);
 
         avatar.SetRoomEntry(entry);
 
@@ -108,6 +116,56 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         item = found;
 
         return arrival;
+    }
+
+    /// <summary>
+    /// The player's resolved permissions, for the room's synchronous rights checks. A player whose
+    /// permissions could not be read holds none, which is the safe way round.
+    /// </summary>
+    private async Task<ResolvedPermissionsSnapshot> LoadPermissionsAsync(
+        PlayerId playerId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return await _roomGrain
+                ._grainFactory.GetPlayerPermissionGrain(playerId)
+                .GetResolvedAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _roomGrain._logger.LogWarning(
+                ex,
+                "Could not load the permissions of player {PlayerId} entering room {RoomId}",
+                playerId,
+                _roomGrain.RoomId
+            );
+
+            return ResolvedPermissionsSnapshot.EMPTY;
+        }
+    }
+
+    /// <summary>
+    /// A player in the room had their permissions change. Controlling every room changes their
+    /// controller level, so that is worked out and sent again; the moderator flag reaches the room
+    /// with the avatar's next update.
+    /// </summary>
+    public async Task SetPlayerPermissionsAsync(
+        PlayerId playerId,
+        ResolvedPermissionsSnapshot permissions,
+        CancellationToken ct
+    )
+    {
+        if (!TryGetPlayer(playerId, out var player))
+            return;
+
+        var controlledAny = player.Permissions.Has(PermissionNodes.Room.CONTROL_ANY);
+
+        player.SetPermissions(permissions);
+
+        if (permissions.Has(PermissionNodes.Room.CONTROL_ANY) != controlledAny)
+            await SecurityModule.RefreshControllerLevelForPlayerAsync(playerId, ct);
     }
 
     /// <summary>The badges a player wears feed the "wearing badge" wired condition.</summary>
