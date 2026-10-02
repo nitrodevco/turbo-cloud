@@ -641,6 +641,222 @@ public sealed class AchievementCatalogContractTests : IDisposable
             ]
         );
 
+    [Fact]
+    public async Task RetiringPublishesANewRevisionThatKeepsEverythingElseAndIsAudited()
+    {
+        var catalog = NewCatalog();
+        var start = new DateTime(2026, 12, 25, 0, 0, 0, DateTimeKind.Utc);
+        var original = Definition(100160, "retire-me", AchievementSources.FIGURE) with
+        {
+            State = AchievementState.OffSeason,
+            ActiveFromUtc = start,
+            ActiveUntilUtc = start.AddDays(12),
+            Order = 7,
+        };
+        await catalog.ImportAsync([original], true, "tests", "create", "retire-op-1", Ct);
+
+        var change = await catalog.SetStateAsync(
+            "RETIRE-ME",
+            AchievementState.Archived,
+            true,
+            "console",
+            "no longer awarded",
+            "retire-op-2",
+            Ct
+        );
+
+        change
+            .Should()
+            .Be(
+                new AchievementStateChange(
+                    "retire-me",
+                    AchievementState.OffSeason,
+                    AchievementState.Archived,
+                    2,
+                    true
+                )
+            );
+        catalog
+            .Current.Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeEquivalentTo(original with { Revision = 2, State = AchievementState.Archived });
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        var audit = await db.AchievementAudit.SingleAsync(x => x.OperationId == "retire-op-2", Ct);
+        audit.Actor.Should().Be("console");
+        audit.Reason.Should().Be("no longer awarded");
+        (await db.AchievementDefinitions.CountAsync(x => x.AchievementId == 100160, Ct))
+            .Should()
+            .Be(2);
+    }
+
+    [Fact]
+    public async Task ADryRunPublishesNothing()
+    {
+        var catalog = NewCatalog();
+        var original = Definition(100161, "dry-run", AchievementSources.FIGURE);
+        await catalog.ImportAsync([original], true, "tests", "create", "dry-op-1", Ct);
+
+        var change = await catalog.SetStateAsync(
+            "dry-run",
+            AchievementState.Archived,
+            false,
+            "console",
+            "preview",
+            "dry-op-2",
+            Ct
+        );
+
+        change.Changed.Should().BeTrue();
+        change.Revision.Should().Be(2);
+        catalog.Current.Single().Should().BeEquivalentTo(original);
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.AchievementAudit.CountAsync(Ct)).Should().Be(1);
+        (await db.AchievementDefinitions.CountAsync(Ct)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task AnUnknownKeyIsRefused()
+    {
+        var catalog = NewCatalog();
+
+        var change = () =>
+            catalog.SetStateAsync(
+                "nothing-here",
+                AchievementState.Archived,
+                true,
+                "console",
+                "x",
+                "none-op",
+                Ct
+            );
+
+        await change.Should().ThrowAsync<InvalidOperationException>().WithMessage("*nothing-here*");
+    }
+
+    [Fact]
+    public async Task AnAchievementAlreadyInTheStateIsLeftAlone()
+    {
+        var catalog = NewCatalog();
+        var original = Definition(100162, "already", AchievementSources.FIGURE) with
+        {
+            State = AchievementState.Archived,
+        };
+        await catalog.ImportAsync([original], true, "tests", "create", "same-op-1", Ct);
+
+        var change = await catalog.SetStateAsync(
+            "already",
+            AchievementState.Archived,
+            true,
+            "console",
+            "again",
+            "same-op-2",
+            Ct
+        );
+
+        change.Changed.Should().BeFalse();
+        change.Revision.Should().Be(1);
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.AchievementAudit.CountAsync(Ct)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task EachChangeOfStateIsItsOwnRevision()
+    {
+        var catalog = NewCatalog();
+        await catalog.ImportAsync(
+            [Definition(100163, "walk", AchievementSources.FIGURE)],
+            true,
+            "tests",
+            "create",
+            "walk-op-0",
+            Ct
+        );
+
+        await catalog.SetStateAsync(
+            "walk",
+            AchievementState.Archived,
+            true,
+            "console",
+            "a",
+            "walk-op-1",
+            Ct
+        );
+        await catalog.SetStateAsync(
+            "walk",
+            AchievementState.OffSeason,
+            true,
+            "console",
+            "b",
+            "walk-op-2",
+            Ct
+        );
+        await catalog.SetStateAsync(
+            "walk",
+            AchievementState.Disabled,
+            true,
+            "console",
+            "c",
+            "walk-op-3",
+            Ct
+        );
+
+        catalog.Current.Single().Revision.Should().Be(4);
+        catalog.Current.Single().State.Should().Be(AchievementState.Disabled);
+    }
+
+    [Fact]
+    public async Task EnablingNeedsTheSameBadgeAssetsAnImportDoes()
+    {
+        var assetDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"achievement-enable-{Guid.NewGuid():N}"
+        );
+        Directory.CreateDirectory(assetDirectory);
+        const string badgeCode = "ACH_EnableMe1";
+        var texts = new Dictionary<string, string>
+        {
+            ["badge_name_" + badgeCode] = "Enable me",
+            ["badge_desc_" + badgeCode] = "Enable me",
+        };
+        var catalog = NewCatalog(
+            new AchievementConfig { BadgeAssetDirectory = assetDirectory },
+            texts
+        );
+        var disabled = Definition(100164, "enable-me", AchievementSources.FIGURE) with
+        {
+            Levels = [new() { Requirement = 1, BadgeCode = badgeCode }],
+        };
+        await catalog.ImportAsync([disabled], true, "tests", "create", "enable-op-0", Ct);
+
+        var withoutAsset = () =>
+            catalog.SetStateAsync(
+                "enable-me",
+                AchievementState.Enabled,
+                true,
+                "console",
+                "go",
+                "enable-op-1",
+                Ct
+            );
+        await withoutAsset.Should().ThrowAsync<InvalidOperationException>();
+        catalog.Current.Single().State.Should().Be(AchievementState.Disabled);
+
+        File.WriteAllBytes(Path.Combine(assetDirectory, badgeCode + ".png"), []);
+        await catalog.SetStateAsync(
+            "enable-me",
+            AchievementState.Enabled,
+            true,
+            "console",
+            "go",
+            "enable-op-2",
+            Ct
+        );
+
+        catalog.Current.Single().State.Should().Be(AchievementState.Enabled);
+        Directory.Delete(assetDirectory, recursive: true);
+    }
+
     private AchievementCatalog NewCatalog(
         AchievementConfig? config = null,
         IReadOnlyDictionary<string, string>? texts = null,

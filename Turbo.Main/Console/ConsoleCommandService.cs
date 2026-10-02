@@ -89,7 +89,7 @@ public class ConsoleCommandService(IServiceProvider services)
                 break;
             case "help":
                 System.Console.WriteLine(
-                    "Available commands: help, quit, reload-plugins, reload-plugin <key>, perm (perm help for usage), and any operator chat command by name, such as ban, alert or status"
+                    "Available commands: help, quit, reload-plugins, reload-plugin <key>, perm (perm help for usage), achievement (run it with no arguments for usage), and any operator chat command by name, such as ban, alert or status"
                 );
                 var registry = _services.GetRequiredService<ICommandRegistryProvider>().Current;
                 var texts = _services.GetRequiredService<IHotelTextProvider>();
