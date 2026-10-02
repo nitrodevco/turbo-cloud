@@ -715,12 +715,12 @@ set's derived level, never by comparing groups.
 
 ## 17. Audit against LuckPerms and the clients (2026-09-28)
 
-Read against the LuckPerms wiki source (`LuckPerms/wiki`, `pages/*.md`) and against every client
-on disk: AIR `WIN63-202603212315-320263584` and `WIN63-202609091217-117204808` (both in
-`SWF Sources`), its TypeScript transpile in `mikkel-project`, and nitro-next. The two AIR
+Read against the LuckPerms wiki source (`LuckPerms/wiki`, `pages/*.md`), the AS3 clients
+`WIN63-202603212315-320263584` and `WIN63-202609091217-117204808`, and nitro-next. AS3 is the
+behavioral source of truth. The two AIR
 revisions read the same nine perks and the same `hasSecurity` levels; September adds two level-4
 sites (`RewardTrackController`, `VariableFxVisualizationSettingsPreset`) the client-gates survey
-already has. mikkel matches March exactly.
+already has.
 
 ### 17.1 Wrong in what is built — fixed
 

@@ -50,6 +50,24 @@ public class PlayerSettingsEntity : TurboEntity
     [DefaultValue(false)]
     public bool RoomInvitesIgnored { get; set; }
 
+    /// <summary>
+    /// Whether others may ask this player to be a friend. The Flash client has no switch for
+    /// it (it was a website preference) and only explains the refusal
+    /// (<c>friendlist.error.friend_requests_disabled</c>).
+    /// </summary>
+    [Column("friend_requests_disabled")]
+    [DefaultValue(false)]
+    public bool FriendRequestsDisabled { get; set; }
+
+    /// <summary>
+    /// Whether the player's profile is hidden from others: groups, friend count, last login and
+    /// relationships are withheld and the client says so (<c>full_profile_hidden</c>). Another
+    /// website preference the Flash client has no switch for.
+    /// </summary>
+    [Column("profile_hidden")]
+    [DefaultValue(false)]
+    public bool ProfileHidden { get; set; }
+
     [Column("room_camera_follow_disabled")]
     [DefaultValue(false)]
     public bool RoomCameraFollowDisabled { get; set; }

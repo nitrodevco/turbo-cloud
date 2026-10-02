@@ -461,6 +461,10 @@ internal sealed partial class GuildGrain
 
         _state.RankByPlayerId[playerId.Value] = rank;
 
+        // A block is a rank too: whoever stops being a member stops hearing the chat.
+        if (!GuildMemberRanks.IsMember(rank))
+            StopListening(playerId);
+
         await _grainFactory.GetPlayerGuildGrain(playerId).OnMembershipsChangedAsync(ct);
 
         NotifyHomeroomMemberChanged(playerId);
@@ -478,6 +482,7 @@ internal sealed partial class GuildGrain
         }
 
         _state.RankByPlayerId.Remove(playerId.Value);
+        StopListening(playerId);
 
         await _grainFactory.GetPlayerGuildGrain(playerId).OnMembershipsChangedAsync(ct);
 

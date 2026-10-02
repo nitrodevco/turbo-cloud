@@ -29,6 +29,8 @@ public sealed class SessionGateway(IGrainFactory grainFactory, ILogger<ISessionG
     public ISessionContext? GetSession(SessionKey key) =>
         _sessions.TryGetValue(key, out var ctx) ? ctx : null;
 
+    public IReadOnlyCollection<ISessionContext> GetSessions() => [.. _sessions.Values];
+
     public ISessionContextObserver? GetSessionObserver(SessionKey key) =>
         _sessionObservers.TryGetValue(key, out var observer) ? observer.Ref : null;
 

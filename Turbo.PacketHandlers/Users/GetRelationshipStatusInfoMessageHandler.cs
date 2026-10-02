@@ -1,17 +1,19 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Users;
-using Turbo.Primitives.Messages.Outgoing.Users;
-using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 
 namespace Turbo.PacketHandlers.Users;
 
-public class GetRelationshipStatusInfoMessageHandler(IGrainFactory grainFactory)
+/// <summary>
+/// A player's relationship statuses, for their profile and their info stand. The work is <see
+/// cref="IPlayerService"/>'s.
+/// </summary>
+public class GetRelationshipStatusInfoMessageHandler(IPlayerService playerService)
     : IMessageHandler<GetRelationshipStatusInfoMessage>
 {
-    private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly IPlayerService _playerService = playerService;
 
     public async ValueTask HandleAsync(
         GetRelationshipStatusInfoMessage message,
@@ -22,19 +24,11 @@ public class GetRelationshipStatusInfoMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0)
             return;
 
-        var relationships = await _grainFactory
-            .GetPlayerMessengerGrain(message.PlayerId)
-            .GetRelationshipStatusInfoAsync(ct)
+        var reply = await _playerService
+            .GetRelationshipStatusInfoAsync(ctx.PlayerId, message.PlayerId, ct)
             .ConfigureAwait(false);
 
-        await ctx.SendComposerAsync(
-                new RelationshipStatusInfoEventMessageComposer
-                {
-                    UserId = message.PlayerId,
-                    Entries = relationships,
-                },
-                ct
-            )
-            .ConfigureAwait(false);
+        if (reply is not null)
+            await ctx.SendComposerAsync(reply, ct).ConfigureAwait(false);
     }
 }

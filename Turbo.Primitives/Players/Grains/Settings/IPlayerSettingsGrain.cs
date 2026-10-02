@@ -33,7 +33,25 @@ public interface IPlayerSettingsGrain : IGrainWithIntegerKey
     );
     public Task SetChatStyleAsync(int chatStyleId, ChatSizeType fontSize, CancellationToken ct);
     public Task SetIgnoreRoomInvitesAsync(bool ignoreRoomInvites, CancellationToken ct);
+
+    /// <summary>
+    /// Closes or opens the player to friend requests. The client sends no packet for it (it was
+    /// a website preference), so this is the entry point for web and admin tools.
+    /// </summary>
+    public Task SetFriendRequestsDisabledAsync(bool friendRequestsDisabled, CancellationToken ct);
+
+    /// <summary>
+    /// Hides or shows the player's profile to others. Like friend requests, a website preference
+    /// the client sends no packet for; the entry point for web and admin tools.
+    /// </summary>
+    public Task SetProfileHiddenAsync(bool profileHidden, CancellationToken ct);
     public Task SetRoomCameraFollowDisabledAsync(bool cameraFollowDisabled, CancellationToken ct);
+
+    /// <summary>
+    /// Who the player is told about coming online; a value that is not an
+    /// <c>OnlineIndicatorPreferenceType</c> is refused and logged.
+    /// </summary>
+    public Task SetOnlineIndicatorPreferenceAsync(int preference, CancellationToken ct);
     public Task SetUIFlagsAsync(UIFlags uiFlags, CancellationToken ct);
     public Task SetWiredPreferencesAsync(
         bool menuButton,

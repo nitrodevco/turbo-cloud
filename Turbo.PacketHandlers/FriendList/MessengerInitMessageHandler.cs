@@ -1,16 +1,19 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
-using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players.Messenger;
 
 namespace Turbo.PacketHandlers.FriendList;
 
-public class MessengerInitMessageHandler(IGrainFactory grainFactory)
+/// <summary>
+/// The messenger's first load: limits, categories, friends and the messages that waited. The work
+/// is <see cref="IMessengerService"/>'s.
+/// </summary>
+public class MessengerInitMessageHandler(IMessengerService messengerService)
     : IMessageHandler<MessengerInitMessage>
 {
-    private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly IMessengerService _messengerService = messengerService;
 
     public async ValueTask HandleAsync(
         MessengerInitMessage message,
@@ -21,9 +24,6 @@ public class MessengerInitMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0)
             return;
 
-        await _grainFactory
-            .GetPlayerMessengerGrain(ctx.PlayerId)
-            .SendInitAsync(ct)
-            .ConfigureAwait(false);
+        await _messengerService.SendInitAsync(ctx.PlayerId, ct).ConfigureAwait(false);
     }
 }

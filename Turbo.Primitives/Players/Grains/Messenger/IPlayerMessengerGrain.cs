@@ -71,7 +71,25 @@ public interface IPlayerMessengerGrain : IGrainWithIntegerKey
         List<MessengerSearchResultSnapshot> Friends,
         List<MessengerSearchResultSnapshot> Others
     )> SearchPlayersAsync(string query, CancellationToken ct);
-    public Task<bool> SendMessageAsync(
+
+    /// <summary>
+    /// Why this player would refuse a console message from <paramref name="senderId"/>, or null
+    /// when they would take it. Interleaved and memory-only: the sender asks before it stores the
+    /// message, and two friends messaging each other at once must not wait on each other.
+    /// </summary>
+    [AlwaysInterleave]
+    public Task<InstantMessageErrorCodeType?> CanReceiveMessageAsync(
+        PlayerId senderId,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Stores a console message to a friend and delivers it: at once when the friend is online,
+    /// or when their messenger next starts (<see cref="SendInitAsync"/>). The sender's own copy
+    /// confirms the message only once it is stored and accepted. Returns the refusal the sender
+    /// is shown instead, or null.
+    /// </summary>
+    public Task<InstantMessageErrorCodeType?> SendMessageAsync(
         PlayerId recipientId,
         string message,
         int confirmationId,
@@ -80,28 +98,81 @@ public interface IPlayerMessengerGrain : IGrainWithIntegerKey
         CancellationToken ct
     );
 
+    /// <summary>
+    /// The sender's stored message <paramref name="messageId"/>, for the owner's open session.
+    /// Checks the friendship again, since it may have ended since the sender asked, and returns
+    /// the refusal when it did; otherwise shows the message and marks the row delivered.
+    /// </summary>
     [AlwaysInterleave]
-    public Task<bool> ReceiveMessageAsync(
-        int chatId,
-        string messageText,
-        DateTime sentAtUtc,
-        string messageId,
-        int confirmationId,
+    public Task<InstantMessageErrorCodeType?> ReceiveMessageAsync(
         PlayerId senderId,
+        string message,
+        DateTime sentAtUtc,
+        int messageId,
         string senderName,
         string senderFigure,
-        CancellationToken ct,
-        int dbMessageId = 0
+        CancellationToken ct
     );
 
     /// <summary>
-    /// Sends the player the messenger's first load: the limits and categories, then the friend
-    /// list in fragments, as one batch.
+    /// A page of the stored conversation with the friend <paramref name="chatPartnerId"/>, oldest
+    /// first, of the messages before <paramref name="beforeMessageId"/> (the newest page when it
+    /// is empty). Empty while history is off (<c>MessengerHistoryPageSize</c> 0, the default),
+    /// for someone who is not a friend, and for a cursor outside this conversation.
+    /// </summary>
+    public Task<List<MessageHistoryEntrySnapshot>> GetMessageHistoryAsync(
+        PlayerId chatPartnerId,
+        string beforeMessageId,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Invites friends to the owner's room with a text (<c>RoomInviteView.sendMsg</c>). Returns
+    /// the recipients it could not reach: not a friend, offline, or past the recipient limit.
+    /// A friend who ignores room invitations is not reported, as the client never learns that.
+    /// </summary>
+    public Task<List<PlayerId>> SendRoomInviteAsync(
+        List<PlayerId> recipientIds,
+        string message,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Shows the owner a room invitation from <paramref name="senderId"/> when they are still
+    /// friends and not blocked. Interleaved and memory-only, like <see cref="ReceiveMessageAsync"/>.
+    /// </summary>
+    [AlwaysInterleave]
+    public Task ReceiveRoomInviteAsync(PlayerId senderId, string message, CancellationToken ct);
+
+    /// <summary>
+    /// Tells the player's online friends something they did, for their friend bar
+    /// (`FriendNotificationMessage`, which `HabboFriendBarData.onFriendNotification` turns into a
+    /// token on the player's tab): a room event started, an achievement earned, and so on.
+    /// </summary>
+    public Task NotifyFriendsAsync(
+        FriendNotificationCodeType typeCode,
+        string message,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Sends the player the messenger's first load: the limits and categories, the friend list in
+    /// fragments, then the messages friends sent while they were offline, as one batch.
     /// </summary>
     public Task SendInitAsync(CancellationToken ct);
 
+    /// <summary>
+    /// The owner joined or left a group, or one was deleted: the group chats in their friend
+    /// list are brought in line with their memberships while they are online. Told by the
+    /// player's guild grain; nothing awaits it.
+    /// </summary>
+    public Task OnGuildMembershipsChangedAsync(CancellationToken ct);
+
     public Task<List<MessengerCategoryDto>> GetCategoriesAsync(CancellationToken ct);
     public Task<List<MessengerFriendDto>> GetFriendsAsync(CancellationToken ct);
+
+    [AlwaysInterleave]
+    public Task<bool> IsFriendAsync(PlayerId playerId, CancellationToken ct);
     public Task<List<MessengerRequestDto>> GetRequestsAsync(CancellationToken ct);
     public Task<List<PlayerId>> GetIgnoredAsync(CancellationToken ct);
     public Task<List<MessengerUpdateSnapshot>> GetPendingUpdatesAsync(CancellationToken ct);

@@ -20,7 +20,9 @@ using Turbo.Primitives.Messages.Outgoing.Roomsettings;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums.Messenger;
 using Turbo.Primitives.Players.Grains;
+using Turbo.Primitives.Players.Grains.Messenger;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
@@ -38,6 +40,52 @@ internal sealed partial class RoomService(
     private readonly ILogger<IRoomService> _logger = logger;
     private readonly RoomConfig _roomConfig = roomConfig.Value;
     private readonly IGrainFactory _grainFactory = grainFactory;
+
+    public async Task<FollowFriendErrorCodeType?> FollowFriendAsync(
+        PlayerId playerId,
+        PlayerId friendId,
+        CancellationToken ct
+    )
+    {
+        if (playerId <= 0 || friendId <= 0)
+            return FollowFriendErrorCodeType.NotFriend;
+
+        if (
+            !await _grainFactory
+                .GetPlayerMessengerGrain(playerId)
+                .IsFriendAsync(friendId, ct)
+                .ConfigureAwait(false)
+        )
+            return FollowFriendErrorCodeType.NotFriend;
+
+        var friendPresence = _grainFactory.GetPlayerPresenceGrain(friendId);
+
+        if (!await friendPresence.HasActiveSessionAsync(ct).ConfigureAwait(false))
+            return FollowFriendErrorCodeType.Offline;
+
+        var activeRoom = await friendPresence.GetActiveRoomAsync(ct).ConfigureAwait(false);
+
+        if (activeRoom.RoomId <= 0)
+            return FollowFriendErrorCodeType.HotelView;
+
+        var access = await CheckRoomEntryAccessAsync(
+                playerId,
+                activeRoom.RoomId,
+                password: null,
+                bypassDoor: false,
+                ct
+            )
+            .ConfigureAwait(false);
+
+        if (access != RoomEntryAccessType.Allowed)
+            return FollowFriendErrorCodeType.Prevented;
+
+        await _grainFactory
+            .ForwardPlayerToRoomAsync(playerId, activeRoom.RoomId, ct)
+            .ConfigureAwait(false);
+
+        return null;
+    }
 
     public async Task<RoomEntryAccessType> CheckRoomEntryAccessAsync(
         PlayerId playerId,

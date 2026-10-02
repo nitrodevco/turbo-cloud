@@ -1,16 +1,19 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
-using Turbo.Primitives.Messages.Outgoing.FriendList;
+using Turbo.Primitives.Players.Messenger;
 
 namespace Turbo.PacketHandlers.FriendList;
 
-public class FriendListUpdateMessageHandler(IGrainFactory grainFactory)
+/// <summary>
+/// The client's friend list poll (<c>HabboFriendList.sendFriendListUpdate</c>), answered with any
+/// changes not pushed yet. The work is <see cref="IMessengerService"/>'s.
+/// </summary>
+public class FriendListUpdateMessageHandler(IMessengerService messengerService)
     : IMessageHandler<FriendListUpdateMessage>
 {
-    private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly IMessengerService _messengerService = messengerService;
 
     public async ValueTask HandleAsync(
         FriendListUpdateMessage message,
@@ -21,10 +24,11 @@ public class FriendListUpdateMessageHandler(IGrainFactory grainFactory)
         if (ctx.PlayerId <= 0)
             return;
 
-        await ctx.SendComposerAsync(
-                new FriendListUpdateMessageComposer { Categories = [], Updates = [] },
-                ct
-            )
+        var reply = await _messengerService
+            .GetFriendListUpdateAsync(ctx.PlayerId, ct)
             .ConfigureAwait(false);
+
+        if (reply is not null)
+            await ctx.SendComposerAsync(reply, ct).ConfigureAwait(false);
     }
 }

@@ -390,7 +390,20 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
                 "Failed to reload guild memberships for {PlayerId}",
                 PlayerId.Value
             );
+
+            return;
         }
+
+        // The messenger lists each group as a group chat. Told, not awaited: the messenger reads
+        // the memberships back from this grain, which would wait on this very turn.
+        _grainFactory
+            .GetPlayerMessengerGrain(PlayerId)
+            .OnGuildMembershipsChangedAsync(CancellationToken.None)
+            .LogAndForget(
+                _logger,
+                "tell the messenger of player {PlayerId} its groups changed",
+                PlayerId.Value
+            );
     }
 
     private async Task LoadAsync(CancellationToken ct)

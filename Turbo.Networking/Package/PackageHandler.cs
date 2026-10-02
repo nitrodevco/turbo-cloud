@@ -27,6 +27,9 @@ public sealed class PackageHandler(
 
         var ctx = (ISessionContext)session;
 
+        // Any packet proves the client is there, a Pong or otherwise; see SessionHeartbeat.
+        ctx.MarkReceived();
+
         try
         {
             var revision =

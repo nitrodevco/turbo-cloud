@@ -62,4 +62,11 @@ public class GuildConfig
     /// back, and what a silo starting mid-life rebuilds from.
     /// </summary>
     public int DirectoryRefreshMs { get; init; } = 300000;
+
+    /// <summary>
+    /// How often a group with members in its chat checks that each is still online, dropping
+    /// any whose session ended without leaving (a crashed silo). The check also keeps the group
+    /// loaded while anyone listens, so it must stay under the silo's idle collection age.
+    /// </summary>
+    public int ChatListenerCheckMs { get; init; } = 300000;
 }

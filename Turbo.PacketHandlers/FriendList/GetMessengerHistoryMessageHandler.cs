@@ -2,23 +2,33 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
+using Turbo.Primitives.Players.Messenger;
 
 namespace Turbo.PacketHandlers.FriendList;
 
 /// <summary>
-/// Consumes the request until a message history is kept. The client's second field is a cursor,
-/// not text: it is the id of the oldest message it already holds (empty on the first ask), and it
-/// puts what comes back in front of that. <c>PlayerMessengerGrain</c> buffers only the running
-/// session, so there is no page before the cursor to answer with.
+/// A conversation's scroll-back (<c>MainView.requestHistory</c>): the page of stored messages
+/// before the oldest the client holds. The work is <see cref="IMessengerService"/>'s.
 /// </summary>
-public class GetMessengerHistoryMessageHandler : IMessageHandler<GetMessengerHistoryMessage>
+public class GetMessengerHistoryMessageHandler(IMessengerService messengerService)
+    : IMessageHandler<GetMessengerHistoryMessage>
 {
+    private readonly IMessengerService _messengerService = messengerService;
+
     public async ValueTask HandleAsync(
         GetMessengerHistoryMessage message,
         MessageContext ctx,
         CancellationToken ct
     )
     {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        if (ctx.PlayerId <= 0)
+            return;
+
+        var reply = await _messengerService
+            .GetMessageHistoryAsync(ctx.PlayerId, message.ChatId, message.Message, ct)
+            .ConfigureAwait(false);
+
+        if (reply is not null)
+            await ctx.SendComposerAsync(reply, ct).ConfigureAwait(false);
     }
 }

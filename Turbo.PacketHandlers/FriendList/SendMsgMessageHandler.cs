@@ -1,16 +1,19 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.FriendList;
-using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Messenger;
 
 namespace Turbo.PacketHandlers.FriendList;
 
-public class SendMsgMessageHandler(IGrainFactory grainFactory) : IMessageHandler<SendMsgMessage>
+/// <summary>
+/// A console message to a friend or a group chat (<c>MainView.onInput</c>), and the error to show
+/// when it is refused. The work is <see cref="IMessengerService"/>'s.
+/// </summary>
+public class SendMsgMessageHandler(IMessengerService messengerService)
+    : IMessageHandler<SendMsgMessage>
 {
-    private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly IMessengerService _messengerService = messengerService;
 
     public async ValueTask HandleAsync(
         SendMsgMessage message,
@@ -21,21 +24,17 @@ public class SendMsgMessageHandler(IGrainFactory grainFactory) : IMessageHandler
         if (ctx.PlayerId <= 0)
             return;
 
-        var senderSummary = await _grainFactory
-            .GetPlayerGrain(ctx.PlayerId)
-            .GetSummaryAsync(ct)
-            .ConfigureAwait(false);
-
-        await _grainFactory
-            .GetPlayerMessengerGrain(ctx.PlayerId)
+        var reply = await _messengerService
             .SendMessageAsync(
-                PlayerId.Parse(message.ChatId),
+                ctx.PlayerId,
+                message.ChatId,
                 message.Message,
                 message.ConfirmationId,
-                senderSummary.Name,
-                senderSummary.Figure,
                 ct
             )
             .ConfigureAwait(false);
+
+        if (reply is not null)
+            await ctx.SendComposerAsync(reply, ct).ConfigureAwait(false);
     }
 }

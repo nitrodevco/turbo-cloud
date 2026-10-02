@@ -85,6 +85,10 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
     {
         _state.IsOnline = flag;
 
+        // A session opening is a login: the profile's "last login" counts from it.
+        if (flag)
+            await RecordLoginAsync(ct);
+
         var playerPresence = _grainFactory.GetPlayerPresenceGrain(PlayerId);
 
         await playerPresence.OnPlayerUpdatedAsync(await GetSummaryAsync(ct), ct);
@@ -121,6 +125,35 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         await playerPresence.OnPlayerUpdatedAsync(await GetSummaryAsync(ct), ct);
     }
 
+    /// <summary>
+    /// Stamps the login time, written at once and alone (the rest of the row is this grain's to
+    /// write on its own schedule). A failed write is logged; the profile then shows the older
+    /// time, and the login goes on.
+    /// </summary>
+    private async Task RecordLoginAsync(CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+
+        _state.LastLoginAtUtc = now;
+
+        try
+        {
+            await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+            await dbCtx
+                .Players.Where(x => x.Id == (int)_state.PlayerId)
+                .ExecuteUpdateAsync(up => up.SetProperty(p => p.LastLoginAt, now), ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to record the login of player {PlayerId}",
+                _state.PlayerId
+            );
+        }
+    }
+
     private async Task HydrateAsync(CancellationToken ct)
     {
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
@@ -138,6 +171,7 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         _state.AchievementScore = 0;
         _state.CreatedAt = entity.CreatedAt;
         _state.LastUpdated = entity.UpdatedAt;
+        _state.LastLoginAtUtc = entity.LastLoginAt;
         _state.RespectPoints = entity.RespectPoints;
         _state.RespectsLeft = entity.RespectsLeft;
         _state.PetRespectsLeft = entity.PetRespectsLeft;
@@ -322,13 +356,16 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
                 CreationDate = ClientDates.Format(_state.CreatedAt),
                 AchievementScore = _state.AchievementScore,
                 // The friends list is the messenger's, and the messenger awaits this grain,
-                // so the profile's readers fill these in (ExtendedProfileExtensions).
+                // so the profile's readers fill these in (PlayerService).
                 FriendCount = 0,
                 IsFriend = false,
                 IsFriendRequestSent = false,
                 IsOnline = _state.IsOnline,
                 Guilds = [],
-                LastAccessSinceInSeconds = 0,
+                // ExtendedProfileWindowCtrl shows "-" for -1: a player who never logged in.
+                LastAccessSinceInSeconds = _state.LastLoginAtUtc is { } lastLogin
+                    ? (int)Math.Max(0, (DateTime.UtcNow - lastLogin).TotalSeconds)
+                    : -1,
                 OpenProfileWindow = true,
                 IsHidden = false,
                 AccountLevel = 1,

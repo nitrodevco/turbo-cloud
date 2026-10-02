@@ -23,6 +23,9 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
     // Written by the session observer, read by every incoming packet on the receive loop.
     private int _activeRoomId = -1;
 
+    // Written by the receive loop, read by the heartbeat on another thread.
+    private long _lastReceivedTicks = DateTime.UtcNow.Ticks;
+
     public bool PolicyDone { get; set; } = true;
     public string RevisionId { get; set; } = "Default";
     public IRc4Engine? CryptoIn { get; private set; }
@@ -31,6 +34,12 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
     public RoomId ActiveRoomId => Volatile.Read(ref _activeRoomId);
 
     public void SetActiveRoomId(RoomId roomId) => Volatile.Write(ref _activeRoomId, roomId.Value);
+
+    public DateTime LastReceivedUtc =>
+        new(Interlocked.Read(ref _lastReceivedTicks), DateTimeKind.Utc);
+
+    public void MarkReceived() =>
+        Interlocked.Exchange(ref _lastReceivedTicks, DateTime.UtcNow.Ticks);
 
     public void SetupEncryption(byte[] key, bool setCryptoOut = false)
     {
