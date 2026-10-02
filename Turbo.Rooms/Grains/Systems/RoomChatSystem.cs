@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Commands;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Orleans;
@@ -36,6 +37,12 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
     private readonly Dictionary<PlayerId, Queue<long>> _chatTimestampsByPlayerId = [];
     private readonly Dictionary<PlayerId, long> _floodMutedUntilByPlayerId = [];
 
+    private enum FloodKind
+    {
+        Chat,
+        Command,
+    }
+
     public async Task<bool> SendChatFromPlayerAsync(
         ActionContext ctx,
         RoomChatType chatType,
@@ -49,12 +56,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         if (!AvatarModule.TryGetPlayer(ctx.PlayerId, out var speaker))
             return false;
 
-        // A chat limit of zero means none, which ClientText would read as "nothing fits".
         var maxLength = _roomGrain._roomConfig.ChatMaxLength;
-
-        text = ModerationModule.ApplyFilter(
-            ClientText.Truncate(text, maxLength > 0 ? maxLength : int.MaxValue)
-        );
 
         if (text.Length == 0)
             return false;
@@ -62,7 +64,58 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         if (await IsMutedAsync(ctx.PlayerId, ct))
             return false;
 
-        if (await IsFloodingAsync(ctx.PlayerId, ct))
+        // Match the original line before chat truncation or filtering. Truncating first could turn
+        // an overlength command into a shorter, executable one.
+        if (
+            chatType != RoomChatType.Whisper
+            && CommandSystem.TryMatch(text, out var command, out var arguments)
+        )
+        {
+            var flooded = await IsFloodingAsync(ctx.PlayerId, FloodKind.Command, ct);
+
+            if (flooded)
+            {
+                await CommandSystem.ExecuteAsync(
+                    ctx,
+                    speaker,
+                    command,
+                    arguments,
+                    flooded: true,
+                    ct
+                );
+
+                return true;
+            }
+
+            if (maxLength > 0 && text.Length > maxLength)
+            {
+                await CommandSystem.ReplyInputRejectedAsync(
+                    speaker,
+                    command,
+                    CommandReplyKeys.TOO_LONG,
+                    ct
+                );
+
+                return true;
+            }
+
+            await CommandSystem.ExecuteAsync(ctx, speaker, command, arguments, flooded: false, ct);
+
+            return true;
+        }
+
+        // A chat limit of zero means none, which ClientText would read as "nothing fits".
+        text = ClientText.Truncate(text, maxLength > 0 ? maxLength : int.MaxValue);
+
+        if (text.Length == 0)
+            return false;
+
+        text = ModerationModule.ApplyFilter(text);
+
+        if (text.Length == 0)
+            return false;
+
+        if (await IsFloodingAsync(ctx.PlayerId, FloodKind.Chat, ct))
             return false;
 
         styleId = await ResolveStyleIdAsync(speaker, styleId, ct);
@@ -377,7 +430,17 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         };
     }
 
-    private async Task<bool> IsFloodingAsync(PlayerId playerId, CancellationToken ct)
+    /// <summary>
+    /// Commands and chat share one window and one count, so ordinary use of both is held to the
+    /// room's limit together. They differ in what going over costs: a chat line starts the chat
+    /// mute and tells the client (which locks the input), a command is only dropped. A fast
+    /// <c>:commands</c> must not take a player's voice away.
+    /// </summary>
+    private async Task<bool> IsFloodingAsync(
+        PlayerId playerId,
+        FloodKind kind,
+        CancellationToken ct
+    )
     {
         var config = _roomGrain._roomConfig;
         var now = _roomGrain.NowMs();
@@ -406,6 +469,9 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
 
         if (timestamps.Count >= maxMessages)
         {
+            if (kind == FloodKind.Command)
+                return true;
+
             _floodMutedUntilByPlayerId[playerId] = now + config.ChatFloodMuteMs;
             timestamps.Clear();
 

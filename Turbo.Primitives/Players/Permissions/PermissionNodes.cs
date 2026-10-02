@@ -67,6 +67,68 @@ public static class PermissionNodes
         public const string STYLE_STAFF = "chat.style.staff";
     }
 
+    /// <summary>
+    /// What lets a player run a chat command. A core command's node is <c>command.&lt;name&gt;</c>;
+    /// a plugin's is <c>&lt;prefix&gt;.command.&lt;name&gt;</c>.
+    /// </summary>
+    public static class Command
+    {
+        public const string COMMANDS = "command.commands";
+        public const string KICK = "command.kick";
+        public const string MUTE = "command.mute";
+
+        /// <summary>Go ahead with a line the server asked to have confirmed.</summary>
+        public const string CONFIRM = "command.confirm";
+
+        // Operator commands (docs/commands.md section 4.1). None is granted by default.
+        public const string BAN = "command.ban";
+        public const string UNBAN = "command.unban";
+        public const string SILENCE = "command.silence";
+        public const string TRADELOCK = "command.tradelock";
+        public const string DISCONNECT = "command.disconnect";
+        public const string WARN = "command.warn";
+        public const string ALERT = "command.alert";
+        public const string ROOMALERT = "command.roomalert";
+        public const string HOTELALERT = "command.hotelalert";
+        public const string EVENTALERT = "command.eventalert";
+
+        /// <summary>Aim an alert or a warning at <c>@room</c> or <c>@online</c>.</summary>
+        public const string ALERT_MASS = "command.alert.mass";
+        public const string WHOIS = "command.whois";
+        public const string FOLLOW = "command.follow";
+        public const string SUMMON = "command.summon";
+        public const string GIVE = "command.give";
+        public const string GIVEBADGE = "command.givebadge";
+        public const string TAKEBADGE = "command.takebadge";
+        public const string GIVEITEM = "command.giveitem";
+
+        /// <summary>Aim a currency, badge or item at <c>@room</c> or <c>@online</c>.</summary>
+        public const string GIVE_MASS = "command.give.mass";
+        public const string GROUP = "command.group";
+        public const string PERM = "command.perm";
+        public const string STATUS = "command.status";
+        public const string ONLINE = "command.online";
+
+        /// <summary>See who is online by name, not just how many.</summary>
+        public const string ONLINE_LIST = "command.online.list";
+        public const string MAINTENANCE = "command.maintenance";
+        public const string SHUTDOWN = "command.shutdown";
+        public const string RELOAD = "command.reload";
+        public const string UNLOADROOM = "command.unloadroom";
+        public const string ROOMKICKALL = "command.roomkickall";
+        public const string ROOMMUTE = "command.roommute";
+        public const string ROOMUNMUTE = "command.roomunmute";
+
+        /// <summary>Not a command: holding it has every use of a command by this player logged.</summary>
+        public const string LOG = "command.log";
+    }
+
+    public static class Hotel
+    {
+        /// <summary>Log in, and stay logged in, while the hotel is in maintenance.</summary>
+        public const string MAINTENANCE_BYPASS = "hotel.maintenance.bypass";
+    }
+
     public static class Role
     {
         public const string AMBASSADOR = "role.ambassador";

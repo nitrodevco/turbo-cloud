@@ -602,6 +602,7 @@ projects to.
 | --- | --- | --- |
 | `chat.style.staff`, `role.ambassador` | `RoomChatSystem.ResolveStyleIdAsync`, from the speaker's avatar | both hardcoded `false` |
 | `chat.speak` | `RoomChatSystem.IsHotelMutedAsync`: a player without it is muted everywhere, told the time left when the denial is temporary | — |
+| `command.commands`, `command.kick`, `command.mute` | `RoomCommandSystem`, from the speaker's avatar; registered `GrantedByDefault` because the room's own rules decide who may kick or mute (`docs/commands.md`) | — |
 | `trade` | `RoomTradeGrain`, for both sides of a trade | `RoomConfig.TradeRequiresPerk` over `players.perk_flags`; the option is gone |
 | `room.event.edit_any` | `RoomGrain.UpdateEventAsync` / `CancelEventAsync` | owner only |
 | `guild.delete_any` | `GuildGrain.DeactivateAsync` (the member cap still applies) | owner only |

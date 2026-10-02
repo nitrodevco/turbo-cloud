@@ -15,5 +15,6 @@
     <ProjectReference Include="..\Turbo.Logging\Turbo.Logging.csproj" />
     <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
     <ProjectReference Include="..\Turbo.Players\Turbo.Players.csproj" />
+    <ProjectReference Include="..\Turbo.Commands\Turbo.Commands.csproj" />
   </ItemGroup>
 </Project>

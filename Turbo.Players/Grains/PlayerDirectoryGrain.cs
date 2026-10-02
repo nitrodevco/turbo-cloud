@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -121,6 +122,35 @@ internal sealed class PlayerDirectoryGrain : Grain, IPlayerDirectoryGrain
         _state.Names.Set(playerId, name);
 
         return Task.CompletedTask;
+    }
+
+    public async Task<ImmutableArray<string>> SearchNamesAsync(
+        string prefix,
+        int limit,
+        CancellationToken ct
+    )
+    {
+        prefix = prefix.Trim();
+
+        if (prefix.Length == 0 || limit <= 0)
+            return [];
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        // StartsWith becomes LIKE 'prefix%', with the prefix's own wildcards escaped, which the
+        // unique index on the name answers without reading the table. The column's collation is
+        // case-insensitive, as GetPlayerIdAsync relies on.
+        var names = await dbCtx
+            .Players.AsNoTracking()
+            .Where(x => x.Name.StartsWith(prefix))
+            .OrderBy(x => x.Name)
+            .Select(x => x.Name)
+            .Take(limit)
+            .ToListAsync(ct);
+
+        // Sorted again here, ignoring case, so the order is the same whatever the database
+        // collates by; which names make the page is still the database's.
+        return [.. names.Order(StringComparer.OrdinalIgnoreCase)];
     }
 
     public async Task<PlayerId?> GetPlayerIdAsync(string name, CancellationToken ct)

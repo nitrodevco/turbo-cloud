@@ -18,6 +18,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Grains;
+using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Wallet;
@@ -29,11 +30,12 @@ namespace Turbo.Players.Grains;
 /// transaction before the in-memory balances move, so an activation can be collected at any time
 /// without a flush on deactivation.
 /// </summary>
-internal sealed class PlayerWalletGrain : Grain, IPlayerWalletGrain
+internal sealed partial class PlayerWalletGrain : Grain, IPlayerWalletGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly IGrainFactory _grainFactory;
     private readonly ICurrencyTypeProvider _currencyTypeProvider;
+    private readonly IPlayerNoticeService _noticeService;
     private readonly ILogger<IPlayerWalletGrain> _logger;
 
     private readonly PlayerWalletLiveState _state;
@@ -44,12 +46,14 @@ internal sealed class PlayerWalletGrain : Grain, IPlayerWalletGrain
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IGrainFactory grainFactory,
         ICurrencyTypeProvider currencyTypeProvider,
+        IPlayerNoticeService noticeService,
         ILogger<IPlayerWalletGrain> logger
     )
     {
         _dbCtxFactory = dbCtxFactory;
         _grainFactory = grainFactory;
         _currencyTypeProvider = currencyTypeProvider;
+        _noticeService = noticeService;
         _logger = logger;
 
         _state = new() { PlayerId = this.GetPlayerId() };
@@ -213,7 +217,18 @@ internal sealed class PlayerWalletGrain : Grain, IPlayerWalletGrain
             new WalletDebitFailure { CurrencyKind = request.CurrencyKind, Amount = request.Amount }
         );
 
-    public async Task<bool> CreditAsync(CurrencyKind kind, int amount, CancellationToken ct)
+    public Task<bool> CreditAsync(CurrencyKind kind, int amount, CancellationToken ct) =>
+        CreditCoreAsync(kind, amount, reward: false, ct);
+
+    public Task<bool> CreditRewardAsync(CurrencyKind kind, int amount, CancellationToken ct) =>
+        CreditCoreAsync(kind, amount, reward: true, ct);
+
+    private async Task<bool> CreditCoreAsync(
+        CurrencyKind kind,
+        int amount,
+        bool reward,
+        CancellationToken ct
+    )
     {
         if (amount <= 0)
             return false;
@@ -232,7 +247,11 @@ internal sealed class PlayerWalletGrain : Grain, IPlayerWalletGrain
             if (entity is null)
                 return false;
 
+            if (entity.Amount > int.MaxValue - amount)
+                return false;
             entity.Amount += amount;
+            if (reward)
+                entity.PendingRewardAmount = checked(entity.PendingRewardAmount + amount);
             newAmount = entity.Amount;
 
             await dbCtx.SaveChangesAsync(ct);
@@ -259,6 +278,7 @@ internal sealed class PlayerWalletGrain : Grain, IPlayerWalletGrain
                 PlayerEntityId = PlayerId.Value,
                 CurrencyTypeEntityId = typeId,
                 Amount = amount,
+                PendingRewardAmount = reward ? amount : 0,
             };
 
             dbCtx.PlayerCurrencies.Add(entity);
@@ -269,17 +289,33 @@ internal sealed class PlayerWalletGrain : Grain, IPlayerWalletGrain
             _state.CurrenciesByKind[kind] = entity.ToSnapshot(kind);
         }
 
-        if (
-            ToBalanceComposer(
-                new WalletCurrencyUpdateSnapshot
-                {
-                    CurrencyKind = kind,
-                    ChangedBy = amount,
-                    Amount = newAmount,
-                }
-            ) is
-            { } balance
-        )
+        var balance = ToBalanceComposer(
+            new WalletCurrencyUpdateSnapshot
+            {
+                CurrencyKind = kind,
+                ChangedBy = amount,
+                Amount = newAmount,
+            }
+        );
+        if (reward)
+        {
+            // Both money and receipt are committed. Delivery cannot turn this into a failed grant.
+            try
+            {
+                if (balance is not null)
+                    await _grainFactory.TrySendComposerToPlayerAsync(PlayerId, balance, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Reward saved but balance update failed for player {PlayerId}",
+                    PlayerId
+                );
+            }
+            await DeliverPendingRewardsAsync(ct);
+        }
+        else if (balance is not null)
             await _grainFactory.SendComposerToPlayerAsync(PlayerId, balance, ct);
 
         return true;

@@ -38,6 +38,7 @@ public static class TelemetryHostingExtensions
                         )
                     )
                     .AddSource(Turbo.Primitives.Rooms.RoomTelemetry.SOURCE_NAME)
+                    .AddSource(Turbo.Primitives.Commands.CommandTelemetry.SOURCE_NAME)
                     .AddSource(ActivitySources.ApplicationGrainActivitySourceName)
                     .AddSource(ActivitySources.LifecycleActivitySourceName)
                     .AddProcessor<TelemetryPrivacyProcessor>()
@@ -46,6 +47,7 @@ public static class TelemetryHostingExtensions
             .WithMetrics(metrics =>
                 metrics
                     .AddMeter(Turbo.Primitives.Rooms.RoomTelemetry.SOURCE_NAME)
+                    .AddMeter(Turbo.Primitives.Commands.CommandTelemetry.SOURCE_NAME)
                     .AddMeter("Microsoft.Orleans")
                     .AddMeter("System.Runtime")
                     .AddOtlpExporter(options => options.Endpoint = endpoint)

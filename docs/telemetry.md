@@ -50,6 +50,10 @@ Custom room metrics never carry room or player identifiers. Application room spa
 
 The `System.Runtime` meter includes .NET runtime and GC measurements such as allocation, heap size, collection counts, and pause time. Orleans spans provide application grain-call and lifecycle context, while `Microsoft.Orleans` exports its runtime meters including activation counts, message activity, and request latency.
 
+## Command telemetry
+
+Chat commands are measured by source and meter Turbo.Commands, subscribed with the room telemetry. A line that runs a command makes a command.execute span, tagged command.name, oom.id and command.outcome, and records 	urbo.command.duration (seconds) tagged command and outcome. command is the registered name, so its cardinality is the number of loaded commands. outcome is one of completed, efused, oom_level, ind_failed, etoed, lood, rror or canceled. A command holds its room's turn, so the duration is how long that room waited; one over Turbo:Rooms:CommandSlowWarningMs is also logged as a warning. Lines that are not commands are not measured, and cost nothing when telemetry is off. Spans and metrics never carry a player, the arguments or a reply.
+
 ## Reproducible room check
 
 Run the focused regression tests (these use local listeners and do not export to the dashboard):
@@ -59,3 +63,27 @@ dotnet test Turbo.Tests/Turbo.Tests.csproj --filter FullyQualifiedName~RoomTelem
 ```
 
 For a live check, enable telemetry, start the dashboard and Turbo, then enter a fresh room once to produce a cold activation, exit, and enter it again for a warm activation. In the dashboard, select the `turbo-cloud` service and compare the room entry stages for both traces. Confirm the duration histogram includes stage/outcome dimensions and the stream delay is present only where a publication timestamp was captured. The automated tests exercise the real entry handler and room service with fake grain boundaries. A completed operation means the server handled the request; access may still be denied or require a doorbell. These measurements do not infer client receipt or rendering time.
+
+
+## Checking rejected-entry work
+
+A denied direct entry should contain `room.entry.access` but no `room.activate` or
+`room.load.*` stages. Room grain activation can still hydrate metadata, rights and bans;
+this optimization skips content loading, not all database work.
+
+Allowed entry checks access, loads contents, then checks access again in case bans,
+capacity or deletion changed during loading. Expect two access spans for an allowed
+attempt; compare `room.entry.direct` durations when comparing whole requests. Loading
+still happens before leaving the player's old room. A later doorbell approval also
+ensures contents are ready before sending the entry view.
+
+The focused regression check is:
+
+```powershell
+dotnet test Turbo.Tests/Turbo.Tests.csproj --filter FullyQualifiedName~RoomEntryPreparationTests
+```
+
+For a gameplay comparison, use the same inactive furnished password room and an incorrect
+password on both branches, then compare the denied-entry traces. Measure successful cold
+and warm entries separately: the extra access check is a tradeoff, not a promised speedup
+for successful entry.

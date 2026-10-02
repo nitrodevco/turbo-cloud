@@ -124,6 +124,125 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
         ),
         new(PermissionNodes.Chat.SPEAK, "Speak at all. Denied by a hotel mute."),
         new(
+            PermissionNodes.Command.COMMANDS,
+            "Use :commands to list the chat commands you may use.",
+            GrantedByDefault: true
+        ),
+        new(
+            PermissionNodes.Command.KICK,
+            "Use :kick. The room's own rules still decide who may kick whom.",
+            GrantedByDefault: true
+        ),
+        new(
+            PermissionNodes.Command.LOG,
+            "Have every chat command you use written to the command log."
+        ),
+        new(
+            PermissionNodes.Command.MUTE,
+            "Use :mute. The room's own rules still decide who may mute whom.",
+            GrantedByDefault: true
+        ),
+        new(
+            PermissionNodes.Command.CONFIRM,
+            "Use :confirm to go ahead with a command that asked to be confirmed.",
+            GrantedByDefault: true
+        ),
+        new(
+            PermissionNodes.Command.BAN,
+            "Use :ban to keep a player out of the hotel for a time, or for good."
+        ),
+        new(PermissionNodes.Command.UNBAN, "Use :unban to lift a hotel ban."),
+        new(
+            PermissionNodes.Command.SILENCE,
+            "Use :silence to stop a player speaking anywhere in the hotel for a time."
+        ),
+        new(
+            PermissionNodes.Command.TRADELOCK,
+            "Use :tradelock to stop a player trading for a time."
+        ),
+        new(
+            PermissionNodes.Command.DISCONNECT,
+            "Use :disconnect to close a player's connection to the hotel."
+        ),
+        new(PermissionNodes.Command.WARN, "Use :warn to send a player a moderator's message."),
+        new(PermissionNodes.Command.ALERT, "Use :alert to send a player a pop-up message."),
+        new(
+            PermissionNodes.Command.ALERT_MASS,
+            "Aim :alert and :warn at @room or @online. Always logged."
+        ),
+        new(
+            PermissionNodes.Command.ROOMALERT,
+            "Use :roomalert to send everyone in the room a pop-up message."
+        ),
+        new(
+            PermissionNodes.Command.HOTELALERT,
+            "Use :hotelalert to send everyone online a pop-up message."
+        ),
+        new(
+            PermissionNodes.Command.EVENTALERT,
+            "Use :eventalert to tell the hotel an event is on in this room."
+        ),
+        new(
+            PermissionNodes.Command.WHOIS,
+            "Use :whois to look up a player: where they are, their groups and balances."
+        ),
+        new(PermissionNodes.Command.FOLLOW, "Use :follow to go to the room a player is in."),
+        new(
+            PermissionNodes.Command.SUMMON,
+            "Use :summon to bring a player to the room you are in."
+        ),
+        new(PermissionNodes.Command.GIVE, "Use :give to add to, or take from, a player's balance."),
+        new(PermissionNodes.Command.GIVEBADGE, "Use :givebadge to give a player a badge."),
+        new(PermissionNodes.Command.TAKEBADGE, "Use :takebadge to take a badge from a player."),
+        new(
+            PermissionNodes.Command.GIVEITEM,
+            "Use :giveitem to put furniture in a player's inventory."
+        ),
+        new(
+            PermissionNodes.Command.GIVE_MASS,
+            "Aim :give, :givebadge, :takebadge and :giveitem at @room or @online. Always logged."
+        ),
+        new(
+            PermissionNodes.Command.GROUP,
+            "Use :group to add a player to a permission group, or remove them."
+        ),
+        new(
+            PermissionNodes.Command.PERM,
+            "Use :perm to check why a player does or does not hold a permission."
+        ),
+        new(PermissionNodes.Command.STATUS, "Use :status to see how the hotel is running."),
+        new(PermissionNodes.Command.ONLINE, "Use :online to see how many players are online."),
+        new(PermissionNodes.Command.ONLINE_LIST, "Have :online list who is online by name."),
+        new(
+            PermissionNodes.Command.MAINTENANCE,
+            "Use :maintenance to put the hotel into maintenance, or end it."
+        ),
+        new(
+            PermissionNodes.Command.SHUTDOWN,
+            "Use :shutdown to close the hotel down after a countdown."
+        ),
+        new(
+            PermissionNodes.Command.RELOAD,
+            "Use :reload to re-read the catalog, texts, furniture and the like from the database."
+        ),
+        new(
+            PermissionNodes.Command.UNLOADROOM,
+            "Use :unloadroom to unload this room so it is read from the database again."
+        ),
+        new(
+            PermissionNodes.Command.ROOMKICKALL,
+            "Use :roomkickall to clear this room of everyone but its owner and staff."
+        ),
+        new(PermissionNodes.Command.ROOMMUTE, "Use :roommute to silence this room's visitors."),
+        new(
+            PermissionNodes.Command.ROOMUNMUTE,
+            "Use :roomunmute to let this room's visitors speak again."
+        ),
+        new(
+            PermissionNodes.Hotel.MAINTENANCE_BYPASS,
+            "Log in, and stay logged in, while the hotel is in maintenance."
+        ),
+        new(
             PermissionNodes.Chat.FURNI_CHOOSER,
             "Use the :furni chooser in any room.",
             SecurityLevelType.Partner

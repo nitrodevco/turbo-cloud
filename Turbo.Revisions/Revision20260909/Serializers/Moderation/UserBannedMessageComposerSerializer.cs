@@ -8,6 +8,6 @@ internal class UserBannedMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, UserBannedMessageComposer message)
     {
-        //
+        packet.WriteString(message.Message);
     }
 }

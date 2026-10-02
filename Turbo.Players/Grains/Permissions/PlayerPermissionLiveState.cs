@@ -57,4 +57,7 @@ internal sealed class PlayerPermissionLiveState
 
     /// <summary>What the player holds. Null only before the first resolve.</summary>
     public ResolvedPermissionsSnapshot? Resolved { get; set; }
+
+    /// <summary>The prior immutable resolution inputs used to identify expiry-only restorations.</summary>
+    public RestrictionResolutionInputs? RestrictionInputs { get; set; }
 }

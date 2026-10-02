@@ -87,3 +87,11 @@ dotnet_diagnostic.CA2007.severity = none
 
 [Turbo.Players/**/*.cs]
 dotnet_diagnostic.CA2007.severity = none
+
+# Operator commands run on Orleans' scheduler or a thread pool task, never on a synchronisation
+# context, like the room commands beside them.
+[Turbo.Operations/**.cs]
+dotnet_diagnostic.CA2007.severity = none
+
+[Turbo.Commands/**.cs]
+dotnet_diagnostic.CA2007.severity = none

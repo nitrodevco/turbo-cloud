@@ -8,6 +8,6 @@ internal class HabboBroadcastMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, HabboBroadcastMessageComposer message)
     {
-        //
+        packet.WriteString(message.Message);
     }
 }

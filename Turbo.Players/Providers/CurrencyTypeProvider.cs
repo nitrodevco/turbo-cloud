@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Threading;
@@ -30,6 +31,10 @@ public sealed class CurrencyTypeProvider(
         CurrencyKind,
         int
     >.Empty;
+    private FrozenDictionary<string, CurrencyKind> _currencyKindsByName = FrozenDictionary<
+        string,
+        CurrencyKind
+    >.Empty;
 
     public CurrencyTypeSnapshot? GetCurrencyType(int typeId)
     {
@@ -41,6 +46,11 @@ public sealed class CurrencyTypeProvider(
 
     public bool TryGetCurrencyTypeId(CurrencyKind kind, out int typeId) =>
         _currencyIdsByKind.TryGetValue(kind, out typeId);
+
+    public bool TryGetCurrencyKindByName(string name, out CurrencyKind kind) =>
+        _currencyKindsByName.TryGetValue(name, out kind);
+
+    public IReadOnlyCollection<string> GetEnabledCurrencyNames() => _currencyKindsByName.Keys;
 
     public async Task ReloadAsync(CancellationToken ct)
     {
@@ -55,6 +65,9 @@ public sealed class CurrencyTypeProvider(
 
             var currenciesById = new Dictionary<int, CurrencyTypeSnapshot>();
             var currencyIdsByKind = new Dictionary<CurrencyKind, int>();
+            var currencyKindsByName = new Dictionary<string, CurrencyKind>(
+                StringComparer.OrdinalIgnoreCase
+            );
 
             foreach (var entity in entities)
             {
@@ -67,11 +80,18 @@ public sealed class CurrencyTypeProvider(
                 };
 
                 currencyIdsByKind[kind] = snapshot.Id;
+
+                if (snapshot.Enabled)
+                    currencyKindsByName[snapshot.Name] = kind;
+
                 currenciesById[snapshot.Id] = snapshot;
             }
 
             _currenciesById = currenciesById.ToFrozenDictionary();
             _currencyIdsByKind = currencyIdsByKind.ToFrozenDictionary();
+            _currencyKindsByName = currencyKindsByName.ToFrozenDictionary(
+                StringComparer.OrdinalIgnoreCase
+            );
 
             _logger.LogInformation(
                 "Loaded currency type mapping: Count={Count}",
