@@ -14,6 +14,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Orleans.Observers;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Players.Grains;
@@ -183,6 +184,8 @@ internal sealed partial class PlayerPresenceGrain
             || item.ExcludedPlayerIds is not null && item.ExcludedPlayerIds.Contains(PlayerId)
         )
             return Task.CompletedTask;
+
+        RoomTelemetry.RecordStreamDelivery(item.PublishedAtUtcTicks);
 
         foreach (var composer in item.Composers)
             Enqueue(composer);

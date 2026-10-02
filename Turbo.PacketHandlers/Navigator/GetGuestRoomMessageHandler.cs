@@ -25,7 +25,22 @@ public class GetGuestRoomMessageHandler(IRoomService roomService, IGrainFactory 
     private readonly IRoomService _roomService = roomService;
     private readonly IGrainFactory _grainFactory = grainFactory;
 
-    public async ValueTask HandleAsync(
+    public ValueTask HandleAsync(
+        GetGuestRoomMessage message,
+        MessageContext ctx,
+        CancellationToken ct
+    ) =>
+        new(
+            !message.EnterRoom && message.RoomForward
+                ? RoomTelemetry.MeasureAsync(
+                    RoomTelemetry.NAVIGATOR_ENTRY,
+                    message.RoomId,
+                    () => HandleRequestAsync(message, ctx, ct)
+                )
+                : HandleRequestAsync(message, ctx, ct)
+        );
+
+    private async Task HandleRequestAsync(
         GetGuestRoomMessage message,
         MessageContext ctx,
         CancellationToken ct
@@ -56,6 +71,8 @@ public class GetGuestRoomMessageHandler(IRoomService roomService, IGrainFactory 
                 .ConfigureAwait(false);
 
         var isOpening = isNavigatorForward && access == RoomEntryAccessType.Allowed;
+        if (isNavigatorForward)
+            RoomTelemetry.RecordEntryAccess(access);
 
         // Two different grains, asked side by side. A handler may await both: neither the room
         // nor the group grain is waiting on the session that sent this.

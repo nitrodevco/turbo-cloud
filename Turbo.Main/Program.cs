@@ -65,6 +65,8 @@ internal class Program
 
         builder.Configuration.AddEnvironmentVariables(prefix: "TURBO__");
 
+        builder.AddTurboTelemetry();
+
         if (builder.Environment.IsDevelopment())
         {
             bootstrapLogger.LogInformation("=== Configuration Providers ===");
@@ -114,7 +116,7 @@ internal class Program
 
         builder.Services.AddHostedService<TurboEmulator>();
 
-        var host = builder.Build();
+        using var host = builder.Build();
 
         var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
         var ct = lifetime.ApplicationStopping;
