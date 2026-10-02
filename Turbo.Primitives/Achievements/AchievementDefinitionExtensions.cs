@@ -1,4 +1,6 @@
 using System;
+using System.Globalization;
+using System.Linq;
 using Turbo.Primitives.Achievements.Enums;
 
 namespace Turbo.Primitives.Achievements;
@@ -60,4 +62,24 @@ public static class AchievementDefinitionExtensions
         definition.EffectiveState(nowUtc) == AchievementState.Archived
             ? showArchived
             : definition.IsKnownToClient(nowUtc);
+
+    /// <summary>
+    /// Whether the fact's value is one this achievement listens to. Without a value list every fact
+    /// of the source matches. Checked when the fact is recorded, and frozen with its bindings.
+    /// </summary>
+    public static bool Matches(this AchievementDefinition definition, AchievementFact fact) =>
+        definition.Match is not { Values: { IsDefaultOrEmpty: false } values }
+        || values.Contains(fact.Value, StringComparer.Ordinal);
+
+    /// <summary>
+    /// The value a distinct achievement counts for this fact: the fact's own, or the UTC date it
+    /// occurred on when the definition asks for that.
+    /// </summary>
+    public static string CountedValue(
+        this AchievementDefinition definition,
+        AchievementFact fact
+    ) =>
+        definition.Match?.ValueFrom == AchievementValueSource.UtcDate
+            ? fact.OccurredAtUtc.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            : fact.Value;
 }

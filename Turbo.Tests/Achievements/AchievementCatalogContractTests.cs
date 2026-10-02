@@ -378,6 +378,116 @@ public sealed class AchievementCatalogContractTests : IDisposable
             .Be(valid.ActiveUntilUtc);
     }
 
+    [Theory]
+    [InlineData(AchievementSources.LOGIN, AchievementReducer.CalendarStreak, true)]
+    [InlineData(AchievementSources.LOGIN, AchievementReducer.Counter, true)]
+    [InlineData(AchievementSources.LOGIN, AchievementReducer.Distinct, true)]
+    [InlineData(AchievementSources.LOGIN, AchievementReducer.ElapsedSeconds, false)]
+    [InlineData(AchievementSources.VISIT, AchievementReducer.Counter, true)]
+    [InlineData(AchievementSources.ONLINE, AchievementReducer.Counter, false)]
+    [InlineData(AchievementSources.FIGURE, AchievementReducer.Maximum, false)]
+    public async Task ADefinitionMayUseAnyReducerItsSourceAllows(
+        string source,
+        AchievementReducer reducer,
+        bool accepted
+    )
+    {
+        var catalog = NewCatalog();
+        var definition = Definition(100150, "reducer-choice", source) with
+        {
+            Reducer = reducer,
+            Match =
+                reducer == AchievementReducer.Distinct && source == AchievementSources.LOGIN
+                    ? new AchievementMatch { ValueFrom = AchievementValueSource.UtcDate }
+                    : null,
+        };
+
+        var import = () =>
+            catalog.ImportAsync([definition], false, "tests", "validate", "reducer-op", Ct);
+
+        if (accepted)
+            await import.Should().NotThrowAsync();
+        else
+            await import.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task AMatchMustMakeSense()
+    {
+        var catalog = NewCatalog();
+        var distinct = Definition(100151, "match-rules", AchievementSources.LOGIN) with
+        {
+            Reducer = AchievementReducer.Distinct,
+        };
+        var utcDate = new AchievementMatch { ValueFrom = AchievementValueSource.UtcDate };
+
+        foreach (
+            var invalid in new[]
+            {
+                distinct with
+                {
+                    Reducer = AchievementReducer.Counter,
+                    Match = utcDate,
+                },
+                distinct with
+                {
+                    Match = utcDate with { Values = ["2026-12-25"] },
+                },
+                distinct with
+                {
+                    Match = new AchievementMatch { Values = [""] },
+                },
+                distinct with
+                {
+                    Match = new AchievementMatch { Values = [new string('x', 513)] },
+                },
+                distinct with
+                {
+                    Match = new AchievementMatch { ValueFrom = (AchievementValueSource)7 },
+                },
+                distinct with
+                {
+                    Match = new AchievementMatch
+                    {
+                        Values = [.. Enumerable.Range(0, 1001).Select(x => x.ToString())],
+                    },
+                },
+            }
+        )
+        {
+            var import = () =>
+                catalog.ImportAsync([invalid], false, "tests", "validate", "match-op-1", Ct);
+            await import.Should().ThrowAsync<InvalidOperationException>();
+        }
+
+        await catalog.ImportAsync(
+            [distinct with { Match = utcDate }],
+            false,
+            "tests",
+            "validate",
+            "match-op-2",
+            Ct
+        );
+    }
+
+    [Fact]
+    public void ASourceCannotListAnUndefinedExtraReducer()
+    {
+        var catalog = NewCatalog();
+
+        var register = () =>
+            catalog.RegisterSources([
+                new AchievementSourceDefinition(
+                    "plugin.bad-reducer",
+                    1,
+                    AchievementReducer.Counter,
+                    [(AchievementReducer)99]
+                ),
+            ]);
+
+        register.Should().Throw<ArgumentException>();
+    }
+
     private AchievementCatalog NewCatalog(
         AchievementConfig? config = null,
         IReadOnlyDictionary<string, string>? texts = null

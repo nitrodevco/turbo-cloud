@@ -13,13 +13,18 @@ public static class AchievementDefaults
     public static ImmutableArray<AchievementSourceDefinition> Sources { get; } =
     [
         new(AchievementSources.ONLINE, 1, AchievementReducer.ElapsedSeconds),
-        new(AchievementSources.LOGIN, 1, AchievementReducer.CalendarStreak),
+        new(
+            AchievementSources.LOGIN,
+            1,
+            AchievementReducer.CalendarStreak,
+            [AchievementReducer.Counter, AchievementReducer.Distinct]
+        ),
         new(AchievementSources.ACCOUNT_AGE, 1, AchievementReducer.Maximum),
         new(AchievementSources.FIGURE, 1, AchievementReducer.Counter),
         new(AchievementSources.MOTTO, 1, AchievementReducer.Counter),
         new(AchievementSources.HC, 1, AchievementReducer.Maximum),
         new(AchievementSources.PURCHASED_HC, 1, AchievementReducer.Maximum),
-        new(AchievementSources.VISIT, 1, AchievementReducer.Distinct),
+        new(AchievementSources.VISIT, 1, AchievementReducer.Distinct, [AchievementReducer.Counter]),
         new(AchievementSources.FURNITURE, 1, AchievementReducer.Counter),
         new(AchievementSources.RESPECT_GIVEN, 1, AchievementReducer.Counter),
         new(AchievementSources.RESPECT_RECEIVED, 1, AchievementReducer.Counter),

@@ -816,7 +816,12 @@ public sealed class AchievementProgressionTests : IDisposable
         Assert.Equal(2, NormalizeCalls());
     }
 
-    private async Task RecordAtAsync(string operation, DateTime occurredAtUtc)
+    private async Task RecordAtAsync(
+        string operation,
+        DateTime occurredAtUtc,
+        string source = AchievementSources.FIGURE,
+        string value = ""
+    )
     {
         await using var db = await _database.CreateDbContextAsync(Ct);
         new AchievementFactRecorder(_catalog).Record(
@@ -825,11 +830,99 @@ public sealed class AchievementProgressionTests : IDisposable
             new()
             {
                 OperationId = operation,
-                Source = AchievementSources.FIGURE,
+                Source = source,
+                Value = value,
                 OccurredAtUtc = occurredAtUtc,
             }
         );
         await db.SaveChangesAsync(Ct);
+    }
+
+    [Fact]
+    public async Task LoginsCanCountDistinctUtcDaysAndRepeatsOnTheSameDayDoNotCount()
+    {
+        var day = DateTime.UtcNow.Date.AddDays(-10);
+        _catalog.Current =
+        [
+            Definition(100000, AchievementSources.LOGIN) with
+            {
+                Reducer = AchievementReducer.Distinct,
+                Match = new AchievementMatch { ValueFrom = AchievementValueSource.UtcDate },
+            },
+        ];
+
+        await RecordAtAsync("login-1", day.AddHours(8), AchievementSources.LOGIN);
+        await RecordAtAsync("login-2", day.AddHours(20), AchievementSources.LOGIN);
+        await RecordAtAsync("login-3", day.AddDays(2).AddHours(1), AchievementSources.LOGIN);
+        await RecordAtAsync("login-4", day.AddDays(3).AddHours(23), AchievementSources.LOGIN);
+        await NewGrain().ProcessAsync(Ct);
+
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        var progress = await db.AchievementProgress.SingleAsync(Ct);
+        Assert.Equal(3, progress.Value);
+        Assert.Equal(3, progress.DistinctCount);
+        Assert.Equal(3, progress.EarnedLevel);
+        Assert.Equal(
+            new[] { day, day.AddDays(2), day.AddDays(3) }.Select(x => x.ToString("yyyy-MM-dd")),
+            await db
+                .AchievementDistinctValues.OrderBy(x => x.Value)
+                .Select(x => x.Value)
+                .ToListAsync(Ct)
+        );
+    }
+
+    [Fact]
+    public async Task LoginsCanBeCountedInTotal()
+    {
+        _catalog.Current = [Definition(100000, AchievementSources.LOGIN)];
+
+        await RecordAtAsync("total-1", DateTime.UtcNow.AddDays(-3), AchievementSources.LOGIN);
+        await RecordAtAsync("total-2", DateTime.UtcNow.AddDays(-3), AchievementSources.LOGIN);
+        await RecordAtAsync("total-3", DateTime.UtcNow.AddDays(-1), AchievementSources.LOGIN);
+        await NewGrain().ProcessAsync(Ct);
+
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        Assert.Equal(3, (await db.AchievementProgress.SingleAsync(Ct)).Value);
+    }
+
+    [Fact]
+    public async Task AValueListCountsOnlyTheListedValuesAndBindsNothingElse()
+    {
+        _catalog.Current =
+        [
+            Definition(100000, AchievementSources.VISIT) with
+            {
+                Reducer = AchievementReducer.Distinct,
+                Match = new AchievementMatch { Values = ["10", "20"] },
+            },
+        ];
+
+        await RecordAtAsync("room-a", DateTime.UtcNow, AchievementSources.VISIT, "10");
+        await RecordAtAsync("room-b", DateTime.UtcNow, AchievementSources.VISIT, "30");
+        await RecordAtAsync("room-c", DateTime.UtcNow, AchievementSources.VISIT, "20");
+        await RecordAtAsync("room-d", DateTime.UtcNow, AchievementSources.VISIT, "10");
+        await NewGrain().ProcessAsync(Ct);
+
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        Assert.Equal(2, (await db.AchievementProgress.SingleAsync(Ct)).DistinctCount);
+        var unbound = await db.AchievementFacts.SingleAsync(x => x.OperationId == "room-b", Ct);
+        Assert.Equal("[]", unbound.BindingsJson);
+    }
+
+    [Fact]
+    public async Task ADistinctFactWithoutAValueIsStillRefusedUnlessTheDateIsCounted()
+    {
+        _catalog.Current =
+        [
+            Definition(100000, AchievementSources.LOGIN) with
+            {
+                Reducer = AchievementReducer.Distinct,
+            },
+        ];
+
+        var record = () => RecordAtAsync("empty-value", DateTime.UtcNow, AchievementSources.LOGIN);
+
+        await Assert.ThrowsAsync<ArgumentException>(record);
     }
 
     private async Task<int> StateFactCountAsync()

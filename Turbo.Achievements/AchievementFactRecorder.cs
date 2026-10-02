@@ -31,13 +31,14 @@ public sealed class AchievementFactRecorder(IAchievementCatalog catalog) : IAchi
                 x.Accrues(fact.OccurredAtUtc)
                 && x.Source == fact.Source
                 && x.SourceVersion == fact.Version
+                && x.Matches(fact)
             )
             .ToArray();
         foreach (var target in targets)
         {
             if (
                 target.Reducer == Turbo.Primitives.Achievements.Enums.AchievementReducer.Distinct
-                && string.IsNullOrWhiteSpace(fact.Value)
+                && string.IsNullOrWhiteSpace(target.CountedValue(fact))
             )
                 throw new ArgumentException("Distinct facts require a stable value.", nameof(fact));
             if (

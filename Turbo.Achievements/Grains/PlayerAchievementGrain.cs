@@ -145,7 +145,15 @@ internal sealed partial class PlayerAchievementGrain : Grain, IPlayerAchievement
                         db.AchievementProgress.Add(progress);
                     }
                     if (definition.Reducer == AchievementReducer.Distinct)
-                        await ApplyDistinctAsync(db, progress, fact, ct);
+                        await ApplyDistinctAsync(
+                            db,
+                            progress,
+                            fact with
+                            {
+                                Value = definition.CountedValue(fact),
+                            },
+                            ct
+                        );
                     else
                         AchievementReducerEngine.Apply(
                             progress,

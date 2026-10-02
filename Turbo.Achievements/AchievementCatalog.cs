@@ -72,6 +72,10 @@ public sealed class AchievementCatalog : IAchievementCatalog
                     !ValidKey(x.Key)
                     || x.Version <= 0
                     || !Enum.IsDefined(x.Reducer)
+                    || (
+                        !x.AlsoReducers.IsDefaultOrEmpty
+                        && x.AlsoReducers.Any(r => !Enum.IsDefined(r))
+                    )
                     || _sources.ContainsKey((x.Key, x.Version))
                 )
             )
@@ -327,8 +331,29 @@ public sealed class AchievementCatalog : IAchievementCatalog
                     if (!allowRetainedSources)
                         throw new InvalidOperationException("Unknown achievement source/version.");
                 }
-                else if (source.Reducer != d.Reducer)
+                else if (!source.Allows(d.Reducer))
                     throw new InvalidOperationException("Source reducer mismatch.");
+                if (
+                    d.Match is { } narrowing
+                    && (
+                        !Enum.IsDefined(narrowing.ValueFrom)
+                        || narrowing.Values.IsDefault
+                        || narrowing.Values.Length > _config.MaxMatchValues
+                        || narrowing.Values.Any(x =>
+                            string.IsNullOrEmpty(x) || x.Length > MAX_FACT_VALUE_LENGTH
+                        )
+                        || (
+                            narrowing.ValueFrom == AchievementValueSource.UtcDate
+                            && (
+                                d.Reducer != AchievementReducer.Distinct
+                                || narrowing.Values.Length > 0
+                            )
+                        )
+                    )
+                )
+                    throw new InvalidOperationException(
+                        "Invalid match: a UTC-date value needs the distinct reducer and no value list, and values must be 1-512 characters."
+                    );
                 var previous = d.Reducer == AchievementReducer.Rank ? int.MaxValue : -1;
                 if (d.Levels.Sum(x => (long)x.Score) > int.MaxValue)
                     throw new InvalidOperationException("Achievement score exceeds packet limits.");
@@ -411,6 +436,9 @@ public sealed class AchievementCatalog : IAchievementCatalog
         return _texts.TryGetText(prefix + code, out _)
             || _texts.TryGetText(prefix + badgeBase, out _);
     }
+
+    /// <summary>The longest value a fact may carry (<c>AchievementFactRecorder</c>), so a longer match could never fire.</summary>
+    private const int MAX_FACT_VALUE_LENGTH = 512;
 
     private static bool ValidKey(string key) => Regex.IsMatch(key, "^[a-z][a-z0-9_.-]{0,63}$");
 }

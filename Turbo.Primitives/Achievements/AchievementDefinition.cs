@@ -62,4 +62,8 @@ public sealed record AchievementDefinition
     /// </summary>
     [Id(16)]
     public DateTime? ActiveUntilUtc { get; init; }
+
+    /// <summary>Optional narrowing of the facts this achievement counts. See <see cref="AchievementMatch"/>.</summary>
+    [Id(17)]
+    public AchievementMatch? Match { get; init; }
 }

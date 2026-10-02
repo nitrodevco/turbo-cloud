@@ -26,6 +26,9 @@ public sealed class AchievementConfig
     public string BadgeAssetDirectory { get; set; } = "";
     public int MaxDefinitions { get; set; } = 1000;
     public int MaxDistinctValues { get; set; } = 100000;
+
+    /// <summary>Most values one definition's match list may hold.</summary>
+    public int MaxMatchValues { get; set; } = 1000;
     public string DefaultCategory { get; set; } = "identity";
     public bool ShowCongratulationsDialog { get; set; } = true;
 
