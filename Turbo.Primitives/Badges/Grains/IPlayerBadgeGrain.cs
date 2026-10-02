@@ -36,6 +36,14 @@ public interface IPlayerBadgeGrain : IGrainWithIntegerKey
     /// <summary>Gives the badge. False when the code is empty or the player already has it.</summary>
     public Task<bool> GiveBadgeAsync(string badgeCode, CancellationToken ct);
 
+    /// <summary>Replaces only this achievement's entitlement, preserving independent grants and worn slots.</summary>
+    public Task GrantAchievementAsync(
+        int achievementId,
+        int level,
+        string badgeCode,
+        CancellationToken ct
+    );
+
     public Task<bool> RemoveBadgeAsync(string badgeCode, CancellationToken ct);
 
     /// <summary>

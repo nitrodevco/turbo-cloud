@@ -37,7 +37,7 @@ namespace Turbo.Inventory.Grains.Badges;
 /// the presence's tells — never calls it back; the player grain is only told.
 /// </para>
 /// </summary>
-internal sealed class PlayerBadgeGrain : Grain, IPlayerBadgeGrain
+internal sealed partial class PlayerBadgeGrain : Grain, IPlayerBadgeGrain
 {
     private const int NOT_WORN = 0;
 
@@ -111,8 +111,19 @@ internal sealed class PlayerBadgeGrain : Grain, IPlayerBadgeGrain
 
     public async Task<bool> GiveBadgeAsync(string badgeCode, CancellationToken ct)
     {
-        if (!TryNormalizeCode(badgeCode, out var code) || _state.BadgesByCode.ContainsKey(code))
+        if (!TryNormalizeCode(badgeCode, out var code))
             return false;
+
+        if (_state.BadgesByCode.ContainsKey(code))
+        {
+            await using var existingDb = await _dbCtxFactory.CreateDbContextAsync(ct);
+            await existingDb
+                .PlayerBadges.Where(x =>
+                    x.PlayerEntityId == _state.PlayerId.Value && x.BadgeCode == code
+                )
+                .ExecuteUpdateAsync(up => up.SetProperty(x => x.ManualGrant, true), ct);
+            return false;
+        }
 
         var entity = new PlayerBadgeEntity
         {
@@ -174,6 +185,18 @@ internal sealed class PlayerBadgeGrain : Grain, IPlayerBadgeGrain
 
         await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
         {
+            if (
+                await dbCtx.AchievementBadgeEntitlements.AnyAsync(
+                    x => x.PlayerId == _state.PlayerId.Value && x.BadgeCode == badge.BadgeCode,
+                    ct
+                )
+            )
+            {
+                await dbCtx
+                    .PlayerBadges.Where(x => x.Id == badge.BadgeId)
+                    .ExecuteUpdateAsync(up => up.SetProperty(x => x.ManualGrant, false), ct);
+                return true;
+            }
             await dbCtx
                 .PlayerBadges.Where(x =>
                     x.Id == badge.BadgeId && x.PlayerEntityId == _state.PlayerId.Value

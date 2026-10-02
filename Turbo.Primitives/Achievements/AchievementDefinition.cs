@@ -1,0 +1,51 @@
+using System.Collections.Immutable;
+using Orleans;
+using Turbo.Primitives.Achievements.Enums;
+
+namespace Turbo.Primitives.Achievements;
+
+[GenerateSerializer, Immutable]
+public sealed record AchievementDefinition
+{
+    [Id(0)]
+    public required int Id { get; init; }
+
+    [Id(1)]
+    public required string Key { get; init; }
+
+    [Id(2)]
+    public required int Revision { get; init; }
+
+    [Id(3)]
+    public required string Category { get; init; }
+
+    [Id(4)]
+    public string SubCategory { get; init; } = "";
+
+    [Id(5)]
+    public int Order { get; init; }
+
+    [Id(6)]
+    public bool Enabled { get; init; } = true;
+
+    [Id(7)]
+    public bool Archived { get; init; }
+
+    [Id(8)]
+    public int DisplayMethod { get; init; }
+
+    [Id(9)]
+    public required string Source { get; init; }
+
+    [Id(10)]
+    public int SourceVersion { get; init; } = 1;
+
+    [Id(11)]
+    public required AchievementReducer Reducer { get; init; }
+
+    [Id(12)]
+    public int UnitDivisor { get; init; } = 1;
+
+    [Id(13)]
+    public required ImmutableArray<AchievementLevelDefinition> Levels { get; init; }
+}

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Plugins;
+using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Commands;
@@ -25,6 +26,7 @@ public enum ReloadSubject
     ChatStyles,
     RoomModels,
     PetBreeds,
+    Achievements,
     Plugins,
 }
 
@@ -52,6 +54,7 @@ public sealed class ReloadCommand(
     IChatStyleProvider chatStyleProvider,
     IRoomModelProvider roomModelProvider,
     IPetBreedProvider petBreedProvider,
+    IAchievementCatalog achievements,
     PluginManager pluginManager
 ) : IOperatorCommand<ReloadArguments>
 {
@@ -104,6 +107,9 @@ public sealed class ReloadCommand(
             case ReloadSubject.Plugins:
                 await pluginManager.LoadAllAsync(true, ct);
 
+                break;
+            case ReloadSubject.Achievements:
+                await achievements.ReloadAsync(ct);
                 break;
         }
 

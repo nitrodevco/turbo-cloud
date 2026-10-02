@@ -11,6 +11,20 @@ internal class HabboAchievementNotificationMessageComposerSerializer(int header)
         HabboAchievementNotificationMessageComposer message
     )
     {
-        //
+        packet
+            .WriteInteger(message.Type)
+            .WriteInteger(message.Level)
+            .WriteInteger(message.BadgeId)
+            .WriteString(message.BadgeCode)
+            .WriteInteger(message.PointsTotal)
+            .WriteInteger(message.LevelRewardPoints)
+            .WriteInteger(message.LevelRewardPointType)
+            .WriteInteger(message.BonusPoints)
+            .WriteInteger(message.AchievementId)
+            .WriteString(message.RemovedBadgeCode)
+            .WriteString(message.Category)
+            .WriteBoolean(message.ShowDialogToUser)
+            .WriteInteger(message.OwnerCount)
+            .WriteInteger(message.BadgeRarityId);
     }
 }

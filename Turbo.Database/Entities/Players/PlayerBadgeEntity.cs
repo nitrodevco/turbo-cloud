@@ -10,6 +10,11 @@ namespace Turbo.Database.Entities.Players;
 [Index(nameof(BadgeCode))]
 public class PlayerBadgeEntity : TurboEntity
 {
+    /// <summary>Independent ownership, including all badges that predate achievement entitlements.</summary>
+    [Column("manual_grant")]
+    [DefaultValue(true)]
+    public bool ManualGrant { get; set; } = true;
+
     [Column("player_id")]
     public required int PlayerEntityId { get; set; }
 

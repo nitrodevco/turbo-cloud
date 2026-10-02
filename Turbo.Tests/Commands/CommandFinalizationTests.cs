@@ -108,6 +108,10 @@ public class CommandFinalizationTests
     public async Task CompletionHook_IgnoringCancellation_IsBounded_AndCannotChangeTheOutcome()
     {
         var hotel = new OperatorFixture(new CommandConfig { FinalizationTimeoutSeconds = 1 });
+        // This test bounds the completion hook, not EF's first model construction. The live
+        // server builds its model at startup before commands are admitted.
+        await using (var warmup = hotel.Db.CreateDbContext())
+            _ = warmup.Model;
         hotel.Commands.Register([new FinalizationProbeCommand()]);
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

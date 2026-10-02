@@ -1,0 +1,24 @@
+namespace Turbo.Primitives.Achievements;
+
+/// <summary>Version-one authoritative hotel facts. No packet can submit these.</summary>
+public static class AchievementSources
+{
+    public const string ONLINE = "presence.online";
+    public const string LOGIN = "identity.login";
+    public const string ACCOUNT_AGE = "identity.account-age";
+    public const string FIGURE = "identity.figure-change";
+    public const string MOTTO = "identity.motto-change";
+    public const string HC = "membership.eligible-seconds";
+    public const string PURCHASED_HC = "membership.purchased-days";
+    public const string VISIT = "explore.admitted-room";
+    public const string FURNITURE = "explore.furniture-use";
+    public const string RESPECT_GIVEN = "social.respect-given";
+    public const string RESPECT_RECEIVED = "social.respect-received";
+    public const string PETS = "pets.owned";
+    public const string NUTRITION = "pets.nutrition-supplied";
+    public const string PET_LEVEL = "pets.level-increase";
+    public const string PET_RESPECT_GIVEN = "pets.respect-given";
+    public const string PET_RESPECT_RECEIVED = "pets.respect-received";
+    public const string FLOOR_HEIGHTS = "builder.floor-heights";
+    public const string ROOM_RANK = "builder.room-rank";
+}

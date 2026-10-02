@@ -184,7 +184,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
 
         // One call per type, not per product, so a buyer is told once about each membership.
         foreach (var (subscriptionType, granted) in days)
-            await subscriptions.ExtendAsync(subscriptionType, granted, ct);
+            await subscriptions.ExtendPurchasedAsync(subscriptionType, granted, ct);
     }
 
     /// <summary>

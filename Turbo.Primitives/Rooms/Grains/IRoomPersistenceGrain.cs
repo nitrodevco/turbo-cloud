@@ -20,7 +20,7 @@ namespace Turbo.Primitives.Rooms.Grains;
 /// after a move must not be overtaken by the move) and Orleans only keeps the order of calls
 /// that are awaited one after the other.
 /// </summary>
-public interface IRoomPersistenceGrain : IGrainWithIntegerKey
+public partial interface IRoomPersistenceGrain : IGrainWithIntegerKey
 {
     /// <summary>Writes the chat lines, oldest first, on the next chatlog flush.</summary>
     [AlwaysInterleave]

@@ -32,6 +32,9 @@ public interface IBadgeDirectoryGrain : IGrainWithStringKey
 
     public Task OnBadgeRevokedAsync(string badgeCode, CancellationToken ct);
 
+    /// <summary>Recounts committed ownership for these codes; safe to replay after recovery.</summary>
+    public Task RefreshCodesAsync(ImmutableArray<string> badgeCodes, CancellationToken ct);
+
     /// <summary>
     /// The badge a client may claim with this request code (the landing view's "request badge"
     /// button), or null when the hotel lists none for it.

@@ -14,6 +14,7 @@ internal sealed class PlayerPresenceLiveState
     public required PlayerId PlayerId { get; init; }
     public SessionKey SessionKey { get; set; } = SessionKey.Invalid;
     public long SessionGeneration { get; set; }
+    public DateTime? AchievementOnlineSinceUtc { get; set; }
 
     /// <summary>
     /// Protocol extensions the current session accepted, by name, at the agreed version. Cleared

@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Immutable;
+using System.Data;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -6,9 +8,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
 using Turbo.Database.Entities;
+using Turbo.Database.Entities.Pets;
+using Turbo.Database.Extensions;
+using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Rooms;
 
 namespace Turbo.Inventory.Grains.Modules;
@@ -153,13 +159,72 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
 
         int updated;
 
-        await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
+        var originalSnapshot = snapshot;
+        for (var attempt = 0; ; attempt++)
         {
-            updated = await WriteReturnedAsync(
-                Table(dbCtx).Where(x => x.Id == snapshot.Id && x.PlayerEntityId == PlayerId.Value),
-                snapshot,
-                ct
-            );
+            try
+            {
+                snapshot = originalSnapshot;
+                await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+                await using var transaction = await dbCtx.Database.BeginTransactionAsync(
+                    IsolationLevel.Serializable,
+                    ct
+                );
+                var previousPet =
+                    snapshot is PetSnapshot
+                        ? await dbCtx
+                            .Pets.Where(x =>
+                                x.Id == snapshot.Id && x.PlayerEntityId == PlayerId.Value
+                            )
+                            .Select(x => new
+                            {
+                                x.Level,
+                                x.Experience,
+                                x.Respect,
+                            })
+                            .SingleOrDefaultAsync(ct)
+                        : null;
+                if (snapshot is PetSnapshot pet && previousPet is not null)
+                    snapshot = (TSnapshot)
+                        (object)(
+                            pet with
+                            {
+                                Level = Math.Max(pet.Level, previousPet.Level),
+                                Experience = Math.Max(pet.Experience, previousPet.Experience),
+                                Respect = Math.Max(pet.Respect, previousPet.Respect),
+                            }
+                        );
+                updated = await WriteReturnedAsync(
+                    Table(dbCtx)
+                        .Where(x => x.Id == snapshot.Id && x.PlayerEntityId == PlayerId.Value),
+                    snapshot,
+                    ct
+                );
+                if (
+                    updated > 0
+                    && snapshot is PetSnapshot returnedPet
+                    && previousPet is not null
+                    && returnedPet.Level > previousPet.Level
+                )
+                    _inventoryGrain._achievementFacts.Record(
+                        dbCtx,
+                        PlayerId,
+                        new()
+                        {
+                            Source = AchievementSources.PET_LEVEL,
+                            OperationId = Guid.NewGuid().ToString("N"),
+                            Amount = returnedPet.Level - previousPet.Level,
+                            OccurredAtUtc = DateTime.UtcNow,
+                        }
+                    );
+                await dbCtx.SaveChangesAsync(ct);
+                await transaction.CommitAsync(ct);
+                break;
+            }
+            catch (Exception ex) when (attempt < 2 && ex.IsRetryableWriteConflict())
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(25 * (attempt + 1)), ct);
+            }
         }
 
         if (updated == 0)
@@ -208,6 +273,18 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
             }
 
             dbCtx.Add(entity);
+            if (entity is PetEntity)
+                _inventoryGrain._achievementFacts.Record(
+                    dbCtx,
+                    PlayerId,
+                    new()
+                    {
+                        Source = AchievementSources.PETS,
+                        OperationId = Guid.NewGuid().ToString("N"),
+                        Amount = owned + 1,
+                        OccurredAtUtc = DateTime.UtcNow,
+                    }
+                );
 
             await dbCtx.SaveChangesAsync(ct);
         }
@@ -234,6 +311,15 @@ internal abstract class InventoryUnitModule<TEntity, TSnapshot>(
 
         await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
         {
+            // Keep the recipient row available until a durably admitted respect finishes.
+            if (
+                typeof(TEntity) == typeof(PetEntity)
+                && await dbCtx.PetRespectOperations.AnyAsync(
+                    x => x.PetId == id && !x.Completed && !x.Rejected,
+                    ct
+                )
+            )
+                return false;
             deleted = await Table(dbCtx)
                 .Where(x => x.Id == id && x.PlayerEntityId == PlayerId.Value)
                 .ExecuteDeleteAsync(ct);

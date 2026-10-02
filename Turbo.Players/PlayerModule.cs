@@ -37,6 +37,10 @@ public sealed class PlayerModule : IHostPluginModule
         services
             .AddOptions<PlayerConfig>()
             .Validate(x => x.NoticeTimeoutMs > 0, "Player notice timeout must be positive.")
+            .Validate(
+                x => x.AchievementOnlineIntervalSeconds > 0,
+                "Achievement online interval must be positive."
+            )
             .ValidateOnStart();
         services.AddSingleton<IMessengerService, MessengerService>();
         // The clock the permission grains and console read expiry against; tests swap in a fake.

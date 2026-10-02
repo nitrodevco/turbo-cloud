@@ -319,16 +319,20 @@ public sealed partial class RoomGrain
 
             AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
 
-            if (!await _grainFactory.GetPlayerGrain(ctx.PlayerId).TryUseRespectAsync(ct))
+            var result = await Turbo
+                .Primitives.Players.Grains.Respect.HumanRespectOperationGrainExtensions.GetHumanRespectOperationGrain(
+                    _grainFactory,
+                    Guid.NewGuid().ToString("N")
+                )
+                .ExecuteAsync(ctx.PlayerId, targetId, ct);
+            if (!result.Accepted)
                 return false;
-
-            var total = await _grainFactory.GetPlayerGrain(targetId).ReceiveRespectAsync(ct);
 
             await SendComposerToRoomAsync(
                 new RespectNotificationMessageComposer
                 {
                     PlayerId = targetId,
-                    RespectTotal = total,
+                    RespectTotal = result.TargetRespectTotal,
                 },
                 ct
             );

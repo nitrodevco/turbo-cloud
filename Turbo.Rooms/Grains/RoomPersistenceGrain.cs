@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,9 +9,12 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Database.Achievements;
 using Turbo.Database.Context;
+using Turbo.Database.Entities.Achievements;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Room;
+using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Commands.Snapshots;
@@ -18,6 +22,8 @@ using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Snapshots;
+using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object;
@@ -30,13 +36,17 @@ namespace Turbo.Rooms.Grains;
 /// <summary>
 /// The write buffer of one room, so database writes never hold up the room's turn. Buffered and
 /// flushed: the room hands over what changed, a timer writes it, and deactivation writes what
-/// is left. A write that fails keeps its rows queued up to the configured caps.
+/// is left. A write that fails keeps its rows queued up to the configured caps. Pet care
+/// operations are the write-through exception: their pet mutation and achievement receipt commit
+/// together, then their result is merged into any buffered pet snapshot before it is returned.
 /// </summary>
 internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly RoomConfig _roomConfig;
+    private readonly IGrainFactory _grainFactory;
     private readonly ILogger<IRoomPersistenceGrain> _logger;
+    private readonly IAchievementFactRecorder _achievementFacts;
 
     private readonly RoomPersistenceLiveState _state;
 
@@ -46,12 +56,16 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
     public RoomPersistenceGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IOptions<RoomConfig> roomConfig,
+        IGrainFactory grainFactory,
+        IAchievementFactRecorder achievementFacts,
         ILogger<IRoomPersistenceGrain> logger
     )
     {
         _dbCtxFactory = dbCtxFactory;
         _roomConfig = roomConfig.Value;
+        _grainFactory = grainFactory;
         _logger = logger;
+        _achievementFacts = achievementFacts;
 
         _state = new() { RoomId = this.GetRoomId() };
     }
@@ -382,6 +396,345 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         return Task.CompletedTask;
     }
 
+    public async Task<PetNutritionOperationResult> ApplyPetNutritionOperationAsync(
+        string operationId,
+        int petId,
+        PlayerId ownerId,
+        PlayerId supplierId,
+        int baseNutrition,
+        int requestedNutrition,
+        int maxNutrition,
+        CancellationToken ct
+    )
+    {
+        ValidateOperationId(operationId);
+        if (
+            petId <= 0
+            || ownerId.Value <= 0
+            || baseNutrition < 0
+            || requestedNutrition < 0
+            || maxNutrition < 0
+        )
+            throw new ArgumentOutOfRangeException(
+                nameof(petId),
+                "Invalid pet nutrition operation."
+            );
+
+        var roomId = _state.RoomId.Value;
+        await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
+        var previous = await db.PetNutritionOperations.SingleOrDefaultAsync(
+            x => x.OperationId == operationId,
+            ct
+        );
+        if (previous is not null)
+        {
+            EnsureSameNutritionOperation(
+                previous,
+                roomId,
+                petId,
+                ownerId,
+                supplierId,
+                baseNutrition,
+                requestedNutrition,
+                maxNutrition
+            );
+            if (!previous.Completed)
+                throw new InvalidOperationException("Pet nutrition operation is not complete.");
+            MergePetNutrition(
+                previous.PetId,
+                previous.BaseNutrition,
+                previous.NutritionAfter,
+                replay: true
+            );
+            return new() { Nutrition = previous.NutritionAfter, ActualGain = previous.ActualGain };
+        }
+
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var pet = await db.Pets.SingleOrDefaultAsync(
+            x => x.Id == petId && x.PlayerEntityId == ownerId.Value,
+            ct
+        );
+        if (pet is null)
+            throw new InvalidOperationException(
+                "Pet nutrition operation refers to a missing or transferred pet."
+            );
+
+        var actualGain = Math.Min(requestedNutrition, Math.Max(0, maxNutrition - baseNutrition));
+        var nutritionAfter = checked(baseNutrition + actualGain);
+        pet.Nutrition = nutritionAfter;
+        var operation = new PetNutritionOperationEntity
+        {
+            OperationId = operationId,
+            RoomId = roomId,
+            PetId = petId,
+            OwnerId = ownerId.Value,
+            SupplierId = supplierId.Value,
+            BaseNutrition = baseNutrition,
+            RequestedNutrition = requestedNutrition,
+            MaxNutrition = maxNutrition,
+            NutritionAfter = nutritionAfter,
+            ActualGain = actualGain,
+            Completed = true,
+        };
+        db.PetNutritionOperations.Add(operation);
+        if (actualGain > 0 && supplierId.Value > 0)
+            _achievementFacts.Record(
+                db,
+                supplierId,
+                new()
+                {
+                    OperationId = $"pet-nutrition:{operationId}:supplied",
+                    Source = AchievementSources.NUTRITION,
+                    OccurredAtUtc = DateTime.UtcNow,
+                    Amount = actualGain,
+                }
+            );
+
+        await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        MergePetNutrition(petId, baseNutrition, nutritionAfter, replay: false);
+        return new() { Nutrition = nutritionAfter, ActualGain = actualGain };
+    }
+
+    public async Task<PetRespectOperationResult> ApplyPetRespectOperationAsync(
+        string operationId,
+        PlayerId actorId,
+        int petId,
+        PlayerId ownerId,
+        int baseRespect,
+        CancellationToken ct
+    )
+    {
+        ValidateOperationId(operationId);
+        if (actorId.Value <= 0 || petId <= 0 || ownerId.Value <= 0 || baseRespect < 0)
+            throw new ArgumentOutOfRangeException(nameof(petId), "Invalid pet respect operation.");
+
+        var roomId = _state.RoomId.Value;
+        await using (var admissionDb = await _dbCtxFactory.CreateDbContextAsync(ct))
+        {
+            var operation = await admissionDb.PetRespectOperations.SingleOrDefaultAsync(
+                x => x.OperationId == operationId,
+                ct
+            );
+            if (operation is null)
+            {
+                operation = new PetRespectOperationEntity
+                {
+                    OperationId = operationId,
+                    RoomId = roomId,
+                    ActorId = actorId.Value,
+                    PetId = petId,
+                    OwnerId = ownerId.Value,
+                    BaseRespect = baseRespect,
+                };
+                admissionDb.PetRespectOperations.Add(operation);
+                await admissionDb.SaveChangesAsync(ct);
+            }
+            else
+            {
+                EnsureSamePetRespectOperation(
+                    operation,
+                    roomId,
+                    actorId,
+                    petId,
+                    ownerId,
+                    baseRespect
+                );
+                if (operation.Rejected)
+                    return new() { Accepted = false };
+                if (operation.Completed)
+                {
+                    MergePetRespect(petId, operation.ResultRespect);
+                    return new() { Accepted = true, Respect = operation.ResultRespect };
+                }
+            }
+        }
+
+        var spent = await _grainFactory
+            .GetPlayerGrain(actorId)
+            .SpendPetRespectOperationAsync(operationId, ct);
+        if (!spent)
+        {
+            await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
+            var operation = await GetPetRespectOperationAsync(
+                db,
+                operationId,
+                roomId,
+                actorId,
+                petId,
+                ownerId,
+                baseRespect,
+                ct
+            );
+            operation.Rejected = true;
+            await db.SaveChangesAsync(ct);
+            _logger.LogWarning(
+                "Pet respect operation {OperationId} from player {ActorId} to pet {PetId} was rejected because no pet respect remained",
+                operationId,
+                actorId,
+                petId
+            );
+            return new() { Accepted = false };
+        }
+
+        await using (var db = await _dbCtxFactory.CreateDbContextAsync(ct))
+        await using (var transaction = await db.Database.BeginTransactionAsync(ct))
+        {
+            var operation = await GetPetRespectOperationAsync(
+                db,
+                operationId,
+                roomId,
+                actorId,
+                petId,
+                ownerId,
+                baseRespect,
+                ct
+            );
+            if (operation.Rejected)
+                throw new InvalidOperationException(
+                    "A spent pet respect operation is marked rejected."
+                );
+            if (operation.Completed)
+            {
+                MergePetRespect(petId, operation.ResultRespect);
+                return new() { Accepted = true, Respect = operation.ResultRespect };
+            }
+
+            var pet = await db.Pets.SingleOrDefaultAsync(
+                x => x.Id == petId && x.PlayerEntityId == ownerId.Value,
+                ct
+            );
+            if (pet is null)
+                throw new InvalidOperationException(
+                    "Pet respect operation refers to a missing or transferred pet."
+                );
+
+            var resultRespect = checked(Math.Max(baseRespect, pet.Respect) + 1);
+            pet.Respect = resultRespect;
+            var occurredAt = DateTime.UtcNow;
+            _achievementFacts.Record(
+                db,
+                actorId,
+                new()
+                {
+                    OperationId = $"pet-respect:{operationId}:given",
+                    Source = AchievementSources.PET_RESPECT_GIVEN,
+                    OccurredAtUtc = occurredAt,
+                }
+            );
+            _achievementFacts.Record(
+                db,
+                ownerId,
+                new()
+                {
+                    OperationId = $"pet-respect:{operationId}:received",
+                    Source = AchievementSources.PET_RESPECT_RECEIVED,
+                    OccurredAtUtc = occurredAt,
+                }
+            );
+            operation.Completed = true;
+            operation.ResultRespect = resultRespect;
+            await db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+            MergePetRespect(petId, resultRespect);
+            return new() { Accepted = true, Respect = resultRespect };
+        }
+    }
+
+    private static void ValidateOperationId(string operationId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
+        if (operationId.Length > 100)
+            throw new ArgumentException("Pet operation id is too long.", nameof(operationId));
+    }
+
+    private static void EnsureSameNutritionOperation(
+        PetNutritionOperationEntity operation,
+        int roomId,
+        int petId,
+        PlayerId ownerId,
+        PlayerId supplierId,
+        int baseNutrition,
+        int requestedNutrition,
+        int maxNutrition
+    )
+    {
+        if (
+            operation.RoomId != roomId
+            || operation.PetId != petId
+            || operation.OwnerId != ownerId.Value
+            || operation.SupplierId != supplierId.Value
+            || operation.BaseNutrition != baseNutrition
+            || operation.RequestedNutrition != requestedNutrition
+            || operation.MaxNutrition != maxNutrition
+        )
+            throw new InvalidOperationException(
+                "Pet nutrition operation id is bound to different input."
+            );
+    }
+
+    private static void EnsureSamePetRespectOperation(
+        PetRespectOperationEntity operation,
+        int roomId,
+        PlayerId actorId,
+        int petId,
+        PlayerId ownerId,
+        int baseRespect
+    )
+    {
+        if (
+            operation.RoomId != roomId
+            || operation.ActorId != actorId.Value
+            || operation.PetId != petId
+            || operation.OwnerId != ownerId.Value
+            || operation.BaseRespect != baseRespect
+        )
+            throw new InvalidOperationException(
+                "Pet respect operation id is bound to different input."
+            );
+    }
+
+    private static async Task<PetRespectOperationEntity> GetPetRespectOperationAsync(
+        TurboDbContext db,
+        string operationId,
+        int roomId,
+        PlayerId actorId,
+        int petId,
+        PlayerId ownerId,
+        int baseRespect,
+        CancellationToken ct
+    )
+    {
+        var operation = await db.PetRespectOperations.SingleAsync(
+            x => x.OperationId == operationId,
+            ct
+        );
+        EnsureSamePetRespectOperation(operation, roomId, actorId, petId, ownerId, baseRespect);
+        return operation;
+    }
+
+    private void MergePetNutrition(int petId, int baseNutrition, int nutritionAfter, bool replay)
+    {
+        if (
+            _state.DirtyPets.TryGetValue(petId, out var snapshot)
+            && (!replay || snapshot.Nutrition == baseNutrition)
+        )
+            _state.DirtyPets[petId] = snapshot with { Nutrition = nutritionAfter };
+    }
+
+    private void MergePetRespect(int petId, int respectAfter)
+    {
+        if (!_state.DirtyPets.TryGetValue(petId, out var snapshot))
+            return;
+
+        // A retry may finish after another committed or buffered respect. Never replace that
+        // newer value with the result captured by this operation.
+        _state.DirtyPets[petId] = snapshot with
+        {
+            Respect = Math.Max(snapshot.Respect, respectAfter),
+        };
+    }
+
     public Task EnqueueDirtyBotsAsync(List<BotSnapshot> snapshots, CancellationToken ct)
     {
         foreach (var snapshot in snapshots)
@@ -411,6 +764,10 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
             await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
             var ids = batch.Select(x => x.Id).ToList();
+            await using var transaction = await dbCtx.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable,
+                ct
+            );
             var rows = await dbCtx
                 .Pets.Where(x => ids.Contains(x.Id) && x.RoomEntityId == roomId)
                 .ToDictionaryAsync(x => x.Id, ct);
@@ -421,11 +778,23 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                     continue;
 
                 row.Name = pet.Name;
-                row.Level = pet.Level;
-                row.Experience = pet.Experience;
+                if (pet.Level > row.Level)
+                    _achievementFacts.Record(
+                        dbCtx,
+                        pet.OwnerId,
+                        new()
+                        {
+                            Source = AchievementSources.PET_LEVEL,
+                            Amount = pet.Level - row.Level,
+                            OperationId = Guid.NewGuid().ToString("N"),
+                            OccurredAtUtc = DateTime.UtcNow,
+                        }
+                    );
+                row.Level = Math.Max(row.Level, pet.Level);
+                row.Experience = Math.Max(row.Experience, pet.Experience);
                 row.Energy = pet.Energy;
                 row.Nutrition = pet.Nutrition;
-                row.Respect = pet.Respect;
+                row.Respect = Math.Max(row.Respect, pet.Respect);
                 row.HasSaddle = pet.HasSaddle;
                 row.AnyoneCanRide = pet.AnyoneCanRide;
                 row.HasBreedingPermission = pet.HasBreedingPermission;
@@ -443,6 +812,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
             }
 
             await dbCtx.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
 
             return true;
         }
@@ -454,6 +824,8 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
                 batch.Count,
                 roomId
             );
+            foreach (var pet in batch)
+                _state.DirtyPets.TryAdd(pet.Id, pet);
 
             return false;
         }

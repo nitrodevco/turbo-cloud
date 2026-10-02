@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Orleans;
 using Turbo.Commands;
 using Turbo.Plugins;
+using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Texts;
@@ -67,6 +68,24 @@ public class ConsoleCommandService(IServiceProvider services)
 
         switch (cmd)
         {
+            case "achievement":
+                try
+                {
+                    await new AchievementConsoleCommand(
+                        _services.GetRequiredService<IAchievementCatalog>()
+                    )
+                        .RunAsync(args, ct)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    System.Console.WriteLine($"Achievement command failed: {ex.Message}");
+                }
+                break;
             case "help":
                 System.Console.WriteLine(
                     "Available commands: help, quit, reload-plugins, reload-plugin <key>, perm (perm help for usage), and any operator chat command by name, such as ban, alert or status"

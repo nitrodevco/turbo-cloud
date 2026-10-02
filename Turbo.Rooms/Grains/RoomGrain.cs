@@ -11,6 +11,7 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Orleans.Runtime;
 using Orleans.Streams;
+using Turbo.Database.Achievements;
 using Turbo.Database.Context;
 using Turbo.Database.Extensions;
 using Turbo.Events;
@@ -79,6 +80,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly IPlayerNoticeService _playerNoticeService;
     internal readonly EventSystem _eventSystem;
     internal readonly ILogger<IRoomGrain> _logger;
+    internal readonly IAchievementFactRecorder _achievementFacts;
 
     internal readonly RoomLiveState _state;
 
@@ -136,6 +138,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IOperatorCommandRunner operatorCommandRunner,
         IPlayerNoticeService playerNoticeService,
         EventSystem eventSystem,
+        IAchievementFactRecorder achievementFacts,
         ILogger<IRoomGrain> logger
     )
     {
@@ -162,6 +165,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _playerNoticeService = playerNoticeService;
         _eventSystem = eventSystem;
         _logger = logger;
+        _achievementFacts = achievementFacts;
 
         _state = new() { RoomId = this.GetRoomId() };
         PathingSystem = new(this);

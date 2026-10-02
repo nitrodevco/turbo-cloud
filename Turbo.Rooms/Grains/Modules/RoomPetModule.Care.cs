@@ -8,6 +8,8 @@ using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
+using Turbo.Primitives.Pets.Snapshots;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Pets;
@@ -44,10 +46,21 @@ public sealed partial class RoomPetModule
             }
         }
 
-        if (!await playerGrain.TryUsePetRespectAsync(ct))
+        var operationId = Guid.NewGuid().ToString("N");
+        var respect = await _roomGrain
+            ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
+            .ApplyPetRespectOperationAsync(
+                operationId,
+                ctx.PlayerId,
+                pet.PetId,
+                pet.OwnerId,
+                pet.Respect,
+                ct
+            );
+        if (!respect.Accepted)
             return false;
 
-        pet.SetRespect(pet.Respect + 1);
+        pet.SetRespect(respect.Respect);
 
         if (pet.IsMonsterplant)
         {
@@ -73,14 +86,39 @@ public sealed partial class RoomPetModule
         );
 
         await AddExperienceAsync(pet, Config.RespectExperience, ct);
+        Persist(pet);
 
         if (pet.IsMonsterplant)
-        {
-            Persist(pet);
             await SendInfoToOwnerAsync(pet, ct);
-        }
 
         return true;
+    }
+
+    internal async Task<PetNutritionOperationResult> SupplyNutritionAsync(
+        IRoomPet pet,
+        PlayerId supplierId,
+        string operationId,
+        int requestedNutrition,
+        CancellationToken ct
+    )
+    {
+        var result = await _roomGrain
+            ._grainFactory.GetRoomPersistenceGrain(_roomGrain.RoomId)
+            .ApplyPetNutritionOperationAsync(
+                operationId,
+                pet.PetId,
+                pet.OwnerId,
+                supplierId,
+                pet.Nutrition,
+                requestedNutrition,
+                Config.MaxNutrition,
+                ct
+            );
+
+        pet.SetNutrition(result.Nutrition);
+        pet.MarkDirty();
+        Persist(pet);
+        return result;
     }
 
     public async Task<bool> GivePetSupplementAsync(
@@ -177,11 +215,13 @@ public sealed partial class RoomPetModule
         if (!pet.CanRevive)
             return false;
 
-        await RemovePetAvatarAsync(ctx, pet, ct);
-
-        return await _roomGrain
+        var deleted = await _roomGrain
             ._grainFactory.GetInventoryGrain(pet.OwnerId)
             .DeletePetAsync(petId, ct);
+        if (!deleted)
+            return false;
+        await RemovePetAvatarAsync(ctx, pet, ct);
+        return true;
     }
 
     internal async Task ReviveAsync(IRoomPet pet, CancellationToken ct)
@@ -214,9 +254,8 @@ public sealed partial class RoomPetModule
         )
             return false;
 
-        await AvatarModule.SetHandItemAsync(player, 0, ct);
-
-        pet.SetNutrition(Math.Min(Config.MaxNutrition, pet.Nutrition + Config.HandItemNutrition));
+        var operationId = Guid.NewGuid().ToString("N");
+        await SupplyNutritionAsync(pet, ctx.PlayerId, operationId, Config.HandItemNutrition, ct);
         pet.SetEnergy(Math.Min(Config.MaxEnergy, pet.Energy + Config.HandItemEnergy));
 
         ClearActionStatuses(pet);
@@ -224,7 +263,7 @@ public sealed partial class RoomPetModule
         pet.AddStatus(AvatarStatusType.Eat, string.Empty);
         pet.ActionExpiresAtMs = _roomGrain.NowMs() + Config.HandItemEatDurationMs;
 
-        Persist(pet);
+        await AvatarModule.SetHandItemAsync(player, 0, ct);
 
         return true;
     }

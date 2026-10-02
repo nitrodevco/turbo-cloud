@@ -207,7 +207,7 @@ internal sealed class BadgeLeaderboardGrain : Grain, IBadgeLeaderboardGrain
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-        var histogram = await Scores(dbCtx, codes)
+        var histogram = await Scores(dbCtx, codes, key.Type)
             .GroupBy(x => x.Score)
             .Select(g => new { Score = g.Key, Players = g.Count() })
             .ToListAsync(ct);
@@ -215,12 +215,18 @@ internal sealed class BadgeLeaderboardGrain : Grain, IBadgeLeaderboardGrain
             .OrderByDescending(x => x.Score)
             .Select(x => (x.Score, x.Players))
             .ToImmutableArray();
-        var rows = await Scores(dbCtx, codes)
+        var rows = await Scores(dbCtx, codes, key.Type)
             .OrderByDescending(x => x.Score)
             .ThenBy(x => x.PlayerId)
             .Take(_badgeConfig.LeaderboardHeldEntries)
             .ToListAsync(ct);
-        var partial = new BadgeLeaderboardBoard(codes, ranked, ranked.Sum(x => x.Players), []);
+        var partial = new BadgeLeaderboardBoard(
+            key.Type,
+            codes,
+            ranked,
+            ranked.Sum(x => x.Players),
+            []
+        );
         var board = partial with { Top = await ToEntriesAsync(dbCtx, partial, rows, ct) };
 
         _state.Boards[key] = board;
@@ -247,7 +253,7 @@ internal sealed class BadgeLeaderboardGrain : Grain, IBadgeLeaderboardGrain
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-        var rows = await Scores(dbCtx, board.Codes)
+        var rows = await Scores(dbCtx, board.Codes, board.Type)
             .OrderByDescending(x => x.Score)
             .ThenBy(x => x.PlayerId)
             .Skip((int)offset)
@@ -333,7 +339,13 @@ internal sealed class BadgeLeaderboardGrain : Grain, IBadgeLeaderboardGrain
             owned = owned.Where(x => codeList.Contains(x.BadgeCode));
         }
 
-        var score = await owned.CountAsync(ct);
+        var score =
+            board.Type == BadgeLeaderboardType.AchievementLevel
+                ? await dbCtx
+                    .AchievementProjections.Where(x => x.PlayerId == playerId.Value)
+                    .Select(x => x.EarnedLevels)
+                    .SingleOrDefaultAsync(ct)
+                : await owned.CountAsync(ct);
 
         if (score == 0)
             return null;
@@ -370,20 +382,27 @@ internal sealed class BadgeLeaderboardGrain : Grain, IBadgeLeaderboardGrain
         type switch
         {
             BadgeLeaderboardType.TotalBadges => null,
+            BadgeLeaderboardType.AchievementLevel => null,
             BadgeLeaderboardType.Rarity when Enum.IsDefined((BadgeRarityType)rarity) =>
                 await _grainFactory
                     .GetBadgeDirectoryGrain()
                     .GetCodesOfRarityAsync((BadgeRarityType)rarity, ct),
-            // Achievement levels have no data behind them until achievements exist.
+            // Unsupported board types have no entries.
             _ => ImmutableArray<string>.Empty,
         };
 
     /// <summary>Badges per player, over every badge or only the given codes.</summary>
     private static IQueryable<PlayerScore> Scores(
         TurboDbContext dbCtx,
-        ImmutableArray<string>? codes
+        ImmutableArray<string>? codes,
+        BadgeLeaderboardType type
     )
     {
+        if (type == BadgeLeaderboardType.AchievementLevel)
+            return dbCtx
+                .AchievementProjections.AsNoTracking()
+                .Where(x => x.EarnedLevels > 0)
+                .Select(x => new PlayerScore { PlayerId = x.PlayerId, Score = x.EarnedLevels });
         var badges = dbCtx.PlayerBadges.AsNoTracking();
 
         if (codes is { } list)

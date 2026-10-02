@@ -216,8 +216,6 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
         if (!await CanManageAsync(ctx, pet))
             return false;
 
-        await RemovePetAvatarAsync(ctx, pet, ct);
-
         var snapshot = pet.GetPetSnapshot();
 
         if (
@@ -232,8 +230,10 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
                 _roomGrain.RoomId,
                 pet.OwnerId
             );
+            return false;
         }
 
+        await RemovePetAvatarAsync(ctx, pet, ct);
         return true;
     }
 
@@ -285,12 +285,11 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
     {
         var pets = Pets.ToList();
 
-        foreach (var pet in pets)
-            await RemovePetAvatarAsync(ActionContext.CreateForSystem(_roomGrain.RoomId), pet, ct);
-
         await Task.WhenAll(
             pets.GroupBy(x => x.OwnerId).Select(owned => ReturnToOwnerAsync(owned.Key, owned, ct))
         );
+        foreach (var pet in pets)
+            await RemovePetAvatarAsync(ActionContext.CreateForSystem(_roomGrain.RoomId), pet, ct);
     }
 
     private async Task ReturnToOwnerAsync(
@@ -304,11 +303,8 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
         foreach (var pet in pets)
         {
             if (!await inventory.ReturnPetAsync(pet.GetPetSnapshot(), ct))
-                _roomGrain._logger.LogError(
-                    "Pet {PetId} could not be returned to player {OwnerId} while room {RoomId} is deleted",
-                    pet.PetId,
-                    ownerId,
-                    _roomGrain.RoomId
+                throw new InvalidOperationException(
+                    $"Pet {pet.PetId} could not be returned before room {_roomGrain.RoomId} deletion."
                 );
         }
     }

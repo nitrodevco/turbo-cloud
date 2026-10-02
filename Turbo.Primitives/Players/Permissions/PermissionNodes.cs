@@ -114,6 +114,7 @@ public static class PermissionNodes
         public const string MAINTENANCE = "command.maintenance";
         public const string SHUTDOWN = "command.shutdown";
         public const string RELOAD = "command.reload";
+        public const string ACHIEVEMENTS = "command.achievements";
         public const string UNLOADROOM = "command.unloadroom";
         public const string ROOMKICKALL = "command.roomkickall";
         public const string ROOMMUTE = "command.roommute";

@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Linq;
+using Turbo.Primitives.Badges.Enums;
 using Turbo.Primitives.Badges.Snapshots;
 
 namespace Turbo.Players.Grains.Badges;
@@ -13,6 +14,7 @@ namespace Turbo.Players.Grains.Badges;
 /// <param name="TotalEntries">Players on the board.</param>
 /// <param name="Top">The first ranked entries, as many as the config holds.</param>
 internal sealed record BadgeLeaderboardBoard(
+    BadgeLeaderboardType Type,
     ImmutableArray<string>? Codes,
     ImmutableArray<(int Score, int Players)> Histogram,
     int TotalEntries,

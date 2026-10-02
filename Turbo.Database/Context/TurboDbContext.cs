@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Turbo.Database.Entities.Achievements;
 using Turbo.Database.Entities.Badges;
 using Turbo.Database.Entities.Bots;
 using Turbo.Database.Entities.Catalog;
@@ -19,6 +20,20 @@ namespace Turbo.Database.Context;
 public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     : DbContextBase<TurboDbContext>(options)
 {
+    public DbSet<AchievementDefinitionEntity> AchievementDefinitions { get; init; }
+    public DbSet<AchievementFactEntity> AchievementFacts { get; init; }
+    public DbSet<AchievementProgressEntity> AchievementProgress { get; init; }
+    public DbSet<AchievementAwardEntity> AchievementAwards { get; init; }
+    public DbSet<AchievementProjectionEntity> AchievementProjections { get; init; }
+    public DbSet<AchievementAuditEntity> AchievementAudit { get; init; }
+    public DbSet<AchievementWalletReceiptEntity> AchievementWalletReceipts { get; init; }
+    public DbSet<AchievementBadgeEntitlementEntity> AchievementBadgeEntitlements { get; init; }
+    public DbSet<AchievementMembershipIntervalEntity> AchievementMembershipIntervals { get; init; }
+    public DbSet<HumanRespectOperationEntity> HumanRespectOperations { get; init; }
+    public DbSet<HumanRespectParticipantReceiptEntity> HumanRespectParticipantReceipts { get; init; }
+    public DbSet<PetNutritionOperationEntity> PetNutritionOperations { get; init; }
+    public DbSet<PetRespectOperationEntity> PetRespectOperations { get; init; }
+
     public DbSet<CatalogOfferEntity> CatalogOffers { get; init; }
 
     public DbSet<CurrencyTypeEntity> CurrencyTypes { get; init; }

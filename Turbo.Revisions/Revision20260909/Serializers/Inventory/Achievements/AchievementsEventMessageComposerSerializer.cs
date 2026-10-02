@@ -11,6 +11,13 @@ internal class AchievementsEventMessageComposerSerializer(int header)
         AchievementsEventMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.Achievements.Count);
+
+        foreach (var achievement in message.Achievements)
+        {
+            AchievementSnapshotSerializer.Serialize(packet, achievement);
+        }
+
+        packet.WriteString(message.DefaultCategory);
     }
 }

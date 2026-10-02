@@ -7,6 +7,7 @@ using Turbo.Primitives.Availability;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Messages.Incoming.Handshake;
+using Turbo.Primitives.Messages.Outgoing.Inventory.Achievements;
 using Turbo.Primitives.Messages.Outgoing.Moderation;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Moderation;
@@ -14,6 +15,7 @@ using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Moderation.Snapshots;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Snapshots.Settings;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Texts;
@@ -201,6 +203,9 @@ public class LoginAdmissionTests
         _fakes.Handlers["GetClubGiftInfoAsync"] = _ => Task.FromResult(ClubGiftInfoSnapshot.Empty);
         _fakes.Handlers["GetUnseenItemsAsync"] = _ =>
             Task.FromResult(ImmutableDictionary<UnseenItemCategory, ImmutableArray<int>>.Empty);
+        var summary = Activator.CreateInstance<PlayerSummarySnapshot>();
+        summary = summary with { AchievementScore = 120 };
+        _fakes.Handlers["GetSummaryAsync"] = _ => Task.FromResult(summary);
 
         await LogInAsync();
 
@@ -212,5 +217,11 @@ public class LoginAdmissionTests
         enabled.Should().BeGreaterThan(-1);
         delivered.Should().BeGreaterThan(enabled);
         _fakes.Log.Of("DeliverPendingRewardsAsync").Should().ContainSingle();
+        SentToSession()
+            .OfType<AchievementsScoreEventMessageComposer>()
+            .Single()
+            .Score.Should()
+            .Be(120);
+        _fakes.Log.Of("ReconcileAsync").Should().ContainSingle();
     }
 }

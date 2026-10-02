@@ -30,6 +30,8 @@ class [GrainType("playerpresence")] Turbo.Players.Grains.PlayerPresenceGrain
 
 class [GrainType("playerwallet")] Turbo.Players.Grains.PlayerWalletGrain
 
+class [GrainType("humanrespectoperation")] Turbo.Players.Grains.Respect.HumanRespectOperationGrain
+
 class [GrainType("playersettings")] Turbo.Players.Grains.Settings.PlayerSettingsGrain
 
 class [GrainType("playersubscription")] Turbo.Players.Grains.Subscriptions.PlayerSubscriptionGrain

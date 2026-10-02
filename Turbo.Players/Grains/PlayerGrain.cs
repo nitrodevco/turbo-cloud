@@ -6,10 +6,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Database.Achievements;
 using Turbo.Database.Context;
 using Turbo.Logging;
 using Turbo.Players.Configuration;
 using Turbo.Primitives;
+using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Messages.Outgoing.Avatar;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -24,12 +26,13 @@ namespace Turbo.Players.Grains;
 /// A player's profile. Write-through: every change is saved as it happens, and deactivation
 /// saves once more so whatever changed last is not lost.
 /// </summary>
-internal sealed class PlayerGrain : Grain, IPlayerGrain
+internal sealed partial class PlayerGrain : Grain, IPlayerGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly PlayerConfig _playerConfig;
     private readonly IGrainFactory _grainFactory;
     private readonly ILogger<IPlayerGrain> _logger;
+    private readonly IAchievementFactRecorder _achievementFacts;
 
     private readonly PlayerLiveState _state;
 
@@ -39,6 +42,7 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IOptions<PlayerConfig> playerConfig,
         IGrainFactory grainFactory,
+        IAchievementFactRecorder achievementFacts,
         ILogger<IPlayerGrain> logger
     )
     {
@@ -46,6 +50,7 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         _playerConfig = playerConfig.Value;
         _grainFactory = grainFactory;
         _logger = logger;
+        _achievementFacts = achievementFacts;
 
         _state = new() { PlayerId = this.GetPlayerId() };
     }
@@ -83,11 +88,10 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
 
     public async Task SetOnlineStatusAsync(bool flag, CancellationToken ct)
     {
-        _state.IsOnline = flag;
-
         // A session opening is a login: the profile's "last login" counts from it.
         if (flag)
             await RecordLoginAsync(ct);
+        _state.IsOnline = flag;
 
         var playerPresence = _grainFactory.GetPlayerPresenceGrain(PlayerId);
 
@@ -96,10 +100,27 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
 
     public async Task SetFigureAsync(string figure, AvatarGenderType gender, CancellationToken ct)
     {
+        if (_state.Figure == figure && _state.Gender == gender)
+            return;
+        var previousFigure = _state.Figure;
+        var previousGender = _state.Gender;
         _state.Figure = figure;
         _state.Gender = gender;
 
-        await WriteToDatabaseAsync(ct);
+        try
+        {
+            await WriteToDatabaseAsync(
+                ct,
+                previousFigure != figure ? AchievementSources.FIGURE : null
+            );
+        }
+        catch (Exception ex)
+        {
+            _state.Figure = previousFigure;
+            _state.Gender = previousGender;
+            _logger.LogError(ex, "Failed to change figure for player {PlayerId}", PlayerId);
+            throw;
+        }
 
         await _grainFactory.SendComposerToPlayerAsync(
             PlayerId,
@@ -116,9 +137,21 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
 
     public async Task SetMottoAsync(string text, CancellationToken ct)
     {
+        if (_state.Motto == text)
+            return;
+        var previous = _state.Motto;
         _state.Motto = text;
 
-        await WriteToDatabaseAsync(ct);
+        try
+        {
+            await WriteToDatabaseAsync(ct, AchievementSources.MOTTO);
+        }
+        catch (Exception ex)
+        {
+            _state.Motto = previous;
+            _logger.LogError(ex, "Failed to change motto for player {PlayerId}", PlayerId);
+            throw;
+        }
 
         var playerPresence = _grainFactory.GetPlayerPresenceGrain(PlayerId);
 
@@ -127,31 +160,59 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
 
     /// <summary>
     /// Stamps the login time, written at once and alone (the rest of the row is this grain's to
-    /// write on its own schedule). A failed write is logged; the profile then shows the older
-    /// time, and the login goes on.
+    /// write on its own schedule). Its login fact commits in the same transaction, before
+    /// authentication is acknowledged. A failed write aborts this login mutation.
     /// </summary>
     private async Task RecordLoginAsync(CancellationToken ct)
     {
         var now = DateTime.UtcNow;
-
-        _state.LastLoginAtUtc = now;
-
-        try
-        {
-            await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
-
-            await dbCtx
-                .Players.Where(x => x.Id == (int)_state.PlayerId)
-                .ExecuteUpdateAsync(up => up.SetProperty(p => p.LastLoginAt, now), ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Failed to record the login of player {PlayerId}",
-                _state.PlayerId
+        await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var updated = await db
+            .Players.Where(x => x.Id == PlayerId.Value)
+            .ExecuteUpdateAsync(up => up.SetProperty(x => x.LastLoginAt, now), ct);
+        if (updated != 1)
+            throw new InvalidOperationException(
+                "Login did not update its authoritative player row."
             );
-        }
+        _achievementFacts.Record(
+            db,
+            PlayerId,
+            new()
+            {
+                Source = AchievementSources.LOGIN,
+                OperationId = Guid.NewGuid().ToString("N"),
+                OccurredAtUtc = now,
+            }
+        );
+        _achievementFacts.Record(
+            db,
+            PlayerId,
+            new()
+            {
+                Source = AchievementSources.ACCOUNT_AGE,
+                OperationId = Guid.NewGuid().ToString("N"),
+                OccurredAtUtc = now,
+                Amount = Math.Max(0, (long)(now - _state.CreatedAt).TotalDays),
+            }
+        );
+        _achievementFacts.Record(
+            db,
+            PlayerId,
+            new()
+            {
+                Source = AchievementSources.PETS,
+                OperationId = Guid.NewGuid().ToString("N"),
+                OccurredAtUtc = now,
+                Amount = await db.Pets.CountAsync(
+                    x => x.PlayerEntityId == PlayerId.Value && x.DeletedAt == null,
+                    ct
+                ),
+            }
+        );
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        _state.LastLoginAtUtc = now;
     }
 
     private async Task HydrateAsync(CancellationToken ct)
@@ -168,7 +229,11 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         _state.Motto = entity.Motto ?? string.Empty;
         _state.Figure = entity.Figure;
         _state.Gender = entity.Gender;
-        _state.AchievementScore = 0;
+        var achievements = await dbCtx
+            .AchievementProjections.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.PlayerId == _state.PlayerId.Value, ct);
+        _state.AchievementScore = achievements?.Score ?? 0;
+        _state.AchievementLevel = achievements?.EarnedLevels ?? 0;
         _state.CreatedAt = entity.CreatedAt;
         _state.LastUpdated = entity.UpdatedAt;
         _state.LastLoginAtUtc = entity.LastLoginAt;
@@ -194,13 +259,16 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         await _grainFactory.GetPlayerDirectoryGrain().SetPlayerNameAsync(PlayerId, _state.Name, ct);
     }
 
-    private async Task WriteToDatabaseAsync(CancellationToken ct)
+    private async Task WriteToDatabaseAsync(CancellationToken ct, string? achievementSource = null)
     {
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         var snapshot = await GetSummaryAsync(ct);
+        await using var transaction = achievementSource is null
+            ? null
+            : await dbCtx.Database.BeginTransactionAsync(ct);
 
-        await dbCtx
+        var updated = await dbCtx
             .Players.Where(x => x.Id == (int)_state.PlayerId)
             .ExecuteUpdateAsync(
                 up =>
@@ -216,7 +284,26 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
                 ct
             );
 
-        _state.LastUpdated = DateTime.Now;
+        if (updated != 1)
+            throw new InvalidOperationException(
+                "Player mutation did not update its authoritative row."
+            );
+        if (achievementSource is not null)
+        {
+            _achievementFacts.Record(
+                dbCtx,
+                PlayerId,
+                new()
+                {
+                    Source = achievementSource,
+                    OperationId = Guid.NewGuid().ToString("N"),
+                    OccurredAtUtc = DateTime.UtcNow,
+                }
+            );
+            await dbCtx.SaveChangesAsync(ct);
+            await transaction!.CommitAsync(ct);
+        }
+        _state.LastUpdated = DateTime.UtcNow;
     }
 
     public Task<PlayerSummarySnapshot> GetSummaryAsync(CancellationToken ct) =>
@@ -309,6 +396,16 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
         _state.RespectReplenishesLeft = _playerConfig.RespectReplenishesPerDay;
     }
 
+    public async Task SetAchievementTotalsAsync(int score, int earnedLevels, CancellationToken ct)
+    {
+        _state.AchievementScore = score;
+        _state.AchievementLevel = earnedLevels;
+        _grainFactory
+            .GetPlayerPresenceGrain(PlayerId)
+            .OnPlayerUpdatedAsync(await GetSummaryAsync(ct), CancellationToken.None)
+            .LogAndForget(_logger, "publish achievement totals for player {PlayerId}", PlayerId);
+    }
+
     public async Task SetBadgesRankAsync(int badgesRank, CancellationToken ct)
     {
         if (_state.BadgesRank == badgesRank)
@@ -373,7 +470,7 @@ internal sealed class PlayerGrain : Grain, IPlayerGrain
                 StarGemCount = 0,
                 BooleanField26 = false,
                 BooleanField27 = false,
-                AchievementLevel = 0,
+                AchievementLevel = _state.AchievementLevel,
             }
         );
 }

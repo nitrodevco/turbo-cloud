@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Turbo.Achievements;
 using Turbo.Authentication;
 using Turbo.Catalog;
 using Turbo.Commands;
@@ -107,6 +108,7 @@ internal class Program
         builder.Services.AddHostPlugin<FurnitureModule>(builder);
         builder.Services.AddHostPlugin<CatalogModule>(builder);
         builder.Services.AddHostPlugin<PlayerModule>(builder);
+        builder.Services.AddHostPlugin<AchievementModule>(builder);
         builder.Services.AddHostPlugin<InventoryModule>(builder);
         builder.Services.AddHostPlugin<NavigatorModule>(builder);
         builder.Services.AddHostPlugin<GuildModule>(builder);

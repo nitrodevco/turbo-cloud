@@ -13,6 +13,9 @@
     <NoWarn>$(NoWarn);CA1707;CA2007;VSTHRD200;VSTHRD002;CA1515;CA1034;CA1062</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Protocol\Fixtures\achievements.json" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
@@ -22,6 +25,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
+    <ProjectReference Include="..\Turbo.Achievements\Turbo.Achievements.csproj" />
     <!-- For PermissionGateTests, which reads the handlers' IL; nothing here runs a handler. -->
     <ProjectReference Include="..\Turbo.PacketHandlers\Turbo.PacketHandlers.csproj" />
     <!-- For PermissionNodeReaderTests, which reads every server assembly's IL. -->
