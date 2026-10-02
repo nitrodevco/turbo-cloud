@@ -43,7 +43,10 @@ public static class HostApplicationBuilderExtensions
                         listenOnAnyHostAddress: true
                     );
 
-                    silo.UseLocalhostClustering()
+                    silo.UseLocalhostClustering(
+                            siloPort: orleansConfig.SiloPort,
+                            gatewayPort: orleansConfig.GatewayPort
+                        )
                         .AddMemoryGrainStorage(OrleansStorageNames.PUB_SUB_STORE)
                         .AddMemoryGrainStorage(OrleansStorageNames.PLAYER_STORE)
                         .AddMemoryGrainStorage(OrleansStorageNames.ROOM_STORE)
