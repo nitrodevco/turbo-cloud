@@ -57,6 +57,11 @@ public sealed class AchievementFactRecorder(IAchievementCatalog catalog) : IAchi
                     nameof(fact)
                 );
         }
+        // A fact nothing listens to is never needed: bindings are frozen when a fact is admitted, so
+        // a definition added later would not have counted it anyway. Skipping it keeps a hotel with
+        // a small catalog from storing, say, an online interval per player every half minute.
+        if (targets.Length == 0)
+            return;
         db.AchievementFacts.Add(
             new AchievementFactEntity
             {

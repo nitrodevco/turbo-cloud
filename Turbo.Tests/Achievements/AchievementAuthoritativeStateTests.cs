@@ -21,7 +21,7 @@ public sealed class AchievementAuthoritativeStateTests : IDisposable
 {
     private const int PLAYER_ID = 1;
     private readonly SqliteDb _db = new();
-    private readonly AchievementFactRecorder _recorder = new(new EmptyCatalog());
+    private readonly AchievementFactRecorder _recorder = new(new ListeningAchievementCatalog());
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     public AchievementAuthoritativeStateTests() => _db.Insert(NewPlayer(PLAYER_ID, "state-test"));
@@ -264,23 +264,4 @@ public sealed class AchievementAuthoritativeStateTests : IDisposable
         };
 
     private sealed record FactRow(int PlayerId, string Source, long Amount);
-
-    private sealed class EmptyCatalog : IAchievementCatalog
-    {
-        public ImmutableArray<AchievementDefinition> Current => [];
-
-        public IDisposable RegisterSources(IEnumerable<AchievementSourceDefinition> sources) =>
-            throw new NotSupportedException();
-
-        public Task ReloadAsync(CancellationToken ct) => Task.CompletedTask;
-
-        public Task ImportAsync(
-            ImmutableArray<AchievementDefinition> definitions,
-            bool apply,
-            string actor,
-            string reason,
-            string operationId,
-            CancellationToken ct
-        ) => Task.CompletedTask;
-    }
 }

@@ -140,27 +140,12 @@ public sealed class HumanRespectOperationGrainTests : IDisposable
             fakes,
             _db
         );
-        RoomHarness.SetField(grain, "_facts", new AchievementFactRecorder(new EmptyCatalog()));
+        RoomHarness.SetField(
+            grain,
+            "_facts",
+            new AchievementFactRecorder(new ListeningAchievementCatalog())
+        );
         RoomHarness.SetField(grain, "_operationId", operationId);
         return ((IHumanRespectOperationGrain)grain, fakes);
-    }
-
-    private sealed class EmptyCatalog : IAchievementCatalog
-    {
-        public ImmutableArray<AchievementDefinition> Current => [];
-
-        public IDisposable RegisterSources(IEnumerable<AchievementSourceDefinition> sources) =>
-            throw new NotSupportedException();
-
-        public Task ReloadAsync(CancellationToken ct) => Task.CompletedTask;
-
-        public Task ImportAsync(
-            ImmutableArray<AchievementDefinition> definitions,
-            bool apply,
-            string actor,
-            string reason,
-            string operationId,
-            CancellationToken ct
-        ) => Task.CompletedTask;
     }
 }

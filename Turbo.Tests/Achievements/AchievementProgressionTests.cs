@@ -663,7 +663,8 @@ public sealed class AchievementProgressionTests : IDisposable
     [Fact]
     public async Task ReconcileDoesCatalogWorkOnlyWhenTheCatalogRevisionsChange()
     {
-        _catalog.Current = [Definition(100000)];
+        _catalog.Current = [StateDefinition(100000)];
+        StoreRevisions(_catalog.Current);
         var grain = NewGrain();
         await grain.ReconcileAsync(Ct);
         await using (var db = await _database.CreateDbContextAsync(Ct))
@@ -674,7 +675,7 @@ public sealed class AchievementProgressionTests : IDisposable
 
         Assert.Equal(1, NormalizeCalls());
         Assert.Equal(stateFacts, await StateFactCountAsync());
-        _catalog.Current = [Definition(100000) with { Revision = 2 }];
+        _catalog.Current = [StateDefinition(100000) with { Revision = 2 }];
         await grain.ReconcileAsync(Ct);
         Assert.Equal(2, NormalizeCalls());
         Assert.True(await StateFactCountAsync() > stateFacts);
@@ -729,10 +730,7 @@ public sealed class AchievementProgressionTests : IDisposable
         await RecordAtAsync("window-at-end", until);
 
         await using var db = await _database.CreateDbContextAsync(Ct);
-        var bound = (await db.AchievementFacts.ToListAsync(Ct))
-            .Where(x => x.BindingsJson.Contains("100000"))
-            .Select(x => x.OperationId)
-            .Order();
+        var bound = (await db.AchievementFacts.ToListAsync(Ct)).Select(x => x.OperationId).Order();
         Assert.Equal(["window-at-start", "window-last-tick"], bound);
     }
 
@@ -905,8 +903,7 @@ public sealed class AchievementProgressionTests : IDisposable
 
         await using var db = await _database.CreateDbContextAsync(Ct);
         Assert.Equal(2, (await db.AchievementProgress.SingleAsync(Ct)).DistinctCount);
-        var unbound = await db.AchievementFacts.SingleAsync(x => x.OperationId == "room-b", Ct);
-        Assert.Equal("[]", unbound.BindingsJson);
+        Assert.False(await db.AchievementFacts.AnyAsync(x => x.OperationId == "room-b", Ct));
     }
 
     [Fact]
@@ -924,6 +921,73 @@ public sealed class AchievementProgressionTests : IDisposable
 
         await Assert.ThrowsAsync<ArgumentException>(record);
     }
+
+    [Fact]
+    public async Task ANeverListenedToSourceStoresNoFactAtAll()
+    {
+        _catalog.Current = [Definition(100000, AchievementSources.RESPECT_GIVEN)];
+
+        await RecordAtAsync("nobody-listens", DateTime.UtcNow, AchievementSources.FIGURE);
+
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        Assert.False(await db.AchievementFacts.AnyAsync(Ct));
+    }
+
+    [Theory]
+    [InlineData(AchievementState.Disabled)]
+    [InlineData(AchievementState.Archived)]
+    [InlineData(AchievementState.OffSeason)]
+    public async Task OnlyAnAccruingAchievementMakesAFactWorthStoring(AchievementState state)
+    {
+        _catalog.Current = [Definition(100000) with { State = state }];
+
+        await RecordAtAsync("not-accruing", DateTime.UtcNow);
+
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        Assert.False(await db.AchievementFacts.AnyAsync(Ct));
+    }
+
+    [Fact]
+    public async Task AListenedToFactIsStoredAsBefore()
+    {
+        _catalog.Current = [Definition(100000)];
+
+        await RecordAtAsync("someone-listens", DateTime.UtcNow);
+
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        Assert.Equal("someone-listens", (await db.AchievementFacts.SingleAsync(Ct)).OperationId);
+    }
+
+    [Fact]
+    public async Task StateNobodyListenedToIsRecordedOnceADefinitionAppears()
+    {
+        _catalog.Current = [Definition(100000)];
+        var grain = NewGrain();
+        await grain.ReconcileAsync(Ct);
+        Assert.Equal(0, await StateFactCountAsync());
+
+        _catalog.Current =
+        [
+            Definition(100000),
+            Definition(100001, AchievementSources.ACCOUNT_AGE) with
+            {
+                Reducer = AchievementReducer.Maximum,
+            },
+        ];
+        await grain.ReconcileAsync(Ct);
+
+        Assert.True(await StateFactCountAsync() > 0);
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        var progress = await db.AchievementProgress.SingleAsync(x => x.AchievementId == 100001, Ct);
+        Assert.True(progress.Value >= 10);
+    }
+
+    /// <summary>A definition on a source the state evaluator records, so its state facts are listened to.</summary>
+    private static AchievementDefinition StateDefinition(int id) =>
+        Definition(id, AchievementSources.ACCOUNT_AGE) with
+        {
+            Reducer = AchievementReducer.Maximum,
+        };
 
     private async Task<int> StateFactCountAsync()
     {

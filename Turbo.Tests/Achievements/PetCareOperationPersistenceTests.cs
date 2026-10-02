@@ -470,7 +470,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
         RoomHarness.SetField(
             grain,
             "_achievementFacts",
-            new AchievementFactRecorder(new EmptyCatalog())
+            new AchievementFactRecorder(new ListeningAchievementCatalog())
         );
         var module = Activator.CreateInstance(
             typeof(InventoryModule).Assembly.GetType(
@@ -497,7 +497,7 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
         RoomHarness.SetField(
             grain,
             "_achievementFacts",
-            new AchievementFactRecorder(new EmptyCatalog())
+            new AchievementFactRecorder(new ListeningAchievementCatalog())
         );
         RoomHarness.SetMember(RoomHarness.GetMember(grain, "_state")!, "RoomId", (RoomId)ROOM_ID);
         return (IRoomPersistenceGrain)grain;
@@ -527,23 +527,4 @@ public sealed class PetCareOperationPersistenceTests : IDisposable
             Nutrition = 95,
             Respect = 0,
         };
-
-    private sealed class EmptyCatalog : IAchievementCatalog
-    {
-        public ImmutableArray<AchievementDefinition> Current => [];
-
-        public IDisposable RegisterSources(IEnumerable<AchievementSourceDefinition> sources) =>
-            throw new NotSupportedException();
-
-        public Task ReloadAsync(CancellationToken ct) => Task.CompletedTask;
-
-        public Task ImportAsync(
-            ImmutableArray<AchievementDefinition> definitions,
-            bool apply,
-            string actor,
-            string reason,
-            string operationId,
-            CancellationToken ct
-        ) => Task.CompletedTask;
-    }
 }

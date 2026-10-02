@@ -68,27 +68,8 @@ public sealed class PlayerSubscriptionAchievementTests : IDisposable
         RoomHarness.SetField(
             grain,
             "_achievementFacts",
-            new AchievementFactRecorder(new EmptyCatalog())
+            new AchievementFactRecorder(new ListeningAchievementCatalog())
         );
         return (IPlayerSubscriptionGrain)grain;
-    }
-
-    private sealed class EmptyCatalog : IAchievementCatalog
-    {
-        public ImmutableArray<AchievementDefinition> Current => [];
-
-        public IDisposable RegisterSources(IEnumerable<AchievementSourceDefinition> sources) =>
-            throw new NotSupportedException();
-
-        public Task ReloadAsync(CancellationToken ct) => Task.CompletedTask;
-
-        public Task ImportAsync(
-            ImmutableArray<AchievementDefinition> definitions,
-            bool apply,
-            string actor,
-            string reason,
-            string operationId,
-            CancellationToken ct
-        ) => Task.CompletedTask;
     }
 }
