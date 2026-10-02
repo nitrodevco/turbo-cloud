@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Badges;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
+using Turbo.Database.Entities.Moderation;
 using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
@@ -35,6 +36,9 @@ public interface ITurboDbContext : IDisposable
     public DbSet<RoomBanEntity>? RoomBans { get; set; }
 
     public DbSet<RoomChatlogEntity>? Chatlogs { get; set; }
+
+    public DbSet<CommandLogEntity>? CommandLogs { get; set; }
+    public DbSet<PlayerSanctionEntity>? PlayerSanctions { get; set; }
 
     public DbSet<RoomEntity>? Rooms { get; set; }
 

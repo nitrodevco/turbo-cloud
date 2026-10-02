@@ -188,7 +188,8 @@ internal sealed partial class PlayerPermissionGrain
 
                 return (result, () => _state.NodesByNode[(node, temporary)] = row.ToSnapshot());
             },
-            ct
+            ct,
+            explicitlyChangedNode: node
         );
     }
 
@@ -225,7 +226,8 @@ internal sealed partial class PlayerPermissionGrain
                         () => _state.NodesByNode.Remove((node, temporary))
                     );
                 },
-                ct
+                ct,
+                explicitlyChangedNode: node
             );
 
     public async Task<PermissionChangeResultType> SetMetaAsync(
@@ -343,7 +345,8 @@ internal sealed partial class PlayerPermissionGrain
     /// </summary>
     private async Task<PermissionChangeResultType> WriteAsync(
         Func<TurboDbContext, Task<(PermissionChangeResultType Result, Action? Apply)>> change,
-        CancellationToken ct
+        CancellationToken ct,
+        string? explicitlyChangedNode = null
     )
     {
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
@@ -356,7 +359,9 @@ internal sealed partial class PlayerPermissionGrain
         await dbCtx.SaveChangesAsync(ct);
 
         apply?.Invoke();
-        Resolve();
+        // Explicit restriction commands provide their own feedback, including cleanup after expiry.
+        // Suppress only their target; other restrictions that elapsed during this write still notify.
+        Resolve(explicitlyChangedNode: explicitlyChangedNode);
 
         _logger.LogInformation("Permissions of player {PlayerId} changed", PlayerId);
 

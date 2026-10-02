@@ -61,6 +61,14 @@ public static class GrainFactoryExtensions
         CancellationToken ct
     ) => factory.GetPlayerPresenceGrain(playerId).SendComposerAsync(composer, ct);
 
+    /// <summary>Accepts a composer only for a currently attached player session, without an offline backlog.</summary>
+    public static Task<bool> TrySendComposerToPlayerAsync(
+        this IGrainFactory factory,
+        PlayerId playerId,
+        IComposer composer,
+        CancellationToken ct
+    ) => factory.GetPlayerPresenceGrain(playerId).TrySendComposerAsync(composer, ct);
+
     /// <summary>The same composer to several players. Each presence is its own grain, so the sends run side by side.</summary>
     public static Task SendComposerToPlayersAsync(
         this IGrainFactory factory,

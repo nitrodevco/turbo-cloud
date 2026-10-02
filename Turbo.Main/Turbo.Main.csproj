@@ -49,6 +49,7 @@
     <ProjectReference Include="..\Turbo.Logging\Turbo.Logging.csproj" />
     <ProjectReference Include="..\Turbo.Messages\Turbo.Messages.csproj" />
     <ProjectReference Include="..\Turbo.Navigator\Turbo.Navigator.csproj" />
+    <ProjectReference Include="..\Turbo.Operations\Turbo.Operations.csproj" />
     <ProjectReference Include="..\Turbo.Networking\Turbo.Networking.csproj" />
     <ProjectReference Include="..\Turbo.PacketHandlers\Turbo.PacketHandlers.csproj" />
     <ProjectReference Include="..\Turbo.Pipeline\Turbo.Pipeline.csproj" />
@@ -58,5 +59,6 @@
     <ProjectReference Include="..\Turbo.Revisions\Turbo.Revisions.csproj" />
     <ProjectReference Include="..\Turbo.Rooms\Turbo.Rooms.csproj" />
     <ProjectReference Include="..\Turbo.Runtime\Turbo.Runtime.csproj" />
+    <ProjectReference Include="..\Turbo.Commands\Turbo.Commands.csproj" />
   </ItemGroup>
 </Project>

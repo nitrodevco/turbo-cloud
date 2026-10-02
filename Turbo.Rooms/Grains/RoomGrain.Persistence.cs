@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Turbo.Primitives.Commands.Snapshots;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Snapshots.Chat;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
@@ -66,7 +67,16 @@ public sealed partial class RoomGrain
             handOvers.Add(persistence.EnqueueChatlogsAsync(chatlogs, ct));
         }
 
-        // Four different queues, so their order does not matter; each list keeps its own.
+        if (_state.PendingCommandLogs.Count > 0)
+        {
+            var commandLogs = new List<CommandLogSnapshot>(_state.PendingCommandLogs);
+
+            _state.PendingCommandLogs.Clear();
+
+            handOvers.Add(persistence.EnqueueCommandLogsAsync(commandLogs, ct));
+        }
+
+        // Five different queues, so their order does not matter; each list keeps its own.
         await Task.WhenAll(handOvers);
     }
 
@@ -88,5 +98,22 @@ public sealed partial class RoomGrain
         }
 
         _state.PendingChatlogs.Enqueue(snapshot);
+    }
+
+    /// <summary>Keeps a command use for the next hand-over, bounded like <see cref="QueueChatlog"/>.</summary>
+    internal void QueueCommandLog(CommandLogSnapshot snapshot)
+    {
+        if (_state.PendingCommandLogs.Count >= _roomConfig.MaxPendingCommandLogs)
+        {
+            _logger.LogWarning(
+                "Command log buffer of room {RoomId} is full ({Max}); dropping the oldest use",
+                _state.RoomId,
+                _roomConfig.MaxPendingCommandLogs
+            );
+
+            _state.PendingCommandLogs.Dequeue();
+        }
+
+        _state.PendingCommandLogs.Enqueue(snapshot);
     }
 }

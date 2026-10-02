@@ -163,6 +163,16 @@ internal sealed partial class PlayerPresenceGrain
         return Task.CompletedTask;
     }
 
+    public Task<bool> TrySendComposerAsync(IComposer composer, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (_sessionObserver is null)
+            return Task.FromResult(false);
+        Enqueue(composer);
+        StartOutgoingFlush();
+        return Task.FromResult(true);
+    }
+
     public Task SendComposerAsync(IReadOnlyList<IComposer> composers, CancellationToken ct)
     {
         if (composers.Count > 0)

@@ -153,6 +153,42 @@ public sealed class SessionGateway(IGrainFactory grainFactory, ILogger<ISessionG
         }
     }
 
+    public IReadOnlyCollection<PlayerId> GetOnlinePlayerIds() => [.. _playerToSession.Keys];
+
+    public async Task<bool> DisconnectPlayerAsync(
+        PlayerId playerId,
+        IComposer? farewell,
+        CancellationToken ct
+    )
+    {
+        if (
+            !_playerToSession.TryGetValue(playerId, out var sessionKey)
+            || GetSession(sessionKey) is not { } session
+        )
+            return false;
+
+        if (farewell is not null)
+        {
+            try
+            {
+                await session.SendComposerAsync(farewell, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                // The connection is closed either way; the player just misses the explanation.
+                _logger.LogWarning(
+                    ex,
+                    "Failed to send a farewell to player {PlayerId} before disconnecting them",
+                    playerId
+                );
+            }
+        }
+
+        await session.CloseSessionAsync().ConfigureAwait(false);
+
+        return true;
+    }
+
     public async Task RemoveSessionFromPlayerAsync(PlayerId playerId, CancellationToken ct)
     {
         if (!_playerToSession.TryRemove(playerId, out var sessionKey))
