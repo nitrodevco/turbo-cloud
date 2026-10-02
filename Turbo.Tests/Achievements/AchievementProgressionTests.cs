@@ -156,7 +156,10 @@ public sealed class AchievementProgressionTests : IDisposable
         {
             Assert.Equal(3, await db.AchievementProgress.SumAsync(x => x.CompletedLevel, Ct));
             Assert.Equal(30, (await db.AchievementProjections.SingleAsync(Ct)).Score);
-            var blocked = await db.AchievementProgress.SingleAsync(x => x.AchievementId == 100000, Ct);
+            var blocked = await db.AchievementProgress.SingleAsync(
+                x => x.AchievementId == 100000,
+                Ct
+            );
             Assert.True(blocked.PendingDelivery);
             Assert.NotNull(blocked.ReadOpenAwards().Single(x => x.Level == 1).BlockedReason);
         }

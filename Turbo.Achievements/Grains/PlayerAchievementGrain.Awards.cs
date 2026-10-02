@@ -135,12 +135,7 @@ internal sealed partial class PlayerAchievementGrain
                 }
                 await _grains
                     .GetPlayerBadgeGrain(_state.PlayerId)
-                    .GrantAchievementAsync(
-                        progress.AchievementId,
-                        open.Level,
-                        level.BadgeCode,
-                        ct
-                    );
+                    .GrantAchievementAsync(progress.AchievementId, open.Level, level.BadgeCode, ct);
                 await using var tx = await db.Database.BeginTransactionAsync(ct);
                 // The earned-level total moves by the levels this completion adds to the
                 // achievement's highest completed level; the score by the frozen level score.
@@ -193,7 +188,8 @@ internal sealed partial class PlayerAchievementGrain
                     blocked.ReplaceOpenAward(
                         stuck with
                         {
-                            BlockedReason = ex.Message.Length > 512 ? ex.Message[..512] : ex.Message,
+                            BlockedReason =
+                                ex.Message.Length > 512 ? ex.Message[..512] : ex.Message,
                         }
                     );
                     await db.SaveChangesAsync(ct);

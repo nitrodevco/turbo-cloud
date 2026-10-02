@@ -36,11 +36,9 @@ public sealed class AchievementStateEvaluator(
         var projection = await db
             .AchievementProjections.FindAsync([playerId.Value], ct)
             .ConfigureAwait(false);
-        var observed =
-            projection is { ObservedState.Length: > 0 }
-                ? JsonSerializer.Deserialize<Dictionary<string, long>>(projection.ObservedState)
-                    ?? []
-                : [];
+        var observed = projection is { ObservedState.Length: > 0 }
+            ? JsonSerializer.Deserialize<Dictionary<string, long>>(projection.ObservedState) ?? []
+            : [];
         var moved = false;
         var now = DateTime.UtcNow;
         void Record(string source, long value)
@@ -84,7 +82,10 @@ public sealed class AchievementStateEvaluator(
         // A zero-threshold membership award requires an actual eligible interval.
         // Recording zero for non-members would manufacture a joining event.
         if (club is { FirstSubscribedAt: not null, ExpiresAt: { } expiresAt })
-            Record(AchievementSources.HC, EligibleSeconds(club.TotalDaysSubscribed, expiresAt, now));
+            Record(
+                AchievementSources.HC,
+                EligibleSeconds(club.TotalDaysSubscribed, expiresAt, now)
+            );
         var rooms = await AchievementRoomCriteria
             .ReadOwnedStateAsync(db, playerId, ct)
             .ConfigureAwait(false);
