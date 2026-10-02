@@ -2,6 +2,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Achievements;
+using Turbo.Database.Achievements;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Achievements;
 using Turbo.Database.Entities.Players;
@@ -62,6 +63,20 @@ public sealed class AchievementProgressionTests : IDisposable
         return (IPlayerAchievementGrain)grain;
     }
 
+    /// <summary>What an import persists: every published revision stays readable for frozen awards.</summary>
+    private void StoreRevisions(IEnumerable<AchievementDefinition> definitions)
+    {
+        foreach (var definition in definitions)
+            _database.Insert(
+                new AchievementDefinitionEntity
+                {
+                    AchievementId = definition.Id,
+                    Revision = definition.Revision,
+                    DefinitionJson = JsonSerializer.Serialize(definition),
+                }
+            );
+    }
+
     private async Task RecordAsync(string operation, string source, long amount, string value = "")
     {
         await using var db = await _database.CreateDbContextAsync(Ct);
@@ -108,16 +123,14 @@ public sealed class AchievementProgressionTests : IDisposable
         await NewGrain().ProcessAsync(Ct);
         await NewGrain().ProcessAsync(Ct);
         await using var db = await _database.CreateDbContextAsync(Ct);
-        var awards = await db.AchievementAwards.OrderBy(x => x.Level).ToListAsync(Ct);
+        var progress = await db.AchievementProgress.SingleAsync(Ct);
+        // A completed level stays open until the player has been told, and nobody was online.
+        var awards = progress.ReadOpenAwards();
         Assert.Equal([1, 2, 3], awards.Select(x => x.Level));
-        Assert.All(
-            awards,
-            award =>
-            {
-                Assert.True(award.Completed);
-                Assert.False(award.Presented);
-            }
-        );
+        Assert.All(awards, award => Assert.True(award.Completed));
+        Assert.Equal(3, progress.CompletedLevel);
+        Assert.Equal(30, progress.ScoreEarned);
+        Assert.False(progress.PendingDelivery);
         Assert.Equal(
             3,
             _fakes.Log.Calls.Count(x => x.Method == nameof(IPlayerBadgeGrain.GrantAchievementAsync))
@@ -132,6 +145,7 @@ public sealed class AchievementProgressionTests : IDisposable
     public async Task BlockedAchievementDoesNotPreventAnotherAchievementAndRetryPreservesFrozenAwards()
     {
         _catalog.Current = [Definition(100000), Definition(100001)];
+        StoreRevisions(_catalog.Current);
         _fakes.Handlers[nameof(IPlayerBadgeGrain.GrantAchievementAsync)] = call =>
             (int)call.Args[0]! == 100000
                 ? Task.FromException(new IOException("temporary badge failure"))
@@ -140,16 +154,11 @@ public sealed class AchievementProgressionTests : IDisposable
         await NewGrain().ProcessAsync(Ct);
         await using (var db = await _database.CreateDbContextAsync(Ct))
         {
-            Assert.Equal(3, await db.AchievementAwards.CountAsync(x => x.Completed, Ct));
+            Assert.Equal(3, await db.AchievementProgress.SumAsync(x => x.CompletedLevel, Ct));
             Assert.Equal(30, (await db.AchievementProjections.SingleAsync(Ct)).Score);
-            Assert.NotNull(
-                (
-                    await db.AchievementAwards.SingleAsync(
-                        x => x.AchievementId == 100000 && x.Level == 1,
-                        Ct
-                    )
-                ).BlockedReason
-            );
+            var blocked = await db.AchievementProgress.SingleAsync(x => x.AchievementId == 100000, Ct);
+            Assert.True(blocked.PendingDelivery);
+            Assert.NotNull(blocked.ReadOpenAwards().Single(x => x.Level == 1).BlockedReason);
         }
         _catalog.Current = _catalog
             .Current.Select(x =>
@@ -164,10 +173,90 @@ public sealed class AchievementProgressionTests : IDisposable
         await NewGrain().RetryAsync(Ct);
         await using (var db = await _database.CreateDbContextAsync(Ct))
         {
-            Assert.Equal(6, await db.AchievementAwards.CountAsync(x => x.Completed, Ct));
+            Assert.Equal(6, await db.AchievementProgress.SumAsync(x => x.CompletedLevel, Ct));
             Assert.Equal(60, (await db.AchievementProjections.SingleAsync(Ct)).Score);
             Assert.Equal(6, (await db.AchievementProjections.SingleAsync(Ct)).EarnedLevels);
         }
+    }
+
+    [Fact]
+    public async Task AnnouncedLevelsLeaveTheOpenListAndEachIsAnnouncedOnce()
+    {
+        _fakes.Handlers["TrySendComposerAsync"] = _ => Task.FromResult(true);
+        _catalog.Current = [Definition(100000)];
+        await RecordAsync("announce-1", AchievementSources.FIGURE, 3);
+
+        await NewGrain().ProcessAsync(Ct);
+        await NewGrain().ProcessAsync(Ct);
+
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        var progress = await db.AchievementProgress.SingleAsync(Ct);
+        Assert.Equal(AchievementOpenAwards.NONE, progress.OpenAwards);
+        Assert.Equal(3, progress.CompletedLevel);
+        Assert.Equal(30, progress.ScoreEarned);
+        Assert.Equal(30, (await db.AchievementProjections.SingleAsync(Ct)).Score);
+        Assert.Equal(3, _fakes.Log.Calls.Count(x => x.Method == "TrySendComposerAsync"));
+    }
+
+    [Fact]
+    public async Task BlockedAwardsAreListedForOperatorsAndRetryClearsThem()
+    {
+        _catalog.Current = [Definition(100000)];
+        _fakes.Handlers[nameof(IPlayerBadgeGrain.GrantAchievementAsync)] = _ =>
+            Task.FromException(new IOException("badge failure"));
+        await RecordAsync("blocked-1", AchievementSources.FIGURE, 2);
+        await NewGrain().ProcessAsync(Ct);
+
+        var pending = await NewGrain().GetPendingAwardsAsync(Ct);
+
+        // Both undelivered levels are listed; only the one delivery stopped at has a reason.
+        Assert.Equal(
+            ["achievement:1:100000:1", "achievement:1:100000:2"],
+            pending.Select(x => x.AwardKey)
+        );
+        Assert.NotNull(pending[0].BlockedReason);
+        Assert.Null(pending[1].BlockedReason);
+        _fakes.Handlers.TryRemove(nameof(IPlayerBadgeGrain.GrantAchievementAsync), out _);
+        await NewGrain().RetryAsync(Ct);
+        Assert.Empty(await NewGrain().GetPendingAwardsAsync(Ct));
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        var progress = await db.AchievementProgress.SingleAsync(Ct);
+        Assert.False(progress.PendingDelivery);
+        Assert.Equal(2, progress.CompletedLevel);
+    }
+
+    [Fact]
+    public async Task LevelsEarnedUnderDifferentRevisionsEachDeliverTheirOwnFrozenScore()
+    {
+        var first = Definition(100000);
+        _catalog.Current = [first];
+        StoreRevisions([first]);
+        _fakes.Handlers[nameof(IPlayerBadgeGrain.GrantAchievementAsync)] = _ =>
+            Task.FromException(new IOException("badge failure"));
+        await RecordAsync("revision-1", AchievementSources.FIGURE, 2);
+        await NewGrain().ProcessAsync(Ct);
+        _catalog.Current =
+        [
+            first with
+            {
+                Revision = 2,
+                Levels = first.Levels.Select(x => x with { Score = 999 }).ToImmutableArray(),
+            },
+        ];
+        _fakes.Handlers.TryRemove(nameof(IPlayerBadgeGrain.GrantAchievementAsync), out _);
+        await RecordAsync("revision-2", AchievementSources.FIGURE, 1);
+
+        await NewGrain().ProcessAsync(Ct);
+
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        var progress = await db.AchievementProgress.SingleAsync(Ct);
+        Assert.Equal(3, progress.CompletedLevel);
+        Assert.Equal(10 + 10 + 999, progress.ScoreEarned);
+        Assert.Equal(
+            [1, 1, 2],
+            progress.ReadOpenAwards().OrderBy(x => x.Level).Select(x => x.Revision)
+        );
+        Assert.Equal(1019, (await db.AchievementProjections.SingleAsync(Ct)).Score);
     }
 
     [Fact]
@@ -203,7 +292,7 @@ public sealed class AchievementProgressionTests : IDisposable
         );
         await NewGrain().ReconcileAsync(Ct);
         await using (var check = await _database.CreateDbContextAsync(Ct))
-            Assert.Empty(await check.AchievementAwards.ToListAsync(Ct));
+            Assert.Equal(0, (await check.AchievementProgress.SingleAsync(Ct)).EarnedLevel);
 
         _database.Insert(
             new PlayerSubscriptionEntity
@@ -218,7 +307,7 @@ public sealed class AchievementProgressionTests : IDisposable
         await NewGrain().ReconcileAsync(Ct);
         await NewGrain().ReconcileAsync(Ct);
         await using var db = await _database.CreateDbContextAsync(Ct);
-        var award = Assert.Single(await db.AchievementAwards.ToListAsync(Ct));
+        var award = Assert.Single((await db.AchievementProgress.SingleAsync(Ct)).ReadOpenAwards());
         Assert.Equal(1, award.Level);
         Assert.Equal(2, award.Revision);
         Assert.True(award.Completed);
@@ -243,6 +332,7 @@ public sealed class AchievementProgressionTests : IDisposable
             ],
         };
         _catalog.Current = [legacy];
+        StoreRevisions([legacy]);
         _database.Insert(
             new PlayerSubscriptionEntity
             {
@@ -254,22 +344,15 @@ public sealed class AchievementProgressionTests : IDisposable
             }
         );
         await NewGrain().ReconcileAsync(Ct);
-        string frozenDefinition;
-        string frozenReward;
-        await using (var before = await _database.CreateDbContextAsync(Ct))
-        {
-            var award = await before.AchievementAwards.SingleAsync(Ct);
-            frozenDefinition = award.DefinitionJson;
-            frozenReward = award.RewardJson;
-        }
         _catalog.Current = [AchievementDefaults.Definitions.Single(x => x.Key == "hc-duration")];
         await NewGrain().ReconcileAsync(Ct);
         await using var db = await _database.CreateDbContextAsync(Ct);
-        var retained = Assert.Single(await db.AchievementAwards.ToListAsync(Ct));
-        Assert.Equal(frozenDefinition, retained.DefinitionJson);
-        Assert.Equal(frozenReward, retained.RewardJson);
+        var progress = await db.AchievementProgress.SingleAsync(Ct);
+        var retained = Assert.Single(progress.ReadOpenAwards());
         Assert.Equal(1, retained.Revision);
-        Assert.True((await db.AchievementProgress.SingleAsync(Ct)).Value >= 2 * 86400);
+        Assert.Equal(1, progress.CompletedLevel);
+        Assert.Equal(10, progress.ScoreEarned);
+        Assert.True(progress.Value >= 2 * 86400);
         Assert.Equal(10, (await db.AchievementProjections.SingleAsync(Ct)).Score);
     }
 
@@ -301,7 +384,7 @@ public sealed class AchievementProgressionTests : IDisposable
         _catalog.Current = [first with { Revision = 2 }];
         await NewGrain().ProcessAsync(Ct);
         await using var db = await _database.CreateDbContextAsync(Ct);
-        var awards = await db.AchievementAwards.OrderBy(x => x.Level).ToListAsync(Ct);
+        var awards = (await db.AchievementProgress.SingleAsync(Ct)).ReadOpenAwards();
         Assert.Equal([1, 2], awards.Select(x => x.Level));
         Assert.All(awards, x => Assert.Equal(1, x.Revision));
         Assert.True((await db.AchievementFacts.SingleAsync(Ct)).Processed);
@@ -316,7 +399,7 @@ public sealed class AchievementProgressionTests : IDisposable
         await Assert.ThrowsAsync<InvalidOperationException>(() => NewGrain().ProcessAsync(Ct));
         await using var db = await _database.CreateDbContextAsync(Ct);
         Assert.False((await db.AchievementFacts.SingleAsync(Ct)).Processed);
-        Assert.Empty(await db.AchievementAwards.ToListAsync(Ct));
+        Assert.Empty(await db.AchievementProgress.ToListAsync(Ct));
     }
 
     [Fact]

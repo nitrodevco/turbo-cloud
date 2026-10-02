@@ -206,19 +206,28 @@ internal sealed partial class PlayerAchievementGrain : Grain, IPlayerAchievement
     {
         await using var db = await _database.CreateDbContextAsync(ct);
         var pending = await db
-            .AchievementAwards.AsNoTracking()
-            .Where(x => x.PlayerId == _state.PlayerId.Value && !x.Completed)
+            .AchievementProgress.AsNoTracking()
+            .Where(x => x.PlayerId == _state.PlayerId.Value && x.PendingDelivery)
             .OrderBy(x => x.AchievementId)
-            .ThenBy(x => x.Level)
             .ToListAsync(ct);
-        return pending
-            .Select(x => new AchievementAwardStatusSnapshot
-            {
-                AwardKey = x.AwardKey,
-                DeliveredRewards = x.DeliveredRewards,
-                BlockedReason = x.BlockedReason,
-            })
-            .ToImmutableArray();
+        return
+        [
+            .. pending.SelectMany(progress =>
+                progress
+                    .ReadOpenAwards()
+                    .Where(x => !x.Completed)
+                    .Select(x => new AchievementAwardStatusSnapshot
+                    {
+                        AwardKey = AchievementOpenAwards.AwardKey(
+                            progress.PlayerId,
+                            progress.AchievementId,
+                            x.Level
+                        ),
+                        DeliveredRewards = x.DeliveredRewards,
+                        BlockedReason = x.BlockedReason,
+                    })
+            ),
+        ];
     }
 
     public Task RetryAsync(CancellationToken ct) => ProcessAsync(ct);

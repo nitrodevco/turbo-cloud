@@ -32,32 +32,47 @@ internal sealed partial class PlayerAchievementGrain
                 element.GetProperty(nameof(AchievementBinding.Id)).GetInt32(),
                 element.GetProperty(nameof(AchievementBinding.Revision)).GetInt32()
             );
-            if (!revisions.TryGetValue(key, out var definition))
-            {
-                definition = _catalog.Current.FirstOrDefault(x =>
-                    x.Id == key.Item1 && x.Revision == key.Item2
-                );
-                if (definition is null)
-                {
-                    var row = await db
-                        .AchievementDefinitions.AsNoTracking()
-                        .SingleOrDefaultAsync(
-                            x => x.AchievementId == key.Item1 && x.Revision == key.Item2,
-                            ct
-                        );
-                    if (row is null)
-                        throw new InvalidOperationException(
-                            $"Achievement {key.Item1} revision {key.Item2} is not stored."
-                        );
-                    definition =
-                        JsonSerializer.Deserialize<AchievementDefinition>(row.DefinitionJson)
-                        ?? throw new InvalidOperationException("Empty definition.");
-                }
-                revisions[key] = definition;
-            }
-            definitions.Add(definition);
+            definitions.Add(await ResolveRevisionAsync(db, key.Item1, key.Item2, revisions, ct));
         }
         return definitions;
+    }
+
+    /// <summary>
+    /// One immutable definition revision: the current catalog answers the common case, an older
+    /// one is read from storage. Facts and open awards both freeze a revision this way.
+    /// </summary>
+    private async Task<AchievementDefinition> ResolveRevisionAsync(
+        TurboDbContext db,
+        int achievementId,
+        int revision,
+        Dictionary<(int, int), AchievementDefinition> revisions,
+        CancellationToken ct
+    )
+    {
+        var key = (achievementId, revision);
+        if (revisions.TryGetValue(key, out var definition))
+            return definition;
+        definition = _catalog.Current.FirstOrDefault(x =>
+            x.Id == achievementId && x.Revision == revision
+        );
+        if (definition is null)
+        {
+            var row = await db
+                .AchievementDefinitions.AsNoTracking()
+                .SingleOrDefaultAsync(
+                    x => x.AchievementId == achievementId && x.Revision == revision,
+                    ct
+                );
+            if (row is null)
+                throw new InvalidOperationException(
+                    $"Achievement {achievementId} revision {revision} is not stored."
+                );
+            definition =
+                JsonSerializer.Deserialize<AchievementDefinition>(row.DefinitionJson)
+                ?? throw new InvalidOperationException("Empty definition.");
+        }
+        revisions[key] = definition;
+        return definition;
     }
 
     /// <summary>

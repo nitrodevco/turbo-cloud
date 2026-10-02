@@ -160,7 +160,8 @@ internal sealed class AchievementRecoveryService(
                     .Union(
                         // Presentation is not polled: an offline player is presented their
                         // completed awards when the list is requested on their next session.
-                        db.AchievementAwards.Where(x => !x.Completed).Select(x => x.PlayerId)
+                        db.AchievementProgress.Where(x => x.PendingDelivery)
+                            .Select(x => x.PlayerId)
                     )
                     .Union(
                         db.AchievementProjections.Where(x => x.PublicationPending)

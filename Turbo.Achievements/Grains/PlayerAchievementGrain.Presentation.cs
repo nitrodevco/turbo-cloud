@@ -1,8 +1,9 @@
+using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Turbo.Database.Achievements;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Achievements;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
@@ -30,19 +31,26 @@ internal sealed partial class PlayerAchievementGrain
             projection.PublicationPending = false;
             await db.SaveChangesAsync(ct);
         }
-        var presentations = await db
-            .AchievementAwards.Where(x =>
-                x.PlayerId == _state.PlayerId.Value && x.Completed && !x.Presented
+        // A completed award stays open until the player has been told, so the client is shown
+        // each level once even if the player was offline when it completed.
+        var announcing = await db
+            .AchievementProgress.Where(x =>
+                x.PlayerId == _state.PlayerId.Value && x.OpenAwards != AchievementOpenAwards.NONE
             )
             .OrderBy(x => x.AchievementId)
-            .ThenBy(x => x.Level)
             .ToListAsync(ct);
-        foreach (var award in presentations)
+        var revisions = new Dictionary<(int, int), AchievementDefinition>();
+        foreach (var progress in announcing)
+        foreach (var award in progress.ReadOpenAwards().Where(x => x.Completed))
         {
-            var definition = JsonSerializer.Deserialize<AchievementDefinition>(
-                award.DefinitionJson
-            )!;
-            var level = JsonSerializer.Deserialize<AchievementLevelDefinition>(award.RewardJson)!;
+            var definition = await ResolveRevisionAsync(
+                db,
+                progress.AchievementId,
+                award.Revision,
+                revisions,
+                ct
+            );
+            var level = definition.Levels[award.Level - 1];
             var badge = await _grains
                 .GetPlayerBadgeGrain(_state.PlayerId)
                 .GetBadgeSnapshotAsync(level.BadgeCode, ct);
@@ -61,7 +69,7 @@ internal sealed partial class PlayerAchievementGrain
                     LevelRewardPoints = activity?.Amount ?? 0,
                     LevelRewardPointType = activity?.Currency?.ActivityPointType ?? 0,
                     BonusPoints = 0,
-                    AchievementId = award.AchievementId,
+                    AchievementId = progress.AchievementId,
                     RemovedBadgeCode =
                         award.Level > 1 ? definition.Levels[award.Level - 2].BadgeCode : "",
                     Category = definition.Category,
@@ -72,24 +80,20 @@ internal sealed partial class PlayerAchievementGrain
                 ct
             );
             if (!delivered)
-                break;
-            var progress = await db.AchievementProgress.FindAsync(
-                [_state.PlayerId.Value, award.AchievementId],
-                ct
-            );
+                return;
             await _grains.SendComposerToPlayerAsync(
                 _state.PlayerId,
                 new AchievementEventMessageComposer
                 {
                     Achievement = AchievementProjection.ToSnapshot(
-                        _catalog.Current.FirstOrDefault(x => x.Id == award.AchievementId)
+                        _catalog.Current.FirstOrDefault(x => x.Id == progress.AchievementId)
                             ?? definition,
                         progress
                     ),
                 },
                 ct
             );
-            award.Presented = true;
+            progress.RemoveOpenAward(award.Level);
             await db.SaveChangesAsync(ct);
         }
     }
