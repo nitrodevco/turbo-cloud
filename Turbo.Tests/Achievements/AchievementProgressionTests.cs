@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Turbo.Achievements;
+using Turbo.Achievements.Configuration;
 using Turbo.Database.Achievements;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Achievements;
@@ -350,6 +351,131 @@ public sealed class AchievementProgressionTests : IDisposable
             progress.ReadOpenAwards().OrderBy(x => x.Level).Select(x => x.Revision)
         );
         Assert.Equal(1019, (await db.AchievementProjections.SingleAsync(Ct)).Score);
+    }
+
+    [Fact]
+    public async Task ListShowsEnabledAndOffSeasonAndHidesDisabledAndUntouchedArchived()
+    {
+        _catalog.Current =
+        [
+            Definition(100000),
+            Definition(100001) with
+            {
+                State = AchievementState.OffSeason,
+            },
+            Definition(100002) with
+            {
+                State = AchievementState.Disabled,
+            },
+            Definition(100003) with
+            {
+                State = AchievementState.Archived,
+            },
+        ];
+
+        var listed = await NewGrain().GetAchievementsAsync(Ct);
+
+        Assert.Equal(
+            [(100000, AchievementState.Enabled), (100001, AchievementState.OffSeason)],
+            listed.Select(x => (x.AchievementId, x.State))
+        );
+    }
+
+    [Fact]
+    public async Task AnArchivedAchievementIsListedOnceThePlayerHasProgressOnIt()
+    {
+        _catalog.Current = [Definition(100003) with { State = AchievementState.Archived }];
+        _database.Insert(
+            new AchievementProgressEntity
+            {
+                PlayerId = 1,
+                AchievementId = 100003,
+                Value = 1,
+                EarnedLevel = 1,
+            }
+        );
+
+        var listed = await NewGrain().GetAchievementsAsync(Ct);
+
+        var archived = Assert.Single(listed);
+        Assert.Equal(AchievementState.Archived, archived.State);
+    }
+
+    [Fact]
+    public async Task ArchiveShowsAllListsEveryArchivedAchievementToEveryone()
+    {
+        _catalog.Current = [Definition(100003) with { State = AchievementState.Archived }];
+        var grain = NewGrain();
+        RoomHarness.SetField(grain, "_config", new AchievementConfig { ArchiveShowsAll = true });
+
+        var listed = await grain.GetAchievementsAsync(Ct);
+
+        Assert.Equal(AchievementState.Archived, Assert.Single(listed).State);
+    }
+
+    [Fact]
+    public async Task OnlyEnabledAchievementsAreBoundToNewFacts()
+    {
+        _catalog.Current =
+        [
+            Definition(100000),
+            Definition(100001) with
+            {
+                State = AchievementState.OffSeason,
+            },
+            Definition(100002) with
+            {
+                State = AchievementState.Disabled,
+            },
+            Definition(100003) with
+            {
+                State = AchievementState.Archived,
+            },
+        ];
+
+        await RecordAsync("bind-state", AchievementSources.FIGURE, 1);
+
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        var bindings = (await db.AchievementFacts.SingleAsync(Ct)).BindingsJson;
+        Assert.Contains("100000", bindings);
+        Assert.DoesNotContain("100001", bindings);
+        Assert.DoesNotContain("100002", bindings);
+        Assert.DoesNotContain("100003", bindings);
+    }
+
+    [Fact]
+    public async Task ReconcileOpensNoAwardsForAnArchivedAchievementWithQualifyingProgress()
+    {
+        _catalog.Current = [Definition(100003) with { State = AchievementState.Archived }];
+        _database.Insert(
+            new AchievementProgressEntity
+            {
+                PlayerId = 1,
+                AchievementId = 100003,
+                Value = 3,
+            }
+        );
+
+        await NewGrain().ReconcileAsync(Ct);
+
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        var progress = await db.AchievementProgress.SingleAsync(Ct);
+        Assert.Equal(0, progress.EarnedLevel);
+        Assert.False(progress.PendingDelivery);
+    }
+
+    [Fact]
+    public async Task ChangingOnlyTheStateMakesReconcileEvaluateThePlayerAgain()
+    {
+        _catalog.Current = [Definition(100000)];
+        var grain = NewGrain();
+        await grain.ReconcileAsync(Ct);
+        Assert.Equal(1, NormalizeCalls());
+
+        _catalog.Current = [Definition(100000) with { State = AchievementState.Archived }];
+        await grain.ReconcileAsync(Ct);
+
+        Assert.Equal(2, NormalizeCalls());
     }
 
     [Fact]

@@ -146,10 +146,7 @@ public sealed class AchievementCatalog : IAchievementCatalog
                 .ConfigureAwait(false);
             var next = rows.GroupBy(x => x.AchievementId)
                 .Select(x => x.MaxBy(r => r.Revision)!)
-                .Select(x =>
-                    JsonSerializer.Deserialize<AchievementDefinition>(x.DefinitionJson)
-                    ?? throw new InvalidOperationException("Empty achievement definition.")
-                )
+                .Select(x => AchievementDefinitionJson.Read(x.DefinitionJson))
                 .OrderBy(x => x.Order)
                 .ThenBy(x => x.Id)
                 .ToImmutableArray();
@@ -203,9 +200,7 @@ public sealed class AchievementCatalog : IAchievementCatalog
                 .AchievementDefinitions.AsNoTracking()
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
-            var existing = rows.Select(x =>
-                    JsonSerializer.Deserialize<AchievementDefinition>(x.DefinitionJson)!
-                )
+            var existing = rows.Select(x => AchievementDefinitionJson.Read(x.DefinitionJson))
                 .ToArray();
             var combined = existing
                 .GroupBy(x => x.Id)
@@ -309,6 +304,8 @@ public sealed class AchievementCatalog : IAchievementCatalog
                     || d.Levels.IsDefaultOrEmpty
                     || d.Levels.Length > 100
                     || d.DisplayMethod is < 0 or > 2
+                    || !Enum.IsDefined(d.State)
+                    || d.State == AchievementState.WiredControlled
                 )
                     throw new InvalidOperationException(
                         "Invalid achievement identity, units or packet limits."
@@ -356,8 +353,7 @@ public sealed class AchievementCatalog : IAchievementCatalog
                     previous = level.Requirement;
                     if (
                         !allowRetainedSources
-                        && d.Enabled
-                        && !d.Archived
+                        && d.Accrues()
                         && (
                             string.IsNullOrWhiteSpace(_config.BadgeAssetDirectory)
                             || !File.Exists(

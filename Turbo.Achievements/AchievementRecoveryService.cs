@@ -54,11 +54,7 @@ internal sealed class AchievementRecoveryService(
                 var current = catalog.Current;
                 if (!current.Equals(rankedCatalog))
                 {
-                    if (
-                        current.Any(x =>
-                            x.Enabled && !x.Archived && x.Source == AchievementSources.ROOM_RANK
-                        )
-                    )
+                    if (current.Any(x => x.Accrues() && x.Source == AchievementSources.ROOM_RANK))
                     {
                         await AchievementRoomCriteria
                             .RecordRankingsAsync(db, recorder, stoppingToken)

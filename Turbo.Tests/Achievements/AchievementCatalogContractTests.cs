@@ -87,7 +87,7 @@ public sealed class AchievementCatalogContractTests : IDisposable
             var definition = Definition(100110, "ephemeral-source", source.Key);
             definition = definition with
             {
-                Enabled = true,
+                State = AchievementState.Enabled,
                 Levels = [new() { Requirement = 1, BadgeCode = badgeCode }],
             };
             await catalog.ImportAsync(
@@ -148,7 +148,7 @@ public sealed class AchievementCatalogContractTests : IDisposable
             );
             var exact = Definition(100120, "respect-text", AchievementSources.RESPECT_GIVEN) with
             {
-                Enabled = true,
+                State = AchievementState.Enabled,
                 Levels = [new() { Requirement = 1, BadgeCode = "ACH_RespectGiven1" }],
             };
             var numericBase = Definition(
@@ -157,7 +157,7 @@ public sealed class AchievementCatalogContractTests : IDisposable
                 AchievementSources.ACCOUNT_AGE
             ) with
             {
-                Enabled = true,
+                State = AchievementState.Enabled,
                 Reducer = AchievementReducer.Maximum,
                 Levels = [new() { Requirement = 1, BadgeCode = "ACH_RegistrationDuration1" }],
             };
@@ -295,6 +295,44 @@ public sealed class AchievementCatalogContractTests : IDisposable
         (await db.AchievementDefinitions.CountAsync(Ct)).Should().Be(0);
     }
 
+    [Theory]
+    [InlineData(AchievementState.WiredControlled)]
+    [InlineData((AchievementState)9)]
+    public async Task UnsupportedStatesAreRejected(AchievementState state)
+    {
+        var catalog = NewCatalog();
+        var definition = Definition(100130, "unsupported-state", AchievementSources.FIGURE) with
+        {
+            State = state,
+        };
+
+        var import = () =>
+            catalog.ImportAsync([definition], false, "tests", "validate", "state-op-1", Ct);
+
+        await import.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Theory]
+    [InlineData(AchievementState.Disabled)]
+    [InlineData(AchievementState.Archived)]
+    [InlineData(AchievementState.OffSeason)]
+    public async Task OnlyEnabledAchievementsNeedBadgeAssetsAndTexts(AchievementState state)
+    {
+        var catalog = NewCatalog();
+        var definition = Definition(100131, "no-assets-needed", AchievementSources.FIGURE) with
+        {
+            State = state,
+        };
+
+        await catalog.ImportAsync([definition], true, "tests", "retire", "state-op-2", Ct);
+
+        catalog.Current.Should().ContainSingle().Which.State.Should().Be(state);
+        var enabled = definition with { Revision = 2, State = AchievementState.Enabled };
+        var import = () =>
+            catalog.ImportAsync([enabled], false, "tests", "enable", "state-op-3", Ct);
+        await import.Should().ThrowAsync<InvalidOperationException>();
+    }
+
     private AchievementCatalog NewCatalog(
         AchievementConfig? config = null,
         IReadOnlyDictionary<string, string>? texts = null
@@ -329,7 +367,7 @@ public sealed class AchievementCatalogContractTests : IDisposable
             Category = "identity",
             Source = source,
             Reducer = AchievementReducer.Counter,
-            Enabled = false,
+            State = AchievementState.Disabled,
             Levels = [new() { Requirement = 1, BadgeCode = $"ACH_{key.Replace('-', '_')}1" }],
         };
 }

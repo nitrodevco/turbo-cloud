@@ -45,10 +45,7 @@ public static class AchievementProjection
             SubCategory = definition.SubCategory,
             LevelCount = definition.Levels.Length,
             DisplayMethod = definition.DisplayMethod,
-            State =
-                definition.Archived ? Turbo.Primitives.Achievements.Enums.AchievementState.Archived
-                : definition.Enabled ? Turbo.Primitives.Achievements.Enums.AchievementState.Enabled
-                : Turbo.Primitives.Achievements.Enums.AchievementState.Disabled,
+            State = definition.State,
         };
     }
 }

@@ -25,12 +25,7 @@ public sealed record AchievementDefinition
     [Id(5)]
     public int Order { get; init; }
 
-    [Id(6)]
-    public bool Enabled { get; init; } = true;
-
-    [Id(7)]
-    public bool Archived { get; init; }
-
+    // Ids 6 and 7 were the Enabled and Archived flags, replaced by State. Never reuse them.
     [Id(8)]
     public int DisplayMethod { get; init; }
 
@@ -48,4 +43,8 @@ public sealed record AchievementDefinition
 
     [Id(13)]
     public required ImmutableArray<AchievementLevelDefinition> Levels { get; init; }
+
+    /// <summary>Whether the achievement accrues progress and who is shown it. See <see cref="AchievementState"/>.</summary>
+    [Id(14)]
+    public AchievementState State { get; init; } = AchievementState.Enabled;
 }

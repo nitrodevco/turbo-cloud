@@ -245,11 +245,17 @@ public static class AchievementDefaults
             divisor,
             requirements.Select(x => x.GetProperty("requiredScore").GetInt32()).ToArray(),
             "ACH_" + publishedName,
-            state == "ENABLED",
+            true,
             0
         ) with
         {
-            Archived = state == "ARCHIVED",
+            State = state switch
+            {
+                "ENABLED" => AchievementState.Enabled,
+                "ARCHIVED" => AchievementState.Archived,
+                "OFF_SEASON" => AchievementState.OffSeason,
+                _ => AchievementState.Disabled,
+            },
         };
     }
 
@@ -275,7 +281,7 @@ public static class AchievementDefaults
             Reducer = reducer,
             UnitDivisor = divisor,
             Order = id,
-            Enabled = enabled,
+            State = enabled ? AchievementState.Enabled : AchievementState.Disabled,
             DisplayMethod = displayMethod,
             Levels = requirements
                 .Select(

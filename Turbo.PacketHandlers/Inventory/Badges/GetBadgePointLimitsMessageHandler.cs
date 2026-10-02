@@ -22,7 +22,7 @@ public class GetBadgePointLimitsMessageHandler(IAchievementCatalog catalog)
         if (ctx.PlayerId <= 0)
             return;
         var groups = catalog
-            .Current.Where(x => x.Enabled || x.Archived)
+            .Current.Where(x => x.IsKnownToClient())
             .Select(x => new BadgePointLimitGroupSnapshot
             {
                 BadgeCodePrefix = Regex.Replace(x.Levels[0].BadgeCode, "[0-9]+$", "")[4..],

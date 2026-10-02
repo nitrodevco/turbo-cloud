@@ -77,7 +77,15 @@ internal sealed partial class PlayerAchievementGrain : Grain, IPlayerAchievement
             .Where(x => x.PlayerId == _state.PlayerId.Value)
             .ToDictionaryAsync(x => x.AchievementId, ct);
         return _catalog
-            .Current.Where(x => x.Enabled || x.Archived)
+            .Current.Where(x =>
+                x.IsListedFor(
+                    _config.ArchiveShowsAll
+                        || (
+                            progress.TryGetValue(x.Id, out var seen)
+                            && (seen.Value > 0 || seen.EarnedLevel > 0)
+                        )
+                )
+            )
             .Select(x => AchievementProjection.ToSnapshot(x, progress.GetValueOrDefault(x.Id)))
             .ToImmutableArray();
     }
@@ -185,7 +193,7 @@ internal sealed partial class PlayerAchievementGrain : Grain, IPlayerAchievement
                 var progress = await db
                     .AchievementProgress.Where(x => x.PlayerId == _state.PlayerId.Value)
                     .ToDictionaryAsync(x => x.AchievementId, ct);
-                foreach (var definition in _catalog.Current.Where(x => x.Enabled && !x.Archived))
+                foreach (var definition in _catalog.Current.Where(x => x.Accrues()))
                     if (progress.TryGetValue(definition.Id, out var value))
                         await CreateAwardsAsync(db, definition, value, DateTime.UtcNow, ct);
                 if (projection is null)

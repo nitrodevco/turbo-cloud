@@ -28,4 +28,10 @@ public sealed class AchievementConfig
     public int MaxDistinctValues { get; set; } = 100000;
     public string DefaultCategory { get; set; } = "identity";
     public bool ShowCongratulationsDialog { get; set; } = true;
+
+    /// <summary>
+    /// Lists every archived achievement to every player. By default a player only sees the archived
+    /// achievements they have progressed, so a new account is not shown things it can never earn.
+    /// </summary>
+    public bool ArchiveShowsAll { get; set; }
 }

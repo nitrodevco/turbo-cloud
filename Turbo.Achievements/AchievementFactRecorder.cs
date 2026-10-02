@@ -28,10 +28,7 @@ public sealed class AchievementFactRecorder(IAchievementCatalog catalog) : IAchi
             throw new ArgumentException("Invalid authoritative achievement fact.", nameof(fact));
         var targets = catalog
             .Current.Where(x =>
-                x.Enabled
-                && !x.Archived
-                && x.Source == fact.Source
-                && x.SourceVersion == fact.Version
+                x.Accrues() && x.Source == fact.Source && x.SourceVersion == fact.Version
             )
             .ToArray();
         foreach (var target in targets)

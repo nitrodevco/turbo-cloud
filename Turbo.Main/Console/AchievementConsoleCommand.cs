@@ -41,7 +41,7 @@ internal sealed class AchievementConsoleCommand(IAchievementCatalog catalog)
                     throw new ArgumentException(
                         "Use import <file> for validation, or import <file> --apply <operation-id> <reason>."
                     );
-                var definitions = JsonSerializer.Deserialize<ImmutableArray<AchievementDefinition>>(
+                var definitions = AchievementDefinitionJson.ReadAll(
                     await File.ReadAllTextAsync(arguments[1], ct).ConfigureAwait(false)
                 );
                 var apply = arguments.Length >= 5 && arguments[2] == "--apply";

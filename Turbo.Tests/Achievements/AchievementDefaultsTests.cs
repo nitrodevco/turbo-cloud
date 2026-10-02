@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Turbo.Achievements;
+using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Achievements.Enums;
 using Xunit;
 
@@ -81,12 +82,14 @@ public class AchievementDefaultsTests
             var metadata = source.GetProperty("achievement");
             Assert.Equal(metadata.GetProperty("category").GetString(), definition.Category);
             Assert.Equal(
-                metadata.GetProperty("state").GetString() == "ENABLED",
-                definition.Enabled
-            );
-            Assert.Equal(
-                metadata.GetProperty("state").GetString() == "ARCHIVED",
-                definition.Archived
+                metadata.GetProperty("state").GetString() switch
+                {
+                    "ENABLED" => AchievementState.Enabled,
+                    "ARCHIVED" => AchievementState.Archived,
+                    "OFF_SEASON" => AchievementState.OffSeason,
+                    _ => AchievementState.Disabled,
+                },
+                definition.State
             );
             Assert.Equal(
                 source
@@ -111,7 +114,7 @@ public class AchievementDefaultsTests
         Assert.DoesNotContain(
             AchievementDefaults.Definitions,
             x =>
-                x.Enabled
+                x.Accrues()
                 && x.Levels[0].BadgeCode.StartsWith("ACH_BasicClub", StringComparison.Ordinal)
         );
         var membership = AchievementDefaults.Definitions.Single(x => x.Key == "hc-duration");

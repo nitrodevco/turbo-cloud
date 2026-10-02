@@ -67,9 +67,7 @@ internal sealed partial class PlayerAchievementGrain
                 throw new InvalidOperationException(
                     $"Achievement {achievementId} revision {revision} is not stored."
                 );
-            definition =
-                JsonSerializer.Deserialize<AchievementDefinition>(row.DefinitionJson)
-                ?? throw new InvalidOperationException("Empty definition.");
+            definition = AchievementDefinitionJson.Read(row.DefinitionJson);
         }
         revisions[key] = definition;
         return definition;
