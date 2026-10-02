@@ -14,6 +14,8 @@
     <PackageReference Include="Microsoft.Orleans.Server" />
     <PackageReference Include="Microsoft.Orleans.Streaming" />
     <PackageReference Include="Microsoft.Orleans.Serialization.Abstractions" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="../appsettings.json">

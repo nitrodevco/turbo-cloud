@@ -26,6 +26,16 @@ public static class HostApplicationBuilderExtensions
                             orleansConfig.GrainCollectionAgeMinutes
                         );
                     });
+                    var telemetryConfig =
+                        builder
+                            .Configuration.GetSection(TelemetryConfig.SECTION_NAME)
+                            .Get<TelemetryConfig>()
+                        ?? new TelemetryConfig();
+                    if (telemetryConfig.Enabled)
+                    {
+                        silo.AddActivityPropagation();
+                    }
+
                     silo.ConfigureEndpoints(
                         orleansConfig.SiloAddress,
                         siloPort: orleansConfig.SiloPort,

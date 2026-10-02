@@ -203,7 +203,11 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             );
         }
 
-        await HydrateRoomStateAsync(ct);
+        await RoomTelemetry.MeasureAsync(
+            RoomTelemetry.HYDRATE,
+            _state.RoomId,
+            () => HydrateRoomStateAsync(ct)
+        );
 
         await _grainFactory.GetRoomDirectoryGrain().UpsertActiveRoomAsync(_state.RoomSnapshot, ct);
 
@@ -342,14 +346,37 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     {
         DelayRoomDeactivation();
 
-        await MapModule.EnsureMapBuiltAsync(ct);
-        await FurniModule.EnsureFurniLoadedAsync(ct);
-        await PetModule.EnsurePetsLoadedAsync(ct);
-        await BotModule.EnsureBotsLoadedAsync(ct);
-        await SecurityModule.EnsureRightsLoadedAsync(ct);
-        await ModerationModule.EnsureMutesLoadedAsync(ct);
-        await EntryModule.EnsureBansLoadedAsync(ct);
-        await ModerationModule.EnsureFilterLoadedAsync(ct);
+        await RoomTelemetry.MeasureAsync(
+            RoomTelemetry.LOAD_MAP,
+            _state.RoomId,
+            () => MapModule.EnsureMapBuiltAsync(ct)
+        );
+        await RoomTelemetry.MeasureAsync(
+            RoomTelemetry.LOAD_FURNITURE,
+            _state.RoomId,
+            () => FurniModule.EnsureFurniLoadedAsync(ct)
+        );
+        await RoomTelemetry.MeasureAsync(
+            RoomTelemetry.LOAD_PETS,
+            _state.RoomId,
+            () => PetModule.EnsurePetsLoadedAsync(ct)
+        );
+        await RoomTelemetry.MeasureAsync(
+            RoomTelemetry.LOAD_BOTS,
+            _state.RoomId,
+            () => BotModule.EnsureBotsLoadedAsync(ct)
+        );
+        await RoomTelemetry.MeasureAsync(
+            RoomTelemetry.LOAD_PERMISSIONS,
+            _state.RoomId,
+            async () =>
+            {
+                await SecurityModule.EnsureRightsLoadedAsync(ct);
+                await ModerationModule.EnsureMutesLoadedAsync(ct);
+                await EntryModule.EnsureBansLoadedAsync(ct);
+                await ModerationModule.EnsureFilterLoadedAsync(ct);
+            }
+        );
     }
 
     public Task<RoomSnapshot> GetSnapshotAsync(CancellationToken ct) =>
@@ -418,7 +445,12 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     public Task SendComposerToRoomAsync(IComposer composer, CancellationToken ct) =>
         _roomOutbound.OnNextAsync(
-            new RoomOutboundSnapshot { RoomId = _state.RoomId, Composers = [composer] }
+            new RoomOutboundSnapshot
+            {
+                RoomId = _state.RoomId,
+                Composers = [composer],
+                PublishedAtUtcTicks = RoomTelemetry.GetPublicationTimestamp(),
+            }
         );
 
     /// <summary>
@@ -433,7 +465,12 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             return Task.CompletedTask;
 
         return _roomOutbound.OnNextAsync(
-            new RoomOutboundSnapshot { RoomId = _state.RoomId, Composers = composers }
+            new RoomOutboundSnapshot
+            {
+                RoomId = _state.RoomId,
+                Composers = composers,
+                PublishedAtUtcTicks = RoomTelemetry.GetPublicationTimestamp(),
+            }
         );
     }
 
