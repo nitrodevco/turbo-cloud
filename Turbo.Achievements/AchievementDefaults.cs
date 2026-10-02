@@ -1,11 +1,13 @@
+using System;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Text.Json;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Achievements.Enums;
 
 namespace Turbo.Achievements;
 
-/// <summary>Editable hotel defaults. Thresholds are policy, not purported official server data.</summary>
+/// <summary>Published Habbo requirements with explicit hotel extensions and reward policy.</summary>
 public static class AchievementDefaults
 {
     public static ImmutableArray<AchievementSourceDefinition> Sources { get; } =
@@ -30,76 +32,46 @@ public static class AchievementDefaults
         new(AchievementSources.ROOM_RANK, 1, AchievementReducer.Rank),
     ];
 
+    public const string SOURCE_URL = "https://www.habbo.com/api/public/achievements";
+
+    // Pin the public snapshot: startup and reload must not depend on a remote API.
+    // Creation times in the snapshot describe definitions, never activation cutoffs.
+    private static readonly ImmutableDictionary<string, JsonElement> PublishedCatalog =
+        LoadPublishedCatalog();
+
     public static ImmutableArray<AchievementDefinition> Definitions { get; } =
     [
-        Create(
+        Published(
             1001,
             "online",
-            "identity",
             AchievementSources.ONLINE,
             AchievementReducer.ElapsedSeconds,
             60,
-            [
-                5,
-                15,
-                30,
-                60,
-                120,
-                180,
-                300,
-                600,
-                1200,
-                1800,
-                3000,
-                6000,
-                9000,
-                12000,
-                18000,
-                24000,
-                36000,
-                48000,
-                72000,
-                100000,
-            ],
-            "ACH_AllTimeHotelPresence",
-            true,
-            0
+            "AllTimeHotelPresence"
         ),
-        Create(
+        Published(
             1002,
             "login",
-            "identity",
             AchievementSources.LOGIN,
             AchievementReducer.CalendarStreak,
             1,
-            [1, 2, 3, 5, 7, 10, 14, 21, 30, 45, 60, 90, 120, 180, 270, 365, 540, 730, 1095, 1825],
-            "ACH_Login",
-            true,
-            0
+            "Login"
         ),
-        Create(
+        Published(
             1003,
             "account-age",
-            "identity",
             AchievementSources.ACCOUNT_AGE,
             AchievementReducer.Maximum,
             1,
-            [1, 2, 3, 5, 7, 10, 14, 21, 30, 45, 60, 90, 120, 180, 270, 365, 540, 730, 1095, 1825],
-            "ACH_RegistrationDuration",
-            true,
-            0
+            "RegistrationDuration"
         ),
-        Create(
+        Published(
             1004,
             "figure",
-            "identity",
             AchievementSources.FIGURE,
             AchievementReducer.Counter,
             1,
-            [1],
-            "ACH_AvatarLooks",
-            true,
-            0
+            "AvatarLooks"
         ),
         Create(
             1005,
@@ -113,158 +85,93 @@ public static class AchievementDefaults
             true,
             0
         ),
-        Create(
+        Published(
             1006,
             "hc-duration",
-            "identity",
             AchievementSources.HC,
             AchievementReducer.Maximum,
-            86400,
-            [1, 30, 90, 180, 365],
-            "ACH_BasicClub",
-            true,
-            0
+            2678400,
+            "VipHC"
         ),
-        Create(
+        Published(
             1007,
             "purchased-hc",
-            "identity",
             AchievementSources.PURCHASED_HC,
             AchievementReducer.Maximum,
             1,
-            [30, 60, 90, 180, 360],
-            "ACH_HC",
-            true,
-            0
+            "HC"
         ),
-        Create(
+        Published(
             1008,
             "rooms-visited",
-            "explore",
             AchievementSources.VISIT,
             AchievementReducer.Distinct,
             1,
-            [
-                1,
-                2,
-                3,
-                5,
-                10,
-                15,
-                20,
-                30,
-                50,
-                75,
-                100,
-                150,
-                200,
-                300,
-                500,
-                750,
-                1000,
-                1500,
-                2000,
-                3000,
-            ],
-            "ACH_RoomEntry",
-            true,
-            0
+            "RoomEntry"
         ),
-        Create(
+        Published(
             1009,
             "furniture-use",
-            "explore",
             AchievementSources.FURNITURE,
             AchievementReducer.Counter,
             1,
-            [1],
-            "ACH_HabboExplorer",
-            true,
-            0
+            "HabboExplorer"
         ),
-        Create(
+        Published(
             1010,
             "respect-given",
-            "social",
             AchievementSources.RESPECT_GIVEN,
             AchievementReducer.Counter,
             1,
-            [1, 2, 3, 5, 10, 15, 20, 30, 50, 75],
-            "ACH_RespectGiven",
-            true,
-            0
+            "RespectGiven"
         ),
-        Create(
+        Published(
             1011,
             "respect-received",
-            "social",
             AchievementSources.RESPECT_RECEIVED,
             AchievementReducer.Counter,
             1,
-            [1, 2, 3, 5, 10, 15, 20, 30, 50, 75],
-            "ACH_RespectEarned",
-            true,
-            0
+            "RespectEarned"
         ),
-        Create(
+        Published(
             1012,
             "pets-owned",
-            "pets",
             AchievementSources.PETS,
             AchievementReducer.Maximum,
             1,
-            [1, 2, 3, 5, 10, 15, 20, 30, 50, 75],
-            "ACH_PetLover",
-            true,
-            0
+            "PetLover"
         ),
-        Create(
+        Published(
             1013,
             "pet-nutrition",
-            "pets",
             AchievementSources.NUTRITION,
             AchievementReducer.Counter,
             1,
-            [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000],
-            "ACH_PetFeeding",
-            true,
-            0
+            "PetFeeding"
         ),
-        Create(
+        Published(
             1014,
             "pet-levels",
-            "pets",
             AchievementSources.PET_LEVEL,
             AchievementReducer.Counter,
             1,
-            [1, 2, 3, 5, 10, 15, 20, 30, 50, 75],
-            "ACH_PetLevelUp",
-            true,
-            0
+            "PetLevelUp"
         ),
-        Create(
+        Published(
             1015,
             "pet-respect-given",
-            "pets",
             AchievementSources.PET_RESPECT_GIVEN,
             AchievementReducer.Counter,
             1,
-            [1, 2, 3, 5, 10, 15, 20, 30, 50, 75],
-            "ACH_PetRespectGiver",
-            true,
-            0
+            "PetRespectGiver"
         ),
-        Create(
+        Published(
             1016,
             "pet-respect-received",
-            "pets",
             AchievementSources.PET_RESPECT_RECEIVED,
             AchievementReducer.Counter,
             1,
-            [1, 2, 3, 5, 10, 15, 20, 30, 50, 75],
-            "ACH_PetRespectReceiver",
-            true,
-            0
+            "PetRespectReceiver"
         ),
         Create(
             1017,
@@ -292,6 +199,60 @@ public static class AchievementDefaults
         ),
     ];
 
+    private static ImmutableDictionary<string, JsonElement> LoadPublishedCatalog()
+    {
+        using var stream =
+            typeof(AchievementDefaults).Assembly.GetManifestResourceStream(
+                "Turbo.Achievements.Resources.habbo-achievements-2026-10-02.json"
+            )
+            ?? throw new InvalidOperationException(
+                "The published achievement snapshot is missing."
+            );
+        return (
+            JsonSerializer.Deserialize<JsonElement[]>(stream)
+            ?? throw new InvalidOperationException("The published achievement snapshot is invalid.")
+        ).ToImmutableDictionary(
+            x => x.GetProperty("achievement").GetProperty("name").GetString()!,
+            StringComparer.Ordinal
+        );
+    }
+
+    private static AchievementDefinition Published(
+        int id,
+        string key,
+        string source,
+        AchievementReducer reducer,
+        int divisor,
+        string publishedName
+    )
+    {
+        var published = PublishedCatalog[publishedName];
+        var achievement = published.GetProperty("achievement");
+        var state = achievement.GetProperty("state").GetString();
+        var requirements = published.GetProperty("levelRequirements").EnumerateArray().ToArray();
+        if (
+            !requirements
+                .Select((x, index) => x.GetProperty("level").GetInt32() == index + 1)
+                .All(x => x)
+        )
+            throw new InvalidOperationException("Published achievement levels must be contiguous.");
+        return Create(
+            id,
+            key,
+            achievement.GetProperty("category").GetString()!,
+            source,
+            reducer,
+            divisor,
+            requirements.Select(x => x.GetProperty("requiredScore").GetInt32()).ToArray(),
+            "ACH_" + publishedName,
+            state == "ENABLED",
+            0
+        ) with
+        {
+            Archived = state == "ARCHIVED",
+        };
+    }
+
     private static AchievementDefinition Create(
         int id,
         string key,
@@ -308,7 +269,7 @@ public static class AchievementDefaults
         {
             Id = id,
             Key = key,
-            Revision = 1,
+            Revision = 2,
             Category = category,
             Source = source,
             Reducer = reducer,

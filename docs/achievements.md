@@ -2,7 +2,7 @@
 
 Achievements process immediately after a validated catalog is imported. There is no activation date, baseline or historical-action backfill. Account age uses account creation time; online time credits only durably recorded intervals. Reloading definitions and restarting Turbo preserve progress and awards.
 
-AS3 defines packet order and client behavior. Thresholds in `AchievementDefaults` are editable hotel policy where authoritative server thresholds are unavailable. The official JavaScript client provides implementation guidance. Standard and custom definitions use the same progression and reward pipeline.
+The official [Habbo achievements API](https://www.habbo.com/api/public/achievements) is the source of truth for published achievement names, categories, states and `requiredScore` thresholds. The snapshot retrieved on 2026-10-02 contains 167 records. The API does not define rewards, reducer semantics, source units, gameplay hooks, eligibility or attribution. The accompanying [coverage CSV](achievement-coverage.csv) records every snapshot row and the local mapping decision; it also lists three hotel extensions absent from the API. AS3 defines packet order and client behavior, while the official JavaScript client provides implementation guidance.
 
 ## Install and configure
 
@@ -37,40 +37,42 @@ Configuration defaults:
 
 ## Definitions and extensions
 
-IDs 1001–1018 belong to the seed families. Custom IDs begin at 100000. IDs and keys are permanent. Revision numbers increase; published revisions are immutable. Existing source identity, reducer, units and level count cannot be reinterpreted or shortened. Each level declares its cumulative requirement, explicit badge code, score and typed rewards. Badge codes begin with `ACH_` and use a stable base followed by the level number, as required by the standard badge-limit packet. The defaults grant 10 score per level and no currency.
+IDs 1001–1018 belong to the seed families. Custom IDs begin at 100000. IDs and keys are permanent. Revision numbers increase; published revisions are immutable. Existing source identity, reducer and level count cannot be reinterpreted or shortened. For API-mapped families, seed requirements, categories and states follow the snapshot described below; do not substitute provisional hotel thresholds. Each level declares its cumulative requirement, explicit badge code, score and typed rewards. Badge codes begin with `ACH_` and use a stable base followed by the level number, as required by the standard badge-limit packet. Rewards are hotel policy because the API does not publish them: the current seed assigns 10 score per level and no currency.
 
-Supported reducers are counters, distinct values, maximum values, UTC calendar streaks, elapsed interval unions and rank attainment. `UnitDivisor` converts stored units into display units, for example seconds into minutes. Rank requirements descend and use display method 1 to hide numeric progress. Criteria do not execute arbitrary scripts or SQL.
+Supported reducers are counters, distinct values, maximum values, UTC calendar streaks, elapsed interval unions and rank attainment. Source facts retain their stored units; `UnitDivisor` converts accumulated values for display and threshold comparison. A divisor may change only in a new definition revision. That changes conversion, not stored source facts, and completed awards retain their frozen definition revision. Rank requirements descend and use display method 1 to hide numeric progress. Criteria do not execute arbitrary scripts or SQL.
 
 Plugins register complete typed batches through `IAchievementCatalog.RegisterSources` and `IAchievementRewardRegistry.Register`. Registrations are disposable; collisions reject the entire batch. Sources normalize authoritative successful gameplay into versioned `AchievementFact` records using `IAchievementFactRecorder`. Record facts in the originating database unit of work, or durably before acknowledging accepted transient actions. Stable operation IDs identify one action, not a packet or a mutable before-value. Facts include UTC timestamps and applicable session/interval identities. An admitted fact freezes its definition bindings and remains processable after its producer unloads.
 
 Reward handlers implement `IAchievementRewardHandler`. A handler receives a player, immutable award key and versioned payload. It must commit a durable idempotency receipt with its effect, reject payload collisions, and safely replay after a crash. Returning successfully means delivery is durable. Handler unloading blocks pending awards until a compatible handler returns.
 
-## Initial coverage
+## Published coverage and hotel extensions
 
-| ID / key | Category | Authoritative qualifying behavior | Status |
-| --- | --- | --- | --- |
-| 1001 online | identity | Session intervals checkpointed every 30 seconds and on clean disconnect; only durable time survives crashes | Enabled, 20 minute levels |
-| 1002 login | identity | Successfully committed login on UTC days; longest consecutive streak retained | Enabled, 20 day levels |
-| 1003 account-age | identity | Completed UTC duration from account creation on current-state evaluation | Enabled, 20 day levels |
-| 1004 figure | identity | Successfully persisted actual figure change; same figure and gender-only changes do not count | Enabled, one action |
-| 1005 motto | identity | Successfully persisted actual motto change | Enabled, one action |
-| 1006 hc-duration | identity | Union of recorded eligible membership intervals, preserving gaps | Enabled, five day levels |
-| 1007 purchased-hc | identity | Eligible membership intervals originating from successful purchases | Enabled, five day levels |
-| 1008 rooms-visited | explore | Distinct successfully admitted other-owner rooms; denied entry and own rooms excluded | Enabled, 20 count levels |
-| 1009 furniture-use | explore | Permitted player furniture use that changes the item's state; rejected and no-op uses excluded | Enabled, one action |
-| 1010 respect-given | social | Durable coordinated human-respect spend and recipient credit | Enabled, ten count levels |
-| 1011 respect-received | social | Same completed human-respect operation, attributed to recipient | Enabled, ten count levels |
-| 1012 pets-owned | pets | Current owned pets across inventory and rooms, without double counting | Enabled, ten count levels |
-| 1013 pet-nutrition | pets | Actual capped nutrition gain persisted with fact; hand-feed actor or food-bowl supplier receives credit | Enabled, ten nutrition levels |
-| 1014 pet-levels | pets | Successfully persisted pet level increases, attributed to owner | Enabled, ten count levels |
-| 1015 pet-respect-given | pets | Durable actor quota receipt plus completed pet respect mutation | Enabled, ten count levels |
-| 1016 pet-respect-received | pets | Same completed operation, attributed to pet owner | Enabled, ten count levels |
-| 1017 floor-heights | room_builder | Distinct walkable heights in current owned room models, evaluated on load and committed floor-plan changes | Disabled: five `ACH_HabboBuilder` PNG assets are unavailable |
-| 1018 room-rank | room_builder | Positive-vote eligible Navigator rooms ordered by score and room ID; initial/reload evaluation and committed ratings refresh affected ranks | Enabled, nine descending rank levels |
+The 15 API records mapped to the stable seed IDs are shown below. Exact published thresholds are retained in `achievement-coverage.csv`; its `Published_RequiredScore` column preserves each API sequence. API state and category are listed as returned on 2026-10-02. An `ENABLED` API state does not prove that a corresponding gameplay hook exists in this server.
 
-Count families use cumulative requirements `1,2,3,5,10,15,20,30,50,75,100,150,200,300,500,750,1000,1500,2000,3000`; ten-level families use the first ten. Day requirements are `1,2,3,5,7,10,14,21,30,45,60,90,120,180,270,365,540,730,1095,1825`. Online minutes are `5,15,30,60,120,180,300,600,1200,1800,3000,6000,9000,12000,18000,24000,36000,48000,72000,100000`. Nutrition requirements are `10,25,50,100,250,500,1000,2500,5000,10000`. Active HC days are `1,30,90,180,365`; purchased HC days are `30,60,90,180,360`. Floor heights are `2,3,4,5,6`; room ranks are top `2000,1000,500,250,100,50,10,5,1`.
+| Hotel ID / key | API ID / name | API category / state | Levels | Mapping |
+| --- | --- | --- | ---: | --- |
+| 1001 online | 19 / AllTimeHotelPresence | identity / ENABLED | 20 | Durable online intervals; display conversion follows the published values |
+| 1002 login | 4 / Login | identity / ENABLED | 20 | Local login source; API metadata alone does not define streak eligibility |
+| 1003 account-age | 11 / RegistrationDuration | identity / ENABLED | 20 | Account creation duration |
+| 1004 figure | 6 / AvatarLooks | identity / ENABLED | 1 | Successfully persisted figure changes |
+| 1005 motto | — | hotel extension | 1 | Successfully persisted motto changes; absent from API |
+| 1006 hc-duration | 163 / VipHC | identity / ENABLED | 5 | Published thresholds `0,12,24,36,48` months; use the 31-day month convention; eligibility gates the zero-threshold first level |
+| 1007 purchased-hc | 289 / HC | identity / ENABLED | 5 | Published sequence is `14,360,720,1080,1440`; API does not define the server fact hook or unit |
+| 1008 rooms-visited | 8 / RoomEntry | explore / ENABLED | 20 | Distinct successfully admitted other-owner rooms |
+| 1009 furniture-use | 291 / HabboExplorer | explore / ENABLED | 1 | Successful permitted furniture use |
+| 1010 respect-given | 18 / RespectGiven | social / ENABLED | 20 | Completed durable human-respect operation |
+| 1011 respect-received | 17 / RespectEarned | social / ENABLED | 10 | Same completed operation, attributed to recipient |
+| 1012 pets-owned | 23 / PetLover | pets / ENABLED | 10 | Current owned pets across inventory and rooms |
+| 1013 pet-nutrition | 25 / PetFeeding | pets / ENABLED | 20 | Actual capped nutrition supplied |
+| 1014 pet-levels | 24 / PetLevelUp | pets / ENABLED | 10 | Successfully persisted pet level increases |
+| 1015 pet-respect-given | 26 / PetRespectGiver | pets / ENABLED | 20 | Completed durable pet-respect operation |
+| 1016 pet-respect-received | 27 / PetRespectReceiver | pets / ENABLED | 10 | Same completed operation, attributed to pet owner |
+| 1017 floor-heights | — | hotel extension | — | Distinct walkable heights; disabled while required hotel badge assets are unavailable |
+| 1018 room-rank | — | enabled hotel extension | 9 | Positive-vote eligible room ranking; no equivalent API record |
 
-Unsupported game-specific families remain absent/disabled: Banzai, Freeze and SnowStorm require their own authoritative gameplay, results and durable participation records. Generic Wired games do not establish those outcomes. Complete gifting achievements require purchase, delivery and recipient coordination; opening a present alone is insufficient. Trade, marketplace, crafting, friends, group, talent, guide/helper, quest and other families need verified successful mutation hooks, eligibility rules, assets and thresholds before import. Do not fabricate historical counts from present state.
+The API record `BasicClub` (#32, `identity`, `ARCHIVED`) is retired and is not the source for hotel ID 1006. `VipHC` (#163) is the enabled record used there. `DailyHotelPresence` (#14) is enabled but has no `levelRequirements` in the snapshot, so it is not mapped as a leveled seed family. The similarly named `HabboBuilder_TSale_` and archived design records are not the floor-height criterion in ID 1017.
+
+The remaining API records are listed in the coverage CSV with their exact state and thresholds. Unmapped rows identify that a verified authoritative hook is missing or has not been established here; the table does not claim a complete audit of every possible server path. Game achievements need a mode-specific completed result and eligible-player attribution, which generic room or Wired activity cannot establish. Gift achievements require successful purchase and delivery facts, including the receiver; opening a present alone is insufficient. Do not infer historical action totals from present state.
 
 ## Administration and recovery
 

@@ -3,6 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Resources/habbo-achievements-2026-10-02.json" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <ProjectReference Include="../Turbo.Contracts/Turbo.Contracts.csproj" />
     <ProjectReference Include="../Turbo.Database/Turbo.Database.csproj" />

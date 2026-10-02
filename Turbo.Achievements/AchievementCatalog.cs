@@ -178,12 +178,11 @@ public sealed class AchievementCatalog : IAchievementCatalog
                         || x.Source != definition.Source
                         || x.SourceVersion != definition.SourceVersion
                         || x.Reducer != definition.Reducer
-                        || x.UnitDivisor != definition.UnitDivisor
                         || x.Levels.Length > definition.Levels.Length
                     )
                 )
                     throw new InvalidOperationException(
-                        "An existing achievement identity, source, units or level count cannot be reinterpreted."
+                        "An existing achievement identity, source, reducer or level count cannot be reinterpreted."
                     );
                 var sameRevision = history.FirstOrDefault(x => x.Revision == definition.Revision);
                 if (
@@ -274,7 +273,7 @@ public sealed class AchievementCatalog : IAchievementCatalog
                 }
                 else if (source.Reducer != d.Reducer)
                     throw new InvalidOperationException("Source reducer mismatch.");
-                var previous = d.Reducer == AchievementReducer.Rank ? int.MaxValue : 0;
+                var previous = d.Reducer == AchievementReducer.Rank ? int.MaxValue : -1;
                 if (d.Levels.Sum(x => (long)x.Score) > int.MaxValue)
                     throw new InvalidOperationException("Achievement score exceeds packet limits.");
                 var badgeLevel = 0;
@@ -294,7 +293,8 @@ public sealed class AchievementCatalog : IAchievementCatalog
                         );
                     badgePrefix = match.Groups[1].Value;
                     if (
-                        level.Requirement <= 0
+                        level.Requirement < 0
+                        || (d.Reducer == AchievementReducer.Rank && level.Requirement == 0)
                         || level.Score < 0
                         || !Regex.IsMatch(level.BadgeCode, "^ACH_[A-Za-z0-9_]{1,60}$")
                         || (

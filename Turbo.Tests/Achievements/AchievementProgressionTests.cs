@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Achievements;
 using Turbo.Database.Context;
+using Turbo.Database.Entities.Achievements;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Achievements.Enums;
@@ -182,6 +183,87 @@ public sealed class AchievementProgressionTests : IDisposable
         await using var db = await _database.CreateDbContextAsync(Ct);
         Assert.True((await db.AchievementProgress.SingleAsync(Ct)).Value >= 10);
         Assert.Equal(30, (await db.AchievementProjections.SingleAsync(Ct)).Score);
+    }
+
+    [Fact]
+    public async Task ZeroMembershipLevelRequiresAnEligibleIntervalEvenWithLegacyZeroProgress()
+    {
+        var membership = AchievementDefaults.Definitions.Single(x => x.Key == "hc-duration");
+        _catalog.Current = [membership];
+        _database.Insert(
+            new AchievementProgressEntity
+            {
+                PlayerId = 1,
+                AchievementId = membership.Id,
+                Value = 0,
+            }
+        );
+        await NewGrain().ReconcileAsync(Ct);
+        await using (var check = await _database.CreateDbContextAsync(Ct))
+            Assert.Empty(await check.AchievementAwards.ToListAsync(Ct));
+
+        _database.Insert(
+            new AchievementMembershipIntervalEntity
+            {
+                PlayerId = 1,
+                StartUtc = DateTime.UtcNow.AddMinutes(-1),
+                EndUtc = DateTime.UtcNow.AddDays(31),
+            }
+        );
+        await NewGrain().ReconcileAsync(Ct);
+        await NewGrain().ReconcileAsync(Ct);
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        var award = Assert.Single(await db.AchievementAwards.ToListAsync(Ct));
+        Assert.Equal(1, award.Level);
+        Assert.Equal(2, award.Revision);
+        Assert.True(award.Completed);
+        Assert.Equal(10, (await db.AchievementProjections.SingleAsync(Ct)).Score);
+    }
+
+    [Fact]
+    public async Task RevisedMembershipDisplayUnitsPreserveFrozenAwardsAndRawProgress()
+    {
+        var legacy = AchievementDefaults.Definitions.Single(x => x.Key == "hc-duration") with
+        {
+            Revision = 1,
+            UnitDivisor = 86400,
+            Levels =
+            [
+                new()
+                {
+                    Requirement = 1,
+                    BadgeCode = "ACH_BasicClub1",
+                    Score = 10,
+                },
+            ],
+        };
+        _catalog.Current = [legacy];
+        _database.Insert(
+            new AchievementMembershipIntervalEntity
+            {
+                PlayerId = 1,
+                StartUtc = DateTime.UtcNow.AddDays(-2),
+                EndUtc = DateTime.UtcNow.AddDays(31),
+            }
+        );
+        await NewGrain().ReconcileAsync(Ct);
+        string frozenDefinition;
+        string frozenReward;
+        await using (var before = await _database.CreateDbContextAsync(Ct))
+        {
+            var award = await before.AchievementAwards.SingleAsync(Ct);
+            frozenDefinition = award.DefinitionJson;
+            frozenReward = award.RewardJson;
+        }
+        _catalog.Current = [AchievementDefaults.Definitions.Single(x => x.Key == "hc-duration")];
+        await NewGrain().ReconcileAsync(Ct);
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        var retained = Assert.Single(await db.AchievementAwards.ToListAsync(Ct));
+        Assert.Equal(frozenDefinition, retained.DefinitionJson);
+        Assert.Equal(frozenReward, retained.RewardJson);
+        Assert.Equal(1, retained.Revision);
+        Assert.True((await db.AchievementProgress.SingleAsync(Ct)).Value >= 2 * 86400);
+        Assert.Equal(10, (await db.AchievementProjections.SingleAsync(Ct)).Score);
     }
 
     private sealed class TestCatalog : IAchievementCatalog

@@ -69,7 +69,10 @@ public sealed class AchievementStateEvaluator(
             if (through is null || end > through)
                 through = end;
         }
-        Record(AchievementSources.HC, ticks / TimeSpan.TicksPerSecond);
+        // A zero-threshold membership award requires an actual eligible interval.
+        // Recording zero for non-members would manufacture a joining event.
+        if (eligible.Count > 0)
+            Record(AchievementSources.HC, ticks / TimeSpan.TicksPerSecond);
         await AchievementRoomCriteria
             .RecordOwnedStateAsync(db, recorder, playerId, ct)
             .ConfigureAwait(false);

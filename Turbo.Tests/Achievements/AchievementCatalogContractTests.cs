@@ -183,6 +183,47 @@ public sealed class AchievementCatalogContractTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task NewRevisionMayChangeDisplayConversionButCannotChangeStoredSourceMeaning()
+    {
+        var catalog = NewCatalog();
+        var initial = Definition(100130, "display-units", AchievementSources.HC) with
+        {
+            Reducer = AchievementReducer.Maximum,
+            UnitDivisor = 86400,
+        };
+        await catalog.ImportAsync([initial], true, "tests", "initial", "units-initial", Ct);
+        var revised = initial with
+        {
+            Revision = 2,
+            UnitDivisor = 31 * 86400,
+            Levels = [new() { Requirement = 0, BadgeCode = "ACH_display_units1" }],
+        };
+        await catalog.ImportAsync(
+            [revised],
+            true,
+            "tests",
+            "display conversion",
+            "units-revised",
+            Ct
+        );
+        catalog.Current.Single().UnitDivisor.Should().Be(31 * 86400);
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.AchievementDefinitions.CountAsync(Ct)).Should().Be(2);
+        var changedSource = revised with { Revision = 3, Source = AchievementSources.PETS };
+        var import = () =>
+            catalog.ImportAsync(
+                [changedSource],
+                true,
+                "tests",
+                "invalid source",
+                "units-invalid",
+                Ct
+            );
+        await import.Should().ThrowAsync<InvalidOperationException>();
+        catalog.Current.Single().Revision.Should().Be(2);
+    }
+
     private AchievementCatalog NewCatalog(
         AchievementConfig? config = null,
         IReadOnlyDictionary<string, string>? texts = null

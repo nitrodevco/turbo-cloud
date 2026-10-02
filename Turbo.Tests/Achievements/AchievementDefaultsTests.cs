@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Turbo.Achievements;
 using Turbo.Primitives.Achievements.Enums;
 using Xunit;
@@ -16,7 +17,7 @@ public class AchievementDefaultsTests
             ["account-age"] = "ACH_RegistrationDuration",
             ["figure"] = "ACH_AvatarLooks",
             ["motto"] = "ACH_Motto",
-            ["hc-duration"] = "ACH_BasicClub",
+            ["hc-duration"] = "ACH_VipHC",
             ["purchased-hc"] = "ACH_HC",
             ["rooms-visited"] = "ACH_RoomEntry",
             ["furniture-use"] = "ACH_HabboExplorer",
@@ -55,5 +56,66 @@ public class AchievementDefaultsTests
                 Assert.Equal(requirements.OrderBy(x => x), requirements);
             }
         }
+    }
+
+    [Fact]
+    public void PublishedFamiliesMatchThePublicSnapshotExactly()
+    {
+        using var stream = typeof(AchievementDefaults).Assembly.GetManifestResourceStream(
+            "Turbo.Achievements.Resources.habbo-achievements-2026-10-02.json"
+        );
+        Assert.NotNull(stream);
+        using var snapshot = JsonDocument.Parse(stream);
+        Assert.Equal(167, snapshot.RootElement.GetArrayLength());
+        var published = snapshot
+            .RootElement.EnumerateArray()
+            .ToDictionary(x => x.GetProperty("achievement").GetProperty("name").GetString()!);
+        var matched = AchievementDefaults.Definitions.Where(x =>
+            x.Key is not ("motto" or "floor-heights" or "room-rank")
+        );
+        Assert.Equal(15, matched.Count());
+        foreach (var definition in matched)
+        {
+            var badge = definition.Levels[0].BadgeCode;
+            var source = published[badge[4..^1]];
+            var metadata = source.GetProperty("achievement");
+            Assert.Equal(metadata.GetProperty("category").GetString(), definition.Category);
+            Assert.Equal(
+                metadata.GetProperty("state").GetString() == "ENABLED",
+                definition.Enabled
+            );
+            Assert.Equal(
+                metadata.GetProperty("state").GetString() == "ARCHIVED",
+                definition.Archived
+            );
+            Assert.Equal(
+                source
+                    .GetProperty("levelRequirements")
+                    .EnumerateArray()
+                    .Select(x => x.GetProperty("requiredScore").GetInt32()),
+                definition.Levels.Select(x => x.Requirement)
+            );
+            Assert.All(
+                definition.Levels,
+                x =>
+                {
+                    Assert.Equal(10, x.Score);
+                    Assert.Empty(x.Rewards);
+                }
+            );
+        }
+        Assert.Equal(
+            "ARCHIVED",
+            published["BasicClub"].GetProperty("achievement").GetProperty("state").GetString()
+        );
+        Assert.DoesNotContain(
+            AchievementDefaults.Definitions,
+            x =>
+                x.Enabled
+                && x.Levels[0].BadgeCode.StartsWith("ACH_BasicClub", StringComparison.Ordinal)
+        );
+        var membership = AchievementDefaults.Definitions.Single(x => x.Key == "hc-duration");
+        Assert.Equal(0, membership.Levels[0].Requirement);
+        Assert.Equal(31 * 86400, membership.UnitDivisor);
     }
 }

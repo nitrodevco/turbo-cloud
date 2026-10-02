@@ -174,6 +174,20 @@ internal sealed class PlayerAchievementGrain : Grain, IPlayerAchievementGrain
         CancellationToken ct
     )
     {
+        // Older catalogs recorded zero-valued HC state for non-members. A joining
+        // level must also verify membership when retained progress is reconciled.
+        if (
+            definition.Source == AchievementSources.HC
+            && definition.Levels[0].Requirement == 0
+            && !await db.AchievementMembershipIntervals.AnyAsync(
+                x =>
+                    x.PlayerId == progress.PlayerId
+                    && x.StartUtc <= earnedAt
+                    && x.EndUtc > x.StartUtc,
+                ct
+            )
+        )
+            return;
         for (var index = 0; index < definition.Levels.Length; index++)
         {
             if (
