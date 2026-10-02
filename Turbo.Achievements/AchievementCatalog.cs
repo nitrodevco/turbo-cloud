@@ -310,6 +310,18 @@ public sealed class AchievementCatalog : IAchievementCatalog
                     throw new InvalidOperationException(
                         "Invalid achievement identity, units or packet limits."
                     );
+                if (
+                    d.ActiveFromUtc is { Kind: not DateTimeKind.Utc }
+                    || d.ActiveUntilUtc is { Kind: not DateTimeKind.Utc }
+                    || (
+                        d.ActiveFromUtc is { } activeFrom
+                        && d.ActiveUntilUtc is { } activeUntil
+                        && activeFrom >= activeUntil
+                    )
+                )
+                    throw new InvalidOperationException(
+                        "An active window needs UTC times with the start before the end."
+                    );
                 if (!_sources.TryGetValue((d.Source, d.SourceVersion), out var source))
                 {
                     if (!allowRetainedSources)
@@ -353,7 +365,7 @@ public sealed class AchievementCatalog : IAchievementCatalog
                     previous = level.Requirement;
                     if (
                         !allowRetainedSources
-                        && d.Accrues()
+                        && d.State == AchievementState.Enabled
                         && (
                             string.IsNullOrWhiteSpace(_config.BadgeAssetDirectory)
                             || !File.Exists(

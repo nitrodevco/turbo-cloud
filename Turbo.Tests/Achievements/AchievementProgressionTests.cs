@@ -25,6 +25,7 @@ public sealed class AchievementProgressionTests : IDisposable
     private readonly SqliteDb _database = new();
     private readonly Fakes _fakes = new();
     private readonly TestCatalog _catalog = new();
+    private readonly ManualTimeProvider _clock = new();
     private readonly AchievementObserverRegistry _observers = new(
         NullLogger<AchievementObserverRegistry>.Instance
     );
@@ -62,6 +63,7 @@ public sealed class AchievementProgressionTests : IDisposable
         RoomHarness.SetField(grain, "_recorder", recorder);
         RoomHarness.SetField(grain, "_rewards", new AchievementRewardRegistry());
         RoomHarness.SetField(grain, "_observers", _observers);
+        RoomHarness.SetField(grain, "_time", _clock);
         RoomHarness.SetField(
             grain,
             "_evaluator",
@@ -705,6 +707,129 @@ public sealed class AchievementProgressionTests : IDisposable
             .Select(x => ((int)x.Args[0]!, (int)x.Args[1]!))
             .ToList();
         Assert.Equal((60, 6), published[^1]);
+    }
+
+    [Fact]
+    public async Task FactsAreBoundOnlyWhenTheyOccurredInsideTheWindow()
+    {
+        var from = DateTime.UtcNow.AddDays(-10);
+        var until = DateTime.UtcNow.AddDays(-5);
+        _catalog.Current =
+        [
+            Definition(100000) with
+            {
+                ActiveFromUtc = from,
+                ActiveUntilUtc = until,
+            },
+        ];
+
+        await RecordAtAsync("window-before", from.AddTicks(-1));
+        await RecordAtAsync("window-at-start", from);
+        await RecordAtAsync("window-last-tick", until.AddTicks(-1));
+        await RecordAtAsync("window-at-end", until);
+
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        var bound = (await db.AchievementFacts.ToListAsync(Ct))
+            .Where(x => x.BindingsJson.Contains("100000"))
+            .Select(x => x.OperationId)
+            .Order();
+        Assert.Equal(["window-at-start", "window-last-tick"], bound);
+    }
+
+    [Fact]
+    public async Task AWindowedAchievementAppearsInsideItsWindowAndArchivesAfterIt()
+    {
+        var start = _clock.GetUtcNow().UtcDateTime;
+        _catalog.Current =
+        [
+            Definition(100000) with
+            {
+                ActiveFromUtc = start.AddDays(1),
+                ActiveUntilUtc = start.AddDays(2),
+            },
+        ];
+        var grain = NewGrain();
+
+        Assert.Empty(await grain.GetAchievementsAsync(Ct));
+
+        _clock.Advance(TimeSpan.FromDays(1));
+        Assert.Equal(
+            AchievementState.Enabled,
+            Assert.Single(await grain.GetAchievementsAsync(Ct)).State
+        );
+
+        _clock.Advance(TimeSpan.FromDays(1));
+        Assert.Empty(await grain.GetAchievementsAsync(Ct));
+        _database.Insert(
+            new AchievementProgressEntity
+            {
+                PlayerId = 1,
+                AchievementId = 100000,
+                Value = 1,
+                EarnedLevel = 1,
+            }
+        );
+        Assert.Equal(
+            AchievementState.Archived,
+            Assert.Single(await grain.GetAchievementsAsync(Ct)).State
+        );
+    }
+
+    [Fact]
+    public async Task ReconcileOpensNoAwardsOnceTheWindowHasClosed()
+    {
+        var start = _clock.GetUtcNow().UtcDateTime;
+        _catalog.Current = [Definition(100000) with { ActiveUntilUtc = start.AddDays(1) }];
+        _database.Insert(
+            new AchievementProgressEntity
+            {
+                PlayerId = 1,
+                AchievementId = 100000,
+                Value = 3,
+            }
+        );
+        _clock.Advance(TimeSpan.FromDays(1));
+
+        await NewGrain().ReconcileAsync(Ct);
+
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        Assert.Equal(0, (await db.AchievementProgress.SingleAsync(Ct)).EarnedLevel);
+    }
+
+    [Fact]
+    public async Task ChangingOnlyTheWindowMakesReconcileEvaluateThePlayerAgain()
+    {
+        _catalog.Current = [Definition(100000)];
+        var grain = NewGrain();
+        await grain.ReconcileAsync(Ct);
+        Assert.Equal(1, NormalizeCalls());
+
+        _catalog.Current =
+        [
+            Definition(100000) with
+            {
+                ActiveUntilUtc = DateTime.UtcNow.AddDays(30),
+            },
+        ];
+        await grain.ReconcileAsync(Ct);
+
+        Assert.Equal(2, NormalizeCalls());
+    }
+
+    private async Task RecordAtAsync(string operation, DateTime occurredAtUtc)
+    {
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        new AchievementFactRecorder(_catalog).Record(
+            db,
+            1,
+            new()
+            {
+                OperationId = operation,
+                Source = AchievementSources.FIGURE,
+                OccurredAtUtc = occurredAtUtc,
+            }
+        );
+        await db.SaveChangesAsync(Ct);
     }
 
     private async Task<int> StateFactCountAsync()

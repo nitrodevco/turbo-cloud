@@ -1,4 +1,6 @@
+using System;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Turbo.Achievements.Configuration;
 using Turbo.Contracts.Plugins;
@@ -27,6 +29,7 @@ public sealed class AchievementModule : IHostPluginModule
                 "Achievement limits must be positive."
             )
             .ValidateOnStart();
+        services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IAchievementCatalog, AchievementCatalog>();
         services.AddSingleton<IAchievementFactRecorder, AchievementFactRecorder>();
         services.AddSingleton<IAchievementRewardRegistry, AchievementRewardRegistry>();

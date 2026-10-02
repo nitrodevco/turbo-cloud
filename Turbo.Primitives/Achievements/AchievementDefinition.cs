@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using Orleans;
 using Turbo.Primitives.Achievements.Enums;
@@ -47,4 +48,18 @@ public sealed record AchievementDefinition
     /// <summary>Whether the achievement accrues progress and who is shown it. See <see cref="AchievementState"/>.</summary>
     [Id(14)]
     public AchievementState State { get; init; } = AchievementState.Enabled;
+
+    /// <summary>
+    /// First instant (UTC, inclusive) an enabled achievement accrues. Before it the achievement is
+    /// hidden, so a seasonal one does not sit in the list for months with nothing to do.
+    /// </summary>
+    [Id(15)]
+    public DateTime? ActiveFromUtc { get; init; }
+
+    /// <summary>
+    /// First instant (UTC, exclusive) an enabled achievement stops accruing. After it the
+    /// achievement is archived: kept by those who progressed it, hidden from everyone else.
+    /// </summary>
+    [Id(16)]
+    public DateTime? ActiveUntilUtc { get; init; }
 }

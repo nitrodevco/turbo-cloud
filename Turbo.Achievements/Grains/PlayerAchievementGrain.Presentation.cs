@@ -88,7 +88,8 @@ internal sealed partial class PlayerAchievementGrain
                     Achievement = AchievementProjection.ToSnapshot(
                         _catalog.Current.FirstOrDefault(x => x.Id == progress.AchievementId)
                             ?? definition,
-                        progress
+                        progress,
+                        _time.GetUtcNow().UtcDateTime
                     ),
                 },
                 ct

@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -10,7 +11,7 @@ using Turbo.Primitives.Messages.Outgoing.Inventory.Badges;
 
 namespace Turbo.PacketHandlers.Inventory.Badges;
 
-public class GetBadgePointLimitsMessageHandler(IAchievementCatalog catalog)
+public class GetBadgePointLimitsMessageHandler(IAchievementCatalog catalog, TimeProvider time)
     : IMessageHandler<GetBadgePointLimitsMessage>
 {
     public async ValueTask HandleAsync(
@@ -22,7 +23,7 @@ public class GetBadgePointLimitsMessageHandler(IAchievementCatalog catalog)
         if (ctx.PlayerId <= 0)
             return;
         var groups = catalog
-            .Current.Where(x => x.IsKnownToClient())
+            .Current.Where(x => x.IsKnownToClient(time.GetUtcNow().UtcDateTime))
             .Select(x => new BadgePointLimitGroupSnapshot
             {
                 BadgeCodePrefix = Regex.Replace(x.Levels[0].BadgeCode, "[0-9]+$", "")[4..],

@@ -10,7 +10,8 @@ public static class AchievementProjection
 {
     public static AchievementSnapshot ToSnapshot(
         AchievementDefinition definition,
-        AchievementProgressEntity? progress
+        AchievementProgressEntity? progress,
+        DateTime nowUtc
     )
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -45,7 +46,7 @@ public static class AchievementProjection
             SubCategory = definition.SubCategory,
             LevelCount = definition.Levels.Length,
             DisplayMethod = definition.DisplayMethod,
-            State = definition.State,
+            State = definition.EffectiveState(nowUtc),
         };
     }
 }

@@ -14,7 +14,11 @@ internal static class AchievementCatalogStamp
     {
         var text = string.Join(
             ',',
-            catalog.OrderBy(x => x.Id).Select(x => $"{x.Id}:{x.Revision}:{(int)x.State}")
+            catalog
+                .OrderBy(x => x.Id)
+                .Select(x =>
+                    $"{x.Id}:{x.Revision}:{(int)x.State}:{x.ActiveFromUtc?.Ticks}:{x.ActiveUntilUtc?.Ticks}"
+                )
         );
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)))[..32];
     }

@@ -333,6 +333,51 @@ public sealed class AchievementCatalogContractTests : IDisposable
         await import.Should().ThrowAsync<InvalidOperationException>();
     }
 
+    [Fact]
+    public async Task AnActiveWindowNeedsUtcTimesWithTheStartBeforeTheEnd()
+    {
+        var catalog = NewCatalog();
+        var start = new DateTime(2026, 12, 25, 0, 0, 0, DateTimeKind.Utc);
+        var definition = Definition(100140, "windowed", AchievementSources.FIGURE);
+
+        foreach (
+            var invalid in new[]
+            {
+                definition with
+                {
+                    ActiveFromUtc = start,
+                    ActiveUntilUtc = start,
+                },
+                definition with
+                {
+                    ActiveFromUtc = start,
+                    ActiveUntilUtc = start.AddDays(-1),
+                },
+                definition with
+                {
+                    ActiveFromUtc = DateTime.SpecifyKind(start, DateTimeKind.Local),
+                },
+                definition with
+                {
+                    ActiveUntilUtc = DateTime.SpecifyKind(start, DateTimeKind.Unspecified),
+                },
+            }
+        )
+        {
+            var import = () =>
+                catalog.ImportAsync([invalid], false, "tests", "validate", "window-op-1", Ct);
+            await import.Should().ThrowAsync<InvalidOperationException>();
+        }
+
+        var valid = definition with { ActiveFromUtc = start, ActiveUntilUtc = start.AddDays(12) };
+        await catalog.ImportAsync([valid], true, "tests", "window", "window-op-2", Ct);
+        catalog
+            .Current.Should()
+            .ContainSingle()
+            .Which.ActiveUntilUtc.Should()
+            .Be(valid.ActiveUntilUtc);
+    }
+
     private AchievementCatalog NewCatalog(
         AchievementConfig? config = null,
         IReadOnlyDictionary<string, string>? texts = null

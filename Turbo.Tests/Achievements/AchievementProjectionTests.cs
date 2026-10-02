@@ -15,7 +15,7 @@ public class AchievementProjectionTests
         var definition = Definition(AchievementReducer.Counter, [100, 300]);
         var progress = new AchievementProgressEntity { Value = 180, EarnedLevel = 1 };
 
-        var snapshot = AchievementProjection.ToSnapshot(definition, progress);
+        var snapshot = AchievementProjection.ToSnapshot(definition, progress, DateTime.UtcNow);
 
         Assert.Equal(2, snapshot.Level);
         Assert.Equal("ACH_Test2", snapshot.BadgeId);
@@ -31,7 +31,7 @@ public class AchievementProjectionTests
         var definition = Definition(AchievementReducer.Counter, [100, 300]);
         var progress = new AchievementProgressEntity { Value = 350, EarnedLevel = 2 };
 
-        var snapshot = AchievementProjection.ToSnapshot(definition, progress);
+        var snapshot = AchievementProjection.ToSnapshot(definition, progress, DateTime.UtcNow);
 
         Assert.Equal(2, snapshot.Level);
         Assert.Equal("ACH_Test2", snapshot.BadgeId);
@@ -48,11 +48,13 @@ public class AchievementProjectionTests
 
         var belowZero = AchievementProjection.ToSnapshot(
             definition,
-            new AchievementProgressEntity { Value = -10 }
+            new AchievementProgressEntity { Value = -10 },
+            DateTime.UtcNow
         );
         var aboveIntMax = AchievementProjection.ToSnapshot(
             definition,
-            new AchievementProgressEntity { Value = long.MaxValue }
+            new AchievementProgressEntity { Value = long.MaxValue },
+            DateTime.UtcNow
         );
 
         Assert.Equal(0, belowZero.CurrentPointsTotal);
@@ -65,7 +67,7 @@ public class AchievementProjectionTests
         var definition = Definition(AchievementReducer.Rank, [10, 3]);
         var progress = new AchievementProgressEntity { Value = 4, EarnedLevel = 1 };
 
-        var snapshot = AchievementProjection.ToSnapshot(definition, progress);
+        var snapshot = AchievementProjection.ToSnapshot(definition, progress, DateTime.UtcNow);
 
         Assert.Equal(2, snapshot.Level);
         Assert.Equal("ACH_Test2", snapshot.BadgeId);

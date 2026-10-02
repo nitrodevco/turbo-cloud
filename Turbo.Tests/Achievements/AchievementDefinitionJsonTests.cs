@@ -80,6 +80,29 @@ public sealed class AchievementDefinitionJsonTests
             .Equal(AchievementState.Archived, AchievementState.OffSeason);
     }
 
+    [Fact]
+    public void AWindowReadFromJsonKeepsItsUtcTimes()
+    {
+        var json = JsonSerializer
+            .Serialize(Definition(AchievementState.Enabled))
+            .Replace(
+                "\"ActiveFromUtc\":null",
+                "\"ActiveFromUtc\":\"2026-12-25T00:00:00Z\"",
+                StringComparison.Ordinal
+            )
+            .Replace(
+                "\"ActiveUntilUtc\":null",
+                "\"ActiveUntilUtc\":\"2027-01-06T00:00:00Z\"",
+                StringComparison.Ordinal
+            );
+
+        var read = AchievementDefinitionJson.Read(json);
+
+        read.ActiveFromUtc.Should().Be(new DateTime(2026, 12, 25, 0, 0, 0, DateTimeKind.Utc));
+        read.ActiveFromUtc!.Value.Kind.Should().Be(DateTimeKind.Utc);
+        read.ActiveUntilUtc!.Value.Kind.Should().Be(DateTimeKind.Utc);
+    }
+
     private static string LegacyJson(bool? enabled, bool? archived)
     {
         var json = JsonSerializer.Serialize(Definition(AchievementState.Enabled));

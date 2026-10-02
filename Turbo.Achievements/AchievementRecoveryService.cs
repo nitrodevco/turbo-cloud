@@ -25,6 +25,7 @@ internal sealed class AchievementRecoveryService(
     IAchievementCatalog catalog,
     IAchievementFactRecorder recorder,
     IGrainFactory grains,
+    TimeProvider time,
     ILogger<AchievementRecoveryService> logger
 ) : BackgroundService
 {
@@ -54,7 +55,12 @@ internal sealed class AchievementRecoveryService(
                 var current = catalog.Current;
                 if (!current.Equals(rankedCatalog))
                 {
-                    if (current.Any(x => x.Accrues() && x.Source == AchievementSources.ROOM_RANK))
+                    if (
+                        current.Any(x =>
+                            x.Accrues(time.GetUtcNow().UtcDateTime)
+                            && x.Source == AchievementSources.ROOM_RANK
+                        )
+                    )
                     {
                         await AchievementRoomCriteria
                             .RecordRankingsAsync(db, recorder, stoppingToken)

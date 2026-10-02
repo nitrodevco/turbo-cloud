@@ -19,7 +19,10 @@ public sealed class AchievementBadgeLimitsTests
     {
         var fakes = new Fakes();
         fakes.Handlers["get_Current"] = _ => AchievementDefaults.Definitions;
-        var handler = new GetBadgePointLimitsMessageHandler(fakes.Create<IAchievementCatalog>());
+        var handler = new GetBadgePointLimitsMessageHandler(
+            fakes.Create<IAchievementCatalog>(),
+            TimeProvider.System
+        );
         await handler.HandleAsync(
             new GetBadgePointLimitsMessage(),
             new MessageContext(fakes.Create<ISessionContext>(), 1, -1),
@@ -49,7 +52,10 @@ public sealed class AchievementBadgeLimitsTests
                 Definition(3, "Gamma", AchievementState.OffSeason),
                 Definition(4, "Delta", AchievementState.Disabled)
             );
-        var handler = new GetBadgePointLimitsMessageHandler(fakes.Create<IAchievementCatalog>());
+        var handler = new GetBadgePointLimitsMessageHandler(
+            fakes.Create<IAchievementCatalog>(),
+            TimeProvider.System
+        );
 
         await handler.HandleAsync(
             new GetBadgePointLimitsMessage(),

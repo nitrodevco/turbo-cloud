@@ -114,7 +114,7 @@ public class AchievementDefaultsTests
         Assert.DoesNotContain(
             AchievementDefaults.Definitions,
             x =>
-                x.Accrues()
+                x.Accrues(DateTime.UtcNow)
                 && x.Levels[0].BadgeCode.StartsWith("ACH_BasicClub", StringComparison.Ordinal)
         );
         var membership = AchievementDefaults.Definitions.Single(x => x.Key == "hc-duration");
