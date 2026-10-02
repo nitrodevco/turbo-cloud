@@ -10,6 +10,7 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Achievements;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.Achievements.Grains;
 
@@ -48,11 +49,11 @@ internal sealed partial class PlayerAchievementGrain
         if (
             definition.Source == AchievementSources.HC
             && definition.Levels[0].Requirement == 0
-            && !await db.AchievementMembershipIntervals.AnyAsync(
+            && !await db.PlayerSubscriptions.AnyAsync(
                 x =>
-                    x.PlayerId == progress.PlayerId
-                    && x.StartUtc <= earnedAt
-                    && x.EndUtc > x.StartUtc,
+                    x.PlayerEntityId == progress.PlayerId
+                    && x.SubscriptionType == SubscriptionType.HabboClub
+                    && x.FirstSubscribedAt <= earnedAt,
                 ct
             )
         )

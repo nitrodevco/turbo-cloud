@@ -9,6 +9,7 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Achievements;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums;
 
 namespace Turbo.Achievements;
 
@@ -75,32 +76,20 @@ public sealed class AchievementStateEvaluator(
                 .Pets.CountAsync(x => x.PlayerEntityId == playerId.Value && x.DeletedAt == null, ct)
                 .ConfigureAwait(false)
         );
-        // Actual purchased intervals, rather than the subscription's aggregate grant counter.
-        var memberships = await db
-            .AchievementMembershipIntervals.AsNoTracking()
-            .Where(x => x.PlayerId == playerId.Value)
-            .ToListAsync(ct)
+        var club = await db
+            .PlayerSubscriptions.AsNoTracking()
+            .SingleOrDefaultAsync(
+                x =>
+                    x.PlayerEntityId == playerId.Value
+                    && x.SubscriptionType == SubscriptionType.HabboClub,
+                ct
+            )
             .ConfigureAwait(false);
-        Record(
-            AchievementSources.PURCHASED_HC,
-            memberships.Where(x => x.Purchased).Sum(x => (long)(x.EndUtc - x.StartUtc).TotalDays)
-        );
-        var eligible = memberships.Where(x => x.StartUtc < now).OrderBy(x => x.StartUtc).ToList();
-        long ticks = 0;
-        DateTime? through = null;
-        foreach (var interval in eligible)
-        {
-            var start = through is { } last && last > interval.StartUtc ? last : interval.StartUtc;
-            var end = interval.EndUtc > now ? now : interval.EndUtc;
-            if (end > start)
-                ticks = checked(ticks + (end - start).Ticks);
-            if (through is null || end > through)
-                through = end;
-        }
+        Record(AchievementSources.PURCHASED_HC, club?.PurchasedDaysSubscribed ?? 0);
         // A zero-threshold membership award requires an actual eligible interval.
         // Recording zero for non-members would manufacture a joining event.
-        if (eligible.Count > 0)
-            Record(AchievementSources.HC, ticks / TimeSpan.TicksPerSecond);
+        if (club is { FirstSubscribedAt: not null, ExpiresAt: { } expiresAt })
+            Record(AchievementSources.HC, EligibleSeconds(club.TotalDaysSubscribed, expiresAt, now));
         var rooms = await AchievementRoomCriteria
             .ReadOwnedStateAsync(db, playerId, ct)
             .ConfigureAwait(false);
@@ -109,5 +98,18 @@ public sealed class AchievementStateEvaluator(
             Record(AchievementSources.ROOM_RANK, rank);
         if (db.ChangeTracker.HasChanges())
             await db.SaveChangesAsync(ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Seconds actually spent as a member. Every grant covers exactly its days without overlap
+    /// (an active membership is extended from its end, a lapsed one from now), so the days ever
+    /// granted minus what is left of the current run have all elapsed.
+    /// </summary>
+    public static long EligibleSeconds(int totalDaysGranted, DateTime expiresAt, DateTime now)
+    {
+        var granted = (long)TimeSpan.FromDays(totalDaysGranted).TotalSeconds;
+        var remaining = expiresAt > now ? (long)(expiresAt - now).TotalSeconds : 0;
+
+        return Math.Max(0, granted - remaining);
     }
 }

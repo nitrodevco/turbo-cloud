@@ -141,6 +141,8 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
 
         entity.ExpiresAt = from.AddDays(days);
         entity.TotalDaysSubscribed += days;
+        if (purchased)
+            entity.PurchasedDaysSubscribed += days;
         entity.PeriodsPurchased++;
 
         if (subscriptionType == SubscriptionType.BuildersClub)
@@ -148,16 +150,7 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
 
         if (subscriptionType == SubscriptionType.HabboClub)
         {
-            dbCtx.AchievementMembershipIntervals.Add(
-                new()
-                {
-                    PlayerId = PlayerId.Value,
-                    StartUtc = from,
-                    EndUtc = entity.ExpiresAt!.Value,
-                    Purchased = purchased,
-                }
-            );
-            // Duration is reconciled from actual intervals; the journal wakes offline recovery after committed extensions.
+            // Duration is reconciled from the subscription row; the journal wakes offline recovery after committed extensions.
             _achievementFacts.Record(
                 dbCtx,
                 PlayerId,

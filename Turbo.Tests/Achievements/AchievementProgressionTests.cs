@@ -206,11 +206,13 @@ public sealed class AchievementProgressionTests : IDisposable
             Assert.Empty(await check.AchievementAwards.ToListAsync(Ct));
 
         _database.Insert(
-            new AchievementMembershipIntervalEntity
+            new PlayerSubscriptionEntity
             {
-                PlayerId = 1,
-                StartUtc = DateTime.UtcNow.AddMinutes(-1),
-                EndUtc = DateTime.UtcNow.AddDays(31),
+                PlayerEntityId = 1,
+                SubscriptionType = SubscriptionType.HabboClub,
+                FirstSubscribedAt = DateTime.UtcNow.AddMinutes(-1),
+                ExpiresAt = DateTime.UtcNow.AddMinutes(-1).AddDays(31),
+                TotalDaysSubscribed = 31,
             }
         );
         await NewGrain().ReconcileAsync(Ct);
@@ -242,11 +244,13 @@ public sealed class AchievementProgressionTests : IDisposable
         };
         _catalog.Current = [legacy];
         _database.Insert(
-            new AchievementMembershipIntervalEntity
+            new PlayerSubscriptionEntity
             {
-                PlayerId = 1,
-                StartUtc = DateTime.UtcNow.AddDays(-2),
-                EndUtc = DateTime.UtcNow.AddDays(31),
+                PlayerEntityId = 1,
+                SubscriptionType = SubscriptionType.HabboClub,
+                FirstSubscribedAt = DateTime.UtcNow.AddDays(-2),
+                ExpiresAt = DateTime.UtcNow.AddDays(31),
+                TotalDaysSubscribed = 33,
             }
         );
         await NewGrain().ReconcileAsync(Ct);

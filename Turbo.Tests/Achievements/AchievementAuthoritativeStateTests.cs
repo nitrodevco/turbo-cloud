@@ -33,37 +33,20 @@ public sealed class AchievementAuthoritativeStateTests : IDisposable
     }
 
     [Fact]
-    public async Task MembershipStateUnionsEligibleIntervalsAndCountsOnlyPurchasedDaysAsPurchased()
+    public async Task MembershipStateCountsDaysActuallySpentAndOnlyPurchasedDaysAsPurchased()
     {
         var now = DateTime.UtcNow;
+        // 3 purchased days, 3 gifted days, a lapse, then 4 purchased days of which 2 remain:
+        // 10 days granted, 8 elapsed.
         _db.Insert(
-            new AchievementMembershipIntervalEntity
+            new PlayerSubscriptionEntity
             {
-                Id = 1,
-                PlayerId = PLAYER_ID,
-                StartUtc = now.AddDays(-10),
-                EndUtc = now.AddDays(-7),
-                Purchased = true,
-            }
-        );
-        _db.Insert(
-            new AchievementMembershipIntervalEntity
-            {
-                Id = 2,
-                PlayerId = PLAYER_ID,
-                StartUtc = now.AddDays(-8),
-                EndUtc = now.AddDays(-4),
-                Purchased = false,
-            }
-        );
-        _db.Insert(
-            new AchievementMembershipIntervalEntity
-            {
-                Id = 3,
-                PlayerId = PLAYER_ID,
-                StartUtc = now.AddDays(-2),
-                EndUtc = now.AddDays(2),
-                Purchased = true,
+                PlayerEntityId = PLAYER_ID,
+                SubscriptionType = SubscriptionType.HabboClub,
+                FirstSubscribedAt = now.AddDays(-10),
+                ExpiresAt = now.AddDays(2),
+                TotalDaysSubscribed = 10,
+                PurchasedDaysSubscribed = 7,
             }
         );
 
@@ -73,6 +56,38 @@ public sealed class AchievementAuthoritativeStateTests : IDisposable
         ReadAmount(facts, AchievementSources.HC).Should().BeInRange(8 * 86400 - 2, 8 * 86400 + 2);
         ReadAmount(facts, AchievementSources.PURCHASED_HC).Should().Be(7);
     }
+
+    [Fact]
+    public async Task LapsedMembershipCountsEveryGrantedDayAndNonMembersRecordNoDuration()
+    {
+        var now = DateTime.UtcNow;
+        _db.Insert(
+            new PlayerSubscriptionEntity
+            {
+                PlayerEntityId = PLAYER_ID,
+                SubscriptionType = SubscriptionType.HabboClub,
+                FirstSubscribedAt = now.AddDays(-40),
+                ExpiresAt = now.AddDays(-5),
+                TotalDaysSubscribed = 31,
+            }
+        );
+        _db.Insert(NewPlayer(2, "never-a-member"));
+        var evaluator = new AchievementStateEvaluator(_db, _recorder);
+
+        await evaluator.RecordAsync(PLAYER_ID, Ct);
+        await evaluator.RecordAsync(2, Ct);
+
+        var facts = await ReadFactsAsync();
+        ReadAmount(facts, AchievementSources.HC).Should().Be(31 * 86400);
+        facts.Where(x => x.Source == AchievementSources.HC).Should().ContainSingle();
+    }
+
+    [Fact]
+    public void EligibleSecondsNeverGoBelowZero() =>
+        AchievementStateEvaluator
+            .EligibleSeconds(1, DateTime.UtcNow.AddDays(5), DateTime.UtcNow)
+            .Should()
+            .Be(0);
 
     [Fact]
     public async Task OwnedPetStateIncludesInventoryAndRoomPetsOnceAndIgnoresDeletedPets()

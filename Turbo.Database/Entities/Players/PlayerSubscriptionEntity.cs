@@ -34,6 +34,17 @@ public class PlayerSubscriptionEntity : TurboEntity
     [DefaultValue(0)]
     public int TotalDaysSubscribed { get; set; }
 
+    /// <summary>
+    /// Days granted by a purchase, as opposed to a gift or an operator. Never goes down. Together
+    /// with <see cref="TotalDaysSubscribed"/> and <see cref="ExpiresAt"/> this is all the
+    /// achievements need: every grant covers exactly its days with no overlap and nothing shortens
+    /// a membership, so the time actually spent as a member is the days ever granted minus the
+    /// part of the current run that has not elapsed yet.
+    /// </summary>
+    [Column("purchased_days_subscribed")]
+    [DefaultValue(0)]
+    public int PurchasedDaysSubscribed { get; set; }
+
     [Column("periods_purchased")]
     [DefaultValue(0)]
     public int PeriodsPurchased { get; set; }
