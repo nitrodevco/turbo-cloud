@@ -8,6 +8,9 @@ internal class InfoHotelClosedMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, InfoHotelClosedMessageComposer message)
     {
-        //
+        packet
+            .WriteInteger(message.OpenHour)
+            .WriteInteger(message.OpenMinute)
+            .WriteBoolean(message.UserThrownOutAtClose);
     }
 }

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Turbo.Primitives.Bots.Snapshots;
+using Turbo.Primitives.Commands.Snapshots;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Object;
@@ -20,4 +21,5 @@ internal sealed class RoomPersistenceLiveState
     public Dictionary<int, PetSnapshot> DirtyPets { get; } = [];
     public Dictionary<int, BotSnapshot> DirtyBots { get; } = [];
     public Queue<RoomChatlogSnapshot> PendingChatlogs { get; } = new();
+    public Queue<CommandLogSnapshot> PendingCommandLogs { get; } = new();
 }

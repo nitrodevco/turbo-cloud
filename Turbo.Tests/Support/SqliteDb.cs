@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Turbo.Database.Context;
+using Turbo.Database.Entities;
 
 namespace Turbo.Tests.Support;
 
@@ -21,17 +22,18 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
         _conn.Open();
         _options = new DbContextOptionsBuilder<TurboDbContext>()
             .UseSqlite(_conn)
+            .AddInterceptors(new StampTimestamps())
             .ConfigureWarnings(w =>
             {
                 w.Throw(CoreEventId.RowLimitingOperationWithoutOrderByWarning);
                 w.Throw(CoreEventId.FirstWithoutOrderByAndFilterWarning);
             })
             .Options;
-        using var ctx = new TurboDbContext(_options);
+        using var ctx = new SqliteTurboDbContext(_options);
         ctx.Database.EnsureCreated();
     }
 
-    public TurboDbContext CreateDbContext() => new(_options);
+    public TurboDbContext CreateDbContext() => new SqliteTurboDbContext(_options);
 
     public Task<TurboDbContext> CreateDbContextAsync(CancellationToken ct = default) =>
         Task.FromResult(CreateDbContext());
@@ -76,4 +78,75 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
     }
 
     public void Dispose() => _conn.Dispose();
+
+    /// <summary>
+    /// The model with the two timestamps written by the caller: MySQL generates them (and
+    /// <c>updated_at</c> on every change), SQLite cannot, so here they are plain columns that
+    /// <see cref="StampTimestamps"/> fills in.
+    /// </summary>
+    private sealed class SqliteTurboDbContext(DbContextOptions<TurboDbContext> options)
+        : TurboDbContext(options)
+    {
+        protected override void OnModelCreating(ModelBuilder mb)
+        {
+            base.OnModelCreating(mb);
+
+            foreach (var entityType in mb.Model.GetEntityTypes())
+            {
+                if (!typeof(TurboEntity).IsAssignableFrom(entityType.ClrType))
+                    continue;
+
+                entityType.FindProperty(nameof(TurboEntity.CreatedAt))!.ValueGenerated =
+                    ValueGenerated.Never;
+                entityType.FindProperty(nameof(TurboEntity.UpdatedAt))!.ValueGenerated =
+                    ValueGenerated.Never;
+            }
+        }
+    }
+
+    /// <summary>
+    /// MySQL fills <c>created_at</c> and <c>updated_at</c> itself, and SQLite has no generator for
+    /// them, so a row added through EF is stamped here instead, as the database would.
+    /// </summary>
+    private sealed class StampTimestamps : SaveChangesInterceptor
+    {
+        public override InterceptionResult<int> SavingChanges(
+            DbContextEventData eventData,
+            InterceptionResult<int> result
+        )
+        {
+            Stamp(eventData.Context);
+
+            return result;
+        }
+
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken ct = default
+        )
+        {
+            Stamp(eventData.Context);
+
+            return ValueTask.FromResult(result);
+        }
+
+        private static void Stamp(DbContext? context)
+        {
+            foreach (
+                var entry in context?.ChangeTracker.Entries<Turbo.Database.Entities.TurboEntity>()
+                    ?? []
+            )
+            {
+                if (entry.State != EntityState.Added)
+                    continue;
+
+                if (entry.Entity.CreatedAt == default)
+                    entry.Entity.CreatedAt = DateTime.UtcNow;
+
+                if (entry.Entity.UpdatedAt == default)
+                    entry.Entity.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+    }
 }

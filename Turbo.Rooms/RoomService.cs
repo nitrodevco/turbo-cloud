@@ -97,10 +97,34 @@ internal sealed partial class RoomService(
     {
         var room = _grainFactory.GetRoomGrain(roomId);
 
-        await room.EnsureRoomActiveAsync(ct).ConfigureAwait(false);
-
-        return await room.CheckEntryAccessAsync(playerId, password, bypassDoor, ct)
+        var access = await RoomTelemetry
+            .MeasureAsync(
+                RoomTelemetry.ACCESS,
+                roomId,
+                () => room.CheckEntryAccessAsync(playerId, password, bypassDoor, ct)
+            )
             .ConfigureAwait(false);
+
+        // Activation already hydrates metadata, rights and bans. Rejected visitors need none
+        // of the map, furniture or NPC state. Keep allowed loading before the caller clears
+        // the player's current room, so a load failure leaves that session intact.
+        if (access == RoomEntryAccessType.Allowed)
+        {
+            await RoomTelemetry
+                .MeasureAsync(RoomTelemetry.ACTIVATE, roomId, () => room.EnsureRoomActiveAsync(ct))
+                .ConfigureAwait(false);
+
+            // A cold load can yield long enough for bans, capacity or deletion to change.
+            access = await RoomTelemetry
+                .MeasureAsync(
+                    RoomTelemetry.ACCESS,
+                    roomId,
+                    () => room.CheckEntryAccessAsync(playerId, password, bypassDoor, ct)
+                )
+                .ConfigureAwait(false);
+        }
+
+        return access;
     }
 
     /// <summary>
@@ -125,8 +149,18 @@ internal sealed partial class RoomService(
         // Re-entering the room the player is already in is a full reload, not a no-op: by the time
         // this arrives the client has already torn its room view down and is waiting for the entry
         // sequence. Returning early here leaves it on a black screen forever.
-        await LeavePendingDoorbellAsync(playerPresence, playerId, roomId, ct).ConfigureAwait(false);
-        await playerPresence.ClearActiveRoomAsync(ct).ConfigureAwait(false);
+        await RoomTelemetry
+            .MeasureAsync(
+                RoomTelemetry.PREPARE_PLAYER,
+                roomId,
+                async () =>
+                {
+                    await LeavePendingDoorbellAsync(playerPresence, playerId, roomId, ct)
+                        .ConfigureAwait(false);
+                    await playerPresence.ClearActiveRoomAsync(ct).ConfigureAwait(false);
+                }
+            )
+            .ConfigureAwait(false);
 
         await _grainFactory
             .SendComposerToPlayerAsync(
@@ -351,6 +385,10 @@ internal sealed partial class RoomService(
             return;
         }
 
+        await RoomTelemetry
+            .MeasureAsync(RoomTelemetry.ACTIVATE, ctx.RoomId, () => room.EnsureRoomActiveAsync(ct))
+            .ConfigureAwait(false);
+
         await ringerPresence
             .SetPendingRoomAsync(ctx.RoomId, RoomEntryState.Approved, ct)
             .ConfigureAwait(false);
@@ -473,7 +511,13 @@ internal sealed partial class RoomService(
         var roomCtx = ctx with { RoomId = roomId };
 
         // One call for everything the room shows, taken in one of its turns.
-        var view = await room.GetEntryViewAsync(ctx.PlayerId, ct).ConfigureAwait(false);
+        var view = await RoomTelemetry
+            .MeasureAsync(
+                RoomTelemetry.ENTRY_VIEW,
+                roomId,
+                () => room.GetEntryViewAsync(ctx.PlayerId, ct)
+            )
+            .ConfigureAwait(false);
         var snapshot = view.Room;
         var mapSnapshot = view.Map;
 
@@ -587,9 +631,21 @@ internal sealed partial class RoomService(
         );
 
         // A batch for one player is the one direct presence send AGENTS.md allows.
-        await playerPresence.SendComposerAsync(composers, ct).ConfigureAwait(false);
+        await RoomTelemetry
+            .MeasureAsync(
+                RoomTelemetry.INITIAL_PACKETS,
+                roomId,
+                () => playerPresence.SendComposerAsync(composers, ct)
+            )
+            .ConfigureAwait(false);
 
-        await playerPresence.SetActiveRoomAsync(roomId, ct).ConfigureAwait(false);
+        await RoomTelemetry
+            .MeasureAsync(
+                RoomTelemetry.MEMBERSHIP,
+                roomId,
+                () => playerPresence.SetActiveRoomAsync(roomId, ct)
+            )
+            .ConfigureAwait(false);
 
         await room.RefreshControllerLevelForPlayerAsync(roomCtx, ct).ConfigureAwait(false);
 

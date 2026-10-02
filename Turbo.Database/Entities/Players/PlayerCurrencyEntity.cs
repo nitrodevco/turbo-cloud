@@ -19,6 +19,11 @@ public class PlayerCurrencyEntity : TurboEntity
     [DefaultValue(0)]
     public required int Amount { get; set; }
 
+    /// <summary>Command rewards awaiting a corner notification, persisted with the balance.</summary>
+    [Column("pending_reward_amount")]
+    [DefaultValue(0L)]
+    public long PendingRewardAmount { get; set; }
+
     [ForeignKey(nameof(PlayerEntityId))]
     public PlayerEntity? PlayerEntity { get; set; }
 

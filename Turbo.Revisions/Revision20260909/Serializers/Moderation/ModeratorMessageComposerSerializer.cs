@@ -8,6 +8,6 @@ internal class ModeratorMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, ModeratorMessageComposer message)
     {
-        //
+        packet.WriteString(message.Message).WriteString(message.Url);
     }
 }

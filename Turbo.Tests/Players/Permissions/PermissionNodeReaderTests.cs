@@ -33,7 +33,6 @@ public class PermissionNodeReaderTests
             "the :furni chooser is the client's, at the level this projects to",
         [PermissionNodes.Catalog.GIFT_HIDE_SENDER] =
             "buying a gift is a stub; it gates ShowPurchaserName once gifts are built",
-        [PermissionNodes.Permissions.MANAGE] = "waits on an in-game permission editor",
         [PermissionNodes.Perk.CAMERA] = "projected to a perk",
         [PermissionNodes.Perk.MOUSE_ZOOM] = "projected to a perk",
         [PermissionNodes.Perk.CITIZEN] = "projected to a perk",
@@ -98,7 +97,7 @@ public class PermissionNodeReaderTests
     /// <summary>
     /// Every string literal in every server assembly, except where core registers its own nodes,
     /// which is not a read, and every node a type's <see cref="RequiresPermissionAttribute"/>
-    /// names.
+    /// names, and every node a command's <c>[Selectors]</c> names.
     /// </summary>
     private static HashSet<string> ReadStrings()
     {
@@ -129,6 +128,16 @@ public class PermissionNodeReaderTests
 
                 if (type.GetCustomAttribute<RequiresPermissionAttribute>() is { } gate)
                     strings.UnionWith(gate.Nodes);
+
+                // A command's selector node is declared on its arguments record's target, and
+                // the command binder enforces it.
+                foreach (var constructor in type.GetConstructors())
+                foreach (var parameter in constructor.GetParameters())
+                    if (
+                        parameter.GetCustomAttribute<Turbo.Primitives.Commands.SelectorsAttribute>() is
+                        { } selectors
+                    )
+                        strings.Add(selectors.Node);
 
                 foreach (var method in IlScanner.MethodsOf(type))
                     IlScanner.Scan(method, strings);

@@ -91,13 +91,21 @@ internal sealed partial class PlayerPresenceGrain
 
         var stream = GetRoomStream(roomId);
 
-        await PurgeStaleSubscriptionsAsync(stream, roomId);
+        _roomOutboundSub = await RoomTelemetry.MeasureAsync(
+            RoomTelemetry.SUBSCRIBE,
+            roomId,
+            async () =>
+            {
+                await PurgeStaleSubscriptionsAsync(stream, roomId);
+                return await stream.SubscribeAsync(this);
+            }
+        );
 
-        _roomOutboundSub = await stream.SubscribeAsync(this);
-
-        var playerSnapshot = await _grainFactory
-            .GetPlayerGrain(_state.PlayerId)
-            .GetSummaryAsync(ct);
+        var playerSnapshot = await RoomTelemetry.MeasureAsync(
+            RoomTelemetry.PLAYER_SUMMARY,
+            roomId,
+            () => _grainFactory.GetPlayerGrain(_state.PlayerId).GetSummaryAsync(ct)
+        );
 
         // Only the room a furni named gets the entry it named; anywhere else is a plain walk in.
         var entry = PendingEntryFor(roomId);
@@ -105,14 +113,19 @@ internal sealed partial class PlayerPresenceGrain
         _state.PendingEntryRoomId = -1;
         _state.PendingEntry = RoomEntrySnapshot.Default;
 
-        await _grainFactory
-            .GetRoomGrain(roomId)
-            .CreateAvatarFromPlayerAsync(
-                ActionContext.CreateForPlayer(_state.PlayerId, roomId),
-                playerSnapshot,
-                entry,
-                ct
-            );
+        await RoomTelemetry.MeasureAsync(
+            RoomTelemetry.AVATAR,
+            roomId,
+            () =>
+                _grainFactory
+                    .GetRoomGrain(roomId)
+                    .CreateAvatarFromPlayerAsync(
+                        ActionContext.CreateForPlayer(_state.PlayerId, roomId),
+                        playerSnapshot,
+                        entry,
+                        ct
+                    )
+        );
 
         // A rank moves when other players get badges too, so entering a room is when it is
         // looked at again. Told, not awaited: the presence never awaits the badge grain. A rank

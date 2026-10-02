@@ -41,5 +41,6 @@ public abstract class RoomGrainComponent(RoomGrain roomGrain)
     protected RoomGameSystem GameSystem => _roomGrain.GameSystem;
     protected RoomVariableFxSystem VariableFxSystem => _roomGrain.VariableFxSystem;
     protected RoomChatSystem ChatSystem => _roomGrain.ChatSystem;
+    protected RoomCommandSystem CommandSystem => _roomGrain.CommandSystem;
     protected RoomTimerSystem TimerSystem => _roomGrain.TimerSystem;
 }

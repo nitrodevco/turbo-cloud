@@ -18,6 +18,15 @@ public class PermissionResolverTests
         new TestMetaSource(),
     ]);
 
+    /// <summary>
+    /// What a player holds with nothing assigned: the nodes core registers as granted by default
+    /// (the chat commands everybody may use), and nothing else.
+    /// </summary>
+    private static readonly string[] DEFAULT_GRANTED =
+    [
+        .. REGISTRY.Nodes.Values.Where(x => x.GrantedByDefault).Select(x => x.Node),
+    ];
+
     private const string LOCKED = PermissionNodes.Room.ENTER_LOCKED;
     private const string FULL = PermissionNodes.Room.ENTER_FULL;
     private const string FIRST = "test.first";
@@ -42,11 +51,12 @@ public class PermissionResolverTests
     // --- denial and defaults ---
 
     [Fact]
-    public void NothingAssigned_DeniesEverything()
+    public void NothingAssigned_GrantsOnlyWhatIsGrantedByDefault()
     {
         var resolved = Resolve([], PlayerPermissionAssignmentsSnapshot.EMPTY);
 
-        resolved.Granted.Should().BeEmpty();
+        resolved.Granted.Should().BeEquivalentTo(DEFAULT_GRANTED);
+        DEFAULT_GRANTED.Should().NotBeEmpty();
         resolved.Meta.Should().BeEmpty();
         resolved.NextExpiresAt.Should().BeNull();
     }
@@ -67,7 +77,7 @@ public class PermissionResolverTests
     {
         var resolved = Resolve([], Player(groups: [Member(99)]));
 
-        resolved.Granted.Should().BeEmpty();
+        resolved.Granted.Should().BeEquivalentTo(DEFAULT_GRANTED);
     }
 
     // --- source priority ---
@@ -439,7 +449,7 @@ public class PermissionResolverTests
             Player(groups: [Member(1)])
         );
 
-        resolved.Granted.Should().Equal("group.vip");
+        resolved.Granted.Should().BeEquivalentTo(["group.vip", .. DEFAULT_GRANTED]);
         resolved.UnregisteredNodes.Should().Equal("casino.table.open");
         resolved.UnregisteredMetaKeys.Should().Equal("casino.limit.tables");
         resolved.Meta.Should().BeEmpty();

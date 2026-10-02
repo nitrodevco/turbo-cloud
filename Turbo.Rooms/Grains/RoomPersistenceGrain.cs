@@ -12,6 +12,8 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Bots.Snapshots;
+using Turbo.Primitives.Commands;
+using Turbo.Primitives.Commands.Snapshots;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
@@ -64,7 +66,7 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         );
 
         _chatlogTimer = this.RegisterGrainTimer<object?>(
-            static async (self, ct) => await ((RoomPersistenceGrain)self!).FlushChatlogsAsync(ct),
+            static async (self, ct) => await ((RoomPersistenceGrain)self!).FlushLogsAsync(ct),
             this,
             TimeSpan.FromMilliseconds(_roomConfig.ChatlogTickMs),
             TimeSpan.FromMilliseconds(_roomConfig.ChatlogTickMs)
@@ -87,7 +89,106 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         await FlushDirtyItemsAsync(int.MaxValue, ct);
 
         while (_state.PendingChatlogs.Count > 0 && await FlushChatlogsAsync(ct)) { }
+
+        while (_state.PendingCommandLogs.Count > 0 && await FlushCommandLogsAsync(ct)) { }
     }
+
+    /// <summary>The chatlog timer's tick: the two audit buffers share it, and neither holds up the other.</summary>
+    private async Task FlushLogsAsync(CancellationToken ct)
+    {
+        await FlushChatlogsAsync(ct);
+        await FlushCommandLogsAsync(ct);
+    }
+
+    public Task EnqueueCommandLogsAsync(List<CommandLogSnapshot> snapshots, CancellationToken ct)
+    {
+        var dropped = 0;
+
+        foreach (var snapshot in snapshots)
+        {
+            if (_state.PendingCommandLogs.Count >= _roomConfig.MaxPendingCommandLogs)
+            {
+                _state.PendingCommandLogs.Dequeue();
+                dropped++;
+            }
+
+            _state.PendingCommandLogs.Enqueue(snapshot);
+        }
+
+        if (dropped > 0)
+            _logger.LogWarning(
+                "Command log queue for room {RoomId} is full ({Max}); dropped the {Count} oldest entries",
+                _state.RoomId,
+                _roomConfig.MaxPendingCommandLogs,
+                dropped
+            );
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Writes one batch of command uses. False means it could not be written and went back on the
+    /// queue, which is what tells deactivation to stop trying.
+    /// </summary>
+    private async Task<bool> FlushCommandLogsAsync(CancellationToken ct)
+    {
+        if (_state.PendingCommandLogs.Count == 0)
+            return true;
+
+        var batchSize = Math.Min(
+            _state.PendingCommandLogs.Count,
+            _roomConfig.MaxCommandLogsPerFlush
+        );
+        var taken = new List<CommandLogSnapshot>(batchSize);
+
+        for (var i = 0; i < batchSize; i++)
+            taken.Add(_state.PendingCommandLogs.Dequeue());
+
+        try
+        {
+            await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+            dbCtx.CommandLogs.AddRange(
+                taken.Select(x => new CommandLogEntity
+                {
+                    RoomEntityId = x.RoomId.Value,
+                    PlayerEntityId = x.PlayerId.Value,
+                    Command = Truncate(x.Command, CommandLogEntity.COMMAND_MAX_LENGTH),
+                    Arguments = Truncate(x.Arguments, CommandLogEntity.ARGUMENTS_MAX_LENGTH),
+                    Outcome = Truncate(
+                        CommandTelemetry.Name(x.Outcome),
+                        CommandLogEntity.OUTCOME_MAX_LENGTH
+                    ),
+                    CreatedAt = x.LoggedAtUtc,
+                })
+            );
+
+            await dbCtx.SaveChangesAsync(ct);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to flush {Count} command log entries for room {RoomId}; they stay queued",
+                taken.Count,
+                _state.RoomId
+            );
+
+            var later = _state.PendingCommandLogs.ToList();
+
+            _state.PendingCommandLogs.Clear();
+
+            foreach (var snapshot in taken.Concat(later).Take(_roomConfig.MaxPendingCommandLogs))
+                _state.PendingCommandLogs.Enqueue(snapshot);
+
+            return false;
+        }
+    }
+
+    private static string Truncate(string value, int max) =>
+        value.Length > max ? value[..max] : value;
 
     public Task EnqueueChatlogsAsync(List<RoomChatlogSnapshot> snapshots, CancellationToken ct)
     {

@@ -42,6 +42,11 @@ public partial interface IPlayerPresenceGrain : IGrainWithIntegerKey
     [AlwaysInterleave]
     public Task SendComposerAsync(IComposer composer, CancellationToken ct);
 
+    /// <summary>Atomically accepts a composer only for an attached session. False means offline;
+    /// true means queued, not acknowledged. The queue is discarded when that session changes.</summary>
+    [AlwaysInterleave]
+    public Task<bool> TrySendComposerAsync(IComposer composer, CancellationToken ct);
+
     [AlwaysInterleave]
     public Task SendComposerAsync(IReadOnlyList<IComposer> composers, CancellationToken ct);
 

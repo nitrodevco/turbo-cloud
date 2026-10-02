@@ -1,0 +1,8 @@
+services:
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard@sha256:d2c51daa39da47f5f43360e53d4f452f112b88c423f59cfad0e92c76f0a783ca
+    container_name: turbo-aspire-dashboard
+    ports:
+      - "127.0.0.1:18888:18888"
+      - "127.0.0.1:4317:18889"
+    restart: unless-stopped

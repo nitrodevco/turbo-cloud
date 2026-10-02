@@ -9,6 +9,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Turbo.Authentication;
 using Turbo.Catalog;
+using Turbo.Commands;
 using Turbo.Crypto.Extensions;
 using Turbo.Database.Extensions;
 using Turbo.Events.Extensions;
@@ -21,6 +22,7 @@ using Turbo.Main.Extensions;
 using Turbo.Messages.Extensions;
 using Turbo.Navigator;
 using Turbo.Networking.Extensions;
+using Turbo.Operations;
 using Turbo.PacketHandlers;
 using Turbo.Players;
 using Turbo.Plugins.Extensions;
@@ -65,6 +67,8 @@ internal class Program
 
         builder.Configuration.AddEnvironmentVariables(prefix: "TURBO__");
 
+        builder.AddTurboTelemetry();
+
         if (builder.Environment.IsDevelopment())
         {
             bootstrapLogger.LogInformation("=== Configuration Providers ===");
@@ -106,7 +110,9 @@ internal class Program
         builder.Services.AddHostPlugin<InventoryModule>(builder);
         builder.Services.AddHostPlugin<NavigatorModule>(builder);
         builder.Services.AddHostPlugin<GuildModule>(builder);
+        builder.Services.AddHostPlugin<CommandModule>(builder);
         builder.Services.AddHostPlugin<RoomModule>(builder);
+        builder.Services.AddHostPlugin<OperationsModule>(builder);
         builder.Services.AddHostPlugin<PacketHandlersModule>(builder);
 
         builder.Services.AddSingleton<AssemblyProcessor>();
@@ -114,7 +120,7 @@ internal class Program
 
         builder.Services.AddHostedService<TurboEmulator>();
 
-        var host = builder.Build();
+        using var host = builder.Build();
 
         var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
         var ct = lifetime.ApplicationStopping;

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Turbo.Primitives.Commands.Snapshots;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -86,6 +87,12 @@ internal sealed class RoomLiveState
     /// <c>RoomConfig.MaxPendingChatlogs</c>.
     /// </summary>
     public Queue<RoomChatlogSnapshot> PendingChatlogs { get; } = new();
+
+    /// <summary>
+    /// Command uses not yet handed to the persistence grain, oldest first, bounded by
+    /// <c>RoomConfig.MaxPendingCommandLogs</c>.
+    /// </summary>
+    public Queue<CommandLogSnapshot> PendingCommandLogs { get; } = new();
 
     /// <summary>The id the next temporary furni gets; they count down from -1 and are never reused.</summary>
     public int NextTemporaryItemId { get; set; } = -1;

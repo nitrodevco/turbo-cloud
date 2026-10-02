@@ -18,11 +18,13 @@ using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Catalog;
+using Turbo.Primitives.Commands;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -72,6 +74,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly IChatStyleProvider _chatStyleProvider;
     internal readonly ICatalogService _catalogService;
     internal readonly IPermissionRegistryProvider _permissionRegistryProvider;
+    internal readonly ICommandRegistryProvider _commandRegistryProvider;
+    internal readonly IOperatorCommandRunner _operatorCommandRunner;
+    internal readonly IPlayerNoticeService _playerNoticeService;
     internal readonly EventSystem _eventSystem;
     internal readonly ILogger<IRoomGrain> _logger;
 
@@ -99,6 +104,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public readonly RoomGameSystem GameSystem;
     public readonly RoomVariableFxSystem VariableFxSystem;
     public readonly RoomChatSystem ChatSystem;
+    public readonly RoomCommandSystem CommandSystem;
     public readonly RoomTimerSystem TimerSystem;
     public readonly RoomWaterAreaSystem WaterAreaSystem;
 
@@ -126,6 +132,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IChatStyleProvider chatStyleProvider,
         ICatalogService catalogService,
         IPermissionRegistryProvider permissionRegistryProvider,
+        ICommandRegistryProvider commandRegistryProvider,
+        IOperatorCommandRunner operatorCommandRunner,
+        IPlayerNoticeService playerNoticeService,
         EventSystem eventSystem,
         ILogger<IRoomGrain> logger
     )
@@ -148,6 +157,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _chatStyleProvider = chatStyleProvider;
         _catalogService = catalogService;
         _permissionRegistryProvider = permissionRegistryProvider;
+        _commandRegistryProvider = commandRegistryProvider;
+        _operatorCommandRunner = operatorCommandRunner;
+        _playerNoticeService = playerNoticeService;
         _eventSystem = eventSystem;
         _logger = logger;
 
@@ -174,6 +186,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         GameSystem = new(this);
         VariableFxSystem = new(this);
         ChatSystem = new(this);
+        CommandSystem = new(this);
         TimerSystem = new(this);
         WaterAreaSystem = new(this);
 
@@ -203,7 +216,11 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             );
         }
 
-        await HydrateRoomStateAsync(ct);
+        await RoomTelemetry.MeasureAsync(
+            RoomTelemetry.HYDRATE,
+            _state.RoomId,
+            () => HydrateRoomStateAsync(ct)
+        );
 
         await _grainFactory.GetRoomDirectoryGrain().UpsertActiveRoomAsync(_state.RoomSnapshot, ct);
 
@@ -342,14 +359,37 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     {
         DelayRoomDeactivation();
 
-        await MapModule.EnsureMapBuiltAsync(ct);
-        await FurniModule.EnsureFurniLoadedAsync(ct);
-        await PetModule.EnsurePetsLoadedAsync(ct);
-        await BotModule.EnsureBotsLoadedAsync(ct);
-        await SecurityModule.EnsureRightsLoadedAsync(ct);
-        await ModerationModule.EnsureMutesLoadedAsync(ct);
-        await EntryModule.EnsureBansLoadedAsync(ct);
-        await ModerationModule.EnsureFilterLoadedAsync(ct);
+        await RoomTelemetry.MeasureAsync(
+            RoomTelemetry.LOAD_MAP,
+            _state.RoomId,
+            () => MapModule.EnsureMapBuiltAsync(ct)
+        );
+        await RoomTelemetry.MeasureAsync(
+            RoomTelemetry.LOAD_FURNITURE,
+            _state.RoomId,
+            () => FurniModule.EnsureFurniLoadedAsync(ct)
+        );
+        await RoomTelemetry.MeasureAsync(
+            RoomTelemetry.LOAD_PETS,
+            _state.RoomId,
+            () => PetModule.EnsurePetsLoadedAsync(ct)
+        );
+        await RoomTelemetry.MeasureAsync(
+            RoomTelemetry.LOAD_BOTS,
+            _state.RoomId,
+            () => BotModule.EnsureBotsLoadedAsync(ct)
+        );
+        await RoomTelemetry.MeasureAsync(
+            RoomTelemetry.LOAD_PERMISSIONS,
+            _state.RoomId,
+            async () =>
+            {
+                await SecurityModule.EnsureRightsLoadedAsync(ct);
+                await ModerationModule.EnsureMutesLoadedAsync(ct);
+                await EntryModule.EnsureBansLoadedAsync(ct);
+                await ModerationModule.EnsureFilterLoadedAsync(ct);
+            }
+        );
     }
 
     public Task<RoomSnapshot> GetSnapshotAsync(CancellationToken ct) =>
@@ -418,7 +458,12 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
 
     public Task SendComposerToRoomAsync(IComposer composer, CancellationToken ct) =>
         _roomOutbound.OnNextAsync(
-            new RoomOutboundSnapshot { RoomId = _state.RoomId, Composers = [composer] }
+            new RoomOutboundSnapshot
+            {
+                RoomId = _state.RoomId,
+                Composers = [composer],
+                PublishedAtUtcTicks = RoomTelemetry.GetPublicationTimestamp(),
+            }
         );
 
     /// <summary>
@@ -433,7 +478,12 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
             return Task.CompletedTask;
 
         return _roomOutbound.OnNextAsync(
-            new RoomOutboundSnapshot { RoomId = _state.RoomId, Composers = composers }
+            new RoomOutboundSnapshot
+            {
+                RoomId = _state.RoomId,
+                Composers = composers,
+                PublishedAtUtcTicks = RoomTelemetry.GetPublicationTimestamp(),
+            }
         );
     }
 

@@ -22,4 +22,8 @@ public sealed record RoomOutboundSnapshot
 
     [Id(2)]
     public List<PlayerId>? ExcludedPlayerIds { get; init; }
+
+    /// <summary>Optional diagnostics timestamp; zero when disabled or sent by an older silo.</summary>
+    [Id(3)]
+    public long PublishedAtUtcTicks { get; init; }
 }

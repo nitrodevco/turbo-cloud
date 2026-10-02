@@ -4,20 +4,24 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Authentication;
+using Turbo.Primitives.Availability;
 using Turbo.Primitives.Messages.Incoming.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Availability;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Achievements;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Avatareffect;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Clothing;
+using Turbo.Primitives.Messages.Outgoing.Moderation;
 using Turbo.Primitives.Messages.Outgoing.Mysterybox;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Permissions;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.PacketHandlers.Handshake;
 
@@ -25,13 +29,19 @@ public class SSOTicketMessageHandler(
     IAuthenticationService authService,
     ISessionGateway sessionGateway,
     IGrainFactory grainFactory,
-    INavigatorService navigatorService
+    INavigatorService navigatorService,
+    ISanctionService sanctionService,
+    IHotelAvailability hotelAvailability,
+    IHotelTextProvider textProvider
 ) : IMessageHandler<SSOTicketMessage>
 {
     private readonly IAuthenticationService _authService = authService;
     private readonly ISessionGateway _sessionGateway = sessionGateway;
     private readonly IGrainFactory _grainFactory = grainFactory;
     private readonly INavigatorService _navigatorService = navigatorService;
+    private readonly ISanctionService _sanctionService = sanctionService;
+    private readonly IHotelAvailability _hotelAvailability = hotelAvailability;
+    private readonly IHotelTextProvider _textProvider = textProvider;
 
     public async ValueTask HandleAsync(
         SSOTicketMessage message,
@@ -46,6 +56,38 @@ public class SSOTicketMessageHandler(
 
         if (playerId <= 0)
         {
+            await ctx.CloseSessionAsync().ConfigureAwait(false);
+
+            return;
+        }
+
+        // A banned player is told why and turned away before the session knows who they are.
+        if (await _sanctionService.GetActiveBanAsync(playerId, ct).ConfigureAwait(false) is { } ban)
+        {
+            await ctx.SendComposerAsync(
+                    new UserBannedMessageComposer
+                    {
+                        Message = SanctionMessages.BanMessage(ban, _textProvider),
+                    },
+                    ct
+                )
+                .ConfigureAwait(false);
+            await ctx.CloseSessionAsync().ConfigureAwait(false);
+
+            return;
+        }
+
+        // In maintenance only staff who may stay get in.
+        if (!await _hotelAvailability.AdmitsAsync(playerId, ct).ConfigureAwait(false))
+        {
+            await ctx.SendComposerAsync(
+                    new HabboBroadcastMessageComposer
+                    {
+                        Message = AvailabilityMessages.MaintenanceStarted(_textProvider),
+                    },
+                    ct
+                )
+                .ConfigureAwait(false);
             await ctx.CloseSessionAsync().ConfigureAwait(false);
 
             return;
@@ -77,6 +119,11 @@ public class SSOTicketMessageHandler(
                 },
                 ct
             )
+            .ConfigureAwait(false);
+        // Establish the current restriction baseline before any permission-dependent login reads.
+        await _grainFactory
+            .GetPlayerPermissionGrain(playerId)
+            .NotifyActiveRestrictionsAsync(ct)
             .ConfigureAwait(false);
         await ctx.SendComposerAsync(new AvatarEffectsMessageComposer { Effects = [] }, ct)
             .ConfigureAwait(false);
@@ -158,6 +205,11 @@ public class SSOTicketMessageHandler(
             )
             .ConfigureAwait(false);
         await ctx.SendComposerAsync(new InfoFeedEnableMessageComposer { Enabled = true }, ct)
+            .ConfigureAwait(false);
+
+        await _grainFactory
+            .GetPlayerWalletGrain(playerId)
+            .DeliverPendingRewardsAsync(ct)
             .ConfigureAwait(false);
 
         var clubGifts = await clubGiftsTask.ConfigureAwait(false);

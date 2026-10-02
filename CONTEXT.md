@@ -13,6 +13,8 @@
   - Event behavior/handler pipeline registration and execution.
 - `Turbo.*` domain modules (`Rooms`, `Players`, `Catalog`, `Inventory`, etc.)
   - Domain services, snapshot providers, and Orleans grain orchestration.
+- `Turbo.Operations/`
+  - Running the hotel: bans, the maintenance and shutdown countdown, and the operator chat commands (`docs/commands.md` §4.1).
 - `Turbo.Database/`
   - EF Core context and persistence infrastructure.
 - `Turbo.Primitives/`

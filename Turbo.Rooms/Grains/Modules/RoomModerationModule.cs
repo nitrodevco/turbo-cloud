@@ -266,6 +266,79 @@ public sealed class RoomModerationModule(
         return true;
     }
 
+    /// <summary>
+    /// Clears the room of everyone who is neither its owner nor allowed to moderate any room, the
+    /// way a wired kick would: each is sent out by the room itself, with no "who can kick"
+    /// setting in the way. <paramref name="except"/> is the one who asked, who stays whatever
+    /// they hold. Returns how many left.
+    /// </summary>
+    public async Task<int> ClearRoomBySystemAsync(PlayerId except, CancellationToken ct)
+    {
+        var cleared = 0;
+
+        foreach (var player in AvatarModule.Players.ToList())
+        {
+            if (
+                player.PlayerId == except
+                || SecurityModule.HasPermission(player, PermissionNodes.Room.MODERATE_ANY)
+            )
+                continue;
+
+            if (await KickPlayerBySystemAsync(player.PlayerId, string.Empty, ct))
+                cleared++;
+        }
+
+        return cleared;
+    }
+
+    /// <summary>
+    /// Mutes or unmutes the whole room on the room's own authority, and tells everyone in it, as
+    /// the owner's toggle does. False when the room already was as asked.
+    /// </summary>
+    public async Task<bool> SetRoomMutedBySystemAsync(bool muted, CancellationToken ct)
+    {
+        if (_roomGrain._state.IsRoomMuted == muted)
+            return false;
+
+        _roomGrain._state.IsRoomMuted = muted;
+
+        await _roomGrain.SendComposerToRoomAsync(
+            new MuteAllInRoomEventMessageComposer { IsMuted = muted },
+            ct
+        );
+
+        return true;
+    }
+
+    /// <summary>
+    /// Sends everyone out of the room, the owner and staff too, and has the room unload when its
+    /// turn is over. Each session is told to leave without being awaited: the presence may itself
+    /// be waiting on this room.
+    /// </summary>
+    public async Task EvictEveryoneAndUnloadAsync(CancellationToken ct)
+    {
+        foreach (var player in AvatarModule.Players.ToList())
+        {
+            await AvatarModule.RemoveAvatarFromPlayerAsync(
+                ActionContext.CreateForSystem(_roomGrain.RoomId),
+                player.PlayerId,
+                ct
+            );
+
+            _roomGrain
+                ._grainFactory.GetPlayerPresenceGrain(player.PlayerId)
+                .OnRemovedFromRoomAsync(_roomGrain.RoomId, true, CancellationToken.None)
+                .LogAndForget(
+                    _roomGrain._logger,
+                    "close the room session of player {PlayerId} when room {RoomId} unloads",
+                    player.PlayerId,
+                    _roomGrain.RoomId
+                );
+        }
+
+        _roomGrain.DeactivateRoom();
+    }
+
     public async Task<bool> BanPlayerAsync(
         ActionContext ctx,
         PlayerId playerId,

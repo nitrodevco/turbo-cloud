@@ -12,6 +12,7 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
+using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains;
 
 namespace Turbo.Tests.Support;
@@ -34,9 +35,11 @@ public sealed class LiveRoomHarness
     public object State { get; }
     public IServiceProvider Services { get; }
     public IRoomObjectLogicProvider LogicProvider { get; }
+    private readonly RoomConfig _roomConfig;
 
-    public LiveRoomHarness(int width = 10, int height = 10)
+    public LiveRoomHarness(int width = 10, int height = 10, RoomConfig? roomConfig = null)
     {
+        _roomConfig = roomConfig ?? new RoomConfig();
         Fakes.Handlers["GetService"] = call =>
             call.Args[0] is Type t && t.IsInterface && !t.IsGenericType ? Fakes.Create(t) : null;
         Fakes.Handlers["get_GrainId"] = _ =>
@@ -167,12 +170,18 @@ public sealed class LiveRoomHarness
             && t.GetGenericTypeDefinition().FullName == "Microsoft.Extensions.Options.IOptions`1"
         )
         {
-            var inner = Activator.CreateInstance(t.GetGenericArguments()[0])!;
+            var innerType = t.GetGenericArguments()[0];
+            var inner =
+                innerType == typeof(RoomConfig)
+                    ? _roomConfig
+                    : Activator.CreateInstance(innerType)!;
             return typeof(Microsoft.Extensions.Options.Options)
                 .GetMethod("Create")!
                 .MakeGenericMethod(t.GetGenericArguments()[0])
                 .Invoke(null, [inner]);
         }
+        if (t == typeof(RoomConfig))
+            return _roomConfig;
         if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(ILogger<>))
             return Activator.CreateInstance(
                 typeof(NullLogger<>).MakeGenericType(t.GetGenericArguments()[0])

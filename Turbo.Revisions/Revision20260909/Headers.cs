@@ -596,6 +596,7 @@ internal static class MessageEvent
     // docs/client-capabilities.md.
     #region Turbo
     public const int TurboClientCapabilitiesMessageEvent = 30000;
+    public const int TurboCommandSuggestMessageEvent = 30003;
     #endregion
 }
 
@@ -1212,5 +1213,7 @@ internal static class MessageComposer
     #region Turbo
     public const int TurboServerCapabilitiesMessageComposer = 30000;
     public const int TurboPermissionNodesMessageComposer = 30001;
+    public const int TurboCommandTreeMessageComposer = 30002;
+    public const int TurboCommandSuggestionsMessageComposer = 30004;
     #endregion
 }

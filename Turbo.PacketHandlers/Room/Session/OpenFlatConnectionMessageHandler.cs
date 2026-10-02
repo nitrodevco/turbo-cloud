@@ -17,7 +17,20 @@ public class OpenFlatConnectionMessageHandler(IRoomService roomService, IGrainFa
     private readonly IRoomService _roomService = roomService;
     private readonly IGrainFactory _grainFactory = grainFactory;
 
-    public async ValueTask HandleAsync(
+    public ValueTask HandleAsync(
+        OpenFlatConnectionMessage message,
+        MessageContext ctx,
+        CancellationToken ct
+    ) =>
+        new(
+            RoomTelemetry.MeasureAsync(
+                RoomTelemetry.DIRECT_ENTRY,
+                message.RoomId,
+                () => HandleEntryAsync(message, ctx, ct)
+            )
+        );
+
+    private async Task HandleEntryAsync(
         OpenFlatConnectionMessage message,
         MessageContext ctx,
         CancellationToken ct
@@ -37,6 +50,8 @@ public class OpenFlatConnectionMessageHandler(IRoomService roomService, IGrainFa
                 ct
             )
             .ConfigureAwait(false);
+
+        RoomTelemetry.RecordEntryAccess(access);
 
         await _roomService
             .OpenRoomForPlayerIdAsync(

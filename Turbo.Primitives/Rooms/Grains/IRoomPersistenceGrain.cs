@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Orleans;
 using Orleans.Concurrency;
 using Turbo.Primitives.Bots.Snapshots;
+using Turbo.Primitives.Commands.Snapshots;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Chat;
@@ -24,6 +25,10 @@ public interface IRoomPersistenceGrain : IGrainWithIntegerKey
     /// <summary>Writes the chat lines, oldest first, on the next chatlog flush.</summary>
     [AlwaysInterleave]
     public Task EnqueueChatlogsAsync(List<RoomChatlogSnapshot> snapshots, CancellationToken ct);
+
+    /// <summary>Writes the command uses, oldest first, on the next chatlog flush.</summary>
+    [AlwaysInterleave]
+    public Task EnqueueCommandLogsAsync(List<CommandLogSnapshot> snapshots, CancellationToken ct);
 
     [AlwaysInterleave]
     public Task EnqueueDirtyItemAsync(
