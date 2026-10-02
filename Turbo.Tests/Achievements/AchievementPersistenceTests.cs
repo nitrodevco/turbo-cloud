@@ -169,40 +169,15 @@ public sealed class AchievementPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task AchievementEntitlementDoesNotEraseManualGrantAndManualRemovalKeepsEntitledBadge()
+    public async Task RemovingAnAchievementBadgeRemovesItLikeAnyOtherBadge()
     {
-        _db.Insert(
-            new PlayerBadgeEntity
-            {
-                Id = 1,
-                PlayerEntityId = PLAYER_ID,
-                BadgeCode = "ACH_Manual1",
-                SlotId = null,
-                ManualGrant = true,
-                PlayerEntity = null!,
-            }
-        );
         var (_, badgeGrain) = await NewBadgeGrainAsync();
+        await badgeGrain.GrantAchievementAsync(30, 1, "ACH_Earned1", Ct);
 
-        await badgeGrain.GrantAchievementAsync(
-            achievementId: 30,
-            level: 1,
-            badgeCode: "ACH_Manual1",
-            ct: Ct
-        );
-        await using (var db = await _db.CreateDbContextAsync(Ct))
-            (await db.PlayerBadges.SingleAsync(Ct)).ManualGrant.Should().BeTrue();
+        (await badgeGrain.RemoveBadgeAsync("ACH_Earned1", Ct)).Should().BeTrue();
 
-        (await badgeGrain.RemoveBadgeAsync("ACH_Manual1", Ct)).Should().BeTrue();
-        await using (var db = await _db.CreateDbContextAsync(Ct))
-        {
-            var badge = await db.PlayerBadges.SingleAsync(Ct);
-            badge.ManualGrant.Should().BeFalse();
-            badge.BadgeCode.Should().Be("ACH_Manual1");
-            (await db.AchievementBadgeEntitlements.SingleAsync(Ct))
-                .BadgeCode.Should()
-                .Be("ACH_Manual1");
-        }
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.PlayerBadges.CountAsync(Ct)).Should().Be(0);
     }
 
     private async Task<(IPlayerWalletGrain Wallet, object Grain)> NewWalletAsync()

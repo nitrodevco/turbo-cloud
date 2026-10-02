@@ -115,15 +115,7 @@ internal sealed partial class PlayerBadgeGrain : Grain, IPlayerBadgeGrain
             return false;
 
         if (_state.BadgesByCode.ContainsKey(code))
-        {
-            await using var existingDb = await _dbCtxFactory.CreateDbContextAsync(ct);
-            await existingDb
-                .PlayerBadges.Where(x =>
-                    x.PlayerEntityId == _state.PlayerId.Value && x.BadgeCode == code
-                )
-                .ExecuteUpdateAsync(up => up.SetProperty(x => x.ManualGrant, true), ct);
             return false;
-        }
 
         var entity = new PlayerBadgeEntity
         {
@@ -185,18 +177,6 @@ internal sealed partial class PlayerBadgeGrain : Grain, IPlayerBadgeGrain
 
         await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
         {
-            if (
-                await dbCtx.AchievementBadgeEntitlements.AnyAsync(
-                    x => x.PlayerId == _state.PlayerId.Value && x.BadgeCode == badge.BadgeCode,
-                    ct
-                )
-            )
-            {
-                await dbCtx
-                    .PlayerBadges.Where(x => x.Id == badge.BadgeId)
-                    .ExecuteUpdateAsync(up => up.SetProperty(x => x.ManualGrant, false), ct);
-                return true;
-            }
             await dbCtx
                 .PlayerBadges.Where(x =>
                     x.Id == badge.BadgeId && x.PlayerEntityId == _state.PlayerId.Value

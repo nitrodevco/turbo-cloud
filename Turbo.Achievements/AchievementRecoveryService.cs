@@ -158,8 +158,9 @@ internal sealed class AchievementRecoveryService(
                     .AchievementFacts.Where(x => !x.Processed)
                     .Select(x => x.PlayerId)
                     .Union(
-                        db.AchievementAwards.Where(x => !x.Completed || !x.Presented)
-                            .Select(x => x.PlayerId)
+                        // Presentation is not polled: an offline player is presented their
+                        // completed awards when the list is requested on their next session.
+                        db.AchievementAwards.Where(x => !x.Completed).Select(x => x.PlayerId)
                     )
                     .Union(
                         db.AchievementProjections.Where(x => x.PublicationPending)
@@ -181,6 +182,7 @@ internal sealed class AchievementRecoveryService(
                         .ToListAsync(stoppingToken)
                         .ConfigureAwait(false);
                 }
+                await PruneFactsAsync(db, stoppingToken).ConfigureAwait(false);
                 foreach (var playerId in players)
                 {
                     cursor = playerId;
@@ -214,6 +216,37 @@ internal sealed class AchievementRecoveryService(
                 logger.LogError(ex, "Achievement recovery pass failed");
             }
         } while (await WaitForTickAsync(timer, stoppingToken).ConfigureAwait(false));
+    }
+
+    private DateTime _nextPruneUtc = DateTime.MinValue;
+
+    /// <summary>
+    /// Processed facts only serve idempotent admission. Delete them in bounded batches once
+    /// they age past the retention window; progress and awards do not depend on them.
+    /// </summary>
+    private async Task PruneFactsAsync(TurboDbContext db, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        if (config.Value.FactRetentionDays <= 0 || now < _nextPruneUtc)
+            return;
+        var cutoff = now.AddDays(-config.Value.FactRetentionDays);
+        var batch = config.Value.RecoveryBatchSize * 10;
+        // MySQL rejects LIMIT inside an IN subquery, so select the ids first.
+        var ids = await db
+            .AchievementFacts.AsNoTracking()
+            .Where(x => x.Processed && x.OccurredAtUtc < cutoff)
+            .OrderBy(x => x.Id)
+            .Select(x => x.Id)
+            .Take(batch)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+        if (ids.Count > 0)
+            await db
+                .AchievementFacts.Where(x => ids.Contains(x.Id))
+                .ExecuteDeleteAsync(ct)
+                .ConfigureAwait(false);
+        // A full batch means more remain: keep pruning on the next pass; otherwise wait an hour.
+        _nextPruneUtc = ids.Count < batch ? now.AddHours(1) : now;
     }
 
     private static async Task<bool> WaitForTickAsync(PeriodicTimer timer, CancellationToken ct)

@@ -1,4 +1,5 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Achievements;
 using Turbo.Database.Context;
@@ -61,7 +62,7 @@ public sealed class AchievementProgressionTests : IDisposable
         return (IPlayerAchievementGrain)grain;
     }
 
-    private async Task RecordAsync(string operation, string source, long amount)
+    private async Task RecordAsync(string operation, string source, long amount, string value = "")
     {
         await using var db = await _database.CreateDbContextAsync(Ct);
         new AchievementFactRecorder(_catalog).Record(
@@ -72,6 +73,7 @@ public sealed class AchievementProgressionTests : IDisposable
                 OperationId = operation,
                 Source = source,
                 Amount = amount,
+                Value = value,
                 OccurredAtUtc = DateTime.UtcNow,
             }
         );
@@ -178,6 +180,7 @@ public sealed class AchievementProgressionTests : IDisposable
                 Reducer = AchievementReducer.Maximum,
             },
         ];
+        await NewGrain().ReconcileAsync(Ct);
         var achievements = await NewGrain().GetAchievementsAsync(Ct);
         Assert.True(achievements.Single().FinalLevel);
         await using var db = await _database.CreateDbContextAsync(Ct);
@@ -265,6 +268,150 @@ public sealed class AchievementProgressionTests : IDisposable
         Assert.True((await db.AchievementProgress.SingleAsync(Ct)).Value >= 2 * 86400);
         Assert.Equal(10, (await db.AchievementProjections.SingleAsync(Ct)).Score);
     }
+
+    [Fact]
+    public async Task AdmittedFactsBindDefinitionsByRevisionKeyOnly()
+    {
+        _catalog.Current = [Definition(100000)];
+        await RecordAsync("action-slim", AchievementSources.FIGURE, 1);
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        var bindings = (await db.AchievementFacts.SingleAsync(Ct)).BindingsJson;
+        Assert.DoesNotContain("Levels", bindings);
+        Assert.Contains("\"Revision\":1", bindings);
+    }
+
+    [Fact]
+    public async Task FactStaysProcessableWhenItsRevisionIsOnlyInStorageAfterTheCatalogMovesOn()
+    {
+        var first = Definition(100000);
+        _database.Insert(
+            new AchievementDefinitionEntity
+            {
+                AchievementId = first.Id,
+                Revision = first.Revision,
+                DefinitionJson = JsonSerializer.Serialize(first),
+            }
+        );
+        _catalog.Current = [first];
+        await RecordAsync("action-old-revision", AchievementSources.FIGURE, 2);
+        _catalog.Current = [first with { Revision = 2 }];
+        await NewGrain().ProcessAsync(Ct);
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        var awards = await db.AchievementAwards.OrderBy(x => x.Level).ToListAsync(Ct);
+        Assert.Equal([1, 2], awards.Select(x => x.Level));
+        Assert.All(awards, x => Assert.Equal(1, x.Revision));
+        Assert.True((await db.AchievementFacts.SingleAsync(Ct)).Processed);
+    }
+
+    [Fact]
+    public async Task FactWithAMissingRevisionStaysUnprocessed()
+    {
+        _catalog.Current = [Definition(100000)];
+        await RecordAsync("action-missing-revision", AchievementSources.FIGURE, 1);
+        _catalog.Current = [Definition(100000) with { Revision = 2 }];
+        await Assert.ThrowsAsync<InvalidOperationException>(() => NewGrain().ProcessAsync(Ct));
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        Assert.False((await db.AchievementFacts.SingleAsync(Ct)).Processed);
+        Assert.Empty(await db.AchievementAwards.ToListAsync(Ct));
+    }
+
+    [Fact]
+    public async Task DistinctValuesLiveInTheirOwnTableAndRepeatsAreNotRecounted()
+    {
+        _catalog.Current = [Definition(100000) with { Reducer = AchievementReducer.Distinct }];
+        await RecordAsync("room-1", AchievementSources.FIGURE, 0, "room-a");
+        await RecordAsync("room-2", AchievementSources.FIGURE, 0, "room-a");
+        await RecordAsync("room-3", AchievementSources.FIGURE, 0, "room-b");
+        await NewGrain().ProcessAsync(Ct);
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        var progress = await db.AchievementProgress.SingleAsync(Ct);
+        Assert.Equal(2, progress.Value);
+        Assert.Equal(2, progress.DistinctCount);
+        Assert.Equal(
+            ["room-a", "room-b"],
+            await db
+                .AchievementDistinctValues.OrderBy(x => x.Value)
+                .Select(x => x.Value)
+                .ToListAsync(Ct)
+        );
+        Assert.Equal(2, progress.EarnedLevel);
+    }
+
+    [Fact]
+    public async Task ListingWritesNothing()
+    {
+        _catalog.Current = [Definition(100000)];
+        await RecordAsync("action-list", AchievementSources.FIGURE, 3);
+
+        var listed = await NewGrain().GetAchievementsAsync(Ct);
+
+        Assert.Single(listed);
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        Assert.False((await db.AchievementFacts.SingleAsync(Ct)).Processed);
+        Assert.Empty(await db.AchievementProgress.ToListAsync(Ct));
+        Assert.Empty(await db.AchievementProjections.ToListAsync(Ct));
+        Assert.Empty(await db.AchievementStateValues.ToListAsync(Ct));
+    }
+
+    [Fact]
+    public async Task ReconcileDoesCatalogWorkOnlyWhenTheCatalogRevisionsChange()
+    {
+        _catalog.Current = [Definition(100000)];
+        var grain = NewGrain();
+        await grain.ReconcileAsync(Ct);
+        await using (var db = await _database.CreateDbContextAsync(Ct))
+            Assert.NotEqual("", (await db.AchievementProjections.SingleAsync(Ct)).ReconciledStamp);
+        var stateFacts = await StateFactCountAsync();
+
+        await grain.ReconcileAsync(Ct);
+
+        Assert.Equal(1, NormalizeCalls());
+        Assert.Equal(stateFacts, await StateFactCountAsync());
+        _catalog.Current = [Definition(100000) with { Revision = 2 }];
+        await grain.ReconcileAsync(Ct);
+        Assert.Equal(2, NormalizeCalls());
+        Assert.True(await StateFactCountAsync() > stateFacts);
+    }
+
+    [Fact]
+    public async Task IncrementalTotalsMatchTheRecomputeAndAnOperatorReconcileRepairsDrift()
+    {
+        _catalog.Current = [Definition(100000), Definition(100001)];
+        await RecordAsync("action-totals", AchievementSources.FIGURE, 3);
+        await NewGrain().ProcessAsync(Ct);
+        await using (var db = await _database.CreateDbContextAsync(Ct))
+        {
+            var projection = await db.AchievementProjections.SingleAsync(Ct);
+            Assert.Equal(60, projection.Score);
+            Assert.Equal(6, projection.EarnedLevels);
+            projection.Score = 999;
+            projection.EarnedLevels = 1;
+            await db.SaveChangesAsync(Ct);
+        }
+
+        await NewGrain().AdministerAsync(false, "tester", "repair totals", "op-drift", Ct);
+
+        await using var check = await _database.CreateDbContextAsync(Ct);
+        var repaired = await check.AchievementProjections.SingleAsync(Ct);
+        Assert.Equal(60, repaired.Score);
+        Assert.Equal(6, repaired.EarnedLevels);
+        var published = _fakes
+            .Log.Calls.Where(x => x.Method == "SetAchievementTotalsAsync")
+            .Select(x => ((int)x.Args[0]!, (int)x.Args[1]!))
+            .ToList();
+        Assert.Equal((60, 6), published[^1]);
+    }
+
+    private async Task<int> StateFactCountAsync()
+    {
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        return await db.AchievementFacts.CountAsync(x => x.OperationId.StartsWith("state:"), Ct);
+    }
+
+    private int NormalizeCalls() =>
+        _fakes.Log.Calls.Count(x =>
+            x.Method == nameof(IPlayerBadgeGrain.NormalizeAchievementBadgesAsync)
+        );
 
     private sealed class TestCatalog : IAchievementCatalog
     {

@@ -27,18 +27,9 @@ public static class AchievementReducerEngine
                 progress.Value = Math.Max(progress.Value, fact.Amount);
                 break;
             case AchievementReducer.Distinct:
-                if (string.IsNullOrWhiteSpace(fact.Value))
-                    throw new InvalidOperationException("Distinct facts require a value.");
-                var values =
-                    JsonSerializer.Deserialize<HashSet<string>>(progress.DistinctValuesJson) ?? [];
-                if (!values.Contains(fact.Value) && values.Count >= maxDistinctValues)
-                    throw new InvalidOperationException(
-                        "Distinct progression storage limit reached."
-                    );
-                values.Add(fact.Value);
-                progress.DistinctValuesJson = JsonSerializer.Serialize(values);
-                progress.Value = checked(values.Count + progress.ForwardAdjustment);
-                break;
+                throw new InvalidOperationException(
+                    "Distinct facts are applied against the value table by ApplyDistinct."
+                );
             case AchievementReducer.CalendarStreak:
                 var day = fact.OccurredAtUtc.Date;
                 if (progress.LastDayUtc is { } last && day <= last)
@@ -88,6 +79,28 @@ public static class AchievementReducerEngine
             default:
                 throw new InvalidOperationException("Unknown admitted reducer.");
         }
+    }
+
+    /// <summary>
+    /// A distinct value. <paramref name="added"/> is whether the value was new to the player's
+    /// value table; a repeat only refreshes the displayed total.
+    /// </summary>
+    public static void ApplyDistinct(
+        AchievementProgressEntity progress,
+        AchievementFact fact,
+        bool added,
+        int maxDistinctValues
+    )
+    {
+        if (string.IsNullOrWhiteSpace(fact.Value))
+            throw new InvalidOperationException("Distinct facts require a value.");
+        if (added)
+        {
+            if (progress.DistinctCount >= maxDistinctValues)
+                throw new InvalidOperationException("Distinct progression storage limit reached.");
+            progress.DistinctCount++;
+        }
+        progress.Value = checked(progress.DistinctCount + progress.ForwardAdjustment);
     }
 
     public static bool Qualifies(

@@ -12,14 +12,6 @@ namespace Turbo.Database.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<bool>(
-                name: "manual_grant",
-                table: "player_badges",
-                type: "tinyint(1)",
-                nullable: false,
-                defaultValue: true
-            );
-
             migrationBuilder
                 .CreateTable(
                     name: "achievement_audit",
@@ -171,6 +163,32 @@ namespace Turbo.Database.Migrations
 
             migrationBuilder
                 .CreateTable(
+                    name: "achievement_distinct_values",
+                    columns: table => new
+                    {
+                        PlayerId = table.Column<int>(type: "int", nullable: false),
+                        AchievementId = table.Column<int>(type: "int", nullable: false),
+                        Value = table
+                            .Column<string>(type: "varchar(512)", maxLength: 512, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey(
+                            "PK_achievement_distinct_values",
+                            x => new
+                            {
+                                x.PlayerId,
+                                x.AchievementId,
+                                x.Value,
+                            }
+                        );
+                    }
+                )
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder
+                .CreateTable(
                     name: "achievement_facts",
                     columns: table => new
                     {
@@ -249,13 +267,7 @@ namespace Turbo.Database.Migrations
                         Streak = table.Column<long>(type: "bigint", nullable: false),
                         LastDayUtc = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                         EarnedLevel = table.Column<int>(type: "int", nullable: false),
-                        DistinctValuesJson = table
-                            .Column<string>(
-                                type: "longtext",
-                                maxLength: 2147483647,
-                                nullable: false
-                            )
-                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        DistinctCount = table.Column<int>(type: "int", nullable: false),
                         IntervalsJson = table
                             .Column<string>(
                                 type: "longtext",
@@ -286,10 +298,34 @@ namespace Turbo.Database.Migrations
                             type: "tinyint(1)",
                             nullable: false
                         ),
+                        ReconciledStamp = table
+                            .Column<string>(type: "varchar(64)", maxLength: 64, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
                     },
                     constraints: table =>
                     {
                         table.PrimaryKey("PK_achievement_projections", x => x.PlayerId);
+                    }
+                )
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder
+                .CreateTable(
+                    name: "achievement_state_values",
+                    columns: table => new
+                    {
+                        PlayerId = table.Column<int>(type: "int", nullable: false),
+                        Source = table
+                            .Column<string>(type: "varchar(64)", maxLength: 64, nullable: false)
+                            .Annotation("MySql:CharSet", "utf8mb4"),
+                        Value = table.Column<long>(type: "bigint", nullable: false),
+                    },
+                    constraints: table =>
+                    {
+                        table.PrimaryKey(
+                            "PK_achievement_state_values",
+                            x => new { x.PlayerId, x.Source }
+                        );
                     }
                 )
                 .Annotation("MySql:CharSet", "utf8mb4");
@@ -462,6 +498,8 @@ namespace Turbo.Database.Migrations
 
             migrationBuilder.DropTable(name: "achievement_definitions");
 
+            migrationBuilder.DropTable(name: "achievement_distinct_values");
+
             migrationBuilder.DropTable(name: "achievement_facts");
 
             migrationBuilder.DropTable(name: "achievement_membership_intervals");
@@ -469,6 +507,8 @@ namespace Turbo.Database.Migrations
             migrationBuilder.DropTable(name: "achievement_progress");
 
             migrationBuilder.DropTable(name: "achievement_projections");
+
+            migrationBuilder.DropTable(name: "achievement_state_values");
 
             migrationBuilder.DropTable(name: "achievement_wallet_receipts");
 
@@ -479,8 +519,6 @@ namespace Turbo.Database.Migrations
             migrationBuilder.DropTable(name: "pet_nutrition_operations");
 
             migrationBuilder.DropTable(name: "pet_respect_operations");
-
-            migrationBuilder.DropColumn(name: "manual_grant", table: "player_badges");
         }
     }
 }

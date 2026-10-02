@@ -13,6 +13,15 @@ public sealed class AchievementConfig
     /// <summary>Maximum facts consumed in one player's turn.</summary>
     public int FactBatchSize { get; set; } = 100;
 
+    /// <summary>Days a processed fact is kept for idempotent admission; zero keeps them forever.</summary>
+    public int FactRetentionDays { get; set; } = 30;
+
+    /// <summary>
+    /// Installs the shipped Habbo achievement catalog when the hotel has none. A hotel that
+    /// already has definitions is never touched, so its edits survive.
+    /// </summary>
+    public bool InstallDefaults { get; set; } = true;
+
     /// <summary>Hotel-provided PNG badge asset directory, checked on catalog import.</summary>
     public string BadgeAssetDirectory { get; set; } = "";
     public int MaxDefinitions { get; set; } = 1000;

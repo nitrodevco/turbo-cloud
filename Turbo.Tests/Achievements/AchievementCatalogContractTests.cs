@@ -224,6 +224,77 @@ public sealed class AchievementCatalogContractTests : IDisposable
         catalog.Current.Single().Revision.Should().Be(2);
     }
 
+    [Fact]
+    public async Task ShippedDefaultsInstallIntoAnEmptyHotelOnceAndNeverOverwriteIt()
+    {
+        var assetDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"achievement-defaults-{Guid.NewGuid():N}"
+        );
+        Directory.CreateDirectory(assetDirectory);
+        var texts = new Dictionary<string, string>();
+        foreach (
+            var code in AchievementDefaults
+                .Definitions.SelectMany(x => x.Levels)
+                .Select(x => x.BadgeCode)
+        )
+        {
+            File.WriteAllBytes(Path.Combine(assetDirectory, code + ".png"), []);
+            texts["badge_name_" + code] = code;
+            texts["badge_desc_" + code] = code;
+        }
+        var catalog = NewCatalog(
+            new AchievementConfig { BadgeAssetDirectory = assetDirectory },
+            texts
+        );
+
+        await catalog.ReloadAsync(Ct);
+        await catalog.ReloadAsync(Ct);
+
+        catalog.Current.Should().HaveCount(AchievementDefaults.Definitions.Length);
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.AchievementDefinitions.CountAsync(Ct))
+            .Should()
+            .Be(AchievementDefaults.Definitions.Length);
+        (await db.AchievementAudit.SingleAsync(Ct))
+            .OperationId.Should()
+            .Be(AchievementCatalog.DefaultsOperationId);
+        Directory.Delete(assetDirectory, recursive: true);
+    }
+
+    [Fact]
+    public async Task DefaultsAreNotInstalledOverAnExistingCatalogOrWhenDisabled()
+    {
+        var existing = NewCatalog(new AchievementConfig { InstallDefaults = false });
+        await existing.ReloadAsync(Ct);
+        existing.Current.Should().BeEmpty();
+
+        var custom = Definition(100100, "hotel-owned", AchievementSources.FIGURE);
+        _db.Insert(
+            new AchievementDefinitionEntity
+            {
+                AchievementId = custom.Id,
+                Revision = custom.Revision,
+                DefinitionJson = JsonSerializer.Serialize(custom),
+            }
+        );
+        var catalog = NewCatalog();
+        await catalog.ReloadAsync(Ct);
+        catalog.Current.Should().ContainSingle().Which.Id.Should().Be(100100);
+    }
+
+    [Fact]
+    public async Task AHotelMissingBadgeAssetsKeepsAnEmptyCatalogWithoutFailingStartup()
+    {
+        var catalog = NewCatalog();
+
+        await catalog.ReloadAsync(Ct);
+
+        catalog.Current.Should().BeEmpty();
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.AchievementDefinitions.CountAsync(Ct)).Should().Be(0);
+    }
+
     private AchievementCatalog NewCatalog(
         AchievementConfig? config = null,
         IReadOnlyDictionary<string, string>? texts = null

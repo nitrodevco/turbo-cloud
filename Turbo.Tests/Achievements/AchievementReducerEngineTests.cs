@@ -79,49 +79,33 @@ public class AchievementReducerEngineTests
     }
 
     [Fact]
-    public void Distinct_CountsEachValueOnceAndEnforcesItsStorageLimit()
+    public void Distinct_CountsEachNewValueOnceAndEnforcesItsStorageLimit()
     {
-        var definition = Definition(AchievementReducer.Distinct, 2);
         var progress = new AchievementProgressEntity();
 
-        AchievementReducerEngine.Apply(
-            progress,
-            definition,
-            Fact(value: "room-a"),
-            maxDistinctValues: 2
-        );
-        AchievementReducerEngine.Apply(
-            progress,
-            definition,
-            Fact(value: "room-a"),
-            maxDistinctValues: 2
-        );
-        AchievementReducerEngine.Apply(
-            progress,
-            definition,
-            Fact(value: "room-b"),
-            maxDistinctValues: 2
-        );
+        AchievementReducerEngine.ApplyDistinct(progress, Fact(value: "room-a"), true, 2);
+        AchievementReducerEngine.ApplyDistinct(progress, Fact(value: "room-a"), false, 2);
+        AchievementReducerEngine.ApplyDistinct(progress, Fact(value: "room-b"), true, 2);
 
         Assert.Equal(2, progress.Value);
-        Assert.Equal(
-            2,
-            JsonSerializer.Deserialize<HashSet<string>>(progress.DistinctValuesJson)!.Count
-        );
+        Assert.Equal(2, progress.DistinctCount);
         Assert.Throws<InvalidOperationException>(() =>
-            AchievementReducerEngine.Apply(
-                progress,
-                definition,
-                Fact(value: "room-c"),
-                maxDistinctValues: 2
-            )
+            AchievementReducerEngine.ApplyDistinct(progress, Fact(value: "room-c"), true, 2)
         );
         Assert.Equal(2, progress.Value);
         Assert.Throws<InvalidOperationException>(() =>
+            AchievementReducerEngine.ApplyDistinct(progress, Fact(value: " "), true, 2)
+        );
+    }
+
+    [Fact]
+    public void Distinct_IsNotAppliedInlineAnymore()
+    {
+        Assert.Throws<InvalidOperationException>(() =>
             AchievementReducerEngine.Apply(
-                progress,
-                definition,
-                Fact(value: " "),
+                new AchievementProgressEntity(),
+                Definition(AchievementReducer.Distinct, 2),
+                Fact(value: "room-a"),
                 maxDistinctValues: 2
             )
         );

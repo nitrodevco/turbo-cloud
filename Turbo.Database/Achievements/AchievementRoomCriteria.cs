@@ -54,9 +54,15 @@ public static class AchievementRoomCriteria
             );
     }
 
-    public static async Task RecordOwnedStateAsync(
+    /// <summary>The current floor-height count of a player's rooms and the standing of their best room.</summary>
+    public readonly record struct OwnedState(long FloorHeights, long? Rank);
+
+    /// <summary>
+    /// Standing is one plus the eligible rooms ahead of the player's best room, so two cheap
+    /// queries answer it rather than reading every ranked room.
+    /// </summary>
+    public static async Task<OwnedState> ReadOwnedStateAsync(
         TurboDbContext db,
-        IAchievementFactRecorder recorder,
         PlayerId playerId,
         CancellationToken ct
     )
@@ -69,42 +75,31 @@ public static class AchievementRoomCriteria
         )
             .ToListAsync(ct)
             .ConfigureAwait(false);
-        recorder.Record(
-            db,
-            playerId,
-            new AchievementFact
-            {
-                OperationId = $"state:floor-heights:{Guid.NewGuid():N}",
-                Source = AchievementSources.FLOOR_HEIGHTS,
-                OccurredAtUtc = DateTime.UtcNow,
-                Amount = models.Select(CountFloorHeights).DefaultIfEmpty(0).Max(),
-            }
-        );
-        var ranked = await db
+        var eligible = db
             .Rooms.AsNoTracking()
             .Where(x =>
                 x.DeletedAt == null
                 && !x.HiddenByBc
                 && x.DoorMode != RoomDoorModeType.Invisible
                 && x.Score > 0
-            )
+            );
+        var best = await eligible
+            .Where(x => x.PlayerEntityId == playerId.Value)
             .OrderByDescending(x => x.Score)
             .ThenByDescending(x => x.Id)
-            .Select(x => x.PlayerEntityId)
-            .ToListAsync(ct)
+            .Select(x => new { x.Score, x.Id })
+            .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);
-        var rank = ranked.FindIndex(x => x == playerId.Value);
-        if (rank >= 0)
-            recorder.Record(
-                db,
-                playerId,
-                new AchievementFact
-                {
-                    OperationId = $"state:room-rank:{Guid.NewGuid():N}",
-                    Source = AchievementSources.ROOM_RANK,
-                    OccurredAtUtc = DateTime.UtcNow,
-                    Amount = rank + 1,
-                }
-            );
+        long? rank = null;
+        if (best is not null)
+            rank =
+                1
+                + await eligible
+                    .CountAsync(
+                        x => x.Score > best.Score || (x.Score == best.Score && x.Id > best.Id),
+                        ct
+                    )
+                    .ConfigureAwait(false);
+        return new(models.Select(CountFloorHeights).DefaultIfEmpty(0).Max(), rank);
     }
 }

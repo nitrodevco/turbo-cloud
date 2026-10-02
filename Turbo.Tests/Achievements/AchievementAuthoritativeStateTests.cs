@@ -88,12 +88,37 @@ public sealed class AchievementAuthoritativeStateTests : IDisposable
         await evaluator.RecordAsync(PLAYER_ID, Ct);
 
         var facts = await ReadFactsAsync();
-        facts.Where(x => x.Source == AchievementSources.PETS).Should().HaveCount(2);
+        facts.Where(x => x.Source == AchievementSources.PETS).Should().ContainSingle();
         facts
             .Where(x => x.Source == AchievementSources.PETS)
             .Select(x => x.Amount)
             .Should()
             .OnlyContain(x => x == 2);
+    }
+
+    [Fact]
+    public async Task StateIsRecordedAgainOnlyWhenItsValueMovesOrWhenForced()
+    {
+        _db.Insert(NewRoomModel());
+        _db.Insert(NewPet(401, PLAYER_ID, roomId: null));
+        var evaluator = new AchievementStateEvaluator(_db, _recorder);
+        await evaluator.RecordAsync(PLAYER_ID, Ct);
+        var settled = (await ReadFactsAsync()).Count;
+        await evaluator.RecordAsync(PLAYER_ID, Ct);
+        (await ReadFactsAsync()).Should().HaveCount(settled);
+
+        _db.Insert(NewPet(402, PLAYER_ID, roomId: null));
+        await evaluator.RecordAsync(PLAYER_ID, Ct);
+        var facts = await ReadFactsAsync();
+        facts.Should().HaveCount(settled + 1);
+        facts
+            .Where(x => x.Source == AchievementSources.PETS)
+            .Select(x => x.Amount)
+            .Should()
+            .BeEquivalentTo([1L, 2L]);
+
+        await evaluator.RecordAsync(PLAYER_ID, Ct, force: true);
+        (await ReadFactsAsync()).Should().HaveCount(settled + 1 + settled);
     }
 
     [Fact]

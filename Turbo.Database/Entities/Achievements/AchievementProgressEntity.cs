@@ -17,9 +17,8 @@ public sealed class AchievementProgressEntity
     public DateTime? LastDayUtc { get; set; }
     public int EarnedLevel { get; set; }
 
-    [Column(TypeName = "longtext")]
-    [MaxLength(int.MaxValue)]
-    public string DistinctValuesJson { get; set; } = "[]";
+    /// <summary>Distinct values counted so far; the values live in <c>achievement_distinct_values</c>.</summary>
+    public int DistinctCount { get; set; }
 
     [Column(TypeName = "longtext")]
     [MaxLength(int.MaxValue)]

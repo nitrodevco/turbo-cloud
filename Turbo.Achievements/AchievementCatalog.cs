@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Achievements.Configuration;
 using Turbo.Database.Context;
@@ -26,6 +27,7 @@ public sealed class AchievementCatalog : IAchievementCatalog
     private readonly ICurrencyTypeProvider _currencies;
     private readonly AchievementConfig _config;
     private readonly IHotelTextProvider _texts;
+    private readonly ILogger<AchievementCatalog>? _logger;
     private readonly object _gate = new();
     private readonly SemaphoreSlim _publication = new(1, 1);
     private readonly Dictionary<(string, int), AchievementSourceDefinition> _sources = [];
@@ -36,9 +38,11 @@ public sealed class AchievementCatalog : IAchievementCatalog
         IDbContextFactory<TurboDbContext> database,
         ICurrencyTypeProvider currencies,
         IOptions<AchievementConfig> config,
-        IHotelTextProvider texts
+        IHotelTextProvider texts,
+        ILogger<AchievementCatalog>? logger = null
     )
     {
+        _logger = logger;
         _database = database;
         _currencies = currencies;
         _config = config.Value;
@@ -86,8 +90,51 @@ public sealed class AchievementCatalog : IAchievementCatalog
         });
     }
 
+    /// <summary>The operation that records the shipped catalog; reusing it is a no-op.</summary>
+    public const string DefaultsOperationId = "install-habbo-defaults-2026-10-02";
+
+    /// <summary>
+    /// A hotel with no achievement definitions gets the shipped Habbo catalog through the same
+    /// audited, validated import an administrator would run. A failed validation (for example
+    /// no badge asset directory or texts yet) leaves the catalog empty and says why.
+    /// </summary>
+    private async Task EnsureDefaultsInstalledAsync(CancellationToken ct)
+    {
+        if (!_config.InstallDefaults)
+            return;
+        try
+        {
+            var db = await _database.CreateDbContextAsync(ct).ConfigureAwait(false);
+            await using var dbScope = db.ConfigureAwait(false);
+            if (await db.AchievementDefinitions.AnyAsync(ct).ConfigureAwait(false))
+                return;
+            await ImportAsync(
+                    AchievementDefaults.Definitions,
+                    apply: true,
+                    actor: "turbo",
+                    reason: "Install the shipped Habbo achievement catalog",
+                    operationId: DefaultsOperationId,
+                    ct
+                )
+                .ConfigureAwait(false);
+            _logger?.LogInformation("Installed the shipped Habbo achievement catalog.");
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(
+                ex,
+                "The shipped achievement catalog was not installed. Set Turbo:Achievements:BadgeAssetDirectory and the badge texts, then run: achievement defaults achievements.json, then achievement import achievements.json --apply install-achievements-v1 Install defaults"
+            );
+        }
+    }
+
     public async Task ReloadAsync(CancellationToken ct)
     {
+        await EnsureDefaultsInstalledAsync(ct).ConfigureAwait(false);
         await _publication.WaitAsync(ct).ConfigureAwait(false);
         try
         {

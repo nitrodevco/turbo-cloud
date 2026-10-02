@@ -39,6 +39,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Badges.Grains.IPlayerBadgeGrain"
   BA8B5606: GiveBadgeAsync(string, System.Threading.CancellationToken) -> Task<bool>
   E826D5F6: GrantAchievementAsync(int, int, string, System.Threading.CancellationToken) -> Task
   5514191D: HasBadgeAsync(string, System.Threading.CancellationToken) -> Task<bool>
+  89DA2CD7: NormalizeAchievementBadgesAsync(System.Collections.Immutable.ImmutableArray<string>, System.Threading.CancellationToken) -> Task
   9DFE1FCE: RefreshBadgesRankAsync(System.Threading.CancellationToken) -> Task
   BA4E2C65: RemoveBadgeAsync(string, System.Threading.CancellationToken) -> Task<bool>
   8DCCDCD1: SendBadgeInventoryAsync(System.Threading.CancellationToken) -> Task

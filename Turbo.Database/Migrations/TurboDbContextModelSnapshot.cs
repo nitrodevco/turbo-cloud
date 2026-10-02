@@ -162,6 +162,23 @@ namespace Turbo.Database.Migrations
                     b.ToTable("achievement_definitions");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Achievements.AchievementDistinctValueEntity", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AchievementId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Value")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)");
+
+                    b.HasKey("PlayerId", "AchievementId", "Value");
+
+                    b.ToTable("achievement_distinct_values");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Achievements.AchievementFactEntity", b =>
                 {
                     b.Property<long>("Id")
@@ -244,10 +261,8 @@ namespace Turbo.Database.Migrations
                     b.Property<int>("AchievementId")
                         .HasColumnType("int");
 
-                    b.Property<string>("DistinctValuesJson")
-                        .IsRequired()
-                        .HasMaxLength(2147483647)
-                        .HasColumnType("longtext");
+                    b.Property<int>("DistinctCount")
+                        .HasColumnType("int");
 
                     b.Property<int>("EarnedLevel")
                         .HasColumnType("int");
@@ -285,12 +300,34 @@ namespace Turbo.Database.Migrations
                     b.Property<bool>("PublicationPending")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<string>("ReconciledStamp")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
                     b.Property<int>("Score")
                         .HasColumnType("int");
 
                     b.HasKey("PlayerId");
 
                     b.ToTable("achievement_projections");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Achievements.AchievementStateValueEntity", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Source")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<long>("Value")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("PlayerId", "Source");
+
+                    b.ToTable("achievement_state_values");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Achievements.AchievementWalletReceiptEntity", b =>
@@ -2946,12 +2983,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("deleted_at");
 
                     MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
-
-                    b.Property<bool>("ManualGrant")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true)
-                        .HasColumnName("manual_grant");
 
                     b.Property<int>("PlayerEntityId")
                         .HasColumnType("int")

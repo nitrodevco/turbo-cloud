@@ -22,7 +22,8 @@ public sealed class AchievementModule : IHostPluginModule
                     && x.RecoveryBatchSize > 0
                     && x.FactBatchSize > 0
                     && x.MaxDefinitions > 0
-                    && x.MaxDistinctValues > 0,
+                    && x.MaxDistinctValues > 0
+                    && x.FactRetentionDays >= 0,
                 "Achievement limits must be positive."
             )
             .ValidateOnStart();

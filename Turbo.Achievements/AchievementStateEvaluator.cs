@@ -1,22 +1,29 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Achievements;
 using Turbo.Database.Context;
+using Turbo.Database.Entities.Achievements;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Players;
 
 namespace Turbo.Achievements;
 
-/// <summary>Authoritative state criteria only. Action counts are never inferred from unrelated state.</summary>
+/// <summary>
+/// Authoritative state criteria only. Action counts are never inferred from unrelated state.
+/// A source is recorded as a fact only when its value moved since the last one, so a login that
+/// changes nothing writes nothing; <c>force</c> records every source again, for a catalog whose
+/// new definitions have not seen the current values yet.
+/// </summary>
 public sealed class AchievementStateEvaluator(
     IDbContextFactory<TurboDbContext> database,
     IAchievementFactRecorder recorder
 )
 {
-    public async Task RecordAsync(PlayerId playerId, CancellationToken ct)
+    public async Task RecordAsync(PlayerId playerId, CancellationToken ct, bool force = false)
     {
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbScope = db.ConfigureAwait(false);
@@ -24,8 +31,28 @@ public sealed class AchievementStateEvaluator(
             .Players.AsNoTracking()
             .SingleAsync(x => x.Id == playerId.Value, ct)
             .ConfigureAwait(false);
+        var stored = await db
+            .AchievementStateValues.Where(x => x.PlayerId == playerId.Value)
+            .ToDictionaryAsync(x => x.Source, ct)
+            .ConfigureAwait(false);
         var now = DateTime.UtcNow;
-        void Record(string source, long value) =>
+        void Record(string source, long value)
+        {
+            if (stored.TryGetValue(source, out var last))
+            {
+                if (!force && last.Value == value)
+                    return;
+                last.Value = value;
+            }
+            else
+                db.AchievementStateValues.Add(
+                    new()
+                    {
+                        PlayerId = playerId.Value,
+                        Source = source,
+                        Value = value,
+                    }
+                );
             recorder.Record(
                 db,
                 playerId,
@@ -37,6 +64,7 @@ public sealed class AchievementStateEvaluator(
                     OccurredAtUtc = now,
                 }
             );
+        }
         Record(
             AchievementSources.ACCOUNT_AGE,
             Math.Max(0, (long)(now - player.CreatedAt).TotalDays)
@@ -73,9 +101,13 @@ public sealed class AchievementStateEvaluator(
         // Recording zero for non-members would manufacture a joining event.
         if (eligible.Count > 0)
             Record(AchievementSources.HC, ticks / TimeSpan.TicksPerSecond);
-        await AchievementRoomCriteria
-            .RecordOwnedStateAsync(db, recorder, playerId, ct)
+        var rooms = await AchievementRoomCriteria
+            .ReadOwnedStateAsync(db, playerId, ct)
             .ConfigureAwait(false);
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        Record(AchievementSources.FLOOR_HEIGHTS, rooms.FloorHeights);
+        if (rooms.Rank is { } rank)
+            Record(AchievementSources.ROOM_RANK, rank);
+        if (db.ChangeTracker.HasChanges())
+            await db.SaveChangesAsync(ct).ConfigureAwait(false);
     }
 }

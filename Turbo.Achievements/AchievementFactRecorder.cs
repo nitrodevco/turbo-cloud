@@ -65,7 +65,9 @@ public sealed class AchievementFactRecorder(IAchievementCatalog catalog) : IAchi
                 OperationId = fact.OperationId,
                 OccurredAtUtc = fact.OccurredAtUtc,
                 FactJson = JsonSerializer.Serialize(fact),
-                BindingsJson = JsonSerializer.Serialize(targets),
+                BindingsJson = JsonSerializer.Serialize(
+                    targets.Select(x => new AchievementBinding(x.Id, x.Revision))
+                ),
             }
         );
     }
