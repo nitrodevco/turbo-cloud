@@ -1845,6 +1845,12 @@ finishing a change, check it against this list; each line is a mistake that was 
 
 - When a fix teaches a rule that is not in this file yet, add it here in the same change.
 
+- **Rejected room entry does not load room contents.** Activation hydrates the metadata, rights
+  and bans needed for the access decision. Load map, furniture and NPC state only after an
+  allowed decision, before clearing the player's current room; recheck access after loading
+  because bans, capacity or deletion may have changed while it awaited. Doorbell approval
+  ensures contents are ready before marking the pending entry approved.
+
 ## Required validation before completion
 ```bash
 dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudFastCheck
