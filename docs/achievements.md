@@ -10,6 +10,8 @@ Apply migration `20261002120020_AddAchievements` through the normal EF migration
 
 Configure `Turbo:Achievements:BadgeAssetDirectory` to the directory containing the hotel's badge PNGs. The hotel's configured external texts must contain each enabled badge's name and description, either its exact code or its numeric-level base, matching AS3 localization lookup. Serve the same assets and texts to Nitro.
 
+Nitro's `badge.asset.url` must resolve every enabled badge, including levels 11–20. Standard Habbo badges are available at `https://images.habbo.com/c_images/album1584/%badgename%.gif`; configure your hotel's asset endpoint for custom badges. Server-side PNG validation does not establish that the client's configured image endpoint serves those assets. A development URL query override can set `badge.asset.url` without changing the shared client configuration.
+
 In the Turbo console:
 
 ```text
