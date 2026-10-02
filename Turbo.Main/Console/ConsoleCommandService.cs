@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans;
+using Turbo.Achievements;
 using Turbo.Commands;
 using Turbo.Plugins;
 using Turbo.Primitives.Achievements;
@@ -73,7 +74,8 @@ public class ConsoleCommandService(IServiceProvider services)
                 {
                     await new AchievementConsoleCommand(
                         _services.GetRequiredService<IAchievementCatalog>(),
-                        _services.GetRequiredService<IAchievementPackRegistry>()
+                        _services.GetRequiredService<IAchievementPackRegistry>(),
+                        _services.GetRequiredService<AchievementSync>()
                     )
                         .RunAsync(args, ct)
                         .ConfigureAwait(false);

@@ -45,6 +45,7 @@ public sealed class AchievementModule : IHostPluginModule
         services.AddSingleton<IAchievementCatalog, AchievementCatalog>();
         services.AddSingleton<IAchievementFactRecorder, AchievementFactRecorder>();
         services.AddSingleton<IAchievementFacts, AchievementFacts>();
+        services.AddSingleton<AchievementSync>();
         services.AddSingleton<IAchievementRewardRegistry, AchievementRewardRegistry>();
         services.AddSingleton<IAchievementObserverRegistry, AchievementObserverRegistry>();
         services.AddSingleton<AchievementStateEvaluator>();

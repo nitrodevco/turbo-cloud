@@ -17,11 +17,12 @@ namespace Turbo.Main.Console;
 /// </summary>
 internal sealed class AchievementConsoleCommand(
     IAchievementCatalog catalog,
-    IAchievementPackRegistry packs
+    IAchievementPackRegistry packs,
+    AchievementSync sync
 )
 {
     internal const string USAGE =
-        "achievement export|defaults <file>; achievement import <file> [--apply <operation-id> <reason>]; "
+        "achievement export|defaults <file>; achievement import|sync <file> [--apply <operation-id> <reason>]; "
         + "achievement retire|unretire|disable|enable|offseason <key> [--apply <operation-id> <reason>]; achievement reload";
 
     public async Task RunAsync(string[] arguments, CancellationToken ct)
@@ -69,6 +70,22 @@ internal sealed class AchievementConsoleCommand(
                         ? "Catalog published; existing progress and awards retained."
                         : "Catalog valid. Dry run: nothing published."
                 );
+                break;
+            case "sync":
+                var (applySync, syncOperation, syncReason) = ParseApply(arguments, "sync <file>");
+                var report = await sync.SyncAsync(
+                        AchievementDefinitionJson.ReadAll(
+                            await File.ReadAllTextAsync(arguments[1], ct).ConfigureAwait(false)
+                        ),
+                        applySync,
+                        "console",
+                        syncReason,
+                        syncOperation,
+                        ct
+                    )
+                    .ConfigureAwait(false);
+                foreach (var line in report.ToLines(applySync))
+                    System.Console.WriteLine(line);
                 break;
             case "retire":
             case "unretire":
