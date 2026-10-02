@@ -33,6 +33,7 @@ public sealed class AchievementModule : IHostPluginModule
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IAchievementCatalog, AchievementCatalog>();
         services.AddSingleton<IAchievementFactRecorder, AchievementFactRecorder>();
+        services.AddSingleton<IAchievementFacts, AchievementFacts>();
         services.AddSingleton<IAchievementRewardRegistry, AchievementRewardRegistry>();
         services.AddSingleton<IAchievementObserverRegistry, AchievementObserverRegistry>();
         services.AddSingleton<AchievementStateEvaluator>();
