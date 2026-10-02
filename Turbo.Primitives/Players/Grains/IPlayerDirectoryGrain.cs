@@ -26,6 +26,17 @@ public interface IPlayerDirectoryGrain : IGrainWithStringKey
     [AlwaysInterleave]
     public Task<PlayerId?> GetPlayerIdAsync(string userName, CancellationToken ct);
 
+    /// <summary>
+    /// At most <paramref name="limit"/> player names that begin with <paramref name="prefix"/>,
+    /// ignoring case, sorted: for a client completing a name as it is typed.
+    /// </summary>
+    [AlwaysInterleave]
+    public Task<ImmutableArray<string>> SearchNamesAsync(
+        string prefix,
+        int limit,
+        CancellationToken ct
+    );
+
     [AlwaysInterleave]
     public Task SetPlayerNameAsync(PlayerId playerId, string name, CancellationToken ct);
 }

@@ -50,6 +50,10 @@ Custom room metrics never carry room or player identifiers. Application room spa
 
 The `System.Runtime` meter includes .NET runtime and GC measurements such as allocation, heap size, collection counts, and pause time. Orleans spans provide application grain-call and lifecycle context, while `Microsoft.Orleans` exports its runtime meters including activation counts, message activity, and request latency.
 
+## Command telemetry
+
+Chat commands are measured by source and meter Turbo.Commands, subscribed with the room telemetry. A line that runs a command makes a command.execute span, tagged command.name, oom.id and command.outcome, and records 	urbo.command.duration (seconds) tagged command and outcome. command is the registered name, so its cardinality is the number of loaded commands. outcome is one of completed, efused, oom_level, ind_failed, etoed, lood, rror or canceled. A command holds its room's turn, so the duration is how long that room waited; one over Turbo:Rooms:CommandSlowWarningMs is also logged as a warning. Lines that are not commands are not measured, and cost nothing when telemetry is off. Spans and metrics never carry a player, the arguments or a reply.
+
 ## Reproducible room check
 
 Run the focused regression tests (these use local listeners and do not export to the dashboard):

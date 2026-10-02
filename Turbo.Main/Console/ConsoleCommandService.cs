@@ -4,8 +4,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans;
+using Turbo.Commands;
 using Turbo.Plugins;
+using Turbo.Primitives.Commands;
 using Turbo.Primitives.Players.Providers;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Main.Console;
 
@@ -66,8 +69,27 @@ public class ConsoleCommandService(IServiceProvider services)
         {
             case "help":
                 System.Console.WriteLine(
-                    "Available commands: help, quit, reload-plugins, reload-plugin <key>, perm (perm help for usage)"
+                    "Available commands: help, quit, reload-plugins, reload-plugin <key>, perm (perm help for usage), and any operator chat command by name, such as ban, alert or status"
                 );
+                var registry = _services.GetRequiredService<ICommandRegistryProvider>().Current;
+                var texts = _services.GetRequiredService<IHotelTextProvider>();
+                var commands =
+                    args.Length == 0 ? registry.Commands.Where(x => x.IsOperator)
+                    : registry.TryFind(args[0].TrimStart(':'), out var selected)
+                    && selected.IsOperator
+                        ? [selected]
+                    : Array.Empty<CommandDescriptor>();
+                foreach (var command in commands)
+                foreach (
+                    var line in CommandHelp.Describe(
+                        registry,
+                        command,
+                        _ => true,
+                        texts,
+                        details: args.Length > 0
+                    )
+                )
+                    System.Console.WriteLine(line.TrimStart(':'));
                 break;
 
             case "quit":
@@ -110,7 +132,9 @@ public class ConsoleCommandService(IServiceProvider services)
                 break;
             }
 
-            case "perm":
+            case "perm"
+                when args.Length == 0
+                    || !args[0].Equals("check", StringComparison.OrdinalIgnoreCase):
                 await new PermissionConsoleCommand(
                     _services.GetRequiredService<IGrainFactory>(),
                     _services.GetRequiredService<IPermissionRegistryProvider>(),
@@ -121,7 +145,15 @@ public class ConsoleCommandService(IServiceProvider services)
                 break;
 
             default:
-                System.Console.WriteLine($"Unknown command: {cmd}");
+                // Anything else is an operator command by its chat name, with or without the
+                // colon: `ban Alice 7d spam`. The console holds every node.
+                if (
+                    !await _services
+                        .GetRequiredService<IOperatorCommandRunner>()
+                        .TryRunLineAsync(input, new ConsoleOperatorExecutor(), ct)
+                        .ConfigureAwait(false)
+                )
+                    System.Console.WriteLine($"Unknown command: {cmd}");
                 break;
         }
     }

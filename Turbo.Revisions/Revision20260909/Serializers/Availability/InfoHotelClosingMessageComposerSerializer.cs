@@ -8,6 +8,6 @@ internal class InfoHotelClosingMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, InfoHotelClosingMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.MinutesUntilClosing);
     }
 }

@@ -50,6 +50,10 @@ public interface IPlayerPermissionGrain : IGrainWithIntegerKey
     /// </summary>
     public Task SendPermissionNodesAsync(CancellationToken ct);
 
+    /// <summary>Sends current speaking/trading restrictions after a successful login or reconnect.
+    /// Capability resends must not call this method.</summary>
+    public Task NotifyActiveRestrictionsAsync(CancellationToken ct);
+
     /// <summary>Why the player does or does not hold <paramref name="node"/>.</summary>
     public Task<PermissionCheckSnapshot> ExplainAsync(string node, CancellationToken ct);
 

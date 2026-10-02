@@ -31,11 +31,34 @@ public sealed class FurnitureDefinitionProvider(
     private ImmutableDictionary<string, FurnitureDefinitionSnapshot> _definitionsByName =
         ImmutableDictionary<string, FurnitureDefinitionSnapshot>.Empty;
 
+    /// <summary>The definition names sorted ignoring case, for a prefix search.</summary>
+    private string[] _sortedNames = [];
+
     public FurnitureDefinitionSnapshot? TryGetDefinition(int id) =>
         _definitionsById.TryGetValue(id, out var definition) ? definition : null;
 
     public FurnitureDefinitionSnapshot? TryGetDefinitionByName(string name) =>
         _definitionsByName.TryGetValue(name, out var definition) ? definition : null;
+
+    public IReadOnlyList<string> FindNames(string prefix, int limit)
+    {
+        var names = _sortedNames;
+        var found = new List<string>(Math.Min(limit, 16));
+
+        // The names are sorted ignoring case, so those that begin with the prefix sit together
+        // from the first one not below it.
+        var index = Array.BinarySearch(names, prefix, StringComparer.OrdinalIgnoreCase);
+
+        for (var i = index < 0 ? ~index : index; i < names.Length && found.Count < limit; i++)
+        {
+            if (!names[i].StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                break;
+
+            found.Add(names[i]);
+        }
+
+        return found;
+    }
 
     public async Task ReloadAsync(CancellationToken ct = default)
     {
@@ -56,6 +79,7 @@ public sealed class FurnitureDefinitionProvider(
                 x => x.Name,
                 StringComparer.OrdinalIgnoreCase
             );
+            _sortedNames = [.. _definitionsByName.Keys.Order(StringComparer.OrdinalIgnoreCase)];
 
             _logger.LogInformation(
                 "Loaded {TotalDefCount} furniture definitions",

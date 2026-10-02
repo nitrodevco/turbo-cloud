@@ -30,5 +30,7 @@
     <ProjectReference Include="..\Turbo.Navigator\Turbo.Navigator.csproj" />
     <!-- For the Support harnesses, which build grains, rooms and packet round-trips without a silo. -->
     <ProjectReference Include="..\Turbo.Main\Turbo.Main.csproj" />
+    <ProjectReference Include="..\Turbo.Commands\Turbo.Commands.csproj" />
+    <ProjectReference Include="..\Turbo.Operations\Turbo.Operations.csproj" />
   </ItemGroup>
 </Project>

@@ -9,6 +9,9 @@ public class PlayerConfig
 {
     public const string SECTION_NAME = "Turbo:Players";
 
+    /// <summary>Maximum wait for a best-effort player notice, in milliseconds.</summary>
+    public int NoticeTimeoutMs { get; init; } = 5000;
+
     /// <summary>Habbo Club and Builders Club membership tunables.</summary>
     public SubscriptionConfig Subscriptions { get; init; } = new();
 

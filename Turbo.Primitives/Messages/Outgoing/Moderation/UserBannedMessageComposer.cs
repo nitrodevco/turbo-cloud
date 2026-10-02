@@ -6,5 +6,6 @@ namespace Turbo.Primitives.Messages.Outgoing.Moderation;
 [GenerateSerializer, Immutable]
 public sealed record UserBannedMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required string Message { get; init; }
 }

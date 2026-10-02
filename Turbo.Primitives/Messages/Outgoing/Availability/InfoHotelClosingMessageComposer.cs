@@ -6,5 +6,6 @@ namespace Turbo.Primitives.Messages.Outgoing.Availability;
 [GenerateSerializer, Immutable]
 public sealed record InfoHotelClosingMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    [Id(0)]
+    public required int MinutesUntilClosing { get; init; }
 }

@@ -18,11 +18,13 @@ using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Catalog;
+using Turbo.Primitives.Commands;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -72,6 +74,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly IChatStyleProvider _chatStyleProvider;
     internal readonly ICatalogService _catalogService;
     internal readonly IPermissionRegistryProvider _permissionRegistryProvider;
+    internal readonly ICommandRegistryProvider _commandRegistryProvider;
+    internal readonly IOperatorCommandRunner _operatorCommandRunner;
+    internal readonly IPlayerNoticeService _playerNoticeService;
     internal readonly EventSystem _eventSystem;
     internal readonly ILogger<IRoomGrain> _logger;
 
@@ -99,6 +104,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public readonly RoomGameSystem GameSystem;
     public readonly RoomVariableFxSystem VariableFxSystem;
     public readonly RoomChatSystem ChatSystem;
+    public readonly RoomCommandSystem CommandSystem;
     public readonly RoomTimerSystem TimerSystem;
     public readonly RoomWaterAreaSystem WaterAreaSystem;
 
@@ -126,6 +132,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IChatStyleProvider chatStyleProvider,
         ICatalogService catalogService,
         IPermissionRegistryProvider permissionRegistryProvider,
+        ICommandRegistryProvider commandRegistryProvider,
+        IOperatorCommandRunner operatorCommandRunner,
+        IPlayerNoticeService playerNoticeService,
         EventSystem eventSystem,
         ILogger<IRoomGrain> logger
     )
@@ -148,6 +157,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _chatStyleProvider = chatStyleProvider;
         _catalogService = catalogService;
         _permissionRegistryProvider = permissionRegistryProvider;
+        _commandRegistryProvider = commandRegistryProvider;
+        _operatorCommandRunner = operatorCommandRunner;
+        _playerNoticeService = playerNoticeService;
         _eventSystem = eventSystem;
         _logger = logger;
 
@@ -174,6 +186,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         GameSystem = new(this);
         VariableFxSystem = new(this);
         ChatSystem = new(this);
+        CommandSystem = new(this);
         TimerSystem = new(this);
         WaterAreaSystem = new(this);
 

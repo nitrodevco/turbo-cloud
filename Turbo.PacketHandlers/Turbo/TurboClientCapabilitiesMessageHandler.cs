@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Messages.Registry;
+using Turbo.Primitives.Commands;
 using Turbo.Primitives.Messages.Incoming.Turbo;
 using Turbo.Primitives.Messages.Outgoing.Turbo;
 using Turbo.Primitives.Networking.Capabilities;
@@ -12,14 +13,17 @@ namespace Turbo.PacketHandlers.Turbo;
 
 /// <summary>
 /// A client opting in to Turbo's protocol extensions. The accepted ones are kept for the session
-/// and answered, then whatever an accepted extension carries is sent: the permission nodes, after
-/// the answer, through the same queue so they cannot overtake it. The rights and perks the client
+/// and answered, then whatever an accepted extension carries is sent: the permission nodes and the
+/// command tree, after the answer, through the same queue so they cannot overtake it. The rights and perks the client
 /// was sent at login are not sent again.
 /// </summary>
-public class TurboClientCapabilitiesMessageHandler(IGrainFactory grainFactory)
-    : IMessageHandler<TurboClientCapabilitiesMessage>
+public class TurboClientCapabilitiesMessageHandler(
+    IGrainFactory grainFactory,
+    ICommandTreeService commandTreeService
+) : IMessageHandler<TurboClientCapabilitiesMessage>
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly ICommandTreeService _commandTreeService = commandTreeService;
 
     public async ValueTask HandleAsync(
         TurboClientCapabilitiesMessage message,
@@ -43,5 +47,8 @@ public class TurboClientCapabilitiesMessageHandler(IGrainFactory grainFactory)
                 .GetPlayerPermissionGrain(ctx.PlayerId)
                 .SendPermissionNodesAsync(ct)
                 .ConfigureAwait(false);
+
+        if (accepted.Any(x => x.Name == ClientCapabilities.CHAT_COMMANDS))
+            await _commandTreeService.SendAsync(ctx.PlayerId, ct).ConfigureAwait(false);
     }
 }

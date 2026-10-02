@@ -17,6 +17,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains.Permissions;
+using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Snapshots.Permissions;
@@ -40,6 +41,7 @@ internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGr
     private readonly EventSystem _eventSystem;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<IPlayerPermissionGrain> _logger;
+    private readonly IPlayerNoticeService _noticeService;
 
     private readonly PlayerPermissionLiveState _state;
 
@@ -56,7 +58,8 @@ internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGr
         IPermissionRegistryProvider permissionRegistryProvider,
         EventSystem eventSystem,
         TimeProvider timeProvider,
-        ILogger<IPlayerPermissionGrain> logger
+        ILogger<IPlayerPermissionGrain> logger,
+        IPlayerNoticeService noticeService
     )
     {
         _dbCtxFactory = dbCtxFactory;
@@ -66,6 +69,7 @@ internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGr
         _eventSystem = eventSystem;
         _timeProvider = timeProvider;
         _logger = logger;
+        _noticeService = noticeService;
 
         _state = new() { PlayerId = this.GetPlayerId() };
     }
@@ -310,7 +314,7 @@ internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGr
         );
 
     /// <summary>The resolved set, worked out again first if the registry moved or something ran out.</summary>
-    private ResolvedPermissionsSnapshot EnsureResolved()
+    private ResolvedPermissionsSnapshot EnsureResolved(bool notifyRestrictionRestorations = true)
     {
         if (
             _state.Resolved is not { } resolved
@@ -318,7 +322,7 @@ internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGr
             || resolved.NextExpiresAt <= UtcNow
         )
         {
-            resolved = Resolve();
+            resolved = Resolve(notifyRestrictionRestorations);
 
             // Reached from a read, which must not wait on a send; the client hears of a change
             // a plugin load or an expiry made as soon as it can.
@@ -329,19 +333,31 @@ internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGr
         return resolved;
     }
 
-    private ResolvedPermissionsSnapshot Resolve()
+    private ResolvedPermissionsSnapshot Resolve(
+        bool notifyRestrictionRestorations = true,
+        string? explicitlyChangedNode = null
+    )
     {
+        var now = UtcNow;
         var registry = _permissionRegistryProvider.Current;
+        var assignments = BuildAssignments();
         var resolved = PermissionResolver.Resolve(
             registry,
             _state.Groups.Groups,
-            BuildAssignments(),
-            UtcNow
+            assignments,
+            now
         ) with
         {
             VerboseFilter = _state.VerboseFilter,
         };
 
+        var restored = RestoredRestrictions(resolved, now, explicitlyChangedNode);
+        _state.RestrictionInputs = new RestrictionResolutionInputs(
+            registry,
+            _state.Groups,
+            assignments,
+            resolved
+        );
         _state.Registry = registry;
         _state.Resolved = resolved;
         _state.Client = PermissionProjection.Project(registry, resolved);
@@ -354,6 +370,14 @@ internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGr
             );
 
         ScheduleExpiry(resolved.NextExpiresAt);
+
+        if (notifyRestrictionRestorations && restored.Length > 0)
+            NotifyRestoredRestrictionsAsync(restored)
+                .LogAndForget(
+                    _logger,
+                    "notify restored restrictions of player {PlayerId}",
+                    PlayerId
+                );
 
         return resolved;
     }

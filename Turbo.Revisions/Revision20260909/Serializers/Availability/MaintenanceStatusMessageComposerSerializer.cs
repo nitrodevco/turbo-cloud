@@ -11,6 +11,9 @@ internal class MaintenanceStatusMessageComposerSerializer(int header)
         MaintenanceStatusMessageComposer message
     )
     {
-        //
+        packet
+            .WriteBoolean(message.IsInMaintenance)
+            .WriteInteger(message.MinutesUntilMaintenance)
+            .WriteInteger(message.DurationMinutes);
     }
 }

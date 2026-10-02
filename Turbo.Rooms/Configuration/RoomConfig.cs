@@ -186,6 +186,23 @@ public class RoomConfig
     public int MaxChatlogsPerFlush { get; init; } = 200;
     public int MaxPendingChatlogs { get; init; } = 2000;
 
+    /// <summary>
+    /// A chat command runs inside the room's turn, so one that holds it longer than this is logged
+    /// as a warning with its name.
+    /// </summary>
+    public int CommandSlowWarningMs { get; init; } = 250;
+
+    /// <summary>How long <c>:mute</c> mutes for when the player names no minutes.</summary>
+    public int CommandDefaultMuteMinutes { get; init; } = 10;
+
+    /// <summary>
+    /// Command uses a room keeps, and a persistence grain keeps, while waiting to be written; the
+    /// oldest go first when a database outage fills the buffer.
+    /// </summary>
+    public int MaxPendingCommandLogs { get; init; } = 500;
+
+    public int MaxCommandLogsPerFlush { get; init; } = 200;
+
     public int GameDefaultDurationSeconds { get; init; } = 60;
     public int[] GameTeamEffectIds { get; init; } = [0, 33, 34, 35, 36];
 }

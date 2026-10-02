@@ -6,5 +6,7 @@ namespace Turbo.Primitives.Messages.Outgoing.Notifications;
 [GenerateSerializer, Immutable]
 public sealed record HabboBroadcastMessageComposer : IComposer
 {
-    // TODO: add properties if/when identified
+    /// <summary>The pop-up's text. The client reads a backslash and an r as a line break.</summary>
+    [Id(0)]
+    public required string Message { get; init; }
 }
