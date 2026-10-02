@@ -1,6 +1,8 @@
-﻿using System.Collections.Immutable;
+﻿using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Turbo.Achievements;
 using Turbo.Database.Achievements;
 using Turbo.Database.Context;
@@ -22,6 +24,9 @@ public sealed class AchievementProgressionTests : IDisposable
     private readonly SqliteDb _database = new();
     private readonly Fakes _fakes = new();
     private readonly TestCatalog _catalog = new();
+    private readonly AchievementObserverRegistry _observers = new(
+        NullLogger<AchievementObserverRegistry>.Instance
+    );
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     public AchievementProgressionTests() =>
@@ -55,6 +60,7 @@ public sealed class AchievementProgressionTests : IDisposable
         RoomHarness.SetField(grain, "_catalog", _catalog);
         RoomHarness.SetField(grain, "_recorder", recorder);
         RoomHarness.SetField(grain, "_rewards", new AchievementRewardRegistry());
+        RoomHarness.SetField(grain, "_observers", _observers);
         RoomHarness.SetField(
             grain,
             "_evaluator",
@@ -139,6 +145,90 @@ public sealed class AchievementProgressionTests : IDisposable
         Assert.Equal(30, projection.Score);
         Assert.Equal(3, projection.EarnedLevels);
         Assert.True((await db.AchievementFacts.SingleAsync(Ct)).Processed);
+    }
+
+    [Fact]
+    public async Task ObserversHearEachCompletedLevelOnceAndNeverAgainOnReplay()
+    {
+        var observer = new RecordingObserver();
+        _observers.Register([observer]);
+        _catalog.Current = [Definition(100000)];
+        await RecordAsync("observed-1", AchievementSources.FIGURE, 3);
+        await NewGrain().ProcessAsync(Ct);
+        await observer.WaitForAsync(3, Ct);
+        await NewGrain().ProcessAsync(Ct);
+        await NewGrain().RetryAsync(Ct);
+        var heard = observer.Heard.OrderBy(x => x.Level).ToList();
+        Assert.Equal([1, 2, 3], heard.Select(x => x.Level));
+        Assert.Equal(["ACH_Test1", "ACH_Test2", "ACH_Test3"], heard.Select(x => x.BadgeCode));
+        Assert.All(
+            heard,
+            x =>
+            {
+                Assert.Equal(1, x.PlayerId.Value);
+                Assert.Equal(100000, x.AchievementId);
+                Assert.Equal("test-100000", x.Key);
+                Assert.Equal("identity", x.Category);
+                Assert.Equal(1, x.Revision);
+                Assert.Equal(10, x.Score);
+            }
+        );
+    }
+
+    [Fact]
+    public async Task ThrowingObserverNeitherBlocksDeliveryNorOtherObservers()
+    {
+        var healthy = new RecordingObserver();
+        _observers.Register([new ThrowingObserver(), healthy]);
+        _catalog.Current = [Definition(100000)];
+        await RecordAsync("observed-2", AchievementSources.FIGURE, 3);
+        await NewGrain().ProcessAsync(Ct);
+        await healthy.WaitForAsync(3, Ct);
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        Assert.Equal(3, (await db.AchievementProgress.SingleAsync(Ct)).CompletedLevel);
+        Assert.Equal(30, (await db.AchievementProjections.SingleAsync(Ct)).Score);
+    }
+
+    [Fact]
+    public async Task ObserverIsNotToldOfALevelWhoseAwardIsBlocked()
+    {
+        var observer = new RecordingObserver();
+        _observers.Register([observer]);
+        _fakes.Handlers[nameof(IPlayerBadgeGrain.GrantAchievementAsync)] = call =>
+            (int)call.Args[1]! == 2
+                ? Task.FromException(new IOException("badge failure"))
+                : Task.CompletedTask;
+        _catalog.Current = [Definition(100000)];
+        await RecordAsync("observed-3", AchievementSources.FIGURE, 3);
+        await NewGrain().ProcessAsync(Ct);
+        await observer.WaitForAsync(1, Ct);
+        await Task.Delay(100, Ct);
+        Assert.Equal([1], observer.Heard.Select(x => x.Level));
+    }
+
+    [Fact]
+    public async Task DisposedObserverRegistrationStopsNotifications()
+    {
+        var observer = new RecordingObserver();
+        _observers.Register([observer]).Dispose();
+        _catalog.Current = [Definition(100000)];
+        await RecordAsync("observed-4", AchievementSources.FIGURE, 3);
+        await NewGrain().ProcessAsync(Ct);
+        await Task.Delay(100, Ct);
+        Assert.Empty(observer.Heard);
+    }
+
+    [Fact]
+    public void RepeatedObserverRejectsTheWholeBatch()
+    {
+        var first = new RecordingObserver();
+        _observers.Register([first]);
+        Assert.Throws<ArgumentException>(() =>
+            _observers.Register([new RecordingObserver(), first])
+        );
+        Assert.Throws<ArgumentException>(() => _observers.Register([]));
+        var other = new RecordingObserver();
+        _observers.Register([other]);
     }
 
     [Fact]
@@ -501,6 +591,35 @@ public sealed class AchievementProgressionTests : IDisposable
         _fakes.Log.Calls.Count(x =>
             x.Method == nameof(IPlayerBadgeGrain.NormalizeAchievementBadgesAsync)
         );
+
+    private sealed class RecordingObserver : IAchievementObserver
+    {
+        private readonly SemaphoreSlim _arrived = new(0);
+        private readonly ConcurrentQueue<AchievementLevelCompleted> _heard = new();
+
+        public IReadOnlyCollection<AchievementLevelCompleted> Heard => _heard;
+
+        public Task OnLevelCompletedAsync(AchievementLevelCompleted completed, CancellationToken ct)
+        {
+            _heard.Enqueue(completed);
+            _arrived.Release();
+            return Task.CompletedTask;
+        }
+
+        public async Task WaitForAsync(int count, CancellationToken ct)
+        {
+            for (var i = 0; i < count; i++)
+                Assert.True(await _arrived.WaitAsync(TimeSpan.FromSeconds(10), ct));
+        }
+    }
+
+    private sealed class ThrowingObserver : IAchievementObserver
+    {
+        public Task OnLevelCompletedAsync(
+            AchievementLevelCompleted completed,
+            CancellationToken ct
+        ) => throw new InvalidOperationException("observer failure");
+    }
 
     private sealed class TestCatalog : IAchievementCatalog
     {

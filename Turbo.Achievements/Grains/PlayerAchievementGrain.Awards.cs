@@ -165,6 +165,7 @@ internal sealed partial class PlayerAchievementGrain
                 projection.PublicationPending = true;
                 await db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
+                NotifyObservers(definition, open, level);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -196,6 +197,45 @@ internal sealed partial class PlayerAchievementGrain
                 }
                 break;
             }
+        }
+    }
+
+    /// <summary>
+    /// Tells observers a level is completed. The award is already committed, so nothing an observer
+    /// does can undo or block it. The registry never throws, but it is called after the commit, so
+    /// a failure here is logged rather than allowed to block the next award.
+    /// </summary>
+    private void NotifyObservers(
+        AchievementDefinition definition,
+        AchievementOpenAward award,
+        AchievementLevelDefinition level
+    )
+    {
+        try
+        {
+            _observers.NotifyLevelCompleted(
+                new()
+                {
+                    PlayerId = _state.PlayerId,
+                    AchievementId = definition.Id,
+                    Key = definition.Key,
+                    Category = definition.Category,
+                    Revision = award.Revision,
+                    Level = award.Level,
+                    BadgeCode = level.BadgeCode,
+                    Score = level.Score,
+                    EarnedAtUtc = award.EarnedAtUtc,
+                }
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Achievement observers were not notified of achievement {AchievementId} level {Level}",
+                definition.Id,
+                award.Level
+            );
         }
     }
 

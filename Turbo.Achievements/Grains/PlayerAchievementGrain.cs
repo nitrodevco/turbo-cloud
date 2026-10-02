@@ -37,6 +37,7 @@ internal sealed partial class PlayerAchievementGrain : Grain, IPlayerAchievement
     private readonly IAchievementCatalog _catalog;
     private readonly IAchievementFactRecorder _recorder;
     private readonly IAchievementRewardRegistry _rewards;
+    private readonly IAchievementObserverRegistry _observers;
     private readonly AchievementStateEvaluator _evaluator;
     private readonly ILogger<IPlayerAchievementGrain> _logger;
     private readonly PlayerAchievementLiveState _state;
@@ -48,6 +49,7 @@ internal sealed partial class PlayerAchievementGrain : Grain, IPlayerAchievement
         IAchievementCatalog catalog,
         IAchievementFactRecorder recorder,
         IAchievementRewardRegistry rewards,
+        IAchievementObserverRegistry observers,
         AchievementStateEvaluator evaluator,
         ILogger<IPlayerAchievementGrain> logger
     )
@@ -58,6 +60,7 @@ internal sealed partial class PlayerAchievementGrain : Grain, IPlayerAchievement
         _catalog = catalog;
         _recorder = recorder;
         _rewards = rewards;
+        _observers = observers;
         _evaluator = evaluator;
         _logger = logger;
         _state = new() { PlayerId = this.GetPlayerId() };
