@@ -97,17 +97,34 @@ internal sealed partial class RoomService(
     {
         var room = _grainFactory.GetRoomGrain(roomId);
 
-        await RoomTelemetry
-            .MeasureAsync(RoomTelemetry.ACTIVATE, roomId, () => room.EnsureRoomActiveAsync(ct))
-            .ConfigureAwait(false);
-
-        return await RoomTelemetry
+        var access = await RoomTelemetry
             .MeasureAsync(
                 RoomTelemetry.ACCESS,
                 roomId,
                 () => room.CheckEntryAccessAsync(playerId, password, bypassDoor, ct)
             )
             .ConfigureAwait(false);
+
+        // Activation already hydrates metadata, rights and bans. Rejected visitors need none
+        // of the map, furniture or NPC state. Keep allowed loading before the caller clears
+        // the player's current room, so a load failure leaves that session intact.
+        if (access == RoomEntryAccessType.Allowed)
+        {
+            await RoomTelemetry
+                .MeasureAsync(RoomTelemetry.ACTIVATE, roomId, () => room.EnsureRoomActiveAsync(ct))
+                .ConfigureAwait(false);
+
+            // A cold load can yield long enough for bans, capacity or deletion to change.
+            access = await RoomTelemetry
+                .MeasureAsync(
+                    RoomTelemetry.ACCESS,
+                    roomId,
+                    () => room.CheckEntryAccessAsync(playerId, password, bypassDoor, ct)
+                )
+                .ConfigureAwait(false);
+        }
+
+        return access;
     }
 
     /// <summary>
@@ -367,6 +384,10 @@ internal sealed partial class RoomService(
 
             return;
         }
+
+        await RoomTelemetry
+            .MeasureAsync(RoomTelemetry.ACTIVATE, ctx.RoomId, () => room.EnsureRoomActiveAsync(ct))
+            .ConfigureAwait(false);
 
         await ringerPresence
             .SetPendingRoomAsync(ctx.RoomId, RoomEntryState.Approved, ct)

@@ -18,7 +18,8 @@ public partial interface IRoomService
     );
 
     /// <summary>
-    /// Activates the room and decides whether the player may enter. <paramref name="password"/>
+    /// Checks access using hydrated room metadata and loads contents only if allowed, then
+    /// rechecks access before returning. <paramref name="password"/>
     /// is only consulted for password doors; <paramref name="bypassDoor"/> is for server-driven
     /// moves (teleporters) that ignore the door mode but still honour bans and capacity.
     /// </summary>

@@ -49,7 +49,7 @@ public class RoomTelemetryTests
             activities,
             activity => activity.OperationName == RoomTelemetry.DIRECT_ENTRY
         );
-        var activate = Assert.Single(
+        Assert.DoesNotContain(
             activities,
             activity => activity.OperationName == RoomTelemetry.ACTIVATE
         );
@@ -57,9 +57,7 @@ public class RoomTelemetryTests
             activities,
             activity => activity.OperationName == RoomTelemetry.ACCESS
         );
-        Assert.Equal(direct.TraceId, activate.TraceId);
-        Assert.Equal(direct.SpanId, activate.ParentSpanId);
-        Assert.Equal(activate.TraceId, access.TraceId);
+        Assert.Equal(direct.TraceId, access.TraceId);
         Assert.Equal(direct.SpanId, access.ParentSpanId);
     }
 
