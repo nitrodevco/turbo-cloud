@@ -113,59 +113,18 @@ public sealed class AchievementPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task AchievementBadgeUpgradePreservesBadgeSharedByAnotherEntitlement()
+    public async Task AchievementBadgeUpgradeLeavesAnotherAchievementsBadgeAlone()
     {
         var (_, badgeGrain) = await NewBadgeGrainAsync();
 
-        await badgeGrain.GrantAchievementAsync(
-            achievementId: 10,
-            level: 1,
-            badgeCode: "ACH_Shared1",
-            ct: Ct
-        );
-        await badgeGrain.GrantAchievementAsync(
-            achievementId: 20,
-            level: 1,
-            badgeCode: "ACH_Shared1",
-            ct: Ct
-        );
-        await badgeGrain.GrantAchievementAsync(
-            achievementId: 10,
-            level: 2,
-            badgeCode: "ACH_Upgrade2",
-            ct: Ct
-        );
+        await badgeGrain.GrantAchievementAsync(10, 1, "ACH_Upgrade1", Ct);
+        await badgeGrain.GrantAchievementAsync(20, 1, "ACH_Other1", Ct);
+        await badgeGrain.GrantAchievementAsync(10, 2, "ACH_Upgrade2", Ct);
 
         await using var db = await _db.CreateDbContextAsync(Ct);
         (await db.PlayerBadges.Select(x => x.BadgeCode).OrderBy(x => x).ToListAsync(Ct))
             .Should()
-            .Equal("ACH_Shared1", "ACH_Upgrade2");
-        (
-            await db
-                .AchievementBadgeEntitlements.OrderBy(x => x.AchievementId)
-                .Select(x => new
-                {
-                    x.AchievementId,
-                    x.Level,
-                    x.BadgeCode,
-                })
-                .ToListAsync(Ct)
-        )
-            .Should()
-            .BeEquivalentTo([
-                new
-                {
-                    AchievementId = 10,
-                    Level = 2,
-                    BadgeCode = "ACH_Upgrade2",
-                },
-                new
-                {
-                    AchievementId = 20,
-                    Level = 1,
-                    BadgeCode = "ACH_Shared1",
-                },
-            ]);
+            .Equal("ACH_Other1", "ACH_Upgrade2");
     }
 
     [Fact]

@@ -128,14 +128,13 @@ public sealed class AchievementLeaderboardAndBadgeReplayTests : IDisposable
         await using var db = await _db.CreateDbContextAsync(Ct);
         var badge = await db.PlayerBadges.SingleAsync(Ct);
         badge.SlotId.Should().Be(3);
-        (await db.AchievementBadgeEntitlements.CountAsync(Ct)).Should().Be(1);
     }
 
     [Fact]
     public async Task ReplayingWornAchievementUpgradeKeepsTransferredSlotAndSingleBadge()
     {
         var badges = await NewBadgeGrainAsync();
-        await badges.GrantAchievementAsync(30, 1, "ACH_Worn_Old", Ct);
+        await badges.GrantAchievementAsync(30, 1, "ACH_Worn1", Ct);
         await using (var db = await _db.CreateDbContextAsync(Ct))
         {
             var oldBadge = await db.PlayerBadges.SingleAsync(Ct);
@@ -143,16 +142,13 @@ public sealed class AchievementLeaderboardAndBadgeReplayTests : IDisposable
             await db.SaveChangesAsync(Ct);
         }
 
-        await badges.GrantAchievementAsync(30, 2, "ACH_Worn_New", Ct);
-        await badges.GrantAchievementAsync(30, 2, "ACH_Worn_New", Ct);
+        await badges.GrantAchievementAsync(30, 2, "ACH_Worn2", Ct);
+        await badges.GrantAchievementAsync(30, 2, "ACH_Worn2", Ct);
 
         await using var check = await _db.CreateDbContextAsync(Ct);
         var badge = await check.PlayerBadges.SingleAsync(Ct);
-        badge.BadgeCode.Should().Be("ACH_Worn_New");
+        badge.BadgeCode.Should().Be("ACH_Worn2");
         badge.SlotId.Should().Be(4);
-        var entitlement = await check.AchievementBadgeEntitlements.SingleAsync(Ct);
-        entitlement.Level.Should().Be(2);
-        entitlement.BadgeCode.Should().Be("ACH_Worn_New");
     }
 
     [Fact]
@@ -184,7 +180,6 @@ public sealed class AchievementLeaderboardAndBadgeReplayTests : IDisposable
         var badge = await db.PlayerBadges.SingleAsync(Ct);
         badge.BadgeCode.Should().Be("ACH_TrueHabbo5");
         badge.SlotId.Should().Be(1);
-        (await db.AchievementBadgeEntitlements.SingleAsync(Ct)).Level.Should().Be(2);
     }
 
     [Fact]

@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Turbo.Database.Entities.Achievements;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Achievements;
 
@@ -28,19 +27,9 @@ internal sealed partial class PlayerBadgeGrain
         if (achievementId <= 0 || level <= 0 || !TryNormalizeCode(badgeCode, out var code))
             throw new ArgumentException("Invalid achievement badge entitlement.");
         await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
-        var entitlement = await db.AchievementBadgeEntitlements.FindAsync(
-            [_state.PlayerId.Value, achievementId],
-            ct
-        );
-        if (entitlement is not null && entitlement.Level > level)
-            return;
-        if (entitlement is not null && entitlement.Level == level && entitlement.BadgeCode != code)
-            throw new InvalidOperationException("Frozen award badge mismatch.");
-        var oldCode = entitlement?.BadgeCode;
         var owned = await db
             .PlayerBadges.Where(x => x.PlayerEntityId == _state.PlayerId.Value)
             .ToListAsync(ct);
-        var oldBadge = oldCode is null ? null : owned.SingleOrDefault(x => x.BadgeCode == oldCode);
         var newBadge = owned.SingleOrDefault(x => x.BadgeCode == code);
         var familyOwned = AchievementBadgeCodes.TryGetBase(code, out var badgeBase)
             ? owned.Where(x => AchievementBadgeCodes.IsLevelOf(badgeBase, x.BadgeCode)).ToList()
@@ -67,50 +56,14 @@ internal sealed partial class PlayerBadgeGrain
             }
             kept = newBadge;
         }
-        // Only the kept level stays; every other owned level of the family goes.
+        // Only the kept level stays; every other owned level of the family goes. The family is
+        // the badge prefix, which a validated catalog keeps stable and unique per achievement,
+        // so no separate record of what each achievement granted is needed.
         var removed = familyOwned.Where(x => x != kept).ToList();
-        // The achievement's previous entitlement goes too, unless another achievement uses it.
-        if (
-            oldBadge is not null
-            && oldCode != code
-            && oldBadge != kept
-            && !removed.Contains(oldBadge)
-            && !await db.AchievementBadgeEntitlements.AnyAsync(
-                x =>
-                    x.PlayerId == _state.PlayerId.Value
-                    && x.AchievementId != achievementId
-                    && x.BadgeCode == oldCode,
-                ct
-            )
-        )
-            removed.Add(oldBadge);
         TransferSlot(kept, removed);
-        if (entitlement is null)
-        {
-            entitlement = new AchievementBadgeEntitlementEntity
-            {
-                PlayerId = _state.PlayerId.Value,
-                AchievementId = achievementId,
-                Level = level,
-                BadgeCode = code,
-            };
-            db.AchievementBadgeEntitlements.Add(entitlement);
-        }
-        else
-        {
-            entitlement.Level = level;
-            entitlement.BadgeCode = code;
-        }
         db.PlayerBadges.RemoveRange(removed);
         await db.SaveChangesAsync(ct);
-        await RefreshAfterAchievementChangeAsync(
-            [
-                code,
-                .. removed.Select(x => x.BadgeCode),
-                .. oldCode is null ? [] : new[] { oldCode },
-            ],
-            ct
-        );
+        await RefreshAfterAchievementChangeAsync([code, .. removed.Select(x => x.BadgeCode)], ct);
     }
 
     /// <summary>

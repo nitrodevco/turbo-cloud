@@ -29,7 +29,6 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<AchievementProjectionEntity> AchievementProjections { get; init; }
     public DbSet<AchievementAuditEntity> AchievementAudit { get; init; }
     public DbSet<AchievementWalletReceiptEntity> AchievementWalletReceipts { get; init; }
-    public DbSet<AchievementBadgeEntitlementEntity> AchievementBadgeEntitlements { get; init; }
     public DbSet<AchievementMembershipIntervalEntity> AchievementMembershipIntervals { get; init; }
     public DbSet<HumanRespectOperationEntity> HumanRespectOperations { get; init; }
     public DbSet<HumanRespectParticipantReceiptEntity> HumanRespectParticipantReceipts { get; init; }
