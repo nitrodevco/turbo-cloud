@@ -603,7 +603,8 @@ public sealed class AchievementCatalogContractTests : IDisposable
         var texts = new Dictionary<string, string>();
         foreach (
             var code in new HabboAchievementPack()
-                .Definitions.SelectMany(x => x.Levels)
+                .Definitions.Where(x => x.State == AchievementState.Enabled)
+                .SelectMany(x => x.Levels)
                 .Select(x => x.BadgeCode)
         )
         {
@@ -623,7 +624,7 @@ public sealed class AchievementCatalogContractTests : IDisposable
 
         catalog.Current.Should().HaveCount(pack.Definitions.Length);
         await using var db = await _db.CreateDbContextAsync(Ct);
-        (await db.AchievementAudit.SingleAsync(Ct)).OperationId.Should().StartWith("pack:habbo:1:");
+        (await db.AchievementAudit.SingleAsync(Ct)).OperationId.Should().StartWith("pack:habbo:2:");
         Directory.Delete(assetDirectory, recursive: true);
     }
 
@@ -855,6 +856,76 @@ public sealed class AchievementCatalogContractTests : IDisposable
 
         catalog.Current.Single().State.Should().Be(AchievementState.Enabled);
         Directory.Delete(assetDirectory, recursive: true);
+    }
+
+    [Fact]
+    public async Task AnUnhookedAchievementCanBeListedOrArchivedButNeverEnabled()
+    {
+        var catalog = NewCatalog();
+        var unhooked = Definition(100170, "unhooked", AchievementSources.UNHOOKED);
+        await catalog.ImportAsync([unhooked], true, "tests", "ship", "unhook-op-0", Ct);
+
+        foreach (var allowed in new[] { AchievementState.Archived, AchievementState.OffSeason })
+        {
+            var next = unhooked with { Revision = unhooked.Revision + 1, State = allowed };
+            await catalog
+                .Invoking(c => c.ImportAsync([next], false, "tests", "ok", "unhook-op-1", Ct))
+                .Should()
+                .NotThrowAsync();
+        }
+        var enable = unhooked with { Revision = 2, State = AchievementState.Enabled };
+        var import = () => catalog.ImportAsync([enable], false, "tests", "no", "unhook-op-2", Ct);
+
+        await import
+            .Should()
+            .ThrowAsync<InvalidOperationException>()
+            .WithMessage("*nothing records*");
+    }
+
+    [Fact]
+    public async Task AnUnhookedAchievementMayBeMovedToARealSourceButAHookedOneMayNotMoveAgain()
+    {
+        var catalog = NewCatalog();
+        var unhooked = Definition(100171, "move-me", AchievementSources.UNHOOKED);
+        await catalog.ImportAsync([unhooked], true, "tests", "ship", "move-op-0", Ct);
+
+        var hooked = unhooked with
+        {
+            Revision = 2,
+            Source = AchievementSources.VISIT,
+            Reducer = AchievementReducer.Distinct,
+        };
+        await catalog.ImportAsync([hooked], true, "tests", "hook", "move-op-1", Ct);
+
+        catalog.Current.Single().Source.Should().Be(AchievementSources.VISIT);
+        catalog.Current.Single().Reducer.Should().Be(AchievementReducer.Distinct);
+        var again = hooked with
+        {
+            Revision = 3,
+            Source = AchievementSources.PETS,
+            Reducer = AchievementReducer.Maximum,
+        };
+        var import = () => catalog.ImportAsync([again], false, "tests", "move", "move-op-2", Ct);
+        await import
+            .Should()
+            .ThrowAsync<InvalidOperationException>()
+            .WithMessage("*reinterpreted*");
+    }
+
+    [Fact]
+    public async Task AHookedAchievementCanNeverBeMovedBackToThePlaceholder()
+    {
+        var catalog = NewCatalog();
+        var hooked = Definition(100172, "stay-hooked", AchievementSources.FIGURE);
+        await catalog.ImportAsync([hooked], true, "tests", "ship", "back-op-0", Ct);
+
+        var back = hooked with { Revision = 2, Source = AchievementSources.UNHOOKED };
+        var import = () => catalog.ImportAsync([back], false, "tests", "back", "back-op-1", Ct);
+
+        await import
+            .Should()
+            .ThrowAsync<InvalidOperationException>()
+            .WithMessage("*reinterpreted*");
     }
 
     private AchievementCatalog NewCatalog(

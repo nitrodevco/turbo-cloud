@@ -21,4 +21,11 @@ public static class AchievementSources
     public const string PET_RESPECT_RECEIVED = "pets.respect-received";
     public const string FLOOR_HEIGHTS = "builder.floor-heights";
     public const string ROOM_RANK = "builder.room-rank";
+
+    /// <summary>
+    /// A placeholder for achievements nothing records facts for yet, such as the Habbo ones the
+    /// hotel has no gameplay for. A definition on it can be listed or archived but never enabled;
+    /// until it is moved to a source something records, no player can progress it.
+    /// </summary>
+    public const string UNHOOKED = "catalog.unhooked";
 }

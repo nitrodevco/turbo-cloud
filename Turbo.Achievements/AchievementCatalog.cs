@@ -262,9 +262,16 @@ public sealed class AchievementCatalog : IAchievementCatalog
                 if (
                     history.Any(x =>
                         x.Key != definition.Key
-                        || x.Source != definition.Source
-                        || x.SourceVersion != definition.SourceVersion
-                        || x.Reducer != definition.Reducer
+                        // Nothing records the placeholder source, so no progress can exist yet and
+                        // the definition may be moved to a real source and reducer once.
+                        || (
+                            x.Source != AchievementSources.UNHOOKED
+                            && (
+                                x.Source != definition.Source
+                                || x.SourceVersion != definition.SourceVersion
+                                || x.Reducer != definition.Reducer
+                            )
+                        )
                         || x.Levels.Length > definition.Levels.Length
                     )
                 )
@@ -374,6 +381,14 @@ public sealed class AchievementCatalog : IAchievementCatalog
                 }
                 else if (!source.Allows(d.Reducer))
                     throw new InvalidOperationException("Source reducer mismatch.");
+                if (
+                    !allowRetainedSources
+                    && d.State == AchievementState.Enabled
+                    && d.Source == AchievementSources.UNHOOKED
+                )
+                    throw new InvalidOperationException(
+                        $"Achievement {d.Key} cannot be enabled: nothing records facts for it yet. Move it to a source something records first."
+                    );
                 if (
                     d.Match is { } narrowing
                     && (

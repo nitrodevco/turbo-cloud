@@ -2,6 +2,7 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Achievements.Enums;
 
@@ -176,6 +177,107 @@ public static class AchievementDefaults
             1
         ),
     ];
+
+    /// <summary>
+    /// The first id of the published records the hotel has no hook for. Each is the API's own id
+    /// added to this, so an id never changes when the snapshot is refreshed.
+    /// </summary>
+    public const int UNHOOKED_ID_START = 10000;
+
+    /// <summary>
+    /// Every other published record. Nothing in the hotel records the facts most of them need, so
+    /// they ship disabled (retired ones archived) on <see cref="AchievementSources.UNHOOKED"/> with
+    /// their real category and thresholds: a hotel can keep, edit, retire or move any of them to a
+    /// source something records, and a plugin or a later release can hook one up.
+    /// </summary>
+    public static ImmutableArray<AchievementDefinition> Unhooked { get; } = BuildUnhooked();
+
+    /// <summary>
+    /// Published records that cannot be shipped faithfully, and why. They are listed in the
+    /// coverage CSV instead.
+    /// </summary>
+    public static ImmutableArray<(string Name, string Reason)> NotRepresentable { get; } =
+        PublishedCatalog
+            .Select(x => (Name: x.Key, Reason: WhyNotRepresentable(x.Value)))
+            .Where(x => x.Reason is not null)
+            .OrderBy(x => x.Name, StringComparer.Ordinal)
+            .Select(x => (x.Name, x.Reason!))
+            .ToImmutableArray();
+
+    private static ImmutableArray<AchievementDefinition> BuildUnhooked()
+    {
+        var mapped = Definitions
+            .Select(x => AchievementBadgeCodes.BaseOf(x.Levels[0].BadgeCode))
+            .Where(x => x.StartsWith("ACH_", StringComparison.Ordinal))
+            .Select(x => x["ACH_".Length..])
+            .ToHashSet(StringComparer.Ordinal);
+
+        return
+        [
+            .. PublishedCatalog
+                .Where(x => !mapped.Contains(x.Key) && WhyNotRepresentable(x.Value) is null)
+                .OrderBy(x => x.Value.GetProperty("achievement").GetProperty("id").GetInt32())
+                .Select(x => Unhook(x.Key, x.Value)),
+        ];
+    }
+
+    private static string? WhyNotRepresentable(JsonElement published)
+    {
+        if (
+            !published.TryGetProperty("levelRequirements", out var levels)
+            || levels.GetArrayLength() == 0
+        )
+            return "The record has no levels.";
+        var scores = levels
+            .EnumerateArray()
+            .Select(x => x.GetProperty("requiredScore").GetInt32())
+            .ToArray();
+        for (var i = 1; i < scores.Length; i++)
+            if (scores[i] <= scores[i - 1])
+                return "Its thresholds do not strictly rise.";
+
+        return null;
+    }
+
+    private static AchievementDefinition Unhook(string name, JsonElement published)
+    {
+        var achievement = published.GetProperty("achievement");
+        var id = UNHOOKED_ID_START + achievement.GetProperty("id").GetInt32();
+        // A name that ends in a digit would run into the level number (bazaar17 level 1 would
+        // read as level 171), so those take an underscore before it.
+        var badgePrefix = "ACH_" + name + (char.IsAsciiDigit(name[^1]) ? "_" : "");
+
+        return Create(
+            id,
+            KeyOf(name),
+            achievement.GetProperty("category").GetString()!,
+            AchievementSources.UNHOOKED,
+            AchievementReducer.Counter,
+            1,
+            published
+                .GetProperty("levelRequirements")
+                .EnumerateArray()
+                .Select(x => x.GetProperty("requiredScore").GetInt32())
+                .ToArray(),
+            badgePrefix,
+            false,
+            0
+        ) with
+        {
+            Revision = 1,
+            State =
+                achievement.GetProperty("state").GetString() == "ARCHIVED"
+                    ? AchievementState.Archived
+                    : AchievementState.Disabled,
+        };
+    }
+
+    /// <summary><c>RoomEntry</c> becomes <c>room-entry</c>.</summary>
+    private static string KeyOf(string name) =>
+        Regex
+            .Replace(Regex.Replace(name, "([a-z0-9])([A-Z])", "$1-$2"), "[^A-Za-z0-9]+", "-")
+            .Trim('-')
+            .ToLowerInvariant();
 
     private static ImmutableDictionary<string, JsonElement> LoadPublishedCatalog()
     {

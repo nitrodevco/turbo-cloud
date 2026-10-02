@@ -14,9 +14,15 @@ public sealed class HabboAchievementPack : IAchievementPack
 
     public string Key => KEY;
 
-    public int Version => 1;
+    public int Version => 2;
 
-    public ImmutableArray<AchievementIdRange> IdRanges { get; } = [new(1001, 1018)];
+    /// <summary>The hand-mapped records (1001-1018), then every other published record at 10000 plus its API id.</summary>
+    public ImmutableArray<AchievementIdRange> IdRanges { get; } =
+    [
+        new(1001, 1018),
+        new(AchievementDefaults.UNHOOKED_ID_START, AchievementDefaults.UNHOOKED_ID_START + 9999),
+    ];
 
-    public ImmutableArray<AchievementDefinition> Definitions => AchievementDefaults.Definitions;
+    public ImmutableArray<AchievementDefinition> Definitions { get; } =
+    [.. AchievementDefaults.Definitions, .. AchievementDefaults.Unhooked];
 }

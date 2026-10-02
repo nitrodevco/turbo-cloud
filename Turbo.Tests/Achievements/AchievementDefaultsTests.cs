@@ -36,7 +36,9 @@ public class AchievementDefaultsTests
 
         Assert.Equal(18, definitions.Length);
         Assert.Equal(expectedPrefixes.Keys.Order(), definitions.Select(x => x.Key).Order());
-        Assert.Equal(18, CoreAchievementSources.All.Length);
+        // the 18 hotel sources plus the placeholder nothing records
+        Assert.Equal(19, CoreAchievementSources.All.Length);
+        Assert.Contains(CoreAchievementSources.All, x => x.Key == AchievementSources.UNHOOKED);
 
         foreach (var definition in definitions)
         {
