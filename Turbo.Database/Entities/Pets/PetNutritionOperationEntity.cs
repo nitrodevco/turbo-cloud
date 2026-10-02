@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Turbo.Database.Entities.Achievements;
+namespace Turbo.Database.Entities.Pets;
 
 [Table("pet_nutrition_operations")]
 public sealed class PetNutritionOperationEntity

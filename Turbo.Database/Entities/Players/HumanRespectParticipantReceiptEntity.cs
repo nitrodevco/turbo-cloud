@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 
-namespace Turbo.Database.Entities.Achievements;
+namespace Turbo.Database.Entities.Players;
 
 [Table("human_respect_participant_receipts")]
 [PrimaryKey(nameof(PlayerId), nameof(OperationId), nameof(Kind))]

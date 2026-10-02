@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Orleans.Runtime;
 using Turbo.Achievements;
 using Turbo.Database.Achievements;
-using Turbo.Database.Entities.Achievements;
+using Turbo.Database.Entities.Players;
 using Turbo.Players;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Players.Grains;
