@@ -31,6 +31,17 @@ public sealed class AchievementModule : IHostPluginModule
             )
             .ValidateOnStart();
         services.TryAddSingleton(TimeProvider.System);
+        // Installing the Habbo pack is on unless the hotel turns it off.
+        if (
+            !bool.TryParse(
+                builder.Configuration.GetSection(AchievementConfig.SECTION_NAME)[
+                    nameof(AchievementConfig.InstallDefaults)
+                ],
+                out var installDefaults
+            ) || installDefaults
+        )
+            services.AddSingleton<IAchievementPack, HabboAchievementPack>();
+        services.AddSingleton<IAchievementPackRegistry, AchievementPackRegistry>();
         services.AddSingleton<IAchievementCatalog, AchievementCatalog>();
         services.AddSingleton<IAchievementFactRecorder, AchievementFactRecorder>();
         services.AddSingleton<IAchievementFacts, AchievementFacts>();

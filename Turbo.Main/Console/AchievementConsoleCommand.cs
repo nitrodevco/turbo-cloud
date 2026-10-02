@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Immutable;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,7 +11,10 @@ using Turbo.Primitives.Achievements;
 namespace Turbo.Main.Console;
 
 /// <summary>Console import defaults to validation only. Explicit --apply publishes one audited batch.</summary>
-internal sealed class AchievementConsoleCommand(IAchievementCatalog catalog)
+internal sealed class AchievementConsoleCommand(
+    IAchievementCatalog catalog,
+    IAchievementPackRegistry packs
+)
 {
     public async Task RunAsync(string[] arguments, CancellationToken ct)
     {
@@ -27,7 +31,9 @@ internal sealed class AchievementConsoleCommand(IAchievementCatalog catalog)
             case "export":
             case "defaults":
                 var data =
-                    arguments[0] == "defaults" ? AchievementDefaults.Definitions : catalog.Current;
+                    arguments[0] == "defaults"
+                        ? [.. packs.Packs.SelectMany(x => x.Definitions)]
+                        : catalog.Current;
                 await File.WriteAllTextAsync(
                         arguments[1],
                         JsonSerializer.Serialize(data, options),

@@ -36,7 +36,7 @@ public class AchievementDefaultsTests
 
         Assert.Equal(18, definitions.Length);
         Assert.Equal(expectedPrefixes.Keys.Order(), definitions.Select(x => x.Key).Order());
-        Assert.Equal(18, AchievementDefaults.Sources.Length);
+        Assert.Equal(18, CoreAchievementSources.All.Length);
 
         foreach (var definition in definitions)
         {

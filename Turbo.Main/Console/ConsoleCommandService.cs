@@ -72,7 +72,8 @@ public class ConsoleCommandService(IServiceProvider services)
                 try
                 {
                     await new AchievementConsoleCommand(
-                        _services.GetRequiredService<IAchievementCatalog>()
+                        _services.GetRequiredService<IAchievementCatalog>(),
+                        _services.GetRequiredService<IAchievementPackRegistry>()
                     )
                         .RunAsync(args, ct)
                         .ConfigureAwait(false);

@@ -10,33 +10,6 @@ namespace Turbo.Achievements;
 /// <summary>Published Habbo requirements with explicit hotel extensions and reward policy.</summary>
 public static class AchievementDefaults
 {
-    public static ImmutableArray<AchievementSourceDefinition> Sources { get; } =
-    [
-        new(AchievementSources.ONLINE, 1, AchievementReducer.ElapsedSeconds),
-        new(
-            AchievementSources.LOGIN,
-            1,
-            AchievementReducer.CalendarStreak,
-            [AchievementReducer.Counter, AchievementReducer.Distinct]
-        ),
-        new(AchievementSources.ACCOUNT_AGE, 1, AchievementReducer.Maximum),
-        new(AchievementSources.FIGURE, 1, AchievementReducer.Counter),
-        new(AchievementSources.MOTTO, 1, AchievementReducer.Counter),
-        new(AchievementSources.HC, 1, AchievementReducer.Maximum),
-        new(AchievementSources.PURCHASED_HC, 1, AchievementReducer.Maximum),
-        new(AchievementSources.VISIT, 1, AchievementReducer.Distinct, [AchievementReducer.Counter]),
-        new(AchievementSources.FURNITURE, 1, AchievementReducer.Counter),
-        new(AchievementSources.RESPECT_GIVEN, 1, AchievementReducer.Counter),
-        new(AchievementSources.RESPECT_RECEIVED, 1, AchievementReducer.Counter),
-        new(AchievementSources.PETS, 1, AchievementReducer.Maximum),
-        new(AchievementSources.NUTRITION, 1, AchievementReducer.Counter),
-        new(AchievementSources.PET_LEVEL, 1, AchievementReducer.Counter),
-        new(AchievementSources.PET_RESPECT_GIVEN, 1, AchievementReducer.Counter),
-        new(AchievementSources.PET_RESPECT_RECEIVED, 1, AchievementReducer.Counter),
-        new(AchievementSources.FLOOR_HEIGHTS, 1, AchievementReducer.Maximum),
-        new(AchievementSources.ROOM_RANK, 1, AchievementReducer.Rank),
-    ];
-
     public const string SOURCE_URL = "https://www.habbo.com/api/public/achievements";
 
     // Pin the public snapshot: startup and reload must not depend on a remote API.

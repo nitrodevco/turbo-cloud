@@ -19,7 +19,7 @@ public sealed class ListeningAchievementCatalog : IAchievementCatalog
 {
     public ImmutableArray<AchievementDefinition> Current { get; } =
     [
-        .. AchievementDefaults.Sources.Select(
+        .. CoreAchievementSources.All.Select(
             (source, index) =>
                 new AchievementDefinition
                 {

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -28,6 +30,7 @@ public sealed class AchievementCatalog : IAchievementCatalog
     private readonly AchievementConfig _config;
     private readonly IHotelTextProvider _texts;
     private readonly ILogger<AchievementCatalog>? _logger;
+    private readonly IAchievementPackRegistry? _packs;
     private readonly object _gate = new();
     private readonly SemaphoreSlim _publication = new(1, 1);
     private readonly Dictionary<(string, int), AchievementSourceDefinition> _sources = [];
@@ -39,15 +42,17 @@ public sealed class AchievementCatalog : IAchievementCatalog
         ICurrencyTypeProvider currencies,
         IOptions<AchievementConfig> config,
         IHotelTextProvider texts,
-        ILogger<AchievementCatalog>? logger = null
+        ILogger<AchievementCatalog>? logger = null,
+        IAchievementPackRegistry? packs = null
     )
     {
         _logger = logger;
+        _packs = packs;
         _database = database;
         _currencies = currencies;
         _config = config.Value;
         _texts = texts;
-        foreach (var source in AchievementDefaults.Sources)
+        foreach (var source in CoreAchievementSources.All)
             _sources.Add((source.Key, source.Version), source);
     }
 
@@ -94,51 +99,87 @@ public sealed class AchievementCatalog : IAchievementCatalog
         });
     }
 
-    /// <summary>The operation that records the shipped catalog; reusing it is a no-op.</summary>
-    public const string DefaultsOperationId = "install-habbo-defaults-2026-10-02";
-
     /// <summary>
-    /// A hotel with no achievement definitions gets the shipped Habbo catalog through the same
-    /// audited, validated import an administrator would run. A failed validation (for example
-    /// no badge asset directory or texts yet) leaves the catalog empty and says why.
+    /// Installs every registered pack. A pack only adds: a definition whose key or id the hotel
+    /// already has is left exactly as it is, so hotel edits and retirements survive a new pack
+    /// version while its new achievements still arrive. Each pack goes through the same audited,
+    /// validated import an administrator would run, and one failing (for example no badge asset
+    /// directory or texts yet) never stops another or startup.
     /// </summary>
-    private async Task EnsureDefaultsInstalledAsync(CancellationToken ct)
+    private async Task InstallPacksAsync(CancellationToken ct)
     {
-        if (!_config.InstallDefaults)
+        if (_packs is null)
             return;
-        try
+        foreach (var pack in _packs.Packs.OrderBy(x => x.Key, StringComparer.Ordinal))
         {
-            var db = await _database.CreateDbContextAsync(ct).ConfigureAwait(false);
-            await using var dbScope = db.ConfigureAwait(false);
-            if (await db.AchievementDefinitions.AnyAsync(ct).ConfigureAwait(false))
-                return;
-            await ImportAsync(
-                    AchievementDefaults.Definitions,
-                    apply: true,
-                    actor: "turbo",
-                    reason: "Install the shipped Habbo achievement catalog",
-                    operationId: DefaultsOperationId,
-                    ct
-                )
-                .ConfigureAwait(false);
-            _logger?.LogInformation("Installed the shipped Habbo achievement catalog.");
+            try
+            {
+                await InstallPackAsync(pack, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(
+                    ex,
+                    "The achievement pack {Pack} was not installed. Fix what the error names (badge asset directory, badge texts), then run: achievement reload",
+                    pack.Key
+                );
+            }
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
+    }
+
+    private async Task InstallPackAsync(IAchievementPack pack, CancellationToken ct)
+    {
+        var db = await _database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
+        var stored = (
+            await db.AchievementDefinitions.AsNoTracking().ToListAsync(ct).ConfigureAwait(false)
+        )
+            .Select(x => AchievementDefinitionJson.Read(x.DefinitionJson))
+            .ToList();
+        var keys = stored.Select(x => x.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var ids = stored.Select(x => x.Id).ToHashSet();
+        var missing = pack
+            .Definitions.Where(x => !keys.Contains(x.Key) && !ids.Contains(x.Id))
+            .ToImmutableArray();
+        foreach (
+            var clash in pack.Definitions.Where(x => !keys.Contains(x.Key) && ids.Contains(x.Id))
+        )
             _logger?.LogWarning(
-                ex,
-                "The shipped achievement catalog was not installed. Set Turbo:Achievements:BadgeAssetDirectory and the badge texts, then run: achievement defaults achievements.json, then achievement import achievements.json --apply install-achievements-v1 Install defaults"
+                "Pack {Pack} was not given achievement {Key}: id {Id} is already used by another achievement",
+                pack.Key,
+                clash.Key,
+                clash.Id
             );
-        }
+        if (missing.IsEmpty)
+            return;
+        // The same pack version can have different definitions still missing from one start to the
+        // next, and an operation id must always mean the same request, so it names what it adds.
+        var fingerprint = Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(string.Join(',', missing.Select(x => x.Key))))
+        )[..8];
+        await ImportAsync(
+                missing,
+                apply: true,
+                actor: "turbo",
+                reason: $"Install the {pack.Key} achievement pack",
+                operationId: $"pack:{pack.Key}:{pack.Version}:{fingerprint}",
+                ct
+            )
+            .ConfigureAwait(false);
+        _logger?.LogInformation(
+            "Installed {Count} achievements from the {Pack} pack.",
+            missing.Length,
+            pack.Key
+        );
     }
 
     public async Task ReloadAsync(CancellationToken ct)
     {
-        await EnsureDefaultsInstalledAsync(ct).ConfigureAwait(false);
+        await InstallPacksAsync(ct).ConfigureAwait(false);
         await _publication.WaitAsync(ct).ConfigureAwait(false);
         try
         {
@@ -298,8 +339,8 @@ public sealed class AchievementCatalog : IAchievementCatalog
             foreach (var d in definitions)
             {
                 if (
-                    d.Id < 1001
-                    || (d.Id > 1018 && d.Id < 100000)
+                    d.Id < 1
+                    || (!allowRetainedSources && !IdAllowed(d.Id))
                     || !ValidKey(d.Key)
                     || !ValidKey(d.Category)
                     || d.Revision <= 0
@@ -439,6 +480,15 @@ public sealed class AchievementCatalog : IAchievementCatalog
 
     /// <summary>The longest value a fact may carry (<c>AchievementFactRecorder</c>), so a longer match could never fire.</summary>
     private const int MAX_FACT_VALUE_LENGTH = 512;
+
+    /// <summary>
+    /// A hotel's own achievements start at <see cref="AchievementIds.CUSTOM_START"/>; below it an id
+    /// belongs to a registered pack. Rows already stored are not checked, so a plugin's pack that
+    /// is no longer installed never stops the hotel from starting.
+    /// </summary>
+    private bool IdAllowed(int id) =>
+        id >= AchievementIds.CUSTOM_START
+        || (_packs?.Packs.Any(p => p.IdRanges.Any(r => r.Contains(id))) ?? false);
 
     private static bool ValidKey(string key) => Regex.IsMatch(key, "^[a-z][a-z0-9_.-]{0,63}$");
 }

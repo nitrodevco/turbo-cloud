@@ -225,50 +225,18 @@ public sealed class AchievementCatalogContractTests : IDisposable
     }
 
     [Fact]
-    public async Task ShippedDefaultsInstallIntoAnEmptyHotelOnceAndNeverOverwriteIt()
+    public async Task WithNoPackRegisteredAnEmptyHotelStaysEmpty()
     {
-        var assetDirectory = Path.Combine(
-            Path.GetTempPath(),
-            $"achievement-defaults-{Guid.NewGuid():N}"
-        );
-        Directory.CreateDirectory(assetDirectory);
-        var texts = new Dictionary<string, string>();
-        foreach (
-            var code in AchievementDefaults
-                .Definitions.SelectMany(x => x.Levels)
-                .Select(x => x.BadgeCode)
-        )
-        {
-            File.WriteAllBytes(Path.Combine(assetDirectory, code + ".png"), []);
-            texts["badge_name_" + code] = code;
-            texts["badge_desc_" + code] = code;
-        }
-        var catalog = NewCatalog(
-            new AchievementConfig { BadgeAssetDirectory = assetDirectory },
-            texts
-        );
+        var existing = NewCatalog(new AchievementConfig { InstallDefaults = false });
 
-        await catalog.ReloadAsync(Ct);
-        await catalog.ReloadAsync(Ct);
+        await existing.ReloadAsync(Ct);
 
-        catalog.Current.Should().HaveCount(AchievementDefaults.Definitions.Length);
-        await using var db = await _db.CreateDbContextAsync(Ct);
-        (await db.AchievementDefinitions.CountAsync(Ct))
-            .Should()
-            .Be(AchievementDefaults.Definitions.Length);
-        (await db.AchievementAudit.SingleAsync(Ct))
-            .OperationId.Should()
-            .Be(AchievementCatalog.DefaultsOperationId);
-        Directory.Delete(assetDirectory, recursive: true);
+        existing.Current.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task DefaultsAreNotInstalledOverAnExistingCatalogOrWhenDisabled()
+    public async Task AHabboPackThatCannotInstallLeavesTheHotelsOwnCatalogAlone()
     {
-        var existing = NewCatalog(new AchievementConfig { InstallDefaults = false });
-        await existing.ReloadAsync(Ct);
-        existing.Current.Should().BeEmpty();
-
         var custom = Definition(100100, "hotel-owned", AchievementSources.FIGURE);
         _db.Insert(
             new AchievementDefinitionEntity
@@ -278,9 +246,13 @@ public sealed class AchievementCatalogContractTests : IDisposable
                 DefinitionJson = JsonSerializer.Serialize(custom),
             }
         );
-        var catalog = NewCatalog();
+        var catalog = NewCatalog(packs: new AchievementPackRegistry([new HabboAchievementPack()]));
+
         await catalog.ReloadAsync(Ct);
+
         catalog.Current.Should().ContainSingle().Which.Id.Should().Be(100100);
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.AchievementAudit.CountAsync(Ct)).Should().Be(0);
     }
 
     [Fact]
@@ -488,9 +460,191 @@ public sealed class AchievementCatalogContractTests : IDisposable
         register.Should().Throw<ArgumentException>();
     }
 
+    [Fact]
+    public async Task APackAddsOnlyWhatTheHotelDoesNotHave()
+    {
+        var owned = Definition(2001, "alpha", AchievementSources.FIGURE) with { Revision = 5 };
+        _db.Insert(
+            new AchievementDefinitionEntity
+            {
+                AchievementId = owned.Id,
+                Revision = owned.Revision,
+                DefinitionJson = JsonSerializer.Serialize(owned),
+            }
+        );
+        var packs = new AchievementPackRegistry([SeasonalPack(1)]);
+        var catalog = NewCatalog(packs: packs);
+
+        await catalog.ReloadAsync(Ct);
+
+        catalog.Current.Select(x => (x.Key, x.Revision)).Should().Equal(("alpha", 5), ("beta", 1));
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.AchievementAudit.SingleAsync(Ct))
+            .OperationId.Should()
+            .MatchRegex("^pack:seasonal:1:[0-9A-F]{8}$");
+    }
+
+    [Fact]
+    public async Task AnOwnersEditSurvivesANewVersionOfThePackAndItsNewAchievementsStillArrive()
+    {
+        var registry = new AchievementPackRegistry([]);
+        var version1 = registry.Register(SeasonalPack(1));
+        var catalog = NewCatalog(packs: registry);
+        await catalog.ReloadAsync(Ct);
+        var edited = catalog.Current.Single(x => x.Key == "alpha") with
+        {
+            Revision = 2,
+            Levels =
+            [
+                new()
+                {
+                    Requirement = 7,
+                    BadgeCode = "ACH_alpha1",
+                    Score = 99,
+                },
+            ],
+        };
+        await catalog.ImportAsync([edited], true, "owner", "retune", "owner-edit", Ct);
+        version1.Dispose();
+        registry.Register(SeasonalPack(2, extra: true));
+
+        await catalog.ReloadAsync(Ct);
+
+        var alpha = catalog.Current.Single(x => x.Key == "alpha");
+        alpha.Revision.Should().Be(2);
+        alpha.Levels.Single().Requirement.Should().Be(7);
+        catalog.Current.Select(x => x.Key).Should().BeEquivalentTo("alpha", "beta", "gamma");
+    }
+
+    [Fact]
+    public async Task ReloadingAnAlreadyInstalledPackChangesNothing()
+    {
+        var catalog = NewCatalog(packs: new AchievementPackRegistry([SeasonalPack(1)]));
+
+        await catalog.ReloadAsync(Ct);
+        await catalog.ReloadAsync(Ct);
+        await catalog.ReloadAsync(Ct);
+
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.AchievementAudit.CountAsync(Ct)).Should().Be(1);
+        (await db.AchievementDefinitions.CountAsync(Ct)).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task AnIdInAPacksRangeIsAcceptedOnlyWhilethePackIsRegisteredAndStoredRowsAlwaysLoad()
+    {
+        var inRange = Definition(2005, "in-range", AchievementSources.FIGURE);
+        var without = NewCatalog();
+        var import = () =>
+            without.ImportAsync([inRange], false, "tests", "no pack", "range-op-1", Ct);
+        await import.Should().ThrowAsync<InvalidOperationException>();
+
+        var registry = new AchievementPackRegistry([]);
+        var registration = registry.Register(SeasonalPack(1));
+        var catalog = NewCatalog(packs: registry);
+        await catalog.ImportAsync([inRange], true, "tests", "pack", "range-op-2", Ct);
+        registration.Dispose();
+        var reloaded = NewCatalog();
+
+        await reloaded.ReloadAsync(Ct);
+
+        reloaded.Current.Should().Contain(x => x.Key == "in-range");
+    }
+
+    [Fact]
+    public async Task APackNeverTakesAnIdAnotherAchievementAlreadyUses()
+    {
+        var other = Definition(2002, "gamma", AchievementSources.FIGURE);
+        _db.Insert(
+            new AchievementDefinitionEntity
+            {
+                AchievementId = other.Id,
+                Revision = other.Revision,
+                DefinitionJson = JsonSerializer.Serialize(other),
+            }
+        );
+        var catalog = NewCatalog(packs: new AchievementPackRegistry([SeasonalPack(1)]));
+
+        await catalog.ReloadAsync(Ct);
+
+        catalog.Current.Select(x => x.Key).Should().BeEquivalentTo("alpha", "gamma");
+        catalog.Current.Single(x => x.Id == 2002).Key.Should().Be("gamma");
+    }
+
+    [Fact]
+    public async Task APackThatCannotInstallNeitherStopsAnotherPackNorStartup()
+    {
+        var failing = new TestAchievementPack(
+            "broken",
+            1,
+            [new(3000, 3010)],
+            [
+                Definition(3001, "needs-assets", AchievementSources.FIGURE) with
+                {
+                    State = AchievementState.Enabled,
+                },
+            ]
+        );
+        var catalog = NewCatalog(packs: new AchievementPackRegistry([failing, SeasonalPack(1)]));
+
+        await catalog.ReloadAsync(Ct);
+
+        catalog.Current.Select(x => x.Key).Should().BeEquivalentTo("alpha", "beta");
+    }
+
+    [Fact]
+    public async Task TheHabboPackInstallsIntoAnEmptyHotelOnceThroughTheAuditedImport()
+    {
+        var assetDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"achievement-pack-{Guid.NewGuid():N}"
+        );
+        Directory.CreateDirectory(assetDirectory);
+        var texts = new Dictionary<string, string>();
+        foreach (
+            var code in new HabboAchievementPack()
+                .Definitions.SelectMany(x => x.Levels)
+                .Select(x => x.BadgeCode)
+        )
+        {
+            File.WriteAllBytes(Path.Combine(assetDirectory, code + ".png"), []);
+            texts["badge_name_" + code] = code;
+            texts["badge_desc_" + code] = code;
+        }
+        var pack = new HabboAchievementPack();
+        var catalog = NewCatalog(
+            new AchievementConfig { BadgeAssetDirectory = assetDirectory },
+            texts,
+            new AchievementPackRegistry([pack])
+        );
+
+        await catalog.ReloadAsync(Ct);
+        await catalog.ReloadAsync(Ct);
+
+        catalog.Current.Should().HaveCount(pack.Definitions.Length);
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.AchievementAudit.SingleAsync(Ct)).OperationId.Should().StartWith("pack:habbo:1:");
+        Directory.Delete(assetDirectory, recursive: true);
+    }
+
+    private static TestAchievementPack SeasonalPack(int version, bool extra = false) =>
+        new(
+            "seasonal",
+            version,
+            [new(2000, 2010)],
+            [
+                Definition(2001, "alpha", AchievementSources.FIGURE),
+                Definition(2002, "beta", AchievementSources.FIGURE),
+                .. extra
+                    ? [Definition(2003, "gamma", AchievementSources.FIGURE)]
+                    : Array.Empty<AchievementDefinition>(),
+            ]
+        );
+
     private AchievementCatalog NewCatalog(
         AchievementConfig? config = null,
-        IReadOnlyDictionary<string, string>? texts = null
+        IReadOnlyDictionary<string, string>? texts = null,
+        IAchievementPackRegistry? packs = null
     )
     {
         var dictionary = texts ?? new Dictionary<string, string>();
@@ -509,7 +663,9 @@ public sealed class AchievementCatalogContractTests : IDisposable
             _db,
             _fakes.Create<ICurrencyTypeProvider>(),
             Options.Create(config ?? new AchievementConfig()),
-            _fakes.Create<IHotelTextProvider>()
+            _fakes.Create<IHotelTextProvider>(),
+            logger: null,
+            packs: packs
         );
     }
 
