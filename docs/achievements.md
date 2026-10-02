@@ -6,7 +6,7 @@ The official [Habbo achievements API](https://www.habbo.com/api/public/achieveme
 
 ## Install and configure
 
-Apply migrations `AddRespectAndPetOperationJournals` and `AddAchievements` through the normal EF migration workflow. They add tables and one column (`player_subscriptions.purchased_days_subscribed`); nothing else existing is altered. See [Storage](#storage) for what each table is for. A hotel with no achievement definitions gets the shipped Habbo catalog installed on startup through the normal audited import (operation `install-habbo-defaults-2026-10-02`); that needs `Turbo:Achievements:BadgeAssetDirectory` and the badge texts, and otherwise leaves the catalog empty with a warning that names the manual import. A hotel that already has definitions is never touched, and `Turbo:Achievements:InstallDefaults` set to `false` turns the install off.
+Apply migrations `AddRespectAndPetOperationJournals` and `AddAchievements` through the normal EF migration workflow. They add tables and one column (`player_subscriptions.purchased_days_subscribed`); nothing else existing is altered. See [Storage](#storage) for what each table is for. The shipped Habbo catalog is a [pack](#packs). On startup it is installed through the normal audited import (operation `pack:habbo:<version>:<hash>`): it adds every definition whose key and id the hotel does not have yet and never touches one it does, so your edits and retirements survive a new pack version while new Habbo achievements still arrive. It needs `Turbo:Achievements:BadgeAssetDirectory` and the badge texts for the achievements it enables; without them nothing is installed and a warning names `achievement reload`. `Turbo:Achievements:InstallDefaults` set to `false` turns the Habbo pack off.
 
 Configure `Turbo:Achievements:BadgeAssetDirectory` to the directory containing the hotel's badge PNGs. The hotel's configured external texts must contain each enabled badge's name and description, either its exact code or its numeric-level base, matching AS3 localization lookup. Serve the same assets and texts to Nitro.
 
@@ -16,13 +16,15 @@ In the Turbo console:
 
 ```text
 achievement defaults achievements.json
-achievement import achievements.json
-achievement import achievements.json --apply install-achievements-v1 Install validated hotel defaults
+achievement sync achievements.json
+achievement sync achievements.json --apply christmas-2026 Add the Christmas achievements
+achievement retire twelve-days-of-christmas --apply retire-xmas-2026 Season is over
+achievement import achievements.json --apply install-achievements-v1 Publish exactly these revisions
 achievement export current-achievements.json
-reload achievements
+achievement reload
 ```
 
-Import is a dry run unless `--apply` is supplied with a stable operation ID and reason. It validates the complete resulting catalog before one atomic publication. Failed reloads retain the working catalog. Import operations are audited and replayable; reusing an operation ID with different content is rejected. Keep exported catalogs under hotel version control.
+Everything validates only, and says what it would do, unless `--apply <operation-id> <reason>` is given; applying publishes one atomic, audited batch. Failed reloads retain the working catalog. Operations are replayable: reusing an operation ID with different content is rejected. `achievement defaults` exports every registered pack's definitions as a template, `achievement import` publishes the revisions exactly as numbered in the file, and [`achievement sync`](#adding-your-own-achievements-without-code) is the one to use day to day. The in-game `:reload achievements` operator command does the same as `achievement reload`. Keep exported catalogs under hotel version control.
 
 Configuration defaults:
 
@@ -31,10 +33,12 @@ Configuration defaults:
 | `Turbo:Achievements:RecoverySeconds` | 5 | Persistent dispatcher poll interval |
 | `Turbo:Achievements:RecoveryBatchSize` | 100 | Players/operations per recovery batch |
 | `Turbo:Achievements:FactBatchSize` | 100 | Facts consumed in one player turn |
-| `Turbo:Achievements:InstallDefaults` | true | Install the shipped Habbo catalog when the hotel has no definitions |
+| `Turbo:Achievements:InstallDefaults` | true | Install the shipped Habbo pack (read at startup; installing adds only what the hotel lacks) |
+| `Turbo:Achievements:ArchiveShowsAll` | false | List every archived achievement to every player; by default only to players who progressed it |
 | `Turbo:Achievements:FactRetentionDays` | 30 | Days a processed fact is kept for idempotent admission before it is deleted; `0` keeps them |
 | `Turbo:Achievements:MaxDefinitions` | 1000 | Catalog size limit |
 | `Turbo:Achievements:MaxDistinctValues` | 100000 | Distinct reducer storage limit |
+| `Turbo:Achievements:MaxMatchValues` | 1000 | Most values a definition's match list may hold |
 | `Turbo:Achievements:DefaultCategory` | identity | List packet's default category |
 | `Turbo:Achievements:ShowCongratulationsDialog` | true | Level-up dialog flag; corner notifications remain enabled |
 | `Turbo:Players:AchievementOnlineIntervalSeconds` | 30 | Durable online checkpoints; also flushed on clean disconnect |
@@ -61,7 +65,7 @@ Membership state needs no table of its own. Every grant covers exactly its days 
 
 ## Definitions and extensions
 
-IDs 1001–1018 belong to the seed families. Custom IDs begin at 100000. IDs and keys are permanent. Revision numbers increase; published revisions are immutable. Existing source identity, reducer and level count cannot be reinterpreted or shortened. For API-mapped families, seed requirements, categories and states follow the snapshot described below; do not substitute provisional hotel thresholds. Each level declares its cumulative requirement, explicit badge code, score and typed rewards. Badge codes begin with `ACH_` and use a stable base followed by the level number, as required by the standard badge-limit packet. Rewards are hotel policy because the API does not publish them: the current seed assigns 10 score per level and no currency.
+A hotel's own achievements, and any plugin's, use IDs from 100000. Below that an ID belongs to the [pack](#packs) that declares the range: the Habbo pack uses 1001–1018 for the hand-mapped families and 10000 plus the API ID for every other published record. IDs and keys are permanent. Revision numbers increase; published revisions are immutable. Existing source identity, reducer and level count cannot be reinterpreted or shortened, with one exception: a definition on the placeholder source `catalog.unhooked` (which nothing records) may be moved once to a real source and reducer, because no progress can exist yet. For API-mapped families, seed requirements, categories and states follow the snapshot described below; do not substitute provisional hotel thresholds. Each level declares its cumulative requirement, explicit badge code, score and typed rewards. Badge codes begin with `ACH_` and use a stable base followed by the level number, as required by the standard badge-limit packet. Rewards are hotel policy because the API does not publish them: the current seed assigns 10 score per level and no currency.
 
 Supported reducers are counters, distinct values, maximum values, UTC calendar streaks, elapsed interval unions and rank attainment. Source facts retain their stored units; `UnitDivisor` converts accumulated values for display and threshold comparison. A divisor may change only in a new definition revision. That changes conversion, not stored source facts, and completed awards retain their frozen definition revision. Rank requirements descend and use display method 1 to hide numeric progress. Criteria do not execute arbitrary scripts or SQL.
 
@@ -70,6 +74,93 @@ Plugins register complete typed batches through `IAchievementCatalog.RegisterSou
 Plugins react to completed levels by registering `IAchievementObserver` through `IAchievementObserverRegistry.Register`. After an award commits (rewards, badge and score all durable), each observer receives an `AchievementLevelCompleted` describing the frozen award. Notification is best effort: it runs off the player's achievement grain, a crash between the commit and the call loses it, a throwing observer is logged without affecting delivery or other observers, and events for one player may arrive out of order (use `Level` and `EarnedAtUtc`). Blocked awards notify nothing until they complete. Use an observer for notifications and soft side effects; anything that must happen exactly once belongs in a reward handler.
 
 Reward handlers implement `IAchievementRewardHandler`. A handler receives a player, immutable award key and versioned payload. It must commit a durable idempotency receipt with its effect, reject payload collisions, and safely replay after a crash. Returning successfully means delivery is durable. Handler unloading blocks pending awards until a compatible handler returns.
+
+## States, retiring and seasons
+
+Every definition has a `State`:
+
+| State | Accrues progress | Who is shown it |
+| --- | --- | --- |
+| `Disabled` | no | nobody (hidden) |
+| `Enabled` | yes, inside its window | everyone |
+| `Archived` | no | players who progressed it, in the client's Archive tab (everyone with `ArchiveShowsAll`) |
+| `OffSeason` | no | everyone; the client shows it like a normal one |
+
+`WiredControlled` exists in the client but is not supported and is refused. Nothing that was earned is ever taken back: levels, badges and score stay, and archived achievements still count toward the totals. An award already opened, and a fact already recorded, still finish after the state changes.
+
+To stop awarding something, `achievement retire <key>`. It publishes a new revision that is archived, so there is no hand-edited revision number and the change is on record; `unretire` turns it back on (it needs its badge images and texts again, like any enabled achievement), `disable` hides it from everyone and `offseason` marks it off-season. A hotel owner who wants a Habbo achievement gone from the list retires or disables it; there is no delete, because an ID and key are permanent.
+
+An enabled definition can be **seasonal**: `ActiveFromUtc` (inclusive) and `ActiveUntilUtc` (exclusive). Before the window it is hidden, inside it it accrues, and after it it is archived. A fact belongs to the window by when it occurred, and the achievement it counts toward is frozen with the fact. Time-based progress (online time, streaks) does not accrue while an achievement is not accruing, so turning one back on starts counting from then.
+
+## Adding your own achievements without code
+
+A hotel owner defines an achievement in data over the facts the hotel already records. You write a JSON file, run `achievement sync`, and the catalog is made to match it: a new key is created, a definition that differs gets the next revision (never number one yourself), one that already matches is left alone, and a key the file omits is only reported, never retired. Validation runs first and lists every problem at once; nothing is applied while there is one, and the rest is one atomic, audited import.
+
+The dry run also tells you what the client still needs, ready to paste. For a new category, a name text; for every level of a listed achievement, a badge image and a name and description text. A new category needs nothing else: the client builds its categories from whatever the server sends, and has no category icon.
+
+```text
+quests.christmas.name=Christmas
+badge_name_ACH_TwelveDaysOfChristmas=Twelve Days of Christmas
+badge_desc_ACH_TwelveDaysOfChristmas=Log in on %limit% of the 12 days of Christmas.
+```
+
+One badge name and description under the badge's base covers every level; a text for an exact level code overrides it. Put the images in `Turbo:Achievements:BadgeAssetDirectory` as `<badge code>.png` for every level, and serve the same files and texts to Nitro.
+
+### Example: log in on 12 days of Christmas
+
+[`examples/achievements/twelve-days-of-christmas.json`](examples/achievements/twelve-days-of-christmas.json) is a complete definition. It listens to logins, counts the distinct UTC days (`"Match": { "ValueFrom": "UtcDate" }`, so two logins on one day count once), awards at 3, 6, 9 and 12 days, and is only live from 25 December to 6 January:
+
+```text
+achievement sync docs/examples/achievements/twelve-days-of-christmas.json
+achievement sync docs/examples/achievements/twelve-days-of-christmas.json --apply christmas-2026 Add the Christmas achievements
+```
+
+[`examples/achievements/visit-the-christmas-rooms.json`](examples/achievements/visit-the-christmas-rooms.json) counts how many of three named rooms a player has entered (`"Match": { "Values": ["1001", "1002", "1003"] }`). Both files are run by the test suite exactly as written, so they stay correct.
+
+### What a definition can count
+
+A definition picks a source (the kind of fact) and a reducer (how to count it). A source allows its usual reducer and the others listed:
+
+| Source | Records | Reducers |
+| --- | --- | --- |
+| `identity.login` | each login | `CalendarStreak`, `Counter` (total logins), `Distinct` (with `UtcDate`: distinct days) |
+| `explore.admitted-room` | entering another player's room; value is the room id | `Distinct`, `Counter` |
+| `presence.online` | online intervals | `ElapsedSeconds` |
+| `identity.account-age`, `membership.eligible-seconds`, `membership.purchased-days`, `pets.owned`, `builder.floor-heights` | a state value | `Maximum` |
+| `identity.figure-change`, `identity.motto-change`, `explore.furniture-use`, `social.respect-given`, `social.respect-received`, `pets.nutrition-supplied`, `pets.level-increase`, `pets.respect-given`, `pets.respect-received` | each action | `Counter` |
+| `builder.room-rank` | a room's ranking | `Rank` |
+| `catalog.unhooked` | nothing | any, but never enabled |
+
+`Match` narrows what is counted without running anything: `Values` lists the exact fact values to listen to (such as room ids), and `ValueFrom` chooses what a distinct achievement counts, the fact's own value or the UTC date it happened on. Furniture use carries no item information yet, so a furniture-specific achievement needs a plugin that records its own fact. Criteria never run scripts or SQL.
+
+## Packs
+
+A pack is a set of definitions that ships together and owns a range of IDs. The Habbo catalog is one; a plugin can ship another. Installing a pack only adds: a definition whose key or ID the hotel already has is left exactly as it is. Pack IDs are below 100000 and packs may not overlap each other; IDs from 100000 are the hotel's own.
+
+The Habbo pack carries every published record the pinned snapshot can express: the 18 hand-mapped families plus 150 more, with their real categories and thresholds. Nothing in the hotel records the facts most of them need yet, so those ship `Disabled` (retired ones `Archived`) on the placeholder source `catalog.unhooked`. You can keep, edit, retire or re-goalpost any of them, and point one at a source something records (a plugin, or a later release) before enabling it; Turbo refuses to enable one nothing feeds. `DailyHotelPresence` (no levels in the API) and `RecycledItems` (thresholds that do not rise) cannot be shipped faithfully and are listed in the [coverage CSV](achievement-coverage.csv). Badge codes of names that end in a digit take an underscore before the level (`ACH_bazaar17_1`), because the client reads trailing digits as the level.
+
+## For plugins
+
+A plugin adds achievements in three ways, and none needs a database context:
+
+- **Record a fact** when something finishes that a definition can count. `IAchievementFacts.RecordAsync` stores it, does nothing if that operation was already recorded or nothing listens, and asks for the player's progress to be updated without making the caller wait, so it is safe to call from a grain.
+
+```csharp
+await facts.RecordAsync(
+    playerId,
+    new AchievementFact
+    {
+        OperationId = $"heist:{heistId}:{playerId}", // one id per action: recording it again does nothing
+        Source = "myplugin.heist-completed",          // a source the plugin registered
+        OccurredAtUtc = DateTime.UtcNow,
+    },
+    ct);
+```
+
+- **Register a source** the plugin records, with `IAchievementCatalog.RegisterSources`, and tell hotel owners what definitions can use it. Code that changes the database itself should record the fact in the same unit of work with `IAchievementFactRecorder` instead, so it commits or rolls back with the change.
+- **Ship definitions** as a pack (`IAchievementPackRegistry.Register`, then `achievement reload`), claiming a range of IDs below 100000 that no other pack uses, or just give hotel owners a JSON file to `achievement sync`.
+
+Reward handlers and observers are described below.
 
 ## Published coverage and hotel extensions
 

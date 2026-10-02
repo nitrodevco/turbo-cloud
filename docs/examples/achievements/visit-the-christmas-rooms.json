@@ -1,0 +1,23 @@
+[
+  {
+    "Id": 100002,
+    "Key": "visit-the-christmas-rooms",
+    "Revision": 1,
+    "Category": "christmas",
+    "SubCategory": "",
+    "Order": 100002,
+    "DisplayMethod": 0,
+    "Source": "explore.admitted-room",
+    "SourceVersion": 1,
+    "Reducer": "Distinct",
+    "UnitDivisor": 1,
+    "State": "Enabled",
+    "ActiveFromUtc": "2026-12-01T00:00:00Z",
+    "ActiveUntilUtc": "2027-01-06T00:00:00Z",
+    "Match": { "Values": ["1001", "1002", "1003"], "ValueFrom": "Fact" },
+    "Levels": [
+      { "Requirement": 1, "BadgeCode": "ACH_ChristmasRooms1", "Score": 10, "Rewards": [] },
+      { "Requirement": 3, "BadgeCode": "ACH_ChristmasRooms2", "Score": 10, "Rewards": [] }
+    ]
+  }
+]

@@ -62,7 +62,8 @@ public sealed class AchievementDefinitionJsonTests
     [Fact]
     public void ExplicitStateWinsOverLegacyFlags()
     {
-        var json = LegacyJson(true, false).Replace("{", "{\"State\":3,", StringComparison.Ordinal);
+        var json = LegacyJson(true, false)
+            .Replace("{", "{\"State\":\"OffSeason\",", StringComparison.Ordinal);
 
         AchievementDefinitionJson.Read(json).State.Should().Be(AchievementState.OffSeason);
     }
@@ -106,8 +107,8 @@ public sealed class AchievementDefinitionJsonTests
     private static string LegacyJson(bool? enabled, bool? archived)
     {
         var json = JsonSerializer.Serialize(Definition(AchievementState.Enabled));
-        json = json.Replace("\"State\":1,", "", StringComparison.Ordinal)
-            .Replace(",\"State\":1", "", StringComparison.Ordinal);
+        json = json.Replace("\"State\":\"Enabled\",", "", StringComparison.Ordinal)
+            .Replace(",\"State\":\"Enabled\"", "", StringComparison.Ordinal);
         var flags =
             (enabled is { } e ? $"\"Enabled\":{(e ? "true" : "false")}," : "")
             + (archived is { } a ? $"\"Archived\":{(a ? "true" : "false")}," : "");

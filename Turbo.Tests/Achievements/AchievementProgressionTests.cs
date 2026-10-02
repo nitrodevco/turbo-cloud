@@ -989,6 +989,100 @@ public sealed class AchievementProgressionTests : IDisposable
             Reducer = AchievementReducer.Maximum,
         };
 
+    [Fact]
+    public async Task TheTwelveDaysOfChristmasExampleAwardsAtThreeSixNineAndTwelveDays()
+    {
+        var example = ExampleDefinition("twelve-days-of-christmas");
+        var from = DateTime.UtcNow.Date.AddDays(-30);
+        var until = from.AddDays(12);
+        _catalog.Current = [example with { ActiveFromUtc = from, ActiveUntilUtc = until }];
+
+        await RecordAtAsync("xmas-early", from.AddDays(-1).AddHours(9), AchievementSources.LOGIN);
+        await RecordAtAsync("xmas-d0-a", from.AddHours(8), AchievementSources.LOGIN);
+        await RecordAtAsync("xmas-d0-b", from.AddHours(21), AchievementSources.LOGIN);
+        await RecordAtAsync("xmas-d1", from.AddDays(1).AddHours(8), AchievementSources.LOGIN);
+        await RecordAtAsync("xmas-d2", from.AddDays(2).AddHours(8), AchievementSources.LOGIN);
+        await NewGrain().ProcessAsync(Ct);
+        Assert.Equal((3, 1), await ProgressAsync());
+
+        for (var day = 3; day < 12; day++)
+            await RecordAtAsync(
+                $"xmas-d{day}",
+                from.AddDays(day).AddHours(8),
+                AchievementSources.LOGIN
+            );
+        await RecordAtAsync("xmas-late", until.AddHours(1), AchievementSources.LOGIN);
+        await NewGrain().ProcessAsync(Ct);
+
+        Assert.Equal((12, 4), await ProgressAsync());
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        Assert.False(
+            await db.AchievementFacts.AnyAsync(
+                x => x.OperationId == "xmas-early" || x.OperationId == "xmas-late",
+                Ct
+            )
+        );
+    }
+
+    [Fact]
+    public async Task TheChristmasRoomsExampleCountsOnlyTheListedRooms()
+    {
+        var example = ExampleDefinition("visit-the-christmas-rooms");
+        var from = DateTime.UtcNow.Date.AddDays(-30);
+        _catalog.Current =
+        [
+            example with
+            {
+                ActiveFromUtc = from,
+                ActiveUntilUtc = from.AddDays(60),
+            },
+        ];
+
+        foreach (
+            var (operation, room) in new[]
+            {
+                ("r1", "1001"),
+                ("r2", "1500"),
+                ("r3", "1002"),
+                ("r4", "1001"),
+                ("r5", "1003"),
+            }
+        )
+            await RecordAtAsync(operation, DateTime.UtcNow, AchievementSources.VISIT, room);
+        await NewGrain().ProcessAsync(Ct);
+
+        Assert.Equal((3, 2), await ProgressAsync());
+    }
+
+    [Fact]
+    public void TheChristmasExampleRunsForExactlyTwelveDays()
+    {
+        var example = ExampleDefinition("twelve-days-of-christmas");
+
+        Assert.Equal(new DateTime(2026, 12, 25, 0, 0, 0, DateTimeKind.Utc), example.ActiveFromUtc);
+        Assert.Equal(TimeSpan.FromDays(12), example.ActiveUntilUtc - example.ActiveFromUtc);
+        Assert.Equal([3, 6, 9, 12], example.Levels.Select(x => x.Requirement));
+    }
+
+    private async Task<(long Value, int EarnedLevel)> ProgressAsync()
+    {
+        await using var db = await _database.CreateDbContextAsync(Ct);
+        var progress = await db.AchievementProgress.SingleAsync(Ct);
+
+        return (progress.Value, progress.EarnedLevel);
+    }
+
+    private static AchievementDefinition ExampleDefinition(string name)
+    {
+        using var stream = typeof(AchievementProgressionTests).Assembly.GetManifestResourceStream(
+            $"Examples.Achievements.{name}.json"
+        );
+        Assert.NotNull(stream);
+        using var reader = new StreamReader(stream);
+
+        return AchievementDefinitionJson.ReadAll(reader.ReadToEnd()).Single();
+    }
+
     private async Task<int> StateFactCountAsync()
     {
         await using var db = await _database.CreateDbContextAsync(Ct);

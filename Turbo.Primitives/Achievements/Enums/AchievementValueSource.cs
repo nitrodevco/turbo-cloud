@@ -1,6 +1,9 @@
+using System.Text.Json.Serialization;
+
 namespace Turbo.Primitives.Achievements.Enums;
 
 /// <summary>Where a distinct achievement takes the value it counts from.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum AchievementValueSource
 {
     /// <summary>The value the fact carries, such as a room id.</summary>
