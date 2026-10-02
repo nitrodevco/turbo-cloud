@@ -354,7 +354,6 @@ public sealed class AchievementProgressionTests : IDisposable
         Assert.False((await db.AchievementFacts.SingleAsync(Ct)).Processed);
         Assert.Empty(await db.AchievementProgress.ToListAsync(Ct));
         Assert.Empty(await db.AchievementProjections.ToListAsync(Ct));
-        Assert.Empty(await db.AchievementStateValues.ToListAsync(Ct));
     }
 
     [Fact]

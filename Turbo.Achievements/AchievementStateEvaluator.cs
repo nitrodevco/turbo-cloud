@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -32,28 +33,22 @@ public sealed class AchievementStateEvaluator(
             .Players.AsNoTracking()
             .SingleAsync(x => x.Id == playerId.Value, ct)
             .ConfigureAwait(false);
-        var stored = await db
-            .AchievementStateValues.Where(x => x.PlayerId == playerId.Value)
-            .ToDictionaryAsync(x => x.Source, ct)
+        var projection = await db
+            .AchievementProjections.FindAsync([playerId.Value], ct)
             .ConfigureAwait(false);
+        var observed =
+            projection is { ObservedState.Length: > 0 }
+                ? JsonSerializer.Deserialize<Dictionary<string, long>>(projection.ObservedState)
+                    ?? []
+                : [];
+        var moved = false;
         var now = DateTime.UtcNow;
         void Record(string source, long value)
         {
-            if (stored.TryGetValue(source, out var last))
-            {
-                if (!force && last.Value == value)
-                    return;
-                last.Value = value;
-            }
-            else
-                db.AchievementStateValues.Add(
-                    new()
-                    {
-                        PlayerId = playerId.Value,
-                        Source = source,
-                        Value = value,
-                    }
-                );
+            if (!force && observed.TryGetValue(source, out var last) && last == value)
+                return;
+            observed[source] = value;
+            moved = true;
             recorder.Record(
                 db,
                 playerId,
@@ -96,8 +91,15 @@ public sealed class AchievementStateEvaluator(
         Record(AchievementSources.FLOOR_HEIGHTS, rooms.FloorHeights);
         if (rooms.Rank is { } rank)
             Record(AchievementSources.ROOM_RANK, rank);
-        if (db.ChangeTracker.HasChanges())
-            await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        if (!moved)
+            return;
+        if (projection is null)
+        {
+            projection = new() { PlayerId = playerId.Value };
+            db.AchievementProjections.Add(projection);
+        }
+        projection.ObservedState = JsonSerializer.Serialize(observed);
+        await db.SaveChangesAsync(ct).ConfigureAwait(false);
     }
 
     /// <summary>
