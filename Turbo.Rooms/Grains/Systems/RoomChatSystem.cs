@@ -296,6 +296,9 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
             if (avatar.ObjectId == speaker.ObjectId || avatar.IsWalking)
                 continue;
 
+            if (avatar.X == speaker.X && avatar.Y == speaker.Y)
+                continue;
+
             if (chatType == RoomChatType.Chat)
             {
                 var distance = Math.Max(
@@ -307,9 +310,25 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
                     continue;
             }
 
-            avatar.SetHeadRotation(
-                RotationExtensions.FromPoints(avatar.X, avatar.Y, speaker.X, speaker.Y)
+            var targetRotation = RotationExtensions.FromPoints(
+                avatar.X,
+                avatar.Y,
+                speaker.X,
+                speaker.Y
             );
+
+            // AS3 AvatarVisualization.updateObject and AvatarImage.setDirection trust the
+            // server's head direction. Automatic human chat reactions may look ahead or
+            // one octant either side of the body; explicit directions and pets are separate.
+            if (
+                avatar.AvatarType != RoomObjectType.Pet
+                && targetRotation != avatar.Rotation
+                && targetRotation != avatar.Rotation.Rotate(-1)
+                && targetRotation != avatar.Rotation.Rotate(1)
+            )
+                continue;
+
+            avatar.SetHeadRotation(targetRotation);
         }
     }
 
