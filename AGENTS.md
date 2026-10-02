@@ -1845,6 +1845,10 @@ finishing a change, check it against this list; each line is a mistake that was 
 
 - When a fix teaches a rule that is not in this file yet, add it here in the same change.
 
+- **Automatic human chat look-at keeps the body fixed and uses only its forward direction
+  or either adjacent octant.** Ignore speakers outside that range and on the same tile.
+  AS3's avatar renderer accepts the server's head direction; apply this rule in the chat
+  system, not as a global clamp that changes explicit direction updates or pet behavior.
 - **Rejected room entry does not load room contents.** Activation hydrates the metadata, rights
   and bans needed for the access decision. Load map, furniture and NPC state only after an
   allowed decision, before clearing the player's current room; recheck access after loading
