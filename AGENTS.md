@@ -7,7 +7,7 @@ Tool-specific instruction files should reference this file instead of duplicatin
 This repository targets the following core stack. When coding, prefer patterns compatible with these versions:
 - .NET SDK `10.0.400` (from `global.json`)
 - C# / BCL `net10.0`
-- Orleans `10.2.2`
+- Orleans `10.3.1`
 - EF Core `9.0.19` (held on 9.x: Pomelo `9.0.0` pins `Microsoft.EntityFrameworkCore.Relational` to `[9.0.0, 9.0.999]`)
 - Pomelo MySQL provider `9.0.0`
 - SuperSocket `2.1.0`
@@ -58,6 +58,9 @@ Default output format:
 - Keep C# formatting compatible with repo quality gates (`dotnet csharpier check`, `dotnet format`).
 - Follow `.editorconfig` naming/style preferences.
 - Keep diffs focused and minimal; avoid unrelated refactors.
+- Grain contract changes must pass the Orleans compatibility analyzer. Follow
+  `docs/orleans.md` to regenerate and review the owning project's `OrleansContracts.txt`;
+  never refresh baselines merely to silence diagnostics, and preserve retired history.
 - Avoid introducing new dependencies unless required by the task.
 
 ### Type placement

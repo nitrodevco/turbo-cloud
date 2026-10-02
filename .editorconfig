@@ -12,6 +12,9 @@ trim_trailing_whitespace = true
 [*.cs]
 dotnet_language_version = latest
 
+# Grain identities and RPC signatures must match the reviewed contract manifests.
+dotnet_analyzer_diagnostic.category-Versioning.severity = error
+
 # Never qualify with `this.`
 dotnet_style_qualification_for_field = false:none
 dotnet_style_qualification_for_property = false:none
