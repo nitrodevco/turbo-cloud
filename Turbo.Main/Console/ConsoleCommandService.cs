@@ -54,6 +54,11 @@ public class ConsoleCommandService(IServiceProvider services)
         {
             var input = await Task.Run(System.Console.ReadLine, ct).ConfigureAwait(false);
 
+            // End of input: running as a daemon with no terminal attached. Reading again would
+            // return null at once and spin.
+            if (input is null)
+                return;
+
             if (string.IsNullOrWhiteSpace(input))
                 continue;
 
