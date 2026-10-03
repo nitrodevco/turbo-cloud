@@ -79,6 +79,7 @@ public abstract partial class FurnitureWiredLogic(
         {
             _wiredData.StuffIds = stuffIds;
             _stuffIds.Adopt(stuffIds);
+            _snapshot = null;
 
             _wiredData.MarkDirty();
         }
@@ -95,6 +96,7 @@ public abstract partial class FurnitureWiredLogic(
         {
             _wiredData.StuffIds2 = stuffIds;
             _stuffIds2.Adopt(stuffIds);
+            _snapshot = null;
 
             _wiredData.MarkDirty();
         }
@@ -397,6 +399,10 @@ public abstract partial class FurnitureWiredLogic(
 
             _wiredData.MarkDirty();
 
+            // The editor reopened straight after a save, and a stack run before the wired tick
+            // reloads this box, read the snapshot: it has to be this save, not the one before.
+            _snapshot = null;
+
             if (KeepsFurniSnapshot)
                 CaptureFurniSnapshot(stuffIds);
 
@@ -650,12 +656,14 @@ public abstract partial class FurnitureWiredLogic(
         else
         {
             // Stored params no longer fit the rules (a rule was tightened, or the row was edited
-            // by hand). They never reach the box unchecked: it starts over from its defaults.
-            _roomGrain._logger.LogWarning(
-                "Wired item {ItemId} in room {RoomId} held int params that fail its rules; reset to defaults",
-                _ctx.ObjectId,
-                _ctx.RoomId
-            );
+            // by hand). They never reach the box unchecked: it starts over from its defaults. A
+            // box never saved has none stored, and taking its defaults is not news.
+            if (_wiredData.IntParams.Count > 0)
+                _roomGrain._logger.LogWarning(
+                    "Wired item {ItemId} in room {RoomId} held int params that fail its rules; reset to defaults",
+                    _ctx.ObjectId,
+                    _ctx.RoomId
+                );
 
             _wiredData.IntParams = GetDefaultIntParams();
             _wiredData.MarkDirty();
