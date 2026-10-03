@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.Providers;
@@ -18,19 +19,18 @@ public class FurniturePetFoodLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
 
     protected override bool IsConsumable => true;
 
-    protected override Task ServeAsync(IRoomPet pet, CancellationToken ct)
+    protected override async Task ServeAsync(IRoomPet pet, CancellationToken ct)
     {
         var config = _roomGrain._petConfig;
-
-        pet.SetNutrition(
-            System.Math.Min(config.MaxNutrition, pet.Nutrition + config.FoodNutrition)
+        var operationId = Guid.NewGuid().ToString("N");
+        await PetModule.SupplyNutritionAsync(
+            pet,
+            _ctx.RoomObject.OwnerId,
+            operationId,
+            config.FoodNutrition,
+            ct
         );
         pet.AddStatus(AvatarStatusType.Eat, string.Empty);
         pet.ActionExpiresAtMs = _roomGrain.NowMs() + config.ActionDurationMs;
-        pet.MarkDirty();
-
-        PetModule.Persist(pet);
-
-        return Task.CompletedTask;
     }
 }

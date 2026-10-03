@@ -7,10 +7,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Database.Achievements;
 using Turbo.Database.Context;
+using Turbo.Database.Entities.Achievements;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Extensions;
 using Turbo.Players.Configuration;
+using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Users;
@@ -32,6 +35,7 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
     private readonly SubscriptionConfig _subscriptionConfig;
     private readonly IGrainFactory _grainFactory;
     private readonly ILogger<IPlayerSubscriptionGrain> _logger;
+    private readonly IAchievementFactRecorder _achievementFacts;
 
     private readonly PlayerSubscriptionLiveState _state;
 
@@ -41,6 +45,7 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IOptions<PlayerConfig> playerConfig,
         IGrainFactory grainFactory,
+        IAchievementFactRecorder achievementFacts,
         ILogger<IPlayerSubscriptionGrain> logger
     )
     {
@@ -48,6 +53,7 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
         _subscriptionConfig = playerConfig.Value.Subscriptions;
         _grainFactory = grainFactory;
         _logger = logger;
+        _achievementFacts = achievementFacts;
 
         _state = new() { PlayerId = this.GetPlayerId() };
     }
@@ -78,7 +84,21 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
     public Task<bool> HasActiveAsync(SubscriptionType subscriptionType, CancellationToken ct) =>
         Task.FromResult(BuildSnapshot(subscriptionType).IsActive);
 
-    public async Task ExtendAsync(SubscriptionType subscriptionType, int days, CancellationToken ct)
+    public Task ExtendAsync(SubscriptionType subscriptionType, int days, CancellationToken ct) =>
+        ExtendCoreAsync(subscriptionType, days, false, ct);
+
+    public Task ExtendPurchasedAsync(
+        SubscriptionType subscriptionType,
+        int days,
+        CancellationToken ct
+    ) => ExtendCoreAsync(subscriptionType, days, true, ct);
+
+    private async Task ExtendCoreAsync(
+        SubscriptionType subscriptionType,
+        int days,
+        bool purchased,
+        CancellationToken ct
+    )
     {
         if (days <= 0)
         {
@@ -121,11 +141,28 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
 
         entity.ExpiresAt = from.AddDays(days);
         entity.TotalDaysSubscribed += days;
+        if (purchased)
+            entity.PurchasedDaysSubscribed += days;
         entity.PeriodsPurchased++;
 
         if (subscriptionType == SubscriptionType.BuildersClub)
             entity.FurniLimit = NextFurniLimit(entity.FurniLimit);
 
+        if (subscriptionType == SubscriptionType.HabboClub)
+        {
+            // Duration is reconciled from the subscription row; the journal wakes offline recovery after committed extensions.
+            _achievementFacts.Record(
+                dbCtx,
+                PlayerId,
+                new()
+                {
+                    Source = AchievementSources.HC,
+                    Amount = 0,
+                    OperationId = Guid.NewGuid().ToString("N"),
+                    OccurredAtUtc = now,
+                }
+            );
+        }
         await dbCtx.SaveChangesAsync(ct);
 
         _state.SubscriptionsByType[subscriptionType] = entity;

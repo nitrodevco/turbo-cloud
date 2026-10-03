@@ -113,6 +113,24 @@ internal sealed class BadgeDirectoryGrain : Grain, IBadgeDirectoryGrain
         return Task.FromResult(GetInfo(badgeCode));
     }
 
+    public async Task RefreshCodesAsync(ImmutableArray<string> badgeCodes, CancellationToken ct)
+    {
+        var codes = badgeCodes.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
+        var counts = await db
+            .PlayerBadges.AsNoTracking()
+            .Where(x => codes.Contains(x.BadgeCode))
+            .GroupBy(x => x.BadgeCode)
+            .Select(g => new { Code = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+        foreach (var code in codes)
+            _state.OwnerCountByCode[code] =
+                counts
+                    .FirstOrDefault(x => x.Code.Equals(code, StringComparison.OrdinalIgnoreCase))
+                    ?.Count
+                ?? 0;
+    }
+
     public Task OnBadgeRevokedAsync(string badgeCode, CancellationToken ct)
     {
         var remaining = _state.OwnerCountByCode.GetValueOrDefault(badgeCode) - 1;

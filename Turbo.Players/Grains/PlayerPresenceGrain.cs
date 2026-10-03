@@ -2,12 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Orleans.Runtime;
 using Orleans.Streams;
+using Turbo.Database.Achievements;
+using Turbo.Database.Context;
 using Turbo.Players.Configuration;
+using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Networking.Capabilities;
 using Turbo.Primitives.Orleans;
@@ -37,6 +41,8 @@ internal sealed partial class PlayerPresenceGrain
     private ISessionContextObserver? _sessionObserver;
     private StreamSubscriptionHandle<RoomOutboundSnapshot>? _roomOutboundSub;
     private IGrainTimer? _presenceTimer;
+    private readonly IDbContextFactory<TurboDbContext> _achievementDatabase;
+    private readonly IAchievementFactRecorder _achievementFacts;
 
     // The active room changed and the session has not been told yet. The next flush carries it,
     // even with no composers queued; see ProcessOutgoingQueueAsync.
@@ -47,12 +53,16 @@ internal sealed partial class PlayerPresenceGrain
     public PlayerPresenceGrain(
         IOptions<PlayerConfig> playerConfig,
         IGrainFactory grainFactory,
+        IDbContextFactory<TurboDbContext> achievementDatabase,
+        IAchievementFactRecorder achievementFacts,
         ILogger<IPlayerPresenceGrain> logger
     )
     {
         _playerConfig = playerConfig.Value;
         _grainFactory = grainFactory;
         _logger = logger;
+        _achievementDatabase = achievementDatabase;
+        _achievementFacts = achievementFacts;
 
         _state = new() { PlayerId = this.GetPlayerId() };
     }
@@ -67,15 +77,17 @@ internal sealed partial class PlayerPresenceGrain
         await UnregisterSessionObserverAsync(_state.SessionKey, ct);
     }
 
-    public Task RegisterSessionObserverAsync(
+    public async Task RegisterSessionObserverAsync(
         SessionKey sessionKey,
         ISessionContextObserver observer,
         CancellationToken ct
     )
     {
+        await PersistOnlineIntervalAsync(ct);
         // A flush awaiting the previous observer must not stall the replacement connection.
         _state.SessionGeneration++;
         _state.SessionKey = sessionKey;
+        _state.AchievementOnlineSinceUtc = DateTime.UtcNow;
         _state.ClientCapabilities = _state.ClientCapabilities.Clear();
         _state.IsProcessingQueue = false;
         _state.OutgoingQueue.Clear();
@@ -86,10 +98,9 @@ internal sealed partial class PlayerPresenceGrain
         // login handler sends it directly.
         _activeRoomDirty = true;
 
-        _grainFactory
-            .GetPlayerGrain(_state.PlayerId)
-            .SetOnlineStatusAsync(true, CancellationToken.None)
-            .LogAndForget(_logger, "set player {PlayerId} online", _state.PlayerId);
+        // The profile's callbacks are interleaved tells, so login can wait for its journal
+        // commit before authentication is acknowledged without an ownership cycle.
+        await _grainFactory.GetPlayerGrain(_state.PlayerId).SetOnlineStatusAsync(true, ct);
 
         _presenceTimer?.Dispose();
 
@@ -106,12 +117,16 @@ internal sealed partial class PlayerPresenceGrain
                 KeepAlive = true,
             }
         );
-
-        return Task.CompletedTask;
     }
 
     private async Task FlushPendingMessengerUpdatesAsync(CancellationToken ct)
     {
+        if (
+            _state.AchievementOnlineSinceUtc is { } since
+            && (DateTime.UtcNow - since).TotalSeconds
+                >= _playerConfig.AchievementOnlineIntervalSeconds
+        )
+            await PersistOnlineIntervalAsync(ct);
         var messengerGrain = _grainFactory.GetPlayerMessengerGrain(_state.PlayerId);
         var messengerUpdates = await messengerGrain.GetPendingUpdatesAsync(ct);
 
@@ -129,6 +144,11 @@ internal sealed partial class PlayerPresenceGrain
         if (_state.SessionKey != sessionKey)
             return;
 
+        await PersistOnlineIntervalAsync(ct);
+        // A replacement may have attached while persistence was in flight.
+        if (_state.SessionKey != sessionKey)
+            return;
+        _state.AchievementOnlineSinceUtc = null;
         _state.SessionGeneration++;
         _state.SessionKey = SessionKey.Invalid;
         _state.ClientCapabilities = _state.ClientCapabilities.Clear();

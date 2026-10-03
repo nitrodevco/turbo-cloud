@@ -226,6 +226,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Use :reload to re-read the catalog, texts, furniture and the like from the database."
         ),
         new(
+            PermissionNodes.Command.ACHIEVEMENTS,
+            "Inspect, advance, reconcile and retry achievements without revoking awards."
+        ),
+        new(
             PermissionNodes.Command.UNLOADROOM,
             "Use :unloadroom to unload this room so it is read from the database again."
         ),

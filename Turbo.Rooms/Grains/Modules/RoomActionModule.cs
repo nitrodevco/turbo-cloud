@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -5,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Logging;
 using Turbo.Primitives;
+using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Interactions;
@@ -179,7 +181,24 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         if (!await item.Logic.CanUseAsync(ctx))
             return false;
 
+        var previousState = item.Logic.GetState();
         await item.Logic.OnUseAsync(ctx, param, ct);
+        // A rejected gate use and an action with no state change are not qualifying toggles.
+        if (ctx.Origin == ActionOrigin.Player && previousState != item.Logic.GetState())
+        {
+            await using var db = await _roomGrain._dbCtxFactory.CreateDbContextAsync(ct);
+            _roomGrain._achievementFacts.Record(
+                db,
+                ctx.PlayerId,
+                new()
+                {
+                    Source = AchievementSources.FURNITURE,
+                    OperationId = Guid.NewGuid().ToString("N"),
+                    OccurredAtUtc = DateTime.UtcNow,
+                }
+            );
+            await db.SaveChangesAsync(ct);
+        }
 
         await _roomGrain.PublishRoomEventAsync(
             new RoomItemUsedEvent

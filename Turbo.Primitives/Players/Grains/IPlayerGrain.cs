@@ -22,6 +22,13 @@ public interface IPlayerGrain : IGrainWithIntegerKey
     /// <summary>Records a received respect and returns the new total.</summary>
     public Task<int> ReceiveRespectAsync(CancellationToken ct);
 
+    /// <summary>Durably reserves a respect with an idempotent participant receipt.</summary>
+    public Task<bool> SpendRespectOperationAsync(string operationId, CancellationToken ct);
+    public Task<bool> SpendPetRespectOperationAsync(string operationId, CancellationToken ct);
+
+    /// <summary>Durably applies the recipient's part of a respect operation once.</summary>
+    public Task<int> ReceiveRespectOperationAsync(string operationId, CancellationToken ct);
+
     /// <summary>Refills today's respects if a replenish is available; false otherwise.</summary>
     public Task<bool> ReplenishRespectAsync(CancellationToken ct);
 
@@ -30,6 +37,10 @@ public interface IPlayerGrain : IGrainWithIntegerKey
     /// badges are. A change is passed on to the room they are in.
     /// </summary>
     public Task SetBadgesRankAsync(int badgesRank, CancellationToken ct);
+
+    /// <summary>Refreshes completed-award projections without calling back into achievements.</summary>
+    [global::Orleans.Concurrency.AlwaysInterleave]
+    public Task SetAchievementTotalsAsync(int score, int earnedLevels, CancellationToken ct);
 
     public Task<PlayerExtendedProfileSnapshot> GetExtendedProfileSnapshotAsync(
         CancellationToken ct

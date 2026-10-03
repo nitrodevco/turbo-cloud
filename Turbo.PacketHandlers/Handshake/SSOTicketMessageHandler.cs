@@ -223,7 +223,24 @@ public class SSOTicketMessageHandler(
                     ct
                 )
                 .ConfigureAwait(false);
-        await ctx.SendComposerAsync(new AchievementsScoreEventMessageComposer { Score = 0 }, ct)
+        await global::Turbo
+            .Primitives.Achievements.Orleans.AchievementGrainExtensions.GetPlayerAchievementGrain(
+                _grainFactory,
+                playerId
+            )
+            .ReconcileAsync(ct)
+            .ConfigureAwait(false);
+        var achievementSummary = await _grainFactory
+            .GetPlayerGrain(playerId)
+            .GetSummaryAsync(ct)
+            .ConfigureAwait(false);
+        await ctx.SendComposerAsync(
+                new AchievementsScoreEventMessageComposer
+                {
+                    Score = achievementSummary.AchievementScore,
+                },
+                ct
+            )
             .ConfigureAwait(false);
         await ctx.SendComposerAsync(new IsFirstLoginOfDayMessage { IsFirstLoginOfDay = true }, ct)
             .ConfigureAwait(false);

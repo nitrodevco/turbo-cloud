@@ -26,6 +26,13 @@ public interface IPlayerSubscriptionGrain : IGrainWithIntegerKey
     /// </summary>
     public Task ExtendAsync(SubscriptionType subscriptionType, int days, CancellationToken ct);
 
+    /// <summary>A paid catalog extension, recorded separately from administrative grants.</summary>
+    public Task ExtendPurchasedAsync(
+        SubscriptionType subscriptionType,
+        int days,
+        CancellationToken ct
+    );
+
     /// <summary>
     /// Sends the Builders Club countdown. Called on login and again whenever it changes. The club
     /// level travels in <c>UserRights</c>, which the permission grain sends; this grain asks it to

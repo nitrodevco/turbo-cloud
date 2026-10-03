@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Furniture.Providers;
@@ -24,6 +25,7 @@ public class TurboEmulator(
     ICatalogSnapshotProvider<NormalCatalog> catalogProvider,
     ICatalogSnapshotProvider<BuildersClubCatalog> buildersClubCatalogProvider,
     ICurrencyTypeProvider currencyTypeProvider,
+    IAchievementCatalog achievements,
     IChatStyleProvider chatStyleProvider,
     INavigatorProvider topLevelContextProvider,
     IRoomModelProvider roomModelProvider,
@@ -55,6 +57,7 @@ public class TurboEmulator(
             await _catalogProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _buildersClubCatalogProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _currencyTypeProvider.ReloadAsync(ct).ConfigureAwait(false);
+            await achievements.ReloadAsync(ct).ConfigureAwait(false);
             await _chatStyleProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _topLevelContextProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _roomModelProvider.ReloadAsync(ct).ConfigureAwait(false);

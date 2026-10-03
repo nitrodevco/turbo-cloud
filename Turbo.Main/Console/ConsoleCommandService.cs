@@ -4,8 +4,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans;
+using Turbo.Achievements;
 using Turbo.Commands;
 using Turbo.Plugins;
+using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Texts;
@@ -67,9 +69,29 @@ public class ConsoleCommandService(IServiceProvider services)
 
         switch (cmd)
         {
+            case "achievement":
+                try
+                {
+                    await new AchievementConsoleCommand(
+                        _services.GetRequiredService<IAchievementCatalog>(),
+                        _services.GetRequiredService<IAchievementPackRegistry>(),
+                        _services.GetRequiredService<AchievementSync>()
+                    )
+                        .RunAsync(args, ct)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    System.Console.WriteLine($"Achievement command failed: {ex.Message}");
+                }
+                break;
             case "help":
                 System.Console.WriteLine(
-                    "Available commands: help, quit, reload-plugins, reload-plugin <key>, perm (perm help for usage), and any operator chat command by name, such as ban, alert or status"
+                    "Available commands: help, quit, reload-plugins, reload-plugin <key>, perm (perm help for usage), achievement (run it with no arguments for usage), and any operator chat command by name, such as ban, alert or status"
                 );
                 var registry = _services.GetRequiredService<ICommandRegistryProvider>().Current;
                 var texts = _services.GetRequiredService<IHotelTextProvider>();

@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Turbo.Database.Achievements;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Extensions;
 using Turbo.Primitives.Action;
@@ -29,6 +30,7 @@ public sealed partial class RoomGrain
         try
         {
             await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+            await using var transaction = await dbCtx.Database.BeginTransactionAsync(ct);
 
             dbCtx.RoomRatings.Add(
                 new RoomRatingEntity
@@ -41,9 +43,14 @@ public sealed partial class RoomGrain
 
             await dbCtx.SaveChangesAsync(ct);
 
-            await dbCtx
+            var changed = await dbCtx
                 .Rooms.Where(x => x.Id == _state.RoomId.Value)
                 .ExecuteUpdateAsync(s => s.SetProperty(x => x.Score, x => x.Score + points), ct);
+            if (changed != 1)
+                throw new InvalidOperationException("Rated room no longer exists.");
+            await AchievementRoomCriteria.RecordRankingsAsync(dbCtx, _achievementFacts, ct);
+            await dbCtx.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
         }
         catch (Exception ex)
         {

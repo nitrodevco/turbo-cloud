@@ -37,7 +37,7 @@ namespace Turbo.Inventory.Grains.Badges;
 /// the presence's tells — never calls it back; the player grain is only told.
 /// </para>
 /// </summary>
-internal sealed class PlayerBadgeGrain : Grain, IPlayerBadgeGrain
+internal sealed partial class PlayerBadgeGrain : Grain, IPlayerBadgeGrain
 {
     private const int NOT_WORN = 0;
 
@@ -111,7 +111,10 @@ internal sealed class PlayerBadgeGrain : Grain, IPlayerBadgeGrain
 
     public async Task<bool> GiveBadgeAsync(string badgeCode, CancellationToken ct)
     {
-        if (!TryNormalizeCode(badgeCode, out var code) || _state.BadgesByCode.ContainsKey(code))
+        if (!TryNormalizeCode(badgeCode, out var code))
+            return false;
+
+        if (_state.BadgesByCode.ContainsKey(code))
             return false;
 
         var entity = new PlayerBadgeEntity

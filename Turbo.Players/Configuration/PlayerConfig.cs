@@ -20,6 +20,9 @@ public class PlayerConfig
 
     public int PlayerPresenceTickMs { get; init; } = 5000;
 
+    /// <summary>Durable presence interval in seconds; a crash credits only committed intervals.</summary>
+    public int AchievementOnlineIntervalSeconds { get; init; } = 30;
+
     /// <summary>
     /// Players whose id and name the hotel-wide player directory keeps in memory; the least
     /// recently asked-for is dropped past this and read from the database again when needed.

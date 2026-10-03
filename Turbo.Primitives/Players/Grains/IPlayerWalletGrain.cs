@@ -20,6 +20,14 @@ public interface IPlayerWalletGrain : IGrainWithIntegerKey
     /// <summary>Credits a command reward and persists its notification with the balance.</summary>
     public Task<bool> CreditRewardAsync(CurrencyKind kind, int amount, CancellationToken ct);
 
+    /// <summary>Commits an immutable award receipt with the balance; replay cannot credit twice.</summary>
+    public Task<bool> CreditAchievementAsync(
+        string awardKey,
+        CurrencyKind kind,
+        int amount,
+        CancellationToken ct
+    );
+
     /// <summary>Submits accumulated reward notices to the active session, retaining unsuccessful sends.</summary>
     public Task DeliverPendingRewardsAsync(CancellationToken ct);
     public Task<Dictionary<int, int>> GetActivityPointsAsync(CancellationToken ct);

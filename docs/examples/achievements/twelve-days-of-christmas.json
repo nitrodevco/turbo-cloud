@@ -1,0 +1,25 @@
+[
+  {
+    "Id": 100001,
+    "Key": "twelve-days-of-christmas",
+    "Revision": 1,
+    "Category": "christmas",
+    "SubCategory": "",
+    "Order": 100001,
+    "DisplayMethod": 0,
+    "Source": "identity.login",
+    "SourceVersion": 1,
+    "Reducer": "Distinct",
+    "UnitDivisor": 1,
+    "State": "Enabled",
+    "ActiveFromUtc": "2026-12-25T00:00:00Z",
+    "ActiveUntilUtc": "2027-01-06T00:00:00Z",
+    "Match": { "Values": [], "ValueFrom": "UtcDate" },
+    "Levels": [
+      { "Requirement": 3, "BadgeCode": "ACH_TwelveDaysOfChristmas1", "Score": 10, "Rewards": [] },
+      { "Requirement": 6, "BadgeCode": "ACH_TwelveDaysOfChristmas2", "Score": 10, "Rewards": [] },
+      { "Requirement": 9, "BadgeCode": "ACH_TwelveDaysOfChristmas3", "Score": 10, "Rewards": [] },
+      { "Requirement": 12, "BadgeCode": "ACH_TwelveDaysOfChristmas4", "Score": 10, "Rewards": [] }
+    ]
+  }
+]

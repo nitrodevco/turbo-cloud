@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Orleans;
 using Orleans.Runtime;
 using Orleans.Streams;
+using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Room.Permissions;
@@ -71,6 +74,31 @@ internal sealed partial class PlayerPresenceGrain
         await ClearActiveRoomAsync(ct);
         await ClearPendingRoomAsync(ct);
 
+        // Admission has succeeded. Persist the distinct visit before acknowledging room membership.
+        await using (var db = await _achievementDatabase.CreateDbContextAsync(ct))
+        {
+            var roomOwner = await db
+                .Rooms.Where(x => x.Id == roomId.Value)
+                .Select(x => (int?)x.PlayerEntityId)
+                .SingleOrDefaultAsync(ct);
+            if (roomOwner is { } owner && owner != _state.PlayerId.Value)
+            {
+                _achievementFacts.Record(
+                    db,
+                    _state.PlayerId,
+                    new()
+                    {
+                        Source = AchievementSources.VISIT,
+                        OperationId = Guid.NewGuid().ToString("N"),
+                        OccurredAtUtc = DateTime.UtcNow,
+                        Value = roomId.Value.ToString(
+                            System.Globalization.CultureInfo.InvariantCulture
+                        ),
+                    }
+                );
+                await db.SaveChangesAsync(ct);
+            }
+        }
         _state.ActiveRoomId = roomId;
         _state.ActiveRoomSinceUtc = DateTime.UtcNow;
         OnActiveRoomChanged();

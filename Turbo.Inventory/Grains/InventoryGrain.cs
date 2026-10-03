@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Database.Achievements;
 using Turbo.Database.Context;
 using Turbo.Inventory.Configuration;
 using Turbo.Inventory.Grains.Modules;
@@ -31,6 +32,7 @@ internal sealed partial class InventoryGrain : Grain, IInventoryGrain
     internal readonly InventoryConfig _inventoryConfig;
     internal readonly IGrainFactory _grainFactory;
     private readonly ILogger<IInventoryGrain> _logger;
+    internal readonly IAchievementFactRecorder _achievementFacts;
 
     private readonly InventoryLiveState _state;
     internal readonly InventoryFurniModule FurniModule;
@@ -47,12 +49,14 @@ internal sealed partial class InventoryGrain : Grain, IInventoryGrain
         IInventoryFurnitureLoader furnitureItemsLoader,
         ICatalogService catalogService,
         IPetBreedProvider petBreedProvider,
+        IAchievementFactRecorder achievementFacts,
         ILogger<IInventoryGrain> logger
     )
     {
         _inventoryConfig = inventoryConfig.Value;
         _grainFactory = grainFactory;
         _logger = logger;
+        _achievementFacts = achievementFacts;
 
         _state = new() { PlayerId = this.GetPlayerId() };
         FurniModule = new InventoryFurniModule(

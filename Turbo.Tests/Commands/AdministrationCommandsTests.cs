@@ -54,6 +54,7 @@ public class AdministrationCommandsTests : OperatorCommandsTestBase
                 Hotel.Fakes.Create<Turbo.Primitives.Players.Providers.IChatStyleProvider>(),
                 Hotel.Fakes.Create<Turbo.Primitives.Rooms.Providers.IRoomModelProvider>(),
                 Hotel.Fakes.Create<Turbo.Primitives.Pets.Providers.IPetBreedProvider>(),
+                Hotel.Fakes.Create<Turbo.Primitives.Achievements.IAchievementCatalog>(),
                 null! // the plugin host is a class, and no subject but plugins touches it
             ),
         ]);

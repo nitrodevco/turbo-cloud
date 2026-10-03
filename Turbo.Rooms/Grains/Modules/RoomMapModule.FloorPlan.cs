@@ -5,7 +5,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Turbo.Database.Achievements;
 using Turbo.Database.Entities.Room;
+using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture;
@@ -221,6 +223,7 @@ public sealed partial class RoomMapModule
         try
         {
             await using var dbCtx = await _roomGrain._dbCtxFactory.CreateDbContextAsync(ct);
+            await using var transaction = await dbCtx.Database.BeginTransactionAsync(ct);
 
             var room = await dbCtx.Rooms.FirstOrDefaultAsync(
                 x => x.Id == _roomGrain.RoomId.Value,
@@ -264,7 +267,19 @@ public sealed partial class RoomMapModule
                 model.DoorRotation = doorRotation;
             }
 
+            _roomGrain._achievementFacts.Record(
+                dbCtx,
+                room.PlayerEntityId,
+                new AchievementFact
+                {
+                    OperationId = $"floor-plan:{Guid.NewGuid():N}",
+                    Source = AchievementSources.FLOOR_HEIGHTS,
+                    OccurredAtUtc = DateTime.UtcNow,
+                    Amount = AchievementRoomCriteria.CountFloorHeights(modelData),
+                }
+            );
             await dbCtx.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
 
             return model.Id;
         }

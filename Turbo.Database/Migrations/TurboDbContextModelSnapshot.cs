@@ -22,6 +22,240 @@ namespace Turbo.Database.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
+            modelBuilder.Entity("Turbo.Database.Entities.Achievements.AchievementAuditEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Actor")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)");
+
+                    b.Property<string>("AfterJson")
+                        .IsRequired()
+                        .HasMaxLength(2147483647)
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("BeforeJson")
+                        .IsRequired()
+                        .HasMaxLength(2147483647)
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("OperationId")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("varchar(160)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)");
+
+                    b.Property<string>("RequestJson")
+                        .IsRequired()
+                        .HasMaxLength(2147483647)
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OperationId")
+                        .IsUnique();
+
+                    b.ToTable("achievement_audit");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Achievements.AchievementDefinitionEntity", b =>
+                {
+                    b.Property<int>("AchievementId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Revision")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DefinitionJson")
+                        .IsRequired()
+                        .HasMaxLength(2147483647)
+                        .HasColumnType("longtext");
+
+                    b.HasKey("AchievementId", "Revision");
+
+                    b.ToTable("achievement_definitions");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Achievements.AchievementDistinctValueEntity", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AchievementId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Value")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)");
+
+                    b.HasKey("PlayerId", "AchievementId", "Value");
+
+                    b.ToTable("achievement_distinct_values");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Achievements.AchievementFactEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("BindingsJson")
+                        .IsRequired()
+                        .HasMaxLength(2147483647)
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("FactJson")
+                        .IsRequired()
+                        .HasMaxLength(2147483647)
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("OperationId")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("varchar(160)");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Processed")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerId", "OperationId")
+                        .IsUnique();
+
+                    b.HasIndex("PlayerId", "Processed", "Id");
+
+                    b.ToTable("achievement_facts");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Achievements.AchievementProgressEntity", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AchievementId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CompletedLevel")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DistinctCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EarnedLevel")
+                        .HasColumnType("int");
+
+                    b.Property<long>("ForwardAdjustment")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("IntervalsJson")
+                        .IsRequired()
+                        .HasMaxLength(2147483647)
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("LastDayUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("LastLevelAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("OpenAwards")
+                        .IsRequired()
+                        .HasMaxLength(2147483647)
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("PendingDelivery")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("ScoreEarned")
+                        .HasColumnType("int");
+
+                    b.Property<long>("Streak")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Value")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("PlayerId", "AchievementId");
+
+                    b.HasIndex("PendingDelivery", "PlayerId");
+
+                    b.ToTable("achievement_progress");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Achievements.AchievementProjectionEntity", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EarnedLevels")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ObservedState")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)");
+
+                    b.Property<bool>("PublicationPending")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("ReconciledStamp")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("int");
+
+                    b.HasKey("PlayerId");
+
+                    b.ToTable("achievement_projections");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Achievements.AchievementWalletReceiptEntity", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("AwardKey")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)");
+
+                    b.HasKey("PlayerId", "AwardKey");
+
+                    b.ToTable("achievement_wallet_receipts");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Badges.BadgeDefinitionEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -2502,6 +2736,132 @@ namespace Turbo.Database.Migrations
                     b.ToTable("pets");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Pets.PetNutritionOperationEntity", b =>
+                {
+                    b.Property<string>("OperationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int>("ActualGain")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BaseNutrition")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Completed")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("MaxNutrition")
+                        .HasColumnType("int");
+
+                    b.Property<int>("NutritionAfter")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OwnerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PetId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RequestedNutrition")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RoomId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SupplierId")
+                        .HasColumnType("int");
+
+                    b.HasKey("OperationId");
+
+                    b.ToTable("pet_nutrition_operations");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Pets.PetRespectOperationEntity", b =>
+                {
+                    b.Property<string>("OperationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int>("ActorId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BaseRespect")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Completed")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("OwnerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PetId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Rejected")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("ResultRespect")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RoomId")
+                        .HasColumnType("int");
+
+                    b.HasKey("OperationId");
+
+                    b.ToTable("pet_respect_operations");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Players.HumanRespectOperationEntity", b =>
+                {
+                    b.Property<string>("OperationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int>("ActorId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Completed")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("Rejected")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("ResultTotal")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TargetId")
+                        .HasColumnType("int");
+
+                    b.HasKey("OperationId");
+
+                    b.ToTable("human_respect_operations");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Players.HumanRespectParticipantReceiptEntity", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("OperationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Kind")
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)");
+
+                    b.Property<bool>("Accepted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("ResultTotal")
+                        .HasColumnType("int");
+
+                    b.HasKey("PlayerId", "OperationId", "Kind");
+
+                    b.ToTable("human_respect_participant_receipts");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerBadgeEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -3456,6 +3816,12 @@ namespace Turbo.Database.Migrations
                     b.Property<int>("PlayerEntityId")
                         .HasColumnType("int")
                         .HasColumnName("player_id");
+
+                    b.Property<int>("PurchasedDaysSubscribed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("purchased_days_subscribed");
 
                     b.Property<int>("SubscriptionType")
                         .HasColumnType("int")

@@ -1,0 +1,54 @@
+using System;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
+using Turbo.Achievements.Configuration;
+using Turbo.Contracts.Plugins;
+using Turbo.Database.Achievements;
+using Turbo.Primitives.Achievements;
+
+namespace Turbo.Achievements;
+
+public sealed class AchievementModule : IHostPluginModule
+{
+    public string Key => "turbo-achievements";
+
+    public void ConfigureServices(IServiceCollection services, HostApplicationBuilder builder)
+    {
+        services
+            .AddOptions<AchievementConfig>()
+            .Bind(builder.Configuration.GetSection(AchievementConfig.SECTION_NAME))
+            .Validate(
+                x =>
+                    x.RecoverySeconds > 0
+                    && x.RecoveryBatchSize > 0
+                    && x.FactBatchSize > 0
+                    && x.MaxDefinitions > 0
+                    && x.MaxDistinctValues > 0
+                    && x.MaxMatchValues > 0
+                    && x.FactRetentionDays >= 0,
+                "Achievement limits must be positive."
+            )
+            .ValidateOnStart();
+        services.TryAddSingleton(TimeProvider.System);
+        // Installing the Habbo pack is on unless the hotel turns it off.
+        if (
+            !bool.TryParse(
+                builder.Configuration.GetSection(AchievementConfig.SECTION_NAME)[
+                    nameof(AchievementConfig.InstallDefaults)
+                ],
+                out var installDefaults
+            ) || installDefaults
+        )
+            services.AddSingleton<IAchievementPack, HabboAchievementPack>();
+        services.AddSingleton<IAchievementPackRegistry, AchievementPackRegistry>();
+        services.AddSingleton<IAchievementCatalog, AchievementCatalog>();
+        services.AddSingleton<IAchievementFactRecorder, AchievementFactRecorder>();
+        services.AddSingleton<IAchievementFacts, AchievementFacts>();
+        services.AddSingleton<AchievementSync>();
+        services.AddSingleton<IAchievementRewardRegistry, AchievementRewardRegistry>();
+        services.AddSingleton<IAchievementObserverRegistry, AchievementObserverRegistry>();
+        services.AddSingleton<AchievementStateEvaluator>();
+        services.AddHostedService<AchievementRecoveryService>();
+    }
+}

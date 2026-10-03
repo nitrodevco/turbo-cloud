@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources/habbo-achievements-2026-10-02.json" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <ProjectReference Include="../Turbo.Contracts/Turbo.Contracts.csproj" />
+    <ProjectReference Include="../Turbo.Database/Turbo.Database.csproj" />
+    <ProjectReference Include="../Turbo.Logging/Turbo.Logging.csproj" />
+    <ProjectReference Include="../Turbo.Primitives/Turbo.Primitives.csproj" />
+  </ItemGroup>
+</Project>
