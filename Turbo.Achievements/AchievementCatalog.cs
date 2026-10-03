@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -31,6 +30,7 @@ public sealed class AchievementCatalog : IAchievementCatalog
     private readonly IHotelTextProvider _texts;
     private readonly ILogger<AchievementCatalog>? _logger;
     private readonly IAchievementPackRegistry? _packs;
+    private readonly AchievementBadgeAssets _badgeAssets;
     private readonly object _gate = new();
     private readonly SemaphoreSlim _publication = new(1, 1);
     private readonly Dictionary<(string, int), AchievementSourceDefinition> _sources = [];
@@ -43,11 +43,13 @@ public sealed class AchievementCatalog : IAchievementCatalog
         IOptions<AchievementConfig> config,
         IHotelTextProvider texts,
         ILogger<AchievementCatalog>? logger = null,
-        IAchievementPackRegistry? packs = null
+        IAchievementPackRegistry? packs = null,
+        AchievementBadgeAssets? badgeAssets = null
     )
     {
         _logger = logger;
         _packs = packs;
+        _badgeAssets = badgeAssets ?? new AchievementBadgeAssets(config);
         _database = database;
         _currencies = currencies;
         _config = config.Value;
@@ -255,6 +257,15 @@ public sealed class AchievementCatalog : IAchievementCatalog
                 .OrderBy(x => x.Order)
                 .ThenBy(x => x.Id)
                 .ToImmutableArray();
+            await _badgeAssets
+                .CheckAsync(
+                    combined
+                        .Where(x => x.State == AchievementState.Enabled)
+                        .SelectMany(x => x.Levels)
+                        .Select(x => x.BadgeCode),
+                    ct
+                )
+                .ConfigureAwait(false);
             Validate(combined, allowRetainedSources: false);
             foreach (var definition in definitions)
             {
@@ -444,21 +455,20 @@ public sealed class AchievementCatalog : IAchievementCatalog
                             "Invalid badge, score or cumulative requirements."
                         );
                     previous = level.Requirement;
-                    if (
-                        !allowRetainedSources
-                        && d.State == AchievementState.Enabled
-                        && (
-                            string.IsNullOrWhiteSpace(_config.BadgeAssetDirectory)
-                            || !File.Exists(
-                                Path.Combine(_config.BadgeAssetDirectory, level.BadgeCode + ".png")
-                            )
-                            || !HasBadgeText("badge_name_", level.BadgeCode)
+                    if (!allowRetainedSources && d.State == AchievementState.Enabled)
+                    {
+                        if (!_badgeAssets.Exists(level.BadgeCode))
+                            throw new InvalidOperationException(
+                                $"Enabled achievement {d.Key} requires the badge image {_badgeAssets.Describe(level.BadgeCode)}."
+                            );
+                        if (
+                            !HasBadgeText("badge_name_", level.BadgeCode)
                             || !HasBadgeText("badge_desc_", level.BadgeCode)
                         )
-                    )
-                        throw new InvalidOperationException(
-                            $"Enabled achievement {d.Key} requires badge image and localized name/description for {level.BadgeCode}."
-                        );
+                            throw new InvalidOperationException(
+                                $"Enabled achievement {d.Key} requires a localized badge name and description for {level.BadgeCode}."
+                            );
+                    }
                     foreach (var reward in level.Rewards)
                         if (
                             !ValidKey(reward.Handler)

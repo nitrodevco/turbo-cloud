@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -25,9 +24,13 @@ namespace Turbo.Achievements;
 public sealed class AchievementSync(
     IAchievementCatalog catalog,
     IHotelTextProvider texts,
-    IOptions<AchievementConfig> config
+    IOptions<AchievementConfig> config,
+    AchievementBadgeAssets? badgeAssets = null
 )
 {
+    private readonly AchievementBadgeAssets _badgeAssets =
+        badgeAssets ?? new AchievementBadgeAssets(config);
+
     /// <summary>A dry run is never recorded, so every validation-only import can share one id.</summary>
     private const string VALIDATION_OPERATION = "sync-check";
 
@@ -74,6 +77,15 @@ public sealed class AchievementSync(
             .ToImmutableArray();
         var changes = ImmutableArray.CreateRange(create.Concat(revise));
         problems.AddRange(await ValidateAsync(changes, ct).ConfigureAwait(false));
+        await _badgeAssets
+            .CheckAsync(
+                changes
+                    .Where(x => x.State != AchievementState.Disabled)
+                    .SelectMany(x => x.Levels)
+                    .Select(x => x.BadgeCode),
+                ct
+            )
+            .ConfigureAwait(false);
         var (missingTexts, missingImages) = Needs(changes);
         var applied = false;
         if (apply && problems.Count == 0 && changes.Length > 0)
@@ -160,12 +172,8 @@ public sealed class AchievementSync(
                     lines.Add(
                         $"badge_desc_{badgeBase}=TODO: say how to earn it (%limit% is the level's goal)"
                     );
-                var directory = config.Value.BadgeAssetDirectory;
-                if (
-                    string.IsNullOrWhiteSpace(directory)
-                    || !File.Exists(Path.Combine(directory, level.BadgeCode + ".png"))
-                )
-                    images.Add(level.BadgeCode + ".png");
+                if (!_badgeAssets.Exists(level.BadgeCode))
+                    images.Add(_badgeAssets.Describe(level.BadgeCode));
             }
         }
 

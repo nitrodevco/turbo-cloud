@@ -24,6 +24,14 @@ public sealed class AchievementConfig
 
     /// <summary>Hotel-provided PNG badge asset directory, checked on catalog import.</summary>
     public string BadgeAssetDirectory { get; set; } = "";
+
+    /// <summary>
+    /// The URL the client loads badge images from, with <c>%badgename%</c> where the badge code
+    /// goes (the client's <c>badge.asset.url</c>, for example
+    /// <c>https://images.example.com/badges/%badgename%.gif</c>). When set, catalog imports check
+    /// badge images here instead of in <see cref="BadgeAssetDirectory"/>.
+    /// </summary>
+    public string BadgeAssetUrl { get; set; } = "";
     public int MaxDefinitions { get; set; } = 1000;
     public int MaxDistinctValues { get; set; } = 100000;
 

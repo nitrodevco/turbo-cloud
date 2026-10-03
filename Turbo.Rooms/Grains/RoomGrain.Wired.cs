@@ -85,7 +85,7 @@ public sealed partial class RoomGrain
         if (!await CanReadWiredAsync(ctx, ct))
             return null;
 
-        return WiredSystem.GetBoxSnapshot(itemId);
+        return await WiredSystem.GetBoxSnapshotAsync(itemId, ct);
     }
 
     public async Task<WiredVariablesSnapshot?> GetWiredVariablesSnapshotAsync(

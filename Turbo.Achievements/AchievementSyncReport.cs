@@ -16,7 +16,7 @@ namespace Turbo.Achievements;
 /// Everything that is wrong, all at once. Nothing is applied while there is any problem.
 /// </param>
 /// <param name="MissingTexts">Ready-to-paste <c>key=value</c> lines for texts the client will look for and not find.</param>
-/// <param name="MissingBadgeImages">Badge image file names the achievements need and the badge directory lacks.</param>
+/// <param name="MissingBadgeImages">Badge images the achievements need and the badge URL or directory lacks: their URLs, or their file names.</param>
 /// <param name="Applied">True only when the changes were published.</param>
 public sealed record AchievementSyncReport(
     ImmutableArray<string> Created,
@@ -52,7 +52,7 @@ public sealed record AchievementSyncReport(
                 yield return "  " + line;
         }
         if (MissingBadgeImages.Length > 0)
-            yield return $"Badge images still needed in the badge directory: {string.Join(", ", MissingBadgeImages)}";
+            yield return $"Badge images still needed: {string.Join(", ", MissingBadgeImages)}";
         yield return HasProblems ? "Nothing applied: fix the problems above."
         : Applied ? "Published."
         : !ChangesCatalog ? "Nothing to do."

@@ -29,6 +29,12 @@ public sealed class AchievementModule : IHostPluginModule
                     && x.FactRetentionDays >= 0,
                 "Achievement limits must be positive."
             )
+            .Validate(
+                x =>
+                    string.IsNullOrWhiteSpace(x.BadgeAssetUrl)
+                    || AchievementBadgeAssets.IsValidUrlTemplate(x.BadgeAssetUrl),
+                $"Turbo:Achievements:BadgeAssetUrl must be an http(s) URL containing {AchievementBadgeAssets.BADGE_NAME_TOKEN}."
+            )
             .ValidateOnStart();
         services.TryAddSingleton(TimeProvider.System);
         // Installing the Habbo pack is on unless the hotel turns it off.
@@ -42,6 +48,7 @@ public sealed class AchievementModule : IHostPluginModule
         )
             services.AddSingleton<IAchievementPack, HabboAchievementPack>();
         services.AddSingleton<IAchievementPackRegistry, AchievementPackRegistry>();
+        services.AddSingleton<AchievementBadgeAssets>();
         services.AddSingleton<IAchievementCatalog, AchievementCatalog>();
         services.AddSingleton<IAchievementFactRecorder, AchievementFactRecorder>();
         services.AddSingleton<IAchievementFacts, AchievementFacts>();

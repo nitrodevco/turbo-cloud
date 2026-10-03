@@ -57,12 +57,14 @@ public class TurboEmulator(
             await _catalogProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _buildersClubCatalogProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _currencyTypeProvider.ReloadAsync(ct).ConfigureAwait(false);
-            await achievements.ReloadAsync(ct).ConfigureAwait(false);
             await _chatStyleProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _topLevelContextProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _roomModelProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _petBreedProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _hotelTextProvider.ReloadAsync(ct).ConfigureAwait(false);
+            // After the currencies and the hotel texts: installing a pack checks every enabled
+            // achievement's reward currency and badge texts against them.
+            await achievements.ReloadAsync(ct).ConfigureAwait(false);
             await _networkManager.StartAsync(ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)

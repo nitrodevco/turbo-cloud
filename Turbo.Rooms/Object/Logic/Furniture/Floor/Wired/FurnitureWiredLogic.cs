@@ -54,6 +54,13 @@ public abstract partial class FurnitureWiredLogic(
         await FillInternalDataAsync(ct);
     }
 
+    /// <summary>
+    /// Loads the box if the wired tick has not reached its stack yet (it was just placed, or the
+    /// room has only just woken), so the editor can open or save it straight away.
+    /// </summary>
+    public Task EnsureWiredLoadedAsync(CancellationToken ct) =>
+        _wiredData is null ? LoadWiredAsync(ct) : Task.CompletedTask;
+
     public Task FlashActivationStateAsync(CancellationToken ct) =>
         SetStateAsync(GetState() == 1 ? 0 : 1);
 

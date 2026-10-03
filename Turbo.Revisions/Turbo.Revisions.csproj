@@ -15,4 +15,8 @@
     <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
     <ProjectReference Include="..\Turbo.Players\Turbo.Players.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The load-test bots speak the client side of this protocol off the same header ids. -->
+    <InternalsVisibleTo Include="Turbo.LoadBots" />
+  </ItemGroup>
 </Project>

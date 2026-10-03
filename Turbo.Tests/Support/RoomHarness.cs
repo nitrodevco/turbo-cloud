@@ -11,6 +11,7 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 using Turbo.Rooms.Grains;
 using Turbo.Rooms.Object.Furniture.Floor;
@@ -87,7 +88,10 @@ public sealed class RoomHarness
     public Altitude TileHeight(int x, int y) =>
         ((Altitude[])GetMember(State, "TileHeights")!)[(y * Width) + x];
 
-    /// <summary>Creates a plain floor item with the default floor logic.</summary>
+    /// <summary>
+    /// Creates a floor item with the default floor logic, or the one <paramref name="createLogic"/>
+    /// builds from the item's stuff data factory and context.
+    /// </summary>
     public RoomFloorItem CreateFloorItem(
         int id,
         int x,
@@ -99,7 +103,8 @@ public sealed class RoomHarness
         int length = 1,
         bool canStack = true,
         string name = "test_block",
-        string logic = "default_floor"
+        string logic = "default_floor",
+        Func<IStuffDataFactory, IRoomFloorItemContext, IRoomObjectLogic>? createLogic = null
     )
     {
         var item = new RoomFloorItem
@@ -138,7 +143,11 @@ public sealed class RoomHarness
         var context = new RoomFloorItemContext(Room, item);
         var factory = CreateStuffDataFactory();
         item.SetLogic(
-            new Turbo.Rooms.Object.Logic.Furniture.Floor.FurnitureFloorLogic(factory, context)
+            createLogic?.Invoke(factory, context)
+                ?? new Turbo.Rooms.Object.Logic.Furniture.Floor.FurnitureFloorLogic(
+                    factory,
+                    context
+                )
         );
         return item;
     }
