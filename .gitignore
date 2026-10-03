@@ -40,3 +40,7 @@ msbuild.wrn
 
 plugins/*
 plugins-shadow/*
+
+# Ploi deploy (scripts/ploi)
+.env
+.deploy/
