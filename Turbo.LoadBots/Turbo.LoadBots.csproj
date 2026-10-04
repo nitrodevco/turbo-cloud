@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The bots read the database connection from the same settings files as the server. -->
+    <Content Include="../appsettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content
+      Include="../appsettings.Development.json"
+      Condition="Exists('../appsettings.Development.json')"
+    >
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="loadbots.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Database: provisioning bot accounts and reading furni definitions for the bots' knowledge. -->
+    <ProjectReference Include="..\Turbo.Database\Turbo.Database.csproj" />
+    <!-- Revisions: the header ids, so a renamed or renumbered packet breaks this build. -->
+    <ProjectReference Include="..\Turbo.Revisions\Turbo.Revisions.csproj" />
+  </ItemGroup>
+</Project>

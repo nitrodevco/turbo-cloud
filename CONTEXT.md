@@ -19,6 +19,12 @@
   - EF Core context and persistence infrastructure.
 - `Turbo.Primitives/`
   - Cross-module contracts, identifiers, snapshots, and message types.
+- `Turbo.LoadBots/`
+  - Load-test and correctness bots: an external client that plays the hotel over the real
+    protocol (`docs/loadbots.md`). Not referenced by `Turbo.Main`. Bots act only through client
+    messages; the database is for provisioning bot accounts and read-only catalog knowledge.
+    A new client message a bot sends, or server message it reads, gets a codec case in
+    `Turbo.Tests/LoadBots`.
 
 ## Hard boundaries
 - Keep host composition and module registration in `Turbo.Main`; avoid leaking host concerns into domain modules.

@@ -95,3 +95,9 @@ dotnet_diagnostic.CA2007.severity = none
 
 [Turbo.Commands/**.cs]
 dotnet_diagnostic.CA2007.severity = none
+
+# The load-test bots are a console app: no synchronisation context to capture.
+[Turbo.LoadBots/**.cs]
+dotnet_diagnostic.CA2007.severity = none
+# Nor one to deadlock on: awaiting a task another part of the bot started is safe.
+dotnet_diagnostic.VSTHRD003.severity = none

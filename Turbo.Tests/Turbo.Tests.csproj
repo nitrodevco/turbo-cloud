@@ -41,5 +41,7 @@
     <ProjectReference Include="..\Turbo.Main\Turbo.Main.csproj" />
     <ProjectReference Include="..\Turbo.Commands\Turbo.Commands.csproj" />
     <ProjectReference Include="..\Turbo.Operations\Turbo.Operations.csproj" />
+    <!-- For the load-test bots' codec tests: their messages against the revision's own. -->
+    <ProjectReference Include="..\Turbo.LoadBots\Turbo.LoadBots.csproj" />
   </ItemGroup>
 </Project>

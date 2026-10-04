@@ -1,0 +1,47 @@
+{
+    "Logging": {
+        "LogLevel": {
+            "Default": "Information",
+            "Microsoft": "Warning",
+            "Microsoft.EntityFrameworkCore": "Warning",
+            "Bot": "Warning"
+        },
+        "EventLog": {
+            "LogLevel": {
+                "Default": "None"
+            }
+        }
+    },
+    "LoadBots": {
+        "Host": "127.0.0.1",
+        "Port": 30000,
+        "Transport": "tcp",
+        "WebSocketUrl": "ws://127.0.0.1:9001",
+        "AccountsFile": "loadbots.accounts.json",
+        "ReplyTimeoutSeconds": 10,
+        "Provision": {
+            "Count": 50,
+            "NamePrefix": "lb_",
+            "Credits": 1000000
+        },
+        "Run": {
+            "Bots": 0,
+            "DurationMinutes": 10,
+            "RampPerSecond": 5,
+            "Seed": 1,
+            "Personas": {
+                "Decorator": 3,
+                "Architect": 1,
+                "WiredEngineer": 1,
+                "GameHost": 1,
+                "Visitor": 6
+            },
+            "ThinkTimeMinMs": 500,
+            "ThinkTimeMaxMs": 3000,
+            "MaxRoomsPerBot": 3,
+            "MaxItemsPerRoom": 80,
+            "ReportIntervalSeconds": 10,
+            "ReportFile": "loadbots-report-{time}.json"
+        }
+    }
+}
