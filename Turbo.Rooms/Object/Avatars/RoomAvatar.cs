@@ -51,31 +51,22 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
 
     protected RoomAvatarSnapshot? _snapshot;
 
-    public bool SetGoalTileId(int tileId)
+    /// <summary>How many times one walk may find a new way round a step blocked on the way.</summary>
+    private const int MAX_GOAL_REROUTES = 3;
+
+    /// <summary>
+    /// Sets the goal of a new walk, or clears it with -1, and starts its re-route count over.
+    /// Every walk request starts here: a click on a tile the avatar walked to, or was refused,
+    /// a moment ago is a new walk, not a re-route of the old one.
+    /// </summary>
+    public void SetGoalTileId(int tileId)
     {
-        if (tileId == -1)
-        {
-            GoalTileId = -1;
-            _goalTries = 0;
-
-            return true;
-        }
-
-        if (tileId == GoalTileId)
-        {
-            _goalTries++;
-        }
-        else
-        {
-            GoalTileId = tileId;
-            _goalTries = 0;
-        }
-
-        if (_goalTries == 3)
-            return false;
-
-        return true;
+        GoalTileId = tileId;
+        _goalTries = 0;
     }
+
+    /// <summary>Spends one of the current walk's re-routes; false once they are used up.</summary>
+    public bool TryRerouteGoal() => GoalTileId >= 0 && ++_goalTries < MAX_GOAL_REROUTES;
 
     /// <summary>
     /// Turns the whole avatar: the head follows the body. This is an override and not a second

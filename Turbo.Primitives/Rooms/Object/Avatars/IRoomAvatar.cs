@@ -76,7 +76,10 @@ public interface IRoomAvatar : IRoomObject
 
     /// <summary>Whether being teleported thaws a frozen avatar. Set with the freeze and gone with it.</summary>
     public bool ThawsOnTeleport { get; }
-    public bool SetGoalTileId(int tileId);
+    public void SetGoalTileId(int tileId);
+
+    /// <summary>Spends one of the current walk's re-routes round a blocked step; false once they are used up.</summary>
+    public bool TryRerouteGoal();
     public bool SetHandItem(int handItemId);
 
     /// <summary>

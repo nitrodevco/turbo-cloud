@@ -498,6 +498,9 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             if (!TryStartWalk(avatar, targetX, targetY))
             {
                 await StopWalkingAsync(avatar, ct);
+                // Stopping clears the goal only of an avatar that was walking; a refused walk
+                // from standing still must not leave its goal behind either.
+                avatar.SetGoalTileId(-1);
 
                 return false;
             }
@@ -533,13 +536,33 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         var currentTileId =
             avatar.NextTileId > 0 ? avatar.NextTileId : map.ToIdx(avatar.X, avatar.Y);
 
-        if (goalTileId == currentTileId || !avatar.SetGoalTileId(goalTileId))
+        if (goalTileId == currentTileId)
             return false;
+
+        avatar.SetGoalTileId(goalTileId);
 
         // A goal off the map is refused by coordinate: its index can land on a real tile of the
         // next row, which the search would then happily walk to.
         return map.InBounds(targetX, targetY)
             && PathingSystem.TryFindPath(avatar, currentTileId, goalTileId, avatar.TilePath);
+    }
+
+    /// <summary>
+    /// Finds a new way to the walk's goal when a step on the way was blocked: someone stepped
+    /// in front, or furni was put down. Each walk gets a few of these, so an avatar boxed in
+    /// stops instead of re-planning every tick. False when the walk should stop.
+    /// </summary>
+    internal bool TryRerouteWalk(IRoomAvatar avatar)
+    {
+        if (avatar.IsFrozen || !avatar.TryRerouteGoal())
+            return false;
+
+        var map = MapModule;
+        var currentTileId =
+            avatar.NextTileId > 0 ? avatar.NextTileId : map.ToIdx(avatar.X, avatar.Y);
+
+        return avatar.GoalTileId != currentTileId
+            && PathingSystem.TryFindPath(avatar, currentTileId, avatar.GoalTileId, avatar.TilePath);
     }
 
     /// <summary>

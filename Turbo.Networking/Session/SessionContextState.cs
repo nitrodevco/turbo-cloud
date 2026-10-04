@@ -26,6 +26,10 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
     // Written by the receive loop, read by the heartbeat on another thread.
     private long _lastReceivedTicks = DateTime.UtcNow.Ticks;
 
+    // Set once a send finds the connection's writer completed. Only read and written under the
+    // send semaphore.
+    private bool _writerCompleted;
+
     public bool PolicyDone { get; set; } = true;
     public string RevisionId { get; set; } = "Default";
     public IRc4Engine? CryptoIn { get; private set; }
@@ -54,8 +58,8 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
     /// <paramref name="count"/> composers starting with <paramref name="first"/> (named in the
     /// log if it fails). A send failure is logged and not rethrown, because callers broadcast to
     /// many sessions and one bad connection must not fail the rest. A connection that closed
-    /// while the send was in flight is an ordinary race with the client leaving, so it is logged
-    /// at debug only.
+    /// while the send was in flight is an ordinary race with the client leaving: it is logged once
+    /// at debug, without the stack trace, and every later send to it is dropped quietly.
     /// </summary>
     /// <remarks>
     /// <paramref name="send"/> takes its state explicitly so the per-send callers can pass a
@@ -74,7 +78,7 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
 
         try
         {
-            if (session.Connection.IsClosed)
+            if (_writerCompleted || session.Connection.IsClosed)
                 return;
 
             await send(state, ct).ConfigureAwait(false);
@@ -85,8 +89,9 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
         }
         catch (Exception ex) when (IsClosedDuringSend(session, ex))
         {
+            _writerCompleted = true;
+
             _logger.LogDebug(
-                ex,
                 "Dropped {Count} composer(s) starting with {Composer} for session {SessionKey}: connection closed during send",
                 count,
                 first.GetType().Name,

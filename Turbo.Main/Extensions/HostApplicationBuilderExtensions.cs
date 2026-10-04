@@ -50,10 +50,15 @@ public static class HostApplicationBuilderExtensions
                         .AddMemoryGrainStorage(OrleansStorageNames.PUB_SUB_STORE)
                         .AddMemoryGrainStorage(OrleansStorageNames.PLAYER_STORE)
                         .AddMemoryGrainStorage(OrleansStorageNames.ROOM_STORE)
-                        .AddMemoryStreams(OrleansStreamProviders.DEFAULT_STREAM_PROVIDER)
+                        .AddMemoryStreams(
+                            OrleansStreamProviders.DEFAULT_STREAM_PROVIDER,
+                            streams => ConfigureStreamCache(streams, orleansConfig)
+                        )
                         .AddMemoryStreams(
                             OrleansStreamProviders.ROOM_STREAM_PROVIDER,
                             streams =>
+                            {
+                                ConfigureStreamCache(streams, orleansConfig);
                                 streams.ConfigurePullingAgent(ob =>
                                     ob.Configure(options =>
                                     {
@@ -64,7 +69,8 @@ public static class HostApplicationBuilderExtensions
                                             orleansConfig.RoomStreamPollMs
                                         );
                                     })
-                                )
+                                );
+                            }
                         );
                 }
             )
@@ -72,4 +78,26 @@ public static class HostApplicationBuilderExtensions
 
         return builder;
     }
+
+    // The cache keeps delivered messages for consumers that rewind; nothing here does, and at
+    // Orleans' defaults (five to thirty minutes) a load test held over 600 MB of room traffic
+    // that every subscriber had long since received.
+    private static void ConfigureStreamCache(
+        ISiloMemoryStreamConfigurator streams,
+        OrleansConfig orleansConfig
+    ) =>
+        streams.ConfigureCacheEviction(ob =>
+            ob.Configure(options =>
+            {
+                options.DataMinTimeInCache = TimeSpan.FromSeconds(
+                    orleansConfig.StreamCacheMinSeconds
+                );
+                options.DataMaxAgeInCache = TimeSpan.FromSeconds(
+                    orleansConfig.StreamCacheMaxSeconds
+                );
+                options.MetadataMinTimeInCache = TimeSpan.FromSeconds(
+                    orleansConfig.StreamCacheMaxSeconds
+                );
+            })
+        );
 }

@@ -156,16 +156,14 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
 
             if (!MapModule.CanAvatarWalkBetween(avatar, prevTileId, nextTileId, isGoal))
             {
-                if (!isGoal)
+                // A re-route, not a new walk: it spends one of this walk's few retries. Going
+                // through the walk request instead counted it as the player clicking the same
+                // tile again, which a busy room turned into walks refused for no reason.
+                if (!isGoal && AvatarModule.TryRerouteWalk(avatar))
                 {
-                    var (goalX, goalY) = MapModule.GetTileXY(avatar.GoalTileId);
+                    await ProcessAvatarAsync(avatar, now, ct);
 
-                    if (await AvatarModule.WalkAvatarToAsync(avatar, goalX, goalY, ct))
-                    {
-                        await ProcessAvatarAsync(avatar, now, ct);
-
-                        return;
-                    }
+                    return;
                 }
 
                 await AvatarModule.StopWalkingAsync(avatar, ct);
