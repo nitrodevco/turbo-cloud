@@ -229,7 +229,7 @@ client gates from §2. Each names the one place that reads it.
 | `chat.style.staff` | `ChatStyles.CanSpeakWith` `isStaff` (staff bubbles; also meets the ambassador flag) | — | |
 | `trade` | trading, server-enforced | — (perk `TRADE`) | sent `true`, enforced nowhere |
 | `perk.camera`, `perk.mouse_zoom`, `perk.citizen`, `perk.navigator.thumbnail_camera`, `perk.navigator.phase_two`, `perk.navigator.phase_one`, `perk.guide_tool`, `perk.judge_chat_reviews`, `perk.call_on_helpers`, `perk.vote_in_competitions`, `perk.habbo_club_offer_beta` | `PerkAllowances` only | — | the hardcoded block in `SSOTicketMessageHandler` |
-| `permissions.manage` | any future in-game editor | — | the console needs no node |
+| `permissions.manage` | the admin panel's permission editor, `:group` | — | the console needs no node |
 
 `perk.*` nodes exist because the perk list has to come from somewhere; they gate nothing on the
 server. `trade` and `room.floorplan.large` are real server gates that also project to a perk.
@@ -520,8 +520,9 @@ In all three, a gate names a node constant. No code outside the projection compa
   but only in these rooms" today.
 - **Tracks** (promote/demote ladders). Useful once there is a staff UI; until then the console's
   group add/remove is the same thing.
-- **An in-game editor.** The console is the v1 surface; `permissions.manage` is registered so a
-  nitro-next housekeeping panel can be gated when it exists.
+- **An in-game editor.** The console and the admin panel's permission editor
+  ([admin-panel.md](admin-panel.md)) are the surfaces; the panel's is gated by
+  `permissions.manage` and the rule in §17.4.
 - **Chat commands.** There is no `:command` system in the server. When there is, each command
   registers a `command.<name>` node and the same machinery gates it.
 
@@ -792,7 +793,7 @@ temporary player denials of `trade` and `chat.speak` once the mod tool is built,
 | Temporary beats permanent; `temporary-add-behaviour` | missing | **fix** (17.1) |
 | `meta-value-selection` per key | missing | **fix** (17.1) |
 | `sync` — reload after the database was edited by something else | built: `perm reload` (§9) | — |
-| Argument-based command permissions (who may grant what) | missing | **take before any in-game editor**: a manager may only grant nodes they hold and groups lighter than their heaviest (`permissions.manage.*`) |
+| Argument-based command permissions (who may grant what) | built for the admin panel (`PermissionEditor`) | a manager may only grant nodes they hold, and only change groups and players lighter than their heaviest group; `:group` still needs only `permissions.manage` |
 | Verbose (watch checks live) | built: `perm user <player> verbose` (§10) | — |
 | `group listmembers`, `log recent`/`search`, `search <node>` (who holds it) | built: `perm group <g> members`, `perm log [search]`, `perm search` (§9) | — |
 | `group.<name>` as a node (membership checkable like a permission) | built (§5) | — |

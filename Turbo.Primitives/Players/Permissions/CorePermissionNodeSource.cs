@@ -258,6 +258,19 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
         ),
         new(PermissionNodes.Role.AMBASSADOR, "Be an ambassador."),
         new(PermissionNodes.Permissions.MANAGE, "Edit groups and other players' permissions."),
+        new(PermissionNodes.Admin.PANEL, "Sign in to the admin panel with a passkey."),
+        new(
+            PermissionNodes.Admin.PASSKEYS_RESET,
+            "Give another player a link to set up or replace their admin panel passkey."
+        ),
+        new(
+            PermissionNodes.Admin.ROOMS_VIEW,
+            "Find any room in the admin panel and see its settings, occupants, rights and bans."
+        ),
+        new(
+            PermissionNodes.Admin.PERMISSIONS_VIEW,
+            "See groups, players' permissions and the permission log in the admin panel."
+        ),
         new(PermissionNodes.Perk.CAMERA, "Use the camera.", Perk: PlayerPerkFlags.Camera),
         new(
             PermissionNodes.Perk.MOUSE_ZOOM,

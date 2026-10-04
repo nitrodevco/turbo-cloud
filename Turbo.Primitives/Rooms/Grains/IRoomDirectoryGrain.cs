@@ -25,6 +25,12 @@ public interface IRoomDirectoryGrain : IGrainWithStringKey
     /// <summary>Records changes to persisted room data that cached listings must drop.</summary>
     public Task PublishListingChangesAsync(IReadOnlyCollection<string> keys, CancellationToken ct);
     public Task<int> GetRoomPopulationAsync(RoomId roomId, CancellationToken ct);
+
+    /// <summary>
+    /// The players in a room right now, as their presences reported entering and leaving. Asking
+    /// does not wake the room, which a call on the room grain would.
+    /// </summary>
+    public Task<ImmutableArray<PlayerId>> GetRoomPlayersAsync(RoomId roomId, CancellationToken ct);
     public Task UpsertActiveRoomAsync(RoomInfoSnapshot snapshot, CancellationToken ct);
 
     /// <param name="roomId">The room that deactivated.</param>

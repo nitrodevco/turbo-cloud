@@ -118,6 +118,13 @@ turbo_export_app_env() {
   turbo_map TURBO_CRYPTO_PRIVATE_KEY Turbo__Crypto__PrivateKey
   turbo_map TURBO_CRYPTO_ENCRYPTION Turbo__Crypto__EnableServerToClientEncryption
 
+  turbo_map TURBO_BADGE_ASSET_URL Turbo__Achievements__BadgeAssetUrl
+
+  turbo_map TURBO_ADMIN_ENABLED Turbo__Admin__Enabled
+  turbo_map TURBO_ADMIN_URL Turbo__Admin__Url
+  turbo_map TURBO_ADMIN_PANEL_URL Turbo__Admin__PanelUrl
+  turbo_map TURBO_ADMIN_PASSKEY_RP_ID Turbo__Admin__PasskeyRpId
+
   turbo_map TURBO_LOG_LEVEL Logging__LogLevel__Turbo
 
   # Plugins live outside the release folders so a deploy does not drop them.

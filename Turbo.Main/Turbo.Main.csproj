@@ -51,6 +51,7 @@
     <ProjectReference Include="..\Turbo.Messages\Turbo.Messages.csproj" />
     <ProjectReference Include="..\Turbo.Navigator\Turbo.Navigator.csproj" />
     <ProjectReference Include="..\Turbo.Operations\Turbo.Operations.csproj" />
+    <ProjectReference Include="..\Turbo.Admin\Turbo.Admin.csproj" />
     <ProjectReference Include="..\Turbo.Networking\Turbo.Networking.csproj" />
     <ProjectReference Include="..\Turbo.PacketHandlers\Turbo.PacketHandlers.csproj" />
     <ProjectReference Include="..\Turbo.Pipeline\Turbo.Pipeline.csproj" />

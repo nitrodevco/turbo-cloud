@@ -140,6 +140,27 @@ public static class PermissionNodes
         public const string MANAGE = "permissions.manage";
     }
 
+    public static class Admin
+    {
+        /// <summary>Sign in to the admin panel. What can be done there is checked node by node.</summary>
+        public const string PANEL = "admin.panel";
+
+        /// <summary>
+        /// Give another player a link to make their admin panel passkey, which replaces any they
+        /// have. Only for a player whose every node the issuer holds too: a link is the account.
+        /// </summary>
+        public const string PASSKEYS_RESET = "admin.passkeys.reset";
+
+        /// <summary>Find any room in the panel and see its settings, who is in it, rights and bans.</summary>
+        public const string ROOMS_VIEW = "admin.rooms.view";
+
+        /// <summary>
+        /// See every group, any player's permissions, who is given a node, and the permission log
+        /// in the panel. Changing them needs <see cref="Permissions.MANAGE"/> as well.
+        /// </summary>
+        public const string PERMISSIONS_VIEW = "admin.permissions.view";
+    }
+
     /// <summary>
     /// Nodes that exist only to be projected into <c>PerkAllowances</c>; the server gates
     /// nothing on them.

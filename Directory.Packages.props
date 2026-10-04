@@ -52,6 +52,8 @@
     <PackageVersion Include="SuperSocket.ProtoBase" Version="2.1.0" />
     <PackageVersion Include="SuperSocket.WebSocket.Server" Version="2.1.0" />
     <PackageVersion Include="Scrutor" Version="6.1.0" />
+    <!-- Admin panel passkeys (WebAuthn attestation and assertion checks). -->
+    <PackageVersion Include="Fido2" Version="4.2.0" />
     <PackageVersion Include="BouncyCastle.Cryptography" Version="2.4.0" />
   </ItemGroup>
   <ItemGroup>

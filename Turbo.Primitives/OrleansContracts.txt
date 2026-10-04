@@ -19,6 +19,24 @@ interface [GrainInterfaceType("Turbo.Primitives.Achievements.Grains.IPlayerAchie
   EB6AF38D: ReconcileAsync(System.Threading.CancellationToken) -> Task
   F5BA2F02: RetryAsync(System.Threading.CancellationToken) -> Task
 
+interface [GrainInterfaceType("Turbo.Primitives.Admin.Grains.IAdminAccountGrain")] Turbo.Primitives.Admin.Grains.IAdminAccountGrain [Version(0)]
+  3E3AF383: AddPasskeyAsync(Turbo.Primitives.Admin.Snapshots.AdminPasskeyCredential, string, System.Threading.CancellationToken) -> Task
+  93102815: GetAccountAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Admin.Snapshots.AdminAccountSnapshot>
+  07F026DF: GetPasskeyCredentialsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Admin.Snapshots.AdminPasskeyCredential>>
+  86E44B2F: RecordPasskeyUseAsync(byte[], uint, System.Threading.CancellationToken) -> Task
+  75A6DFF3: RemovePasskeyAsync(int, System.Threading.CancellationToken) -> Task<bool>
+  C5CCE5DB: ReplacePasskeysAsync(Turbo.Primitives.Admin.Snapshots.AdminPasskeyCredential, string, System.Threading.CancellationToken) -> Task
+
+interface [GrainInterfaceType("Turbo.Primitives.Admin.Grains.IAdminAuthGrain")] Turbo.Primitives.Admin.Grains.IAdminAuthGrain [Version(0)]
+  4A632B2C: BeginCeremonyAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Admin.Enums.AdminCeremonyKind, string, System.Threading.CancellationToken) -> Task<string>
+  82A7D9EA: CreateSetupTokenAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Admin.Snapshots.AdminSetupLinkSnapshot>
+  38E8327D: EndSessionAsync(string, System.Threading.CancellationToken) -> Task
+  7CB7D786: GetSessionAsync(string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Admin.Snapshots.AdminSessionSnapshot?>
+  708DD61D: GetSetupPlayerAsync(string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.PlayerId?>
+  1B1A3DF3: OpenSessionAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Admin.Snapshots.AdminSessionGrant>
+  CB3BF46E: RedeemSetupTokenAsync(string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.PlayerId?>
+  43909241: TakeCeremonyAsync(string, Turbo.Primitives.Admin.Enums.AdminCeremonyKind, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Admin.Snapshots.AdminCeremonySnapshot?>
+
 interface [GrainInterfaceType("Turbo.Primitives.Badges.Grains.IBadgeDirectoryGrain")] Turbo.Primitives.Badges.Grains.IBadgeDirectoryGrain [Version(0)]
   C03A2AD2: GetCodesOfRarityAsync(Turbo.Primitives.Badges.Enums.BadgeRarityType, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<string>>
   E746A655: GetInfoAsync(System.Collections.Immutable.ImmutableArray<string>, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Badges.Snapshots.BadgeInfoSnapshot>>
@@ -331,6 +349,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomDirectoryGrain
   69EF2FC8: GetActiveRoomIdsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.RoomId>>
   63E760C6: GetListingViewAsync(System.Guid, long, bool, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.RoomListingViewSnapshot>
   63B8C8DC: GetRandomPopulatedRoomAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.RoomId?>
+  090D4FC6: GetRoomPlayersAsync(Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.PlayerId>>
   FEF061C0: GetRoomPopulationAsync(Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task<int>
   88A62A33: PublishListingChangesAsync(System.Collections.Generic.IReadOnlyCollection<string>, System.Threading.CancellationToken) -> Task
   B3C03E11: RemoveActiveRoomAsync(Turbo.Primitives.Rooms.RoomId, bool, System.Threading.CancellationToken) -> Task

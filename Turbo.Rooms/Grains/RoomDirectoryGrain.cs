@@ -217,6 +217,14 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
     public Task<int> GetRoomPopulationAsync(RoomId roomId, CancellationToken ct) =>
         Task.FromResult(_state.RoomPopulations.TryGetValue(roomId, out var pop) ? pop : 0);
 
+    public Task<ImmutableArray<PlayerId>> GetRoomPlayersAsync(
+        RoomId roomId,
+        CancellationToken ct
+    ) =>
+        Task.FromResult<ImmutableArray<PlayerId>>(
+            _state.RoomPlayers.TryGetValue(roomId, out var players) ? [.. players] : []
+        );
+
     public Task<RoomId?> GetRandomPopulatedRoomAsync(CancellationToken ct)
     {
         var populated = _state

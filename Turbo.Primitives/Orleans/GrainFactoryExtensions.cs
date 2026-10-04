@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Orleans;
+using Turbo.Primitives.Admin.Grains;
 using Turbo.Primitives.Badges.Grains;
 using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Guilds;
@@ -84,6 +85,14 @@ public static class GrainFactoryExtensions
         this IGrainFactory factory,
         PlayerId playerId
     ) => factory.GetGrain<IPlayerPresenceGrain>(playerId.Value);
+
+    public static IAdminAuthGrain GetAdminAuthGrain(this IGrainFactory factory) =>
+        factory.GetGrain<IAdminAuthGrain>(SingletonGrainId.GLOBAL);
+
+    public static IAdminAccountGrain GetAdminAccountGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IAdminAccountGrain>(playerId.Value);
 
     public static IPlayerDirectoryGrain GetPlayerDirectoryGrain(this IGrainFactory factory) =>
         factory.GetGrain<IPlayerDirectoryGrain>(SingletonGrainId.GLOBAL);

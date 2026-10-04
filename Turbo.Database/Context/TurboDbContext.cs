@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Achievements;
+using Turbo.Database.Entities.Admin;
 using Turbo.Database.Entities.Badges;
 using Turbo.Database.Entities.Bots;
 using Turbo.Database.Entities.Catalog;
@@ -78,6 +79,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<CommandLogEntity> CommandLogs { get; init; }
     public DbSet<PlayerSanctionEntity> PlayerSanctions { get; init; }
     public DbSet<SecurityTicketEntity> SecurityTickets { get; init; }
+    public DbSet<AdminPasskeyEntity> AdminPasskeys { get; init; }
 
     public DbSet<NavigatorTopLevelContextEntity> NavigatorTopLevelContexts { get; init; }
 

@@ -74,6 +74,14 @@ Orleans listens on every interface for its silo and gateway ports. Leave them cl
 
 To override any other setting from `.env`, use the environment-variable form Program.cs reads: prefix the key with `TURBO__` and replace `:` with `__`, for example `TURBO__Turbo__Rooms__MaxPlayersLimit=75`. `serverOptions` is the exception. SuperSocket reads it through its own host, which ignores the prefix, so its keys go unprefixed (`serverOptions__WebSocketServer__listeners__0__port=9001`). An `appsettings.Production.json` in the repository root is also published with each release.
 
+## Admin panel
+
+The admin panel runs as a second Ploi site on its own subdomain, from the `turbo-admin`
+repository. On this site, it needs only `TURBO_ADMIN_ENABLED=true` and
+`TURBO_ADMIN_PANEL_URL=https://<panel subdomain>` in the Environment tab.
+[`docs/admin-panel.md`](../../docs/admin-panel.md) covers the whole setup, from the panel site to
+the first admin's passkey.
+
 ## Migrations
 
 `deploy.sh` runs `dotnet ef database update` against the configured database after the publish succeeds and before the running server is touched. If a migration fails, the deploy stops and the old release keeps running. MySQL does not roll back schema changes, so a migration that fails part-way may leave some of its changes applied.
