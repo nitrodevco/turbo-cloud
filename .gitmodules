@@ -1,0 +1,3 @@
+[submodule "turbo-admin"]
+	path = turbo-admin
+	url = https://github.com/nitrodevco/turbo-admin.git
