@@ -6,6 +6,7 @@ using SuperSocket.Server.Abstractions;
 using SuperSocket.Server.Abstractions.Session;
 using Turbo.Messages;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Networking.Extensions;
 using Turbo.Primitives.Networking.Revisions;
 using Turbo.Primitives.Packets;
 
@@ -13,11 +14,13 @@ namespace Turbo.Networking.Package;
 
 public sealed class PackageHandler(
     IRevisionManager revisionManager,
+    IExtensionPacketRegistry extensions,
     MessageSystem messageSystem,
     ILogger<PackageHandler> logger
 ) : IPackageHandler<IClientPacket>
 {
     private readonly IRevisionManager _revisionManager = revisionManager;
+    private readonly IExtensionPacketRegistry _extensions = extensions;
     private readonly MessageSystem _messageSystem = messageSystem;
     private readonly ILogger<PackageHandler> _logger = logger;
 
@@ -36,7 +39,11 @@ public sealed class PackageHandler(
                 _revisionManager.GetRevision(ctx.RevisionId)
                 ?? throw new ArgumentNullException("No revision set");
 
-            if (revision.Parsers.TryGetValue(packet.Header, out var parser))
+            // Core first; the plugin overlay is only asked about a header the revision lacks.
+            if (
+                revision.Parsers.TryGetValue(packet.Header, out var parser)
+                || _extensions.TryGetParser(packet.Header, out parser!)
+            )
             {
                 var message = parser.Parse(packet);
 

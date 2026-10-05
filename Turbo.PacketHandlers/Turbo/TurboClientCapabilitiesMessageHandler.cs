@@ -7,6 +7,7 @@ using Turbo.Primitives.Commands;
 using Turbo.Primitives.Messages.Incoming.Turbo;
 using Turbo.Primitives.Messages.Outgoing.Turbo;
 using Turbo.Primitives.Networking.Capabilities;
+using Turbo.Primitives.Networking.Extensions;
 using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Turbo;
@@ -19,10 +20,12 @@ namespace Turbo.PacketHandlers.Turbo;
 /// </summary>
 public class TurboClientCapabilitiesMessageHandler(
     IGrainFactory grainFactory,
+    IExtensionPacketRegistry extensions,
     ICommandTreeService commandTreeService
 ) : IMessageHandler<TurboClientCapabilitiesMessage>
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly IExtensionPacketRegistry _extensions = extensions;
     private readonly ICommandTreeService _commandTreeService = commandTreeService;
 
     public async ValueTask HandleAsync(
@@ -34,7 +37,7 @@ public class TurboClientCapabilitiesMessageHandler(
         if (ctx.PlayerId <= 0)
             return;
 
-        var accepted = ClientCapabilities.Negotiate(message.Capabilities);
+        var accepted = ClientCapabilities.Negotiate(message.Capabilities, _extensions);
         var presence = _grainFactory.GetPlayerPresenceGrain(ctx.PlayerId);
 
         await presence.SetClientCapabilitiesAsync(accepted, ct).ConfigureAwait(false);

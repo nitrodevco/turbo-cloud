@@ -4,6 +4,7 @@ using Turbo.Networking.Configuration;
 using Turbo.Networking.Revisions;
 using Turbo.Networking.Session;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Networking.Extensions;
 using Turbo.Primitives.Networking.Revisions;
 
 namespace Turbo.Networking.Extensions;
@@ -22,6 +23,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<INetworkManager, NetworkManager>();
         services.AddSingleton<IRevisionManager, RevisionManager>();
         services.AddSingleton<ISessionGateway, SessionGateway>();
+        services.AddSingleton<IExtensionPacketRegistry, ExtensionPacketRegistry>();
 
         return services;
     }
