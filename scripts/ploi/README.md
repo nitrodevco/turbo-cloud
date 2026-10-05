@@ -82,6 +82,12 @@ repository. On this site, it needs only `TURBO_ADMIN_ENABLED=true` and
 [`docs/admin-panel.md`](../../docs/admin-panel.md) covers the whole setup, from the panel site to
 the first admin's passkey.
 
+## Behind Cloudflare
+
+If the hotel's sites are proxied by Cloudflare, [`docs/cloudflare.md`](../../docs/cloudflare.md)
+covers giving nginx the visitors' real addresses and refusing every connection that doesn't come
+from Cloudflare, for each site on the server.
+
 ## Migrations
 
 `deploy.sh` runs `dotnet ef database update` against the configured database after the publish succeeds and before the running server is touched. If a migration fails, the deploy stops and the old release keeps running. MySQL does not roll back schema changes, so a migration that fails part-way may leave some of its changes applied.

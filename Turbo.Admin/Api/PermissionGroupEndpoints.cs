@@ -11,6 +11,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains.Permissions;
+using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Admin.Api;
 
@@ -22,7 +23,7 @@ namespace Turbo.Admin.Api;
 /// </summary>
 internal sealed class PermissionGroupEndpoints(
     IGrainFactory grainFactory,
-    PermissionEditPolicy policy,
+    IPermissionEditService permissions,
     PermissionViews views,
     TimeProvider timeProvider
 )
@@ -331,7 +332,7 @@ internal sealed class PermissionGroupEndpoints(
         : null;
 
     private Task<PermissionEditor> EditorAsync(HttpContext http, CancellationToken ct) =>
-        policy.ForAsync(AdminIdentity.Of(http).PlayerId, ct);
+        permissions.EditorForAsync(AdminIdentity.Of(http).PlayerId, ct);
 
     private static PlayerId Actor(HttpContext http) => AdminIdentity.Of(http).PlayerId;
 }

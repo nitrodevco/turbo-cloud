@@ -268,6 +268,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Find any room in the admin panel and see its settings, occupants, rights and bans."
         ),
         new(
+            PermissionNodes.Admin.PLAYERS_VIEW,
+            "Find any player in the admin panel and see their profile, wallet, rooms and sanctions."
+        ),
+        new(
             PermissionNodes.Admin.PERMISSIONS_VIEW,
             "See groups, players' permissions and the permission log in the admin panel."
         ),

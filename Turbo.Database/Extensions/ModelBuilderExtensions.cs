@@ -73,11 +73,14 @@ public static class ModelBuilderExtensions
             v => DateTime.SpecifyKind(v, DateTimeKind.Utc)
         );
 
+        // Every time is stored as UTC and read back marked as UTC, the optional ones (a last login,
+        // an expiry) as well: unmarked, a time is sent on as local, and a browser west of UTC reads
+        // a login an hour ago as hours from now.
         foreach (
             var p in mb
                 .Model.GetEntityTypes()
                 .SelectMany(t => t.GetProperties())
-                .Where(p => p.ClrType == typeof(DateTime))
+                .Where(p => p.ClrType == typeof(DateTime) || p.ClrType == typeof(DateTime?))
         )
             p.SetValueConverter(utc);
 

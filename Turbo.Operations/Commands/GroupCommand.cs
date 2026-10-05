@@ -1,10 +1,7 @@
-using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Orleans;
 using Turbo.Primitives.Commands;
-using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Permissions;
 
@@ -14,8 +11,9 @@ namespace Turbo.Operations.Commands;
 /// <c>:group add|remove name group [duration]</c>. Promotes a player into a permission group, or
 /// takes them out, through the same grains and audit as the <c>perm</c> console command, so
 /// promoting someone does not need the console. A group given with a duration ends by itself.
-/// Whoever runs it must also hold <c>permissions.manage</c>: <c>command.group</c> alone is not
-/// enough to hand out a group above one's own.
+/// Whoever runs it must also hold <c>permissions.manage</c>, and goes through the same
+/// <see cref="IPermissionEditService"/> as the admin panel: only groups lighter than their own
+/// heaviest, and only for players lighter than them. The console may hand out any group.
 /// </summary>
 [Command(
     "group",
@@ -23,7 +21,7 @@ namespace Turbo.Operations.Commands;
     Category = CommandCategories.ADMINISTRATION
 )]
 [RequiresPermission(PermissionNodes.Command.GROUP)]
-public sealed class GroupCommand(IGrainFactory grainFactory, TimeProvider timeProvider)
+public sealed class GroupCommand(IPermissionEditService permissions)
     : IOperatorCommand<GroupArguments>
 {
     private const string ADDED = "added";
@@ -33,6 +31,8 @@ public sealed class GroupCommand(IGrainFactory grainFactory, TimeProvider timePr
     private const string UNKNOWN_GROUP = "unknown_group";
     private const string PROTECTED = "protected";
     private const string NOT_ALLOWED = "not_allowed";
+    private const string GROUP_TOO_HEAVY = "group_too_heavy";
+    private const string PLAYER_TOO_HEAVY = "player_too_heavy";
     private const string FAILED = "failed";
 
     public IReadOnlyDictionary<string, string> DefaultTexts { get; } =
@@ -45,6 +45,10 @@ public sealed class GroupCommand(IGrainFactory grainFactory, TimeProvider timePr
             [UNKNOWN_GROUP] = "There is no group called %1%.",
             [PROTECTED] = "Nobody joins or leaves the group %1% by hand.",
             [NOT_ALLOWED] = "You need permission to manage permissions to use that.",
+            [GROUP_TOO_HEAVY] =
+                "Only groups lighter than your heaviest are yours to hand out, and %1% is not.",
+            [PLAYER_TOO_HEAVY] =
+                "%0% is in a group as heavy as your heaviest or heavier, so their groups are not yours to change.",
             [FAILED] = "%0% could not be changed (%2%).",
         };
 
@@ -63,47 +67,58 @@ public sealed class GroupCommand(IGrainFactory grainFactory, TimeProvider timePr
             return failure;
 
         var target = selection.Players[0];
-        var grain = grainFactory.GetPlayerPermissionGrain(target.Id);
         var group = arguments.Group.ToLowerInvariant();
 
-        if (arguments is GroupAddArguments add)
-        {
-            var expiresAt = add.Duration?.EndsAt(timeProvider.GetUtcNow().UtcDateTime);
-
-            var change = await grain.AddGroupAsync(
-                group,
-                expiresAt,
-                PermissionExpiryModeType.Replace,
+        // A membership is permanent or temporary, and which one a removal means is not typed:
+        // whichever is there, the permanent one first.
+        var change = arguments is GroupAddArguments add
+            ? await permissions.AddToGroupAsync(
                 ctx.Executor.PlayerId,
+                target.Id,
+                group,
+                add.Duration?.Span,
+                PermissionExpiryModeType.Replace,
+                ct
+            )
+            : await permissions.RemoveFromGroupAsync(
+                ctx.Executor.PlayerId,
+                target.Id,
+                group,
+                null,
                 ct
             );
-            if (change == PermissionChangeResultType.Changed)
-                await ctx.NotifyAsync(
-                    target.Id,
-                    "command.group.add.notice",
-                    "You have been assigned to the group %0% (%1%).",
-                    [group, add.Duration?.ToString() ?? "permanent"],
-                    ct
-                );
-            return Describe(change, ADDED, target.Name, group);
-        }
 
-        // A membership is permanent or temporary, and which one this is is not typed: remove
-        // whichever is there, the permanent one first.
-        var result = await grain.RemoveGroupAsync(group, false, ctx.Executor.PlayerId, ct);
+        if (change.IsRefused)
+            return change.Refusal switch
+            {
+                PermissionEditRefusal.GroupTooHeavy => CommandResult.Fail(
+                    GROUP_TOO_HEAVY,
+                    target.Name,
+                    group
+                ),
+                PermissionEditRefusal.PlayerTooHeavy => CommandResult.Fail(
+                    PLAYER_TOO_HEAVY,
+                    target.Name,
+                    group
+                ),
+                _ => CommandResult.Fail(NOT_ALLOWED),
+            };
 
-        if (result == PermissionChangeResultType.NotFound)
-            result = await grain.RemoveGroupAsync(group, true, ctx.Executor.PlayerId, ct);
-
-        if (result == PermissionChangeResultType.Changed)
+        if (change.Notice is { } notice)
             await ctx.NotifyAsync(
                 target.Id,
-                "command.group.remove.notice",
-                "A %0% group assignment has been removed from your account.",
-                [group],
+                notice.TextKey,
+                notice.DefaultText,
+                notice.Parameters,
                 ct
             );
-        return Describe(result, REMOVED, target.Name, group);
+
+        return Describe(
+            change.Result,
+            arguments is GroupAddArguments ? ADDED : REMOVED,
+            target.Name,
+            group
+        );
     }
 
     private static CommandResult Describe(

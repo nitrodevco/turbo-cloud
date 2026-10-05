@@ -5,11 +5,14 @@ using Microsoft.Extensions.Hosting;
 using Orleans.Runtime;
 using Turbo.Operations;
 using Turbo.Operations.Commands;
+using Turbo.Players.Permissions;
 using Turbo.Primitives.Availability;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Grains.Permissions;
 using Turbo.Primitives.Players.Permissions;
+using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Rooms;
 using Turbo.Tests.Support;
@@ -21,8 +24,52 @@ public class AdministrationCommandsTests : OperatorCommandsTestBase
 {
     private readonly HotelAvailabilityService _availability;
 
+    /// <summary>The groups each player reaches, for the edit rule <c>:group</c> follows; default is everyone's.</summary>
+    private readonly Dictionary<int, string[]> _groups = new()
+    {
+        [STAFF] = ["manager"],
+        [BOB] = ["admin"],
+    };
+
     public AdministrationCommandsTests()
     {
+        var registry = new PermissionRegistry([new CorePermissionNodeSource()]);
+
+        Hotel.Fakes.Handlers["get_Current"] = call =>
+            call.Interface == typeof(IPermissionRegistryProvider) ? registry : Fakes.NotHandled;
+        Hotel.Fakes.Handlers["GetSnapshotAsync"] = call =>
+            call.Interface == typeof(IPermissionGroupDirectoryGrain)
+                ? Task.FromResult(
+                    new PermissionGroupDirectorySnapshot
+                    {
+                        Version = 1,
+                        Groups = new[]
+                        {
+                            Group(1, PermissionGroupNames.DEFAULT, 0),
+                            Group(2, "vip", 10),
+                            Group(3, "manager", 70),
+                            Group(4, "admin", 100),
+                        }.ToImmutableDictionary(x => x.Id),
+                    }
+                )
+                : Fakes.NotHandled;
+        Hotel.Fakes.Handlers["GetResolvedAsync"] = call =>
+            call.Interface == typeof(IPlayerPermissionGrain)
+                ? Task.FromResult(
+                    ResolvedPermissionsSnapshot.EMPTY with
+                    {
+                        Granted =
+                        [
+                            PermissionNodes.Permissions.MANAGE,
+                            .. _groups
+                                .GetValueOrDefault((int)(long)call.Key!, [])
+                                .Append(PermissionGroupNames.DEFAULT)
+                                .Select(PermissionGroupNames.ToNode),
+                        ],
+                    }
+                )
+                : Fakes.NotHandled;
+
         var sessions = Hotel.Fakes.Create<Turbo.Primitives.Networking.ISessionGateway>();
         var texts = Hotel.Fakes.Create<Turbo.Primitives.Texts.IHotelTextProvider>();
 
@@ -38,7 +85,13 @@ public class AdministrationCommandsTests : OperatorCommandsTestBase
 
         Hotel.Commands.Register([
             new Turbo.Commands.ConfirmCommand(),
-            new GroupCommand(Grains, Clock),
+            new GroupCommand(
+                new PermissionEditService(
+                    Grains,
+                    Hotel.Fakes.Create<IPermissionRegistryProvider>(),
+                    Clock
+                )
+            ),
             new PermCommand(Grains),
             new StatusCommand(Grains, sessions, _availability, Clock),
             new OnlineCommand(Grains, sessions, Config),
@@ -93,6 +146,37 @@ public class AdministrationCommandsTests : OperatorCommandsTestBase
 
         PermissionCalls("AddGroupAsync", ALICE).Should().BeEmpty();
         staff.Replies.Should().Equal("You can't use that command.");
+    }
+
+    [Fact]
+    public async Task Group_Add_OfAGroupAsHeavyAsTheirOwn_IsRefused()
+    {
+        // A manager with permissions.manage could once make anyone an admin, themselves included.
+        var staff = Staff(PermissionNodes.Command.GROUP, PermissionNodes.Permissions.MANAGE);
+
+        await Hotel.RunAsync("group", staff, "add alice admin");
+
+        PermissionCalls("AddGroupAsync", ALICE).Should().BeEmpty();
+        staff
+            .Replies.Should()
+            .Equal(
+                "Only groups lighter than your heaviest are yours to hand out, and admin is not."
+            );
+    }
+
+    [Fact]
+    public async Task Group_OfAPlayerAsHeavyAsThem_IsRefused()
+    {
+        var staff = Staff(PermissionNodes.Command.GROUP, PermissionNodes.Permissions.MANAGE);
+
+        await Hotel.RunAsync("group", staff, "remove bob vip");
+
+        PermissionCalls("RemoveGroupAsync", BOB).Should().BeEmpty();
+        staff
+            .Replies.Should()
+            .Equal(
+                "Bob is in a group as heavy as your heaviest or heavier, so their groups are not yours to change."
+            );
     }
 
     [Fact]
@@ -498,6 +582,18 @@ public class AdministrationCommandsTests : OperatorCommandsTestBase
             .Which.Should()
             .StartWith("everything is not a valid subject.");
     }
+
+    private static PermissionGroupSnapshot Group(int id, string name, int weight) =>
+        new()
+        {
+            Id = id,
+            Name = name,
+            DisplayName = name,
+            Weight = weight,
+            ParentIds = [],
+            Nodes = [],
+            Meta = [],
+        };
 }
 
 /// <summary>The online command under another name, with a limit a test sets.</summary>

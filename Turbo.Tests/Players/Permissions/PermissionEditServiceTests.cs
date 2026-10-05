@@ -1,22 +1,25 @@
 using System.Collections.Immutable;
 using FluentAssertions;
 using Orleans;
-using Turbo.Admin.Permissions;
+using Turbo.Players.Permissions;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Grains.Permissions;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Tests.Support;
 using Xunit;
 
-namespace Turbo.Tests.Admin;
+namespace Turbo.Tests.Players.Permissions;
 
 /// <summary>
-/// What a staff member may change in the panel's permission editor: with
+/// What a staff member may change, in the admin panel or with <c>:group</c>: with
 /// <c>permissions.manage</c>, only groups and players lighter than their heaviest group, and only
 /// nodes they hold themselves, as <c>docs/permissions.md</c> asks of any editor beyond the console.
+/// The console may change anything.
 /// </summary>
-public sealed class PermissionEditPolicyTests
+public sealed class PermissionEditServiceTests
 {
     private static readonly PlayerId OWNER = new(1);
     private static readonly PlayerId MANAGER = new(2);
@@ -49,7 +52,7 @@ public sealed class PermissionEditPolicyTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    public PermissionEditPolicyTests()
+    public PermissionEditServiceTests()
     {
         _fakes.Handlers["get_Current"] = call =>
             call.Interface == typeof(IPermissionRegistryProvider) ? REGISTRY : Fakes.NotHandled;
@@ -160,11 +163,94 @@ public sealed class PermissionEditPolicyTests
         owner.CheckGroup("admin").Should().Be(PermissionEditRefusal.GroupTooHeavy);
     }
 
-    private Task<PermissionEditor> EditorFor(PlayerId player) =>
-        new PermissionEditPolicy(
+    [Fact]
+    public async Task TheConsoleMayChangeAnything()
+    {
+        var console = await Service().EditorForAsync(null, Ct);
+
+        console.CheckGroup("admin").Should().Be(PermissionEditRefusal.None);
+        console.CheckWeight(1000).Should().Be(PermissionEditRefusal.None);
+        console.CheckAssignment("*").Should().Be(PermissionEditRefusal.None);
+        (await console.CheckPlayerAsync(OWNER, Ct)).Should().Be(PermissionEditRefusal.None);
+    }
+
+    [Fact]
+    public async Task AGroupHeavierThanTheEditor_IsNotHandedOut()
+    {
+        var change = await Service()
+            .AddToGroupAsync(MANAGER, HELPER, "admin", null, PermissionExpiryModeType.Replace, Ct);
+
+        change.Refusal.Should().Be(PermissionEditRefusal.GroupTooHeavy);
+        change.Notice.Should().BeNull();
+        GroupCalls().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task APlayerAsHeavyAsTheEditor_IsLeftAlone()
+    {
+        var change = await Service().RemoveFromGroupAsync(MANAGER, OWNER, "moderator", null, Ct);
+
+        change.Refusal.Should().Be(PermissionEditRefusal.PlayerTooHeavy);
+        GroupCalls().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ALighterGroupForALighterPlayer_IsGiven_AndThePlayerIsToldForHowLong()
+    {
+        _fakes.Handlers["AddGroupAsync"] = _ => Task.FromResult(PermissionChangeResultType.Changed);
+
+        var change = await Service()
+            .AddToGroupAsync(
+                MANAGER,
+                HELPER,
+                "moderator",
+                TimeSpan.FromDays(7),
+                PermissionExpiryModeType.Replace,
+                Ct
+            );
+
+        change.Result.Should().Be(PermissionChangeResultType.Changed);
+        var call = GroupCalls().Should().ContainSingle().Subject;
+        call.Args[0].Should().Be("moderator");
+        call.Args[1].Should().Be(START.AddDays(7));
+        ((PlayerId?)call.Args[3]).Should().Be(MANAGER);
+        change.Notice!.TextKey.Should().Be(PermissionEditService.ADDED_NOTICE);
+        change.Notice.Parameters.Should().Equal("moderator", "7 d");
+    }
+
+    [Fact]
+    public async Task ARemovalOfEitherKind_TriesThePermanentMembershipFirst()
+    {
+        _fakes.Handlers["RemoveGroupAsync"] = call =>
+            Task.FromResult(
+                (bool)call.Args[1]!
+                    ? PermissionChangeResultType.Changed
+                    : PermissionChangeResultType.NotFound
+            );
+
+        var change = await Service().RemoveFromGroupAsync(MANAGER, HELPER, "helper", null, Ct);
+
+        change.Result.Should().Be(PermissionChangeResultType.Changed);
+        GroupCalls().Select(x => (bool)x.Args[1]!).Should().Equal(false, true);
+        change.Notice!.TextKey.Should().Be(PermissionEditService.REMOVED_NOTICE);
+    }
+
+    private static readonly DateTime START = new(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc);
+
+    private PermissionEditService Service() =>
+        new(
             _fakes.Create<IGrainFactory>(),
-            _fakes.Create<IPermissionRegistryProvider>()
-        ).ForAsync(player, Ct);
+            _fakes.Create<IPermissionRegistryProvider>(),
+            new ManualTimeProvider(START)
+        );
+
+    private Task<PermissionEditor> EditorFor(PlayerId player) =>
+        Service().EditorForAsync(player, Ct);
+
+    private IEnumerable<FakeCall> GroupCalls() =>
+        _fakes
+            .Log.On<IPlayerPermissionGrain>()
+            .Where(x => x.Method is "AddGroupAsync" or "RemoveGroupAsync");
 
     /// <summary>The membership nodes of the groups a player reaches; default is reached by everyone.</summary>
     private static string[] Memberships(params string[] groups) =>

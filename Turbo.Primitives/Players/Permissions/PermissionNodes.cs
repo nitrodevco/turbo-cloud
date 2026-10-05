@@ -159,6 +159,12 @@ public static class PermissionNodes
         /// in the panel. Changing them needs <see cref="Permissions.MANAGE"/> as well.
         /// </summary>
         public const string PERMISSIONS_VIEW = "admin.permissions.view";
+
+        /// <summary>
+        /// Find any player in the panel and see their profile, wallet, rooms and sanctions. Read
+        /// only: changing a player needs the node of whatever is changed.
+        /// </summary>
+        public const string PLAYERS_VIEW = "admin.players.view";
     }
 
     /// <summary>

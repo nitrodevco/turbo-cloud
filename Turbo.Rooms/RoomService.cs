@@ -274,20 +274,26 @@ internal sealed partial class RoomService(
         }
     }
 
-    public async Task KickPlayerAsync(ActionContext ctx, PlayerId targetId, CancellationToken ct)
+    public async Task<bool> KickPlayerAsync(
+        ActionContext ctx,
+        PlayerId targetId,
+        CancellationToken ct
+    )
     {
         if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || targetId <= 0)
-            return;
+            return false;
 
         var room = _grainFactory.GetRoomGrain(ctx.RoomId);
 
         if (!await room.KickPlayerAsync(ctx, targetId, ct).ConfigureAwait(false))
-            return;
+            return false;
 
         await EvictPlayerAsync(ctx.RoomId, targetId, kicked: true, ct).ConfigureAwait(false);
+
+        return true;
     }
 
-    public async Task BanPlayerAsync(
+    public async Task<bool> BanPlayerAsync(
         ActionContext ctx,
         PlayerId targetId,
         RoomBanDurationType duration,
@@ -295,14 +301,16 @@ internal sealed partial class RoomService(
     )
     {
         if (ctx.PlayerId <= 0 || ctx.RoomId <= 0 || targetId <= 0)
-            return;
+            return false;
 
         var room = _grainFactory.GetRoomGrain(ctx.RoomId);
 
         if (!await room.BanPlayerAsync(ctx, targetId, duration, ct).ConfigureAwait(false))
-            return;
+            return false;
 
         await EvictPlayerAsync(ctx.RoomId, targetId, kicked: true, ct).ConfigureAwait(false);
+
+        return true;
     }
 
     public async Task DeleteRoomAsync(ActionContext ctx, CancellationToken ct)

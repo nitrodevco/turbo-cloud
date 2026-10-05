@@ -10,5 +10,6 @@ public sealed record MeResponse(
     bool CanManagePermissions,
     bool CanResetPasskeys,
     bool CanViewRooms,
-    bool CanViewPermissions
+    bool CanViewPermissions,
+    bool CanViewPlayers
 );

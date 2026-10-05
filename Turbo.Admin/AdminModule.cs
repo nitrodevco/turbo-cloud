@@ -5,7 +5,9 @@ using Microsoft.Extensions.Hosting;
 using Turbo.Admin.Api;
 using Turbo.Admin.Configuration;
 using Turbo.Admin.Links;
+using Turbo.Admin.Live;
 using Turbo.Admin.Permissions;
+using Turbo.Admin.Players;
 using Turbo.Admin.Rooms;
 using Turbo.Contracts.Plugins;
 
@@ -28,8 +30,11 @@ public sealed class AdminModule : IHostPluginModule
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<AdminLinkPolicy>();
         services.AddSingleton<AdminRoomQueries>();
-        services.AddSingleton<PermissionEditPolicy>();
+        services.AddSingleton<AdminRoomEditor>();
+        services.AddSingleton<AdminPlayerQueries>();
         services.AddSingleton<PermissionViews>();
+        services.AddSingleton<AdminLiveFeed>();
+        services.AddHostedService(sp => sp.GetRequiredService<AdminLiveFeed>());
         services.AddHostedService<AdminApiServer>();
     }
 }

@@ -21,6 +21,25 @@ public partial interface IRoomGrain
     public Task<bool> GetIsRoomMutedAsync(CancellationToken ct);
 
     /// <summary>
+    /// Sends everyone out who is neither the owner nor allowed to moderate every room, as
+    /// <c>:roomkickall</c> does; <paramref name="except"/> stays whatever they hold. No check
+    /// here: the caller holds <c>command.roomkickall</c>. Returns how many left.
+    /// </summary>
+    public Task<int> ClearRoomBySystemAsync(PlayerId except, CancellationToken ct);
+
+    /// <summary>
+    /// Mutes or unmutes the room for everyone, as <c>:roommute</c> and <c>:roomunmute</c> do. No
+    /// check here: the caller holds those nodes. False when it already was so.
+    /// </summary>
+    public Task<bool> SetRoomMutedBySystemAsync(bool muted, CancellationToken ct);
+
+    /// <summary>
+    /// Sends everyone out and unloads the room, as <c>:unloadroom</c> does. No check here: the
+    /// caller holds <c>command.unloadroom</c>.
+    /// </summary>
+    public Task EvictEveryoneAndUnloadAsync(CancellationToken ct);
+
+    /// <summary>
     /// Removes the target's avatar. The caller then closes the target's room session; the grain
     /// cannot, because the presence grain would call back into this room.
     /// </summary>

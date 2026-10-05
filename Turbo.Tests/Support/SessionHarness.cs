@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging.Abstractions;
 using Orleans;
 using Orleans.Runtime;
+using Turbo.Events;
 using Turbo.Networking.Session;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Observers;
@@ -22,6 +23,10 @@ public sealed class SessionHarness
 {
     public Fakes Fakes { get; } = new();
     public SessionGateway Gateway { get; }
+
+    /// <summary>The events the gateway raises, which a test can <c>Record</c>.</summary>
+    public TestEventBus Events { get; } = new();
+
     public object Presence { get; }
     public const int PlayerId = 1;
 
@@ -55,6 +60,7 @@ public sealed class SessionHarness
                 ctor.GetParameters()
                     .Select(p =>
                         p.ParameterType == typeof(IGrainFactory) ? factory
+                        : p.ParameterType == typeof(EventSystem) ? Events.System
                         : p.ParameterType.IsGenericType
                         && p.ParameterType.GetGenericTypeDefinition().FullName
                             == "Microsoft.Extensions.Logging.ILogger`1"

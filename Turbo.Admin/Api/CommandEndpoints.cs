@@ -29,8 +29,6 @@ internal sealed class CommandEndpoints(
     IOptions<AdminConfig> config
 )
 {
-    private const string NEEDS_ROOM = "NeedsRoom";
-
     public void Map(RouteGroupBuilder secured)
     {
         secured.MapGet("/commands", ListAsync);
@@ -65,41 +63,15 @@ internal sealed class CommandEndpoints(
 
     private async Task<IResult> RunAsync(HttpContext http, RunCommandRequest request)
     {
-        var identity = AdminIdentity.Of(http);
         var line = (request.Line ?? string.Empty).Trim();
 
         if (line.Length == 0 || line.Length > config.Value.MaxCommandLength)
             return Results.BadRequest();
 
-        if (line[0] == ':')
-            line = line[1..];
-
-        var end = 0;
-
-        while (end < line.Length && !char.IsWhiteSpace(line[end]))
-            end++;
-
-        if (end == 0 || !registryProvider.Current.TryFind(line.AsSpan(0, end), out var descriptor))
-            return Results.Ok(new RunCommandResponse(false, null, []));
-
-        // A room command acts on the room it is typed in, and the panel is in none.
-        if (!descriptor.IsOperator)
-            return Results.Ok(
-                new RunCommandResponse(
-                    true,
-                    NEEDS_ROOM,
-                    [new CommandOutputLine("reply", $":{descriptor.Name} only works in a room.")]
-                )
-            );
-
-        var executor = new WebOperatorExecutor(identity.PlayerId, identity.Name, grainFactory);
-
-        // Not the request's token: a command that has started (a ban, a currency grant) runs to
-        // its end and is logged even when the browser goes away. The runner bounds its time.
-        var outcome = await runner
-            .RunAsync(descriptor, executor, line[end..], checkNode: true, CancellationToken.None)
-            .ConfigureAwait(false);
-
-        return Results.Ok(new RunCommandResponse(true, outcome.ToString(), executor.Lines));
+        return Results.Ok(
+            await new PanelCommands(grainFactory, registryProvider, runner)
+                .RunAsync(AdminIdentity.Of(http), line)
+                .ConfigureAwait(false)
+        );
     }
 }

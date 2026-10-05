@@ -56,6 +56,25 @@ internal static class PermissionResults
         return true;
     }
 
+    /// <summary>
+    /// How long a duration typed as <c>30m</c>, <c>12h</c>, <c>7d</c> or <c>2w</c> lasts; null for
+    /// none given (or <c>perm</c>), which is permanent. False for one that cannot be read.
+    /// </summary>
+    public static bool TryDuration(string? duration, out TimeSpan? span)
+    {
+        span = null;
+
+        if (string.IsNullOrWhiteSpace(duration))
+            return true;
+
+        if (!CommandDuration.TryParse(duration, out var parsed))
+            return false;
+
+        span = parsed.Span;
+
+        return true;
+    }
+
     public static IResult BadDuration(string? duration) =>
         AdminResults.Error(
             StatusCodes.Status400BadRequest,

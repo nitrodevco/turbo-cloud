@@ -7,10 +7,12 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Events;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Configuration;
@@ -27,6 +29,7 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
 {
     private readonly RoomConfig _roomConfig;
     private readonly IGrainFactory _grainFactory;
+    private readonly EventSystem _eventSystem;
     private readonly ILogger<IRoomDirectoryGrain> _logger;
 
     private readonly RoomDirectoryLiveState _state = new();
@@ -36,11 +39,13 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
     public RoomDirectoryGrain(
         IOptions<RoomConfig> roomConfig,
         IGrainFactory grainFactory,
+        EventSystem eventSystem,
         ILogger<IRoomDirectoryGrain> logger
     )
     {
         _roomConfig = roomConfig.Value;
         _grainFactory = grainFactory;
+        _eventSystem = eventSystem;
         _logger = logger;
     }
 
@@ -81,6 +86,7 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
         _state.ActiveRooms[snapshot.RoomId] = room;
         _state.ActivatedRooms.TryAdd(snapshot.RoomId, room);
         _state.ActiveRoomsView = null;
+        Announce(snapshot.RoomId, null);
 
         return Task.CompletedTask;
     }
@@ -90,6 +96,9 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
         _state.ActiveRooms.Remove(roomId, out var current);
         _state.ActivatedRooms.Remove(roomId, out var activated);
         _state.ActiveRoomsView = null;
+
+        if (current is not null)
+            Announce(roomId, null);
 
         if (listingChanged && current is not null)
         {
@@ -194,7 +203,10 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
         }
 
         if (!playerIds.Contains(playerId))
+        {
             playerIds.Add(playerId);
+            Announce(roomId, playerId);
+        }
 
         await UpdatePopulationAsync(roomId);
     }
@@ -211,6 +223,7 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
         if (!players.Remove(playerId))
             return;
 
+        Announce(roomId, playerId);
         await UpdatePopulationAsync(roomId);
     }
 
@@ -267,4 +280,16 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
 
         return Task.CompletedTask;
     }
+
+    /// <summary>
+    /// Raises <see cref="RoomActivityChangedEvent"/>. Not awaited: a handler may call back into
+    /// this grain, which would wait on the call raising it.
+    /// </summary>
+    private void Announce(RoomId roomId, PlayerId? playerId) =>
+        _eventSystem
+            .PublishAsync(
+                new RoomActivityChangedEvent { RoomId = roomId, PlayerId = playerId },
+                CancellationToken.None
+            )
+            .LogAndForget(_logger, "announce activity in room {RoomId}", roomId);
 }

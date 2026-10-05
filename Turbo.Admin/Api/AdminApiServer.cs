@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.RateLimiting;
 using System.Threading.Tasks;
@@ -99,13 +100,33 @@ internal sealed class AdminApiServer(
         ActivatorUtilities.CreateInstance<AccountEndpoints>(services, passkeys).Map(secured);
         ActivatorUtilities.CreateInstance<StaffEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<RoomEndpoints>(services).Map(secured);
+        ActivatorUtilities.CreateInstance<PlayerEndpoints>(services).Map(secured);
+        ActivatorUtilities.CreateInstance<HotelEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<DashboardEndpoints>(services).Map(secured);
+        ActivatorUtilities.CreateInstance<LiveEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<CommandEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<PermissionGroupEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<PermissionPlayerEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<PermissionLookupEndpoints>(services).Map(secured);
 
-        await app.StartAsync(ct).ConfigureAwait(false);
+        // The panel is a convenience: an address it cannot have (the port taken, or not this
+        // machine's) leaves the hotel running without it rather than taking the hotel down.
+        try
+        {
+            await app.StartAsync(ct).ConfigureAwait(false);
+        }
+        catch (IOException ex)
+        {
+            logger.LogError(
+                ex,
+                "Admin API could not listen on {Url}, so the admin panel is unavailable; the hotel runs on without it. Free the port or set Turbo:Admin:Url, then restart.",
+                options.Url
+            );
+
+            await app.DisposeAsync().ConfigureAwait(false);
+
+            return;
+        }
 
         _app = app;
 
@@ -137,6 +158,11 @@ internal sealed class AdminApiServer(
         try
         {
             await next(http).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (http.RequestAborted.IsCancellationRequested)
+        {
+            // The browser went away (a page change, a refresh, a query it no longer needs): the
+            // grain calls gave up with it. Nobody is waiting for an answer, and nothing failed.
         }
         catch (Exception ex)
             when (!http.Response.HasStarted && !http.RequestAborted.IsCancellationRequested)

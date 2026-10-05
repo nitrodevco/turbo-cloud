@@ -54,9 +54,14 @@ public partial interface IRoomService
     );
     public Task CloseRoomForPlayerAsync(PlayerId playerId, CancellationToken ct);
 
-    /// <summary>Kicks a player: the room removes the avatar, the service closes the session.</summary>
-    public Task KickPlayerAsync(ActionContext ctx, PlayerId targetId, CancellationToken ct);
-    public Task BanPlayerAsync(
+    /// <summary>
+    /// Kicks a player: the room removes the avatar, the service closes the session. False when the
+    /// room refused (the actor may not kick them) or they were not in it.
+    /// </summary>
+    public Task<bool> KickPlayerAsync(ActionContext ctx, PlayerId targetId, CancellationToken ct);
+
+    /// <summary>Bans a player from the room, sending them out if inside. False when the room refused.</summary>
+    public Task<bool> BanPlayerAsync(
         ActionContext ctx,
         PlayerId targetId,
         RoomBanDurationType duration,

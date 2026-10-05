@@ -10,6 +10,8 @@ using Turbo.Admin.Permissions;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains.Permissions;
+using Turbo.Primitives.Players.Notifications;
+using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Admin.Api;
 
@@ -21,7 +23,8 @@ namespace Turbo.Admin.Api;
 /// </summary>
 internal sealed class PermissionPlayerEndpoints(
     IGrainFactory grainFactory,
-    PermissionEditPolicy policy,
+    IPermissionEditService permissions,
+    IPlayerNoticeService notices,
     PermissionViews views,
     TimeProvider timeProvider
 )
@@ -122,20 +125,26 @@ internal sealed class PermissionPlayerEndpoints(
         if (await CheckAsync(http, id, group, null, ct).ConfigureAwait(false) is { } refused)
             return refused;
 
-        if (!PermissionResults.TryExpiry(request.Duration, UtcNow, out var expiresAt))
+        if (!PermissionResults.TryDuration(request.Duration, out var duration))
             return PermissionResults.BadDuration(request.Duration);
 
-        return PermissionResults.Changed(
-            await Grain(id)
-                .AddGroupAsync(
-                    group,
-                    expiresAt,
-                    PermissionResults.ModeOf(request.Extend),
-                    Actor(http),
-                    ct
-                )
-                .ConfigureAwait(false)
-        );
+        return await DeliverAsync(
+                http,
+                id,
+                group,
+                await permissions
+                    .AddToGroupAsync(
+                        Actor(http),
+                        id,
+                        group,
+                        duration,
+                        PermissionResults.ModeOf(request.Extend),
+                        ct
+                    )
+                    .ConfigureAwait(false),
+                ct
+            )
+            .ConfigureAwait(false);
     }
 
     private async Task<IResult> RemoveGroupAsync(
@@ -149,11 +158,43 @@ internal sealed class PermissionPlayerEndpoints(
         if (await CheckAsync(http, id, groupName, null, ct).ConfigureAwait(false) is { } refused)
             return refused;
 
-        return PermissionResults.Changed(
-            await Grain(id)
-                .RemoveGroupAsync(groupName, temporary ?? false, Actor(http), ct)
-                .ConfigureAwait(false)
-        );
+        return await DeliverAsync(
+                http,
+                id,
+                groupName,
+                await permissions
+                    .RemoveFromGroupAsync(Actor(http), id, groupName, temporary ?? false, ct)
+                    .ConfigureAwait(false),
+                ct
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// A group change's answer, after telling the player about it as <c>:group</c> does. The
+    /// notice is best effort: an offline player is told nothing, and the change stands either way.
+    /// </summary>
+    private async Task<IResult> DeliverAsync(
+        HttpContext http,
+        int id,
+        string group,
+        PermissionGroupChange change,
+        CancellationToken ct
+    )
+    {
+        if (change.IsRefused)
+            return PermissionResults.Refused(
+                change.Refusal,
+                await EditorAsync(http, ct).ConfigureAwait(false),
+                group
+            );
+
+        if (change.Notice is { } notice)
+            await notices
+                .SendAsync(id, notice.TextKey, notice.DefaultText, notice.Parameters, ct)
+                .ConfigureAwait(false);
+
+        return PermissionResults.Changed(change.Result);
     }
 
     private async Task<IResult> SetNodeAsync(
@@ -314,7 +355,7 @@ internal sealed class PermissionPlayerEndpoints(
         grainFactory.GetPlayerPermissionGrain(PlayerId.Parse(id));
 
     private Task<PermissionEditor> EditorAsync(HttpContext http, CancellationToken ct) =>
-        policy.ForAsync(AdminIdentity.Of(http).PlayerId, ct);
+        permissions.EditorForAsync(AdminIdentity.Of(http).PlayerId, ct);
 
     private static PlayerId Actor(HttpContext http) => AdminIdentity.Of(http).PlayerId;
 }

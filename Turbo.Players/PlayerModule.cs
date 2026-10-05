@@ -11,6 +11,7 @@ using Turbo.Players.Providers;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Messenger;
 using Turbo.Primitives.Players.Notifications;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Runtime.AssemblyProcessing;
 
@@ -47,6 +48,7 @@ public sealed class PlayerModule : IHostPluginModule
         // Orleans may register one already, so this only fills the gap.
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IPermissionRegistryProvider, PermissionRegistryProvider>();
+        services.AddSingleton<IPermissionEditService, PermissionEditService>();
         services.AddSingleton<IAssemblyFeatureProcessor, PermissionNodeFeatureProcessor>();
     }
 }

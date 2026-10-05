@@ -117,7 +117,11 @@ public sealed class AdminRoomQueries(
     }
 
     /// <summary>One room in detail; null when there is no such room.</summary>
-    public async Task<RoomDetailResponse?> GetAsync(int roomId, CancellationToken ct)
+    public async Task<RoomDetailResponse?> GetAsync(
+        int roomId,
+        PlayerId viewer,
+        CancellationToken ct
+    )
     {
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbScope = db.ConfigureAwait(false);
@@ -172,6 +176,17 @@ public sealed class AdminRoomQueries(
                 .ConfigureAwait(false)
             : [];
 
+        // Asked only of a loaded room: the panel never loads a room to look at it.
+        bool? isMuted = isLoaded
+            ? await grainFactory
+                .GetRoomGrain(new RoomId(roomId))
+                .GetIsRoomMutedAsync(ct)
+                .ConfigureAwait(false)
+            : null;
+        var can = await AdminRoomAbilities
+            .ForAsync(grainFactory, viewer, room.OwnerId.Value, ct)
+            .ConfigureAwait(false);
+
         return new RoomDetailResponse(
             entity.Id,
             room.Name,
@@ -195,16 +210,76 @@ public sealed class AdminRoomQueries(
             room.ModSettings.WhoCanBan.ToString(),
             room.ChatProtection.ToString(),
             room.HideWalls,
+            room.WallThickness.ToString(),
+            room.FloorThickness.ToString(),
+            room.LeaveOnDoorTile,
+            room.IdleSleepEnabled,
+            room.IdleSleepTimeoutSeconds,
+            room.IdleAutokickEnabled,
+            room.IdleAutokickTimeoutSeconds,
+            room.MuteAllPets,
             room.StaffPick,
             room.HiddenByBc,
             room.Score,
             entity.CreatedAt,
             entity.LastActive,
             isLoaded,
+            isMuted,
             inside,
             rights,
-            bans
+            bans,
+            can
         );
+    }
+
+    /// <summary>The room's owner, or null when there is no such room.</summary>
+    public async Task<int?> GetOwnerIdAsync(int roomId, CancellationToken ct)
+    {
+        var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
+
+        return await db
+            .Rooms.AsNoTracking()
+            .Where(x => x.Id == roomId)
+            .Select(x => (int?)x.PlayerEntityId)
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>Whether the player still holds rights in the room, as saved.</summary>
+    public async Task<bool> HasRightsAsync(int roomId, int playerId, CancellationToken ct)
+    {
+        var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
+
+        return await db
+            .RoomRights.AsNoTracking()
+            .AnyAsync(x => x.RoomEntityId == roomId && x.PlayerEntityId == playerId, ct)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>Whether the room is loaded: what the actions on the people inside it need.</summary>
+    public async Task<bool> IsLoadedAsync(int roomId, CancellationToken ct) =>
+        (
+            await grainFactory
+                .GetRoomDirectoryGrain()
+                .GetActiveRoomIdsAsync(ct)
+                .ConfigureAwait(false)
+        ).Contains(new RoomId(roomId));
+
+    /// <summary>Every navigator category a room may be put in, in the navigator's order.</summary>
+    public async Task<IReadOnlyList<RoomCategoryItem>> GetCategoriesAsync(CancellationToken ct)
+    {
+        var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
+
+        return await db
+            .NavigatorFlatCategories.AsNoTracking()
+            .OrderBy(x => x.OrderNum)
+            .ThenBy(x => x.Name)
+            .Select(x => new RoomCategoryItem(x.Id, x.Name, x.Visible, x.StaffOnly))
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
     }
 
     /// <summary>The population of every loaded room, by room id.</summary>

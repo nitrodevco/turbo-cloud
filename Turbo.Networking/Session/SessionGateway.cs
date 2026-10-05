@@ -5,18 +5,24 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Orleans;
+using Turbo.Events;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Orleans.Observers;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Events;
 
 namespace Turbo.Networking.Session;
 
-public sealed class SessionGateway(IGrainFactory grainFactory, ILogger<ISessionGateway> logger)
-    : ISessionGateway
+public sealed class SessionGateway(
+    IGrainFactory grainFactory,
+    EventSystem eventSystem,
+    ILogger<ISessionGateway> logger
+) : ISessionGateway
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly EventSystem _eventSystem = eventSystem;
     private readonly ILogger<ISessionGateway> _logger = logger;
 
     private readonly ConcurrentDictionary<SessionKey, ISessionContext> _sessions = new();
@@ -64,8 +70,11 @@ public sealed class SessionGateway(IGrainFactory grainFactory, ILogger<ISessionG
     {
         if (_sessionToPlayer.TryRemove(key, out var playerId))
         {
-            // Remove only this binding: a reconnect may already have replaced it.
-            _playerToSession.TryRemove(new KeyValuePair<PlayerId, SessionKey>(playerId, key));
+            // Remove only this binding: a reconnect may already have replaced it, and then the
+            // player is still online.
+            if (_playerToSession.TryRemove(new KeyValuePair<PlayerId, SessionKey>(playerId, key)))
+                AnnounceOnline(playerId, false);
+
             await _grainFactory
                 .GetPlayerPresenceGrain(playerId)
                 .UnregisterSessionObserverAsync(key, ct)
@@ -119,6 +128,9 @@ public sealed class SessionGateway(IGrainFactory grainFactory, ILogger<ISessionG
         await playerPresence
             .RegisterSessionObserverAsync(key, observer, CancellationToken.None)
             .ConfigureAwait(false);
+
+        if (previousKey == SessionKey.Invalid)
+            AnnounceOnline(playerId, true);
 
         if (previousKey != SessionKey.Invalid && previousKey != key)
         {
@@ -195,9 +207,18 @@ public sealed class SessionGateway(IGrainFactory grainFactory, ILogger<ISessionG
             return;
 
         _sessionToPlayer.TryRemove(sessionKey, out _);
+        AnnounceOnline(playerId, false);
 
         var playerPresence = _grainFactory.GetPlayerPresenceGrain(playerId);
 
         await playerPresence.UnregisterSessionObserverAsync(sessionKey, ct).ConfigureAwait(false);
     }
+
+    private void AnnounceOnline(PlayerId playerId, bool online) =>
+        _eventSystem
+            .PublishAsync(
+                new PlayerOnlineChangedEvent { PlayerId = playerId, Online = online },
+                CancellationToken.None
+            )
+            .LogAndForget(_logger, "announce that player {PlayerId} came or went", playerId);
 }

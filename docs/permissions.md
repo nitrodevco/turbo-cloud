@@ -793,7 +793,7 @@ temporary player denials of `trade` and `chat.speak` once the mod tool is built,
 | Temporary beats permanent; `temporary-add-behaviour` | missing | **fix** (17.1) |
 | `meta-value-selection` per key | missing | **fix** (17.1) |
 | `sync` — reload after the database was edited by something else | built: `perm reload` (§9) | — |
-| Argument-based command permissions (who may grant what) | built for the admin panel (`PermissionEditor`) | a manager may only grant nodes they hold, and only change groups and players lighter than their heaviest group; `:group` still needs only `permissions.manage` |
+| Argument-based command permissions (who may grant what) | built (`IPermissionEditService`, `PermissionEditor`) | a manager may only grant nodes they hold, and only change groups and players lighter than their heaviest group; the admin panel and `:group` both follow it, the console is exempt |
 | Verbose (watch checks live) | built: `perm user <player> verbose` (§10) | — |
 | `group listmembers`, `log recent`/`search`, `search <node>` (who holds it) | built: `perm group <g> members`, `perm log [search]`, `perm search` (§9) | — |
 | `group.<name>` as a node (membership checkable like a permission) | built (§5) | — |

@@ -10,6 +10,8 @@ using Turbo.Database.Extensions;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Permissions;
+using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
@@ -28,6 +30,11 @@ public sealed class AdminRoomQueriesTests : IDisposable
     private const int ALICE = 1;
     private const int BOB = 2;
     private const int CAROL = 3;
+
+    /// <summary>A staff member looking at rooms, holding whatever <see cref="_staffNodes"/> says.</summary>
+    private const int STAFF = 50;
+
+    private string[] _staffNodes = [];
 
     private readonly SqliteDb _db = new();
     private readonly Fakes _fakes = new();
@@ -77,6 +84,13 @@ public sealed class AdminRoomQueriesTests : IDisposable
         _fakes.Handlers["GetActiveRoomIdsAsync"] = _ =>
             Task.FromResult<ImmutableArray<RoomId>>([.. _activeRooms.Select(x => x.RoomId)]);
         _fakes.Handlers["GetRoomPlayersAsync"] = _ => Task.FromResult(_insideRoom10);
+        _fakes.Handlers["GetResolvedAsync"] = call =>
+            Task.FromResult(
+                ResolvedPermissionsSnapshot.EMPTY with
+                {
+                    Granted = Convert.ToInt64(call.Key) == STAFF ? [.. _staffNodes] : [],
+                }
+            );
         _fakes.Handlers["GetPlayerNamesAsync"] = call =>
             Task.FromResult(
                 ((List<PlayerId>)call.Args[0]!).ToImmutableDictionary(
@@ -165,13 +179,14 @@ public sealed class AdminRoomQueriesTests : IDisposable
         _activeRooms = [Active(10, population: 2)];
         _insideRoom10 = [new PlayerId(BOB), new PlayerId(CAROL)];
 
-        var room = await Queries().GetAsync(10, Ct);
+        var room = await Queries().GetAsync(10, new PlayerId(STAFF), Ct);
 
         room!.Name.Should().Be("Alice's Cafe");
         room.OwnerName.Should().Be("alice");
         room.Model.Should().Be("model_a");
         room.AllowWalkThrough.Should().BeTrue();
         room.IsLoaded.Should().BeTrue();
+        room.IsMuted.Should().BeFalse("a loaded room says whether it is muted");
         room.PlayersInside.Select(x => x.Name).Should().Equal("bob", "carol");
         room.RightsHolders.Should().ContainSingle().Which.Name.Should().Be("bob");
         room.Bans.Should()
@@ -183,7 +198,7 @@ public sealed class AdminRoomQueriesTests : IDisposable
     [Fact]
     public async Task APasswordIsNeverShownOnlyThatThereIsOne()
     {
-        var room = await Queries().GetAsync(12, Ct);
+        var room = await Queries().GetAsync(12, new PlayerId(STAFF), Ct);
 
         room!.HasPassword.Should().BeTrue();
         typeof(Turbo.Admin.Api.Contracts.RoomDetailResponse)
@@ -195,9 +210,10 @@ public sealed class AdminRoomQueriesTests : IDisposable
     [Fact]
     public async Task LookingAtAnUnloadedRoomDoesNotLoadIt()
     {
-        var room = await Queries().GetAsync(12, Ct);
+        var room = await Queries().GetAsync(12, new PlayerId(STAFF), Ct);
 
         room!.IsLoaded.Should().BeFalse();
+        room.IsMuted.Should().BeNull();
         room.PlayersInside.Should().BeEmpty();
         _fakes.Log.On<IRoomGrain>().Should().BeEmpty("calling a room grain loads the room");
     }
@@ -205,7 +221,33 @@ public sealed class AdminRoomQueriesTests : IDisposable
     [Fact]
     public async Task AnUnknownRoomIsNotFound()
     {
-        (await Queries().GetAsync(999, Ct)).Should().BeNull();
+        (await Queries().GetAsync(999, new PlayerId(STAFF), Ct)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task WhatTheViewerMayDo_FollowsTheNodesTheHotelAsksFor()
+    {
+        _staffNodes = [PermissionNodes.Room.CONTROL_ANY, PermissionNodes.Command.ROOMKICKALL];
+
+        var staff = (await Queries().GetAsync(12, new PlayerId(STAFF), Ct))!.Can;
+
+        staff.EditSettings.Should().BeTrue();
+        staff.ManageRights.Should().BeTrue();
+        staff.KickAll.Should().BeTrue();
+        staff.Moderate.Should().BeFalse("kicks, mutes and bans need room.moderate.any");
+        staff.Unload.Should().BeFalse();
+        staff.StaffPick.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ARoomsOwner_MayEditAndModerateIt_WithoutAnyNode()
+    {
+        var owner = (await Queries().GetAsync(12, new PlayerId(BOB), Ct))!.Can;
+
+        owner.EditSettings.Should().BeTrue();
+        owner.ManageRights.Should().BeTrue();
+        owner.Moderate.Should().BeTrue();
+        owner.KickAll.Should().BeFalse("clearing a room is a staff command");
     }
 
     private AdminRoomQueries Queries(AdminConfig? config = null) =>

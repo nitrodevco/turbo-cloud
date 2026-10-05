@@ -50,4 +50,25 @@ public sealed class AdminConfig
 
     /// <summary>The longest text the room search accepts.</summary>
     public int RoomSearchMaxLength { get; init; } = 64;
+
+    /// <summary>Players per page in the panel's player search.</summary>
+    public int PlayerSearchPageSize { get; init; } = 25;
+
+    /// <summary>The longest room alert the panel sends, as <c>:roomalert</c>'s limit is in the hotel.</summary>
+    public int RoomAlertMaxLength { get; init; } = 500;
+
+    /// <summary>The longest a player can be muted in a room from the panel, in minutes.</summary>
+    public int RoomMuteMaxMinutes { get; init; } = 60;
+
+    /// <summary>
+    /// How long the live feed gathers changes before sending them, so a busy hotel sends the
+    /// panel one message a beat rather than one per player who walks into a room.
+    /// </summary>
+    public int LiveBatchMs { get; init; } = 1000;
+
+    /// <summary>
+    /// How often a quiet live stream sends a keep-alive, and checks the session behind it is still
+    /// signed in and allowed the panel. Under the 100 seconds Cloudflare lets a quiet response sit.
+    /// </summary>
+    public int LiveHeartbeatSeconds { get; init; } = 25;
 }

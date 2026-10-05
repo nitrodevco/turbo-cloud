@@ -1,4 +1,4 @@
-namespace Turbo.Admin.Permissions;
+namespace Turbo.Primitives.Players.Permissions;
 
 /// <summary>Why <see cref="PermissionEditor"/> refuses a change, if it does.</summary>
 public enum PermissionEditRefusal
