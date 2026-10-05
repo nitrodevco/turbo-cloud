@@ -10,6 +10,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Admin.Catalog;
+using Turbo.Admin.Commands;
 using Turbo.Admin.Configuration;
 using Turbo.Admin.Links;
 using Turbo.Admin.Live;
@@ -18,9 +20,13 @@ using Turbo.Admin.Players;
 using Turbo.Admin.Rooms;
 using Turbo.Database.Context;
 using Turbo.Primitives.Admin.Snapshots;
+using Turbo.Primitives.Authentication;
 using Turbo.Primitives.Availability;
+using Turbo.Primitives.Catalog.Editing;
 using Turbo.Primitives.Commands;
+using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players.Accounts;
 using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
@@ -152,6 +158,10 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(IPlayerNoticeService),
                 typeof(IDbContextFactory<TurboDbContext>),
                 typeof(IRoomService),
+                typeof(IFurnitureDefinitionProvider),
+                typeof(ICatalogEditService),
+                typeof(IPlayerAccountService),
+                typeof(ILoginTicketService),
             }
         )
             services.AddSingleton(iface, fakes.Create(iface));
@@ -163,6 +173,10 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<AdminRoomQueries>();
         services.AddSingleton<AdminRoomEditor>();
         services.AddSingleton<AdminPlayerQueries>();
+        services.AddSingleton<AdminTicketPolicy>();
+        services.AddSingleton<AdminSiteAccounts>();
+        services.AddSingleton<AdminCommandLogQueries>();
+        services.AddSingleton<AdminCatalogQueries>();
         services.AddSingleton<PermissionViews>();
         services.AddSingleton<AdminLiveFeed>();
 

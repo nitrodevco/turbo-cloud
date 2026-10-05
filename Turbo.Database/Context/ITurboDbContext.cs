@@ -51,6 +51,8 @@ public interface ITurboDbContext : IDisposable
     public DbSet<RoomEntryLogEntity>? RoomEntryLogs { get; set; }
 
     public DbSet<SecurityTicketEntity>? SecurityTickets { get; set; }
+    public DbSet<PlayerDiscordLinkEntity>? PlayerDiscordLinks { get; set; }
+    public DbSet<WebSessionEntity>? WebSessions { get; set; }
 
     public DbSet<NavigatorTopLevelContextEntity>? NavigatorTopLevelContexts { get; set; }
 

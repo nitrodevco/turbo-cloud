@@ -3,23 +3,30 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Moderation;
 using Turbo.Database.Extensions;
+using Turbo.Events;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Moderation.Enums;
+using Turbo.Primitives.Moderation.Events;
 using Turbo.Primitives.Moderation.Snapshots;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 
 namespace Turbo.Operations;
 
 /// <summary>
 /// Hotel bans, read and written through the database. A login asks it, so the lookup is one
-/// indexed query for a player who has never been sanctioned.
+/// indexed query for a player who has never been sanctioned. A ban given or lifted raises
+/// <see cref="PlayerSanctionChangedEvent"/>.
 /// </summary>
 public sealed class SanctionService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
-    TimeProvider timeProvider
+    TimeProvider timeProvider,
+    EventSystem eventSystem,
+    ILogger<ISanctionService> logger
 ) : ISanctionService
 {
     public async Task<PlayerSanctionSnapshot?> GetActiveBanAsync(
@@ -73,6 +80,7 @@ public sealed class SanctionService(
         dbCtx.PlayerSanctions.Add(entity);
 
         await dbCtx.SaveChangesAsync(ct);
+        Announce(playerId);
 
         return entity.ToSnapshot();
     }
@@ -83,8 +91,22 @@ public sealed class SanctionService(
 
         await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct);
 
-        return await RevokeActiveBansAsync(dbCtx, playerId, revokedBy, now, ct) > 0;
+        if (await RevokeActiveBansAsync(dbCtx, playerId, revokedBy, now, ct) == 0)
+            return false;
+
+        Announce(playerId);
+
+        return true;
     }
+
+    /// <summary>Not awaited: a handler cannot hold up the ban, nor fail it once it is written.</summary>
+    private void Announce(PlayerId playerId) =>
+        eventSystem
+            .PublishAsync(
+                new PlayerSanctionChangedEvent { PlayerId = playerId },
+                CancellationToken.None
+            )
+            .LogAndForget(logger, "announce the sanctions of player {PlayerId}", playerId);
 
     private static Task<int> RevokeActiveBansAsync(
         TurboDbContext dbCtx,

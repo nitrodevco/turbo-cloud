@@ -125,6 +125,16 @@ turbo_export_app_env() {
   turbo_map TURBO_ADMIN_PANEL_URL Turbo__Admin__PanelUrl
   turbo_map TURBO_ADMIN_PASSKEY_RP_ID Turbo__Admin__PasskeyRpId
 
+  turbo_map TURBO_WEB_ENABLED Turbo__Web__Enabled
+  turbo_map TURBO_WEB_URL Turbo__Web__Url
+  turbo_map TURBO_WEB_SITE_URL Turbo__Web__SiteUrl
+  turbo_map TURBO_WEB_HOTEL_NAME Turbo__Web__HotelName
+  turbo_map TURBO_WEB_CLIENT_URL Turbo__Web__ClientUrl
+  turbo_map TURBO_WEB_AVATAR_IMAGE_URL Turbo__Web__AvatarImageUrl
+  turbo_map TURBO_WEB_REGISTRATION_OPEN Turbo__Web__RegistrationOpen
+  turbo_map TURBO_DISCORD_CLIENT_ID Turbo__Web__Discord__ClientId
+  turbo_map TURBO_DISCORD_CLIENT_SECRET Turbo__Web__Discord__ClientSecret
+
   turbo_map TURBO_LOG_LEVEL Logging__LogLevel__Turbo
 
   # Plugins live outside the release folders so a deploy does not drop them.

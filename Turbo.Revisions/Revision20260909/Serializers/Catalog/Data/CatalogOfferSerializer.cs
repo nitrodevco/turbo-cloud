@@ -13,7 +13,7 @@ internal class CatalogOfferSerializer
             .WriteBoolean(offer.Rentable)
             .WriteInteger(offer.CostCredits)
             .WriteInteger(offer.CostCurrency)
-            .WriteInteger(offer.CurrencyTypeId ?? -1)
+            .WriteInteger(offer.ActivityPointType ?? -1)
             .WriteInteger(offer.CostSilver)
             .WriteBoolean(offer.CanGift)
             .WriteInteger(offer.Products.Length);
@@ -36,7 +36,7 @@ internal class CatalogOfferSerializer
             .WriteBoolean(offer.Rentable)
             .WriteInteger(offer.CostCredits)
             .WriteInteger(offer.CostCurrency)
-            .WriteInteger(offer.CurrencyTypeId ?? -1)
+            .WriteInteger(offer.ActivityPointType ?? -1)
             .WriteBoolean(offer.CanGift)
             .WriteInteger(offer.Products.Length);
 

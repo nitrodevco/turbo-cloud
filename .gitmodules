@@ -1,3 +1,6 @@
 [submodule "turbo-admin"]
 	path = turbo-admin
 	url = https://github.com/nitrodevco/turbo-admin.git
+[submodule "turbo-web"]
+	path = turbo-web
+	url = https://github.com/nitrodevco/turbo-web.git

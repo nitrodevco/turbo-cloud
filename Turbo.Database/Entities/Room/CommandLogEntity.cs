@@ -1,15 +1,19 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Turbo.Database.Entities.Room;
 
 /// <summary>
 /// One use of a chat command by an executor who holds <c>command.log</c>, so an operator logs
 /// staff and nobody else. The ids are plain columns, not foreign keys: the log is an audit trail
-/// and outlives the room it was typed in.
+/// and outlives the room it was typed in. Indexed by who ran it and by command, newest first, for
+/// the admin panel's log.
 /// </summary>
 [Table("command_logs")]
+[Index(nameof(PlayerEntityId), nameof(Id))]
+[Index(nameof(Command), nameof(Id))]
 public class CommandLogEntity : TurboEntity
 {
     public const int COMMAND_MAX_LENGTH = 32;

@@ -80,7 +80,7 @@ public sealed class CatalogService(
                     ProductCode = offer.LocalizationId,
                     PriceCredits = offer.CostCredits,
                     PriceActivityPoints = offer.CostCurrency,
-                    PriceActivityPointType = offer.CurrencyTypeId ?? -1,
+                    PriceActivityPointType = offer.ActivityPointType ?? -1,
                     IsVip = true,
                     Months = days / _daysPerPeriod,
                     ExtraDays = days % _daysPerPeriod,

@@ -1,10 +1,12 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Turbo.Operations;
 using Turbo.Operations.Commands;
 using Turbo.Operations.Configuration;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Messages.Outgoing.Moderation;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains.Permissions;
@@ -106,7 +108,12 @@ public class SanctionCommandsTests : OperatorCommandsTestBase
 
     public SanctionCommandsTests()
     {
-        _sanctions = new SanctionService(Db, Clock);
+        _sanctions = new SanctionService(
+            Db,
+            Clock,
+            new TestEventBus().System,
+            NullLogger<ISanctionService>.Instance
+        );
 
         Hotel.Fakes.Handlers["DisconnectPlayerAsync"] = call =>
         {

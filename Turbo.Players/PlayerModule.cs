@@ -3,12 +3,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
+using Turbo.Players.Accounts;
 using Turbo.Players.Configuration;
 using Turbo.Players.Messenger;
 using Turbo.Players.Notifications;
 using Turbo.Players.Permissions;
 using Turbo.Players.Providers;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Accounts;
 using Turbo.Primitives.Players.Messenger;
 using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Players.Permissions;
@@ -49,6 +51,7 @@ public sealed class PlayerModule : IHostPluginModule
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IPermissionRegistryProvider, PermissionRegistryProvider>();
         services.AddSingleton<IPermissionEditService, PermissionEditService>();
+        services.AddSingleton<IPlayerAccountService, PlayerAccountService>();
         services.AddSingleton<IAssemblyFeatureProcessor, PermissionNodeFeatureProcessor>();
     }
 }

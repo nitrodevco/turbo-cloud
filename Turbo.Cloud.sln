@@ -59,6 +59,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.LoadBots", "Turbo.Loa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Admin", "Turbo.Admin\Turbo.Admin.csproj", "{2156BA17-B64D-48E1-93D5-85CAE94A2E60}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Web", "Turbo.Web\Turbo.Web.csproj", "{EF9595D8-FC0C-46F4-9556-5CDF578251D7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -405,6 +407,18 @@ Global
 		{2156BA17-B64D-48E1-93D5-85CAE94A2E60}.Release|x64.Build.0 = Release|Any CPU
 		{2156BA17-B64D-48E1-93D5-85CAE94A2E60}.Release|x86.ActiveCfg = Release|Any CPU
 		{2156BA17-B64D-48E1-93D5-85CAE94A2E60}.Release|x86.Build.0 = Release|Any CPU
+		{EF9595D8-FC0C-46F4-9556-5CDF578251D7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EF9595D8-FC0C-46F4-9556-5CDF578251D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EF9595D8-FC0C-46F4-9556-5CDF578251D7}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{EF9595D8-FC0C-46F4-9556-5CDF578251D7}.Debug|x64.Build.0 = Debug|Any CPU
+		{EF9595D8-FC0C-46F4-9556-5CDF578251D7}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{EF9595D8-FC0C-46F4-9556-5CDF578251D7}.Debug|x86.Build.0 = Debug|Any CPU
+		{EF9595D8-FC0C-46F4-9556-5CDF578251D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EF9595D8-FC0C-46F4-9556-5CDF578251D7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EF9595D8-FC0C-46F4-9556-5CDF578251D7}.Release|x64.ActiveCfg = Release|Any CPU
+		{EF9595D8-FC0C-46F4-9556-5CDF578251D7}.Release|x64.Build.0 = Release|Any CPU
+		{EF9595D8-FC0C-46F4-9556-5CDF578251D7}.Release|x86.ActiveCfg = Release|Any CPU
+		{EF9595D8-FC0C-46F4-9556-5CDF578251D7}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

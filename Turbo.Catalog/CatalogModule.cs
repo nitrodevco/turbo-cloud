@@ -3,10 +3,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Turbo.Catalog.Configuration;
+using Turbo.Catalog.Editing;
 using Turbo.Catalog.Providers;
 using Turbo.Contracts.Plugins;
 using Turbo.Database.Context;
 using Turbo.Primitives.Catalog;
+using Turbo.Primitives.Catalog.Editing;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
@@ -25,6 +27,7 @@ public sealed class CatalogModule : IHostPluginModule
         );
 
         services.AddSingleton<ICatalogService, CatalogService>();
+        services.AddSingleton<ICatalogEditService, CatalogEditService>();
         services.AddSingleton<IBonusRareProvider, BonusRareProvider>();
         services.AddSingleton<ICatalogSnapshotProvider<NormalCatalog>>(
             sp => new CatalogSnapshotProvider<NormalCatalog>(

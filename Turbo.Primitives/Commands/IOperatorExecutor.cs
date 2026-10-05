@@ -31,6 +31,13 @@ public interface IOperatorExecutor
 
     bool IsConsole => PlayerId is null;
 
+    /// <summary>
+    /// Where the command came from, as the command log records it: <c>console</c> or
+    /// <c>player</c> (typed in game), unless the executor says otherwise (<c>panel</c>). At most
+    /// 16 characters.
+    /// </summary>
+    string Source => IsConsole ? "console" : "player";
+
     Task<bool> HasAsync(string node, CancellationToken ct);
 
     /// <summary>One short line back to whoever ran the command.</summary>

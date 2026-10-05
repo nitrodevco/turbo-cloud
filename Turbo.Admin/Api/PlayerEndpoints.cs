@@ -55,7 +55,10 @@ internal sealed class PlayerEndpoints(
                 resolved.Has(PermissionNodes.Command.DISCONNECT),
                 resolved.Has(PermissionNodes.Command.WARN),
                 resolved.Has(PermissionNodes.Command.ALERT),
-                resolved.Has(PermissionNodes.Command.GIVE)
+                resolved.Has(PermissionNodes.Command.GIVE),
+                resolved.Has(PermissionNodes.Admin.PLAYERS_CREATE),
+                resolved.Has(PermissionNodes.Admin.TICKETS_ISSUE),
+                resolved.Has(PermissionNodes.Admin.ACCOUNTS_MANAGE)
             )
         );
     }

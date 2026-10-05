@@ -33,6 +33,8 @@ internal sealed class WebOperatorExecutor(
 
     public string Name => name;
 
+    public string Source => "panel";
+
     public RoomId? RoomId => null;
 
     public IReadOnlyList<PlayerId> RoomPlayerIds { get; } = [];

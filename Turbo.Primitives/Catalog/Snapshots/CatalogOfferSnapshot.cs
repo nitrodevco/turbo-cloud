@@ -29,8 +29,13 @@ public sealed record CatalogOfferSnapshot
     [Id(6)]
     public required int CostCurrency { get; init; }
 
+    /// <summary>
+    /// The activity-point type <see cref="CostCurrency"/> is in (duckets, diamonds, ...), read
+    /// from the offer's <c>currency_types</c> row; null when it costs none, or its row is not an
+    /// activity-point currency.
+    /// </summary>
     [Id(7)]
-    public required int? CurrencyTypeId { get; init; }
+    public required int? ActivityPointType { get; init; }
 
     [Id(8)]
     public required bool CanGift { get; init; }
@@ -95,7 +100,7 @@ public sealed record CatalogOfferSnapshot
             requests.Add(
                 new WalletDebitRequest
                 {
-                    CurrencyKind = CurrencyKind.ActivityPoints(CurrencyTypeId),
+                    CurrencyKind = CurrencyKind.ActivityPoints(ActivityPointType),
                     Amount = CostCurrency * quantity,
                 }
             );

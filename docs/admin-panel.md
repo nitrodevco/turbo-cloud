@@ -285,8 +285,9 @@ Chat and visit logs, deleting rooms and changing owners aren't in the panel yet.
 Staff with `admin.players.view` get a **Players** page, for finding and looking at players, and
 acting on them with the matching command permissions.
 
-- **Search** every player by part of their name (case ignored) or by id. Results come 25 to a
-  page, most recently logged in first; players who have never logged in come last. **Online
+- **Search** every player by part of their name (case ignored), by id, or by part of the
+  Discord username they sign in to the [public site](public-site.md) with. Players with a
+  Discord account have a **Discord** badge. Results come 25 to a page, most recently logged in first; players who have never logged in come last. **Online
   only** shows just the players connected right now. The page also says how many are online.
 - **A player's page** shows:
   - whether they're online, and if so which room they're in;
@@ -320,6 +321,180 @@ The command's answer is shown under the card. A command that asks to be confirme
 **Confirm** button. Messages need the player online, as in the hotel. A player whose name starts
 with `@` or has a space can't be acted on from the panel, because the commands would misread it.
 Use the console for them.
+
+## Catalog
+
+Staff with `admin.catalog.view` get a **Catalog** page: the catalog's page tree, with the normal
+catalog and the Builders Club catalog on two tabs, and for each page its offers and its settings.
+Staff who also hold `catalog.manage` can change it.
+
+**Pages.** A page has a title, a name (the key the client opens it by, such as from a link), an
+icon (the number of a catalogue `icon_<n>.png`), a layout, the layout's images and texts in
+order, and whether it is shown. Pages move up and down among their siblings or under another page
+of the same catalog. **Add a page under it** makes a hidden page, so it can be set up before anyone
+sees it. Only an empty page can be deleted: move or delete its pages and offers first. The root
+can't be moved or deleted.
+
+**Offers.** Each offer opens in place:
+
+- **What it gives:** a floor item, a wall item (picked by the start of its class name, or its id),
+  a badge (its code), or a membership (see below), and how many.
+  - An offer that gives something else (a pet, a bot, a membership, several things) keeps that
+    as it is, and its other fields can still be changed.
+  - The item must exist and be of the type chosen, or the save is refused. Otherwise every
+    purchase would fail.
+- **Name key:** the text key the client shows. Leave it empty to use the item's class name, as
+  the hotel's own offers do.
+- **Price:** credits, and an amount of an activity-point currency (duckets, diamonds, ...).
+- **Rules:** who may buy it (anyone, club, VIP), whether it can be gifted or bought in bulk, and
+  whether it is shown.
+- **Page:** it can be moved to any page of the same catalog.
+
+What other things depend on is protected:
+
+- An offer that sells a **limited series** keeps its item (its price can change), and can't be
+  deleted. Hide it instead. What is left of the series is never touched by the editor.
+- A **club gift** offer, and one that **Builders Club furni** was placed from, can't be deleted
+  either; hide them.
+
+**Publishing.** Edits are saved straight away but players don't see them yet. **Publish** reloads
+both catalogs (the same as `:reload catalog`) and tells every client online the catalog changed:
+it drops what it has and shows "the catalog has been updated". The button shows how many edits
+are waiting. A `:reload catalog` also puts them live, and a restart loads the catalog fresh.
+
+**Hidden means hidden.** A hidden offer isn't on its page and can't be bought or raffled, even by
+a client that still knows its id. Before this, it was still sold. A hidden *page* only leaves the
+navigator: its offers stay on sale. That's on purpose, because the club window sells the
+memberships and a hotel often keeps them on a page of their own out of the navigator.
+
+**Habbo Club memberships.** An offer can give days of Habbo Club or Builders Club instead of an
+item. Players buy Habbo Club from the club window, a page with the `club_buy` layout. The window
+lists every shown membership offer in the normal catalog, wherever it sits, by length. Renewals
+and the club centre sell them too. So, to sell memberships:
+
+1. Have a shown page with the `club_buy` layout. If there are memberships but no such page, the
+   Catalog page says so, with a button that adds one.
+2. Add a membership offer for each length. On a `club_buy` page, **New offer** starts as a
+   membership.
+   - **Days:** 31 is a month.
+   - **Name key:** left empty, it is named by length, as the hotel's own are
+     (`habbo_club_3_months`).
+   - **Price:** credits and an activity-point currency.
+3. Publish.
+
+A membership can't ask for club (non-members couldn't buy it), is bought one at a time, can't be
+gifted yet (there is no gift path for memberships), and only lives in the normal catalog. Builders
+Club days work the same way, from a Builders Club page.
+
+**Club gifts.** Any furni offer in the normal catalog can be a club gift: members claim it for free.
+Each member earns one gift per month of club used up, and each gift can ask for a number of club
+days used up before it can be picked. Gifts are listed on a page with the `club_gifts` layout,
+which lists every shown gift wherever it sits; there is a warning and a button when there is none.
+A gift's name key is how members claim it, so no two gifts can share one. A gift can't be deleted,
+since members may have claimed it; hide it, or turn **Club gift** off first.
+
+**Limited series.** A saved offer of one floor or wall item in the normal catalog can be made
+limited:
+
+- **How many:** the size of the series.
+- **Raffle window:** how long the opening raffle gathers buyers before it draws. 0 sells first
+  come, first served.
+- **On sale from / until:** a later start shows as the next limited item.
+- **On sale:** a switch to stop selling it.
+
+The editor never counts what is left; the hotel does. A new total moves what is left by as much,
+and can't drop below what is sold. A series can only come off an offer while none of it is sold or
+raffled; after that, switch it off. A club gift can't be limited. Saving tells an open raffle to
+read the series again, so switching it off stops it at once. Players see the new numbers when you
+publish.
+
+**Currencies.** An offer's second price names a row of `currency_types`, and the hotel charges
+that row's activity-point type. Duckets are row 4 but type 0, so earlier code that charged the row
+number charged the wrong currency. The editor only offers activity-point currencies that are
+enabled.
+
+Page icons and images are loaded from `CatalogImageUrl`, the same address as the client's
+`image.library.catalogue.url`. The layouts on offer are those the client has a window for (from
+the Flash client's layouts, as nitro-next mirrors them); `CatalogLayouts` changes the list.
+
+### Creating players
+
+Staff with `admin.players.create` get a **New player** button on the Players page. A new player
+needs:
+
+- **A name:** 3 to 15 letters, digits and `- = ? ! @ : . , _`, with no spaces and not starting
+  with `@` (commands read `@` as a group of players). It can't be anyone else's name, whatever the
+  capitals.
+- **A motto** of up to 38 characters, and a **gender**.
+- **A figure.** Leave it empty for the gender's default look.
+
+A player row is all a login needs: their wallet, settings and permissions are made the first time
+they're used, and the default group is everyone's. Their page opens straight after, so you can
+give them a login ticket.
+
+### Login tickets
+
+A login ticket is what the client logs in with (the SSO ticket). Staff with `admin.tickets.issue`
+get a **Login ticket** card on a player's page:
+
+- **Works for:** 15 minutes, 1 hour, 1 day or 7 days, or **never** runs out.
+- **Can be used more than once:** off, the first login uses it up. On, it logs in every time
+  until it runs out or is taken away.
+- **Issue:** the ticket is shown once, with a copy button. If `ClientLoginUrl` is set, a ready
+  login link is shown too. Nothing shows the ticket again; the card only says whether there is
+  one and until when.
+- **One per player:** a new ticket replaces the old one, which stops working at once.
+- **Take it away:** the ticket stops working at once.
+
+A ticket logs in *as* the player, so it is the account. You can issue one for yourself, or for a
+player whose every permission you hold, the same rule as passkey setup links. A reusable ticket
+that never runs out is a standing login; the card warns you, so keep it like a password.
+
+Tickets are 32 random bytes and aren't tied to an address. Tickets written by something else (a
+CMS, the load-test bots) work as before: without an end time, a plain one is used up by its first
+login and a reusable ("locked") one never is. A plain ticket can only ever log in once, even if two
+logins race with it.
+
+### Discord accounts
+
+Players who signed up on the [public site](public-site.md) have a **Discord** card on their page:
+the Discord account they sign in with, since when, and how many site sign-ins they have now.
+Staff with `admin.accounts.manage` can, for themselves or for a player whose every permission
+they hold:
+
+- **Sign out of the site everywhere:** ends their site sign-ins. Their Discord link stays, and so
+  do their game sessions.
+- **Unlink Discord:** removes the link and ends their site sign-ins. Signing in with that Discord
+  account again then makes a new player. To keep someone out, ban them; the site then won't
+  open the hotel for them.
+
+These players are ordinary players otherwise. Creating players and login tickets work the same
+for them.
+
+## Command log
+
+Staff with `admin.commandlog.view` get a **Command log** page: every logged command, newest first,
+with when, who ran it, where (the room, or where it came from), what they typed after the command,
+and how it went. A player's page links to their own commands.
+
+Narrow it to one player (exact name or id), one command (`ban`, `:ban` and `Ban` all work), one
+outcome (done, not allowed, failed, ...), or where it came from:
+
+| Where from | Means |
+| --- | --- |
+| In game | An operator command typed in the hotel (`:ban` and the like) |
+| Room chat | A room command typed in a room's chat |
+| Admin panel | An action from the panel, or a line run in its console |
+| Server console | Typed at the server's own console |
+
+What gets logged is the hotel's rule, not the panel's: a command is logged when whoever ran it
+holds `command.log`, and a command aimed at a group (`@room`, `@online`) always is. Room chat
+commands are written in batches, so they can take a few seconds to appear; the page asks again
+every 30 seconds.
+
+The log is indexed by player and by command (migration `IndexCommandLogs`). Run
+`dotnet ef database update` from `Turbo.Database/` (or your usual deploy step) to add them; the
+page works without them, just more slowly on a large log.
 
 ## Permission editor
 
@@ -388,6 +563,12 @@ passkey; they add more while signed in instead.
 | `admin.passkeys.reset` | Making setup and reset links for other players (the Staff page, `:adminsetup <name>`), within the rule above. |
 | `admin.rooms.view` | The Rooms page: finding any room and seeing its settings, who is inside, rights and bans. |
 | `admin.players.view` | The Players page: finding any player and seeing their profile, wallet, rooms and sanctions. |
+| `admin.commandlog.view` | The Command log page: every logged command, who ran it, where from, and how it went. |
+| `admin.catalog.view` | The Catalog page: the catalog's pages, offers and prices. |
+| `admin.players.create` | Creating new players on the Players page. |
+| `admin.tickets.issue` | Issuing a player a login ticket, and taking it away, for players whose every permission they hold. |
+| `admin.accounts.manage` | Unlinking a player's Discord and signing them out of the public site, for players whose every permission they hold. |
+| `catalog.manage` | Changing the catalog on that page, and publishing it to players. |
 | `admin.permissions.view` | The Permissions page: seeing groups, any player's permissions, who has a node, and the permission log. |
 | `permissions.manage` | Changing permissions on that page, within the rule in [Permission editor](#permission-editor). The in-game `:group` command needs it too, and follows the same rule. |
 
@@ -423,6 +604,12 @@ them.
 | `RoomSearchPageSize` | `25` | | Rooms per page on the Rooms page. |
 | `RoomSearchMaxLength` | `64` | | The longest room search text; longer text is cut. |
 | `PlayerSearchPageSize` | `25` | | Players per page on the Players page. |
+| `CommandLogPageSize` | `50` | | Entries per page on the Command log page. |
+| `CatalogImageUrl` | `https://images.habbo.com/c_images/catalogue/` | | Where page icons and images load from in the catalog editor; match the client's `image.library.catalogue.url`. Empty shows none. |
+| `CatalogLayouts` | the client's layouts | | The page layouts the catalog editor offers, besides any a page already uses. |
+| `CatalogFurnitureSearchLimit` | `25` | | Items the catalog editor's item picker lists at once. |
+| `ClientLoginUrl` | empty | | The client's login address with `{ticket}` where the ticket goes, e.g. `https://hotel.example.com/client?sso={ticket}`. Set, a new ticket also comes as a login link. |
+| `TicketMaxLifetimeDays` | `365` | | The longest a ticket from the panel can work for, short of never. |
 | `RoomAlertMaxLength` | `500` | | The longest room alert the panel sends. |
 | `RoomMuteMaxMinutes` | `60` | | The longest the panel mutes a player in a room. |
 | `LiveBatchMs` | `1000` | | How long the live stream gathers changes before sending them. |
@@ -442,6 +629,7 @@ data again when the hotel says it changed, instead of asking every few seconds:
 | A player logs in or their connection goes | The dashboard, that player's page, any player list showing them |
 | A room loads, unloads or changes its settings | The dashboard, that room's page, any room list showing it |
 | A player enters or leaves a room | The same, and that player's page |
+| A player is banned or their ban is lifted | That player's page, and any player list showing them |
 | Maintenance or a shutdown is scheduled, starts or is called off | The dashboard |
 | What a player holds changes | Their permissions page, and the staff list |
 
@@ -449,7 +637,7 @@ Changes are gathered for a second (`LiveBatchMs`), so a busy hotel sends one mes
 than one per footstep. Staff are only told the room and player ids they may see: someone without
 `admin.rooms.view` hears that the dashboard moved, not which room. While the stream is up the
 dashboard shows **LIVE**, and pages still ask once a minute for what no change is sent about (memory,
-uptime, room bans, sanctions). If the stream drops, the panel goes back to asking every 10 to 15
+uptime, room bans, a ban running out). If the stream drops, the panel goes back to asking every 10 to 15
 seconds and reconnects on its own. When it is back, it fetches what is on screen once to catch up.
 
 A stream is checked at every keep-alive (`LiveHeartbeatSeconds`): signing out, the session
@@ -461,6 +649,11 @@ Cloudflare's 100-second limit. The hotel runs as one server today; the stream on
 players connected to the server the panel talks to.
 
 ## Things to know
+
+- **Apply the database migrations before starting new code.** Turbo doesn't migrate its own
+  database on startup. Run `dotnet ef database update` from `Turbo.Database/` (or your deploy
+  step) first. In particular `AddTicketExpiry` adds the column login reads: without it, **every
+  game login fails** with "Unknown column 'expires_at'".
 
 - **Changing the panel's domain** invalidates every passkey, since each passkey belongs to one
   domain. After moving, send everyone a setup link.

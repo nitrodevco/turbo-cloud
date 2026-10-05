@@ -68,6 +68,13 @@ public sealed class CatalogSnapshotProvider<TTag>(
                 .LtdSeries.AsNoTracking()
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
+            // An offer names its currency by its currency_types row; what the wallet and the
+            // client go by is that row's activity-point type.
+            var activityPointTypes = await dbCtx
+                .CurrencyTypes.AsNoTracking()
+                .Where(x => x.ActivityPointType != null)
+                .ToDictionaryAsync(x => x.Id, x => x.ActivityPointType!.Value, ct)
+                .ConfigureAwait(false);
 
             // Group by product and pick the most relevant series (Active > Newest)
             var series = allSeries
@@ -91,7 +98,10 @@ public sealed class CatalogSnapshotProvider<TTag>(
                             .ToImmutableArray()
                 );
 
+            // A hidden offer stays known by id (Builders Club placement and the purchase check
+            // ask), but no page lists it.
             var pageOfferIds = offers
+                .Where(o => o.Visible)
                 .GroupBy(o => o.CatalogPageEntityId)
                 .ToImmutableDictionary(g => g.Key, g => g.Select(x => x.Id).ToImmutableArray());
 
@@ -118,7 +128,21 @@ public sealed class CatalogSnapshotProvider<TTag>(
                         : [];
                     var products = ids.Select(x => productsById[x]).ToImmutableArray();
 
-                    return x.ToSnapshot(ids, products);
+                    int? activityPointType = null;
+
+                    if (x.CurrencyTypeId is { } currencyId)
+                    {
+                        if (activityPointTypes.TryGetValue(currencyId, out var type))
+                            activityPointType = type;
+                        else
+                            _logger.LogWarning(
+                                "Catalog offer {OfferId} is priced in currency type {CurrencyTypeId}, which is not an activity-point currency; its currency price is not charged",
+                                x.Id,
+                                currencyId
+                            );
+                    }
+
+                    return x.ToSnapshot(ids, products, activityPointType);
                 })
                 .ToImmutableDictionary(x => x.Id);
 

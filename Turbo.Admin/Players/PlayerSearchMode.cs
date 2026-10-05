@@ -8,4 +8,7 @@ public enum PlayerSearchMode
 
     /// <summary>The player's id, exactly.</summary>
     Id,
+
+    /// <summary>Part of the Discord username they sign in with, or the Discord id exactly.</summary>
+    Discord,
 }

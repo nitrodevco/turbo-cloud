@@ -284,6 +284,26 @@ public class OperatorCommandRunnerTests
     }
 
     [Fact]
+    public async Task TheLog_SaysWhereACommandCameFrom_AsTheExecutorTellsIt()
+    {
+        var panel = Staff("command.opprobe", PermissionNodes.Command.LOG);
+        panel.SourceOverride = "panel";
+
+        await _hotel.RunAsync(
+            "opprobe",
+            Staff("command.opprobe", PermissionNodes.Command.LOG),
+            "alice"
+        );
+        await _hotel.RunAsync("opprobe", panel, "bob");
+
+        await using var ctx = _hotel.Db.CreateDbContext();
+
+        (await ctx.CommandLogs.OrderBy(x => x.Id).Select(x => x.Source).ToListAsync())
+            .Should()
+            .Equal("player", "panel");
+    }
+
+    [Fact]
     public async Task AGroupSelector_IsAlwaysLogged_EvenForSomeoneWhoDoesNotHoldCommandLog()
     {
         var staff = Staff("command.opmass", OperatorMassCommand.MASS_NODE);

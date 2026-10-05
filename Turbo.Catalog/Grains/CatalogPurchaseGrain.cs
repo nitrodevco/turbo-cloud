@@ -82,6 +82,12 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         if (!snapshot.OffersById.TryGetValue(offerId, out var offer))
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.OfferNotFound);
 
+        // Hidden in the catalog editor: not shown, so not sold either, even to a client that
+        // still knows its id. Its page being hidden is not the same: the club window sells the
+        // memberships, and a hotel keeps them on a page of their own out of the navigator.
+        if (!offer.Visible)
+            throw new CatalogPurchaseException(CatalogPurchaseErrorType.OfferNotFound);
+
         // A club gift sits in the normal catalog like any other offer and is priced at nothing,
         // because it is earned rather than sold. Buying one is not a purchase this shop makes:
         // it goes through ClaimClubGiftAsync, which spends a gift the member has earned.

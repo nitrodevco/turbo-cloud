@@ -79,6 +79,15 @@ public sealed class AdminPlayerQueries(
                 PlayerSearchMode.Id => int.TryParse(term, out var id)
                     ? players.Where(x => x.Id == id)
                     : players.Where(x => false),
+                PlayerSearchMode.Discord => players.Where(x =>
+                    db.PlayerDiscordLinks.Any(l =>
+                        l.PlayerEntityId == x.Id
+                        && (
+                            l.DiscordId == term
+                            || EF.Functions.Like(l.DiscordUsername, "%" + like + "%", ESCAPE)
+                        )
+                    )
+                ),
                 _ => players.Where(x => EF.Functions.Like(x.Name, "%" + like + "%", ESCAPE)),
             };
         }
@@ -99,6 +108,10 @@ public sealed class AdminPlayerQueries(
                 x.LastLoginAt,
                 x.CreatedAt,
                 RoomsOwned = x.Rooms!.Count,
+                DiscordUsername = db
+                    .PlayerDiscordLinks.Where(l => l.PlayerEntityId == x.Id)
+                    .Select(l => l.DiscordUsername)
+                    .FirstOrDefault(),
             })
             .ToListAsync(ct)
             .ConfigureAwait(false);
@@ -116,7 +129,8 @@ public sealed class AdminPlayerQueries(
                     online.Contains(x.Id),
                     x.LastLoginAt,
                     x.CreatedAt,
-                    x.RoomsOwned
+                    x.RoomsOwned,
+                    x.DiscordUsername
                 )),
             ]
         );
@@ -192,11 +206,28 @@ public sealed class AdminPlayerQueries(
             .ToDictionaryAsync(x => x.Id, x => x.Name, ct)
             .ConfigureAwait(false);
 
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var discord = await db
+            .PlayerDiscordLinks.AsNoTracking()
+            .Where(x => x.PlayerEntityId == playerId)
+            .Select(x => new
+            {
+                x.DiscordId,
+                x.DiscordUsername,
+                x.CreatedAt,
+            })
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+        var signIns = discord is null
+            ? 0
+            : await db
+                .WebSessions.CountAsync(x => x.PlayerEntityId == playerId && x.ExpiresAt > now, ct)
+                .ConfigureAwait(false);
+
         var isOnline = sessions.GetOnlinePlayerIds().Any(x => x.Value == playerId);
         var currentRoom = isOnline
             ? await CurrentRoomAsync(db, playerId, ct).ConfigureAwait(false)
             : null;
-        var now = timeProvider.GetUtcNow().UtcDateTime;
 
         return new PlayerDetailResponse(
             player.Id,
@@ -229,7 +260,15 @@ public sealed class AdminPlayerQueries(
                     NameOf(staffNames, x.RevokedByEntityId),
                     x.RevokedAt is null && (x.ExpiresAt is null || x.ExpiresAt > now)
                 )),
-            ]
+            ],
+            discord is null
+                ? null
+                : new PlayerDiscordInfo(
+                    discord.DiscordId,
+                    discord.DiscordUsername,
+                    discord.CreatedAt,
+                    signIns
+                )
         );
     }
 

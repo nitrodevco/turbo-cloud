@@ -54,6 +54,76 @@ public sealed class AdminConfig
     /// <summary>Players per page in the panel's player search.</summary>
     public int PlayerSearchPageSize { get; init; } = 25;
 
+    /// <summary>Entries per page in the panel's command log.</summary>
+    public int CommandLogPageSize { get; init; } = 50;
+
+    /// <summary>
+    /// Where the catalog's page icons and images are, as the client's
+    /// <c>image.library.catalogue.url</c>: an icon is <c>icon_&lt;n&gt;.png</c> there, an image
+    /// its name and <c>.png</c>. Empty shows none in the panel.
+    /// </summary>
+    public string CatalogImageUrl { get; init; } = "https://images.habbo.com/c_images/catalogue/";
+
+    /// <summary>
+    /// The page layouts the catalog editor offers, besides any a page already uses: those the
+    /// client ships a window for, and the codes it maps onto one (<c>bots</c> is drawn as
+    /// <c>default_3x3</c>). A code the client has no window for leaves the page empty.
+    /// </summary>
+    public string[] CatalogLayouts { get; init; } =
+    [
+        "badge_display",
+        "bots",
+        "builders_club_addons",
+        "builders_club_frontpage",
+        "builders_club_loyalty",
+        "club_buy",
+        "club_gifts",
+        "default_3x3",
+        "default_3x3_color_grouping",
+        "default_3x3_extrainfo",
+        "frontpage4",
+        "frontpage_featured",
+        "guild_custom_furni",
+        "guild_forum",
+        "guild_frontpage",
+        "info_duckets",
+        "info_loyalty",
+        "info_rentables",
+        "loyalty_vip_buy",
+        "marketplace",
+        "marketplace_own_items",
+        "monkey",
+        "niko",
+        "petcustomization",
+        "pets",
+        "pets2",
+        "pets3",
+        "pixeleffects",
+        "recycler",
+        "recycler_info",
+        "recycler_prizes",
+        "roomads",
+        "single_bundle",
+        "sold_ltd_items",
+        "soundmachine",
+        "spaces_new",
+        "trophies",
+        "vip_buy",
+    ];
+
+    /// <summary>
+    /// The client's login address with <c>{ticket}</c> where a login ticket goes, such as
+    /// <c>https://hotel.example.com/client?sso={ticket}</c>, so the panel can hand out a link to
+    /// log in with. Empty shows the ticket alone.
+    /// </summary>
+    public string ClientLoginUrl { get; init; } = "";
+
+    /// <summary>The longest a login ticket from the panel can work for, in days, short of never.</summary>
+    public int TicketMaxLifetimeDays { get; init; } = 365;
+
+    /// <summary>Furniture the catalog editor's item picker lists at once.</summary>
+    public int CatalogFurnitureSearchLimit { get; init; } = 25;
+
     /// <summary>The longest room alert the panel sends, as <c>:roomalert</c>'s limit is in the hotel.</summary>
     public int RoomAlertMaxLength { get; init; } = 500;
 

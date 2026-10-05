@@ -38,6 +38,11 @@ public sealed class FakeExecutor : IOperatorExecutor
 
     public string Name { get; }
 
+    /// <summary>Where the command came from; unset, what the contract says by default.</summary>
+    public string? SourceOverride { get; set; }
+
+    public string Source => SourceOverride ?? (PlayerId is null ? "console" : "player");
+
     public RoomId? RoomId { get; }
 
     public IReadOnlyList<PlayerId> RoomPlayerIds { get; }

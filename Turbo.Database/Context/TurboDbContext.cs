@@ -79,6 +79,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<CommandLogEntity> CommandLogs { get; init; }
     public DbSet<PlayerSanctionEntity> PlayerSanctions { get; init; }
     public DbSet<SecurityTicketEntity> SecurityTickets { get; init; }
+    public DbSet<PlayerDiscordLinkEntity> PlayerDiscordLinks { get; init; }
+    public DbSet<WebSessionEntity> WebSessions { get; init; }
     public DbSet<AdminPasskeyEntity> AdminPasskeys { get; init; }
 
     public DbSet<NavigatorTopLevelContextEntity> NavigatorTopLevelContexts { get; init; }

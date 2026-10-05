@@ -1,7 +1,10 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Turbo.Operations;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Moderation.Enums;
+using Turbo.Primitives.Moderation.Events;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -23,11 +26,46 @@ public class SanctionServiceTests : IDisposable
 
     private readonly SqliteDb _db = new();
     private readonly ManualTimeProvider _clock = new(START);
+    private readonly TestEventBus _events = new();
     private readonly SanctionService _service;
 
-    public SanctionServiceTests() => _service = new SanctionService(_db, _clock);
+    public SanctionServiceTests()
+    {
+        _service = new SanctionService(
+            _db,
+            _clock,
+            _events.System,
+            NullLogger<ISanctionService>.Instance
+        );
+        _events.Record<PlayerSanctionChangedEvent>();
+    }
 
     public void Dispose() => _db.Dispose();
+
+    /// <summary>The players a ban or its lifting was announced for, in order.</summary>
+    private async Task<int[]> AnnouncedAsync()
+    {
+        await SessionHarness.Settle();
+
+        return [.. _events.Of<PlayerSanctionChangedEvent>().Select(x => x.PlayerId.Value)];
+    }
+
+    [Fact]
+    public async Task ABan_AndLiftingIt_AreAnnounced()
+    {
+        await _service.BanAsync(5, null, "spam", 2, CancellationToken.None);
+        await _service.UnbanAsync(5, 2, CancellationToken.None);
+
+        (await AnnouncedAsync()).Should().Equal(5, 5);
+    }
+
+    [Fact]
+    public async Task LiftingABanNobodyHas_ChangesNothing_SoIsNotAnnounced()
+    {
+        (await _service.UnbanAsync(5, 2, CancellationToken.None)).Should().BeFalse();
+
+        (await AnnouncedAsync()).Should().BeEmpty();
+    }
 
     [Fact]
     public async Task APlayerNobodyBanned_HasNoBan() =>

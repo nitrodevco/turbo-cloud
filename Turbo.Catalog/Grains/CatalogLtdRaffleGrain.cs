@@ -120,6 +120,10 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         )
             return LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.None);
 
+        // A hidden offer is not sold, limited or not.
+        if (!offer.Visible)
+            return LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.SeriesNotFound);
+
         // The same club rule as a shop purchase: an LTD is an offer like any other.
         if (offer.RequiresClub && !await _grainFactory.HasActiveClubAsync(playerId, ct))
             return LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.RequiresHabboClub);
@@ -144,8 +148,8 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         // nearest it draws, and the charge at the draw refuses a short silver balance anyway.
         var hasInsufficientCredits = offer.CostCredits > credits || offer.CostSilver > silver;
         var hasInsufficientActivityPoints =
-            offer is { CostCurrency: > 0, CurrencyTypeId: not null }
-            && activityPoints.GetValueOrDefault(offer.CurrencyTypeId.Value) < offer.CostCurrency;
+            offer is { CostCurrency: > 0, ActivityPointType: not null }
+            && activityPoints.GetValueOrDefault(offer.ActivityPointType.Value) < offer.CostCurrency;
 
         if (hasInsufficientCredits || hasInsufficientActivityPoints)
         {
@@ -155,7 +159,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
                 {
                     NotEnoughCredits = hasInsufficientCredits,
                     NotEnoughActivityPoints = hasInsufficientActivityPoints,
-                    ActivityPointType = offer.CurrencyTypeId ?? 0,
+                    ActivityPointType = offer.ActivityPointType ?? 0,
                 }
             );
         }

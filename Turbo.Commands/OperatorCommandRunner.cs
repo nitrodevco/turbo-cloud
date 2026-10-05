@@ -661,7 +661,7 @@ public sealed class OperatorCommandRunner(
                     ExecutionId = context.ExecutionId,
                     ParentExecutionId = context.ParentExecutionId,
                     ConfirmationId = context.ConfirmationId,
-                    Source = executor.PlayerId is null ? "console" : "player",
+                    Source = executor.Source,
                     ResolvedAudienceJson = JsonSerializer.Serialize(
                         context.Audiences.ToDictionary(
                             x => x.Key,

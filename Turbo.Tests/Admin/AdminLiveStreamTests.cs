@@ -10,6 +10,7 @@ using Turbo.Admin.Configuration;
 using Turbo.Admin.Live;
 using Turbo.Events.Registry;
 using Turbo.Primitives.Admin.Snapshots;
+using Turbo.Primitives.Moderation.Events;
 using Turbo.Primitives.Players.Events;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Events;
@@ -148,7 +149,9 @@ public sealed class AdminLiveStreamTests : IAsyncDisposable
     private static int[] Ids(JsonElement message, string name) =>
         [.. message.GetProperty(name).EnumerateArray().Select(x => x.GetInt32())];
 
-    /// <summary>A player walks into a room, having just logged in, and gains a node.</summary>
+    /// <summary>
+    /// A player walks into a room, having just logged in, and gains a node; another is banned.
+    /// </summary>
     private async Task AnnounceAsync()
     {
         await new PlayerOnlineChangedHandler(_feed).HandleAsync(
@@ -171,6 +174,11 @@ public sealed class AdminLiveStreamTests : IAsyncDisposable
             new EventContext(),
             Ct
         );
+        await new PlayerSanctionChangedHandler(_feed).HandleAsync(
+            new PlayerSanctionChangedEvent { PlayerId = 8 },
+            new EventContext(),
+            Ct
+        );
     }
 
     [Fact]
@@ -184,7 +192,7 @@ public sealed class AdminLiveStreamTests : IAsyncDisposable
 
         changes.GetProperty("dashboard").GetBoolean().Should().BeTrue();
         Ids(changes, "rooms").Should().Equal(42);
-        Ids(changes, "players").Should().Equal(7);
+        Ids(changes, "players").Should().BeEquivalentTo([7, 8]);
         Ids(changes, "permissions").Should().Equal(7);
     }
 

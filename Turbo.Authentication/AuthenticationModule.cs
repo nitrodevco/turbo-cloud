@@ -1,4 +1,6 @@
+using System;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
 using Turbo.Primitives.Authentication;
@@ -11,6 +13,8 @@ public sealed class AuthenticationModule : IHostPluginModule
 
     public void ConfigureServices(IServiceCollection services, HostApplicationBuilder builder)
     {
+        services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IAuthenticationService, AuthenticationService>();
+        services.AddSingleton<ILoginTicketService, LoginTicketService>();
     }
 }

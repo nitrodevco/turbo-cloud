@@ -36,6 +36,12 @@ public static class PermissionNodes
             "catalog.builders_club.without_membership";
         public const string GUILD_ANY_GROUP = "catalog.guild.any_group";
         public const string GIFT_HIDE_SENDER = "catalog.gift.hide_sender";
+
+        /// <summary>
+        /// Change the catalog in the admin panel (pages, offers, prices) and publish it to
+        /// players. Seeing it there needs <see cref="Admin.CATALOG_VIEW"/> as well.
+        /// </summary>
+        public const string MANAGE = "catalog.manage";
     }
 
     public static class Navigator
@@ -165,6 +171,34 @@ public static class PermissionNodes
         /// only: changing a player needs the node of whatever is changed.
         /// </summary>
         public const string PLAYERS_VIEW = "admin.players.view";
+
+        /// <summary>
+        /// Read the command log in the panel: every logged command, who ran it, where from, with
+        /// what and how it went.
+        /// </summary>
+        public const string COMMAND_LOG_VIEW = "admin.commandlog.view";
+
+        /// <summary>
+        /// See the catalog in the panel: its pages, offers and prices. Changing it needs
+        /// <see cref="Catalog.MANAGE"/> as well.
+        /// </summary>
+        public const string CATALOG_VIEW = "admin.catalog.view";
+
+        /// <summary>Create new players in the panel. Seeing players needs <see cref="PLAYERS_VIEW"/>.</summary>
+        public const string PLAYERS_CREATE = "admin.players.create";
+
+        /// <summary>
+        /// Issue a player a login ticket in the panel, and take it away. A ticket logs in as the
+        /// player, so it is only for a player whose every node the issuer holds too, as a setup
+        /// link is.
+        /// </summary>
+        public const string TICKETS_ISSUE = "admin.tickets.issue";
+
+        /// <summary>
+        /// Manage how a player signs in to the public site: take their Discord account off them, and
+        /// end their sign-ins there. Only for a player whose every node the staff member holds too.
+        /// </summary>
+        public const string ACCOUNTS_MANAGE = "admin.accounts.manage";
     }
 
     /// <summary>

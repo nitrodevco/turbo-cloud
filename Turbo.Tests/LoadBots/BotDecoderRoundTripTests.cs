@@ -674,7 +674,7 @@ public class BotDecoderRoundTripTests
             CostCredits = 3,
             CostSilver = 0,
             CostCurrency = 5,
-            CurrencyTypeId = 0,
+            ActivityPointType = 0,
             CanGift = true,
             CanBundle = true,
             ClubLevel = 0,

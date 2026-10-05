@@ -82,6 +82,14 @@ repository. On this site, it needs only `TURBO_ADMIN_ENABLED=true` and
 [`docs/admin-panel.md`](../../docs/admin-panel.md) covers the whole setup, from the panel site to
 the first admin's passkey.
 
+## Public site
+
+The public site, where people sign in with Discord and play, runs as a third Ploi site on the
+hotel's public domain, from the `turbo-web` folder. On this site, it needs `TURBO_WEB_ENABLED=true`,
+`TURBO_WEB_SITE_URL`, `TURBO_WEB_CLIENT_URL` and the Discord application's
+`TURBO_DISCORD_CLIENT_ID` and `TURBO_DISCORD_CLIENT_SECRET`.
+[`docs/public-site.md`](../../docs/public-site.md) covers the whole setup.
+
 ## Behind Cloudflare
 
 If the hotel's sites are proxied by Cloudflare, [`docs/cloudflare.md`](../../docs/cloudflare.md)

@@ -30,6 +30,7 @@ using Turbo.Players;
 using Turbo.Plugins.Extensions;
 using Turbo.Rooms;
 using Turbo.Runtime.AssemblyProcessing;
+using Turbo.Web;
 
 namespace Turbo.Main;
 
@@ -117,6 +118,7 @@ internal class Program
         builder.Services.AddHostPlugin<RoomModule>(builder);
         builder.Services.AddHostPlugin<OperationsModule>(builder);
         builder.Services.AddHostPlugin<AdminModule>(builder);
+        builder.Services.AddHostPlugin<WebModule>(builder);
         builder.Services.AddHostPlugin<PacketHandlersModule>(builder);
 
         builder.Services.AddSingleton<AssemblyProcessor>();

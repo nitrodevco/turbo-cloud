@@ -272,6 +272,27 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Find any player in the admin panel and see their profile, wallet, rooms and sanctions."
         ),
         new(
+            PermissionNodes.Admin.CATALOG_VIEW,
+            "See the catalog in the admin panel: its pages, offers and prices."
+        ),
+        new(
+            PermissionNodes.Catalog.MANAGE,
+            "Change the catalog in the admin panel and publish it to players."
+        ),
+        new(PermissionNodes.Admin.PLAYERS_CREATE, "Create new players in the admin panel."),
+        new(
+            PermissionNodes.Admin.TICKETS_ISSUE,
+            "Issue a player a login ticket in the admin panel, for players whose every permission they hold too."
+        ),
+        new(
+            PermissionNodes.Admin.ACCOUNTS_MANAGE,
+            "Unlink a player's Discord account and end their public site sign-ins, for players whose every permission they hold too."
+        ),
+        new(
+            PermissionNodes.Admin.COMMAND_LOG_VIEW,
+            "Read the command log in the admin panel: who ran what, where from, and how it went."
+        ),
+        new(
             PermissionNodes.Admin.PERMISSIONS_VIEW,
             "See groups, players' permissions and the permission log in the admin panel."
         ),

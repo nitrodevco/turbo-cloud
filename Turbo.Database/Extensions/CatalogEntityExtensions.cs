@@ -31,10 +31,15 @@ public static class CatalogEntityExtensions
             ChildIds = childIds,
         };
 
+    /// <param name="activityPointType">
+    /// The activity-point type of the offer's currency row, which the provider looks up; the row's
+    /// id is not the type.
+    /// </param>
     public static CatalogOfferSnapshot ToSnapshot(
         this CatalogOfferEntity entity,
         ImmutableArray<int> productIds,
-        ImmutableArray<CatalogProductSnapshot> products
+        ImmutableArray<CatalogProductSnapshot> products,
+        int? activityPointType
     ) =>
         new()
         {
@@ -45,7 +50,7 @@ public static class CatalogEntityExtensions
             CostCredits = entity.CostCredits,
             CostSilver = 0,
             CostCurrency = entity.CostCurrency,
-            CurrencyTypeId = entity.CurrencyTypeId,
+            ActivityPointType = activityPointType,
             CanGift = entity.CanGift,
             CanBundle = entity.CanBundle,
             ClubLevel = entity.ClubLevel,
