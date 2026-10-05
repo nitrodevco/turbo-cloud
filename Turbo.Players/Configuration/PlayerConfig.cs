@@ -18,6 +18,13 @@ public class PlayerConfig
     /// <summary>Permission audit and expiry tunables.</summary>
     public PermissionConfig Permissions { get; init; } = new();
 
+    /// <summary>
+    /// How long a player's grain is kept from being collected while it holds a temporary look,
+    /// in minutes. The look lives only in memory, so a collected grain would lose it mid-session;
+    /// the session ending clears it and releases the grain sooner.
+    /// </summary>
+    public int LookOverrideKeepAliveMinutes { get; init; } = 1440;
+
     public int PlayerPresenceTickMs { get; init; } = 5000;
 
     /// <summary>Durable presence interval in seconds; a crash credits only committed intervals.</summary>

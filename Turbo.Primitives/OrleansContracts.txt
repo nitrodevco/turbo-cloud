@@ -172,7 +172,9 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerDirectoryG
   859B846F: SetPlayerNameAsync(Turbo.Primitives.Players.PlayerId, string, System.Threading.CancellationToken) -> Task
 
 interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerGrain")] Turbo.Primitives.Players.Grains.IPlayerGrain [Version(0)]
+  96753C26: ClearLookOverrideAsync(System.Threading.CancellationToken) -> Task<bool>
   30E4F44A: GetExtendedProfileSnapshotAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.PlayerExtendedProfileSnapshot>
+  99A23E88: GetLookOverrideAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.PlayerLookOverrideSnapshot?>
   213E1401: GetSummaryAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.PlayerSummarySnapshot>
   FBEF7436: ReceiveRespectAsync(System.Threading.CancellationToken) -> Task<int>
   D9CE1F18: ReceiveRespectOperationAsync(string, System.Threading.CancellationToken) -> Task<int>
@@ -180,6 +182,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerGrain")] T
   0650838E: SetAchievementTotalsAsync(int, int, System.Threading.CancellationToken) -> Task
   0C280D1C: SetBadgesRankAsync(int, System.Threading.CancellationToken) -> Task
   97853E5F: SetFigureAsync(string, Turbo.Primitives.Rooms.Enums.AvatarGenderType, System.Threading.CancellationToken) -> Task
+  C3A4203B: SetLookOverrideAsync(string, Turbo.Primitives.Rooms.Enums.AvatarGenderType?, Turbo.Primitives.Players.Enums.LookOverrideMode, System.Threading.CancellationToken) -> Task<bool>
   B5AD8ECC: SetMottoAsync(string, System.Threading.CancellationToken) -> Task
   FC51897A: SetOnlineStatusAsync(bool, System.Threading.CancellationToken) -> Task
   59025C5F: SpendPetRespectOperationAsync(string, System.Threading.CancellationToken) -> Task<bool>

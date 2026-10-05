@@ -2,6 +2,7 @@ using System;
 using Turbo.Primitives.Badges;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Players.Grains;
@@ -13,6 +14,12 @@ internal sealed class PlayerLiveState
     public string Motto { get; set; } = string.Empty;
     public string Figure { get; set; } = string.Empty;
     public AvatarGenderType Gender { get; set; } = AvatarGenderType.Male;
+
+    /// <summary>
+    /// A temporary look shown instead of the saved figure; never written to the database and
+    /// dropped when the session ends.
+    /// </summary>
+    public PlayerLookOverrideSnapshot? LookOverride { get; set; }
     public int AchievementScore { get; set; } = 0;
     public int AchievementLevel { get; set; }
 

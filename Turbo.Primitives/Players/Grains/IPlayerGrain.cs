@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 
@@ -9,7 +10,36 @@ namespace Turbo.Primitives.Players.Grains;
 public interface IPlayerGrain : IGrainWithIntegerKey
 {
     public Task SetOnlineStatusAsync(bool flag, CancellationToken ct);
+
+    /// <summary>
+    /// Saves the player's own figure. While a look override is set the saved figure still
+    /// changes (and is what comes back when the override is cleared), but the player keeps being
+    /// shown with the override: their own client is re-sent the look they are shown, not the one
+    /// just saved.
+    /// </summary>
     public Task SetFigureAsync(string figure, AvatarGenderType gender, CancellationToken ct);
+
+    /// <summary>
+    /// Shows the player with a temporary look (a uniform, a costume, an event outfit) to everyone
+    /// who sees them and to themselves, without touching the saved figure or the database. It
+    /// outlives room changes and ends with <see cref="ClearLookOverrideAsync"/> or when the
+    /// player disconnects. A <paramref name="gender"/> of null keeps the saved gender. False
+    /// when the figure is not well formed (<c>FigureString.IsWellFormed</c>) or the player has
+    /// no session; nothing changes then. Raises <c>PlayerLookOverrideChangedEvent</c>.
+    /// </summary>
+    public Task<bool> SetLookOverrideAsync(
+        string figure,
+        AvatarGenderType? gender,
+        LookOverrideMode mode,
+        CancellationToken ct
+    );
+
+    /// <summary>Removes the temporary look; false when there was none.</summary>
+    public Task<bool> ClearLookOverrideAsync(CancellationToken ct);
+
+    /// <summary>The temporary look the player is wearing, or null.</summary>
+    public Task<PlayerLookOverrideSnapshot?> GetLookOverrideAsync(CancellationToken ct);
+
     public Task SetMottoAsync(string text, CancellationToken ct);
     public Task<PlayerSummarySnapshot> GetSummaryAsync(CancellationToken ct);
 

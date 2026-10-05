@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Database.Achievements;
 using Turbo.Database.Context;
+using Turbo.Events;
 using Turbo.Logging;
 using Turbo.Players.Configuration;
 using Turbo.Primitives;
@@ -15,6 +16,8 @@ using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Messages.Outgoing.Avatar;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Events;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
@@ -33,6 +36,7 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
     private readonly IGrainFactory _grainFactory;
     private readonly ILogger<IPlayerGrain> _logger;
     private readonly IAchievementFactRecorder _achievementFacts;
+    private readonly EventSystem _eventSystem;
 
     private readonly PlayerLiveState _state;
 
@@ -43,6 +47,7 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
         IOptions<PlayerConfig> playerConfig,
         IGrainFactory grainFactory,
         IAchievementFactRecorder achievementFacts,
+        EventSystem eventSystem,
         ILogger<IPlayerGrain> logger
     )
     {
@@ -51,6 +56,7 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
         _grainFactory = grainFactory;
         _logger = logger;
         _achievementFacts = achievementFacts;
+        _eventSystem = eventSystem;
 
         _state = new() { PlayerId = this.GetPlayerId() };
     }
@@ -93,6 +99,11 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
             await RecordLoginAsync(ct);
         _state.IsOnline = flag;
 
+        // A temporary look belongs to the session: it ends with it, and the update below tells
+        // the room (while the player is still in it) and friends the saved look is back.
+        if (!flag)
+            ReleaseLookOverride();
+
         var playerPresence = _grainFactory.GetPlayerPresenceGrain(PlayerId);
 
         await playerPresence.OnPlayerUpdatedAsync(await GetSummaryAsync(ct), ct);
@@ -124,7 +135,9 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
 
         await _grainFactory.SendComposerToPlayerAsync(
             PlayerId,
-            new FigureUpdateEventMessageComposer { Figure = figure, Gender = gender },
+            // The look the player is shown with, which is the override's while one is set: the
+            // saved figure is what comes back when it is cleared.
+            ToFigureUpdate(),
             ct
         );
 
@@ -133,6 +146,122 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
         await _grainFactory
             .GetPlayerPresenceGrain(PlayerId)
             .OnPlayerUpdatedAsync(await GetSummaryAsync(ct), ct);
+    }
+
+    public async Task<bool> SetLookOverrideAsync(
+        string figure,
+        AvatarGenderType? gender,
+        LookOverrideMode mode,
+        CancellationToken ct
+    )
+    {
+        if (!FigureString.IsWellFormed(figure) || !Enum.IsDefined(mode))
+        {
+            _logger.LogWarning(
+                "Rejected look override for player {PlayerId}: the figure or mode is not valid",
+                PlayerId
+            );
+            return false;
+        }
+
+        // The override ends with the session, so one set with no session would never end.
+        if (!await _grainFactory.GetPlayerPresenceGrain(PlayerId).HasActiveSessionAsync(ct))
+        {
+            _logger.LogWarning(
+                "Rejected look override for player {PlayerId}: no active session",
+                PlayerId
+            );
+            return false;
+        }
+
+        var next = new PlayerLookOverrideSnapshot
+        {
+            Figure = figure,
+            Gender = gender,
+            Mode = mode,
+        };
+        if (_state.LookOverride == next)
+            return true;
+
+        ApplyLookOverride(next);
+        DelayDeactivation(TimeSpan.FromMinutes(_playerConfig.LookOverrideKeepAliveMinutes));
+
+        await ShowLookAsync(ct);
+
+        return true;
+    }
+
+    public async Task<bool> ClearLookOverrideAsync(CancellationToken ct)
+    {
+        if (_state.LookOverride is null)
+            return false;
+
+        ReleaseLookOverride();
+
+        await ShowLookAsync(ct);
+
+        return true;
+    }
+
+    public Task<PlayerLookOverrideSnapshot?> GetLookOverrideAsync(CancellationToken ct) =>
+        Task.FromResult(_state.LookOverride);
+
+    /// <summary>Drops the temporary look, if any, without telling the client or the room.</summary>
+    private void ReleaseLookOverride()
+    {
+        if (_state.LookOverride is null)
+            return;
+
+        ApplyLookOverride(null);
+        // Back to the default collection age; the grain was only held for the look.
+        DelayDeactivation(TimeSpan.Zero);
+    }
+
+    private void ApplyLookOverride(PlayerLookOverrideSnapshot? next)
+    {
+        var previous = _state.LookOverride;
+        _state.LookOverride = next;
+        var (figure, gender) = PlayerLook.Resolve(_state.Figure, _state.Gender, next);
+
+        // Not awaited: a handler may call back into this grain, which would wait on the call
+        // raising it.
+        _eventSystem
+            .PublishAsync(
+                new PlayerLookOverrideChangedEvent
+                {
+                    PlayerId = PlayerId,
+                    Previous = previous,
+                    Current = next,
+                    Figure = figure,
+                    Gender = gender,
+                },
+                CancellationToken.None
+            )
+            .LogAndForget(_logger, "announce the look override of player {PlayerId}", PlayerId);
+    }
+
+    /// <summary>
+    /// Tells the player's own client and whoever sees them (their room, their friends, through
+    /// the presence) the look they are shown with now.
+    /// </summary>
+    private async Task ShowLookAsync(CancellationToken ct)
+    {
+        await _grainFactory.SendComposerToPlayerAsync(PlayerId, ToFigureUpdate(), ct);
+
+        await _grainFactory
+            .GetPlayerPresenceGrain(PlayerId)
+            .OnPlayerUpdatedAsync(await GetSummaryAsync(ct), ct);
+    }
+
+    private FigureUpdateEventMessageComposer ToFigureUpdate()
+    {
+        var (figure, gender) = PlayerLook.Resolve(
+            _state.Figure,
+            _state.Gender,
+            _state.LookOverride
+        );
+
+        return new FigureUpdateEventMessageComposer { Figure = figure, Gender = gender };
     }
 
     public async Task SetMottoAsync(string text, CancellationToken ct)
@@ -274,8 +403,9 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
                 up =>
                     up.SetProperty(p => p.Name, snapshot.Name)
                         .SetProperty(p => p.Motto, snapshot.Motto)
-                        .SetProperty(p => p.Figure, snapshot.Figure)
-                        .SetProperty(p => p.Gender, snapshot.Gender)
+                        // The saved figure, never the summary's: that one shows a temporary look.
+                        .SetProperty(p => p.Figure, _state.Figure)
+                        .SetProperty(p => p.Gender, _state.Gender)
                         .SetProperty(p => p.RespectPoints, _state.RespectPoints)
                         .SetProperty(p => p.RespectsLeft, _state.RespectsLeft)
                         .SetProperty(p => p.PetRespectsLeft, _state.PetRespectsLeft)
@@ -306,15 +436,26 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
         _state.LastUpdated = DateTime.UtcNow;
     }
 
-    public Task<PlayerSummarySnapshot> GetSummaryAsync(CancellationToken ct) =>
-        Task.FromResult(
+    /// <summary>
+    /// Figure and gender are the look the player is shown with, so a temporary look reaches
+    /// every reader (room entry, live updates, friends) from here.
+    /// </summary>
+    public Task<PlayerSummarySnapshot> GetSummaryAsync(CancellationToken ct)
+    {
+        var (figure, gender) = PlayerLook.Resolve(
+            _state.Figure,
+            _state.Gender,
+            _state.LookOverride
+        );
+
+        return Task.FromResult(
             new PlayerSummarySnapshot
             {
                 PlayerId = _state.PlayerId,
                 Name = _state.Name,
                 Motto = _state.Motto,
-                Figure = _state.Figure,
-                Gender = _state.Gender,
+                Figure = figure,
+                Gender = gender,
                 AchievementScore = _state.AchievementScore,
                 BadgesRank = _state.BadgesRank,
                 IsOnline = _state.IsOnline,
@@ -326,6 +467,7 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
                 RespectReplenishesLeft = _state.RespectReplenishesLeft,
             }
         );
+    }
 
     public async Task<bool> TryUseRespectAsync(CancellationToken ct)
     {
@@ -448,7 +590,9 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
             {
                 UserId = _state.PlayerId,
                 UserName = _state.Name,
-                Figure = _state.Figure,
+                Figure = PlayerLook
+                    .Resolve(_state.Figure, _state.Gender, _state.LookOverride)
+                    .Figure,
                 Motto = _state.Motto,
                 CreationDate = ClientDates.Format(_state.CreatedAt),
                 AchievementScore = _state.AchievementScore,
