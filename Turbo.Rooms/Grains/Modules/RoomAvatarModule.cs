@@ -804,6 +804,23 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         if (objectId <= 0 || !TryGetAvatar(objectId, out var avatar))
             return Task.FromResult(false);
 
+        // The idle expression is a request to sleep: the room sees a sleep update, not an expression.
+        if (expressionType == AvatarExpressionType.Idle)
+        {
+            if (!avatar.IsIdle)
+            {
+                avatar.SetIdle(true);
+
+                _roomGrain.SendComposerToRoomAndForget(
+                    new SleepMessageComposer { ObjectId = avatar.ObjectId, IsSleeping = true }
+                );
+            }
+
+            PublishAction(avatar, AvatarActionType.Expression, (int)expressionType);
+
+            return Task.FromResult(true);
+        }
+
         _roomGrain.SendComposerToRoomAndForget(
             new ExpressionMessageComposer
             {
