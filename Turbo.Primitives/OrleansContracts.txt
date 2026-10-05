@@ -214,6 +214,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerPresenceGr
 interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerWalletGrain")] Turbo.Primitives.Players.Grains.IPlayerWalletGrain [Version(0)]
   6FE41EA6: CreditAchievementAsync(string, Turbo.Primitives.Players.Wallet.CurrencyKind, int, System.Threading.CancellationToken) -> Task<bool>
   77F40F43: CreditAsync(Turbo.Primitives.Players.Wallet.CurrencyKind, int, System.Threading.CancellationToken) -> Task<bool>
+  9FD63EC5: CreditAsync(Turbo.Primitives.Players.Wallet.CurrencyKind, int, string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Wallet.WalletCreditResult>
   85917D79: CreditRewardAsync(Turbo.Primitives.Players.Wallet.CurrencyKind, int, System.Threading.CancellationToken) -> Task<bool>
   4D784270: DeliverPendingRewardsAsync(System.Threading.CancellationToken) -> Task
   19EE0FB8: GetActivityPointsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Generic.Dictionary<int, int>>
