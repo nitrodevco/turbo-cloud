@@ -12,6 +12,7 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
+using Turbo.Rooms;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains;
 
@@ -35,6 +36,10 @@ public sealed class LiveRoomHarness
     public object State { get; }
     public IServiceProvider Services { get; }
     public IRoomObjectLogicProvider LogicProvider { get; }
+
+    /// <summary>The registry a room publishes to besides its own systems, where a plugin's listeners go.</summary>
+    public IRoomEventListenerRegistry EventListeners { get; } = new RoomEventListenerRegistry();
+
     private readonly RoomConfig _roomConfig;
 
     public LiveRoomHarness(int width = 10, int height = 10, RoomConfig? roomConfig = null)
@@ -165,6 +170,8 @@ public sealed class LiveRoomHarness
     {
         if (t == typeof(IRoomObjectLogicProvider))
             return LogicProvider;
+        if (t == typeof(IRoomEventListenerRegistry))
+            return EventListeners;
         if (
             t.IsGenericType
             && t.GetGenericTypeDefinition().FullName == "Microsoft.Extensions.Options.IOptions`1"

@@ -33,10 +33,12 @@ public sealed class RoomModule : IHostPluginModule
         services.AddSingleton<IRoomNpcProvider, RoomNpcProvider>();
         services.AddSingleton<IRoomModelProvider, RoomModelProvider>();
         services.AddSingleton<IRoomObjectLogicProvider, RoomObjectLogicProvider>();
+        services.AddSingleton<IRoomEventListenerRegistry, RoomEventListenerRegistry>();
         services.AddSingleton<IRoomWiredVariablesProvider, RoomWiredVariablesProvider>();
         services.AddSingleton<IPetBreedProvider, PetBreedProvider>();
 
         services.AddSingleton<IAssemblyFeatureProcessor, RoomObjectLogicFeatureProcessor>();
+        services.AddSingleton<IAssemblyFeatureProcessor, RoomEventListenerFeatureProcessor>();
         services.AddSingleton<IAssemblyFeatureProcessor, WiredVariableFeatureProcessor>();
 
         services.AddSingleton<IRoomService, RoomService>();
