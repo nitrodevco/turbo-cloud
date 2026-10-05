@@ -384,6 +384,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   DD6F2D29: EnsureRoomActiveAsync(System.Threading.CancellationToken) -> Task
   CB360794: GetActiveEventAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.RoomEventSnapshot?>
   FC781384: GetAllVariablesForBindingAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Wired.Variable.WiredVariableBinding, System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<(Turbo.Primitives.Rooms.Wired.Variable.WiredVariableId, Turbo.Primitives.Rooms.Wired.Variable.WiredVariableValue)>>
+  309B99F2: GetAvatarPositionAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Avatars.RoomAvatarPositionSnapshot?>
   2C3F4BA6: GetBannedPlayersAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Snapshots.RoomBannedPlayerSnapshot>?>
   D3845CE8: GetControllerLevelAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Enums.RoomControllerType>
   3E94AE57: GetControllersAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Snapshots.Settings.RoomControllerSnapshot>?>

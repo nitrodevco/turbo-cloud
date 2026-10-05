@@ -444,6 +444,24 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         return true;
     }
 
+    /// <summary>
+    /// A player's place in the room, null when they are not here. Players only: a bot has no
+    /// player id to ask by. Reads the avatar as it is and never touches it.
+    /// </summary>
+    public RoomAvatarPositionSnapshot? GetPlayerPosition(PlayerId playerId) =>
+        TryGetPlayer(playerId, out var avatar)
+            ? new RoomAvatarPositionSnapshot
+            {
+                RoomId = _roomGrain._state.RoomId,
+                X = avatar.X,
+                Y = avatar.Y,
+                Z = avatar.Z,
+                Rotation = avatar.Rotation,
+                IsIdle = avatar.IsIdle,
+                IsWalking = avatar.IsWalking,
+            }
+            : null;
+
     public async Task<bool> WalkAvatarToAsync(
         ActionContext ctx,
         int targetX,
