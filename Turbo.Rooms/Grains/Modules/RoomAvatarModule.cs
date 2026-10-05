@@ -631,12 +631,17 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             if (prevTileId == nextTileId)
                 return;
 
+            var fromX = avatar.X;
+            var fromY = avatar.Y;
+
             MapModule.RemoveAvatar(avatar, false);
 
             avatar.SetPosition(nextX, nextY);
 
             MapModule.AddAvatar(avatar, false);
             MapModule.UpdateHeightForAvatar(avatar);
+
+            await PublishMovedAsync(avatar, fromX, fromY, ct);
         }
         catch (Exception ex)
         {
@@ -687,11 +692,14 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             await NotifyWalkOffAsync(avatar, sourceIdx, ct);
 
         var (targetX, targetY) = map.GetTileXY(tileIdx);
+        var (fromX, fromY) = (avatar.X, avatar.Y);
 
         map.RemoveAvatarAtIdx(avatar, sourceIdx, false);
         avatar.SetPosition(targetX, targetY);
         map.AddAvatarAtIdx(avatar, tileIdx, false);
         map.UpdateHeightForAvatar(avatar);
+
+        await PublishMovedAsync(avatar, fromX, fromY, ct);
 
         avatar.RemoveStatus(AvatarStatusType.Move);
         avatar.NeedsInvoke = true;
@@ -810,6 +818,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             if (!avatar.IsIdle)
             {
                 avatar.SetIdle(true);
+                PublishIdleChanged(avatar);
 
                 _roomGrain.SendComposerToRoomAndForget(
                     new SleepMessageComposer { ObjectId = avatar.ObjectId, IsSleeping = true }
@@ -882,7 +891,66 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         _roomGrain.SendComposerToRoomAndForget(
             new SleepMessageComposer { ObjectId = avatar.ObjectId, IsSleeping = false }
         );
+
+        PublishIdleChanged(avatar);
     }
+
+    /// <summary>
+    /// Tells registered listeners an avatar fell asleep or woke up. Called once per transition,
+    /// by the code that flips the flag. Queued, so it never blocks the caller.
+    /// </summary>
+    public void PublishIdleChanged(IRoomAvatar avatar)
+    {
+        if (!EventModule.HasRegisteredListeners)
+            return;
+
+        EventModule
+            .PublishToRegisteredAsync(
+                new AvatarIdleChangedEvent
+                {
+                    RoomId = _roomGrain.RoomId,
+                    CausedBy = CausedByAvatar(avatar),
+                    ObjectId = avatar.ObjectId,
+                    IsIdle = avatar.IsIdle,
+                },
+                CancellationToken.None
+            )
+            .LogAndForget(
+                _roomGrain._logger,
+                "publish an idle change in room {RoomId}",
+                _roomGrain.RoomId
+            );
+    }
+
+    /// <summary>
+    /// Tells registered listeners an avatar left the tile (<paramref name="fromX"/>,
+    /// <paramref name="fromY"/>) for where it stands now. Nothing is published when it did not
+    /// change tile, so a caller may ask after every position update.
+    /// </summary>
+    public Task PublishMovedAsync(IRoomAvatar avatar, int fromX, int fromY, CancellationToken ct)
+    {
+        if (!EventModule.HasRegisteredListeners || (avatar.X == fromX && avatar.Y == fromY))
+            return Task.CompletedTask;
+
+        return EventModule.PublishToRegisteredAsync(
+            new AvatarMovedEvent
+            {
+                RoomId = _roomGrain.RoomId,
+                CausedBy = CausedByAvatar(avatar),
+                ObjectId = avatar.ObjectId,
+                FromX = fromX,
+                FromY = fromY,
+                ToX = avatar.X,
+                ToY = avatar.Y,
+            },
+            ct
+        );
+    }
+
+    private ActionContext CausedByAvatar(IRoomAvatar avatar) =>
+        avatar is IRoomPlayer player
+            ? ActionContext.CreateForPlayer(player.PlayerId, _roomGrain.RoomId)
+            : ActionContext.CreateForSystem(_roomGrain.RoomId);
 
     public Task SetHandItemAsync(IRoomAvatar avatar, int handItemId, CancellationToken ct)
     {
@@ -985,9 +1053,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
                 new AvatarPerformsActionEvent
                 {
                     RoomId = _roomGrain.RoomId,
-                    CausedBy = avatar is IRoomPlayer player
-                        ? ActionContext.CreateForPlayer(player.PlayerId, _roomGrain.RoomId)
-                        : ActionContext.CreateForSystem(_roomGrain.RoomId),
+                    CausedBy = CausedByAvatar(avatar),
                     ObjectId = avatar.ObjectId,
                     ActionType = actionType,
                     Value = value,

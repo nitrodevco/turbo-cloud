@@ -78,6 +78,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly ICommandRegistryProvider _commandRegistryProvider;
     internal readonly IOperatorCommandRunner _operatorCommandRunner;
     internal readonly IPlayerNoticeService _playerNoticeService;
+    internal readonly IRoomEventListenerRegistry _eventListeners;
     internal readonly EventSystem _eventSystem;
     internal readonly ILogger<IRoomGrain> _logger;
     internal readonly IAchievementFactRecorder _achievementFacts;
@@ -137,6 +138,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         ICommandRegistryProvider commandRegistryProvider,
         IOperatorCommandRunner operatorCommandRunner,
         IPlayerNoticeService playerNoticeService,
+        IRoomEventListenerRegistry eventListeners,
         EventSystem eventSystem,
         IAchievementFactRecorder achievementFacts,
         ILogger<IRoomGrain> logger
@@ -163,6 +165,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _commandRegistryProvider = commandRegistryProvider;
         _operatorCommandRunner = operatorCommandRunner;
         _playerNoticeService = playerNoticeService;
+        _eventListeners = eventListeners;
         _eventSystem = eventSystem;
         _logger = logger;
         _achievementFacts = achievementFacts;
