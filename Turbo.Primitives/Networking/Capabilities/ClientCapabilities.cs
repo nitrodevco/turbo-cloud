@@ -3,6 +3,7 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using Turbo.Primitives.Networking.Extensions;
 
 namespace Turbo.Primitives.Networking.Capabilities;
 
@@ -50,19 +51,27 @@ public static class ClientCapabilities
 
     /// <summary>
     /// What to accept from a client's request: each extension both sides speak, at the lower of
-    /// the two versions, once. Unknown names and versions below 1 are dropped, not refused.
+    /// the two versions, once. Unknown names and versions below 1 are dropped, not refused. A
+    /// capability a plugin registered with <paramref name="extensions"/> is accepted at version 1.
     /// </summary>
     public static ImmutableArray<ClientCapabilitySnapshot> Negotiate(
-        IEnumerable<ClientCapabilitySnapshot> requested
+        IEnumerable<ClientCapabilitySnapshot> requested,
+        IExtensionPacketRegistry? extensions = null
     ) =>
         [
             .. requested
-                .Where(x => x.Version >= 1 && SUPPORTED.ContainsKey(x.Name))
+                .Where(x =>
+                    x.Version >= 1
+                    && (SUPPORTED.ContainsKey(x.Name) || extensions?.HasCapability(x.Name) == true)
+                )
                 .GroupBy(x => x.Name, StringComparer.Ordinal)
                 .Select(x => new ClientCapabilitySnapshot
                 {
                     Name = x.Key,
-                    Version = Math.Min(x.Max(y => y.Version), SUPPORTED[x.Key]),
+                    Version = Math.Min(
+                        x.Max(y => y.Version),
+                        SUPPORTED.GetValueOrDefault(x.Key, 1)
+                    ),
                 })
                 .OrderBy(x => x.Name, StringComparer.Ordinal),
         ];
