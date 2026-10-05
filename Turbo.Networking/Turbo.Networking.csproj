@@ -8,6 +8,7 @@
     <PackageReference Include="SuperSocket.WebSocket.Server" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Turbo.Events\Turbo.Events.csproj" />
     <ProjectReference Include="..\Turbo.Messages\Turbo.Messages.csproj" />
     <ProjectReference Include="..\Turbo.Crypto\Turbo.Crypto.csproj" />
     <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />

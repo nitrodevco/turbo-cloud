@@ -5,18 +5,25 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Orleans;
+using Turbo.Events;
+using Turbo.Primitives.Events;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Orleans.Observers;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Events;
 
 namespace Turbo.Networking.Session;
 
-public sealed class SessionGateway(IGrainFactory grainFactory, ILogger<ISessionGateway> logger)
-    : ISessionGateway
+public sealed class SessionGateway(
+    IGrainFactory grainFactory,
+    EventSystem eventSystem,
+    ILogger<ISessionGateway> logger
+) : ISessionGateway
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly EventSystem _eventSystem = eventSystem;
     private readonly ILogger<ISessionGateway> _logger = logger;
 
     private readonly ConcurrentDictionary<SessionKey, ISessionContext> _sessions = new();
@@ -66,6 +73,7 @@ public sealed class SessionGateway(IGrainFactory grainFactory, ILogger<ISessionG
         {
             // Remove only this binding: a reconnect may already have replaced it.
             _playerToSession.TryRemove(new KeyValuePair<PlayerId, SessionKey>(playerId, key));
+            await PublishAsync(new PlayerDisconnectedEvent(playerId, key)).ConfigureAwait(false);
             await _grainFactory
                 .GetPlayerPresenceGrain(playerId)
                 .UnregisterSessionObserverAsync(key, ct)
@@ -119,6 +127,8 @@ public sealed class SessionGateway(IGrainFactory grainFactory, ILogger<ISessionG
         await playerPresence
             .RegisterSessionObserverAsync(key, observer, CancellationToken.None)
             .ConfigureAwait(false);
+
+        await PublishAsync(new PlayerConnectedEvent(playerId, key)).ConfigureAwait(false);
 
         if (previousKey != SessionKey.Invalid && previousKey != key)
         {
@@ -194,10 +204,25 @@ public sealed class SessionGateway(IGrainFactory grainFactory, ILogger<ISessionG
         if (!_playerToSession.TryRemove(playerId, out var sessionKey))
             return;
 
-        _sessionToPlayer.TryRemove(sessionKey, out _);
+        if (_sessionToPlayer.TryRemove(sessionKey, out _))
+            await PublishAsync(new PlayerDisconnectedEvent(playerId, sessionKey))
+                .ConfigureAwait(false);
 
         var playerPresence = _grainFactory.GetPlayerPresenceGrain(playerId);
 
         await playerPresence.UnregisterSessionObserverAsync(sessionKey, ct).ConfigureAwait(false);
+    }
+
+    // A plugin's handler must never break a login or a teardown.
+    private async Task PublishAsync(IEvent e)
+    {
+        try
+        {
+            await _eventSystem.PublishAsync(e).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Publishing {Event} failed", e);
+        }
     }
 }
