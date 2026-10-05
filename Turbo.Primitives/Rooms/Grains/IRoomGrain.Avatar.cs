@@ -9,11 +9,21 @@ using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Primitives.Rooms.Grains;
 
 public partial interface IRoomGrain
 {
+    /// <summary>
+    /// Where a player's avatar is, or null when the player is not in this room. A read only: it
+    /// does not count as the player's activity, so it never wakes an idle avatar.
+    /// </summary>
+    public Task<RoomAvatarPositionSnapshot?> GetAvatarPositionAsync(
+        PlayerId playerId,
+        CancellationToken ct
+    );
+
     public Task<bool> CreateAvatarFromPlayerAsync(
         ActionContext ctx,
         PlayerSummarySnapshot snapshot,

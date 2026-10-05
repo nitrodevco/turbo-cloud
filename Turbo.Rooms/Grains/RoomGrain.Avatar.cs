@@ -13,6 +13,7 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Avatars;
 
 namespace Turbo.Rooms.Grains;
 
@@ -53,6 +54,11 @@ public sealed partial class RoomGrain
             return false;
         }
     }
+
+    public Task<RoomAvatarPositionSnapshot?> GetAvatarPositionAsync(
+        PlayerId playerId,
+        CancellationToken ct
+    ) => Task.FromResult(AvatarModule.GetPlayerPosition(playerId));
 
     public Task SetPlayerBadgesAsync(
         PlayerId playerId,
