@@ -104,7 +104,11 @@ site.
    Delete Ploi's own `location /` block here too.
 3. **The client's host must allow being framed by the site.** Its nginx sends
    `Content-Security-Policy: frame-ancestors https://example.com` and no
-   `X-Frame-Options: DENY`/`SAMEORIGIN`. Otherwise the browser shows an empty frame. The client
+   `X-Frame-Options: DENY`/`SAMEORIGIN`. Otherwise the browser shows an empty frame and the
+   console says it "set 'X-Frame-Options' to 'sameorigin'". Ploi's default site config sends that
+   header, so in the client site's NGINX configuration replace
+   `add_header X-Frame-Options "SAMEORIGIN";` with
+   `add_header Content-Security-Policy "frame-ancestors https://example.com" always;`. The client
    must also log in with the ticket from its address (`?sso=`).
 4. **Behind Cloudflare,** follow [cloudflare.md](cloudflare.md) for this site as for the panel.
    Without the real visitor address, everyone shares one sign-in rate limit.

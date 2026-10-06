@@ -45,4 +45,16 @@ public interface IOperatorExecutor
 
     /// <summary>A longer answer, one list item per line.</summary>
     Task NoticeAsync(IReadOnlyList<string> lines, CancellationToken ct);
+
+    /// <summary>
+    /// A notice that hands over a web address. Text in the game's notices can't be selected, so a
+    /// player gets <paramref name="url"/> as a link named <paramref name="linkTitle"/> to follow;
+    /// anywhere else it is the notice's last line, to copy.
+    /// </summary>
+    Task LinkNoticeAsync(
+        IReadOnlyList<string> lines,
+        string linkTitle,
+        string url,
+        CancellationToken ct
+    ) => NoticeAsync([.. lines, url], ct);
 }

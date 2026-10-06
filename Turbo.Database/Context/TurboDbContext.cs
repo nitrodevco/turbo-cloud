@@ -6,6 +6,7 @@ using Turbo.Database.Entities.Bots;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Guilds;
+using Turbo.Database.Entities.Hotel;
 using Turbo.Database.Entities.Messenger;
 using Turbo.Database.Entities.Moderation;
 using Turbo.Database.Entities.Navigator;
@@ -82,6 +83,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<SecurityTicketEntity> SecurityTickets { get; init; }
     public DbSet<PlayerDiscordLinkEntity> PlayerDiscordLinks { get; init; }
     public DbSet<WebSessionEntity> WebSessions { get; init; }
+    public DbSet<HotelSettingEntity> HotelSettings { get; init; }
     public DbSet<AdminPasskeyEntity> AdminPasskeys { get; init; }
 
     public DbSet<NavigatorTopLevelContextEntity> NavigatorTopLevelContexts { get; init; }

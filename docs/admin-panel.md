@@ -160,8 +160,8 @@ real-IP lines in `nginx.conf` commented out.
 The first admin needs a setup link, which only the server console can make for someone without
 a passkey (or you can make one for yourself in the hotel). Either:
 
-- **In the hotel**, if your account already holds `admin.panel`: type `:adminsetup` and open the
-  link it gives you.
+- **In the hotel**, if your account already holds `admin.panel`: type `:adminsetup` and click the
+  link in the pop-up it opens.
 - **At the server console.** A Ploi daemon has no terminal, but Supervisor can attach one. SSH in
   as a user with sudo, then:
 
@@ -217,18 +217,23 @@ and remove the lost one on the Account page.
 ## Hotel controls
 
 The dashboard has a **Hotel controls** card for acting on the whole hotel. Each tab only appears
-if you hold the command behind it:
+if you hold the node behind it:
 
-| Tab | Command | What it does |
+| Tab | Node | What it does |
 | --- | --- | --- |
 | Hotel alert | `command.hotelalert` | A pop-up for everyone online. |
 | Maintenance | `command.maintenance` | Counts down (now, 5, 10 or 30 minutes), then sends home everyone without the bypass and keeps them out. **End maintenance** appears while it is scheduled or on. |
 | Shutdown | `command.shutdown` | Counts down, sends everyone home and stops the server. It does not start again by itself. **Call it off** appears while one is scheduled. |
+| Welcome message | `admin.welcome.manage` | The message every player is shown when they log in, as the message of the day. Saving it empty turns it off. |
 
-Like the player and room actions, each is the hotel's own command (`hotelalert`, `maintenance`,
-`shutdown`) run as you, so the same permissions, confirmations and command log apply. If the
-command asks to be confirmed, the card shows a **Confirm** button. The reason you type is shown
-to players and is flattened to one line.
+Like the player and room actions, each of the first three is the hotel's own command
+(`hotelalert`, `maintenance`, `shutdown`) run as you, so the same permissions, confirmations and
+command log apply. If the command asks to be confirmed, the card shows a **Confirm** button. The
+reason you type is shown to players and is flattened to one line.
+
+The welcome message is kept in the `hotel_settings` table (the `AddHotelSettings` migration) and
+read from memory at each login, so a change applies from the next login on; players already
+online are not shown it. It keeps its line breaks, and can be up to 4000 characters.
 
 ## Rooms
 
@@ -568,6 +573,7 @@ passkey; they add more while signed in instead.
 | `admin.players.create` | Creating new players on the Players page. |
 | `admin.tickets.issue` | Issuing a player a login ticket, and taking it away, for players whose every permission they hold. |
 | `admin.accounts.manage` | Unlinking a player's Discord and signing them out of the public site, for players whose every permission they hold. |
+| `admin.welcome.manage` | The Welcome message tab in Hotel controls: seeing and changing the message every player is shown when they log in. |
 | `catalog.manage` | Changing the catalog on that page, and publishing it to players. |
 | `admin.permissions.view` | The Permissions page: seeing groups, any player's permissions, who has a node, and the permission log. |
 | `permissions.manage` | Changing permissions on that page, within the rule in [Permission editor](#permission-editor). The in-game `:group` command needs it too, and follows the same rule. |

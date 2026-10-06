@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Turbo.Database.Context;
 
@@ -11,9 +12,11 @@ using Turbo.Database.Context;
 namespace Turbo.Database.Migrations
 {
     [DbContext(typeof(TurboDbContext))]
-    partial class TurboDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261006013342_AddHotelSettings")]
+    partial class AddHotelSettings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -4022,20 +4025,6 @@ namespace Turbo.Database.Migrations
                         .IsUnique();
 
                     b.ToTable("player_unseen_items");
-                });
-
-            modelBuilder.Entity("Turbo.Database.Entities.Players.WalletCreditReceiptEntity", b =>
-                {
-                    b.Property<int>("PlayerId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Reference")
-                        .HasMaxLength(128)
-                        .HasColumnType("varchar(128)");
-
-                    b.HasKey("PlayerId", "Reference");
-
-                    b.ToTable("wallet_credit_receipts");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Room.CommandLogEntity", b =>

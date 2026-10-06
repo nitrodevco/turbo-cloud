@@ -97,7 +97,7 @@ public class SSOTicketMessageHandler(
             .AddSessionToPlayerAsync(ctx.SessionKey, playerId)
             .ConfigureAwait(false);
 
-        // Three reads from three different grains, none depending on another, so they are asked
+        // Four reads from four different grains, none depending on another, so they are asked
         // side by side and awaited where their answers are sent. The composers still go out in
         // the order below.
         var settingsTask = _grainFactory.GetPlayerSettingsGrain(playerId).GetSettingsAsync(ct);
@@ -107,8 +107,11 @@ public class SSOTicketMessageHandler(
         var clubGiftsTask = _grainFactory
             .GetCatalogPurchaseGrain(playerId)
             .GetClubGiftInfoAsync(ct);
+        // The welcome message staff set in the admin panel; answered from memory.
+        var welcomeMessageTask = _grainFactory.GetWelcomeMessageGrain().GetMessageAsync(ct);
 
-        await Task.WhenAll(settingsTask, favouriteRoomIdsTask, clubGiftsTask).ConfigureAwait(false);
+        await Task.WhenAll(settingsTask, favouriteRoomIdsTask, clubGiftsTask, welcomeMessageTask)
+            .ConfigureAwait(false);
 
         await ctx.SendComposerAsync(
                 new AuthenticationOKMessage
@@ -253,5 +256,15 @@ public class SSOTicketMessageHandler(
                 ct
             )
             .ConfigureAwait(false);
+
+        // Last, so it opens over the hotel view. None is shown while the message is empty.
+        var welcomeMessage = await welcomeMessageTask.ConfigureAwait(false);
+
+        if (!string.IsNullOrWhiteSpace(welcomeMessage))
+            await ctx.SendComposerAsync(
+                    new MOTDNotificationEventMessageComposer { Messages = [welcomeMessage] },
+                    ct
+                )
+                .ConfigureAwait(false);
     }
 }

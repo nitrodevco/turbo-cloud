@@ -10,6 +10,7 @@ using Turbo.Primitives.Badges.Grains;
 using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Grains;
+using Turbo.Primitives.Hotel.Grains;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
@@ -181,6 +182,9 @@ public static class GrainFactoryExtensions
 
     public static IBuildersClubGrain GetBuildersClubGrain(this IGrainFactory factory) =>
         factory.GetGrain<IBuildersClubGrain>(SingletonGrainId.GLOBAL);
+
+    public static IWelcomeMessageGrain GetWelcomeMessageGrain(this IGrainFactory factory) =>
+        factory.GetGrain<IWelcomeMessageGrain>(SingletonGrainId.GLOBAL);
 
     public static ICatalogLtdRaffleGrain GetLtdRaffleGrain(
         this IGrainFactory factory,

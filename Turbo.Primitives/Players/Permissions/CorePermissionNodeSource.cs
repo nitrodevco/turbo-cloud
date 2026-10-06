@@ -289,6 +289,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Unlink a player's Discord account and end their public site sign-ins, for players whose every permission they hold too."
         ),
         new(
+            PermissionNodes.Admin.WELCOME_MESSAGE_MANAGE,
+            "See and change the welcome message every player is shown when they log in, in the admin panel."
+        ),
+        new(
             PermissionNodes.Admin.COMMAND_LOG_VIEW,
             "Read the command log in the admin panel: who ran what, where from, and how it went."
         ),

@@ -103,14 +103,15 @@ public sealed class AdminSetupCommand(
         // In the fragment, which browsers never send to a server, so it stays out of access logs
         // and referrers.
         await ctx
-            .Executor.NoticeAsync(
+            .Executor.LinkNoticeAsync(
                 [
                     decision.ReplacesExisting
                         ? $"Passkey reset for {target.Name}: the link replaces all their passkeys."
                         : $"Passkey setup for {target.Name}.",
                     $"It works once, until {link.ExpiresAtUtc.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture)}:",
-                    $"{options.PanelUrl.TrimEnd('/')}/setup#token={link.Token}",
                 ],
+                "Open the setup page",
+                $"{options.PanelUrl.TrimEnd('/')}/setup#token={link.Token}",
                 ct
             )
             .ConfigureAwait(false);

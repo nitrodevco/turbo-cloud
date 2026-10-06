@@ -199,6 +199,12 @@ public static class PermissionNodes
         /// end their sign-ins there. Only for a player whose every node the staff member holds too.
         /// </summary>
         public const string ACCOUNTS_MANAGE = "admin.accounts.manage";
+
+        /// <summary>
+        /// See and change the welcome message every player is shown when they log in, in the
+        /// panel's hotel controls.
+        /// </summary>
+        public const string WELCOME_MESSAGE_MANAGE = "admin.welcome.manage";
     }
 
     /// <summary>

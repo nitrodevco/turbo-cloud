@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -62,6 +64,32 @@ public sealed class PlayerOperatorExecutor(
         grainFactory.SendComposerToPlayerAsync(
             playerId,
             new MOTDNotificationEventMessageComposer { Messages = [.. lines] },
+            ct
+        );
+
+    /// <summary>
+    /// A pop-up notification, which draws <c>linkUrl</c> as a link that opens in the browser. The
+    /// type has no client variable, so the parameters decide everything: the first line is the
+    /// title, the rest the message.
+    /// </summary>
+    public Task LinkNoticeAsync(
+        IReadOnlyList<string> lines,
+        string linkTitle,
+        string url,
+        CancellationToken ct
+    ) =>
+        grainFactory.SendComposerToPlayerAsync(
+            playerId,
+            new NotificationDialogMessageComposer
+            {
+                NotificationType = "command.link",
+                Parameters = ImmutableDictionary<string, string>
+                    .Empty.Add("display", "POP_UP")
+                    .Add("title", lines.Count > 0 ? lines[0] : string.Empty)
+                    .Add("message", string.Join('\n', lines.Skip(1)))
+                    .Add("linkTitle", linkTitle)
+                    .Add("linkUrl", url),
+            },
             ct
         );
 }

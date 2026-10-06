@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Badges;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
+using Turbo.Database.Entities.Hotel;
 using Turbo.Database.Entities.Moderation;
 using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Players;
@@ -53,6 +54,7 @@ public interface ITurboDbContext : IDisposable
     public DbSet<SecurityTicketEntity>? SecurityTickets { get; set; }
     public DbSet<PlayerDiscordLinkEntity>? PlayerDiscordLinks { get; set; }
     public DbSet<WebSessionEntity>? WebSessions { get; set; }
+    public DbSet<HotelSettingEntity>? HotelSettings { get; set; }
 
     public DbSet<NavigatorTopLevelContextEntity>? NavigatorTopLevelContexts { get; set; }
 

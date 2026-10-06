@@ -117,6 +117,10 @@ interface [GrainInterfaceType("Turbo.Primitives.Guilds.Grains.IGuildGrain")] Tur
   869F229D: UpdateIdentityAsync(Turbo.Primitives.Players.PlayerId, string, string, System.Threading.CancellationToken) -> Task<bool>
   38446350: UpdateSettingsAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Guilds.Enums.GuildType, Turbo.Primitives.Guilds.Enums.GuildRightsLevel, System.Threading.CancellationToken) -> Task<bool>
 
+interface [GrainInterfaceType("Turbo.Primitives.Hotel.Grains.IWelcomeMessageGrain")] Turbo.Primitives.Hotel.Grains.IWelcomeMessageGrain [Version(0)]
+  1846B7B7: GetMessageAsync(System.Threading.CancellationToken) -> Task<string>
+  B00B19F6: SetMessageAsync(string, System.Threading.CancellationToken) -> Task<string>
+
 interface [GrainInterfaceType("Turbo.Primitives.Inventory.Grains.IInventoryGrain")] Turbo.Primitives.Inventory.Grains.IInventoryGrain [Version(0)]
   B736FCB2: AddFurnitureFromRoomItemSnapshotAsync(Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot, System.Threading.CancellationToken) -> Task<bool>
   3F80B430: AddFurnitureFromRoomItemSnapshotsAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot>, System.Threading.CancellationToken) -> Task<int>
