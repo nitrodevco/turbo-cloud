@@ -22,9 +22,8 @@ public class WiredAddonAnimationTime(
 
     private const int MIN_ANIMATION_MS = 50;
     private const int MAX_ANIMATION_MS = 2000;
-    private const int DEFAULT_ANIMATION_MS = 500;
 
-    private int _animationTimeMs = DEFAULT_ANIMATION_MS;
+    private int _animationTimeMs = MIN_ANIMATION_MS;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredRangeParamRule(MIN_ANIMATION_MS, MAX_ANIMATION_MS, MIN_ANIMATION_MS)];

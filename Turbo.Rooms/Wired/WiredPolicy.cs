@@ -13,7 +13,7 @@ public sealed class WiredPolicy : IWiredPolicy
     public int RandomPickCount { get; set; } = 1;
     public int RandomSkipCount { get; set; } = 0;
     public WiredAnimationModeType AnimationMode { get; set; } = WiredAnimationModeType.Smooth;
-    public int AnimationTimeMs { get; set; } = 50;
+    public int AnimationTimeMs { get; set; } = 500;
     public TimeSpan Delay { get; set; } = TimeSpan.Zero;
     public bool ShortCircuitOnFirstEffectSuccess { get; set; }
     public WiredCarryUserType? CarryUsers { get; set; }
