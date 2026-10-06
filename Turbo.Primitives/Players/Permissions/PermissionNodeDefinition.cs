@@ -46,6 +46,32 @@ public sealed record PermissionNodeDefinition(
 )
 {
     /// <summary>
+    /// The constructor as it was before <c>ExplicitOnly</c>. A plugin built against that version
+    /// calls this one by its exact signature, so it keeps loading: adding a parameter to the
+    /// primary constructor would have removed it, which no recompile of core can undo for a
+    /// plugin that is already built.
+    /// </summary>
+    public PermissionNodeDefinition(
+        string node,
+        string description,
+        SecurityLevelType? clientLevel,
+        PlayerPerkFlags? perk,
+        string? perkRefusal,
+        bool clientVisible,
+        bool grantedByDefault
+    )
+        : this(
+            node,
+            description,
+            clientLevel,
+            perk,
+            perkRefusal,
+            clientVisible,
+            grantedByDefault,
+            false
+        ) { }
+
+    /// <summary>
     /// Whether a client gates on this node, so that a client told the nodes it holds
     /// (<c>permission.nodes</c>) is told of it.
     /// </summary>
