@@ -28,6 +28,12 @@ namespace Turbo.Primitives.Players.Permissions;
 /// still decides. Not allowed with a <paramref name="ClientLevel"/>, which would raise every
 /// player's security level.
 /// </param>
+/// <param name="ExplicitOnly">
+/// Held only through an assignment that names the node itself. A wildcard (<c>*</c>,
+/// <c>permissions.*</c>) never grants or denies it, so a group that holds everything does not
+/// quietly hold this too. For a node that lifts a rule, which has to be given on purpose. Not
+/// allowed with <paramref name="GrantedByDefault"/>.
+/// </param>
 public sealed record PermissionNodeDefinition(
     string Node,
     string Description,
@@ -35,7 +41,8 @@ public sealed record PermissionNodeDefinition(
     PlayerPerkFlags? Perk = null,
     string? PerkRefusal = null,
     bool ClientVisible = false,
-    bool GrantedByDefault = false
+    bool GrantedByDefault = false,
+    bool ExplicitOnly = false
 )
 {
     /// <summary>

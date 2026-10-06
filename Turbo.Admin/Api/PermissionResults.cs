@@ -96,6 +96,8 @@ internal static class PermissionResults
                 PermissionEditRefusal.NeedsManageNode => "You can't change permissions.",
                 PermissionEditRefusal.GroupTooHeavy =>
                     $"Only groups lighter than your heaviest (weight {editor.HeaviestWeight}) are yours to change.",
+                PermissionEditRefusal.NeedsSuperuser =>
+                    "That group gives permissions.superuser, so only a superuser can change or hand it out.",
                 PermissionEditRefusal.PlayerTooHeavy =>
                     $"{what} is in a group as heavy as your heaviest or heavier, so their permissions are not yours to change.",
                 PermissionEditRefusal.NodeNotHeld => PermissionNodeFormat.IsWildcard(what)

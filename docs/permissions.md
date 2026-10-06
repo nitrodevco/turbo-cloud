@@ -105,8 +105,13 @@ public sealed record PermissionNodeDefinition(
     PlayerPerkFlags? Perk = null,
     string? PerkRefusal = null,
     bool ClientVisible = false,
-    bool GrantedByDefault = false);
+    bool GrantedByDefault = false,
+    bool ExplicitOnly = false);
 ```
+
+`ExplicitOnly` marks a node that lifts a rule and has to be given on purpose: no wildcard, `*`
+included, ever grants or denies it, so only an assignment naming it decides. Core uses it for
+`permissions.superuser` (§9, §17.4). The registry refuses it together with `GrantedByDefault`.
 
 `GrantedByDefault` is how a plugin says "every player may do this unless denied", as a Bukkit
 plugin's `default: true` or a Sponge `PermissionDescription` for `ROLE_USER` does: its everyday
@@ -793,7 +798,8 @@ temporary player denials of `trade` and `chat.speak` once the mod tool is built,
 | Temporary beats permanent; `temporary-add-behaviour` | missing | **fix** (17.1) |
 | `meta-value-selection` per key | missing | **fix** (17.1) |
 | `sync` — reload after the database was edited by something else | built: `perm reload` (§9) | — |
-| Argument-based command permissions (who may grant what) | built (`IPermissionEditService`, `PermissionEditor`) | a manager may only grant nodes they hold, and only change groups and players lighter than their heaviest group; the admin panel and `:group` both follow it, the console is exempt |
+| Argument-based command permissions (who may grant what) | built as a weight rule (`IPermissionEditService`, `PermissionEditor`), not per-argument nodes | a manager may only grant nodes they hold, and only change groups and players lighter than their heaviest group; the admin panel and `:group` both follow it, the console is exempt. `permissions.superuser` (explicit only, with `permissions.manage`) lifts those limits for a hosted hotel with no console, and a group that gives it is only a superuser's to change. Per-argument nodes such as LuckPerms' `luckperms.user.parent.add.<group>` are not built: add them when a plugin's ranks make weights awkward |
+| Stop the last superuser removing themselves | missing | the console is the way back; a guard would have to count holders across every group and player |
 | Verbose (watch checks live) | built: `perm user <player> verbose` (§10) | — |
 | `group listmembers`, `log recent`/`search`, `search <node>` (who holds it) | built: `perm group <g> members`, `perm log [search]`, `perm search` (§9) | — |
 | `group.<name>` as a node (membership checkable like a permission) | built (§5) | — |

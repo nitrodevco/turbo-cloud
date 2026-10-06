@@ -25,6 +25,7 @@ public sealed class PermissionEditServiceTests
     private static readonly PlayerId MANAGER = new(2);
     private static readonly PlayerId MODERATOR = new(3);
     private static readonly PlayerId HELPER = new(4);
+    private static readonly PlayerId SUPERUSER = new(5);
 
     private static readonly PermissionRegistry REGISTRY = new([new CorePermissionNodeSource()]);
 
@@ -37,8 +38,20 @@ public sealed class PermissionEditServiceTests
 
     private readonly Dictionary<long, string[]> _granted = new()
     {
-        // The owner's group holds `*`: every registered node.
-        [OWNER.Value] = [.. REGISTRY.Nodes.Keys, .. Memberships("admin", "manager", "moderator")],
+        // The owner's group holds `*`: every registered node a wildcard reaches, which leaves
+        // out permissions.superuser.
+        [OWNER.Value] =
+        [
+            .. REGISTRY.Nodes.Values.Where(x => !x.ExplicitOnly).Select(x => x.Node),
+            .. Memberships("admin", "manager", "moderator"),
+        ],
+        // Lighter than the manager, but given the superuser node on purpose.
+        [SUPERUSER.Value] =
+        [
+            PermissionNodes.Permissions.MANAGE,
+            PermissionNodes.Permissions.SUPERUSER,
+            .. Memberships("ops", "helper"),
+        ],
         [MANAGER.Value] =
         [
             PermissionNodes.Permissions.MANAGE,
@@ -68,6 +81,9 @@ public sealed class PermissionEditServiceTests
                         Group(3, "moderator", 50),
                         Group(4, "manager", 70),
                         Group(5, "admin", 100),
+                        // Light, but it gives the superuser node; "deputies" inherits it.
+                        Group(6, "ops", 20, nodes: [PermissionNodes.Permissions.SUPERUSER]),
+                        Group(7, "deputies", 25, parents: [6]),
                     }.ToImmutableDictionary(x => x.Id),
                 }
             );
@@ -164,6 +180,67 @@ public sealed class PermissionEditServiceTests
     }
 
     [Fact]
+    public async Task AWildcardDoesNotAskForTheSuperuserNode()
+    {
+        var owner = await EditorFor(OWNER);
+
+        owner.IsSuperuser.Should().BeFalse();
+        owner.CheckAssignment("*").Should().Be(PermissionEditRefusal.None);
+        owner.CheckAssignment("permissions.*").Should().Be(PermissionEditRefusal.None);
+        // Naming it is another matter: the owner does not hold it.
+        owner
+            .CheckAssignment(PermissionNodes.Permissions.SUPERUSER)
+            .Should()
+            .Be(PermissionEditRefusal.NodeNotHeld);
+    }
+
+    [Fact]
+    public async Task AGroupThatGivesSuperuser_IsOnlyForASuperuser_DirectlyOrByInheritance()
+    {
+        var manager = await EditorFor(MANAGER);
+
+        manager.CheckGroup("ops").Should().Be(PermissionEditRefusal.NeedsSuperuser);
+        manager.CheckGroup("deputies").Should().Be(PermissionEditRefusal.NeedsSuperuser);
+        manager.CheckGroup("moderator").Should().Be(PermissionEditRefusal.None);
+    }
+
+    [Fact]
+    public async Task ASuperuserIsBoundByNoWeightAndNoHeldNode_ButStillNeedsTheManageNode()
+    {
+        var superuser = await EditorFor(SUPERUSER);
+
+        superuser.IsSuperuser.Should().BeTrue();
+        superuser.CheckGroup("admin").Should().Be(PermissionEditRefusal.None);
+        superuser.CheckGroup("ops").Should().Be(PermissionEditRefusal.None);
+        superuser.CheckWeight(1000).Should().Be(PermissionEditRefusal.None);
+        superuser.CheckAssignment("*").Should().Be(PermissionEditRefusal.None);
+        superuser
+            .CheckAssignment(PermissionNodes.Command.SHUTDOWN)
+            .Should()
+            .Be(PermissionEditRefusal.None);
+        (await superuser.CheckPlayerAsync(OWNER, Ct)).Should().Be(PermissionEditRefusal.None);
+        (await superuser.CheckPlayerAsync(SUPERUSER, Ct)).Should().Be(PermissionEditRefusal.None);
+
+        // Held without the manage node, the superuser node does nothing.
+        _granted[HELPER.Value] = [PermissionNodes.Permissions.SUPERUSER, .. Memberships("helper")];
+
+        var helper = await EditorFor(HELPER);
+
+        helper.IsSuperuser.Should().BeFalse();
+        helper.CheckGroup("admin").Should().Be(PermissionEditRefusal.NeedsManageNode);
+    }
+
+    [Fact]
+    public async Task AManagerCannotHandOutSuperuserThroughALighterGroup()
+    {
+        var change = await Service()
+            .AddToGroupAsync(MANAGER, HELPER, "ops", null, PermissionExpiryModeType.Replace, Ct);
+
+        change.Refusal.Should().Be(PermissionEditRefusal.NeedsSuperuser);
+        GroupCalls().Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task TheConsoleMayChangeAnything()
     {
         var console = await Service().EditorForAsync(null, Ct);
@@ -256,15 +333,28 @@ public sealed class PermissionEditServiceTests
     private static string[] Memberships(params string[] groups) =>
         [.. groups.Append(PermissionGroupNames.DEFAULT).Select(PermissionGroupNames.ToNode)];
 
-    private static PermissionGroupSnapshot Group(int id, string name, int weight) =>
+    private static PermissionGroupSnapshot Group(
+        int id,
+        string name,
+        int weight,
+        string[]? nodes = null,
+        int[]? parents = null
+    ) =>
         new()
         {
             Id = id,
             Name = name,
             DisplayName = name,
             Weight = weight,
-            ParentIds = [],
-            Nodes = [],
+            ParentIds = [.. parents ?? []],
+            Nodes =
+            [
+                .. (nodes ?? []).Select(x => new PermissionNodeAssignmentSnapshot
+                {
+                    Node = x,
+                    Value = true,
+                }),
+            ],
             Meta = [],
         };
 }

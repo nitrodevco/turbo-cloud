@@ -33,6 +33,7 @@ public sealed class GroupCommand(IPermissionEditService permissions)
     private const string NOT_ALLOWED = "not_allowed";
     private const string GROUP_TOO_HEAVY = "group_too_heavy";
     private const string PLAYER_TOO_HEAVY = "player_too_heavy";
+    private const string NEEDS_SUPERUSER = "needs_superuser";
     private const string FAILED = "failed";
 
     public IReadOnlyDictionary<string, string> DefaultTexts { get; } =
@@ -47,6 +48,8 @@ public sealed class GroupCommand(IPermissionEditService permissions)
             [NOT_ALLOWED] = "You need permission to manage permissions to use that.",
             [GROUP_TOO_HEAVY] =
                 "Only groups lighter than your heaviest are yours to hand out, and %1% is not.",
+            [NEEDS_SUPERUSER] =
+                "The group %1% gives permissions.superuser, so only a superuser can hand it out.",
             [PLAYER_TOO_HEAVY] =
                 "%0% is in a group as heavy as your heaviest or heavier, so their groups are not yours to change.",
             [FAILED] = "%0% could not be changed (%2%).",
@@ -93,6 +96,11 @@ public sealed class GroupCommand(IPermissionEditService permissions)
             {
                 PermissionEditRefusal.GroupTooHeavy => CommandResult.Fail(
                     GROUP_TOO_HEAVY,
+                    target.Name,
+                    group
+                ),
+                PermissionEditRefusal.NeedsSuperuser => CommandResult.Fail(
+                    NEEDS_SUPERUSER,
                     target.Name,
                     group
                 ),

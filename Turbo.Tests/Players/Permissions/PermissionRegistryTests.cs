@@ -65,6 +65,19 @@ public class PermissionRegistryTests
         act.Should().Throw<InvalidOperationException>().WithMessage("*security level*");
     }
 
+    [Fact]
+    public void Constructor_RejectsGrantedByDefaultThatIsExplicitOnly()
+    {
+        var act = () =>
+            new PermissionRegistry([
+                new SingleNodeSource(
+                    new("casino.table.open", "test", GrantedByDefault: true, ExplicitOnly: true)
+                ),
+            ]);
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*explicit only*");
+    }
+
     private sealed class SingleNodeSource(PermissionNodeDefinition definition)
         : IPermissionNodeSource
     {

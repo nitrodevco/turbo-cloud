@@ -538,6 +538,14 @@ what you have, and only to people below you.**
 `admin`, weight 100) and its members can only be changed from the server console: nobody outranks
 them in the panel. Anything the panel refuses, the console can still do.
 
+**Superuser.** A player who holds both `permissions.manage` and `permissions.superuser` is bound by
+none of the rows above: any group, any player (themselves too) and any node. They are still
+audited. It is how a hotel with no console to hand (a hosted one) gives the top group to a second
+admin. No wildcard grants the node, not even `*`: it is given by naming it, from the console
+(`perm user <player> set permissions.superuser true`) or by another superuser. A group that gives
+it, directly or through a parent, can only be changed or joined by a superuser. Nothing stops the
+last superuser removing their own access, so keep the console's way back in mind.
+
 The in-game `:group` command follows the same rule (it goes through the same
 `IPermissionEditService`), and players are told when the panel puts them in a group or takes them
 out, as `:group` tells them.
@@ -581,6 +589,7 @@ passkey; they add more while signed in instead.
 | `catalog.manage` | Changing the catalog on that page, and publishing it to players. |
 | `admin.permissions.view` | The Permissions page: seeing groups, any player's permissions, who has a node, and the permission log. |
 | `permissions.manage` | Changing permissions on that page, within the rule in [Permission editor](#permission-editor). The in-game `:group` command needs it too, and follows the same rule. |
+| `permissions.superuser` | With `permissions.manage`: lifts the weight and held-node limits of the permission editor (see [Permission editor](#permission-editor)). No wildcard grants it. |
 
 Everything else in the panel uses each command's own permission. The console runs commands
 **as you**, with exactly your permissions, rate limits and confirmations, and logs them like

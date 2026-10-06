@@ -144,6 +144,14 @@ public static class PermissionNodes
     public static class Permissions
     {
         public const string MANAGE = "permissions.manage";
+
+        /// <summary>
+        /// Lifts the limits on whoever edits permissions: any group, any player and any node,
+        /// themselves included, and the groups that carry this node. Needs
+        /// <see cref="MANAGE"/> as well. Explicit only: no wildcard grants it, so it is given by
+        /// naming it, by the console or by a holder.
+        /// </summary>
+        public const string SUPERUSER = "permissions.superuser";
     }
 
     public static class Admin

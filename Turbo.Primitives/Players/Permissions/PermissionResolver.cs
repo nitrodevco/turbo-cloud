@@ -17,7 +17,9 @@ namespace Turbo.Primitives.Players.Permissions;
 /// (name breaks a tie, so the order is stable). Within a source the most specific assignment
 /// wins — the node itself, then the longest wildcard — then a temporary assignment beats a
 /// permanent one (a sanction outranks what it suspends, and the permanent value is still there
-/// when it runs out), then a denial beats a grant. No opinion anywhere: denied, unless the node
+/// when it runs out), then a denial beats a grant. A node registered
+/// <see cref="PermissionNodeDefinition.ExplicitOnly"/> ignores wildcard assignments altogether.
+/// No opinion anywhere: denied, unless the node
 /// was registered <see cref="PermissionNodeDefinition.GrantedByDefault"/>. Expired
 /// assignments and memberships do not take part. Meta resolves by the selection its key was
 /// registered with; the default takes the first source in the same order, temporary first.
@@ -46,7 +48,7 @@ public static class PermissionResolver
 
             foreach (var source in sources)
             {
-                var match = BestMatch(source, node);
+                var match = BestMatch(source, node, definition.ExplicitOnly);
 
                 if (match is null)
                     continue;
@@ -127,10 +129,12 @@ public static class PermissionResolver
 
         PermissionAssignmentSourceSnapshot? decision = null;
         var overridden = ImmutableArray.CreateBuilder<PermissionAssignmentSourceSnapshot>();
+        var explicitOnly =
+            registry.Nodes.TryGetValue(node, out var registered) && registered.ExplicitOnly;
 
         foreach (var source in sources)
         {
-            var match = BestMatch(source, node);
+            var match = BestMatch(source, node, explicitOnly);
 
             if (match is null)
                 continue;
@@ -286,13 +290,20 @@ public static class PermissionResolver
         return sources;
     }
 
-    private static PermissionNodeAssignmentSnapshot? BestMatch(Source source, string node)
+    private static PermissionNodeAssignmentSnapshot? BestMatch(
+        Source source,
+        string node,
+        bool explicitOnly
+    )
     {
         PermissionNodeAssignmentSnapshot? best = null;
         var bestSpecificity = PermissionNodeFormat.NO_MATCH;
 
         foreach (var assignment in source.Nodes)
         {
+            if (explicitOnly && PermissionNodeFormat.IsWildcard(assignment.Node))
+                continue;
+
             var specificity = PermissionNodeFormat.Specificity(assignment.Node, node);
 
             if (specificity == PermissionNodeFormat.NO_MATCH)
