@@ -14,6 +14,7 @@ using Turbo.Catalog;
 using Turbo.Commands;
 using Turbo.Crypto.Extensions;
 using Turbo.Database.Extensions;
+using Turbo.Database.Migrations;
 using Turbo.Events.Extensions;
 using Turbo.Furniture;
 using Turbo.Guilds;
@@ -21,6 +22,7 @@ using Turbo.Inventory;
 using Turbo.Logging.Extensions;
 using Turbo.Main.Console;
 using Turbo.Main.Extensions;
+using Turbo.Main.Startup;
 using Turbo.Messages.Extensions;
 using Turbo.Navigator;
 using Turbo.Networking.Extensions;
@@ -36,7 +38,7 @@ namespace Turbo.Main;
 
 internal class Program
 {
-    public static async Task Main(string[] args)
+    public static async Task<int> Main(string[] args)
     {
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
@@ -49,8 +51,21 @@ internal class Program
             })
             .CreateLogger("Bootstrap");
 
-        System.Console.WriteLine(
-            @"
+        // `Turbo.Main migrate ...` migrates the database and exits; nothing else starts.
+        var migrate = MigrateCommandLine.IsMigrateCommand(args)
+            ? MigrateCommandLine.Parse(args)
+            : null;
+
+        if (migrate is { Help: true } or { Error: not null })
+        {
+            DatabaseStartup.PrintUsage(bootstrapLogger, migrate.Error);
+
+            return migrate.Error is null ? DatabaseStartup.EXIT_OK : DatabaseStartup.EXIT_USAGE;
+        }
+
+        if (migrate is null)
+            System.Console.WriteLine(
+                @"
      ████████╗██╗   ██╗██████╗ ██████╗  ██████╗ 
      ╚══██╔══╝██║   ██║██╔══██╗██╔══██╗██╔═══██╗
         ██║   ██║   ██║██████╔╝██████╔╝██║   ██║
@@ -58,15 +73,16 @@ internal class Program
         ██║   ╚██████╔╝██║  ██║██████╔╝╚██████╔╝
         ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═════╝  ╚═════╝   
             "
-        );
+            );
 
-        bootstrapLogger.LogInformation(
-            "Starting {GetProjectName} {GetProductVersion}",
-            GetProjectName(),
-            GetProjectVersion()
-        );
+        if (migrate is null)
+            bootstrapLogger.LogInformation(
+                "Starting {GetProjectName} {GetProductVersion}",
+                GetProjectName(),
+                GetProjectVersion()
+            );
 
-        var builder = Host.CreateApplicationBuilder(args);
+        var builder = Host.CreateApplicationBuilder(migrate?.HostArgs ?? args);
 
         builder.Configuration.AddEnvironmentVariables(prefix: "TURBO__");
 
@@ -131,8 +147,17 @@ internal class Program
         var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
         var ct = lifetime.ApplicationStopping;
 
+        if (migrate is not null)
+            return await DatabaseStartup
+                .RunCommandAsync(host.Services, migrate, bootstrapLogger, ct)
+                .ConfigureAwait(false);
+
         try
         {
+            // The emulator's own tables first: every provider and grain reads them as it starts.
+            // Plugins' tables are migrated as each plugin loads.
+            await DatabaseStartup.MigrateAsync(host.Services, ct).ConfigureAwait(false);
+
             await host.StartAsync(ct).ConfigureAwait(false);
 
             bootstrapLogger.LogInformation(
@@ -145,10 +170,21 @@ internal class Program
 
             await host.WaitForShutdownAsync(ct).ConfigureAwait(false);
         }
+        catch (Exception ex) when (MigrationException.FindIn(ex) is { } migration)
+        {
+            // The message is the whole report; a stack trace would only bury it. A non-zero exit
+            // lets a supervisor see that the server did not come up. A plugin's migration problem
+            // surfaces from the host's start, wrapped, so it is looked for inside.
+            bootstrapLogger.LogCritical("{Message}", migration.Message);
+
+            return DatabaseStartup.EXIT_FAILED;
+        }
         catch (Exception ex)
         {
             bootstrapLogger.LogCritical(ex, "Host terminated unexpectedly");
         }
+
+        return DatabaseStartup.EXIT_OK;
     }
 
     private static string GetProjectName()

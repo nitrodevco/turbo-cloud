@@ -1,0 +1,288 @@
+using System.Diagnostics;
+using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using MySqlConnector;
+using Turbo.Database.Configuration;
+using Turbo.Database.Context;
+using Turbo.Database.Migrations;
+using Turbo.Tests.Support;
+using Xunit;
+
+namespace Turbo.Tests.Database;
+
+/// <summary>
+/// The migrator against a real MySQL or MariaDB: the real lock between real sessions, and the
+/// emulator's own 47 migrations applied to an empty database. Skipped unless
+/// <c>TURBO_TEST_MYSQL</c> names a server with rights to create databases, without a database
+/// name, for example <c>server=127.0.0.1;port=3307;user=root;password=...</c>. Each test makes
+/// and drops a database of its own.
+/// </summary>
+public sealed class MySqlMigrationTests : IAsyncLifetime
+{
+    private static readonly string? SERVER = Environment.GetEnvironmentVariable("TURBO_TEST_MYSQL");
+
+    private readonly string _database = "turbo_test_" + Guid.NewGuid().ToString("N")[..12];
+
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    private string ConnectionString =>
+        new MySqlConnectionStringBuilder(SERVER!) { Database = _database }.ConnectionString;
+
+    public ValueTask InitializeAsync() => ValueTask.CompletedTask;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (SERVER is null)
+            return;
+
+        await using var connection = new MySqlConnection(SERVER);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"DROP DATABASE IF EXISTS `{_database}`";
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static void RequireServer() =>
+        Assert.SkipUnless(SERVER is not null, "TURBO_TEST_MYSQL is not set");
+
+    private TurboDbContext Context(string? database = null)
+    {
+        var connectionString = database is null
+            ? ConnectionString
+            : new MySqlConnectionStringBuilder(SERVER!) { Database = database }.ConnectionString;
+
+        var options = new DbContextOptionsBuilder<TurboDbContext>()
+            .UseMySql(
+                connectionString,
+                ServerVersion.AutoDetect(SERVER!),
+                mysql => mysql.MigrationsAssembly("Turbo.Database")
+            )
+            .Options;
+
+        return new TurboDbContext(options);
+    }
+
+    private static DatabaseMigrator Migrator(
+        MigrationMode mode = MigrationMode.Auto,
+        int lockSeconds = 30,
+        CapturingLogger<DatabaseMigrator>? log = null
+    ) =>
+        new(
+            Options.Create(
+                new DatabaseConfig
+                {
+                    Migrate = mode,
+                    MigrationLockSeconds = lockSeconds,
+                    // The emulator's history has drops from before this feature; a database
+                    // that is created has nothing to lose, so none of these tests need them.
+                    AllowDestructiveMigrations = false,
+                }
+            ),
+            new MySqlMigrationLock(),
+            log ?? new CapturingLogger<DatabaseMigrator>()
+        );
+
+    private static int KnownMigrations(DbContext db) =>
+        db.GetService<IMigrationsAssembly>().Migrations.Count;
+
+    [Fact]
+    public async Task ADatabaseThatDoesNotExist_IsCreated_AndGetsEveryCoreMigration()
+    {
+        RequireServer();
+        var log = new CapturingLogger<DatabaseMigrator>();
+        await using var db = Context();
+
+        var result = await Migrator(log: log).MigrateAsync(db, "core", null, Ct);
+
+        result.Outcome.Should().Be(MigrationOutcome.Applied);
+        result.Applied.Should().HaveCount(KnownMigrations(db));
+        (await db.Database.GetPendingMigrationsAsync(Ct)).Should().BeEmpty();
+        log.Entries.Select(x => x.Message)
+            .Should()
+            .Contain(x => x.Contains("creating the database"));
+    }
+
+    [Fact]
+    public async Task AMigratedDatabase_IsUpToDateTheSecondTime_AndChecksOut()
+    {
+        RequireServer();
+        await using var db = Context();
+        await Migrator().MigrateAsync(db, "core", null, Ct);
+
+        var again = await Migrator().MigrateAsync(db, "core", null, Ct);
+        var check = await Migrator(MigrationMode.Check).MigrateAsync(db, "core", null, Ct);
+
+        again.Outcome.Should().Be(MigrationOutcome.UpToDate);
+        check.Outcome.Should().Be(MigrationOutcome.UpToDate);
+    }
+
+    [Fact]
+    public async Task CheckMode_RefusesAnEmptyDatabase_AndLeavesItEmpty()
+    {
+        RequireServer();
+        await using var db = Context();
+
+        var act = () => Migrator(MigrationMode.Check).MigrateAsync(db, "core", null, Ct);
+
+        await act.Should().ThrowAsync<MigrationException>().WithMessage("*behind*");
+        (
+            await db.GetService<Microsoft.EntityFrameworkCore.Storage.IRelationalDatabaseCreator>()
+                .ExistsAsync(Ct)
+        )
+            .Should()
+            .BeFalse("checking must not create anything");
+    }
+
+    [Fact]
+    public async Task TwoServersStartedTogether_TakeTurns_AndEveryMigrationIsAppliedOnce()
+    {
+        RequireServer();
+        await using var first = Context();
+        await using var second = Context();
+
+        var results = await Task.WhenAll(
+            Migrator().MigrateAsync(first, "core", null, Ct),
+            Migrator().MigrateAsync(second, "core", null, Ct)
+        );
+
+        results.Sum(x => x.Applied.Count).Should().Be(KnownMigrations(first));
+        results.Count(x => x.Outcome == MigrationOutcome.Applied).Should().Be(1);
+        results.Count(x => x.Outcome == MigrationOutcome.UpToDate).Should().Be(1);
+        (await first.Database.GetAppliedMigrationsAsync(Ct))
+            .Should()
+            .HaveCount(KnownMigrations(first));
+    }
+
+    [Fact]
+    public async Task AMigratorWaitsOutALockAnotherSessionHolds_ThenTimesOutWithAReadableMessage()
+    {
+        RequireServer();
+        await using var db = Context();
+        var held = await new MySqlMigrationLock().AcquireAsync(
+            ConnectionString,
+            TimeSpan.FromSeconds(5),
+            Ct
+        );
+
+        var clock = Stopwatch.StartNew();
+        var act = () => Migrator(lockSeconds: 2).MigrateAsync(db, "core", null, Ct);
+
+        await act.Should().ThrowAsync<MigrationException>().WithMessage("*Another process*");
+        clock
+            .Elapsed.Should()
+            .BeGreaterThan(TimeSpan.FromSeconds(1.5))
+            .And.BeLessThan(TimeSpan.FromSeconds(15));
+
+        // Nothing was changed while it waited, and once the holder is done the run goes through.
+        await held.DisposeAsync();
+        (await Migrator().MigrateAsync(db, "core", null, Ct))
+            .Outcome.Should()
+            .Be(MigrationOutcome.Applied);
+    }
+
+    [Fact]
+    public async Task TheLockIsFreeAgainTheMomentItsHolderIsGone()
+    {
+        RequireServer();
+        var migrationLock = new MySqlMigrationLock();
+        var first = await migrationLock.AcquireAsync(ConnectionString, TimeSpan.FromSeconds(5), Ct);
+        await first.DisposeAsync();
+
+        var clock = Stopwatch.StartNew();
+        var second = await migrationLock.AcquireAsync(
+            ConnectionString,
+            TimeSpan.FromSeconds(5),
+            Ct
+        );
+        await second.DisposeAsync();
+
+        clock.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(3));
+    }
+
+    [Fact]
+    public async Task ALockHeldOnOneDatabase_DoesNotBlockAnother()
+    {
+        RequireServer();
+        var other = _database + "_b";
+        var migrationLock = new MySqlMigrationLock();
+        await using var held = await migrationLock.AcquireAsync(
+            ConnectionString,
+            TimeSpan.FromSeconds(5),
+            Ct
+        );
+
+        try
+        {
+            await using var db = Context(other);
+
+            var result = await Migrator(lockSeconds: 2).MigrateAsync(db, "other", null, Ct);
+
+            result.Outcome.Should().Be(MigrationOutcome.Applied);
+        }
+        finally
+        {
+            await using var connection = new MySqlConnection(SERVER);
+            await connection.OpenAsync(Ct);
+            await using var command = connection.CreateCommand();
+            command.CommandText = $"DROP DATABASE IF EXISTS `{other}`";
+            await command.ExecuteNonQueryAsync(Ct);
+        }
+    }
+
+    [Fact]
+    public async Task ADatabaseAheadOfTheCode_IsRefused_AndIsNotChanged()
+    {
+        RequireServer();
+        await using var db = Context();
+        await Migrator().MigrateAsync(db, "core", null, Ct);
+        await db.Database.ExecuteSqlRawAsync(
+            "INSERT INTO `__EFMigrationsHistory` (`MigrationId`, `ProductVersion`) VALUES ('29991231000000_FromTheFuture', '9.0.0')",
+            Ct
+        );
+
+        var act = () => Migrator().MigrateAsync(db, "core", null, Ct);
+
+        await act.Should()
+            .ThrowAsync<MigrationException>()
+            .WithMessage("*29991231000000_FromTheFuture*newer version*");
+    }
+
+    [Fact]
+    public async Task AServerThatCannotBeReached_IsReportedAsOneMigrationProblem()
+    {
+        RequireServer();
+        var unreachable = new MySqlConnectionStringBuilder(SERVER!)
+        {
+            Port = 1,
+            Database = _database,
+            ConnectionTimeout = 2,
+        }.ConnectionString;
+
+        var act = () =>
+            new MySqlMigrationLock().AcquireAsync(unreachable, TimeSpan.FromSeconds(1), Ct);
+
+        await act.Should()
+            .ThrowAsync<MigrationException>()
+            .WithMessage("*Cannot lock the database*");
+    }
+
+    [Fact]
+    public async Task APartiallyMigratedDatabase_ResumesWhereItStopped()
+    {
+        RequireServer();
+        await using var db = Context();
+        var known = db.GetService<IMigrationsAssembly>()
+            .Migrations.Keys.Order(StringComparer.Ordinal)
+            .ToList();
+        await db.Database.MigrateAsync(known[20], Ct);
+
+        var result = await Migrator()
+            .MigrateAsync(db, "core", new MigrationRunOptions { AllowDestructive = true }, Ct);
+
+        result.Applied.Should().Equal(known.Skip(21));
+    }
+}

@@ -43,11 +43,8 @@ taken, a number is added to it, and `Player` is the last resort. People can alwa
 
 ## Setting it up locally
 
-1. Apply the migrations. The server doesn't apply them on startup:
-
-   ```bash
-   cd Turbo.Database && dotnet ef database update
-   ```
+1. Apply the migrations. The server applies them when it starts ([database.md](database.md));
+   to do it ahead of time, run `dotnet run --project Turbo.Main -- migrate`.
 
    `AddPublicSite` adds `player_discord_links` and `web_sessions`. The `AddTicketExpiry` migration
    before it adds `security_tickets.expires_at`; without it, every game login fails.

@@ -22,7 +22,7 @@ its sprite ID is sent to the client. `ProductCode` identifies the client product
 data entry. A missing definition or disabled campaign hides the promotion.
 The client controls the promotional artwork through its own configuration.
 
-Apply migrations from `Turbo.Database` with `dotnet ef database update`.
+The migrations are applied when the server starts, or ahead of time with `Turbo.Main migrate` ([database.md](database.md)).
 `player_bonus_rare_progress` stores progress per player and campaign. A missing
 row means zero purchased credits. Use a new campaign ID when starting a new offer
 to avoid reusing progress from an earlier campaign.
