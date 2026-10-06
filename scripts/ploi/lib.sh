@@ -120,6 +120,9 @@ turbo_export_app_env() {
 
   turbo_map TURBO_BADGE_ASSET_URL Turbo__Achievements__BadgeAssetUrl
 
+  turbo_map TURBO_OWNER_NAME Turbo__Owner__Name
+  turbo_map TURBO_OWNER_DISCORD_ID Turbo__Owner__DiscordId
+
   turbo_map TURBO_ADMIN_ENABLED Turbo__Admin__Enabled
   turbo_map TURBO_ADMIN_URL Turbo__Admin__Url
   turbo_map TURBO_ADMIN_PANEL_URL Turbo__Admin__PanelUrl

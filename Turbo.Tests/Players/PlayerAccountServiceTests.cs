@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Turbo.Database.Entities.Players;
 using Turbo.Players.Accounts;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Accounts;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Rooms.Enums;
@@ -34,7 +35,23 @@ public sealed class PlayerAccountServiceTests : IDisposable
                 PlayerStatus = PlayerStatusType.Offline,
             }
         );
-        _accounts = new PlayerAccountService(_db, NullLogger<IPlayerAccountService>.Instance);
+        _accounts = new PlayerAccountService(
+            _db,
+            new NoOwner(),
+            NullLogger<IPlayerAccountService>.Instance
+        );
+    }
+
+    private sealed class NoOwner : IOwnerBootstrap
+    {
+        public Task<bool> PlayerCreatedAsync(PlayerId player, string name, CancellationToken ct) =>
+            Task.FromResult(false);
+
+        public Task<bool> DiscordLinkedAsync(
+            PlayerId player,
+            string discordId,
+            CancellationToken ct
+        ) => Task.FromResult(false);
     }
 
     public void Dispose() => _db.Dispose();

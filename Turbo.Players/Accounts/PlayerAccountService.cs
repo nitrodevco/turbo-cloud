@@ -19,6 +19,7 @@ namespace Turbo.Players.Accounts;
 /// </summary>
 public sealed class PlayerAccountService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
+    IOwnerBootstrap owner,
     ILogger<IPlayerAccountService> logger
 ) : IPlayerAccountService
 {
@@ -79,6 +80,8 @@ public sealed class PlayerAccountService(
         }
 
         logger.LogInformation("Created player {PlayerId} ({PlayerName})", entity.Id, name);
+
+        await owner.PlayerCreatedAsync(new PlayerId(entity.Id), name, ct).ConfigureAwait(false);
 
         return NewPlayerResult.Done(entity.Id);
     }

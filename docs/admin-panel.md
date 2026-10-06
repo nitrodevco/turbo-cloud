@@ -157,8 +157,30 @@ real-IP lines in `nginx.conf` commented out.
 
 ### 4. The first admin
 
-The first admin needs a setup link, which only the server console can make for someone without
-a passkey (or you can make one for yourself in the hotel). Either:
+Name the owner in the site's environment, and the hotel does the rest:
+
+```
+TURBO_OWNER_DISCORD_ID=123456789012345678   # or TURBO_OWNER_NAME=YourName
+```
+
+Sign up as that Discord account (or name). Turbo puts you in the `admin` group, gives you
+`permissions.superuser` (so you can make other admins, see [Permission editor](#permission-editor)),
+and prints your setup link in the server log, with the Ploi daemon's log or `journalctl`:
+
+```
+Admin panel setup for the owner, YourName: open https://admin.example.com/setup#token=… on the
+device you will sign in with. It works once, until 2026-10-08 12:00 UTC. …
+```
+
+Open it on the device you sign in with and create your passkey. If you signed up before setting
+the variable, restart Turbo: it finds you at startup. It never makes anyone the owner for being
+first on a live hotel. A name can be taken by whoever signs up first, so on a public hotel use the
+Discord id, or set `TURBO_WEB_REGISTRATION_OPEN=false` until you have signed up.
+
+Locally, in the Development environment with no owner named, the first player created becomes the
+owner (`Turbo:Owner:FirstPlayerInDevelopment`, on by default).
+
+Without naming an owner, or to rescue a hotel, the setup link can be made by hand. Either:
 
 - **In the hotel**, if your account already holds `admin.panel`: type `:adminsetup` and click the
   link in the pop-up it opens.

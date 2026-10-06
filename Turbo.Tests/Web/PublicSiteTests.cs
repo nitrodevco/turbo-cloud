@@ -18,6 +18,7 @@ using Turbo.Primitives.Authentication;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Moderation.Snapshots;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Accounts;
 using Turbo.Tests.Support;
 using Turbo.Web.Accounts;
@@ -39,6 +40,7 @@ public sealed class PublicSiteTests : IAsyncDisposable
 
     private readonly SqliteDb _db = new();
     private readonly Fakes _fakes = new();
+    private readonly RecordingOwner _owner = new();
     private readonly FakeDiscord _discord = new();
     private readonly int _port;
     private readonly IHostedService _server;
@@ -99,6 +101,7 @@ public sealed class PublicSiteTests : IAsyncDisposable
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddSingleton<IDbContextFactory<TurboDbContext>>(_db);
+        services.AddSingleton<IOwnerBootstrap>(_owner);
         services.AddSingleton<IPlayerAccountService, PlayerAccountService>();
         services.AddSingleton<ILoginTicketService, LoginTicketService>();
         services.AddSingleton(_fakes.Create<ISanctionService>());
@@ -177,6 +180,9 @@ public sealed class PublicSiteTests : IAsyncDisposable
 
         var player = (await MeAsync()).GetProperty("player");
         var id = player.GetProperty("id").GetInt32();
+
+        _owner.Created.Should().Equal("cool.user_");
+        _owner.DiscordLinks.Should().ContainSingle();
 
         player.GetProperty("name").GetString().Should().Be("cool.user_");
 
@@ -380,5 +386,31 @@ public sealed class PublicSiteTests : IAsyncDisposable
 
         private static HttpResponseMessage Json(object body) =>
             new(HttpStatusCode.OK) { Content = JsonContent.Create(body) };
+    }
+
+    /// <summary>What the site reports to the owner bootstrap; it makes nobody the owner.</summary>
+    private sealed class RecordingOwner : IOwnerBootstrap
+    {
+        public List<string> Created { get; } = [];
+
+        public List<string> DiscordLinks { get; } = [];
+
+        public Task<bool> PlayerCreatedAsync(PlayerId player, string name, CancellationToken ct)
+        {
+            Created.Add(name);
+
+            return Task.FromResult(false);
+        }
+
+        public Task<bool> DiscordLinkedAsync(
+            PlayerId player,
+            string discordId,
+            CancellationToken ct
+        )
+        {
+            DiscordLinks.Add(discordId);
+
+            return Task.FromResult(false);
+        }
     }
 }
