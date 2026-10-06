@@ -418,8 +418,12 @@ that row's activity-point type. Duckets are row 4 but type 0, so earlier code th
 number charged the wrong currency. The editor only offers activity-point currencies that are
 enabled.
 
-Page icons and images are loaded from `CatalogImageUrl`, the same address as the client's
-`image.library.catalogue.url`. The layouts on offer are those the client has a window for (from
+Page icons and images, furniture icons and badges load from the addresses in the client's own
+`nitro-config.json` (`ClientConfigUrl`): `catalog.icons.url`, `asset.urls.catalog`,
+`asset.urls.icons.furni` and `badge.asset.url`, resolved as the client resolves them. The server
+reads the config (so its host needn't allow the panel's origin) and reads it again every
+`ClientConfigCacheMinutes`, so a redeployed client is picked up without a restart. Without one
+set, the editor shows no pictures. The layouts on offer are those the client has a window for (from
 the Flash client's layouts, as nitro-next mirrors them); `CatalogLayouts` changes the list.
 
 ### Creating players
@@ -611,7 +615,8 @@ them.
 | `RoomSearchMaxLength` | `64` | | The longest room search text; longer text is cut. |
 | `PlayerSearchPageSize` | `25` | | Players per page on the Players page. |
 | `CommandLogPageSize` | `50` | | Entries per page on the Command log page. |
-| `CatalogImageUrl` | `https://images.habbo.com/c_images/catalogue/` | | Where page icons and images load from in the catalog editor; match the client's `image.library.catalogue.url`. Empty shows none. |
+| `ClientConfigUrl` | empty | `TURBO_ADMIN_CLIENT_CONFIG_URL` | The client's `nitro-config.json`, e.g. `https://play.example.com/config/nitro-config.json`. Catalog icons and images, furniture icons and badges load from its addresses. Empty shows none. |
+| `ClientConfigCacheMinutes` | `10` | | How long those addresses are kept before the config is read again. |
 | `CatalogLayouts` | the client's layouts | | The page layouts the catalog editor offers, besides any a page already uses. |
 | `CatalogFurnitureSearchLimit` | `25` | | Items the catalog editor's item picker lists at once. |
 | `ClientLoginUrl` | empty | | The client's login address with `{ticket}` where the ticket goes, e.g. `https://hotel.example.com/client?sso={ticket}`. Set, a new ticket also comes as a login link. |

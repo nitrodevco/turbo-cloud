@@ -112,6 +112,14 @@ public sealed partial class RoomMapModule
         if (!CanAvatarWalk(avatar, nTileIdx, isGoal))
             return false;
 
+        // The search asks this too, so a way is planned around a step too high to take rather
+        // than over it and then refused on the first tick.
+        if (
+            Math.Abs(GetTileHeightForAvatar(nTileIdx) - GetTileHeightForAvatar(pTileIdx))
+            > Math.Abs(_roomGrain._roomConfig.MaxStepHeight)
+        )
+            return false;
+
         var (fromX, fromY) = GetTileXY(pTileIdx);
         var (toX, toY) = GetTileXY(nTileIdx);
 

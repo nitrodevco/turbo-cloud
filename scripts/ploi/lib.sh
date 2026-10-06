@@ -124,6 +124,7 @@ turbo_export_app_env() {
   turbo_map TURBO_ADMIN_URL Turbo__Admin__Url
   turbo_map TURBO_ADMIN_PANEL_URL Turbo__Admin__PanelUrl
   turbo_map TURBO_ADMIN_PASSKEY_RP_ID Turbo__Admin__PasskeyRpId
+  turbo_map TURBO_ADMIN_CLIENT_CONFIG_URL Turbo__Admin__ClientConfigUrl
 
   turbo_map TURBO_WEB_ENABLED Turbo__Web__Enabled
   turbo_map TURBO_WEB_URL Turbo__Web__Url

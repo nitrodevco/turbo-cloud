@@ -93,7 +93,6 @@ public sealed class AdminCatalogQueries(
                 ),
             ],
             [.. config.Value.CatalogLayouts.Concat(used).Distinct().Order(StringComparer.Ordinal)],
-            config.Value.CatalogImageUrl,
             club
         );
     }

@@ -58,11 +58,15 @@ public sealed class AdminConfig
     public int CommandLogPageSize { get; init; } = 50;
 
     /// <summary>
-    /// Where the catalog's page icons and images are, as the client's
-    /// <c>image.library.catalogue.url</c>: an icon is <c>icon_&lt;n&gt;.png</c> there, an image
-    /// its name and <c>.png</c>. Empty shows none in the panel.
+    /// The client's <c>nitro-config.json</c>, such as
+    /// <c>https://hotel.example.com/config/nitro-config.json</c>. The panel draws catalog icons and
+    /// images, furniture icons and badges from the same addresses the client does. Empty shows
+    /// none.
     /// </summary>
-    public string CatalogImageUrl { get; init; } = "https://images.habbo.com/c_images/catalogue/";
+    public string ClientConfigUrl { get; init; } = "";
+
+    /// <summary>How long the client's addresses are kept before the config is read again.</summary>
+    public int ClientConfigCacheMinutes { get; init; } = 10;
 
     /// <summary>
     /// The page layouts the catalog editor offers, besides any a page already uses: those the

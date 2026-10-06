@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Turbo.Admin.Api;
+using Turbo.Admin.Assets;
 using Turbo.Admin.Catalog;
 using Turbo.Admin.Commands;
 using Turbo.Admin.Configuration;
@@ -38,6 +39,7 @@ public sealed class AdminModule : IHostPluginModule
         services.AddSingleton<AdminSiteAccounts>();
         services.AddSingleton<AdminCommandLogQueries>();
         services.AddSingleton<AdminCatalogQueries>();
+        services.AddSingleton<ClientAssets>();
         services.AddSingleton<PermissionViews>();
         services.AddSingleton<AdminLiveFeed>();
         services.AddHostedService(sp => sp.GetRequiredService<AdminLiveFeed>());

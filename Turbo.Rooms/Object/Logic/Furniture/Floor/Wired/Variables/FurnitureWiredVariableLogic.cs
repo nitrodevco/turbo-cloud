@@ -10,8 +10,11 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
+using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
@@ -87,10 +90,10 @@ public abstract class FurnitureWiredVariableLogic
     {
         value = WiredVariableValue.Default;
 
-        if (!CanBind(key) || !TryGetStore(key, out var store) || store is null)
+        if (!CanBind(key) || !TryGetStore(key, out var store, out var storedKey) || store is null)
             return false;
 
-        return store.TryGetValue(key, out value);
+        return store.TryGetValue(storedKey, out value);
     }
 
     public virtual Task<bool> GiveValueAsync(
@@ -104,13 +107,13 @@ public abstract class FurnitureWiredVariableLogic
         if (
             !snapshot.Flags.Has(WiredVariableFlags.CanCreateAndDelete)
             || !CanBind(key)
-            || !TryGetStore(key, out var store)
+            || !TryGetStore(key, out var store, out var storedKey)
             || store is null
-            || (store.ContainsKey(key) && !replace)
+            || (store.ContainsKey(storedKey) && !replace)
         )
             return Task.FromResult(false);
 
-        return GiveAndNotifyAsync(store, key, value, replace);
+        return GiveAndNotifyAsync(store, key, storedKey, value, replace);
     }
 
     public virtual Task<bool> SetValueAsync(
@@ -119,10 +122,14 @@ public abstract class FurnitureWiredVariableLogic
         WiredVariableValue value
     )
     {
-        if (!TryGetStore(key, out var store) || store is null || !store.ContainsKey(key))
+        if (
+            !TryGetStore(key, out var store, out var storedKey)
+            || store is null
+            || !store.ContainsKey(storedKey)
+        )
             return Task.FromResult(false);
 
-        return SetAndNotifyAsync(store, ctx, key, value);
+        return SetAndNotifyAsync(store, ctx, key, storedKey, value);
     }
 
     public bool TryGetTimestamps(
@@ -134,17 +141,17 @@ public abstract class FurnitureWiredVariableLogic
         createdAtMs = 0;
         updatedAtMs = 0;
 
-        return TryGetStore(key, out var store)
+        return TryGetStore(key, out var store, out var storedKey)
             && store is not null
-            && store.TryGetTimestamps(key, out createdAtMs, out updatedAtMs);
+            && store.TryGetTimestamps(storedKey, out createdAtMs, out updatedAtMs);
     }
 
     public virtual bool RemoveValue(WiredVariableKey key)
     {
-        if (!TryGetStore(key, out var store) || store is null)
+        if (!TryGetStore(key, out var store, out var storedKey) || store is null)
             return false;
 
-        if (!store.TryGetValue(key, out var previous) || !store.RemoveValue(key))
+        if (!store.TryGetValue(storedKey, out var previous) || !store.RemoveValue(storedKey))
             return false;
 
         PublishChange(key, WiredVariableChangeType.Removed, previous, previous);
@@ -153,9 +160,10 @@ public abstract class FurnitureWiredVariableLogic
     }
 
     /// <summary>
-    /// Takes the variable from every holder the box itself keeps, present in the room or not,
-    /// and says so once per holder like any other removal. A variable that lives in the shared
-    /// room-active stores keeps no list of its own, so there is nothing to walk: zero.
+    /// Takes the variable from every holder the box itself keeps, present in the room or not.
+    /// A holder in the room is told like any other removal; an absent player is not, as the
+    /// change event names avatars by room index and they have none. A variable that lives in
+    /// the shared room-active stores keeps no list of its own, so there is nothing to walk: zero.
     /// </summary>
     public int RemoveAllValues()
     {
@@ -170,11 +178,17 @@ public abstract class FurnitureWiredVariableLogic
         foreach (var storageKey in storageKeys)
         {
             if (
-                WiredVariableKey.TryFromStorageKey(storageKey, out var key)
-                && CanBind(key)
-                && RemoveValue(key)
+                !WiredVariableKey.TryFromStorageKey(storageKey, out var storedKey)
+                || !CanBind(storedKey)
+                || !_storage.TryGetValue(storedKey, out var previous)
+                || !_storage.RemoveValue(storedKey)
             )
-                removed++;
+                continue;
+
+            removed++;
+
+            if (TryGetLiveKey(storedKey, out var key))
+                PublishChange(key, WiredVariableChangeType.Removed, previous, previous);
         }
 
         return removed;
@@ -183,13 +197,14 @@ public abstract class FurnitureWiredVariableLogic
     private async Task<bool> GiveAndNotifyAsync(
         KeyValueStore store,
         WiredVariableKey key,
+        WiredVariableKey storedKey,
         WiredVariableValue value,
         bool replace
     )
     {
-        var existed = store.TryGetValue(key, out var previous);
+        var existed = store.TryGetValue(storedKey, out var previous);
 
-        if (!await store.GiveValueAsync(key, value, replace))
+        if (!await store.GiveValueAsync(storedKey, value, replace))
             return false;
 
         PublishChange(
@@ -206,12 +221,13 @@ public abstract class FurnitureWiredVariableLogic
         KeyValueStore store,
         IWiredExecutionContext ctx,
         WiredVariableKey key,
+        WiredVariableKey storedKey,
         WiredVariableValue value
     )
     {
-        store.TryGetValue(key, out var previous);
+        store.TryGetValue(storedKey, out var previous);
 
-        if (!await store.SetValueAsync(ctx, key, value))
+        if (!await store.SetValueAsync(ctx, storedKey, value))
             return false;
 
         PublishChange(key, WiredVariableChangeType.Updated, value, previous);
@@ -301,16 +317,65 @@ public abstract class FurnitureWiredVariableLogic
         }
     }
 
-    private bool TryGetStore(WiredVariableKey key, out KeyValueStore? store)
+    /// <summary>
+    /// Where the value for a key lives, and the key it is kept under there. A permanent user
+    /// variable keeps a player's value under their player id: the room index every user
+    /// variable is otherwise keyed by is handed out afresh each time they enter, so a value kept
+    /// under it was lost when they left and found by whoever got that index next. A pet or bot
+    /// has no id of its own that cannot collide with a player's, so its values stay in the
+    /// room-active store and last as long as it is in the room.
+    /// </summary>
+    private bool TryGetStore(
+        WiredVariableKey key,
+        out KeyValueStore? store,
+        out WiredVariableKey storedKey
+    )
     {
-        if (_storage is not null)
+        storedKey = key;
+
+        if (_storage is not null && key.TargetType != WiredVariableTargetType.User)
         {
             store = _storage;
 
             return true;
         }
 
+        if (_storage is not null)
+        {
+            store = null;
+
+            if (!AvatarModule.TryGetAvatar(RoomObjectId.Parse(key.TargetId), out var avatar))
+                return false;
+
+            if (avatar is IRoomPlayer player)
+            {
+                storedKey = key with { TargetId = player.PlayerId.Value };
+                store = _storage;
+
+                return true;
+            }
+        }
+
         return WiredSystem.TryGetStoreForKey(key, out store);
+    }
+
+    /// <summary>
+    /// The key a stored value is known by in the room right now: a player's id turned back into
+    /// their room index, or false when they are not here.
+    /// </summary>
+    private bool TryGetLiveKey(WiredVariableKey storedKey, out WiredVariableKey key)
+    {
+        key = storedKey;
+
+        if (storedKey.TargetType != WiredVariableTargetType.User)
+            return true;
+
+        if (!AvatarModule.TryGetPlayer(new PlayerId(storedKey.TargetId), out var player))
+            return false;
+
+        key = storedKey with { TargetId = player.ObjectId.Value };
+
+        return true;
     }
 
     public WiredVariableSnapshot GetVarSnapshot() => _varSnapshot ??= BuildVarSnapshot();

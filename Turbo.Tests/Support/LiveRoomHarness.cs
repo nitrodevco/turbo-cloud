@@ -42,7 +42,12 @@ public sealed class LiveRoomHarness
 
     private readonly RoomConfig _roomConfig;
 
-    public LiveRoomHarness(int width = 10, int height = 10, RoomConfig? roomConfig = null)
+    public LiveRoomHarness(
+        int width = 10,
+        int height = 10,
+        RoomConfig? roomConfig = null,
+        Altitude[]? heights = null
+    )
     {
         _roomConfig = roomConfig ?? new RoomConfig();
         Fakes.Handlers["GetService"] = call =>
@@ -109,7 +114,7 @@ public sealed class LiveRoomHarness
                 Width = width,
                 Height = height,
                 Size = size,
-                BaseHeights = new Altitude[size],
+                BaseHeights = heights ?? new Altitude[size],
                 BaseFlags = Enumerable.Repeat(RoomTileFlags.Open, size).ToArray(),
             }
         );

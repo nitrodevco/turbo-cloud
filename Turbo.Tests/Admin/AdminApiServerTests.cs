@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Admin.Assets;
 using Turbo.Admin.Catalog;
 using Turbo.Admin.Commands;
 using Turbo.Admin.Configuration;
@@ -177,6 +178,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<AdminSiteAccounts>();
         services.AddSingleton<AdminCommandLogQueries>();
         services.AddSingleton<AdminCatalogQueries>();
+        services.AddSingleton<ClientAssets>();
         services.AddSingleton<PermissionViews>();
         services.AddSingleton<AdminLiveFeed>();
 
