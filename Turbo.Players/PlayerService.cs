@@ -37,8 +37,11 @@ public sealed class PlayerService(IGrainFactory grainFactory) : IPlayerService
             .GetPlayerMessengerGrain(playerId)
             .GetProfileRelationAsync(viewerId, ct);
         var hiddenTask = IsHiddenFromAsync(viewerId, playerId, ct);
+        // Whether a session is attached right now, from the presence that owns it, as the
+        // messenger reads it; the player grain's own flag is only as fresh as its last callback.
+        var onlineTask = _grainFactory.GetPlayerPresenceGrain(playerId).HasActiveSessionAsync(ct);
 
-        await Task.WhenAll(profileTask, badgesTask, guildsTask, friendsTask, hiddenTask)
+        await Task.WhenAll(profileTask, badgesTask, guildsTask, friendsTask, hiddenTask, onlineTask)
             .ConfigureAwait(false);
 
         var profile = await profileTask.ConfigureAwait(false);
@@ -57,6 +60,7 @@ public sealed class PlayerService(IGrainFactory grainFactory) : IPlayerService
                 LastAccessSinceInSeconds = hidden ? -1 : profile.LastAccessSinceInSeconds,
                 IsFriend = friends.IsFriend,
                 IsFriendRequestSent = friends.IsFriendRequestSent,
+                IsOnline = await onlineTask.ConfigureAwait(false),
                 IsHidden = hidden,
             },
             Badges = await badgesTask.ConfigureAwait(false),
