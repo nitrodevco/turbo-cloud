@@ -51,12 +51,9 @@ own repository.
    The API listens on `http://127.0.0.1:8090`. `PanelUrl` defaults to `http://localhost:5173`,
    where the panel's dev server runs.
 
-2. **Apply the migrations.** The admin panel adds the `admin_passkeys` table:
-
-   ```bash
-   cd Turbo.Database
-   dotnet ef database update
-   ```
+2. **Apply the migrations.** The admin panel adds the `admin_passkeys` table. Turbo migrates its
+   own database when it starts (see [database.md](database.md)), so there is nothing to do; to
+   do it ahead of time, run `dotnet run --project Turbo.Main -- migrate`.
 
 3. **Give yourself access.** Start Turbo, then at its console:
 
@@ -523,8 +520,8 @@ holds `command.log`, and a command aimed at a group (`@room`, `@online`) always 
 commands are written in batches, so they can take a few seconds to appear; the page asks again
 every 30 seconds.
 
-The log is indexed by player and by command (migration `IndexCommandLogs`). Run
-`dotnet ef database update` from `Turbo.Database/` (or your usual deploy step) to add them; the
+The log is indexed by player and by command (migration `IndexCommandLogs`). The
+server migrates itself when it starts ([database.md](database.md)), which adds them; the
 page works without them, just more slowly on a large log.
 
 ## Permission editor
@@ -700,10 +697,11 @@ players connected to the server the panel talks to.
 
 ## Things to know
 
-- **Apply the database migrations before starting new code.** Turbo doesn't migrate its own
-  database on startup. Run `dotnet ef database update` from `Turbo.Database/` (or your deploy
-  step) first. In particular `AddTicketExpiry` adds the column login reads: without it, **every
-  game login fails** with "Unknown column 'expires_at'".
+- **The database is migrated when Turbo starts** (`Turbo:Database:Migrate`, `Auto` by default; see
+  [database.md](database.md)), so new code never meets an old schema. With `Migrate` set to
+  `Check` or `Off`, apply the migrations first (`Turbo.Main migrate`, or your deploy step): for
+  example `AddTicketExpiry` adds the column login reads, and without it **every game login
+  fails** with "Unknown column 'expires_at'".
 
 - **Changing the panel's domain** invalidates every passkey, since each passkey belongs to one
   domain. After moving, send everyone a setup link.

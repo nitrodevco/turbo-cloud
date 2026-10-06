@@ -6,10 +6,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using MySqlConnector;
 using Turbo.Contracts.Plugins;
 using Turbo.Database.Configuration;
 using Turbo.Database.Context;
 using Turbo.Database.Delegates;
+using Turbo.Database.Migrations;
 
 namespace Turbo.Database.Extensions;
 
@@ -24,13 +26,27 @@ public static class ServiceCollectionExtensions
         StringComparer.Ordinal
     );
 
-    private static ServerVersion GetServerVersion(string connectionString) =>
-        SERVER_VERSIONS
-            .GetOrAdd(
-                connectionString,
-                static key => new Lazy<ServerVersion>(() => ServerVersion.AutoDetect(key))
-            )
-            .Value;
+    /// <summary>
+    /// The configured server version when there is one, which needs no connection; otherwise
+    /// the server's own, asked on a connection without the database name: the version does not
+    /// depend on it, and the database may be one the server has yet to create.
+    /// </summary>
+    private static ServerVersion GetServerVersion(DatabaseConfig config) =>
+        !string.IsNullOrWhiteSpace(config.ServerVersion)
+            ? ServerVersion.Parse(config.ServerVersion)
+            : SERVER_VERSIONS
+                .GetOrAdd(
+                    config.ConnectionString,
+                    static key => new Lazy<ServerVersion>(() =>
+                        ServerVersion.AutoDetect(
+                            new MySqlConnectionStringBuilder(key)
+                            {
+                                Database = string.Empty,
+                            }.ConnectionString
+                        )
+                    )
+                )
+                .Value;
 
     public static IServiceCollection AddTurboDatabaseContext(
         this IServiceCollection services,
@@ -40,6 +56,10 @@ public static class ServiceCollectionExtensions
         services.Configure<DatabaseConfig>(
             builder.Configuration.GetSection(DatabaseConfig.SECTION_NAME)
         );
+
+        // One migrator for the emulator's tables and every plugin's, and one lock between them.
+        services.AddSingleton<IMigrationLock, MySqlMigrationLock>();
+        services.AddSingleton<DatabaseMigrator>();
 
         // Pooled: every grain turn that touches the database creates a context, and TurboDbContext
         // holds nothing but its options, so a reset context from the pool serves as a new one.
@@ -114,7 +134,7 @@ public static class ServiceCollectionExtensions
     {
         var connectionString = dbConfig.ConnectionString;
 
-        options.UseMySql(connectionString, GetServerVersion(connectionString), configureMySql);
+        options.UseMySql(connectionString, GetServerVersion(dbConfig), configureMySql);
 
         if (!dbConfig.LoggingEnabled)
             options.UseLoggerFactory(NullLoggerFactory.Instance);

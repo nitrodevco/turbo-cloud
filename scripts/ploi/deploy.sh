@@ -33,28 +33,21 @@ release_dir="$TURBO_DEPLOY_ROOT/releases/$release_name"
 
 mkdir -p "$TURBO_DEPLOY_ROOT/releases" "$TURBO_PLUGIN_PATH"
 
-turbo_log "Restoring tools"
-"$TURBO_DOTNET" tool restore
-
 turbo_log "Publishing release $release_name"
 "$TURBO_DOTNET" publish Turbo.Main/Turbo.Main.csproj \
   --configuration Release \
   --output "$release_dir" \
   --nologo
 
-# The design-time context factory resolves appsettings.json from the parent of the current
-# directory and detects the server version from Turbo:Database:ConnectionString before EF
-# applies --connection, so it runs from Turbo.Database with the connection string in the
-# environment as well.
+# The release migrates its own database: the same lock, the same refusals (a database from a
+# newer version, a migration that would delete data) and the same report as when the server
+# starts itself. The host's content root is the working directory, where the release's
+# appsettings live, as in start.sh. A failure stops the deploy before the running server is
+# touched.
 turbo_log "Applying database migrations"
 (
-  cd Turbo.Database
-  Turbo__Database__ConnectionString="$connection_string" \
-    "$TURBO_DOTNET" ef database update \
-    --project Turbo.Database.csproj \
-    --startup-project Turbo.Database.csproj \
-    --configuration Release \
-    --connection "$connection_string"
+  cd "$release_dir"
+  "$TURBO_DOTNET" Turbo.Main.dll migrate
 )
 
 turbo_log "Activating release"

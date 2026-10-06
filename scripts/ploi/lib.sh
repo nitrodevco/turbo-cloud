@@ -102,6 +102,10 @@ turbo_export_app_env() {
   fi
 
   turbo_map TURBO_DB_LOGGING Turbo__Database__LoggingEnabled
+  turbo_map TURBO_DB_MIGRATE Turbo__Database__Migrate
+  turbo_map TURBO_DB_ALLOW_DESTRUCTIVE_MIGRATIONS Turbo__Database__AllowDestructiveMigrations
+  turbo_map TURBO_DB_MIGRATION_LOCK_SECONDS Turbo__Database__MigrationLockSeconds
+  turbo_map TURBO_DB_SERVER_VERSION Turbo__Database__ServerVersion
 
   # SuperSocket builds its own host per server, which reads plain environment variables and
   # not the TURBO__ prefixed ones, so the listeners take the unprefixed key.

@@ -46,7 +46,7 @@ It includes the host executable (`Turbo.Main`), domain modules (`Turbo.Rooms`, `
 ## Tooling Baseline
 - .NET SDK 10.x (pinned via `global.json`)
 - Git
-- MySQL running locally (or reachable dev instance)
+- MySQL or MariaDB running locally (or a reachable dev instance). Turbo creates and migrates its own database on first start; see [docs/database.md](docs/database.md)
 
 Check SDK:
 
@@ -154,8 +154,13 @@ Turbo Cloud uses Orleans as its core runtime model for stateful domain workflows
 For project-specific Orleans guidance, see `docs/orleans.md`.
 
 ## Troubleshooting
+### Database and migrations
+Turbo migrates its database when it starts and explains anything it refuses to do; see
+[docs/database.md](docs/database.md). `dotnet run --project Turbo.Main/Turbo.Main.csproj -- migrate --status`
+says where the database stands without starting the server.
+
 ### MySQL connection errors
-If you see `Unable to connect to any of the specified MySQL hosts`:
+If you see `Unable to connect to any of the specified MySQL hosts`, or `Cannot use the database`:
 1. Verify `Turbo:Database:ConnectionString` in `appsettings.Development.json`.
 2. Verify MySQL host/port are reachable.
 3. Verify no `TURBO__...` environment variables override your local setting.

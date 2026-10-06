@@ -11,6 +11,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Contracts.Plugins;
+using Turbo.Database.Migrations;
 using Turbo.Logging.Extensions;
 using Turbo.Plugins.Configuration;
 using Turbo.Plugins.Exceptions;
@@ -134,6 +135,19 @@ public sealed class PluginManager(
 
                         next.Disposables.Add(disp);
                     });
+                }
+                catch (Exception ex) when (MigrationException.FindIn(ex) is { } migration)
+                {
+                    // Its tables cannot be brought up to date (a database from a newer version,
+                    // a destructive migration not allowed, migrations set to Check). The message
+                    // says what to do; the server carries on without the plugin.
+                    _logger.LogError(
+                        "Not loading {Name}@{Version} by {Author}: {Message}",
+                        m.Name,
+                        m.Version,
+                        m.Author,
+                        migration.Message
+                    );
                 }
                 catch (Exception ex)
                 {
