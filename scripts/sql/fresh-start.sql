@@ -7,7 +7,9 @@
 -- Stop the server first: grains hold player and room state in memory and would write it back.
 -- Back up first: there is no undo. Works on MariaDB and MySQL 8.
 --
--- Afterwards no one has panel access: make a player, give them their groups, and print a setup
+-- Afterwards no one has panel access. If the owner is named (TURBO_OWNER_NAME or
+-- TURBO_OWNER_DISCORD_ID), they become the owner again when they sign up and get their setup link
+-- in the server log. Otherwise: make a player, give them their groups, and print a setup
 -- link from the server console (adminsetup <name>).
 
 SET FOREIGN_KEY_CHECKS = 0;

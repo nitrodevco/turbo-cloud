@@ -122,6 +122,14 @@ internal sealed class PermissionGroupEndpoints(
         )
             return PermissionResults.Refused(heavy, editor, name);
 
+        if (
+            request.Weight is { } reweight
+            && await KeepsAsync(editor, PermissionChange.GroupWeightSet(name, reweight), name, ct)
+                .ConfigureAwait(false)
+                is { } loses
+        )
+            return loses;
+
         var changed = false;
 
         if (!string.IsNullOrWhiteSpace(request.DisplayName))
@@ -166,6 +174,13 @@ internal sealed class PermissionGroupEndpoints(
         if (editor.CheckGroup(name) is not PermissionEditRefusal.None and var refusal)
             return PermissionResults.Refused(refusal, editor, name);
 
+        if (
+            await KeepsAsync(editor, PermissionChange.GroupDeleted(name), name, ct)
+                .ConfigureAwait(false) is
+            { } loses
+        )
+            return loses;
+
         return PermissionResults.Changed(
             await Directory.DeleteGroupAsync(name, Actor(http), ct).ConfigureAwait(false)
         );
@@ -186,6 +201,18 @@ internal sealed class PermissionGroupEndpoints(
 
         if (!PermissionResults.TryExpiry(request.Duration, UtcNow, out var expiresAt))
             return PermissionResults.BadDuration(request.Duration);
+
+        if (
+            await KeepsAsync(
+                    editor,
+                    PermissionChange.GroupNodeSet(name, node, request.Value, expiresAt),
+                    name,
+                    ct
+                )
+                .ConfigureAwait(false) is
+            { } loses
+        )
+            return loses;
 
         return PermissionResults.Changed(
             await Directory
@@ -216,6 +243,18 @@ internal sealed class PermissionGroupEndpoints(
 
         if (Check(editor, name, node) is { } refused)
             return refused;
+
+        if (
+            await KeepsAsync(
+                    editor,
+                    PermissionChange.GroupNodeUnset(name, node, temporary ?? false),
+                    name,
+                    ct
+                )
+                .ConfigureAwait(false) is
+            { } loses
+        )
+            return loses;
 
         return PermissionResults.Changed(
             await Directory
@@ -294,6 +333,13 @@ internal sealed class PermissionGroupEndpoints(
         if (CheckBoth(editor, name, parent) is { } refused)
             return refused;
 
+        if (
+            await KeepsAsync(editor, PermissionChange.GroupParentAdded(name, parent), name, ct)
+                .ConfigureAwait(false) is
+            { } loses
+        )
+            return loses;
+
         return PermissionResults.Changed(
             await Directory.AddParentAsync(name, parent, Actor(http), ct).ConfigureAwait(false)
         );
@@ -311,10 +357,30 @@ internal sealed class PermissionGroupEndpoints(
         if (CheckBoth(editor, name, parent) is { } refused)
             return refused;
 
+        if (
+            await KeepsAsync(editor, PermissionChange.GroupParentRemoved(name, parent), name, ct)
+                .ConfigureAwait(false) is
+            { } loses
+        )
+            return loses;
+
         return PermissionResults.Changed(
             await Directory.RemoveParentAsync(name, parent, Actor(http), ct).ConfigureAwait(false)
         );
     }
+
+    /// <summary>A superuser's own change leaves them a superuser; null when it does, or they are not one.</summary>
+    private static async Task<IResult?> KeepsAsync(
+        PermissionEditor editor,
+        PermissionChange change,
+        string group,
+        CancellationToken ct
+    ) =>
+        await editor.CheckKeepsAccessAsync(change, ct).ConfigureAwait(false)
+            is not PermissionEditRefusal.None
+                and var refusal
+            ? PermissionResults.Refused(refusal, editor, group)
+            : null;
 
     /// <summary>The group is the editor's to change, and the node theirs to grant or deny.</summary>
     private static IResult? Check(PermissionEditor editor, string group, string node) =>

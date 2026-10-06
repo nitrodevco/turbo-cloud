@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -19,9 +21,14 @@ namespace Turbo.Primitives.Players.Permissions;
 /// <item>a player may be edited only when their own heaviest group is lighter too, so nobody
 /// edits themselves, their equals or their seniors;</item>
 /// <item>a node may be set or unset (unsetting a denial grants it) only when the editor holds it,
-/// and a wildcard only when they hold every registered node it covers.</item>
+/// and a wildcard only when they hold every registered node it covers (an explicit-only node is
+/// not covered by one);</item>
+/// <item>a group that gives <c>permissions.superuser</c>, directly or through a parent, is only
+/// for an editor who holds it.</item>
 /// </list>
-/// The heaviest groups therefore stay the console's to change; the console itself
+/// The heaviest groups therefore stay the console's to change. A holder of
+/// <c>permissions.superuser</c> is bound by none of these limits, but still needs
+/// <c>permissions.manage</c> and is audited like anyone; the console itself
 /// (<see cref="ForConsole"/>) may change anything. Built by <see cref="IPermissionEditService"/>.
 /// </summary>
 public sealed class PermissionEditor
@@ -29,17 +36,25 @@ public sealed class PermissionEditor
     private readonly IGrainFactory _grainFactory;
     private readonly PermissionRegistry _registry;
     private readonly ImmutableHashSet<string> _granted;
-    private readonly bool _isConsole;
+    private readonly PlayerId? _actor;
+    private readonly DateTime _now;
 
+    /// <param name="actor">The player editing; what <see cref="CheckKeepsAccessAsync"/> protects.</param>
+    /// <param name="now">UTC, for the expiries <see cref="CheckKeepsAccessAsync"/> resolves against.</param>
     public PermissionEditor(
         IGrainFactory grainFactory,
         PermissionRegistry registry,
         PermissionGroupDirectorySnapshot groups,
-        ResolvedPermissionsSnapshot resolved
+        ResolvedPermissionsSnapshot resolved,
+        PlayerId? actor = null,
+        DateTime now = default
     )
-        : this(grainFactory, registry, groups, resolved.Granted, false)
+        : this(grainFactory, registry, groups, resolved.Granted)
     {
+        _actor = actor;
+        _now = now;
         CanManage = resolved.Has(PermissionNodes.Permissions.MANAGE);
+        IsSuperuser = CanManage && resolved.Has(PermissionNodes.Permissions.SUPERUSER);
         HeaviestWeight = HeaviestOf(groups, resolved);
     }
 
@@ -47,14 +62,12 @@ public sealed class PermissionEditor
         IGrainFactory grainFactory,
         PermissionRegistry registry,
         PermissionGroupDirectorySnapshot groups,
-        ImmutableHashSet<string> granted,
-        bool isConsole
+        ImmutableHashSet<string> granted
     )
     {
         _grainFactory = grainFactory;
         _registry = registry;
         _granted = granted;
-        _isConsole = isConsole;
         Groups = groups;
     }
 
@@ -64,15 +77,22 @@ public sealed class PermissionEditor
         PermissionRegistry registry,
         PermissionGroupDirectorySnapshot groups
     ) =>
-        new(grainFactory, registry, groups, [], true)
+        new(grainFactory, registry, groups, [])
         {
             CanManage = true,
+            IsSuperuser = true,
             HeaviestWeight = int.MaxValue,
         };
 
     public PermissionGroupDirectorySnapshot Groups { get; }
 
     public bool CanManage { get; private init; }
+
+    /// <summary>
+    /// Holds <c>permissions.manage</c> and <c>permissions.superuser</c>, or is the console: none of
+    /// the weight and held-node limits apply.
+    /// </summary>
+    public bool IsSuperuser { get; private init; }
 
     /// <summary>The weight of the heaviest group the editor reaches, directly or by inheritance.</summary>
     public int HeaviestWeight { get; private init; }
@@ -88,13 +108,19 @@ public sealed class PermissionEditor
 
         var group = Groups.Groups.Values.FirstOrDefault(x => x.Name == name);
 
-        return group is null ? PermissionEditRefusal.None : CheckWeight(group.Weight);
+        if (group is null || IsSuperuser)
+            return PermissionEditRefusal.None;
+
+        // A lighter group that gives superuser would let its editor hand the node out through it.
+        return CheckWeight(group.Weight) is not PermissionEditRefusal.None and var heavy ? heavy
+            : GivesSuperuser(group) ? PermissionEditRefusal.NeedsSuperuser
+            : PermissionEditRefusal.None;
     }
 
     /// <summary>Whether a group of <paramref name="weight"/> is the editor's to make or edit.</summary>
     public PermissionEditRefusal CheckWeight(int weight) =>
         !CanManage ? PermissionEditRefusal.NeedsManageNode
-        : _isConsole || weight < HeaviestWeight ? PermissionEditRefusal.None
+        : IsSuperuser || weight < HeaviestWeight ? PermissionEditRefusal.None
         : PermissionEditRefusal.GroupTooHeavy;
 
     /// <summary>Whether the editor may change <paramref name="target"/>'s own groups, nodes and meta.</summary>
@@ -103,7 +129,7 @@ public sealed class PermissionEditor
         if (!CanManage)
             return PermissionEditRefusal.NeedsManageNode;
 
-        if (_isConsole)
+        if (IsSuperuser)
             return PermissionEditRefusal.None;
 
         var resolved = await _grainFactory
@@ -124,22 +150,98 @@ public sealed class PermissionEditor
     public PermissionEditRefusal CheckAssignment(string assignment)
     {
         if (
-            _isConsole
+            IsSuperuser
             || !PermissionNodeFormat.IsValidAssignment(assignment)
             || PermissionGroupNames.IsGroupNode(assignment)
         )
             return PermissionEditRefusal.None;
 
+        // A wildcard never reaches an explicit-only node, so it asks nothing of the editor.
         var held = PermissionNodeFormat.IsWildcard(assignment)
             ? _registry
-                .Nodes.Keys.Where(node =>
-                    PermissionNodeFormat.Specificity(assignment, node)
-                    != PermissionNodeFormat.NO_MATCH
+                .Nodes.Values.Where(definition =>
+                    !definition.ExplicitOnly
+                    && PermissionNodeFormat.Specificity(assignment, definition.Node)
+                        != PermissionNodeFormat.NO_MATCH
                 )
-                .All(_granted.Contains)
+                .All(definition => _granted.Contains(definition.Node))
             : _granted.Contains(assignment);
 
         return held ? PermissionEditRefusal.None : PermissionEditRefusal.NodeNotHeld;
+    }
+
+    /// <summary>
+    /// A superuser may not make a change after which they would no longer hold
+    /// <c>permissions.superuser</c> and <c>permissions.manage</c>: deleting the group that gives
+    /// them it, unsetting or denying it there, taking themselves out of that group, or giving
+    /// themselves a group that denies it. Whoever edits is therefore always still a superuser
+    /// afterwards, so a hotel cannot be left with none by the panel or <c>:group</c>. Another
+    /// superuser may take it from them, and the console may do anything, which is the way back.
+    /// Only a superuser is asked: anyone else's edit cannot reach the groups that give it.
+    /// </summary>
+    public async Task<PermissionEditRefusal> CheckKeepsAccessAsync(
+        PermissionChange change,
+        CancellationToken ct
+    )
+    {
+        if (!IsSuperuser || _actor is not { } actor)
+            return PermissionEditRefusal.None;
+
+        var assignments = await _grainFactory
+            .GetPlayerPermissionGrain(actor)
+            .GetAssignmentsAsync(ct)
+            .ConfigureAwait(false);
+
+        var after = change.Apply(Groups);
+        var resolved = PermissionResolver.Resolve(
+            _registry,
+            after.Groups,
+            change.Apply(actor, Groups, assignments),
+            _now
+        );
+
+        return
+            resolved.Has(PermissionNodes.Permissions.MANAGE)
+            && resolved.Has(PermissionNodes.Permissions.SUPERUSER)
+            ? PermissionEditRefusal.None
+            : PermissionEditRefusal.WouldLoseSuperuser;
+    }
+
+    /// <summary>
+    /// Whether the group, or one it inherits from, assigns <c>permissions.superuser</c>. An expiry
+    /// is not looked at: a group that gives it for a week is still not a lighter group's to hand
+    /// out.
+    /// </summary>
+    private bool GivesSuperuser(PermissionGroupSnapshot group)
+    {
+        var visited = new HashSet<int>();
+        var pending = new Stack<PermissionGroupSnapshot>([group]);
+
+        while (pending.TryPop(out var next))
+        {
+            if (!visited.Add(next.Id))
+                continue;
+
+            if (
+                next.Nodes.Any(x =>
+                    x.Value
+                    && string.Equals(
+                        x.Node,
+                        PermissionNodes.Permissions.SUPERUSER,
+                        StringComparison.Ordinal
+                    )
+                )
+            )
+                return true;
+
+            foreach (var parentId in next.ParentIds)
+            {
+                if (Groups.Groups.TryGetValue(parentId, out var parent))
+                    pending.Push(parent);
+            }
+        }
+
+        return false;
     }
 
     /// <summary>The heaviest group behind a resolved set: every group reached grants <c>group.&lt;name&gt;</c>.</summary>

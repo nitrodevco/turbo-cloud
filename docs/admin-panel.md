@@ -157,8 +157,30 @@ real-IP lines in `nginx.conf` commented out.
 
 ### 4. The first admin
 
-The first admin needs a setup link, which only the server console can make for someone without
-a passkey (or you can make one for yourself in the hotel). Either:
+Name the owner in the site's environment, and the hotel does the rest:
+
+```
+TURBO_OWNER_DISCORD_ID=123456789012345678   # or TURBO_OWNER_NAME=YourName
+```
+
+Sign up as that Discord account (or name). Turbo puts you in the `admin` group, gives you
+`permissions.superuser` (so you can make other admins, see [Permission editor](#permission-editor)),
+and prints your setup link in the server log, with the Ploi daemon's log or `journalctl`:
+
+```
+Admin panel setup for the owner, YourName: open https://admin.example.com/setup#token=… on the
+device you will sign in with. It works once, until 2026-10-08 12:00 UTC. …
+```
+
+Open it on the device you sign in with and create your passkey. If you signed up before setting
+the variable, restart Turbo: it finds you at startup. It never makes anyone the owner for being
+first on a live hotel. A name can be taken by whoever signs up first, so on a public hotel use the
+Discord id, or set `TURBO_WEB_REGISTRATION_OPEN=false` until you have signed up.
+
+Locally, in the Development environment with no owner named, the first player created becomes the
+owner (`Turbo:Owner:FirstPlayerInDevelopment`, on by default).
+
+Without naming an owner, or to rescue a hotel, the setup link can be made by hand. Either:
 
 - **In the hotel**, if your account already holds `admin.panel`: type `:adminsetup` and click the
   link in the pop-up it opens.
@@ -538,6 +560,22 @@ what you have, and only to people below you.**
 `admin`, weight 100) and its members can only be changed from the server console: nobody outranks
 them in the panel. Anything the panel refuses, the console can still do.
 
+**Superuser.** A player who holds both `permissions.manage` and `permissions.superuser` is bound by
+none of the rows above: any group, any other player and any node. They are still audited. It is
+how a hotel with no console to hand (a hosted one) gives the top group to a second admin. No
+wildcard grants the node, not even `*`: it is given by naming it, from the console
+(`perm user <player> set permissions.superuser true`), by another superuser, or by naming the
+hotel's owner (see the first admin, above). A group that gives it, directly or through a parent,
+can only be changed or joined by a superuser.
+
+**You can't lock yourself out.** A superuser's own change is refused when it would leave *them*
+without `permissions.superuser` and `permissions.manage`: deleting the group that gives it,
+unsetting or denying it there, removing a parent it comes through, taking themselves out of that
+group, or joining one that denies it. Whoever edits is always still a superuser afterwards, so the
+panel and `:group` can't leave the hotel with none. Another superuser can still take it from you
+(make someone else one first, then ask them), and the server console, which these rules don't
+bind, is the way back.
+
 The in-game `:group` command follows the same rule (it goes through the same
 `IPermissionEditService`), and players are told when the panel puts them in a group or takes them
 out, as `:group` tells them.
@@ -581,6 +619,7 @@ passkey; they add more while signed in instead.
 | `catalog.manage` | Changing the catalog on that page, and publishing it to players. |
 | `admin.permissions.view` | The Permissions page: seeing groups, any player's permissions, who has a node, and the permission log. |
 | `permissions.manage` | Changing permissions on that page, within the rule in [Permission editor](#permission-editor). The in-game `:group` command needs it too, and follows the same rule. |
+| `permissions.superuser` | With `permissions.manage`: lifts the weight and held-node limits of the permission editor (see [Permission editor](#permission-editor)). No wildcard grants it. |
 
 Everything else in the panel uses each command's own permission. The console runs commands
 **as you**, with exactly your permissions, rate limits and confirmations, and logs them like

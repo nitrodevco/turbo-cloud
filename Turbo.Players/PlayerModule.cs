@@ -51,6 +51,10 @@ public sealed class PlayerModule : IHostPluginModule
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IPermissionRegistryProvider, PermissionRegistryProvider>();
         services.AddSingleton<IPermissionEditService, PermissionEditService>();
+        services.Configure<OwnerConfig>(builder.Configuration.GetSection(OwnerConfig.SECTION_NAME));
+        services.AddSingleton<OwnerBootstrap>();
+        services.AddSingleton<IOwnerBootstrap>(sp => sp.GetRequiredService<OwnerBootstrap>());
+        services.AddHostedService<OwnerStartupService>();
         services.AddSingleton<IPlayerAccountService, PlayerAccountService>();
         services.AddSingleton<IAssemblyFeatureProcessor, PermissionNodeFeatureProcessor>();
     }

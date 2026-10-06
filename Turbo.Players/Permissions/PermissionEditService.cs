@@ -40,7 +40,14 @@ public sealed class PermissionEditService(
             .GetResolvedAsync(ct)
             .ConfigureAwait(false);
 
-        return new PermissionEditor(grainFactory, registryProvider.Current, groups, resolved);
+        return new PermissionEditor(
+            grainFactory,
+            registryProvider.Current,
+            groups,
+            resolved,
+            player,
+            timeProvider.GetUtcNow().UtcDateTime
+        );
     }
 
     public async Task<PermissionGroupChange> AddToGroupAsync(
@@ -52,18 +59,26 @@ public sealed class PermissionEditService(
         CancellationToken ct
     )
     {
-        if (await CheckAsync(editor, target, group, ct).ConfigureAwait(false) is { } refused)
+        DateTime? expiresAt = duration is { } span
+            ? timeProvider.GetUtcNow().UtcDateTime + span
+            : null;
+
+        if (
+            await CheckAsync(
+                    editor,
+                    target,
+                    group,
+                    PermissionChange.MembershipAdded(target, group, expiresAt),
+                    ct
+                )
+                .ConfigureAwait(false) is
+            { } refused
+        )
             return refused;
 
         var result = await grainFactory
             .GetPlayerPermissionGrain(target)
-            .AddGroupAsync(
-                group,
-                duration is { } span ? timeProvider.GetUtcNow().UtcDateTime + span : null,
-                mode,
-                editor,
-                ct
-            )
+            .AddGroupAsync(group, expiresAt, mode, editor, ct)
             .ConfigureAwait(false);
 
         return new PermissionGroupChange(
@@ -87,7 +102,17 @@ public sealed class PermissionEditService(
         CancellationToken ct
     )
     {
-        if (await CheckAsync(editor, target, group, ct).ConfigureAwait(false) is { } refused)
+        if (
+            await CheckAsync(
+                    editor,
+                    target,
+                    group,
+                    PermissionChange.MembershipRemoved(target, group, temporary),
+                    ct
+                )
+                .ConfigureAwait(false) is
+            { } refused
+        )
             return refused;
 
         var grain = grainFactory.GetPlayerPermissionGrain(target);
@@ -112,11 +137,15 @@ public sealed class PermissionEditService(
         );
     }
 
-    /// <summary>The player and the group are both the editor's to change; null when they are.</summary>
+    /// <summary>
+    /// The player and the group are both the editor's to change, and the change leaves an editor
+    /// who is a superuser one; null when all of it holds.
+    /// </summary>
     private async Task<PermissionGroupChange?> CheckAsync(
         PlayerId? editor,
         PlayerId target,
         string group,
+        PermissionChange change,
         CancellationToken ct
     )
     {
@@ -125,11 +154,18 @@ public sealed class PermissionEditService(
         if (rule.CheckGroup(group) is not PermissionEditRefusal.None and var heavy)
             return PermissionGroupChange.Refused(heavy);
 
-        return
+        if (
             await rule.CheckPlayerAsync(target, ct).ConfigureAwait(false)
+            is not PermissionEditRefusal.None
+                and var refusal
+        )
+            return PermissionGroupChange.Refused(refusal);
+
+        return
+            await rule.CheckKeepsAccessAsync(change, ct).ConfigureAwait(false)
                 is not PermissionEditRefusal.None
-                    and var refusal
-            ? PermissionGroupChange.Refused(refusal)
+                    and var keeps
+            ? PermissionGroupChange.Refused(keeps)
             : null;
     }
 }

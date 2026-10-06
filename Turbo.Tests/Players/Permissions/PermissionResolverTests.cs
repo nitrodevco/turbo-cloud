@@ -182,7 +182,7 @@ public class PermissionResolverTests
     }
 
     [Fact]
-    public void Star_GrantsEveryRegisteredNode()
+    public void Star_GrantsEveryRegisteredNodeButTheExplicitOnlyOnes()
     {
         var resolved = Resolve(
             [Group(1, "admin", 100, nodes: [Node(PermissionNodeFormat.WILDCARD)])],
@@ -190,7 +190,14 @@ public class PermissionResolverTests
         );
 
         // The wildcard reaches registered nodes only; the membership node comes from holding admin.
-        resolved.Granted.Should().BeEquivalentTo(REGISTRY.Nodes.Keys.Append("group.admin"));
+        resolved
+            .Granted.Should()
+            .BeEquivalentTo(
+                REGISTRY
+                    .Nodes.Values.Where(x => !x.ExplicitOnly)
+                    .Select(x => x.Node)
+                    .Append("group.admin")
+            );
     }
 
     // --- inheritance ---
@@ -677,6 +684,70 @@ public class PermissionResolverTests
             .Has(EVERYDAY)
             .Should()
             .BeTrue();
+    }
+
+    // --- explicit-only nodes ---
+
+    private const string SUPERUSER = PermissionNodes.Permissions.SUPERUSER;
+
+    [Fact]
+    public void ExplicitOnly_IsNotGrantedByAWildcard()
+    {
+        var resolved = Resolve(
+            [Group(1, "admin", 100, nodes: [Node("*")])],
+            Player(groups: [Member(1)], nodes: [Node("permissions.*")])
+        );
+
+        resolved.Has(PermissionNodes.Permissions.MANAGE).Should().BeTrue();
+        resolved.Has(SUPERUSER).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ExplicitOnly_IsGrantedWhenNamed()
+    {
+        var byGroup = Resolve(
+            [Group(1, "ops", 20, nodes: [Node(SUPERUSER)])],
+            Player(groups: [Member(1)])
+        );
+        var byPlayer = Resolve([], Player(nodes: [Node(SUPERUSER)]));
+
+        byGroup.Has(SUPERUSER).Should().BeTrue();
+        byPlayer.Has(SUPERUSER).Should().BeTrue();
+    }
+
+    [Fact]
+    public void ExplicitOnly_AWildcardDenialDoesNotTakeItAway()
+    {
+        var resolved = Resolve(
+            [Group(1, "ops", 20, nodes: [Node(SUPERUSER)])],
+            Player(groups: [Member(1)], nodes: [Node("*", false)])
+        );
+
+        resolved.Has(SUPERUSER).Should().BeTrue();
+    }
+
+    [Fact]
+    public void ExplicitOnly_ANamedDenialStillDecides()
+    {
+        var resolved = Resolve(
+            [Group(1, "ops", 20, nodes: [Node(SUPERUSER)])],
+            Player(groups: [Member(1)], nodes: [Node(SUPERUSER, false)])
+        );
+
+        resolved.Has(SUPERUSER).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ExplicitOnly_ExplainsWithoutTheWildcard()
+    {
+        var check = Explain(
+            [Group(1, "admin", 100, nodes: [Node("*")])],
+            Player(groups: [Member(1)]),
+            SUPERUSER
+        );
+
+        check.Granted.Should().BeFalse();
+        check.Decision.Should().BeNull();
     }
 
     // --- helpers ---

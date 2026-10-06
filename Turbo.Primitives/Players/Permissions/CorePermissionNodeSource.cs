@@ -258,6 +258,11 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
         ),
         new(PermissionNodes.Role.AMBASSADOR, "Be an ambassador."),
         new(PermissionNodes.Permissions.MANAGE, "Edit groups and other players' permissions."),
+        new(
+            PermissionNodes.Permissions.SUPERUSER,
+            "Edit any group, player or node, without the weight and held-node limits of permissions.manage.",
+            ExplicitOnly: true
+        ),
         new(PermissionNodes.Admin.PANEL, "Sign in to the admin panel with a passkey."),
         new(
             PermissionNodes.Admin.PASSKEYS_RESET,

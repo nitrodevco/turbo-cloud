@@ -61,6 +61,11 @@ public sealed class PermissionRegistry
                         $"Permission node '{definition.Node}' is granted by default and has a client level, which would raise every player's security level."
                     );
 
+                if (definition.GrantedByDefault && definition.ExplicitOnly)
+                    throw new InvalidOperationException(
+                        $"Permission node '{definition.Node}' is granted by default and explicit only, which cannot both be true."
+                    );
+
                 if (!_nodes.TryAdd(definition.Node, definition))
                     throw new InvalidOperationException(
                         $"Permission node '{definition.Node}' is registered twice."

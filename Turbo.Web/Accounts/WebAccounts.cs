@@ -22,6 +22,7 @@ namespace Turbo.Web.Accounts;
 public sealed class WebAccounts(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IPlayerAccountService accounts,
+    IOwnerBootstrap owner,
     ILogger<WebAccounts> logger
 )
 {
@@ -136,6 +137,8 @@ public sealed class WebAccounts(
             discord.Username,
             player
         );
+
+        await owner.DiscordLinkedAsync(player, discord.Id, ct).ConfigureAwait(false);
 
         return created;
     }

@@ -65,6 +65,45 @@ public class PermissionRegistryTests
         act.Should().Throw<InvalidOperationException>().WithMessage("*security level*");
     }
 
+    [Fact]
+    public void ThePreviousConstructorStillExists_SoAPluginBuiltAgainstItStillLoads()
+    {
+        // A plugin is compiled against an exact constructor signature. Giving the primary one a
+        // new parameter would remove this one, and the plugin would fail with
+        // MissingMethodException when it registers its nodes, whatever core does afterwards.
+        var previous = typeof(PermissionNodeDefinition).GetConstructor([
+            typeof(string),
+            typeof(string),
+            typeof(Turbo.Primitives.Players.Enums.SecurityLevelType?),
+            typeof(Turbo.Primitives.Players.Enums.PlayerPerkFlags?),
+            typeof(string),
+            typeof(bool),
+            typeof(bool),
+        ]);
+
+        previous.Should().NotBeNull();
+
+        var node = (PermissionNodeDefinition)
+            previous!.Invoke(["casino.table.open", "test", null, null, null, true, true]);
+
+        node.ClientVisible.Should().BeTrue();
+        node.GrantedByDefault.Should().BeTrue();
+        node.ExplicitOnly.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Constructor_RejectsGrantedByDefaultThatIsExplicitOnly()
+    {
+        var act = () =>
+            new PermissionRegistry([
+                new SingleNodeSource(
+                    new("casino.table.open", "test", GrantedByDefault: true, ExplicitOnly: true)
+                ),
+            ]);
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*explicit only*");
+    }
+
     private sealed class SingleNodeSource(PermissionNodeDefinition definition)
         : IPermissionNodeSource
     {
