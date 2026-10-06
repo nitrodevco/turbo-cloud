@@ -281,9 +281,18 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
             if (sourceIdx == tileIdx)
                 return true;
 
+            // A teleport puts the avatar down at once instead of walking it there, so users already
+            // on the tile are no obstacle: every user a selection picked can be teleported onto
+            // one furni. A slide or a move still stops at a user unless the movement physics let
+            // it through, and a closed tile or a furni that cannot be stood on refuses either.
             if (
                 !Policy.MovePhysics.HasFlag(WiredMovePhysicsFlags.MoveThroughUsers)
-                && !map.CanAvatarWalk(avatar, tileIdx, true)
+                && !map.CanAvatarWalk(
+                    avatar,
+                    tileIdx,
+                    true,
+                    ignoreAvatars: moveType == SlideAvatarMoveType.None
+                )
             )
                 return false;
 
