@@ -561,12 +561,20 @@ what you have, and only to people below you.**
 them in the panel. Anything the panel refuses, the console can still do.
 
 **Superuser.** A player who holds both `permissions.manage` and `permissions.superuser` is bound by
-none of the rows above: any group, any player (themselves too) and any node. They are still
-audited. It is how a hotel with no console to hand (a hosted one) gives the top group to a second
-admin. No wildcard grants the node, not even `*`: it is given by naming it, from the console
-(`perm user <player> set permissions.superuser true`) or by another superuser. A group that gives
-it, directly or through a parent, can only be changed or joined by a superuser. Nothing stops the
-last superuser removing their own access, so keep the console's way back in mind.
+none of the rows above: any group, any other player and any node. They are still audited. It is
+how a hotel with no console to hand (a hosted one) gives the top group to a second admin. No
+wildcard grants the node, not even `*`: it is given by naming it, from the console
+(`perm user <player> set permissions.superuser true`), by another superuser, or by naming the
+hotel's owner (see the first admin, above). A group that gives it, directly or through a parent,
+can only be changed or joined by a superuser.
+
+**You can't lock yourself out.** A superuser's own change is refused when it would leave *them*
+without `permissions.superuser` and `permissions.manage`: deleting the group that gives it,
+unsetting or denying it there, removing a parent it comes through, taking themselves out of that
+group, or joining one that denies it. Whoever edits is always still a superuser afterwards, so the
+panel and `:group` can't leave the hotel with none. Another superuser can still take it from you
+(make someone else one first, then ask them), and the server console, which these rules don't
+bind, is the way back.
 
 The in-game `:group` command follows the same rule (it goes through the same
 `IPermissionEditService`), and players are told when the panel puts them in a group or takes them

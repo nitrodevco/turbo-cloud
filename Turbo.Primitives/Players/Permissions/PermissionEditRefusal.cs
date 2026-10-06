@@ -19,4 +19,7 @@ public enum PermissionEditRefusal
 
     /// <summary>The group gives <c>permissions.superuser</c>, which only a holder may hand out.</summary>
     NeedsSuperuser,
+
+    /// <summary>The change would leave the editor without <c>permissions.superuser</c>.</summary>
+    WouldLoseSuperuser,
 }

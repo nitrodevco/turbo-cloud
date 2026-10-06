@@ -36,15 +36,23 @@ public sealed class PermissionEditor
     private readonly IGrainFactory _grainFactory;
     private readonly PermissionRegistry _registry;
     private readonly ImmutableHashSet<string> _granted;
+    private readonly PlayerId? _actor;
+    private readonly DateTime _now;
 
+    /// <param name="actor">The player editing; what <see cref="CheckKeepsAccessAsync"/> protects.</param>
+    /// <param name="now">UTC, for the expiries <see cref="CheckKeepsAccessAsync"/> resolves against.</param>
     public PermissionEditor(
         IGrainFactory grainFactory,
         PermissionRegistry registry,
         PermissionGroupDirectorySnapshot groups,
-        ResolvedPermissionsSnapshot resolved
+        ResolvedPermissionsSnapshot resolved,
+        PlayerId? actor = null,
+        DateTime now = default
     )
         : this(grainFactory, registry, groups, resolved.Granted)
     {
+        _actor = actor;
+        _now = now;
         CanManage = resolved.Has(PermissionNodes.Permissions.MANAGE);
         IsSuperuser = CanManage && resolved.Has(PermissionNodes.Permissions.SUPERUSER);
         HeaviestWeight = HeaviestOf(groups, resolved);
@@ -160,6 +168,43 @@ public sealed class PermissionEditor
             : _granted.Contains(assignment);
 
         return held ? PermissionEditRefusal.None : PermissionEditRefusal.NodeNotHeld;
+    }
+
+    /// <summary>
+    /// A superuser may not make a change after which they would no longer hold
+    /// <c>permissions.superuser</c> and <c>permissions.manage</c>: deleting the group that gives
+    /// them it, unsetting or denying it there, taking themselves out of that group, or giving
+    /// themselves a group that denies it. Whoever edits is therefore always still a superuser
+    /// afterwards, so a hotel cannot be left with none by the panel or <c>:group</c>. Another
+    /// superuser may take it from them, and the console may do anything, which is the way back.
+    /// Only a superuser is asked: anyone else's edit cannot reach the groups that give it.
+    /// </summary>
+    public async Task<PermissionEditRefusal> CheckKeepsAccessAsync(
+        PermissionChange change,
+        CancellationToken ct
+    )
+    {
+        if (!IsSuperuser || _actor is not { } actor)
+            return PermissionEditRefusal.None;
+
+        var assignments = await _grainFactory
+            .GetPlayerPermissionGrain(actor)
+            .GetAssignmentsAsync(ct)
+            .ConfigureAwait(false);
+
+        var after = change.Apply(Groups);
+        var resolved = PermissionResolver.Resolve(
+            _registry,
+            after.Groups,
+            change.Apply(actor, Groups, assignments),
+            _now
+        );
+
+        return
+            resolved.Has(PermissionNodes.Permissions.MANAGE)
+            && resolved.Has(PermissionNodes.Permissions.SUPERUSER)
+            ? PermissionEditRefusal.None
+            : PermissionEditRefusal.WouldLoseSuperuser;
     }
 
     /// <summary>
