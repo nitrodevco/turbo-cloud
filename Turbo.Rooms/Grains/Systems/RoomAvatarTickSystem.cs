@@ -112,6 +112,8 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
         _roomGrain.SendComposerToRoomAndForget(
             new SleepMessageComposer { ObjectId = avatar.ObjectId, IsSleeping = true }
         );
+
+        AvatarModule.PublishIdleChanged(avatar);
     }
 
     private async Task ProcessAvatarAsync(IRoomAvatar avatar, long now, CancellationToken ct)

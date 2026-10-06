@@ -3,17 +3,20 @@ using System.Buffers;
 using Microsoft.Extensions.Logging;
 using SuperSocket.ProtoBase;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Networking.Extensions;
 using Turbo.Primitives.Networking.Revisions;
 
 namespace Turbo.Networking.Package;
 
 public sealed class PackageEncoder(
     IRevisionManager revisionManager,
+    IExtensionPacketRegistry extensions,
     ComposerPayloadCache payloadCache,
     ILogger<PackageEncoder> logger
 ) : IPackageEncoder<OutgoingPackage>
 {
     private readonly IRevisionManager _revisionManager = revisionManager;
+    private readonly IExtensionPacketRegistry _extensions = extensions;
     private readonly ComposerPayloadCache _payloadCache = payloadCache;
     private readonly ILogger<PackageEncoder> _logger = logger;
 
@@ -39,7 +42,11 @@ public sealed class PackageEncoder(
 
             var composerType = composer.GetType();
 
-            if (!revision.Serializers.TryGetValue(composerType, out var serializer))
+            // Core first; the plugin overlay is only asked about a type the revision lacks.
+            if (
+                !revision.Serializers.TryGetValue(composerType, out var serializer)
+                && !_extensions.TryGetSerializer(composerType, out serializer!)
+            )
             {
                 _logger.LogWarning(
                     "Serializer not found for {Name} for {SessionKey}",

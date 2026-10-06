@@ -22,8 +22,10 @@ extension, and the presence drops one bound for a session that did not accept it
 compose them send unconditionally and never ask what the client speaks. A server that does not know header 30000 logs and ignores it, and never
 answers: the client keeps behaving as a plain Habbo client.
 
-Headers 30000–30099 are reserved for these extensions, in every revision. Habbo's own ids stop at
-4101 in revision 20260909; the gap is left so Habbo can grow without meeting them.
+Headers 30000–30099 are reserved for Turbo's own extensions, in every revision. Habbo's own ids
+stop at 4101 in revision 20260909 and grow upward; headers 0–19999 stay with Habbo and core.
+Plugins may register their own extensions in 20000–32767 outside 30000–30099
+(`docs/plugin-packets.md`); a plugin capability is accepted at version 1.
 
 ## `permission.nodes` (version 1)
 

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events;
@@ -189,8 +190,22 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
 
             foreach (var item in plan.MovedFloorItems)
                 MapModule.RollFloorItem((IRoomFloorItem)item.RoomObject, plan.ToIdx, item.ToZ);
-            foreach (var avatar in plan.MovedAvatars)
-                MapModule.RollAvatar((IRoomAvatar)avatar.RoomObject, plan.ToIdx, avatar.ToZ);
+            foreach (var moved in plan.MovedAvatars)
+            {
+                var avatar = (IRoomAvatar)moved.RoomObject;
+                var (avatarFromX, avatarFromY) = (avatar.X, avatar.Y);
+
+                MapModule.RollAvatar(avatar, plan.ToIdx, moved.ToZ);
+
+                // Queued: this tick's slide packets must not wait on a listener.
+                AvatarModule
+                    .PublishMovedAsync(avatar, avatarFromX, avatarFromY, CancellationToken.None)
+                    .LogAndForget(
+                        _roomGrain._logger,
+                        "publish an avatar move in room {RoomId}",
+                        _roomGrain.RoomId
+                    );
+            }
 
             // The furni ride with the first avatar's packet, or alone when nobody is on the
             // roller; each further avatar gets a packet of its own.

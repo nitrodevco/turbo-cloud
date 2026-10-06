@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using FluentAssertions;
 using Turbo.Commands;
 using Turbo.Messages.Registry;
+using Turbo.Networking.Extensions;
 using Turbo.PacketHandlers.Turbo;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Messages.Incoming.Turbo;
@@ -131,6 +132,7 @@ public class CommandTreeDeliveryTests
         var session = _fakes.Create<ISessionContext>("session");
         var handler = new TurboClientCapabilitiesMessageHandler(
             _fakes.Create<Orleans.IGrainFactory>(),
+            new ExtensionPacketRegistry(),
             tree
         );
 
@@ -164,6 +166,7 @@ public class CommandTreeDeliveryTests
         var session = _fakes.Create<ISessionContext>("session");
         var handler = new TurboClientCapabilitiesMessageHandler(
             _fakes.Create<Orleans.IGrainFactory>(),
+            new ExtensionPacketRegistry(),
             tree
         );
 

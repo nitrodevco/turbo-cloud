@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Turbo.Database.Context;
 
@@ -11,9 +12,11 @@ using Turbo.Database.Context;
 namespace Turbo.Database.Migrations
 {
     [DbContext(typeof(TurboDbContext))]
-    partial class TurboDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261005131957_AddWalletCreditReceipts")]
+    partial class AddWalletCreditReceipts
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -4073,10 +4076,6 @@ namespace Turbo.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Command", "Id");
-
-                    b.HasIndex("PlayerEntityId", "Id");
-
                     b.ToTable("command_logs");
                 });
 
@@ -4844,63 +4843,6 @@ namespace Turbo.Database.Migrations
                     b.ToTable("room_rights");
                 });
 
-            modelBuilder.Entity("Turbo.Database.Entities.Security.PlayerDiscordLinkEntity", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("deleted_at");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
-
-                    b.Property<string>("DiscordId")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("varchar(32)")
-                        .HasColumnName("discord_id");
-
-                    b.Property<string>("DiscordUsername")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)")
-                        .HasColumnName("discord_username");
-
-                    b.Property<int>("PlayerEntityId")
-                        .HasColumnType("int")
-                        .HasColumnName("player_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime>("UpdatedAt"));
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DiscordId")
-                        .IsUnique();
-
-                    b.HasIndex("PlayerEntityId")
-                        .IsUnique();
-
-                    b.ToTable("player_discord_links");
-                });
-
             modelBuilder.Entity("Turbo.Database.Entities.Security.SecurityTicketEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -4923,10 +4865,6 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("deleted_at");
 
                     MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
-
-                    b.Property<DateTime?>("ExpiresAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("expires_at");
 
                     b.Property<string>("IpAddress")
                         .IsRequired()
@@ -4966,60 +4904,6 @@ namespace Turbo.Database.Migrations
                         .IsUnique();
 
                     b.ToTable("security_tickets");
-                });
-
-            modelBuilder.Entity("Turbo.Database.Entities.Security.WebSessionEntity", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("deleted_at");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("expires_at");
-
-                    b.Property<int>("PlayerEntityId")
-                        .HasColumnType("int")
-                        .HasColumnName("player_id");
-
-                    b.Property<string>("TokenHash")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)")
-                        .HasColumnName("token_hash");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime>("UpdatedAt"));
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PlayerEntityId");
-
-                    b.HasIndex("TokenHash")
-                        .IsUnique();
-
-                    b.ToTable("web_sessions");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Tracking.PerformanceLogEntity", b =>
@@ -5842,32 +5726,10 @@ namespace Turbo.Database.Migrations
                     b.Navigation("RoomEntity");
                 });
 
-            modelBuilder.Entity("Turbo.Database.Entities.Security.PlayerDiscordLinkEntity", b =>
-                {
-                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
-                        .WithMany()
-                        .HasForeignKey("PlayerEntityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("PlayerEntity");
-                });
-
             modelBuilder.Entity("Turbo.Database.Entities.Security.SecurityTicketEntity", b =>
                 {
                     b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
                         .WithMany("SecurityTickets")
-                        .HasForeignKey("PlayerEntityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("PlayerEntity");
-                });
-
-            modelBuilder.Entity("Turbo.Database.Entities.Security.WebSessionEntity", b =>
-                {
-                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
-                        .WithMany()
                         .HasForeignKey("PlayerEntityId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

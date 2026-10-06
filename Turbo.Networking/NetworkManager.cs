@@ -20,6 +20,7 @@ using Turbo.Networking.Package;
 using Turbo.Networking.Session;
 using Turbo.Networking.Tcp;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Networking.Extensions;
 using Turbo.Primitives.Networking.Revisions;
 using Turbo.Primitives.Packets;
 
@@ -29,6 +30,7 @@ public sealed class NetworkManager(
     IOptions<NetworkingConfig> config,
     ISessionGateway sessionGateway,
     IRevisionManager revisionManager,
+    IExtensionPacketRegistry extensions,
     MessageSystem messageSystem,
     ILoggerFactory loggerFactory,
     IGrainFactory grainFactory
@@ -48,11 +50,13 @@ public sealed class NetworkManager(
     private readonly ClientPacketDecoder _packetDecoder = new();
     private readonly PackageHandler _packageHandler = new(
         revisionManager,
+        extensions,
         messageSystem,
         loggerFactory.CreateLogger<PackageHandler>()
     );
     private readonly PackageEncoder _packageEncoder = new(
         revisionManager,
+        extensions,
         new ComposerPayloadCache(),
         loggerFactory.CreateLogger<PackageEncoder>()
     );
