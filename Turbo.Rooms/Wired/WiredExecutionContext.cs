@@ -260,10 +260,17 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         }
     }
 
-    public async Task<bool> ProcessUserMovementAsync(
+    public Task<bool> ProcessUserMovementAsync(
         IRoomAvatar avatar,
         int tileIdx,
         SlideAvatarMoveType moveType
+    ) => ProcessUserMovementAsync(avatar, tileIdx, moveType, instant: false);
+
+    public async Task<bool> ProcessUserMovementAsync(
+        IRoomAvatar avatar,
+        int tileIdx,
+        SlideAvatarMoveType moveType,
+        bool instant
     )
     {
         if (avatar is null)
@@ -320,7 +327,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
                     TargetY = avatar.Y,
                     TargetZ = avatar.Z,
                     MoveType = moveType,
-                    AnimationTime = GetAnimationTime(),
+                    AnimationTime = instant ? 0 : GetAnimationTime(),
                     BodyDirection = avatar.Rotation,
                     HeadDirection = avatar.HeadRotation,
                     JumpPower = Policy.JumpStrength ?? avatar.JumpPower,

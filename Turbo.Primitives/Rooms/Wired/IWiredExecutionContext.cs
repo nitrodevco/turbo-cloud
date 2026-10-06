@@ -64,6 +64,17 @@ public interface IWiredExecutionContext : IWiredContext
         SlideAvatarMoveType moveType
     );
 
+    /// <summary>
+    /// The same, saying whether the client should show the avatar there at once
+    /// (<paramref name="instant"/>) instead of gliding it across over the stack's animation time.
+    /// </summary>
+    public Task<bool> ProcessUserMovementAsync(
+        IRoomAvatar avatar,
+        int tileIdx,
+        SlideAvatarMoveType moveType,
+        bool instant
+    );
+
     /// <summary>Turns an avatar in place.</summary>
     public Task ProcessUserDirectionAsync(IRoomAvatar avatar, Rotation body, Rotation head);
 

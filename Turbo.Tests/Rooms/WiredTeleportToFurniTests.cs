@@ -147,6 +147,54 @@ public sealed class WiredTeleportToFurniTests
         _room.Positions().Should().Equal("5@2,1", "6@2,1", "7@3,1");
     }
 
+    // --- "Fast teleportation" ---
+
+    [Fact]
+    public async Task ATeleport_GlidesOverTheStacksAnimationTime_ByDefault()
+    {
+        var box = await PlaceBoxAsync(WiredPlayerSourceType.SignalUsers);
+
+        var context = await RunAsync(box, signalUsers: [5, 6, 7]);
+
+        context.UserMoves.Select(m => m.AnimationTime).Should().Equal(500, 500, 500);
+    }
+
+    [Fact]
+    public async Task FastTeleportation_SendsTheMoveWithNoAnimationTime()
+    {
+        var box = await PlaceBoxAsync(WiredPlayerSourceType.SignalUsers, fast: true);
+
+        var context = await RunAsync(box, signalUsers: [5, 6, 7]);
+
+        context.UserMoves.Select(m => m.AnimationTime).Should().Equal(0, 0, 0);
+        _room.Positions().Should().Equal("5@5,5", "6@5,5", "7@5,5");
+    }
+
+    [Fact]
+    public async Task FastTeleportation_DoesNotLeaveUsersWhoAreAlreadyOnTheFurni()
+    {
+        var box = await PlaceBoxAsync(WiredPlayerSourceType.SignalUsers, fast: true);
+        PutUserOn(5, 5, 5);
+
+        await ExecuteAsync(box, signalUsers: [5, 6, 7], triggerer: 5);
+
+        // Whoever is there stays there, and the others arrive: the option is about the animation.
+        _room.Positions().Should().Equal("5@5,5", "6@5,5", "7@5,5");
+    }
+
+    private async Task<WiredExecutionContext> RunAsync(WiredActionTeleportTo box, int[] signalUsers)
+    {
+        var context = new WiredExecutionContext(_room.Harness.Room)
+        {
+            Signal = new WiredSelectionSet([], signalUsers.Select(x => (RoomObjectId)x)),
+            CancellationToken = Ct,
+        };
+
+        await box.ExecuteAsync(context, Ct);
+
+        return context;
+    }
+
     private void PutUserOn(int objectId, int x, int y)
     {
         var avatar = _room.Avatars[objectId];
@@ -158,7 +206,8 @@ public sealed class WiredTeleportToFurniTests
 
     private async Task<WiredActionTeleportTo> PlaceBoxAsync(
         WiredPlayerSourceType playerSource,
-        bool targetCanWalk = true
+        bool targetCanWalk = true,
+        bool fast = false
     )
     {
         _room.AddFloorItem(TARGET, 5, 5, canWalk: targetCanWalk);
@@ -169,7 +218,7 @@ public sealed class WiredTeleportToFurniTests
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 BOX,
-                intParams: [0],
+                intParams: [fast ? 1 : 0],
                 stuffIds: [TARGET],
                 furniSources:
                 [
