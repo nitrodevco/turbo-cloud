@@ -80,9 +80,7 @@ public sealed class ClientAssets
 
             response.EnsureSuccessStatusCode();
 
-            using var stream = await response
-                .Content.ReadAsStreamAsync(ct)
-                .ConfigureAwait(false);
+            using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             using var document = await JsonDocument
                 .ParseAsync(stream, cancellationToken: ct)
                 .ConfigureAwait(false);
