@@ -31,6 +31,9 @@ public static class WiredSlotSelection
                         slot == 0 ? box.GetStuffIds() : box.GetStuffIds2()
                     );
                     break;
+                case WiredFurniSourceType.SecondaryItems:
+                    set.SelectedFurniIds.UnionWith(box.GetStuffIds2());
+                    break;
                 case WiredFurniSourceType.SelectorItems:
                     set.SelectedFurniIds.UnionWith(ctx.SelectorPool.SelectedFurniIds);
                     break;

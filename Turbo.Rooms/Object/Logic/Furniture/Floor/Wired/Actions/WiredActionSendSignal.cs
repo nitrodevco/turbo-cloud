@@ -33,7 +33,7 @@ public class WiredActionSendSignal(
         [new WiredBoolParamRule(false), new WiredBoolParamRule(false)];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [WiredSources.PickedFurni, WiredSources.Furni];
+        [WiredSources.PickedFurni, WiredSources.SecondaryFurni];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 
