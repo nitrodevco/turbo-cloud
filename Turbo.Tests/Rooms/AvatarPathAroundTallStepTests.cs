@@ -27,8 +27,10 @@ public sealed class AvatarPathAroundTallStepTests
         var harness = new LiveRoomHarness(SIZE, SIZE, heights: heights);
         var avatar = new RoomPlayerAvatar { ObjectId = 5, PlayerId = 9 };
         avatar.SetPosition(1, 2);
-        ((IDictionary<RoomObjectId, IRoomAvatar>)
-            RoomHarness.GetMember(harness.State, "AvatarsByObjectId")!)[5] = avatar;
+        (
+            (IDictionary<RoomObjectId, IRoomAvatar>)
+                RoomHarness.GetMember(harness.State, "AvatarsByObjectId")!
+        )[5] = avatar;
         harness.Module<RoomMapModule>().AddAvatar(avatar, false);
 
         var started = await harness
