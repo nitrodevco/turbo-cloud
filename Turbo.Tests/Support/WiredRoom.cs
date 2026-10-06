@@ -62,6 +62,11 @@ public sealed class WiredRoom
 
     public IStuffDataFactory StuffData => Harness.Services.GetRequiredService<IStuffDataFactory>();
 
+    /// <summary>A floor furni already in the room, by object id.</summary>
+    public IRoomFloorItem FloorItem(int id) =>
+        (IRoomFloorItem)
+            ((IDictionary)RoomHarness.GetMember(Harness.State, "ItemsById")!)[(RoomObjectId)id]!;
+
     public RoomTileFlags[] TileFlags() =>
         (RoomTileFlags[])RoomHarness.GetMember(Harness.State, "TileFlags")!;
 

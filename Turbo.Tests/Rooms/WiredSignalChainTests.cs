@@ -1,6 +1,8 @@
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
+using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Rooms.Grains.Modules;
@@ -22,6 +24,7 @@ namespace Turbo.Tests.Rooms;
 /// </summary>
 public sealed class WiredSignalChainTests
 {
+    private const int CLICK_ME = 23;
     private const int WALK_ON = 20;
     private const int ANTENNA = 21;
     private const int TARGET = 22;
@@ -39,6 +42,7 @@ public sealed class WiredSignalChainTests
         _room.Enter(6, 1, 3);
         _room.Enter(7, 3, 1);
         _room.AddFloorItem(WALK_ON, 6, 6);
+        _room.AddFloorItem(CLICK_ME, 7, 4);
         _room.AddFloorItem(ANTENNA, 6, 1);
         _room.AddFloorItem(TARGET, 5, 5);
     }
@@ -85,6 +89,74 @@ public sealed class WiredSignalChainTests
         _room.Positions().Should().Equal("5@6,6", "6@1,3", "7@3,1");
     }
 
+    // --- the build from the screenshots: a click starts it ---
+
+    [Fact]
+    public async Task AUserClickingTheFurni_TeleportsEveryUserTheSelectorPicked()
+    {
+        await BuildSenderAsync(WiredPlayerSourceType.SelectorUsers, clickTrigger: true);
+        await BuildReceiverAsync(receiversUsers: WiredPlayerSourceType.SignalUsers);
+        await StartAsync();
+
+        await ClickAsync(6);
+        await TickAsync(6);
+
+        _room.Positions().Should().Equal("5@5,5", "6@5,5", "7@5,5");
+    }
+
+    [Fact]
+    public async Task AUserClickingTheFurni_WithSignalForEachUser_StillTeleportsThemAll()
+    {
+        await BuildSenderAsync(
+            WiredPlayerSourceType.SelectorUsers,
+            clickTrigger: true,
+            splitUsers: true
+        );
+        await BuildReceiverAsync(receiversUsers: WiredPlayerSourceType.SignalUsers);
+        await StartAsync();
+
+        await ClickAsync(6);
+        await TickAsync(10);
+
+        // One signal per user, each teleporting the one it carries.
+        _room.Positions().Should().Equal("5@5,5", "6@5,5", "7@5,5");
+    }
+
+    [Fact]
+    public async Task AUserClickingTheFurni_WithTheSelectorFilteringTheExistingSelection_TeleportsOnlyTheClicker()
+    {
+        await BuildSenderAsync(
+            WiredPlayerSourceType.SelectorUsers,
+            clickTrigger: true,
+            filterExisting: true
+        );
+        await BuildReceiverAsync(receiversUsers: WiredPlayerSourceType.SignalUsers);
+        await StartAsync();
+
+        await ClickAsync(6);
+        await TickAsync(6);
+
+        // Filtering narrows what the trigger selected (the clicker) to the players: just 6.
+        _room.Positions().Should().Equal("5@1,1", "6@5,5", "7@3,1");
+    }
+
+    [Fact]
+    public async Task AUserClickingTheFurni_WithTheSelectorInverted_TeleportsNobodyWhenEveryoneIsAPlayer()
+    {
+        await BuildSenderAsync(
+            WiredPlayerSourceType.SelectorUsers,
+            clickTrigger: true,
+            invert: true
+        );
+        await BuildReceiverAsync(receiversUsers: WiredPlayerSourceType.SignalUsers);
+        await StartAsync();
+
+        await ClickAsync(6);
+        await TickAsync(6);
+
+        _room.Positions().Should().Equal("5@1,1", "6@1,3", "7@3,1");
+    }
+
     [Fact]
     public async Task NothingHappens_WhenNobodyWalksOntoTheFurni()
     {
@@ -97,28 +169,55 @@ public sealed class WiredSignalChainTests
         _room.Positions().Should().Equal("5@1,1", "6@1,3", "7@3,1");
     }
 
-    /// <summary>Stack one, on tile (0,0): walks on furni, users by type (players), send signal.</summary>
-    private async Task BuildSenderAsync(WiredPlayerSourceType sendersUsers)
+    /// <summary>
+    /// Stack one, on tile (0,0): a trigger, "users by type" (players), and send signal. The
+    /// options are the ones the client's editor offers: the selector's "filter existing selection"
+    /// and "invert", and the signal's "for each furni" and "for each user".
+    /// </summary>
+    private async Task BuildSenderAsync(
+        WiredPlayerSourceType sendersUsers,
+        bool clickTrigger = false,
+        bool filterExisting = false,
+        bool invert = false,
+        bool splitUsers = false,
+        bool splitFurni = false
+    )
     {
-        _room.AddBox<WiredTriggerWalkOnFurni>(1, 0, 0, "wf_trg_walks_on_furni");
+        if (clickTrigger)
+        {
+            _room.AddBox<WiredTriggerClickFurni>(1, 0, 0, "wf_trg_click_furni");
+        }
+        else
+        {
+            _room.AddBox<WiredTriggerWalkOnFurni>(1, 0, 0, "wf_trg_walks_on_furni");
+        }
+
         _room.AddBox<WiredSelectorEntitiesByType>(2, 0, 0, "wf_slc_users_bytype");
         _room.AddBox<WiredActionSendSignal>(3, 0, 0, "wf_act_send_signal");
 
         (
             await _room.SaveAsync<UpdateTriggerMessage>(
                 1,
-                stuffIds: [WALK_ON],
+                stuffIds: [clickTrigger ? CLICK_ME : WALK_ON],
                 furniSources:
                 [
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
         ).Should().BeTrue();
-        (await _room.SaveAsync<UpdateSelectorMessage>(2, intParams: [1])).Should().BeTrue();
+        (
+            await _room.SaveAsync<UpdateSelectorMessage>(
+                2,
+                intParams: [1],
+                definitionSpecifics: [filterExisting, invert]
+            )
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 3,
-                intParams: [0, 0],
+                intParams: [splitFurni ? 1 : 0, splitUsers ? 1 : 0],
                 stuffIds: [ANTENNA],
                 furniSources:
                 [
@@ -183,6 +282,16 @@ public sealed class WiredSignalChainTests
 
         await TickAsync(1);
     }
+
+    /// <summary>A user clicks the furni: what the client's click packet becomes in the room.</summary>
+    private Task ClickAsync(int objectId) =>
+        _room
+            .FloorItem(CLICK_ME)
+            .Logic.OnClickAsync(
+                ActionContext.CreateForPlayer((PlayerId)(100 + objectId), (RoomId)1),
+                0,
+                Ct
+            );
 
     private Task WalkOntoAsync(int objectId) =>
         _room
