@@ -66,6 +66,9 @@ public abstract class WiredContext(RoomGrain roomGrain)
                         AddExistingItems(set, wired.GetStuffIds());
                         AddExistingItems(set, wired.GetStuffIds2());
                         break;
+                    case WiredFurniSourceType.SecondaryItems:
+                        AddExistingItems(set, wired.GetStuffIds2());
+                        break;
                     case WiredFurniSourceType.SelectorItems:
                         set.SelectedFurniIds.UnionWith(SelectorPool.SelectedFurniIds);
                         break;

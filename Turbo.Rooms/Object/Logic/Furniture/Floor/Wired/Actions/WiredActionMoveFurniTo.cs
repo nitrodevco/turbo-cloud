@@ -39,7 +39,7 @@ public class WiredActionMoveFurniTo(
         ];
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [WiredSources.Furni, WiredSources.PickedFurni];
+        [WiredSources.Furni, WiredSources.SecondaryFurni];
 
     public override Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {

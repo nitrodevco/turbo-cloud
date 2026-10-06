@@ -67,6 +67,7 @@ public abstract class FurnitureWiredFurniEventTriggerLogic<TEvent>(
                     is not (
                         WiredFurniSourceType.SelectedItems
                         or WiredFurniSourceType.SnapshotItems
+                        or WiredFurniSourceType.SecondaryItems
                     )
                 )
                     return false;

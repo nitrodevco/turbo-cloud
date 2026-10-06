@@ -106,18 +106,21 @@ public abstract class FurnitureWiredActionLogic(
     /// Puts an avatar on a tile at once, the way every wired teleport does: a freeze that ends on
     /// a teleport ends here, then the move joins the stack's movement packet. The teleport box
     /// and the "user to furni" box in teleport mode both come here; the second used to skip the
-    /// thaw.
+    /// thaw. The client has no separate teleport: it glides the avatar there over the stack's
+    /// animation time, so <paramref name="instant"/> (the teleport box's "fast teleportation")
+    /// sends it with no animation time at all.
     /// </summary>
     protected static Task<bool> TeleportAvatarAsync(
         IWiredExecutionContext ctx,
         IRoomAvatar avatar,
-        int tileIdx
+        int tileIdx,
+        bool instant = false
     )
     {
         if (avatar.IsFrozen && avatar.ThawsOnTeleport)
             avatar.SetFrozen(false);
 
-        return ctx.ProcessUserMovementAsync(avatar, tileIdx, SlideAvatarMoveType.None);
+        return ctx.ProcessUserMovementAsync(avatar, tileIdx, SlideAvatarMoveType.None, instant);
     }
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)

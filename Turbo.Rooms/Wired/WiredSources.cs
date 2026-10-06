@@ -29,6 +29,18 @@ internal static class WiredSources
             WiredFurniSourceType.TriggeredItem,
         ];
 
+    /// <summary>
+    /// The furni of a box's second slot: the box's second pick list (the editor's "secondary
+    /// picks", which makes it offer two pick lists), then the same pool sources as <see cref="Furni"/>.
+    /// </summary>
+    public static WiredFurniSourceType[] SecondaryFurni =>
+        [
+            WiredFurniSourceType.SecondaryItems,
+            WiredFurniSourceType.SelectorItems,
+            WiredFurniSourceType.SignalItems,
+            WiredFurniSourceType.TriggeredItem,
+        ];
+
     /// <summary>Only furni the box or a selector names, for boxes a triggering furni makes no sense for.</summary>
     public static WiredFurniSourceType[] PickedFurni =>
         [WiredFurniSourceType.SelectedItems, WiredFurniSourceType.SelectorItems];

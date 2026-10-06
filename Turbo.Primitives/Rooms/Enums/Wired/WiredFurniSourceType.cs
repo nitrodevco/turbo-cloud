@@ -9,6 +9,9 @@ public enum WiredFurniSourceType
     SelectorItems = 4,
     SignalItems = 5,
     AllRoomItems = 6,
+
+    /// <summary>The box's second pick list, for boxes that take two sets of furni.</summary>
+    SecondaryItems = 7,
 }
 
 public static class WiredFurniSourceTypeExtensions
@@ -20,6 +23,7 @@ public static class WiredFurniSourceTypeExtensions
             WiredFurniSourceType.TriggeredItem => WiredSourceType.TriggeredItem,
             WiredFurniSourceType.SelectedItems => WiredSourceType.SelectedItems,
             WiredFurniSourceType.SnapshotItems => WiredSourceType.SnapshotItems,
+            WiredFurniSourceType.SecondaryItems => WiredSourceType.SecondaryItems,
             WiredFurniSourceType.SelectorItems => WiredSourceType.SelectorItems,
             WiredFurniSourceType.SignalItems => WiredSourceType.SignalItems,
             WiredFurniSourceType.AllRoomItems => WiredSourceType.AllRoomItems,
@@ -33,6 +37,7 @@ public static class WiredFurniSourceTypeExtensions
             WiredSourceType.TriggeredItem => WiredFurniSourceType.TriggeredItem,
             WiredSourceType.SelectedItems => WiredFurniSourceType.SelectedItems,
             WiredSourceType.SnapshotItems => WiredFurniSourceType.SnapshotItems,
+            WiredSourceType.SecondaryItems => WiredFurniSourceType.SecondaryItems,
             WiredSourceType.SelectorItems => WiredFurniSourceType.SelectorItems,
             WiredSourceType.SignalItems => WiredFurniSourceType.SignalItems,
             WiredSourceType.AllRoomItems => WiredFurniSourceType.AllRoomItems,

@@ -22,7 +22,7 @@ public class WiredActionFurniToFurni(
     public override int WiredCode => (int)WiredActionType.MOVE_FURNI_TO_FURNI;
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [WiredSources.Furni, WiredSources.PickedFurni];
+        [WiredSources.Furni, WiredSources.SecondaryFurni];
 
     public override Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct) =>
         MoveOntoTargetFurniAsync(ctx, 0, 0);

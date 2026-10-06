@@ -15,8 +15,10 @@ using Turbo.Rooms.Wired.Rules;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
 /// <summary>
-/// Teleports the selected users onto one of the picked furni, chosen at random. Param 0 is
-/// the client option checkbox; when set, users already on a picked furni stay put.
+/// Teleports the selected users onto one of the picked furni, chosen at random. Param 0 is the
+/// editor's "fast teleportation" checkbox: the client has no teleport of its own and glides the
+/// user there over the stack's animation time (half a second by default), so with it on the move
+/// is sent with no animation time and the user is simply there.
 /// </summary>
 [RoomObjectLogic("wf_act_teleport_to")]
 public class WiredActionTeleportTo(
@@ -42,21 +44,16 @@ public class WiredActionTeleportTo(
         if (items.Count == 0 || players.Count == 0)
             return false;
 
-        var stayIfAlreadyThere = GetIntParamOrDefault(0, false);
+        var fast = GetIntParamOrDefault(0, false);
         var map = MapModule;
         var moved = false;
 
         foreach (var player in players)
         {
-            var currentIdx = map.ToIdx(player.X, player.Y);
-
-            if (stayIfAlreadyThere && items.Any(i => map.ToIdx(i.X, i.Y) == currentIdx))
-                continue;
-
             var target = items[Random.Shared.Next(items.Count)];
             var tileIdx = map.ToIdx(target.X, target.Y);
 
-            moved |= await TeleportAvatarAsync(ctx, player, tileIdx);
+            moved |= await TeleportAvatarAsync(ctx, player, tileIdx, fast);
         }
 
         return moved;
