@@ -15,10 +15,12 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
 /// <summary>
 /// Derives calendar and duration values from the variable box on its tile. Param 0 is a
-/// bitmask: the low 16 bits pick calendar fields of the instant (bit n-1 for field n:
+/// bitmask: the low 16 bits pick calendar fields of the instant (bit n for field n:
 /// milliseconds, seconds, minutes, hours, day of week, day of month, day of year, week,
-/// month, year), the high 16 bits pick duration units since that instant (bit 20+n-1 for
-/// unit n: milliseconds, seconds, minutes, hours, days, weeks, months). Param 1 chooses the
+/// month, year), the high 16 bits pick whole units counted from 1970 up to that instant
+/// (<c>time_util.advanced_info</c>; bit 19+n for unit n: milliseconds, seconds, minutes,
+/// hours, days, weeks, months), so two of them subtract to the time between two instants.
+/// Param 1 chooses the
 /// instant: the value as a unix timestamp, the creation time or the last update time.
 /// </summary>
 [RoomObjectLogic("wf_xtra_var_time_util")]
@@ -32,29 +34,30 @@ public class WiredAddonVariableTimeUtil(
     private const int MODE_CREATED = 1;
     private const int MODE_UPDATED = 2;
 
+    // The editor's SubVariableParam ids; a field is ticked when bit `id` of the mask is set.
     private static readonly (int bit, string name)[] CALENDAR_FIELDS =
     [
-        (0, "milliseconds_of_second"),
-        (1, "seconds_of_minute"),
-        (2, "minute_of_hour"),
-        (3, "hour_of_day"),
-        (4, "day_of_week"),
-        (5, "day_of_month"),
-        (6, "day_of_year"),
-        (7, "week_of_year"),
-        (8, "month_of_year"),
-        (9, "year"),
+        (1, "milliseconds_of_seconds"),
+        (2, "seconds_of_minute"),
+        (3, "minute_of_hour"),
+        (4, "hour_of_day"),
+        (5, "day_of_week"),
+        (6, "day_of_month"),
+        (7, "day_of_year"),
+        (8, "week_of_year"),
+        (9, "month_of_year"),
+        (10, "year"),
     ];
 
     private static readonly (int bit, string name)[] DURATION_FIELDS =
     [
-        (19, "millisecond"),
-        (20, "second"),
-        (21, "minute"),
-        (22, "hour"),
-        (23, "day"),
-        (24, "week"),
-        (25, "month"),
+        (20, "millisecond"),
+        (21, "second"),
+        (22, "minute"),
+        (23, "hour"),
+        (24, "day"),
+        (25, "week"),
+        (26, "month"),
     ];
 
     public override int WiredCode => (int)WiredAddonType.VARIABLE_TIME_UTIL;
@@ -137,7 +140,7 @@ public class WiredAddonVariableTimeUtil(
 
         return field switch
         {
-            "milliseconds_of_second" => local.Millisecond,
+            "milliseconds_of_seconds" => local.Millisecond,
             "seconds_of_minute" => local.Second,
             "minute_of_hour" => local.Minute,
             "hour_of_day" => local.Hour,
@@ -156,19 +159,20 @@ public class WiredAddonVariableTimeUtil(
         if (ResolveInstant(parent, key) is not { } instant)
             return null;
 
-        var elapsed = DateTimeOffset.UtcNow - instant;
-        double amount = unit switch
+        var ms = instant.ToUnixTimeMilliseconds();
+        var utc = instant.UtcDateTime;
+        long amount = unit switch
         {
-            "millisecond" => elapsed.TotalMilliseconds,
-            "second" => elapsed.TotalSeconds,
-            "minute" => elapsed.TotalMinutes,
-            "hour" => elapsed.TotalHours,
-            "day" => elapsed.TotalDays,
-            "week" => elapsed.TotalDays / 7,
-            "month" => elapsed.TotalDays / 30,
+            "millisecond" => ms,
+            "second" => ms / 1_000,
+            "minute" => ms / 60_000,
+            "hour" => ms / 3_600_000,
+            "day" => ms / 86_400_000,
+            "week" => ms / 604_800_000,
+            "month" => (utc.Year - 1970) * 12L + utc.Month - 1,
             _ => 0,
         };
 
-        return (int)Math.Clamp(Math.Floor(amount), int.MinValue, int.MaxValue);
+        return (int)Math.Clamp(amount, int.MinValue, int.MaxValue);
     }
 }
