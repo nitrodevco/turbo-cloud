@@ -16,8 +16,8 @@ using Turbo.Rooms.Wired.Rules;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
 /// <summary>
-/// Fires on chat. Params, as the client's editor writes them: hide the message (honoured by
-/// the chat path), the match mode and owner only. The string param is the keyword.
+/// Fires on chat. Params, as the client's editor writes them: owner only, the match mode and
+/// hide the message (honoured by the chat path). The string param is the keyword.
 ///
 /// The third mode is "Match all text", and the editor greys the keyword box out for it: it
 /// fires on anything that is said. The other two need a keyword and match it against the whole
@@ -30,9 +30,11 @@ public class WiredTriggerHabboSaysKeyword(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredTriggerLogic(grainFactory, stuffDataFactory, ctx)
 {
-    private const int HIDE_PARAM_INDEX = 0;
+    // Flash's order (triggerconfs AvatarSaysSomething.readIntParamsFromForm): the checkbox with
+    // id 0 ("only the owner"), the match mode, then the checkbox with id 1 ("hide").
+    private const int OWNER_ONLY_PARAM_INDEX = 0;
     private const int MATCH_MODE_PARAM_INDEX = 1;
-    private const int OWNER_ONLY_PARAM_INDEX = 2;
+    private const int HIDE_PARAM_INDEX = 2;
 
     private const int MATCH_CONTAINS = 0;
     private const int MATCH_EXACT = 1;
