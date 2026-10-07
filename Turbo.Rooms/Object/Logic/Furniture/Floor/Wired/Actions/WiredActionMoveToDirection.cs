@@ -28,13 +28,14 @@ public class WiredActionMoveToDirection(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
 {
-    private const int TURN_BACK = 0;
-    private const int TURN_RIGHT_90 = 1;
-    private const int TURN_LEFT_90 = 2;
-    private const int TURN_RIGHT_45 = 3;
-    private const int TURN_LEFT_45 = 4;
-    private const int TURN_RANDOM = 5;
-    private const int TURN_STOP = 6;
+    // The editor's "turn" radio, wiredfurni.params.turn.0 to .6 (AS3 MoveToDirection).
+    private const int TURN_WAIT = 0;
+    private const int TURN_RIGHT_45 = 1;
+    private const int TURN_RIGHT_90 = 2;
+    private const int TURN_LEFT_45 = 3;
+    private const int TURN_LEFT_90 = 4;
+    private const int TURN_BACK = 5;
+    private const int TURN_RANDOM = 6;
 
     private readonly Dictionary<RoomObjectId, Rotation> _headingByItemId = [];
 
@@ -60,7 +61,7 @@ public class WiredActionMoveToDirection(
     {
         var selection = ctx.GetSelection(this);
         var startDirection = (Rotation)GetIntParamOrDefault(0, 0);
-        var turnMode = GetIntParamOrDefault(1, TURN_BACK);
+        var turnMode = GetIntParamOrDefault(1, TURN_WAIT);
         var blockOnUsers = GetIntParamOrDefault(2, false);
         var map = MapModule;
         var moved = false;
@@ -90,7 +91,7 @@ public class WiredActionMoveToDirection(
                     }
                 }
 
-                if (turnMode == TURN_STOP)
+                if (turnMode == TURN_WAIT)
                     break;
 
                 heading = Turn(heading, turnMode);
@@ -124,6 +125,7 @@ public class WiredActionMoveToDirection(
             TURN_RIGHT_45 => heading.Rotate(1),
             TURN_LEFT_45 => heading.Rotate(-1),
             TURN_RANDOM => (Rotation)Random.Shared.Next(0, 8),
-            _ => heading.Opposite(),
+            TURN_BACK => heading.Opposite(),
+            _ => heading,
         };
 }
