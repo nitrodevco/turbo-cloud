@@ -19,7 +19,10 @@ namespace Turbo.Tests.Rooms;
 /// <summary>
 /// "Change Variable Value" with the operation ids its editor offers
 /// (<c>wiredfurni.params.variables.operation.&lt;id&gt;</c>): 5 Power, 6 Modulo, 60 Absolute value,
-/// 110 Bit count (AS3 <c>ChangeVariable.operatorOptions</c>; the last two take no operand). A click
+/// 110 Bit count (AS3 <c>ChangeVariable.operatorOptions</c>; the last two take no operand), and from
+/// 111 the bit operations whose operand is a position: next / previous low (0) or high (1) bit,
+/// inclusive (111-114) or exclusive (119-122), -1 when there is none, and get / set / clear /
+/// toggle bit (115-118), as the Wired Faculty's "Intro to Bitwise Operations" explains them. A click
 /// sets a global to 13 and then applies the operation, in order.
 /// </summary>
 public sealed class WiredVariableOperationIdsTests
@@ -46,6 +49,17 @@ public sealed class WiredVariableOperationIdsTests
     [InlineData(6, 5, 3)]
     [InlineData(60, 0, 13)]
     [InlineData(110, 0, 3)]
+    // 13 is 1101: the bits at positions 0, 2 and 3 are set.
+    [InlineData(111, 4, 4)]
+    [InlineData(112, 1, 2)]
+    [InlineData(113, 3, 1)]
+    [InlineData(114, 1, 0)]
+    [InlineData(115, 2, 1)]
+    [InlineData(116, 1, 15)]
+    [InlineData(117, 2, 9)]
+    [InlineData(118, 0, 12)]
+    [InlineData(120, 0, 2)]
+    [InlineData(122, 0, -1)]
     public async Task Each_operation_id_does_what_its_editor_label_says(
         int operation,
         int operand,
