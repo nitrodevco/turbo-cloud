@@ -67,6 +67,8 @@ public sealed partial class RoomGrain
     {
         try
         {
+            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+
             if (!await ActionModule.UseItemByIdAsync(ctx, itemId, ct, param))
                 return false;
 
@@ -95,6 +97,8 @@ public sealed partial class RoomGrain
     {
         try
         {
+            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+
             if (!await ActionModule.ClickItemByIdAsync(ctx, itemId, ct, param))
                 return false;
 
@@ -123,6 +127,8 @@ public sealed partial class RoomGrain
     {
         try
         {
+            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+
             return await ActionModule.InteractWithItemAsync(ctx, itemId, interaction, ct);
         }
         catch (Exception ex)
