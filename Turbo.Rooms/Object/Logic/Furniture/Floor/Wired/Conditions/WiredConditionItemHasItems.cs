@@ -29,8 +29,11 @@ public class WiredConditionItemHasItems(
     {
         var items = GetFloorItems(ctx.GetSelection(this));
 
-        return Quantify(items.Select(HasItemOnTop), RequiresAll());
+        return Quantify(items.Select(HasItemOnTop), RequiresAllFurni());
     }
+
+    /// <summary>Whether every picked furni must have furni on it (param 0, "all the selected furni").</summary>
+    protected virtual bool RequiresAllFurni() => RequiresAll();
 
     private bool HasItemOnTop(IRoomFloorItem item)
     {
