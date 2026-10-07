@@ -205,4 +205,10 @@ public class RoomConfig
 
     public int GameDefaultDurationSeconds { get; init; } = 60;
     public int[] GameTeamEffectIds { get; init; } = [0, 33, 34, 35, 36];
+
+    /// <summary>The team effects of a Battle Banzai team, by team (none, red, green, blue, yellow).</summary>
+    public int[] BanzaiTeamEffectIds { get; init; } = [0, 33, 34, 35, 36];
+
+    /// <summary>The team effects of a Freeze team, by team (none, red, green, blue, yellow).</summary>
+    public int[] FreezeTeamEffectIds { get; init; } = [0, 40, 41, 42, 43];
 }

@@ -9,6 +9,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Game;
 using Turbo.Primitives.Rooms.Events.Player;
@@ -32,6 +33,9 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     private const int NO_EFFECT = 0;
 
     private readonly Dictionary<PlayerId, GameTeamType> _teamByPlayerId = [];
+
+    /// <summary>The team effect each player was put in, so leaving takes off that one.</summary>
+    private readonly Dictionary<PlayerId, int> _teamEffectByPlayerId = [];
     private readonly int[] _teamScores = new int[(int)GameTeamType.Yellow + 1];
     private readonly Dictionary<(RoomObjectId sourceId, PlayerId playerId), int> _scoreGrants = [];
 
@@ -71,9 +75,17 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     public IEnumerable<PlayerId> GetTeamMembers(GameTeamType team) =>
         _teamByPlayerId.Where(x => x.Value == team).Select(x => x.Key);
 
+    public Task<bool> JoinTeamAsync(PlayerId playerId, GameTeamType team, CancellationToken ct) =>
+        JoinTeamAsync(playerId, team, WiredTeamType.Wired, ct);
+
+    /// <summary>
+    /// Puts the player in <paramref name="team"/>, wearing the team effect of the kind of team
+    /// (<see cref="WiredTeamType"/>): the colours are one set of teams, the game they look like is not.
+    /// </summary>
     public async Task<bool> JoinTeamAsync(
         PlayerId playerId,
         GameTeamType team,
+        WiredTeamType teamType,
         CancellationToken ct
     )
     {
@@ -88,7 +100,11 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
 
         _teamByPlayerId[playerId] = team;
 
-        await AvatarModule.SetAvatarEffectAsync(player.ObjectId, GetTeamEffectId(team), ct);
+        var effectId = GetTeamEffectId(team, teamType);
+
+        _teamEffectByPlayerId[playerId] = effectId;
+
+        await AvatarModule.SetAvatarEffectAsync(player.ObjectId, effectId, ct);
         await PublishTeamChangedAsync(playerId, team, ct);
 
         return true;
@@ -99,11 +115,12 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
         if (!_teamByPlayerId.Remove(playerId, out var team))
             return false;
 
+        var effectId = _teamEffectByPlayerId.Remove(playerId, out var worn)
+            ? worn
+            : GetTeamEffectId(team, WiredTeamType.Wired);
+
         // Only the team colour is taken off. An effect the player put on since is theirs.
-        if (
-            AvatarModule.TryGetPlayer(playerId, out var player)
-            && player.EffectId == GetTeamEffectId(team)
-        )
+        if (AvatarModule.TryGetPlayer(playerId, out var player) && player.EffectId == effectId)
             await AvatarModule.SetAvatarEffectAsync(player.ObjectId, NO_EFFECT, ct);
 
         await PublishTeamChangedAsync(playerId, GameTeamType.None, ct);
@@ -258,9 +275,14 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     private static bool IsTeam(GameTeamType team) =>
         team is >= GameTeamType.Red and <= GameTeamType.Yellow;
 
-    private int GetTeamEffectId(GameTeamType team)
+    private int GetTeamEffectId(GameTeamType team, WiredTeamType teamType)
     {
-        var effectIds = _roomGrain._roomConfig.GameTeamEffectIds;
+        var effectIds = teamType switch
+        {
+            WiredTeamType.BattleBanzai => _roomGrain._roomConfig.BanzaiTeamEffectIds,
+            WiredTeamType.Freeze => _roomGrain._roomConfig.FreezeTeamEffectIds,
+            _ => _roomGrain._roomConfig.GameTeamEffectIds,
+        };
 
         return (int)team < effectIds.Length ? effectIds[(int)team] : NO_EFFECT;
     }
@@ -268,6 +290,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     private void ForgetPlayer(PlayerId playerId)
     {
         _teamByPlayerId.Remove(playerId);
+        _teamEffectByPlayerId.Remove(playerId);
 
         foreach (var key in _scoreGrants.Keys.Where(x => x.playerId == playerId).ToList())
             _scoreGrants.Remove(key);
