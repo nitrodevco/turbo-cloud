@@ -37,7 +37,9 @@ public sealed class KeyValueStore : IWiredVariableStore
             return Task.FromResult(false);
 
         Store[key.ToStorageKey()] = value;
-        Stamp(key.ToStorageKey(), !existed);
+        // A give creates the variable on its holder, an overwriting one too: official wired restarts
+        // its creation time, which is what "Time Utilities" reads as the moment it was given.
+        Stamp(key.ToStorageKey(), true);
 
         MarkDirty();
 
