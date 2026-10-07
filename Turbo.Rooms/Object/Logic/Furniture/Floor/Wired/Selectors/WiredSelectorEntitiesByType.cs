@@ -14,8 +14,9 @@ using Turbo.Rooms.Wired.Rules;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
 /// <summary>
-/// Picks every avatar of a kind: param 0 is a bitmask of 1 players, 2 bots, 4 pets. This is
-/// the box that narrows a selection down to one kind; every other selector takes all three.
+/// Picks every avatar of a kind: param 0 is the editor's user type (<c>wiredfurni.params.usertype.1</c>
+/// / <c>.2</c> / <c>.4</c>: 1 Habbo, 2 pet, 4 bot), read as a bitmask. This is the box that narrows a
+/// selection down to one kind; every other selector takes all three.
 /// </summary>
 [RoomObjectLogic("wf_slc_users_bytype")]
 public class WiredSelectorEntitiesByType(
@@ -25,8 +26,8 @@ public class WiredSelectorEntitiesByType(
 ) : FurnitureWiredSelectorLogic(grainFactory, stuffDataFactory, ctx)
 {
     private const int TYPE_PLAYER = 1;
-    private const int TYPE_BOT = 2;
-    private const int TYPE_PET = 4;
+    private const int TYPE_PET = 2;
+    private const int TYPE_BOT = 4;
 
     public override int WiredCode => (int)WiredSelectorType.USERS_BY_TYPE;
 

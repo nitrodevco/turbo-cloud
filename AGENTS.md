@@ -763,7 +763,7 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   holds nothing of what the old one did.
 - **Wired says "user" and means any avatar.** `IWiredSelectionSet.SelectedAvatarIds` holds
   players, pets and bots alike, by room index, and every selector gathers all three; narrowing
-  to one kind is what `wf_slc_users_bytype` is for, and its mask (1 players, 2 bots, 4 pets)
+  to one kind is what `wf_slc_users_bytype` is for, and its mask (1 players, 2 pets, 4 bots, the editor's `usertype.1/.2/.4`)
   is honoured. A box reads the selection through `GetAvatars` when what it does suits any
   avatar (move, teleport, freeze, direction, hand item, a name in text) and through
   `GetPlayers` when only a player can be the subject (kick, mute, a badge, a team, a score);
