@@ -440,7 +440,7 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
         session.Contract is { } request
             ? WiredContractOffers.CanOffer(request, item)
             : item.Definition.CanTrade
-                && item.RoomId == 0
+                && item.RoomId <= 0
                 && CreditFurniValue.TryParse(item.Definition.Name, out _)
                     == (session.Kind == WiredChestKind.Coins);
 

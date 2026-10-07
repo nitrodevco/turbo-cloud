@@ -91,6 +91,25 @@ public class WiredChestRoomTests
     }
 
     [Fact]
+    public async Task A_furni_chest_trade_takes_furni_from_the_inventory()
+    {
+        // An inventory item sits in no room: its snapshot's room id is -1, as the inventory writes it.
+        var fakes = new Fakes();
+        var trade = TradeGrain(fakes);
+        fakes.Handlers["GetItemSnapshotsAsync"] = _ => Task.FromResult(Offer("rare_dragonlamp"));
+
+        await trade.StartChestDepositAsync(1, CHEST, WiredChestKind.Furni, default);
+        await trade.AddItemsAsync([20], default);
+
+        Sent(fakes).OfType<WiredTradeTransactionNotificationMessageComposer>().Should().BeEmpty();
+        Sent(fakes)
+            .OfType<WiredTradeItemsUpdateMessageComposer>()
+            .Last()
+            .FirstItems.Should()
+            .ContainSingle();
+    }
+
+    [Fact]
     public async Task A_furni_chest_trade_does_not_take_credit_furni()
     {
         var fakes = new Fakes();
@@ -203,7 +222,7 @@ public class WiredChestRoomTests
                 ExtraData = "",
                 SecondsToExpiration = 0,
                 HasRentPeriodStarted = false,
-                RoomId = 0,
+                RoomId = -1,
             },
         ];
 

@@ -31,7 +31,7 @@ public static class WiredContractOffers
     /// </summary>
     public static bool CanOffer(WiredContractTradeRequest request, FurnitureItemSnapshot item)
     {
-        if (!item.Definition.CanTrade || item.RoomId != 0)
+        if (!item.Definition.CanTrade || item.RoomId > 0)
             return false;
 
         if (request.IsDonation)

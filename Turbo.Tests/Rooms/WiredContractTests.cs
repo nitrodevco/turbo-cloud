@@ -426,6 +426,6 @@ public class WiredContractTests
             ExtraData = "",
             SecondsToExpiration = 0,
             HasRentPeriodStarted = false,
-            RoomId = 0,
+            RoomId = -1,
         };
 }
