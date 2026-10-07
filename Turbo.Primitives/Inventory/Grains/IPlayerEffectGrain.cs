@@ -28,14 +28,14 @@ public interface IPlayerEffectGrain : IGrainWithIntegerKey
     public Task<ImmutableArray<AvatarEffectSnapshot>> GetEffectsAsync(CancellationToken ct);
 
     /// <summary>
-    /// What <see cref="GiveEffectAsync"/> would answer, changing nothing. The catalog asks before
-    /// it charges, so a purchase that cannot be delivered is refused instead of refunded.
+    /// What giving all of these (timed copies) would answer, changing nothing: the first refusal,
+    /// or <see cref="EffectGrantResult.Granted"/>. The catalog asks before it charges, so a
+    /// purchase that cannot be delivered is refused instead of refunded. The requests are judged
+    /// together, so two new effects that would each fit but not both are refused.
     /// </summary>
     [AlwaysInterleave]
-    public Task<EffectGrantResult> CheckGiveEffectAsync(
-        int effectId,
-        int copies,
-        bool permanent,
+    public Task<EffectGrantResult> CheckGiveEffectsAsync(
+        ImmutableArray<EffectGrantRequest> requests,
         CancellationToken ct
     );
 

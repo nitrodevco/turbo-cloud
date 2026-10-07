@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -108,12 +109,10 @@ internal sealed class PlayerEffectGrain : Grain, IPlayerEffectGrain
     public Task<ImmutableArray<AvatarEffectSnapshot>> GetEffectsAsync(CancellationToken ct) =>
         Task.FromResult(BuildSnapshots());
 
-    public Task<EffectGrantResult> CheckGiveEffectAsync(
-        int effectId,
-        int copies,
-        bool permanent,
+    public Task<EffectGrantResult> CheckGiveEffectsAsync(
+        ImmutableArray<EffectGrantRequest> requests,
         CancellationToken ct
-    ) => Task.FromResult(Evaluate(effectId, copies, permanent));
+    ) => Task.FromResult(EvaluateAll(requests));
 
     public async Task<EffectGrantResult> GiveEffectAsync(
         int effectId,
@@ -126,7 +125,7 @@ internal sealed class PlayerEffectGrain : Grain, IPlayerEffectGrain
         // A copy that has run out is gone before the cap is worked out against it.
         await ExpireDueAsync(notify: true, ct);
 
-        var result = Evaluate(effectId, copies, permanent);
+        var result = Evaluate(effectId, copies, permanent, out _);
 
         if (result != EffectGrantResult.Granted)
             return result;
@@ -162,7 +161,7 @@ internal sealed class PlayerEffectGrain : Grain, IPlayerEffectGrain
 
             _state.EffectsById[effectId] = effect;
 
-            await SendAddedAsync(effect, permanent ? 1 : copies, ct);
+            await NotifyAsync(() => SendAddedAsync(effect, permanent ? 1 : copies, ct), "added");
 
             return EffectGrantResult.Granted;
         }
@@ -175,13 +174,14 @@ internal sealed class PlayerEffectGrain : Grain, IPlayerEffectGrain
 
             ArmTimer();
 
-            await SendEffectsAsync(ct);
+            await NotifyAsync(() => SendEffectsAsync(ct), "list");
 
             return EffectGrantResult.Granted;
         }
 
+        // Evaluate has held the total to the cap, so this cannot overflow.
         await UpdateAsync(effect, effect.InactiveCount + copies, false, effect.ExpiresAt, ct);
-        await SendAddedAsync(effect, copies, ct);
+        await NotifyAsync(() => SendAddedAsync(effect, copies, ct), "added");
 
         return EffectGrantResult.Granted;
     }
@@ -210,18 +210,23 @@ internal sealed class PlayerEffectGrain : Grain, IPlayerEffectGrain
                 ct
             );
 
-            await _grainFactory.SendComposerToPlayerAsync(
-                _state.PlayerId,
-                new AvatarEffectActivatedMessageComposer
-                {
-                    Type = effectId,
-                    Duration = duration,
-                    IsPermanent = false,
-                },
-                ct
-            );
-
+            // First: a failure below must not leave a running copy with no timer behind it.
             ArmTimer();
+
+            await NotifyAsync(
+                () =>
+                    _grainFactory.SendComposerToPlayerAsync(
+                        _state.PlayerId,
+                        new AvatarEffectActivatedMessageComposer
+                        {
+                            Type = effectId,
+                            Duration = duration,
+                            IsPermanent = false,
+                        },
+                        ct
+                    ),
+                "activated"
+            );
         }
 
         // The client takes activating to mean wearing and sends the select straight after, in
@@ -282,38 +287,73 @@ internal sealed class PlayerEffectGrain : Grain, IPlayerEffectGrain
     /// </summary>
     private async Task ExpireDueAsync(bool notify, CancellationToken ct)
     {
-        var now = Now;
-        var lapsed = _state
-            .EffectsById.Values.Where(x => x.ExpiresAt is { } at && at <= now)
-            .ToList();
-
-        foreach (var effect in lapsed)
+        try
         {
-            if (effect.InactiveCount == 0 && !effect.IsPermanent)
+            var now = Now;
+            var lapsed = _state
+                .EffectsById.Values.Where(x => x.ExpiresAt is { } at && at <= now)
+                .ToList();
+
+            foreach (var effect in lapsed)
             {
-                await DeleteAsync(effect, ct);
+                if (effect.InactiveCount == 0 && !effect.IsPermanent)
+                {
+                    await DeleteAsync(effect, ct);
 
-                _state.EffectsById.Remove(effect.EffectId);
+                    _state.EffectsById.Remove(effect.EffectId);
+                }
+                else
+                {
+                    await UpdateAsync(effect, effect.InactiveCount, effect.IsPermanent, null, ct);
+                }
+
+                if (!notify)
+                    continue;
+
+                // The row is already right; failing to say so must not stop the others being ended.
+                await NotifyAsync(
+                    async () =>
+                    {
+                        await _grainFactory.SendComposerToPlayerAsync(
+                            _state.PlayerId,
+                            new AvatarEffectExpiredMessageComposer { Type = effect.EffectId },
+                            ct
+                        );
+
+                        // Only the effect that ran out: another the player wears must stay on.
+                        await Presence.OnWornEffectChangedAsync(0, [effect.EffectId], ct);
+                    },
+                    "expired"
+                );
             }
-            else
-            {
-                await UpdateAsync(effect, effect.InactiveCount, effect.IsPermanent, null, ct);
-            }
-
-            if (!notify)
-                continue;
-
-            await _grainFactory.SendComposerToPlayerAsync(
-                _state.PlayerId,
-                new AvatarEffectExpiredMessageComposer { Type = effect.EffectId },
-                ct
-            );
-
-            // Only the effect that ran out: another the player wears must stay on.
-            await Presence.OnWornEffectChangedAsync(0, [effect.EffectId], ct);
         }
+        finally
+        {
+            // Whatever failed above, the next copy to end still has a timer.
+            ArmTimer();
+        }
+    }
 
-        ArmTimer();
+    /// <summary>
+    /// Tells the player something that has already happened. The row is written first, so a failure
+    /// to say so is logged and the change stands: a grant must not fail, and a purchase paid for
+    /// must not be refunded with the effect given, because a message did not go out.
+    /// </summary>
+    private async Task NotifyAsync(Func<Task> send, string what)
+    {
+        try
+        {
+            await send();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to tell player {PlayerId} an effect {What}",
+                _state.PlayerId,
+                what
+            );
+        }
     }
 
     private async Task HydrateAsync(CancellationToken ct)
@@ -340,21 +380,38 @@ internal sealed class PlayerEffectGrain : Grain, IPlayerEffectGrain
         await ExpireDueAsync(notify: false, ct);
     }
 
-    /// <summary>What <see cref="GiveEffectAsync"/> would answer; changes nothing.</summary>
-    private EffectGrantResult Evaluate(int effectId, int copies, bool permanent)
+    /// <summary>
+    /// What <see cref="GiveEffectAsync"/> would answer; changes nothing. <paramref name="isNew"/> is
+    /// whether the player has none of the effect, which counts against the number of different ones.
+    /// A client names the quantity, so sums are made in a wide type: a copy count near
+    /// <see cref="int.MaxValue"/> added to the copies held must refuse, not wrap negative and pass.
+    /// </summary>
+    private EffectGrantResult Evaluate(int effectId, long copies, bool permanent, out bool isNew)
     {
+        isNew = false;
+
         if (effectId < 1 || effectId > _config.MaxEffectId)
+            return EffectGrantResult.Invalid;
+
+        // An id the hotel applies itself: taking the player's off would take the hotel's off too.
+        if (_config.ReservedEffectIds.Contains(effectId))
             return EffectGrantResult.Invalid;
 
         if (!permanent && copies < 1)
             return EffectGrantResult.Invalid;
 
-        if (!_state.EffectsById.TryGetValue(effectId, out var existing))
-            return
-                _state.EffectsById.Count >= _config.MaxDistinctEffects
-                || (!permanent && copies > _config.MaxCopiesPerType)
+        if (!permanent && copies > _config.MaxCopiesPerType)
+            return EffectGrantResult.LimitReached;
+
+        // A copy that has run out is as good as gone, though the timer has not cleared it yet.
+        if (!_state.EffectsById.TryGetValue(effectId, out var existing) || IsGone(existing, Now))
+        {
+            isNew = true;
+
+            return CountHeld(Now) >= _config.MaxDistinctEffects
                 ? EffectGrantResult.LimitReached
                 : EffectGrantResult.Granted;
+        }
 
         if (existing.IsPermanent)
             return EffectGrantResult.AlreadyPermanent;
@@ -363,6 +420,44 @@ internal sealed class PlayerEffectGrain : Grain, IPlayerEffectGrain
             ? EffectGrantResult.LimitReached
             : EffectGrantResult.Granted;
     }
+
+    /// <summary>
+    /// The whole of a purchase at once: the copies of one effect added up, then each judged, and the
+    /// effects the player does not have counted together against the cap on different ones, so two
+    /// new effects that each fit but not both are refused here and not after the first is given.
+    /// </summary>
+    private EffectGrantResult EvaluateAll(ImmutableArray<EffectGrantRequest> requests)
+    {
+        var copiesByEffect = new Dictionary<int, long>();
+
+        foreach (var request in requests)
+            copiesByEffect[request.EffectId] =
+                copiesByEffect.GetValueOrDefault(request.EffectId) + request.Copies;
+
+        var held = CountHeld(Now);
+
+        foreach (var (effectId, copies) in copiesByEffect)
+        {
+            var result = Evaluate(effectId, copies, permanent: false, out var isNew);
+
+            if (result != EffectGrantResult.Granted)
+                return result;
+
+            if (isNew && ++held > _config.MaxDistinctEffects)
+                return EffectGrantResult.LimitReached;
+        }
+
+        return EffectGrantResult.Granted;
+    }
+
+    /// <summary>Nothing of the effect is left: no waiting copy, not permanent, and its running copy has ended.</summary>
+    private static bool IsGone(OwnedEffect effect, DateTime now) =>
+        !effect.IsPermanent
+        && effect.InactiveCount < 1
+        && (effect.ExpiresAt is null || effect.ExpiresAt <= now);
+
+    /// <summary>How many different effects the player holds, not counting any that have run out.</summary>
+    private int CountHeld(DateTime now) => _state.EffectsById.Values.Count(x => !IsGone(x, now));
 
     private ImmutableArray<int> OwnedEffectIds() => [.. _state.EffectsById.Keys];
 
@@ -427,9 +522,11 @@ internal sealed class PlayerEffectGrain : Grain, IPlayerEffectGrain
         CancellationToken ct
     )
     {
+        int affected;
+
         await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
         {
-            await dbCtx
+            affected = await dbCtx
                 .PlayerEffects.Where(x =>
                     x.Id == effect.RowId && x.PlayerEntityId == _state.PlayerId.Value
                 )
@@ -440,6 +537,23 @@ internal sealed class PlayerEffectGrain : Grain, IPlayerEffectGrain
                             .SetProperty(x => x.ExpiresAt, expiresAt),
                     ct
                 );
+        }
+
+        // The row was removed behind the grain's back (an admin tool, a deleted player). Memory
+        // must not go on believing in it: forget it, and let the caller see that nothing was done.
+        if (affected == 0)
+        {
+            _state.EffectsById.Remove(effect.EffectId);
+
+            _logger.LogWarning(
+                "Effect {EffectId} of player {PlayerId} was no longer stored",
+                effect.EffectId,
+                _state.PlayerId
+            );
+
+            throw new InvalidOperationException(
+                $"Effect {effect.EffectId} of player {_state.PlayerId} is no longer stored."
+            );
         }
 
         effect.InactiveCount = inactiveCount;

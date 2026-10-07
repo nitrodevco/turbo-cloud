@@ -35,7 +35,7 @@ internal sealed partial class InventoryGrain
         var teleportPairs = new List<FurnitureDefinitionSnapshot>();
         var pets = new List<Modules.PetProductGrant>();
         var bots = new List<Modules.BotProductGrant>();
-        var effects = new Dictionary<int, int>();
+        var effects = new Dictionary<int, long>();
 
         foreach (var product in offer.Products)
         {
@@ -85,7 +85,7 @@ internal sealed partial class InventoryGrain
                         );
 
                     effects[effectId] =
-                        effects.GetValueOrDefault(effectId) + (product.Quantity * quantity);
+                        effects.GetValueOrDefault(effectId) + ((long)product.Quantity * quantity);
                     break;
             }
         }
@@ -105,7 +105,7 @@ internal sealed partial class InventoryGrain
         {
             var result = await _grainFactory
                 .GetPlayerEffectGrain(PlayerId)
-                .GiveEffectAsync(effectId, 0, copies, false, ct);
+                .GiveEffectAsync(effectId, 0, (int)Math.Min(copies, int.MaxValue), false, ct);
 
             if (result != EffectGrantResult.Granted)
                 throw new InvalidOperationException(

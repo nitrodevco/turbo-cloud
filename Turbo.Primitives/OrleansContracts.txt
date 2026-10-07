@@ -152,7 +152,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Inventory.Grains.IInventoryGrain
 
 interface [GrainInterfaceType("Turbo.Primitives.Inventory.Grains.IPlayerEffectGrain")] Turbo.Primitives.Inventory.Grains.IPlayerEffectGrain [Version(0)]
   B262836C: ActivateEffectAsync(int, System.Threading.CancellationToken) -> Task<bool>
-  702BB727: CheckGiveEffectAsync(int, int, bool, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Inventory.EffectGrantResult>
+  48A0C291: CheckGiveEffectsAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Inventory.EffectGrantRequest>, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Inventory.EffectGrantResult>
   86CAEACD: GetEffectsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Inventory.Snapshots.AvatarEffectSnapshot>>
   B1A6C485: GiveEffectAsync(int, int, int, bool, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Inventory.EffectGrantResult>
   7057291E: SelectEffectAsync(int, System.Threading.CancellationToken) -> Task<bool>

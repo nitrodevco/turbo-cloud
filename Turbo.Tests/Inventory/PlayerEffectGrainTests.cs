@@ -90,6 +90,9 @@ public sealed class PlayerEffectGrainTests : IDisposable
                 .GetMethod("OnExpiryTimerAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
                 .Invoke(grain, [Ct])!;
 
+    private static EffectGrantRequest Request(int effectId, int copies) =>
+        new() { EffectId = effectId, Copies = copies };
+
     private IEnumerable<T> Sent<T>()
         where T : class =>
         _fakes.Log.Of("SendComposerAsync").Select(call => call.Args[0]).OfType<T>();
@@ -212,10 +215,10 @@ public sealed class PlayerEffectGrainTests : IDisposable
     {
         var (_, effects) = await NewGrainAsync();
 
-        (await effects.CheckGiveEffectAsync(EFFECT, 2, false, Ct))
+        (await effects.CheckGiveEffectsAsync([Request(EFFECT, 2)], Ct))
             .Should()
             .Be(EffectGrantResult.Granted);
-        (await effects.CheckGiveEffectAsync(0, 2, false, Ct))
+        (await effects.CheckGiveEffectsAsync([Request(0, 2)], Ct))
             .Should()
             .Be(EffectGrantResult.Invalid);
 
@@ -243,7 +246,7 @@ public sealed class PlayerEffectGrainTests : IDisposable
         (await effects.GiveEffectAsync(EFFECT, 0, 1, false, Ct))
             .Should()
             .Be(EffectGrantResult.AlreadyPermanent);
-        (await effects.CheckGiveEffectAsync(EFFECT, 1, false, Ct))
+        (await effects.CheckGiveEffectsAsync([Request(EFFECT, 1)], Ct))
             .Should()
             .Be(EffectGrantResult.AlreadyPermanent);
     }
@@ -550,6 +553,197 @@ public sealed class PlayerEffectGrainTests : IDisposable
             .Single(x => x.Type == EFFECT)
             .SubType.Should()
             .Be(1);
+    }
+
+    [Theory]
+    [InlineData(int.MaxValue)]
+    [InlineData(int.MaxValue - 1)]
+    public async Task AQuantityThatWouldWrapTheCountNegativeIsRefusedNotStored(int copies)
+    {
+        var (_, effects) = await NewGrainAsync();
+
+        // The player holds a copy already: 1 + int.MaxValue wraps to a negative number in an int,
+        // which used to pass the cap and be written to the database.
+        await effects.GiveEffectAsync(EFFECT, 0, 1, false, Ct);
+
+        (await effects.GiveEffectAsync(EFFECT, 0, copies, false, Ct))
+            .Should()
+            .Be(EffectGrantResult.LimitReached);
+        (await effects.CheckGiveEffectsAsync([Request(EFFECT, copies)], Ct))
+            .Should()
+            .Be(EffectGrantResult.LimitReached);
+
+        (await RowsAsync()).Single().InactiveCount.Should().Be(1);
+        Sent<AvatarEffectAddedMessageComposer>().Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task ACopyCountAboveTheCapIsRefusedForANewEffectToo()
+    {
+        var (_, effects) = await NewGrainAsync(
+            new EffectConfig { DefaultDurationSeconds = DURATION, MaxCopiesPerType = 5 }
+        );
+
+        (await effects.GiveEffectAsync(EFFECT, 0, int.MaxValue, false, Ct))
+            .Should()
+            .Be(EffectGrantResult.LimitReached);
+
+        (await RowsAsync()).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CopiesOfOneEffectInOneCheckAreAddedUpBeforeTheCap()
+    {
+        var (_, effects) = await NewGrainAsync(
+            new EffectConfig { DefaultDurationSeconds = DURATION, MaxCopiesPerType = 5 }
+        );
+
+        (await effects.CheckGiveEffectsAsync([Request(EFFECT, 3), Request(EFFECT, 3)], Ct))
+            .Should()
+            .Be(EffectGrantResult.LimitReached);
+        (await effects.CheckGiveEffectsAsync([Request(EFFECT, 3), Request(EFFECT, 2)], Ct))
+            .Should()
+            .Be(EffectGrantResult.Granted);
+    }
+
+    [Fact]
+    public async Task TwoNewEffectsThatFitOneByOneButNotTogetherAreRefusedBeforeEitherIsGiven()
+    {
+        var (_, effects) = await NewGrainAsync(
+            new EffectConfig { DefaultDurationSeconds = DURATION, MaxDistinctEffects = 2 }
+        );
+
+        await effects.GiveEffectAsync(EFFECT, 0, 1, false, Ct);
+
+        // One more different effect fits; two do not. Judged one at a time both would pass, and the
+        // second would fail after the first was given and the buyer's money taken.
+        (await effects.CheckGiveEffectsAsync([Request(OTHER_EFFECT, 1)], Ct))
+            .Should()
+            .Be(EffectGrantResult.Granted);
+        (await effects.CheckGiveEffectsAsync([Request(OTHER_EFFECT, 1), Request(11, 1)], Ct))
+            .Should()
+            .Be(EffectGrantResult.LimitReached);
+    }
+
+    [Fact]
+    public async Task AnEffectTheHotelAppliesItselfCannotBeGiven()
+    {
+        var (_, effects) = await NewGrainAsync();
+
+        // The room cannot tell where a worn effect came from, so an owned 77 (riding) could be
+        // taken off a rider by the player's own unwear, or by its expiry.
+        foreach (var reserved in new[] { 33, 34, 35, 36, 77 })
+        {
+            (await effects.GiveEffectAsync(reserved, 0, 1, false, Ct))
+                .Should()
+                .Be(EffectGrantResult.Invalid);
+            (await effects.CheckGiveEffectsAsync([Request(reserved, 1)], Ct))
+                .Should()
+                .Be(EffectGrantResult.Invalid);
+        }
+
+        (await RowsAsync()).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task TheHotelsOwnReservedIdsAreAddedToTheDefaultsNeverInstead()
+    {
+        // A set the config binder fills adds to the defaults, so a hotel can reserve its freeze ids
+        // but cannot, by listing some, un-reserve the rider's.
+        var (_, effects) = await NewGrainAsync(
+            new EffectConfig { DefaultDurationSeconds = DURATION, ReservedEffectIds = { 218 } }
+        );
+
+        (await effects.GiveEffectAsync(218, 0, 1, false, Ct))
+            .Should()
+            .Be(EffectGrantResult.Invalid);
+        (await effects.GiveEffectAsync(77, 0, 1, false, Ct)).Should().Be(EffectGrantResult.Invalid);
+        (await effects.GiveEffectAsync(OTHER_EFFECT, 0, 1, false, Ct))
+            .Should()
+            .Be(EffectGrantResult.Granted);
+    }
+
+    [Fact]
+    public async Task ALapsedCopyDoesNotCountAgainstTheCapsWhenChecking()
+    {
+        var now = _clock.GetUtcNow().UtcDateTime;
+
+        // One effect whose only copy ended a minute ago and was never cleared: as good as gone.
+        InsertRow(EFFECT, inactive: 0, expiresAt: now.AddMinutes(10));
+
+        var (_, effects) = await NewGrainAsync(
+            new EffectConfig { DefaultDurationSeconds = DURATION, MaxDistinctEffects = 1 }
+        );
+
+        (await effects.CheckGiveEffectsAsync([Request(OTHER_EFFECT, 1)], Ct))
+            .Should()
+            .Be(EffectGrantResult.LimitReached);
+
+        // The check is read-only and cannot clear it, so it looks at the clock instead.
+        _clock.Advance(TimeSpan.FromMinutes(11));
+
+        (await effects.CheckGiveEffectsAsync([Request(OTHER_EFFECT, 1)], Ct))
+            .Should()
+            .Be(EffectGrantResult.Granted);
+    }
+
+    [Fact]
+    public async Task AFailedMessageNeverFailsAGrantThatIsAlreadyStored()
+    {
+        _fakes.Handlers["SendComposerToPlayerAsync"] = _ =>
+            throw new InvalidOperationException("the session is gone");
+
+        var (_, effects) = await NewGrainAsync();
+
+        (await effects.GiveEffectAsync(EFFECT, 0, 2, false, Ct))
+            .Should()
+            .Be(EffectGrantResult.Granted);
+
+        (await RowsAsync()).Single().InactiveCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task ARunningCopyStillHasATimerWhenTheMessageAboutItFails()
+    {
+        var (grain, effects) = await NewGrainAsync();
+
+        await effects.GiveEffectAsync(EFFECT, 0, 1, false, Ct);
+
+        _fakes.Handlers["SendComposerToPlayerAsync"] = _ =>
+            throw new InvalidOperationException("the session is gone");
+
+        (await effects.ActivateEffectAsync(EFFECT, Ct)).Should().BeTrue();
+
+        var timer = grain
+            .GetType()
+            .GetField("_expiryTimer", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(grain);
+
+        timer
+            .Should()
+            .NotBeNull("the copy runs out at its time even though nobody could be told it started");
+    }
+
+    [Fact]
+    public async Task ARowRemovedBehindTheGrainsBackIsForgottenNotBelieved()
+    {
+        var (_, effects) = await NewGrainAsync();
+
+        await effects.GiveEffectAsync(EFFECT, 0, 2, false, Ct);
+
+        // An admin tool, or a deleted player, takes the row away.
+        await using (var db = await _db.CreateDbContextAsync(Ct))
+            await db.PlayerEffects!.ExecuteDeleteAsync(Ct);
+
+        var activating = () => effects.ActivateEffectAsync(EFFECT, Ct);
+
+        await activating.Should().ThrowAsync<InvalidOperationException>();
+
+        // Memory no longer lists what the database does not hold.
+        (await effects.GetEffectsAsync(Ct))
+            .Should()
+            .BeEmpty();
+        (await effects.ActivateEffectAsync(EFFECT, Ct)).Should().BeFalse();
     }
 
     [Fact]

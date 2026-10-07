@@ -42,6 +42,10 @@ one or the effect for good; the last copy of a timed effect ending deletes it.
 
 ## Rules
 
+- **Reserved ids.** The room cannot tell where a worn effect came from, so an owned effect that
+  shares an id with one the hotel applies (a rider's 77, a game team's) would be taken off the
+  avatar by the player's own unwear, or by its expiry. Such an id is refused as invalid; that is
+  also why the hotel's freeze ids belong in `ReservedEffectIds`.
 - **Give**: copies are added to the row. A permanent grant replaces the copies and any running
   one; a timed grant on a permanent effect is refused (`AlreadyPermanent`). Caps: `MaxCopiesPerType`
   and `MaxDistinctEffects`; an id outside `1..MaxEffectId` is invalid.
@@ -71,12 +75,20 @@ Hotel settings, section `Turbo:Effects` (`EffectConfig`):
 | `DefaultDurationSeconds` | `3600` | how long one use lasts |
 | `DurationOverrides` | none | seconds by effect id, for effects that differ |
 | `CostumeEffectIds` | none | effects stored as sub type 1; the client opens the avatar editor's effects tab instead of the costumes catalog page for a player who owns one |
+| `ReservedEffectIds` | `33`-`36`, `77` | ids the hotel puts on avatars itself (game teams, a rider); they cannot be given. Entries you list are **added** to these, never instead of them. Add your freeze ids (`Turbo:Wired:FreezeEffectIds`) and any changed team ids (`Turbo:Rooms:GameTeamEffectIds`) |
 | `MaxEffectId` | `10000` | highest id a player can be given or ask for |
 | `MaxCopiesPerType` | `99` | copies of one effect waiting |
 | `MaxDistinctEffects` | `500` | different effects a player owns |
 
 The length of a use is the **effect's**, not the grant's: the client shows one duration per effect
 type, so two grants of one type with different lengths could not both be right.
+
+A client names the quantity of a catalog purchase, so every sum against the caps is made in a wide
+type and a count that would not fit is refused rather than wrapped. The purchase asks about its
+**whole offer in one call** (`CheckGiveEffectsAsync`): copies of one effect are added up, and the
+new effects it would add are counted together against `MaxDistinctEffects`, so an offer that would
+give the first effect and then fail on the second is refused before anything is charged or given. A
+failed message to the player (a closed session) never fails a grant that is already stored.
 
 **Selling an effect:** a catalog product of type effect (`e`) with the **effect id as its extra
 parameter** and the number of copies as its quantity. The editor checks the id; the client reads

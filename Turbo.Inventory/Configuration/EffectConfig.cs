@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Turbo.Primitives.Pets;
 
 namespace Turbo.Inventory.Configuration;
 
@@ -27,6 +28,16 @@ public class EffectConfig
     /// <summary>The sub type an effect is stored with: 1 for a costume, else 0.</summary>
     public int GetSubType(int effectId, int requested) =>
         (CostumeEffectIds.Contains(effectId) || requested == 1) ? 1 : 0;
+
+    /// <summary>
+    /// Effect ids the hotel puts on avatars itself (a rider, a game team, a freeze), which an
+    /// inventory effect must never share: the room cannot tell where the worn effect came from, so
+    /// taking one of the player's effects off would take the hotel's off too. Such an id cannot be
+    /// given. Add the hotel's freeze ids (<c>Turbo:Wired:FreezeEffectIds</c>) and any team ids it
+    /// changed (<c>Turbo:Rooms:GameTeamEffectIds</c>).
+    /// </summary>
+    public HashSet<int> ReservedEffectIds { get; init; } =
+    [33, 34, 35, 36, PetRiding.RIDER_EFFECT_ID];
 
     /// <summary>The highest effect id a player can be given or ask for; the client has none past it.</summary>
     public int MaxEffectId { get; init; } = 10000;

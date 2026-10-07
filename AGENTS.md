@@ -591,6 +591,9 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   wear and **every effect the player owns**; the room acts only where the avatar is bare or wears
   one of those, so an effect the hotel applied (riding, a game team, a freeze) is never
   overwritten. When one effect expires, pass only that id to take off.
+- Ids the hotel applies itself (`EffectConfig.ReservedEffectIds`: game teams, a rider, freeze ids)
+  can never be given as an inventory effect: the room cannot tell the two sources apart. Sums
+  against the caps are made in a wide type, since a client names a purchase's quantity.
 - The client reads `secondsLeftIfActive` of exactly `-1` as "not running" and zero is never sent
   for a running copy; `duration` is a divisor and is never zero.
 - A catalog effect product keeps its effect id in the product's extra parameter

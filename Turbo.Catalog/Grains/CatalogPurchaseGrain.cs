@@ -164,20 +164,23 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         if (copiesByEffect.Count == 0)
             return;
 
-        var effects = _grainFactory.GetPlayerEffectGrain(this.GetPlayerId());
-
-        foreach (var (effectId, copies) in copiesByEffect)
-        {
-            var result = await effects.CheckGiveEffectAsync(
-                effectId,
-                (int)Math.Min(copies, int.MaxValue),
-                permanent: false,
+        // One call for the whole offer: its effects are judged together, so a purchase that would
+        // give the first and then fail on the second is refused now and not after the first is given.
+        var result = await _grainFactory
+            .GetPlayerEffectGrain(this.GetPlayerId())
+            .CheckGiveEffectsAsync(
+                [
+                    .. copiesByEffect.Select(x => new EffectGrantRequest
+                    {
+                        EffectId = x.Key,
+                        Copies = (int)Math.Min(x.Value, int.MaxValue),
+                    }),
+                ],
                 ct
             );
 
-            if (result != EffectGrantResult.Granted)
-                throw new CatalogPurchaseException(EffectProducts.ErrorFor(result));
-        }
+        if (result != EffectGrantResult.Granted)
+            throw new CatalogPurchaseException(EffectProducts.ErrorFor(result));
     }
 
     /// <summary>
