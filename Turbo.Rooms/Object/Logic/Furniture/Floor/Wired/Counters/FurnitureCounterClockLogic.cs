@@ -54,7 +54,7 @@ public class FurnitureCounterClockLogic(
                 await ControlAsync(WiredClockControlType.Reset, ct);
                 break;
             default:
-                await ControlAsync(WiredClockControlType.Toggle, ct);
+                await (_isRunning ? StopAsync() : StartAsync());
                 break;
         }
     }
@@ -73,8 +73,9 @@ public class FurnitureCounterClockLogic(
             WiredClockControlType.Start => StartAsync(),
             WiredClockControlType.Stop => StopAsync(),
             WiredClockControlType.Reset => ResetAsync(ct),
-            WiredClockControlType.Restart => RestartAsync(ct),
-            WiredClockControlType.Toggle => _isRunning ? StopAsync() : StartAsync(),
+            // Pause holds the time and Resume runs on from it.
+            WiredClockControlType.Pause => StopAsync(),
+            WiredClockControlType.Resume => StartAsync(),
             _ => Task.CompletedTask,
         };
 
@@ -121,14 +122,6 @@ public class FurnitureCounterClockLogic(
         _halfSeconds = 0;
 
         await PublishAsync(ct);
-    }
-
-    private async Task RestartAsync(CancellationToken ct)
-    {
-        _halfSeconds = 0;
-
-        await PublishAsync(ct);
-        await StartAsync();
     }
 
     private void Schedule() => TimerSystem.Schedule(_ctx.ObjectId, WiredPulses.MS, TickAsync);
