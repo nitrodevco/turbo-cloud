@@ -187,6 +187,12 @@ public static class PermissionNodes
         public const string COMMAND_LOG_VIEW = "admin.commandlog.view";
 
         /// <summary>
+        /// Read the room chat log in the panel: what players said in rooms, whispers too, who to
+        /// and when.
+        /// </summary>
+        public const string CHATLOG_VIEW = "admin.chatlog.view";
+
+        /// <summary>
         /// See the catalog in the panel: its pages, offers and prices. Changing it needs
         /// <see cref="Catalog.MANAGE"/> as well.
         /// </summary>

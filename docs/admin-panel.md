@@ -524,6 +524,25 @@ The log is indexed by player and by command (migration `IndexCommandLogs`). The
 server migrates itself when it starts ([database.md](database.md)), which adds them; the
 page works without them, just more slowly on a large log.
 
+## Chat log
+
+Staff with `admin.chatlog.view` get a **Chat log** page: what players said in rooms, newest first,
+with when, who said it and in which room. Whispers are in it too, marked, with who they were to.
+A player's page and a room's page each link to their own chat.
+
+Narrow it to one player (exact name or id: what they said and what was whispered to them), one
+room (by id), or words in the line (case is ignored). Any line's **Show in context** button shows
+what was said in its room just before and after it, with the line marked.
+
+The page goes **Older** and **Newer** a page at a time and shows no total. The chat log grows with
+every line said, and counting it for each page would read all of it. Paging follows the line id,
+which the room and player indexes already keep in order, so no migration is needed.
+
+What is logged is the hotel's rule: lines players type into a room's chat, when
+`Turbo:Rooms:ChatlogEnabled` is on (the default), cut to 100 characters. Bots, pets, wired messages
+and room notices are not chat and are not logged. Rooms write chat in batches, so a line can take
+a few seconds to appear; the newest page asks again every 30 seconds.
+
 ## Permission editor
 
 Staff with `admin.permissions.view` get a **Permissions** page: the panel's version of the `perm`
@@ -608,6 +627,7 @@ passkey; they add more while signed in instead.
 | `admin.rooms.view` | The Rooms page: finding any room and seeing its settings, who is inside, rights and bans. |
 | `admin.players.view` | The Players page: finding any player and seeing their profile, wallet, rooms and sanctions. |
 | `admin.commandlog.view` | The Command log page: every logged command, who ran it, where from, and how it went. |
+| `admin.chatlog.view` | The Chat log page: what players said in rooms, whispers included, and each line in context. |
 | `admin.catalog.view` | The Catalog page: the catalog's pages, offers and prices. |
 | `admin.players.create` | Creating new players on the Players page. |
 | `admin.tickets.issue` | Issuing a player a login ticket, and taking it away, for players whose every permission they hold. |
@@ -651,6 +671,7 @@ them.
 | `RoomSearchMaxLength` | `64` | | The longest room search text; longer text is cut. |
 | `PlayerSearchPageSize` | `25` | | Players per page on the Players page. |
 | `CommandLogPageSize` | `50` | | Entries per page on the Command log page. |
+| `ChatlogPageSize` | `100` | | Lines per page on the Chat log page; a line in context shows half as many on each side. |
 | `ClientConfigUrl` | empty | `TURBO_ADMIN_CLIENT_CONFIG_URL` | The client's `nitro-config.json`, e.g. `https://play.example.com/config/nitro-config.json`. Catalog icons and images, furniture icons and badges load from its addresses. Empty shows none. |
 | `ClientConfigCacheMinutes` | `10` | | How long those addresses are kept before the config is read again. |
 | `CatalogLayouts` | the client's layouts | | The page layouts the catalog editor offers, besides any a page already uses. |

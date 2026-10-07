@@ -33,6 +33,7 @@ namespace Turbo.Admin.Api;
 internal sealed class RoomEndpoints(
     IGrainFactory grainFactory,
     AdminRoomQueries rooms,
+    AdminRoomVisits visits,
     AdminRoomEditor editor,
     IRoomService roomService,
     IOptions<AdminConfig> config,
@@ -53,6 +54,7 @@ internal sealed class RoomEndpoints(
         group.MapGet("/", SearchAsync);
         group.MapGet("/categories", CategoriesAsync);
         group.MapGet("/{id:int}", GetAsync);
+        group.MapGet("/{id:int}/visitors", VisitorsAsync);
         group.MapPut("/{id:int}/settings", SaveSettingsAsync);
         group.MapPut("/{id:int}/staff-pick", SetStaffPickAsync);
         group.MapPost("/{id:int}/kick", KickAsync);
@@ -82,6 +84,9 @@ internal sealed class RoomEndpoints(
             is { } room
             ? Results.Ok(room)
             : NoSuchRoom(id);
+
+    private async Task<IResult> VisitorsAsync(int id, CancellationToken ct) =>
+        Results.Ok(await visits.ForRoomAsync(id, ct).ConfigureAwait(false));
 
     private async Task<IResult> SaveSettingsAsync(
         HttpContext http,

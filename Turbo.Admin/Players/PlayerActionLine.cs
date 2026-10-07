@@ -52,6 +52,9 @@ public static class PlayerActionLine
             "warn" => WithMessage("warn", playerName, request.Reason),
             "alert" => WithMessage("alert", playerName, request.Reason),
             "give" => Give(playerName, request.Currency, request.Amount),
+            "givebadge" => WithBadge("givebadge", playerName, request.Badge),
+            "takebadge" => WithBadge("takebadge", playerName, request.Badge),
+            "giveitem" => GiveItem(playerName, request.Furni, request.Amount),
             _ => (null, $"'{request.Action}' is not something the panel can do to a player."),
         };
     }
@@ -78,6 +81,38 @@ public static class PlayerActionLine
         CommandText.OneLine(message) is { } text
             ? ($"{command} {name} {text}", null)
             : (null, "Write the message to send.");
+
+    private static (string?, string?) WithBadge(string command, string name, string? badge)
+    {
+        var code = (badge ?? string.Empty).Trim();
+
+        // One word of letters, digits and _, as badge codes are, so it cannot add arguments.
+        if (code.Length == 0 || !code.All(x => char.IsAsciiLetterOrDigit(x) || x == '_'))
+            return (null, "Write a badge code of letters, digits and _, like ADM or ACH_Login1.");
+
+        return ($"{command} {name} {code}", null);
+    }
+
+    private static (string?, string?) GiveItem(string name, string? furni, int? count)
+    {
+        var className = (furni ?? string.Empty).Trim();
+
+        // A class name as the furniture data has it (throne, rare_dragonlamp*4), one word, so it
+        // cannot add arguments or name a selector.
+        if (
+            className.Length == 0
+            || !className.All(x => char.IsAsciiLetterOrDigit(x) || x is '_' or '*' or '-' or '.')
+        )
+            return (null, "Write the furniture's class name, like throne or rare_dragonlamp*4.");
+
+        if (count is not { } value || value < 1)
+            return (null, "Give at least one.");
+
+        return (
+            $"giveitem {name} {className} {value.ToString(CultureInfo.InvariantCulture)}",
+            null
+        );
+    }
 
     private static (string?, string?) Give(string name, string? currency, int? amount)
     {

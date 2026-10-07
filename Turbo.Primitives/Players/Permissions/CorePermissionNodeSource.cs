@@ -302,6 +302,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Read the command log in the admin panel: who ran what, where from, and how it went."
         ),
         new(
+            PermissionNodes.Admin.CHATLOG_VIEW,
+            "Read the room chat log in the admin panel: what players said in rooms, whispers included."
+        ),
+        new(
             PermissionNodes.Admin.PERMISSIONS_VIEW,
             "See groups, players' permissions and the permission log in the admin panel."
         ),

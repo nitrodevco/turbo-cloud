@@ -179,6 +179,20 @@ public sealed class PayloadWriter
         return this;
     }
 
+    public PayloadWriter Short(short s)
+    {
+        var b = new byte[2];
+        BinaryPrimitives.WriteInt16BigEndian(b, s);
+        _bytes.AddRange(b);
+        return this;
+    }
+
+    public PayloadWriter Byte(byte v)
+    {
+        _bytes.Add(v);
+        return this;
+    }
+
     public PayloadWriter Bool(bool v)
     {
         _bytes.Add(v ? (byte)1 : (byte)0);

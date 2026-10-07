@@ -13,5 +13,6 @@ public sealed record MeResponse(
     bool CanViewPermissions,
     bool CanViewPlayers,
     bool CanViewCommandLog,
-    bool CanViewCatalog
+    bool CanViewCatalog,
+    bool CanViewChatlog
 );

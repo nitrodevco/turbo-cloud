@@ -57,6 +57,9 @@ public sealed class AdminConfig
     /// <summary>Entries per page in the panel's command log.</summary>
     public int CommandLogPageSize { get; init; } = 50;
 
+    /// <summary>Lines per page in the panel's chat log, and on each side of a line in context.</summary>
+    public int ChatlogPageSize { get; init; } = 100;
+
     /// <summary>
     /// The client's <c>nitro-config.json</c>, such as
     /// <c>https://hotel.example.com/config/nitro-config.json</c>. The panel draws catalog icons and

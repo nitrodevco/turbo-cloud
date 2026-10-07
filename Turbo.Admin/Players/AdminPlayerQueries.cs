@@ -273,6 +273,102 @@ public sealed class AdminPlayerQueries(
     }
 
     /// <summary>
+    /// What a player owns, from the rows: badges worn first, furniture by kind with the most first,
+    /// and their pets and bots counted. Null when there is no such player.
+    /// </summary>
+    public async Task<PlayerInventoryResponse?> GetInventoryAsync(
+        int playerId,
+        CancellationToken ct
+    )
+    {
+        var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
+
+        if (!await db.Players.AnyAsync(x => x.Id == playerId, ct).ConfigureAwait(false))
+            return null;
+
+        var badges = await db
+            .PlayerBadges.AsNoTracking()
+            .Where(x => x.PlayerEntityId == playerId)
+            .Select(x => new { x.BadgeCode, x.SlotId })
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        var furniture = await db
+            .Furnitures.AsNoTracking()
+            .Where(x => x.PlayerEntityId == playerId)
+            .GroupBy(x => new { x.FurnitureDefinitionEntityId, Placed = x.RoomEntityId != null })
+            .Select(x => new
+            {
+                x.Key.FurnitureDefinitionEntityId,
+                x.Key.Placed,
+                Count = x.Count(),
+            })
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        var definitionIds = furniture
+            .Select(x => x.FurnitureDefinitionEntityId)
+            .Distinct()
+            .ToList();
+        var definitions = await db
+            .FurnitureDefinitions.AsNoTracking()
+            .Where(x => definitionIds.Contains(x.Id))
+            .Select(x => new
+            {
+                x.Id,
+                x.Name,
+                x.ProductType,
+            })
+            .ToDictionaryAsync(x => x.Id, ct)
+            .ConfigureAwait(false);
+
+        var pets = await db
+            .Pets.CountAsync(x => x.PlayerEntityId == playerId, ct)
+            .ConfigureAwait(false);
+        var bots = await db
+            .Bots.CountAsync(x => x.PlayerEntityId == playerId, ct)
+            .ConfigureAwait(false);
+
+        var kinds = furniture
+            .GroupBy(x => x.FurnitureDefinitionEntityId)
+            .Select(x =>
+            {
+                var definition = definitions.GetValueOrDefault(x.Key);
+
+                return new PlayerFurnitureItem(
+                    x.Key,
+                    definition?.Name ?? $"#{x.Key}",
+                    definition?.ProductType.ToString().ToLowerInvariant() ?? "floor",
+                    x.Where(y => !y.Placed).Sum(y => y.Count),
+                    x.Where(y => y.Placed).Sum(y => y.Count)
+                );
+            })
+            .OrderByDescending(x => x.InInventory + x.InRooms)
+            .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return new PlayerInventoryResponse(
+            [
+                .. badges
+                    // Worn badges in slot order, then the rest by code.
+                    .OrderBy(x => x.SlotId is > 0 ? 0 : 1)
+                    .ThenBy(x => x.SlotId)
+                    .ThenBy(x => x.BadgeCode, StringComparer.OrdinalIgnoreCase)
+                    .Select(x => new PlayerBadgeItem(
+                        x.BadgeCode,
+                        x.SlotId is > 0 ? x.SlotId : null
+                    )),
+            ],
+            kinds,
+            kinds.Sum(x => x.InInventory),
+            kinds.Sum(x => x.InRooms),
+            pets,
+            bots
+        );
+    }
+
+    /// <summary>
     /// The room an online player is in, from their presence, named from its row; null when they
     /// are in none. Only asked of an online player, whose presence is already running.
     /// </summary>

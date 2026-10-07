@@ -33,11 +33,13 @@ public sealed class AdminModule : IHostPluginModule
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<AdminLinkPolicy>();
         services.AddSingleton<AdminRoomQueries>();
+        services.AddSingleton<AdminRoomVisits>();
         services.AddSingleton<AdminRoomEditor>();
         services.AddSingleton<AdminPlayerQueries>();
         services.AddSingleton<AdminTicketPolicy>();
         services.AddSingleton<AdminSiteAccounts>();
         services.AddSingleton<AdminCommandLogQueries>();
+        services.AddSingleton<AdminChatlogQueries>();
         services.AddSingleton<AdminCatalogQueries>();
         services.AddSingleton<ClientAssets>();
         services.AddSingleton<PermissionViews>();
