@@ -30,14 +30,26 @@ public class EffectConfig
         (CostumeEffectIds.Contains(effectId) || requested == 1) ? 1 : 0;
 
     /// <summary>
-    /// Effect ids the hotel puts on avatars itself (a rider, a game team, a freeze), which an
-    /// inventory effect must never share: the room cannot tell where the worn effect came from, so
-    /// taking one of the player's effects off would take the hotel's off too. Such an id cannot be
-    /// given. Add the hotel's freeze ids (<c>Turbo:Wired:FreezeEffectIds</c>) and any team ids it
-    /// changed (<c>Turbo:Rooms:GameTeamEffectIds</c>).
+    /// Effect ids that are never a player's to own: the ones the hotel puts on avatars itself and
+    /// the ones the client builds behaviour on. The room cannot tell where a worn effect came from,
+    /// so taking one of the player's effects off would take the hotel's off too; and the client
+    /// reads some ids to decide what an avatar is doing (swimming, riding), draws special frames
+    /// for others, and applies others itself in a game. Such an id cannot be given.
+    /// <list type="bullet">
+    /// <item>28, 29, 30, 184, 185: water. The client animates the splash and opens its swim menu
+    /// from them (<c>AvatarLogic</c>, <c>AvatarInfoWidget</c>).</item>
+    /// <item>33 to 36, 38, 39: game teams, which the client draws with their own frames
+    /// (<c>AvatarImage</c>).</item>
+    /// <item>77: a rider (<see cref="PetRiding.RIDER_EFFECT_ID"/>).</item>
+    /// <item>95, 96, 98: snow war, which the client applies itself in the arena.</item>
+    /// <item>97, 218: a snowboard and a freeze, which the client draws without a shadow.</item>
+    /// </list>
+    /// Entries a hotel lists are added to these, never instead of them. Add the hotel's own freeze
+    /// ids (<c>Turbo:Wired:FreezeEffectIds</c>) and any team ids it changed
+    /// (<c>Turbo:Rooms:GameTeamEffectIds</c>).
     /// </summary>
     public HashSet<int> ReservedEffectIds { get; init; } =
-    [33, 34, 35, 36, PetRiding.RIDER_EFFECT_ID];
+    [28, 29, 30, 33, 34, 35, 36, 38, 39, PetRiding.RIDER_EFFECT_ID, 95, 96, 97, 98, 184, 185, 218];
 
     /// <summary>The highest effect id a player can be given or ask for; the client has none past it.</summary>
     public int MaxEffectId { get; init; } = 10000;

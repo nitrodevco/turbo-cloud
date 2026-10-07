@@ -44,8 +44,11 @@ one or the effect for good; the last copy of a timed effect ending deletes it.
 
 - **Reserved ids.** The room cannot tell where a worn effect came from, so an owned effect that
   shares an id with one the hotel applies (a rider's 77, a game team's) would be taken off the
-  avatar by the player's own unwear, or by its expiry. Such an id is refused as invalid; that is
-  also why the hotel's freeze ids belong in `ReservedEffectIds`.
+  avatar by the player's own unwear, or by its expiry. The client also reads some ids to decide
+  what an avatar is doing (29, 30 and 185 are swimming, 77 is riding), so an owned one would change
+  a player's menu. Such an id is refused as invalid; that is also why the hotel's freeze ids belong
+  in `ReservedEffectIds`. These effects never appear in a player's list, so the client's `fx_<id>`
+  names are only needed for the effects the hotel sells.
 - **Give**: copies are added to the row. A permanent grant replaces the copies and any running
   one; a timed grant on a permanent effect is refused (`AlreadyPermanent`). Caps: `MaxCopiesPerType`
   and `MaxDistinctEffects`; an id outside `1..MaxEffectId` is invalid.
@@ -75,7 +78,7 @@ Hotel settings, section `Turbo:Effects` (`EffectConfig`):
 | `DefaultDurationSeconds` | `3600` | how long one use lasts |
 | `DurationOverrides` | none | seconds by effect id, for effects that differ |
 | `CostumeEffectIds` | none | effects stored as sub type 1; the client opens the avatar editor's effects tab instead of the costumes catalog page for a player who owns one |
-| `ReservedEffectIds` | `33`-`36`, `77` | ids the hotel puts on avatars itself (game teams, a rider); they cannot be given. Entries you list are **added** to these, never instead of them. Add your freeze ids (`Turbo:Wired:FreezeEffectIds`) and any changed team ids (`Turbo:Rooms:GameTeamEffectIds`) |
+| `ReservedEffectIds` | the ids the client special-cases | ids that cannot be given: water `28 29 30 184 185` (the splash and the swim menu), game teams `33`-`36` `38` `39`, a rider `77`, snow war `95 96 98`, a snowboard `97` and a freeze `218`. Entries you list are **added** to these, never instead of them. Add your freeze ids (`Turbo:Wired:FreezeEffectIds`) and any changed team ids (`Turbo:Rooms:GameTeamEffectIds`) |
 | `MaxEffectId` | `10000` | highest id a player can be given or ask for |
 | `MaxCopiesPerType` | `99` | copies of one effect waiting |
 | `MaxDistinctEffects` | `500` | different effects a player owns |
@@ -140,3 +143,10 @@ Found while reading the client for every use of effects, and left for their own 
   entry (`effects.reactivate.on.room.entry`) and nothing takes it off on leaving, and the catalog
   preview of an effect product is not drawn.
 - **No unseen ("new") marker** for effects; the client has none for them.
+- **A refused wear is silent.** While the avatar wears something the hotel put on it (a rider, a
+  game team, a freeze) the room will not put an inventory effect over it. The client cannot be
+  told: the wardrobe's "worn" mark is its own (it sets it when the player clicks), the only
+  message about the worn effect (`AvatarEffectSelected`) is read by the avatar editor alone, and
+  Flash lives with the same limit by hiding the effects entry while riding. In a game or a freeze
+  the window can therefore show an effect as worn that the avatar does not wear, until the player
+  leaves the room, as in Flash.

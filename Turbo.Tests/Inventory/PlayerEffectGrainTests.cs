@@ -632,7 +632,28 @@ public sealed class PlayerEffectGrainTests : IDisposable
 
         // The room cannot tell where a worn effect came from, so an owned 77 (riding) could be
         // taken off a rider by the player's own unwear, or by its expiry.
-        foreach (var reserved in new[] { 33, 34, 35, 36, 77 })
+        foreach (
+            var reserved in new[]
+            {
+                28,
+                29,
+                30,
+                33,
+                34,
+                35,
+                36,
+                38,
+                39,
+                77,
+                95,
+                96,
+                97,
+                98,
+                184,
+                185,
+                218,
+            }
+        )
         {
             (await effects.GiveEffectAsync(reserved, 0, 1, false, Ct))
                 .Should()
