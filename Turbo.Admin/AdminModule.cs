@@ -9,6 +9,7 @@ using Turbo.Admin.Commands;
 using Turbo.Admin.Configuration;
 using Turbo.Admin.Links;
 using Turbo.Admin.Live;
+using Turbo.Admin.Performance;
 using Turbo.Admin.Permissions;
 using Turbo.Admin.Players;
 using Turbo.Admin.Rooms;
@@ -45,6 +46,8 @@ public sealed class AdminModule : IHostPluginModule
         services.AddSingleton<PermissionViews>();
         services.AddSingleton<AdminLiveFeed>();
         services.AddHostedService(sp => sp.GetRequiredService<AdminLiveFeed>());
+        services.AddSingleton<AdminPerformanceRecorder>();
+        services.AddHostedService(sp => sp.GetRequiredService<AdminPerformanceRecorder>());
         services.AddHostedService<AdminApiServer>();
     }
 }

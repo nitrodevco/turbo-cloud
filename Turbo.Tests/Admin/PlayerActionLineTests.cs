@@ -51,6 +51,62 @@ public sealed class PlayerActionLineTests
     }
 
     [Fact]
+    public void Badges_AreGivenAndTakenByCode()
+    {
+        PlayerActionLine
+            .Build(
+                "alice",
+                new PlayerActionRequest("givebadge", null, null, null, null, "ACH_Login1")
+            )
+            .Line.Should()
+            .Be("givebadge alice ACH_Login1");
+        PlayerActionLine
+            .Build("alice", new PlayerActionRequest("takebadge", null, null, null, null, " ADM "))
+            .Line.Should()
+            .Be("takebadge alice ADM");
+    }
+
+    [Theory]
+    [InlineData("ADM @online")]
+    [InlineData("ADM\ngivebadge bob ADM")]
+    [InlineData("")]
+    public void ABadgeCode_IsOneWord_SoItCannotAddArgumentsOrTargets(string code)
+    {
+        PlayerActionLine
+            .Build("alice", new PlayerActionRequest("givebadge", null, null, null, null, code))
+            .Line.Should()
+            .BeNull();
+    }
+
+    [Fact]
+    public void GiveItem_NamesTheFurnitureAndCount()
+    {
+        PlayerActionLine
+            .Build(
+                "alice",
+                new PlayerActionRequest("giveitem", null, null, null, 3, null, "rare_dragonlamp*4")
+            )
+            .Line.Should()
+            .Be("giveitem alice rare_dragonlamp*4 3");
+    }
+
+    [Theory]
+    [InlineData("throne @room", 1)]
+    [InlineData("throne 5", 1)]
+    [InlineData("throne", 0)]
+    [InlineData("throne", -2)]
+    public void GiveItem_RefusesAClassNameThatAddsArguments_OrNoCount(string furni, int count)
+    {
+        PlayerActionLine
+            .Build(
+                "alice",
+                new PlayerActionRequest("giveitem", null, null, null, count, null, furni)
+            )
+            .Line.Should()
+            .BeNull();
+    }
+
+    [Fact]
     public void AReason_IsOneLine_SoItCannotStartAnotherCommand()
     {
         var line = PlayerActionLine.Build(

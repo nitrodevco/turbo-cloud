@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using Turbo.Database.Context;
 using Turbo.Database.Extensions;
 using Turbo.Furniture.Configuration;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
 
@@ -31,6 +32,14 @@ public sealed class FurnitureDefinitionProvider(
     private ImmutableDictionary<string, FurnitureDefinitionSnapshot> _definitionsByName =
         ImmutableDictionary<string, FurnitureDefinitionSnapshot>.Empty;
 
+    private ImmutableDictionary<
+        (ProductType Type, int SpriteId),
+        FurnitureDefinitionSnapshot
+    > _definitionsBySprite = ImmutableDictionary<
+        (ProductType Type, int SpriteId),
+        FurnitureDefinitionSnapshot
+    >.Empty;
+
     /// <summary>The definition names sorted ignoring case, for a prefix search.</summary>
     private string[] _sortedNames = [];
 
@@ -39,6 +48,14 @@ public sealed class FurnitureDefinitionProvider(
 
     public FurnitureDefinitionSnapshot? TryGetDefinitionByName(string name) =>
         _definitionsByName.TryGetValue(name, out var definition) ? definition : null;
+
+    public FurnitureDefinitionSnapshot? TryGetDefinitionBySprite(
+        ProductType productType,
+        int spriteId
+    ) =>
+        _definitionsBySprite.TryGetValue((productType, spriteId), out var definition)
+            ? definition
+            : null;
 
     public IReadOnlyList<string> FindNames(string prefix, int limit)
     {
@@ -80,6 +97,10 @@ public sealed class FurnitureDefinitionProvider(
                 StringComparer.OrdinalIgnoreCase
             );
             _sortedNames = [.. _definitionsByName.Keys.Order(StringComparer.OrdinalIgnoreCase)];
+
+            // Several definitions can share a sprite; the oldest stands for them all.
+            _definitionsBySprite = defs.GroupBy(x => (x.ProductType, x.SpriteId))
+                .ToImmutableDictionary(x => x.Key, x => x.MinBy(definition => definition.Id)!);
 
             _logger.LogInformation(
                 "Loaded {TotalDefCount} furniture definitions",

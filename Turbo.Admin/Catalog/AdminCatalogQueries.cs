@@ -34,6 +34,16 @@ public sealed class AdminCatalogQueries(
     /// <summary>The layout whose page lists the club gifts members claim.</summary>
     public const string CLUB_GIFTS = "club_gifts";
 
+    /// <summary>
+    /// The name the client opens the club shop by: the toolbar, the club centre, quests and
+    /// featured items all open <c>hc_membership</c>, and buying a membership looks it up to buy
+    /// from. A page with the club_buy layout and another name is never opened by them.
+    /// </summary>
+    public const string CLUB_PAGE_NAME = "hc_membership";
+
+    /// <summary>The name the client opens the club gifts by, from the club centre and its notice.</summary>
+    public const string CLUB_GIFTS_PAGE_NAME = "club_gifts";
+
     public async Task<CatalogTreeResponse> GetTreeAsync(
         CatalogType type,
         bool canManage,
@@ -99,7 +109,8 @@ public sealed class AdminCatalogQueries(
 
     /// <summary>
     /// The club shop as players reach it: the shown memberships and gifts (the club window lists
-    /// them wherever they are), and the shown pages with the layouts that open it.
+    /// them wherever they are), and the shown pages the client opens by name to sell and list
+    /// them.
     /// </summary>
     private static async Task<CatalogClubSummary> ClubAsync(TurboDbContext db, CancellationToken ct)
     {
@@ -123,18 +134,18 @@ public sealed class AdminCatalogQueries(
             .Where(x =>
                 x.Visible
                 && x.CatalogType == CatalogType.Normal
-                && (x.Layout == CLUB_BUY || x.Layout == CLUB_GIFTS)
+                && (x.Name == CLUB_PAGE_NAME || x.Name == CLUB_GIFTS_PAGE_NAME)
             )
             .OrderBy(x => x.Id)
-            .Select(x => new { x.Id, x.Layout })
+            .Select(x => new { x.Id, x.Name })
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
         return new CatalogClubSummary(
             memberships,
             gifts,
-            pages.FirstOrDefault(x => x.Layout == CLUB_BUY)?.Id,
-            pages.FirstOrDefault(x => x.Layout == CLUB_GIFTS)?.Id
+            pages.FirstOrDefault(x => x.Name == CLUB_PAGE_NAME)?.Id,
+            pages.FirstOrDefault(x => x.Name == CLUB_GIFTS_PAGE_NAME)?.Id
         );
     }
 

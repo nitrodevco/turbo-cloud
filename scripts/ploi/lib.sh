@@ -113,6 +113,7 @@ turbo_export_app_env() {
   turbo_map TURBO_WS_PORT serverOptions__WebSocketServer__listeners__0__port ""
   turbo_map TURBO_TCP_HOST serverOptions__TcpServer__listeners__0__ip ""
   turbo_map TURBO_TCP_PORT serverOptions__TcpServer__listeners__0__port ""
+  turbo_map TURBO_TCP_ENABLED Turbo__Networking__TcpEnabled
 
   turbo_map TURBO_SILO_ADDRESS Turbo__Orleans__SiloAddress
   turbo_map TURBO_SILO_PORT Turbo__Orleans__SiloPort

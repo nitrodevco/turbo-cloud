@@ -80,7 +80,7 @@ public sealed class NetworkManager(
 
         lock (_tcpGate)
         {
-            if (_tcpHost is null)
+            if (_config.TcpEnabled && _tcpHost is null)
             {
                 CreateTcpSocket();
                 needTcpStart = true;

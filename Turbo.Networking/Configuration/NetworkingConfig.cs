@@ -5,6 +5,12 @@ public class NetworkingConfig
     public const string SECTION_NAME = "Turbo:Networking";
 
     /// <summary>
+    /// Whether the TCP game server (Flash-style clients) is started. A hotel whose clients all
+    /// connect over WebSocket (Nitro) turns it off and opens one listener fewer.
+    /// </summary>
+    public bool TcpEnabled { get; init; } = true;
+
+    /// <summary>
     /// How often every logged-in connection is sent a Ping, which the client answers with a Pong
     /// (<c>IncomingMessages.onPing</c>), and how often silent connections are looked for.
     /// </summary>

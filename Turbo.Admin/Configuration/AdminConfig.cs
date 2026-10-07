@@ -57,6 +57,15 @@ public sealed class AdminConfig
     /// <summary>Entries per page in the panel's command log.</summary>
     public int CommandLogPageSize { get; init; } = 50;
 
+    /// <summary>How often the Performance page's figures are taken, in seconds.</summary>
+    public int PerformanceSampleSeconds { get; init; } = 10;
+
+    /// <summary>How many hours of figures the Performance page keeps, in memory.</summary>
+    public int PerformanceHistoryHours { get; init; } = 24;
+
+    /// <summary>The most points a Performance chart is sent; longer ranges are merged into this many.</summary>
+    public int PerformanceMaxPoints { get; init; } = 360;
+
     /// <summary>Lines per page in the panel's chat log, and on each side of a line in context.</summary>
     public int ChatlogPageSize { get; init; } = 100;
 

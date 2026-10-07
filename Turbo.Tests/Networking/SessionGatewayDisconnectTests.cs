@@ -79,6 +79,26 @@ public class SessionGatewayDisconnectTests
     }
 
     [Fact]
+    public async Task ALoginReplacingAConnectionThatIsAlreadyDropping_StillSucceeds()
+    {
+        var first = await ConnectAsync(1, loggedIn: true);
+        // SuperSocket throws when asked to close a connection whose pipe has already completed.
+        _hotel.Fakes.Handlers["CloseSessionAsync"] = call =>
+            Equals(call.Key, first)
+                ? Task.FromException(
+                    new InvalidOperationException(
+                        "Writing is not allowed after writer was completed."
+                    )
+                )
+                : Fakes.NotHandled;
+
+        var second = await ConnectAsync(2, loggedIn: true);
+
+        _hotel.WasClosed(first).Should().BeTrue();
+        _hotel.Gateway.GetPlayerId(second).Value.Should().Be(SessionHarness.PlayerId);
+    }
+
+    [Fact]
     public async Task Disconnect_OfAPlayerWithNoConnection_DoesNothing_AndSaysSo()
     {
         var key = await ConnectAsync(2, loggedIn: false);

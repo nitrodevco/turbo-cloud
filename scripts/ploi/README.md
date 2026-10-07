@@ -67,6 +67,7 @@ All of these are set in `.env`. Restart the daemon (or deploy) after changing th
 | --- | --- | --- |
 | `TURBO_WS_HOST` / `TURBO_WS_PORT` | `serverOptions:WebSocketServer:listeners:0` | `0.0.0.0:9001` from appsettings, `127.0.0.1:9001` in the example |
 | `TURBO_TCP_HOST` / `TURBO_TCP_PORT` | `serverOptions:TcpServer:listeners:0` | `127.0.0.1:30000` |
+| `TURBO_TCP_ENABLED` | `Turbo:Networking:TcpEnabled` | `true` from appsettings, `false` in the example (WebSocket only) |
 | `TURBO_SILO_ADDRESS`, `TURBO_SILO_PORT`, `TURBO_GATEWAY_PORT` | `Turbo:Orleans` | `127.0.0.1`, `11111`, `3000` |
 | `TURBO_DB_*` or `TURBO_DB_CONNECTION_STRING` | `Turbo:Database:ConnectionString` | from appsettings |
 

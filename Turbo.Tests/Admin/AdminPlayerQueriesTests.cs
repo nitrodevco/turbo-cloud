@@ -3,10 +3,13 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Admin.Configuration;
 using Turbo.Admin.Players;
+using Turbo.Admin.Rooms;
 using Turbo.Database.Entities.Catalog;
+using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Moderation;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Networking;
@@ -237,6 +240,56 @@ public sealed class AdminPlayerQueriesTests : IDisposable
     public async Task AnUnknownPlayer_IsNotFound()
     {
         (await Queries().GetAsync(999, Ct)).Should().BeNull();
+        (await Queries().GetInventoryAsync(999, Ct)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task APlayersInventory_ListsBadgesWornFirst_AndFurnitureByKindWithWhereItIs()
+    {
+        _db.Insert(Badge(1, "ZZZ", slot: 0));
+        _db.Insert(Badge(2, "ACH_Login1", slot: null));
+        _db.Insert(Badge(3, "ADM", slot: 2));
+        _db.Insert(Badge(4, "VIP", slot: 1));
+        _db.Insert(Definition(1, "chair", ProductType.Floor));
+        _db.Insert(Definition(2, "poster", ProductType.Wall));
+        _db.Insert(Furni(1, 1, roomId: null));
+        _db.Insert(Furni(2, 1, roomId: null));
+        _db.Insert(Furni(3, 1, roomId: CAFE));
+        _db.Insert(Furni(4, 2, roomId: null));
+        // Bob's chair is his, not Alice's.
+        _db.Insert(Furni(5, 1, roomId: null, ownerId: BOB));
+
+        var inventory = (await Queries().GetInventoryAsync(ALICE, Ct))!;
+
+        inventory
+            .Badges.Select(x => (x.Code, x.Slot))
+            .Should()
+            .Equal(("VIP", 1), ("ADM", 2), ("ACH_Login1", null), ("ZZZ", null));
+        inventory
+            .Furniture.Select(x => (x.Name, x.Type, x.InInventory, x.InRooms))
+            .Should()
+            .Equal(("chair", "floor", 2, 1), ("poster", "wall", 1, 0));
+        inventory.FurnitureInInventory.Should().Be(3);
+        inventory.FurnitureInRooms.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Visits_AreListedNewestFirst_ForThePlayerAndForTheRoom()
+    {
+        _db.Insert(Visit(1, ALICE, CAFE, NOW.AddHours(-3)));
+        _db.Insert(Visit(2, BOB, CAFE, NOW.AddHours(-2)));
+        _db.Insert(Visit(3, ALICE, 11, NOW.AddHours(-1)));
+
+        var visits = new AdminRoomVisits(_db);
+
+        (await visits.ForPlayerAsync(ALICE, Ct))
+            .Select(x => (x.RoomName, x.EnteredUtc))
+            .Should()
+            .Equal(("Alice's Attic", NOW.AddHours(-1)), ("Alice's Café", NOW.AddHours(-3)));
+        (await visits.ForRoomAsync(CAFE, Ct))
+            .Select(x => x.PlayerName)
+            .Should()
+            .Equal("bob_100%", "alice");
     }
 
     private AdminPlayerQueries Queries() =>
@@ -257,6 +310,61 @@ public sealed class AdminPlayerQueriesTests : IDisposable
             Gender = AvatarGenderType.Male,
             PlayerStatus = PlayerStatusType.Offline,
             LastLoginAt = lastLogin,
+        };
+
+    private static PlayerBadgeEntity Badge(int id, string code, int? slot) =>
+        new()
+        {
+            Id = id,
+            PlayerEntityId = ALICE,
+            BadgeCode = code,
+            SlotId = slot,
+            PlayerEntity = null!,
+        };
+
+    private static FurnitureDefinitionEntity Definition(int id, string name, ProductType type) =>
+        new()
+        {
+            Id = id,
+            SpriteId = id,
+            Name = name,
+            ProductType = type,
+            FurniCategory = FurnitureCategory.Default,
+            Logic = "default_floor",
+            Width = 1,
+            Length = 1,
+            StackHeight = 1,
+            CanStack = true,
+            CanWalk = false,
+            CanSit = false,
+            CanLay = false,
+            CanRecycle = true,
+            CanTrade = true,
+            CanGroup = true,
+            CanSell = true,
+        };
+
+    private static FurnitureEntity Furni(
+        int id,
+        int definitionId,
+        int? roomId,
+        int ownerId = ALICE
+    ) =>
+        new()
+        {
+            Id = id,
+            PlayerEntityId = ownerId,
+            FurnitureDefinitionEntityId = definitionId,
+            RoomEntityId = roomId,
+        };
+
+    private static RoomEntryLogEntity Visit(int id, int playerId, int roomId, DateTime at) =>
+        new()
+        {
+            Id = id,
+            PlayerEntityId = playerId,
+            RoomEntityId = roomId,
+            CreatedAt = at,
         };
 
     private static PlayerSanctionEntity Sanction(

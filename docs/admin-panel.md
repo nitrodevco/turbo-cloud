@@ -254,6 +254,32 @@ The welcome message is kept in the `hotel_settings` table (the `AddHotelSettings
 read from memory at each login, so a change applies from the next login on; players already
 online are not shown it. It keeps its line breaks, and can be up to 4000 characters.
 
+## Performance
+
+Everyone who can sign in gets a **Performance** page: how this server has been running over the
+last hour, six hours or day. It has charts (each with a table view) of:
+
+| Chart | What it is |
+| --- | --- |
+| CPU | The process's share of every core. |
+| Memory | What the process holds, and the .NET heap within it. |
+| Players online, Rooms loaded | Open sessions, and rooms running. |
+| Room entry time | Median and p95 of entering a room, from asking to being in it, on the server. |
+| Room updates reaching players | p95 of a room's update reaching a player's session. |
+| Thread pool queue | Work waiting for a thread. A queue that stays up means the server is behind. |
+| Garbage collection pauses | Share of the time the process was paused to collect garbage. |
+
+Below them, **Room operations** lists every timed operation (each entry and loading step, chat
+commands, update delivery) with how often it ran and its median, p95 and longest time.
+
+The figures are taken inside the server every `PerformanceSampleSeconds` and kept in memory for
+`PerformanceHistoryHours`. Nothing is written to the database, and a restart starts them again.
+The timings are the hotel's own room and command measurements, which normally only run when
+OpenTelemetry export is on; the page listens to them in the process, so they run whenever the
+admin API is on. A day at 10 seconds is 8,640 samples, which the server merges into at most
+`PerformanceMaxPoints` points per chart. With more than one silo, the page shows the silo that
+serves the admin API.
+
 ## Rooms
 
 Staff with `admin.rooms.view` get a **Rooms** page for finding and inspecting rooms. Staff who
@@ -352,12 +378,32 @@ Staff with `admin.catalog.view` get a **Catalog** page: the catalog's page tree,
 catalog and the Builders Club catalog on two tabs, and for each page its offers and its settings.
 Staff who also hold `catalog.manage` can change it.
 
-**Pages.** A page has a title, a name (the key the client opens it by, such as from a link), an
-icon (the number of a catalogue `icon_<n>.png`), a layout, the layout's images and texts in
+**Pages.** A page has a title, a link key (the name the client opens it by), an icon (the number of a catalogue `icon_<n>.png`), a layout, the layout's images and texts in
 order, and whether it is shown. Pages move up and down among their siblings or under another page
 of the same catalog. **Add a page under it** makes a hidden page, so it can be set up before anyone
 sees it. Only an empty page can be deleted: move or delete its pages and offers first. The root
 can't be moved or deleted.
+
+**Link keys.** The client's own buttons open pages by fixed link keys, so the page that should
+open needs that key. The link key field lists them with what opens each, and still takes a key of
+your own for links:
+
+| Link key | Opened by |
+| --- | --- |
+| `hc_membership` | The club shop: the toolbar, the club centre, quests and featured items. Buying a membership is bought from it. |
+| `club_gifts` | The club gifts: the club centre and the gift notice. |
+| `credits` | Buying credits: the me menu and credit links. |
+| `ducket_info`, `loyalty_info` | The purse's duckets and loyalty points. |
+| `avatar_effects` | The me menu's effects. |
+| `new_additions` | Opened when the catalogue first opens, while that is on. |
+| `limited_sold` | Shows the sold limited items (any page whose name contains it). |
+| `pet_accessories` | A pet's infostand. |
+| `trax_songs` | The jukebox playlist editor. |
+| `guild_custom_furni` | A group's details. |
+| `gift_shop` | An opened present. |
+| `room_bundles`, `room_bundles_mobile` | Featured items. |
+| `mobile_subscriptions` | Featured items (it opens `hc_membership`). |
+| `habbo_club_desktop`, `horse_styles`, `horse_shoe`, `ecotron_transform`, `quest_shell`, `quest_snowflakes`, `val_quests`, `set_easter` | Named by the client for those pages. |
 
 **Offers.** Each offer opens in place:
 
@@ -392,17 +438,21 @@ navigator: its offers stay on sale. That's on purpose, because the club window s
 memberships and a hotel often keeps them on a page of their own out of the navigator.
 
 **Habbo Club memberships.** An offer can give days of Habbo Club or Builders Club instead of an
-item. Players buy Habbo Club from the club window, a page with the `club_buy` layout. The window
-lists every shown membership offer in the normal catalog, wherever it sits, by length. Renewals
-and the club centre sell them too. So, to sell memberships:
+item. Players buy Habbo Club from the club window: the page with the link key `hc_membership`,
+which the client's club buttons open, with the `club_buy` layout, which draws the window. The
+window lists every shown membership offer in the normal catalog, wherever it sits, by length.
+Renewals and the club centre sell them too. A page with the `club_buy` layout under another link
+key is never opened by those buttons. So, to sell memberships:
 
-1. Have a shown page with the `club_buy` layout. If there are memberships but no such page, the
-   Catalog page says so, with a button that adds one.
+1. Have a shown page with the link key `hc_membership` and the `club_buy` layout. If there are
+   memberships but no such page, the Catalog page says so, with a button that adds one.
 2. Add a membership offer for each length. On a `club_buy` page, **New offer** starts as a
    membership.
-   - **Days:** 31 is a month.
+   - **Days:** 31 is a month. The client sells it by its days, whatever its name key says.
    - **Name key:** left empty, it is named by length, as the hotel's own are
-     (`habbo_club_3_months`).
+     (`habbo_club_3_months`). Typing a length name key (`habbo_club_3_months`,
+     `habbo_club_45_days`) sets the days to match. When the two disagree, the editor says so, with
+     a button to set the days, and the offer list marks it "name says ...".
    - **Price:** credits and an activity-point currency.
 3. Publish.
 
@@ -412,8 +462,9 @@ Club days work the same way, from a Builders Club page.
 
 **Club gifts.** Any furni offer in the normal catalog can be a club gift: members claim it for free.
 Each member earns one gift per month of club used up, and each gift can ask for a number of club
-days used up before it can be picked. Gifts are listed on a page with the `club_gifts` layout,
-which lists every shown gift wherever it sits; there is a warning and a button when there is none.
+days used up before it can be picked. Gifts are listed on the page with the link key `club_gifts`
+(which the client opens) and the `club_gifts` layout, which lists every shown gift wherever it
+sits; there is a warning and a button when there is none.
 A gift's name key is how members claim it, so no two gifts can share one. A gift can't be deleted,
 since members may have claimed it; hide it, or turn **Club gift** off first.
 
@@ -672,6 +723,9 @@ them.
 | `PlayerSearchPageSize` | `25` | | Players per page on the Players page. |
 | `CommandLogPageSize` | `50` | | Entries per page on the Command log page. |
 | `ChatlogPageSize` | `100` | | Lines per page on the Chat log page; a line in context shows half as many on each side. |
+| `PerformanceSampleSeconds` | `10` | | How often the Performance page's figures are taken. |
+| `PerformanceHistoryHours` | `24` | | How many hours of figures are kept, in memory. |
+| `PerformanceMaxPoints` | `360` | | The most points a Performance chart is sent; longer ranges are merged into this many. |
 | `ClientConfigUrl` | empty | `TURBO_ADMIN_CLIENT_CONFIG_URL` | The client's `nitro-config.json`, e.g. `https://play.example.com/config/nitro-config.json`. Catalog icons and images, furniture icons and badges load from its addresses. Empty shows none. |
 | `ClientConfigCacheMinutes` | `10` | | How long those addresses are kept before the config is read again. |
 | `CatalogLayouts` | the client's layouts | | The page layouts the catalog editor offers, besides any a page already uses. |

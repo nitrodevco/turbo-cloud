@@ -160,7 +160,20 @@ public sealed class SessionGateway(
                     );
                 }
 
-                await previousSession.CloseSessionAsync().ConfigureAwait(false);
+                // The old connection may already be dropping, and closing it then throws. The
+                // replacement is bound either way and its login must not fail over it.
+                try
+                {
+                    await previousSession.CloseSessionAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "Failed to close replaced session {SessionKey}",
+                        previousKey
+                    );
+                }
             }
         }
     }

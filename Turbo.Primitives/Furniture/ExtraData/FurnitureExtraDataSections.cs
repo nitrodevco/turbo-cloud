@@ -11,6 +11,15 @@ namespace Turbo.Primitives.Furniture.ExtraData;
 /// </summary>
 public static class FurnitureExtraDataSections
 {
+    /// <summary>
+    /// Sections are written camelCase (the extra data writer's naming), while definition
+    /// defaults and older rows may be PascalCase; names are matched ignoring case so both read.
+    /// </summary>
+    private static readonly JsonSerializerOptions OPTIONS = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
+
     public static TSection? Read<TSection>(
         IExtraData itemExtraData,
         string? definitionExtraData,
@@ -63,7 +72,7 @@ public static class FurnitureExtraDataSections
     {
         try
         {
-            return element.Deserialize<TSection>();
+            return element.Deserialize<TSection>(OPTIONS);
         }
         catch (JsonException ex)
         {

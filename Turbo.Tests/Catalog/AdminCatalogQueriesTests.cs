@@ -98,12 +98,28 @@ public sealed class AdminCatalogQueriesTests : IDisposable
     [Fact]
     public async Task TheClubShop_CountsWhatTheClubWindowSells_AndFindsItsShownPage()
     {
+        // The club layout under another name is not what the client opens.
+        _catalog.Db.Insert(
+            new CatalogPageEntity
+            {
+                Id = 49,
+                ParentEntityId = ROOT,
+                Localization = "Club layout, wrong name",
+                Name = "habbo_club",
+                CatalogType = CatalogType.Normal,
+                Icon = 1,
+                Layout = AdminCatalogQueries.CLUB_BUY,
+                SortOrder = 8,
+                Visible = true,
+            }
+        );
         _catalog.Db.Insert(
             new CatalogPageEntity
             {
                 Id = 50,
                 ParentEntityId = ROOT,
                 Localization = "Habbo Club",
+                Name = AdminCatalogQueries.CLUB_PAGE_NAME,
                 CatalogType = CatalogType.Normal,
                 Icon = 1,
                 Layout = AdminCatalogQueries.CLUB_BUY,

@@ -116,11 +116,14 @@ Found by reading rather than by the tool. None of these is a packet.
 
 ## 4. Wired trading, chests and contracts
 
-The largest single block in the report, and already recorded as deliberate in `AGENTS.md`: 33 of
-63 outgoing packets in the `Userdefinedroomevents` tree are chests, contracts, self-donation,
-permanent user variables, room logs and the web API. They are one system, not thirty gaps, and
-the wired boxes that would drive them (triggers 25 and 26, actions 45 to 48, conditions 45 and
-46, addons 18 and 20) are unwritten for the same reason.
+Chests are done: the chest furni, deposits through the wired trade window, withdrawals,
+capacity upgrades, settings, locking, the transaction logs, and the give-from-chest actions
+(45, 46) and chest conditions (45, 46), and so are contracts and the transactions wired starts
+(triggers 25 and 26, actions 47 and 48, addon 20) (`AGENTS.md`, "Wired chests"). Still missing
+from the block: self-donation, the web API, the `@transaction.*` and
+`@event.transaction_failed.reason` variables, and the chest item type scanner (addon 18), which
+needs context variables that hold values. Chest owners' notification preferences are saved but
+nothing is sent on them yet.
 
 Two smaller ones sit outside that block and could be done on their own:
 
