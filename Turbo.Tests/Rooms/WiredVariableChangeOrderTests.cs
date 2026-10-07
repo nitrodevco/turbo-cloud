@@ -17,7 +17,7 @@ using Xunit;
 namespace Turbo.Tests.Rooms;
 
 /// <summary>
-/// "Change Variable Value" on a stack, run through the room's real wired tick. Several boxes on one stack. Official wired makes them one change unless
+/// Several "Change Variable Value" boxes on one stack. Official wired makes them one change unless
 /// "Execute In Order" is on, applying assignment, power, multiplication, division, modulo, addition
 /// and subtraction in that order whatever the stacking order (sirjonasxx, Wired Faculty
 /// variables-info #14). The stack here, bottom to top: set 3, add 5, multiply by 2 - run in stacking
@@ -53,6 +53,28 @@ public sealed class WiredVariableChangeOrderTests
         await TickAsync(4);
 
         Value().Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Without_execute_in_order_the_changes_are_one_change_in_the_official_order()
+    {
+        await BuildAsync(executeInOrder: false);
+
+        await ClickAsync();
+        await TickAsync(4);
+
+        Value().Should().Be(11);
+    }
+
+    [Fact]
+    public async Task With_execute_in_order_each_box_changes_the_value_in_stacking_order()
+    {
+        await BuildAsync(executeInOrder: true);
+
+        await ClickAsync();
+        await TickAsync(4);
+
+        Value().Should().Be(16);
     }
 
     private int Value()

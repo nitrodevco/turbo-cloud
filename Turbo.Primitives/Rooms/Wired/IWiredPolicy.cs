@@ -16,6 +16,12 @@ public interface IWiredPolicy
     public int ConditionThreshold { get; set; }
     public WiredEffectModeType EffectMode { get; set; }
 
+    /// <summary>
+    /// "Execute In Order": the actions run one by one in stacking order and each variable change
+    /// is its own change. Without it a stack's changes to one holder's variable are combined.
+    /// </summary>
+    public bool ExecuteInOrder { get; set; }
+
     /// <summary>How many actions a random firing picks.</summary>
     public int RandomPickCount { get; set; }
 

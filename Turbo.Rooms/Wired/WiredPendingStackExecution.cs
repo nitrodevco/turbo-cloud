@@ -17,4 +17,7 @@ internal sealed class WiredPendingStackExecution
     public long DueAtMs { get; set; }
     public int NextActionIndex { get; set; }
     public int? WaitingActionIndex { get; set; }
+
+    /// <summary>The variable changes held back while the actions run; null with "Execute In Order".</summary>
+    public WiredVariableChangeBatch? VariableChanges { get; init; }
 }

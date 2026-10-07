@@ -11,7 +11,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
 /// <summary>
 /// Runs every action of the stack in stacking order, overriding a random or unseen addon
-/// placed with it.
+/// placed with it, and makes each variable change its own change (see
+/// <see cref="Turbo.Rooms.Wired.WiredVariableChangeBatch"/>).
 /// </summary>
 [RoomObjectLogic("wf_xtra_exec_in_order")]
 public class WiredAddonExecuteInOrder(
@@ -25,6 +26,7 @@ public class WiredAddonExecuteInOrder(
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
         ctx.Policy.EffectMode = WiredEffectModeType.All;
+        ctx.Policy.ExecuteInOrder = true;
 
         return Task.FromResult(true);
     }

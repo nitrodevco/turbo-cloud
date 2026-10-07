@@ -25,6 +25,9 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
 {
     public DateTimeOffset RoomLocalTime => WiredSystem.GetRoomLocalTime();
 
+    /// <summary>Where "Change Variable Value" holds its change back; null when it changes at once.</summary>
+    internal WiredVariableChangeBatch? VariableChanges { get; init; }
+
     public List<WiredUserMovementSnapshot> UserMoves { get; } = [];
     public List<WiredFloorItemMovementSnapshot> FloorItemMoves { get; } = [];
     public List<WiredWallItemMovementSnapshot> WallItemMoves { get; } = [];

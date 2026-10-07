@@ -513,6 +513,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             Version = 1,
             DueAtMs = dueAtMs + (long)ctx.Policy.Delay.TotalMilliseconds,
             NextActionIndex = 0,
+            VariableChanges = ctx.Policy.ExecuteInOrder ? null : new WiredVariableChangeBatch(),
         };
 
         _pendingStackExecutions[key] = pending;
@@ -590,6 +591,9 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
                 if (delayMs > 0)
                 {
+                    // What ran before the wait is one change; what runs after it is another.
+                    await FlushVariableChangesAsync(pending, ct);
+
                     pending.WaitingActionIndex = i;
 
                     RescheduleStack(key, pending, now + delayMs);
@@ -612,6 +616,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                     Signal = pending.Signal,
                     Depth = pending.Depth,
                     CancellationToken = ct,
+                    VariableChanges = pending.VariableChanges,
                 };
 
                 action
@@ -644,10 +649,53 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             pending.NextActionIndex = i + 1;
 
             if (succeeded && pending.Policy.ShortCircuitOnFirstEffectSuccess)
-                return true;
+                break;
         }
 
+        await FlushVariableChangesAsync(pending, ct);
+
         return true;
+    }
+
+    /// <summary>Makes the held variable changes one change per holder (<see cref="WiredVariableChangeBatch"/>).</summary>
+    private async Task FlushVariableChangesAsync(
+        WiredPendingStackExecution pending,
+        CancellationToken ct
+    )
+    {
+        if (pending.VariableChanges is not { IsEmpty: false } batch)
+            return;
+
+        var ctx = new WiredExecutionContext(_roomGrain)
+        {
+            Policy = pending.Policy,
+            Selected = pending.Selected,
+            SelectorPool = pending.SelectorPool,
+            Signal = pending.Signal,
+            Depth = pending.Depth,
+            CancellationToken = ct,
+        };
+
+        try
+        {
+            await batch.FlushAsync(ctx);
+            FlushWiredContext(ctx);
+        }
+        catch (Exception ex)
+        {
+            var box = pending.Actions.FirstOrDefault(a =>
+                a.WiredCode == (int)WiredActionType.CHANGE_VARIABLE
+            );
+
+            if (box is not null)
+                RecordError(ex.GetType().Name, GetErrorCategory(box), _roomGrain.NowMs());
+
+            _roomGrain._logger.LogWarning(
+                ex,
+                "Combined wired variable change failed in room {RoomId}",
+                _roomGrain.RoomId
+            );
+        }
     }
 
     private void RescheduleStack(
