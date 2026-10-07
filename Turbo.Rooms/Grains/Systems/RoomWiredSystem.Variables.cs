@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired.Variable;
@@ -38,6 +39,32 @@ public sealed partial class RoomWiredSystem
 
     public IEnumerable<IWiredVariable> GetAllVariables() => _variableById.Values;
 
+    /// <summary>
+    /// The context variable values of the wired execution running now (<see cref="Turbo.Rooms.Wired.WiredContext.ContextValues"/>):
+    /// set while a stack's selectors, conditions and addons run and while each of its actions runs,
+    /// null between them, so a context variable holds nothing outside a wired execution.
+    /// </summary>
+    private KeyValueStore? _contextValues;
+
+    /// <summary>The context values a signal or stack call carries to the stacks it starts.</summary>
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<
+        RoomEvent,
+        KeyValueStore
+    > _contextValuesByEvent = [];
+
+    /// <summary>
+    /// Lets the stacks a signal or a stack call starts begin from <paramref name="values"/>: each
+    /// takes a copy, as Wired Faculty's "Memorization with Signals" describes.
+    /// </summary>
+    public void CarryContextValues(RoomEvent evt, KeyValueStore values) =>
+        _contextValuesByEvent.AddOrUpdate(evt, values);
+
+    /// <summary>A copy of what <paramref name="evt"/> carries, or an empty context.</summary>
+    private KeyValueStore ContextValuesFor(RoomEvent evt) =>
+        _contextValuesByEvent.TryGetValue(evt, out var values)
+            ? values.Clone()
+            : new KeyValueStore();
+
     public bool TryGetStoreForKey(WiredVariableKey key, out KeyValueStore? store)
     {
         store = null;
@@ -47,6 +74,7 @@ public sealed partial class RoomWiredSystem
             WiredVariableTargetType.Furni => _furnitureActiveStore.TryGetStore(key, out store),
             WiredVariableTargetType.User => _playerActiveStore.TryGetStore(key, out store),
             WiredVariableTargetType.Global => _roomActiveStore.TryGetStore(key, out store),
+            WiredVariableTargetType.Context => (store = _contextValues) is not null,
             _ => false,
         };
     }

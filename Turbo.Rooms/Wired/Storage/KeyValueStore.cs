@@ -17,6 +17,9 @@ public sealed class KeyValueStore : IWiredVariableStore
 
     public void SetAction(Func<Task>? onChanged) => _onChanged = onChanged;
 
+    /// <summary>The values and their times as they are now, in a store of their own.</summary>
+    public KeyValueStore Clone() => new() { Store = new(Store), Timestamps = new(Timestamps) };
+
     public bool ContainsKey(WiredVariableKey key) => Store.ContainsKey(key.ToStorageKey());
 
     public bool TryGetValue(in WiredVariableKey key, out WiredVariableValue value) =>

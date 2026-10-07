@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired.Storage;
 
 namespace Turbo.Rooms.Wired;
 
@@ -20,4 +21,7 @@ internal sealed class WiredPendingStackExecution
 
     /// <summary>The variable changes held back while the actions run; null with "Execute In Order".</summary>
     public WiredVariableChangeBatch? VariableChanges { get; init; }
+
+    /// <summary>The firing's context variable values, which its actions read and write.</summary>
+    public required KeyValueStore ContextValues { get; init; }
 }

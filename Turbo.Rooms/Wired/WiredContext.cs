@@ -6,6 +6,7 @@ using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Grains;
+using Turbo.Rooms.Wired.Storage;
 
 namespace Turbo.Rooms.Wired;
 
@@ -21,6 +22,12 @@ public abstract class WiredContext(RoomGrain roomGrain)
     public IWiredSelectionSet Signal { get; init; } = new WiredSelectionSet();
     public int Depth { get; init; }
     public Dictionary<string, int> Variables { get; init; } = [];
+
+    /// <summary>
+    /// The values of the room's context variables in this wired execution: one firing, the actions it
+    /// schedules, and the stacks it signals or calls, which start from a copy.
+    /// </summary>
+    public KeyValueStore ContextValues { get; init; } = new();
     public CancellationToken CancellationToken { get; init; }
 
     public bool TryGetContextVariable(string key, out int value)
