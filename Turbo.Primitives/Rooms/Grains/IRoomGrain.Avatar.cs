@@ -105,6 +105,29 @@ public partial interface IRoomGrain
         CancellationToken ct
     );
     public Task<bool> SetAvatarEffectAsync(ActionContext ctx, int effectId, CancellationToken ct);
+
+    /// <summary>
+    /// Puts an effect the player owns on their avatar, but only where the avatar is bare or wears
+    /// another of <paramref name="ownedEffectIds"/>. An effect the hotel applied - riding, a game
+    /// team, a freeze - is left alone. True when the avatar wears the effect afterwards.
+    /// </summary>
+    public Task<bool> SetPlayerEffectAsync(
+        ActionContext ctx,
+        int effectId,
+        ImmutableArray<int> ownedEffectIds,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Takes the player's own effect off their avatar: whichever of
+    /// <paramref name="ownedEffectIds"/> it wears now. An effect the hotel applied, or one worn
+    /// after the player's expired, changes nothing.
+    /// </summary>
+    public Task<bool> ClearPlayerEffectIfAsync(
+        ActionContext ctx,
+        ImmutableArray<int> ownedEffectIds,
+        CancellationToken ct
+    );
     public Task<bool> SetAvatarExpressionAsync(
         ActionContext ctx,
         AvatarExpressionType expressionType,

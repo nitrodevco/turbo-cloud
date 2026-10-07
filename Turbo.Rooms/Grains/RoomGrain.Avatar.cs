@@ -205,6 +205,40 @@ public sealed partial class RoomGrain
                 && await AvatarModule.SetAvatarEffectAsync(avatar.ObjectId, effectId, ct)
         );
 
+    public Task<bool> SetPlayerEffectAsync(
+        ActionContext ctx,
+        int effectId,
+        ImmutableArray<int> ownedEffectIds,
+        CancellationToken ct
+    ) =>
+        RunLoggedAsync(
+            ctx,
+            "wear own effect",
+            effectId,
+            async () =>
+                AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
+                && await AvatarModule.SetPlayerEffectAsync(
+                    avatar.ObjectId,
+                    effectId,
+                    ownedEffectIds,
+                    ct
+                )
+        );
+
+    public Task<bool> ClearPlayerEffectIfAsync(
+        ActionContext ctx,
+        ImmutableArray<int> ownedEffectIds,
+        CancellationToken ct
+    ) =>
+        RunLoggedAsync(
+            ctx,
+            "take own effect off",
+            ownedEffectIds.Length,
+            async () =>
+                AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
+                && await AvatarModule.ClearPlayerEffectIfAsync(avatar.ObjectId, ownedEffectIds, ct)
+        );
+
     public Task<bool> SetAvatarExpressionAsync(
         ActionContext ctx,
         AvatarExpressionType expressionType,

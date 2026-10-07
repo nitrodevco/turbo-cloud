@@ -11,6 +11,6 @@ internal class AvatarEffectExpiredMessageComposerSerializer(int header)
         AvatarEffectExpiredMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.Type);
     }
 }

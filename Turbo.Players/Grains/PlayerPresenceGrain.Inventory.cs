@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Snapshots;
@@ -39,6 +40,35 @@ internal sealed partial class PlayerPresenceGrain
                 _state.PlayerId,
                 _state.ActiveRoomId
             );
+
+        return Task.CompletedTask;
+    }
+
+    public Task OnWornEffectChangedAsync(
+        int effectId,
+        ImmutableArray<int> ownedEffectIds,
+        CancellationToken ct
+    )
+    {
+        // An effect is only seen in a room; out of one there is nothing to show.
+        if (_state.ActiveRoomId <= 0)
+            return Task.CompletedTask;
+
+        var ctx = ActionContext.CreateForPlayer(_state.PlayerId, _state.ActiveRoomId);
+        var room = _grainFactory.GetRoomGrain(_state.ActiveRoomId);
+
+        // Told, not awaited, as the badges are: the room may be waiting on this player's inventory.
+        (
+            effectId > 0
+                ? room.SetPlayerEffectAsync(ctx, effectId, ownedEffectIds, CancellationToken.None)
+                : room.ClearPlayerEffectIfAsync(ctx, ownedEffectIds, CancellationToken.None)
+        ).LogAndForget(
+            _logger,
+            "show effect {EffectId} of player {PlayerId} in room {RoomId}",
+            effectId,
+            _state.PlayerId,
+            _state.ActiveRoomId
+        );
 
         return Task.CompletedTask;
     }

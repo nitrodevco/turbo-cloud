@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Catalog;
+using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Editing;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Providers;
@@ -792,6 +793,13 @@ public sealed partial class CatalogEditService(
                 return string.IsNullOrWhiteSpace(product.ExtraParam)
                     ? CatalogEditResult.Refused("Give the badge code.")
                     : null;
+            // The effect id is the extra parameter and the quantity is the copies (the offer's
+            // own quantity check has already held it to 1..100); how far the id may go is the
+            // hotel's setting, which the purchase checks.
+            case ProductType.Effect:
+                return EffectProducts.TryGetEffectId(product.ExtraParam, out _)
+                    ? null
+                    : CatalogEditResult.Refused("Give the effect id, a whole number above 0.");
             // Days of a membership, granted when it is bought; no item comes with it.
             case ProductType.HabboClub:
                 if (product.Subscription is null)
@@ -809,7 +817,7 @@ public sealed partial class CatalogEditService(
                     : null;
             default:
                 return CatalogEditResult.Refused(
-                    "Only floor items, wall items, badges and memberships can be set up here."
+                    "Only floor items, wall items, badges, effects and memberships can be set up here."
                 );
         }
     }

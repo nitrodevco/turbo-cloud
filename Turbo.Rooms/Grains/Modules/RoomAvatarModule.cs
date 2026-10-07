@@ -821,6 +821,46 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         return Task.FromResult(true);
     }
 
+    /// <summary>
+    /// A player's own effect, put on only over nothing or over another effect they own. The
+    /// hotel puts effects on avatars too (riding, a game team, a freeze) and none of them keeps
+    /// what was worn, so an inventory effect must not overwrite one.
+    /// </summary>
+    public async Task<bool> SetPlayerEffectAsync(
+        RoomObjectId objectId,
+        int effectId,
+        ImmutableArray<int> ownedEffectIds,
+        CancellationToken ct
+    )
+    {
+        if (objectId <= 0 || effectId <= 0 || !TryGetAvatar(objectId, out var avatar))
+            return false;
+
+        if (avatar.EffectId == effectId)
+            return true;
+
+        if (avatar.EffectId != 0 && !ownedEffectIds.Contains(avatar.EffectId))
+            return false;
+
+        return await SetAvatarEffectAsync(objectId, effectId, ct);
+    }
+
+    /// <summary>Takes an effect off, but only if the avatar wears one of the given ones.</summary>
+    public async Task<bool> ClearPlayerEffectIfAsync(
+        RoomObjectId objectId,
+        ImmutableArray<int> ownedEffectIds,
+        CancellationToken ct
+    )
+    {
+        if (objectId <= 0 || !TryGetAvatar(objectId, out var avatar))
+            return false;
+
+        if (avatar.EffectId <= 0 || !ownedEffectIds.Contains(avatar.EffectId))
+            return false;
+
+        return await SetAvatarEffectAsync(objectId, 0, ct);
+    }
+
     public Task<bool> SetAvatarExpressionAsync(
         RoomObjectId objectId,
         AvatarExpressionType expressionType,

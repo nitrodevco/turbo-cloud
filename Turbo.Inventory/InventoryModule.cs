@@ -1,4 +1,6 @@
+using System;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
 using Turbo.Inventory.Configuration;
@@ -17,6 +19,12 @@ public sealed class InventoryModule : IHostPluginModule
         services.Configure<InventoryConfig>(
             builder.Configuration.GetSection(InventoryConfig.SECTION_NAME)
         );
+        services.Configure<EffectConfig>(
+            builder.Configuration.GetSection(EffectConfig.SECTION_NAME)
+        );
+
+        // Effects run out by the clock; a test moves it by hand. Other modules register the same one.
+        services.TryAddSingleton(TimeProvider.System);
 
         services.AddSingleton<IInventoryFurnitureLoader, InventoryFurnitureLoader>();
         services.AddSingleton<IInventoryService, InventoryService>();

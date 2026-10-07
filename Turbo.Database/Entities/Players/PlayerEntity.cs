@@ -66,6 +66,9 @@ public class PlayerEntity : TurboEntity
     public List<PlayerBadgeEntity>? PlayerBadges { get; set; }
 
     [InverseProperty("PlayerEntity")]
+    public List<PlayerEffectEntity>? PlayerEffects { get; set; }
+
+    [InverseProperty("PlayerEntity")]
     public List<PlayerCurrencyEntity>? PlayerCurrencies { get; set; }
 
     [InverseProperty("PlayerEntity")]

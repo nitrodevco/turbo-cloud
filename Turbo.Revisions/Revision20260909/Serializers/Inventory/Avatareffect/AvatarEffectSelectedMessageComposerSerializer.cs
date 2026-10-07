@@ -11,6 +11,6 @@ internal class AvatarEffectSelectedMessageComposerSerializer(int header)
         AvatarEffectSelectedMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.Type);
     }
 }

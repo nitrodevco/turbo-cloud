@@ -579,6 +579,24 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
 - A client may claim a badge only through a request code the hotel lists
   (`BadgeConfig.RequestableBadges`); the badge code itself is never taken from the client.
 
+### Avatar effects
+- A player's effects are `player_effects` rows, one per effect id, owned by `PlayerEffectGrain`
+  (`IPlayerEffectGrain`). Write-through. Give effects through `GiveEffectAsync` and ask first with
+  `CheckGiveEffectAsync` when something is charged for them; never write the table from anywhere
+  else. The full rules, setup and the list of what is not built are in
+  [Avatar effects](docs/avatar-effects.md).
+- A running copy ends at an absolute `expires_at` (UTC, read through `TimeProvider`), never at a
+  remaining time. The expiry timer only tells the player; every call also looks for ended copies.
+- The room's avatar is the record of what is worn. The grain tells the presence which effect to
+  wear and **every effect the player owns**; the room acts only where the avatar is bare or wears
+  one of those, so an effect the hotel applied (riding, a game team, a freeze) is never
+  overwritten. When one effect expires, pass only that id to take off.
+- The client reads `secondsLeftIfActive` of exactly `-1` as "not running" and zero is never sent
+  for a running copy; `duration` is a divisor and is never zero.
+- A catalog effect product keeps its effect id in the product's extra parameter
+  (`EffectProducts`); the snapshot puts it where the client reads a sprite id. A purchase is
+  validated before the buyer is charged.
+
 ### Pets and bots
 - A pet or bot is a row (`pets`, `bots`) that is either in its owner's inventory
   (`room_id` null) or standing in a room. The hand-over is a grain call that moves the row

@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Inventory.Avatareffect;
 
 internal class AvatarEffectSelectedMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new AvatarEffectSelectedMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new AvatarEffectSelectedMessage { Type = packet.PopInt() };
 }
