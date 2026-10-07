@@ -98,8 +98,8 @@ public class WiredActionChangeVariable(
     private static bool RequiresOperand(WiredVariableOperationType operation) =>
         operation
             is not (
-                WiredVariableOperationType.Negate
+                WiredVariableOperationType.Absolute
                 or WiredVariableOperationType.Invert
-                or WiredVariableOperationType.Absolute
+                or WiredVariableOperationType.BitCount
             );
 }

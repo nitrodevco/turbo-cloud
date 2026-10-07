@@ -22,14 +22,14 @@ public static class WiredVariableOperations
             WiredVariableOperationType.Random => operand <= 0
                 ? 0
                 : Random.Shared.NextInt64(0, operand + 1),
-            WiredVariableOperationType.Negate => -current,
+            WiredVariableOperationType.Absolute => Math.Abs(current),
             WiredVariableOperationType.BitwiseAnd => current & operand,
             WiredVariableOperationType.BitwiseOr => current | operand,
             WiredVariableOperationType.BitwiseXor => current ^ operand,
             WiredVariableOperationType.Invert => ~current,
             WiredVariableOperationType.ShiftLeft => current << (int)Math.Clamp(operand, 0, 31),
             WiredVariableOperationType.ShiftRight => current >> (int)Math.Clamp(operand, 0, 31),
-            WiredVariableOperationType.Absolute => Math.Abs(current),
+            WiredVariableOperationType.BitCount => long.PopCount(current),
             WiredVariableOperationType.IsEqual => current == operand ? 1 : 0,
             WiredVariableOperationType.IsNotEqual => current != operand ? 1 : 0,
             WiredVariableOperationType.IsLess => current < operand ? 1 : 0,
