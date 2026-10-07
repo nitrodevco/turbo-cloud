@@ -34,7 +34,7 @@ public abstract class WiredAddonVariableFilter(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredRangeParamRule(1, 1000, 1),
-            new WiredEnumParamRule<WiredVariableSortType>(WiredVariableSortType.ValueDescending),
+            new WiredEnumParamRule<WiredVariableSortType>(WiredVariableSortType.HighestValue),
             new WiredBoolParamRule(false),
             WiredRules.VariableTarget(WiredVariableTargetType.User),
         ];
@@ -53,7 +53,7 @@ public abstract class WiredAddonVariableFilter(
         var pool = isFurni
             ? ctx.SelectorPool.SelectedFurniIds
             : ctx.SelectorPool.SelectedAvatarIds.Select(x => x.Value);
-        var sort = GetIntParamOrDefault(1, WiredVariableSortType.ValueDescending);
+        var sort = GetIntParamOrDefault(1, WiredVariableSortType.HighestValue);
         var variableId = variable.GetVarSnapshot().VariableId;
         var keyed = new List<(int id, long key)>();
 
@@ -79,7 +79,7 @@ public abstract class WiredAddonVariableFilter(
 
         var descending =
             sort
-            is WiredVariableSortType.ValueDescending
+            is WiredVariableSortType.HighestValue
                 or WiredVariableSortType.CreationNewestFirst
                 or WiredVariableSortType.UpdateNewestFirst;
         var ordered = descending ? keyed.OrderByDescending(x => x.key) : keyed.OrderBy(x => x.key);
