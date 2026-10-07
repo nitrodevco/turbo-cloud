@@ -97,7 +97,7 @@ public class SSOTicketMessageHandler(
             .AddSessionToPlayerAsync(ctx.SessionKey, playerId)
             .ConfigureAwait(false);
 
-        // Four reads from four different grains, none depending on another, so they are asked
+        // Five reads from five different grains, none depending on another, so they are asked
         // side by side and awaited where their answers are sent. The composers still go out in
         // the order below.
         var settingsTask = _grainFactory.GetPlayerSettingsGrain(playerId).GetSettingsAsync(ct);
@@ -109,8 +109,16 @@ public class SSOTicketMessageHandler(
             .GetClubGiftInfoAsync(ct);
         // The welcome message staff set in the admin panel; answered from memory.
         var welcomeMessageTask = _grainFactory.GetWelcomeMessageGrain().GetMessageAsync(ct);
+        // The effects the player owns, with what is left of any that is running.
+        var effectsTask = _grainFactory.GetPlayerEffectGrain(playerId).GetEffectsAsync(ct);
 
-        await Task.WhenAll(settingsTask, favouriteRoomIdsTask, clubGiftsTask, welcomeMessageTask)
+        await Task.WhenAll(
+                settingsTask,
+                favouriteRoomIdsTask,
+                clubGiftsTask,
+                welcomeMessageTask,
+                effectsTask
+            )
             .ConfigureAwait(false);
 
         await ctx.SendComposerAsync(
@@ -128,7 +136,13 @@ public class SSOTicketMessageHandler(
             .GetPlayerPermissionGrain(playerId)
             .NotifyActiveRestrictionsAsync(ct)
             .ConfigureAwait(false);
-        await ctx.SendComposerAsync(new AvatarEffectsMessageComposer { Effects = [] }, ct)
+        await ctx.SendComposerAsync(
+                new AvatarEffectsMessageComposer
+                {
+                    Effects = await effectsTask.ConfigureAwait(false),
+                },
+                ct
+            )
             .ConfigureAwait(false);
         var settings = await settingsTask.ConfigureAwait(false);
         var favouriteRoomIds = await favouriteRoomIdsTask.ConfigureAwait(false);

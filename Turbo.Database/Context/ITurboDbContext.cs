@@ -29,6 +29,7 @@ public interface ITurboDbContext : IDisposable
 
     public DbSet<BadgeDefinitionEntity>? BadgeDefinitions { get; set; }
     public DbSet<PlayerBadgeEntity>? PlayerBadges { get; set; }
+    public DbSet<PlayerEffectEntity>? PlayerEffects { get; set; }
 
     public DbSet<PlayerCurrencyEntity>? PlayerCurrencies { get; set; }
 

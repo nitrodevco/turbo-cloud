@@ -4,11 +4,14 @@ using System.Globalization;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Guilds;
+using Turbo.Primitives.Inventory;
+using Turbo.Primitives.Orleans;
 
 namespace Turbo.Inventory.Grains;
 
@@ -32,6 +35,7 @@ internal sealed partial class InventoryGrain
         var teleportPairs = new List<FurnitureDefinitionSnapshot>();
         var pets = new List<Modules.PetProductGrant>();
         var bots = new List<Modules.BotProductGrant>();
+        var effects = new Dictionary<int, long>();
 
         foreach (var product in offer.Products)
         {
@@ -71,6 +75,18 @@ internal sealed partial class InventoryGrain
                 case ProductType.Robot:
                     bots.Add(BotModule.ValidateProduct(offer, product));
                     break;
+                case ProductType.Effect:
+                    // The id is the extra parameter and the quantity the copies. A product that
+                    // names none was refused before the buyer was charged; failing here as well
+                    // leaves the purchase refunded rather than silently giving nothing.
+                    if (!EffectProducts.TryGetEffectId(product.ExtraParam, out var effectId))
+                        throw new InvalidOperationException(
+                            $"Effect product {product.Id} of offer {offer.Id} names no effect."
+                        );
+
+                    effects[effectId] =
+                        effects.GetValueOrDefault(effectId) + ((long)product.Quantity * quantity);
+                    break;
             }
         }
 
@@ -82,6 +98,20 @@ internal sealed partial class InventoryGrain
 
         await FurniModule.GrantAsync(furniture, ct);
         await FurniModule.GrantTeleportPairsAsync(teleportPairs, ct);
+
+        // The check before the charge makes a refusal here a race (a second purchase in flight);
+        // it still throws, so the buyer is refunded instead of charged for nothing.
+        foreach (var (effectId, copies) in effects)
+        {
+            var result = await _grainFactory
+                .GetPlayerEffectGrain(PlayerId)
+                .GiveEffectAsync(effectId, 0, (int)Math.Min(copies, int.MaxValue), false, ct);
+
+            if (result != EffectGrantResult.Granted)
+                throw new InvalidOperationException(
+                    $"Effect {effectId} could not be given to player {PlayerId}: {result}."
+                );
+        }
     }
 
     /// <summary>

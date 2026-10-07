@@ -11,6 +11,9 @@ internal class AvatarEffectActivatedMessageComposerSerializer(int header)
         AvatarEffectActivatedMessageComposer message
     )
     {
-        //
+        packet
+            .WriteInteger(message.Type)
+            .WriteInteger(message.Duration)
+            .WriteBoolean(message.IsPermanent);
     }
 }

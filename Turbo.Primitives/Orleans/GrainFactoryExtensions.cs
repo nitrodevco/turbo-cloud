@@ -179,6 +179,11 @@ public static class GrainFactoryExtensions
         PlayerId playerId
     ) => factory.GetGrain<IPlayerBadgeGrain>(playerId.Value);
 
+    public static IPlayerEffectGrain GetPlayerEffectGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerEffectGrain>(playerId.Value);
+
     public static IBadgeLeaderboardGrain GetBadgeLeaderboardGrain(this IGrainFactory factory) =>
         factory.GetGrain<IBadgeLeaderboardGrain>(SingletonGrainId.GLOBAL);
 

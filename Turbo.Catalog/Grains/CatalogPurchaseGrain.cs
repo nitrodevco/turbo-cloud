@@ -18,6 +18,7 @@ using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Guilds;
+using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Providers;
@@ -106,6 +107,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
 
         ValidatePetProducts(offer, extraParam);
         ValidateSubscriptionProducts(offer);
+        await ValidateEffectProductsAsync(offer, quantity, ct);
 
         await ValidateGuildProductsAsync(offer, extraParam, ct);
 
@@ -136,6 +138,49 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         await GrantSubscriptionsAsync(offer, quantity, ct);
 
         return offer;
+    }
+
+    /// <summary>
+    /// An effect product has to name an effect the player can still be given copies of. Refused
+    /// before any money moves, since the grant runs after the debit: an effect they already have
+    /// for good, or copies past the cap, would otherwise be charged for and refunded. Copies of
+    /// one effect across the offer's products are added up, as the grant will add them.
+    /// </summary>
+    private async Task ValidateEffectProductsAsync(
+        CatalogOfferSnapshot offer,
+        int quantity,
+        CancellationToken ct
+    )
+    {
+        var copiesByEffect = EffectProducts.CountCopies(offer.Products, quantity);
+
+        if (copiesByEffect is null)
+        {
+            _logger.LogError("An effect product of offer {OfferId} names no effect", offer.Id);
+
+            throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
+        }
+
+        if (copiesByEffect.Count == 0)
+            return;
+
+        // One call for the whole offer: its effects are judged together, so a purchase that would
+        // give the first and then fail on the second is refused now and not after the first is given.
+        var result = await _grainFactory
+            .GetPlayerEffectGrain(this.GetPlayerId())
+            .CheckGiveEffectsAsync(
+                [
+                    .. copiesByEffect.Select(x => new EffectGrantRequest
+                    {
+                        EffectId = x.Key,
+                        Copies = (int)Math.Min(x.Value, int.MaxValue),
+                    }),
+                ],
+                ct
+            );
+
+        if (result != EffectGrantResult.Granted)
+            throw new CatalogPurchaseException(EffectProducts.ErrorFor(result));
     }
 
     /// <summary>

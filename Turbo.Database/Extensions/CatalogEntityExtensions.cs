@@ -1,7 +1,9 @@
 using System.Collections.Immutable;
 using Turbo.Database.Entities.Catalog;
+using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Snapshots;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Snapshots;
 
 namespace Turbo.Database.Extensions;
@@ -75,7 +77,12 @@ public static class CatalogEntityExtensions
             OfferId = entity.CatalogOfferEntityId,
             ProductType = entity.ProductType,
             FurniDefinitionId = entity.FurnitureDefinitionEntityId ?? -1,
-            SpriteId = definition?.SpriteId ?? -1,
+            // An effect has no definition; the client reads its effect id where a sprite id goes.
+            SpriteId =
+                entity.ProductType == ProductType.Effect
+                && EffectProducts.TryGetEffectId(entity.ExtraParam, out var effectId)
+                    ? effectId
+                    : definition?.SpriteId ?? -1,
             ExtraParam = entity.ExtraParam,
             Quantity = entity.Quantity,
             UniqueSize = series?.TotalQuantity ?? 0,

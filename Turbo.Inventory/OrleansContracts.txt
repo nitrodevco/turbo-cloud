@@ -12,6 +12,8 @@
 
 class [GrainType("playerbadge")] Turbo.Inventory.Grains.Badges.PlayerBadgeGrain
 
+class [GrainType("playereffect")] Turbo.Inventory.Grains.Effects.PlayerEffectGrain
+
 class [GrainType("inventory")] Turbo.Inventory.Grains.InventoryGrain
 
 class [GrainType("playerunseenitems")] Turbo.Inventory.Grains.Unseen.PlayerUnseenItemsGrain
