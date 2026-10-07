@@ -155,7 +155,8 @@ public abstract class FurnitureWiredVariableLogic
         WiredVariableValue value
     )
     {
-        if (!await store.GiveValueAsync(storedKey, WiredVariableValue.Default, false))
+        // Its 0, not WiredVariableValue.Default: that is the marker a value-less variable is held with.
+        if (!await store.GiveValueAsync(storedKey, new WiredVariableValue(0), false))
             return false;
 
         return await SetAndNotifyAsync(store, ctx, key, storedKey, value);
@@ -282,6 +283,7 @@ public abstract class FurnitureWiredVariableLogic
                     ChangeType = changeType,
                     Value = value,
                     PreviousValue = previous,
+                    Origin = WiredSystem.ChangeOrigin,
                 },
                 System.Threading.CancellationToken.None
             )

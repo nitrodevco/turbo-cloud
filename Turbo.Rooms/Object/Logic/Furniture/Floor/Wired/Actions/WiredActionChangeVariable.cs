@@ -88,9 +88,7 @@ public class WiredActionChangeVariable(
 
             var next = WiredVariableOperations.Apply(operation, current, operand);
 
-            if (next == current.Value)
-                continue;
-
+            // Written even when it stays the same: "Variable Changed" can react to "unchanged".
             changed |= await variable.SetValueAsync(ctx, key, new WiredVariableValue(next));
         }
 

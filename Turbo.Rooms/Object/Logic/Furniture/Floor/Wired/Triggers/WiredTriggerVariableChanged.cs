@@ -16,10 +16,12 @@ using Turbo.Rooms.Wired.Rules;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
 /// <summary>
-/// Fires when the picked variable is created, written or removed on any target. Int params:
-/// the variable target, then a bitmask of the change kinds to react to (bit 0 created, bit 1
-/// updated, bit 2 removed; zero means all). The target the change happened on becomes the
-/// triggering furni or user.
+/// Fires when the picked variable is created, written or removed on any target. Int params, as
+/// the client's editor saves them (<c>triggerconfs/VariableUpdate</c>): created, value changed and
+/// deleted (0 or 1 each, <c>variables.trigger_options.0</c> to <c>.2</c>); the value-changed kinds as
+/// a mask (bit 0 increased, bit 1 decreased, bit 2 unchanged; 0 is all of them); and the origins
+/// allowed as a mask (bit n for <see cref="WiredVariableChangeOriginType"/> n, -1 all). The target
+/// the change happened on becomes the triggering furni or user.
 /// </summary>
 [RoomObjectLogic("wf_trg_var_changed")]
 public class WiredTriggerVariableChanged(
@@ -33,10 +35,25 @@ public class WiredTriggerVariableChanged(
 
     public override int GetMaxVariableIds() => 1;
 
-    public override List<IWiredParamRule> GetIntParamRules() =>
-        [WiredRules.VariableTarget(WiredVariableTargetType.User), WiredRules.AnyInt()];
+    private const int PARAM_CREATED = 0;
+    private const int PARAM_UPDATED = 1;
+    private const int PARAM_REMOVED = 2;
+    private const int PARAM_UPDATE_KINDS = 3;
+    private const int PARAM_ORIGINS = 4;
 
-    public override IWiredParamRule? GetIntParamTailRule() => WiredRules.AnyInt();
+    private const int UPDATE_INCREASED = 1 << 0;
+    private const int UPDATE_DECREASED = 1 << 1;
+    private const int UPDATE_UNCHANGED = 1 << 2;
+    private const int ALL_ORIGINS = -1;
+
+    public override List<IWiredParamRule> GetIntParamRules() =>
+        [
+            new WiredBoolParamRule(false),
+            new WiredBoolParamRule(false),
+            new WiredBoolParamRule(false),
+            new WiredRangeParamRule(0, 0b111, 0),
+            new WiredRangeParamRule(ALL_ORIGINS, 0b1111, ALL_ORIGINS),
+        ];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();
@@ -51,14 +68,36 @@ public class WiredTriggerVariableChanged(
         if (variable is null || variable.GetVarSnapshot().VariableId != change.VariableId)
             return Task.FromResult(false);
 
-        var mask = GetIntParamOrDefault(1, 0);
+        var origins = GetIntParamOrDefault(PARAM_ORIGINS, ALL_ORIGINS);
 
-        if (mask == 0)
-            return Task.FromResult(true);
+        if (origins != ALL_ORIGINS && (origins & (1 << (int)change.Origin)) == 0)
+            return Task.FromResult(false);
 
-        var bit = 1 << (int)change.ChangeType;
+        return Task.FromResult(
+            change.ChangeType switch
+            {
+                WiredVariableChangeType.Created => GetIntParamOrDefault(PARAM_CREATED, false),
+                WiredVariableChangeType.Removed => GetIntParamOrDefault(PARAM_REMOVED, false),
+                WiredVariableChangeType.Updated => GetIntParamOrDefault(PARAM_UPDATED, false)
+                    && MatchesUpdateKind(change),
+                _ => false,
+            }
+        );
+    }
 
-        return Task.FromResult((mask & bit) != 0);
+    private bool MatchesUpdateKind(WiredVariableChangedEvent change)
+    {
+        var kinds = GetIntParamOrDefault(PARAM_UPDATE_KINDS, 0);
+
+        if (kinds == 0)
+            return true;
+
+        var kind =
+            change.Value.Value > change.PreviousValue.Value ? UPDATE_INCREASED
+            : change.Value.Value < change.PreviousValue.Value ? UPDATE_DECREASED
+            : UPDATE_UNCHANGED;
+
+        return (kinds & kind) != 0;
     }
 
     public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct)

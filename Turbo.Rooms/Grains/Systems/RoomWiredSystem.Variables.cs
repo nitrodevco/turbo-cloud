@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired.Variable;
@@ -137,7 +138,39 @@ public sealed partial class RoomWiredSystem
     /// user. The flags asked for are the ones the client checks before it offers each button;
     /// the client is not trusted to have checked them.
     /// </summary>
+    /// <summary>
+    /// Where the variable changes made right now come from: wired in this room, unless the
+    /// inspection tool or Variable Management is making them (<see cref="WiredVariableChangedEvent.Origin"/>).
+    /// </summary>
+    public WiredVariableChangeOriginType ChangeOrigin { get; private set; }
+
     public async Task<bool> ApplyVariableMenuOperationAsync(
+        WiredVariableBinding binding,
+        WiredVariableId variableId,
+        WiredVariableMenuOperationType operation,
+        WiredVariableValue value,
+        CancellationToken ct
+    )
+    {
+        ChangeOrigin = WiredVariableChangeOriginType.Inspection;
+
+        try
+        {
+            return await ApplyVariableMenuOperationCoreAsync(
+                binding,
+                variableId,
+                operation,
+                value,
+                ct
+            );
+        }
+        finally
+        {
+            ChangeOrigin = WiredVariableChangeOriginType.ThisRoom;
+        }
+    }
+
+    private async Task<bool> ApplyVariableMenuOperationCoreAsync(
         WiredVariableBinding binding,
         WiredVariableId variableId,
         WiredVariableMenuOperationType operation,
@@ -194,14 +227,26 @@ public sealed partial class RoomWiredSystem
     /// or user variable only, and that is all a box can do it for: only a stored variable keeps
     /// its own list of holders.
     /// </summary>
-    public int RemoveVariableFromAllHolders(WiredVariableId variableId) =>
-        GetVariableById(variableId) is FurnitureWiredVariableLogic box
-        && box.GetVarSnapshot().Flags.Has(WiredVariableFlags.CanCreateAndDelete)
-        && box.GetVarSnapshot().TargetType
-            is WiredVariableTargetType.Furni
-                or WiredVariableTargetType.User
-            ? box.RemoveAllValues()
-            : 0;
+    public int RemoveVariableFromAllHolders(WiredVariableId variableId)
+    {
+        ChangeOrigin = WiredVariableChangeOriginType.External;
+
+        try
+        {
+            return
+                GetVariableById(variableId) is FurnitureWiredVariableLogic box
+                && box.GetVarSnapshot().Flags.Has(WiredVariableFlags.CanCreateAndDelete)
+                && box.GetVarSnapshot().TargetType
+                    is WiredVariableTargetType.Furni
+                        or WiredVariableTargetType.User
+                ? box.RemoveAllValues()
+                : 0;
+        }
+        finally
+        {
+            ChangeOrigin = WiredVariableChangeOriginType.ThisRoom;
+        }
+    }
 
     /// <summary>
     /// A stored furni variable outlives the furni that holds it, which is right for a furni

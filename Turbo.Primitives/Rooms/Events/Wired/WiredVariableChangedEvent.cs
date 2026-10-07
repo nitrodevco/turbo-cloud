@@ -25,4 +25,7 @@ public sealed record WiredVariableChangedEvent : RoomEvent
 
     [Id(5)]
     public WiredVariableValue PreviousValue { get; init; }
+
+    [Id(6)]
+    public WiredVariableChangeOriginType Origin { get; init; }
 }

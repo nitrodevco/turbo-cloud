@@ -61,9 +61,7 @@ public sealed class WiredVariableChangeBatch
             foreach (var change in group.OrderBy(x => Rank(x.Operation)))
                 value = WiredVariableOperations.Apply(change.Operation, value, change.Operand);
 
-            if (value == current.Value)
-                continue;
-
+            // Written even when it stays the same: "Variable Changed" can react to "unchanged".
             changed |= await variable.SetValueAsync(
                 ctx,
                 group.Key,
