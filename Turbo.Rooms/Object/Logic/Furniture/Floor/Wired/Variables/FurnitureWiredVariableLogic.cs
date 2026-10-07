@@ -93,8 +93,18 @@ public abstract class FurnitureWiredVariableLogic
         if (!CanBind(key) || !TryGetStore(key, out var store, out var storedKey) || store is null)
             return false;
 
-        return store.TryGetValue(storedKey, out value);
+        // A global always holds its value: 0 until something changes it.
+        return store.TryGetValue(storedKey, out value) || HoldsByDefault(key);
     }
+
+    /// <summary>
+    /// A global variable has no holders to give it to: the room holds it from the moment the box
+    /// is placed (<see cref="WiredVariableFlags.AlwaysAvailable"/>), at 0, and a change to it
+    /// always has something to change.
+    /// </summary>
+    private bool HoldsByDefault(in WiredVariableKey key) =>
+        key.TargetType == WiredVariableTargetType.Global
+        && GetVarSnapshot().Flags.Has(WiredVariableFlags.AlwaysAvailable);
 
     public virtual Task<bool> GiveValueAsync(
         WiredVariableKey key,
@@ -122,14 +132,33 @@ public abstract class FurnitureWiredVariableLogic
         WiredVariableValue value
     )
     {
-        if (
-            !TryGetStore(key, out var store, out var storedKey)
-            || store is null
-            || !store.ContainsKey(storedKey)
-        )
+        if (!TryGetStore(key, out var store, out var storedKey) || store is null)
             return Task.FromResult(false);
 
+        if (!store.ContainsKey(storedKey))
+        {
+            if (!HoldsByDefault(key))
+                return Task.FromResult(false);
+
+            return SetDefaultHeldAsync(store, ctx, key, storedKey, value);
+        }
+
         return SetAndNotifyAsync(store, ctx, key, storedKey, value);
+    }
+
+    /// <summary>The first change to a global: it is stored at its 0, then changed like any value.</summary>
+    private async Task<bool> SetDefaultHeldAsync(
+        KeyValueStore store,
+        IWiredExecutionContext ctx,
+        WiredVariableKey key,
+        WiredVariableKey storedKey,
+        WiredVariableValue value
+    )
+    {
+        if (!await store.GiveValueAsync(storedKey, WiredVariableValue.Default, false))
+            return false;
+
+        return await SetAndNotifyAsync(store, ctx, key, storedKey, value);
     }
 
     public bool TryGetTimestamps(

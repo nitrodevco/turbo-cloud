@@ -192,7 +192,8 @@ public sealed class WiredRoom
         WiredFurniSourceType[][]? furniSources = null,
         WiredPlayerSourceType[][]? playerSources = null,
         object[]? definitionSpecifics = null,
-        string stringParam = ""
+        string stringParam = "",
+        string[]? variableIds = null
     )
         where TMessage : UpdateWiredMessage
     {
@@ -206,7 +207,7 @@ public sealed class WiredRoom
             DefinitionSpecifics = [.. definitionSpecifics ?? []],
             FurniSources = [.. furniSources ?? []],
             PlayerSources = [.. playerSources ?? []],
-            VariableIds = [],
+            VariableIds = [.. variableIds ?? []],
             TypeSpecifics = [],
         };
 
