@@ -5,6 +5,7 @@ using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Authentication;
 using Turbo.Primitives.Availability;
+using Turbo.Primitives.Figures;
 using Turbo.Primitives.Messages.Incoming.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Availability;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
@@ -32,7 +33,8 @@ public class SSOTicketMessageHandler(
     INavigatorService navigatorService,
     ISanctionService sanctionService,
     IHotelAvailability hotelAvailability,
-    IHotelTextProvider textProvider
+    IHotelTextProvider textProvider,
+    IPlayerClothingService clothing
 ) : IMessageHandler<SSOTicketMessage>
 {
     private readonly IAuthenticationService _authService = authService;
@@ -67,7 +69,9 @@ public class SSOTicketMessageHandler(
             await ctx.SendComposerAsync(
                     new UserBannedMessageComposer
                     {
-                        Message = SanctionMessages.BanMessage(ban, _textProvider),
+                        Message = await SanctionMessages
+                            .BanMessageAsync(ban, _textProvider, ct)
+                            .ConfigureAwait(false),
                     },
                     ct
                 )
@@ -83,7 +87,9 @@ public class SSOTicketMessageHandler(
             await ctx.SendComposerAsync(
                     new HabboBroadcastMessageComposer
                     {
-                        Message = AvailabilityMessages.MaintenanceStarted(_textProvider),
+                        Message = await AvailabilityMessages
+                            .MaintenanceStartedAsync(_textProvider, ct)
+                            .ConfigureAwait(false),
                     },
                     ct
                 )
@@ -111,13 +117,16 @@ public class SSOTicketMessageHandler(
         var welcomeMessageTask = _grainFactory.GetWelcomeMessageGrain().GetMessageAsync(ct);
         // The effects the player owns, with what is left of any that is running.
         var effectsTask = _grainFactory.GetPlayerEffectGrain(playerId).GetEffectsAsync(ct);
+        // The clothing they own, which the avatar editor offers them besides what everyone has.
+        var ownedClothingTask = clothing.GetOwnedAsync(playerId, ct);
 
         await Task.WhenAll(
                 settingsTask,
                 favouriteRoomIdsTask,
                 clubGiftsTask,
                 welcomeMessageTask,
-                effectsTask
+                effectsTask,
+                ownedClothingTask
             )
             .ConfigureAwait(false);
 
@@ -143,6 +152,12 @@ public class SSOTicketMessageHandler(
                 },
                 ct
             )
+            .ConfigureAwait(false);
+
+        // What they wore last may not be theirs to wear now - club clothing after the club ran
+        // out - so it is fitted again before anyone sees it.
+        await _grainFactory.GetPlayerGrain(playerId).RefitFigureAsync(ct).ConfigureAwait(false);
+        await ctx.SendComposerAsync(new AvatarEffectsMessageComposer { Effects = [] }, ct)
             .ConfigureAwait(false);
         var settings = await settingsTask.ConfigureAwait(false);
         var favouriteRoomIds = await favouriteRoomIdsTask.ConfigureAwait(false);
@@ -189,7 +204,7 @@ public class SSOTicketMessageHandler(
         await ctx.SendComposerAsync(
                 new FigureSetIdsEventMessageComposer
                 {
-                    FigureSetIds = [],
+                    FigureSetIds = [.. (await ownedClothingTask.ConfigureAwait(false)).Order()],
                     BoundFurnitureNames = [],
                 },
                 ct

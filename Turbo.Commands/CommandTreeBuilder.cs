@@ -18,7 +18,7 @@ public static class CommandTreeBuilder
     public static CommandTreeSnapshot Build(
         ICommandRegistry registry,
         ResolvedPermissionsSnapshot permissions,
-        IHotelTextProvider texts
+        HotelTexts texts
     ) =>
         new()
         {
@@ -71,19 +71,14 @@ public static class CommandTreeBuilder
         ICommandRegistry registry,
         CommandDescriptor command,
         ResolvedPermissionsSnapshot permissions,
-        IHotelTextProvider texts
+        HotelTexts texts
     ) =>
         new()
         {
             Name = command.Name,
             Aliases = [.. registry.AliasesOf(command)],
             Category = command.Category,
-            Description = texts.TryGetText(
-                CommandReplyKeys.ForCommand(command.Name, CommandReplyKeys.DESCRIPTION),
-                out var description
-            )
-                ? description
-                : command.Description,
+            Description = CommandHelp.Description(command, texts),
             Usage =
                 command.Binder.Syntax.Count == 0
                     ? command.Usage

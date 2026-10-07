@@ -28,15 +28,7 @@ public class CommandTreeTests
 
     public CommandTreeTests()
     {
-        _fakes.Handlers["TryGetText"] = call =>
-        {
-            if (call.Args[0] is not string key || !_texts.TryGetValue(key, out var text))
-                return false;
-
-            call.Args[1] = text;
-
-            return true;
-        };
+        HotelTextFakes.Use(_fakes, key => _texts.GetValueOrDefault(key));
 
         _registry.Register([
             new BootCommand(),
@@ -56,11 +48,7 @@ public class CommandTreeTests
         };
 
     private Primitives.Commands.Snapshots.CommandTreeSnapshot Build(params string[] nodes) =>
-        CommandTreeBuilder.Build(
-            _registry.Current,
-            Holding(nodes),
-            _fakes.Create<IHotelTextProvider>()
-        );
+        CommandTreeBuilder.Build(_registry.Current, Holding(nodes), new HotelTexts(_texts));
 
     [Fact]
     public void TheTree_HoldsOnlyWhatThePlayerMayUse_SortedByName()
@@ -181,7 +169,7 @@ public class CommandTreeTests
             .Select(line => line.Split(" - ")[0].Split(" (<")[0])
             .Order(StringComparer.Ordinal);
         var tree = CommandTreeBuilder
-            .Build(room.Commands.Current, Holding(nodes), _fakes.Create<IHotelTextProvider>())
+            .Build(room.Commands.Current, Holding(nodes), new HotelTexts(_texts))
             .Commands.Select(x => x.Usage)
             .Order(StringComparer.Ordinal);
 

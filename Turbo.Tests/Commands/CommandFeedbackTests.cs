@@ -129,11 +129,7 @@ public class CommandFeedbackTests
     public async Task NoticeUsesHotelTextAndReturnsSubmissionOutcome()
     {
         var fakes = new Fakes();
-        fakes.Handlers["TryGetText"] = call =>
-        {
-            call.Args[1] = "Changed: %0%.";
-            return true;
-        };
+        HotelTextFakes.Use(fakes, _ => "Changed: %0%.");
         fakes.Handlers["TrySendComposerAsync"] = _ => Task.FromResult(true);
         var service = Notices(fakes);
 

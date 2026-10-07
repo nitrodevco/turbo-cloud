@@ -247,7 +247,8 @@ public sealed class OperatorCommandRunner(
         if (!descriptor.IsOperator)
         {
             await executor.ReplyAsync(
-                Text(CommandReplyKeys.NEEDS_ROOM, descriptor, null, []) ?? string.Empty,
+                await TextAsync(CommandReplyKeys.NEEDS_ROOM, descriptor, null, [], ct)
+                    ?? string.Empty,
                 ct
             );
 
@@ -478,11 +479,12 @@ public sealed class OperatorCommandRunner(
 
         var shared = CommandReplyKeys.IsShared(question);
         var what =
-            Text(
+            await TextAsync(
                 shared ? question : CommandReplyKeys.ForCommand(descriptor.Name, question),
                 descriptor,
                 shared ? null : question,
-                result.Parameters
+                result.Parameters,
+                ct
             ) ?? string.Empty;
 
         await ReplyAsync(
@@ -708,14 +710,17 @@ public sealed class OperatorCommandRunner(
     {
         try
         {
-            if (Text(key, descriptor, status, parameters) is not { } text)
-                return;
-
             // Feedback describes the settled operation, even if its request deadline elapsed.
             using var deadline = new CancellationTokenSource(
                 TimeSpan.FromSeconds(config.Value.FinalizationTimeoutSeconds),
                 timeProvider
             );
+
+            if (
+                await TextAsync(key, descriptor, status, parameters, deadline.Token) is not { } text
+            )
+                return;
+
             await executor.ReplyAsync(text, deadline.Token).WaitAsync(deadline.Token);
         }
         catch (Exception ex)
@@ -734,15 +739,18 @@ public sealed class OperatorCommandRunner(
     /// for its status; null when there is none, which a command wants when its status is only for
     /// the caller to read.
     /// </summary>
-    private string? Text(
+    private async Task<string?> TextAsync(
         string key,
         CommandDescriptor descriptor,
         string? status,
-        string[] parameters
+        string[] parameters,
+        CancellationToken ct
     )
     {
+        var text = await textProvider.GetTextAsync(key, ct);
+
         if (
-            !textProvider.TryGetText(key, out var text)
+            text is null
             && !CommandReplyKeys.Defaults.TryGetValue(key, out text)
             && !(status is not null && descriptor.Texts.TryGetValue(status, out text))
         )

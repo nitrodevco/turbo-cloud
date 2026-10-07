@@ -19,6 +19,7 @@ using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Primitives.WiredTrading.Grains;
 using Turbo.Primitives.WiredTrading.Snapshots;
 using Turbo.Rooms.Grains;
+using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
 using Turbo.Tests.Support;
 using Xunit;
@@ -88,6 +89,34 @@ public class WiredChestRoomTests
             .OfType<WiredTransactionFailMessageComposer>()
             .Should()
             .ContainSingle(x => x.FailureType == WiredTransactionFailureType.Empty);
+    }
+
+    [Fact]
+    public async Task Opening_a_chest_closes_the_one_the_player_had_open()
+    {
+        const int OTHER_CHEST = 8;
+        var (room, _) = CreateRoomWithChest();
+        room.AddToRoom(CreateChest(room, OTHER_CHEST, 3));
+        AddPlayer(room, OWNER);
+        // Each chest now has a viewer, so the first counts as open when the second opens.
+        room.Fakes.Handlers[nameof(IWiredChestGrain.OpenAsync)] = _ => Task.FromResult(1);
+
+        await room.Room.InteractWithItemAsync(
+            ActionContext.CreateForPlayer(OWNER, 1),
+            CHEST,
+            new OpenChestInteraction(),
+            default
+        );
+        await room.Room.InteractWithItemAsync(
+            ActionContext.CreateForPlayer(OWNER, 1),
+            OTHER_CHEST,
+            new OpenChestInteraction(),
+            default
+        );
+
+        room.Fakes.Log.Of(nameof(IWiredChestGrain.CloseAsync))
+            .Should()
+            .ContainSingle(x => Equals(x.Key, (long)CHEST) && x.Args.Contains((PlayerId)OWNER));
     }
 
     [Fact]
@@ -260,9 +289,17 @@ public class WiredChestRoomTests
         )!;
         stream.SetValue(room.Room, room.Fakes.Create(stream.FieldType, "room-stream"));
 
-        var item = room.CreateFloorItem(
-            CHEST,
-            2,
+        var item = CreateChest(room, CHEST, 2);
+
+        room.AddToRoom(item);
+
+        return (room, (FurnitureWiredChestLogic)item.Logic);
+    }
+
+    private static RoomFloorItem CreateChest(RoomHarness room, int id, int x) =>
+        room.CreateFloorItem(
+            id,
+            x,
             2,
             Altitude.Zero,
             name: "wf_storage_furni1",
@@ -270,9 +307,4 @@ public class WiredChestRoomTests
             createLogic: (stuffDataFactory, ctx) =>
                 new FurnitureWiredFurniChestLogic(stuffDataFactory, ctx)
         );
-
-        room.AddToRoom(item);
-
-        return (room, (FurnitureWiredChestLogic)item.Logic);
-    }
 }

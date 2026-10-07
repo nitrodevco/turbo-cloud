@@ -77,7 +77,8 @@ public sealed class ReloadCommand(
 
                 break;
             case ReloadSubject.Texts:
-                await textProvider.ReloadAsync(ct);
+                // Texts are read from the database as they are asked for; this forgets those read.
+                textProvider.Invalidate();
 
                 break;
             case ReloadSubject.Furni:

@@ -155,8 +155,7 @@ public class CommandGrammarTests
     public void HiddenBranchesAreAbsentFromTreeAndPermissionKeyChanges()
     {
         var permissions = ResolvedPermissionsSnapshot.EMPTY with { Granted = ["test.grammar"] };
-        var texts = new Fakes().Create<IHotelTextProvider>();
-        var tree = CommandTreeBuilder.Build(_registry.Current, permissions, texts);
+        var tree = CommandTreeBuilder.Build(_registry.Current, permissions, HotelTexts.Empty);
         tree.Commands.Single().Syntax.Select(x => x.Path).Should().Equal("remove");
         tree.Commands.Single().Usage.Should().NotContain("add");
         CommandTreeBuilder

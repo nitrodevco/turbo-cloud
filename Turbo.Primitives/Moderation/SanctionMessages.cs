@@ -1,5 +1,7 @@
 using System;
 using System.Globalization;
+using System.Threading;
+using System.Threading.Tasks;
 using Turbo.Primitives.Moderation.Snapshots;
 using Turbo.Primitives.Texts;
 
@@ -21,13 +23,17 @@ public static class SanctionMessages
     private const string DEFAULT_BAN_MESSAGE_PERMANENT =
         "You are banned from the hotel. Reason: %0%";
 
-    public static string BanMessage(PlayerSanctionSnapshot ban, IHotelTextProvider texts)
+    public static async Task<string> BanMessageAsync(
+        PlayerSanctionSnapshot ban,
+        IHotelTextProvider texts,
+        CancellationToken ct
+    )
     {
         var permanent = ban.ExpiresAtUtc is null;
         var key = permanent ? BAN_MESSAGE_PERMANENT : BAN_MESSAGE;
-
-        if (!texts.TryGetText(key, out var text))
-            text = permanent ? DEFAULT_BAN_MESSAGE_PERMANENT : DEFAULT_BAN_MESSAGE;
+        var text =
+            await texts.GetTextAsync(key, ct).ConfigureAwait(false)
+            ?? (permanent ? DEFAULT_BAN_MESSAGE_PERMANENT : DEFAULT_BAN_MESSAGE);
 
         return text.Replace("%0%", ban.Reason, StringComparison.Ordinal)
             .Replace(

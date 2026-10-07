@@ -26,12 +26,14 @@ public sealed class UserHandItemVariable(RoomGrain roomGrain)
         | WiredVariableFlags.CanCreateAndDelete
         | WiredVariableFlags.HasTextConnector;
 
+    private IEnumerable<int> TextIds =>
+        WiredTextConnectors.UpTo(_roomGrain._wiredConfig.MaxHandItemId);
+
+    protected internal override string TextPrefix =>
+        WiredTextConnectors.Prefix(WiredTextConnectors.HAND_ITEM_KEY);
+
     protected override Dictionary<WiredVariableValue, string> GetTextConnectors() =>
-        WiredTextConnectors.ForIdRange(
-            _roomGrain._hotelTextProvider,
-            WiredTextConnectors.HAND_ITEM_KEY,
-            _roomGrain._wiredConfig.MaxHandItemId
-        );
+        WiredTextConnectors.ForIds(Texts, WiredTextConnectors.HAND_ITEM_KEY, TextIds);
 
     /// <summary>
     /// Writing it puts that hand item in the avatar's hand, or empties it with zero. It goes

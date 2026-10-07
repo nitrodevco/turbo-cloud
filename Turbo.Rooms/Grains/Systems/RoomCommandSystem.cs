@@ -398,8 +398,10 @@ public sealed class RoomCommandSystem(RoomGrain roomGrain) : RoomGrainComponent(
         string? status = null
     )
     {
+        var text = await _roomGrain._hotelTextProvider.GetTextAsync(key, ct);
+
         if (
-            !_roomGrain._hotelTextProvider.TryGetText(key, out var text)
+            text is null
             && !CommandReplyKeys.Defaults.TryGetValue(key, out text)
             && !(status is not null && descriptor.Texts.TryGetValue(status, out text))
         )

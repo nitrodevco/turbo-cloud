@@ -32,12 +32,13 @@ public sealed class UserSignVariable(RoomGrain roomGrain)
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.HasTextConnector;
 
+    private IEnumerable<int> TextIds => Enumerable.Range(0, MAX_SIGN + 1);
+
+    protected internal override string TextPrefix =>
+        WiredTextConnectors.Prefix(WiredTextConnectors.SIGN_KEY);
+
     protected override Dictionary<WiredVariableValue, string> GetTextConnectors() =>
-        WiredTextConnectors.ForIds(
-            _roomGrain._hotelTextProvider,
-            WiredTextConnectors.SIGN_KEY,
-            Enumerable.Range(0, MAX_SIGN + 1)
-        );
+        WiredTextConnectors.ForIds(Texts, WiredTextConnectors.SIGN_KEY, TextIds);
 
     protected override WiredVariableValue GetValueForAvatar(IRoomAvatar avatar) =>
         WiredVariableValue.Parse(

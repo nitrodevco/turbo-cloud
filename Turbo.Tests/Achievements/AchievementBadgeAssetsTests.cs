@@ -159,16 +159,7 @@ public sealed class AchievementBadgeAssetsTests : IDisposable
         IReadOnlyDictionary<string, string> texts
     )
     {
-        _fakes.Handlers[nameof(IHotelTextProvider.TryGetText)] = call =>
-        {
-            if (texts.TryGetValue((string)call.Args[0]!, out var value))
-            {
-                call.Args[1] = value;
-                return true;
-            }
-            call.Args[1] = string.Empty;
-            return false;
-        };
+        HotelTextFakes.Use(_fakes, key => texts.GetValueOrDefault(key));
         var options = Options.Create(new AchievementConfig { BadgeAssetUrl = URL });
         var hotelTexts = _fakes.Create<IHotelTextProvider>();
         var assets = new AchievementBadgeAssets(options, _time, null, _host);

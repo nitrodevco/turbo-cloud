@@ -52,23 +52,28 @@ public sealed class CommandTreeService : ICommandTreeService, IDisposable
         );
 
     /// <summary>Sends the tree for permissions the caller already holds, sparing the grain a call.</summary>
-    public Task SendAsync(
+    public async Task SendAsync(
         PlayerId playerId,
         ResolvedPermissionsSnapshot permissions,
         CancellationToken ct
-    ) =>
-        _grainFactory.SendComposerToPlayerAsync(
-            playerId,
-            new TurboCommandTreeMessage
-            {
-                Tree = CommandTreeBuilder.Build(
-                    _registryProvider.Current,
-                    permissions,
-                    _textProvider
-                ),
-            },
-            ct
-        );
+    )
+    {
+        var registry = _registryProvider.Current;
+        var texts = await _textProvider
+            .GetTextsAsync(CommandHelp.DescriptionKeys(registry.Commands), ct)
+            .ConfigureAwait(false);
+
+        await _grainFactory
+            .SendComposerToPlayerAsync(
+                playerId,
+                new TurboCommandTreeMessage
+                {
+                    Tree = CommandTreeBuilder.Build(registry, permissions, texts),
+                },
+                ct
+            )
+            .ConfigureAwait(false);
+    }
 
     public void Dispose() => _registryProvider.Changed -= OnRegistryChanged;
 

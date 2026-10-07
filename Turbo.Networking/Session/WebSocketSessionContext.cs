@@ -46,7 +46,7 @@ public class WebSocketSessionContext(PackageEncoder packageEncoder, ILogger<ISes
 
     public ArrayBufferWriter<byte>? WsBuffer { get; } = new(4096);
 
-    public async Task CloseSessionAsync() => await this.CloseAsync().ConfigureAwait(false);
+    public Task CloseSessionAsync() => _state.CloseAsync(this, CloseAsync);
 
     public void SetRevisionId(string revisionId) => _state.RevisionId = revisionId;
 

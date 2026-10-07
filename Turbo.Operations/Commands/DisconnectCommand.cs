@@ -64,9 +64,9 @@ public sealed class DisconnectCommand(
         )
             return CommandResult.Fail(PROTECTED, target.Name);
 
-        var message = texts.TryGetText("command.disconnect.notice", out var localized)
-            ? localized
-            : "A moderator has closed your connection. You can reconnect to the hotel.";
+        var message =
+            await texts.GetTextAsync("command.disconnect.notice", ct)
+            ?? "A moderator has closed your connection. You can reconnect to the hotel.";
         return await sessionGateway.DisconnectPlayerAsync(
             target.Id,
             new ModeratorMessageComposer { Message = message, Url = string.Empty },

@@ -37,6 +37,8 @@ public class WelcomeMessageLoginTests
     public WelcomeMessageLoginTests()
     {
         _fakes.Handlers["GetPlayerIdFromTicketAsync"] = _ => Task.FromResult(PLAYER);
+        _fakes.Handlers["GetOwnedAsync"] = _ =>
+            Task.FromResult(System.Collections.Immutable.ImmutableHashSet<int>.Empty);
         _fakes.Handlers["AdmitsAsync"] = _ => Task.FromResult(true);
         _fakes.Handlers["GetSettingsAsync"] = _ =>
             Task.FromResult(Activator.CreateInstance<PlayerSettingsSnapshot>());
@@ -58,7 +60,8 @@ public class WelcomeMessageLoginTests
             _fakes.Create<INavigatorService>(),
             _fakes.Create<ISanctionService>(),
             _fakes.Create<IHotelAvailability>(),
-            _fakes.Create<IHotelTextProvider>()
+            _fakes.Create<IHotelTextProvider>(),
+            _fakes.Create<Turbo.Primitives.Figures.IPlayerClothingService>()
         );
     }
 

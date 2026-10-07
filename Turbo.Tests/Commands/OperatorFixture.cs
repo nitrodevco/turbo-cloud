@@ -109,15 +109,7 @@ public sealed class OperatorFixture
     public OperatorFixture(CommandConfig? config = null)
     {
         Config = config ?? new CommandConfig();
-        Fakes.Handlers["TryGetText"] = call =>
-        {
-            if (call.Args[0] is not string key || !HotelTexts.TryGetValue(key, out var text))
-                return false;
-
-            call.Args[1] = text;
-
-            return true;
-        };
+        HotelTextFakes.Use(Fakes, key => HotelTexts.GetValueOrDefault(key));
         Fakes.Handlers["GetPlayerIdAsync"] = call =>
             Task.FromResult<PlayerId?>(
                 _idsByName.TryGetValue((string)call.Args[0]!, out var id) ? id : null

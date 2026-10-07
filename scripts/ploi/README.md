@@ -9,6 +9,7 @@ These scripts run Turbo on a Ploi-managed Ubuntu server:
 | `lib.sh` | Shared helpers. Loads `.env` and maps it onto Turbo's configuration keys. |
 | `turbo.env.example` | Every setting, with defaults. Paste it into the site's Environment tab. |
 | `nginx-websocket.conf` | nginx block that proxies `wss://` to the WebSocket server. |
+| `nginx-gamedata.conf` | nginx block that serves `/gamedata/` from the gamedata host on another site. |
 
 ## Layout on the server
 
@@ -90,6 +91,15 @@ hotel's public domain, from the `turbo-web` folder. On this site, it needs `TURB
 `TURBO_WEB_SITE_URL`, `TURBO_WEB_CLIENT_URL` and the Discord application's
 `TURBO_DISCORD_CLIENT_ID` and `TURBO_DISCORD_CLIENT_SECRET`.
 [`docs/public-site.md`](../../docs/public-site.md) covers the whole setup.
+
+## Gamedata
+
+The files the client loads (furnidata, texts, product and figure data) are served under
+`/gamedata/` on a site you already have, such as the public site. On this site, it needs
+`TURBO_GAMEDATA_ENABLED=true` and `TURBO_GAMEDATA_PUBLIC_URL=https://<that site>`; on that site,
+the `location /gamedata/` block from `nginx-gamedata.conf`.
+[`docs/gamedata.md`](../../docs/gamedata.md#setting-it-up-in-production-ploi) covers the whole
+setup.
 
 ## Behind Cloudflare
 

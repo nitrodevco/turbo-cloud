@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Player;
@@ -36,6 +37,25 @@ public sealed class RoomWiredChestSystem(RoomGrain roomGrain)
                 && chest.Context.RoomObject.OwnerId == left.PlayerId
             )
                 await chest.SetLockedAsync(true);
+        }
+    }
+
+    /// <summary>
+    /// A player looks inside one chest at a time: the client keeps a single chest window, which
+    /// the next chest's contents take over, and only ever closes the chest it last opened
+    /// (<c>WiredChestController.setClosedStatus</c>). So opening a chest closes any other the
+    /// player had open, or that one would stay drawn open for good.
+    /// </summary>
+    public async Task CloseOtherChestsAsync(
+        PlayerId playerId,
+        FurnitureWiredChestLogic opened,
+        CancellationToken ct
+    )
+    {
+        foreach (var chest in Chests())
+        {
+            if (!ReferenceEquals(chest, opened))
+                await chest.ForgetViewerAsync(playerId, ct);
         }
     }
 

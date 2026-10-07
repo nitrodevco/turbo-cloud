@@ -26,11 +26,6 @@ public sealed class RoomModule : IHostPluginModule
         services.Configure<WiredChestConfig>(
             builder.Configuration.GetSection(WiredChestConfig.SECTION_NAME)
         );
-        services.Configure<HotelTextConfig>(
-            builder.Configuration.GetSection(HotelTextConfig.SECTION_NAME)
-        );
-
-        services.AddSingleton<IHotelTextProvider, HotelTextProvider>();
         services.AddSingleton<IRoomAvatarProvider, RoomAvatarProvider>();
         services.AddSingleton<IRoomItemsProvider, RoomItemsProvider>();
         services.AddSingleton<IRoomNpcProvider, RoomNpcProvider>();

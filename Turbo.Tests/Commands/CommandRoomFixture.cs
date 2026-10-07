@@ -63,15 +63,7 @@ public sealed class CommandRoomFixture
             call.Interface == typeof(Turbo.Primitives.Players.Providers.IPermissionRegistryProvider)
                 ? permissions
                 : Fakes.NotHandled;
-        Harness.Fakes.Handlers["TryGetText"] = call =>
-        {
-            if (call.Args[0] is not string key || !HotelTexts.TryGetValue(key, out var text))
-                return false;
-
-            call.Args[1] = text;
-
-            return true;
-        };
+        HotelTextFakes.Use(Harness.Fakes, key => HotelTexts.GetValueOrDefault(key));
         Harness.Fakes.Handlers["get_PlayerId"] = ForPlayer(id => (PlayerId)id);
         Harness.Fakes.Handlers["get_ObjectId"] = ForPlayer(id => (RoomObjectId)id);
         Harness.Fakes.Handlers["get_Name"] = ForPlayer(id => $"player{id}");

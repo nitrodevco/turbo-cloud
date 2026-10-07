@@ -197,7 +197,7 @@ public sealed class AchievementCatalog : IAchievementCatalog
                 .OrderBy(x => x.Order)
                 .ThenBy(x => x.Id)
                 .ToImmutableArray();
-            Validate(next, allowRetainedSources: true);
+            Validate(next, allowRetainedSources: true, HotelTexts.Empty);
             lock (_gate)
                 _current = next;
         }
@@ -266,7 +266,10 @@ public sealed class AchievementCatalog : IAchievementCatalog
                     ct
                 )
                 .ConfigureAwait(false);
-            Validate(combined, allowRetainedSources: false);
+            var badgeTexts = await _texts
+                .GetTextsAsync(BadgeTextKeys(combined), ct)
+                .ConfigureAwait(false);
+            Validate(combined, allowRetainedSources: false, badgeTexts);
             foreach (var definition in definitions)
             {
                 var history = existing.Where(x => x.Id == definition.Id).ToArray();
@@ -337,7 +340,8 @@ public sealed class AchievementCatalog : IAchievementCatalog
 
     private void Validate(
         ImmutableArray<AchievementDefinition> definitions,
-        bool allowRetainedSources
+        bool allowRetainedSources,
+        HotelTexts texts
     )
     {
         if (
@@ -462,8 +466,8 @@ public sealed class AchievementCatalog : IAchievementCatalog
                                 $"Enabled achievement {d.Key} requires the badge image {_badgeAssets.Describe(level.BadgeCode)}."
                             );
                         if (
-                            !HasBadgeText("badge_name_", level.BadgeCode)
-                            || !HasBadgeText("badge_desc_", level.BadgeCode)
+                            !HasBadgeText(texts, BADGE_NAME, level.BadgeCode)
+                            || !HasBadgeText(texts, BADGE_DESC, level.BadgeCode)
                         )
                             throw new InvalidOperationException(
                                 $"Enabled achievement {d.Key} requires a localized badge name and description for {level.BadgeCode}."
@@ -495,13 +499,24 @@ public sealed class AchievementCatalog : IAchievementCatalog
             }
     }
 
-    private bool HasBadgeText(string prefix, string code)
-    {
+    private const string BADGE_NAME = "badge_name_";
+    private const string BADGE_DESC = "badge_desc_";
+
+    /// <summary>The texts an enabled achievement's badges are checked against, to read at once.</summary>
+    private static IEnumerable<string> BadgeTextKeys(
+        IEnumerable<AchievementDefinition> definitions
+    ) =>
+        definitions
+            .Where(x => x.State == AchievementState.Enabled)
+            .SelectMany(x => x.Levels)
+            .SelectMany(x => new[] { x.BadgeCode, BadgeBase(x.BadgeCode) })
+            .SelectMany(x => new[] { BADGE_NAME + x, BADGE_DESC + x });
+
+    private static bool HasBadgeText(HotelTexts texts, string prefix, string code) =>
         // The client resolves a badge's exact text first, then its base text with level tokens.
-        var badgeBase = Regex.Replace(code, "[0-9]+$", "");
-        return _texts.TryGetText(prefix + code, out _)
-            || _texts.TryGetText(prefix + badgeBase, out _);
-    }
+        texts.TryGetText(prefix + code, out _) || texts.TryGetText(prefix + BadgeBase(code), out _);
+
+    private static string BadgeBase(string code) => Regex.Replace(code, "[0-9]+$", "");
 
     /// <summary>The longest value a fact may carry (<c>AchievementFactRecorder</c>), so a longer match could never fire.</summary>
     private const int MAX_FACT_VALUE_LENGTH = 512;

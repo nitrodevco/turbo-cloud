@@ -57,7 +57,7 @@ public sealed class EventAlertCommand(
             );
 
         var room = await grainFactory.GetRoomGrain(roomId).GetSummaryAsync(ct);
-        var template = textProvider.TryGetText(MESSAGE_KEY, out var text) ? text : DEFAULT_MESSAGE;
+        var template = await textProvider.GetTextAsync(MESSAGE_KEY, ct) ?? DEFAULT_MESSAGE;
         var message = template
             .Replace("%0%", room.Name, System.StringComparison.Ordinal)
             .Replace("%1%", roomId.ToString(), System.StringComparison.Ordinal)

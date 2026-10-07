@@ -55,6 +55,8 @@
     <!-- Admin panel passkeys (WebAuthn attestation and assertion checks). -->
     <PackageVersion Include="Fido2" Version="4.2.0" />
     <PackageVersion Include="BouncyCastle.Cryptography" Version="2.4.0" />
+    <PackageVersion Include="SkiaSharp" Version="4.153.1" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.153.1" />
   </ItemGroup>
   <ItemGroup>
     <!--

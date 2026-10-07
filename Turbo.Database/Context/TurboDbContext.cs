@@ -5,6 +5,7 @@ using Turbo.Database.Entities.Badges;
 using Turbo.Database.Entities.Bots;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
+using Turbo.Database.Entities.Gamedata;
 using Turbo.Database.Entities.Guilds;
 using Turbo.Database.Entities.Hotel;
 using Turbo.Database.Entities.Messenger;
@@ -44,6 +45,21 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<CatalogProductEntity> CatalogProducts { get; init; }
     public DbSet<FurnitureDefinitionEntity> FurnitureDefinitions { get; init; }
+    public DbSet<HabboReleaseEntity> HabboReleases { get; init; }
+    public DbSet<HabboFurnitureEntity> HabboFurniture { get; init; }
+    public DbSet<HabboFurnitureAssetEntity> HabboFurnitureAssets { get; init; }
+    public DbSet<HabboTextVersionEntity> HabboTextVersions { get; init; }
+    public DbSet<HabboTextEntity> HabboTexts { get; init; }
+    public DbSet<GamedataTextEntity> GamedataTexts { get; init; }
+    public DbSet<HabboProductVersionEntity> HabboProductVersions { get; init; }
+    public DbSet<HabboProductEntity> HabboProducts { get; init; }
+    public DbSet<GamedataProductEntity> GamedataProducts { get; init; }
+    public DbSet<HabboFigureVersionEntity> HabboFigureVersions { get; init; }
+    public DbSet<HabboFigureEntity> HabboFigures { get; init; }
+    public DbSet<GamedataFigureEntity> GamedataFigures { get; init; }
+    public DbSet<GamedataChangeSetEntity> GamedataChangeSets { get; init; }
+    public DbSet<GamedataChangeEntity> GamedataChanges { get; init; }
+    public DbSet<GamedataBuildEntity> GamedataBuilds { get; init; }
 
     public DbSet<FurnitureEntity> Furnitures { get; init; }
 
@@ -62,6 +78,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerCurrencyEntity> PlayerCurrencies { get; init; }
 
     public DbSet<PlayerOutfitEntity> PlayerOutfits { get; init; }
+    public DbSet<PlayerFigureSetEntity> PlayerFigureSets { get; init; }
 
     public DbSet<PlayerSettingsEntity> PlayerSettings { get; init; }
 
@@ -152,5 +169,24 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     protected override void OnModelCreating(ModelBuilder mb)
     {
         base.OnModelCreating(mb);
+
+        mb.Entity<GamedataTextEntity>()
+            .Property(x => x.Key)
+            .UseCollation(GamedataTextEntity.KEY_COLLATION);
+        mb.Entity<HabboTextEntity>()
+            .Property(x => x.Key)
+            .UseCollation(GamedataTextEntity.KEY_COLLATION);
+        mb.Entity<GamedataProductEntity>()
+            .Property(x => x.Code)
+            .UseCollation(GamedataProductEntity.CODE_COLLATION);
+        mb.Entity<HabboProductEntity>()
+            .Property(x => x.Code)
+            .UseCollation(GamedataProductEntity.CODE_COLLATION);
+        mb.Entity<GamedataFigureEntity>()
+            .Property(x => x.Key)
+            .UseCollation(GamedataProductEntity.CODE_COLLATION);
+        mb.Entity<HabboFigureEntity>()
+            .Property(x => x.Key)
+            .UseCollation(GamedataProductEntity.CODE_COLLATION);
     }
 }

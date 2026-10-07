@@ -13,19 +13,12 @@ public static class CommandHelp
         ICommandRegistry registry,
         CommandDescriptor command,
         Func<string, bool> hasPermission,
-        IHotelTextProvider? texts = null,
+        HotelTexts texts = default,
         bool details = false
     )
     {
         var lines = new List<string>();
-        var description =
-            texts is not null
-            && texts.TryGetText(
-                CommandReplyKeys.ForCommand(command.Name, CommandReplyKeys.DESCRIPTION),
-                out var localized
-            )
-                ? localized
-                : command.Description;
+        var description = Description(command, texts);
         var binders =
             command.Binder.Syntax.Count == 0
                 ? [command.Binder]
@@ -70,4 +63,18 @@ public static class CommandHelp
             lines.Add("Aliases: " + string.Join(", ", aliases));
         return lines;
     }
+
+    /// <summary>The hotel text a command's description is read from.</summary>
+    public static string DescriptionKey(CommandDescriptor command) =>
+        CommandReplyKeys.ForCommand(command.Name, CommandReplyKeys.DESCRIPTION);
+
+    /// <summary>The description texts of these commands, to read at once before describing them.</summary>
+    public static IEnumerable<string> DescriptionKeys(IEnumerable<CommandDescriptor> commands) =>
+        commands.Select(DescriptionKey);
+
+    /// <summary>A command's description: the hotel's text for it, or the command's own.</summary>
+    public static string Description(CommandDescriptor command, HotelTexts texts) =>
+        texts.TryGetText(DescriptionKey(command), out var localized)
+            ? localized
+            : command.Description;
 }

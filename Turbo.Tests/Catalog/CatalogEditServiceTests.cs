@@ -9,6 +9,8 @@ using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Catalog.Editing;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Gamedata;
+using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Networking;
@@ -709,5 +711,51 @@ public sealed class CatalogEditServiceTests : IDisposable
             .Select(x => Convert.ToInt32(x.Key))
             .Should()
             .BeEquivalentTo([7, 8]);
+    }
+
+    [Theory]
+    [InlineData("old", "new", "new")]
+    [InlineData("same", "same", null)]
+    public async Task Publishing_TellsClientsTheNewFurniDataHash_OnlyWhenItChanged(
+        string before,
+        string after,
+        string? sent
+    )
+    {
+        var hashes = new Queue<string>([before, after]);
+
+        _catalog.Fakes.Handlers["GetCurrentAsync"] = _ =>
+            Task.FromResult(
+                new GamedataFileContent(
+                    new GamedataFileSnapshot
+                    {
+                        File = GamedataFiles.FURNITURE_DATA,
+                        Hash = hashes.Dequeue(),
+                        Size = 1,
+                        BuiltAt = DateTime.UtcNow,
+                    },
+                    []
+                )
+            );
+
+        var service = new CatalogEditService(
+            _catalog.Db,
+            _catalog.Definitions,
+            _catalog.NormalProvider(),
+            _catalog.BuildersClubProvider(),
+            _catalog.Fakes.Create<ISessionGateway>(),
+            _catalog.Fakes.Create<IGrainFactory>(),
+            _log,
+            _catalog.Fakes.Create<IGamedataFileService>()
+        );
+
+        await service.PublishAsync(Editor, Ct);
+
+        _catalog
+            .Fakes.Log.Calls.Select(x => x.Args.FirstOrDefault())
+            .OfType<CatalogPublishedMessageComposer>()
+            .Should()
+            .HaveCount(2)
+            .And.OnlyContain(x => x.NewFurniDataHash == sent);
     }
 }

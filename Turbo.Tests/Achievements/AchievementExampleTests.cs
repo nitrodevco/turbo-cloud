@@ -36,16 +36,7 @@ public sealed class AchievementExampleTests : IDisposable
 
     private AchievementSync NewSync(AchievementConfig config, Dictionary<string, string> texts)
     {
-        _fakes.Handlers[nameof(IHotelTextProvider.TryGetText)] = call =>
-        {
-            if (texts.TryGetValue((string)call.Args[0]!, out var value))
-            {
-                call.Args[1] = value;
-                return true;
-            }
-            call.Args[1] = string.Empty;
-            return false;
-        };
+        HotelTextFakes.Use(_fakes, key => texts.GetValueOrDefault(key));
         var options = Options.Create(config);
         var provider = _fakes.Create<IHotelTextProvider>();
         var catalog = new AchievementCatalog(

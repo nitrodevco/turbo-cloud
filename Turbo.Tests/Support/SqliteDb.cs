@@ -93,6 +93,10 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
 
             foreach (var entityType in mb.Model.GetEntityTypes())
             {
+                // MySQL's collations mean nothing to SQLite, which compares case-sensitively anyway.
+                foreach (var property in entityType.GetProperties())
+                    property.SetCollation(null);
+
                 if (!typeof(TurboEntity).IsAssignableFrom(entityType.ClrType))
                     continue;
 

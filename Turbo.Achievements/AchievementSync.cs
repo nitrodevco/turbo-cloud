@@ -86,7 +86,9 @@ public sealed class AchievementSync(
                 ct
             )
             .ConfigureAwait(false);
-        var (missingTexts, missingImages) = Needs(changes);
+        var shown = changes.Where(x => x.State != AchievementState.Disabled).ToArray();
+        var known = await texts.GetTextsAsync(TextKeys(shown), ct).ConfigureAwait(false);
+        var (missingTexts, missingImages) = Needs(shown, known);
         var applied = false;
         if (apply && problems.Count == 0 && changes.Length > 0)
         {
@@ -154,21 +156,22 @@ public sealed class AchievementSync(
     /// lists say exactly what to add.
     /// </summary>
     private (ImmutableArray<string> Texts, ImmutableArray<string> Images) Needs(
-        ImmutableArray<AchievementDefinition> changes
+        IEnumerable<AchievementDefinition> shown,
+        HotelTexts known
     )
     {
         var lines = new SortedSet<string>(StringComparer.Ordinal);
         var images = new SortedSet<string>(StringComparer.Ordinal);
-        foreach (var definition in changes.Where(x => x.State != AchievementState.Disabled))
+        foreach (var definition in shown)
         {
-            if (!texts.TryGetText($"quests.{definition.Category}.name", out _))
+            if (!known.TryGetText(CategoryKey(definition), out _))
                 lines.Add($"quests.{definition.Category}.name={Title(definition.Category)}");
             foreach (var level in definition.Levels)
             {
                 var badgeBase = AchievementBadgeCodes.BaseOf(level.BadgeCode);
-                if (!HasText("badge_name_", level.BadgeCode, badgeBase))
+                if (!HasText(known, BADGE_NAME, level.BadgeCode, badgeBase))
                     lines.Add($"badge_name_{badgeBase}={Title(definition.Key)}");
-                if (!HasText("badge_desc_", level.BadgeCode, badgeBase))
+                if (!HasText(known, BADGE_DESC, level.BadgeCode, badgeBase))
                     lines.Add(
                         $"badge_desc_{badgeBase}=TODO: say how to earn it (%limit% is the level's goal)"
                     );
@@ -180,8 +183,25 @@ public sealed class AchievementSync(
         return ([.. lines], [.. images]);
     }
 
-    private bool HasText(string prefix, string code, string badgeBase) =>
-        texts.TryGetText(prefix + code, out _) || texts.TryGetText(prefix + badgeBase, out _);
+    private const string BADGE_NAME = "badge_name_";
+    private const string BADGE_DESC = "badge_desc_";
+
+    private static string CategoryKey(AchievementDefinition definition) =>
+        $"quests.{definition.Category}.name";
+
+    /// <summary>Every text <see cref="Needs"/> looks for, to read at once.</summary>
+    private static IEnumerable<string> TextKeys(IEnumerable<AchievementDefinition> shown) =>
+        shown.SelectMany(definition =>
+            definition
+                .Levels.SelectMany(x =>
+                    new[] { x.BadgeCode, AchievementBadgeCodes.BaseOf(x.BadgeCode) }
+                )
+                .SelectMany(x => new[] { BADGE_NAME + x, BADGE_DESC + x })
+                .Append(CategoryKey(definition))
+        );
+
+    private static bool HasText(HotelTexts known, string prefix, string code, string badgeBase) =>
+        known.TryGetText(prefix + code, out _) || known.TryGetText(prefix + badgeBase, out _);
 
     private static string Title(string key) =>
         CultureInfo.InvariantCulture.TextInfo.ToTitleCase(

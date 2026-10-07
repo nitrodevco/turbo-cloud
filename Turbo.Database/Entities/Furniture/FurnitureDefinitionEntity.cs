@@ -45,7 +45,7 @@ public class FurnitureDefinitionEntity : TurboEntity
     [DefaultValue(1)]
     public required int Length { get; set; } // rows
 
-    [Column("stack_height", TypeName = "double(10,3)")]
+    [Column("stack_height", TypeName = "double(10,4)")]
     [DefaultValue(0.0d)]
     public required double StackHeight { get; set; } // depth
 
@@ -88,6 +88,59 @@ public class FurnitureDefinitionEntity : TurboEntity
 
     [Column("extra_data")]
     public string? ExtraData { get; set; }
+
+    // What only the client's furnidata says of the furniture. The rest of a furnidata item is
+    // the columns above (xdim is width, canstandon is can_walk, ...) and its offers the catalog's.
+
+    /// <summary>furnidata <c>revision</c>: the folder the client loads the furniture's asset from.</summary>
+    [Column("revision")]
+    [DefaultValue(0)]
+    public int Revision { get; set; }
+
+    /// <summary>furnidata <c>category</c> (<c>shelf</c>, <c>chair</c>); <see cref="FurniCategory"/> is its <c>specialtype</c>.</summary>
+    [Column("client_category")]
+    [MaxLength(64)]
+    public string? ClientCategory { get; set; }
+
+    [Column("default_dir")]
+    [DefaultValue(0)]
+    public int DefaultDirection { get; set; }
+
+    /// <summary>The colour of each tinted layer (furnidata <c>partcolors</c>); null for furniture without.</summary>
+    [Column("part_colors")]
+    public List<string>? PartColors { get; set; }
+
+    /// <summary>The name players see (furnidata <c>name</c>); <see cref="Name"/> is its classname.</summary>
+    [Column("public_name")]
+    [MaxLength(255)]
+    public string? PublicName { get; set; }
+
+    [Column("description")]
+    public string? Description { get; set; }
+
+    [Column("ad_url")]
+    [MaxLength(512)]
+    public string? AdUrl { get; set; }
+
+    [Column("custom_params")]
+    [MaxLength(512)]
+    public string? CustomParams { get; set; }
+
+    [Column("furni_line")]
+    [MaxLength(64)]
+    public string? FurniLine { get; set; }
+
+    [Column("environment")]
+    [MaxLength(64)]
+    public string? Environment { get; set; }
+
+    [Column("rare")]
+    [DefaultValue(false)]
+    public bool Rare { get; set; }
+
+    [Column("excluded_dynamic")]
+    [DefaultValue(false)]
+    public bool ExcludedDynamic { get; set; }
 
     public List<FurnitureEntity>? Furnitures { get; set; }
 }

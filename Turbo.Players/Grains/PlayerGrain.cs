@@ -12,6 +12,7 @@ using Turbo.Logging;
 using Turbo.Players.Configuration;
 using Turbo.Primitives;
 using Turbo.Primitives.Achievements;
+using Turbo.Primitives.Figures;
 using Turbo.Primitives.Messages.Outgoing.Avatar;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -33,6 +34,7 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
     private readonly IGrainFactory _grainFactory;
     private readonly ILogger<IPlayerGrain> _logger;
     private readonly IAchievementFactRecorder _achievementFacts;
+    private readonly IPlayerFigurePolicy _figurePolicy;
 
     private readonly PlayerLiveState _state;
 
@@ -43,9 +45,11 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
         IOptions<PlayerConfig> playerConfig,
         IGrainFactory grainFactory,
         IAchievementFactRecorder achievementFacts,
+        IPlayerFigurePolicy figurePolicy,
         ILogger<IPlayerGrain> logger
     )
     {
+        _figurePolicy = figurePolicy;
         _dbCtxFactory = dbCtxFactory;
         _playerConfig = playerConfig.Value;
         _grainFactory = grainFactory;
@@ -100,8 +104,32 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
 
     public async Task SetFigureAsync(string figure, AvatarGenderType gender, CancellationToken ct)
     {
+        // Whatever asked - the avatar editor, a mannequin, a booth - the player wears only what
+        // they may: anything else comes off, or is swapped for what they may wear instead.
+        var requested = figure;
+
+        figure = await _figurePolicy.FitAsync(PlayerId, requested, gender, ct);
+
+        if (figure != requested)
+            _logger.LogInformation(
+                "Player {PlayerId} may not wear all of {Requested}; wearing {Figure}",
+                PlayerId,
+                requested,
+                figure
+            );
+
         if (_state.Figure == figure && _state.Gender == gender)
+        {
+            // The client shows the look it asked for until told otherwise.
+            if (figure != requested)
+                await _grainFactory.SendComposerToPlayerAsync(
+                    PlayerId,
+                    new FigureUpdateEventMessageComposer { Figure = figure, Gender = gender },
+                    ct
+                );
+
             return;
+        }
         var previousFigure = _state.Figure;
         var previousGender = _state.Gender;
         _state.Figure = figure;
@@ -134,6 +162,9 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
             .GetPlayerPresenceGrain(PlayerId)
             .OnPlayerUpdatedAsync(await GetSummaryAsync(ct), ct);
     }
+
+    public Task RefitFigureAsync(CancellationToken ct) =>
+        SetFigureAsync(_state.Figure, _state.Gender, ct);
 
     public async Task SetMottoAsync(string text, CancellationToken ct)
     {

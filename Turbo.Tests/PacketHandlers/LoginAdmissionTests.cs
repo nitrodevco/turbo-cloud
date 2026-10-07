@@ -44,17 +44,11 @@ public class LoginAdmissionTests
     public LoginAdmissionTests()
     {
         _fakes.Handlers["GetPlayerIdFromTicketAsync"] = _ => Task.FromResult(PLAYER);
+        _fakes.Handlers["GetOwnedAsync"] = _ =>
+            Task.FromResult(System.Collections.Immutable.ImmutableHashSet<int>.Empty);
         _fakes.Handlers["GetActiveBanAsync"] = _ => Task.FromResult(_ban);
         _fakes.Handlers["AdmitsAsync"] = _ => Task.FromResult(_admitted);
-        _fakes.Handlers["TryGetText"] = call =>
-        {
-            if (call.Args[0] is not string key || !_hotelTexts.TryGetValue(key, out var text))
-                return false;
-
-            call.Args[1] = text;
-
-            return true;
-        };
+        HotelTextFakes.Use(_fakes, key => _hotelTexts.GetValueOrDefault(key));
 
         _session = _fakes.Create<ISessionContext>("session");
         _handler = new SSOTicketMessageHandler(
@@ -64,7 +58,8 @@ public class LoginAdmissionTests
             _fakes.Create<INavigatorService>(),
             _fakes.Create<ISanctionService>(),
             _fakes.Create<IHotelAvailability>(),
-            _fakes.Create<IHotelTextProvider>()
+            _fakes.Create<IHotelTextProvider>(),
+            _fakes.Create<Turbo.Primitives.Figures.IPlayerClothingService>()
         );
     }
 

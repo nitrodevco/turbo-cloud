@@ -43,10 +43,15 @@ internal sealed class CommandEndpoints(
             .GetResolvedAsync(ct)
             .ConfigureAwait(false);
         var registry = registryProvider.Current;
+        var listed = registry
+            .Commands.Where(x => x.Nodes.Count == 0 || x.Nodes.Any(resolved.Has))
+            .ToList();
+        var descriptions = await texts
+            .GetTextsAsync(CommandHelp.DescriptionKeys(listed), ct)
+            .ConfigureAwait(false);
 
         return Results.Ok(
-            registry
-                .Commands.Where(x => x.Nodes.Count == 0 || x.Nodes.Any(resolved.Has))
+            listed
                 .OrderBy(x => x.Category, StringComparer.Ordinal)
                 .ThenBy(x => x.Name, StringComparer.Ordinal)
                 .Select(x => new CommandInfo(
@@ -55,7 +60,7 @@ internal sealed class CommandEndpoints(
                     x.Description,
                     x.Category,
                     !x.IsOperator,
-                    CommandHelp.Describe(registry, x, resolved.Has, texts, details: true)
+                    CommandHelp.Describe(registry, x, resolved.Has, descriptions, details: true)
                 ))
                 .ToList()
         );

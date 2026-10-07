@@ -17,6 +17,7 @@ using Turbo.Database.Extensions;
 using Turbo.Database.Migrations;
 using Turbo.Events.Extensions;
 using Turbo.Furniture;
+using Turbo.Gamedata;
 using Turbo.Guilds;
 using Turbo.Inventory;
 using Turbo.Logging.Extensions;
@@ -125,6 +126,7 @@ internal class Program
         builder.Services.AddHostPlugin<AuthenticationModule>(builder);
         builder.Services.AddHostPlugin<FurnitureModule>(builder);
         builder.Services.AddHostPlugin<CatalogModule>(builder);
+        builder.Services.AddHostPlugin<GamedataModule>(builder);
         builder.Services.AddHostPlugin<PlayerModule>(builder);
         builder.Services.AddHostPlugin<AchievementModule>(builder);
         builder.Services.AddHostPlugin<InventoryModule>(builder);

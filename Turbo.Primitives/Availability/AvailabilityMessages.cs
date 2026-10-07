@@ -1,3 +1,5 @@
+using System.Threading;
+using System.Threading.Tasks;
 using Turbo.Primitives.Texts;
 
 namespace Turbo.Primitives.Availability;
@@ -15,9 +17,15 @@ public static class AvailabilityMessages
         "The hotel is now in maintenance. Please come back later.";
     private const string DEFAULT_SHUTTING_DOWN = "The hotel is shutting down.";
 
-    public static string MaintenanceStarted(IHotelTextProvider texts) =>
-        texts.TryGetText(MAINTENANCE_STARTED, out var text) ? text : DEFAULT_MAINTENANCE_STARTED;
+    public static async Task<string> MaintenanceStartedAsync(
+        IHotelTextProvider texts,
+        CancellationToken ct
+    ) =>
+        await texts.GetTextAsync(MAINTENANCE_STARTED, ct).ConfigureAwait(false)
+        ?? DEFAULT_MAINTENANCE_STARTED;
 
-    public static string ShuttingDown(IHotelTextProvider texts) =>
-        texts.TryGetText(SHUTTING_DOWN, out var text) ? text : DEFAULT_SHUTTING_DOWN;
+    public static async Task<string> ShuttingDownAsync(
+        IHotelTextProvider texts,
+        CancellationToken ct
+    ) => await texts.GetTextAsync(SHUTTING_DOWN, ct).ConfigureAwait(false) ?? DEFAULT_SHUTTING_DOWN;
 }

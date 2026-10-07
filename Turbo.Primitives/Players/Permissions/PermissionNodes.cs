@@ -65,6 +65,15 @@ public static class PermissionNodes
         public const string BUILDERS_CLUB_UNLIMITED = "club.builders_club.unlimited";
     }
 
+    public static class Figure
+    {
+        /// <summary>
+        /// Wear any clothing and colour the figure data has, whatever it says of club, sale or
+        /// selection: staff dressing for an event, or testing clothing not yet released.
+        /// </summary>
+        public const string ANY = "figure.any";
+    }
+
     public static class Navigator
     {
         public const string CATEGORY_STAFF = "navigator.category.staff";

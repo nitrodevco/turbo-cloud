@@ -225,14 +225,29 @@ public sealed partial class RoomWiredSystem
             _ => false,
         };
 
-    private Task ProcessInternalVariablesAsync(long now, CancellationToken ct)
+    private async Task ProcessInternalVariablesAsync(long now, CancellationToken ct)
     {
-        var variables = _roomGrain._wiredVariablesProvider.BuildVariablesForRoom(_roomGrain);
+        var variables = _roomGrain
+            ._wiredVariablesProvider.BuildVariablesForRoom(_roomGrain)
+            .ToList();
+
+        // The names some variables show beside their values are hotel texts: each family they
+        // name is read, and only it, before any is described.
+        foreach (
+            var family in variables
+                .OfType<WiredInternalVariable>()
+                .Where(x => x.TextPrefix is not null)
+                .GroupBy(x => x.TextPrefix!, System.StringComparer.Ordinal)
+        )
+        {
+            var texts = await _roomGrain._hotelTextProvider.GetTextsByPrefixAsync(family.Key, ct);
+
+            foreach (var variable in family)
+                variable.UseTexts(texts);
+        }
 
         foreach (var variable in variables)
             ProcessVariable(variable);
-
-        return Task.CompletedTask;
     }
 
     private async Task ProcessVariableBoxesAsync(long now, CancellationToken ct)

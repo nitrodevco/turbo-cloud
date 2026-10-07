@@ -67,4 +67,24 @@ public class SessionSendRaceTests
         dropped.Exception.Should().BeNull();
         dropped.Message.Should().Contain(nameof(PingMessage));
     }
+
+    // The heartbeat closing a silent client as it drops: the WebSocket close frame meets the
+    // completed writer.
+    [Fact]
+    public async Task CloseAfterTheWriterCompleted_DoesNotThrow_OrLogAStackTrace()
+    {
+        Func<ValueTask> close = () =>
+            throw new InvalidOperationException(
+                "Writing is not allowed after writer was completed."
+            );
+
+        var closing = (Task)
+            StateType
+                .GetMethod("CloseAsync", BindingFlags.Public | BindingFlags.Instance)!
+                .Invoke(_state, [_session, close])!;
+
+        await closing.Invoking(t => t).Should().NotThrowAsync();
+        _logger.AtLeast(LogLevel.Warning).Should().BeEmpty();
+        _logger.Entries.Should().ContainSingle().Which.Exception.Should().BeNull();
+    }
 }

@@ -5,10 +5,12 @@ using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
 using Turbo.Players.Accounts;
 using Turbo.Players.Configuration;
+using Turbo.Players.Figures;
 using Turbo.Players.Messenger;
 using Turbo.Players.Notifications;
 using Turbo.Players.Permissions;
 using Turbo.Players.Providers;
+using Turbo.Primitives.Figures;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Accounts;
 using Turbo.Primitives.Players.Messenger;
@@ -37,6 +39,8 @@ public sealed class PlayerModule : IHostPluginModule
         services.AddSingleton<IChatStyleProvider, ChatStyleProvider>();
         services.AddSingleton<IPlayerService, PlayerService>();
         services.AddSingleton<IPlayerNoticeService, PlayerNoticeService>();
+        services.AddSingleton<IPlayerClothingService, PlayerClothingService>();
+        services.AddSingleton<IPlayerFigurePolicy, PlayerFigurePolicy>();
         services
             .AddOptions<PlayerConfig>()
             .Validate(x => x.NoticeTimeoutMs > 0, "Player notice timeout must be positive.")

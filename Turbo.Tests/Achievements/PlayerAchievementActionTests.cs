@@ -90,6 +90,13 @@ public sealed class PlayerAchievementActionTests : IDisposable
         RoomHarness.SetMember(state, "Figure", currentFigure);
         RoomHarness.SetMember(state, "Gender", AvatarGenderType.Male);
         RoomHarness.SetMember(state, "Motto", currentMotto);
+        // With no figure data taken in, a player wears what they ask for.
+        _fakes.Handlers["FitAsync"] = call => Task.FromResult((string)call.Args[1]!);
+        RoomHarness.SetField(
+            grain,
+            "_figurePolicy",
+            _fakes.Create<Turbo.Primitives.Figures.IPlayerFigurePolicy>()
+        );
         RoomHarness.SetField(
             grain,
             "_achievementFacts",

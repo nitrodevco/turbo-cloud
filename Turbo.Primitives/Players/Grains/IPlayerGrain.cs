@@ -10,6 +10,12 @@ public interface IPlayerGrain : IGrainWithIntegerKey
 {
     public Task SetOnlineStatusAsync(bool flag, CancellationToken ct);
     public Task SetFigureAsync(string figure, AvatarGenderType gender, CancellationToken ct);
+
+    /// <summary>
+    /// Fits what the player wears to what they may wear now - after their club ran out, or
+    /// clothing was taken from them - changing it only when it must.
+    /// </summary>
+    public Task RefitFigureAsync(CancellationToken ct);
     public Task SetMottoAsync(string text, CancellationToken ct);
     public Task<PlayerSummarySnapshot> GetSummaryAsync(CancellationToken ct);
 

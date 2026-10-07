@@ -32,16 +32,7 @@ public sealed class AchievementSyncTests : IDisposable
     )
     {
         var dictionary = texts ?? new Dictionary<string, string>();
-        _fakes.Handlers[nameof(IHotelTextProvider.TryGetText)] = call =>
-        {
-            if (dictionary.TryGetValue((string)call.Args[0]!, out var value))
-            {
-                call.Args[1] = value;
-                return true;
-            }
-            call.Args[1] = string.Empty;
-            return false;
-        };
+        HotelTextFakes.Use(_fakes, key => dictionary.GetValueOrDefault(key));
         var options = Options.Create(config ?? new AchievementConfig());
         var texts2 = _fakes.Create<IHotelTextProvider>();
         var catalog = new AchievementCatalog(

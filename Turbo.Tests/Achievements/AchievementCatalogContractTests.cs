@@ -935,17 +935,7 @@ public sealed class AchievementCatalogContractTests : IDisposable
     )
     {
         var dictionary = texts ?? new Dictionary<string, string>();
-        _fakes.Handlers[nameof(IHotelTextProvider.TryGetText)] = call =>
-        {
-            var key = (string)call.Args[0]!;
-            if (dictionary.TryGetValue(key, out var value))
-            {
-                call.Args[1] = value;
-                return true;
-            }
-            call.Args[1] = string.Empty;
-            return false;
-        };
+        HotelTextFakes.Use(_fakes, key => dictionary.GetValueOrDefault(key));
         return new AchievementCatalog(
             _db,
             _fakes.Create<ICurrencyTypeProvider>(),

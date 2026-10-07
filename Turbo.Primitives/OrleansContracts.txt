@@ -188,6 +188,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.IPlayerGrain")] T
   213E1401: GetSummaryAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.PlayerSummarySnapshot>
   FBEF7436: ReceiveRespectAsync(System.Threading.CancellationToken) -> Task<int>
   D9CE1F18: ReceiveRespectOperationAsync(string, System.Threading.CancellationToken) -> Task<int>
+  F4E05759: RefitFigureAsync(System.Threading.CancellationToken) -> Task
   4C5177A0: ReplenishRespectAsync(System.Threading.CancellationToken) -> Task<bool>
   0650838E: SetAchievementTotalsAsync(int, int, System.Threading.CancellationToken) -> Task
   0C280D1C: SetBadgesRankAsync(int, System.Threading.CancellationToken) -> Task

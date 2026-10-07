@@ -114,6 +114,29 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
         }
     }
 
+    /// <summary>
+    /// Runs <paramref name="close"/>. A WebSocket close writes a close frame, so closing a
+    /// connection the client is already dropping meets the same completed writer a send does;
+    /// the connection is going down either way, so that is logged at debug and not thrown.
+    /// </summary>
+    /// <remarks>
+    /// Not serialised with sends: the connections closed are often ones whose sends have stalled.
+    /// </remarks>
+    public async Task CloseAsync(ISessionContext session, Func<ValueTask> close)
+    {
+        try
+        {
+            await close().ConfigureAwait(false);
+        }
+        catch (Exception ex) when (IsClosedDuringSend(session, ex))
+        {
+            _logger.LogDebug(
+                "Session {SessionKey} was already closing when it was closed",
+                session.SessionKey
+            );
+        }
+    }
+
     // SuperSocket completes the connection's pipe writer when it closes, and a write racing that
     // throws "Writing is not allowed after writer was completed" before IsClosed is set.
     private static bool IsClosedDuringSend(ISessionContext session, Exception ex) =>

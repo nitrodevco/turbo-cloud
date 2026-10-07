@@ -141,6 +141,7 @@ public abstract class FurnitureWiredChestLogic(
                 if (!await CanOpenAsync(ctx))
                     return Reject(ctx, interaction, "may not look inside");
 
+                await _roomGrain.WiredChestSystem.CloseOtherChestsAsync(ctx.PlayerId, this, ct);
                 await SetViewerCountAsync(await Chest.OpenAsync(Settings, ctx.PlayerId, ct));
 
                 return true;
@@ -305,7 +306,7 @@ public abstract class FurnitureWiredChestLogic(
 
     public bool AutoLocks => Flag(WiredChestData.AUTO_LOCK);
 
-    /// <summary>A player who had the window open left the room.</summary>
+    /// <summary>A player who had the window open left the room, or opened another chest.</summary>
     public async Task ForgetViewerAsync(PlayerId playerId, CancellationToken ct)
     {
         if (_viewerCount == 0)

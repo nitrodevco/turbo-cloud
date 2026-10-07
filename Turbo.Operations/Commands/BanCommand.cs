@@ -95,7 +95,7 @@ public sealed class BanCommand(
                 target.Id,
                 new UserBannedMessageComposer
                 {
-                    Message = SanctionMessages.BanMessage(ban, textProvider),
+                    Message = await SanctionMessages.BanMessageAsync(ban, textProvider, ct),
                 },
                 ct
             );

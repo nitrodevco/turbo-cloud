@@ -51,7 +51,7 @@ public sealed class CommandsCommand(
                     registryProvider.Current,
                     command,
                     ctx.Executor.Permissions.Has,
-                    texts,
+                    await DescriptionsAsync([command], ct),
                     details: true
                 ),
                 ct
@@ -59,12 +59,16 @@ public sealed class CommandsCommand(
             return CommandResult.Ok;
         }
 
+        var usable = registryProvider
+            .Current.Commands.Where(command =>
+                CommandTreeBuilder.MayUse(command, ctx.Executor.Permissions)
+                && (command.MinimumRoomLevel is not { } required || level >= required)
+            )
+            .ToList();
+        var descriptions = await DescriptionsAsync(usable, ct);
+
         foreach (
-            var section in registryProvider
-                .Current.Commands.Where(command =>
-                    CommandTreeBuilder.MayUse(command, ctx.Executor.Permissions)
-                    && (command.MinimumRoomLevel is not { } required || level >= required)
-                )
+            var section in usable
                 .GroupBy(command => command.Category, StringComparer.OrdinalIgnoreCase)
                 .OrderBy(section => section.Key == CommandCategories.GENERAL ? 0 : 1)
                 .ThenBy(section => section.Key, StringComparer.OrdinalIgnoreCase)
@@ -80,7 +84,7 @@ public sealed class CommandsCommand(
                             registryProvider.Current,
                             command,
                             ctx.Executor.Permissions.Has,
-                            texts
+                            descriptions
                         )
                     )
             );
@@ -92,4 +96,12 @@ public sealed class CommandsCommand(
 
         return CommandResult.Ok;
     }
+
+    private async Task<HotelTexts> DescriptionsAsync(
+        IEnumerable<CommandDescriptor> commands,
+        CancellationToken ct
+    ) =>
+        texts is null
+            ? HotelTexts.Empty
+            : await texts.GetTextsAsync(CommandHelp.DescriptionKeys(commands), ct);
 }

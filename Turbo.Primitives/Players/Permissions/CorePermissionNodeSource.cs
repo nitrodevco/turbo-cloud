@@ -293,6 +293,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Change the hotel's gamedata in the admin panel: import Habbo's updates, edit furniture, rebuild the client's files and roll back."
         ),
         new(
+            PermissionNodes.Figure.ANY,
+            "Wear any clothing and colour, whatever the figure data says of club, sale or selection."
+        ),
+        new(
             PermissionNodes.Club.HABBO_CLUB_UNLIMITED,
             "Be a Habbo Club member for as long as this is held, without buying it."
         ),

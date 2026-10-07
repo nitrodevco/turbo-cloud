@@ -16,6 +16,7 @@ using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
@@ -38,7 +39,8 @@ public sealed partial class CatalogEditService(
     ICatalogSnapshotProvider<BuildersClubCatalog> buildersClubCatalog,
     ISessionGateway sessions,
     IGrainFactory grainFactory,
-    ILogger<ICatalogEditService> logger
+    ILogger<ICatalogEditService> logger,
+    IGamedataFileService? gamedataFiles = null
 ) : ICatalogEditService
 {
     public const int TEXT_MAX_LENGTH = 50;
@@ -384,14 +386,25 @@ public sealed partial class CatalogEditService(
     public async Task<CatalogPublishResult> PublishAsync(PlayerId editor, CancellationToken ct)
     {
         var published = Interlocked.Exchange(ref _unpublished, 0);
+        var furniDataBefore = await FurniDataHashAsync(ct).ConfigureAwait(false);
 
         await normalCatalog.ReloadAsync(ct).ConfigureAwait(false);
         await buildersClubCatalog.ReloadAsync(ct).ConfigureAwait(false);
 
+        // The furnidata carries each item's offers, which the catalog just published may have
+        // moved: the client loads it again when told its new hash, and only then.
+        var furniDataAfter = await FurniDataHashAsync(ct).ConfigureAwait(false);
         var online = sessions.GetOnlinePlayerIds();
 
         await grainFactory
-            .SendComposerToPlayersAsync(online, new CatalogPublishedMessageComposer(), ct)
+            .SendComposerToPlayersAsync(
+                online,
+                new CatalogPublishedMessageComposer
+                {
+                    NewFurniDataHash = furniDataAfter != furniDataBefore ? furniDataAfter : null,
+                },
+                ct
+            )
             .ConfigureAwait(false);
 
         var normal = normalCatalog.Current;
@@ -409,6 +422,33 @@ public sealed partial class CatalogEditService(
             normal.OffersById.Count + buildersClub.OffersById.Count,
             online.Count
         );
+    }
+
+    /// <summary>
+    /// The hash of the furnidata players are sent now; null when the hotel builds none, or it
+    /// couldn't be built - the catalog is published all the same.
+    /// </summary>
+    private async Task<string?> FurniDataHashAsync(CancellationToken ct)
+    {
+        if (gamedataFiles is null)
+            return null;
+
+        try
+        {
+            return (
+                await gamedataFiles
+                    .GetCurrentAsync(GamedataFiles.FURNITURE_DATA, ct)
+                    .ConfigureAwait(false)
+            )
+                .File
+                .Hash;
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Building the furnidata for a catalog publish failed");
+
+            return null;
+        }
     }
 
     public async Task<CatalogEditResult> SaveLimitedAsync(

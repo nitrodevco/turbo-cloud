@@ -551,7 +551,6 @@ public class AdministrationCommandsTests : OperatorCommandsTestBase
 
     [Theory]
     [InlineData("catalog", 2)] // the normal catalog and the Builders Club one
-    [InlineData("texts", 1)]
     [InlineData("furni", 1)]
     [InlineData("navigator", 1)]
     [InlineData("currencies", 1)]
@@ -566,6 +565,18 @@ public class AdministrationCommandsTests : OperatorCommandsTestBase
 
         Hotel.Fakes.Log.Of("ReloadAsync").Should().HaveCount(providers);
         staff.Replies.Should().Equal($"Reloaded {subject}.");
+    }
+
+    [Fact]
+    public async Task Reload_Texts_ForgetsThoseRead_SoTheNextAskReadsTheDatabase()
+    {
+        var staff = Staff(PermissionNodes.Command.RELOAD);
+
+        await Hotel.RunAsync("reload", staff, "TEXTS");
+
+        Hotel.Fakes.Log.Of("Invalidate").Should().ContainSingle();
+        Hotel.Fakes.Log.Of("ReloadAsync").Should().BeEmpty();
+        staff.Replies.Should().Equal("Reloaded texts.");
     }
 
     [Fact]

@@ -23,12 +23,13 @@ public sealed class UserDanceVariable(RoomGrain roomGrain)
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.HasTextConnector;
 
+    private IEnumerable<int> TextIds => Enum.GetValues<AvatarDanceType>().Select(x => (int)x);
+
+    protected internal override string TextPrefix =>
+        WiredTextConnectors.Prefix(WiredTextConnectors.DANCE_KEY);
+
     protected override Dictionary<WiredVariableValue, string> GetTextConnectors() =>
-        WiredTextConnectors.ForIds(
-            _roomGrain._hotelTextProvider,
-            WiredTextConnectors.DANCE_KEY,
-            Enum.GetValues<AvatarDanceType>().Select(x => (int)x)
-        );
+        WiredTextConnectors.ForIds(Texts, WiredTextConnectors.DANCE_KEY, TextIds);
 
     protected override WiredVariableValue GetValueForAvatar(IRoomAvatar avatar) =>
         WiredVariableValue.Parse((int)avatar.DanceType);

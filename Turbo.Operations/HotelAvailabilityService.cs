@@ -244,7 +244,7 @@ public sealed class HotelAvailabilityService(
 
             await DisconnectAsync(
                 sessionGateway.GetOnlinePlayerIds(),
-                AvailabilityMessages.ShuttingDown(textProvider),
+                await AvailabilityMessages.ShuttingDownAsync(textProvider, ct),
                 ct
             );
 
@@ -269,7 +269,11 @@ public sealed class HotelAvailabilityService(
                     : leaving
             ).Add(playerId);
 
-        await DisconnectAsync(leaving, AvailabilityMessages.MaintenanceStarted(textProvider), ct);
+        await DisconnectAsync(
+            leaving,
+            await AvailabilityMessages.MaintenanceStartedAsync(textProvider, ct),
+            ct
+        );
     }
 
     private async Task DisconnectAsync(

@@ -99,13 +99,17 @@ public class ConsoleCommandService(IServiceProvider services)
                     "Available commands: help, quit, reload-plugins, reload-plugin <key>, perm (perm help for usage), achievement (run it with no arguments for usage), and any operator chat command by name, such as ban, alert or status"
                 );
                 var registry = _services.GetRequiredService<ICommandRegistryProvider>().Current;
-                var texts = _services.GetRequiredService<IHotelTextProvider>();
-                var commands =
+                var commands = (
                     args.Length == 0 ? registry.Commands.Where(x => x.IsOperator)
                     : registry.TryFind(args[0].TrimStart(':'), out var selected)
                     && selected.IsOperator
                         ? [selected]
-                    : Array.Empty<CommandDescriptor>();
+                    : Array.Empty<CommandDescriptor>()
+                ).ToList();
+                var texts = await _services
+                    .GetRequiredService<IHotelTextProvider>()
+                    .GetTextsAsync(CommandHelp.DescriptionKeys(commands), ct)
+                    .ConfigureAwait(false);
                 foreach (var command in commands)
                 foreach (
                     var line in CommandHelp.Describe(

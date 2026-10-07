@@ -27,6 +27,7 @@ using Turbo.Primitives.Availability;
 using Turbo.Primitives.Catalog.Editing;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Accounts;
 using Turbo.Primitives.Players.Notifications;
@@ -162,6 +163,15 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(IRoomService),
                 typeof(IFurnitureDefinitionProvider),
                 typeof(ICatalogEditService),
+                typeof(IHabboReleaseService),
+                typeof(IGamedataFurnitureService),
+                typeof(IGamedataFileService),
+                typeof(IGamedataHistoryService),
+                typeof(IGamedataImportJobs),
+                typeof(IGamedataFigureService),
+                typeof(Turbo.Primitives.Figures.IPlayerClothingService),
+                typeof(IGamedataTextService),
+                typeof(IGamedataProductService),
                 typeof(IPlayerAccountService),
                 typeof(ILoginTicketService),
             }

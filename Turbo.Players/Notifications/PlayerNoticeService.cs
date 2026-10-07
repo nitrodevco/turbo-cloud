@@ -36,12 +36,12 @@ public sealed class PlayerNoticeService(
         SendNoticeAsync(
             playerId,
             textKey,
-            () =>
-                new ModeratorMessageComposer
-                {
-                    Message = FormatText(textKey, defaultText, parameters),
-                    Url = string.Empty,
-                },
+            async token => new ModeratorMessageComposer
+            {
+                Message = await FormatTextAsync(textKey, defaultText, parameters, token)
+                    .ConfigureAwait(false),
+                Url = string.Empty,
+            },
             ct
         );
 
@@ -54,28 +54,34 @@ public sealed class PlayerNoticeService(
         SendNoticeAsync(
             playerId,
             "player.reward.currency",
-            () =>
-                new NotificationDialogMessageComposer
-                {
-                    NotificationType = "currency_reward",
-                    Parameters = ImmutableDictionary<string, string>
-                        .Empty.Add("display", "BUBBLE")
-                        .Add(
-                            "message",
-                            FormatText(
+            async token => new NotificationDialogMessageComposer
+            {
+                NotificationType = "currency_reward",
+                Parameters = ImmutableDictionary<string, string>
+                    .Empty.Add("display", "BUBBLE")
+                    .Add(
+                        "message",
+                        await FormatTextAsync(
                                 "player.reward.currency",
                                 "You received %0% %1%.",
-                                [amount.ToString(CultureInfo.InvariantCulture), currency.Name]
+                                [amount.ToString(CultureInfo.InvariantCulture), currency.Name],
+                                token
                             )
-                        )
-                        .Add("image", "if_icon_temp_png"),
-                },
+                            .ConfigureAwait(false)
+                    )
+                    .Add("image", "if_icon_temp_png"),
+            },
             ct
         );
 
-    private string FormatText(string textKey, string defaultText, IReadOnlyList<string> parameters)
+    private async Task<string> FormatTextAsync(
+        string textKey,
+        string defaultText,
+        IReadOnlyList<string> parameters,
+        CancellationToken ct
+    )
     {
-        var message = texts.TryGetText(textKey, out var localized) ? localized : defaultText;
+        var message = await texts.GetTextAsync(textKey, ct).ConfigureAwait(false) ?? defaultText;
         for (var i = 0; i < parameters.Count; i++)
             message = message.Replace(
                 $"%{i.ToString(CultureInfo.InvariantCulture)}%",
@@ -88,7 +94,7 @@ public sealed class PlayerNoticeService(
     private async Task<PlayerNoticeDelivery> SendNoticeAsync(
         PlayerId playerId,
         string textKey,
-        Func<IComposer> createComposer,
+        Func<CancellationToken, Task<IComposer>> createComposer,
         CancellationToken ct
     )
     {
@@ -97,7 +103,11 @@ public sealed class PlayerNoticeService(
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
             deadline.CancelAfter(config.Value.NoticeTimeoutMs);
             var accepted = await grainFactory
-                .TrySendComposerToPlayerAsync(playerId, createComposer(), deadline.Token)
+                .TrySendComposerToPlayerAsync(
+                    playerId,
+                    await createComposer(deadline.Token).ConfigureAwait(false),
+                    deadline.Token
+                )
                 .WaitAsync(deadline.Token);
             return accepted ? PlayerNoticeDelivery.Sent : PlayerNoticeDelivery.Offline;
         }

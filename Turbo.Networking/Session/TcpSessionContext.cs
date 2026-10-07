@@ -36,7 +36,7 @@ public class TcpSessionContext(PackageEncoder packageEncoder, ILogger<ISessionCo
 
     public ArrayBufferWriter<byte>? WsBuffer { get; } = null;
 
-    public async Task CloseSessionAsync() => await this.CloseAsync().ConfigureAwait(false);
+    public Task CloseSessionAsync() => _state.CloseAsync(this, CloseAsync);
 
     public void SetRevisionId(string revisionId) => _state.RevisionId = revisionId;
 

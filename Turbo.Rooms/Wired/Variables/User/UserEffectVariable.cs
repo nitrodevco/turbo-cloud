@@ -20,12 +20,14 @@ public sealed class UserEffectVariable(RoomGrain roomGrain)
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.HasTextConnector;
 
+    private IEnumerable<int> TextIds =>
+        WiredTextConnectors.UpTo(_roomGrain._wiredConfig.MaxEffectId);
+
+    protected internal override string TextPrefix =>
+        WiredTextConnectors.Prefix(WiredTextConnectors.EFFECT_KEY);
+
     protected override Dictionary<WiredVariableValue, string> GetTextConnectors() =>
-        WiredTextConnectors.ForIdRange(
-            _roomGrain._hotelTextProvider,
-            WiredTextConnectors.EFFECT_KEY,
-            _roomGrain._wiredConfig.MaxEffectId
-        );
+        WiredTextConnectors.ForIds(Texts, WiredTextConnectors.EFFECT_KEY, TextIds);
 
     protected override WiredVariableValue GetValueForAvatar(IRoomAvatar avatar) =>
         WiredVariableValue.Parse(avatar.EffectId);

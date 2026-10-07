@@ -144,6 +144,12 @@ turbo_export_app_env() {
   turbo_map TURBO_DISCORD_CLIENT_ID Turbo__Web__Discord__ClientId
   turbo_map TURBO_DISCORD_CLIENT_SECRET Turbo__Web__Discord__ClientSecret
 
+  turbo_map TURBO_GAMEDATA_ENABLED Turbo__Gamedata__Enabled
+  turbo_map TURBO_GAMEDATA_URL Turbo__Gamedata__Url
+  turbo_map TURBO_GAMEDATA_PUBLIC_URL Turbo__Gamedata__PublicUrl
+  turbo_map TURBO_GAMEDATA_HABBO_DOMAIN Turbo__Gamedata__HabboDomain
+  turbo_map TURBO_GAMEDATA_RELEASE_CHECK_MINUTES Turbo__Gamedata__ReleaseCheckMinutes
+
   turbo_map TURBO_LOG_LEVEL Logging__LogLevel__Turbo
 
   # Plugins live outside the release folders so a deploy does not drop them.
