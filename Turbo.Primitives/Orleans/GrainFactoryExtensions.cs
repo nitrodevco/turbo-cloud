@@ -28,7 +28,9 @@ using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.WiredTrading.Grains;
 
 namespace Turbo.Primitives.Orleans;
 
@@ -44,6 +46,21 @@ public static class GrainFactoryExtensions
 
     public static IRoomTradeGrain GetRoomTradeGrain(this IGrainFactory factory, RoomId roomId) =>
         factory.GetGrain<IRoomTradeGrain>((long)roomId.Value);
+
+    public static IWiredChestGrain GetWiredChestGrain(
+        this IGrainFactory factory,
+        RoomObjectId chestId
+    ) => factory.GetGrain<IWiredChestGrain>((long)chestId.Value);
+
+    public static IWiredTransactionLogGrain GetWiredTransactionLogGrain(
+        this IGrainFactory factory,
+        RoomId roomId
+    ) => factory.GetGrain<IWiredTransactionLogGrain>((long)roomId.Value);
+
+    public static IWiredTradeGrain GetWiredTradeGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IWiredTradeGrain>(playerId.Value);
 
     public static IRoomDirectoryGrain GetRoomDirectoryGrain(this IGrainFactory factory) =>
         factory.GetGrain<IRoomDirectoryGrain>(SingletonGrainId.GLOBAL);

@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Orleans.Concurrency;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Snapshots.Permissions;
 
@@ -28,6 +29,17 @@ public interface IPlayerPermissionGrain : IGrainWithIntegerKey
 {
     /// <summary>Whether the player holds a registered node. An unregistered node is denied and logged.</summary>
     public Task<bool> HasAsync(string node, CancellationToken ct);
+
+    /// <summary>
+    /// <see cref="ExplainAsync"/> for a grain this one itself waits on: whether the node is held
+    /// and, in <see cref="PermissionAssignmentSourceSnapshot.GrantedUntil"/>, until when. The
+    /// subscription grain asks it whether a membership is held by permission, while this grain
+    /// reads the club level back from the subscription grain; answered between this grain's
+    /// turns, neither can wait on the other for ever. It awaits nothing, so it never sees a turn
+    /// half done.
+    /// </summary>
+    [AlwaysInterleave]
+    public Task<PermissionCheckSnapshot> ExplainInterleavedAsync(string node, CancellationToken ct);
 
     /// <summary>The resolved value of a registered meta key, or <c>null</c> when nothing sets it.</summary>
     public Task<string?> GetMetaAsync(string key, CancellationToken ct);

@@ -235,6 +235,7 @@ internal sealed class PlayerUnseenItemsGrain : Grain, IPlayerUnseenItemsGrain
                     .Furnitures.Where(x =>
                         x.PlayerEntityId == _state.PlayerId.Value
                         && x.RoomEntityId == null
+                        && x.ChestItemEntityId == null
                         && furniIds.Contains(x.Id)
                     )
                     .Select(x => x.Id)

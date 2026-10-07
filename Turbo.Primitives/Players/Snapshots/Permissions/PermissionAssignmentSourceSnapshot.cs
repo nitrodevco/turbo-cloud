@@ -38,4 +38,12 @@ public sealed record PermissionAssignmentSourceSnapshot
 
     [Id(7)]
     public DateTime? ExpiresAt { get; init; }
+
+    /// <summary>
+    /// When this grant stops deciding the node: the earlier of the assignment's own expiry and
+    /// the end of the memberships that reach its group (the latest of them; null when any is
+    /// permanent). Null when nothing ends it.
+    /// </summary>
+    [Id(8)]
+    public DateTime? GrantedUntil { get; init; }
 }

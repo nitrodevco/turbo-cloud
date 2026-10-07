@@ -26,6 +26,13 @@ public partial interface IInventoryGrain
         CancellationToken ct
     );
     public Task<bool> RemoveFurnitureAsync(RoomObjectId itemId, CancellationToken ct);
+
+    /// <summary>
+    /// Items whose rows another grain has already taken out of this inventory (put into a wired
+    /// chest). Memory only: drops them from the list and tells the client once. Ids not held are
+    /// ignored.
+    /// </summary>
+    public Task ReleaseFurnitureAsync(ImmutableArray<RoomObjectId> itemIds, CancellationToken ct);
     public Task GrantCatalogOfferAsync(
         CatalogOfferSnapshot offer,
         string extraParam,

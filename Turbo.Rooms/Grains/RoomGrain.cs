@@ -62,6 +62,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly PetConfig _petConfig;
     internal readonly BotConfig _botConfig;
     internal readonly WiredConfig _wiredConfig;
+    internal readonly WiredChestConfig _wiredChestConfig;
     internal readonly IGrainFactory _grainFactory;
     internal readonly IRoomModelProvider _roomModelProvider;
     internal readonly IRoomItemsProvider _itemsLoader;
@@ -110,6 +111,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     public readonly RoomCommandSystem CommandSystem;
     public readonly RoomTimerSystem TimerSystem;
     public readonly RoomWaterAreaSystem WaterAreaSystem;
+    public readonly RoomWiredChestSystem WiredChestSystem;
+    public readonly RoomWiredTransactionSystem WiredTransactionSystem;
 
     internal IAsyncStream<RoomOutboundSnapshot> _roomOutbound = default!;
     private IGrainTimer? _tickTimer;
@@ -122,6 +125,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IOptions<PetConfig> petConfig,
         IOptions<BotConfig> botConfig,
         IOptions<WiredConfig> wiredConfig,
+        IOptions<WiredChestConfig> wiredChestConfig,
         IGrainFactory grainFactory,
         IRoomModelProvider roomModelProvider,
         IRoomItemsProvider itemsLoader,
@@ -149,6 +153,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _petConfig = petConfig.Value;
         _botConfig = botConfig.Value;
         _wiredConfig = wiredConfig.Value;
+        _wiredChestConfig = wiredChestConfig.Value;
         _grainFactory = grainFactory;
         _roomModelProvider = roomModelProvider;
         _itemsLoader = itemsLoader;
@@ -196,6 +201,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         CommandSystem = new(this);
         TimerSystem = new(this);
         WaterAreaSystem = new(this);
+        WiredChestSystem = new(this);
+        WiredTransactionSystem = new(this);
 
         EventModule.Register(WaterAreaSystem);
         EventModule.Register(RollerSystem);
@@ -205,6 +212,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         FurniModule.RegisterPlacementLimit(WiredSystem);
         FurniModule.RegisterPlacementLimit(VariableFxSystem);
         EventModule.Register(ChatSystem);
+        EventModule.Register(WiredChestSystem);
     }
 
     public override async Task OnActivateAsync(CancellationToken ct)

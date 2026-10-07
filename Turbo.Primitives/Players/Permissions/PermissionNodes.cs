@@ -44,6 +44,27 @@ public static class PermissionNodes
         public const string MANAGE = "catalog.manage";
     }
 
+    public static class Gamedata
+    {
+        /// <summary>
+        /// Change the hotel's gamedata in the admin panel: take in Habbo's updates, edit furniture
+        /// definitions, rebuild the files the client loads and roll changes back. Seeing it there
+        /// needs <see cref="Admin.GAMEDATA_VIEW"/> as well.
+        /// </summary>
+        public const string MANAGE = "gamedata.manage";
+    }
+
+    /// <summary>
+    /// Memberships held by permission rather than bought: the player counts as a member for as
+    /// long as they hold the node, whatever their subscription rows say. Nothing is written, so
+    /// taking the node away leaves them with exactly the membership they bought.
+    /// </summary>
+    public static class Club
+    {
+        public const string HABBO_CLUB_UNLIMITED = "club.habbo_club.unlimited";
+        public const string BUILDERS_CLUB_UNLIMITED = "club.builders_club.unlimited";
+    }
+
     public static class Navigator
     {
         public const string CATEGORY_STAFF = "navigator.category.staff";
@@ -197,6 +218,13 @@ public static class PermissionNodes
         /// <see cref="Catalog.MANAGE"/> as well.
         /// </summary>
         public const string CATALOG_VIEW = "admin.catalog.view";
+
+        /// <summary>
+        /// See the hotel's gamedata in the panel: Habbo's releases, what an update would change,
+        /// the files the client loads and the history of changes. Changing it needs
+        /// <see cref="Gamedata.MANAGE"/> as well.
+        /// </summary>
+        public const string GAMEDATA_VIEW = "admin.gamedata.view";
 
         /// <summary>Create new players in the panel. Seeing players needs <see cref="PLAYERS_VIEW"/>.</summary>
         public const string PLAYERS_CREATE = "admin.players.create";

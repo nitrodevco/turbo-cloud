@@ -46,4 +46,15 @@ public class SubscriptionConfig
     /// build, at the cost of hiding the room, and blocks them at this many items.
     /// </summary>
     public int BuildersClubTrialFurniLimit { get; init; } = 10;
+
+    /// <summary>
+    /// What the client is shown is left of a Habbo Club membership held by a permanent
+    /// <c>club.habbo_club.unlimited</c>, counted from now, so it never comes closer. Only shown:
+    /// the server counts them a member for as long as they hold the node. A node that runs out
+    /// shows its own end instead.
+    /// </summary>
+    public int PermanentHabboClubDisplayDays { get; init; } = 7;
+
+    /// <summary>The same for Builders Club (<c>club.builders_club.unlimited</c>), in hours.</summary>
+    public int PermanentBuildersClubDisplayHours { get; init; } = 24;
 }

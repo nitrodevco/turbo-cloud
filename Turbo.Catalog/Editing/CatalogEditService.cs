@@ -80,19 +80,21 @@ public sealed partial class CatalogEditService(
         if (parent is null)
             return CatalogEditResult.Refused("The page to put it under is gone.");
 
+        if (parent.ParentEntityId is null && draft.Display.IsInBuildersClub())
+            return TabInBuildersClub;
+
         var last = await db
             .CatalogPages.Where(x => x.ParentEntityId == parentId)
             .MaxAsync(x => (int?)x.SortOrder, ct)
             .ConfigureAwait(false);
         var page = new CatalogPageEntity
         {
-            CatalogType = parent.CatalogType,
             ParentEntityId = parentId,
             SortOrder = (last ?? -1) + 1,
             Localization = string.Empty,
             Icon = 0,
             Layout = string.Empty,
-            Visible = true,
+            Display = draft.Display,
         };
 
         Apply(page, draft);
@@ -122,6 +124,12 @@ public sealed partial class CatalogEditService(
         if (page is null)
             return CatalogEditResult.Refused("That page is gone.");
 
+        if (
+            await CheckDisplayAsync(db, page, draft.Display, ct).ConfigureAwait(false) is
+            { } refusedDisplay
+        )
+            return refusedDisplay;
+
         Apply(page, draft);
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
 
@@ -144,7 +152,7 @@ public sealed partial class CatalogEditService(
             {
                 x.Id,
                 x.ParentEntityId,
-                x.CatalogType,
+                x.Display,
             })
             .ToDictionaryAsync(x => x.Id, ct)
             .ConfigureAwait(false);
@@ -158,8 +166,8 @@ public sealed partial class CatalogEditService(
         if (!pages.TryGetValue(parentId, out var parent))
             return CatalogEditResult.Refused("The page to put it under is gone.");
 
-        if (parent.CatalogType != page.CatalogType)
-            return CatalogEditResult.Refused("A page stays in its own catalog.");
+        if (parent.ParentEntityId is null && page.Display.IsInBuildersClub())
+            return TabInBuildersClub;
 
         // Under itself, or under anything below it, would cut it off from the tree.
         for (int? at = parentId; at is { } id; at = pages[id].ParentEntityId)
@@ -293,18 +301,6 @@ public sealed partial class CatalogEditService(
 
         if (await CheckOfferAsync(db, draft, offer, ct).ConfigureAwait(false) is { } refused)
             return refused;
-
-        if (draft.PageId != offer.CatalogPageEntityId)
-        {
-            var to = await db
-                .CatalogPages.Where(x => x.Id == draft.PageId)
-                .Select(x => x.CatalogType)
-                .FirstAsync(ct)
-                .ConfigureAwait(false);
-
-            if (to != offer.Page.CatalogType)
-                return CatalogEditResult.Refused("An offer stays in its own catalog.");
-        }
 
         if (draft.Product is { } productDraft)
         {
@@ -448,7 +444,7 @@ public sealed partial class CatalogEditService(
 
         // The raffle, the purchase that routes to it and the upcoming-LTD notice all read the
         // normal catalog.
-        if (offer.Page.CatalogType != CatalogType.Normal)
+        if (!offer.Page.Display.IsIn(CatalogType.Normal))
             return CatalogEditResult.Refused("Limited series are sold from the normal catalog.");
 
         if (offer.ClubGiftDaysRequired is not null)
@@ -598,6 +594,61 @@ public sealed partial class CatalogEditService(
         return CatalogEditResult.Done(id);
     }
 
+    /// <summary>
+    /// The Builders Club catalog has no tabs, so a tab can't be shown there; the pages under it
+    /// can.
+    /// </summary>
+    private static CatalogEditResult TabInBuildersClub =>
+        CatalogEditResult.Refused(
+            "Tabs aren't shown in the Builders Club catalog; show the pages under it there instead."
+        );
+
+    /// <summary>
+    /// Whether a saved page may be shown as asked: not in the Builders Club catalog when it is a
+    /// tab, and not out of the normal catalog while it sells what only that catalog sells.
+    /// </summary>
+    private static async Task<CatalogEditResult?> CheckDisplayAsync(
+        TurboDbContext db,
+        CatalogPageEntity page,
+        CatalogPageDisplay display,
+        CancellationToken ct
+    )
+    {
+        if (display == page.Display || page.ParentEntityId is not { } parentId)
+            return null;
+
+        if (
+            display.IsInBuildersClub()
+            && await db
+                .CatalogPages.AnyAsync(x => x.Id == parentId && x.ParentEntityId == null, ct)
+                .ConfigureAwait(false)
+        )
+            return TabInBuildersClub;
+
+        if (display.IsIn(CatalogType.Normal))
+            return null;
+
+        // Memberships, club gifts and limited series are read from the normal catalog.
+        var normalOnly = await db
+            .CatalogOffers.AnyAsync(
+                x =>
+                    x.CatalogPageEntityId == page.Id
+                    && (
+                        x.ClubGiftDaysRequired != null
+                        || x.Products!.Any(p => p.SubscriptionType != null)
+                        || db.LtdSeries.Any(l => l.CatalogProduct!.CatalogOfferEntityId == x.Id)
+                    ),
+                ct
+            )
+            .ConfigureAwait(false);
+
+        return normalOnly
+            ? CatalogEditResult.Refused(
+                "This page sells memberships, club gifts or limited series, which only the normal catalog sells; move them first."
+            )
+            : null;
+    }
+
     private static CatalogEditResult? CheckPage(CatalogPageDraft draft)
     {
         var title = draft.Localization.Trim();
@@ -643,16 +694,16 @@ public sealed partial class CatalogEditService(
         CancellationToken ct
     )
     {
-        var pageType = await db
+        var display = await db
             .CatalogPages.Where(x => x.Id == draft.PageId)
-            .Select(x => (CatalogType?)x.CatalogType)
+            .Select(x => (CatalogPageDisplay?)x.Display)
             .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);
 
-        if (pageType is null)
+        if (display is null)
             return CatalogEditResult.Refused("The page to put it on is gone.");
 
-        var normal = pageType == CatalogType.Normal;
+        var normal = display.Value.IsIn(CatalogType.Normal);
         var membership = IsMembership(draft, existing);
 
         if (draft.ClubGiftDaysRequired is { } giftDays)
@@ -863,7 +914,7 @@ public sealed partial class CatalogEditService(
         page.Layout = draft.Layout.Trim();
         page.ImageData = [.. draft.ImageData];
         page.TextData = [.. draft.TextData];
-        page.Visible = draft.Visible;
+        page.Display = draft.Display;
     }
 
     private void Apply(CatalogOfferEntity offer, CatalogOfferDraft draft, bool membership)

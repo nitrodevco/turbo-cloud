@@ -205,6 +205,11 @@ internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGr
         );
     }
 
+    public Task<PermissionCheckSnapshot> ExplainInterleavedAsync(
+        string node,
+        CancellationToken ct
+    ) => ExplainAsync(node, ct);
+
     public Task<PlayerPermissionAssignmentsSnapshot> GetAssignmentsAsync(CancellationToken ct)
     {
         var now = UtcNow;

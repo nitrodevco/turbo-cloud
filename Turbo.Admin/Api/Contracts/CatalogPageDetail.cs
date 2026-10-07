@@ -4,13 +4,12 @@ namespace Turbo.Admin.Api.Contracts;
 public sealed record CatalogPageDetail(
     int Id,
     int? ParentId,
-    string CatalogType,
     string Localization,
     string? Name,
     int Icon,
     string Layout,
     string[] ImageData,
     string[] TextData,
-    bool Visible,
+    string Display,
     CatalogOfferItem[] Offers
 );

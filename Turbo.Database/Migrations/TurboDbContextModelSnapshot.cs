@@ -606,11 +606,6 @@ namespace Turbo.Database.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("CatalogType")
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("catalog_type");
-
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime(6)")
@@ -624,6 +619,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("deleted_at");
 
                     MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("DeletedAt"));
+
+                    b.Property<int>("Display")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("display");
 
                     b.Property<int>("Icon")
                         .ValueGeneratedOnAdd()
@@ -675,15 +675,7 @@ namespace Turbo.Database.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime>("UpdatedAt"));
 
-                    b.Property<bool>("Visible")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true)
-                        .HasColumnName("visible");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("CatalogType");
 
                     b.HasIndex("ParentEntityId");
 
@@ -1190,6 +1182,14 @@ namespace Turbo.Database.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("ChestItemEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("chest_item_id");
+
+                    b.Property<long?>("ChestTransactionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("chest_transaction_id");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime(6)")
@@ -1258,6 +1258,8 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("z");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ChestItemEntityId");
 
                     b.HasIndex("FurnitureDefinitionEntityId");
 
@@ -5140,6 +5142,121 @@ namespace Turbo.Database.Migrations
                     b.ToTable("performance_logs");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.WiredTrading.WiredChestEntity", b =>
+                {
+                    b.Property<int>("ItemEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("item_id");
+
+                    b.Property<int>("CapacityLevel")
+                        .HasColumnType("int")
+                        .HasColumnName("capacity_level");
+
+                    b.Property<int>("Coins")
+                        .HasColumnType("int")
+                        .HasColumnName("coins");
+
+                    b.HasKey("ItemEntityId");
+
+                    b.ToTable("wired_chests");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.WiredTrading.WiredChestTransactionEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DefinitionInfo")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("definition_info");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<string>("PlayerName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("player_name");
+
+                    b.Property<int>("RoomId")
+                        .HasColumnType("int")
+                        .HasColumnName("room_id");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoomId", "Id");
+
+                    b.ToTable("wired_chest_transactions");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.WiredTrading.WiredChestTransactionEntryEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("ChestItemId")
+                        .HasColumnType("int")
+                        .HasColumnName("chest_item_id");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("int")
+                        .HasColumnName("count");
+
+                    b.Property<bool>("IsCoins")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_coins");
+
+                    b.Property<bool>("IsDeposit")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_deposit");
+
+                    b.Property<bool>("IsWallItem")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_wall_item");
+
+                    b.Property<string>("PosterId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("poster_id");
+
+                    b.Property<long>("TransactionEntityId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("transaction_id");
+
+                    b.Property<int>("TypeId")
+                        .HasColumnType("int")
+                        .HasColumnName("type_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TransactionEntityId");
+
+                    b.HasIndex("ChestItemId", "TransactionEntityId");
+
+                    b.ToTable("wired_chest_transaction_entries");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Admin.AdminPasskeyEntity", b =>
                 {
                     b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
@@ -5270,6 +5387,11 @@ namespace Turbo.Database.Migrations
 
             modelBuilder.Entity("Turbo.Database.Entities.Furniture.FurnitureEntity", b =>
                 {
+                    b.HasOne("Turbo.Database.Entities.Furniture.FurnitureEntity", "ChestItemEntity")
+                        .WithMany()
+                        .HasForeignKey("ChestItemEntityId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Turbo.Database.Entities.Furniture.FurnitureDefinitionEntity", "FurnitureDefinitionEntity")
                         .WithMany("Furnitures")
                         .HasForeignKey("FurnitureDefinitionEntityId")
@@ -5285,6 +5407,8 @@ namespace Turbo.Database.Migrations
                     b.HasOne("Turbo.Database.Entities.Room.RoomEntity", "RoomEntity")
                         .WithMany()
                         .HasForeignKey("RoomEntityId");
+
+                    b.Navigation("ChestItemEntity");
 
                     b.Navigation("FurnitureDefinitionEntity");
 
@@ -5925,6 +6049,28 @@ namespace Turbo.Database.Migrations
                     b.Navigation("PlayerEntity");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.WiredTrading.WiredChestEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Furniture.FurnitureEntity", "ItemEntity")
+                        .WithMany()
+                        .HasForeignKey("ItemEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ItemEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.WiredTrading.WiredChestTransactionEntryEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.WiredTrading.WiredChestTransactionEntity", "TransactionEntity")
+                        .WithMany("Entries")
+                        .HasForeignKey("TransactionEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TransactionEntity");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.CatalogOfferEntity", b =>
                 {
                     b.Navigation("Products");
@@ -6019,6 +6165,11 @@ namespace Turbo.Database.Migrations
                     b.Navigation("RoomRatings");
 
                     b.Navigation("RoomRights");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.WiredTrading.WiredChestTransactionEntity", b =>
+                {
+                    b.Navigation("Entries");
                 });
 #pragma warning restore 612, 618
         }

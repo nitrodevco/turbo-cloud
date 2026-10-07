@@ -39,6 +39,9 @@ public interface IWiredPolicy
     /// <summary>Null unless the stack holds a projectile addon.</summary>
     public WiredProjectileSettings? Projectile { get; set; }
 
+    /// <summary>Null unless the stack holds a custom contract addon.</summary>
+    public IWiredContractSource? CustomContract { get; set; }
+
     /// <summary>Text transforms (username and variable placeholders) applied to outgoing text.</summary>
     public List<IWiredTextPlaceholder> TextPlaceholders { get; }
 }

@@ -1,0 +1,13 @@
+using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
+using Turbo.Primitives.Packets;
+
+namespace Turbo.Revisions.Revision20260909.Serializers.Userdefinedroomevents;
+
+internal class WiredTradeCompletedMessageComposerSerializer(int header)
+    : AbstractSerializer<WiredTradeCompletedMessageComposer>(header)
+{
+    protected override void Serialize(
+        IServerPacket packet,
+        WiredTradeCompletedMessageComposer message
+    ) { }
+}

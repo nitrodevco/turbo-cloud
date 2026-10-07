@@ -141,6 +141,24 @@ internal sealed class InventoryFurniModule(
         return await AddAsync(items, ct);
     }
 
+    public async Task ReleaseAsync(ImmutableArray<RoomObjectId> itemIds, CancellationToken ct)
+    {
+        if (itemIds.IsDefaultOrEmpty)
+            return;
+
+        await EnsureReadyAsync(ct);
+
+        ImmutableArray<RoomObjectId> released =
+        [
+            .. itemIds.Where(itemId => _state.FurnitureById.Remove(itemId)),
+        ];
+
+        if (released.IsEmpty)
+            return;
+
+        await SendRemovedAsync(released, ct);
+    }
+
     public async Task<bool> RemoveAsync(RoomObjectId itemId, CancellationToken ct)
     {
         await EnsureReadyAsync(ct);
@@ -449,6 +467,7 @@ internal sealed class InventoryFurniModule(
                     ids.Contains(x.Id)
                     && x.PlayerEntityId == (int)PlayerId
                     && x.RoomEntityId == null
+                    && x.ChestItemEntityId == null
                 )
                 .ExecuteUpdateAsync(
                     up => up.SetProperty(x => x.PlayerEntityId, toPlayerId.Value),

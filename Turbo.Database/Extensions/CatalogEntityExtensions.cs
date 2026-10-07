@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Turbo.Database.Entities.Catalog;
+using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Furniture.Snapshots;
 
@@ -26,7 +27,8 @@ public static class CatalogEntityExtensions
             Layout = entity.Layout,
             ImageData = entity.ImageData ?? [],
             TextData = entity.TextData ?? [],
-            Visible = entity.Visible,
+            // An invisible page is still sent, hidden, so a link that opens it by name finds it.
+            Visible = entity.Display != CatalogPageDisplay.Invisible,
             OfferIds = offerIds,
             ChildIds = childIds,
         };

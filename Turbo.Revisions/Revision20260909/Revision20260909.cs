@@ -1384,6 +1384,31 @@ public class Revision20260909 : IRevision
             { MessageEvent.UpdateSelectorMessageEvent, new UpdateSelectorMessageParser() },
             { MessageEvent.UpdateTriggerMessageEvent, new UpdateTriggerMessageParser() },
             { MessageEvent.UpdateVariableMessageEvent, new UpdateVariableMessageParser() },
+            #region Userdefinedroomevents Wiredtrading
+            { MessageEvent.WiredOpenContractMessageEvent, new WiredOpenContractMessageParser() },
+            {
+                MessageEvent.WiredUpdateContractMessageEvent,
+                new WiredUpdateContractMessageParser()
+            },
+            {
+                MessageEvent.WiredTradeAddDeleteItemsMessageEvent,
+                new WiredTradeAddDeleteItemsMessageParser()
+            },
+            { MessageEvent.WiredTradeCancelMessageEvent, new WiredTradeCancelMessageParser() },
+            { MessageEvent.WiredTradeConfirmMessageEvent, new WiredTradeConfirmMessageParser() },
+            {
+                MessageEvent.WiredTransactionGetChestLogsMessageEvent,
+                new WiredTransactionGetChestLogsMessageParser()
+            },
+            {
+                MessageEvent.WiredTransactionGetLogDetailsMessageEvent,
+                new WiredTransactionGetLogDetailsMessageParser()
+            },
+            {
+                MessageEvent.WiredTransactionGetRoomLogsMessageEvent,
+                new WiredTransactionGetRoomLogsMessageParser()
+            },
+            #endregion
             #region Userdefinedroomevents Wiredmenu
             {
                 MessageEvent.WiredClearErrorLogsMessageEvent,
@@ -1539,6 +1564,35 @@ public class Revision20260909 : IRevision
             {
                 MessageEvent.WithdrawCreditVaultMessageEvent,
                 new WithdrawCreditVaultMessageParser()
+            },
+            { MessageEvent.CloseChestMessageEvent, new CloseChestMessageParser() },
+            { MessageEvent.LockAllChestsMessageEvent, new LockAllChestsMessageParser() },
+            {
+                MessageEvent.OpenChestAndGetContentsMessageEvent,
+                new OpenChestAndGetContentsMessageParser()
+            },
+            {
+                MessageEvent.SetChestNotificationPreferencesMessageEvent,
+                new SetChestNotificationPreferencesMessageParser()
+            },
+            { MessageEvent.SetChestOptionsMessageEvent, new SetChestOptionsMessageParser() },
+            {
+                MessageEvent.SetChestPreferencesMessageEvent,
+                new SetChestPreferencesMessageParser()
+            },
+            { MessageEvent.StartAddingToChestMessageEvent, new StartAddingToChestMessageParser() },
+            { MessageEvent.UpgradeChestMessageEvent, new UpgradeChestMessageParser() },
+            {
+                MessageEvent.WithdrawAllFromChestMessageEvent,
+                new WithdrawAllFromChestMessageParser()
+            },
+            {
+                MessageEvent.WithdrawCoinsFromChestMessageEvent,
+                new WithdrawCoinsFromChestMessageParser()
+            },
+            {
+                MessageEvent.WithdrawItemsFromChestMessageEvent,
+                new WithdrawItemsFromChestMessageParser()
             },
             #endregion
         }.ToFrozenDictionary();
@@ -3376,6 +3430,80 @@ public class Revision20260909 : IRevision
                     MessageComposer.WiredVariablesForObjectMessageComposer
                 )
             },
+            #region Userdefinedroomevents Wiredtrading
+            {
+                typeof(WiredContractContentsMessageComposer),
+                new WiredContractContentsMessageComposerSerializer(
+                    MessageComposer.WiredContractContentsMessageComposer
+                )
+            },
+            {
+                typeof(WiredContractUpdateResultMessageComposer),
+                new WiredContractUpdateResultMessageComposerSerializer(
+                    MessageComposer.WiredContractUpdateResultMessageComposer
+                )
+            },
+            {
+                typeof(WiredOpenContractMessageComposer),
+                new WiredOpenContractMessageComposerSerializer(
+                    MessageComposer.WiredOpenContractMessageComposer
+                )
+            },
+            {
+                typeof(WiredTradeCancelledMessageComposer),
+                new WiredTradeCancelledMessageComposerSerializer(
+                    MessageComposer.WiredTradeCancelledMessageComposer
+                )
+            },
+            {
+                typeof(WiredTradeCompletedMessageComposer),
+                new WiredTradeCompletedMessageComposerSerializer(
+                    MessageComposer.WiredTradeCompletedMessageComposer
+                )
+            },
+            {
+                typeof(WiredTradeInitiateMessageComposer),
+                new WiredTradeInitiateMessageComposerSerializer(
+                    MessageComposer.WiredTradeInitiateMessageComposer
+                )
+            },
+            {
+                typeof(WiredTradeItemsUpdateMessageComposer),
+                new WiredTradeItemsUpdateMessageComposerSerializer(
+                    MessageComposer.WiredTradeItemsUpdateMessageComposer
+                )
+            },
+            {
+                typeof(WiredTradeTransactionNotificationMessageComposer),
+                new WiredTradeTransactionNotificationMessageComposerSerializer(
+                    MessageComposer.WiredTradeTransactionNotificationMessageComposer
+                )
+            },
+            {
+                typeof(WiredTransactionFailMessageComposer),
+                new WiredTransactionFailMessageComposerSerializer(
+                    MessageComposer.WiredTransactionFailMessageComposer
+                )
+            },
+            {
+                typeof(WiredTransactionLogDetailsMessageComposer),
+                new WiredTransactionLogDetailsMessageComposerSerializer(
+                    MessageComposer.WiredTransactionLogDetailsMessageComposer
+                )
+            },
+            {
+                typeof(WiredTransactionLogListMessageComposer),
+                new WiredTransactionLogListMessageComposerSerializer(
+                    MessageComposer.WiredTransactionLogListMessageComposer
+                )
+            },
+            {
+                typeof(WiredTransactionSuccessMessageComposer),
+                new WiredTransactionSuccessMessageComposerSerializer(
+                    MessageComposer.WiredTransactionSuccessMessageComposer
+                )
+            },
+            #endregion
             #endregion
 
             #region Users
@@ -3467,6 +3595,40 @@ public class Revision20260909 : IRevision
                 typeof(IncomeRewardStatusMessageComposer),
                 new IncomeRewardStatusMessageComposerSerializer(
                     MessageComposer.IncomeRewardStatusMessageComposer
+                )
+            },
+            {
+                typeof(ChestPreferencesUpdateSuccessMessageComposer),
+                new ChestPreferencesUpdateSuccessMessageComposerSerializer(
+                    MessageComposer.ChestPreferencesUpdateSuccessMessageComposer
+                )
+            },
+            {
+                typeof(CoinsChestContentsMessageComposer),
+                new CoinsChestContentsMessageComposerSerializer(
+                    MessageComposer.CoinsChestContentsMessageComposer
+                )
+            },
+            {
+                typeof(ItemsChestContentsChunkMessageComposer),
+                new ItemsChestContentsChunkMessageComposerSerializer(
+                    MessageComposer.ItemsChestContentsChunkMessageComposer
+                )
+            },
+            {
+                typeof(ItemsChestContentsUpdatedMessageComposer),
+                new ItemsChestContentsUpdatedMessageComposerSerializer(
+                    MessageComposer.ItemsChestContentsUpdatedMessageComposer
+                )
+            },
+            {
+                typeof(OpenChestMessageComposer),
+                new OpenChestMessageComposerSerializer(MessageComposer.OpenChestMessageComposer)
+            },
+            {
+                typeof(UpgradeChestResultMessageComposer),
+                new UpgradeChestResultMessageComposerSerializer(
+                    MessageComposer.UpgradeChestResultMessageComposer
                 )
             },
             #endregion

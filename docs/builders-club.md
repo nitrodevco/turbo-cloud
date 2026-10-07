@@ -217,11 +217,19 @@ hotel-wide grain in section 5.
 
 ## 4. The Builders Club catalog
 
-- Add `catalog_type` (the existing `CatalogType` enum) to `catalog_pages`. Offers and products
-  inherit their type from their page.
-- `CatalogSnapshotProvider` filters pages by `CatalogType` before building the snapshot. Note that
-  `RootPageId = pages.First(x => x.ParentEntityId == null)` stops being correct the moment there
-  are two trees, so the filter has to come first.
+- Both catalogs are cut from one tree of pages. `catalog_pages.display` (`CatalogPageDisplay`)
+  says which catalogs show a page: `regular`, `bc_only`, `both`, or `invisible` (kept in the
+  normal catalog, hidden, for links that open it by name). Offers and products follow their page.
+- `CatalogTree.Cut` builds each catalog: a page shown there, and every page above it so the client
+  can reach it. A page that is only there to lead to one below it lists none of its own offers,
+  and only offers on pages the catalog shows are in its snapshot (placement asks it). Example:
+  `By Design (regular) > Anna (bc_only), Base (regular), Bathroom (both)` is `By Design > Anna,
+  Bathroom` in the Builders Club catalog and `By Design > Base, Bathroom` in the normal one.
+- The Builders Club client draws no tabs: it opens the root's first child and lists that child's
+  children. So the Builders Club cut drops the tabs (the root's children) and gathers the pages
+  under every tab, in tab order, under one category with id `-2`, which no row holds. A tab
+  can't be shown in the Builders Club catalog (the editor refuses it); an invisible tab hides its
+  pages there too.
 - Register `ICatalogSnapshotProvider<BuildersClubCatalog>` in `CatalogModule` and drop the
   `CatalogTypeNotSupportedException` branch from `CatalogService.GetCatalogSnapshot`.
 - `GetCatalogIndexMessageHandler` and `GetCatalogPageMessageHandler` already dispatch on
@@ -321,7 +329,7 @@ sibling to `RoomFurniModule.Temporary.cs`, in this order:
    `IBuildersClubGrain.GetBorrowedCountAsync`; refuse over the limit. Code 2.
 3. Resolve the offer from `ICatalogService.GetCatalogSnapshot(CatalogType.BuildersClub)`. Take the
    offer id from the client and nothing else — never a definition id — and reject an offer that is
-   not in the Builders Club tree.
+   not on a page the Builders Club catalog shows.
 4. Trial and grace gate. If `SecondsLeft <= 0` and any other player is in the room, refuse
    (code 6). If `SecondsLeft <= 0`, the room is not already `HiddenByBc`, and `confirmedHideRoom`
    is false, send `BuildersClubPlacementWarning` echoing the request and stop. Nothing is hidden
@@ -381,10 +389,12 @@ need to read it:
    `HabboClubOffers`, `HabboClubExtendOffer` and the two membership-extension handlers.
    `SeedHabboClubOffers` seeds three memberships on a hidden page so a fresh hotel has something
    to buy.
-2. **The Builders Club catalog.** *Done.* `catalog_type` column, provider filter, `CatalogService`
-   branch, module registration, and a seeded Builders Club root page — a catalog with no root
-   cannot be sent, and the client asks for it again on every furni it selects. Both the index
-   handler and its serializer now treat an empty tree as nothing to send rather than a crash.
+2. **The Builders Club catalog.** *Done.* First a `catalog_type` column and a second tree with its
+   own seeded root; then (`ReplaceCatalogTypeWithPageDisplay`) one tree with a per-page `display`
+   in its place, so a page can be in both catalogs. The Builders Club catalog is sent whenever the
+   tree has a root, even with no pages in it — the client asks for it again on every furni it
+   selects until it gets one. Both the index handler and its serializer treat a hotel with no
+   pages at all as nothing to send rather than a crash.
 3. **Builders Club furni.** *Done.* `builders_club_furniture` table, `FurniIdBands`,
    `BuildersClubGrain`, `RoomFurniModule.BuildersClub`, the loader, persistence and pickup
    branches, the three packet handlers, the missing `BuildersClubFurniCount` contract and

@@ -750,6 +750,36 @@ public class PermissionResolverTests
         check.Decision.Should().BeNull();
     }
 
+    [Fact]
+    public void GrantedUntil_IsWhenTheGrantStops_ThroughAnExpiringMembershipToo()
+    {
+        const string CLUB = PermissionNodes.Club.HABBO_CLUB_UNLIMITED;
+        var membershipEnds = NOW.AddDays(30);
+        var nodeEnds = NOW.AddDays(10);
+        PermissionGroupSnapshot[] groups =
+        [
+            Group(1, "vip", 10, parents: [2]),
+            Group(2, "club", 5, nodes: [Node(CLUB)]),
+            Group(3, "staff", 50, parents: [2]),
+        ];
+
+        // Reached through a membership that runs out, through a parent: it ends with it.
+        Explain(groups, Player(groups: [Member(1, membershipEnds)]), CLUB)
+            .Decision!.GrantedUntil.Should()
+            .Be(membershipEnds);
+
+        // A permanent membership reaching the same group keeps it for ever.
+        Explain(groups, Player(groups: [Member(1, membershipEnds), Member(3)]), CLUB)
+            .Decision!.GrantedUntil.Should()
+            .BeNull();
+
+        // The node's own end, when it comes first.
+        Explain([], Player(nodes: [Node(CLUB, expiresAt: nodeEnds)]), CLUB)
+            .Decision!.GrantedUntil.Should()
+            .Be(nodeEnds);
+        Explain([], Player(nodes: [Node(CLUB)]), CLUB).Decision!.GrantedUntil.Should().BeNull();
+    }
+
     // --- helpers ---
 
     private static ResolvedPermissionsSnapshot Resolve(

@@ -40,6 +40,12 @@ public interface IPlayerSubscriptionGrain : IGrainWithIntegerKey
     /// </summary>
     public Task SendStatusAsync(CancellationToken ct);
 
+    /// <summary>
+    /// Tells everything that reads a membership that it changed without a purchase: a
+    /// <c>club.*.unlimited</c> node was granted or taken away.
+    /// </summary>
+    public Task OnChangedAsync(SubscriptionType subscriptionType, CancellationToken ct);
+
     /// <summary>Sends the Habbo Club membership detail the club centre and purse read.</summary>
     public Task SendClubInfoAsync(ScrUserInfoResponseType responseType, CancellationToken ct);
 }

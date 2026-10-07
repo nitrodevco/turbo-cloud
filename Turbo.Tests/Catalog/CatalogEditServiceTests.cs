@@ -7,6 +7,7 @@ using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Catalog.Editing;
+using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Navigator.Enums;
@@ -52,8 +53,11 @@ public sealed class CatalogEditServiceTests : IDisposable
 
     public void Dispose() => _catalog.Dispose();
 
-    private static CatalogPageDraft Page(string title = "Lamps", string layout = "default_3x3") =>
-        new(title, null, 3, layout, ["header"], ["Bright", "lamps"], true);
+    private static CatalogPageDraft Page(
+        string title = "Lamps",
+        string layout = "default_3x3",
+        CatalogPageDisplay display = CatalogPageDisplay.Regular
+    ) => new(title, null, 3, layout, ["header"], ["Bright", "lamps"], display);
 
     private static CatalogOfferDraft Offer(
         int pageId = FURNITURE,
@@ -132,7 +136,7 @@ public sealed class CatalogEditServiceTests : IDisposable
     [InlineData(FURNITURE, CHILD, "under itself")]
     [InlineData(FURNITURE, FURNITURE, "under itself")]
     [InlineData(ROOT, FURNITURE, "root")]
-    [InlineData(FURNITURE, BUILDERS_ROOT, "own catalog")]
+    [InlineData(BUILDERS_PAGE, ROOT, "Tabs aren't shown")]
     public async Task AMoveThatWouldBreakTheTree_IsRefused(int pageId, int parentId, string why)
     {
         var result = await _service.MovePageAsync(Editor, pageId, parentId, 0, Ct);
@@ -249,16 +253,78 @@ public sealed class CatalogEditServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task AnOfferStaysInItsOwnCatalog()
+    public async Task AnOffer_MovesToAPageOfTheOtherCatalog()
     {
         var result = await _service.UpdateOfferAsync(
             Editor,
             SOLD,
-            Offer(pageId: BUILDERS_ROOT),
+            Offer(pageId: BUILDERS_PAGE),
             Ct
         );
 
-        result.Error.Should().Contain("own catalog");
+        result.Saved.Should().BeTrue();
+        (await ReadAsync(db => db.CatalogOffers.SingleAsync(x => x.Id == SOLD, Ct)))
+            .CatalogPageEntityId.Should()
+            .Be(BUILDERS_PAGE);
+    }
+
+    [Fact]
+    public async Task ATab_IsNotShownInTheBuildersClubCatalog()
+    {
+        var created = await _service.CreatePageAsync(
+            Editor,
+            ROOT,
+            Page(display: CatalogPageDisplay.Both),
+            Ct
+        );
+        var saved = await _service.UpdatePageAsync(
+            Editor,
+            FURNITURE,
+            Page("Furniture", display: CatalogPageDisplay.BuildersClubOnly),
+            Ct
+        );
+
+        created.Error.Should().Contain("Tabs aren't shown");
+        saved.Error.Should().Contain("Tabs aren't shown");
+        (
+            await _service.CreatePageAsync(
+                Editor,
+                FURNITURE,
+                Page(display: CatalogPageDisplay.Both),
+                Ct
+            )
+        )
+            .Saved.Should()
+            .BeTrue("a page under a tab is shown there");
+    }
+
+    [Fact]
+    public async Task APageSellingAMembership_StaysInTheNormalCatalog()
+    {
+        (await _service.CreateOfferAsync(Editor, Offer(pageId: CHILD, product: Membership(31)), Ct))
+            .Saved.Should()
+            .BeTrue();
+
+        (
+            await _service.UpdatePageAsync(
+                Editor,
+                CHILD,
+                Page("Chairs", display: CatalogPageDisplay.BuildersClubOnly),
+                Ct
+            )
+        )
+            .Error.Should()
+            .Contain("only the normal catalog sells");
+        (
+            await _service.UpdatePageAsync(
+                Editor,
+                CHILD,
+                Page("Chairs", display: CatalogPageDisplay.Both),
+                Ct
+            )
+        )
+            .Saved.Should()
+            .BeTrue("the normal catalog still sells it");
     }
 
     [Fact]
@@ -402,7 +468,7 @@ public sealed class CatalogEditServiceTests : IDisposable
         (
             await _service.CreateOfferAsync(
                 Editor,
-                Offer(pageId: BUILDERS_ROOT, product: Membership(31)),
+                Offer(pageId: BUILDERS_PAGE, product: Membership(31)),
                 Ct
             )
         )
@@ -486,7 +552,7 @@ public sealed class CatalogEditServiceTests : IDisposable
         (
             await _service.CreateOfferAsync(
                 Editor,
-                Offer(pageId: BUILDERS_ROOT) with
+                Offer(pageId: BUILDERS_PAGE) with
                 {
                     ClubGiftDaysRequired = 0,
                 },

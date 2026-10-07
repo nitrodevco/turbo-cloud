@@ -11,10 +11,15 @@ namespace Turbo.Primitives.Furniture;
 /// The client splits the whole space three ways. Only the last is a rule this server keeps:
 /// </para>
 /// <code>
-/// normal          id &lt;= 0x7FFB_FFFF
-/// temp (wired)    0x7FFC_0000 .. 0x7FFD_FFFF
-/// builders club   0x7FFE_0000 .. 0x7FFF_FFFF
+/// normal          id &lt;= 0x7FFE_BFFF
+/// temp (wired)    0x7FFE_C000 .. 0x7FFE_FFFF
+/// builders club   0x7FFF_0000 .. 0x7FFF_FFFF
 /// </code>
+/// <para>
+/// Those are the client's own numbers (<c>FurniId.isBuilderClubId</c> is
+/// <c>id &gt;= 2147418112</c>). An id below them reads as ordinary furni, so the info stand
+/// shows it as the player's own.
+/// </para>
 /// <para>
 /// This server's own temporary furni (placed by wired) uses negative ids rather than the
 /// client's temporary band, so the client reads them as ordinary furni. That is deliberate:
@@ -29,7 +34,7 @@ namespace Turbo.Primitives.Furniture;
 /// </summary>
 public static class FurniIdBands
 {
-    public const int BuildersClubMin = 0x7FFE_0000;
+    public const int BuildersClubMin = 0x7FFF_0000;
     public const int BuildersClubMax = int.MaxValue;
 
     /// <summary>How many Builders Club furni one room can hold ids for at once.</summary>

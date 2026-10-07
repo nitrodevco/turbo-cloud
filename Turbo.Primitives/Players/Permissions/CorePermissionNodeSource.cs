@@ -284,6 +284,22 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             PermissionNodes.Catalog.MANAGE,
             "Change the catalog in the admin panel and publish it to players."
         ),
+        new(
+            PermissionNodes.Admin.GAMEDATA_VIEW,
+            "See the hotel's gamedata in the admin panel: Habbo's releases, pending updates, the client's files and their history."
+        ),
+        new(
+            PermissionNodes.Gamedata.MANAGE,
+            "Change the hotel's gamedata in the admin panel: import Habbo's updates, edit furniture, rebuild the client's files and roll back."
+        ),
+        new(
+            PermissionNodes.Club.HABBO_CLUB_UNLIMITED,
+            "Be a Habbo Club member for as long as this is held, without buying it."
+        ),
+        new(
+            PermissionNodes.Club.BUILDERS_CLUB_UNLIMITED,
+            "Be a Builders Club member, at the highest furni limit, for as long as this is held, without buying it."
+        ),
         new(PermissionNodes.Admin.PLAYERS_CREATE, "Create new players in the admin panel."),
         new(
             PermissionNodes.Admin.TICKETS_ISSUE,

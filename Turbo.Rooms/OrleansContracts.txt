@@ -17,3 +17,9 @@ class [GrainType("room")] Turbo.Rooms.Grains.RoomGrain
 class [GrainType("roompersistence")] Turbo.Rooms.Grains.RoomPersistenceGrain
 
 class [GrainType("roomtrade")] Turbo.Rooms.Grains.RoomTradeGrain
+
+class [GrainType("wiredchest")] Turbo.Rooms.Grains.WiredTrading.WiredChestGrain
+
+class [GrainType("wiredtrade")] Turbo.Rooms.Grains.WiredTrading.WiredTradeGrain
+
+class [GrainType("wiredtransactionlog")] Turbo.Rooms.Grains.WiredTrading.WiredTransactionLogGrain

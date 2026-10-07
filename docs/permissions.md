@@ -226,6 +226,8 @@ client gates from §2. Each names the one place that reads it.
 | `room.floorplan.save_without_club` | `RoomGrain.SaveFloorPlanAsync` | 4 | see `docs/builders-club.md` §7 |
 | `room.floorplan.large` | `RoomMapModule` area limit | — (perk `BUILDER_AT_WORK`) | |
 | `catalog.builders_club.without_membership` | Builders Club catalog access | 5 | |
+| `club.habbo_club.unlimited` | `PlayerSubscriptionGrain`: a Habbo Club member for as long as it is held | — | shows the grant's own end (`GrantedUntil`, which counts an expiring group membership); a permanent grant shows 7 days left (`PermanentHabboClubDisplayDays`) that never come closer, display only. Nothing is written; taking it away leaves the membership they bought. Granting or revoking it refreshes the client (`UnlimitedClubPermissionsHandler`) |
+| `club.builders_club.unlimited` | the same for Builders Club, at `BuildersClubMaxFurniLimit`; the lapse sweep (`BuildersClubGrain`) asks it for borrowers with no running row | — | a permanent grant shows 24 hours left (`PermanentBuildersClubDisplayHours`) |
 | `navigator.category.staff` | `NavigatorService`, `EnforceCategoryCtrl` | 7 | the hardcoded `MinRank <= 1` |
 | `moderation.tool` | the moderation packets | 5 | |
 | `wired.menu` | `WiredMenuController` | 4 | |

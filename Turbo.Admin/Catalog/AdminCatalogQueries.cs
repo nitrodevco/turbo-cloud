@@ -44,31 +44,27 @@ public sealed class AdminCatalogQueries(
     /// <summary>The name the client opens the club gifts by, from the club centre and its notice.</summary>
     public const string CLUB_GIFTS_PAGE_NAME = "club_gifts";
 
-    public async Task<CatalogTreeResponse> GetTreeAsync(
-        CatalogType type,
-        bool canManage,
-        CancellationToken ct
-    )
+    public async Task<CatalogTreeResponse> GetTreeAsync(bool canManage, CancellationToken ct)
     {
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbScope = db.ConfigureAwait(false);
 
         var pages = await db
             .CatalogPages.AsNoTracking()
-            .Where(x => x.CatalogType == type)
             .OrderBy(x => x.SortOrder)
             .ThenBy(x => x.Localization)
             .ThenBy(x => x.Id)
-            .Select(x => new CatalogPageNode(
+            .Select(x => new
+            {
                 x.Id,
                 x.ParentEntityId,
                 x.Localization,
                 x.Name,
                 x.Icon,
-                x.Visible,
+                x.Display,
                 x.SortOrder,
-                x.Offers!.Count
-            ))
+                Offers = x.Offers!.Count,
+            })
             .ToListAsync(ct)
             .ConfigureAwait(false);
         var currencies = await db
@@ -88,13 +84,22 @@ public sealed class AdminCatalogQueries(
             .Distinct()
             .ToListAsync(ct)
             .ConfigureAwait(false);
-        var club =
-            type == CatalogType.Normal ? await ClubAsync(db, ct).ConfigureAwait(false) : null;
+        var club = await ClubAsync(db, ct).ConfigureAwait(false);
 
         return new CatalogTreeResponse(
-            type.ToString(),
-            pages.FirstOrDefault(x => x.ParentId is null)?.Id ?? 0,
-            [.. pages],
+            pages.Where(x => x.ParentEntityId is null).MinBy(x => x.Id)?.Id ?? 0,
+            [
+                .. pages.Select(x => new CatalogPageNode(
+                    x.Id,
+                    x.ParentEntityId,
+                    x.Localization,
+                    x.Name,
+                    x.Icon,
+                    x.Display.ToName(),
+                    x.SortOrder,
+                    x.Offers
+                )),
+            ],
             canManage,
             editor.UnpublishedChanges,
             [
@@ -116,7 +121,7 @@ public sealed class AdminCatalogQueries(
     {
         var normal = db
             .CatalogOffers.AsNoTracking()
-            .Where(x => x.Visible && x.Page.CatalogType == CatalogType.Normal);
+            .Where(x => x.Visible && x.Page.Display != CatalogPageDisplay.BuildersClubOnly);
         var memberships = await normal
             .CountAsync(
                 x =>
@@ -132,8 +137,7 @@ public sealed class AdminCatalogQueries(
         var pages = await db
             .CatalogPages.AsNoTracking()
             .Where(x =>
-                x.Visible
-                && x.CatalogType == CatalogType.Normal
+                (x.Display == CatalogPageDisplay.Regular || x.Display == CatalogPageDisplay.Both)
                 && (x.Name == CLUB_PAGE_NAME || x.Name == CLUB_GIFTS_PAGE_NAME)
             )
             .OrderBy(x => x.Id)
@@ -198,14 +202,13 @@ public sealed class AdminCatalogQueries(
         return new CatalogPageDetail(
             page.Id,
             page.ParentEntityId,
-            page.CatalogType.ToString(),
             page.Localization,
             page.Name,
             page.Icon,
             page.Layout,
             [.. page.ImageData ?? []],
             [.. page.TextData ?? []],
-            page.Visible,
+            page.Display.ToName(),
             [
                 .. offers.Select(offer => new CatalogOfferItem(
                     offer.Id,

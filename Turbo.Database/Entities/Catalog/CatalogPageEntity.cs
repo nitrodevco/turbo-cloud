@@ -2,25 +2,13 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
 using Turbo.Primitives.Catalog.Enums;
 
 namespace Turbo.Database.Entities.Catalog;
 
 [Table("catalog_pages")]
-// Each catalog is loaded on its own, so the tree is read by its type before anything else.
-[Index(nameof(CatalogType))]
 public class CatalogPageEntity : TurboEntity
 {
-    /// <summary>
-    /// Which catalog this page belongs to. Offers and products inherit it from their page, so
-    /// this is the only row that says which tree anything is in.
-    /// </summary>
-    [Column("catalog_type")]
-    [DefaultValue(CatalogType.Normal)]
-    [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public required CatalogType CatalogType { get; set; }
-
     [Column("parent_id")]
     public int? ParentEntityId { get; set; }
 
@@ -51,9 +39,14 @@ public class CatalogPageEntity : TurboEntity
     [DefaultValue(0)]
     public required int SortOrder { get; set; }
 
-    [Column("visible")]
-    [DefaultValue(true)]
-    public required bool Visible { get; set; }
+    /// <summary>
+    /// Which catalogs show the page. Both catalogs are cut from this one tree, and offers and
+    /// products follow their page into each.
+    /// </summary>
+    [Column("display")]
+    [DefaultValue(CatalogPageDisplay.Regular)]
+    [DatabaseGenerated(DatabaseGeneratedOption.None)]
+    public required CatalogPageDisplay Display { get; set; }
 
     [ForeignKey(nameof(ParentEntityId))]
     public CatalogPageEntity? ParentEntity { get; set; }

@@ -44,7 +44,11 @@ internal sealed class InventoryFurnitureLoader(
 
         var rows = await dbCtx
             .Furnitures.AsNoTracking()
-            .Where(x => x.PlayerEntityId == (int)playerId && x.RoomEntityId == null)
+            .Where(x =>
+                x.PlayerEntityId == (int)playerId
+                && x.RoomEntityId == null
+                && x.ChestItemEntityId == null
+            )
             .Select(x => new
             {
                 x.Id,

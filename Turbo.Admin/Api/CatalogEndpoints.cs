@@ -49,18 +49,12 @@ internal sealed class CatalogEndpoints(
         group.MapPost("/publish", PublishAsync);
     }
 
-    private async Task<IResult> TreeAsync(string? type, HttpContext http, CancellationToken ct)
-    {
-        var kind = string.Equals(type, "builders", StringComparison.OrdinalIgnoreCase)
-            ? CatalogType.BuildersClub
-            : CatalogType.Normal;
-
-        return Results.Ok(
+    private async Task<IResult> TreeAsync(HttpContext http, CancellationToken ct) =>
+        Results.Ok(
             await catalog
-                .GetTreeAsync(kind, await CanManageAsync(http, ct).ConfigureAwait(false), ct)
+                .GetTreeAsync(await CanManageAsync(http, ct).ConfigureAwait(false), ct)
                 .ConfigureAwait(false)
         );
-    }
 
     private async Task<IResult> PageAsync(int id, CancellationToken ct) =>
         await catalog.GetPageAsync(id, ct).ConfigureAwait(false) is { } page
@@ -76,9 +70,10 @@ internal sealed class CatalogEndpoints(
             http,
             ct,
             who =>
-                request.ParentId is { } parentId
-                    ? editor.CreatePageAsync(who, parentId, Draft(request), ct)
-                    : Task.FromResult(CatalogEditResult.Refused("Say which page to put it under."))
+                request.ParentId is not { } parentId
+                    ? Task.FromResult(CatalogEditResult.Refused("Say which page to put it under."))
+                : Draft(request) is { } draft ? editor.CreatePageAsync(who, parentId, draft, ct)
+                : Task.FromResult(UnknownDisplay)
         );
 
     private Task<IResult> UpdatePageAsync(
@@ -86,7 +81,15 @@ internal sealed class CatalogEndpoints(
         CatalogPageRequest request,
         HttpContext http,
         CancellationToken ct
-    ) => ManageAsync(http, ct, who => editor.UpdatePageAsync(who, id, Draft(request), ct));
+    ) =>
+        ManageAsync(
+            http,
+            ct,
+            who =>
+                Draft(request) is { } draft
+                    ? editor.UpdatePageAsync(who, id, draft, ct)
+                    : Task.FromResult(UnknownDisplay)
+        );
 
     private Task<IResult> MovePageAsync(
         int id,
@@ -179,6 +182,10 @@ internal sealed class CatalogEndpoints(
         );
     }
 
+    private static readonly CatalogEditResult UnknownDisplay = CatalogEditResult.Refused(
+        "A page is shown in the regular catalog, the Builders Club catalog, both, or neither."
+    );
+
     private static readonly CatalogEditResult UnknownType = CatalogEditResult.Refused(
         "An offer gives a floor item, a wall item, a badge or a membership."
     );
@@ -207,16 +214,19 @@ internal sealed class CatalogEndpoints(
             ct
         );
 
-    private static CatalogPageDraft Draft(CatalogPageRequest request) =>
-        new(
-            request.Localization ?? string.Empty,
-            request.Name,
-            request.Icon,
-            request.Layout ?? string.Empty,
-            AdminCatalogQueries.Lines(request.ImageData),
-            AdminCatalogQueries.Lines(request.TextData),
-            request.Visible
-        );
+    /// <summary>The page as the service takes it; null when the display is not one it knows.</summary>
+    private static CatalogPageDraft? Draft(CatalogPageRequest request) =>
+        CatalogPageDisplayExtensions.FromName(request.Display) is { } display
+            ? new(
+                request.Localization ?? string.Empty,
+                request.Name,
+                request.Icon,
+                request.Layout ?? string.Empty,
+                AdminCatalogQueries.Lines(request.ImageData),
+                AdminCatalogQueries.Lines(request.TextData),
+                display
+            )
+            : null;
 
     /// <summary>The offer as the service takes it; null when the product type is not one it knows.</summary>
     private static CatalogOfferDraft? Draft(CatalogOfferRequest request)

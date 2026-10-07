@@ -10,6 +10,7 @@ namespace Turbo.Database.Entities.Furniture;
 [Table("furniture")]
 // An inventory is the rows a player owns that are in no room (player_id = ? AND room_id IS NULL).
 [Index(nameof(PlayerEntityId), nameof(RoomEntityId))]
+[Index(nameof(ChestItemEntityId))]
 public class FurnitureEntity : TurboEntity, IPlacedFurnitureEntity
 {
     [Column("player_id")]
@@ -45,6 +46,18 @@ public class FurnitureEntity : TurboEntity, IPlacedFurnitureEntity
     [Column("extra_data")]
     public string? ExtraData { get; set; }
 
+    /// <summary>
+    /// The wired chest this row is stored in, or null. A stored row is in no room and in no
+    /// inventory: every query that lists an inventory excludes it. When the chest row goes, the
+    /// database clears this and the row falls back to its owner's inventory.
+    /// </summary>
+    [Column("chest_item_id")]
+    public int? ChestItemEntityId { get; set; }
+
+    /// <summary>The chest transaction that put the row in its chest; null outside a chest.</summary>
+    [Column("chest_transaction_id")]
+    public long? ChestTransactionId { get; set; }
+
     [ForeignKey(nameof(PlayerEntityId))]
     public PlayerEntity? PlayerEntity { get; set; }
 
@@ -53,4 +66,8 @@ public class FurnitureEntity : TurboEntity, IPlacedFurnitureEntity
 
     [ForeignKey(nameof(RoomEntityId))]
     public RoomEntity? RoomEntity { get; set; }
+
+    [ForeignKey(nameof(ChestItemEntityId))]
+    [DeleteBehavior(DeleteBehavior.SetNull)]
+    public FurnitureEntity? ChestItemEntity { get; set; }
 }

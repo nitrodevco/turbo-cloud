@@ -20,5 +20,6 @@ public sealed class WiredPolicy : IWiredPolicy
     public WiredMovePhysicsFlags MovePhysics { get; set; } = WiredMovePhysicsFlags.None;
     public int? JumpStrength { get; set; }
     public WiredProjectileSettings? Projectile { get; set; }
+    public IWiredContractSource? CustomContract { get; set; }
     public List<IWiredTextPlaceholder> TextPlaceholders { get; } = [];
 }

@@ -15,16 +15,17 @@ namespace Turbo.Tests.Catalog;
 
 /// <summary>
 /// A small catalog in a relational database, as the hotel's is laid out: the currency rows the
-/// hotel ships (duckets are row 4 but activity-point type 0), a floor and a wall item, a normal
-/// catalog with a shown and a hidden page, and a Builders Club root. The offers are one of each
-/// case the editor and the purchase path care about.
+/// hotel ships (duckets are row 4 but activity-point type 0), a floor and a wall item, and one
+/// tree of pages: a shown and an invisible tab, and under the shown one a normal page and a page
+/// only the Builders Club catalog shows. The offers are one of each case the editor and the
+/// purchase path care about.
 /// </summary>
 public sealed class CatalogFixture : IDisposable
 {
     public const int ROOT = 1;
     public const int FURNITURE = 2;
     public const int HIDDEN_PAGE = 3;
-    public const int BUILDERS_ROOT = 4;
+    public const int BUILDERS_PAGE = 4;
     public const int CHILD = 5;
 
     public const int CHAIR = 10;
@@ -81,11 +82,13 @@ public sealed class CatalogFixture : IDisposable
         foreach (var definition in _definitions)
             Db.Insert(definition);
 
-        Db.Insert(Page(ROOT, null, "root", CatalogType.Normal));
-        Db.Insert(Page(FURNITURE, ROOT, "Furniture", CatalogType.Normal, sort: 0));
-        Db.Insert(Page(HIDDEN_PAGE, ROOT, "Secret", CatalogType.Normal, sort: 1, visible: false));
-        Db.Insert(Page(BUILDERS_ROOT, null, "root", CatalogType.BuildersClub));
-        Db.Insert(Page(CHILD, FURNITURE, "Chairs", CatalogType.Normal));
+        Db.Insert(Page(ROOT, null, "root"));
+        Db.Insert(Page(FURNITURE, ROOT, "Furniture", sort: 0));
+        Db.Insert(Page(HIDDEN_PAGE, ROOT, "Secret", CatalogPageDisplay.Invisible, sort: 1));
+        Db.Insert(Page(CHILD, FURNITURE, "Chairs"));
+        Db.Insert(
+            Page(BUILDERS_PAGE, FURNITURE, "Builders", CatalogPageDisplay.BuildersClubOnly, 1)
+        );
 
         AddOffer(SOLD, FURNITURE, credits: 5);
         AddOffer(HIDDEN_OFFER, FURNITURE, credits: 5, visible: false);
@@ -109,7 +112,7 @@ public sealed class CatalogFixture : IDisposable
             CatalogType.BuildersClub
         );
 
-    private void AddOffer(
+    public void AddOffer(
         int id,
         int pageId,
         int credits = 0,
@@ -147,13 +150,12 @@ public sealed class CatalogFixture : IDisposable
         );
     }
 
-    private static CatalogPageEntity Page(
+    public static CatalogPageEntity Page(
         int id,
         int? parentId,
         string title,
-        CatalogType type,
-        int sort = 0,
-        bool visible = true
+        CatalogPageDisplay display = CatalogPageDisplay.Regular,
+        int sort = 0
     ) =>
         new()
         {
@@ -161,11 +163,10 @@ public sealed class CatalogFixture : IDisposable
             ParentEntityId = parentId,
             Localization = title,
             Name = title.ToLowerInvariant(),
-            CatalogType = type,
             Icon = 1,
             Layout = "default_3x3",
             SortOrder = sort,
-            Visible = visible,
+            Display = display,
         };
 
     private static CurrencyTypeEntity Currency(

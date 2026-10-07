@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms;
 
 namespace Turbo.Catalog.Grains;
@@ -141,6 +142,20 @@ internal sealed partial class BuildersClubGrain
         var currentlyHidden = await hidden.Select(x => x.Id).ToListAsync(ct);
 
         var members = stillMembers.ToHashSet();
+
+        // A membership held by permission has no row to read. Only the borrowers the rows call
+        // lapsed are asked, which are few.
+        foreach (var lapsedId in borrowerIds.Where(x => !members.Contains(x)))
+        {
+            if (
+                await _grainFactory.HasPermissionAsync(
+                    PlayerId.Parse(lapsedId),
+                    PermissionNodes.Club.BUILDERS_CLUB_UNLIMITED,
+                    ct
+                )
+            )
+                members.Add(lapsedId);
+        }
         var shouldHide = new Dictionary<RoomId, bool>();
 
         // One lapsed borrower is enough: the room holds furni the club is no longer lending.

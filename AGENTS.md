@@ -623,6 +623,46 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   `TradingConfirmation` (client countdown), both confirm → items move → `TradingCompleted`;
   a decline drops both acceptances. Any offer change also drops them.
 
+### Wired chests
+- A chest's contents are `IWiredChestGrain`'s (keyed by the chest's item id), not the room's.
+  The furni it holds are ordinary `furniture` rows with `chest_item_id` set, owned by the
+  chest's owner and in no room, so they keep their id, serial and extra data. Every query that
+  lists an inventory excludes them (`ChestItemEntityId == null`); a new one must too, or a
+  stored furni shows up in its owner's inventory as well as in the chest.
+- Every move commits the rows, the credits (`wired_chests`) and its log entry
+  (`wired_chest_transactions`) in one database transaction. A deposit takes rows the depositor
+  holds in no room and no chest and then tells their inventory to let go
+  (`ReleaseFurnitureAsync`, memory only, like a placement); a withdrawal re-owns rows and tells
+  the receiver's inventory (`ReceiveFurnitureAsync`). Credits leave through the wallet's
+  referenced credit (`wiredchest:<transaction id>`), and a refused credit puts them back.
+- The calls go one way: the room awaits the chest grain; the chest grain awaits inventories
+  and wallets, never a room. The player's trade window is `IWiredTradeGrain` (keyed by player);
+  the room only tells it, and it awaits the room, which carries the deposit out
+  (`DepositIntoWiredChestAsync`).
+- The settings (lock, capacity, name, appearance, notifications) are the chest furni's map
+  stuff data under the client's keys (`WiredChestData`), and the logic
+  (`FurnitureWiredChestLogic`) decides who may do what. It mirrors the grain's counts into
+  `Summary`, which conditions read without awaiting. Capacities and upgrade prices are
+  `WiredChestConfig`, shipped as the client's own config defaults; change both together.
+- Credits given by the give-currency box go to the wallet. The client files them under an
+  earnings category to claim later; this server has no earnings to claim.
+- A contract (`wired_contract_payment` / `_trade` / `_reward`) is its furni's extra data
+  (`WiredContractData`), checked against the editor's limits when saved. Initiate Transaction
+  pays a reward out at once (`RoomWiredTransactionSystem.RewardAsync`); a payment or trade
+  opens the player's `IWiredTradeGrain`, which holds the offer to the contract
+  (`WiredContractOffers`, the client's own counting) and, on confirm, has the room take the
+  payment into the chests and pay the reward out of them
+  (`IRoomGrain.CompleteWiredContractTradeAsync`). The room checks the chests can cover the
+  reward before it takes the payment. Every end, good or bad, is a
+  `WiredTransactionCompletedEvent` / `WiredTransactionFailedEvent` for the triggers.
+- Cancel Transaction only marks the trade; it ends after `WiredChestConfig.CancelGraceMs`, so
+  an Initiate Transaction on the same stack replaces it without the window closing, which is
+  what the box's usage text promises. A second Initiate while a trade is open is refused as
+  "already trading".
+- A custom contract addon puts itself on the policy (`IWiredPolicy.CustomContract`); the
+  Initiate box builds the contract from it at run time, and the transaction is then the box's,
+  which is what the triggers select.
+
 ### Wired
 - Every wired box is a `[RoomObjectLogic("wf_...")]` under `Turbo.Rooms/Object/Logic/Furniture/Floor/Wired/`
   deriving from the base of its kind (`FurnitureWiredTriggerLogic`, `...ConditionLogic`,
@@ -677,8 +717,9 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   empty.
 - **A variable with nothing behind it is not declared.** These have no system yet and are
   reserved rather than written: user `@level`, `@is_group_admin`,
-  `@favorite_group_id`, `@team.type` and the six `@transaction.*`, because chests and
-  contracts do not exist.
+  `@favorite_group_id`, `@team.type`, the six `@transaction.*` and
+  `@event.transaction_failed.reason`, because nothing yet carries a transaction's figures or
+  an event's values into a variable.
 - **What a variable reads is on the avatar before it is asked for.** A variable is
   synchronous and must never await a grain, so anything an account owns is put on the avatar
   when it enters (`RoomAvatarModule.LoadBadgesAsync`, `LoadHabboClubAsync`) and pushed again
@@ -867,9 +908,9 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   editor for and no box returns. The client knows codes, never furni names; the furni a code
   belongs to is looked up in the hotel's `furniture_definitions`. Do not write a box for a code
   no furni in the hotel carries: nobody can place it, and its param layout goes untested.
-  Still missing after this pass, each for want of a system rather than a box: everything
-  around chests, transactions and contracts (triggers 25 and 26, actions 45 to 48, conditions
-  45 and 46, addons 18 and 20, the `wf_storage_*` and `wf_contract_*` furni), reward tracks
+  Still missing after this pass, each for want of a system rather than a box: the chest item
+  type scanner (addon 18, which writes a context variable, and context variables hold no
+  value yet), reward tracks
   (58, 59), achievements (the enabler addon 2001 and action 51, which progresses one) and the
   web API addon (2002). Give effect (52), override height (53), the level condition (44), the
   global placeholder (2000) and variable box 8 have no furni in the hotel.

@@ -16,6 +16,7 @@ using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Entities.Security;
 using Turbo.Database.Entities.Tracking;
+using Turbo.Database.Entities.WiredTrading;
 
 namespace Turbo.Database.Context;
 
@@ -47,6 +48,10 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<FurnitureEntity> Furnitures { get; init; }
 
     public DbSet<BuildersClubFurnitureEntity> BuildersClubFurnitures { get; init; }
+
+    public DbSet<WiredChestEntity> WiredChests { get; init; }
+    public DbSet<WiredChestTransactionEntity> WiredChestTransactions { get; init; }
+    public DbSet<WiredChestTransactionEntryEntity> WiredChestTransactionEntries { get; init; }
 
     public DbSet<BadgeDefinitionEntity> BadgeDefinitions { get; init; }
     public DbSet<PlayerBadgeEntity> PlayerBadges { get; init; }

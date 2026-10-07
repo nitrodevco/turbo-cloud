@@ -164,8 +164,10 @@ public sealed class HotelKnowledge
                 && x.Offer.Visible
                 && x.Offer.ClubLevel == 0
                 && x.Offer.CostCurrency == 0
-                && x.Offer.Page.Visible
-                && x.Offer.Page.CatalogType == CatalogType.Normal
+                && (
+                    x.Offer.Page.Display == CatalogPageDisplay.Regular
+                    || x.Offer.Page.Display == CatalogPageDisplay.Both
+                )
                 && x.Offer.Products!.Count == 1
             )
             .Select(x => new

@@ -39,13 +39,17 @@ public sealed class AdminCatalogQueriesTests : IDisposable
     }
 
     [Fact]
-    public async Task TheTree_IsOneCatalogsPages_HiddenOnesToo_WithTheirOffers()
+    public async Task TheTree_IsEveryPage_WithWhereItIsShown_AndItsOffers()
     {
-        var tree = await Queries().GetTreeAsync(CatalogType.Normal, canManage: true, Ct);
+        var tree = await Queries().GetTreeAsync(canManage: true, Ct);
 
         tree.RootId.Should().Be(ROOT);
-        tree.Pages.Select(x => x.Id).Should().BeEquivalentTo([ROOT, FURNITURE, HIDDEN_PAGE, CHILD]);
-        tree.Pages.Single(x => x.Id == HIDDEN_PAGE).Visible.Should().BeFalse();
+        tree.Pages.Select(x => x.Id)
+            .Should()
+            .BeEquivalentTo([ROOT, FURNITURE, HIDDEN_PAGE, CHILD, BUILDERS_PAGE]);
+        tree.Pages.Single(x => x.Id == FURNITURE).Display.Should().Be("regular");
+        tree.Pages.Single(x => x.Id == HIDDEN_PAGE).Display.Should().Be("invisible");
+        tree.Pages.Single(x => x.Id == BUILDERS_PAGE).Display.Should().Be("bc_only");
         tree.Pages.Single(x => x.Id == FURNITURE).OfferCount.Should().Be(5);
         tree.UnpublishedChanges.Should().Be(3);
         tree.CanManage.Should().BeTrue();
@@ -54,7 +58,7 @@ public sealed class AdminCatalogQueriesTests : IDisposable
     [Fact]
     public async Task TheCurrencies_AreTheActivityPointOnes()
     {
-        var tree = await Queries().GetTreeAsync(CatalogType.Normal, canManage: false, Ct);
+        var tree = await Queries().GetTreeAsync(canManage: false, Ct);
 
         tree.Currencies.Select(x => (x.Id, x.Name, x.ActivityPointType))
             .Should()
@@ -106,11 +110,10 @@ public sealed class AdminCatalogQueriesTests : IDisposable
                 ParentEntityId = ROOT,
                 Localization = "Club layout, wrong name",
                 Name = "habbo_club",
-                CatalogType = CatalogType.Normal,
                 Icon = 1,
                 Layout = AdminCatalogQueries.CLUB_BUY,
                 SortOrder = 8,
-                Visible = true,
+                Display = CatalogPageDisplay.Regular,
             }
         );
         _catalog.Db.Insert(
@@ -120,11 +123,10 @@ public sealed class AdminCatalogQueriesTests : IDisposable
                 ParentEntityId = ROOT,
                 Localization = "Habbo Club",
                 Name = AdminCatalogQueries.CLUB_PAGE_NAME,
-                CatalogType = CatalogType.Normal,
                 Icon = 1,
                 Layout = AdminCatalogQueries.CLUB_BUY,
                 SortOrder = 9,
-                Visible = true,
+                Display = CatalogPageDisplay.Regular,
             }
         );
         _catalog.Db.Insert(
@@ -155,14 +157,13 @@ public sealed class AdminCatalogQueriesTests : IDisposable
             }
         );
 
-        var club = (await Queries().GetTreeAsync(CatalogType.Normal, false, Ct)).Club;
+        var club = (await Queries().GetTreeAsync(false, Ct)).Club;
 
         club.Should().NotBeNull();
         club!.Memberships.Should().Be(1, "on a hidden page, but the club window lists it");
         club.Gifts.Should().Be(0);
         club.ClubBuyPageId.Should().Be(50);
         club.ClubGiftsPageId.Should().BeNull();
-        (await Queries().GetTreeAsync(CatalogType.BuildersClub, false, Ct)).Club.Should().BeNull();
     }
 
     [Fact]

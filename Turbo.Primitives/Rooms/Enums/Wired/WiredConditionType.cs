@@ -47,4 +47,6 @@ public enum WiredConditionType
     VARIABLE_VALUE = 42,
     VARIABLE_AGE = 43,
     USER_LEVEL = 44,
+    CHEST_HAS_ITEMS = 45,
+    CHEST_HAS_ITEM_TYPES = 46,
 }

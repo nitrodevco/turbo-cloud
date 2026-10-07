@@ -21,6 +21,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains.Subscriptions;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Snapshots;
 
 namespace Turbo.Players.Grains.Subscriptions;
@@ -79,10 +80,15 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
     public Task<PlayerSubscriptionSnapshot> GetAsync(
         SubscriptionType subscriptionType,
         CancellationToken ct
-    ) => Task.FromResult(BuildSnapshot(subscriptionType));
+    ) => SnapshotAsync(subscriptionType, ct);
 
-    public Task<bool> HasActiveAsync(SubscriptionType subscriptionType, CancellationToken ct) =>
-        Task.FromResult(BuildSnapshot(subscriptionType).IsActive);
+    public async Task<bool> HasActiveAsync(
+        SubscriptionType subscriptionType,
+        CancellationToken ct
+    ) => (await SnapshotAsync(subscriptionType, ct)).IsActive;
+
+    public Task OnChangedAsync(SubscriptionType subscriptionType, CancellationToken ct) =>
+        NotifyChangedAsync(subscriptionType, ct);
 
     public Task ExtendAsync(SubscriptionType subscriptionType, int days, CancellationToken ct) =>
         ExtendCoreAsync(subscriptionType, days, false, ct);
@@ -175,10 +181,21 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
             days
         );
 
+        await NotifyChangedAsync(subscriptionType, ct);
+    }
+
+    /// <summary>
+    /// Tells the client, the rights it is sent, the room the player stands in and the Builders
+    /// Club rooms that a membership changed, whether bought or granted by permission.
+    /// </summary>
+    private async Task NotifyChangedAsync(SubscriptionType subscriptionType, CancellationToken ct)
+    {
         await SendStatusAsync(ct);
 
         if (subscriptionType == SubscriptionType.HabboClub)
         {
+            var club = await SnapshotAsync(SubscriptionType.HabboClub, ct);
+
             await SendClubInfoAsync(ScrUserInfoResponseType.SubscriptionChanged, ct);
 
             // UserRights carries the club level beside the security level, and the permission
@@ -198,7 +215,7 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
             // grain has nothing to do with what it says.
             _grainFactory
                 .GetPlayerPresenceGrain(PlayerId)
-                .OnHabboClubChangedAsync(entity.ExpiresAt, ct)
+                .OnHabboClubChangedAsync(club.ExpiresAt, ct)
                 .LogAndForget(
                     _logger,
                     "tell the room of player {PlayerId} about their Habbo Club",
@@ -221,7 +238,7 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
 
     public async Task SendStatusAsync(CancellationToken ct)
     {
-        var builders = BuildSnapshot(SubscriptionType.BuildersClub);
+        var builders = await SnapshotAsync(SubscriptionType.BuildersClub, ct);
 
         await _grainFactory.SendComposerToPlayerAsync(
             PlayerId,
@@ -238,7 +255,7 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
 
     public async Task SendClubInfoAsync(ScrUserInfoResponseType responseType, CancellationToken ct)
     {
-        var club = BuildSnapshot(SubscriptionType.HabboClub);
+        var club = await SnapshotAsync(SubscriptionType.HabboClub, ct);
         var daysPerPeriod = Math.Max(1, _subscriptionConfig.DaysPerPeriod);
 
         await _grainFactory.SendComposerToPlayerAsync(
@@ -279,29 +296,96 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
         );
 
     /// <summary>
-    /// The subscription as it stands this instant. A type the player has never bought is mapped
-    /// from a row that was never written, so it reads as a lapsed one everywhere.
+    /// The subscription as it stands this instant, counting one held by permission. Asked
+    /// interleaved: the permission grain reads the club level back from this one.
     /// </summary>
-    private PlayerSubscriptionSnapshot BuildSnapshot(SubscriptionType subscriptionType)
+    private async Task<PlayerSubscriptionSnapshot> SnapshotAsync(
+        SubscriptionType subscriptionType,
+        CancellationToken ct
+    )
     {
-        var entity = _state.SubscriptionsByType.GetValueOrDefault(subscriptionType);
+        var node = subscriptionType switch
+        {
+            SubscriptionType.HabboClub => PermissionNodes.Club.HABBO_CLUB_UNLIMITED,
+            SubscriptionType.BuildersClub => PermissionNodes.Club.BUILDERS_CLUB_UNLIMITED,
+            _ => null,
+        };
+        if (node is null)
+            return BuildSnapshot(subscriptionType, null);
 
-        var snapshot = (
+        var grant = await _grainFactory
+            .GetPlayerPermissionGrain(PlayerId)
+            .ExplainInterleavedAsync(node, ct);
+
+        return BuildSnapshot(
+            subscriptionType,
+            grant is { Granted: true } ? new PermissionGrant(grant.Decision?.GrantedUntil) : null
+        );
+    }
+
+    /// <summary>A <c>club.*.unlimited</c> node held, and when it stops being held; null for ever.</summary>
+    private sealed record PermissionGrant(DateTime? Until);
+
+    /// <summary>
+    /// The subscription as it stands this instant. A type the player has never bought is mapped
+    /// from a row that was never written, so it reads as a lapsed one everywhere. One held by
+    /// permission (<paramref name="grant"/>) runs until the node does, at the highest furni
+    /// limit, or longer if bought for longer; a permanent node shows a short time left that never
+    /// comes closer (<see cref="SubscriptionConfig.PermanentHabboClubDisplayDays"/>). Nothing is
+    /// written.
+    /// </summary>
+    private PlayerSubscriptionSnapshot BuildSnapshot(
+        SubscriptionType subscriptionType,
+        PermissionGrant? grant
+    )
+    {
+        var unlimited = grant is not null;
+        var now = DateTime.UtcNow;
+        var entity = _state.SubscriptionsByType.GetValueOrDefault(subscriptionType);
+        var row =
             entity
             ?? new PlayerSubscriptionEntity
             {
                 PlayerEntityId = PlayerId.Value,
                 SubscriptionType = subscriptionType,
-            }
-        ).ToSnapshot(
-            DateTime.UtcNow,
+            };
+
+        if (unlimited)
+        {
+            var until =
+                grant!.Until
+                ?? (
+                    subscriptionType == SubscriptionType.BuildersClub
+                        ? now.AddHours(_subscriptionConfig.PermanentBuildersClubDisplayHours)
+                        : now.AddDays(_subscriptionConfig.PermanentHabboClubDisplayDays)
+                );
+
+            row = new PlayerSubscriptionEntity
+            {
+                PlayerEntityId = row.PlayerEntityId,
+                SubscriptionType = subscriptionType,
+                FirstSubscribedAt = row.FirstSubscribedAt ?? now,
+                ExpiresAt = row.ExpiresAt is { } bought && bought > until ? bought : until,
+                TotalDaysSubscribed = row.TotalDaysSubscribed,
+                PurchasedDaysSubscribed = row.PurchasedDaysSubscribed,
+                PeriodsPurchased = row.PeriodsPurchased,
+                FurniLimit = Math.Max(
+                    row.FurniLimit,
+                    _subscriptionConfig.BuildersClubMaxFurniLimit
+                ),
+                UpdatedAt = row.UpdatedAt,
+            };
+        }
+
+        var snapshot = row.ToSnapshot(
+            now,
             _subscriptionConfig.GraceDays,
             _subscriptionConfig.BuildersClubMaxFurniLimit
         );
 
         // Someone who has never subscribed still gets to try the Builders Club, up to the
         // handful of items the hotel lends a trial member.
-        if (entity is null && subscriptionType == SubscriptionType.BuildersClub)
+        if (!unlimited && entity is null && subscriptionType == SubscriptionType.BuildersClub)
             return snapshot with { FurniLimit = _subscriptionConfig.BuildersClubTrialFurniLimit };
 
         return snapshot;
