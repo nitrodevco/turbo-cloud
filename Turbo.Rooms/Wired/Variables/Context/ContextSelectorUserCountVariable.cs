@@ -6,19 +6,20 @@ using Turbo.Rooms.Grains;
 namespace Turbo.Rooms.Wired.Variables.Context;
 
 /// <summary>
-/// How many furni the stack's selectors picked. The Wired Faculty tutorial "Stacking unstackable
-/// furni" (15/03/2025) multiplies a magic stack tile's altitude by it.
+/// How many users the stack's selectors picked. The Wired Faculty tutorial "Ticket queue system"
+/// (07/06/2025) shows a player's place in the queue with it: "Place in queue:
+/// $(selector_user_count)".
 /// </summary>
-public sealed class ContextSelectorFurniCountVariable(RoomGrain roomGrain)
+public sealed class ContextSelectorUserCountVariable(RoomGrain roomGrain)
     : ContextVariable(roomGrain)
 {
-    protected override string VariableName => "@selector_furni_count";
+    protected override string VariableName => "@selector_user_count";
     protected override WiredVariableGroupSubBandType SubBandType =>
         WiredVariableGroupSubBandType.Base;
-    protected override ushort Order => 10;
+    protected override ushort Order => 11;
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 
     protected override WiredVariableValue GetValueForSelection(IWiredSelectionSet selectorPool) =>
-        selectorPool.SelectedFurniIds.Count;
+        selectorPool.SelectedAvatarIds.Count;
 }

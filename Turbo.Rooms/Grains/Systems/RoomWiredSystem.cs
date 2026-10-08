@@ -282,8 +282,10 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     )
     {
         var outer = _contextValues;
+        var outerPool = _selectorPool;
 
         _contextValues = ctx.ContextValues;
+        _selectorPool = ctx.SelectorPool;
 
         try
         {
@@ -292,6 +294,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         finally
         {
             _contextValues = outer;
+            _selectorPool = outerPool;
         }
     }
 
@@ -661,8 +664,10 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                     );
 
                 var outer = _contextValues;
+                var outerPool = _selectorPool;
 
                 _contextValues = pending.ContextValues;
+                _selectorPool = ctx.SelectorPool;
 
                 try
                 {
@@ -671,6 +676,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 finally
                 {
                     _contextValues = outer;
+                    _selectorPool = outerPool;
                 }
 
                 CountExecution();
@@ -722,8 +728,10 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         };
 
         var outer = _contextValues;
+        var outerPool = _selectorPool;
 
         _contextValues = pending.ContextValues;
+        _selectorPool = ctx.SelectorPool;
 
         try
         {
@@ -748,6 +756,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         finally
         {
             _contextValues = outer;
+            _selectorPool = outerPool;
         }
     }
 

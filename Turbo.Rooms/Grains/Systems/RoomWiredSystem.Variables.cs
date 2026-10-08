@@ -47,6 +47,16 @@ public sealed partial class RoomWiredSystem
     /// </summary>
     private KeyValueStore? _contextValues;
 
+    /// <summary>
+    /// What the selectors of the wired execution running now picked, set and cleared with
+    /// <see cref="_contextValues"/>; <c>@selector_furni_count</c> and <c>@selector_user_count</c>
+    /// count it.
+    /// </summary>
+    private Turbo.Primitives.Rooms.Wired.IWiredSelectionSet? _selectorPool;
+
+    /// <summary>The selector pool of the wired execution running now, null outside one.</summary>
+    public Turbo.Primitives.Rooms.Wired.IWiredSelectionSet? CurrentSelectorPool => _selectorPool;
+
     /// <summary>The context values a signal or stack call carries to the stacks it starts.</summary>
     private readonly System.Runtime.CompilerServices.ConditionalWeakTable<
         RoomEvent,
