@@ -282,10 +282,10 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     )
     {
         var outer = _contextValues;
-        var outerPool = _selectorPool;
+        var outerRunning = _running;
 
         _contextValues = ctx.ContextValues;
-        _selectorPool = ctx.SelectorPool;
+        _running = new WiredRunningExecution(ctx.SelectorPool, ctx.Signal, ctx.Event, ctx.Trigger);
 
         try
         {
@@ -294,7 +294,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         finally
         {
             _contextValues = outer;
-            _selectorPool = outerPool;
+            _running = outerRunning;
         }
     }
 
@@ -544,6 +544,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             Stack = ctx.Stack,
             Actions = actions,
             Trigger = ctx.Trigger,
+            Event = ctx.Event,
             Policy = ctx.Policy,
             Selected = ctx.Selected,
             SelectorPool = ctx.SelectorPool,
@@ -671,10 +672,15 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                     );
 
                 var outer = _contextValues;
-                var outerPool = _selectorPool;
+                var outerRunning = _running;
 
                 _contextValues = pending.ContextValues;
-                _selectorPool = ctx.SelectorPool;
+                _running = new WiredRunningExecution(
+                    ctx.SelectorPool,
+                    ctx.Signal,
+                    pending.Event,
+                    pending.Trigger
+                );
 
                 try
                 {
@@ -683,7 +689,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 finally
                 {
                     _contextValues = outer;
-                    _selectorPool = outerPool;
+                    _running = outerRunning;
                 }
 
                 CountExecution();
@@ -736,10 +742,15 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         };
 
         var outer = _contextValues;
-        var outerPool = _selectorPool;
+        var outerRunning = _running;
 
         _contextValues = pending.ContextValues;
-        _selectorPool = ctx.SelectorPool;
+        _running = new WiredRunningExecution(
+            ctx.SelectorPool,
+            ctx.Signal,
+            pending.Event,
+            pending.Trigger
+        );
 
         try
         {
@@ -764,7 +775,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         finally
         {
             _contextValues = outer;
-            _selectorPool = outerPool;
+            _running = outerRunning;
         }
     }
 

@@ -7,7 +7,8 @@ namespace Turbo.Rooms.Wired.Variables.Context;
 
 /// <summary>
 /// A variable about the stack running right now rather than about anything standing in the
-/// room: it is read from what that execution's selectors picked, and is the default outside
+/// room: it is read from that execution (what its selectors picked, its signal, the event that
+/// started it), and is the default outside
 /// one. The client lists them all the time, because they declare
 /// <see cref="WiredVariableFlags.AlwaysAvailable"/>.
 /// </summary>
@@ -22,12 +23,12 @@ public abstract class ContextVariable(RoomGrain roomGrain) : WiredInternalVariab
         if (!CanBind(key))
             return false;
 
-        if (_roomGrain.WiredSystem.CurrentSelectorPool is { } pool)
-            value = GetValueForSelection(pool);
+        if (_roomGrain.WiredSystem.CurrentExecution is { } execution)
+            value = GetValueForExecution(execution);
 
         return true;
     }
 
-    /// <summary>The value for what the running execution's selectors picked.</summary>
-    protected abstract WiredVariableValue GetValueForSelection(IWiredSelectionSet selectorPool);
+    /// <summary>The value for the wired execution running now.</summary>
+    protected abstract WiredVariableValue GetValueForExecution(WiredRunningExecution execution);
 }

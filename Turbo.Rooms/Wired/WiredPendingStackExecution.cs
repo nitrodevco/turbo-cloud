@@ -9,6 +9,9 @@ internal sealed class WiredPendingStackExecution
     public required IWiredStack Stack { get; init; }
     public required List<IWiredAction> Actions { get; init; }
     public IWiredTrigger? Trigger { get; init; }
+
+    /// <summary>The event that started the firing, which the context variables read.</summary>
+    public Turbo.Primitives.Rooms.Events.RoomEvent? Event { get; init; }
     public required IWiredPolicy Policy { get; init; }
     public required IWiredSelectionSet Selected { get; init; }
     public required IWiredSelectionSet SelectorPool { get; init; }

@@ -22,6 +22,6 @@ public sealed class ContextSelectorUserCountVariable(RoomGrain roomGrain)
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 
-    protected override WiredVariableValue GetValueForSelection(IWiredSelectionSet selectorPool) =>
-        selectorPool.SelectedAvatarIds.Count;
+    protected override WiredVariableValue GetValueForExecution(WiredRunningExecution execution) =>
+        execution.SelectorPool.SelectedAvatarIds.Count;
 }
