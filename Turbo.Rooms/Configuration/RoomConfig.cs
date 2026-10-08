@@ -68,6 +68,13 @@ public class RoomConfig
     /// <summary>How long a thrown dice shows the rolling animation before landing.</summary>
     public int DiceRollMs { get; init; } = 3000;
 
+    /// <summary>
+    /// How long a cracked crackable stands in its last state before it is gone and its contents
+    /// handed over. That state is its opening, which the asset plays once (the HC and BC boxes:
+    /// eleven frames at a frame repeat of two, about 0.9 s) and then draws nothing.
+    /// </summary>
+    public int CrackableOpenMs { get; init; } = 1500;
+
     /// <summary>How long the wheel of fortune spins before stopping on a segment.</summary>
     public int WheelSpinMs { get; init; } = 5000;
 
