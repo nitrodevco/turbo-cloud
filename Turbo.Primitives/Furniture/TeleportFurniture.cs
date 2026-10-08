@@ -14,8 +14,20 @@ public static class TeleportFurniture
 {
     public const string LOGIC_NAME = "teleport";
 
+    /// <summary>
+    /// "WIRED Room Linker" (<c>wf_room_linker</c>): sold in linked pairs like a teleporter, and
+    /// used through "WIRED Effect: Teleport to Room", which sends users to the room its other half
+    /// stands in (Wired Faculty tutorial "New WIRED Room Linker Tutorial", 30/04/2025).
+    /// </summary>
+    public const string ROOM_LINKER_CLASSNAME = "wf_room_linker";
+
     public static bool IsTeleport(string? logicName) =>
         string.Equals(logicName, LOGIC_NAME, StringComparison.Ordinal);
+
+    /// <summary>Whether a furni comes as a linked pair: a teleporter, or a room linker by its classname.</summary>
+    public static bool IsLinkedPair(string? logicName, string? classname) =>
+        IsTeleport(logicName)
+        || string.Equals(classname, ROOM_LINKER_CLASSNAME, StringComparison.Ordinal);
 
     /// <summary>
     /// The extra data one half of a new pair starts with: a <see cref="RoomLinkerData"/> naming

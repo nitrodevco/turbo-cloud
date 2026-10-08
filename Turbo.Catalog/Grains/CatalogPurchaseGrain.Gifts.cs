@@ -157,7 +157,7 @@ internal sealed partial class CatalogPurchaseGrain
             || product.Quantity != 1
             || product.UniqueSize > 0
             || definition is null
-            || TeleportFurniture.IsTeleport(definition.LogicName)
+            || TeleportFurniture.IsLinkedPair(definition.LogicName, definition.Name)
             || GuildFurnitureLogicNames.IsGuildFurniture(definition.LogicName)
             || BadgeDisplayData.IsBadgeDisplay(definition.LogicName)
         )

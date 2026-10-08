@@ -112,7 +112,7 @@ public class FurnitureTeleportLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
         Schedule(_roomGrain._roomConfig.AvatarTickMs, WaitForApproachAsync);
     }
 
-    public async Task ReceiveArrivalAsync(IRoomAvatar avatar, CancellationToken ct)
+    public virtual async Task ReceiveArrivalAsync(IRoomAvatar avatar, CancellationToken ct)
     {
         Hold(avatar);
 
