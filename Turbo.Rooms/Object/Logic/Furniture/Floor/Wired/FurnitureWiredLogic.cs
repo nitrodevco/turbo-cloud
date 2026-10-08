@@ -683,7 +683,7 @@ public abstract partial class FurnitureWiredLogic(
                 _wiredData = new WiredData();
             }
 
-            _wiredData.AttatchRules(GetIntParamRules());
+            _wiredData.AttatchRules(GetIntParamRules(), GetIntParamTailRule());
         }
 
         if (TryNormalizeIntParams(_wiredData.IntParams, out var normalizedIntParams))
