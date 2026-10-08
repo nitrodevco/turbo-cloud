@@ -137,9 +137,15 @@ public class WiredActionPlaceFurni(
         var map = MapModule;
         var placed = false;
 
-        foreach (var source in sources)
+        foreach (var (sourceId, source) in GetFurniSnapshot())
         {
-            var definition = _roomGrain._definitionProvider.TryGetDefinition(source.DefinitionId);
+            // A box saved before the snapshot kept the furni's type copies the picked furni as it
+            // is now, while it is still in the room.
+            var definition =
+                source.DefinitionId > 0
+                    ? _roomGrain._definitionProvider.TryGetDefinition(source.DefinitionId)
+                : TryGetFloorItem(sourceId, out var picked) ? picked.Definition
+                : null;
 
             // A snapshot from before the type was recorded, or a furni type that is gone.
             if (definition is null || !Enum.IsDefined((Rotation)source.Rotation))
