@@ -86,7 +86,9 @@ public class FurnitureDefinitionEntity : TurboEntity
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public FurnitureUsageType UsagePolicy { get; set; }
 
-    [Column("extra_data")]
+    // Named JSON sections (a crackable's rewards, a vending machine's items...): longer than the
+    // 512 characters a plain string column takes.
+    [Column("extra_data", TypeName = "longtext")]
     public string? ExtraData { get; set; }
 
     // What only the client's furnidata says of the furniture. The rest of a furnidata item is
