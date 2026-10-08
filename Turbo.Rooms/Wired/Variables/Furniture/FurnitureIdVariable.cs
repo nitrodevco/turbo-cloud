@@ -15,5 +15,7 @@ public sealed class FurnitureIdVariable(RoomGrain roomGrain)
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 
-    protected override WiredVariableValue GetValueForItem(IRoomItem item) => (int)item.ObjectId;
+    // A wall item's id is negative, as wired names it everywhere (variables-info #11).
+    protected override WiredVariableValue GetValueForItem(IRoomItem item) =>
+        WiredFurniIds.ToClient(item);
 }

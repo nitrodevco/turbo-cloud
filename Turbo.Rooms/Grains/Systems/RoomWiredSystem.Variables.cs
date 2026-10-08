@@ -153,8 +153,17 @@ public sealed partial class RoomWiredSystem
         {
             var key = new WiredVariableKey(variableId, snapshot.TargetType, targetId);
 
-            if (variable.TryGetValue(key, out var value))
-                holders.Add((targetId, value.ToClient()));
+            if (!variable.TryGetValue(key, out var value))
+                continue;
+
+            // The highlighter reads a negative furni id as a wall item.
+            var holderId =
+                snapshot.TargetType == WiredVariableTargetType.Furni
+                && FurniModule.TryGetItem(targetId, out var item)
+                    ? WiredFurniIds.ToClient(item)
+                    : targetId;
+
+            holders.Add((holderId, value.ToClient()));
         }
 
         return new WiredVariableInfoAndHoldersSnapshot

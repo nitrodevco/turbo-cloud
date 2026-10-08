@@ -595,10 +595,12 @@ public abstract partial class FurnitureWiredLogic(
         var limit = _roomGrain._wiredConfig.SelectedItemsLimit;
         var seen = new HashSet<int>();
 
-        foreach (var id in proposed)
+        foreach (var proposedId in proposed)
         {
             if (stuffIds.Count >= limit)
                 break;
+
+            var id = WiredFurniIds.FromClient(FurniModule, proposedId);
 
             if (!FurniModule.HasItem(id) || !seen.Add(id))
                 continue;
@@ -801,10 +803,10 @@ public abstract partial class FurnitureWiredLogic(
             WiredType = WiredType,
             FurniLimit = _roomGrain._wiredConfig.SelectedItemsLimit,
             StuffIds = GetValidStuffIds(_wiredData.StuffIds, out var validStuffIds)
-                ? validStuffIds
+                ? WiredFurniIds.ToClient(FurniModule, validStuffIds)
                 : [],
             StuffIds2 = GetValidStuffIds(_wiredData.StuffIds2, out var validStuffIds2)
-                ? validStuffIds2
+                ? WiredFurniIds.ToClient(FurniModule, validStuffIds2)
                 : [],
             StuffTypeId = _ctx.Definition.SpriteId,
             Id = _ctx.ObjectId,

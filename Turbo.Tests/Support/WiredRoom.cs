@@ -162,6 +162,54 @@ public sealed class WiredRoom
         return item;
     }
 
+    /// <summary>A plain wall item (a poster, a wall lamp) on the room's wall.</summary>
+    public Turbo.Rooms.Object.Furniture.Wall.RoomWallItem AddWallItem(int id)
+    {
+        var item = new Turbo.Rooms.Object.Furniture.Wall.RoomWallItem
+        {
+            ObjectId = id,
+            OwnerId = 1,
+            OwnerName = "test",
+            Definition = new FurnitureDefinitionSnapshot
+            {
+                Id = 2000 + id,
+                SpriteId = 2000 + id,
+                Name = "wall_lamp",
+                ProductType = ProductType.Wall,
+                FurniCategory = FurnitureCategory.Default,
+                LogicName = "default_wall",
+                TotalStates = 2,
+                Width = 1,
+                Length = 1,
+                StackHeight = Altitude.Zero,
+                CanStack = false,
+                CanWalk = false,
+                CanSit = false,
+                CanLay = false,
+                CanRecycle = true,
+                CanTrade = true,
+                CanGroup = true,
+                CanSell = true,
+                UsagePolicy = FurnitureUsageType.Everybody,
+                ExtraData = null,
+            },
+        };
+
+        item.SetExtraData(null);
+        item.SetLogic(
+            new Turbo.Rooms.Object.Logic.Furniture.Wall.FurnitureWallLogic(
+                StuffData,
+                new Turbo.Rooms.Object.Furniture.Wall.RoomWallItemContext(Harness.Room, item)
+            )
+        );
+        ((IDictionary)RoomHarness.GetMember(Harness.State, "ItemsById")!).Add(
+            (RoomObjectId)id,
+            item
+        );
+
+        return item;
+    }
+
     /// <summary>A wired box of logic type <typeparamref name="T"/> standing on a tile.</summary>
     public T AddBox<T>(int id, int x, int y, string logicName)
         where T : class, IRoomObjectLogic
