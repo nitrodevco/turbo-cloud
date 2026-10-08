@@ -623,8 +623,10 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
 - Pet-related furniture is a `[RoomObjectLogic]` like any other: `pet_food`, `pet_drink`,
   `pet_toy`, `pet_nest` (`IPetSupplyLogic`), `pet_breeding_nest`, `pet_package`, `pet_saddle`,
   `pet_revive`, `pet_fertilizer`, `pet_dye`, `pet_custom_part`, `monsterplant_seed`. The stock Habbo
-  names are mapped to these by the data migration `MapPetFurnitureLogic`; extend that mapping
-  rather than editing rows by hand. A product used on a pet is a
+  names are mapped to these by `StockFurniture.NAMED` (`Turbo.Database/Furniture/`), which the
+  furnidata import applies to each definition it makes; the data migration `MapPetFurnitureLogic`
+  did the same for the rows a hotel had then. Extend that table rather than editing rows by hand,
+  with a migration of its own when existing definitions should get the new row too. A product used on a pet is a
   `UseWithPetInteraction` on the item; what an item applies (package contents, a hair part) is
   a JSON section read with `FurnitureExtraDataSections.Read` from the item's extra data, with
   the definition's extra data as the per-type default.

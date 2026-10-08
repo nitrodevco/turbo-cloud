@@ -37,8 +37,9 @@ server keeps what each item is, how a room paper changes a room, and what a hote
   is refused at purchase and logged as an error, because the item would show nothing.
 - A badge display offer needs nothing extra; it sits on a `badge_display` layout page, which
   makes the client ask for a badge before it can be bought.
-- The migration `MapBadgeDisplayLogic` points `badge_display*` definitions (including
-  `badge_display_case`) that still use `default_floor` at the `badge_display` logic. Room papers
+- `badge_display*` definitions (including `badge_display_case`) that still use `default_floor`
+  get the `badge_display` logic: those taken in from Habbo when they are made
+  (`StockFurniture`), and those the hotel already had from the migration `MapBadgeDisplayLogic`. Room papers
   and posters need no logic of their own: the client and the server both go by category.
 
 ## Not here

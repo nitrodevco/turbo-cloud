@@ -28,6 +28,10 @@ page under **Gamedata** in the panel.
     reports it as kept.
   - An item the hotel has no definition of is added under Habbo's sprite id. If one of the
     hotel's own definitions holds that id, it gets the next free one.
+  - A new definition is plain furniture (`default_floor` / `default_wall`) unless it is one of the
+    stock furni `StockFurniture` (`Turbo.Database/Furniture/`) names: pet furni, badge displays,
+    wired chests and contracts, crackables, vending machines and effect furni get their logic, and
+    those that need it their usage, states, walkability and extra data section.
   - Definitions Habbo dropped are left alone.
 
   The first import of a hotel that already had definitions has nothing to compare with. The

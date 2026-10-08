@@ -20,6 +20,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Texts;
 using Turbo.Tests.Support;
 using Xunit;
@@ -127,6 +128,65 @@ public sealed class GamedataImportTests : IDisposable
         chair.StackHeight.Should().Be(1.1125);
         definitions.Single(x => x.Name == "poster").ProductType.Should().Be(ProductType.Wall);
         _fakes.Log.Of(nameof(IGamedataFileService.Invalidate)).Should().NotBeEmpty();
+    }
+
+    /// <summary>
+    /// A new hotel runs its migrations on an empty table and takes Habbo's furniture in after, so
+    /// the migrations that give stock furni their logic (pets, badge displays, wired chests and
+    /// contracts, crackables, vending machines, effect furni) never reached it: every one was plain
+    /// furniture. A definition the import makes gets what those migrations give.
+    /// </summary>
+    [Fact]
+    public async Task habbos_stock_furni_are_made_with_the_logic_and_settings_the_hotel_gives_them()
+    {
+        await _furniture.ImportAsync(
+            Release(
+                1,
+                Chair(xdim: 1),
+                Poster(),
+                Floor(101, "petfood1"),
+                Floor(102, "badge_display_wood"),
+                Floor(103, "wf_storage_furni1"),
+                Floor(104, "wf_contract_trade"),
+                Floor(105, "hblooza_pinata1"),
+                Floor(106, "rare_icecream*3"),
+                Floor(107, "cpunk15_gunvender"),
+                Floor(108, "mnstr_seed_rare")
+            ),
+            STAFF,
+            Ct
+        );
+
+        var definitions = (await DefinitionsAsync()).ToDictionary(x => x.Name);
+
+        definitions["chair_norja"].Logic.Should().Be("default_floor");
+        definitions["poster"].Logic.Should().Be("default_wall");
+        definitions["petfood1"].Logic.Should().Be("pet_food");
+        definitions["badge_display_wood"].Logic.Should().Be("badge_display");
+        definitions["wf_storage_furni1"].Logic.Should().Be("wired_chest_furni");
+        definitions["wf_contract_trade"].Logic.Should().Be("wired_contract_trade");
+
+        var pinata = definitions["hblooza_pinata1"];
+
+        pinata.Logic.Should().Be("crackable");
+        pinata.TotalStates.Should().Be(9);
+        pinata.UsagePolicy.Should().Be(FurnitureUsageType.Everybody);
+        pinata.CanWalk.Should().BeTrue();
+        Section(pinata, "crackable")!["target"]!.GetValue<int>().Should().Be(100);
+
+        var icecream = definitions["rare_icecream*3"];
+
+        icecream.Logic.Should().Be("vending_machine");
+        icecream.UsagePolicy.Should().Be(FurnitureUsageType.Everybody);
+        Section(icecream, "vending")!["handItems"]![0]!.GetValue<int>().Should().Be(4);
+
+        definitions["cpunk15_gunvender"].Logic.Should().Be("effect_provider");
+        definitions["cpunk15_gunvender"].UsagePolicy.Should().Be(FurnitureUsageType.Everybody);
+
+        var seed = definitions["mnstr_seed_rare"];
+
+        seed.Logic.Should().Be("monsterplant_seed");
+        Section(seed, "monsterplant_seed")!["MinRarityLevel"]!.GetValue<int>().Should().Be(1);
     }
 
     [Fact]
@@ -418,6 +478,21 @@ public sealed class GamedataImportTests : IDisposable
             ["tradeable"] = true,
             ["recyclable"] = true,
         };
+
+    /// <summary>A floor item of Habbo's under its own id and classname.</summary>
+    private static JsonObject Floor(int id, string classname)
+    {
+        var item = Chair(xdim: 1, name: classname);
+
+        item["id"] = id;
+        item["classname"] = classname;
+        item["cansiton"] = false;
+
+        return item;
+    }
+
+    private static JsonNode? Section(FurnitureDefinitionEntity definition, string section) =>
+        JsonNode.Parse(definition.ExtraData ?? "{}")![section];
 
     private static JsonObject Poster() =>
         new()
