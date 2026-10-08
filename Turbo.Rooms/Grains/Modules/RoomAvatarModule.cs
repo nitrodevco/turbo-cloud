@@ -83,8 +83,16 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
 
         _roomGrain.WakeTick();
 
-        if (arrival is not null)
+        if (arrival is not null && arrivalItem is not null)
+        {
             await arrival.ReceiveArrivalAsync(avatar, ct);
+
+            // Arriving in it is stepping onto it: "user walks on furni" fires for the teleport,
+            // as it does for the other half of a pair in the same room (Wired Faculty tutorial
+            // "Adding a Sandtrap effect to floor hatch teleports", 02/10/2026, which puts its exit
+            // stack in the room the player arrives in).
+            await NotifyWalkOnAsync(avatar, MapModule.ToIdx(arrivalItem.X, arrivalItem.Y), ct);
+        }
 
         // Three grains that answer from what they hold and never call a room, asked side by
         // side: each load only sets its own field on the avatar and logs its own failure.
