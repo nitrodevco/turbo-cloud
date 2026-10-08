@@ -241,6 +241,15 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
 
         await RecordHighscoresAsync(ct);
 
+        // The counters that go with the game hold (the official Banzai counter shows Paused).
+        foreach (
+            var clock in FurniModule
+                .Items.Select(item => item.Logic)
+                .OfType<Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Counters.IWiredClock>()
+                .ToList()
+        )
+            await clock.OnGameEndedAsync(ct);
+
         await _roomGrain.PublishRoomEventAsync(
             new GameEndedEvent
             {

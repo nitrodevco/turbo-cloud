@@ -220,7 +220,8 @@ public class RoomConfig
 
     public int MaxCommandLogsPerFlush { get; init; } = 200;
 
-    public int GameDefaultDurationSeconds { get; init; } = 60;
+    /// <summary>A game timer's time before anyone sets it: the official Banzai counter shows 00:30.</summary>
+    public int GameDefaultDurationSeconds { get; init; } = 30;
     public int[] GameTeamEffectIds { get; init; } = [0, 33, 34, 35, 36];
 
     /// <summary>The team effects of a Battle Banzai team, by team (none, red, green, blue, yellow).</summary>

@@ -13,6 +13,7 @@ using Turbo.Primitives.Rooms.Providers;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Object.Logic;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Highscore;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Counters;
 using Turbo.Runtime;
 
 namespace Turbo.Rooms.Providers;
@@ -67,6 +68,14 @@ public sealed class RoomObjectLogicProvider(
             && MultiHeightFurniture.StepOf(block.Definition) is not null
         )
             logicType = MultiHeightFurniture.LOGIC_NAME;
+
+        // The game timers (Banzai, Football, Freeze counters) are known by their classnames.
+        if (
+            (logicType == DEFAULT_FLOOR_LOGIC || !_logics.ContainsKey(logicType))
+            && ctx.RoomObject is IRoomItem timer
+            && Array.IndexOf(FurnitureGameTimerLogic.CLASSNAMES, timer.Definition.Name) >= 0
+        )
+            logicType = FurnitureGameTimerLogic.LOGIC_NAME;
 
         // A highscore board is known by its classname (highscore_perteam*2 and so on).
         if (

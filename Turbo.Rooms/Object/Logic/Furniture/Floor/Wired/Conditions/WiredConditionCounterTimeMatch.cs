@@ -43,7 +43,7 @@ public class WiredConditionCounterTimeMatch(
             + GetIntParamOrDefault(2, 0);
         var comparison = GetIntParamOrDefault(3, 1);
         var clocks = GetFloorItems(ctx.GetSelection(this))
-            .Select(x => x.Logic as FurnitureCounterClockLogic)
+            .Select(x => x.Logic as IWiredClock)
             .Where(x => x is not null)
             .ToList();
 

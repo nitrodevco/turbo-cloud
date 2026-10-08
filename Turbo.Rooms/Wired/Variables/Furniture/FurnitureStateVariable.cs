@@ -19,8 +19,12 @@ public sealed class FurnitureStateVariable(RoomGrain roomGrain)
         | WiredVariableFlags.CanWriteValue
         | WiredVariableFlags.AlwaysAvailable;
 
+    // A counter's state is where its clock is (0 Initial, 1 Running, 2 Paused, as the official
+    // client's inspection shows a Wired Game Counter); its digits show the time.
     protected override WiredVariableValue GetValueForItem(IRoomItem item) =>
-        item.Logic.StuffData.GetState();
+        item.Logic is Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Counters.IWiredClock clock
+            ? (int)clock.ClockState
+            : item.Logic.StuffData.GetState();
 
     public override async Task<bool> SetValueAsync(
         IWiredExecutionContext ctx,
