@@ -75,6 +75,15 @@ public class RoomConfig
     /// </summary>
     public int CrackableOpenMs { get; init; } = 1500;
 
+    /// <summary>
+    /// How long a vending machine shows its dispensing state (state 1, which a fridge's or a drinks
+    /// machine's asset animates) after handing an item over.
+    /// </summary>
+    public int VendingDispenseMs { get; init; } = 1000;
+
+    /// <summary>How long a vending machine waits for an avatar it sent walking over to arrive.</summary>
+    public int VendingWalkTimeoutMs { get; init; } = 15000;
+
     /// <summary>How long the wheel of fortune spins before stopping on a segment.</summary>
     public int WheelSpinMs { get; init; } = 5000;
 
