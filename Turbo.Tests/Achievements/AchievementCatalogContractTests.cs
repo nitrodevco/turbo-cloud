@@ -624,7 +624,7 @@ public sealed class AchievementCatalogContractTests : IDisposable
 
         catalog.Current.Should().HaveCount(pack.Definitions.Length);
         await using var db = await _db.CreateDbContextAsync(Ct);
-        (await db.AchievementAudit.SingleAsync(Ct)).OperationId.Should().StartWith("pack:habbo:2:");
+        (await db.AchievementAudit.SingleAsync(Ct)).OperationId.Should().StartWith("pack:habbo:3:");
         Directory.Delete(assetDirectory, recursive: true);
     }
 

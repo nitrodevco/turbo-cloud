@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text.Json;
@@ -17,6 +18,30 @@ public static class AchievementDefaults
     // Creation times in the snapshot describe definitions, never activation cutoffs.
     private static readonly ImmutableDictionary<string, JsonElement> PublishedCatalog =
         LoadPublishedCatalog();
+
+    /// <summary>
+    /// The crackables achievements crackable furni record, by published name: the one Sulake's furni
+    /// data names as an <c>incrementalHitAchievementName</c> counts every hit, the others - its
+    /// <c>finalHitAchievementName</c>s - count the hit that cracks one. Each is bound by name, the
+    /// value of the fact (lower case, as some of the data spells them). The category's other
+    /// records (GhostHunter, InfectedLab, HweenTombsCrackable) are named by no crackable in that
+    /// data and stay unhooked.
+    /// </summary>
+    private static readonly ImmutableDictionary<string, string> CrackableSources = new Dictionary<
+        string,
+        string
+    >(StringComparer.Ordinal)
+    {
+        ["PinataWhacker"] = AchievementSources.CRACKABLE_HIT,
+        ["PinataBreaker"] = AchievementSources.CRACKABLE_CRACKED,
+        ["Horticulturist"] = AchievementSources.CRACKABLE_CRACKED,
+        ["AdvancedHorticulturist"] = AchievementSources.CRACKABLE_CRACKED,
+        ["CreatureRearer"] = AchievementSources.CRACKABLE_CRACKED,
+        ["EasterCreatures"] = AchievementSources.CRACKABLE_CRACKED,
+        ["Farmer"] = AchievementSources.CRACKABLE_CRACKED,
+        ["Restorer"] = AchievementSources.CRACKABLE_CRACKED,
+        ["flamingknight"] = AchievementSources.CRACKABLE_CRACKED,
+    }.ToImmutableDictionary(StringComparer.Ordinal);
 
     public static ImmutableArray<AchievementDefinition> Definitions { get; } =
     [
@@ -193,6 +218,19 @@ public static class AchievementDefaults
     public static ImmutableArray<AchievementDefinition> Unhooked { get; } = BuildUnhooked();
 
     /// <summary>
+    /// The published crackables records crackable furni record facts for, on
+    /// <see cref="AchievementSources.CRACKABLE_HIT"/> or <see cref="AchievementSources.CRACKABLE_CRACKED"/>
+    /// and matched by name, in their published state and thresholds.
+    /// </summary>
+    public static ImmutableArray<AchievementDefinition> Crackables { get; } =
+    [
+        .. PublishedCatalog
+            .Where(x => CrackableSources.ContainsKey(x.Key) && WhyNotRepresentable(x.Value) is null)
+            .OrderBy(x => x.Value.GetProperty("achievement").GetProperty("id").GetInt32())
+            .Select(x => HookCrackable(x.Key, x.Value)),
+    ];
+
+    /// <summary>
     /// Published records that cannot be shipped faithfully, and why. They are listed in the
     /// coverage CSV instead.
     /// </summary>
@@ -215,7 +253,11 @@ public static class AchievementDefaults
         return
         [
             .. PublishedCatalog
-                .Where(x => !mapped.Contains(x.Key) && WhyNotRepresentable(x.Value) is null)
+                .Where(x =>
+                    !mapped.Contains(x.Key)
+                    && !CrackableSources.ContainsKey(x.Key)
+                    && WhyNotRepresentable(x.Value) is null
+                )
                 .OrderBy(x => x.Value.GetProperty("achievement").GetProperty("id").GetInt32())
                 .Select(x => Unhook(x.Key, x.Value)),
         ];
@@ -271,6 +313,20 @@ public static class AchievementDefaults
                     : AchievementState.Disabled,
         };
     }
+
+    private static AchievementDefinition HookCrackable(string name, JsonElement published) =>
+        Unhook(name, published) with
+        {
+            Source = CrackableSources[name],
+            Match = new AchievementMatch { Values = [name.ToLowerInvariant()] },
+            State = published.GetProperty("achievement").GetProperty("state").GetString() switch
+            {
+                "ENABLED" => AchievementState.Enabled,
+                "ARCHIVED" => AchievementState.Archived,
+                "OFF_SEASON" => AchievementState.OffSeason,
+                _ => AchievementState.Disabled,
+            },
+        };
 
     /// <summary><c>RoomEntry</c> becomes <c>room-entry</c>.</summary>
     private static string KeyOf(string name) =>
