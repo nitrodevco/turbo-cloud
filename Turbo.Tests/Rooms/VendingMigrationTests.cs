@@ -84,4 +84,20 @@ public sealed class VendingMigrationTests
         data.HandItems.Should().Equal(handItem);
         data.Animates.Should().Be(animates);
     }
+
+    [Fact]
+    public void The_colour_variants_are_mapped_as_their_furni_was()
+    {
+        var variants = ((string Name, int Usage, string Vending)[])
+            typeof(MapVendingFurniColourVariants)
+                .GetField("VENDING", BindingFlags.NonPublic | BindingFlags.Static)!
+                .GetValue(null)!;
+        var mapped = Rows().Concat(NewerRows()).ToDictionary(x => x.Name);
+
+        variants.Should().HaveCount(9);
+        variants.Select(x => x.Name).Should().Contain("rare_icecream");
+
+        foreach (var variant in variants)
+            variant.Should().Be(mapped[variant.Name], variant.Name);
+    }
 }
