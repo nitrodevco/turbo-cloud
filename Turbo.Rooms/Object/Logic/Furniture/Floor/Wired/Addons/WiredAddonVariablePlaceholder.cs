@@ -41,6 +41,21 @@ public class WiredAddonVariablePlaceholder(
             new WiredBoolParamRule(false),
         ];
 
+    // Its holders come from one source, the furni or the user kind as the variable's target is
+    // (AS3: mergedSelections [[0, 0]]); the triggering ones first, as it read before it had a
+    // source of its own.
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
+        [
+            [
+                WiredFurniSourceType.TriggeredItem,
+                WiredFurniSourceType.SelectorItems,
+                WiredFurniSourceType.SignalItems,
+                WiredFurniSourceType.SelectedItems,
+            ],
+        ];
+
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
+
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();
 
@@ -74,7 +89,14 @@ public class WiredAddonVariablePlaceholder(
         var textMode = GetIntParamOrDefault(2, false);
         var values = new List<string>();
 
-        foreach (var targetId in GetTargetIds(targetType, ctx.Selected))
+        var holders = targetType switch
+        {
+            WiredVariableTargetType.User => WiredSlotSelection.ForUserSlot(this, ctx, 0),
+            WiredVariableTargetType.Furni => WiredSlotSelection.ForSlot(this, ctx, 0),
+            _ => ctx.Selected,
+        };
+
+        foreach (var targetId in GetTargetIds(targetType, holders))
         {
             if (
                 !variable.TryGetValue(

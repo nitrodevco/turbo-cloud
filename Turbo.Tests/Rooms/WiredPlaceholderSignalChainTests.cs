@@ -203,4 +203,93 @@ public sealed class WiredPlaceholderSignalChainTests
             await Wired.ProcessWiredAsync(_now, dormant: false, Ct);
         }
     }
+
+    /// <summary>
+    /// A stack a signal starts reads the users it carried as "Users from signal"; the Variable
+    /// placeholder offers that source like every other text add-on (AS3: a merged furni/user
+    /// source), and read only the triggering users, of which a signalled stack has none.
+    /// </summary>
+    [Fact]
+    public async Task A_variable_placeholder_reads_the_users_from_the_signal()
+    {
+        _room.Harness.Fakes.Handlers["Filter"] = call => call.Args[0];
+        _room.Enter(PLAYER_INDEX, 1, 1);
+        _room.AddFloorItem(ANTENNA, 6, 1);
+
+        var rank = _room.AddBox<WiredVariableUser>(10, 5, 5, "wf_var_user");
+        (
+            await _room.SaveAsync<UpdateVariableMessage>(
+                10,
+                intParams: [(int)WiredAvailabilityType.UserActive, 1],
+                stringParam: "rank"
+            )
+        )
+            .Should()
+            .BeTrue();
+        await rank.LoadWiredAsync(Ct);
+        await StartAsync(5, 5);
+
+        var rankId = rank.GetVarSnapshot().VariableId;
+        (
+            await rank.GiveValueAsync(
+                new WiredVariableKey(rankId, WiredVariableTargetType.User, PLAYER_INDEX),
+                3
+            )
+        )
+            .Should()
+            .BeTrue();
+
+        _room.AddBox<WiredTriggerReceiveSignal>(5, 0, 4, "wf_trg_recv_signal");
+        _room.AddBox<WiredAddonVariablePlaceholder>(6, 0, 4, "wf_xtra_text_output_variable");
+        _room.AddBox<WiredActionWriteToLogs>(7, 0, 4, "wf_act_log");
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                5,
+                stuffIds: [ANTENNA],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ]
+            )
+        ).Should().BeTrue();
+        (
+            await _room.SaveAsync<UpdateAddonMessage>(
+                6,
+                intParams: [0, (int)WiredVariableTargetType.User, 0],
+                stringParam: "rank",
+                playerSources:
+                [
+                    [WiredPlayerSourceType.SignalUsers],
+                ],
+                variableIds: [rankId.ToString()]
+            )
+        ).Should().BeTrue();
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                7,
+                intParams: [(int)WiredLogLevelType.Info],
+                stringParam: "rank $(rank)",
+                definitionSpecifics: [0]
+            )
+        )
+            .Should()
+            .BeTrue();
+        await StartAsync(0, 4);
+
+        await Wired.OnRoomEventAsync(
+            new WiredSignalEvent
+            {
+                RoomId = 1,
+                CausedBy = ActionContext.CreateForSystem(1),
+                AntennaIds = [ANTENNA],
+                FurniIds = [],
+                AvatarIds = [PLAYER_INDEX],
+                Depth = 1,
+            },
+            Ct
+        );
+        await TickAsync(3);
+
+        Wired.GetErrorLogs(_now).Select(x => x.ErrorName).Should().Contain("rank 3");
+    }
 }
