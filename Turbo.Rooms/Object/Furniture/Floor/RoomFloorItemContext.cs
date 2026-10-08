@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
@@ -18,7 +19,13 @@ public sealed class RoomFloorItemContext(RoomGrain roomGrain, IRoomFloorItem roo
 
     public int GetTileIdx(int x, int y) => _roomGrain.ToIdx(x, y);
 
-    public void RefreshTile() => _roomGrain.ComputeTile(RoomObject.X, RoomObject.Y);
+    // Every tile it covers: what a state change alters (a gate opening, a 2x2 hole closing)
+    // holds on all of them, not only where the item stands.
+    public void RefreshTile()
+    {
+        foreach (var (x, y) in FloorFootprint.Of(RoomObject).Tiles())
+            _roomGrain.ComputeTile(x, y);
+    }
 
     public Task<RoomTileSnapshot> GetTileSnapshotAsync(CancellationToken ct) =>
         _roomGrain.GetTileSnapshotAsync(RoomObject.X, RoomObject.Y, ct);
