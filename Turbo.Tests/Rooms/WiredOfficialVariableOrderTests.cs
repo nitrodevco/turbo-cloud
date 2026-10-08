@@ -127,10 +127,6 @@ public sealed class WiredOfficialVariableOrderTests
             );
     }
 
-    /// <summary>
-    /// The official list also has <c>@event.link.source_room_id</c> after
-    /// <c>@event.chat.style</c>; this hotel has no event for it yet.
-    /// </summary>
     [Fact]
     public void The_context_variables_are_listed_as_the_official_client_lists_them()
     {
@@ -144,6 +140,7 @@ public sealed class WiredOfficialVariableOrderTests
                 "@event.signal.antenna_id",
                 "@event.chat.type",
                 "@event.chat.style",
+                "@event.link.source_room_id",
                 "@event.variable_update.box_id",
                 "@event.variable_update.change_type",
                 "@event.variable_update.old_value",

@@ -746,8 +746,7 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   empty.
 - **A variable with nothing behind it is not declared.** These have no system yet and are
   reserved rather than written: user `@level` (the avatar level, which this hotel does not
-  have) and context `@event.link.source_room_id` (its slot is Order 30, after
-  `@event.chat.style`).
+  have).
 - **What a variable reads is on the avatar before it is asked for.** A variable is
   synchronous and must never await a grain, so anything an account owns is put on the avatar
   when it enters (`RoomAvatarModule.LoadBadgesAsync`, `LoadHabboClubAsync`) and pushed again

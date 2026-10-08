@@ -9,6 +9,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Events.Wired;
+using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Rooms.Grains.Systems;
@@ -206,6 +207,92 @@ public sealed class WiredContextEventVariableTests
             .Should()
             .Be(2);
         variable.GetVarSnapshot().TextConnectors[2].Should().Be("Timeout");
+    }
+
+    [Theory]
+    [InlineData(42, 42)]
+    [InlineData(0, 0)]
+    public async Task An_entry_through_a_room_link_gives_the_room_they_came_from(
+        int sourceRoomId,
+        int expected
+    )
+    {
+        var player = _room.Enter(PLAYER_INDEX, 1, 1);
+        player.SetRoomEntry(
+            new RoomEntrySnapshot
+            {
+                Method =
+                    sourceRoomId > 0
+                        ? RoomEntryMethodType.RoomNetwork
+                        : RoomEntryMethodType.Default,
+                TeleportId = 0,
+                SourceRoomId = sourceRoomId,
+            }
+        );
+        var entered = new PlayerEnterEvent
+        {
+            RoomId = 1,
+            CausedBy = ActionContext.CreateForPlayer(player.PlayerId, (RoomId)1),
+            PlayerId = player.PlayerId,
+        };
+
+        (
+            await RunAsync(
+                new ContextLinkSourceRoomIdVariable(_room.Harness.Room),
+                EnterAsync,
+                entered
+            )
+        )
+            .Should()
+            .Be(expected);
+    }
+
+    /// <summary>
+    /// Teleport To Room (the room link) tells the presence which room the user leaves, so the
+    /// room they arrive in can give it as <c>@event.link.source_room_id</c>.
+    /// </summary>
+    [Fact]
+    public async Task Teleport_to_room_says_which_room_they_left()
+    {
+        var player = _room.Enter(PLAYER_INDEX, 1, 1);
+
+        await EnterAsync();
+        _room.AddBox<WiredActionTeleportToRoom>(2, 0, 0, "wf_act_teleport_to_room");
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                2,
+                stringParam: "900",
+                playerSources:
+                [
+                    [WiredPlayerSourceType.TriggeredUser],
+                ]
+            )
+        ).Should().BeTrue();
+        await StartAsync(0, 0);
+
+        await Wired.OnRoomEventAsync(
+            new PlayerEnterEvent
+            {
+                RoomId = 1,
+                CausedBy = ActionContext.CreateForPlayer(player.PlayerId, (RoomId)1),
+                PlayerId = player.PlayerId,
+            },
+            Ct
+        );
+        await TickAsync(4);
+
+        var entry = _room
+            .Harness.Fakes.Log.Of("ForwardToRoomAsync")
+            .Single()
+            .Args.OfType<RoomEntrySnapshot>()
+            .Single();
+        entry.SourceRoomId.Should().Be(_room.Harness.Room.RoomId);
+    }
+
+    private async Task EnterAsync()
+    {
+        _room.AddBox<WiredTriggerHabboJoinRoom>(1, 0, 0, "wf_trg_enter_room");
+        (await _room.SaveAsync<UpdateTriggerMessage>(1)).Should().BeTrue();
     }
 
     private async Task TransactionTriggerAsync<TTrigger>(string name)

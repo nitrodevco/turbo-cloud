@@ -23,4 +23,11 @@ public sealed record RoomEntrySnapshot
     /// </summary>
     [Id(1)]
     public required int TeleportId { get; init; }
+
+    /// <summary>
+    /// The room they came from when a furni or a room link sent them (<c>@event.link.source_room_id</c>);
+    /// zero for every other way in.
+    /// </summary>
+    [Id(2)]
+    public RoomId SourceRoomId { get; init; }
 }

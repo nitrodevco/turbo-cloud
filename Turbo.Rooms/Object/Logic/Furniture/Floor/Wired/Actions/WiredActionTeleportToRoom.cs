@@ -95,6 +95,7 @@ public class WiredActionTeleportToRoom(
                     {
                         Method = RoomEntryMethodType.RoomNetwork,
                         TeleportId = 0,
+                        SourceRoomId = _roomGrain.RoomId,
                     }
                 );
 
@@ -109,13 +110,20 @@ public class WiredActionTeleportToRoom(
                         {
                             Method = RoomEntryMethodType.Teleport,
                             TeleportId = linker.ItemId,
+                            SourceRoomId = _roomGrain.RoomId,
                         }
                     );
             }
         }
 
         return GetPositiveIdParam() is { } roomId
-            ? (RoomId.Parse(roomId), RoomEntrySnapshot.Default)
+            ? (
+                RoomId.Parse(roomId),
+                RoomEntrySnapshot.Default with
+                {
+                    SourceRoomId = _roomGrain.RoomId,
+                }
+            )
             : null;
     }
 }

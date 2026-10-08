@@ -304,6 +304,7 @@ public class FurnitureTeleportLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
                 {
                     Method = RoomEntryMethodType.Teleport,
                     TeleportId = partnerId,
+                    SourceRoomId = _roomGrain.RoomId,
                 },
                 CancellationToken.None
             )
