@@ -117,6 +117,138 @@ public sealed class WiredVariableChangedTriggerTests
         Hits().Should().Be(1);
     }
 
+    [Theory]
+    [InlineData(0, 0, 1, 0, 1)]
+    [InlineData(1, 0, 0, 1, 0)]
+    [InlineData(0, 1, 0, 0, 1)]
+    public async Task A_user_variable_fires_on_its_creation_change_and_deletion_as_ticked(
+        int created,
+        int changed,
+        int deleted,
+        int hitsAfterGive,
+        int hitsAfterChangeOrRemove
+    )
+    {
+        // Stack one gives "hp" to whoever clicks (7,4); stack two changes it (+3) when the
+        // trigger only listens to changes, else takes it away; stack three counts firings.
+        _hits = await AddGlobalAsync(HITS, 5, "hits");
+        var hp = _room.AddBox<WiredVariableUser>(12, 6, 6, "wf_var_user");
+
+        (
+            await _room.SaveAsync<UpdateVariableMessage>(
+                12,
+                intParams: [(int)WiredAvailabilityType.UserActive, 1],
+                stringParam: "hp"
+            )
+        )
+            .Should()
+            .BeTrue();
+        await hp.LoadWiredAsync(Ct);
+        await StartAsync(6, 6);
+
+        var hpId = hp.GetVarSnapshot().VariableId.ToString();
+        var hitsId = _hits.GetVarSnapshot().VariableId.ToString();
+        var triggerer = new[] { new[] { WiredPlayerSourceType.TriggeredUser } };
+
+        _room.AddFloorItem(24, 7, 5);
+        _room.AddBox<WiredTriggerClickFurni>(1, 0, 0, "wf_trg_click_furni");
+        _room.AddBox<WiredActionGiveVariable>(2, 0, 0, "wf_act_give_var");
+        _room.AddBox<WiredTriggerClickFurni>(5, 0, 2, "wf_trg_click_furni");
+        _room.AddBox<WiredTriggerVariableChanged>(3, 0, 4, "wf_trg_var_changed");
+        _room.AddBox<WiredActionChangeVariable>(4, 0, 4, "wf_act_change_var_val");
+
+        await SaveClickAsync(1, CLICK_ME);
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                2,
+                intParams: [(int)WiredVariableTargetType.User, 0, 7, 0],
+                definitionSpecifics: [0],
+                playerSources: triggerer,
+                variableIds: [hpId]
+            )
+        )
+            .Should()
+            .BeTrue();
+        await SaveClickAsync(5, 24);
+
+        if (changed == 1)
+        {
+            _room.AddBox<WiredActionChangeVariable>(6, 0, 2, "wf_act_change_var_val");
+            (
+                await _room.SaveAsync<UpdateActionMessage>(
+                    6,
+                    intParams:
+                    [
+                        (int)WiredVariableTargetType.User,
+                        (int)WiredVariableOperationType.Add,
+                        0,
+                        0,
+                        3,
+                        (int)WiredVariableTargetType.Global,
+                    ],
+                    definitionSpecifics: [0],
+                    playerSources: triggerer,
+                    variableIds: [hpId]
+                )
+            )
+                .Should()
+                .BeTrue();
+        }
+        else
+        {
+            _room.AddBox<WiredActionRemoveVariable>(6, 0, 2, "wf_act_remove_var");
+            (
+                await _room.SaveAsync<UpdateActionMessage>(
+                    6,
+                    intParams: [(int)WiredVariableTargetType.User],
+                    definitionSpecifics: [0],
+                    playerSources: triggerer,
+                    variableIds: [hpId]
+                )
+            )
+                .Should()
+                .BeTrue();
+        }
+
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                3,
+                intParams: [created, changed, deleted, 0, ALL_ORIGINS],
+                variableIds: [hpId]
+            )
+        )
+            .Should()
+            .BeTrue();
+        await SaveChangeAsync(4, WiredVariableOperationType.Add, 1, hitsId);
+
+        await StartAsync(0, 0);
+        await StartAsync(0, 2);
+        await StartAsync(0, 4);
+
+        await ClickAsync();
+        await TickAsync(6);
+
+        Hits().Should().Be(hitsAfterGive);
+
+        await _room
+            .FloorItem(24)
+            .Logic.OnClickAsync(ActionContext.CreateForPlayer((PlayerId)105, (RoomId)1), 0, Ct);
+        await TickAsync(6);
+
+        Hits().Should().Be(hitsAfterGive + hitsAfterChangeOrRemove);
+    }
+
+    private async Task SaveClickAsync(int boxId, int furniId) => (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                boxId,
+                stuffIds: [furniId],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ]
+            )
+        ).Should().BeTrue();
+
     private async Task FireAsync()
     {
         await ClickAsync();
