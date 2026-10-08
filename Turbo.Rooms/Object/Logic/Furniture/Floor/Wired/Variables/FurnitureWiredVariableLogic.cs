@@ -56,8 +56,8 @@ public abstract class FurnitureWiredVariableLogic
         if (
             AvailabilityParamIndex is int index
             && index < update.IntParams.Count
-            && (WiredAvailabilityType)update.IntParams[index] == WiredAvailabilityType.Persistent
-            && GetVarSnapshot().AvailabilityType != WiredAvailabilityType.Persistent
+            && ((WiredAvailabilityType)update.IntParams[index]).IsPermanent()
+            && !GetVarSnapshot().AvailabilityType.IsPermanent()
             && await WiredSystem.IsPermanentVariableCapReachedAsync(TargetType, ct)
         )
             throw new TurboException(TurboErrorCodeEnum.WiredPermanentVariableLimitReached);
@@ -318,7 +318,7 @@ public abstract class FurnitureWiredVariableLogic
 
         var snapshot = GetVarSnapshot();
 
-        if (snapshot.AvailabilityType == WiredAvailabilityType.Persistent)
+        if (snapshot.AvailabilityType.IsPermanent())
         {
             if (_storage == null)
             {

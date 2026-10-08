@@ -57,10 +57,7 @@ public sealed partial class RoomWiredSystem
     public static int CountPermanentVariables(
         IEnumerable<WiredVariableSnapshot> variables,
         WiredVariableTargetType targetType
-    ) =>
-        variables.Count(x =>
-            x.AvailabilityType == WiredAvailabilityType.Persistent && x.TargetType == targetType
-        );
+    ) => variables.Count(x => x.AvailabilityType.IsPermanent() && x.TargetType == targetType);
 
     /// <summary>
     /// Wired boxes currently in the room, split by floor and wall placement.
