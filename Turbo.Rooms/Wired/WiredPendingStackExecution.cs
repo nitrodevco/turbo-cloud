@@ -13,6 +13,7 @@ internal sealed class WiredPendingStackExecution
     public required IWiredSelectionSet Selected { get; init; }
     public required IWiredSelectionSet SelectorPool { get; init; }
     public required IWiredSelectionSet Signal { get; init; }
+    public required IWiredSelectionSet EventTargets { get; init; }
     public required int Depth { get; init; }
     public long Version { get; set; }
     public long DueAtMs { get; set; }

@@ -18,6 +18,12 @@ public interface IWiredContext
     /// <summary>The furni and users a signal or stack call forwarded into this firing.</summary>
     public IWiredSelectionSet Signal { get; }
 
+    /// <summary>
+    /// The user an event names beside the one who caused it: the user who was clicked ("The
+    /// clicked user", source 11). The triggering user is the one who clicked.
+    /// </summary>
+    public IWiredSelectionSet EventTargets { get; }
+
     /// <summary>How many stack calls or signals deep this firing is; bounded by config.</summary>
     public int Depth { get; }
     public Dictionary<string, int> Variables { get; }

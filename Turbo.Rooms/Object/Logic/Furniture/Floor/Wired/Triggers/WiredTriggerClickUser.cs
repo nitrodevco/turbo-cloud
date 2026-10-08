@@ -9,6 +9,7 @@ using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
@@ -23,7 +24,7 @@ public class WiredTriggerClickUser(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredTriggerLogic(grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredTriggerLogic(grainFactory, stuffDataFactory, ctx), IWiredUserSourceProvider
 {
     public override int WiredCode => (int)WiredTriggerType.AVATAR_CLICKS_AVATAR;
     public override List<Type> SupportedEventTypes { get; } = [typeof(PlayerClickedAvatarEvent)];
@@ -31,10 +32,10 @@ public class WiredTriggerClickUser(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredBoolParamRule(false), new WiredBoolParamRule(false)];
 
-    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
-        [
-            [WiredPlayerSourceType.TriggeredUser, WiredPlayerSourceType.ClickedUser],
-        ];
+    // The editor has no user picker (AS3 triggerconfs: two checkboxes); the clicked user is
+    // offered to the boxes on the stack instead.
+    public IReadOnlyList<WiredPlayerSourceType> ProvidedUserSources { get; } =
+    [WiredPlayerSourceType.ClickedUser];
 
     public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct) =>
         Task.FromResult(ctx.Event is PlayerClickedAvatarEvent);

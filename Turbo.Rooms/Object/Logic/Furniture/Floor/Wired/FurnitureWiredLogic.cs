@@ -159,6 +159,42 @@ public abstract partial class FurnitureWiredLogic(
 
     public virtual List<WiredVariableContextSnapshot> GetWiredContextSnapshots() => [];
 
+    /// <summary>
+    /// The user sources the editor offers: the box's own, and after the triggering user of each
+    /// slot that has one, the users a trigger on the same stack names
+    /// (<see cref="IWiredUserSourceProvider"/>).
+    /// </summary>
+    public List<WiredPlayerSourceType[]> GetOfferedPlayerSources()
+    {
+        var allowed = GetAllowedPlayerSources();
+        var provided = FurniModule
+            .GetFloorItemsOnTile(_ctx.GetTileIdx())
+            .Select(item => item.Logic)
+            .OfType<IWiredUserSourceProvider>()
+            .SelectMany(trigger => trigger.ProvidedUserSources)
+            .Distinct()
+            .ToList();
+
+        if (provided.Count == 0)
+            return allowed;
+
+        return
+        [
+            .. allowed.Select(slot =>
+            {
+                var index = System.Array.IndexOf(slot, WiredPlayerSourceType.TriggeredUser);
+
+                if (index < 0)
+                    return slot;
+
+                var extra = provided.Where(x => !slot.Contains(x));
+
+                return (WiredPlayerSourceType[])
+                    [.. slot[..(index + 1)], .. extra, .. slot[(index + 1)..]];
+            }),
+        ];
+    }
+
     public List<WiredFurniSourceType[]> GetFurniSources() =>
         StoredOrDefault(_wiredData.FurniSources, GetDefaultFurniSources());
 
@@ -328,7 +364,7 @@ public abstract partial class FurnitureWiredLogic(
             }
 
             index = 0;
-            var validPlayerSources = GetAllowedPlayerSources();
+            var validPlayerSources = GetOfferedPlayerSources();
 
             foreach (var source in GetDefaultPlayerSources())
             {
@@ -784,7 +820,7 @@ public abstract partial class FurnitureWiredLogic(
             AmountFurniSelections = [],
             AllowWallFurni = _roomGrain._wiredConfig.AllowWallFurni,
             AllowedFurniSources = GetAllowedFurniSources(),
-            AllowedPlayerSources = GetAllowedPlayerSources(),
+            AllowedPlayerSources = GetOfferedPlayerSources(),
             DefaultFurniSources = GetDefaultFurniSources(),
             DefaultPlayerSources = GetDefaultPlayerSources(),
             DefinitionSpecifics = GetDefinitionSpecifics(),

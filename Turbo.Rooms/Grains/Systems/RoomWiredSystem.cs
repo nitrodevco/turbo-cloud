@@ -431,9 +431,14 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
         switch (evt)
         {
+            // The one who clicked triggers; the one clicked is "The clicked user" (Wired Faculty,
+            // "See who is clicking on who", 19/03/2025: "$(user) clicks on $(target)").
             case PlayerClickedAvatarEvent clickEvt:
                 AddPlayerById(ctx, clickEvt.PlayerId);
-                AddAvatarByObjectId(ctx, clickEvt.TargetObjectId);
+
+                if (AvatarModule.TryGetAvatar(clickEvt.TargetObjectId, out _))
+                    ctx.EventTargets.SelectedAvatarIds.Add(clickEvt.TargetObjectId);
+
                 break;
             case PlayerEvent playerEvt:
                 AddPlayerById(ctx, playerEvt.PlayerId);
@@ -543,6 +548,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             Selected = ctx.Selected,
             SelectorPool = ctx.SelectorPool,
             Signal = ctx.Signal,
+            EventTargets = ctx.EventTargets,
             Depth = ctx.Depth,
             Version = 1,
             DueAtMs = dueAtMs + (long)ctx.Policy.Delay.TotalMilliseconds,
@@ -649,6 +655,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                     Selected = pending.Selected,
                     SelectorPool = pending.SelectorPool,
                     Signal = pending.Signal,
+                    EventTargets = pending.EventTargets,
                     Depth = pending.Depth,
                     CancellationToken = ct,
                     VariableChanges = pending.VariableChanges,
@@ -722,6 +729,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             Selected = pending.Selected,
             SelectorPool = pending.SelectorPool,
             Signal = pending.Signal,
+            EventTargets = pending.EventTargets,
             Depth = pending.Depth,
             CancellationToken = ct,
             ContextValues = pending.ContextValues,

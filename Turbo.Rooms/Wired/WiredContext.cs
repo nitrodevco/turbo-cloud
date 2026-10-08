@@ -20,6 +20,7 @@ public abstract class WiredContext(RoomGrain roomGrain)
     public IWiredSelectionSet Selected { get; init; } = new WiredSelectionSet();
     public IWiredSelectionSet SelectorPool { get; init; } = new WiredSelectionSet();
     public IWiredSelectionSet Signal { get; init; } = new WiredSelectionSet();
+    public IWiredSelectionSet EventTargets { get; init; } = new WiredSelectionSet();
     public int Depth { get; init; }
     public Dictionary<string, int> Variables { get; init; } = [];
 
@@ -98,8 +99,10 @@ public abstract class WiredContext(RoomGrain roomGrain)
                 {
                     case WiredPlayerSourceType.TriggeredUser:
                     case WiredPlayerSourceType.ReachedUser:
-                    case WiredPlayerSourceType.ClickedUser:
                         set.SelectedAvatarIds.UnionWith(Selected.SelectedAvatarIds);
+                        break;
+                    case WiredPlayerSourceType.ClickedUser:
+                        set.SelectedAvatarIds.UnionWith(EventTargets.SelectedAvatarIds);
                         break;
                     case WiredPlayerSourceType.SelectorUsers:
                         set.SelectedAvatarIds.UnionWith(SelectorPool.SelectedAvatarIds);
