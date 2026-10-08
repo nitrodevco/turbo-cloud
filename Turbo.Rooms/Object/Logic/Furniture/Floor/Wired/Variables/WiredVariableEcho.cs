@@ -82,8 +82,17 @@ public class WiredVariableEcho(
         return source is not null && CanBind(key) && source.RemoveValue(Forward(source, key));
     }
 
-    public override Dictionary<WiredVariableValue, string> GetTextConnectors() =>
-        GetSource()?.GetVarSnapshot().TextConnectors ?? [];
+    /// <summary>
+    /// The labels of a Text Connector on the echo's own tile, which is how the Wired Faculty's
+    /// "Echo to show the user's direction" (06/03/2025) names a value; the source's own labels
+    /// without one.
+    /// </summary>
+    public override Dictionary<WiredVariableValue, string> GetTextConnectors()
+    {
+        var own = base.GetTextConnectors();
+
+        return own.Count > 0 ? own : GetSource()?.GetVarSnapshot().TextConnectors ?? [];
+    }
 
     private IWiredVariable? GetSource()
     {
