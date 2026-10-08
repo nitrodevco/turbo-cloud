@@ -1,11 +1,15 @@
 using System.Collections;
 using FluentAssertions;
 using Turbo.Primitives.Furniture;
+using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Primitives.WiredTrading;
+using Turbo.Primitives.WiredTrading.Snapshots;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Counters;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
 using Turbo.Rooms.Wired.Variables;
 using Turbo.Rooms.Wired.Variables.Furniture.Smart;
 using Turbo.Tests.Support;
@@ -154,6 +158,54 @@ public sealed class WiredSmartVariableTests
         (await inverted.SetValueAsync(ctx, Key(inverted, 33), 1)).Should().BeTrue();
         hider.ValueAt(7).Should().Be(1);
     }
+
+    [Theory]
+    [InlineData(false, 7)]
+    [InlineData(true, 250)]
+    public void Chest_available_amount_is_its_items_or_its_credits(bool coins, int expected)
+    {
+        var chest = AddChest(34, coins);
+        var variable = new FurnitureChestAvailableAmountVariable(_room.Harness.Room);
+
+        typeof(FurnitureWiredChestLogic)
+            .GetProperty(nameof(FurnitureWiredChestLogic.Summary))!
+            .SetValue(chest, WiredChestSummarySnapshot.Empty with { ItemCount = 7, Coins = 250 });
+
+        variable.TryGetValue(Key(variable, 34), out var value).Should().BeTrue();
+        ((int)value).Should().Be(expected);
+    }
+
+    [Fact]
+    public void Chest_is_open_and_is_donatable_are_its_owners_everyone_settings()
+    {
+        var chest = AddChest(35, coins: false);
+        var isOpen = new FurnitureChestIsOpenVariable(_room.Harness.Room);
+        var isDonatable = new FurnitureChestIsDonatableVariable(_room.Harness.Room);
+        var map = (IMapStuffData)chest.StuffData;
+
+        map.Data[WiredChestData.EVERYONE_CAN_OPEN] = WiredChestData.TRUE;
+        map.Data[WiredChestData.EVERYONE_CAN_DONATE] = WiredChestData.FALSE;
+
+        isOpen.TryGetValue(Key(isOpen, 35), out var open).Should().BeTrue();
+        isDonatable.TryGetValue(Key(isDonatable, 35), out var donatable).Should().BeTrue();
+        ((int)open).Should().Be(1);
+        ((int)donatable).Should().Be(0);
+    }
+
+    private FurnitureWiredChestLogic AddChest(int id, bool coins) =>
+        (FurnitureWiredChestLogic)
+            _room
+                .AddFloorItem(
+                    id,
+                    5,
+                    5,
+                    coins ? "wired_chest_coins" : "wired_chest_furni",
+                    createLogic: (factory, ctx) =>
+                        coins
+                            ? new FurnitureWiredCoinsChestLogic(factory, ctx)
+                            : new FurnitureWiredFurniChestLogic(factory, ctx)
+                )
+                .Logic;
 
     private FurnitureTeleportLogic AddLinker()
     {

@@ -58,6 +58,15 @@ public abstract class FurnitureWiredChestLogic(
 
     public bool IsWiredEnabled => Flag(WiredChestData.IS_WIRED_ENABLED);
 
+    /// <summary>The owner's "everyone can open the chest" (<c>~chest.is_open</c>).</summary>
+    public bool EveryoneCanOpen => Flag(WiredChestData.EVERYONE_CAN_OPEN);
+
+    /// <summary>The owner's "everyone can donate to the chest" (<c>~chest.is_donatable</c>).</summary>
+    public bool EveryoneCanDonate => Flag(WiredChestData.EVERYONE_CAN_DONATE);
+
+    /// <summary>What is in it (<c>~chest.available_amount</c>): credits in a credit chest, items in a furni chest.</summary>
+    public int AvailableAmount => Kind == WiredChestKind.Coins ? Summary.Coins : Summary.ItemCount;
+
     /// <summary>Whether wired may take from or put into this chest right now.</summary>
     public bool IsUsableByWired => IsWiredEnabled && !IsLocked;
 
