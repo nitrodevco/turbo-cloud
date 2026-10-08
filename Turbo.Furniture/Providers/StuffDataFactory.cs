@@ -25,7 +25,8 @@ public sealed class StuffDataFactory(ILogger<IStuffDataFactory> logger) : IStuff
             StuffDataType.EmptyKey => new EmptyStuffData(),
             StuffDataType.NumberKey => new NumberStuffData(),
             StuffDataType.HighscoreKey => new HighscoreStuffData(),
-            StuffDataType.CrackableKey or _ => new LegacyStuffData(),
+            StuffDataType.CrackableKey => new CrackableStuffData(),
+            _ => new LegacyStuffData(),
         };
     }
 
@@ -59,7 +60,8 @@ public sealed class StuffDataFactory(ILogger<IStuffDataFactory> logger) : IStuff
                     StuffDataType.EmptyKey => stuffElement.Deserialize<EmptyStuffData>()!,
                     StuffDataType.NumberKey => stuffElement.Deserialize<NumberStuffData>()!,
                     StuffDataType.HighscoreKey => stuffElement.Deserialize<HighscoreStuffData>()!,
-                    StuffDataType.CrackableKey or _ => stuffElement.Deserialize<LegacyStuffData>()!,
+                    StuffDataType.CrackableKey => stuffElement.Deserialize<CrackableStuffData>()!,
+                    _ => stuffElement.Deserialize<LegacyStuffData>()!,
                 };
             }
             catch (JsonException ex)
@@ -133,6 +135,15 @@ public sealed class StuffDataFactory(ILogger<IStuffDataFactory> logger) : IStuff
                     kv => kv.Key,
                     kv => kv.Value.ToImmutableArray()
                 ),
+            },
+            ICrackableStuffData crackable => new CrackableStuffSnapshot
+            {
+                StuffBitmask = bitmask,
+                UniqueNumber = uniqueNumber,
+                UniqueSeries = uniqueSeries,
+                Data = crackable.GetLegacyString(),
+                Hits = crackable.Hits,
+                Target = crackable.Target,
             },
             IEmptyStuffData empty => new EmptyStuffSnapshot
             {

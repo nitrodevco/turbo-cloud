@@ -157,6 +157,32 @@ public class BotDecoderRoundTripTests
     }
 
     [Fact]
+    public void ObjectAdd_DecodesAFloorItemWithCrackableStuffData()
+    {
+        // Flash's CrackableStuffData reads the state, then the hits, then the target.
+        var (_, reader) = Serialize(
+            new ObjectAddMessageComposer
+            {
+                FloorItem = FloorItem(
+                    79,
+                    new CrackableStuffSnapshot
+                    {
+                        StuffBitmask = (int)StuffDataType.CrackableKey,
+                        Data = "1",
+                        Hits = 3,
+                        Target = 10,
+                    }
+                ),
+            }
+        );
+
+        var item = RoomDecoders.ObjectAdd(reader);
+
+        AssertFloorItem(item, 79, "1");
+        Assert.Equal(0, reader.Remaining);
+    }
+
+    [Fact]
     public void ObjectAdd_DecodesALimitedFloorItem()
     {
         var (_, reader) = Serialize(

@@ -50,6 +50,13 @@ internal class StuffDataSnapshotSerializer
             case VoteStuffSnapshot vote:
                 packet.WriteString(vote.Data).WriteInteger(vote.Result);
                 break;
+            // CrackableStuffData.initializeFromIncomingMessage: state, hits, target.
+            case CrackableStuffSnapshot crackable:
+                packet
+                    .WriteString(crackable.Data)
+                    .WriteInteger(crackable.Hits)
+                    .WriteInteger(crackable.Target);
+                break;
         }
 
         if ((item.StuffBitmask & (int)StuffDataFlags.Unique) != 0)
