@@ -20,8 +20,8 @@ namespace Turbo.Admin.Api;
 
 /// <summary>
 /// The hotel's gamedata: Habbo's releases and what taking one in would change, the furniture
-/// definitions as the client's furnidata has them, the files clients are sent and the history of
-/// changes - for staff with <c>admin.gamedata.view</c>. Checking Habbo, importing, editing,
+/// definitions as the client's furnidata has them, the client's external variables, the files
+/// clients are sent and the history of changes - for staff with <c>admin.gamedata.view</c>. Checking Habbo, importing, editing,
 /// rebuilding and rolling back need <c>gamedata.manage</c> as well.
 /// </summary>
 internal sealed class GamedataEndpoints(
@@ -33,6 +33,7 @@ internal sealed class GamedataEndpoints(
     IGamedataImportJobs imports,
     IGamedataTextService texts,
     IGamedataProductService products,
+    IGamedataVariableService variables,
     IGamedataFigureService figures,
     IPlayerClothingService clothing,
     AdminCatalogQueries catalog,
@@ -71,6 +72,14 @@ internal sealed class GamedataEndpoints(
         );
         group.MapPut("/texts", SaveTextAsync);
         group.MapDelete("/texts", DeleteTextAsync);
+        group.MapGet(
+            "/variables",
+            (string? q, int? page, CancellationToken ct) => VariableSearchAsync(q, page, ct)
+        );
+        group.MapPut("/variables", SaveVariableAsync);
+        group.MapDelete("/variables", DeleteVariableAsync);
+        group.MapPost("/variables/import/preview", VariablePreviewAsync);
+        group.MapPost("/variables/import", VariableImportAsync);
         group.MapGet("/products/import", ProductPreviewAsync);
         group.MapPost("/products/import/{versionId:int}", ProductImportAsync);
         group.MapGet(
@@ -129,6 +138,9 @@ internal sealed class GamedataEndpoints(
         var externalTexts = await files
             .GetCurrentAsync(GamedataFiles.EXTERNAL_TEXTS, ct)
             .ConfigureAwait(false);
+        var externalVariables = await files
+            .GetCurrentAsync(GamedataFiles.EXTERNAL_VARIABLES, ct)
+            .ConfigureAwait(false);
 
         return Results.Ok(
             new GamedataStatusResponse(
@@ -140,6 +152,7 @@ internal sealed class GamedataEndpoints(
                 externalTexts.File,
                 productData.File,
                 figureData.File,
+                externalVariables.File,
                 await CanManageAsync(http, ct).ConfigureAwait(false)
             )
         );
@@ -684,6 +697,112 @@ internal sealed class GamedataEndpoints(
                     .ConfigureAwait(false)
                     ? Results.NoContent()
                     : Results.NotFound()
+        );
+
+    private async Task<IResult> VariableSearchAsync(string? q, int? page, CancellationToken ct) =>
+        Results.Ok(await variables.SearchAsync(q, page ?? 0, ct).ConfigureAwait(false));
+
+    private Task<IResult> SaveVariableAsync(
+        VariableSaveRequest request,
+        HttpContext http,
+        CancellationToken ct
+    ) =>
+        ManageAsync(
+            http,
+            ct,
+            async () =>
+            {
+                try
+                {
+                    return Results.Ok(
+                        await variables
+                            .SaveAsync(
+                                request.Key ?? string.Empty,
+                                request.Value ?? string.Empty,
+                                AdminIdentity.Of(http).PlayerId,
+                                ct
+                            )
+                            .ConfigureAwait(false)
+                    );
+                }
+                catch (ArgumentException ex)
+                {
+                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+                }
+            }
+        );
+
+    private Task<IResult> DeleteVariableAsync(
+        string? key,
+        HttpContext http,
+        CancellationToken ct
+    ) =>
+        ManageAsync(
+            http,
+            ct,
+            async () =>
+                await variables
+                    .DeleteAsync(key ?? string.Empty, AdminIdentity.Of(http).PlayerId, ct)
+                    .ConfigureAwait(false)
+                    ? Results.NoContent()
+                    : Results.NotFound()
+        );
+
+    private Task<IResult> VariablePreviewAsync(
+        VariableImportRequest request,
+        HttpContext http,
+        CancellationToken ct
+    ) =>
+        ManageAsync(
+            http,
+            ct,
+            async () =>
+            {
+                try
+                {
+                    return Results.Ok(
+                        await variables
+                            .PreviewImportAsync(request.Json ?? string.Empty, ct)
+                            .ConfigureAwait(false)
+                    );
+                }
+                catch (ArgumentException ex)
+                {
+                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+                }
+            }
+        );
+
+    private Task<IResult> VariableImportAsync(
+        VariableImportRequest request,
+        HttpContext http,
+        CancellationToken ct
+    ) =>
+        ManageAsync(
+            http,
+            ct,
+            async () =>
+            {
+                try
+                {
+                    return Results.Ok(
+                        new
+                        {
+                            changeSet = await variables
+                                .ImportAsync(
+                                    request.Json ?? string.Empty,
+                                    AdminIdentity.Of(http).PlayerId,
+                                    ct
+                                )
+                                .ConfigureAwait(false),
+                        }
+                    );
+                }
+                catch (ArgumentException ex)
+                {
+                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+                }
+            }
         );
 
     private async Task<IResult> HistoryAsync(int? page, CancellationToken ct) =>

@@ -196,6 +196,17 @@ internal sealed class GamedataHistoryService(
                 .ConfigureAwait(false)
         ).ToDictionary(x => (x.Kind, x.Key));
 
+        var variableKeys = changes
+            .Where(x => x.RecordType == GamedataRecordType.Variable)
+            .Select(x => TextKey(x))
+            .OfType<string>()
+            .Distinct()
+            .ToList();
+        var variables = await dbCtx
+            .GamedataVariables.Where(x => variableKeys.Contains(x.Key))
+            .ToDictionaryAsync(x => x.Key, StringComparer.Ordinal, ct)
+            .ConfigureAwait(false);
+
         var skipped = new List<string>();
         var reverts = new List<GamedataChangeEntity>();
 
@@ -227,6 +238,7 @@ internal sealed class GamedataHistoryService(
                     habboFigures,
                     skipped
                 ),
+                GamedataRecordType.Variable => RevertVariable(dbCtx, change, variables, skipped),
                 _ => null,
             };
 
@@ -592,7 +604,60 @@ internal sealed class GamedataHistoryService(
         };
     }
 
-    /// <summary>A text change's key, from whichever of its records it has.</summary>
+    /// <summary>
+    /// An external variable back as it was before the set - made, changed or removed - when it
+    /// is still as the set left it. Its records are a text's: <c>{ key, value }</c>.
+    /// </summary>
+    private static GamedataChangeEntity? RevertVariable(
+        TurboDbContext dbCtx,
+        GamedataChangeEntity change,
+        Dictionary<string, GamedataVariableEntity> rows,
+        List<string> skipped
+    )
+    {
+        var before = TextRecord(change.Before);
+        var after = TextRecord(change.After);
+        var key = before?.Key ?? after?.Key;
+
+        if (key is null)
+            return null;
+
+        rows.TryGetValue(key, out var row);
+
+        if (row?.Value != after?.Value)
+        {
+            skipped.Add($"{key}: the variable has changed again since.");
+
+            return null;
+        }
+
+        if (before is null)
+        {
+            dbCtx.GamedataVariables.Remove(row!);
+            rows.Remove(key);
+        }
+        else if (row is null)
+        {
+            row = new GamedataVariableEntity { Key = key, Value = before.Value.Value };
+            dbCtx.GamedataVariables.Add(row);
+            rows[key] = row;
+        }
+        else
+        {
+            row.Value = before.Value.Value;
+        }
+
+        return new GamedataChangeEntity
+        {
+            RecordType = GamedataRecordType.Variable,
+            RecordId = change.RecordId,
+            Label = change.Label,
+            Before = change.After,
+            After = change.Before,
+        };
+    }
+
+    /// <summary>A text or variable change's key, from whichever of its records it has.</summary>
     private static string? TextKey(GamedataChangeEntity change) =>
         TextRecord(change.Before)?.Key ?? TextRecord(change.After)?.Key;
 

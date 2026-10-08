@@ -12,12 +12,17 @@ namespace Turbo.Admin.Api.Contracts;
 /// <c>%param%</c> <c>_</c> and its colour, or nothing.
 /// </param>
 /// <param name="Badge"><c>badge.asset.url</c>: a badge, <c>%badgename%</c> its code.</param>
+/// <param name="ImageLibrary">
+/// <c>image.library.url</c>: the folder a catalog featured item's promo image is under, its
+/// path appended.
+/// </param>
 public sealed record ClientAssetsResponse(
     string CatalogIcon,
     string CatalogImage,
     string FurniIcon,
-    string Badge
+    string Badge,
+    string ImageLibrary
 )
 {
-    public static readonly ClientAssetsResponse NONE = new("", "", "", "");
+    public static readonly ClientAssetsResponse NONE = new("", "", "", "", "");
 }

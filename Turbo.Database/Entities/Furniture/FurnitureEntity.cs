@@ -47,9 +47,10 @@ public class FurnitureEntity : TurboEntity, IPlacedFurnitureEntity
     public string? ExtraData { get; set; }
 
     /// <summary>
-    /// The wired chest this row is stored in, or null. A stored row is in no room and in no
-    /// inventory: every query that lists an inventory excludes it. When the chest row goes, the
-    /// database clears this and the row falls back to its owner's inventory.
+    /// The furni this row is stored in, or null: a wired chest, or a jukebox holding a song disk
+    /// in its playlist. A stored row is in no room and in no inventory: every query that lists an
+    /// inventory excludes it. When the holder's row goes, the database clears this and the row
+    /// falls back to its owner's inventory.
     /// </summary>
     [Column("chest_item_id")]
     public int? ChestItemEntityId { get; set; }
@@ -57,6 +58,13 @@ public class FurnitureEntity : TurboEntity, IPlacedFurnitureEntity
     /// <summary>The chest transaction that put the row in its chest; null outside a chest.</summary>
     [Column("chest_transaction_id")]
     public long? ChestTransactionId { get; set; }
+
+    /// <summary>
+    /// Where the row stands among what its holder stores, for a holder whose contents are in an
+    /// order (a jukebox's playlist); null otherwise.
+    /// </summary>
+    [Column("held_position")]
+    public int? HeldPosition { get; set; }
 
     [ForeignKey(nameof(PlayerEntityId))]
     public PlayerEntity? PlayerEntity { get; set; }

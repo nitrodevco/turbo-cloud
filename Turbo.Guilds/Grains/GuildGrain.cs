@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Primitives.Moderation;
 using Turbo.Database.Context;
 using Turbo.Database.Extensions;
 using Turbo.Guilds.Configuration;
@@ -38,6 +39,7 @@ internal sealed partial class GuildGrain : Grain, IGuildGrain
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly IGrainFactory _grainFactory;
     private readonly GuildConfig _guildConfig;
+    private readonly IWordFilter _wordFilter;
     private readonly ILogger<IGuildGrain> _logger;
 
     private readonly GuildLiveState _state;
@@ -51,12 +53,14 @@ internal sealed partial class GuildGrain : Grain, IGuildGrain
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IGrainFactory grainFactory,
         IOptions<GuildConfig> guildConfig,
+        IWordFilter wordFilter,
         ILogger<IGuildGrain> logger
     )
     {
         _dbCtxFactory = dbCtxFactory;
         _grainFactory = grainFactory;
         _guildConfig = guildConfig.Value;
+        _wordFilter = wordFilter;
         _logger = logger;
 
         _state = new() { GuildId = this.GetGuildId() };

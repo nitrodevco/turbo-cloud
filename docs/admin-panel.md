@@ -374,15 +374,40 @@ Use the console for them.
 
 ## Catalog
 
-Staff with `admin.catalog.view` get a **Catalog** page: the catalog's page tree, with the normal
-catalog and the Builders Club catalog on two tabs, and for each page its offers and its settings.
-Staff who also hold `catalog.manage` can change it.
+Staff with `admin.catalog.view` get a **Catalog** page, in three columns:
 
-**Pages.** A page has a title, a link key (the name the client opens it by), an icon (the number of a catalogue `icon_<n>.png`), a layout, the layout's images and texts in
-order, and whether it is shown. Pages move up and down among their siblings or under another page
-of the same catalog. **Add a page under it** makes a hidden page, so it can be set up before anyone
-sees it. Only an empty page can be deleted: move or delete its pages and offers first. The root
-can't be moved or deleted.
+- **The page tree** on the left, as the client's navigator shows it, with hidden pages and pages
+  in the Builders Club catalog marked.
+- **The page** in the middle, drawn roughly as the client draws it: the header with its banner,
+  icon, title and line, then what its layout shows (the offer grid and the big preview, the
+  featured items, or its words and pictures). It follows the fields as they are typed.
+- **The editor** on the right: the page, the offer picked, or the front page's featured items.
+
+Staff who also hold `catalog.manage` can change it:
+
+- **Drag a page** by its grip to move it: up and down among the others, sideways to put it under
+  the page above or take it back out.
+- **Drag an offer's tile** to put it elsewhere on its page (the client shows them in that order),
+  or onto a page in the tree to move it there.
+- **Click a picture or a text** in the page to jump to its field.
+- **Ctrl+S** saves what is open; **Duplicate** copies an offer beside it.
+
+A move the server refuses springs back, with a note saying why.
+
+**Pages.** A page has:
+
+- a title, a link key (the name the client opens it by) and an icon, picked from the client's
+  `icon_<n>.png`;
+- where it is shown: the normal catalog, both, Builders Club only, or hidden;
+- a layout, picked from every layout the client draws, each described with the pictures and
+  words it takes;
+- the layout's pictures and words, each named for where it shows ("Header banner", "Teaser
+  image", "Description"...).
+
+Values a page keeps at places its layout doesn't show are listed apart, to clear. **Add a page
+under it** (or the + on a tree row) makes a hidden page, so it can be set up before anyone sees
+it. Only an empty page can be deleted: move or delete its pages and offers first. The root can't
+be moved or deleted.
 
 **Link keys.** The client's own buttons open pages by fixed link keys, so the page that should
 open needs that key. The link key field lists them with what opens each, and still takes a key of
@@ -405,25 +430,43 @@ your own for links:
 | `mobile_subscriptions` | Featured items (it opens `hc_membership`). |
 | `habbo_club_desktop`, `horse_styles`, `horse_shoe`, `ecotron_transform`, `quest_shell`, `quest_snowflakes`, `val_quests`, `set_easter` | Named by the client for those pages. |
 
-**Offers.** Each offer opens in place:
+**Offers.** Clicking a tile opens the offer; the + tile adds one.
 
-- **What it gives:** a floor item, a wall item (picked by the start of its class name, or its id),
-  a badge (its code), or a membership (see below), and how many.
-  - An offer that gives something else (a pet, a bot, a membership, several things) keeps that
-    as it is, and its other fields can still be changed.
-  - The item must exist and be of the type chosen, or the save is refused. Otherwise every
-    purchase would fail.
-- **Name key:** the text key the client shows. Leave it empty to use the item's class name, as
-  the hotel's own offers do.
+- **What it gives:** one thing, or a bundle of several. Each is one of:
+  - a floor or wall item, picked by the start of its class name or its id, and how many (a wall
+    item can carry its pattern or poster id);
+  - a badge, by its code;
+  - an effect, by its number;
+  - a pet, by its type (or an item whose class name is `pet<type>`): the buyer picks the breed
+    and names it, and the name key should be `a0 pet<type>`, which the pet page reads;
+  - a bot, with the figure it wears, named by an item's class name if one is picked, else the
+    hotel's default bot name;
+  - a membership, which is sold on its own (see below).
+
+  An item must exist and be of its kind, or the save is refused; otherwise every purchase would
+  fail. An offer gives up to 20 things and one pet at most. A badge, a pet, a bot and a membership
+  are given once per purchase, so they come one at a time and such an offer can't be bought in
+  bulk; a badge the buyer already has isn't sold to them again.
+- **Name key:** the product data the client names it by. Leave it empty to use the first item's
+  class name, as the hotel's own offers do; a pet with no item gets `a0 pet<type>`, a bot with no
+  item `bot`.
 - **Price:** credits, and an amount of an activity-point currency (duckets, diamonds, ...).
 - **Rules:** who may buy it (anyone, club, VIP), whether it can be gifted or bought in bulk, and
   whether it is shown.
-- **Page:** it can be moved to any page of the same catalog.
+- **Page:** it can be moved to any page, from its field or by dragging its tile onto the tree.
+
+**Featured items.** A `frontpage4` or `frontpage_featured` page shows the featured items: up to
+four, the first big and the rest beside it. Each has a promo image (a path under the client's
+`image.library.url`), a title, what clicking it opens (a page by its link key, an offer, or a
+product code), and an optional end time, which the client counts down to; once it has passed the
+item is no longer sent. They're edited on the page's **Featured** tab, dragged into order, and go
+live on publish. Other pages are sent none, and the client keeps the ones it was last sent.
 
 What other things depend on is protected:
 
-- An offer that sells a **limited series** keeps its item (its price can change), and can't be
-  deleted. Hide it instead. What is left of the series is never touched by the editor.
+- An offer that sells a **limited series** keeps its one item (its price can change), stays in the
+  normal catalog, and can't be deleted. Hide it instead. What is left of the series is never
+  touched by the editor.
 - A **club gift** offer, and one that **Builders Club furni** was placed from, can't be deleted
   either; hide them.
 
@@ -488,13 +531,68 @@ that row's activity-point type. Duckets are row 4 but type 0, so earlier code th
 number charged the wrong currency. The editor only offers activity-point currencies that are
 enabled.
 
-Page icons and images, furniture icons and badges load from the addresses in the client's own
-`nitro-config.json` (`ClientConfigUrl`): `catalog.icons.url`, `asset.urls.catalog`,
-`asset.urls.icons.furni` and `badge.asset.url`, resolved as the client resolves them. The server
-reads the config (so its host needn't allow the panel's origin) and reads it again every
-`ClientConfigCacheMinutes`, so a redeployed client is picked up without a restart. Without one
-set, the editor shows no pictures. The layouts on offer are those the client has a window for (from
-the Flash client's layouts, as nitro-next mirrors them); `CatalogLayouts` changes the list.
+Page icons and images, furniture icons, badges and promo images load from the addresses in the
+client's external variables (**Gamedata > Variables**, see `docs/gamedata.md`): `catalog.icons.url`,
+`asset.urls.catalog`, `asset.urls.icons.furni`, `badge.asset.url` and `image.library.url`,
+resolved as the client resolves them. An address that names no host is under the client's page,
+`ClientLoginUrl`; without that set, such an address shows no picture. A change to the variables
+reaches the editor at once. The layout picker describes every layout the Flash client has
+a template for (as nitro-next mirrors them); codes in `CatalogLayouts`, or used by a page, that it
+doesn't describe are listed under "Other", and any code can be typed.
+
+### Page builders
+
+A page builder fills a page with the offers a kind of page sells, named the way its layout reads
+them. `POST /api/catalog/pages/{id}/build/preview` (`admin.catalog.view`) returns the plan and
+changes nothing; `POST /api/catalog/pages/{id}/build` (`catalog.manage`) works the plan out again
+on the server and makes only the items whose keys are sent, each through the same checks as an
+edit by hand. An item that is refused is listed with why, and the rest go on. Each new offer gets
+the price, club level, gift and shown flags sent, and is bought in bulk where it can be.
+
+- **Trophies** (`trophies`): every floor item with the `trophy` logic. A family's `*1`, `*2` and
+  `*3` are named `a0 <base>_g`, `_s` and `_b` when the product data has that code (else the same
+  without `a0 `), which the trophies window groups as one trophy in gold, silver and bronze. Any
+  other trophy is an offer of its own.
+- **Pets** (`pets`, under the page): every pet type with a palette a buyer can choose gets a page
+  of its own (titled by `pet.type.<n>`, else its product name without "and starter food"), with
+  one offer named `a0 pet<n>`; the pet window reads the type from those digits. The pages are
+  hidden unless a display is sent.
+- **Colours** (`default_3x3_color_grouping`): a family, `<base>*1` on, in number order.
+- **Furni line** (`default_3x3`): a furni line, or the class names that start with a prefix (3
+  characters at least). `GET /api/catalog/builders/furni-lines` lists the lines.
+- **Pet customisation** (`petcustomization`): shampoos, parts and saddles, by the pet type their
+  custom parameters start with, optionally one type.
+- **Effects** (`pixeleffects`): every effect with a name in the product data (`avatar_effect<n>`)
+  or the texts (`fx_<n>`) that a player may own; the inventory's reserved ids and ids past
+  `MaxEffectId` are left out.
+- **Sold out limited** (`sold_ltd_items`): limited offers on other pages with nothing left of
+  their series, moved onto the page.
+- **Spaces** (`spaces_new`): every room paper pattern the product data names
+  (`floor_single_<p>`, `wallpaper_single_<p>`, `landscape_single_<p>`), floors, then wallpapers,
+  then landscapes, each by pattern (`1.2` before `1.10`). Each is an offer of the one `floor`,
+  `wallpaper` or `landscape` item with the pattern as its extra parameter, named by its code
+  (see `docs/room-decorations.md`). The page shows its room preview only once it sells all
+  three, so the plan warns when a group is empty or its item is missing.
+- **Posters** (`default_3x3`): every `poster <id>` code, by id, as the `poster` item with the id
+  as its extra parameter.
+- **Badge displays** (`badge_display`): floor items with the `badge_display` logic, or, until
+  `MapBadgeDisplayLogic` has run, those named `badge_display...`; named `a0 <name>` when the
+  product data has it.
+
+- **Song discs** (`soundmachine`): a disk of every official song (every song, with a warning,
+  while none is marked official), by name: the song disk item (category 8, `song_disk` preferred)
+  with the song's id as its extra parameter (see `docs/sound.md`). The page shows the product
+  data name of the offer's name key, not the song's, so a song whose code Habbo's product data
+  has is named `SONG <code>`; any other is named `song_disk`.
+
+The furni line and colours builders leave out room papers, posters and song discs, with a
+warning: one item is every pattern, poster or song, and an offer of it without one is refused at
+purchase.
+
+An item is marked as already offered when an offer anywhere sells the same item on its own, the
+same pattern, poster or song, the same pet type or the same effect. **Set layout** also gives the page the builder's layout (not for
+pets, whose pages carry it). A preview lists up to `CatalogBuilderItemLimit` items and says when
+there are more. Nothing goes live until you publish.
 
 ### Creating players
 
@@ -726,11 +824,10 @@ them.
 | `PerformanceSampleSeconds` | `10` | | How often the Performance page's figures are taken. |
 | `PerformanceHistoryHours` | `24` | | How many hours of figures are kept, in memory. |
 | `PerformanceMaxPoints` | `360` | | The most points a Performance chart is sent; longer ranges are merged into this many. |
-| `ClientConfigUrl` | empty | `TURBO_ADMIN_CLIENT_CONFIG_URL` | The client's `nitro-config.json`, e.g. `https://play.example.com/config/nitro-config.json`. Catalog icons and images, furniture icons and badges load from its addresses. Empty shows none. |
-| `ClientConfigCacheMinutes` | `10` | | How long those addresses are kept before the config is read again. |
 | `CatalogLayouts` | the client's layouts | | The page layouts the catalog editor offers, besides any a page already uses. |
 | `CatalogFurnitureSearchLimit` | `25` | | Items the catalog editor's item picker lists at once. |
-| `ClientLoginUrl` | empty | | The client's login address with `{ticket}` where the ticket goes, e.g. `https://hotel.example.com/client?sso={ticket}`. Set, a new ticket also comes as a login link. |
+| `CatalogBuilderItemLimit` | `500` | | Items a catalog page builder's preview lists at once. |
+| `ClientLoginUrl` | empty | `TURBO_ADMIN_CLIENT_LOGIN_URL` | The client's login address with `{ticket}` where the ticket goes, e.g. `https://hotel.example.com/client?sso={ticket}`. Set, a new ticket also comes as a login link, and an image address in the external variables that names no host is read under it. |
 | `TicketMaxLifetimeDays` | `365` | | The longest a ticket from the panel can work for, short of never. |
 | `RoomAlertMaxLength` | `500` | | The longest room alert the panel sends. |
 | `RoomMuteMaxMinutes` | `60` | | The longest the panel mutes a player in a room. |
@@ -769,6 +866,37 @@ The stream turns nginx's buffering off itself (`X-Accel-Buffering: no`), so the 
 needs nothing extra. Its keep-alive comes well inside nginx's 60-second `proxy_read_timeout` and
 Cloudflare's 100-second limit. The hotel runs as one server today; the stream only hears about
 players connected to the server the panel talks to.
+
+## Songs
+
+The trax songs that song disks play (see [sound.md](sound.md)) are the hotel's own data: there is
+no stock list, so a hotel adds the songs it sells. The API is under `/api/songs`. Reading needs
+`admin.catalog.view`; adding, changing and removing need `catalog.manage` as well, since songs are
+what the catalog's song disk offers sell.
+
+| Request | Answer |
+| --- | --- |
+| `GET /api/songs` | `{ "songs": [ { "id", "name", "author", "length", "official", "discs", "code" } ] }`, by id |
+| `GET /api/songs/{id}` | one song, the same fields and `"track"`; 404 when there is none |
+| `POST /api/songs` | adds a song from `{ "name", "author", "track", "length", "official", "code" }`; answers it as `GET /api/songs/{id}` does |
+| `PUT /api/songs/{id}` | replaces a song's fields with the same body; 404 when there is none |
+| `DELETE /api/songs/{id}` | 204; refused (400) while any disk carries the song |
+
+- `length` is in seconds. The client is sent milliseconds, and a jukebox moves on to its next
+  disk when a song's length is up, so it has to match the track.
+- `track` is the trax track in the client's own format (what the client's sound machine plays);
+  the server stores and sends it and never reads it.
+- `discs` is how many song disks carry the song, placed, in an inventory or in a jukebox.
+- `code` is optional: an official song's catalog code, unique, which may not begin with a digit
+  (the catalog's song disk page reads a product parameter beginning with one as a song id).
+  `null` when the song has none.
+- A refusal is `400` with `{ "message" }` saying why (no name, no track, a length of zero, a taken
+  code); missing rights are `403`.
+
+**Selling a song.** A song disk offer gives the `song_disk` furni (floor, category 8, "trax
+song"), with the song's id as the product's extra parameter; buying one writes that id onto the
+disk. The song disk page layout (`soundmachine`) plays a preview from the same parameter. A code
+in the parameter instead of an id works for that preview only: the disk itself needs the id.
 
 ## Things to know
 

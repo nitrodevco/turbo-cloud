@@ -67,6 +67,8 @@ public sealed partial class RoomGrain
     {
         try
         {
+            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+
             if (!await ActionModule.UseItemByIdAsync(ctx, itemId, ct, param))
                 return false;
 
@@ -95,6 +97,8 @@ public sealed partial class RoomGrain
     {
         try
         {
+            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+
             if (!await ActionModule.ClickItemByIdAsync(ctx, itemId, ct, param))
                 return false;
 
@@ -114,6 +118,30 @@ public sealed partial class RoomGrain
         }
     }
 
+    public async Task<bool> InteractWithMusicPlayerAsync(
+        ActionContext ctx,
+        FurnitureInteraction interaction,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return await ActionModule.InteractWithMusicPlayerAsync(ctx, interaction, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed music interaction {Interaction} in room {RoomId} for player {PlayerId}",
+                interaction,
+                _state.RoomId,
+                ctx.PlayerId
+            );
+
+            return false;
+        }
+    }
+
     public async Task<bool> InteractWithItemAsync(
         ActionContext ctx,
         RoomObjectId itemId,
@@ -123,6 +151,8 @@ public sealed partial class RoomGrain
     {
         try
         {
+            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+
             return await ActionModule.InteractWithItemAsync(ctx, itemId, interaction, ct);
         }
         catch (Exception ex)

@@ -7,6 +7,7 @@ using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Networking.Revisions;
@@ -28,6 +29,7 @@ public class TurboEmulator(
     INavigatorProvider topLevelContextProvider,
     IRoomModelProvider roomModelProvider,
     IPetBreedProvider petBreedProvider,
+    IWordFilter wordFilter,
     INetworkManager networkManager,
     IRevisionManager revisionManager
 ) : IHostedService
@@ -42,6 +44,7 @@ public class TurboEmulator(
     private readonly INavigatorProvider _topLevelContextProvider = topLevelContextProvider;
     private readonly IRoomModelProvider _roomModelProvider = roomModelProvider;
     private readonly IPetBreedProvider _petBreedProvider = petBreedProvider;
+    private readonly IWordFilter _wordFilter = wordFilter;
     private readonly INetworkManager _networkManager = networkManager;
     private readonly IRevisionManager _revisionManager = revisionManager;
 
@@ -58,6 +61,7 @@ public class TurboEmulator(
             await _topLevelContextProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _roomModelProvider.ReloadAsync(ct).ConfigureAwait(false);
             await _petBreedProvider.ReloadAsync(ct).ConfigureAwait(false);
+            await _wordFilter.ReloadAsync(ct).ConfigureAwait(false);
             // After the currencies: installing a pack checks every enabled achievement's reward
             // currency against them.
             await achievements.ReloadAsync(ct).ConfigureAwait(false);

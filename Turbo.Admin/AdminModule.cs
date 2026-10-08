@@ -9,10 +9,12 @@ using Turbo.Admin.Commands;
 using Turbo.Admin.Configuration;
 using Turbo.Admin.Links;
 using Turbo.Admin.Live;
+using Turbo.Admin.Notifications;
 using Turbo.Admin.Performance;
 using Turbo.Admin.Permissions;
 using Turbo.Admin.Players;
 using Turbo.Admin.Rooms;
+using Turbo.Admin.Search;
 using Turbo.Contracts.Plugins;
 
 namespace Turbo.Admin;
@@ -42,6 +44,9 @@ public sealed class AdminModule : IHostPluginModule
         services.AddSingleton<AdminCommandLogQueries>();
         services.AddSingleton<AdminChatlogQueries>();
         services.AddSingleton<AdminCatalogQueries>();
+        services.AddSingleton<AdminCatalogBuilder>();
+        services.AddSingleton<AdminSearchQueries>();
+        services.AddSingleton<AdminNotificationQueries>();
         services.AddSingleton<ClientAssets>();
         services.AddSingleton<PermissionViews>();
         services.AddSingleton<AdminLiveFeed>();

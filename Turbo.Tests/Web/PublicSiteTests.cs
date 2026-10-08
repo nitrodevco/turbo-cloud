@@ -105,6 +105,7 @@ public sealed class PublicSiteTests : IAsyncDisposable
         services.AddSingleton<IPlayerAccountService, PlayerAccountService>();
         services.AddSingleton<ILoginTicketService, LoginTicketService>();
         services.AddSingleton(_fakes.Create<ISanctionService>());
+        services.AddSingleton<Turbo.Primitives.Moderation.IWordFilter, PassThroughWordFilter>();
         services.AddSingleton(sp => new DiscordOAuthClient(
             new HttpClient(_discord),
             config,

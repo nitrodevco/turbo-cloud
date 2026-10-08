@@ -121,4 +121,9 @@ public class PlayerEntity : TurboEntity
 
     [InverseProperty("ReceiverPlayerEntity")]
     public List<MessengerMessageEntity>? MessengerMessagesReceived { get; set; }
+
+    /// <summary>When the row last changed; MySQL sets it on every update.</summary>
+    [Column("updated_at")]
+    [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
+    public DateTime UpdatedAt { get; set; }
 }

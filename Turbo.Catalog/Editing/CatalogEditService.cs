@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -20,6 +21,7 @@ using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Pets;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 
@@ -40,7 +42,8 @@ public sealed partial class CatalogEditService(
     ISessionGateway sessions,
     IGrainFactory grainFactory,
     ILogger<ICatalogEditService> logger,
-    IGamedataFileService? gamedataFiles = null
+    IGamedataFileService? gamedataFiles = null,
+    TimeProvider? time = null
 ) : ICatalogEditService
 {
     public const int TEXT_MAX_LENGTH = 50;
@@ -55,6 +58,22 @@ public sealed partial class CatalogEditService(
     public const int GIFT_DAYS_MAX = 36500;
     public const int LIMITED_TOTAL_MAX = 1_000_000;
     public const int RAFFLE_WINDOW_MAX = 3600;
+    public const int PRODUCTS_MAX = 20;
+
+    /// <summary>The front page draws four: the first large, the next three in a list.</summary>
+    public const int FEATURED_ITEMS_MAX = 4;
+    public const int FEATURED_TITLE_MAX_LENGTH = 100;
+    public const int FEATURED_IMAGE_MAX_LENGTH = 255;
+    public const int FEATURED_VALUE_MAX_LENGTH = 100;
+
+    /// <summary>
+    /// What a pet offer's name key starts with, before <c>pet</c> and its type, as the hotel's
+    /// own pet offers are named.
+    /// </summary>
+    private const string PET_NAME_PREFIX = "a0 ";
+
+    /// <summary>The name key of a bot offer whose bot is named by no item.</summary>
+    private const string BOT_NAME = "bot";
 
     /// <summary>Days in a month of membership, as the club window counts them.</summary>
     private const int DAYS_PER_MONTH = 31;
@@ -245,7 +264,7 @@ public sealed partial class CatalogEditService(
         CancellationToken ct
     )
     {
-        if (draft.Product is null)
+        if (Gives(draft) is not { } gives)
             return CatalogEditResult.Refused("Say what the offer gives.");
 
         var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
@@ -264,20 +283,16 @@ public sealed partial class CatalogEditService(
             CanBundle = true,
             ClubLevel = 0,
             Visible = true,
+            SortOrder = await NextOfferPlaceAsync(db, draft.PageId, ct).ConfigureAwait(false),
             Page = null!,
         };
-        var product = new CatalogProductEntity
-        {
-            CatalogOfferEntityId = 0,
-            ProductType = draft.Product.Type,
-            Quantity = 1,
-            Offer = offer,
-        };
 
-        Apply(offer, draft, IsMembership(draft, null));
-        Apply(product, draft.Product);
+        Apply(offer, draft, null);
         db.CatalogOffers.Add(offer);
-        db.CatalogProducts.Add(product);
+
+        foreach (var product in gives)
+            db.CatalogProducts.Add(NewProduct(offer, product));
+
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
 
         return Changed(editor, "created offer", offer.Id);
@@ -305,36 +320,276 @@ public sealed partial class CatalogEditService(
         if (await CheckOfferAsync(db, draft, offer, ct).ConfigureAwait(false) is { } refused)
             return refused;
 
-        if (draft.Product is { } productDraft)
+        if (Gives(draft) is { } gives)
         {
-            var products = offer.Products ?? [];
+            var products = (offer.Products ?? []).OrderBy(x => x.Id).ToList();
 
-            if (products.Count != 1)
+            // One product on its own changes the offer's one product, as it always has; the
+            // whole list is what replaces several.
+            if (draft.Products is null && products.Count != 1)
                 return CatalogEditResult.Refused(
                     "This offer gives several things; what it gives can't be changed here."
                 );
 
-            var product = products[0];
+            var productIds = products.Select(x => x.Id).ToList();
+            var limited = await db
+                .LtdSeries.Where(x => productIds.Contains(x.CatalogProductEntityId))
+                .Select(x => x.CatalogProductEntityId)
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
 
-            // A limited series is sold as one item: swapping the item would sell the rest of
-            // the series as something else.
+            // A limited series is sold as one item: swapping the item, or giving more with it,
+            // would sell the rest of the series as something else.
             if (
-                productDraft.DefinitionId != product.FurnitureDefinitionEntityId
-                && await db
-                    .LtdSeries.AnyAsync(x => x.CatalogProductEntityId == product.Id, ct)
-                    .ConfigureAwait(false)
+                limited.Count > 0
+                && (
+                    gives.Count != products.Count
+                    || products
+                        .Zip(gives)
+                        .Any(x =>
+                            limited.Contains(x.First.Id)
+                            && (
+                                x.First.ProductType != x.Second.Type
+                                || x.First.FurnitureDefinitionEntityId != x.Second.DefinitionId
+                            )
+                        )
+                )
             )
                 return CatalogEditResult.Refused(
                     "This offer sells a limited series; the item it gives can't be changed."
                 );
 
-            Apply(product, productDraft);
+            // Each product takes the place of the one saved in its place, so a row that leans on
+            // a product keeps it; what is left over goes.
+            for (var i = 0; i < gives.Count; i++)
+            {
+                if (i < products.Count)
+                    Apply(products[i], gives[i]);
+                else
+                    db.CatalogProducts.Add(NewProduct(offer, gives[i]));
+            }
+
+            db.CatalogProducts.RemoveRange(products.Skip(gives.Count));
         }
 
-        Apply(offer, draft, IsMembership(draft, offer));
+        // Moved onto another page, it goes last there.
+        if (offer.CatalogPageEntityId != draft.PageId)
+            offer.SortOrder = await NextOfferPlaceAsync(db, draft.PageId, ct).ConfigureAwait(false);
+
+        Apply(offer, draft, offer);
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
 
         return Changed(editor, "saved offer", offerId);
+    }
+
+    public async Task<CatalogEditResult> MoveOfferAsync(
+        PlayerId editor,
+        int offerId,
+        int pageId,
+        int index,
+        CancellationToken ct
+    )
+    {
+        var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
+
+        var offer = await db
+            .CatalogOffers.Include(x => x.Products)
+            .FirstOrDefaultAsync(x => x.Id == offerId, ct)
+            .ConfigureAwait(false);
+
+        if (offer is null)
+            return CatalogEditResult.Refused("That offer is gone.");
+
+        var display = await DisplayOfAsync(db, pageId, ct).ConfigureAwait(false);
+
+        if (display is null)
+            return CatalogEditResult.Refused("The page to put it on is gone.");
+
+        // Moved, it is what it was: the page has to sell it as saving it there would.
+        if (
+            await CheckNormalOnlyAsync(
+                    db,
+                    display.Value.IsIn(CatalogType.Normal),
+                    offer.ClubGiftDaysRequired is not null,
+                    offer.Products?.Any(x => x.SubscriptionType is not null) == true,
+                    offer,
+                    ct
+                )
+                .ConfigureAwait(false) is
+            { } refused
+        )
+            return refused;
+
+        var from = offer.CatalogPageEntityId;
+        var siblings = await OffersOnAsync(db, pageId, offerId, ct).ConfigureAwait(false);
+
+        offer.CatalogPageEntityId = pageId;
+        siblings.Insert(Math.Clamp(index, 0, siblings.Count), offer);
+
+        // Numbered afresh, so the order is the one asked for whatever the old numbers were; the
+        // page it left closes the gap.
+        Renumber(siblings);
+
+        if (from != pageId)
+            Renumber(await OffersOnAsync(db, from, offerId, ct).ConfigureAwait(false));
+
+        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        return Changed(editor, "moved offer", offerId);
+    }
+
+    /// <summary>A page's offers in the order it lists them, but for <paramref name="exceptId"/>.</summary>
+    private static Task<List<CatalogOfferEntity>> OffersOnAsync(
+        TurboDbContext db,
+        int pageId,
+        int exceptId,
+        CancellationToken ct
+    ) =>
+        db
+            .CatalogOffers.Where(x => x.CatalogPageEntityId == pageId && x.Id != exceptId)
+            .OrderBy(x => x.SortOrder)
+            .ThenBy(x => x.Id)
+            .ToListAsync(ct);
+
+    private static void Renumber(List<CatalogOfferEntity> offers)
+    {
+        for (var i = 0; i < offers.Count; i++)
+            offers[i].SortOrder = i;
+    }
+
+    /// <summary>The place after the last offer on a page.</summary>
+    private static async Task<int> NextOfferPlaceAsync(
+        TurboDbContext db,
+        int pageId,
+        CancellationToken ct
+    ) =>
+        (
+            await db
+                .CatalogOffers.Where(x => x.CatalogPageEntityId == pageId)
+                .MaxAsync(x => (int?)x.SortOrder, ct)
+                .ConfigureAwait(false)
+            ?? -1
+        ) + 1;
+
+    public async Task<CatalogEditResult> SaveFeaturedItemsAsync(
+        PlayerId editor,
+        IReadOnlyList<CatalogFeaturedItemDraft> items,
+        CancellationToken ct
+    )
+    {
+        if (items.Count > FEATURED_ITEMS_MAX)
+            return CatalogEditResult.Refused(
+                $"The front page shows {FEATURED_ITEMS_MAX} featured items at most."
+            );
+
+        var now = (time ?? TimeProvider.System).GetUtcNow().UtcDateTime;
+
+        foreach (var item in items)
+        {
+            if (CheckFeaturedItem(item, now) is { } refused)
+                return refused;
+        }
+
+        var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
+
+        // An offer the client is sent to that is not there opens nothing.
+        var offerIds = items
+            .Where(x => x.Type == CatalogFrontPageItemType.Offer)
+            .Select(x => int.Parse(x.Value.Trim(), CultureInfo.InvariantCulture))
+            .ToList();
+        var found = await db
+            .CatalogOffers.Where(x => offerIds.Contains(x.Id))
+            .Select(x => x.Id)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        if (offerIds.Except(found).FirstOrDefault() is var missing and > 0)
+            return CatalogEditResult.Refused($"There is no offer {missing}.");
+
+        // Tracked, so the old items go and the new ones come in the one save.
+        db.CatalogFeaturedItems.RemoveRange(
+            await db.CatalogFeaturedItems.ToListAsync(ct).ConfigureAwait(false)
+        );
+        db.CatalogFeaturedItems.AddRange(
+            items.Select(
+                (item, i) =>
+                    new CatalogFeaturedItemEntity
+                    {
+                        Position = i + 1,
+                        Title = item.Title.Trim(),
+                        Image = item.Image.Trim(),
+                        Type = item.Type,
+                        Value = item.Value.Trim(),
+                        ExpiresAt = item.ExpiresAtUtc,
+                    }
+            )
+        );
+        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        return Changed(editor, "saved the front page's featured items", 0);
+    }
+
+    /// <summary>
+    /// A featured item the client can draw and open: a title, a picture path that fits, what it
+    /// opens named the way the client looks it up, and an end that is still to come.
+    /// </summary>
+    private static CatalogEditResult? CheckFeaturedItem(CatalogFeaturedItemDraft item, DateTime now)
+    {
+        if (item.Title.Trim().Length is 0 or > FEATURED_TITLE_MAX_LENGTH)
+            return CatalogEditResult.Refused(
+                $"Give each featured item a title of up to {FEATURED_TITLE_MAX_LENGTH} characters."
+            );
+
+        if (item.Image.Trim().Length > FEATURED_IMAGE_MAX_LENGTH)
+            return CatalogEditResult.Refused(
+                $"A featured item's picture is a path of up to {FEATURED_IMAGE_MAX_LENGTH} characters."
+            );
+
+        var value = item.Value.Trim();
+
+        if (value.Length == 0)
+            return CatalogEditResult.Refused("Say what each featured item opens.");
+
+        switch (item.Type)
+        {
+            case CatalogFrontPageItemType.Page:
+                if (value.Length > TEXT_MAX_LENGTH || !KeyPattern().IsMatch(value))
+                    return CatalogEditResult.Refused(
+                        "A featured page is opened by its name: letters, digits, _ and - only."
+                    );
+
+                break;
+            case CatalogFrontPageItemType.Offer:
+                if (
+                    !int.TryParse(
+                        value,
+                        NumberStyles.None,
+                        CultureInfo.InvariantCulture,
+                        out var id
+                    )
+                    || id < 1
+                )
+                    return CatalogEditResult.Refused("A featured offer is opened by its id.");
+
+                break;
+            case CatalogFrontPageItemType.Product:
+                if (value.Length > FEATURED_VALUE_MAX_LENGTH)
+                    return CatalogEditResult.Refused(
+                        $"A product code is up to {FEATURED_VALUE_MAX_LENGTH} characters."
+                    );
+
+                break;
+            default:
+                return CatalogEditResult.Refused(
+                    "A featured item opens a page, an offer or a product."
+                );
+        }
+
+        return item.ExpiresAtUtc is { } ends && ends <= now
+            ? CatalogEditResult.Refused("A featured item ends in the future, or never.")
+            : null;
     }
 
     public async Task<CatalogEditResult> DeleteOfferAsync(
@@ -620,10 +875,26 @@ public sealed partial class CatalogEditService(
             .ThenByDescending(x => x.StartsAt ?? x.CreatedAt)
             .FirstOrDefault();
 
+    /// <summary>
+    /// What the draft says the offer gives: the whole list when it sets one, else its one
+    /// product; null when it leaves what the offer gives alone.
+    /// </summary>
+    private static IReadOnlyList<CatalogProductDraft>? Gives(CatalogOfferDraft draft) =>
+        draft.Products ?? (draft.Product is { } product ? [product] : null);
+
+    /// <summary>What the offer gives by kind, as it will be: the draft's products, else its own.</summary>
+    private static List<ProductType> TypesOf(
+        CatalogOfferDraft draft,
+        CatalogOfferEntity? existing
+    ) =>
+        Gives(draft) is { } gives
+            ? [.. gives.Select(x => x.Type)]
+            : [.. existing?.Products?.Select(x => x.ProductType) ?? []];
+
     /// <summary>Whether the offer gives a membership, as saved or as it will be.</summary>
     private static bool IsMembership(CatalogOfferDraft draft, CatalogOfferEntity? existing) =>
-        draft.Product is { } product
-            ? product.Type == ProductType.HabboClub
+        Gives(draft) is { } gives
+            ? gives.Any(x => x.Type == ProductType.HabboClub)
             : existing?.Products?.Any(x => x.SubscriptionType is not null) == true;
 
     /// <summary>An edit saved: one more change to publish, and a line in the log saying who.</summary>
@@ -735,33 +1006,37 @@ public sealed partial class CatalogEditService(
         CancellationToken ct
     )
     {
-        var display = await db
-            .CatalogPages.Where(x => x.Id == draft.PageId)
-            .Select(x => (CatalogPageDisplay?)x.Display)
-            .FirstOrDefaultAsync(ct)
-            .ConfigureAwait(false);
+        var display = await DisplayOfAsync(db, draft.PageId, ct).ConfigureAwait(false);
 
         if (display is null)
             return CatalogEditResult.Refused("The page to put it on is gone.");
 
-        var normal = display.Value.IsIn(CatalogType.Normal);
         var membership = IsMembership(draft, existing);
+
+        if (
+            await CheckNormalOnlyAsync(
+                    db,
+                    display.Value.IsIn(CatalogType.Normal),
+                    draft.ClubGiftDaysRequired is not null,
+                    membership,
+                    existing,
+                    ct
+                )
+                .ConfigureAwait(false) is
+            { } refusedPage
+        )
+            return refusedPage;
 
         if (draft.ClubGiftDaysRequired is { } giftDays)
         {
             if (
-                await CheckGiftAsync(db, draft, existing, normal, giftDays, ct)
-                    .ConfigureAwait(false) is
+                await CheckGiftAsync(db, draft, existing, giftDays, ct).ConfigureAwait(false) is
                 { } refusedGift
             )
                 return refusedGift;
         }
 
-        // The club window and its renewals read the normal catalog, and a member can't buy what
-        // asks for membership first.
-        if (membership && !normal)
-            return CatalogEditResult.Refused("Memberships are sold from the normal catalog.");
-
+        // A member can't buy what asks for membership first.
         if (membership && draft.ClubLevel != 0)
             return CatalogEditResult.Refused(
                 "A membership is for anyone; asking for club first would keep non-members out."
@@ -798,12 +1073,81 @@ public sealed partial class CatalogEditService(
                 );
         }
 
-        if (draft.Product is not { } product)
+        return Gives(draft) is { } gives ? CheckProducts(gives) : null;
+    }
+
+    /// <summary>Which catalogs show a page; null when there is no such page.</summary>
+    private static Task<CatalogPageDisplay?> DisplayOfAsync(
+        TurboDbContext db,
+        int pageId,
+        CancellationToken ct
+    ) =>
+        db
+            .CatalogPages.Where(x => x.Id == pageId)
+            .Select(x => (CatalogPageDisplay?)x.Display)
+            .FirstOrDefaultAsync(ct);
+
+    /// <summary>
+    /// What only the normal catalog sells, refused a page it does not show: the club window and
+    /// its renewals read memberships from it, members claim gifts from it, and the raffle, the
+    /// purchase that routes to it and the upcoming-LTD notice read limited series from it.
+    /// </summary>
+    private static async Task<CatalogEditResult?> CheckNormalOnlyAsync(
+        TurboDbContext db,
+        bool normal,
+        bool clubGift,
+        bool membership,
+        CatalogOfferEntity? existing,
+        CancellationToken ct
+    )
+    {
+        if (normal)
             return null;
 
-        if (product.Quantity is < 1 or > QUANTITY_MAX)
-            return CatalogEditResult.Refused($"An offer gives 1 to {QUANTITY_MAX} of its item.");
+        if (clubGift)
+            return CatalogEditResult.Refused("Club gifts are in the normal catalog.");
 
+        if (membership)
+            return CatalogEditResult.Refused("Memberships are sold from the normal catalog.");
+
+        return
+            existing is not null
+            && await db
+                .LtdSeries.AnyAsync(x => x.CatalogProduct!.CatalogOfferEntityId == existing.Id, ct)
+                .ConfigureAwait(false)
+            ? CatalogEditResult.Refused("Limited series are sold from the normal catalog.")
+            : null;
+    }
+
+    /// <summary>
+    /// Everything an offer gives, checked against how a purchase hands each kind out: a
+    /// membership on its own, one pet at most (the buyer names and colours it), and each product
+    /// something the hotel can create.
+    /// </summary>
+    private CatalogEditResult? CheckProducts(IReadOnlyList<CatalogProductDraft> gives)
+    {
+        if (gives.Count is < 1 or > PRODUCTS_MAX)
+            return CatalogEditResult.Refused($"An offer gives 1 to {PRODUCTS_MAX} things.");
+
+        if (gives.Count > 1 && gives.Any(x => x.Type == ProductType.HabboClub))
+            return CatalogEditResult.Refused("A membership is sold on its own.");
+
+        if (gives.Count(x => x.Type == ProductType.Pet) > 1)
+            return CatalogEditResult.Refused(
+                "An offer gives one pet at most; the buyer names the one they buy."
+            );
+
+        foreach (var product in gives)
+        {
+            if (CheckProduct(product) is { } refused)
+                return refused;
+        }
+
+        return null;
+    }
+
+    private CatalogEditResult? CheckProduct(CatalogProductDraft product)
+    {
         if ((product.ExtraParam?.Length ?? 0) > EXTRA_PARAM_MAX_LENGTH)
             return CatalogEditResult.Refused(
                 $"The extra parameter is up to {EXTRA_PARAM_MAX_LENGTH} characters."
@@ -813,6 +1157,11 @@ public sealed partial class CatalogEditService(
         {
             case ProductType.Floor:
             case ProductType.Wall:
+                if (product.Quantity is < 1 or > QUANTITY_MAX)
+                    return CatalogEditResult.Refused(
+                        $"An offer gives 1 to {QUANTITY_MAX} of its item."
+                    );
+
                 // The inventory hands out the definition; one of the other type, or none, fails
                 // every purchase and refunds it.
                 if (
@@ -829,17 +1178,45 @@ public sealed partial class CatalogEditService(
                     );
 
                 return null;
+            // A badge is had or not: a second copy gives nothing.
             case ProductType.Badge:
-                return string.IsNullOrWhiteSpace(product.ExtraParam)
-                    ? CatalogEditResult.Refused("Give the badge code.")
-                    : null;
-            // The effect id is the extra parameter and the quantity is the copies (the offer's
-            // own quantity check has already held it to 1..100); how far the id may go is the
-            // hotel's setting, which the purchase checks.
+                if (string.IsNullOrWhiteSpace(product.ExtraParam))
+                    return CatalogEditResult.Refused("Give the badge code.");
+
+                return OneAtATime(product, "A badge");
+            // The effect id is the extra parameter and the quantity is the copies; how far the
+            // id may go is the hotel's setting, which the purchase checks.
             case ProductType.Effect:
+                if (product.Quantity is < 1 or > QUANTITY_MAX)
+                    return CatalogEditResult.Refused(
+                        $"An offer gives 1 to {QUANTITY_MAX} of its item."
+                    );
+
                 return EffectProducts.TryGetEffectId(product.ExtraParam, out _)
                     ? null
                     : CatalogEditResult.Refused("Give the effect id, a whole number above 0.");
+            // A bot wears the figure in the extra parameter and is named by the item given with
+            // it, or by the hotel's default name.
+            case ProductType.Robot:
+                if (string.IsNullOrWhiteSpace(product.ExtraParam))
+                    return CatalogEditResult.Refused("Give the bot's figure.");
+
+                if (
+                    product.DefinitionId is { } botDefinitionId
+                    && definitions.TryGetDefinition(botDefinitionId) is null
+                )
+                    return CatalogEditResult.Refused(
+                        "The item that names the bot is gone; choose another, or none."
+                    );
+
+                return OneAtATime(product, "A bot");
+            case ProductType.Pet:
+                if (PetTypeOf(product) is null)
+                    return CatalogEditResult.Refused(
+                        "Give the pet's type, a whole number from 0, or an item named pet and its type."
+                    );
+
+                return OneAtATime(product, "A pet");
             // Days of a membership, granted when it is bought; no item comes with it.
             case ProductType.HabboClub:
                 if (product.Subscription is null)
@@ -857,9 +1234,38 @@ public sealed partial class CatalogEditService(
                     : null;
             default:
                 return CatalogEditResult.Refused(
-                    "Only floor items, wall items, badges, effects and memberships can be set up here."
+                    "An offer gives floor and wall items, badges, effects, bots, pets or a membership."
                 );
         }
+    }
+
+    /// <summary>A product the inventory gives once, whatever its quantity says.</summary>
+    private static CatalogEditResult? OneAtATime(CatalogProductDraft product, string what) =>
+        product.Quantity != 1 ? CatalogEditResult.Refused($"{what} is given one at a time.") : null;
+
+    /// <summary>
+    /// The pet type a product gives, read as the purchase reads it: from the class name of the
+    /// item given with it (<c>pet3</c>), else from the extra parameter; null when neither says.
+    /// </summary>
+    private int? PetTypeOf(CatalogProductDraft product)
+    {
+        if (
+            product.DefinitionId is { } definitionId
+            && PetProductCodes.TryGetTypeId(
+                definitions.TryGetDefinition(definitionId)?.Name,
+                out var fromName
+            )
+        )
+            return fromName;
+
+        return int.TryParse(
+            product.ExtraParam?.Trim(),
+            NumberStyles.None,
+            CultureInfo.InvariantCulture,
+            out var typeId
+        )
+            ? typeId
+            : null;
     }
 
     /// <summary>
@@ -870,22 +1276,16 @@ public sealed partial class CatalogEditService(
         TurboDbContext db,
         CatalogOfferDraft draft,
         CatalogOfferEntity? existing,
-        bool normal,
         int giftDays,
         CancellationToken ct
     )
     {
-        if (!normal)
-            return CatalogEditResult.Refused("Club gifts are in the normal catalog.");
-
         if (giftDays is < 0 or > GIFT_DAYS_MAX)
             return CatalogEditResult.Refused(
                 $"A club gift needs 0 to {GIFT_DAYS_MAX} days of club."
             );
 
-        var gives = draft.Product is { } product
-            ? [product.Type]
-            : existing?.Products?.Select(x => x.ProductType).ToList() ?? [];
+        var gives = TypesOf(draft, existing);
 
         if (
             gives.Count == 0
@@ -923,8 +1323,9 @@ public sealed partial class CatalogEditService(
     }
 
     /// <summary>
-    /// The name key an offer is saved with: the one given, else what it gives (the item's class
-    /// name, or a membership's length), else the one it has.
+    /// The name key an offer is saved with: the one given, else what its first product gives
+    /// (the item's class name, a membership's length, a pet by its type, a bot), else the one it
+    /// has.
     /// </summary>
     private string NameOf(CatalogOfferDraft draft, CatalogOfferEntity? existing)
     {
@@ -933,10 +1334,17 @@ public sealed partial class CatalogEditService(
         if (name.Length > 0)
             return name;
 
-        if (draft.Product?.DefinitionId is { } definitionId)
+        var first = Gives(draft) is [var product, ..] ? product : null;
+
+        if (first?.DefinitionId is { } definitionId)
             name = definitions.TryGetDefinition(definitionId)?.Name ?? string.Empty;
-        else if (draft.Product is { Type: ProductType.HabboClub, SubscriptionDays: > 0 } club)
+        else if (first is { Type: ProductType.HabboClub, SubscriptionDays: > 0 } club)
             name = MembershipName(club.Subscription, club.SubscriptionDays);
+        // The pet page reads the pet's type from the digits that end the offer's name.
+        else if (first is { Type: ProductType.Pet } && PetTypeOf(first) is { } petType)
+            name = $"{PET_NAME_PREFIX}{PetProductCodes.ForTypeId(petType)}";
+        else if (first is { Type: ProductType.Robot })
+            name = BOT_NAME;
 
         return name.Length > 0 ? name : existing?.LocalizationId ?? string.Empty;
     }
@@ -965,10 +1373,23 @@ public sealed partial class CatalogEditService(
         page.Display = draft.Display;
     }
 
-    private void Apply(CatalogOfferEntity offer, CatalogOfferDraft draft, bool membership)
+    /// <param name="existing">The offer as saved, when it is one; null for a new offer.</param>
+    private void Apply(
+        CatalogOfferEntity offer,
+        CatalogOfferDraft draft,
+        CatalogOfferEntity? existing
+    )
     {
+        var membership = IsMembership(draft, existing);
+        // A badge, a bot, a pet or a membership is given once per purchase, so buying several
+        // at once would charge for each and give one.
+        var oncePerPurchase =
+            membership
+            || TypesOf(draft, existing)
+                .Any(x => x is ProductType.Badge or ProductType.Robot or ProductType.Pet);
+
         // An offer named by what it gives, as the hotel's own offers are.
-        var name = NameOf(draft, offer);
+        var name = NameOf(draft, existing);
 
         if (name.Length > 0)
             offer.LocalizationId = name;
@@ -979,16 +1400,39 @@ public sealed partial class CatalogEditService(
         offer.CurrencyTypeId = draft.CostCurrency > 0 ? draft.CurrencyTypeId : null;
         // A membership has no gift path yet, and buying several at once is one period.
         offer.CanGift = draft.CanGift && !membership;
-        offer.CanBundle = draft.CanBundle && !membership;
+        offer.CanBundle = draft.CanBundle && !oncePerPurchase;
         offer.ClubLevel = draft.ClubLevel;
         offer.Visible = draft.Visible;
         offer.ClubGiftDaysRequired = draft.ClubGiftDaysRequired;
     }
 
+    private static CatalogProductEntity NewProduct(
+        CatalogOfferEntity offer,
+        CatalogProductDraft draft
+    )
+    {
+        var product = new CatalogProductEntity
+        {
+            CatalogOfferEntityId = offer.Id,
+            ProductType = draft.Type,
+            Quantity = 1,
+            Offer = offer,
+        };
+
+        Apply(product, draft);
+
+        return product;
+    }
+
     private static void Apply(CatalogProductEntity product, CatalogProductDraft draft)
     {
         product.ProductType = draft.Type;
-        product.FurnitureDefinitionEntityId = draft.Type is ProductType.Floor or ProductType.Wall
+        // A bot is named by its item and a pet can take its type from one; the rest have none.
+        product.FurnitureDefinitionEntityId = draft.Type
+            is ProductType.Floor
+                or ProductType.Wall
+                or ProductType.Robot
+                or ProductType.Pet
             ? draft.DefinitionId
             : null;
         product.ExtraParam = string.IsNullOrWhiteSpace(draft.ExtraParam)

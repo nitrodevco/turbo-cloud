@@ -8,6 +8,7 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.StuffData;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -76,6 +77,11 @@ public class FurnitureMannequinLogic(IStuffDataFactory stuffDataFactory, IRoomFl
 
             if (name.Length == 0 || name.Length > _roomGrain._roomConfig.MannequinNameMaxLength)
                 return Reject(ctx, interaction, "name length");
+
+            name = _roomGrain._wordFilter.FilterAndTruncate(
+                name,
+                _roomGrain._roomConfig.MannequinNameMaxLength
+            );
 
             return await SetMapDataAsync(
                 new Dictionary<string, string> { [MannequinData.OUTFIT_NAME] = name }

@@ -24,6 +24,12 @@ public interface IFurnitureFloorLogic
     public bool CanSit();
     public bool CanLay();
     public Altitude GetPostureOffset();
+
+    /// <summary>
+    /// The number the client reads beside a floor furni's stuff data as its "extras": a song
+    /// disk's song id. Zero for everything else.
+    /// </summary>
+    public int GetObjectExtra();
     public Task OnInvokeAsync(IRoomAvatarContext ctx, CancellationToken ct);
     public Task OnWalkOnAsync(IRoomAvatarContext ctx, CancellationToken ct);
     public Task OnWalkOffAsync(IRoomAvatarContext ctx, CancellationToken ct);

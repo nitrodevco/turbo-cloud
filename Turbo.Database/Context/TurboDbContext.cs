@@ -16,6 +16,7 @@ using Turbo.Database.Entities.Pets;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Entities.Security;
+using Turbo.Database.Entities.Sound;
 using Turbo.Database.Entities.Tracking;
 using Turbo.Database.Entities.WiredTrading;
 
@@ -39,6 +40,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<CatalogOfferEntity> CatalogOffers { get; init; }
 
+    public DbSet<CatalogFeaturedItemEntity> CatalogFeaturedItems { get; init; }
+
     public DbSet<CurrencyTypeEntity> CurrencyTypes { get; init; }
 
     public DbSet<CatalogPageEntity> CatalogPages { get; init; }
@@ -57,6 +60,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<HabboFigureVersionEntity> HabboFigureVersions { get; init; }
     public DbSet<HabboFigureEntity> HabboFigures { get; init; }
     public DbSet<GamedataFigureEntity> GamedataFigures { get; init; }
+    public DbSet<GamedataVariableEntity> GamedataVariables { get; init; }
     public DbSet<GamedataChangeSetEntity> GamedataChangeSets { get; init; }
     public DbSet<GamedataChangeEntity> GamedataChanges { get; init; }
     public DbSet<GamedataBuildEntity> GamedataBuilds { get; init; }
@@ -64,6 +68,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<FurnitureEntity> Furnitures { get; init; }
 
     public DbSet<BuildersClubFurnitureEntity> BuildersClubFurnitures { get; init; }
+
+    public DbSet<SongEntity> Songs { get; init; }
 
     public DbSet<WiredChestEntity> WiredChests { get; init; }
     public DbSet<WiredChestTransactionEntity> WiredChestTransactions { get; init; }
@@ -103,6 +109,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<RoomChatlogEntity> Chatlogs { get; init; }
     public DbSet<CommandLogEntity> CommandLogs { get; init; }
     public DbSet<PlayerSanctionEntity> PlayerSanctions { get; init; }
+    public DbSet<FilterWordEntity> FilterWords { get; init; }
     public DbSet<SecurityTicketEntity> SecurityTickets { get; init; }
     public DbSet<PlayerDiscordLinkEntity> PlayerDiscordLinks { get; init; }
     public DbSet<WebSessionEntity> WebSessions { get; init; }
@@ -188,5 +195,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
         mb.Entity<HabboFigureEntity>()
             .Property(x => x.Key)
             .UseCollation(GamedataProductEntity.CODE_COLLATION);
+        mb.Entity<GamedataVariableEntity>()
+            .Property(x => x.Key)
+            .UseCollation(GamedataVariableEntity.KEY_COLLATION);
     }
 }

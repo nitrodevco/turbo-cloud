@@ -66,7 +66,7 @@ public sealed class AchievementStateEvaluator(
         Record(
             AchievementSources.PETS,
             await db
-                .Pets.CountAsync(x => x.PlayerEntityId == playerId.Value && x.DeletedAt == null, ct)
+                .Pets.CountAsync(x => x.PlayerEntityId == playerId.Value, ct)
                 .ConfigureAwait(false)
         );
         var club = await db

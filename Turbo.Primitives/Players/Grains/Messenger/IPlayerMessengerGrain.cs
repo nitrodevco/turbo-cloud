@@ -173,6 +173,13 @@ public interface IPlayerMessengerGrain : IGrainWithIntegerKey
 
     [AlwaysInterleave]
     public Task<bool> IsFriendAsync(PlayerId playerId, CancellationToken ct);
+
+    /// <summary>
+    /// Whether this player has blocked that one (a gift they would refuse). Interleaved and
+    /// memory-only, as <see cref="IsFriendAsync"/>.
+    /// </summary>
+    [AlwaysInterleave]
+    public Task<bool> IsBlockingAsync(PlayerId playerId, CancellationToken ct);
     public Task<List<MessengerRequestDto>> GetRequestsAsync(CancellationToken ct);
     public Task<List<PlayerId>> GetIgnoredAsync(CancellationToken ct);
     public Task<List<MessengerUpdateSnapshot>> GetPendingUpdatesAsync(CancellationToken ct);

@@ -215,12 +215,12 @@ public sealed class CatalogEditServiceTests : IDisposable
         (
             await _service.CreateOfferAsync(
                 Editor,
-                Offer(product: new(ProductType.Pet, null, "0", 1)),
+                Offer(product: new(ProductType.Pet, null, null, 1)),
                 Ct
             )
         )
-            .Saved.Should()
-            .BeFalse();
+            .Error.Should()
+            .Contain("pet's type");
         (
             await _service.CreateOfferAsync(
                 Editor,

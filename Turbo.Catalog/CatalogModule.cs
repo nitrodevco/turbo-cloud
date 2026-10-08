@@ -29,6 +29,7 @@ public sealed class CatalogModule : IHostPluginModule
         services.AddSingleton<ICatalogService, CatalogService>();
         services.AddSingleton<ICatalogEditService, CatalogEditService>();
         services.AddSingleton<IBonusRareProvider, BonusRareProvider>();
+        services.AddSingleton<IGiftWrappingProvider, GiftWrappingProvider>();
         services.AddSingleton<ICatalogSnapshotProvider<NormalCatalog>>(
             sp => new CatalogSnapshotProvider<NormalCatalog>(
                 sp.GetRequiredService<IDbContextFactory<TurboDbContext>>(),

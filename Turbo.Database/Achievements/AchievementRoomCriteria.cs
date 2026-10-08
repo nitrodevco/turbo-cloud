@@ -28,12 +28,7 @@ public static class AchievementRoomCriteria
     {
         var rooms = await db
             .Rooms.AsNoTracking()
-            .Where(x =>
-                x.DeletedAt == null
-                && !x.HiddenByBc
-                && x.DoorMode != RoomDoorModeType.Invisible
-                && x.Score > 0
-            )
+            .Where(x => !x.HiddenByBc && x.DoorMode != RoomDoorModeType.Invisible && x.Score > 0)
             .OrderByDescending(x => x.Score)
             .ThenByDescending(x => x.Id)
             .Select(x => x.PlayerEntityId)
@@ -70,19 +65,14 @@ public static class AchievementRoomCriteria
         var models = await (
             from room in db.Rooms.AsNoTracking()
             join model in db.RoomModels.AsNoTracking() on room.RoomModelEntityId equals model.Id
-            where room.PlayerEntityId == playerId.Value && room.DeletedAt == null
+            where room.PlayerEntityId == playerId.Value
             select model.Model
         )
             .ToListAsync(ct)
             .ConfigureAwait(false);
         var eligible = db
             .Rooms.AsNoTracking()
-            .Where(x =>
-                x.DeletedAt == null
-                && !x.HiddenByBc
-                && x.DoorMode != RoomDoorModeType.Invisible
-                && x.Score > 0
-            );
+            .Where(x => !x.HiddenByBc && x.DoorMode != RoomDoorModeType.Invisible && x.Score > 0);
         var best = await eligible
             .Where(x => x.PlayerEntityId == playerId.Value)
             .OrderByDescending(x => x.Score)

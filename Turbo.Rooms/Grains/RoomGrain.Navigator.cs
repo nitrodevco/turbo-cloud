@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.Database.Achievements;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Extensions;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Orleans;
@@ -126,6 +127,8 @@ public sealed partial class RoomGrain
         if (!await SecurityModule.GetIsRoomOwnerAsync(ctx))
             return false;
 
+        tags = _wordFilter.FilterTags(tags);
+
         var value = RoomTags.Join(tags);
 
         if (value.Length > RoomEntity.TAGS_MAX_LENGTH)
@@ -195,6 +198,8 @@ public sealed partial class RoomGrain
             || !await SecurityModule.GetIsRoomOwnerAsync(playerId)
         )
             return null;
+
+        (name, description) = FilterEventText(name, description);
 
         var now = DateTime.UtcNow;
         var current = GetActiveEvent();
@@ -291,6 +296,8 @@ public sealed partial class RoomGrain
         )
             return false;
 
+        (name, description) = FilterEventText(name, description);
+
         try
         {
             await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
@@ -383,6 +390,12 @@ public sealed partial class RoomGrain
         && name.Length <= RoomEventEntity.NAME_MAX_LENGTH
         && description is not null
         && description.Length <= RoomEventEntity.DESCRIPTION_MAX_LENGTH;
+
+    private (string Name, string Description) FilterEventText(string name, string description) =>
+        (
+            _wordFilter.FilterAndTruncate(name, RoomEventEntity.NAME_MAX_LENGTH),
+            _wordFilter.FilterAndTruncate(description, RoomEventEntity.DESCRIPTION_MAX_LENGTH)
+        );
 
     private RoomEventSnapshot? GetActiveEvent()
     {

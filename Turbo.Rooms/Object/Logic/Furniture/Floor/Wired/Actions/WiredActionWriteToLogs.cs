@@ -33,7 +33,7 @@ public class WiredActionWriteToLogs(
         if (message.Length == 0)
             return false;
 
-        message = await ctx.FormatTextAsync(message, ct);
+        message = _roomGrain._wordFilter.Filter(await ctx.FormatTextAsync(message, ct));
 
         WiredSystem.RecordLog(
             GetIntParamOrDefault(0, WiredLogLevelType.Info),

@@ -142,6 +142,8 @@ public sealed partial class RoomGrain
     {
         try
         {
+            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+
             return await AvatarModule.WalkAvatarToAsync(ctx, targetX, targetY, ct);
         }
         catch (Exception ex)

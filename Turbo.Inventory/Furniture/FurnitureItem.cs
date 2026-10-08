@@ -19,6 +19,12 @@ internal sealed class FurnitureItem : IFurnitureItem
     public required IStuffData StuffData { get; init; }
     public DateTime? CreatedAtUtc { get; init; }
 
+    /// <summary>
+    /// The number the client reads beside the stuff data: a song disk's song, a present's box
+    /// and ribbon. Worked out by the loader, which can log a section it cannot read.
+    /// </summary>
+    public int Extra { get; init; }
+
     private FurnitureItemSnapshot? _snapshot;
 
     public FurnitureItemSnapshot GetSnapshot()
@@ -44,6 +50,7 @@ internal sealed class FurnitureItem : IFurnitureItem
             SecondsToExpiration = -1,
             HasRentPeriodStarted = false,
             RoomId = -1,
+            Extra = Extra,
             CreatedAtUtc = CreatedAtUtc,
         };
 }

@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Primitives.Moderation;
 using Turbo.Navigator.Configuration;
 using Turbo.Players.Configuration;
 using Turbo.Primitives.Navigator;
@@ -37,7 +38,8 @@ public sealed class NavigatorService(
     IGrainFactory grainFactory,
     IOptions<NavigatorConfig> config,
     IOptions<PlayerNavigatorConfig> playerNavigatorConfig,
-    IPermissionRegistryProvider permissionRegistryProvider
+    IPermissionRegistryProvider permissionRegistryProvider,
+    IWordFilter wordFilter
 ) : INavigatorService
 {
     private readonly ILogger<INavigatorService> _logger = logger;
@@ -47,6 +49,7 @@ public sealed class NavigatorService(
     private readonly PlayerNavigatorConfig _playerNavigatorConfig = playerNavigatorConfig.Value;
     private readonly IPermissionRegistryProvider _permissionRegistryProvider =
         permissionRegistryProvider;
+    private readonly IWordFilter _wordFilter = wordFilter;
 
     public int FavouriteRoomLimit => _playerNavigatorConfig.MaxFavouriteRooms;
     public int MaxSearchCodeLength => _config.MaxSearchCodeLength;
@@ -408,6 +411,9 @@ public sealed class NavigatorService(
 
         if (!canCreate)
             return null;
+
+        name = _wordFilter.FilterAndTruncate(name, _config.RoomNameMaxLength);
+        description = _wordFilter.FilterAndTruncate(description, _config.RoomDescriptionMaxLength);
 
         var modelId = await _navigatorProvider
             .GetRoomModelIdByNameAsync(modelName ?? string.Empty, ct)

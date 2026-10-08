@@ -1,7 +1,8 @@
 # Gamedata
 
-The hotel keeps its gamedata in the database and builds the files the client loads from it. For
-now that is **FurnitureData**. Habbo's releases are checked for updates and taken in after review,
+The hotel keeps its gamedata in the database and builds the files the client loads from it:
+FurnitureData, the external texts, the product data, the figure data, and the client's
+configuration (its external variables). Habbo's releases are checked for updates and taken in after review,
 without losing the hotel's own changes. Every change is recorded and can be rolled back.
 
 It lives in `Turbo.Gamedata`, with its admin API in `Turbo.Admin/Api/GamedataEndpoints.cs` and its
@@ -106,9 +107,9 @@ key is compared three ways, as a furniture field is:
 
 Staff search texts by key or value, edit them (a line break is written `\n`, as in the file), add
 the hotel's own, and remove them. Every import and edit is a change set that rolls back. The file
-is built from `gamedata_texts` by key and served like FurnitureData. Point the client's
-`gamedata.urls.externalTexts` at `/gamedata/external_flash_texts/0`; the client reads the
-`key=value` file as it reads Habbo's.
+is built from `gamedata_texts` by key and served like FurnitureData. The external variables point
+the client's `gamedata.urls.externalTexts` at it; the client reads the `key=value` file as it
+reads Habbo's.
 
 The server reads the texts too, where it sends the client words rather than keys: command replies
 and help, ban and maintenance messages, notices, and the names wired variables show beside their
@@ -213,6 +214,7 @@ the files the way Habbo serves its own:
 | `/gamedata/external_flash_texts/0` and `/<sha1>` | The external texts, the same way: `key=value` lines, as Habbo serves them. |
 | `/gamedata/productdata_json/0` and `/<sha1>` | The product data, the same way. |
 | `/gamedata/figuredata_json/0` and `/<sha1>` | The figure data, as the client's FigureData.json. |
+| `/gamedata/external_variables/0` and `/<sha1>` | The client's configuration, the JSON object Nitro loads (see [External variables](#external-variables)). |
 | `/gamedata/hashes` | Each file's current hash, in Habbo's shape: `{"hashes":[{"name":"furnidata","url":".../gamedata/furnidata_json","hash":"..."}, {"name":"external_texts", ...}]}`. The url is the file's address without its hash, built on `PublicUrl` (or the address the request came to). |
 
 Builds are kept in `gamedata_builds`: the current one and the `KeepBuilds` before it, so a client
@@ -230,6 +232,32 @@ packet carries the new file's hash, and clients online load that build at once. 
 leaves the furnidata as it was sends no hash.
 
 Turbo now owns the hotel's FurnitureData; Nitro Studio no longer publishes it to the hotel.
+
+## External variables
+
+The client's configuration, what was its `nitro-config.json`, is kept by the hotel as its
+**external variables** and served like the other files, as `external_variables`. Habbo serves its
+own under that name as `key=value` lines; Nitro's values are typed (`true`, `120`, lists), so this
+one is the JSON object Nitro loads. Turbo now owns the asset addresses in it; Nitro Studio no
+longer publishes them.
+
+- **The rows** are in `gamedata_variables`: a key, and its value as JSON (`"text"` in quotes,
+  `true`, `120`, `[1, 2]`). Keys are case-sensitive, as they are to the client.
+- **Staff** edit them under **Gamedata > Variables**: search, add, change and remove a variable, or
+  **Import** a whole config (paste or upload a `nitro-config.json`). An import adds the keys the
+  hotel lacks and changes those that differ; the hotel's other variables stay. Every edit and
+  import is a change set and rolls back like any other.
+- **The hotel's own addresses** are written into the file by hash, as Habbo's external variables
+  do: `furnituredata.url`, `productdata.url`, `figuredata.url` and `gamedata.urls.externalTexts`
+  are each `<PublicUrl>/gamedata/<file>/<sha1>` of that file's current build. The client then
+  loads exactly those builds, cached for good, with no redirect. When one of them is built anew
+  (a catalog published, a text edited), the variables are too. Staff can't set these four while
+  the hotel writes them; an import skips them. Without `PublicUrl` the hotel writes none, and
+  they are ordinary variables.
+- **Clients online** keep the variables they loaded until they reload. FurnitureData still reaches
+  them at once through `CatalogPublished`.
+- **The panel** draws catalog, furniture and badge pictures from the same variables
+  (`docs/admin-panel.md`).
 
 ## Setting it up in production (Ploi)
 
@@ -263,17 +291,20 @@ site's nginx sends `/gamedata/` to the gamedata host on loopback. The host's pat
 4. **Take in Habbo's files first.** Under **Gamedata** in the panel, check Habbo and take in the
    furniture, texts, products and figures. Each file is built only from what the hotel has. Until
    the figure data is taken in, for example, its file has no clothing.
-5. **Point the client at it** in its `nitro-config.json`:
+5. **Take in the client's config.** Under **Gamedata > Variables**, **Import** the client's current
+   `nitro-config.json`. Its gamedata addresses are skipped: the hotel writes those itself.
+6. **Point the client at the variables** in its page (`index.html`), in place of its
+   `nitro-config.json`:
 
-   ```json
-   "furnituredata.url": "https://example.com/gamedata/furnidata_json/0",
-   "productdata.url": "https://example.com/gamedata/productdata_json/0",
-   "figuredata.url": "https://example.com/gamedata/figuredata_json/0",
-   "gamedata.urls.externalTexts": "https://example.com/gamedata/external_flash_texts/0"
+   ```js
+   window.NitroConfig = {
+       'nitro.config.url': 'https://example.com/gamedata/external_variables/0',
+   };
    ```
 
-   The client loads them from its own subdomain. The host allows that for any site, so the
-   client's host needs no change.
+   `nitro.config.url` may also be a list, merged in order, to lay a small file of the deployment's
+   own after the hotel's. The client loads the variables, and the files they name, from its own
+   subdomain. The host allows that for any site, so the client's host needs no change.
 
 **Behind Cloudflare:** the files go through the site's Cloudflare settings like the rest of it.
 A build's address never changes and is sent `immutable`, so Cloudflare may cache it for good; a
@@ -287,7 +318,7 @@ loading the old build after a change.
 | --- | --- | --- |
 | `Enabled` | `false` | Whether the gamedata host listens. The files are built and Habbo is checked either way. |
 | `Url` | `http://127.0.0.1:8094` | Where the host listens. Keep it on loopback, behind a reverse proxy. |
-| `PublicUrl` | empty | Where clients reach the host, for the addresses `/gamedata/hashes` lists. Empty takes the address a request came to. |
+| `PublicUrl` | empty | Where clients reach the host, for the addresses `/gamedata/hashes` lists and those written into the external variables. Empty takes the address a request came to, and writes none into the variables. |
 | `HabboDomain` | `com` | The Habbo hotel updates come from. |
 | `ReleaseCheckMinutes` | `30` | How often Habbo is checked. `0` checks only when staff ask. |
 | `HabboTimeoutSeconds` | `120` | How long a request to Habbo may take. |
@@ -307,8 +338,8 @@ loading the old build after a change.
 
 | Node | Gives |
 | --- | --- |
-| `admin.gamedata.view` | The **Gamedata** page: releases, reviews, definitions, files and history. |
-| `gamedata.manage` | Checking Habbo, taking in updates, editing definitions, rebuilding and rolling back; giving and taking players' clothing. |
+| `admin.gamedata.view` | The **Gamedata** page: releases, reviews, definitions, variables, files and history. |
+| `gamedata.manage` | Checking Habbo, taking in updates, editing definitions and variables, importing a client config, rebuilding and rolling back; giving and taking players' clothing. |
 | `figure.any` | Wearing any clothing and colour, whatever the figure data says of club, sale or selection. |
 
 ## Known limits

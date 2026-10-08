@@ -70,17 +70,6 @@ public sealed class AdminConfig
     public int ChatlogPageSize { get; init; } = 100;
 
     /// <summary>
-    /// The client's <c>nitro-config.json</c>, such as
-    /// <c>https://hotel.example.com/config/nitro-config.json</c>. The panel draws catalog icons and
-    /// images, furniture icons and badges from the same addresses the client does. Empty shows
-    /// none.
-    /// </summary>
-    public string ClientConfigUrl { get; init; } = "";
-
-    /// <summary>How long the client's addresses are kept before the config is read again.</summary>
-    public int ClientConfigCacheMinutes { get; init; } = 10;
-
-    /// <summary>
     /// The page layouts the catalog editor offers, besides any a page already uses: those the
     /// client ships a window for, and the codes it maps onto one (<c>bots</c> is drawn as
     /// <c>default_3x3</c>). A code the client has no window for leaves the page empty.
@@ -130,15 +119,28 @@ public sealed class AdminConfig
     /// <summary>
     /// The client's login address with <c>{ticket}</c> where a login ticket goes, such as
     /// <c>https://hotel.example.com/client?sso={ticket}</c>, so the panel can hand out a link to
-    /// log in with. Empty shows the ticket alone.
+    /// log in with. Empty shows the ticket alone. It is also the page an image address in the
+    /// external variables that names no host is under, as the client reads it.
     /// </summary>
     public string ClientLoginUrl { get; init; } = "";
+
+    /// <summary>The hits the panel's search lists of each kind; the rest are on that kind's page.</summary>
+    public int SearchHitsPerKind { get; init; } = 5;
+
+    /// <summary>How far back the panel's bell looks, in days.</summary>
+    public int NotificationDays { get; init; } = 7;
+
+    /// <summary>The most of each kind the panel's bell lists.</summary>
+    public int NotificationsPerKind { get; init; } = 20;
 
     /// <summary>The longest a login ticket from the panel can work for, in days, short of never.</summary>
     public int TicketMaxLifetimeDays { get; init; } = 365;
 
     /// <summary>Furniture the catalog editor's item picker lists at once.</summary>
     public int CatalogFurnitureSearchLimit { get; init; } = 25;
+
+    /// <summary>Items a catalog page builder's preview lists at once; applying is not limited by it.</summary>
+    public int CatalogBuilderItemLimit { get; init; } = 500;
 
     /// <summary>The longest room alert the panel sends, as <c>:roomalert</c>'s limit is in the hotel.</summary>
     public int RoomAlertMaxLength { get; init; } = 500;

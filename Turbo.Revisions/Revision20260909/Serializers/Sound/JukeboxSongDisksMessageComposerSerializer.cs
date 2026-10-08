@@ -8,6 +8,9 @@ internal class JukeboxSongDisksMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, JukeboxSongDisksMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.MaxLength).WriteInteger(message.Disks.Length);
+
+        foreach (var disk in message.Disks)
+            packet.WriteInteger(disk.DiskId).WriteInteger(disk.SongId);
     }
 }

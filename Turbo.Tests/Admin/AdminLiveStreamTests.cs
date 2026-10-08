@@ -213,6 +213,24 @@ public sealed class AdminLiveStreamTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task ABan_TellsTheBell_WhateverTheViewerMaySee()
+    {
+        _holds = node => node == PermissionNodes.Admin.PANEL;
+        using var reader = await OpenAsync();
+
+        await new PlayerSanctionChangedHandler(_feed).HandleAsync(
+            new PlayerSanctionChangedEvent { PlayerId = 8 },
+            new EventContext(),
+            Ct
+        );
+
+        var changes = await NextChangesAsync(reader);
+
+        changes.GetProperty("notifications").GetBoolean().Should().BeTrue();
+        Ids(changes, "players").Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task AStreamWhoseSessionIsGone_EndsAtTheNextKeepAlive()
     {
         // Signed in for the request's own check and the stream's first; gone by the keep-alive.

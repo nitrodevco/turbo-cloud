@@ -11,6 +11,9 @@ internal class UserSongDisksInventoryMessageComposerSerializer(int header)
         UserSongDisksInventoryMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.Disks.Length);
+
+        foreach (var disk in message.Disks)
+            packet.WriteInteger(disk.DiskId).WriteInteger(disk.SongId);
     }
 }

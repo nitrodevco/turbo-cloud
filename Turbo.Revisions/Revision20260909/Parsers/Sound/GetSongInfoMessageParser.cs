@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Sound;
 
 internal class GetSongInfoMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetSongInfoMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetSongInfoMessage { SongIds = packet.PopList(bytesPerItem: 4, p => p.PopInt()) };
 }

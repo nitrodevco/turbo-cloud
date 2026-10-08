@@ -69,6 +69,8 @@ public static class GrainHarness
                 f.SetValue(grain, fakes.Create<IGrainFactory>());
             else if (t == typeof(EventSystem))
                 f.SetValue(grain, new TestEventBus().System);
+            else if (t == typeof(Turbo.Primitives.Moderation.IWordFilter))
+                f.SetValue(grain, new PassThroughWordFilter());
         }
 
         fakes.Handlers.TryAdd(

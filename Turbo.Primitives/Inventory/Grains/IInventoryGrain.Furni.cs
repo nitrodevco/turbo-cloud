@@ -28,6 +28,15 @@ public partial interface IInventoryGrain
     public Task<bool> RemoveFurnitureAsync(RoomObjectId itemId, CancellationToken ct);
 
     /// <summary>
+    /// Uses an item up: its row is deleted and it leaves the list (a room paper applied to a
+    /// room). Returns what was used up, or null when the item is not held here.
+    /// </summary>
+    public Task<FurnitureItemSnapshot?> ConsumeFurnitureAsync(
+        RoomObjectId itemId,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// Items whose rows another grain has already taken out of this inventory (put into a wired
     /// chest). Memory only: drops them from the list and tells the client once. Ids not held are
     /// ignored.
@@ -95,6 +104,21 @@ public partial interface IInventoryGrain
     [AlwaysInterleave]
     public Task ReceiveFurnitureAsync(
         ImmutableArray<FurnitureItemSnapshot> items,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Wraps a bought gift and gives it to this player: the present is listed, and the item
+    /// inside is held by it, out of the list, until it is opened.
+    /// </summary>
+    public Task ReceivePresentAsync(PresentGrantRequest request, CancellationToken ct);
+
+    /// <summary>
+    /// Takes the item a present holds out of it and lists it here, before the present itself is
+    /// deleted. Null when the present holds nothing.
+    /// </summary>
+    public Task<FurnitureItemSnapshot?> UnwrapPresentAsync(
+        RoomObjectId presentId,
         CancellationToken ct
     );
 

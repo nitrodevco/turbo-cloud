@@ -1,6 +1,6 @@
 namespace Turbo.Admin.Api.Contracts;
 
-/// <summary>One page as the editor shows it: everything it sets, and its offers, oldest first.</summary>
+/// <summary>One page as the editor shows it: everything it sets, and its offers in the order it lists them.</summary>
 public sealed record CatalogPageDetail(
     int Id,
     int? ParentId,

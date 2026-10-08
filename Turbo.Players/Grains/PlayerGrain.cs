@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Primitives.Moderation;
 using Turbo.Database.Achievements;
 using Turbo.Database.Context;
 using Turbo.Logging;
@@ -32,6 +33,7 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly PlayerConfig _playerConfig;
     private readonly IGrainFactory _grainFactory;
+    private readonly IWordFilter _wordFilter;
     private readonly ILogger<IPlayerGrain> _logger;
     private readonly IAchievementFactRecorder _achievementFacts;
     private readonly IPlayerFigurePolicy _figurePolicy;
@@ -44,6 +46,7 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IOptions<PlayerConfig> playerConfig,
         IGrainFactory grainFactory,
+        IWordFilter wordFilter,
         IAchievementFactRecorder achievementFacts,
         IPlayerFigurePolicy figurePolicy,
         ILogger<IPlayerGrain> logger
@@ -53,6 +56,7 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
         _dbCtxFactory = dbCtxFactory;
         _playerConfig = playerConfig.Value;
         _grainFactory = grainFactory;
+        _wordFilter = wordFilter;
         _logger = logger;
         _achievementFacts = achievementFacts;
 
@@ -168,6 +172,8 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
 
     public async Task SetMottoAsync(string text, CancellationToken ct)
     {
+        text = _wordFilter.Filter(text);
+
         if (_state.Motto == text)
             return;
         var previous = _state.Motto;
@@ -235,10 +241,7 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
                 Source = AchievementSources.PETS,
                 OperationId = Guid.NewGuid().ToString("N"),
                 OccurredAtUtc = now,
-                Amount = await db.Pets.CountAsync(
-                    x => x.PlayerEntityId == PlayerId.Value && x.DeletedAt == null,
-                    ct
-                ),
+                Amount = await db.Pets.CountAsync(x => x.PlayerEntityId == PlayerId.Value, ct),
             }
         );
         await db.SaveChangesAsync(ct);

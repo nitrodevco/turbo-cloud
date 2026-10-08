@@ -30,6 +30,7 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Sound.Grains;
 using Turbo.Primitives.WiredTrading.Grains;
 
 namespace Turbo.Primitives.Orleans;
@@ -51,6 +52,14 @@ public static class GrainFactoryExtensions
         this IGrainFactory factory,
         RoomObjectId chestId
     ) => factory.GetGrain<IWiredChestGrain>((long)chestId.Value);
+
+    public static IJukeboxGrain GetJukeboxGrain(
+        this IGrainFactory factory,
+        RoomObjectId jukeboxId
+    ) => factory.GetGrain<IJukeboxGrain>((long)jukeboxId.Value);
+
+    public static ISongDirectoryGrain GetSongDirectoryGrain(this IGrainFactory factory) =>
+        factory.GetGrain<ISongDirectoryGrain>(SingletonGrainId.GLOBAL);
 
     public static IWiredTransactionLogGrain GetWiredTransactionLogGrain(
         this IGrainFactory factory,

@@ -39,6 +39,11 @@ internal sealed partial class InventoryGrain
     public Task<bool> RemoveFurnitureAsync(RoomObjectId itemId, CancellationToken ct) =>
         FurniModule.RemoveAsync(itemId, ct);
 
+    public Task<FurnitureItemSnapshot?> ConsumeFurnitureAsync(
+        RoomObjectId itemId,
+        CancellationToken ct
+    ) => FurniModule.ConsumeAsync(itemId, ct);
+
     public Task ReleaseFurnitureAsync(ImmutableArray<RoomObjectId> itemIds, CancellationToken ct) =>
         FurniModule.ReleaseAsync(itemIds, ct);
 

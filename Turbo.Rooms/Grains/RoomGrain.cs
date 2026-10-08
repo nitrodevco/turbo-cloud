@@ -11,12 +11,14 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Orleans.Runtime;
 using Orleans.Streams;
+using Turbo.Catalog.Configuration;
 using Turbo.Database.Achievements;
 using Turbo.Database.Context;
 using Turbo.Database.Extensions;
 using Turbo.Events;
 using Turbo.Logging;
 using Turbo.Primitives;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Commands;
@@ -63,6 +65,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly BotConfig _botConfig;
     internal readonly WiredConfig _wiredConfig;
     internal readonly WiredChestConfig _wiredChestConfig;
+    internal readonly CatalogConfig _catalogConfig;
     internal readonly IGrainFactory _grainFactory;
     internal readonly IRoomModelProvider _roomModelProvider;
     internal readonly IRoomItemsProvider _itemsLoader;
@@ -74,6 +77,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly IFurnitureDefinitionProvider _definitionProvider;
     internal readonly IHotelTextProvider _hotelTextProvider;
     internal readonly IChatStyleProvider _chatStyleProvider;
+    internal readonly IWordFilter _wordFilter;
     internal readonly ICatalogService _catalogService;
     internal readonly IPermissionRegistryProvider _permissionRegistryProvider;
     internal readonly ICommandRegistryProvider _commandRegistryProvider;
@@ -126,6 +130,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IOptions<BotConfig> botConfig,
         IOptions<WiredConfig> wiredConfig,
         IOptions<WiredChestConfig> wiredChestConfig,
+        IOptions<CatalogConfig> catalogConfig,
         IGrainFactory grainFactory,
         IRoomModelProvider roomModelProvider,
         IRoomItemsProvider itemsLoader,
@@ -137,6 +142,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IFurnitureDefinitionProvider definitionProvider,
         IHotelTextProvider hotelTextProvider,
         IChatStyleProvider chatStyleProvider,
+        IWordFilter wordFilter,
         ICatalogService catalogService,
         IPermissionRegistryProvider permissionRegistryProvider,
         ICommandRegistryProvider commandRegistryProvider,
@@ -154,6 +160,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _botConfig = botConfig.Value;
         _wiredConfig = wiredConfig.Value;
         _wiredChestConfig = wiredChestConfig.Value;
+        _catalogConfig = catalogConfig.Value;
         _grainFactory = grainFactory;
         _roomModelProvider = roomModelProvider;
         _itemsLoader = itemsLoader;
@@ -165,6 +172,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _definitionProvider = definitionProvider;
         _hotelTextProvider = hotelTextProvider;
         _chatStyleProvider = chatStyleProvider;
+        _wordFilter = wordFilter;
         _catalogService = catalogService;
         _permissionRegistryProvider = permissionRegistryProvider;
         _commandRegistryProvider = commandRegistryProvider;

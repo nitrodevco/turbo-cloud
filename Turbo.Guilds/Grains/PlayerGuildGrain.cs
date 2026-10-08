@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Primitives.Moderation;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Guilds;
 using Turbo.Database.Entities.Room;
@@ -21,7 +22,6 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains.Guilds;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms;
-using Turbo.Primitives.Texts;
 
 namespace Turbo.Guilds.Grains;
 
@@ -46,6 +46,7 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly IGrainFactory _grainFactory;
     private readonly GuildConfig _guildConfig;
+    private readonly IWordFilter _wordFilter;
     private readonly ILogger<IPlayerGuildGrain> _logger;
 
     private readonly PlayerGuildLiveState _state;
@@ -56,12 +57,14 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IGrainFactory grainFactory,
         IOptions<GuildConfig> guildConfig,
+        IWordFilter wordFilter,
         ILogger<IPlayerGuildGrain> logger
     )
     {
         _dbCtxFactory = dbCtxFactory;
         _grainFactory = grainFactory;
         _guildConfig = guildConfig.Value;
+        _wordFilter = wordFilter;
         _logger = logger;
 
         _state = new() { PlayerId = this.GetPlayerId() };
@@ -175,7 +178,7 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
     {
         var directory = _grainFactory.GetGuildDirectoryGrain();
 
-        var name = ClientText.Truncate(request.Name, _guildConfig.NameMaxLength);
+        var name = _wordFilter.FilterAndTruncate(request.Name, _guildConfig.NameMaxLength);
 
         if (string.IsNullOrWhiteSpace(name))
             return GuildCreationResultSnapshot.Failed(GuildCreationFailureType.InvalidName);
@@ -238,7 +241,7 @@ internal sealed class PlayerGuildGrain : Grain, IPlayerGuildGrain
         var entity = new GuildEntity
         {
             Name = name,
-            Description = ClientText.Truncate(
+            Description = _wordFilter.FilterAndTruncate(
                 request.Description,
                 _guildConfig.DescriptionMaxLength
             ),

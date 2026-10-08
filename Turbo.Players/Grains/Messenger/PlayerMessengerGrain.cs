@@ -16,6 +16,7 @@ using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.FriendList;
 using Turbo.Primitives.Messages.Outgoing.Users;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -25,7 +26,6 @@ using Turbo.Primitives.Players.Messenger;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Snapshots.Messenger;
-using Turbo.Primitives.Texts;
 
 namespace Turbo.Players.Grains.Messenger;
 
@@ -55,6 +55,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly PlayerConfig _playerConfig;
     private readonly IGrainFactory _grainFactory;
+    private readonly IWordFilter _wordFilter;
     private readonly ILogger<IPlayerMessengerGrain> _logger;
 
     private readonly PlayerMessengerLiveState _state;
@@ -66,12 +67,14 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IOptions<PlayerConfig> playerConfig,
         IGrainFactory grainFactory,
+        IWordFilter wordFilter,
         ILogger<IPlayerMessengerGrain> logger
     )
     {
         _dbCtxFactory = dbCtxFactory;
         _playerConfig = playerConfig.Value;
         _grainFactory = grainFactory;
+        _wordFilter = wordFilter;
         _logger = logger;
 
         _state = new() { PlayerId = this.GetPlayerId() };
@@ -925,7 +928,7 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
         CancellationToken ct
     )
     {
-        var text = ClientText.Truncate(message, _playerConfig.MessengerMaxMessageLength);
+        var text = _wordFilter.FilterAndTruncate(message, _playerConfig.MessengerMaxMessageLength);
 
         // MainView.onInput sends nothing empty; one that arrives has nothing to store or confirm.
         if (text.Length == 0)
@@ -1466,7 +1469,10 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
     )
     {
         var failed = new List<PlayerId>();
-        var text = ClientText.Truncate(message, _playerConfig.MessengerRoomInviteMaxLength);
+        var text = _wordFilter.FilterAndTruncate(
+            message,
+            _playerConfig.MessengerRoomInviteMaxLength
+        );
 
         // RoomInviteView.sendMsg refuses an empty text with its own alert.
         if (text.Length == 0)
@@ -1754,6 +1760,9 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
 
     public Task<bool> IsFriendAsync(PlayerId playerId, CancellationToken ct) =>
         Task.FromResult(_state.Friends.ContainsKey(playerId));
+
+    public Task<bool> IsBlockingAsync(PlayerId playerId, CancellationToken ct) =>
+        Task.FromResult(_state.BlockedPlayerIds.Contains(playerId));
 
     public Task<List<MessengerRequestDto>> GetRequestsAsync(CancellationToken ct) =>
         Task.FromResult(_state.IncomingRequests.Values.ToList());

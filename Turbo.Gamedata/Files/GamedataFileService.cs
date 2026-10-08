@@ -17,6 +17,7 @@ using Turbo.Gamedata.Figures;
 using Turbo.Gamedata.Furniture;
 using Turbo.Gamedata.Products;
 using Turbo.Gamedata.Texts;
+using Turbo.Gamedata.Variables;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
@@ -26,10 +27,11 @@ namespace Turbo.Gamedata.Files;
 
 /// <summary>
 /// The gamedata files built from the database (<see cref="IGamedataFileService"/>): FurnitureData
-/// from the definitions and the catalogs, the external texts from <c>gamedata_texts</c>. Each
-/// file's current build is held in memory and built again when what it is made from changes - a
-/// catalog snapshot replaced (a catalog published), or its rows said to have changed
-/// (<see cref="Invalidate"/>). Each build is kept in <c>gamedata_builds</c> by its hash, the
+/// from the definitions and the catalogs, the external texts from <c>gamedata_texts</c>, the
+/// external variables from <c>gamedata_variables</c> with the other files' addresses by hash.
+/// Each file's current build is held in memory and built again when what it is made from
+/// changes - a catalog snapshot replaced (a catalog published), another file's hash (for the
+/// variables), or its rows said to have changed (<see cref="Invalidate"/>). Each build is kept in <c>gamedata_builds</c> by its hash, the
 /// newest <see cref="GamedataConfig.KeepBuilds"/> of a file besides the current one, so a client
 /// that loaded an address before a rebuild still finds it. The same content always hashes the
 /// same, so every silo names a build alike.
@@ -92,11 +94,20 @@ internal sealed class GamedataFileService(
     private int VersionOf(string file) =>
         _versions.TryGetValue(file, out var version) ? version : 0;
 
-    /// <summary>What a file is made from besides its rows: the catalogs, for FurnitureData.</summary>
+    /// <summary>
+    /// What a file is made from besides its rows: the catalogs, for FurnitureData; the other
+    /// files' addresses, for the external variables. Worked out outside the build lock, as the
+    /// addresses may build their files.
+    /// </summary>
     private async Task<object?> InputsAsync(string file, CancellationToken ct) =>
-        file == GamedataFiles.FURNITURE_DATA
-            ? await offers.GetAsync(ct).ConfigureAwait(false)
-            : null;
+        file switch
+        {
+            GamedataFiles.FURNITURE_DATA => await offers.GetAsync(ct).ConfigureAwait(false),
+            GamedataFiles.EXTERNAL_VARIABLES => await ExternalVariablesFile
+                .StampsAsync(this, _config.PublicUrl, ct)
+                .ConfigureAwait(false),
+            _ => null,
+        };
 
     private async Task<GamedataFileContent> BuildAsync(
         string file,
@@ -104,13 +115,14 @@ internal sealed class GamedataFileService(
         CancellationToken ct
     )
     {
+        var inputs = await InputsAsync(file, ct).ConfigureAwait(false);
+
         await _building.WaitAsync(ct).ConfigureAwait(false);
 
         try
         {
             // Whoever waited behind a build that has just finished takes that build.
             var version = VersionOf(file);
-            var inputs = await InputsAsync(file, ct).ConfigureAwait(false);
 
             if (!force && _current.TryGetValue(file, out var built) && built.IsFor(version, inputs))
                 return built.Content;
@@ -129,6 +141,12 @@ internal sealed class GamedataFileService(
                 GamedataFiles.PRODUCT_DATA => await ProductDataAsync(dbCtx, ct)
                     .ConfigureAwait(false),
                 GamedataFiles.FIGURE_DATA => await FigureDataAsync(dbCtx, ct).ConfigureAwait(false),
+                GamedataFiles.EXTERNAL_VARIABLES => await ExternalVariablesAsync(
+                        dbCtx,
+                        (ExternalVariablesFile.Stamps)inputs!,
+                        ct
+                    )
+                    .ConfigureAwait(false),
                 _ => await ExternalTextsAsync(dbCtx, ct).ConfigureAwait(false),
             };
             var hash = GamedataBytes.Hash(content);
@@ -273,6 +291,29 @@ internal sealed class GamedataFileService(
         return (ExternalTextsFile.Write(texts.Select(x => (x.Key, x.Value))), texts.Count);
     }
 
+    /// <summary>The hotel's variables, with its own addresses written over any of the same key.</summary>
+    private static async Task<(byte[] Content, int Count)> ExternalVariablesAsync(
+        TurboDbContext dbCtx,
+        ExternalVariablesFile.Stamps stamps,
+        CancellationToken ct
+    )
+    {
+        var rows = await dbCtx
+            .GamedataVariables.AsNoTracking()
+            .Select(x => new { x.Key, x.Value })
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+        var variables = rows.ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
+
+        foreach (var (key, value) in stamps.Entries)
+            variables[key] = value;
+
+        return (
+            ExternalVariablesFile.Write(variables.Select(x => (x.Key, x.Value))),
+            variables.Count
+        );
+    }
+
     /// <summary>Removes the builds older than the ones kept, never the current one.</summary>
     private async Task PruneAsync(
         TurboDbContext dbCtx,
@@ -316,6 +357,6 @@ internal sealed class GamedataFileService(
     private sealed record Build(int Version, object? Inputs, GamedataFileContent Content)
     {
         public bool IsFor(int version, object? inputs) =>
-            Version == version && ReferenceEquals(Inputs, inputs);
+            Version == version && Equals(Inputs, inputs);
     }
 }

@@ -11,6 +11,6 @@ internal class JukeboxPlayListFullMessageComposerSerializer(int header)
         JukeboxPlayListFullMessageComposer message
     )
     {
-        //
+        // The packet is the whole message: JukeboxPlayListFullMessageParser reads nothing.
     }
 }

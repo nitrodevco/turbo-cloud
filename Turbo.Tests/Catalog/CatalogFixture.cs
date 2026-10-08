@@ -15,7 +15,8 @@ namespace Turbo.Tests.Catalog;
 
 /// <summary>
 /// A small catalog in a relational database, as the hotel's is laid out: the currency rows the
-/// hotel ships (duckets are row 4 but activity-point type 0), a floor and a wall item, and one
+/// hotel ships (duckets are row 4 but activity-point type 0), a floor and a wall item, a pet
+/// item (named, as the hotel names them, pet and the type it gives), and one
 /// tree of pages: a shown and an invisible tab, and under the shown one a normal page and a page
 /// only the Builders Club catalog shows. The offers are one of each case the editor and the
 /// purchase path care about.
@@ -30,6 +31,7 @@ public sealed class CatalogFixture : IDisposable
 
     public const int CHAIR = 10;
     public const int POSTER = 11;
+    public const int PET_ITEM = 12;
 
     public const int CREDITS_ROW = 1;
     public const int DUCKETS_ROW = 4;
@@ -42,10 +44,11 @@ public sealed class CatalogFixture : IDisposable
     public const int IN_DIAMONDS = 104;
     public const int IN_CREDITS_ROW = 105;
 
-    private readonly FurnitureDefinitionEntity[] _definitions =
+    private readonly List<FurnitureDefinitionEntity> _definitions =
     [
         Definition(CHAIR, "chair", ProductType.Floor),
         Definition(POSTER, "poster", ProductType.Wall),
+        Definition(PET_ITEM, "pet5", ProductType.Floor),
     ];
 
     public SqliteDb Db { get; } = new();
@@ -99,6 +102,23 @@ public sealed class CatalogFixture : IDisposable
     }
 
     public void Dispose() => Db.Dispose();
+
+    /// <summary>Another furniture definition, saved and known to <see cref="Definitions"/>.</summary>
+    public FurnitureDefinitionEntity AddDefinition(
+        int id,
+        string name,
+        ProductType type = ProductType.Floor,
+        Action<FurnitureDefinitionEntity>? set = null
+    )
+    {
+        var definition = Definition(id, name, type);
+
+        set?.Invoke(definition);
+        _definitions.Add(definition);
+        Db.Insert(definition);
+
+        return definition;
+    }
 
     public CatalogSnapshotProvider<NormalCatalog> NormalProvider(
         CapturingLogger<ICatalogSnapshotProvider<NormalCatalog>>? log = null

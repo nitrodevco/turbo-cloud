@@ -16,13 +16,13 @@ internal class CatalogFrontPageItemSerializer
 
         switch (message.Type)
         {
-            case CatalogFrontPageItemType.Default:
+            case CatalogFrontPageItemType.Page:
                 packet.WriteString(message.CatalogPageLocation ?? string.Empty);
                 break;
-            case CatalogFrontPageItemType.One:
+            case CatalogFrontPageItemType.Offer:
                 packet.WriteInteger(message.ProductOfferId ?? 0);
                 break;
-            case CatalogFrontPageItemType.Two:
+            case CatalogFrontPageItemType.Product:
                 packet.WriteString(message.ProductCode ?? string.Empty);
                 break;
         }

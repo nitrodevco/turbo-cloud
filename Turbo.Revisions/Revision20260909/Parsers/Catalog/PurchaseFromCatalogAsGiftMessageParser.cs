@@ -12,7 +12,7 @@ internal class PurchaseFromCatalogAsGiftMessageParser : IParser
             PageId = packet.PopInt(),
             OfferCode = packet.PopInt(),
             ExtraParam = packet.PopString(),
-            RecieverName = packet.PopString(),
+            ReceiverName = packet.PopString(),
             Message = packet.PopString(),
             BoxStuffTypeId = packet.PopInt(),
             BoxTypeId = packet.PopInt(),

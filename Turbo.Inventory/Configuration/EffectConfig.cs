@@ -54,6 +54,10 @@ public class EffectConfig
     /// <summary>The highest effect id a player can be given or ask for; the client has none past it.</summary>
     public int MaxEffectId { get; init; } = 10000;
 
+    /// <summary>Whether a player can be given the effect: an id from 1 to the highest, and not reserved.</summary>
+    public bool CanGive(int effectId) =>
+        effectId >= 1 && effectId <= MaxEffectId && !ReservedEffectIds.Contains(effectId);
+
     /// <summary>Copies of one effect a player can hold waiting to be activated.</summary>
     public int MaxCopiesPerType { get; init; } = 99;
 

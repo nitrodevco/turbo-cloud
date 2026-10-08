@@ -170,7 +170,8 @@ public sealed class AdminCatalogQueries(
         var offers = await db
             .CatalogOffers.AsNoTracking()
             .Where(x => x.CatalogPageEntityId == pageId)
-            .OrderBy(x => x.Id)
+            .OrderBy(x => x.SortOrder)
+            .ThenBy(x => x.Id)
             .ToListAsync(ct)
             .ConfigureAwait(false);
         var offerIds = offers.Select(x => x.Id).ToList();
@@ -261,6 +262,32 @@ public sealed class AdminCatalogQueries(
         );
     }
 
+    /// <summary>The front page's featured items as saved, in their order.</summary>
+    public async Task<CatalogFeaturedResponse> GetFeaturedAsync(CancellationToken ct)
+    {
+        var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
+
+        var items = await db
+            .CatalogFeaturedItems.AsNoTracking()
+            .OrderBy(x => x.Position)
+            .ThenBy(x => x.Id)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        return new CatalogFeaturedResponse([
+            .. items.Select(x => new CatalogFeaturedItem(
+                x.Id,
+                x.Position,
+                x.Title,
+                x.Image,
+                FeaturedTypeName(x.Type),
+                x.Value,
+                x.ExpiresAt
+            )),
+        ]);
+    }
+
     /// <summary>
     /// Furniture an offer can give, for the editor's picker: by class name from its start, or the
     /// one definition with that id.
@@ -306,6 +333,19 @@ public sealed class AdminCatalogQueries(
             "robot" => ProductType.Robot,
             "pet" => ProductType.Pet,
             "club" => ProductType.HabboClub,
+            _ => null,
+        };
+
+    /// <summary>What a featured item opens, as the panel names it: <c>page</c>, <c>offer</c> or <c>product</c>.</summary>
+    public static string FeaturedTypeName(CatalogFrontPageItemType type) =>
+        type.ToString().ToLowerInvariant();
+
+    public static CatalogFrontPageItemType? FeaturedTypeOf(string? name) =>
+        name?.Trim().ToLowerInvariant() switch
+        {
+            "page" => CatalogFrontPageItemType.Page,
+            "offer" => CatalogFrontPageItemType.Offer,
+            "product" => CatalogFrontPageItemType.Product,
             _ => null,
         };
 

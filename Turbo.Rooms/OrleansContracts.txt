@@ -10,6 +10,8 @@
 # Review every diff: identity or signature changes can break wire compatibility during rolling upgrades.
 # Details: https://aka.ms/orleans/OrleansContracts.txt
 
+class [GrainType("jukebox")] Turbo.Rooms.Grains.Jukebox.JukeboxGrain
+
 class [GrainType("roomdirectory")] Turbo.Rooms.Grains.RoomDirectoryGrain
 
 class [GrainType("room")] Turbo.Rooms.Grains.RoomGrain

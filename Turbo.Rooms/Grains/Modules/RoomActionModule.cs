@@ -11,6 +11,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Permissions;
@@ -19,6 +20,7 @@ using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -230,6 +232,26 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         return await item.Logic.OnInteractAsync(ctx, interaction, ct);
     }
 
+    /// <summary>
+    /// A music action for the room's jukebox or sound machine, the first one placed when there
+    /// are several; the client plays one per room. False when the room has none.
+    /// </summary>
+    public async Task<bool> InteractWithMusicPlayerAsync(
+        ActionContext ctx,
+        FurnitureInteraction interaction,
+        CancellationToken ct
+    )
+    {
+        var player = _roomGrain
+            ._state.ItemsById.Values.Where(x => x.Logic is FurnitureJukeboxLogic)
+            .MinBy(x => x.ObjectId.Value);
+
+        if (player is null)
+            return false;
+
+        return await player.Logic.OnInteractAsync(ctx, interaction, ct);
+    }
+
     public async Task<bool> ClickItemByIdAsync(
         ActionContext ctx,
         RoomObjectId itemId,
@@ -276,6 +298,8 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
 
             return false;
         }
+
+        text = _roomGrain._wordFilter.FilterAndTruncate(text, config.StickieTextMaxLength);
 
         await item.Logic.SetLegacyDataAsync(StickieColors.Compose(color.ToUpperInvariant(), text));
 

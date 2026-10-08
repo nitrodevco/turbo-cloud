@@ -201,7 +201,7 @@ public abstract class FurnitureWiredGiveFromChestLogic(
                                 }),
                             ],
                         },
-                        RewardText = GetStringParam(),
+                        RewardText = _roomGrain._wordFilter.Filter(GetStringParam()),
                         OpenByDefault = GetIntParamOrDefault(PARAM_SHOW_POPUP, false),
                     },
                 },

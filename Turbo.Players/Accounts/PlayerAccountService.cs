@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Turbo.Primitives.Moderation;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Players;
@@ -20,6 +21,7 @@ namespace Turbo.Players.Accounts;
 public sealed class PlayerAccountService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IOwnerBootstrap owner,
+    IWordFilter wordFilter,
     ILogger<IPlayerAccountService> logger
 ) : IPlayerAccountService
 {
@@ -38,6 +40,9 @@ public sealed class PlayerAccountService(
     {
         if (PlayerNames.Check(player.Name) is { } refused)
             return NewPlayerResult.Refused(refused);
+
+        if (!wordFilter.IsClean(player.Name.Trim()))
+            return NewPlayerResult.Refused(PlayerNames.FILTERED);
 
         var name = player.Name.Trim();
         var motto = player.Motto?.Trim() ?? string.Empty;

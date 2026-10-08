@@ -35,6 +35,7 @@ public sealed class AdminLiveFeed(IOptions<AdminConfig> config, IHotelAvailabili
     private readonly HashSet<int> _permissions = [];
 
     private bool _dashboard;
+    private bool _notifications;
     private HotelAvailabilitySnapshot? _availability;
 
     /// <summary>A stream of what changes from now on; disposing it stops the stream.</summary>
@@ -50,12 +51,16 @@ public sealed class AdminLiveFeed(IOptions<AdminConfig> config, IHotelAvailabili
         return new LiveSubscription(channel.Reader, () => Remove(channel));
     }
 
-    /// <summary>Notes a change, for the next beat. Ids are left out when not given.</summary>
+    /// <summary>
+    /// Notes a change, for the next beat. Ids are left out when not given; <paramref name="notifications"/>
+    /// is something new for the panel's bell.
+    /// </summary>
     internal void Note(
         bool dashboard = false,
         int? room = null,
         int? player = null,
-        int? permissions = null
+        int? permissions = null,
+        bool notifications = false
     )
     {
         lock (_gate)
@@ -64,6 +69,7 @@ public sealed class AdminLiveFeed(IOptions<AdminConfig> config, IHotelAvailabili
                 return;
 
             _dashboard |= dashboard;
+            _notifications |= notifications;
 
             if (room is { } roomId)
                 _rooms.Add(roomId);
@@ -86,8 +92,12 @@ public sealed class AdminLiveFeed(IOptions<AdminConfig> config, IHotelAvailabili
         {
             var current = availability.Current;
 
+            // Maintenance or a shutdown coming, starting or called off: the bell says so too.
             if (_availability is not null && !_availability.Equals(current))
+            {
                 _dashboard = true;
+                _notifications = true;
+            }
 
             _availability = current;
 
@@ -95,6 +105,7 @@ public sealed class AdminLiveFeed(IOptions<AdminConfig> config, IHotelAvailabili
                 _streams.Count == 0
                 || (
                     !_dashboard
+                    && !_notifications
                     && _rooms.Count == 0
                     && _players.Count == 0
                     && _permissions.Count == 0
@@ -106,10 +117,12 @@ public sealed class AdminLiveFeed(IOptions<AdminConfig> config, IHotelAvailabili
                 _dashboard,
                 [.. _rooms],
                 [.. _players],
-                [.. _permissions]
+                [.. _permissions],
+                _notifications
             );
             streams = [.. _streams];
             _dashboard = false;
+            _notifications = false;
             _rooms.Clear();
             _players.Clear();
             _permissions.Clear();

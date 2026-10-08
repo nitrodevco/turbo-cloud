@@ -47,6 +47,14 @@ public class CatalogOfferEntity : TurboEntity
     [DefaultValue(true)]
     public required bool Visible { get; set; }
 
+    /// <summary>
+    /// Where the offer is among its page's offers, from 0; the page lists them by this, then by
+    /// id. A new offer, and one moved onto another page, goes last.
+    /// </summary>
+    [Column("sort_order")]
+    [DefaultValue(0)]
+    public int SortOrder { get; set; }
+
     [ForeignKey(nameof(CatalogPageEntityId))]
     public required CatalogPageEntity Page { get; set; }
 
