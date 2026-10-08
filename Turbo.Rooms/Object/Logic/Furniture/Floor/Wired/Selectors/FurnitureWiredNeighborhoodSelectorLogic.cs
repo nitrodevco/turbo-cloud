@@ -47,6 +47,9 @@ public abstract class FurnitureWiredNeighborhoodSelectorLogic(
 
     public override IWiredParamRule? GetIntParamTailRule() => WiredRules.AnyInt();
 
+    // The editor always sends the whole 21x21 drawing: 3 ints and 14 of mask.
+    protected override int GetMaxIntParams() => MASK_START_INDEX + WiredNeighborhood.MASK_INTS;
+
     protected abstract void CollectTile(int tileId, WiredSelectionSet output);
 
     public override Task<IWiredSelectionSet> SelectAsync(

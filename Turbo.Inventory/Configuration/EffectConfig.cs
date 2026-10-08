@@ -44,9 +44,9 @@ public class EffectConfig
     /// <item>95, 96, 98: snow war, which the client applies itself in the arena.</item>
     /// <item>97, 218: a snowboard and a freeze, which the client draws without a shadow.</item>
     /// </list>
-    /// Entries a hotel lists are added to these, never instead of them. Add the hotel's own freeze
-    /// ids (<c>Turbo:Wired:FreezeEffectIds</c>) and any team ids it changed
-    /// (<c>Turbo:Rooms:GameTeamEffectIds</c>).
+    /// Entries a hotel lists are added to these, never instead of them. Add any team ids it
+    /// changed (<c>Turbo:Rooms:GameTeamEffectIds</c>). The wired freeze paints the effects its
+    /// editor names (<c>WiredActionFreezeUser.FREEZE_EFFECT_IDS</c>).
     /// </summary>
     public HashSet<int> ReservedEffectIds { get; init; } =
     [28, 29, 30, 33, 34, 35, 36, 38, 39, PetRiding.RIDER_EFFECT_ID, 95, 96, 97, 98, 184, 185, 218];

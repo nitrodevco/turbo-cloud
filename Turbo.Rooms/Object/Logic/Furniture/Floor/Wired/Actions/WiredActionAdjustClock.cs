@@ -47,7 +47,7 @@ public class WiredActionAdjustClock(
 
         foreach (var item in GetFloorItems(ctx.GetSelection(this)))
         {
-            if (item.Logic is not FurnitureCounterClockLogic clock)
+            if (item.Logic is not IWiredClock clock)
                 continue;
 
             await clock.AdjustAsync(op, halfSeconds, ct);

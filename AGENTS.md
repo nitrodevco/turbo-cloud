@@ -745,10 +745,8 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   layout given in full, and the slots of the variables below are reserved and deliberately
   empty.
 - **A variable with nothing behind it is not declared.** These have no system yet and are
-  reserved rather than written: user `@level`, `@is_group_admin`,
-  `@favorite_group_id`, `@team.type`, the six `@transaction.*` and
-  `@event.transaction_failed.reason`, because nothing yet carries a transaction's figures or
-  an event's values into a variable.
+  reserved rather than written: user `@level` (the avatar level, which this hotel does not
+  have).
 - **What a variable reads is on the avatar before it is asked for.** A variable is
   synchronous and must never await a grain, so anything an account owns is put on the avatar
   when it enters (`RoomAvatarModule.LoadBadgesAsync`, `LoadHabboClubAsync`) and pushed again
@@ -771,7 +769,7 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   holds nothing of what the old one did.
 - **Wired says "user" and means any avatar.** `IWiredSelectionSet.SelectedAvatarIds` holds
   players, pets and bots alike, by room index, and every selector gathers all three; narrowing
-  to one kind is what `wf_slc_users_bytype` is for, and its mask (1 players, 2 bots, 4 pets)
+  to one kind is what `wf_slc_users_bytype` is for, and its mask (1 players, 2 pets, 4 bots, the editor's `usertype.1/.2/.4`)
   is honoured. A box reads the selection through `GetAvatars` when what it does suits any
   avatar (move, teleport, freeze, direction, hand item, a name in text) and through
   `GetPlayers` when only a player can be the subject (kick, mute, a badge, a team, a score);

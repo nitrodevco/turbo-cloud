@@ -9,7 +9,7 @@ using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired.Variables.User;
 
-/// <summary>The game team the player is on, by its colour; zero when they are on none.</summary>
+/// <summary>The game team the player is on, by its colour; not held while they are on none.</summary>
 public sealed class UserTeamColorVariable(RoomGrain roomGrain)
     : UserValueVariable<IRoomPlayer>(roomGrain)
 {
@@ -29,4 +29,13 @@ public sealed class UserTeamColorVariable(RoomGrain roomGrain)
 
     protected override WiredVariableValue GetValueForAvatar(IRoomPlayer avatar) =>
         WiredVariableValue.Parse((int)GameSystem.GetTeam(avatar.PlayerId));
+
+    // Held only while the player is on a team: the official client lists no team variables for
+    // a player who is on none.
+    protected override bool TryGetAvatarForKey(
+        in WiredVariableKey key,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out IRoomPlayer? avatar
+    ) =>
+        base.TryGetAvatarForKey(key, out avatar)
+        && GameSystem.GetTeam(avatar.PlayerId) != GameTeamType.None;
 }

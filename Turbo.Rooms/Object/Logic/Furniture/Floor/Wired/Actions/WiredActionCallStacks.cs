@@ -51,19 +51,26 @@ public class WiredActionCallStacks(
         if (stackIds.Count == 0)
             return false;
 
-        await _ctx.PublishRoomEventAsync(
-            new WiredStackCalledEvent
-            {
-                RoomId = _roomGrain.RoomId,
-                CausedBy = ActionContext.CreateForWired(_roomGrain.RoomId),
-                StackIds = [.. stackIds],
-                FurniIds = [.. ctx.Selected.SelectedFurniIds],
-                AvatarIds = [.. ctx.Selected.SelectedAvatarIds],
-                Depth = ctx.Depth + 1,
-                IsNegative = IsNegativeCall,
-            },
-            ct
-        );
+        var call = new WiredStackCalledEvent
+        {
+            RoomId = _roomGrain.RoomId,
+            CausedBy = ActionContext.CreateForWired(_roomGrain.RoomId),
+            StackIds = [.. stackIds],
+            FurniIds = [.. ctx.Selected.SelectedFurniIds],
+            AvatarIds = [.. ctx.Selected.SelectedAvatarIds],
+            Depth = ctx.Depth + 1,
+            IsNegative = IsNegativeCall,
+        };
+
+        // The called stacks run in this execution's context.
+        if (ctx is WiredContext caller)
+            WiredSystem.CarryContextValues(call, caller.ContextValues);
+
+        // And its placeholders, as they read now (variables-info #20).
+        if (ctx is WiredExecutionContext texts)
+            WiredSystem.CarryPlaceholders(call, await texts.ResolvePlaceholdersToCarryAsync(ct));
+
+        await _ctx.PublishRoomEventAsync(call, ct);
 
         return true;
     }

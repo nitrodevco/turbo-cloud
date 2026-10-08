@@ -1,0 +1,501 @@
+using System.Collections;
+using FluentAssertions;
+using Turbo.Primitives.Action;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
+using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Events.Wired;
+using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Rooms.Grains.Systems;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
+using Turbo.Rooms.Wired.Variables;
+using Turbo.Rooms.Wired.Variables.Context;
+using Turbo.Tests.Support;
+using Xunit;
+
+namespace Turbo.Tests.Rooms;
+
+/// <summary>
+/// "WIRED Trigger: Variable Changed" with the options its editor saves: created, value changed
+/// (increased, decreased, unchanged) and deleted, and "Allow triggering from" (this room, another
+/// room, inspection, external). Stack one, on (0,0): a click and a change to the global "counter".
+/// Stack two, on (0,4): the trigger on "counter" and "add 1" to the global "hits", so "hits" counts
+/// the firings.
+/// </summary>
+public sealed class WiredVariableChangedTriggerTests
+{
+    private const int CLICK_ME = 23;
+    private const int COUNTER = 10;
+    private const int HITS = 11;
+
+    private const int INCREASED = 1;
+    private const int UNCHANGED = 4;
+    private const int ALL_ORIGINS = -1;
+    private const int THIS_ROOM = 1;
+
+    private readonly WiredRoom _room = new(8, 8);
+    private long _now = 10_000;
+    private WiredVariableRoom _counter = null!;
+    private WiredVariableRoom _hits = null!;
+
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    private RoomWiredSystem Wired => _room.Harness.Module<RoomWiredSystem>();
+
+    public WiredVariableChangedTriggerTests()
+    {
+        _room.Enter(5, 1, 1);
+        _room.AddFloorItem(CLICK_ME, 7, 4);
+    }
+
+    [Fact]
+    public async Task Created_and_value_changed_fire_on_a_change_of_the_value()
+    {
+        // What the editor saves with "Created" and "Value changed" ticked: the old reading took
+        // param 1 as a change-kind mask and never fired on an update.
+        await BuildAsync(WiredVariableOperationType.Add, 5, [1, 1, 0, 0, ALL_ORIGINS]);
+
+        await FireAsync();
+
+        Hits().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Increased_fires_on_an_increase()
+    {
+        await BuildAsync(WiredVariableOperationType.Add, 5, [0, 1, 0, INCREASED, ALL_ORIGINS]);
+
+        await FireAsync();
+
+        Hits().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Increased_does_not_fire_on_a_decrease()
+    {
+        await BuildAsync(WiredVariableOperationType.Subtract, 5, [0, 1, 0, INCREASED, ALL_ORIGINS]);
+
+        await FireAsync();
+
+        Hits().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Unchanged_fires_when_a_change_leaves_the_value_as_it_was()
+    {
+        await BuildAsync(WiredVariableOperationType.Add, 0, [0, 1, 0, UNCHANGED, ALL_ORIGINS]);
+
+        await FireAsync();
+
+        Hits().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task This_room_only_ignores_a_change_made_with_the_inspection_tool()
+    {
+        await BuildAsync(WiredVariableOperationType.Add, 5, [0, 1, 0, 0, THIS_ROOM]);
+
+        var snapshot = _counter.GetVarSnapshot();
+
+        (
+            await Wired.ApplyVariableMenuOperationAsync(
+                new WiredVariableBinding(WiredVariableTargetType.Global, 0),
+                snapshot.VariableId,
+                WiredVariableMenuOperationType.SetValue,
+                9,
+                Ct
+            )
+        )
+            .Should()
+            .BeTrue();
+        await TickAsync(4);
+
+        Hits().Should().Be(0);
+
+        await FireAsync();
+
+        Hits().Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(0, 0, 1, 0, 1)]
+    [InlineData(1, 0, 0, 1, 0)]
+    [InlineData(0, 1, 0, 0, 1)]
+    public async Task A_user_variable_fires_on_its_creation_change_and_deletion_as_ticked(
+        int created,
+        int changed,
+        int deleted,
+        int hitsAfterGive,
+        int hitsAfterChangeOrRemove
+    )
+    {
+        // Stack one gives "hp" to whoever clicks (7,4); stack two changes it (+3) when the
+        // trigger only listens to changes, else takes it away; stack three counts firings.
+        _hits = await AddGlobalAsync(HITS, 5, "hits");
+        var hp = _room.AddBox<WiredVariableUser>(12, 6, 6, "wf_var_user");
+
+        (
+            await _room.SaveAsync<UpdateVariableMessage>(
+                12,
+                intParams: [(int)WiredAvailabilityType.UserActive, 1],
+                stringParam: "hp"
+            )
+        )
+            .Should()
+            .BeTrue();
+        await hp.LoadWiredAsync(Ct);
+        await StartAsync(6, 6);
+
+        var hpId = hp.GetVarSnapshot().VariableId.ToString();
+        var hitsId = _hits.GetVarSnapshot().VariableId.ToString();
+        var triggerer = new[] { new[] { WiredPlayerSourceType.TriggeredUser } };
+
+        _room.AddFloorItem(24, 7, 5);
+        _room.AddBox<WiredTriggerClickFurni>(1, 0, 0, "wf_trg_click_furni");
+        _room.AddBox<WiredActionGiveVariable>(2, 0, 0, "wf_act_give_var");
+        _room.AddBox<WiredTriggerClickFurni>(5, 0, 2, "wf_trg_click_furni");
+        _room.AddBox<WiredTriggerVariableChanged>(3, 0, 4, "wf_trg_var_changed");
+        _room.AddBox<WiredActionChangeVariable>(4, 0, 4, "wf_act_change_var_val");
+
+        await SaveClickAsync(1, CLICK_ME);
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                2,
+                intParams: [(int)WiredVariableTargetType.User, 0, 7, 0],
+                definitionSpecifics: [0],
+                playerSources: triggerer,
+                variableIds: [hpId]
+            )
+        )
+            .Should()
+            .BeTrue();
+        await SaveClickAsync(5, 24);
+
+        if (changed == 1)
+        {
+            _room.AddBox<WiredActionChangeVariable>(6, 0, 2, "wf_act_change_var_val");
+            (
+                await _room.SaveAsync<UpdateActionMessage>(
+                    6,
+                    intParams:
+                    [
+                        (int)WiredVariableTargetType.User,
+                        (int)WiredVariableOperationType.Add,
+                        0,
+                        0,
+                        3,
+                        (int)WiredVariableTargetType.Global,
+                    ],
+                    definitionSpecifics: [0],
+                    playerSources: triggerer,
+                    variableIds: [hpId]
+                )
+            )
+                .Should()
+                .BeTrue();
+        }
+        else
+        {
+            _room.AddBox<WiredActionRemoveVariable>(6, 0, 2, "wf_act_remove_var");
+            (
+                await _room.SaveAsync<UpdateActionMessage>(
+                    6,
+                    intParams: [(int)WiredVariableTargetType.User],
+                    definitionSpecifics: [0],
+                    playerSources: triggerer,
+                    variableIds: [hpId]
+                )
+            )
+                .Should()
+                .BeTrue();
+        }
+
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                3,
+                intParams: [created, changed, deleted, 0, ALL_ORIGINS],
+                variableIds: [hpId]
+            )
+        )
+            .Should()
+            .BeTrue();
+        await SaveChangeAsync(4, WiredVariableOperationType.Add, 1, hitsId);
+
+        await StartAsync(0, 0);
+        await StartAsync(0, 2);
+        await StartAsync(0, 4);
+
+        await ClickAsync();
+        await TickAsync(6);
+
+        Hits().Should().Be(hitsAfterGive);
+
+        await _room
+            .FloorItem(24)
+            .Logic.OnClickAsync(ActionContext.CreateForPlayer((PlayerId)105, (RoomId)1), 0, Ct);
+        await TickAsync(6);
+
+        Hits().Should().Be(hitsAfterGive + hitsAfterChangeOrRemove);
+    }
+
+    /// <summary>
+    /// The <c>@event.variable_update.*</c> context variables (official Creator Tools, 2026-10-08)
+    /// describe the change a "Variable Changed" stack heard: "counter" going from 0 to 5 in this
+    /// room, read by stack two into "hits".
+    /// </summary>
+    [Theory]
+    [InlineData("box_id", COUNTER)]
+    [InlineData("change_type", 1)]
+    [InlineData("old_value", 0)]
+    [InlineData("new_value", 5)]
+    [InlineData("difference", 5)]
+    [InlineData("change_origin", 0)]
+    public async Task The_change_heard_is_read_from_the_variable_update_variables(
+        string field,
+        int expected
+    )
+    {
+        WiredInternalVariable variable = field switch
+        {
+            "box_id" => new ContextVariableUpdateBoxIdVariable(_room.Harness.Room),
+            "change_type" => new ContextVariableUpdateChangeTypeVariable(_room.Harness.Room),
+            "old_value" => new ContextVariableUpdateOldValueVariable(_room.Harness.Room),
+            "new_value" => new ContextVariableUpdateNewValueVariable(_room.Harness.Room),
+            "difference" => new ContextVariableUpdateDifferenceVariable(_room.Harness.Room),
+            _ => new ContextVariableUpdateChangeOriginVariable(_room.Harness.Room),
+        };
+        var id = variable.GetVarSnapshot().VariableId;
+
+        variable.GetVarSnapshot().VariableName.Should().Be("@event.variable_update." + field);
+        ((IDictionary)RoomHarness.GetMember(_room.Harness.Room.WiredSystem, "_variableById")!)[id] =
+            variable;
+        await BuildAsync(WiredVariableOperationType.Add, 5, [1, 1, 0, 0, ALL_ORIGINS]);
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                4,
+                intParams:
+                [
+                    (int)WiredVariableTargetType.Global,
+                    (int)WiredVariableOperationType.Set,
+                    1,
+                    0,
+                    0,
+                    (int)WiredVariableTargetType.Context,
+                ],
+                definitionSpecifics: [0],
+                variableIds: [_hits.GetVarSnapshot().VariableId.ToString(), id.ToString()]
+            )
+        )
+            .Should()
+            .BeTrue();
+        await StartAsync(0, 4);
+
+        await FireAsync();
+
+        Hits().Should().Be(expected);
+    }
+
+    /// <summary>
+    /// A level-up add-on on "counter" makes it an XP counter (a level every 10); Variable Changed
+    /// on its sub-variable "counter.current_level", increased or decreased only, hears a level-up
+    /// and nothing in between (Wired Faculty #help, 08/10/2026). Each click adds 5: levels at 10
+    /// and 20, so four clicks fire it twice. It never fired: only the parent publishes changes.
+    /// </summary>
+    [Fact]
+    public async Task Variable_changed_on_a_level_sub_variable_fires_on_a_level_up()
+    {
+        await BuildAsync(WiredVariableOperationType.Add, 5, [0, 1, 0, 0, ALL_ORIGINS]);
+
+        var addon =
+            _room.AddBox<Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons.WiredAddonVariableLevelUp>(
+                30,
+                4,
+                6,
+                "wf_xtra_var_lvlup_system"
+            );
+        (await _room.SaveAsync<UpdateAddonMessage>(30, intParams: [255, 1, 10, 5]))
+            .Should()
+            .BeTrue();
+        await addon.LoadWiredAsync(Ct);
+        await Wired.OnRoomEventAsync(
+            new WiredVariableBoxChangedEvent
+            {
+                RoomId = 1,
+                CausedBy = ActionContext.CreateForSystem(1),
+                BoxIds = [COUNTER],
+            },
+            Ct
+        );
+        await TickAsync(1);
+
+        var level = Wired
+            .GetAllVariables()
+            .Single(v => v.GetVarSnapshot().VariableName == "counter.current_level");
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                3,
+                intParams: [0, 1, 0, 0b011, ALL_ORIGINS],
+                variableIds: [level.GetVarSnapshot().VariableId.ToString()]
+            )
+        )
+            .Should()
+            .BeTrue();
+        await StartAsync(0, 4);
+
+        for (var i = 0; i < 4; i++)
+            await FireAsync();
+
+        Hits().Should().Be(2);
+    }
+
+    private async Task SaveClickAsync(int boxId, int furniId) => (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                boxId,
+                stuffIds: [furniId],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ]
+            )
+        ).Should().BeTrue();
+
+    private async Task FireAsync()
+    {
+        await ClickAsync();
+        await TickAsync(6);
+    }
+
+    private int Hits()
+    {
+        var snapshot = _hits.GetVarSnapshot();
+
+        _hits
+            .TryGetValue(
+                new WiredVariableKey(snapshot.VariableId, WiredVariableTargetType.Global, 0),
+                out var value
+            )
+            .Should()
+            .BeTrue();
+
+        return (int)value;
+    }
+
+    private async Task<WiredVariableRoom> AddGlobalAsync(int id, int x, string name)
+    {
+        var box = _room.AddBox<WiredVariableRoom>(id, x, 6, "wf_var_room");
+
+        (
+            await _room.SaveAsync<UpdateVariableMessage>(
+                id,
+                intParams: [(int)WiredAvailabilityType.RoomActive],
+                stringParam: name
+            )
+        )
+            .Should()
+            .BeTrue();
+        await box.LoadWiredAsync(Ct);
+        await StartAsync(x, 6);
+
+        return box;
+    }
+
+    private async Task BuildAsync(
+        WiredVariableOperationType operation,
+        int operand,
+        int[] triggerParams
+    )
+    {
+        _counter = await AddGlobalAsync(COUNTER, 4, "counter");
+        _hits = await AddGlobalAsync(HITS, 5, "hits");
+
+        var counterId = _counter.GetVarSnapshot().VariableId.ToString();
+        var hitsId = _hits.GetVarSnapshot().VariableId.ToString();
+
+        _room.AddBox<WiredTriggerClickFurni>(1, 0, 0, "wf_trg_click_furni");
+        _room.AddBox<WiredActionChangeVariable>(2, 0, 0, "wf_act_change_var_val");
+        _room.AddBox<WiredTriggerVariableChanged>(3, 0, 4, "wf_trg_var_changed");
+        _room.AddBox<WiredActionChangeVariable>(4, 0, 4, "wf_act_change_var_val");
+
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                1,
+                stuffIds: [CLICK_ME],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ]
+            )
+        ).Should().BeTrue();
+        await SaveChangeAsync(2, operation, operand, counterId);
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                3,
+                intParams: triggerParams,
+                variableIds: [counterId]
+            )
+        )
+            .Should()
+            .BeTrue();
+        await SaveChangeAsync(4, WiredVariableOperationType.Add, 1, hitsId);
+
+        await StartAsync(0, 0);
+        await StartAsync(0, 4);
+    }
+
+    private async Task SaveChangeAsync(
+        int boxId,
+        WiredVariableOperationType operation,
+        int operand,
+        string variableId
+    ) =>
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                boxId,
+                intParams:
+                [
+                    (int)WiredVariableTargetType.Global,
+                    (int)operation,
+                    0,
+                    0,
+                    operand,
+                    (int)WiredVariableTargetType.Global,
+                ],
+                definitionSpecifics: [0],
+                variableIds: [variableId]
+            )
+        )
+            .Should()
+            .BeTrue();
+
+    private async Task StartAsync(int x, int y)
+    {
+        await Wired.OnRoomEventAsync(
+            new RoomWiredStackChangedEvent
+            {
+                RoomId = 1,
+                CausedBy = ActionContext.CreateForSystem(1),
+                StackIds = [_room.Map.ToIdx(x, y)],
+            },
+            Ct
+        );
+
+        await TickAsync(1);
+    }
+
+    private Task ClickAsync() =>
+        _room
+            .FloorItem(CLICK_ME)
+            .Logic.OnClickAsync(ActionContext.CreateForPlayer((PlayerId)105, (RoomId)1), 0, Ct);
+
+    private async Task TickAsync(int ticks)
+    {
+        for (var i = 0; i < ticks; i++)
+        {
+            _now += 1_000;
+            await Wired.ProcessWiredAsync(_now, dormant: false, Ct);
+        }
+    }
+}

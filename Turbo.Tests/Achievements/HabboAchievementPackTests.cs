@@ -61,9 +61,10 @@ public sealed class HabboAchievementPackTests
     public void ThePackHoldsTheHandMappedRecordsPlusEveryOtherRepresentableOne()
     {
         AchievementDefaults.Definitions.Should().HaveCount(18);
-        AchievementDefaults.Unhooked.Should().HaveCount(150);
+        AchievementDefaults.Crackables.Should().HaveCount(9);
+        AchievementDefaults.Unhooked.Should().HaveCount(141);
         Pack.Definitions.Should().HaveCount(168);
-        Pack.Version.Should().Be(2);
+        Pack.Version.Should().Be(3);
     }
 
     [Fact]
@@ -140,6 +141,45 @@ public sealed class HabboAchievementPackTests
             .Unhooked.Count(x => x.State == AchievementState.Archived)
             .Should()
             .Be(14);
+    }
+
+    [Fact]
+    public void TheCrackablesRecordsCrackableFurniRecordAreBoundByName()
+    {
+        var snapshot = Snapshot();
+        var byName = AchievementDefaults.Crackables.ToDictionary(x => NameOf(x, snapshot));
+
+        byName
+            .Keys.Should()
+            .BeEquivalentTo(
+                "PinataWhacker",
+                "PinataBreaker",
+                "Horticulturist",
+                "AdvancedHorticulturist",
+                "CreatureRearer",
+                "EasterCreatures",
+                "Farmer",
+                "Restorer",
+                "flamingknight"
+            );
+        byName["PinataWhacker"].Source.Should().Be(AchievementSources.CRACKABLE_HIT);
+        byName
+            .Where(x => x.Key != "PinataWhacker")
+            .Should()
+            .OnlyContain(x => x.Value.Source == AchievementSources.CRACKABLE_CRACKED);
+        byName
+            .Should()
+            .OnlyContain(x =>
+                x.Value.Match != null
+                && x.Value.Match.Values.SequenceEqual(new[] { x.Key.ToLowerInvariant() })
+                && x.Value.State == AchievementState.Enabled
+                && x.Value.Reducer == AchievementReducer.Counter
+            );
+        // Not left on the placeholder source as well.
+        AchievementDefaults
+            .Unhooked.Select(x => NameOf(x, snapshot))
+            .Should()
+            .NotIntersectWith(byName.Keys);
     }
 
     [Fact]

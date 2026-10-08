@@ -99,6 +99,17 @@ public class WiredActionGiveVariable(
 
                         break;
                     }
+                    case WiredVariableTargetType.Context:
+                    {
+                        // A context variable has one holder: the wired execution running this box.
+                        await variable.GiveValueAsync(
+                            new WiredVariableKey(id, WiredVariableTargetType.Context, 0),
+                            value,
+                            replace
+                        );
+
+                        break;
+                    }
                 }
             }
             catch (Exception ex)

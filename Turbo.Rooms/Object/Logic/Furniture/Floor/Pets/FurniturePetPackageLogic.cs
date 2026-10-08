@@ -92,6 +92,7 @@ public class FurniturePetPackageLogic(IStuffDataFactory stuffDataFactory, IRoomF
                 palette?.BreedId ?? contents.PaletteId,
                 contents.Color.ToUpperInvariant(),
                 palette?.RarityLevel ?? 0,
+                [],
                 ct
             );
 

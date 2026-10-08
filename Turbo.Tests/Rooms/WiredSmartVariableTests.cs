@@ -1,0 +1,234 @@
+using System.Collections;
+using FluentAssertions;
+using Turbo.Primitives.Furniture;
+using Turbo.Primitives.Furniture.StuffData;
+using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Wired;
+using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Primitives.WiredTrading;
+using Turbo.Primitives.WiredTrading.Snapshots;
+using Turbo.Rooms.Object.Logic.Furniture.Floor;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Counters;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
+using Turbo.Rooms.Wired.Variables;
+using Turbo.Rooms.Wired.Variables.Furniture.Smart;
+using Turbo.Tests.Support;
+using Xunit;
+
+namespace Turbo.Tests.Rooms;
+
+/// <summary>
+/// Smart variables (<c>~name</c>, Wired Faculty: the list released on 12/12/2024): a kind of furni
+/// brings them, and the variable list has them only while one is in the room. A room linker (a
+/// teleport) leads to item 77 through <c>~teleport.target_id</c>, which relinks it when written; a
+/// counter clock's <c>~clock.pulse_count</c> is its time in half seconds.
+/// </summary>
+public sealed class WiredSmartVariableTests
+{
+    private const int LINKER = 30;
+    private const int CLOCK = 31;
+
+    private readonly WiredRoom _room = new(8, 8);
+
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task A_smart_variable_is_listed_only_while_its_furni_is_in_the_room()
+    {
+        var variable = new FurnitureTeleportTargetVariable(_room.Harness.Room);
+        var id = variable.GetVarSnapshot().VariableId;
+        var byId = (IDictionary)
+            RoomHarness.GetMember(_room.Harness.Room.WiredSystem, "_variableById")!;
+
+        byId[id] = variable;
+
+        (await Listed()).Should().NotContain(id);
+
+        AddLinker();
+
+        (await Listed()).Should().Contain(id);
+        variable.GetVarSnapshot().VariableType.Should().Be(WiredVariableType.Smart);
+        variable.GetVarSnapshot().VariableName.Should().Be("~teleport.target_id");
+    }
+
+    [Fact]
+    public async Task Teleport_target_reads_the_pair_and_relinks_when_written()
+    {
+        var logic = AddLinker();
+        var variable = new FurnitureTeleportTargetVariable(_room.Harness.Room);
+        var key = Key(variable, LINKER);
+
+        variable.TryGetValue(key, out var value).Should().BeTrue();
+        ((int)value).Should().Be(77);
+
+        (
+            await variable.SetValueAsync(
+                _room.Harness.Fakes.Create<IWiredExecutionContext>(),
+                key,
+                88
+            )
+        )
+            .Should()
+            .BeTrue();
+        logic.PartnerItemId.Should().Be(88);
+    }
+
+    [Fact]
+    public async Task Clock_pulse_count_is_its_half_seconds_and_sets_it()
+    {
+        var clock = (FurnitureCounterClockLogic)
+            _room
+                .AddFloorItem(
+                    CLOCK,
+                    2,
+                    2,
+                    "wf_upcounter",
+                    createLogic: (stuffData, ctx) => new FurnitureCounterClockLogic(stuffData, ctx)
+                )
+                .Logic;
+        var variable = new FurnitureClockPulseCountVariable(_room.Harness.Room);
+        var key = Key(variable, CLOCK);
+
+        (
+            await variable.SetValueAsync(
+                _room.Harness.Fakes.Create<IWiredExecutionContext>(),
+                key,
+                120
+            )
+        )
+            .Should()
+            .BeTrue();
+        clock.HalfSeconds.Should().Be(120);
+
+        variable.TryGetValue(key, out var value).Should().BeTrue();
+        ((int)value).Should().Be(120);
+
+        // Not a clock: no value.
+        variable.TryGetValue(Key(variable, LINKER), out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Background_color_reads_and_sets_a_channel_within_0_to_255()
+    {
+        var toner = (FurnitureBackgroundTonerLogic)
+            _room
+                .AddFloorItem(
+                    32,
+                    3,
+                    3,
+                    "background_toner",
+                    createLogic: (stuffData, ctx) =>
+                        new FurnitureBackgroundTonerLogic(stuffData, ctx)
+                )
+                .Logic;
+        var hue = new FurnitureBackgroundColorHueVariable(_room.Harness.Room);
+        var key = Key(hue, 32);
+        var ctx = _room.Harness.Fakes.Create<IWiredExecutionContext>();
+
+        (await hue.SetValueAsync(ctx, key, 200)).Should().BeTrue();
+        toner.ValueAt(1).Should().Be(200);
+        hue.TryGetValue(key, out var value).Should().BeTrue();
+        ((int)value).Should().Be(200);
+
+        (await hue.SetValueAsync(ctx, key, 300)).Should().BeFalse();
+        toner.ValueAt(1).Should().Be(200);
+    }
+
+    [Fact]
+    public async Task Area_hide_sets_its_size_and_takes_only_0_or_1_for_a_flag()
+    {
+        var hider = (FurnitureAreaHideLogic)
+            _room
+                .AddFloorItem(
+                    33,
+                    4,
+                    4,
+                    "area_hide",
+                    createLogic: (stuffData, ctx) => new FurnitureAreaHideLogic(stuffData, ctx)
+                )
+                .Logic;
+        var ctx = _room.Harness.Fakes.Create<IWiredExecutionContext>();
+        var width = new FurnitureAreaHideWidthVariable(_room.Harness.Room);
+        var inverted = new FurnitureAreaHideInvertedVariable(_room.Harness.Room);
+
+        (await width.SetValueAsync(ctx, Key(width, 33), 6)).Should().BeTrue();
+        hider.ValueAt(3).Should().Be(6);
+
+        (await inverted.SetValueAsync(ctx, Key(inverted, 33), 2)).Should().BeFalse();
+        (await inverted.SetValueAsync(ctx, Key(inverted, 33), 1)).Should().BeTrue();
+        hider.ValueAt(7).Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(false, 7)]
+    [InlineData(true, 250)]
+    public void Chest_available_amount_is_its_items_or_its_credits(bool coins, int expected)
+    {
+        var chest = AddChest(34, coins);
+        var variable = new FurnitureChestAvailableAmountVariable(_room.Harness.Room);
+
+        typeof(FurnitureWiredChestLogic)
+            .GetProperty(nameof(FurnitureWiredChestLogic.Summary))!
+            .SetValue(chest, WiredChestSummarySnapshot.Empty with { ItemCount = 7, Coins = 250 });
+
+        variable.TryGetValue(Key(variable, 34), out var value).Should().BeTrue();
+        ((int)value).Should().Be(expected);
+    }
+
+    [Fact]
+    public void Chest_is_open_and_is_donatable_are_its_owners_everyone_settings()
+    {
+        var chest = AddChest(35, coins: false);
+        var isOpen = new FurnitureChestIsOpenVariable(_room.Harness.Room);
+        var isDonatable = new FurnitureChestIsDonatableVariable(_room.Harness.Room);
+        var map = (IMapStuffData)chest.StuffData;
+
+        map.Data[WiredChestData.EVERYONE_CAN_OPEN] = WiredChestData.TRUE;
+        map.Data[WiredChestData.EVERYONE_CAN_DONATE] = WiredChestData.FALSE;
+
+        isOpen.TryGetValue(Key(isOpen, 35), out var open).Should().BeTrue();
+        isDonatable.TryGetValue(Key(isDonatable, 35), out var donatable).Should().BeTrue();
+        ((int)open).Should().Be(1);
+        ((int)donatable).Should().Be(0);
+    }
+
+    private FurnitureWiredChestLogic AddChest(int id, bool coins) =>
+        (FurnitureWiredChestLogic)
+            _room
+                .AddFloorItem(
+                    id,
+                    5,
+                    5,
+                    coins ? "wired_chest_coins" : "wired_chest_furni",
+                    createLogic: (factory, ctx) =>
+                        coins
+                            ? new FurnitureWiredCoinsChestLogic(factory, ctx)
+                            : new FurnitureWiredFurniChestLogic(factory, ctx)
+                )
+                .Logic;
+
+    private FurnitureTeleportLogic AddLinker()
+    {
+        var item = _room.AddFloorItem(
+            LINKER,
+            1,
+            1,
+            TeleportFurniture.LOGIC_NAME,
+            createLogic: (stuffData, ctx) => new FurnitureTeleportLogic(stuffData, ctx)
+        );
+
+        item.SetExtraData(TeleportFurniture.PairExtraData(77));
+
+        return (FurnitureTeleportLogic)item.Logic;
+    }
+
+    private async Task<List<WiredVariableId>> Listed() =>
+        [
+            .. (
+                await _room.Harness.Room.WiredSystem.GetWiredVariablesSnapshotAsync(Ct)
+            ).Variables.Select(x => x.VariableId),
+        ];
+
+    private static WiredVariableKey Key(WiredInternalVariable variable, int itemId) =>
+        new(variable.GetVarSnapshot().VariableId, WiredVariableTargetType.Furni, itemId);
+}

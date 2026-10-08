@@ -23,6 +23,18 @@ public static class AchievementSources
     public const string ROOM_RANK = "builder.room-rank";
 
     /// <summary>
+    /// A hit on a crackable furni, its value the achievement it counts towards (Sulake's
+    /// <c>incrementalHitAchievementName</c>, lower case). One fact per hit.
+    /// </summary>
+    public const string CRACKABLE_HIT = "crackables.hit";
+
+    /// <summary>
+    /// The hit that cracked a crackable furni, its value the achievement it counts towards
+    /// (<c>finalHitAchievementName</c>, lower case) and its amount <c>finalHitAchievementCount</c>.
+    /// </summary>
+    public const string CRACKABLE_CRACKED = "crackables.cracked";
+
+    /// <summary>
     /// A placeholder for achievements nothing records facts for yet, such as the Habbo ones the
     /// hotel has no gameplay for. A definition on it can be listed or archived but never enabled;
     /// until it is moved to a source something records, no player can progress it.

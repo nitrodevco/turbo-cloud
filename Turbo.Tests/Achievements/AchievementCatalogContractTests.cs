@@ -624,7 +624,84 @@ public sealed class AchievementCatalogContractTests : IDisposable
 
         catalog.Current.Should().HaveCount(pack.Definitions.Length);
         await using var db = await _db.CreateDbContextAsync(Ct);
-        (await db.AchievementAudit.SingleAsync(Ct)).OperationId.Should().StartWith("pack:habbo:2:");
+        (await db.AchievementAudit.SingleAsync(Ct)).OperationId.Should().StartWith("pack:habbo:3:");
+        Directory.Delete(assetDirectory, recursive: true);
+    }
+
+    [Fact]
+    public async Task AHotelOnTheOlderPackHasItsUntouchedCrackablesRecordsHookedAndItsEditedOnesKept()
+    {
+        var assetDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"achievement-pack-{Guid.NewGuid():N}"
+        );
+        Directory.CreateDirectory(assetDirectory);
+        var texts = new Dictionary<string, string>();
+        foreach (
+            var code in new HabboAchievementPack()
+                .Definitions.SelectMany(x => x.Levels)
+                .Select(x => x.BadgeCode)
+        )
+        {
+            File.WriteAllBytes(Path.Combine(assetDirectory, code + ".png"), []);
+            texts["badge_name_" + code] = code;
+            texts["badge_desc_" + code] = code;
+        }
+        var current = new HabboAchievementPack();
+        // Version 2 shipped the crackables records disabled on the placeholder source.
+        var older = new TestAchievementPack(
+            HabboAchievementPack.KEY,
+            2,
+            [.. current.IdRanges],
+            [
+                .. current.Definitions.Select(x =>
+                    x.Source
+                        is AchievementSources.CRACKABLE_HIT
+                            or AchievementSources.CRACKABLE_CRACKED
+                        ? x with
+                        {
+                            Source = AchievementSources.UNHOOKED,
+                            Match = null,
+                            State = AchievementState.Disabled,
+                        }
+                        : x
+                ),
+            ]
+        );
+        var config = new AchievementConfig { BadgeAssetDirectory = assetDirectory };
+        var onOlder = NewCatalog(config, texts, new AchievementPackRegistry([older]));
+        await onOlder.ReloadAsync(Ct);
+        // The hotel edited one of them since: it is the hotel's now.
+        var farmer = onOlder.Current.Single(x => x.Key == "farmer");
+        await onOlder.ImportAsync(
+            [farmer with { Revision = 2, Order = farmer.Order + 1 }],
+            true,
+            "admin",
+            "reorder",
+            "edit-farmer",
+            Ct
+        );
+
+        var onCurrent = NewCatalog(config, texts, new AchievementPackRegistry([current]));
+        await onCurrent.ReloadAsync(Ct);
+        await onCurrent.ReloadAsync(Ct);
+
+        var whacker = onCurrent.Current.Single(x => x.Key == "pinata-whacker");
+        whacker.Source.Should().Be(AchievementSources.CRACKABLE_HIT);
+        whacker.Match!.Values.Should().Equal("pinatawhacker");
+        whacker.State.Should().Be(AchievementState.Enabled);
+        whacker.Revision.Should().Be(2);
+        onCurrent
+            .Current.Single(x => x.Key == "pinata-breaker")
+            .Source.Should()
+            .Be(AchievementSources.CRACKABLE_CRACKED);
+        var kept = onCurrent.Current.Single(x => x.Key == "farmer");
+        kept.Source.Should().Be(AchievementSources.UNHOOKED);
+        kept.Revision.Should().Be(2);
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.AchievementAudit.CountAsync(x => x.OperationId.StartsWith("pack-hook:"), Ct))
+            .Should()
+            .Be(1);
         Directory.Delete(assetDirectory, recursive: true);
     }
 

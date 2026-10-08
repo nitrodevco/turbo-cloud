@@ -17,7 +17,7 @@ using Turbo.Rooms.Wired.Rules;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
 /// <summary>
-/// Replaces "$name" in the text of the stack actions with the value of the picked variable on
+/// Replaces "$(name)" in the text of the stack actions with the value of the picked variable on
 /// the triggering target. Params: show every target (joined by the delimiter), the variable
 /// target, and text mode, which prints the text connector label of the value instead.
 /// </summary>
@@ -41,6 +41,21 @@ public class WiredAddonVariablePlaceholder(
             new WiredBoolParamRule(false),
         ];
 
+    // Its holders come from one source, the furni or the user kind as the variable's target is
+    // (AS3: mergedSelections [[0, 0]]); the triggering ones first, as it read before it had a
+    // source of its own.
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
+        [
+            [
+                WiredFurniSourceType.TriggeredItem,
+                WiredFurniSourceType.SelectorItems,
+                WiredFurniSourceType.SignalItems,
+                WiredFurniSourceType.SelectedItems,
+            ],
+        ];
+
+    public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
+
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();
 
@@ -51,6 +66,12 @@ public class WiredAddonVariablePlaceholder(
         return Task.FromResult(true);
     }
 
+    public string Token =>
+        WiredPlaceholderText.SplitNameAndDelimiter(_wiredData.StringParam).Item1
+            is { Length: > 0 } name
+            ? WiredPlaceholderText.Token(SIGIL, name)
+            : string.Empty;
+
     public Task<string> ApplyAsync(IWiredExecutionContext ctx, string text, CancellationToken ct)
     {
         var (name, delimiter) = WiredPlaceholderText.SplitNameAndDelimiter(_wiredData.StringParam);
@@ -59,7 +80,7 @@ public class WiredAddonVariablePlaceholder(
         if (
             variable is null
             || name.Length == 0
-            || !text.Contains(SIGIL + name, StringComparison.Ordinal)
+            || !text.Contains(WiredPlaceholderText.Token(SIGIL, name), StringComparison.Ordinal)
         )
             return Task.FromResult(text);
 
@@ -68,7 +89,14 @@ public class WiredAddonVariablePlaceholder(
         var textMode = GetIntParamOrDefault(2, false);
         var values = new List<string>();
 
-        foreach (var targetId in GetTargetIds(targetType, ctx.Selected))
+        var holders = targetType switch
+        {
+            WiredVariableTargetType.User => WiredSlotSelection.ForUserSlot(this, ctx, 0),
+            WiredVariableTargetType.Furni => WiredSlotSelection.ForSlot(this, ctx, 0),
+            _ => ctx.Selected,
+        };
+
+        foreach (var targetId in GetTargetIds(targetType, holders))
         {
             if (
                 !variable.TryGetValue(
@@ -89,7 +117,11 @@ public class WiredAddonVariablePlaceholder(
         }
 
         return Task.FromResult(
-            text.Replace(SIGIL + name, string.Join(delimiter, values), StringComparison.Ordinal)
+            text.Replace(
+                WiredPlaceholderText.Token(SIGIL, name),
+                string.Join(delimiter, values),
+                StringComparison.Ordinal
+            )
         );
     }
 }

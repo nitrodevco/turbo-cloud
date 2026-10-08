@@ -9,10 +9,12 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Game;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Highscore;
 
 namespace Turbo.Rooms.Grains.Systems;
 
@@ -32,10 +34,19 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     private const int NO_EFFECT = 0;
 
     private readonly Dictionary<PlayerId, GameTeamType> _teamByPlayerId = [];
+
+    /// <summary>The team effect each player was put in, so leaving takes off that one.</summary>
+    private readonly Dictionary<PlayerId, int> _teamEffectByPlayerId = [];
+
+    /// <summary>The kind of team each player joined, which <c>@team.type</c> reports.</summary>
+    private readonly Dictionary<PlayerId, WiredTeamType> _teamTypeByPlayerId = [];
     private readonly int[] _teamScores = new int[(int)GameTeamType.Yellow + 1];
     private readonly Dictionary<(RoomObjectId sourceId, PlayerId playerId), int> _scoreGrants = [];
 
     public bool IsGameRunning { get; private set; }
+
+    /// <summary>When the running game started, which the time highscore boards measure from.</summary>
+    private DateTimeOffset _startedAt;
 
     public Task OnRoomEventAsync(RoomEvent evt, CancellationToken ct)
     {
@@ -47,6 +58,9 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
 
     public GameTeamType GetTeam(PlayerId playerId) =>
         _teamByPlayerId.TryGetValue(playerId, out var team) ? team : GameTeamType.None;
+
+    public WiredTeamType GetTeamType(PlayerId playerId) =>
+        _teamTypeByPlayerId.TryGetValue(playerId, out var type) ? type : WiredTeamType.Wired;
 
     public int GetScore(GameTeamType team) => IsTeam(team) ? _teamScores[(int)team] : 0;
 
@@ -71,9 +85,17 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     public IEnumerable<PlayerId> GetTeamMembers(GameTeamType team) =>
         _teamByPlayerId.Where(x => x.Value == team).Select(x => x.Key);
 
+    public Task<bool> JoinTeamAsync(PlayerId playerId, GameTeamType team, CancellationToken ct) =>
+        JoinTeamAsync(playerId, team, WiredTeamType.Wired, ct);
+
+    /// <summary>
+    /// Puts the player in <paramref name="team"/>, wearing the team effect of the kind of team
+    /// (<see cref="WiredTeamType"/>): the colours are one set of teams, the game they look like is not.
+    /// </summary>
     public async Task<bool> JoinTeamAsync(
         PlayerId playerId,
         GameTeamType team,
+        WiredTeamType teamType,
         CancellationToken ct
     )
     {
@@ -87,8 +109,13 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
             return true;
 
         _teamByPlayerId[playerId] = team;
+        _teamTypeByPlayerId[playerId] = teamType;
 
-        await AvatarModule.SetAvatarEffectAsync(player.ObjectId, GetTeamEffectId(team), ct);
+        var effectId = GetTeamEffectId(team, teamType);
+
+        _teamEffectByPlayerId[playerId] = effectId;
+
+        await AvatarModule.SetAvatarEffectAsync(player.ObjectId, effectId, ct);
         await PublishTeamChangedAsync(playerId, team, ct);
 
         return true;
@@ -99,11 +126,14 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
         if (!_teamByPlayerId.Remove(playerId, out var team))
             return false;
 
+        _teamTypeByPlayerId.Remove(playerId);
+
+        var effectId = _teamEffectByPlayerId.Remove(playerId, out var worn)
+            ? worn
+            : GetTeamEffectId(team, WiredTeamType.Wired);
+
         // Only the team colour is taken off. An effect the player put on since is theirs.
-        if (
-            AvatarModule.TryGetPlayer(playerId, out var player)
-            && player.EffectId == GetTeamEffectId(team)
-        )
+        if (AvatarModule.TryGetPlayer(playerId, out var player) && player.EffectId == effectId)
             await AvatarModule.SetAvatarEffectAsync(player.ObjectId, NO_EFFECT, ct);
 
         await PublishTeamChangedAsync(playerId, GameTeamType.None, ct);
@@ -199,6 +229,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
         _scoreGrants.Clear();
 
         IsGameRunning = true;
+        _startedAt = DateTimeOffset.UtcNow;
 
         await _roomGrain.PublishRoomEventAsync(
             new GameStartedEvent
@@ -217,6 +248,17 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
 
         IsGameRunning = false;
 
+        await RecordHighscoresAsync(ct);
+
+        // The counters that go with the game hold (the official Banzai counter shows Paused).
+        foreach (
+            var clock in FurniModule
+                .Items.Select(item => item.Logic)
+                .OfType<Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Counters.IWiredClock>()
+                .ToList()
+        )
+            await clock.OnGameEndedAsync(ct);
+
         await _roomGrain.PublishRoomEventAsync(
             new GameEndedEvent
             {
@@ -225,6 +267,42 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
             },
             ct
         );
+    }
+
+    /// <summary>
+    /// Hands the room's highscore boards the teams that played: each team's score and the names
+    /// of its players, and how long the game ran.
+    /// </summary>
+    private async Task RecordHighscoresAsync(CancellationToken ct)
+    {
+        var boards = FurniModule
+            .Items.Select(item => item.Logic)
+            .OfType<FurnitureHighscoreLogic>()
+            .ToList();
+
+        if (boards.Count == 0)
+            return;
+
+        var teams = new List<(int Score, IReadOnlyList<string> Users)>();
+
+        for (var team = GameTeamType.Red; team <= GameTeamType.Yellow; team++)
+        {
+            var users = GetTeamMembers(team)
+                .Select(playerId =>
+                    AvatarModule.TryGetPlayer(playerId, out var player) ? player.Name : null
+                )
+                .OfType<string>()
+                .ToList();
+
+            if (users.Count > 0)
+                teams.Add((_teamScores[(int)team], users));
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var seconds = (int)Math.Max(0, (now - _startedAt).TotalSeconds);
+
+        foreach (var board in boards)
+            await board.RecordGameAsync(teams, seconds, now, ct);
     }
 
     private Task PublishTeamChangedAsync(PlayerId playerId, GameTeamType team, CancellationToken ct)
@@ -258,9 +336,14 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     private static bool IsTeam(GameTeamType team) =>
         team is >= GameTeamType.Red and <= GameTeamType.Yellow;
 
-    private int GetTeamEffectId(GameTeamType team)
+    private int GetTeamEffectId(GameTeamType team, WiredTeamType teamType)
     {
-        var effectIds = _roomGrain._roomConfig.GameTeamEffectIds;
+        var effectIds = teamType switch
+        {
+            WiredTeamType.BattleBanzai => _roomGrain._roomConfig.BanzaiTeamEffectIds,
+            WiredTeamType.Freeze => _roomGrain._roomConfig.FreezeTeamEffectIds,
+            _ => _roomGrain._roomConfig.GameTeamEffectIds,
+        };
 
         return (int)team < effectIds.Length ? effectIds[(int)team] : NO_EFFECT;
     }
@@ -268,6 +351,8 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     private void ForgetPlayer(PlayerId playerId)
     {
         _teamByPlayerId.Remove(playerId);
+        _teamEffectByPlayerId.Remove(playerId);
+        _teamTypeByPlayerId.Remove(playerId);
 
         foreach (var key in _scoreGrants.Keys.Where(x => x.playerId == playerId).ToList())
             _scoreGrants.Remove(key);

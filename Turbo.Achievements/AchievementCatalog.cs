@@ -156,28 +156,94 @@ public sealed class AchievementCatalog : IAchievementCatalog
                 clash.Key,
                 clash.Id
             );
-        if (missing.IsEmpty)
-            return;
-        // The same pack version can have different definitions still missing from one start to the
-        // next, and an operation id must always mean the same request, so it names what it adds.
-        var fingerprint = Convert.ToHexString(
-            SHA256.HashData(Encoding.UTF8.GetBytes(string.Join(',', missing.Select(x => x.Key))))
-        )[..8];
-        await ImportAsync(
-                missing,
-                apply: true,
-                actor: "turbo",
-                reason: $"Install the {pack.Key} achievement pack",
-                operationId: $"pack:{pack.Key}:{pack.Version}:{fingerprint}",
-                ct
-            )
-            .ConfigureAwait(false);
-        _logger?.LogInformation(
-            "Installed {Count} achievements from the {Pack} pack.",
-            missing.Length,
-            pack.Key
-        );
+        if (!missing.IsEmpty)
+        {
+            // The same pack version can have different definitions still missing from one start to
+            // the next, and an operation id must always mean the same request, so it names what it adds.
+            await ImportAsync(
+                    missing,
+                    apply: true,
+                    actor: "turbo",
+                    reason: $"Install the {pack.Key} achievement pack",
+                    operationId: $"pack:{pack.Key}:{pack.Version}:{Fingerprint(missing)}",
+                    ct
+                )
+                .ConfigureAwait(false);
+            _logger?.LogInformation(
+                "Installed {Count} achievements from the {Pack} pack.",
+                missing.Length,
+                pack.Key
+            );
+        }
+
+        await HookInstalledAsync(pack, stored, ct).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Moves achievements a pack installed on the placeholder source onto the real source a later
+    /// version of the pack records them on (the crackables records, once crackable furni record
+    /// their hits). Only a row the hotel never touched moves: the pack's own first revision, still
+    /// on <see cref="AchievementSources.UNHOOKED"/>, where no progress can exist. A row the hotel
+    /// edited is the hotel's and stays as it is. Its own import, so a refusal (a badge asset the
+    /// hotel lacks) is logged without holding back the rest of the pack.
+    /// </summary>
+    private async Task HookInstalledAsync(
+        IAchievementPack pack,
+        List<AchievementDefinition> stored,
+        CancellationToken ct
+    )
+    {
+        var latest = stored
+            .GroupBy(x => x.Id)
+            .Select(x => x.MaxBy(d => d.Revision)!)
+            .ToDictionary(x => x.Id);
+        var hooked = pack
+            .Definitions.Where(x =>
+                x.Source != AchievementSources.UNHOOKED
+                && latest.TryGetValue(x.Id, out var current)
+                && string.Equals(current.Key, x.Key, StringComparison.OrdinalIgnoreCase)
+                && current.Source == AchievementSources.UNHOOKED
+                && current.Revision == 1
+            )
+            .Select(x => x with { Revision = 2 })
+            .ToImmutableArray();
+
+        if (hooked.IsEmpty)
+            return;
+
+        try
+        {
+            await ImportAsync(
+                    hooked,
+                    apply: true,
+                    actor: "turbo",
+                    reason: $"Hook achievements of the {pack.Key} achievement pack",
+                    operationId: $"pack-hook:{pack.Key}:{pack.Version}:{Fingerprint(hooked)}",
+                    ct
+                )
+                .ConfigureAwait(false);
+            _logger?.LogInformation(
+                "Hooked {Count} achievements of the {Pack} pack to their sources.",
+                hooked.Length,
+                pack.Key
+            );
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger?.LogWarning(
+                ex,
+                "Achievements of the {Pack} pack were not hooked to their sources; they stay on the placeholder. Fix what the error names, then run: achievement reload",
+                pack.Key
+            );
+        }
+    }
+
+    private static string Fingerprint(ImmutableArray<AchievementDefinition> definitions) =>
+        Convert.ToHexString(
+            SHA256.HashData(
+                Encoding.UTF8.GetBytes(string.Join(',', definitions.Select(x => x.Key)))
+            )
+        )[..8];
 
     public async Task ReloadAsync(CancellationToken ct)
     {

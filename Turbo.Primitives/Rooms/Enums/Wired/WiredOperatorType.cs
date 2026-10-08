@@ -1,9 +1,12 @@
 namespace Turbo.Primitives.Rooms.Enums.Wired;
 
-/// <summary>The set / add / subtract radio shared by altitude and clock actions (operator.0..2).</summary>
+/// <summary>
+/// The increase / decrease / set radio shared by the altitude and clock actions, as the editor
+/// lists it (<c>wiredfurni.params.operator.0</c> to <c>.2</c>).
+/// </summary>
 public enum WiredOperatorType
 {
-    Set = 0,
-    Add = 1,
-    Subtract = 2,
+    Add = 0,
+    Subtract = 1,
+    Set = 2,
 }

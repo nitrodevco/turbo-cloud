@@ -158,7 +158,17 @@ internal class WiredDataSerializer
                 break;
             case WiredVariableInfoAndValueSnapshot infoAndValue:
                 WiredVariableSerializer.Serialize(packet, infoAndValue.Variable);
-                packet.WriteInteger(infoAndValue.Value);
+                packet.WriteInteger(infoAndValue.Value.ToClient());
+                break;
+            // SharedVariableList: per variable its room id and name, then the variable.
+            case WiredVariableSharedListSnapshot sharedList:
+                packet.WriteInteger(sharedList.Variables.Length);
+
+                foreach (var shared in sharedList.Variables)
+                {
+                    packet.WriteInteger(shared.RoomId).WriteString(shared.RoomName);
+                    WiredVariableSerializer.Serialize(packet, shared.Variable);
+                }
                 break;
             default:
                 break;

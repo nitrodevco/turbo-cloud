@@ -18,7 +18,7 @@ namespace Turbo.Tests.Rooms;
 /// <summary>
 /// A permanent user variable stays with the player. They are given a new room index every time
 /// they enter; the value they held is still theirs when they come back, and is not handed to
-/// whoever is given their old index.
+/// whoever is given their old index. A shared variable ("Permanent, shared") is permanent too.
 /// </summary>
 public class WiredPermanentUserVariableTests
 {
@@ -42,10 +42,14 @@ public class WiredPermanentUserVariableTests
                 : Fakes.NotHandled;
     }
 
-    [Fact]
-    public async Task Player_keeps_a_permanent_value_after_leaving_and_coming_back()
+    [Theory]
+    [InlineData(WiredAvailabilityType.Persistent)]
+    [InlineData(WiredAvailabilityType.Shared)]
+    public async Task Player_keeps_a_permanent_value_after_leaving_and_coming_back(
+        WiredAvailabilityType availability
+    )
     {
-        await PlacePermanentBoxAsync();
+        await PlacePermanentBoxAsync(availability);
 
         Enter(Alice, roomIndex: 3);
         Assert.True(await _box.GiveValueAsync(Key(3), 10));
@@ -57,10 +61,14 @@ public class WiredPermanentUserVariableTests
         Assert.Equal(10, (int)value);
     }
 
-    [Fact]
-    public async Task Next_user_given_the_old_room_index_does_not_inherit_the_value()
+    [Theory]
+    [InlineData(WiredAvailabilityType.Persistent)]
+    [InlineData(WiredAvailabilityType.Shared)]
+    public async Task Next_user_given_the_old_room_index_does_not_inherit_the_value(
+        WiredAvailabilityType availability
+    )
     {
-        await PlacePermanentBoxAsync();
+        await PlacePermanentBoxAsync(availability);
 
         Enter(Alice, roomIndex: 3);
         Assert.True(await _box.GiveValueAsync(Key(3), 10));
@@ -97,7 +105,7 @@ public class WiredPermanentUserVariableTests
         (IDictionary<RoomObjectId, IRoomAvatar>)
             RoomHarness.GetMember(_room.State, "AvatarsByObjectId")!;
 
-    private async Task PlacePermanentBoxAsync()
+    private async Task PlacePermanentBoxAsync(WiredAvailabilityType availability)
     {
         RoomHarness.SetMember(_room.State, "IsRightsLoaded", true);
 
@@ -126,7 +134,7 @@ public class WiredPermanentUserVariableTests
                 new UpdateWiredMessage
                 {
                     Id = BoxId,
-                    IntParams = [(int)WiredAvailabilityType.Persistent, 1],
+                    IntParams = [(int)availability, 1],
                     StringParam = "score",
                     StuffIds = [],
                     StuffIds2 = [],

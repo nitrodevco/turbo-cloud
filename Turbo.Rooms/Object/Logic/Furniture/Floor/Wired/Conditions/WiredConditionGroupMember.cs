@@ -12,8 +12,9 @@ using Turbo.Rooms.Wired;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
 /// <summary>
-/// True when the triggering users wear a group badge: any group when the string param is
-/// empty, otherwise the group with that id.
+/// True when the triggering users wear a group badge: the room's own group when the string
+/// param is empty (the editor's "Current group", <c>wiredfurni.params.grouptype.0</c>), otherwise
+/// the group with that id. A room without a group has no current group to match.
 /// </summary>
 [RoomObjectLogic("wf_cnd_actor_in_group")]
 public class WiredConditionGroupMember(
@@ -28,15 +29,19 @@ public class WiredConditionGroupMember(
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
-        var wantedGroupId = GetPositiveIdParam();
+        var wantedGroupId =
+            GetPositiveIdParam() ?? _roomGrain._state.RoomSnapshot?.Guild?.GuildId.Value;
         var players = GetPlayers(ctx.GetSelection(this));
+
+        if (wantedGroupId is not > 0)
+            return Quantify(players.Select(_ => false), true);
 
         return Quantify(
             players.Select(player =>
             {
                 var groupId = player is RoomPlayerAvatar avatar ? avatar.GuildId : -1;
 
-                return wantedGroupId is null ? groupId > 0 : groupId == wantedGroupId;
+                return groupId == wantedGroupId;
             }),
             true
         );

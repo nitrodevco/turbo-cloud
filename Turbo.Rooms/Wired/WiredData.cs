@@ -24,12 +24,13 @@ public class WiredData : IWiredData
     public List<object> TypeSpecifics { get; set; } = [];
 
     private IReadOnlyList<IWiredParamRule> _intRules = [];
+    private IWiredParamRule? _tailRule;
 
     private Func<Task>? _onSnapshotChanged;
 
     public T GetIntParam<T>(int index)
     {
-        var rule = _intRules[index];
+        var rule = RuleAt(index);
 
         if (rule.ValueType != typeof(T))
             throw new WiredParamTypeMismatchException(index, rule.ValueType, typeof(T));
@@ -39,7 +40,7 @@ public class WiredData : IWiredData
 
     public void SetIntParam<T>(int index, T value)
     {
-        var rule = _intRules[index];
+        var rule = RuleAt(index);
 
         if (rule.ValueType != typeof(T))
             throw new WiredParamTypeMismatchException(index, rule.ValueType, typeof(T));
@@ -67,7 +68,18 @@ public class WiredData : IWiredData
         MarkDirty();
     }
 
-    public void AttatchRules(IReadOnlyList<IWiredParamRule> rules) => _intRules = rules;
+    public void AttatchRules(IReadOnlyList<IWiredParamRule> rules, IWiredParamRule? tailRule = null)
+    {
+        _intRules = rules;
+        _tailRule = tailRule;
+    }
+
+    // A param past the fixed ones is read by the tail rule; without this, every read of one
+    // failed and the box fell back to its default (the level-up add-on's step, a date range).
+    private IWiredParamRule RuleAt(int index) =>
+        index < _intRules.Count
+            ? _intRules[index]
+            : _tailRule ?? throw new ArgumentOutOfRangeException(nameof(index));
 
     public void SetAction(Func<Task>? onSnapshotChanged) => _onSnapshotChanged = onSnapshotChanged;
 

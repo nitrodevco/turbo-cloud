@@ -29,7 +29,7 @@ internal class WiredVariableSerializer
             packet.WriteInteger(snapshot.TextConnectors.Count);
 
             foreach (var (key, value) in snapshot.TextConnectors)
-                packet.WriteInteger(key).WriteString(value);
+                packet.WriteInteger(key.ToClient()).WriteString(value);
         }
     }
 }

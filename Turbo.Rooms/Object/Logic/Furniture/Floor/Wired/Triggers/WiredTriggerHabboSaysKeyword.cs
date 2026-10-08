@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -11,13 +13,14 @@ using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
 /// <summary>
-/// Fires on chat. Params, as the client's editor writes them: hide the message (honoured by
-/// the chat path), the match mode and owner only. The string param is the keyword.
+/// Fires on chat. Params, as the client's editor writes them: owner only, the match mode and
+/// hide the message (honoured by the chat path). The string param is the keyword.
 ///
 /// The third mode is "Match all text", and the editor greys the keyword box out for it: it
 /// fires on anything that is said. The other two need a keyword and match it against the whole
@@ -30,9 +33,11 @@ public class WiredTriggerHabboSaysKeyword(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredTriggerLogic(grainFactory, stuffDataFactory, ctx)
 {
-    private const int HIDE_PARAM_INDEX = 0;
+    // Flash's order (triggerconfs AvatarSaysSomething.readIntParamsFromForm): the checkbox with
+    // id 0 ("only the owner"), the match mode, then the checkbox with id 1 ("hide").
+    private const int OWNER_ONLY_PARAM_INDEX = 0;
     private const int MATCH_MODE_PARAM_INDEX = 1;
-    private const int OWNER_ONLY_PARAM_INDEX = 2;
+    private const int HIDE_PARAM_INDEX = 2;
 
     private const int MATCH_CONTAINS = 0;
     private const int MATCH_EXACT = 1;
@@ -66,11 +71,66 @@ public class WiredTriggerHabboSaysKeyword(
 
         var text = chatEvt.Text.Trim();
 
+        if (CapturePattern(keyword, mode == MATCH_EXACT) is { } pattern)
+        {
+            try
+            {
+                return Task.FromResult(
+                    Regex.IsMatch(
+                        text,
+                        pattern,
+                        RegexOptions.IgnoreCase,
+                        TimeSpan.FromMilliseconds(_roomGrain._wiredConfig.RegexMatchTimeoutMs)
+                    )
+                );
+            }
+            catch (RegexMatchTimeoutException ex)
+            {
+                LogWiredDataFault(ex);
+
+                return Task.FromResult(false);
+            }
+        }
+
         return Task.FromResult(
             mode == MATCH_EXACT
                 ? string.Equals(text, keyword, StringComparison.OrdinalIgnoreCase)
                 : text.Contains(keyword, StringComparison.OrdinalIgnoreCase)
         );
+    }
+
+    /// <summary>
+    /// The keyword as a pattern when it holds the "#(name)" token of a Variable Capturer on this
+    /// stack: the token stands for the word the player types there ("price #(p)" matches "price
+    /// 250", Wired Faculty tutorial "Advanced Automatic Shop", 20/03/2026), spaces for any run of
+    /// them. Null for a plain keyword, which is matched as written.
+    /// </summary>
+    private string? CapturePattern(string keyword, bool exact)
+    {
+        var names = FurniModule
+            .GetFloorItemsOnTile(_ctx.GetTileIdx())
+            .Select(item => item.Logic)
+            .OfType<WiredAddonVariableCapturer>()
+            .Select(capturer => capturer.CaptureToken)
+            .Where(token =>
+                token.Length > 1 && keyword.Contains(token, StringComparison.OrdinalIgnoreCase)
+            )
+            .ToList();
+
+        if (names.Count == 0)
+            return null;
+
+        var pattern = Regex.Escape(keyword).Replace("\\ ", "\\s+");
+
+        foreach (var token in names)
+            pattern = Regex.Replace(
+                pattern,
+                Regex.Escape(Regex.Escape(token)),
+                @"\S+",
+                RegexOptions.IgnoreCase
+            );
+
+        return exact ? $"^{pattern}$" : pattern;
     }
 
     public override async Task<bool> CanTriggerAsync(

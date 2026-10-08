@@ -31,7 +31,8 @@ public partial interface IInventoryGrain
 
     /// <summary>
     /// Creates a new pet (purchase, hatched package, nest breeding) in this inventory. The
-    /// palette is the colour variant drawn; the breed names it.
+    /// palette is the colour variant drawn; the breed names it. The custom parts are the
+    /// figure's layer, part and palette triples (a monsterplant's shape), empty for none.
     /// </summary>
     public Task<PetSnapshot?> CreatePetAsync(
         string name,
@@ -40,6 +41,7 @@ public partial interface IInventoryGrain
         int breedId,
         string color,
         int rarityLevel,
+        ImmutableArray<int> customParts,
         CancellationToken ct
     );
     public Task<bool> DeletePetAsync(int petId, CancellationToken ct);

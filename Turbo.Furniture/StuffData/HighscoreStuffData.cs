@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Text.Json.Serialization;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
@@ -14,7 +15,8 @@ internal sealed class HighscoreStuffData : StuffDataBase, IHighscoreStuffData
     public string Data { get; set; } = DEFAULT_STATE;
     public int ScoreType { get; set; } = -1;
     public int ClearType { get; set; } = -1;
-    public Dictionary<int, List<string>> HighscoreData { get; set; } = [];
+    public List<HighscoreEntry> Entries { get; set; } = [];
+    public long PeriodStartedAt { get; set; }
 
     public override string GetLegacyString() => Data;
 
@@ -28,42 +30,23 @@ internal sealed class HighscoreStuffData : StuffDataBase, IHighscoreStuffData
         MarkDirty();
     }
 
-    public int GetScoreType() => ScoreType;
-
-    public void SetScoreType(int scoreType)
+    public void SetTypes(int scoreType, int clearType)
     {
+        if (ScoreType == scoreType && ClearType == clearType)
+            return;
+
         ScoreType = scoreType;
-
-        MarkDirty();
-    }
-
-    public int GetClearType() => ClearType;
-
-    public void SetClearType(int clearType)
-    {
         ClearType = clearType;
 
         MarkDirty();
     }
 
-    public void SetScore(int score, string name)
+    public void SetEntries(List<HighscoreEntry> entries, long periodStartedAt)
     {
-        if (!HighscoreData.TryGetValue(score, out List<string>? value))
-        {
-            value = [name];
-            HighscoreData[score] = value;
+        Entries = entries;
+        PeriodStartedAt = periodStartedAt;
 
-            MarkDirty();
-
-            return;
-        }
-
-        if (!value.Contains(name))
-        {
-            value.Add(name);
-
-            MarkDirty();
-        }
+        MarkDirty();
     }
 
     protected override StuffDataSnapshot BuildSnapshot() =>
@@ -73,11 +56,19 @@ internal sealed class HighscoreStuffData : StuffDataBase, IHighscoreStuffData
             UniqueNumber = UniqueNumber,
             UniqueSeries = UniqueSeries,
             Data = GetLegacyString(),
-            ScoreType = GetScoreType(),
-            ClearType = GetClearType(),
-            Scores = HighscoreData.ToImmutableDictionary(
-                kvp => kvp.Key,
-                kvp => kvp.Value.ToImmutableArray()
-            ),
+            ScoreType = ScoreType,
+            ClearType = ClearType,
+            Entries = ToSnapshots(Entries),
         };
+
+    internal static ImmutableArray<HighscoreEntrySnapshot> ToSnapshots(
+        IEnumerable<HighscoreEntry> entries
+    ) =>
+        [
+            .. entries.Select(entry => new HighscoreEntrySnapshot
+            {
+                Score = entry.Score,
+                Users = [.. entry.Users],
+            }),
+        ];
 }

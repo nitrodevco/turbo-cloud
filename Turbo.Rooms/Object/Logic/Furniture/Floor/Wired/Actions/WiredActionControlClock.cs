@@ -13,7 +13,7 @@ using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
-/// <summary>Starts, stops, resets, restarts or toggles the picked counter clocks.</summary>
+/// <summary>Starts, stops, resets, pauses or resumes the picked counter clocks (<c>clock_control.0</c> to <c>.4</c>).</summary>
 [RoomObjectLogic("wf_act_control_clock")]
 public class WiredActionControlClock(
     IGrainFactory grainFactory,
@@ -36,7 +36,7 @@ public class WiredActionControlClock(
 
         foreach (var item in GetFloorItems(ctx.GetSelection(this)))
         {
-            if (item.Logic is not FurnitureCounterClockLogic clock)
+            if (item.Logic is not IWiredClock clock)
                 continue;
 
             await clock.ControlAsync(control, ct);

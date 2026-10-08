@@ -6,6 +6,7 @@ using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Grains;
+using Turbo.Rooms.Wired.Storage;
 
 namespace Turbo.Rooms.Wired;
 
@@ -19,8 +20,22 @@ public abstract class WiredContext(RoomGrain roomGrain)
     public IWiredSelectionSet Selected { get; init; } = new WiredSelectionSet();
     public IWiredSelectionSet SelectorPool { get; init; } = new WiredSelectionSet();
     public IWiredSelectionSet Signal { get; init; } = new WiredSelectionSet();
+    public IWiredSelectionSet EventTargets { get; init; } = new WiredSelectionSet();
+
+    /// <summary>
+    /// The placeholders the stacks that signalled or called this one had, as their texts read
+    /// when the signal went out: "placeholders stay active for the entire signal chain (unless
+    /// they are overwritten)" (sirjonasxx, variables-info #20). This stack's own come first.
+    /// </summary>
+    public Dictionary<string, string> CarriedPlaceholders { get; init; } = [];
     public int Depth { get; init; }
     public Dictionary<string, int> Variables { get; init; } = [];
+
+    /// <summary>
+    /// The values of the room's context variables in this wired execution: one firing, the actions it
+    /// schedules, and the stacks it signals or calls, which start from a copy.
+    /// </summary>
+    public KeyValueStore ContextValues { get; init; } = new();
     public CancellationToken CancellationToken { get; init; }
 
     public bool TryGetContextVariable(string key, out int value)
@@ -91,8 +106,10 @@ public abstract class WiredContext(RoomGrain roomGrain)
                 {
                     case WiredPlayerSourceType.TriggeredUser:
                     case WiredPlayerSourceType.ReachedUser:
-                    case WiredPlayerSourceType.ClickedUser:
                         set.SelectedAvatarIds.UnionWith(Selected.SelectedAvatarIds);
+                        break;
+                    case WiredPlayerSourceType.ClickedUser:
+                        set.SelectedAvatarIds.UnionWith(EventTargets.SelectedAvatarIds);
                         break;
                     case WiredPlayerSourceType.SelectorUsers:
                         set.SelectedAvatarIds.UnionWith(SelectorPool.SelectedAvatarIds);

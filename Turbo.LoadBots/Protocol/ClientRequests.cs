@@ -15,8 +15,11 @@ public static class ClientRequests
 {
     public const string CATALOG_NORMAL = "NORMAL";
 
-    /// <summary>The room object category the client sends to pick up a floor item.</summary>
-    public const int PICKUP_CATEGORY_FLOOR = 10;
+    /// <summary>
+    /// The category the Flash client sends to pick up a floor item
+    /// (<c>PickupObjectMessageComposer</c> maps room object category 10 to 2).
+    /// </summary>
+    public const int PICKUP_CATEGORY_FLOOR = 2;
 
     public static ClientMessage ClientHello(string production) =>
         new(

@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
-using Turbo.Primitives.Moderation;
 using Turbo.Database.Context;
 using Turbo.Database.Extensions;
 using Turbo.Guilds.Configuration;
@@ -14,6 +13,7 @@ using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Grains;
 using Turbo.Primitives.Guilds.Snapshots;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 

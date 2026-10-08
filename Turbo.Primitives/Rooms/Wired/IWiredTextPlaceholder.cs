@@ -9,5 +9,8 @@ namespace Turbo.Primitives.Rooms.Wired;
 /// </summary>
 public interface IWiredTextPlaceholder
 {
+    /// <summary>What it replaces in a text, such as <c>$(username)</c>; empty when unnamed.</summary>
+    public string Token { get; }
+
     public Task<string> ApplyAsync(IWiredExecutionContext ctx, string text, CancellationToken ct);
 }

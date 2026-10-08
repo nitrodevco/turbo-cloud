@@ -6,6 +6,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
@@ -23,6 +24,17 @@ public class WiredAddonFurniNamePlaceholder(
 {
     public override int WiredCode => (int)WiredAddonType.FURNI_NAME_PLACEHOLDER;
 
-    protected override List<string> GetNames(IWiredSelectionSet selection) =>
-        [.. GetFloorItems(selection).Select(x => x.Definition.Name)];
+    // The triggering furni first: what the placeholder named before it had a source of its own.
+    public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
+        [
+            [
+                WiredFurniSourceType.TriggeredItem,
+                WiredFurniSourceType.SelectorItems,
+                WiredFurniSourceType.SignalItems,
+                WiredFurniSourceType.SelectedItems,
+            ],
+        ];
+
+    protected override List<string> GetNames(IWiredExecutionContext ctx) =>
+        [.. GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 0)).Select(x => x.Definition.Name)];
 }

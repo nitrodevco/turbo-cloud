@@ -27,8 +27,7 @@ public class WiredSelectorEntitiesWithVariable(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredEnumParamRule<WiredComparisonType>(WiredComparisonType.GreaterThan),
-            new WiredBoolParamRule(false),
-            new WiredBoolParamRule(false),
+            new WiredRangeParamRule(REFERENCE_NONE, REFERENCE_VARIABLE, REFERENCE_NONE),
             WiredRules.AnyInt(),
             WiredRules.AnyInt(),
             WiredRules.VariableTarget(WiredVariableTargetType.User),

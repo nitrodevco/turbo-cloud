@@ -28,6 +28,7 @@ using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 using Turbo.Rooms.Wired;
+using Turbo.Rooms.Wired.Storage;
 
 namespace Turbo.Rooms.Grains.Systems;
 
@@ -249,13 +250,22 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             Signal = signal,
             Depth = depth,
             CancellationToken = ct,
+            // A signalled stack starts from a copy of what the sender's context held.
+            ContextValues = ContextValuesFor(evt),
+            CarriedPlaceholders = PlaceholdersFor(evt),
         };
 
         SeedSelectionFromEvent(ctx, evt);
 
         var selection = ctx.GetSelection(trigger);
 
-        ctx.Selected.UnionWith(selection);
+        // A furni event names its furni, and that one is "the triggering item": the box's other
+        // picks only say which furni it listens to (Wired Faculty, "Making counters with number
+        // blocks": the block that just became 0 is the triggering item).
+        if (trigger is IWiredFurniEventTrigger)
+            ctx.Selected.SelectedAvatarIds.UnionWith(selection.SelectedAvatarIds);
+        else
+            ctx.Selected.UnionWith(selection);
 
         await RunStackAsync(ctx, now, null, ct);
     }
@@ -266,6 +276,30 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     /// positive call runs the actions when the conditions pass, a negative one when they fail.
     /// </summary>
     private async Task RunStackAsync(
+        WiredProcessingContext ctx,
+        long now,
+        bool? negativeCall,
+        CancellationToken ct
+    )
+    {
+        var outer = _contextValues;
+        var outerRunning = _running;
+
+        _contextValues = ctx.ContextValues;
+        _running = new WiredRunningExecution(ctx.SelectorPool, ctx.Signal, ctx.Event, ctx.Trigger);
+
+        try
+        {
+            await RunStackCoreAsync(ctx, now, negativeCall, ct);
+        }
+        finally
+        {
+            _contextValues = outer;
+            _running = outerRunning;
+        }
+    }
+
+    private async Task RunStackCoreAsync(
         WiredProcessingContext ctx,
         long now,
         bool? negativeCall,
@@ -398,9 +432,14 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
         switch (evt)
         {
+            // The one who clicked triggers; the one clicked is "The clicked user" (Wired Faculty,
+            // "See who is clicking on who", 19/03/2025: "$(user) clicks on $(target)").
             case PlayerClickedAvatarEvent clickEvt:
                 AddPlayerById(ctx, clickEvt.PlayerId);
-                AddAvatarByObjectId(ctx, clickEvt.TargetObjectId);
+
+                if (AvatarModule.TryGetAvatar(clickEvt.TargetObjectId, out _))
+                    ctx.EventTargets.SelectedAvatarIds.Add(clickEvt.TargetObjectId);
+
                 break;
             case PlayerEvent playerEvt:
                 AddPlayerById(ctx, playerEvt.PlayerId);
@@ -474,6 +513,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 Trigger = null,
                 Depth = evt.Depth,
                 CancellationToken = ct,
+                ContextValues = ContextValuesFor(evt),
+                CarriedPlaceholders = PlaceholdersFor(evt),
             };
 
             ctx.Selected.SelectedFurniIds.UnionWith(evt.FurniIds);
@@ -505,14 +546,19 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             Stack = ctx.Stack,
             Actions = actions,
             Trigger = ctx.Trigger,
+            Event = ctx.Event,
             Policy = ctx.Policy,
             Selected = ctx.Selected,
             SelectorPool = ctx.SelectorPool,
             Signal = ctx.Signal,
+            EventTargets = ctx.EventTargets,
+            CarriedPlaceholders = ctx.CarriedPlaceholders,
             Depth = ctx.Depth,
             Version = 1,
             DueAtMs = dueAtMs + (long)ctx.Policy.Delay.TotalMilliseconds,
             NextActionIndex = 0,
+            VariableChanges = ctx.Policy.ExecuteInOrder ? null : new WiredVariableChangeBatch(),
+            ContextValues = ctx.ContextValues,
         };
 
         _pendingStackExecutions[key] = pending;
@@ -590,6 +636,9 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
                 if (delayMs > 0)
                 {
+                    // What ran before the wait is one change; what runs after it is another.
+                    await FlushVariableChangesAsync(pending, ct);
+
                     pending.WaitingActionIndex = i;
 
                     RescheduleStack(key, pending, now + delayMs);
@@ -610,8 +659,12 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                     Selected = pending.Selected,
                     SelectorPool = pending.SelectorPool,
                     Signal = pending.Signal,
+                    EventTargets = pending.EventTargets,
+                    CarriedPlaceholders = pending.CarriedPlaceholders,
                     Depth = pending.Depth,
                     CancellationToken = ct,
+                    VariableChanges = pending.VariableChanges,
+                    ContextValues = pending.ContextValues,
                 };
 
                 action
@@ -622,7 +675,26 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                         _roomGrain.RoomId
                     );
 
-                succeeded = await action.ExecuteAsync(ctx, ct);
+                var outer = _contextValues;
+                var outerRunning = _running;
+
+                _contextValues = pending.ContextValues;
+                _running = new WiredRunningExecution(
+                    ctx.SelectorPool,
+                    ctx.Signal,
+                    pending.Event,
+                    pending.Trigger
+                );
+
+                try
+                {
+                    succeeded = await action.ExecuteAsync(ctx, ct);
+                }
+                finally
+                {
+                    _contextValues = outer;
+                    _running = outerRunning;
+                }
 
                 CountExecution();
 
@@ -644,10 +716,72 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             pending.NextActionIndex = i + 1;
 
             if (succeeded && pending.Policy.ShortCircuitOnFirstEffectSuccess)
-                return true;
+                break;
         }
 
+        await FlushVariableChangesAsync(pending, ct);
+
         return true;
+    }
+
+    /// <summary>Makes the held variable changes one change per holder (<see cref="WiredVariableChangeBatch"/>).</summary>
+    private async Task FlushVariableChangesAsync(
+        WiredPendingStackExecution pending,
+        CancellationToken ct
+    )
+    {
+        if (pending.VariableChanges is not { IsEmpty: false } batch)
+            return;
+
+        var ctx = new WiredExecutionContext(_roomGrain)
+        {
+            Policy = pending.Policy,
+            Selected = pending.Selected,
+            SelectorPool = pending.SelectorPool,
+            Signal = pending.Signal,
+            EventTargets = pending.EventTargets,
+            CarriedPlaceholders = pending.CarriedPlaceholders,
+            Depth = pending.Depth,
+            CancellationToken = ct,
+            ContextValues = pending.ContextValues,
+        };
+
+        var outer = _contextValues;
+        var outerRunning = _running;
+
+        _contextValues = pending.ContextValues;
+        _running = new WiredRunningExecution(
+            ctx.SelectorPool,
+            ctx.Signal,
+            pending.Event,
+            pending.Trigger
+        );
+
+        try
+        {
+            await batch.FlushAsync(ctx);
+            FlushWiredContext(ctx);
+        }
+        catch (Exception ex)
+        {
+            var box = pending.Actions.FirstOrDefault(a =>
+                a.WiredCode == (int)WiredActionType.CHANGE_VARIABLE
+            );
+
+            if (box is not null)
+                RecordError(ex.GetType().Name, GetErrorCategory(box), _roomGrain.NowMs());
+
+            _roomGrain._logger.LogWarning(
+                ex,
+                "Combined wired variable change failed in room {RoomId}",
+                _roomGrain.RoomId
+            );
+        }
+        finally
+        {
+            _contextValues = outer;
+            _running = outerRunning;
+        }
     }
 
     private void RescheduleStack(

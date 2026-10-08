@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Wired;
@@ -34,9 +35,18 @@ public sealed class UserTeamScoreVariable(RoomGrain roomGrain)
 
         var team = GameSystem.GetTeam(avatar.PlayerId);
 
-        return await GameSystem.SetScoreAsync(team, value, CancellationToken.None);
+        return await GameSystem.SetScoreAsync(team, value.ClampToInt(), CancellationToken.None);
     }
 
     protected override WiredVariableValue GetValueForAvatar(IRoomPlayer avatar) =>
         WiredVariableValue.Parse(GameSystem.GetScore(GameSystem.GetTeam(avatar.PlayerId)));
+
+    // Held only while the player is on a team: the official client lists no team variables for
+    // a player who is on none.
+    protected override bool TryGetAvatarForKey(
+        in WiredVariableKey key,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out IRoomPlayer? avatar
+    ) =>
+        base.TryGetAvatarForKey(key, out avatar)
+        && GameSystem.GetTeam(avatar.PlayerId) != GameTeamType.None;
 }

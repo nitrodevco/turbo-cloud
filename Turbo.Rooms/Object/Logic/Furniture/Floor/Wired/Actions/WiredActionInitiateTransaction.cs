@@ -80,8 +80,10 @@ public class WiredActionInitiateTransaction(
             ),
         ];
 
+    // The contracts may be the triggering furni: the Wired Faculty's "Automatic shop with
+    // contracts" (18/03/2026) offers the contract the user clicked.
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() =>
-        [WiredSources.PickedFurni, WiredSources.PickedFurni, WiredSources.Furni];
+        [WiredSources.PickedFurni, WiredSources.Furni, WiredSources.Furni];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() =>
         [WiredSources.Users, WiredSources.Users];

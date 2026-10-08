@@ -15,7 +15,7 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons.VariableFx;
 /// range: the client draws the value digit by digit. The extra int param is where the icon
 /// goes, the string param which icon.
 /// </summary>
-[RoomObjectLogic("wf_xtra_var_fx_number")]
+[RoomObjectLogic("wf_xtra_varfx_number")]
 public class WiredAddonVariableFxNumberDisplay(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,

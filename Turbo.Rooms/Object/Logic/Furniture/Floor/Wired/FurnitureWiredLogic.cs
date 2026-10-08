@@ -159,6 +159,42 @@ public abstract partial class FurnitureWiredLogic(
 
     public virtual List<WiredVariableContextSnapshot> GetWiredContextSnapshots() => [];
 
+    /// <summary>
+    /// The user sources the editor offers: the box's own, and after the triggering user of each
+    /// slot that has one, the users a trigger on the same stack names
+    /// (<see cref="IWiredUserSourceProvider"/>).
+    /// </summary>
+    public List<WiredPlayerSourceType[]> GetOfferedPlayerSources()
+    {
+        var allowed = GetAllowedPlayerSources();
+        var provided = FurniModule
+            .GetFloorItemsOnTile(_ctx.GetTileIdx())
+            .Select(item => item.Logic)
+            .OfType<IWiredUserSourceProvider>()
+            .SelectMany(trigger => trigger.ProvidedUserSources)
+            .Distinct()
+            .ToList();
+
+        if (provided.Count == 0)
+            return allowed;
+
+        return
+        [
+            .. allowed.Select(slot =>
+            {
+                var index = System.Array.IndexOf(slot, WiredPlayerSourceType.TriggeredUser);
+
+                if (index < 0)
+                    return slot;
+
+                var extra = provided.Where(x => !slot.Contains(x));
+
+                return (WiredPlayerSourceType[])
+                    [.. slot[..(index + 1)], .. extra, .. slot[(index + 1)..]];
+            }),
+        ];
+    }
+
     public List<WiredFurniSourceType[]> GetFurniSources() =>
         StoredOrDefault(_wiredData.FurniSources, GetDefaultFurniSources());
 
@@ -328,7 +364,7 @@ public abstract partial class FurnitureWiredLogic(
             }
 
             index = 0;
-            var validPlayerSources = GetAllowedPlayerSources();
+            var validPlayerSources = GetOfferedPlayerSources();
 
             foreach (var source in GetDefaultPlayerSources())
             {
@@ -482,6 +518,9 @@ public abstract partial class FurnitureWiredLogic(
     private static object CreateDefaultSpecific(Type specType) =>
         specType == typeof(string) ? string.Empty : Activator.CreateInstance(specType)!;
 
+    /// <summary>The most ints a save may carry; a box whose editor sends more says so.</summary>
+    protected virtual int GetMaxIntParams() => _roomGrain._wiredConfig.MaxIntParams;
+
     protected virtual bool TryNormalizeIntParams(List<int> proposed, out List<int> normalized)
     {
         normalized = [];
@@ -489,7 +528,7 @@ public abstract partial class FurnitureWiredLogic(
         var fixedRules = GetIntParamRules();
         var tailRule = GetIntParamTailRule();
         var min = fixedRules.Count;
-        var max = Math.Max(min, _roomGrain._wiredConfig.MaxIntParams);
+        var max = Math.Max(min, GetMaxIntParams());
 
         if (proposed.Count > max)
             return false;
@@ -556,10 +595,12 @@ public abstract partial class FurnitureWiredLogic(
         var limit = _roomGrain._wiredConfig.SelectedItemsLimit;
         var seen = new HashSet<int>();
 
-        foreach (var id in proposed)
+        foreach (var proposedId in proposed)
         {
             if (stuffIds.Count >= limit)
                 break;
+
+            var id = WiredFurniIds.FromClient(FurniModule, proposedId);
 
             if (!FurniModule.HasItem(id) || !seen.Add(id))
                 continue;
@@ -642,7 +683,7 @@ public abstract partial class FurnitureWiredLogic(
                 _wiredData = new WiredData();
             }
 
-            _wiredData.AttatchRules(GetIntParamRules());
+            _wiredData.AttatchRules(GetIntParamRules(), GetIntParamTailRule());
         }
 
         if (TryNormalizeIntParams(_wiredData.IntParams, out var normalizedIntParams))
@@ -745,16 +786,27 @@ public abstract partial class FurnitureWiredLogic(
 
     public WiredDataSnapshot GetSnapshot() => _snapshot ??= BuildSnapshot();
 
+    /// <summary>
+    /// Fetches what the editor shows that the box cannot read synchronously, before its editor is
+    /// sent: "From Another Room" lists the variables the owner's other rooms share. True when it
+    /// changed what <see cref="GetWiredContextSnapshots"/> returns.
+    /// </summary>
+    public virtual Task<bool> RefreshEditorContextAsync(CancellationToken ct) =>
+        Task.FromResult(false);
+
+    /// <summary>Drops the cached editor snapshot, so the next read builds it again.</summary>
+    public void InvalidateSnapshot() => _snapshot = null;
+
     protected virtual WiredDataSnapshot BuildSnapshot() =>
         new()
         {
             WiredType = WiredType,
             FurniLimit = _roomGrain._wiredConfig.SelectedItemsLimit,
             StuffIds = GetValidStuffIds(_wiredData.StuffIds, out var validStuffIds)
-                ? validStuffIds
+                ? WiredFurniIds.ToClient(FurniModule, validStuffIds)
                 : [],
             StuffIds2 = GetValidStuffIds(_wiredData.StuffIds2, out var validStuffIds2)
-                ? validStuffIds2
+                ? WiredFurniIds.ToClient(FurniModule, validStuffIds2)
                 : [],
             StuffTypeId = _ctx.Definition.SpriteId,
             Id = _ctx.ObjectId,
@@ -770,7 +822,7 @@ public abstract partial class FurnitureWiredLogic(
             AmountFurniSelections = [],
             AllowWallFurni = _roomGrain._wiredConfig.AllowWallFurni,
             AllowedFurniSources = GetAllowedFurniSources(),
-            AllowedPlayerSources = GetAllowedPlayerSources(),
+            AllowedPlayerSources = GetOfferedPlayerSources(),
             DefaultFurniSources = GetDefaultFurniSources(),
             DefaultPlayerSources = GetDefaultPlayerSources(),
             DefinitionSpecifics = GetDefinitionSpecifics(),

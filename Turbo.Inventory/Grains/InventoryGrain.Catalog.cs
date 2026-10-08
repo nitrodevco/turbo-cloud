@@ -48,7 +48,7 @@ internal sealed partial class InventoryGrain
                     var definition = FurniModule.GetDefinitionOrThrow(product.FurniDefinitionId);
 
                     // As in Habbo, one teleporter bought is a pair, linked to each other.
-                    if (TeleportFurniture.IsTeleport(definition.LogicName))
+                    if (TeleportFurniture.IsLinkedPair(definition.LogicName, definition.Name))
                     {
                         for (var i = 0; i < quantity; i++)
                             teleportPairs.Add(definition);

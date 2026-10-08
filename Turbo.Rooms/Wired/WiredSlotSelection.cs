@@ -67,8 +67,10 @@ public static class WiredSlotSelection
             {
                 case WiredPlayerSourceType.TriggeredUser:
                 case WiredPlayerSourceType.ReachedUser:
-                case WiredPlayerSourceType.ClickedUser:
                     set.SelectedAvatarIds.UnionWith(ctx.Selected.SelectedAvatarIds);
+                    break;
+                case WiredPlayerSourceType.ClickedUser:
+                    set.SelectedAvatarIds.UnionWith(ctx.EventTargets.SelectedAvatarIds);
                     break;
                 case WiredPlayerSourceType.SelectorUsers:
                     set.SelectedAvatarIds.UnionWith(ctx.SelectorPool.SelectedAvatarIds);

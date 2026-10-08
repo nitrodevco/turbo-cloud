@@ -10,6 +10,7 @@ public sealed class WiredPolicy : IWiredPolicy
     public WiredConditionModeType ConditionMode { get; set; } = WiredConditionModeType.All;
     public int ConditionThreshold { get; set; } = 1;
     public WiredEffectModeType EffectMode { get; set; } = WiredEffectModeType.All;
+    public bool ExecuteInOrder { get; set; }
     public int RandomPickCount { get; set; } = 1;
     public int RandomSkipCount { get; set; } = 0;
     public WiredAnimationModeType AnimationMode { get; set; } = WiredAnimationModeType.Smooth;

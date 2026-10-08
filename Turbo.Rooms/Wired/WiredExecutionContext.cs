@@ -25,6 +25,9 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
 {
     public DateTimeOffset RoomLocalTime => WiredSystem.GetRoomLocalTime();
 
+    /// <summary>Where "Change Variable Value" holds its change back; null when it changes at once.</summary>
+    internal WiredVariableChangeBatch? VariableChanges { get; init; }
+
     public List<WiredUserMovementSnapshot> UserMoves { get; } = [];
     public List<WiredFloorItemMovementSnapshot> FloorItemMoves { get; } = [];
     public List<WiredWallItemMovementSnapshot> WallItemMoves { get; } = [];
@@ -371,9 +374,48 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// The placeholders a signal or stack call from here carries on: what this stack's own read
+    /// now, over the ones it was carried.
+    /// </summary>
+    public async Task<Dictionary<string, string>> ResolvePlaceholdersToCarryAsync(
+        CancellationToken ct
+    )
+    {
+        var carried = new Dictionary<string, string>(CarriedPlaceholders, StringComparer.Ordinal);
+
+        foreach (var placeholder in Policy.TextPlaceholders)
+        {
+            if (placeholder.Token.Length == 0)
+                continue;
+
+            try
+            {
+                carried[placeholder.Token] = await placeholder.ApplyAsync(
+                    this,
+                    placeholder.Token,
+                    ct
+                );
+            }
+            catch (Exception ex)
+            {
+                _roomGrain._logger.LogWarning(
+                    ex,
+                    "A wired text placeholder failed in room {RoomId}",
+                    _roomGrain.RoomId
+                );
+            }
+        }
+
+        return carried;
+    }
+
     public async Task<string> FormatTextAsync(string text, CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(text) || Policy.TextPlaceholders.Count == 0)
+        if (
+            string.IsNullOrEmpty(text)
+            || (Policy.TextPlaceholders.Count == 0 && CarriedPlaceholders.Count == 0)
+        )
             return text ?? string.Empty;
 
         foreach (var placeholder in Policy.TextPlaceholders)
@@ -391,6 +433,9 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
                 );
             }
         }
+
+        foreach (var (token, value) in CarriedPlaceholders)
+            text = text.Replace(token, value, StringComparison.Ordinal);
 
         // Placeholders expand the text, and a box can repeat one many times over.
         // Cut by hand rather than through ClientText.Truncate, which also trims: the text is

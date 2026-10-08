@@ -28,7 +28,7 @@ public class WiredActionMoveRotateFurni(
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredRangeParamRule(0, 7, 0), // Movement Type
+            new WiredRangeParamRule(0, 11, 0), // Movement Type
             new WiredRangeParamRule(0, 3, 0), // Rotation Type
         ];
 
@@ -84,6 +84,11 @@ public class WiredActionMoveRotateFurni(
             5 => Rotation.East,
             6 => Rotation.South,
             7 => Rotation.West,
+            // The editor's diagonal arrows (move_1, move_3, move_5, move_7).
+            8 => Rotation.NorthEast,
+            9 => Rotation.SouthEast,
+            10 => Rotation.SouthWest,
+            11 => Rotation.NorthWest,
             _ => Rotation.None,
         };
 

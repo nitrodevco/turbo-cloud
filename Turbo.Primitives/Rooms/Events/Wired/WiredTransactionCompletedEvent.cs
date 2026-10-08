@@ -14,4 +14,24 @@ public sealed record WiredTransactionCompletedEvent : PlayerEvent
 {
     [Id(0)]
     public required RoomObjectId SourceId { get; init; }
+
+    /// <summary>How many times over the contract was taken.</summary>
+    [Id(1)]
+    public int Multiplier { get; init; }
+
+    /// <summary>Furni the player paid into the chests.</summary>
+    [Id(2)]
+    public int DepositFurniCount { get; init; }
+
+    /// <summary>Credits the player paid into the chests.</summary>
+    [Id(3)]
+    public int DepositCoinsCount { get; init; }
+
+    /// <summary>Furni the chests gave the player.</summary>
+    [Id(4)]
+    public int WithdrawalFurniCount { get; init; }
+
+    /// <summary>Credits the chests gave the player.</summary>
+    [Id(5)]
+    public int WithdrawalCoinsCount { get; init; }
 }

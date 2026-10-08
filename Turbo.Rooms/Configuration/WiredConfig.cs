@@ -40,7 +40,6 @@ public class WiredConfig
     public int SelectedItemsLimit { get; init; } = 20;
     public bool AllowWallFurni { get; init; } = true;
     public int MaxIntParams { get; init; } = 16;
-    public int NeighborhoodRadius { get; init; } = 5;
     public int MaxCoordinate { get; init; } = 255;
     public int StringParamMaxLength { get; init; } = 2000;
     public int MaxHandItemId { get; init; } = 10000;
@@ -73,10 +72,4 @@ public class WiredConfig
     /// drops an fx for an object it has not been told of yet, and the object travels another way.
     /// </summary>
     public int VariableFxEntryDelayMs { get; init; } = 1000;
-
-    /// <summary>
-    /// The effect a wired freeze paints, by the index the box editor sends. Ships as zeros (no
-    /// effect): which effect ids a hotel has is hotel data.
-    /// </summary>
-    public int[] FreezeEffectIds { get; init; } = [0, 0, 0, 0, 0];
 }

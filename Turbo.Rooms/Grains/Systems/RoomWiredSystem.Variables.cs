@@ -4,6 +4,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired.Variable;
@@ -38,6 +40,56 @@ public sealed partial class RoomWiredSystem
 
     public IEnumerable<IWiredVariable> GetAllVariables() => _variableById.Values;
 
+    /// <summary>
+    /// The context variable values of the wired execution running now (<see cref="Turbo.Rooms.Wired.WiredContext.ContextValues"/>):
+    /// set while a stack's selectors, conditions and addons run and while each of its actions runs,
+    /// null between them, so a context variable holds nothing outside a wired execution.
+    /// </summary>
+    private KeyValueStore? _contextValues;
+
+    /// <summary>
+    /// The wired execution running now, set and cleared with <see cref="_contextValues"/>: what
+    /// the internal context variables (<c>@selector_furni_count</c>, <c>@event.chat.type</c>, ...) read.
+    /// </summary>
+    private WiredRunningExecution? _running;
+
+    /// <summary>The wired execution running now, null outside one.</summary>
+    public WiredRunningExecution? CurrentExecution => _running;
+
+    /// <summary>The context values a signal or stack call carries to the stacks it starts.</summary>
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<
+        RoomEvent,
+        KeyValueStore
+    > _contextValuesByEvent = [];
+
+    /// <summary>
+    /// Lets the stacks a signal or a stack call starts use <paramref name="values"/>: each works in
+    /// a scope inside them, sharing the sender's context variables until it gives its own
+    /// (<see cref="KeyValueStore.Parent"/>).
+    /// </summary>
+    public void CarryContextValues(RoomEvent evt, KeyValueStore values) =>
+        _contextValuesByEvent.AddOrUpdate(evt, values);
+
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<
+        RoomEvent,
+        Dictionary<string, string>
+    > _placeholdersByEvent = [];
+
+    /// <summary>Lets the stacks a signal or a stack call starts use the sender's placeholders.</summary>
+    public void CarryPlaceholders(RoomEvent evt, Dictionary<string, string> placeholders) =>
+        _placeholdersByEvent.AddOrUpdate(evt, placeholders);
+
+    private Dictionary<string, string> PlaceholdersFor(RoomEvent evt) =>
+        _placeholdersByEvent.TryGetValue(evt, out var placeholders)
+            ? new(placeholders, System.StringComparer.Ordinal)
+            : [];
+
+    /// <summary>A scope inside what <paramref name="evt"/> carries, or an empty context.</summary>
+    private KeyValueStore ContextValuesFor(RoomEvent evt) =>
+        _contextValuesByEvent.TryGetValue(evt, out var values)
+            ? values.CreateChild()
+            : new KeyValueStore();
+
     public bool TryGetStoreForKey(WiredVariableKey key, out KeyValueStore? store)
     {
         store = null;
@@ -47,12 +99,34 @@ public sealed partial class RoomWiredSystem
             WiredVariableTargetType.Furni => _furnitureActiveStore.TryGetStore(key, out store),
             WiredVariableTargetType.User => _playerActiveStore.TryGetStore(key, out store),
             WiredVariableTargetType.Global => _roomActiveStore.TryGetStore(key, out store),
+            WiredVariableTargetType.Context => (store = _contextValues) is not null,
             _ => false,
         };
     }
 
-    public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct) =>
-        Task.FromResult(_variablesSnapshot ??= BuildVariablesSnapshot());
+    public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct)
+    {
+        // A smart variable comes and goes with the furni of its kind: the list is built again
+        // whenever which of them are present changes.
+        var present = PresentSmartVariables();
+
+        if (_variablesSnapshot is null || !present.SetEquals(_presentSmartVariables))
+        {
+            _presentSmartVariables = present;
+            _variablesSnapshot = BuildVariablesSnapshot();
+        }
+
+        return Task.FromResult(_variablesSnapshot);
+    }
+
+    private HashSet<WiredVariableId> _presentSmartVariables = [];
+
+    private HashSet<WiredVariableId> PresentSmartVariables() =>
+        [
+            .. _variableById
+                .Where(entry => entry.Value is IWiredSmartVariable smart && smart.IsPresent())
+                .Select(entry => entry.Key),
+        ];
 
     public Task<
         List<(WiredVariableId id, WiredVariableValue value)>
@@ -92,8 +166,17 @@ public sealed partial class RoomWiredSystem
         {
             var key = new WiredVariableKey(variableId, snapshot.TargetType, targetId);
 
-            if (variable.TryGetValue(key, out var value))
-                holders.Add((targetId, value));
+            if (!variable.TryGetValue(key, out var value))
+                continue;
+
+            // The highlighter reads a negative furni id as a wall item.
+            var holderId =
+                snapshot.TargetType == WiredVariableTargetType.Furni
+                && FurniModule.TryGetItem(targetId, out var item)
+                    ? WiredFurniIds.ToClient(item)
+                    : targetId;
+
+            holders.Add((holderId, value.ToClient()));
         }
 
         return new WiredVariableInfoAndHoldersSnapshot
@@ -109,7 +192,39 @@ public sealed partial class RoomWiredSystem
     /// user. The flags asked for are the ones the client checks before it offers each button;
     /// the client is not trusted to have checked them.
     /// </summary>
+    /// <summary>
+    /// Where the variable changes made right now come from: wired in this room, unless the
+    /// inspection tool or Variable Management is making them (<see cref="WiredVariableChangedEvent.Origin"/>).
+    /// </summary>
+    public WiredVariableChangeOriginType ChangeOrigin { get; private set; }
+
     public async Task<bool> ApplyVariableMenuOperationAsync(
+        WiredVariableBinding binding,
+        WiredVariableId variableId,
+        WiredVariableMenuOperationType operation,
+        WiredVariableValue value,
+        CancellationToken ct
+    )
+    {
+        ChangeOrigin = WiredVariableChangeOriginType.Inspection;
+
+        try
+        {
+            return await ApplyVariableMenuOperationCoreAsync(
+                binding,
+                variableId,
+                operation,
+                value,
+                ct
+            );
+        }
+        finally
+        {
+            ChangeOrigin = WiredVariableChangeOriginType.ThisRoom;
+        }
+    }
+
+    private async Task<bool> ApplyVariableMenuOperationCoreAsync(
         WiredVariableBinding binding,
         WiredVariableId variableId,
         WiredVariableMenuOperationType operation,
@@ -137,11 +252,17 @@ public sealed partial class RoomWiredSystem
                 )
                     return false;
 
-                return await variable.SetValueAsync(
-                    new WiredExecutionContext(_roomGrain) { CancellationToken = ct },
-                    key,
-                    value
-                );
+                var ctx = new WiredExecutionContext(_roomGrain) { CancellationToken = ct };
+
+                if (!await variable.SetValueAsync(ctx, key, value))
+                    return false;
+
+                // A furni or user moved by writing its position goes out the way a wired move
+                // does, in the movement packet the context collects, or nobody sees it move
+                // until they enter the room again.
+                FlushWiredContext(ctx);
+
+                return true;
             case WiredVariableMenuOperationType.Create:
                 if (!flags.Has(WiredVariableFlags.CanCreateAndDelete))
                     return false;
@@ -166,14 +287,26 @@ public sealed partial class RoomWiredSystem
     /// or user variable only, and that is all a box can do it for: only a stored variable keeps
     /// its own list of holders.
     /// </summary>
-    public int RemoveVariableFromAllHolders(WiredVariableId variableId) =>
-        GetVariableById(variableId) is FurnitureWiredVariableLogic box
-        && box.GetVarSnapshot().Flags.Has(WiredVariableFlags.CanCreateAndDelete)
-        && box.GetVarSnapshot().TargetType
-            is WiredVariableTargetType.Furni
-                or WiredVariableTargetType.User
-            ? box.RemoveAllValues()
-            : 0;
+    public int RemoveVariableFromAllHolders(WiredVariableId variableId)
+    {
+        ChangeOrigin = WiredVariableChangeOriginType.External;
+
+        try
+        {
+            return
+                GetVariableById(variableId) is FurnitureWiredVariableLogic box
+                && box.GetVarSnapshot().Flags.Has(WiredVariableFlags.CanCreateAndDelete)
+                && box.GetVarSnapshot().TargetType
+                    is WiredVariableTargetType.Furni
+                        or WiredVariableTargetType.User
+                ? box.RemoveAllValues()
+                : 0;
+        }
+        finally
+        {
+            ChangeOrigin = WiredVariableChangeOriginType.ThisRoom;
+        }
+    }
 
     /// <summary>
     /// A stored furni variable outlives the furni that holds it, which is right for a furni
@@ -343,8 +476,11 @@ public sealed partial class RoomWiredSystem
         var hashes = new List<WiredVariableHash>();
         var snapshots = new List<WiredVariableSnapshot>(_variableById.Count);
 
-        foreach (var variable in _variableById.Values)
+        foreach (var (id, variable) in _variableById)
         {
+            if (variable is IWiredSmartVariable && !_presentSmartVariables.Contains(id))
+                continue;
+
             var snapshot = variable.GetVarSnapshot();
 
             hashes.Add(snapshot.VariableHash);

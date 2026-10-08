@@ -67,6 +67,62 @@ public sealed class WiredSubVariable(
 
     public WiredVariableSnapshot GetVarSnapshot() => _snapshot ??= Build();
 
+    /// <summary>The variable this one is derived from.</summary>
+    public WiredVariableId ParentId => parent.GetVarSnapshot().VariableId;
+
+    /// <summary>
+    /// What this sub-variable reads when its parent holds <paramref name="parentValue"/> on the
+    /// key's target: the value before a change, which the parent no longer holds, as well as after.
+    /// </summary>
+    public bool TryGetValueFor(
+        WiredVariableValue parentValue,
+        in WiredVariableKey key,
+        out WiredVariableValue value
+    )
+    {
+        value = WiredVariableValue.Default;
+
+        var parentKey = new WiredVariableKey(ParentId, key.TargetType, key.TargetId);
+        var computed = compute(new HoldingParent(parent, parentValue), parentKey);
+
+        if (computed is null)
+            return false;
+
+        value = computed.Value;
+
+        return true;
+    }
+
+    /// <summary>The parent as it would read holding one given value.</summary>
+    private sealed class HoldingParent(IWiredVariable parent, WiredVariableValue held)
+        : IWiredVariable
+    {
+        public bool CanBind(in WiredVariableKey key) => parent.CanBind(key);
+
+        public WiredVariableSnapshot GetVarSnapshot() => parent.GetVarSnapshot();
+
+        public bool TryGetValue(in WiredVariableKey key, out WiredVariableValue value)
+        {
+            value = held;
+
+            return parent.CanBind(key);
+        }
+
+        public Task<bool> GiveValueAsync(
+            WiredVariableKey key,
+            WiredVariableValue value,
+            bool replace = false
+        ) => Task.FromResult(false);
+
+        public Task<bool> SetValueAsync(
+            IWiredExecutionContext ctx,
+            WiredVariableKey key,
+            WiredVariableValue value
+        ) => Task.FromResult(false);
+
+        public bool RemoveValue(WiredVariableKey key) => false;
+    }
+
     private WiredVariableSnapshot Build()
     {
         var parentSnapshot = parent.GetVarSnapshot();

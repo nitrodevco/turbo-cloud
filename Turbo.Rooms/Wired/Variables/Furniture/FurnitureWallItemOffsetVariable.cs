@@ -13,7 +13,9 @@ public sealed class FurnitureWallItemOffsetVariable(RoomGrain roomGrain)
     protected override string VariableName => "@wallitem_offset";
     protected override WiredVariableGroupSubBandType SubBandType =>
         WiredVariableGroupSubBandType.Other;
-    protected override ushort Order => 10;
+
+    // After @owner_id, before the projectile variables, as the official list has it.
+    protected override ushort Order => 25;
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.CanWriteValue;
 
@@ -37,13 +39,20 @@ public sealed class FurnitureWallItemOffsetVariable(RoomGrain roomGrain)
                 item.X,
                 item.Y,
                 item.Z,
-                value,
+                value.ClampToInt(),
                 item.Rotation
             )
         )
             return false;
 
-        await ctx.ProcessWallItemMovementAsync(item, item.X, item.Y, item.Z, item.Rotation, value);
+        await ctx.ProcessWallItemMovementAsync(
+            item,
+            item.X,
+            item.Y,
+            item.Z,
+            item.Rotation,
+            value.ClampToInt()
+        );
 
         return true;
     }

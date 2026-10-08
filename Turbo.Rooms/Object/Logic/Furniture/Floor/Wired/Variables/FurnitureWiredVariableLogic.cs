@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,10 +8,12 @@ using Turbo.Logging;
 using Turbo.Primitives;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
@@ -56,8 +59,8 @@ public abstract class FurnitureWiredVariableLogic
         if (
             AvailabilityParamIndex is int index
             && index < update.IntParams.Count
-            && (WiredAvailabilityType)update.IntParams[index] == WiredAvailabilityType.Persistent
-            && GetVarSnapshot().AvailabilityType != WiredAvailabilityType.Persistent
+            && ((WiredAvailabilityType)update.IntParams[index]).IsPermanent()
+            && !GetVarSnapshot().AvailabilityType.IsPermanent()
             && await WiredSystem.IsPermanentVariableCapReachedAsync(TargetType, ct)
         )
             throw new TurboException(TurboErrorCodeEnum.WiredPermanentVariableLimitReached);
@@ -93,8 +96,18 @@ public abstract class FurnitureWiredVariableLogic
         if (!CanBind(key) || !TryGetStore(key, out var store, out var storedKey) || store is null)
             return false;
 
-        return store.TryGetValue(storedKey, out value);
+        // A global always holds its value: 0 until something changes it.
+        return store.TryGetValue(storedKey, out value) || HoldsByDefault(key);
     }
+
+    /// <summary>
+    /// A global variable has no holders to give it to: the room holds it from the moment the box
+    /// is placed (<see cref="WiredVariableFlags.AlwaysAvailable"/>), at 0, and a change to it
+    /// always has something to change.
+    /// </summary>
+    private bool HoldsByDefault(in WiredVariableKey key) =>
+        key.TargetType == WiredVariableTargetType.Global
+        && GetVarSnapshot().Flags.Has(WiredVariableFlags.AlwaysAvailable);
 
     public virtual Task<bool> GiveValueAsync(
         WiredVariableKey key,
@@ -122,14 +135,34 @@ public abstract class FurnitureWiredVariableLogic
         WiredVariableValue value
     )
     {
-        if (
-            !TryGetStore(key, out var store, out var storedKey)
-            || store is null
-            || !store.ContainsKey(storedKey)
-        )
+        if (!TryGetStore(key, out var store, out var storedKey) || store is null)
             return Task.FromResult(false);
 
+        if (!store.ContainsKey(storedKey))
+        {
+            if (!HoldsByDefault(key))
+                return Task.FromResult(false);
+
+            return SetDefaultHeldAsync(store, ctx, key, storedKey, value);
+        }
+
         return SetAndNotifyAsync(store, ctx, key, storedKey, value);
+    }
+
+    /// <summary>The first change to a global: it is stored at its 0, then changed like any value.</summary>
+    private async Task<bool> SetDefaultHeldAsync(
+        KeyValueStore store,
+        IWiredExecutionContext ctx,
+        WiredVariableKey key,
+        WiredVariableKey storedKey,
+        WiredVariableValue value
+    )
+    {
+        // Its 0, not WiredVariableValue.Default: that is the marker a value-less variable is held with.
+        if (!await store.GiveValueAsync(storedKey, new WiredVariableValue(0), false))
+            return false;
+
+        return await SetAndNotifyAsync(store, ctx, key, storedKey, value);
     }
 
     public bool TryGetTimestamps(
@@ -155,6 +188,7 @@ public abstract class FurnitureWiredVariableLogic
             return false;
 
         PublishChange(key, WiredVariableChangeType.Removed, previous, previous);
+        ShareChange(storedKey, WiredVariableChangeType.Removed, previous, previous);
 
         return true;
     }
@@ -189,6 +223,8 @@ public abstract class FurnitureWiredVariableLogic
 
             if (TryGetLiveKey(storedKey, out var key))
                 PublishChange(key, WiredVariableChangeType.Removed, previous, previous);
+
+            ShareChange(storedKey, WiredVariableChangeType.Removed, previous, previous);
         }
 
         return removed;
@@ -213,6 +249,13 @@ public abstract class FurnitureWiredVariableLogic
             value,
             existed ? previous : value
         );
+        ShareChange(
+            storedKey,
+            WiredVariableChangeType.Created,
+            value,
+            existed ? previous : value,
+            replace: true
+        );
 
         return true;
     }
@@ -231,16 +274,18 @@ public abstract class FurnitureWiredVariableLogic
             return false;
 
         PublishChange(key, WiredVariableChangeType.Updated, value, previous);
+        ShareChange(storedKey, WiredVariableChangeType.Updated, value, previous);
 
         return true;
     }
 
     /// <summary>Feeds the "variable changed" trigger. Fire-and-forget: the event is queued.</summary>
-    private void PublishChange(
+    protected void PublishChange(
         WiredVariableKey key,
         WiredVariableChangeType changeType,
         WiredVariableValue value,
-        WiredVariableValue previous
+        WiredVariableValue previous,
+        WiredVariableChangeOriginType? origin = null
     ) =>
         _ctx.PublishRoomEventAsync(
                 new WiredVariableChangedEvent
@@ -253,6 +298,8 @@ public abstract class FurnitureWiredVariableLogic
                     ChangeType = changeType,
                     Value = value,
                     PreviousValue = previous,
+                    Origin = origin ?? WiredSystem.ChangeOrigin,
+                    BoxId = _ctx.ObjectId.Value,
                 },
                 System.Threading.CancellationToken.None
             )
@@ -261,6 +308,165 @@ public abstract class FurnitureWiredVariableLogic
                 "publish an event in room {RoomId}",
                 _roomGrain.RoomId
             );
+
+    /// <summary>
+    /// A "Permanent, shared" user or global variable: other rooms of its owner may use it through
+    /// "WIRED Variable: From Another Room" (Wired Faculty, variables-info #5). Its values stay
+    /// here, in the box; the rooms using it hold a copy that every change is sent to.
+    /// </summary>
+    public bool IsShared =>
+        _storage is not null
+        && GetVarSnapshot().AvailabilityType == WiredAvailabilityType.Shared
+        && TargetType is WiredVariableTargetType.User or WiredVariableTargetType.Global;
+
+    private const string SHARED_REFERRERS_SECTION = "shared_referrers";
+
+    /// <summary>The rooms using this shared variable, kept with the box so a reload still knows them.</summary>
+    private HashSet<int>? _referrers;
+
+    private HashSet<int> Referrers =>
+        _referrers ??=
+            FurnitureExtraDataSections.Read<HashSet<int>>(
+                _ctx.RoomObject.ExtraData,
+                SHARED_REFERRERS_SECTION,
+                _roomGrain._logger
+            ) ?? [];
+
+    /// <summary>
+    /// Every value of this shared variable, by holder (player id, or 0 for a global), and
+    /// <paramref name="referrer"/> is told of every change from now on. Null when it is not shared.
+    /// </summary>
+    public SharedWiredVariableStateSnapshot? SubscribeShared(RoomId referrer)
+    {
+        if (!IsShared || _storage is null)
+            return null;
+
+        if (referrer != _ctx.RoomId && Referrers.Add(referrer.Value))
+            _ctx.RoomObject.ExtraData.UpdateSection(
+                SHARED_REFERRERS_SECTION,
+                JsonSerializer.SerializeToNode(Referrers)
+            );
+
+        var values = ImmutableDictionary.CreateBuilder<int, long>();
+
+        foreach (var (storageKey, value) in _storage.Store)
+        {
+            if (
+                WiredVariableKey.TryFromStorageKey(storageKey, out var storedKey)
+                && CanBind(storedKey)
+            )
+                values[storedKey.TargetId] = value.Value;
+        }
+
+        return new SharedWiredVariableStateSnapshot
+        {
+            Variable = GetVarSnapshot(),
+            Values = values.ToImmutable(),
+        };
+    }
+
+    /// <summary>
+    /// Applies a change another room's wired made, as if this room's wired had: the value is kept
+    /// here, this room's "variable changed" triggers hear of it as coming from another room, and
+    /// every other room using the variable is told. The flags hold as they do here: a variable
+    /// without a value takes no updates, and a global can be neither given nor taken.
+    /// </summary>
+    public async Task<bool> ApplySharedChangeAsync(SharedWiredVariableChange change, RoomId origin)
+    {
+        if (!IsShared || _storage is null)
+            return false;
+
+        var flags = GetVarSnapshot().Flags;
+        var storedKey = new WiredVariableKey(_variableId, TargetType, change.HolderId);
+        var existed = _storage.TryGetValue(storedKey, out var previous);
+        bool applied;
+
+        switch (change.ChangeType)
+        {
+            case WiredVariableChangeType.Created:
+                applied =
+                    flags.Has(WiredVariableFlags.CanCreateAndDelete)
+                    && await _storage.GiveValueAsync(
+                        storedKey,
+                        new WiredVariableValue(change.Value),
+                        change.Replace
+                    );
+                break;
+            case WiredVariableChangeType.Updated:
+                if (!flags.Has(WiredVariableFlags.CanWriteValue))
+                    return false;
+
+                // A global holds its 0 before anything is stored for it.
+                if (!existed && TargetType == WiredVariableTargetType.Global)
+                    await _storage.GiveValueAsync(storedKey, new WiredVariableValue(0), false);
+
+                applied = await _storage.SetValueAsync(
+                    null!,
+                    storedKey,
+                    new WiredVariableValue(change.Value)
+                );
+                break;
+            case WiredVariableChangeType.Removed:
+                applied =
+                    flags.Has(WiredVariableFlags.CanCreateAndDelete)
+                    && _storage.RemoveValue(storedKey);
+                break;
+            default:
+                return false;
+        }
+
+        if (!applied)
+            return false;
+
+        var value =
+            change.ChangeType == WiredVariableChangeType.Removed
+                ? previous
+                : new WiredVariableValue(change.Value);
+        var before = existed ? previous : value;
+
+        if (TryGetLiveKey(storedKey, out var key))
+            PublishChange(
+                key,
+                change.ChangeType == WiredVariableChangeType.Created && existed
+                    ? WiredVariableChangeType.Updated
+                    : change.ChangeType,
+                value,
+                before,
+                WiredVariableChangeOriginType.AnotherRoom
+            );
+
+        ShareChange(storedKey, change.ChangeType, value, before, change.Replace, origin);
+
+        return true;
+    }
+
+    /// <summary>Tells the rooms using this shared variable (those loaded now) of a change.</summary>
+    private void ShareChange(
+        WiredVariableKey storedKey,
+        WiredVariableChangeType changeType,
+        WiredVariableValue value,
+        WiredVariableValue previous,
+        bool replace = false,
+        RoomId? except = null
+    )
+    {
+        if (!IsShared || Referrers.Count == 0)
+            return;
+
+        WiredSystem.ShareVariableChange(
+            _variableId,
+            new SharedWiredVariableChange
+            {
+                ChangeType = changeType,
+                HolderId = storedKey.TargetId,
+                Value = value.Value,
+                Previous = previous.Value,
+                Replace = replace,
+            },
+            [.. Referrers],
+            except
+        );
+    }
 
     /// <summary>The labels a text connector addon on the same tile gives the values.</summary>
     public virtual Dictionary<WiredVariableValue, string> GetTextConnectors()
@@ -287,7 +493,7 @@ public abstract class FurnitureWiredVariableLogic
 
         var snapshot = GetVarSnapshot();
 
-        if (snapshot.AvailabilityType == WiredAvailabilityType.Persistent)
+        if (snapshot.AvailabilityType.IsPermanent())
         {
             if (_storage == null)
             {
@@ -363,7 +569,7 @@ public abstract class FurnitureWiredVariableLogic
     /// The key a stored value is known by in the room right now: a player's id turned back into
     /// their room index, or false when they are not here.
     /// </summary>
-    private bool TryGetLiveKey(WiredVariableKey storedKey, out WiredVariableKey key)
+    protected bool TryGetLiveKey(WiredVariableKey storedKey, out WiredVariableKey key)
     {
         key = storedKey;
 

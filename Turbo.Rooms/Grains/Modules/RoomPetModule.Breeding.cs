@@ -189,6 +189,7 @@ public sealed partial class RoomPetModule
                 offspringPalette.BreedId,
                 Chance(50) ? pet1.PetFigure.Color : pet2.PetFigure.Color,
                 offspringPalette.RarityLevel,
+                [],
                 ct
             );
         var rarityLevel = offspringPalette.RarityLevel;

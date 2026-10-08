@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -120,6 +121,7 @@ internal sealed class InventoryPetModule(
         int breedId,
         string color,
         int rarityLevel,
+        ImmutableArray<int> customParts,
         CancellationToken ct
     )
     {
@@ -135,6 +137,9 @@ internal sealed class InventoryPetModule(
                 BreedId = breedId,
                 Color = color,
                 RarityLevel = rarityLevel,
+                CustomParts = customParts.IsDefaultOrEmpty
+                    ? null
+                    : PetFigure.SerializeCustomParts(customParts),
                 Energy = config.PetStartEnergy,
                 Nutrition = config.PetStartNutrition,
                 WateredAt = DateTime.UtcNow,
@@ -232,6 +237,7 @@ internal sealed class InventoryPetModule(
             grant.BreedId,
             grant.Color,
             grant.RarityLevel,
+            [],
             ct
         );
 

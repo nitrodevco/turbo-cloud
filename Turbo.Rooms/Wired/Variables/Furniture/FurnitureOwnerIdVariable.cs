@@ -11,7 +11,7 @@ public sealed class FurnitureOwnerIdVariable(RoomGrain roomGrain)
     protected override string VariableName => "@owner_id";
     protected override WiredVariableGroupSubBandType SubBandType =>
         WiredVariableGroupSubBandType.Other;
-    protected override ushort Order => 20;
+    protected override ushort Order => 30;
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 

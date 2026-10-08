@@ -23,7 +23,7 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons.VariableFx;
 /// without one the variable is shown as level one, 0 to 100. The extra int param is the bar the
 /// badge style draws beside it.
 /// </summary>
-[RoomObjectLogic("wf_xtra_var_fx_level")]
+[RoomObjectLogic("wf_xtra_varfx_levelling")]
 public class WiredAddonVariableFxLevellingProgress(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,

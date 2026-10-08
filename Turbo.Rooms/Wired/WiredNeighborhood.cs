@@ -9,6 +9,15 @@ namespace Turbo.Rooms.Wired;
 /// </summary>
 public static class WiredNeighborhood
 {
+    /// <summary>
+    /// The drawing's radius: the editor's 21x21 grid (AS3 <c>NeighborhoodFloor.RADIUS</c>), the
+    /// one the spiral is encoded over whether it shows big or small.
+    /// </summary>
+    public const int RADIUS = 10;
+
+    /// <summary>The ints the drawing packs into: a bit per tile, 32 to an int (<c>SpiralUtils.boolMaskToIntParams</c>).</summary>
+    public const int MASK_INTS = (((RADIUS * 2) + 1) * ((RADIUS * 2) + 1) + 31) / 32;
+
     /// <summary>The room tile ids the mask covers around a start tile, offset by the root tile.</summary>
     public static IEnumerable<int> Tiles(
         RoomGrain roomGrain,
@@ -19,7 +28,7 @@ public static class WiredNeighborhood
         IReadOnlyList<int> masks
     )
     {
-        var radius = roomGrain._wiredConfig.NeighborhoodRadius;
+        var radius = RADIUS;
         var width = roomGrain.MapModule.Width;
         var height = roomGrain.MapModule.Height;
         var size = radius * 2 + 1;

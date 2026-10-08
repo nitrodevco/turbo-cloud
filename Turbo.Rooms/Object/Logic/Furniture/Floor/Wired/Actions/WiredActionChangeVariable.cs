@@ -64,6 +64,7 @@ public class WiredActionChangeVariable(
 
         var targetType = GetTargetType(variable, 0);
         var changed = false;
+        var batch = (ctx as WiredExecutionContext)?.VariableChanges;
 
         foreach (var targetId in GetTargetIds(targetType, selection))
         {
@@ -76,11 +77,18 @@ public class WiredActionChangeVariable(
             if (!variable.TryGetValue(key, out var current))
                 continue;
 
-            var next = Apply(operation, current, operand);
+            if (batch is not null)
+            {
+                // Held back: the stack's changes to this holder become one (WiredVariableChangeBatch).
+                batch.Add(variable, key, operation, operand);
+                changed = true;
 
-            if (next == current.Value)
                 continue;
+            }
 
+            var next = WiredVariableOperations.Apply(operation, current, operand);
+
+            // Written even when it stays the same: "Variable Changed" can react to "unchanged".
             changed |= await variable.SetValueAsync(ctx, key, new WiredVariableValue(next));
         }
 
@@ -90,50 +98,8 @@ public class WiredActionChangeVariable(
     private static bool RequiresOperand(WiredVariableOperationType operation) =>
         operation
             is not (
-                WiredVariableOperationType.Negate
+                WiredVariableOperationType.Absolute
                 or WiredVariableOperationType.Invert
-                or WiredVariableOperationType.Absolute
+                or WiredVariableOperationType.BitCount
             );
-
-    private static int Apply(WiredVariableOperationType operation, long current, long operand)
-    {
-        long result = operation switch
-        {
-            WiredVariableOperationType.Set => operand,
-            WiredVariableOperationType.Add => current + operand,
-            WiredVariableOperationType.Subtract => current - operand,
-            WiredVariableOperationType.Multiply => current * operand,
-            WiredVariableOperationType.Divide => operand == 0 ? current : current / operand,
-            WiredVariableOperationType.Modulo => operand == 0 ? current : current % operand,
-            WiredVariableOperationType.Power => (long)Math.Pow(current, Math.Clamp(operand, 0, 31)),
-            WiredVariableOperationType.Minimum => Math.Min(current, operand),
-            WiredVariableOperationType.Maximum => Math.Max(current, operand),
-            WiredVariableOperationType.Random => operand <= 0
-                ? 0
-                : Random.Shared.NextInt64(0, operand + 1),
-            WiredVariableOperationType.Negate => -current,
-            WiredVariableOperationType.BitwiseAnd => current & operand,
-            WiredVariableOperationType.BitwiseOr => current | operand,
-            WiredVariableOperationType.BitwiseXor => current ^ operand,
-            WiredVariableOperationType.Invert => ~current,
-            WiredVariableOperationType.ShiftLeft => current << (int)Math.Clamp(operand, 0, 31),
-            WiredVariableOperationType.ShiftRight => current >> (int)Math.Clamp(operand, 0, 31),
-            WiredVariableOperationType.Absolute => Math.Abs(current),
-            WiredVariableOperationType.IsEqual => current == operand ? 1 : 0,
-            WiredVariableOperationType.IsNotEqual => current != operand ? 1 : 0,
-            WiredVariableOperationType.IsLess => current < operand ? 1 : 0,
-            WiredVariableOperationType.IsGreater => current > operand ? 1 : 0,
-            WiredVariableOperationType.SetIfLess => current < operand ? operand : current,
-            WiredVariableOperationType.SetIfGreater => current > operand ? operand : current,
-            WiredVariableOperationType.AddClampedToOperand => Math.Min(current + 1, operand),
-            WiredVariableOperationType.SubtractClampedToOperand => Math.Max(current - 1, operand),
-            WiredVariableOperationType.Average => (current + operand) / 2,
-            WiredVariableOperationType.Distance => Math.Abs(current - operand),
-            WiredVariableOperationType.IsLessOrEqual => current <= operand ? 1 : 0,
-            WiredVariableOperationType.IsGreaterOrEqual => current >= operand ? 1 : 0,
-            _ => current,
-        };
-
-        return (int)Math.Clamp(result, int.MinValue, int.MaxValue);
-    }
 }

@@ -12,9 +12,12 @@ using Turbo.Rooms.Wired.Rules;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
 /// <summary>
-/// A placeholder addon that puts names into the text of the stack's actions: "$name" becomes
+/// A placeholder addon that puts names into the text of the stack's actions: "$(name)" becomes
 /// the name of the first selected user or furni, or, with param 0 set, of all of them joined by
-/// the delimiter after the tab in the string param. Which names is the subclass's.
+/// the delimiter after the tab in the string param. Which names is the subclass's, read from the
+/// add-on's own source: two placeholders on one stack may name the triggering user and the
+/// selector's (Wired Faculty, "How to make bot say the name of both the Triggering and the
+/// Target user", 24/05/2025).
 /// </summary>
 public abstract class FurnitureWiredNamePlaceholderLogic(
     IGrainFactory grainFactory,
@@ -26,8 +29,8 @@ public abstract class FurnitureWiredNamePlaceholderLogic(
 
     public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(false)];
 
-    /// <summary>The names of what the stack selected, in selection order.</summary>
-    protected abstract List<string> GetNames(IWiredSelectionSet selection);
+    /// <summary>The names of what the add-on's source selects, in selection order.</summary>
+    protected abstract List<string> GetNames(IWiredExecutionContext ctx);
 
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
@@ -36,19 +39,34 @@ public abstract class FurnitureWiredNamePlaceholderLogic(
         return Task.FromResult(true);
     }
 
+    public string Token =>
+        WiredPlaceholderText.SplitNameAndDelimiter(_wiredData.StringParam).Item1
+            is { Length: > 0 } name
+            ? WiredPlaceholderText.Token(SIGIL, name)
+            : string.Empty;
+
     public Task<string> ApplyAsync(IWiredExecutionContext ctx, string text, CancellationToken ct)
     {
         var (name, delimiter) = WiredPlaceholderText.SplitNameAndDelimiter(_wiredData.StringParam);
 
-        if (name.Length == 0 || !text.Contains(SIGIL + name, StringComparison.Ordinal))
+        if (
+            name.Length == 0
+            || !text.Contains(WiredPlaceholderText.Token(SIGIL, name), StringComparison.Ordinal)
+        )
             return Task.FromResult(text);
 
-        var names = GetNames(ctx.Selected);
+        var names = GetNames(ctx);
         var replacement =
             names.Count == 0 ? string.Empty
             : GetIntParamOrDefault(0, false) ? string.Join(delimiter, names)
             : names[0];
 
-        return Task.FromResult(text.Replace(SIGIL + name, replacement, StringComparison.Ordinal));
+        return Task.FromResult(
+            text.Replace(
+                WiredPlaceholderText.Token(SIGIL, name),
+                replacement,
+                StringComparison.Ordinal
+            )
+        );
     }
 }

@@ -68,6 +68,25 @@ public class RoomConfig
     /// <summary>How long a thrown dice shows the rolling animation before landing.</summary>
     public int DiceRollMs { get; init; } = 3000;
 
+    /// <summary>
+    /// How long a cracked crackable stands in its last state before it is gone and its contents
+    /// handed over. That state is its opening, which the asset plays once (the HC and BC boxes:
+    /// eleven frames at a frame repeat of two, about 0.9 s) and then draws nothing.
+    /// </summary>
+    public int CrackableOpenMs { get; init; } = 1500;
+
+    /// <summary>
+    /// How long a vending machine shows its dispensing state (state 1, which a fridge's or a drinks
+    /// machine's asset animates) after handing an item over.
+    /// </summary>
+    public int VendingDispenseMs { get; init; } = 1000;
+
+    /// <summary>How long a vending machine waits for an avatar it sent walking over to arrive.</summary>
+    public int VendingWalkTimeoutMs { get; init; } = 15000;
+
+    /// <summary>How long a random teleport tile, and the one it sent an avatar to, stay lit.</summary>
+    public int RandomTeleportFlashMs { get; init; } = 1000;
+
     /// <summary>How long the wheel of fortune spins before stopping on a segment.</summary>
     public int WheelSpinMs { get; init; } = 5000;
 
@@ -204,6 +223,13 @@ public class RoomConfig
 
     public int MaxCommandLogsPerFlush { get; init; } = 200;
 
-    public int GameDefaultDurationSeconds { get; init; } = 60;
+    /// <summary>A game timer's time before anyone sets it: the official Banzai counter shows 00:30.</summary>
+    public int GameDefaultDurationSeconds { get; init; } = 30;
     public int[] GameTeamEffectIds { get; init; } = [0, 33, 34, 35, 36];
+
+    /// <summary>The team effects of a Battle Banzai team, by team (none, red, green, blue, yellow).</summary>
+    public int[] BanzaiTeamEffectIds { get; init; } = [0, 33, 34, 35, 36];
+
+    /// <summary>The team effects of a Freeze team, by team (none, red, green, blue, yellow).</summary>
+    public int[] FreezeTeamEffectIds { get; init; } = [0, 40, 41, 42, 43];
 }

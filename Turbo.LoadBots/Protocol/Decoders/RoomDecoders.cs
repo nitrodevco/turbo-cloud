@@ -222,7 +222,11 @@ public static class RoomDecoders
                 _ = reader.Int();
                 break;
             case StuffDataType.EmptyKey:
+                break;
             case StuffDataType.CrackableKey:
+                state = reader.String();
+                _ = reader.Int(); // hits
+                _ = reader.Int(); // target
                 break;
             case StuffDataType.NumberKey:
                 var numbers = reader.Ints();

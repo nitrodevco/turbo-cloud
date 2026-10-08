@@ -7,7 +7,7 @@ using Turbo.Primitives.Rooms.Object.Logic;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons.VariableFx;
 
 /// <summary>The wide boss health bar of the variable on this tile.</summary>
-[RoomObjectLogic("wf_xtra_var_fx_boss")]
+[RoomObjectLogic("wf_xtra_varfx_boss")]
 public class WiredAddonVariableFxBossBar(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,

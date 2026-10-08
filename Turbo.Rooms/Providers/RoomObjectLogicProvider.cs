@@ -5,12 +5,15 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Logging;
 using Turbo.Primitives;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Object.Logic;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Highscore;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Counters;
 using Turbo.Runtime;
 
 namespace Turbo.Rooms.Providers;
@@ -22,6 +25,7 @@ public sealed class RoomObjectLogicProvider(
 ) : IRoomObjectLogicProvider
 {
     private const string DEFAULT_FLOOR_LOGIC = "default_floor";
+    private const string WIRED_CLASSNAME_PREFIX = "wf_";
 
     private readonly IServiceProvider _host = host;
     private readonly ILogger<IRoomObjectLogicProvider> _logger = logger;
@@ -55,6 +59,42 @@ public sealed class RoomObjectLogicProvider(
             )
         )
             logicType = waterLogic;
+
+        // A building block's height follows its state; its definition says so only through
+        // its customparams (the step down per state), its logic column being the default.
+        if (
+            logicType == DEFAULT_FLOOR_LOGIC
+            && ctx.RoomObject is IRoomItem block
+            && MultiHeightFurniture.StepOf(block.Definition) is not null
+        )
+            logicType = MultiHeightFurniture.LOGIC_NAME;
+
+        // The game timers (Banzai, Football, Freeze counters) are known by their classnames.
+        if (
+            (logicType == DEFAULT_FLOOR_LOGIC || !_logics.ContainsKey(logicType))
+            && ctx.RoomObject is IRoomItem timer
+            && Array.IndexOf(FurnitureGameTimerLogic.CLASSNAMES, timer.Definition.Name) >= 0
+        )
+            logicType = FurnitureGameTimerLogic.LOGIC_NAME;
+
+        // A highscore board is known by its classname (highscore_perteam*2 and so on).
+        if (
+            (logicType == DEFAULT_FLOOR_LOGIC || !_logics.ContainsKey(logicType))
+            && ctx.RoomObject is IRoomItem board
+            && HighscoreBoards.TryParse(board.Definition.Name, out _, out _)
+        )
+            logicType = HighscoreBoards.LOGIC_NAME;
+
+        // A wired box's logic is its classname. A definition whose logic column names something
+        // else (left at the default, or a name never registered) would make the box plain
+        // furniture that never opens its editor, so the classname wins for wired boxes.
+        if (
+            (logicType == DEFAULT_FLOOR_LOGIC || !_logics.ContainsKey(logicType))
+            && ctx.RoomObject is IRoomItem box
+            && box.Definition.Name.StartsWith(WIRED_CLASSNAME_PREFIX, StringComparison.Ordinal)
+            && _logics.ContainsKey(box.Definition.Name)
+        )
+            logicType = box.Definition.Name;
 
         if (!_logics.TryGetValue(logicType, out var reg))
         {

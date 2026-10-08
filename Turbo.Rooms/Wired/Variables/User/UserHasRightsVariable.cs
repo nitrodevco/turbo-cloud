@@ -4,7 +4,10 @@ using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired.Variables.User;
 
-/// <summary>Whether the player was given rights in this room. The owner needs none, so this is false for them; use @is_owner for that.</summary>
+/// <summary>
+/// Whether the player has rights in this room: given rights, or the room's own owner, whom the
+/// official client's inspection shows holding it beside <c>@is_owner</c>.
+/// </summary>
 public sealed class UserHasRightsVariable(RoomGrain roomGrain)
     : UserFlagVariable<IRoomPlayer>(roomGrain)
 {
@@ -16,5 +19,5 @@ public sealed class UserHasRightsVariable(RoomGrain roomGrain)
     protected override ushort Order => 30;
 
     protected override bool HasFlag(IRoomPlayer avatar) =>
-        SecurityModule.HasRights(avatar.PlayerId);
+        SecurityModule.HasRights(avatar.PlayerId) || SecurityModule.IsOwnedBy(avatar.PlayerId);
 }

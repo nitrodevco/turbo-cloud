@@ -74,8 +74,22 @@ public class PetConfig
     public int RespectMinAccountAgeDays { get; init; } = 0;
 
     public int MonsterplantMaxLevel { get; init; } = 7;
-    public int MonsterplantGrowthSeconds { get; init; } = 3600;
+
+    /// <summary>
+    /// Seconds a monsterplant takes to grow a level: 8 hours, so its six level-ups take the two
+    /// days a plant grows (Wired Faculty tutorial "Monster Plant growth time FX", 23/09/2026).
+    /// </summary>
+    public int MonsterplantGrowthSeconds { get; init; } = 28800;
+
+    /// <summary>A grown monsterplant's wellbeing when watered: 72 hours.</summary>
     public int MonsterplantWellBeingSeconds { get; init; } = 259200;
+
+    /// <summary>
+    /// A monsterplant's wellbeing while it is still growing: 36 hours (Wired Faculty tutorial "How
+    /// to Show a Health Bar Above Your Monster Plants", 15/09/2026: ~plant.max_wellbeing_seconds is
+    /// 36 hours for a baby and 72 for an adult).
+    /// </summary>
+    public int MonsterplantBabyWellBeingSeconds { get; init; } = 129600;
     public int MonsterplantHarvestIntervalSeconds { get; init; } = 86400;
     public int MonsterplantSupplementEnergy { get; init; } = 20;
 

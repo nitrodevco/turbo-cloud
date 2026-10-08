@@ -12,22 +12,35 @@ using Turbo.Primitives.Rooms.Wired;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Counters;
 
 /// <summary>
-/// The counter clock (wf_upcounter). The item state is the elapsed time in seconds, which the
-/// client renders as MM:SS. A use toggles running; the client "reset" tag sends state 2.
-/// Wired controls it through the clock actions and reads it through the clock trigger and
-/// condition, which receive a tick event every half second while it runs.
+/// The wired counters (wf_upcounter, and the game counters on top of it), which count up: the
+/// official client shows a Wired Game Counter going 00:00, 00:01, 00:10 just as a Small Wired
+/// Counter does. The item state is the elapsed time in seconds, which the client renders as
+/// MM:SS. A use runs and holds it in turn (Initial, Running, Paused); the client "reset" tag
+/// sends state 2. Wired controls it through the clock actions and reads it through the clock
+/// trigger, condition and <c>~clock.*</c> variables, which receive a tick every half second.
 /// </summary>
 public class FurnitureCounterClockLogic(
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureFloorLogic(stuffDataFactory, ctx)
+) : FurnitureFloorLogic(stuffDataFactory, ctx), IWiredClock
 {
     private const int USE_RESET = 2;
 
     private int _halfSeconds;
     private bool _isRunning;
+    private bool _started;
 
     public bool IsRunning => _isRunning;
+
+    public WiredClockState ClockState =>
+        _isRunning ? WiredClockState.Running
+        : _started ? WiredClockState.Paused
+        : WiredClockState.Initial;
+
+    public virtual bool IsGameAware => false;
+
+    public Task OnGameEndedAsync(CancellationToken ct) =>
+        IsGameAware && _isRunning ? StopAsync() : Task.CompletedTask;
 
     /// <summary>Elapsed time in half seconds, the unit the wired clock boxes compare in.</summary>
     public int HalfSeconds => _halfSeconds;
@@ -39,6 +52,7 @@ public class FurnitureCounterClockLogic(
     public override Task OnAttachAsync(CancellationToken ct)
     {
         _halfSeconds = Math.Max(0, GetState()) * 2;
+        _started = _halfSeconds > 0;
 
         return base.OnAttachAsync(ct);
     }
@@ -54,7 +68,7 @@ public class FurnitureCounterClockLogic(
                 await ControlAsync(WiredClockControlType.Reset, ct);
                 break;
             default:
-                await ControlAsync(WiredClockControlType.Toggle, ct);
+                await (_isRunning ? StopAsync() : StartAsync());
                 break;
         }
     }
@@ -73,8 +87,9 @@ public class FurnitureCounterClockLogic(
             WiredClockControlType.Start => StartAsync(),
             WiredClockControlType.Stop => StopAsync(),
             WiredClockControlType.Reset => ResetAsync(ct),
-            WiredClockControlType.Restart => RestartAsync(ct),
-            WiredClockControlType.Toggle => _isRunning ? StopAsync() : StartAsync(),
+            // Pause holds the time and Resume runs on from it.
+            WiredClockControlType.Pause => StopAsync(),
+            WiredClockControlType.Resume => StartAsync(),
             _ => Task.CompletedTask,
         };
 
@@ -99,6 +114,7 @@ public class FurnitureCounterClockLogic(
             return Task.CompletedTask;
 
         _isRunning = true;
+        _started = true;
 
         Schedule();
 
@@ -119,16 +135,9 @@ public class FurnitureCounterClockLogic(
         await StopAsync();
 
         _halfSeconds = 0;
+        _started = false;
 
         await PublishAsync(ct);
-    }
-
-    private async Task RestartAsync(CancellationToken ct)
-    {
-        _halfSeconds = 0;
-
-        await PublishAsync(ct);
-        await StartAsync();
     }
 
     private void Schedule() => TimerSystem.Schedule(_ctx.ObjectId, WiredPulses.MS, TickAsync);

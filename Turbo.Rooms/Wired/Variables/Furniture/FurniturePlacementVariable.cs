@@ -46,7 +46,11 @@ public abstract class FurniturePlacementVariable(RoomGrain roomGrain)
         )
             return false;
 
-        var target = Apply(item, new Placement(item.X, item.Y, item.Z, item.Rotation), value);
+        var target = Apply(
+            item,
+            new Placement(item.X, item.Y, item.Z, item.Rotation),
+            value.ClampToInt()
+        );
 
         switch (item)
         {
