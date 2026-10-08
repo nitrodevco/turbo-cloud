@@ -24,7 +24,7 @@ public abstract class FurnitureWiredFurniEventTriggerLogic<TEvent>(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureWiredTriggerLogic(grainFactory, stuffDataFactory, ctx)
+) : FurnitureWiredTriggerLogic(grainFactory, stuffDataFactory, ctx), IWiredFurniEventTrigger
     where TEvent : RoomEvent
 {
     public override List<Type> SupportedEventTypes { get; } = [typeof(TEvent)];
@@ -83,3 +83,9 @@ public abstract class FurnitureWiredFurniEventTriggerLogic<TEvent>(
                 && ctx.GetSelection(this).SelectedFurniIds.Contains(GetFurniId(evt).Value)
         );
 }
+
+/// <summary>
+/// A trigger whose event names the furni it happened to: that furni alone is the triggering item,
+/// not every furni the box picked.
+/// </summary>
+public interface IWiredFurniEventTrigger;

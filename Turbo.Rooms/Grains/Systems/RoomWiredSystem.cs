@@ -258,7 +258,13 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
         var selection = ctx.GetSelection(trigger);
 
-        ctx.Selected.UnionWith(selection);
+        // A furni event names its furni, and that one is "the triggering item": the box's other
+        // picks only say which furni it listens to (Wired Faculty, "Making counters with number
+        // blocks": the block that just became 0 is the triggering item).
+        if (trigger is IWiredFurniEventTrigger)
+            ctx.Selected.SelectedAvatarIds.UnionWith(selection.SelectedAvatarIds);
+        else
+            ctx.Selected.UnionWith(selection);
 
         await RunStackAsync(ctx, now, null, ct);
     }
