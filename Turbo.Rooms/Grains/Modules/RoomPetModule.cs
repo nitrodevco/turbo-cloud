@@ -627,7 +627,7 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
             CanHarvest = pet.CanHarvest,
             CanRevive = pet.CanRevive,
             RarityLevel = pet.RarityLevel,
-            MaxWellBeingSeconds = pet.IsMonsterplant ? Config.MonsterplantWellBeingSeconds : 0,
+            MaxWellBeingSeconds = pet.IsMonsterplant ? MaxWellBeingSeconds(pet) : 0,
             RemainingWellBeingSeconds = pet.IsMonsterplant ? RemainingWellBeingSeconds(pet) : 0,
             RemainingGrowingSeconds = pet.IsMonsterplant ? RemainingGrowingSeconds(pet) : 0,
             HasBreedingPermission = pet.HasBreedingPermission,
@@ -649,11 +649,17 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
         return thresholds[index];
     }
 
+    /// <summary>The wellbeing a watered monsterplant has: less while it is still growing.</summary>
+    internal int MaxWellBeingSeconds(IRoomPet pet) =>
+        pet.Level >= Config.MonsterplantMaxLevel
+            ? Config.MonsterplantWellBeingSeconds
+            : Config.MonsterplantBabyWellBeingSeconds;
+
     internal int RemainingWellBeingSeconds(IRoomPet pet)
     {
         var elapsed = (DateTime.UtcNow - pet.WateredAtUtc).TotalSeconds;
 
-        return (int)Math.Max(0, Config.MonsterplantWellBeingSeconds - elapsed);
+        return (int)Math.Max(0, MaxWellBeingSeconds(pet) - elapsed);
     }
 
     internal int RemainingGrowingSeconds(IRoomPet pet)

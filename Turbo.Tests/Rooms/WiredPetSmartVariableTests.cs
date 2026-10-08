@@ -133,6 +133,11 @@ public sealed class WiredPetSmartVariableTests
         AddPet(PLANT, PetTypes.MONSTERPLANT, level: 1, created: DateTime.UtcNow.AddMinutes(-10));
 
         Read(new PlantIsGrowingVariable(_room.Harness.Room), PLANT).Should().Be(1);
+        // A baby plant's wellbeing is 36 hours, a grown one's 72.
+        Read(new PlantMaxWellbeingSecondsVariable(_room.Harness.Room), PLANT).Should().Be(129600);
+        Read(new PlantRemainingWellbeingSecondsVariable(_room.Harness.Room), PLANT)
+            .Should()
+            .BeInRange(129600 - 5, 129600);
         Read(new PlantRemainingGrowingSecondsVariable(_room.Harness.Room), PLANT)
             .Should()
             .BeInRange(3000 - 5, 3000 + 5);
