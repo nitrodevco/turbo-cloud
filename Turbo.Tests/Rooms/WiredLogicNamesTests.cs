@@ -1,7 +1,10 @@
 using System.Reflection;
 using FluentAssertions;
 using Turbo.Primitives.Rooms.Object.Logic;
+using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
+using Turbo.Tests.Support;
 using Xunit;
 
 namespace Turbo.Tests.Rooms;
@@ -210,5 +213,33 @@ public sealed class WiredLogicNamesTests
             .ToHashSet();
 
         HOTEL_WIRED_BOXES.Where(name => !registered.Contains(name)).Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// On the test hotel the definitions of eight boxes (Variable Changed, both text output
+    /// placeholders, Give / Remove / Change Variable, Unfreeze, Actor Direction) name no wired
+    /// logic, so double-clicking them opened nothing. A wired classname with a logic of its own
+    /// name gets that logic, whatever the definition's logic column says.
+    /// </summary>
+    [Theory]
+    [InlineData("default_floor")]
+    [InlineData("not_a_logic")]
+    public void A_wired_box_gets_its_classnames_logic_whatever_its_definition_names(
+        string definitionLogic
+    )
+    {
+        var room = new WiredRoom();
+        var item = room.AddFloorItem(40, 1, 1, "wf_trg_var_changed");
+
+        item.GetType()
+            .GetProperty(nameof(item.Definition))!
+            .SetValue(item, item.Definition with { LogicName = definitionLogic });
+
+        room.Harness.LogicProvider.CreateLogicInstance(
+                definitionLogic,
+                new RoomFloorItemContext(room.Harness.Room, item)
+            )
+            .Should()
+            .BeOfType<WiredTriggerVariableChanged>();
     }
 }

@@ -22,6 +22,7 @@ public sealed class RoomObjectLogicProvider(
 ) : IRoomObjectLogicProvider
 {
     private const string DEFAULT_FLOOR_LOGIC = "default_floor";
+    private const string WIRED_CLASSNAME_PREFIX = "wf_";
 
     private readonly IServiceProvider _host = host;
     private readonly ILogger<IRoomObjectLogicProvider> _logger = logger;
@@ -55,6 +56,17 @@ public sealed class RoomObjectLogicProvider(
             )
         )
             logicType = waterLogic;
+
+        // A wired box's logic is its classname. A definition whose logic column names something
+        // else (left at the default, or a name never registered) would make the box plain
+        // furniture that never opens its editor, so the classname wins for wired boxes.
+        if (
+            (logicType == DEFAULT_FLOOR_LOGIC || !_logics.ContainsKey(logicType))
+            && ctx.RoomObject is IRoomItem box
+            && box.Definition.Name.StartsWith(WIRED_CLASSNAME_PREFIX, StringComparison.Ordinal)
+            && _logics.ContainsKey(box.Definition.Name)
+        )
+            logicType = box.Definition.Name;
 
         if (!_logics.TryGetValue(logicType, out var reg))
         {
