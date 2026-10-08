@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
@@ -7,6 +9,7 @@ using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
+using Turbo.Rooms.Wired.Variables.Furniture.Smart;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 
@@ -18,7 +21,7 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 public class FurnitureBackgroundTonerLogic(
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx
-) : FurnitureFloorLogic(stuffDataFactory, ctx)
+) : FurnitureFloorLogic(stuffDataFactory, ctx), IIndexedValueLogic
 {
     private const int OFF = 0;
     private const int ON = 1;
@@ -30,6 +33,23 @@ public class FurnitureBackgroundTonerLogic(
     private const int LIGHTNESS_INDEX = 3;
 
     protected override StuffDataType _stuffDataType => StuffDataType.NumberKey;
+
+    /// <summary>One of the int data values (<c>~background_color.*</c> reads them).</summary>
+    public int ValueAt(int index) =>
+        StuffData is INumberStuffData numbers ? numbers.ValueAt(index) : 0;
+
+    /// <summary>Changes one channel, as a smart variable write does, kept within 0..255.</summary>
+    public async Task SetValueAtAsync(int index, int value)
+    {
+        if (StuffData is not INumberStuffData numbers)
+            return;
+
+        var values = Enumerable.Range(0, LIGHTNESS_INDEX + 1).Select(numbers.ValueAt).ToArray();
+
+        values[index] = Math.Clamp(value, MIN_CHANNEL, MAX_CHANNEL);
+
+        await SetNumberDataAsync(values);
+    }
 
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Controller;
 

@@ -103,6 +103,58 @@ public sealed class WiredSmartVariableTests
         variable.TryGetValue(Key(variable, LINKER), out _).Should().BeFalse();
     }
 
+    [Fact]
+    public async Task Background_color_reads_and_sets_a_channel_within_0_to_255()
+    {
+        var toner = (FurnitureBackgroundTonerLogic)
+            _room
+                .AddFloorItem(
+                    32,
+                    3,
+                    3,
+                    "background_toner",
+                    createLogic: (stuffData, ctx) =>
+                        new FurnitureBackgroundTonerLogic(stuffData, ctx)
+                )
+                .Logic;
+        var hue = new FurnitureBackgroundColorHueVariable(_room.Harness.Room);
+        var key = Key(hue, 32);
+        var ctx = _room.Harness.Fakes.Create<IWiredExecutionContext>();
+
+        (await hue.SetValueAsync(ctx, key, 200)).Should().BeTrue();
+        toner.ValueAt(1).Should().Be(200);
+        hue.TryGetValue(key, out var value).Should().BeTrue();
+        ((int)value).Should().Be(200);
+
+        (await hue.SetValueAsync(ctx, key, 300)).Should().BeFalse();
+        toner.ValueAt(1).Should().Be(200);
+    }
+
+    [Fact]
+    public async Task Area_hide_sets_its_size_and_takes_only_0_or_1_for_a_flag()
+    {
+        var hider = (FurnitureAreaHideLogic)
+            _room
+                .AddFloorItem(
+                    33,
+                    4,
+                    4,
+                    "area_hide",
+                    createLogic: (stuffData, ctx) => new FurnitureAreaHideLogic(stuffData, ctx)
+                )
+                .Logic;
+        var ctx = _room.Harness.Fakes.Create<IWiredExecutionContext>();
+        var width = new FurnitureAreaHideWidthVariable(_room.Harness.Room);
+        var inverted = new FurnitureAreaHideInvertedVariable(_room.Harness.Room);
+
+        (await width.SetValueAsync(ctx, Key(width, 33), 6)).Should().BeTrue();
+        hider.ValueAt(3).Should().Be(6);
+
+        (await inverted.SetValueAsync(ctx, Key(inverted, 33), 2)).Should().BeFalse();
+        (await inverted.SetValueAsync(ctx, Key(inverted, 33), 1)).Should().BeTrue();
+        hider.ValueAt(7).Should().Be(1);
+    }
+
     private FurnitureTeleportLogic AddLinker()
     {
         var item = _room.AddFloorItem(

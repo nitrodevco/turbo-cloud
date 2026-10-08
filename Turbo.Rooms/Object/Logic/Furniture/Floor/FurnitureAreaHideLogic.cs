@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
@@ -9,6 +10,7 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
+using Turbo.Rooms.Wired.Variables.Furniture.Smart;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 
@@ -19,7 +21,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 /// </summary>
 [RoomObjectLogic("area_hide")]
 public class FurnitureAreaHideLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
-    : FurnitureFloorLogic(stuffDataFactory, ctx)
+    : FurnitureFloorLogic(stuffDataFactory, ctx),
+        IIndexedValueLogic
 {
     private const int OFF = 0;
     private const int ON = 1;
@@ -33,6 +36,24 @@ public class FurnitureAreaHideLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
     private const int INVERT_INDEX = 7;
 
     protected override StuffDataType _stuffDataType => StuffDataType.NumberKey;
+
+    /// <summary>One of the int data values (<c>~area_hide.*</c> reads them).</summary>
+    public int ValueAt(int index) =>
+        StuffData is INumberStuffData numbers ? numbers.ValueAt(index) : 0;
+
+    /// <summary>Changes one int data value, as a smart variable write does, and announces it.</summary>
+    public async Task SetValueAtAsync(int index, int value)
+    {
+        if (StuffData is not INumberStuffData numbers)
+            return;
+
+        var values = Enumerable.Range(0, INVERT_INDEX + 1).Select(numbers.ValueAt).ToArray();
+
+        values[index] = value;
+
+        await SetNumberDataAsync(values);
+        await AnnounceAsync();
+    }
 
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Controller;
 
