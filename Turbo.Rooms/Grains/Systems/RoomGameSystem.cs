@@ -37,6 +37,9 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
 
     /// <summary>The team effect each player was put in, so leaving takes off that one.</summary>
     private readonly Dictionary<PlayerId, int> _teamEffectByPlayerId = [];
+
+    /// <summary>The kind of team each player joined, which <c>@team.type</c> reports.</summary>
+    private readonly Dictionary<PlayerId, WiredTeamType> _teamTypeByPlayerId = [];
     private readonly int[] _teamScores = new int[(int)GameTeamType.Yellow + 1];
     private readonly Dictionary<(RoomObjectId sourceId, PlayerId playerId), int> _scoreGrants = [];
 
@@ -55,6 +58,9 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
 
     public GameTeamType GetTeam(PlayerId playerId) =>
         _teamByPlayerId.TryGetValue(playerId, out var team) ? team : GameTeamType.None;
+
+    public WiredTeamType GetTeamType(PlayerId playerId) =>
+        _teamTypeByPlayerId.TryGetValue(playerId, out var type) ? type : WiredTeamType.Wired;
 
     public int GetScore(GameTeamType team) => IsTeam(team) ? _teamScores[(int)team] : 0;
 
@@ -103,6 +109,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
             return true;
 
         _teamByPlayerId[playerId] = team;
+        _teamTypeByPlayerId[playerId] = teamType;
 
         var effectId = GetTeamEffectId(team, teamType);
 
@@ -118,6 +125,8 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     {
         if (!_teamByPlayerId.Remove(playerId, out var team))
             return false;
+
+        _teamTypeByPlayerId.Remove(playerId);
 
         var effectId = _teamEffectByPlayerId.Remove(playerId, out var worn)
             ? worn
@@ -343,6 +352,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     {
         _teamByPlayerId.Remove(playerId);
         _teamEffectByPlayerId.Remove(playerId);
+        _teamTypeByPlayerId.Remove(playerId);
 
         foreach (var key in _scoreGrants.Keys.Where(x => x.playerId == playerId).ToList())
             _scoreGrants.Remove(key);
