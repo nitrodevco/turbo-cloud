@@ -219,11 +219,17 @@ public sealed partial class RoomWiredSystem
                 )
                     return false;
 
-                return await variable.SetValueAsync(
-                    new WiredExecutionContext(_roomGrain) { CancellationToken = ct },
-                    key,
-                    value
-                );
+                var ctx = new WiredExecutionContext(_roomGrain) { CancellationToken = ct };
+
+                if (!await variable.SetValueAsync(ctx, key, value))
+                    return false;
+
+                // A furni or user moved by writing its position goes out the way a wired move
+                // does, in the movement packet the context collects, or nobody sees it move
+                // until they enter the room again.
+                FlushWiredContext(ctx);
+
+                return true;
             case WiredVariableMenuOperationType.Create:
                 if (!flags.Has(WiredVariableFlags.CanCreateAndDelete))
                     return false;
