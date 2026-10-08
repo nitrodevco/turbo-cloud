@@ -120,7 +120,7 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
         if (_opening)
             return;
 
-        if (_data.RequiredEffectId > 0 && avatar.EffectId != _data.RequiredEffectId)
+        if (!_data.AcceptsEffect(avatar.EffectId))
             return;
 
         // An item picked up while it was opening keeps its cracking hit; the next use opens it.
@@ -273,16 +273,35 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
         if (string.IsNullOrWhiteSpace(reward.Furni))
             return;
 
-        if (
-            _roomGrain._definitionProvider.TryGetDefinitionByName(reward.Furni)
-            is not { } definition
-        )
+        await GiveFurniAsync(recipient, reward.Furni, x, y, rotation, ct);
+
+        if (reward.Also.IsDefaultOrEmpty)
+            return;
+
+        foreach (var also in reward.Also)
+            await GiveFurniAsync(recipient, also, x, y, rotation, ct);
+    }
+
+    /// <summary>
+    /// Gives one furni of a reward: into the recipient's inventory, and from there onto the tile
+    /// the crackable stood on when it is to go in the room and fits there.
+    /// </summary>
+    private async Task GiveFurniAsync(
+        PlayerId recipient,
+        string name,
+        int x,
+        int y,
+        Rotation rotation,
+        CancellationToken ct
+    )
+    {
+        if (_roomGrain._definitionProvider.TryGetDefinitionByName(name) is not { } definition)
         {
             _roomGrain._logger.LogWarning(
                 "Crackable {ItemId} ({Definition}) names reward {Reward}, which is no furni definition",
                 _ctx.ObjectId,
                 _ctx.Definition.Name,
-                reward.Furni
+                name
             );
 
             return;

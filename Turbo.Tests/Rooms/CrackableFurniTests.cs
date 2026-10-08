@@ -321,6 +321,66 @@ public sealed class CrackableFurniTests
     }
 
     [Fact]
+    public async Task A_draw_can_be_a_set_of_furni_all_given_together()
+    {
+        _room.Enter(OWNER_AVATAR, 3, 4);
+        _room.Harness.Fakes.Handlers["TryGetDefinitionByName"] = call =>
+            call.Args[0] switch
+            {
+                "metal_ingot" => Definition(901, "metal_ingot", 1, null, FurnitureUsageType.Nobody),
+                "potion_magic" => Definition(
+                    902,
+                    "potion_magic",
+                    1,
+                    null,
+                    FurnitureUsageType.Nobody
+                ),
+                _ => null,
+            };
+        AddCrackable(
+            BOX,
+            3,
+            3,
+            OWNER,
+            """{"crackable":{"target":1,"rewardPlacement":"Inventory","rewards":[{"furni":"metal_ingot","also":["metal_ingot","metal_ingot","potion_magic"]}]}}""",
+            totalStates: 3
+        );
+
+        await UseAsync(OWNER);
+        await RunTimersAsync();
+
+        // A supply chest's "Metal Ingot (x3), Potion of Magic".
+        _room
+            .Harness.Fakes.Log.Of("GrantFurnitureAsync")
+            .Select(x => (int)x.Args[0]!)
+            .Should()
+            .Equal(901, 901, 901, 902);
+    }
+
+    [Fact]
+    public async Task A_crackable_taking_either_of_two_effects_takes_a_hit_with_either()
+    {
+        var owner = _room.Enter(OWNER_AVATAR, 3, 4);
+        var rock = AddCrackable(
+            BOX,
+            3,
+            3,
+            OWNER,
+            """{"crackable":{"target":3,"requiredEffectIds":[182,183],"rewards":[{"credits":1}]}}""",
+            totalStates: 3
+        );
+
+        owner.SetEffect(186);
+        await UseAsync(OWNER);
+        owner.SetEffect(182);
+        await UseAsync(OWNER);
+        owner.SetEffect(183);
+        await UseAsync(OWNER);
+
+        Progress(rock).Hits.Should().Be(2);
+    }
+
+    [Fact]
     public async Task Hits_after_the_cracking_one_count_for_nothing_while_it_opens()
     {
         _room.Enter(OWNER_AVATAR, 3, 4);

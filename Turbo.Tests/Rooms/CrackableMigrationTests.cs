@@ -80,4 +80,55 @@ public sealed class CrackableMigrationTests
             data.Target.Should().Be(100, row.Name);
         }
     }
+
+    private static (string Name, int States, int Usage, string Crackable)[] NewerRows() =>
+        ((string, int, int, string)[])
+            typeof(MapNewerCrackableFurni)
+                .GetField("CRACKABLES", BindingFlags.NonPublic | BindingFlags.Static)!
+                .GetValue(null)!;
+
+    [Fact]
+    public void Every_newer_crackable_section_reads_and_none_is_mapped_twice()
+    {
+        var rows = NewerRows();
+
+        rows.Should().HaveCount(136);
+        rows.Select(x => x.Name)
+            .Should()
+            .OnlyHaveUniqueItems()
+            .And.NotIntersectWith(Rows().Select(x => x.Name));
+        rows.Count(x => Read(x.Crackable).HasReward).Should().Be(128);
+
+        foreach (var row in rows)
+        {
+            var data = Read(row.Crackable);
+
+            data.Target.Should().BeGreaterThan(0, row.Name);
+            row.States.Should().BePositive(row.Name);
+            row.Usage.Should().BeOneOf([1, 2], row.Name);
+            data.Rewards.Where(x => !x.IsValid).Should().BeEmpty(row.Name);
+        }
+    }
+
+    [Fact]
+    public void A_fallen_angel_gives_three_decorations_at_once_to_the_inventory_wearing_a_torch()
+    {
+        var data = Read(NewerRows().Single(x => x.Name == "hween_c22_darkangel").Crackable);
+
+        data.Target.Should().Be(22);
+        data.AcceptsEffect(5).Should().BeTrue();
+        data.AcceptsEffect(0).Should().BeFalse();
+        data.RewardPlacement.Should().Be(CrackablePlacement.Inventory);
+        data.Rewards.Should().OnlyContain(x => x.Also.Length == 2);
+    }
+
+    [Fact]
+    public void The_fossil_rock_takes_either_pickaxe()
+    {
+        var data = Read(NewerRows().Single(x => x.Name == "dino_c22_fossilrock").Crackable);
+
+        data.AcceptsEffect(182).Should().BeTrue();
+        data.AcceptsEffect(183).Should().BeTrue();
+        data.AcceptsEffect(158).Should().BeFalse();
+    }
 }

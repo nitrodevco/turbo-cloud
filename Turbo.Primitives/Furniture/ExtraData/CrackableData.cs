@@ -43,6 +43,22 @@ public sealed record CrackableData
     /// </summary>
     public int RequiredEffectId { get; init; }
 
+    /// <summary>
+    /// Effects that count as well, any one of them (the 2022 Fossil Rock takes either Fossil
+    /// Hammer, 182 or 183).
+    /// </summary>
+    public ImmutableArray<int> RequiredEffectIds { get; init; } = [];
+
+    /// <summary>Whether an avatar wearing this effect may hit it.</summary>
+    public bool AcceptsEffect(int effectId)
+    {
+        var any = RequiredEffectId > 0 || !RequiredEffectIds.IsDefaultOrEmpty;
+
+        return !any
+            || (RequiredEffectId > 0 && effectId == RequiredEffectId)
+            || (!RequiredEffectIds.IsDefaultOrEmpty && RequiredEffectIds.Contains(effectId));
+    }
+
     /// <summary>The achievement every hit counts towards (<c>incrementalHitAchievementName</c>).</summary>
     public string? IncrementalHitAchievement { get; init; }
 
@@ -69,11 +85,16 @@ public sealed record CrackableData
 /// <summary>
 /// One thing a crackable may hold, drawn with this weight: a furni by definition name, credits,
 /// or days of a membership (the Habbo Club and Builders Club boxes hold only that; a bonus bag
-/// holds one of its rares, 5 credits or 3 days of Habbo Club).
+/// holds one of its rares, 5 credits or 3 days of Habbo Club). A draw can be a set of furni:
+/// <see cref="Also"/> are given with <see cref="Furni"/> (a supply chest's three ingredients, a
+/// terrarium's three bugs), a name repeated for each one given.
 /// </summary>
 public sealed record CrackableReward
 {
     public string? Furni { get; init; }
+
+    /// <summary>More furni given with <see cref="Furni"/> in the same draw.</summary>
+    public ImmutableArray<string> Also { get; init; } = [];
 
     public int Credits { get; init; }
 
