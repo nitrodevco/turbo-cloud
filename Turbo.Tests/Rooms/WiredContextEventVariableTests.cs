@@ -207,6 +207,12 @@ public sealed class WiredContextEventVariableTests
             .Should()
             .Be(2);
         variable.GetVarSnapshot().TextConnectors[2].Should().Be("Timeout");
+        // Read off the official client's Creator Tools (tooltip of the cut-off label).
+        variable
+            .GetVarSnapshot()
+            .TextConnectors[21]
+            .Should()
+            .Be("Misconfig Too Many Or No Contracts");
     }
 
     [Theory]

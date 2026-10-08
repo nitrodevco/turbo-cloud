@@ -45,6 +45,7 @@ public sealed class ContextTransactionFailedReasonVariable(RoomGrain roomGrain)
             [18] = "Rate Limit",
             [19] = "At Capacity",
             [20] = "Misconfig Invalid Multiplier",
+            [21] = "Misconfig Too Many Or No Contracts",
             [22] = "Misconfig No Users",
             [23] = "Misconfig Invalid Timeout",
             [24] = "Outdated Client Version",
