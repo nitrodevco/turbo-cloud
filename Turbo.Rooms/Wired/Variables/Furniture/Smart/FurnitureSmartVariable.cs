@@ -9,8 +9,9 @@ namespace Turbo.Rooms.Wired.Variables.Furniture.Smart;
 
 /// <summary>
 /// A smart furni variable: held by every furni whose logic is <typeparamref name="TLogic"/>, and
-/// listed only while one of them is in the room. Smart variables are listed after the internal
-/// ones of their band (the <c>Other</c> sub-band, below <c>@wallitem_offset</c>).
+/// listed only while one of them is in the room. Smart variables are listed above the internal
+/// ones of their band, as the official client's Creator Tools list <c>~clock.*</c> above
+/// <c>@id</c>.
 /// </summary>
 public abstract class FurnitureSmartVariable<TLogic>(RoomGrain roomGrain)
     : FurnitureValueVariable<IRoomItem>(roomGrain),
@@ -20,7 +21,7 @@ public abstract class FurnitureSmartVariable<TLogic>(RoomGrain roomGrain)
     protected override WiredVariableType VariableType => WiredVariableType.Smart;
 
     protected override WiredVariableGroupSubBandType SubBandType =>
-        WiredVariableGroupSubBandType.Other;
+        WiredVariableGroupSubBandType.Smart;
 
     public bool IsPresent() => FurniModule.Items.Any(item => item.Logic is TLogic);
 

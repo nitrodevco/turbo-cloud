@@ -19,7 +19,7 @@ public abstract class PetSmartVariable(RoomGrain roomGrain)
     protected override WiredVariableType VariableType => WiredVariableType.Smart;
 
     protected override WiredVariableGroupSubBandType SubBandType =>
-        WiredVariableGroupSubBandType.Other;
+        WiredVariableGroupSubBandType.Smart;
 
     protected override ushort Order => 0;
 

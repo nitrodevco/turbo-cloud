@@ -1,4 +1,5 @@
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Wired.Variable;
@@ -16,7 +17,12 @@ public sealed class FurnitureOccupationVariable(RoomGrain roomGrain)
     : FurniturePlacementVariable(roomGrain)
 {
     protected override string VariableName => "@occupation";
-    protected override ushort Order => 45;
+
+    // The official list has it after @position, among the Meta variables, before @type (70).
+    protected override WiredVariableGroupSubBandType SubBandType =>
+        WiredVariableGroupSubBandType.Meta;
+
+    protected override ushort Order => 74;
 
     protected override WiredVariableValue GetValueForItem(IRoomItem item) =>
         (item.X << 16) | (item.Y << 8) | (int)item.Rotation;
