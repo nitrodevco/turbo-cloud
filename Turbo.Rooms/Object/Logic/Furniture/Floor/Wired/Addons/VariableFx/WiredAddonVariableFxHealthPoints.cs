@@ -7,7 +7,7 @@ using Turbo.Primitives.Rooms.Object.Logic;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons.VariableFx;
 
 /// <summary>Hearts or a health bar over whoever holds the variable on this tile.</summary>
-[RoomObjectLogic("wf_xtra_var_fx_health")]
+[RoomObjectLogic("wf_xtra_varfx_hp")]
 public class WiredAddonVariableFxHealthPoints(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,

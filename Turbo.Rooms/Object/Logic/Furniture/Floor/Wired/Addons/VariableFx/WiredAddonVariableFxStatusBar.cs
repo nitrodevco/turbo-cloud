@@ -7,7 +7,7 @@ using Turbo.Primitives.Rooms.Object.Logic;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons.VariableFx;
 
 /// <summary>A themed bar (energy, mana, cooldown...) of the variable on this tile; the style brings the icon and colour.</summary>
-[RoomObjectLogic("wf_xtra_var_fx_status")]
+[RoomObjectLogic("wf_xtra_varfx_status")]
 public class WiredAddonVariableFxStatusBar(
     IGrainFactory grainFactory,
     IStuffDataFactory stuffDataFactory,
