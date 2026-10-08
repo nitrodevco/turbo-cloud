@@ -433,6 +433,19 @@ public class FurnitureTeleportLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
     private bool TryGetFrontIdx(out int frontIdx) =>
         MapModule.TryGetTileInFront(_ctx.GetTileIdx(), _ctx.RoomObject.Rotation, out frontIdx);
 
+    /// <summary>The item this half leads to (<c>~teleport.target_id</c>); 0 when it leads nowhere.</summary>
+    public int PartnerItemId => GetPartnerId();
+
+    /// <summary>
+    /// Points this half at another item - what writing <c>~teleport.target_id</c> does (to another
+    /// linker of the room, as the Wired Faculty describes it). Only this half changes.
+    /// </summary>
+    public void LinkTo(int itemId) =>
+        _ctx.RoomObject.ExtraData.UpdateSection(
+            RoomLinkerData.SECTION,
+            new RoomLinkerData { ItemId = itemId }
+        );
+
     private int GetPartnerId() =>
         FurnitureExtraDataSections
             .Read<RoomLinkerData>(

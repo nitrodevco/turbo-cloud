@@ -80,8 +80,29 @@ public sealed partial class RoomWiredSystem
         };
     }
 
-    public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct) =>
-        Task.FromResult(_variablesSnapshot ??= BuildVariablesSnapshot());
+    public Task<WiredVariablesSnapshot> GetWiredVariablesSnapshotAsync(CancellationToken ct)
+    {
+        // A smart variable comes and goes with the furni of its kind: the list is built again
+        // whenever which of them are present changes.
+        var present = PresentSmartVariables();
+
+        if (_variablesSnapshot is null || !present.SetEquals(_presentSmartVariables))
+        {
+            _presentSmartVariables = present;
+            _variablesSnapshot = BuildVariablesSnapshot();
+        }
+
+        return Task.FromResult(_variablesSnapshot);
+    }
+
+    private HashSet<WiredVariableId> _presentSmartVariables = [];
+
+    private HashSet<WiredVariableId> PresentSmartVariables() =>
+        [
+            .. _variableById
+                .Where(entry => entry.Value is IWiredSmartVariable smart && smart.IsPresent())
+                .Select(entry => entry.Key),
+        ];
 
     public Task<
         List<(WiredVariableId id, WiredVariableValue value)>
@@ -416,8 +437,11 @@ public sealed partial class RoomWiredSystem
         var hashes = new List<WiredVariableHash>();
         var snapshots = new List<WiredVariableSnapshot>(_variableById.Count);
 
-        foreach (var variable in _variableById.Values)
+        foreach (var (id, variable) in _variableById)
         {
+            if (variable is IWiredSmartVariable && !_presentSmartVariables.Contains(id))
+                continue;
+
             var snapshot = variable.GetVarSnapshot();
 
             hashes.Add(snapshot.VariableHash);
