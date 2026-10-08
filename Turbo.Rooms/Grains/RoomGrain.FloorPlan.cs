@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
@@ -18,6 +19,9 @@ namespace Turbo.Rooms.Grains;
 
 public sealed partial class RoomGrain
 {
+    /// <summary>The notification a refused floor plan answers with.</summary>
+    internal const string FLOOR_PLAN_ERROR_NOTIFICATION = "floorplan_editor.error";
+
     public async Task<ImmutableArray<PlayerId>?> SaveFloorPlanAsync(
         ActionContext ctx,
         string modelData,
@@ -68,8 +72,24 @@ public sealed partial class RoomGrain
                 PermissionNodes.Room.FLOORPLAN_LARGE
             );
 
-            if (!await MapModule.SaveFloorPlanAsync(modelData, properties, allowLarge, ct))
+            var error = await MapModule.SaveFloorPlanAsync(modelData, properties, allowLarge, ct);
+
+            if (error is not null)
+            {
+                // `floorplan_editor.error`: the hotel's "Floor plan validation failed" pop-up,
+                // its `%ERRORS%` the texts the plan broke.
+                await _grainFactory.SendComposerToPlayerAsync(
+                    ctx.PlayerId,
+                    new NotificationDialogMessageComposer
+                    {
+                        NotificationType = FLOOR_PLAN_ERROR_NOTIFICATION,
+                        Parameters = ImmutableDictionary<string, string>.Empty.Add("errors", error),
+                    },
+                    ct
+                );
+
                 return null;
+            }
 
             return
             [

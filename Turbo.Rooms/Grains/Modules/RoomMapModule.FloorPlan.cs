@@ -31,18 +31,31 @@ public sealed partial class RoomMapModule
     private const char CLOSED_TILE = 'x';
 
     /// <summary>
-    /// Saves a floor plan over this room's. Returns false for anything the room will not take,
-    /// which is logged with the reason: the editor has already checked all of it, so a refusal
-    /// means the request did not come from the editor.
+    /// The hotel's texts for a refused plan, <c>notification.floorplan_editor.error.message.*</c>,
+    /// as the <c>${...}</c> placeholders the client fills in when it shows the
+    /// <c>floorplan_editor.error</c> notification.
     /// </summary>
-    public async Task<bool> SaveFloorPlanAsync(
+    private static string ErrorText(string name) =>
+        $"${{notification.floorplan_editor.error.message.{name}}}";
+
+    /// <summary>Paste-able text from the import/export dialog reaches the save unchecked.</summary>
+    private static readonly string GeneralError = ErrorText("general");
+
+    /// <summary>
+    /// Saves a floor plan over this room's. Returns null once it is saved, or for anything the
+    /// room will not take the error the client is shown, which is also logged with the reason.
+    /// The editor keeps to every limit while drawing, but its import/export dialog sends whatever
+    /// text was pasted into it (<c>ImportExportDialog</c> checks nothing), so a refusal is a
+    /// real answer to a real user rather than only a sign of a forged request.
+    /// </summary>
+    public async Task<string?> SaveFloorPlanAsync(
         string modelData,
         FloorPlanPropertiesSnapshot? properties,
         bool allowLarge,
         CancellationToken ct
     )
     {
-        if (!TryReadFloorPlan(modelData, allowLarge, out var rows, out var reason))
+        if (!TryReadFloorPlan(modelData, allowLarge, out var rows, out var reason, out var error))
         {
             _roomGrain._logger.LogWarning(
                 "Room {RoomId} refused a floor plan: {Reason}",
@@ -50,7 +63,7 @@ public sealed partial class RoomMapModule
                 reason
             );
 
-            return false;
+            return error;
         }
 
         var width = rows.Max(x => x.Length);
@@ -80,7 +93,7 @@ public sealed partial class RoomMapModule
                 reason
             );
 
-            return false;
+            return ErrorText("entry_not_on_tile");
         }
 
         var cleaned = string.Join('\r', rows);
@@ -88,12 +101,12 @@ public sealed partial class RoomMapModule
         var modelId = await WriteModelAsync(cleaned, doorX, doorY, doorRotation, ct);
 
         if (modelId is not { } savedModelId)
-            return false;
+            return GeneralError;
 
         var reloaded = await _roomGrain._roomModelProvider.ReloadModelAsync(savedModelId, ct);
 
         if (reloaded is null)
-            return false;
+            return GeneralError;
 
         _roomGrain._logger.LogInformation(
             "Room {RoomId} saved a floor plan of {Width}x{Height} on model {ModelId}",
@@ -108,25 +121,28 @@ public sealed partial class RoomMapModule
         if (properties is not null)
             await _roomGrain.ApplyFloorPlanSettingsAsync(properties, ct);
 
-        return true;
+        return null;
     }
 
     private static Rotation ReadRotation(int value, Rotation fallback) =>
         value >= 0 && Enum.IsDefined((Rotation)value) ? (Rotation)value : fallback;
 
     /// <summary>
-    /// Reads the plan the client drew into its rows, or says why it will not do. Everything here
-    /// is a limit the editor keeps to as well, so none of it should ever be hit by a real save.
+    /// Reads the plan the client drew into its rows, or says why it will not do: the reason for
+    /// the log and the error for the client. Everything here is a limit the editor keeps to while
+    /// drawing; a plan pasted into its import/export dialog can break any of them.
     /// </summary>
     private bool TryReadFloorPlan(
         string modelData,
         bool allowLarge,
         out List<string> rows,
-        out string reason
+        out string reason,
+        out string error
     )
     {
         rows = [];
         reason = string.Empty;
+        error = GeneralError;
 
         if (string.IsNullOrWhiteSpace(modelData))
         {
@@ -163,6 +179,10 @@ public sealed partial class RoomMapModule
         if (width > maxAxis || height > maxAxis)
         {
             reason = $"it is {width}x{height} and no axis may pass {maxAxis}";
+            error =
+                width > maxAxis
+                    ? $"{ErrorText("too_large_width")} ({ErrorText("max")} {maxAxis})"
+                    : $"{ErrorText("too_large_height")} ({ErrorText("max")} {maxAxis})";
 
             return false;
         }
@@ -171,6 +191,8 @@ public sealed partial class RoomMapModule
         if (!allowLarge && (width - 1) * (height - 1) > _roomGrain._roomConfig.FloorPlanMaxArea)
         {
             reason = $"it covers more than {_roomGrain._roomConfig.FloorPlanMaxArea} tiles";
+            error =
+                $"{ErrorText("too_large_area")} ({ErrorText("max")} {_roomGrain._roomConfig.FloorPlanMaxArea} {ErrorText("tiles")})";
 
             return false;
         }
