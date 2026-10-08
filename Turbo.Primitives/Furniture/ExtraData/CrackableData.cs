@@ -14,10 +14,13 @@ namespace Turbo.Primitives.Furniture.ExtraData;
 /// <c>finalHitAchievementCount</c>), and what the server class it names
 /// (<c>CrackableRewardFurniture</c>, <c>PublicCrackableProductRewardFurniture</c>,
 /// <c>CrackableInventoryProductRewardFurniture</c>, <c>EffectDependentCrackableRuntime</c>,
-/// <c>PinataFurniture</c>) decides: who may hit it, who gets what is inside and where it goes.
+/// <c>PinataFurniture</c>) decides: how it is hit, who gets what is inside and where it goes.
+/// Who may hit it is not here: it is the definition's usage policy, as Sulake's data gives it
+/// (<c>&lt;everyone-can-use/&gt;</c> on eggs, crystals, piñatas and some plants; room rights for
+/// the rest).
 /// A reward set's contents are not in Sulake's data, so a hotel lists them here
-/// (<see cref="Subscription"/>, <see cref="Rewards"/>); a crackable with neither is never
-/// opened - it keeps its last hit rather than vanish for nothing.
+/// (<see cref="Rewards"/>); a crackable with none is never opened - it keeps its last hit rather
+/// than vanish for nothing.
 /// </para>
 /// </summary>
 public sealed record CrackableData
@@ -30,9 +33,9 @@ public sealed record CrackableData
     /// <summary>The hits that crack it (Sulake's <c>target</c>); at least one.</summary>
     public int Target { get; init; } = 1;
 
-    /// <summary>Who may hit it.</summary>
+    /// <summary>What lands a hit.</summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public CrackableHitters HitBy { get; init; } = CrackableHitters.Anyone;
+    public CrackableHitOn HitOn { get; init; } = CrackableHitOn.Use;
 
     /// <summary>
     /// The avatar effect a hitter has to wear (Sulake's <c>requiredEffectId</c>: the watering can,
@@ -49,14 +52,7 @@ public sealed record CrackableData
     /// <summary>How much the cracking hit counts (<c>finalHitAchievementCount</c>); 1 when not given.</summary>
     public int FinalHitAchievementCount { get; init; } = 1;
 
-    /// <summary>The membership it holds, if any.</summary>
-    [JsonConverter(typeof(JsonStringEnumConverter))]
-    public SubscriptionType? Subscription { get; init; }
-
-    /// <summary>The days of <see cref="Subscription"/> it holds.</summary>
-    public int SubscriptionDays { get; init; }
-
-    /// <summary>The furni it may hold; one is drawn by weight.</summary>
+    /// <summary>What it may hold; one is drawn by weight.</summary>
     public ImmutableArray<CrackableReward> Rewards { get; init; } = [];
 
     /// <summary>Who gets what is inside.</summary>
@@ -67,34 +63,47 @@ public sealed record CrackableData
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public CrackablePlacement RewardPlacement { get; init; } = CrackablePlacement.Room;
 
-    public bool HasSubscription => Subscription is not null && SubscriptionDays > 0;
-
-    public bool HasReward =>
-        HasSubscription || Rewards.Any(x => x.Weight > 0 && !string.IsNullOrWhiteSpace(x.Furni));
+    public bool HasReward => Rewards.Any(x => x.IsValid);
 }
 
-/// <summary>One furni a crackable may hold, by definition name, drawn with this weight.</summary>
+/// <summary>
+/// One thing a crackable may hold, drawn with this weight: a furni by definition name, credits,
+/// or days of a membership (the Habbo Club and Builders Club boxes hold only that; a bonus bag
+/// holds one of its rares, 5 credits or 3 days of Habbo Club).
+/// </summary>
 public sealed record CrackableReward
 {
-    public string Furni { get; init; } = string.Empty;
+    public string? Furni { get; init; }
+
+    public int Credits { get; init; }
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public SubscriptionType? Subscription { get; init; }
+
+    public int SubscriptionDays { get; init; }
 
     public int Weight { get; init; } = 1;
+
+    public bool IsValid =>
+        Weight > 0
+        && (
+            !string.IsNullOrWhiteSpace(Furni)
+            || Credits > 0
+            || (Subscription is not null && SubscriptionDays > 0)
+        );
 }
 
-/// <summary>Who may hit a crackable.</summary>
-public enum CrackableHitters
+/// <summary>What lands a hit on a crackable.</summary>
+public enum CrackableHitOn
 {
+    /// <summary>Using it from beside it: a double-click, or the infostand's Use button.</summary>
+    Use,
+
     /// <summary>
-    /// Anyone in the room: Flash's crackable infostand offers its Use button to every viewer
-    /// (<c>InfoStandCrackableFurniView.update</c>: <c>showButton("use", true)</c>).
+    /// Walking onto it (<c>PinataFurniture</c>: "use the Rainbow Piñata Stick effect and walk
+    /// underneath it 100 times", the hotel's <c>catalog.page.pinatas.text_0</c>).
     /// </summary>
-    Anyone,
-
-    /// <summary>Its owner and whoever has rights in the room.</summary>
-    Rights,
-
-    /// <summary>Its owner only.</summary>
-    Owner,
+    Walk,
 }
 
 /// <summary>Who gets what a crackable holds.</summary>

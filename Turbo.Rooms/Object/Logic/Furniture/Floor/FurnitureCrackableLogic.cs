@@ -12,6 +12,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
@@ -27,9 +28,13 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 /// <see cref="CrackableData"/>.
 /// <para>
 /// Its stuff data is Flash's <c>CrackableStuffData</c>: the state it draws, the hits it has taken
-/// and the hits that crack it, which the infostand shows as "Hits: x / y" under a Use button it
-/// offers to everyone. A use from beside it is a hit; from further away the use walks the avatar
-/// over, and the next use is the hit. The hits move it through its states, the last of which -
+/// and the hits that crack it, which the infostand shows as "Hits: x / y" under a Use button.
+/// Who may hit it is the definition's usage policy, which is Sulake's: everyone for the furni its
+/// data marks <c>&lt;everyone-can-use/&gt;</c> (eggs, crystals, piñatas, the public ones, some
+/// plants - "help other farmers by watering their crops"), room rights for the rest. A use from
+/// beside it is a hit, and from further away it walks the avatar over; a piñata is hit by walking
+/// under it instead. A required effect (the watering can, the magic wand, the piñata stick) has to
+/// be worn. The hits move it through its states, the last of which -
 /// its opening, which the asset plays once and then draws nothing - only the cracking hit
 /// reaches. It stands in that state for <c>CrackableOpenMs</c>, then it is gone and what it held
 /// is handed over: a membership, or a furni drawn from its rewards, on its tile or into the
@@ -78,20 +83,9 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
 
     public bool IsCracked => Hits >= Target;
 
-    // Nobody keeps the plain toggle away from everyone; who may hit is CanUseAsync's answer.
-    public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Nobody;
-
-    public override async Task<bool> CanUseAsync(ActionContext ctx) =>
-        _data.HitBy switch
-        {
-            CrackableHitters.Owner => IsItemOwner(ctx),
-            CrackableHitters.Rights => IsItemOwner(ctx) || await HasRightsAsync(ctx),
-            _ => true,
-        };
-
     public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
     {
-        if (_opening || GetAvatar(ctx) is not { } avatar)
+        if (_data.HitOn != CrackableHitOn.Use || GetAvatar(ctx) is not { } avatar)
             return;
 
         if (!FloorFootprint.Of(_ctx.RoomObject).IsOnOrNextTo(avatar.X, avatar.Y))
@@ -101,7 +95,31 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
             return;
         }
 
-        // EffectDependentCrackableRuntime: the watering can, the magic wand.
+        await HitAsync(ctx, avatar, ct);
+    }
+
+    public override async Task OnWalkOnAsync(IRoomAvatarContext ctx, CancellationToken ct)
+    {
+        await base.OnWalkOnAsync(ctx, ct);
+
+        if (_data.HitOn != CrackableHitOn.Walk || ctx.RoomObject is not IRoomPlayer player)
+            return;
+
+        var hitter = ActionContext.CreateForPlayer(player.PlayerId, _ctx.RoomId);
+
+        // The use path asks this of every use; a walk-on has to ask it here.
+        if (!await SecurityModule.CanUseFurniAsync(hitter, GetUsagePolicy()))
+            return;
+
+        await HitAsync(hitter, player, ct);
+    }
+
+    /// <summary>One hit by an avatar standing where it may hit from.</summary>
+    private async Task HitAsync(ActionContext ctx, IRoomAvatar avatar, CancellationToken ct)
+    {
+        if (_opening)
+            return;
+
         if (_data.RequiredEffectId > 0 && avatar.EffectId != _data.RequiredEffectId)
             return;
 
@@ -193,13 +211,8 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
         if (!await ActionModule.DeleteItemByIdAsync(owner, _ctx.ObjectId, ct))
             return;
 
-        if (_data is { Subscription: { } subscription, SubscriptionDays: > 0 })
-            await _roomGrain
-                ._grainFactory.GetPlayerSubscriptionGrain(recipient)
-                .ExtendAsync(subscription, _data.SubscriptionDays, ct);
-
         if (DrawReward() is { } reward)
-            await GiveFurniAsync(recipient, reward, x, y, rotation, ct);
+            await GiveAsync(recipient, reward, x, y, rotation, ct);
 
         _roomGrain._logger.LogInformation(
             "Crackable {ItemId} ({Definition}, reward set {RewardSet}) in room {RoomId} was cracked by player {PlayerId} for player {RecipientId}",
@@ -212,12 +225,10 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
         );
     }
 
-    /// <summary>One furni of the rewards, drawn by weight; null when it holds none.</summary>
+    /// <summary>One of the rewards, drawn by weight; null when it holds none.</summary>
     private CrackableReward? DrawReward()
     {
-        var rewards = _data
-            .Rewards.Where(x => x.Weight > 0 && !string.IsNullOrWhiteSpace(x.Furni))
-            .ToArray();
+        var rewards = _data.Rewards.Where(x => x.IsValid).ToArray();
         var total = rewards.Sum(x => x.Weight);
 
         if (total <= 0)
@@ -237,10 +248,10 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
     }
 
     /// <summary>
-    /// Gives a furni reward: into the recipient's inventory, and from there onto the tile the
-    /// crackable stood on when it is to go in the room and fits there.
+    /// Gives what was drawn: a membership, credits, or a furni - into the recipient's inventory,
+    /// and from there onto the tile the crackable stood on when it is to go in the room and fits.
     /// </summary>
-    private async Task GiveFurniAsync(
+    private async Task GiveAsync(
         PlayerId recipient,
         CrackableReward reward,
         int x,
@@ -249,6 +260,19 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
         CancellationToken ct
     )
     {
+        if (reward is { Subscription: { } subscription, SubscriptionDays: > 0 })
+            await _roomGrain
+                ._grainFactory.GetPlayerSubscriptionGrain(recipient)
+                .ExtendAsync(subscription, reward.SubscriptionDays, ct);
+
+        if (reward.Credits > 0)
+            await _roomGrain
+                ._grainFactory.GetPlayerWalletGrain(recipient)
+                .CreditAsync(CurrencyKind.Credits, reward.Credits, ct);
+
+        if (string.IsNullOrWhiteSpace(reward.Furni))
+            return;
+
         if (
             _roomGrain._definitionProvider.TryGetDefinitionByName(reward.Furni)
             is not { } definition

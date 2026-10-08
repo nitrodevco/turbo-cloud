@@ -8,6 +8,7 @@ using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
@@ -24,10 +25,11 @@ using Xunit;
 namespace Turbo.Tests.Rooms;
 
 /// <summary>
-/// Crackable furni, driven through the room's use path as the client's double-click and the
-/// infostand's Use button reach it: the Habbo Club and Builders Club boxes, multi-hit eggs,
-/// effect-dependent plants, and the boxes left in their empty opening frame before the logic
-/// existed (the "ghost blocks").
+/// Crackable furni, driven through the room's use and walk-on paths as the client reaches them:
+/// the Habbo Club and Builders Club boxes, multi-hit eggs anyone may tap, effect-dependent plants,
+/// piñatas hit by walking under them with the stick, bonus bags, and the boxes left in their empty
+/// opening frame before the logic existed (the "ghost blocks"). Who may hit is the definition's
+/// usage policy, as Sulake's furni data gives it.
 /// </summary>
 public sealed class CrackableFurniTests
 {
@@ -36,21 +38,36 @@ public sealed class CrackableFurniTests
     private const int GUEST_AVATAR = 2;
     private const int OWNER = 100 + OWNER_AVATAR;
     private const int GUEST = 100 + GUEST_AVATAR;
+    private const int PINATA_STICK = 158;
 
     private const string BC_BOX =
-        """{"crackable":{"rewardSet":"bcgift_1","target":1,"hitBy":"Owner","subscription":"BuildersClub","subscriptionDays":14}}""";
+        """{"crackable":{"rewardSet":"bcgift_1","target":1,"rewards":[{"subscription":"BuildersClub","subscriptionDays":14}]}}""";
 
     private const string EGG =
-        """{"crackable":{"rewardSet":"egg_p1","target":4,"hitBy":"Anyone","incrementalHitAchievement":"EggCracker","finalHitAchievement":"EggMaster","subscription":"HabboClub","subscriptionDays":1}}""";
+        """{"crackable":{"rewardSet":"egg_p1","target":4,"incrementalHitAchievement":"EggCracker","finalHitAchievement":"EggMaster","rewards":[{"credits":1}]}}""";
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private readonly WiredRoom _room = new(10, 10);
 
+    public CrackableFurniTests()
+    {
+        // The owner of the furni owns the room, so holds its rights.
+        var snapshot = RoomHarness.GetMember(_room.Harness.State, "RoomSnapshot")!;
+        RoomHarness.SetMember(snapshot, "OwnerId", (PlayerId)OWNER);
+        // A walk-on hands the furni the walking avatar's context.
+        _room.Harness.Fakes.Handlers["get_RoomObject"] = call =>
+            call.Interface == typeof(IRoomPlayerContext)
+            && call.Key is int id
+            && _room.Avatars.TryGetValue(id, out var avatar)
+                ? avatar
+                : Fakes.NotHandled;
+    }
+
     [Fact]
     public async Task A_bc_box_opens_on_its_owners_hit_and_gives_the_membership_once_it_is_gone()
     {
-        var owner = _room.Enter(OWNER_AVATAR, 3, 4);
+        _room.Enter(OWNER_AVATAR, 3, 4);
         var box = AddCrackable(BOX, 3, 3, OWNER, BC_BOX, totalStates: 3);
 
         await UseAsync(OWNER);
@@ -68,7 +85,6 @@ public sealed class CrackableFurniTests
             .ContainSingle()
             .Which.Should()
             .Be((OWNER, SubscriptionType.BuildersClub, 14));
-        owner.Should().NotBeNull();
     }
 
     [Fact]
@@ -76,7 +92,7 @@ public sealed class CrackableFurniTests
     {
         _room.Enter(OWNER_AVATAR, 3, 4);
 
-        // How Dippy's BC boxes were stored: legacy stuff data in state 2, the asset's empty
+        // How the reported BC boxes were stored: legacy stuff data in state 2, the asset's empty
         // opening frame, which drew only a shadow and blocked the tile.
         var box = AddCrackable(
             BOX,
@@ -99,7 +115,7 @@ public sealed class CrackableFurniTests
     }
 
     [Fact]
-    public async Task Nobody_but_the_owner_can_open_an_owner_only_box()
+    public async Task A_visitor_without_rights_cannot_hit_a_box_that_is_not_everyones()
     {
         _room.Enter(GUEST_AVATAR, 3, 4);
         var box = AddCrackable(BOX, 3, 3, OWNER, BC_BOX, totalStates: 3);
@@ -123,16 +139,23 @@ public sealed class CrackableFurniTests
         Progress(box).Should().Be((0, 1, "0"));
         owner.IsWalking.Should().BeTrue();
         var (goalX, goalY) = _room.Map.GetTileXY(owner.GoalTileId);
-        FloorFootprint.Of(box).DistanceTo(goalX, goalY).Should().Be(1);
         (goalX, goalY).Should().Be((4, 4), "the free tile beside it nearest to the avatar");
     }
 
     [Fact]
-    public async Task An_egg_takes_everyones_hits_moves_through_its_states_and_counts_achievements()
+    public async Task An_egg_everyone_may_use_takes_everyones_hits_and_counts_their_achievements()
     {
         _room.Enter(OWNER_AVATAR, 3, 4);
         _room.Enter(GUEST_AVATAR, 4, 3);
-        var egg = AddCrackable(BOX, 3, 3, OWNER, EGG, totalStates: 5);
+        var egg = AddCrackable(
+            BOX,
+            3,
+            3,
+            OWNER,
+            EGG,
+            totalStates: 5,
+            usage: FurnitureUsageType.Everybody
+        );
 
         var states = new List<string>();
 
@@ -155,7 +178,7 @@ public sealed class CrackableFurniTests
 
         ItemExists().Should().BeFalse();
         // What it holds goes to the egg's owner, whoever cracked it.
-        Extensions().Should().ContainSingle().Which.Player.Should().Be(OWNER);
+        Credits().Should().Equal((OWNER, 1L));
         Facts(AchievementSources.CRACKABLE_HIT)
             .Should()
             .Equal(
@@ -176,7 +199,7 @@ public sealed class CrackableFurniTests
             3,
             3,
             OWNER,
-            """{"crackable":{"rewardSet":"easter17_2","target":1,"hitBy":"Owner","requiredEffectId":192,"subscription":"HabboClub","subscriptionDays":1}}""",
+            """{"crackable":{"rewardSet":"easter17_2","target":1,"requiredEffectId":192,"rewards":[{"credits":1}]}}""",
             totalStates: 3
         );
 
@@ -189,6 +212,42 @@ public sealed class CrackableFurniTests
     }
 
     [Fact]
+    public async Task A_pinata_is_hit_by_walking_under_it_with_the_stick_and_not_by_a_double_click()
+    {
+        var walker = _room.Enter(GUEST_AVATAR, 3, 4);
+        var pinata = AddCrackable(
+            BOX,
+            3,
+            3,
+            OWNER,
+            """{"crackable":{"rewardSet":"pinata1","target":2,"hitOn":"Walk","requiredEffectId":158,"incrementalHitAchievement":"PinataWhacker","finalHitAchievement":"PinataBreaker","rewards":[{"credits":1}]}}""",
+            totalStates: 9,
+            usage: FurnitureUsageType.Everybody,
+            canWalk: true
+        );
+
+        await UseAsync(GUEST);
+        await WalkOnAsync(walker);
+        Progress(pinata)
+            .Should()
+            .Be((0, 2, "0"), "neither a use nor a walk without the stick hits it");
+
+        walker.SetEffect(PINATA_STICK);
+        await WalkOnAsync(walker);
+        Progress(pinata).Should().Be((1, 2, "4"));
+        await WalkOnAsync(walker);
+        Progress(pinata).Should().Be((2, 2, "8"));
+
+        await RunTimersAsync();
+
+        ItemExists().Should().BeFalse();
+        Facts(AchievementSources.CRACKABLE_HIT)
+            .Should()
+            .Equal((GUEST, "pinatawhacker", 1L), (GUEST, "pinatawhacker", 1L));
+        Facts(AchievementSources.CRACKABLE_CRACKED).Should().Equal((GUEST, "pinatabreaker", 1L));
+    }
+
+    [Fact]
     public async Task A_crackable_holding_nothing_the_hotel_lists_takes_hits_but_never_cracks()
     {
         _room.Enter(OWNER_AVATAR, 3, 4);
@@ -197,7 +256,7 @@ public sealed class CrackableFurniTests
             3,
             3,
             OWNER,
-            """{"crackable":{"rewardSet":"bonusrares16_1","target":2,"hitBy":"Anyone"}}""",
+            """{"crackable":{"rewardSet":"bonusrares16_1","target":2}}""",
             totalStates: 3
         );
 
@@ -210,40 +269,62 @@ public sealed class CrackableFurniTests
     }
 
     [Fact]
+    public async Task A_bonus_bag_can_give_credits_or_a_membership_instead_of_a_furni()
+    {
+        _room.Enter(OWNER_AVATAR, 3, 4);
+        AddCrackable(
+            BOX,
+            3,
+            3,
+            OWNER,
+            """{"crackable":{"rewardSet":"bonusrares16_1","target":1,"rewards":[{"credits":5,"weight":1},{"furni":"","weight":5}]}}""",
+            totalStates: 3
+        );
+
+        await UseAsync(OWNER);
+        await RunTimersAsync();
+
+        // The furni entry names nothing, so it is never drawn: the bag gives its 5 credits.
+        ItemExists().Should().BeFalse();
+        Credits().Should().Equal((OWNER, 5L));
+    }
+
+    [Fact]
     public async Task A_public_crackable_gives_its_furni_to_whoever_cracked_it()
     {
         _room.Enter(GUEST_AVATAR, 3, 4);
         _room.Harness.Fakes.Handlers["TryGetDefinitionByName"] = call =>
             call.Args[0] is "easter_r17_prize"
-                ? Definition(777, "easter_r17_prize", 2, null)
+                ? Definition(777, "easter_r17_prize", 2, null, FurnitureUsageType.Controller)
                 : null;
         AddCrackable(
             BOX,
             3,
             3,
             OWNER,
-            """{"crackable":{"rewardSet":"easter17_6","target":1,"hitBy":"Anyone","rewardTo":"Cracker","rewards":[{"furni":"easter_r17_prize","weight":1}]}}""",
-            totalStates: 3
+            """{"crackable":{"rewardSet":"easter17_6","target":1,"rewardTo":"Cracker","rewards":[{"furni":"easter_r17_prize"}]}}""",
+            totalStates: 3,
+            usage: FurnitureUsageType.Everybody
         );
 
         await UseAsync(GUEST);
         await RunTimersAsync();
 
         ItemExists().Should().BeFalse();
-        _room
+        var grant = _room
             .Harness.Fakes.Log.Of("GrantFurnitureAsync")
             .Should()
             .ContainSingle()
-            .Which.Should()
-            .Match<FakeCall>(x => Equals(x.Key, (long)GUEST) || Equals(x.Key, GUEST));
-        _room.Harness.Fakes.Log.Of("GrantFurnitureAsync").Single().Args[0].Should().Be(777);
+            .Subject;
+        Convert.ToInt32(grant.Key).Should().Be(GUEST);
+        grant.Args[0].Should().Be(777);
     }
 
     [Fact]
     public async Task Hits_after_the_cracking_one_count_for_nothing_while_it_opens()
     {
         _room.Enter(OWNER_AVATAR, 3, 4);
-        var box = AddCrackable(BOX, 3, 3, OWNER, BC_BOX, totalStates: 3);
+        AddCrackable(BOX, 3, 3, OWNER, BC_BOX, totalStates: 3);
 
         await UseAsync(OWNER);
         await UseAsync(OWNER);
@@ -251,7 +332,6 @@ public sealed class CrackableFurniTests
         await RunTimersAsync();
 
         Extensions().Should().ContainSingle();
-        box.Should().NotBeNull();
     }
 
     private async Task UseAsync(int playerId) =>
@@ -260,6 +340,15 @@ public sealed class CrackableFurniTests
             BOX,
             Ct
         );
+
+    private Task WalkOnAsync(IRoomAvatar avatar)
+    {
+        var item = _room.FloorItem(BOX);
+
+        return _room
+            .Harness.Module<RoomAvatarModule>()
+            .NotifyWalkOnAsync(avatar, _room.Map.ToIdx(item.X, item.Y), Ct);
+    }
 
     private Task RunTimersAsync() =>
         _room.Harness.Module<RoomTimerSystem>().ProcessTimersAsync(long.MaxValue / 2, Ct);
@@ -285,6 +374,14 @@ public sealed class CrackableFurniTests
                 ),
         ];
 
+    private List<(int Player, long Amount)> Credits() =>
+        [
+            .. _room
+                .Harness.Fakes.Log.Of("CreditAsync")
+                .Where(x => x.Args[0] is CurrencyKind kind && kind == CurrencyKind.Credits)
+                .Select(x => (Convert.ToInt32(x.Key), Convert.ToInt64(x.Args[1]))),
+        ];
+
     private List<(int Player, string Value, long Amount)> Facts(string source) =>
         [
             .. _room
@@ -300,7 +397,9 @@ public sealed class CrackableFurniTests
         int id,
         string name,
         int totalStates,
-        string? extraData
+        string? extraData,
+        FurnitureUsageType usage,
+        bool canWalk = false
     ) =>
         new()
         {
@@ -315,14 +414,14 @@ public sealed class CrackableFurniTests
             Length = 1,
             StackHeight = Altitude.FromInt(120),
             CanStack = true,
-            CanWalk = false,
+            CanWalk = canWalk,
             CanSit = false,
             CanLay = false,
             CanRecycle = true,
             CanTrade = true,
             CanGroup = true,
             CanSell = true,
-            UsagePolicy = FurnitureUsageType.Nobody,
+            UsagePolicy = usage,
             ExtraData = extraData,
         };
 
@@ -333,7 +432,9 @@ public sealed class CrackableFurniTests
         int ownerId,
         string definitionExtraData,
         int totalStates,
-        string? itemExtraData = null
+        string? itemExtraData = null,
+        FurnitureUsageType usage = FurnitureUsageType.Controller,
+        bool canWalk = false
     )
     {
         var item = new RoomFloorItem
@@ -341,7 +442,14 @@ public sealed class CrackableFurniTests
             ObjectId = id,
             OwnerId = ownerId,
             OwnerName = "owner",
-            Definition = Definition(1000 + id, "crackable_box", totalStates, definitionExtraData),
+            Definition = Definition(
+                1000 + id,
+                "crackable_box",
+                totalStates,
+                definitionExtraData,
+                usage,
+                canWalk
+            ),
         };
 
         item.SetExtraData(itemExtraData);
