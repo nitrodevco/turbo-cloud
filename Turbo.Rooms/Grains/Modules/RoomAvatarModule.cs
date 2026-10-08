@@ -478,12 +478,14 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
     )
     {
         // A player inside a teleporter asks to walk and is refused without stopping the walk
-        // the teleporter itself has them on.
+        // the teleporter itself has them on. A click on a tile there is no way to (furni, a
+        // wall) leaves the walk the player is on alone, as Habbo does: the avatar keeps going
+        // where it was going.
         if (
             ctx.PlayerId <= 0
             || !TryGetPlayer(ctx.PlayerId, out var avatar)
             || avatar.IsTeleporting
-            || !await WalkAvatarToAsync(avatar, targetX, targetY, ct)
+            || !await WalkAvatarToAsync(avatar, targetX, targetY, ct, keepWalkWhenRefused: true)
         )
             return false;
 
@@ -511,18 +513,24 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
     /// is frozen, already there, or no way leads there. Those are ordinary answers, asked for by
     /// every pet and bot that looks for a tile, so they are guard clauses; they used to be thrown
     /// and caught here, which also hid any real failure of the walk behind the same false.
+    /// <paramref name="keepWalkWhenRefused"/> keeps a walk the avatar is already on when the new
+    /// one is refused (a player's own click), instead of stopping it.
     /// </summary>
     public async Task<bool> WalkAvatarToAsync(
         IRoomAvatar avatar,
         int targetX,
         int targetY,
-        CancellationToken ct
+        CancellationToken ct,
+        bool keepWalkWhenRefused = false
     )
     {
         try
         {
             if (!TryStartWalk(avatar, targetX, targetY))
             {
+                if (keepWalkWhenRefused && avatar.IsWalking)
+                    return false;
+
                 await StopWalkingAsync(avatar, ct);
                 // Stopping clears the goal only of an avatar that was walking; a refused walk
                 // from standing still must not leave its goal behind either.
@@ -558,20 +566,34 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             return false;
 
         var map = MapModule;
+
+        // A goal off the map is refused by coordinate: its index can land on a real tile of the
+        // next row, which the search would then happily walk to.
+        if (!map.InBounds(targetX, targetY))
+            return false;
+
         var goalTileId = map.ToIdx(targetX, targetY);
-        var currentTileId =
-            avatar.NextTileId > 0 ? avatar.NextTileId : map.ToIdx(avatar.X, avatar.Y);
+        var currentTileId = CurrentTileId(avatar);
 
         if (goalTileId == currentTileId)
             return false;
 
+        // The goal changes only with a way to it: the search writes the path only when it finds
+        // one, so a refused goal leaves the walk the avatar is on whole.
+        if (!PathingSystem.TryFindPath(avatar, currentTileId, goalTileId, avatar.TilePath))
+            return false;
+
         avatar.SetGoalTileId(goalTileId);
 
-        // A goal off the map is refused by coordinate: its index can land on a real tile of the
-        // next row, which the search would then happily walk to.
-        return map.InBounds(targetX, targetY)
-            && PathingSystem.TryFindPath(avatar, currentTileId, goalTileId, avatar.TilePath);
+        return true;
     }
+
+    /// <summary>
+    /// Where a walk is planned from: the tile the avatar is stepping onto, or the one it stands
+    /// on. <c>NextTileId</c> is -1 for none; tile 0, the map's corner, is a tile like any other.
+    /// </summary>
+    private int CurrentTileId(IRoomAvatar avatar) =>
+        avatar.NextTileId >= 0 ? avatar.NextTileId : MapModule.ToIdx(avatar.X, avatar.Y);
 
     /// <summary>
     /// Finds a new way to the walk's goal when a step on the way was blocked: someone stepped
@@ -583,9 +605,7 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         if (avatar.IsFrozen || !avatar.TryRerouteGoal())
             return false;
 
-        var map = MapModule;
-        var currentTileId =
-            avatar.NextTileId > 0 ? avatar.NextTileId : map.ToIdx(avatar.X, avatar.Y);
+        var currentTileId = CurrentTileId(avatar);
 
         return avatar.GoalTileId != currentTileId
             && PathingSystem.TryFindPath(avatar, currentTileId, avatar.GoalTileId, avatar.TilePath);
