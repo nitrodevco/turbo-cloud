@@ -10,12 +10,13 @@ namespace Turbo.Rooms.Wired.Variables.Context;
 /// </summary>
 public sealed class ContextChatTypeVariable(RoomGrain roomGrain) : ContextVariable(roomGrain)
 {
-    protected override string VariableName => "@chat_type";
+    protected override string VariableName => "@event.chat.type";
     protected override WiredVariableGroupSubBandType SubBandType =>
         WiredVariableGroupSubBandType.Base;
 
-    // sirjonasxx's overview (variables-info #9) lists the context variables in this order.
-    protected override ushort Order => 5;
+    // The official client's Creator Tools list the context variables in this order; the gaps
+    // leave room for the @event.* ones still to come.
+    protected override ushort Order => 50;
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 

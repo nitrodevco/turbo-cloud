@@ -12,6 +12,8 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.WiredTrading;
@@ -19,6 +21,7 @@ using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Primitives.WiredTrading.Grains;
 using Turbo.Primitives.WiredTrading.Snapshots;
 using Turbo.Rooms.Grains;
+using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
 using Turbo.Rooms.Wired;
 using Turbo.Tests.Support;
@@ -264,6 +267,9 @@ public class WiredContractTests
             RewardText = "well done",
         };
 
+        var heard = new HeardEvents();
+        room.Module<RoomEventModule>().Register(heard);
+
         var failure = await room.Room.WiredTransactionSystem.RewardAsync(
             player,
             [chest],
@@ -274,6 +280,21 @@ public class WiredContractTests
         );
 
         failure.Should().BeNull();
+        // What the @event.transaction_complete.* variables read: twice over, 10 credits out.
+        heard
+            .Events.OfType<WiredTransactionCompletedEvent>()
+            .Single()
+            .Should()
+            .BeEquivalentTo(
+                new
+                {
+                    Multiplier = 2,
+                    DepositFurniCount = 0,
+                    DepositCoinsCount = 0,
+                    WithdrawalFurniCount = 0,
+                    WithdrawalCoinsCount = 10,
+                }
+            );
         (
             (WiredChestWithdrawRequest)
                 room.Fakes.Log.Of(nameof(IWiredChestGrain.WithdrawAsync)).Single().Args[0]!
@@ -284,6 +305,18 @@ public class WiredContractTests
         shown.Contents.Type.Should().Be(WiredTransactionSuccessType.Rewarded);
         shown.Contents.RewardContents!.Nodes.Single().Amount.Should().Be(10);
         shown.Contents.RewardText.Should().Be("well done");
+    }
+
+    private sealed class HeardEvents : IRoomEventListener
+    {
+        public List<RoomEvent> Events { get; } = [];
+
+        public Task OnRoomEventAsync(RoomEvent evt, CancellationToken ct)
+        {
+            Events.Add(evt);
+
+            return Task.CompletedTask;
+        }
     }
 
     private static IWiredTradeGrain TradeGrain(Fakes fakes) =>

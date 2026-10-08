@@ -14,7 +14,7 @@ public sealed class RoomUserCountVariable(RoomGrain roomGrain) : RoomVariable(ro
     protected override string VariableName => "@user_count";
     protected override WiredVariableGroupSubBandType SubBandType =>
         WiredVariableGroupSubBandType.Base;
-    protected override ushort Order => 8;
+    protected override ushort Order => 38;
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 

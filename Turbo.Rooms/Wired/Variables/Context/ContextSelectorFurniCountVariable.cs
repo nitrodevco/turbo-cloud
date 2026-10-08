@@ -15,7 +15,7 @@ public sealed class ContextSelectorFurniCountVariable(RoomGrain roomGrain)
     protected override string VariableName => "@selector_furni_count";
     protected override WiredVariableGroupSubBandType SubBandType =>
         WiredVariableGroupSubBandType.Base;
-    protected override ushort Order => 10;
+    protected override ushort Order => 100;
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 

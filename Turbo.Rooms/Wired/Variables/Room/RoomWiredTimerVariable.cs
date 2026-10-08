@@ -13,7 +13,7 @@ public sealed class RoomWiredTimerVariable(RoomGrain roomGrain) : RoomVariable(r
     protected override string VariableName => "@wired_timer";
     protected override WiredVariableGroupSubBandType SubBandType =>
         WiredVariableGroupSubBandType.Base;
-    protected override ushort Order => 6;
+    protected override ushort Order => 36;
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 

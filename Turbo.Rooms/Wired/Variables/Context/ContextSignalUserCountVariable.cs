@@ -13,8 +13,9 @@ public sealed class ContextSignalUserCountVariable(RoomGrain roomGrain) : Contex
     protected override WiredVariableGroupSubBandType SubBandType =>
         WiredVariableGroupSubBandType.Base;
 
-    // sirjonasxx's overview (variables-info #9) lists the context variables in this order.
-    protected override ushort Order => 7;
+    // The official client's Creator Tools list the context variables in this order; the gaps
+    // leave room for the @event.* ones still to come.
+    protected override ushort Order => 70;
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 

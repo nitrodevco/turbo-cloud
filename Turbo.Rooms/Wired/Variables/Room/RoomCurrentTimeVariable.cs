@@ -15,7 +15,7 @@ public sealed class RoomCurrentTimeVariable(RoomGrain roomGrain) : RoomVariable(
     protected override string VariableName => "@current_time";
     protected override WiredVariableGroupSubBandType SubBandType =>
         WiredVariableGroupSubBandType.Base;
-    protected override ushort Order => 4;
+    protected override ushort Order => 20;
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 

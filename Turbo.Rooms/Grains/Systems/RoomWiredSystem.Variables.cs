@@ -49,7 +49,7 @@ public sealed partial class RoomWiredSystem
 
     /// <summary>
     /// The wired execution running now, set and cleared with <see cref="_contextValues"/>: what
-    /// the internal context variables (<c>@selector_furni_count</c>, <c>@chat_type</c>, ...) read.
+    /// the internal context variables (<c>@selector_furni_count</c>, <c>@event.chat.type</c>, ...) read.
     /// </summary>
     private WiredRunningExecution? _running;
 

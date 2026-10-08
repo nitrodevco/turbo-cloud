@@ -299,6 +299,7 @@ public abstract class FurnitureWiredVariableLogic
                     Value = value,
                     PreviousValue = previous,
                     Origin = origin ?? WiredSystem.ChangeOrigin,
+                    BoxId = _ctx.ObjectId.Value,
                 },
                 System.Threading.CancellationToken.None
             )

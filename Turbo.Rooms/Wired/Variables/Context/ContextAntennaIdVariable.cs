@@ -11,12 +11,13 @@ namespace Turbo.Rooms.Wired.Variables.Context;
 /// </summary>
 public sealed class ContextAntennaIdVariable(RoomGrain roomGrain) : ContextVariable(roomGrain)
 {
-    protected override string VariableName => "@antenna_id";
+    protected override string VariableName => "@event.signal.antenna_id";
     protected override WiredVariableGroupSubBandType SubBandType =>
         WiredVariableGroupSubBandType.Base;
 
-    // sirjonasxx's overview (variables-info #9) lists the context variables in this order.
-    protected override ushort Order => 6;
+    // The official client's Creator Tools list the context variables in this order; the gaps
+    // leave room for the @event.* ones still to come.
+    protected override ushort Order => 60;
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 

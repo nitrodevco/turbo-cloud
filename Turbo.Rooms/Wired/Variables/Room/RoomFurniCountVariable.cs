@@ -9,7 +9,7 @@ public sealed class RoomFurniCountVariable(RoomGrain roomGrain) : RoomVariable(r
     protected override string VariableName => "@furni_count";
     protected override WiredVariableGroupSubBandType SubBandType =>
         WiredVariableGroupSubBandType.Base;
-    protected override ushort Order => 10;
+    protected override ushort Order => 40;
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 

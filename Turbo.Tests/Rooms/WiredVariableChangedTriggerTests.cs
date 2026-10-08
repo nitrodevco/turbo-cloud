@@ -1,3 +1,4 @@
+using System.Collections;
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
@@ -10,6 +11,8 @@ using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
+using Turbo.Rooms.Wired.Variables;
+using Turbo.Rooms.Wired.Variables.Context;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -236,6 +239,63 @@ public sealed class WiredVariableChangedTriggerTests
         await TickAsync(6);
 
         Hits().Should().Be(hitsAfterGive + hitsAfterChangeOrRemove);
+    }
+
+    /// <summary>
+    /// The <c>@event.variable_update.*</c> context variables (official Creator Tools, 2026-10-08)
+    /// describe the change a "Variable Changed" stack heard: "counter" going from 0 to 5 in this
+    /// room, read by stack two into "hits".
+    /// </summary>
+    [Theory]
+    [InlineData("box_id", COUNTER)]
+    [InlineData("change_type", 1)]
+    [InlineData("old_value", 0)]
+    [InlineData("new_value", 5)]
+    [InlineData("difference", 5)]
+    [InlineData("change_origin", 0)]
+    public async Task The_change_heard_is_read_from_the_variable_update_variables(
+        string field,
+        int expected
+    )
+    {
+        WiredInternalVariable variable = field switch
+        {
+            "box_id" => new ContextVariableUpdateBoxIdVariable(_room.Harness.Room),
+            "change_type" => new ContextVariableUpdateChangeTypeVariable(_room.Harness.Room),
+            "old_value" => new ContextVariableUpdateOldValueVariable(_room.Harness.Room),
+            "new_value" => new ContextVariableUpdateNewValueVariable(_room.Harness.Room),
+            "difference" => new ContextVariableUpdateDifferenceVariable(_room.Harness.Room),
+            _ => new ContextVariableUpdateChangeOriginVariable(_room.Harness.Room),
+        };
+        var id = variable.GetVarSnapshot().VariableId;
+
+        variable.GetVarSnapshot().VariableName.Should().Be("@event.variable_update." + field);
+        ((IDictionary)RoomHarness.GetMember(_room.Harness.Room.WiredSystem, "_variableById")!)[id] =
+            variable;
+        await BuildAsync(WiredVariableOperationType.Add, 5, [1, 1, 0, 0, ALL_ORIGINS]);
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                4,
+                intParams:
+                [
+                    (int)WiredVariableTargetType.Global,
+                    (int)WiredVariableOperationType.Set,
+                    1,
+                    0,
+                    0,
+                    (int)WiredVariableTargetType.Context,
+                ],
+                definitionSpecifics: [0],
+                variableIds: [_hits.GetVarSnapshot().VariableId.ToString(), id.ToString()]
+            )
+        )
+            .Should()
+            .BeTrue();
+        await StartAsync(0, 4);
+
+        await FireAsync();
+
+        Hits().Should().Be(expected);
     }
 
     private async Task SaveClickAsync(int boxId, int furniId) => (

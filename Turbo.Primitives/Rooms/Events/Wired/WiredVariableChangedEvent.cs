@@ -28,4 +28,8 @@ public sealed record WiredVariableChangedEvent : RoomEvent
 
     [Id(6)]
     public WiredVariableChangeOriginType Origin { get; init; }
+
+    /// <summary>The variable box whose variable changed (<c>@event.variable_update.box_id</c>).</summary>
+    [Id(7)]
+    public int BoxId { get; init; }
 }

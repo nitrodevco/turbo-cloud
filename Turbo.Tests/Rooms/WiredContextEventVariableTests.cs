@@ -10,6 +10,7 @@ using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
@@ -23,9 +24,11 @@ namespace Turbo.Tests.Rooms;
 
 /// <summary>
 /// The context variables sirjonasxx lists for the wired execution itself (variables-info #9 and
-/// #13): <c>@chat_type</c> and <c>@chat_style</c> "if the wired stack was triggered by User Says
-/// Keyword" ("check if the user is chatting with a Zombie Hand chat bubble"), and for a signal
-/// <c>@antenna_id</c>, <c>@signal_furni_count</c> and <c>@signal_user_count</c>. None existed.
+/// #13): the chat type and style "if the wired stack was triggered by User Says Keyword" ("check
+/// if the user is chatting with a Zombie Hand chat bubble"), and for a signal the antenna and the
+/// signal's furni and user counts. None existed. Their names are the official client's today
+/// (Creator Tools, 2026-10-08): <c>@event.chat.type</c>, <c>@event.chat.style</c> and
+/// <c>@event.signal.antenna_id</c>.
 /// </summary>
 public sealed class WiredContextEventVariableTests
 {
@@ -122,6 +125,94 @@ public sealed class WiredContextEventVariableTests
         (await _room.SaveAsync<UpdateTriggerMessage>(1, intParams: [0, 0, 0], stringParam: "go"))
             .Should()
             .BeTrue();
+    }
+
+    [Theory]
+    [InlineData("multiplier", 3)]
+    [InlineData("deposit.furni_count", 2)]
+    [InlineData("deposit.coins_count", 15)]
+    [InlineData("withdrawal.furni_count", 4)]
+    [InlineData("withdrawal.coins_count", 30)]
+    public async Task A_completed_transaction_gives_what_it_moved(string figure, int expected)
+    {
+        _room.Enter(PLAYER_INDEX, 1, 1);
+
+        WiredInternalVariable variable = figure switch
+        {
+            "multiplier" => new ContextTransactionMultiplierVariable(_room.Harness.Room),
+            "deposit.furni_count" => new ContextTransactionDepositFurniCountVariable(
+                _room.Harness.Room
+            ),
+            "deposit.coins_count" => new ContextTransactionDepositCoinsCountVariable(
+                _room.Harness.Room
+            ),
+            "withdrawal.furni_count" => new ContextTransactionWithdrawalFurniCountVariable(
+                _room.Harness.Room
+            ),
+            _ => new ContextTransactionWithdrawalCoinsCountVariable(_room.Harness.Room),
+        };
+        variable.GetVarSnapshot().VariableName.Should().Be("@event.transaction_complete." + figure);
+        var completed = new WiredTransactionCompletedEvent
+        {
+            RoomId = 1,
+            CausedBy = ActionContext.CreateForWired(1),
+            PlayerId = (PlayerId)(100 + PLAYER_INDEX),
+            SourceId = 40,
+            Multiplier = 3,
+            DepositFurniCount = 2,
+            DepositCoinsCount = 15,
+            WithdrawalFurniCount = 4,
+            WithdrawalCoinsCount = 30,
+        };
+
+        (
+            await RunAsync(
+                variable,
+                () =>
+                    TransactionTriggerAsync<WiredTriggerTransactionCompleted>(
+                        "wf_trg_transaction_complete"
+                    ),
+                completed
+            )
+        )
+            .Should()
+            .Be(expected);
+    }
+
+    [Fact]
+    public async Task A_failed_transaction_gives_why_it_failed()
+    {
+        _room.Enter(PLAYER_INDEX, 1, 1);
+        var variable = new ContextTransactionFailedReasonVariable(_room.Harness.Room);
+        var failed = new WiredTransactionFailedEvent
+        {
+            RoomId = 1,
+            CausedBy = ActionContext.CreateForWired(1),
+            PlayerId = (PlayerId)(100 + PLAYER_INDEX),
+            SourceId = 40,
+            Reason = WiredTransactionFailureType.Timeout,
+        };
+
+        (
+            await RunAsync(
+                variable,
+                () =>
+                    TransactionTriggerAsync<WiredTriggerTransactionFailed>(
+                        "wf_trg_transaction_fail"
+                    ),
+                failed
+            )
+        )
+            .Should()
+            .Be(2);
+        variable.GetVarSnapshot().TextConnectors[2].Should().Be("Timeout");
+    }
+
+    private async Task TransactionTriggerAsync<TTrigger>(string name)
+        where TTrigger : class, Turbo.Primitives.Rooms.Object.Logic.IRoomObjectLogic
+    {
+        _room.AddBox<TTrigger>(1, 0, 0, name);
+        (await _room.SaveAsync<UpdateTriggerMessage>(1)).Should().BeTrue();
     }
 
     private async Task ReceiveAsync()

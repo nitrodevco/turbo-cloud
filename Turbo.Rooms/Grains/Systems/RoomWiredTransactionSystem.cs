@@ -78,7 +78,7 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
             ct
         );
 
-        await CompleteAsync(player.PlayerId, sourceId, ct);
+        await CompleteAsync(player.PlayerId, sourceId, Figures(times, [], reward), ct);
 
         return null;
     }
@@ -100,7 +100,18 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
         if (failure is { } refused)
             await FailAsync(ctx.PlayerId, request.SourceId, refused, notify: false, ct);
         else
-            await CompleteAsync(ctx.PlayerId, request.SourceId, ct);
+            await CompleteAsync(
+                ctx.PlayerId,
+                request.SourceId,
+                Figures(
+                    times,
+                    payment,
+                    request.Contract.Type == WiredContractType.Trade
+                        ? WiredContractOffers.Reward(request.Contract, times)
+                        : null
+                ),
+                ct
+            );
 
         return failure;
     }
@@ -304,7 +315,44 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
         int amount
     ) => chests.FirstOrDefault(x => x.Kind == kind && x.FreeCapacity >= amount);
 
-    private Task CompleteAsync(PlayerId playerId, RoomObjectId sourceId, CancellationToken ct) =>
+    /// <summary>
+    /// What a transaction moved, as the <c>@event.transaction_complete.*</c> variables read it: the
+    /// payment into the chests and the reward out of them, furni and credits apart.
+    /// </summary>
+    private static TransactionFigures Figures(
+        int times,
+        ImmutableArray<FurnitureItemSnapshot> payment,
+        TradeRequirementRuleSnapshot? reward
+    )
+    {
+        var credits = payment
+            .Where(x => CreditFurniValue.TryParse(x.Definition.Name, out _))
+            .ToImmutableArray();
+        var nodes = reward?.Nodes ?? [];
+
+        return new(
+            times,
+            payment.Length - credits.Length,
+            WiredContractOffers.Credits(credits),
+            nodes.Where(x => x.Type != TradeRequirementNodeType.Coin).Sum(x => x.Amount),
+            nodes.Where(x => x.Type == TradeRequirementNodeType.Coin).Sum(x => x.Amount)
+        );
+    }
+
+    private readonly record struct TransactionFigures(
+        int Multiplier,
+        int DepositFurni,
+        int DepositCoins,
+        int WithdrawalFurni,
+        int WithdrawalCoins
+    );
+
+    private Task CompleteAsync(
+        PlayerId playerId,
+        RoomObjectId sourceId,
+        TransactionFigures figures,
+        CancellationToken ct
+    ) =>
         _roomGrain.PublishRoomEventAsync(
             new WiredTransactionCompletedEvent
             {
@@ -312,6 +360,11 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
                 CausedBy = ActionContext.CreateForWired(_roomGrain.RoomId),
                 PlayerId = playerId,
                 SourceId = sourceId,
+                Multiplier = figures.Multiplier,
+                DepositFurniCount = figures.DepositFurni,
+                DepositCoinsCount = figures.DepositCoins,
+                WithdrawalFurniCount = figures.WithdrawalFurni,
+                WithdrawalCoinsCount = figures.WithdrawalCoins,
             },
             ct
         );

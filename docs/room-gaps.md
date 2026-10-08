@@ -120,9 +120,9 @@ Chests are done: the chest furni, deposits through the wired trade window, withd
 capacity upgrades, settings, locking, the transaction logs, and the give-from-chest actions
 (45, 46) and chest conditions (45, 46), and so are contracts and the transactions wired starts
 (triggers 25 and 26, actions 47 and 48, addon 20) (`AGENTS.md`, "Wired chests"). Still missing
-from the block: self-donation, the web API, the `@transaction.*` and
-`@event.transaction_failed.reason` variables, and the chest item type scanner (addon 18), which
-needs context variables that hold values. Chest owners' notification preferences are saved but
+from the block: self-donation, the web API, and the chest item type scanner (addon 18), which
+needs context variables that hold values. (The `@event.transaction_complete.*` and
+`@event.transaction_failed.reason` variables are done.) Chest owners' notification preferences are saved but
 nothing is sent on them yet.
 
 Two smaller ones sit outside that block and could be done on their own:
