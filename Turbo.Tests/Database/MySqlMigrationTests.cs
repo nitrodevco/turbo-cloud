@@ -285,4 +285,32 @@ public sealed class MySqlMigrationTests : IAsyncLifetime
 
         result.Applied.Should().Equal(known.Skip(21));
     }
+
+    [Fact]
+    public async Task MonsterplantsWithoutABody_GetOneOfTheTwelve_InTheirOwnPalette()
+    {
+        RequireServer();
+        await using var db = Context();
+        await db.Database.MigrateAsync("20261007200000_MapBadgeDisplayLogic", Ct);
+        await db.Database.OpenConnectionAsync(Ct);
+        await db.Database.ExecuteSqlRawAsync("SET FOREIGN_KEY_CHECKS = 0", Ct);
+        await db.Database.ExecuteSqlRawAsync(
+            "INSERT INTO `pets` (`id`, `player_id`, `name`, `type_id`, `palette_id`, `breed_id`, `color`, `custom_parts`, `watered_at`) VALUES "
+                + "(13, 1, 'old plant', 16, 4, 4, 'FFFFFF', NULL, NOW()), "
+                + "(24, 1, 'empty plant', 16, 7, 7, 'FFFFFF', '', NOW()), "
+                + "(30, 1, 'shaped plant', 16, 2, 2, 'FFFFFF', '1 9 2', NOW()), "
+                + "(41, 1, 'dog', 0, 3, 3, 'FFFFFF', NULL, NOW())",
+            Ct
+        );
+
+        await Migrator().MigrateAsync(db, "core", null, Ct);
+
+        var parts = await db
+            .Pets.AsNoTracking()
+            .OrderBy(x => x.Id)
+            .Select(x => x.CustomParts)
+            .ToListAsync(Ct);
+
+        parts.Should().Equal("1 2 4", "1 1 7", "1 9 2", null);
+    }
 }
