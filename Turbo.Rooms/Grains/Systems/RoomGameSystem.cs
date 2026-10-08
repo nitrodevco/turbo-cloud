@@ -14,6 +14,7 @@ using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Game;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Highscore;
 
 namespace Turbo.Rooms.Grains.Systems;
 
@@ -40,6 +41,9 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     private readonly Dictionary<(RoomObjectId sourceId, PlayerId playerId), int> _scoreGrants = [];
 
     public bool IsGameRunning { get; private set; }
+
+    /// <summary>When the running game started, which the time highscore boards measure from.</summary>
+    private DateTimeOffset _startedAt;
 
     public Task OnRoomEventAsync(RoomEvent evt, CancellationToken ct)
     {
@@ -216,6 +220,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
         _scoreGrants.Clear();
 
         IsGameRunning = true;
+        _startedAt = DateTimeOffset.UtcNow;
 
         await _roomGrain.PublishRoomEventAsync(
             new GameStartedEvent
@@ -234,6 +239,8 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
 
         IsGameRunning = false;
 
+        await RecordHighscoresAsync(ct);
+
         await _roomGrain.PublishRoomEventAsync(
             new GameEndedEvent
             {
@@ -242,6 +249,42 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
             },
             ct
         );
+    }
+
+    /// <summary>
+    /// Hands the room's highscore boards the teams that played: each team's score and the names
+    /// of its players, and how long the game ran.
+    /// </summary>
+    private async Task RecordHighscoresAsync(CancellationToken ct)
+    {
+        var boards = FurniModule
+            .Items.Select(item => item.Logic)
+            .OfType<FurnitureHighscoreLogic>()
+            .ToList();
+
+        if (boards.Count == 0)
+            return;
+
+        var teams = new List<(int Score, IReadOnlyList<string> Users)>();
+
+        for (var team = GameTeamType.Red; team <= GameTeamType.Yellow; team++)
+        {
+            var users = GetTeamMembers(team)
+                .Select(playerId =>
+                    AvatarModule.TryGetPlayer(playerId, out var player) ? player.Name : null
+                )
+                .OfType<string>()
+                .ToList();
+
+            if (users.Count > 0)
+                teams.Add((_teamScores[(int)team], users));
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var seconds = (int)Math.Max(0, (now - _startedAt).TotalSeconds);
+
+        foreach (var board in boards)
+            await board.RecordGameAsync(teams, seconds, now, ct);
     }
 
     private Task PublishTeamChangedAsync(PlayerId playerId, GameTeamType team, CancellationToken ct)

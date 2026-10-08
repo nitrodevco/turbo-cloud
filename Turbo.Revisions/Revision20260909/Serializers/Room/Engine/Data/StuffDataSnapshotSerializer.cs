@@ -19,13 +19,13 @@ internal class StuffDataSnapshotSerializer
                     .WriteString(highscore.Data)
                     .WriteInteger(highscore.ScoreType)
                     .WriteInteger(highscore.ClearType)
-                    .WriteInteger(highscore.Scores.Count);
+                    .WriteInteger(highscore.Entries.Length);
 
-                foreach (var score in highscore.Scores)
+                foreach (var entry in highscore.Entries)
                 {
-                    packet.WriteInteger(score.Key).WriteInteger(score.Value.Length);
+                    packet.WriteInteger(entry.Score).WriteInteger(entry.Users.Length);
 
-                    foreach (var name in score.Value)
+                    foreach (var name in entry.Users)
                         packet.WriteString(name);
                 }
                 break;

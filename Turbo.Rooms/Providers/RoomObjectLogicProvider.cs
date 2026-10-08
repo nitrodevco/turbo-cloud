@@ -12,6 +12,7 @@ using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Object.Logic;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Highscore;
 using Turbo.Runtime;
 
 namespace Turbo.Rooms.Providers;
@@ -66,6 +67,14 @@ public sealed class RoomObjectLogicProvider(
             && MultiHeightFurniture.StepOf(block.Definition) is not null
         )
             logicType = MultiHeightFurniture.LOGIC_NAME;
+
+        // A highscore board is known by its classname (highscore_perteam*2 and so on).
+        if (
+            (logicType == DEFAULT_FLOOR_LOGIC || !_logics.ContainsKey(logicType))
+            && ctx.RoomObject is IRoomItem board
+            && HighscoreBoards.TryParse(board.Definition.Name, out _, out _)
+        )
+            logicType = HighscoreBoards.LOGIC_NAME;
 
         // A wired box's logic is its classname. A definition whose logic column names something
         // else (left at the default, or a name never registered) would make the box plain

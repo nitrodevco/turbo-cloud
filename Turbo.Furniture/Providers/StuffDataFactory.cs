@@ -131,10 +131,7 @@ public sealed class StuffDataFactory(ILogger<IStuffDataFactory> logger) : IStuff
                 Data = highscore.GetLegacyString(),
                 ScoreType = highscore.ScoreType,
                 ClearType = highscore.ClearType,
-                Scores = highscore.HighscoreData.ToImmutableDictionary(
-                    kv => kv.Key,
-                    kv => kv.Value.ToImmutableArray()
-                ),
+                Entries = HighscoreStuffData.ToSnapshots(highscore.Entries),
             },
             ICrackableStuffData crackable => new CrackableStuffSnapshot
             {
