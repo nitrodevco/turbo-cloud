@@ -23,6 +23,12 @@ public class WiredActionFreezeUser(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
 {
+    /// <summary>
+    /// The effect each option paints, as the editor names them: <c>wiredfurni.params.freeze.effect.0</c>
+    /// to <c>.4</c> are <c>${fx_218}</c>, <c>${fx_12}</c>, <c>${fx_11}</c>, <c>${fx_53}</c>, <c>${fx_163}</c>.
+    /// </summary>
+    public static readonly int[] FREEZE_EFFECT_IDS = [218, 12, 11, 53, 163];
+
     public override int WiredCode => (int)WiredActionType.FREEZE_USER;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
@@ -34,7 +40,7 @@ public class WiredActionFreezeUser(
     {
         var effectIndex = GetIntParamOrDefault(0, 0);
         var cancelOnTeleport = GetIntParamOrDefault(1, false);
-        var effectIds = _roomGrain._wiredConfig.FreezeEffectIds;
+        var effectIds = FREEZE_EFFECT_IDS;
         var effectId = effectIndex < effectIds.Length ? effectIds[effectIndex] : 0;
         var frozen = false;
 

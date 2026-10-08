@@ -72,10 +72,4 @@ public class WiredConfig
     /// drops an fx for an object it has not been told of yet, and the object travels another way.
     /// </summary>
     public int VariableFxEntryDelayMs { get; init; } = 1000;
-
-    /// <summary>
-    /// The effect a wired freeze paints, by the index the box editor sends. Ships as zeros (no
-    /// effect): which effect ids a hotel has is hotel data.
-    /// </summary>
-    public int[] FreezeEffectIds { get; init; } = [0, 0, 0, 0, 0];
 }

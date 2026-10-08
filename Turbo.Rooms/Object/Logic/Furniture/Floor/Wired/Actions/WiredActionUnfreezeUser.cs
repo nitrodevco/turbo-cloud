@@ -26,7 +26,7 @@ public class WiredActionUnfreezeUser(
 
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        var freezeEffects = _roomGrain._wiredConfig.FreezeEffectIds;
+        var freezeEffects = WiredActionFreezeUser.FREEZE_EFFECT_IDS;
         var thawed = false;
 
         foreach (var avatar in GetAvatars(ctx.GetSelection(this)))
