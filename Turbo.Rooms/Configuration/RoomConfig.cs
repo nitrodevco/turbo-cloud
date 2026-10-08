@@ -84,6 +84,9 @@ public class RoomConfig
     /// <summary>How long a vending machine waits for an avatar it sent walking over to arrive.</summary>
     public int VendingWalkTimeoutMs { get; init; } = 15000;
 
+    /// <summary>How long a random teleport tile, and the one it sent an avatar to, stay lit.</summary>
+    public int RandomTeleportFlashMs { get; init; } = 1000;
+
     /// <summary>How long the wheel of fortune spins before stopping on a segment.</summary>
     public int WheelSpinMs { get; init; } = 5000;
 
