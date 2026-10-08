@@ -28,7 +28,8 @@ public static class WiredVariableOperations
             WiredVariableOperationType.BitwiseXor => current ^ operand,
             WiredVariableOperationType.Invert => ~current,
             WiredVariableOperationType.ShiftLeft => current << (int)Math.Clamp(operand, 0, 63),
-            WiredVariableOperationType.ShiftRight => current >> (int)Math.Clamp(operand, 0, 63),
+            // A logical shift, as wired's is ("Intro to Bitwise Operations"): zeros come in on the left.
+            WiredVariableOperationType.ShiftRight => current >>> (int)Math.Clamp(operand, 0, 63),
             WiredVariableOperationType.BitCount => long.PopCount(current),
             WiredVariableOperationType.NextLowBitInclusive => FindBit(current, operand, false, 1),
             WiredVariableOperationType.NextHighBitInclusive => FindBit(current, operand, true, 1),
