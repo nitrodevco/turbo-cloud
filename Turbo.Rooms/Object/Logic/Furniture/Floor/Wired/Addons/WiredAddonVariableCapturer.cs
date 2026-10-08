@@ -38,6 +38,9 @@ public class WiredAddonVariableCapturer(
 
     public override int GetMaxVariableIds() => 1;
 
+    /// <summary>The token the keyword of the stack's "says" trigger holds for the captured word.</summary>
+    public string CaptureToken => SIGIL + GetStringParam();
+
     public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(false)];
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
