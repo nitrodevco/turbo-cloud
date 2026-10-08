@@ -199,13 +199,7 @@ internal sealed class InventoryPetModule(
             throw new TurboException(TurboErrorCodeEnum.CatalogProductNotFound);
         }
 
-        var config = Config;
-        var nameStatus = PetNames.Validate(
-            purchase.Name,
-            config.PetNameMinLength,
-            config.PetNameMaxLength,
-            WordFilter
-        );
+        var (nameStatus, _) = ApproveName(purchase.Name);
 
         if (nameStatus != PetNameValidationType.Ok)
         {
@@ -243,5 +237,42 @@ internal sealed class InventoryPetModule(
 
         if (pet is null)
             throw new TurboException(TurboErrorCodeEnum.CatalogProductNotFound);
+
+        // The "you bought a pet" notification. A pet is never wrapped as a gift, so the buyer
+        // is always the one it was bought for.
+        await GrainFactory.SendComposerToPlayerAsync(
+            PlayerId,
+            new PetReceivedMessageComposer { BoughtAsGift = false, Pet = pet },
+            ct
+        );
+    }
+
+    /// <summary>
+    /// Judges a name a pet would be bought under, by the rules <see cref="ValidateProduct"/>
+    /// holds the purchase to. The info is the limit a too long or too short name broke, which the
+    /// client puts in its message; empty otherwise.
+    /// </summary>
+    public (PetNameValidationType Result, string Info) ApproveName(string name)
+    {
+        var config = Config;
+        var result = PetNames.Validate(
+            name,
+            config.PetNameMinLength,
+            config.PetNameMaxLength,
+            WordFilter
+        );
+
+        var info = result switch
+        {
+            PetNameValidationType.TooLong => config.PetNameMaxLength.ToString(
+                CultureInfo.InvariantCulture
+            ),
+            PetNameValidationType.TooShort => config.PetNameMinLength.ToString(
+                CultureInfo.InvariantCulture
+            ),
+            _ => string.Empty,
+        };
+
+        return (result, info);
     }
 }

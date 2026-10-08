@@ -11,6 +11,12 @@ public partial interface IInventoryGrain
     /// <summary>Sends the player their pets tab, in fragments.</summary>
     public Task SendPetInventoryAsync(CancellationToken ct);
 
+    /// <summary>
+    /// Tells the player whether a pet could be bought under this name: the same rules a pet
+    /// purchase is held to, asked before the purchase is confirmed.
+    /// </summary>
+    public Task SendPetNameApprovalAsync(string name, CancellationToken ct);
+
     public Task<ImmutableArray<PetSnapshot>> GetAllPetSnapshotsAsync(CancellationToken ct);
     public Task<PetSnapshot?> GetPetSnapshotAsync(int petId, CancellationToken ct);
 

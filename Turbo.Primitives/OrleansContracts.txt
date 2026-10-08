@@ -147,6 +147,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Inventory.Grains.IInventoryGrain
   AEE5660A: SendBotInventoryAsync(System.Threading.CancellationToken) -> Task
   FDC56515: SendFurnitureInventoryAsync(System.Threading.CancellationToken) -> Task
   012A55F6: SendPetInventoryAsync(System.Threading.CancellationToken) -> Task
+  09C016D6: SendPetNameApprovalAsync(string, System.Threading.CancellationToken) -> Task
   6BA6DC16: TransferFurnitureAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Object.RoomObjectId>, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
   A34BB15B: TryCheckOutBotAsync(int, Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Bots.Snapshots.BotSnapshot?>
   175A2ED5: TryCheckOutPetAsync(int, Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Pets.Snapshots.PetSnapshot?>
