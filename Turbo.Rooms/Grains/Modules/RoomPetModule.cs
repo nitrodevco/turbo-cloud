@@ -662,16 +662,24 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
         return (int)Math.Max(0, MaxWellBeingSeconds(pet) - elapsed);
     }
 
-    internal int RemainingGrowingSeconds(IRoomPet pet)
+    /// <summary>
+    /// Seconds until the monsterplant is fully grown, as the pet info and
+    /// <c>~plant.remaining_growth_seconds</c> count it: from two days down to 0.
+    /// </summary>
+    internal int RemainingGrowingSeconds(IRoomPet pet) =>
+        pet.Level >= Config.MonsterplantMaxLevel
+            ? 0
+            : SecondsUntilLevel(pet, Config.MonsterplantMaxLevel - 1);
+
+    /// <summary>Seconds until the monsterplant grows its next level.</summary>
+    internal int SecondsToNextLevel(IRoomPet pet) =>
+        pet.Level >= Config.MonsterplantMaxLevel ? 0 : SecondsUntilLevel(pet, pet.Level);
+
+    private int SecondsUntilLevel(IRoomPet pet, int levelUps)
     {
-        if (pet.Level >= Config.MonsterplantMaxLevel)
-            return 0;
+        var at = pet.CreatedAtUtc.AddSeconds((double)levelUps * Config.MonsterplantGrowthSeconds);
 
-        var nextLevelAt = pet.CreatedAtUtc.AddSeconds(
-            (double)pet.Level * Config.MonsterplantGrowthSeconds
-        );
-
-        return (int)Math.Max(0, (nextLevelAt - DateTime.UtcNow).TotalSeconds);
+        return (int)Math.Max(0, (at - DateTime.UtcNow).TotalSeconds);
     }
 
     internal int NextRandom(int minInclusive, int maxExclusive) =>

@@ -10,6 +10,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Wired.Variable;
+using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Avatars.Pet;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Pets;
 using Turbo.Rooms.Wired.Variables;
@@ -120,7 +121,7 @@ public sealed class WiredPetSmartVariableTests
             .BeInRange(259200 - 3605, 259200 - 3595);
         Read(new PlantIsDeadVariable(_room.Harness.Room), PLANT).Should().Be(0);
         Read(new PlantIsGrowingVariable(_room.Harness.Room), PLANT).Should().Be(0);
-        Read(new PlantRemainingGrowingSecondsVariable(_room.Harness.Room), PLANT).Should().Be(0);
+        Read(new PlantRemainingGrowthSecondsVariable(_room.Harness.Room), PLANT).Should().Be(0);
 
         plant.SetWateredAt(DateTime.UtcNow.AddDays(-4));
         plant.SetFlags(canBreed: false, canHarvest: false, canRevive: true);
@@ -133,7 +134,7 @@ public sealed class WiredPetSmartVariableTests
     }
 
     [Fact]
-    public void A_young_plant_is_growing_until_its_next_level()
+    public void A_young_plant_is_growing_until_it_is_grown()
     {
         AddPet(PLANT, PetTypes.MONSTERPLANT, level: 1, created: DateTime.UtcNow.AddMinutes(-10));
 
@@ -143,9 +144,35 @@ public sealed class WiredPetSmartVariableTests
         Read(new PlantRemainingWellbeingSecondsVariable(_room.Harness.Room), PLANT)
             .Should()
             .BeInRange(129600 - 5, 129600);
-        Read(new PlantRemainingGrowingSecondsVariable(_room.Harness.Room), PLANT)
+        Read(new PlantRemainingGrowthSecondsVariable(_room.Harness.Room), PLANT)
             .Should()
-            .BeInRange(3000 - 5, 3000 + 5);
+            .BeInRange(172800 - 600 - 5, 172800 - 600 + 5);
+    }
+
+    [Theory]
+    [InlineData(2, 1)]
+    [InlineData(9, 2)]
+    [InlineData(17, 3)]
+    public async Task A_plant_grows_a_level_every_eight_hours(int hoursOld, int level)
+    {
+        var plant = AddPet(
+            PLANT,
+            PetTypes.MONSTERPLANT,
+            level: 1,
+            created: DateTime.UtcNow.AddHours(-hoursOld)
+        );
+        var tick = _room.Harness.Module<RoomPetTickSystem>();
+
+        for (var i = 0; i < 3; i++)
+        {
+            plant.NextActionAtMs = 0;
+            await tick.ProcessPetsAsync(10_000, Ct);
+        }
+
+        plant.Level.Should().Be(level);
+        Read(new PlantRemainingGrowthSecondsVariable(_room.Harness.Room), PLANT)
+            .Should()
+            .BeInRange(172800 - hoursOld * 3600 - 5, 172800 - hoursOld * 3600 + 5);
     }
 
     [Fact]

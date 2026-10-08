@@ -201,7 +201,7 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
         if (
             pet.Level < Config.MonsterplantMaxLevel
             && module.RemainingWellBeingSeconds(pet) > 0
-            && module.RemainingGrowingSeconds(pet) == 0
+            && module.SecondsToNextLevel(pet) == 0
         )
         {
             await module.LevelUpAsync(pet, ct);
