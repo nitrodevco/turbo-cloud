@@ -40,7 +40,6 @@ public class WiredConfig
     public int SelectedItemsLimit { get; init; } = 20;
     public bool AllowWallFurni { get; init; } = true;
     public int MaxIntParams { get; init; } = 16;
-    public int NeighborhoodRadius { get; init; } = 5;
     public int MaxCoordinate { get; init; } = 255;
     public int StringParamMaxLength { get; init; } = 2000;
     public int MaxHandItemId { get; init; } = 10000;

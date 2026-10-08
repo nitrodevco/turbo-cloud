@@ -482,6 +482,9 @@ public abstract partial class FurnitureWiredLogic(
     private static object CreateDefaultSpecific(Type specType) =>
         specType == typeof(string) ? string.Empty : Activator.CreateInstance(specType)!;
 
+    /// <summary>The most ints a save may carry; a box whose editor sends more says so.</summary>
+    protected virtual int GetMaxIntParams() => _roomGrain._wiredConfig.MaxIntParams;
+
     protected virtual bool TryNormalizeIntParams(List<int> proposed, out List<int> normalized)
     {
         normalized = [];
@@ -489,7 +492,7 @@ public abstract partial class FurnitureWiredLogic(
         var fixedRules = GetIntParamRules();
         var tailRule = GetIntParamTailRule();
         var min = fixedRules.Count;
-        var max = Math.Max(min, _roomGrain._wiredConfig.MaxIntParams);
+        var max = Math.Max(min, GetMaxIntParams());
 
         if (proposed.Count > max)
             return false;

@@ -15,8 +15,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 
 /// <summary>
 /// Picks the furni holding the chosen variable, optionally only those whose value passes a
-/// comparison. Params: comparison, select-by-value flag, operand mode, operand (hi, lo),
-/// operand target. Variables: the subject, then the operand variable.
+/// comparison. Params as the editor saves them (AS3 <c>WithVariable.readIntParamsFromForm</c>):
+/// comparison, reference (0 none - "select by value" unticked, 1 a typed value, 2 a variable),
+/// the typed value (hi, lo), the reference variable's target. Variables: the subject, then the
+/// reference variable.
 /// </summary>
 [RoomObjectLogic("wf_slc_furni_with_var")]
 public class WiredSelectorItemsWithVariable(
@@ -25,6 +27,10 @@ public class WiredSelectorItemsWithVariable(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredSelectorLogic(grainFactory, stuffDataFactory, ctx)
 {
+    protected const int REFERENCE_NONE = 0;
+    protected const int REFERENCE_VALUE = 1;
+    protected const int REFERENCE_VARIABLE = 2;
+
     protected virtual WiredVariableTargetType TargetType => WiredVariableTargetType.Furni;
 
     public override int WiredCode => (int)WiredSelectorType.FURNI_WITH_VARIABLE;
@@ -34,8 +40,7 @@ public class WiredSelectorItemsWithVariable(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredEnumParamRule<WiredComparisonType>(WiredComparisonType.GreaterThan),
-            new WiredBoolParamRule(false),
-            new WiredBoolParamRule(false),
+            new WiredRangeParamRule(REFERENCE_NONE, REFERENCE_VARIABLE, REFERENCE_NONE),
             WiredRules.AnyInt(),
             WiredRules.AnyInt(),
             WiredRules.VariableTarget(WiredVariableTargetType.Furni),
@@ -69,10 +74,16 @@ public class WiredSelectorItemsWithVariable(
         if (variable is null)
             return Task.FromResult<IWiredSelectionSet>(output);
 
-        var byValue = GetIntParamOrDefault(1, false);
+        var reference = GetIntParamOrDefault(1, REFERENCE_NONE);
+        var byValue = reference != REFERENCE_NONE;
         long operand = 0;
 
-        if (byValue && !TryResolveOperand(2, 3, 5, 1, ctx.GetSelection(this), out operand))
+        if (reference == REFERENCE_VALUE)
+            operand = GetLongParam(2);
+        else if (
+            reference == REFERENCE_VARIABLE
+            && !TryReadVariableOperand(1, 4, ctx.GetSelection(this), out operand)
+        )
             return Task.FromResult<IWiredSelectionSet>(output);
 
         var comparison = GetIntParamOrDefault(0, WiredComparisonType.GreaterThan);
