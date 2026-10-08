@@ -181,7 +181,8 @@ public sealed class WiredPetSmartVariableTests
         AddPet(PLANT, PetTypes.MONSTERPLANT, paletteId: 3, customParts: [1, 7, 4]);
         AddPet(PLANT + 1, PetTypes.MONSTERPLANT, paletteId: 5);
 
-        Read(new PlantShapeVariable(_room.Harness.Room), PLANT).Should().Be(7);
+        // Body part 7 is shape 6: wired counts the twelve shapes from 0.
+        Read(new PlantShapeVariable(_room.Harness.Room), PLANT).Should().Be(6);
         Read(new PlantColorVariable(_room.Harness.Room), PLANT).Should().Be(4);
         // A plant drawn with the default body has no shape; its colour is the figure's palette.
         Read(new PlantShapeVariable(_room.Harness.Room), PLANT + 1).Should().Be(0);

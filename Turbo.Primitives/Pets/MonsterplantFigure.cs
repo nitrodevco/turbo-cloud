@@ -20,9 +20,13 @@ public static class MonsterplantFigure
     public static ImmutableArray<int> CustomParts(int shape, int color) =>
         [BODY_LAYER, shape, color];
 
-    /// <summary>The body part type, or 0 for a plant drawn with the asset's default body.</summary>
+    /// <summary>
+    /// The shape as wired numbers it, 0 to 11 (the body part type less one: "11 colors, 12
+    /// shapes and yes it starts at 0", Wired Faculty #help, 05/10/2026); 0 for a plant drawn with
+    /// the asset's default body.
+    /// </summary>
     public static int Shape(PetFigureSnapshot figure) =>
-        TryGetBody(figure, out var shape, out _) ? shape : 0;
+        TryGetBody(figure, out var shape, out _) ? shape - MIN_SHAPE : 0;
 
     /// <summary>The body's palette; the figure's palette when the body has none of its own.</summary>
     public static int Color(PetFigureSnapshot figure) =>
