@@ -6,7 +6,6 @@ using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Sound;
 
 namespace Turbo.Inventory.Furniture;
 
@@ -19,6 +18,12 @@ internal sealed class FurnitureItem : IFurnitureItem
     public required IExtraData ExtraData { get; init; }
     public required IStuffData StuffData { get; init; }
     public DateTime? CreatedAtUtc { get; init; }
+
+    /// <summary>
+    /// The number the client reads beside the stuff data: a song disk's song, a present's box
+    /// and ribbon. Worked out by the loader, which can log a section it cannot read.
+    /// </summary>
+    public int Extra { get; init; }
 
     private FurnitureItemSnapshot? _snapshot;
 
@@ -45,8 +50,7 @@ internal sealed class FurnitureItem : IFurnitureItem
             SecondsToExpiration = -1,
             HasRentPeriodStarted = false,
             RoomId = -1,
-            // The client reads a song disk's song from here, never from its stuff data.
-            Extra = SongDisks.IsSongDisk(Definition) ? SongDisks.SongIdOf(StuffData) : 0,
+            Extra = Extra,
             CreatedAtUtc = CreatedAtUtc,
         };
 }

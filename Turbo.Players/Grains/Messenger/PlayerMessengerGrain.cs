@@ -9,7 +9,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
-using Turbo.Primitives.Moderation;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Messenger;
 using Turbo.Players.Configuration;
@@ -17,6 +16,7 @@ using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.FriendList;
 using Turbo.Primitives.Messages.Outgoing.Users;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -1760,6 +1760,9 @@ internal sealed class PlayerMessengerGrain : Grain, IPlayerMessengerGrain
 
     public Task<bool> IsFriendAsync(PlayerId playerId, CancellationToken ct) =>
         Task.FromResult(_state.Friends.ContainsKey(playerId));
+
+    public Task<bool> IsBlockingAsync(PlayerId playerId, CancellationToken ct) =>
+        Task.FromResult(_state.BlockedPlayerIds.Contains(playerId));
 
     public Task<List<MessengerRequestDto>> GetRequestsAsync(CancellationToken ct) =>
         Task.FromResult(_state.IncomingRequests.Values.ToList());

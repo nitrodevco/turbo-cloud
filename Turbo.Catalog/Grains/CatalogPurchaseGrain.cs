@@ -15,6 +15,7 @@ using Turbo.Players.Configuration;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Grains;
+using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
@@ -48,6 +49,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
     private readonly ICatalogService _catalogService;
     private readonly IPetBreedProvider _petBreedProvider;
     private readonly IFurnitureDefinitionProvider _definitionProvider;
+    private readonly IGiftWrappingProvider _giftWrappingProvider;
     private readonly ILogger<ICatalogPurchaseGrain> _logger;
 
     /// <summary>Days of used-up membership that earn a club gift; never zero, so it can divide.</summary>
@@ -62,6 +64,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         ICatalogService catalogService,
         IPetBreedProvider petBreedProvider,
         IFurnitureDefinitionProvider definitionProvider,
+        IGiftWrappingProvider giftWrappingProvider,
         ILogger<ICatalogPurchaseGrain> logger
     )
     {
@@ -73,6 +76,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         _catalogService = catalogService;
         _petBreedProvider = petBreedProvider;
         _definitionProvider = definitionProvider;
+        _giftWrappingProvider = giftWrappingProvider;
         _logger = logger;
     }
 

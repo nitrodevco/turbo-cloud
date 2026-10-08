@@ -11,7 +11,9 @@ using Turbo.Furniture;
 using Turbo.Inventory.Furniture;
 using Turbo.Logging;
 using Turbo.Primitives;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.StuffData;
@@ -21,6 +23,7 @@ using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
+using Turbo.Primitives.Sound;
 
 namespace Turbo.Inventory.Factories;
 
@@ -145,6 +148,10 @@ internal sealed class InventoryFurnitureLoader(
     )
     {
         var extraData = new ExtraData(extraDataJson);
+        var stuffData = _stuffDataFactory.CreateStuffDataFromExtraData(
+            stuffDataType ?? StoredStuffDataType(extraData),
+            extraData
+        );
 
         return new FurnitureItem
         {
@@ -153,12 +160,33 @@ internal sealed class InventoryFurnitureLoader(
             OwnerName = ownerName,
             Definition = definition,
             ExtraData = extraData,
-            StuffData = _stuffDataFactory.CreateStuffDataFromExtraData(
-                stuffDataType ?? StoredStuffDataType(extraData),
-                extraData
-            ),
+            StuffData = stuffData,
             CreatedAtUtc = createdAtUtc,
+            Extra = ObjectExtra(definition, extraData, stuffData),
         };
+    }
+
+    /// <summary>
+    /// The number the client reads beside an item's stuff data, never from it: a song disk's
+    /// song, and a present's box and ribbon (which pick the frames it is drawn with). Zero for
+    /// everything else.
+    /// </summary>
+    private int ObjectExtra(
+        FurnitureDefinitionSnapshot definition,
+        ExtraData extraData,
+        IStuffData stuffData
+    )
+    {
+        if (SongDisks.IsSongDisk(definition))
+            return SongDisks.SongIdOf(stuffData);
+
+        if (!PresentData.IsPresent(definition.LogicName))
+            return 0;
+
+        return FurnitureExtraDataSections
+                .Read<PresentStorage>(extraData, PresentStorage.SECTION, _logger)
+                ?.GetObjectExtra()
+            ?? 0;
     }
 
     /// <summary>

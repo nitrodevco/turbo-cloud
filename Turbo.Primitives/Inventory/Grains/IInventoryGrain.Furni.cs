@@ -107,6 +107,21 @@ public partial interface IInventoryGrain
         CancellationToken ct
     );
 
+    /// <summary>
+    /// Wraps a bought gift and gives it to this player: the present is listed, and the item
+    /// inside is held by it, out of the list, until it is opened.
+    /// </summary>
+    public Task ReceivePresentAsync(PresentGrantRequest request, CancellationToken ct);
+
+    /// <summary>
+    /// Takes the item a present holds out of it and lists it here, before the present itself is
+    /// deleted. Null when the present holds nothing.
+    /// </summary>
+    public Task<FurnitureItemSnapshot?> UnwrapPresentAsync(
+        RoomObjectId presentId,
+        CancellationToken ct
+    );
+
     /// <summary>Sends the player their furni tab, in fragments.</summary>
     public Task SendFurnitureInventoryAsync(CancellationToken ct);
 

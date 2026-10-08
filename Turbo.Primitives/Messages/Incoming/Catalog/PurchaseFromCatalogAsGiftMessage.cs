@@ -7,7 +7,7 @@ public record PurchaseFromCatalogAsGiftMessage : IMessageEvent
     public int PageId { get; init; }
     public int OfferCode { get; init; }
     public string? ExtraParam { get; init; }
-    public string? RecieverName { get; init; }
+    public string? ReceiverName { get; init; }
     public string? Message { get; init; }
     public int BoxStuffTypeId { get; init; }
     public int BoxTypeId { get; init; }

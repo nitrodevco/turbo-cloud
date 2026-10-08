@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Logging;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Interactions;
@@ -18,11 +19,12 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 /// <summary>
 /// A wrapped gift. The map data carries what the client shows (sender, note); the extra data's
-/// <see cref="PresentStorage.SECTION"/> names the wrapped furniture row, which sits in the
-/// present owner's inventory. Opening destroys the wrapping, places a floor item where the present
-/// stood (or leaves a wall item in the inventory), and tells the opener what they got.
+/// <see cref="PresentStorage.SECTION"/> the box and ribbon it is drawn with. The wrapped item is
+/// the furniture row this present holds. Opening releases that row into the opener's inventory,
+/// destroys the wrapping, places a floor item where the present stood (or leaves a wall item in
+/// the inventory), and tells the opener what they got.
 /// </summary>
-[RoomObjectLogic("present")]
+[RoomObjectLogic(PresentData.LOGIC_NAME)]
 public class FurniturePresentLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
     : FurnitureFloorLogic(stuffDataFactory, ctx)
 {
@@ -42,16 +44,14 @@ public class FurniturePresentLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
         if (!IsItemOwner(ctx))
             return Reject(ctx, interaction, "not the owner");
 
-        var storage = ReadStorage();
-
-        if (storage is null)
-            return Reject(ctx, interaction, "no wrapped item recorded");
-
-        var inventory = _roomGrain._grainFactory.GetInventoryGrain(ctx.PlayerId);
-        var wrapped = await inventory.GetItemSnapshotAsync(storage.ItemId, ct);
+        // Released before the wrapping goes: deleting a present that still holds its item would
+        // drop the item back to whoever it was first given to, behind this inventory's back.
+        var wrapped = await _roomGrain
+            ._grainFactory.GetInventoryGrain(ctx.PlayerId)
+            .UnwrapPresentAsync(_ctx.ObjectId, ct);
 
         if (wrapped is null)
-            return Reject(ctx, interaction, "wrapped item is not in the owner's inventory");
+            return Reject(ctx, interaction, "present holds nothing");
 
         var (x, y, rotation) = (_ctx.RoomObject.X, _ctx.RoomObject.Y, _ctx.RoomObject.Rotation);
 
@@ -103,10 +103,14 @@ public class FurniturePresentLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
         return true;
     }
 
-    private PresentStorage? ReadStorage() =>
-        FurnitureExtraDataSections.Read<PresentStorage>(
-            _ctx.RoomObject.ExtraData,
-            PresentStorage.SECTION,
-            _roomGrain._logger
-        );
+    /// <summary>The box and ribbon, which the client reads beside the map data to draw the present.</summary>
+    public override int GetObjectExtra() =>
+        FurnitureExtraDataSections
+            .Read<PresentStorage>(
+                _ctx.RoomObject.ExtraData,
+                PresentStorage.SECTION,
+                _roomGrain._logger
+            )
+            ?.GetObjectExtra()
+        ?? 0;
 }

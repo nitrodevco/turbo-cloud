@@ -19,6 +19,16 @@ public partial interface ICatalogPurchaseGrain : IGrainWithIntegerKey
     );
 
     /// <summary>
+    /// Buys an offer for another player and has their inventory wrap it as the buyer chose.
+    /// Throws <c>CatalogPurchaseException</c> when it cannot be given (with
+    /// <c>ReceiverNotFound</c> for a name nobody has).
+    /// </summary>
+    public Task<CatalogOfferSnapshot> PurchaseOfferAsGiftAsync(
+        CatalogGiftRequest request,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// Charges the room-ad offer and starts (or extends) a promoted event in the player's room.
     /// Throws <c>CatalogPurchaseException</c> when the offer, room or balance is not valid.
     /// </summary>

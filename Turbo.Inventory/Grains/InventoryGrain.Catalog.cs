@@ -56,29 +56,13 @@ internal sealed partial class InventoryGrain
                         break;
                     }
 
-                    // Guild furni is bought for a group: the item carries the group id and looks
-                    // the badge and the colours up from it when it attaches, so nothing stale is
-                    // written here. The purchase grain has already checked the buyer is in it.
-                    // A trophy is engraved as it is bought: the buyer, today and the text typed
-                    // on the trophy page, which the purchase grain has already checked and
-                    // filtered.
-                    // A badge display shows the badge the buyer chose, which the purchase grain
-                    // has checked they own. A paper, poster or song disc is what its product
-                    // names, never what the client sent.
-                    var extraDataJson =
-                        GuildFurnitureLogicNames.IsGuildFurniture(definition.LogicName)
-                            ? BuildGuildFurnitureExtraData(extraParam)
-                        : TrophyData.IsTrophy(definition.LogicName)
-                            ? await BuildTrophyExtraDataAsync(extraParam, ct)
-                        : BadgeDisplayData.IsBadgeDisplay(definition.LogicName)
-                            ? BadgeDisplayData.ExtraData(
-                                extraParam.Trim(),
-                                await GetOwnerNameAsync(ct),
-                                ClientDates.Format(DateTime.UtcNow)
-                            )
-                        : ProductStuffData.IsNamedByProduct(definition.FurniCategory)
-                            ? ProductStuffData.ExtraData(product.ExtraParam ?? string.Empty)
-                        : null;
+                    var extraDataJson = await BuildCatalogExtraDataAsync(
+                        definition,
+                        product,
+                        extraParam,
+                        engraverName: null,
+                        ct
+                    );
 
                     for (var i = 0; i < quantity; i++)
                         furniture.Add((definition, extraDataJson));
@@ -130,10 +114,42 @@ internal sealed partial class InventoryGrain
         }
     }
 
+    /// <summary>
+    /// The extra data a bought piece of furni starts with, or null for none.
+    /// Guild furni is bought for a group: the item carries the group id and looks the badge and
+    /// the colours up from it when it attaches, so nothing stale is written here. The purchase
+    /// grain has already checked the buyer is in it.
+    /// A trophy is engraved as it is bought: who bought it (<paramref name="engraverName"/>, or
+    /// its owner when that is null), today and the text typed on the trophy page, which the
+    /// purchase grain has already checked and filtered.
+    /// A badge display shows the badge the buyer chose, which the purchase grain has checked
+    /// they own. A paper, poster or song disc is what its product names, never what the client
+    /// sent.
+    /// </summary>
+    private async Task<string?> BuildCatalogExtraDataAsync(
+        FurnitureDefinitionSnapshot definition,
+        CatalogProductSnapshot product,
+        string extraParam,
+        string? engraverName,
+        CancellationToken ct
+    ) =>
+        GuildFurnitureLogicNames.IsGuildFurniture(definition.LogicName)
+            ? BuildGuildFurnitureExtraData(extraParam)
+        : TrophyData.IsTrophy(definition.LogicName)
+            ? BuildTrophyExtraData(engraverName ?? await GetOwnerNameAsync(ct), extraParam)
+        : BadgeDisplayData.IsBadgeDisplay(definition.LogicName)
+            ? BadgeDisplayData.ExtraData(
+                extraParam.Trim(),
+                await GetOwnerNameAsync(ct),
+                ClientDates.Format(DateTime.UtcNow)
+            )
+        : ProductStuffData.IsNamedByProduct(definition.FurniCategory)
+            ? ProductStuffData.ExtraData(product.ExtraParam ?? string.Empty)
+        : null;
+
     /// <summary>The extra data a newly bought trophy carries: its engraving, as a legacy state.</summary>
-    private async Task<string> BuildTrophyExtraDataAsync(string inscription, CancellationToken ct)
+    private static string BuildTrophyExtraData(string engraver, string inscription)
     {
-        var owner = await GetOwnerNameAsync(ct);
         var date = DateTime.UtcNow.ToString(TrophyData.DATE_FORMAT, CultureInfo.InvariantCulture);
 
         return JsonSerializer.Serialize(
@@ -141,7 +157,7 @@ internal sealed partial class InventoryGrain
             {
                 [ExtraDataSectionType.STUFF] = new
                 {
-                    Data = TrophyData.Compose(owner, date, inscription),
+                    Data = TrophyData.Compose(engraver, date, inscription),
                 },
             }
         );

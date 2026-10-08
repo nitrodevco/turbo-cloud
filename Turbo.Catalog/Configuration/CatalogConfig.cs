@@ -19,4 +19,7 @@ public class CatalogConfig
 
     /// <summary>What the Builders Club allows and how often its borrow counts are recounted.</summary>
     public BuildersClubConfig BuildersClub { get; init; } = new();
+
+    /// <summary>What a gift can be wrapped in, and what wrapping costs.</summary>
+    public GiftWrappingConfig GiftWrapping { get; init; } = new();
 }
