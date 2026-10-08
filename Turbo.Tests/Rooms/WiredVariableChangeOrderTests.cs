@@ -77,6 +77,81 @@ public sealed class WiredVariableChangeOrderTests
         Value().Should().Be(16);
     }
 
+    /// <summary>
+    /// How often "Variable Changed" hears the stack: once for the combined change, and once per
+    /// box with "Execute In Order", in between the calculations (Wired Faculty #help, 08/10/2026:
+    /// "the trigger triggers in between calculations if there is execute in order addon").
+    /// </summary>
+    [Theory]
+    [InlineData(false, 1)]
+    [InlineData(true, 3)]
+    public async Task Variable_changed_hears_one_change_or_one_per_box_in_order(
+        bool executeInOrder,
+        int firings
+    )
+    {
+        await BuildAsync(executeInOrder);
+        var hits = await CountChangesAsync();
+
+        await ClickAsync();
+        await TickAsync(6);
+
+        Read(hits).Should().Be(firings);
+    }
+
+    /// <summary>A second stack on (0, 4): "Variable Changed" on "score" adds 1 to the global "hits".</summary>
+    private async Task<WiredVariableRoom> CountChangesAsync()
+    {
+        var hits = _room.AddBox<WiredVariableRoom>(11, 5, 4, "wf_var_room");
+        (
+            await _room.SaveAsync<UpdateVariableMessage>(
+                11,
+                intParams: [(int)WiredAvailabilityType.RoomActive],
+                stringParam: "hits"
+            )
+        )
+            .Should()
+            .BeTrue();
+        await hits.LoadWiredAsync(Ct);
+        await StartAsync(5, 4);
+
+        _room.AddBox<WiredTriggerVariableChanged>(6, 0, 4, "wf_trg_var_changed");
+        _room.AddBox<WiredActionChangeVariable>(7, 0, 4, "wf_act_change_var_val");
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                6,
+                intParams: [1, 1, 0, 0, -1],
+                variableIds: [_variable.GetVarSnapshot().VariableId.ToString()]
+            )
+        )
+            .Should()
+            .BeTrue();
+        await SaveChangeAsync(
+            7,
+            WiredVariableOperationType.Add,
+            1,
+            hits.GetVarSnapshot().VariableId.ToString()
+        );
+        await StartAsync(0, 4);
+
+        return hits;
+    }
+
+    private static int Read(WiredVariableRoom variable)
+    {
+        var snapshot = variable.GetVarSnapshot();
+
+        variable
+            .TryGetValue(
+                new WiredVariableKey(snapshot.VariableId, WiredVariableTargetType.Global, 0),
+                out var value
+            )
+            .Should()
+            .BeTrue();
+
+        return (int)value;
+    }
+
     private int Value()
     {
         var snapshot = _variable.GetVarSnapshot();
