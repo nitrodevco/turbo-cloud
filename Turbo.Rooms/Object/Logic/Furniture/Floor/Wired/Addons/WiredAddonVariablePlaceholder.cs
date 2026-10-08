@@ -17,7 +17,7 @@ using Turbo.Rooms.Wired.Rules;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
 /// <summary>
-/// Replaces "$name" in the text of the stack actions with the value of the picked variable on
+/// Replaces "$(name)" in the text of the stack actions with the value of the picked variable on
 /// the triggering target. Params: show every target (joined by the delimiter), the variable
 /// target, and text mode, which prints the text connector label of the value instead.
 /// </summary>
@@ -59,7 +59,7 @@ public class WiredAddonVariablePlaceholder(
         if (
             variable is null
             || name.Length == 0
-            || !text.Contains(SIGIL + name, StringComparison.Ordinal)
+            || !text.Contains(WiredPlaceholderText.Token(SIGIL, name), StringComparison.Ordinal)
         )
             return Task.FromResult(text);
 
@@ -89,7 +89,11 @@ public class WiredAddonVariablePlaceholder(
         }
 
         return Task.FromResult(
-            text.Replace(SIGIL + name, string.Join(delimiter, values), StringComparison.Ordinal)
+            text.Replace(
+                WiredPlaceholderText.Token(SIGIL, name),
+                string.Join(delimiter, values),
+                StringComparison.Ordinal
+            )
         );
     }
 }

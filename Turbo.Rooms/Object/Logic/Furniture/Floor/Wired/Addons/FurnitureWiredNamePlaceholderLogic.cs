@@ -12,7 +12,7 @@ using Turbo.Rooms.Wired.Rules;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
 /// <summary>
-/// A placeholder addon that puts names into the text of the stack's actions: "$name" becomes
+/// A placeholder addon that puts names into the text of the stack's actions: "$(name)" becomes
 /// the name of the first selected user or furni, or, with param 0 set, of all of them joined by
 /// the delimiter after the tab in the string param. Which names is the subclass's.
 /// </summary>
@@ -40,7 +40,10 @@ public abstract class FurnitureWiredNamePlaceholderLogic(
     {
         var (name, delimiter) = WiredPlaceholderText.SplitNameAndDelimiter(_wiredData.StringParam);
 
-        if (name.Length == 0 || !text.Contains(SIGIL + name, StringComparison.Ordinal))
+        if (
+            name.Length == 0
+            || !text.Contains(WiredPlaceholderText.Token(SIGIL, name), StringComparison.Ordinal)
+        )
             return Task.FromResult(text);
 
         var names = GetNames(ctx.Selected);
@@ -49,6 +52,12 @@ public abstract class FurnitureWiredNamePlaceholderLogic(
             : GetIntParamOrDefault(0, false) ? string.Join(delimiter, names)
             : names[0];
 
-        return Task.FromResult(text.Replace(SIGIL + name, replacement, StringComparison.Ordinal));
+        return Task.FromResult(
+            text.Replace(
+                WiredPlaceholderText.Token(SIGIL, name),
+                replacement,
+                StringComparison.Ordinal
+            )
+        );
     }
 }

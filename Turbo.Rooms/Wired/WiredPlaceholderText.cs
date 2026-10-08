@@ -3,6 +3,13 @@ namespace Turbo.Rooms.Wired;
 /// <summary>Parsing of the "name" or "name\tdelimiter" string param of the placeholder addons.</summary>
 public static class WiredPlaceholderText
 {
+    /// <summary>
+    /// How a player writes a placeholder in a wired text: its sigil and its name in brackets,
+    /// "$(name)" for the text output add-ons and "#(name)" for the capturer
+    /// (<c>PlaceholderNameSection</c>: "Use this by typing $(name) in Wired texts").
+    /// </summary>
+    public static string Token(char sigil, string name) => $"{sigil}({name})";
+
     private const string DEFAULT_DELIMITER = ", ";
 
     public static (string name, string delimiter) SplitNameAndDelimiter(string? stringParam)

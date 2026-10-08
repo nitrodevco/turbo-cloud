@@ -15,13 +15,14 @@ using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
+using Turbo.Rooms.Wired;
 using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 
 /// <summary>
 /// Reads a value out of what a player said. The "says something" trigger keyword holds a
-/// "#name" token; whatever the player typed in its place is written to the picked variable
+/// "#(name)" token; whatever the player typed in its place is written to the picked variable
 /// on the speaker. Param 0 is text mode: the typed word is looked up among the text
 /// connector labels of the variable instead of being parsed as a number.
 /// </summary>
@@ -39,7 +40,7 @@ public class WiredAddonVariableCapturer(
     public override int GetMaxVariableIds() => 1;
 
     /// <summary>The token the keyword of the stack's "says" trigger holds for the captured word.</summary>
-    public string CaptureToken => SIGIL + GetStringParam();
+    public string CaptureToken => WiredPlaceholderText.Token(SIGIL, GetStringParam());
 
     public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(false)];
 
@@ -61,7 +62,7 @@ public class WiredAddonVariableCapturer(
             return;
 
         var keyword = trigger.GetSnapshot().StringParam?.Trim() ?? string.Empty;
-        var token = SIGIL + name;
+        var token = WiredPlaceholderText.Token(SIGIL, name);
         var tokenIndex = keyword.IndexOf(token, StringComparison.OrdinalIgnoreCase);
 
         if (tokenIndex < 0)

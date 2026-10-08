@@ -100,8 +100,8 @@ public class WiredTriggerHabboSaysKeyword(
     }
 
     /// <summary>
-    /// The keyword as a pattern when it holds the "#name" token of a Variable Capturer on this
-    /// stack: the token stands for the word the player types there ("price #p" matches "price
+    /// The keyword as a pattern when it holds the "#(name)" token of a Variable Capturer on this
+    /// stack: the token stands for the word the player types there ("price #(p)" matches "price
     /// 250", Wired Faculty tutorial "Advanced Automatic Shop", 20/03/2026), spaces for any run of
     /// them. Null for a plain keyword, which is matched as written.
     /// </summary>

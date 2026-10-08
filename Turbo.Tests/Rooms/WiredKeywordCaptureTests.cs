@@ -19,9 +19,9 @@ using Xunit;
 namespace Turbo.Tests.Rooms;
 
 /// <summary>
-/// "User Says Keyword" with a "#name" token and the Variable Capturer add-on, as the Wired Faculty
+/// "User Says Keyword" with a "#(name)" token and the Variable Capturer add-on, as the Wired Faculty
 /// tutorial "Advanced Automatic Shop [using 'custom contracts']" (20/03/2026) sets a price: the
-/// keyword "price #p" fires on "price 250", the capturer puts 250 in the context variable "p", and
+/// keyword "price #(p)" fires on "price 250", the capturer puts 250 in the context variable "p", and
 /// Change Variable Value copies it to the global "price".
 /// </summary>
 public sealed class WiredKeywordCaptureTests
@@ -110,7 +110,7 @@ public sealed class WiredKeywordCaptureTests
             await _room.SaveAsync<UpdateTriggerMessage>(
                 1,
                 intParams: [0, matchMode, 0],
-                stringParam: "price #p"
+                stringParam: "price #(p)"
             )
         )
             .Should()
