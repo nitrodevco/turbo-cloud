@@ -71,6 +71,14 @@ public sealed record CrackableData
     /// <summary>What it may hold; one is drawn by weight.</summary>
     public ImmutableArray<CrackableReward> Rewards { get; init; } = [];
 
+    /// <summary>
+    /// For a crackable that gives several things at once, each from its own pool: the draws made
+    /// when it opens, in place of the one draw from <see cref="Rewards"/> (a Coral Kingdom Chest's
+    /// three common corals and one more by rarity; a Plushie Crafting Box's stuffing, dye,
+    /// fabrics and a dyed fabric).
+    /// </summary>
+    public ImmutableArray<CrackableDraw> Draws { get; init; } = [];
+
     /// <summary>Who gets what is inside.</summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public CrackableRecipient RewardTo { get; init; } = CrackableRecipient.Owner;
@@ -79,7 +87,18 @@ public sealed record CrackableData
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public CrackablePlacement RewardPlacement { get; init; } = CrackablePlacement.Room;
 
-    public bool HasReward => Rewards.Any(x => x.IsValid);
+    public bool HasReward =>
+        Draws.IsDefaultOrEmpty ? Rewards.Any(x => x.IsValid) : Draws.Any(x => x.IsValid);
+}
+
+/// <summary>One of a crackable's <see cref="CrackableData.Draws"/>: <see cref="Count"/> draws by weight from <see cref="Rewards"/>.</summary>
+public sealed record CrackableDraw
+{
+    public int Count { get; init; } = 1;
+
+    public ImmutableArray<CrackableReward> Rewards { get; init; } = [];
+
+    public bool IsValid => Count > 0 && Rewards.Any(x => x.IsValid);
 }
 
 /// <summary>

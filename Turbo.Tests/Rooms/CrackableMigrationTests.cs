@@ -131,4 +131,98 @@ public sealed class CrackableMigrationTests
         data.AcceptsEffect(183).Should().BeTrue();
         data.AcceptsEffect(158).Should().BeFalse();
     }
+
+    /// <summary>
+    /// A filled section as the database ends up with it: <c>FillCrackableChains</c>'s contents merged
+    /// over what <c>RefineCrackableFurni</c> wrote (JSON_MERGE_PATCH: its keys replace, the rest stay).
+    /// </summary>
+    private static CrackableData Filled(string name)
+    {
+        var fills = ((string Name, string Contents)[])
+            typeof(FillCrackableChains)
+                .GetField("CONTENTS", BindingFlags.NonPublic | BindingFlags.Static)!
+                .GetValue(null)!;
+        var section = System
+            .Text.Json.Nodes.JsonNode.Parse(Rows().Single(x => x.Name == name).Crackable)!
+            .AsObject();
+
+        foreach (
+            var (key, value) in System
+                .Text.Json.Nodes.JsonNode.Parse(fills.Single(x => x.Name == name).Contents)!
+                .AsObject()
+                .ToArray()
+        )
+            section[key] = value?.DeepClone();
+
+        return Read(section.ToJsonString());
+    }
+
+    [Fact]
+    public void Every_filled_crackable_holds_rewards_that_can_be_given_and_keeps_how_it_is_hit()
+    {
+        var fills = ((string Name, string Contents)[])
+            typeof(FillCrackableChains)
+                .GetField("CONTENTS", BindingFlags.NonPublic | BindingFlags.Static)!
+                .GetValue(null)!;
+
+        fills.Should().HaveCount(81);
+        fills
+            .Select(x => x.Name)
+            .Should()
+            .OnlyHaveUniqueItems()
+            .And.BeSubsetOf(Rows().Select(x => x.Name));
+
+        foreach (var (name, _) in fills)
+        {
+            var data = Filled(name);
+            var before = Read(Rows().Single(x => x.Name == name).Crackable);
+
+            data.HasReward.Should().BeTrue(name);
+            data.Rewards.Where(x => !x.IsValid).Should().BeEmpty(name);
+            data.Draws.SelectMany(x => x.Rewards).Where(x => !x.IsValid).Should().BeEmpty(name);
+            (data.Target, data.RequiredEffectId, data.RewardPlacement, data.FinalHitAchievement)
+                .Should()
+                .Be(
+                    (
+                        before.Target,
+                        before.RequiredEffectId,
+                        before.RewardPlacement,
+                        before.FinalHitAchievement
+                    ),
+                    name
+                );
+        }
+    }
+
+    [Fact]
+    public void A_coral_kingdom_chest_gives_three_commons_and_one_more_at_60_30_10()
+    {
+        var data = Filled("coralking_c18_treasurechest");
+
+        data.Draws.Should().HaveCount(2);
+        data.Draws[0].Count.Should().Be(3);
+        data.Draws[0].Rewards.Should().HaveCount(15);
+
+        var extra = data.Draws[1].Rewards;
+        var total = (double)extra.Sum(x => x.Weight);
+        var common = data.Draws[0].Rewards.Select(x => x.Furni).ToHashSet();
+        var rare = new[] { "clothing_r18_seawreath", "clothing_r18_goldfish" };
+
+        (extra.Where(x => common.Contains(x.Furni)).Sum(x => x.Weight) / total).Should().Be(0.6);
+        (extra.Where(x => rare.Contains(x.Furni)).Sum(x => x.Weight) / total).Should().Be(0.1);
+    }
+
+    [Fact]
+    public void A_winter_palace_box_is_the_next_box_half_the_time_and_the_last_a_crown_of_frost()
+    {
+        var box = Filled("xmas_c19_box1");
+        var total = (double)box.Rewards.Sum(x => x.Weight);
+
+        (box.Rewards.Single(x => x.Furni == "xmas_c19_box2").Weight / total).Should().Be(0.5);
+        Filled("xmas_c19_box6")
+            .Rewards.Should()
+            .ContainSingle()
+            .Which.Furni.Should()
+            .Be("clothing_icecrown");
+    }
 }

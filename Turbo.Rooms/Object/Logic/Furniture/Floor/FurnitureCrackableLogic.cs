@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -211,7 +213,7 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
         if (!await ActionModule.DeleteItemByIdAsync(owner, _ctx.ObjectId, ct))
             return;
 
-        if (DrawReward() is { } reward)
+        foreach (var reward in DrawRewards())
             await GiveAsync(recipient, reward, x, y, rotation, ct);
 
         _roomGrain._logger.LogInformation(
@@ -226,9 +228,33 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
     }
 
     /// <summary>One of the rewards, drawn by weight; null when it holds none.</summary>
-    private CrackableReward? DrawReward()
+    /// <summary>What it gives: one draw from its rewards, or each of its draws.</summary>
+    private IEnumerable<CrackableReward> DrawRewards()
     {
-        var rewards = _data.Rewards.Where(x => x.IsValid).ToArray();
+        if (_data.Draws.IsDefaultOrEmpty)
+        {
+            if (Draw(_data.Rewards) is { } reward)
+                yield return reward;
+
+            yield break;
+        }
+
+        foreach (var draw in _data.Draws)
+        {
+            for (var i = 0; i < draw.Count; i++)
+            {
+                if (Draw(draw.Rewards) is { } reward)
+                    yield return reward;
+            }
+        }
+    }
+
+    private static CrackableReward? Draw(ImmutableArray<CrackableReward> pool)
+    {
+        if (pool.IsDefaultOrEmpty)
+            return null;
+
+        var rewards = pool.Where(x => x.IsValid).ToArray();
         var total = rewards.Sum(x => x.Weight);
 
         if (total <= 0)

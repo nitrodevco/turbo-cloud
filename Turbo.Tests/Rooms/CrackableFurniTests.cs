@@ -358,6 +358,38 @@ public sealed class CrackableFurniTests
     }
 
     [Fact]
+    public async Task A_crackable_with_several_draws_gives_one_reward_for_each()
+    {
+        _room.Enter(OWNER_AVATAR, 3, 4);
+        _room.Harness.Fakes.Handlers["TryGetDefinitionByName"] = call =>
+            call.Args[0] switch
+            {
+                "coral" => Definition(901, "coral", 1, null, FurnitureUsageType.Nobody),
+                "trident" => Definition(902, "trident", 1, null, FurnitureUsageType.Nobody),
+                _ => null,
+            };
+        AddCrackable(
+            BOX,
+            3,
+            3,
+            OWNER,
+            """{"crackable":{"target":1,"rewardPlacement":"Inventory","rewards":[{"credits":99}],"draws":[{"count":3,"rewards":[{"furni":"coral"}]},{"rewards":[{"furni":"trident"}]}]}}""",
+            totalStates: 3
+        );
+
+        await UseAsync(OWNER);
+        await RunTimersAsync();
+
+        // A Coral Kingdom Chest: three commons, then one more from its own pool.
+        _room
+            .Harness.Fakes.Log.Of("GrantFurnitureAsync")
+            .Select(x => (int)x.Args[0]!)
+            .Should()
+            .Equal(901, 901, 901, 902);
+        Credits().Should().BeEmpty("the draws replace the single draw from rewards");
+    }
+
+    [Fact]
     public async Task A_crackable_taking_either_of_two_effects_takes_a_hit_with_either()
     {
         var owner = _room.Enter(OWNER_AVATAR, 3, 4);
