@@ -357,6 +357,10 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
 - Behaviour lives in a `[RoomObjectLogic("<type>")]` class under `Turbo.Rooms/Object/Logic/`; the
   type name must equal the `furniture_definitions.logic` value, or the provider falls back to
   `default_floor` and logs a warning. Never special-case a furniture type in a handler or module.
+  The exception is wired furni (`wf_*`), which the furnidata import adds as `default_floor`:
+  `RoomObjectLogicProvider` gives one the logic of its classname, or the one its
+  `WIRED_CLASSNAME_LOGICS` row names (chests, contracts, the Ancient boxes); add a row there for a
+  wired furni whose logic has another name.
 - A client action with its own packet (dice, dimmer preset, mannequin outfit, love-lock answer)
   is a `FurnitureInteraction` record under `Turbo.Primitives/Furniture/Interactions/` carrying
   that packet's payload, routed through the single `IRoomGrain.InteractWithItemAsync`; the logic

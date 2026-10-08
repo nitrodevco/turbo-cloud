@@ -3,7 +3,10 @@ using FluentAssertions;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -241,5 +244,42 @@ public sealed class WiredLogicNamesTests
             )
             .Should()
             .BeOfType<WiredTriggerVariableChanged>();
+    }
+
+    /// <summary>
+    /// A definition the furnidata import adds is <c>default_floor</c>, and the chests and contracts
+    /// were given their logic only by the migration that added it, to the rows there were then: on a
+    /// hotel that imported them later a chest was plain furni and every Give From Chest, chest
+    /// condition and transaction on it did nothing. The Ancient boxes (LTD copies of a box) were
+    /// plain furni everywhere. Each gets the logic its classname stands for.
+    /// </summary>
+    [Theory]
+    [InlineData("wf_storage_furni1", typeof(FurnitureWiredFurniChestLogic))]
+    [InlineData("wf_storage_furni_starter", typeof(FurnitureWiredFurniChestLogic))]
+    [InlineData("wf_storage_coins2", typeof(FurnitureWiredCoinsChestLogic))]
+    [InlineData("wf_contract_payment", typeof(FurnitureWiredPaymentContractLogic))]
+    [InlineData("wf_contract_trade", typeof(FurnitureWiredTradeContractLogic))]
+    [InlineData("wf_contract_reward", typeof(FurnitureWiredRewardContractLogic))]
+    [InlineData("wf_proto_trg_at_given_time", typeof(WiredTriggerAtTime))]
+    [InlineData("wf_proto_cnd_trggrer_on_frn", typeof(WiredConditionExecutorOnItem))]
+    [InlineData("wf_ltdproto_act_toggle_state", typeof(WiredActionToggleItemState))]
+    public void A_wired_furni_imported_as_plain_furni_gets_the_logic_of_its_classname(
+        string classname,
+        Type expected
+    )
+    {
+        var room = new WiredRoom();
+        var item = room.AddFloorItem(40, 1, 1, classname);
+
+        item.GetType()
+            .GetProperty(nameof(item.Definition))!
+            .SetValue(item, item.Definition with { LogicName = "default_floor" });
+
+        room.Harness.LogicProvider.CreateLogicInstance(
+                "default_floor",
+                new RoomFloorItemContext(room.Harness.Room, item)
+            )
+            .Should()
+            .BeOfType(expected);
     }
 }
