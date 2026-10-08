@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Logging;
 using Turbo.Primitives;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -56,6 +57,15 @@ public sealed class RoomObjectLogicProvider(
             )
         )
             logicType = waterLogic;
+
+        // A building block's height follows its state; its definition says so only through
+        // its customparams (the step down per state), its logic column being the default.
+        if (
+            logicType == DEFAULT_FLOOR_LOGIC
+            && ctx.RoomObject is IRoomItem block
+            && MultiHeightFurniture.StepOf(block.Definition) is not null
+        )
+            logicType = MultiHeightFurniture.LOGIC_NAME;
 
         // A wired box's logic is its classname. A definition whose logic column names something
         // else (left at the default, or a name never registered) would make the box plain

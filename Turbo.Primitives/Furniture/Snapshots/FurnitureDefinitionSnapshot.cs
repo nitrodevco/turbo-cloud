@@ -67,4 +67,11 @@ public sealed record FurnitureDefinitionSnapshot
 
     [Id(19)]
     public required string? ExtraData { get; init; }
+
+    /// <summary>
+    /// The furnidata's <c>customparams</c>: what a type means by it is its own (a sound set's
+    /// number, a roller's speed, a building block's height step).
+    /// </summary>
+    [Id(20)]
+    public string? CustomParams { get; init; }
 }

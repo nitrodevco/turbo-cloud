@@ -33,5 +33,6 @@ public static class FurnitureDefinitionEntityExtensions
             CanSell = entity.CanSell,
             UsagePolicy = entity.UsagePolicy,
             ExtraData = entity.ExtraData,
+            CustomParams = entity.CustomParams,
         };
 }
