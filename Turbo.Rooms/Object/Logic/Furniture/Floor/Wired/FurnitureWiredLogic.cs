@@ -748,6 +748,17 @@ public abstract partial class FurnitureWiredLogic(
 
     public WiredDataSnapshot GetSnapshot() => _snapshot ??= BuildSnapshot();
 
+    /// <summary>
+    /// Fetches what the editor shows that the box cannot read synchronously, before its editor is
+    /// sent: "From Another Room" lists the variables the owner's other rooms share. True when it
+    /// changed what <see cref="GetWiredContextSnapshots"/> returns.
+    /// </summary>
+    public virtual Task<bool> RefreshEditorContextAsync(CancellationToken ct) =>
+        Task.FromResult(false);
+
+    /// <summary>Drops the cached editor snapshot, so the next read builds it again.</summary>
+    public void InvalidateSnapshot() => _snapshot = null;
+
     protected virtual WiredDataSnapshot BuildSnapshot() =>
         new()
         {

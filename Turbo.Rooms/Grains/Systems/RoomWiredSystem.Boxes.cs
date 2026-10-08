@@ -53,6 +53,9 @@ public sealed partial class RoomWiredSystem : IRoomPlacementLimit
 
         await wiredLogic.EnsureWiredLoadedAsync(ct);
 
+        if (await wiredLogic.RefreshEditorContextAsync(ct))
+            wiredLogic.InvalidateSnapshot();
+
         return wiredLogic.GetSnapshot();
     }
 
