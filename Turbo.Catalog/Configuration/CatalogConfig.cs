@@ -7,6 +7,12 @@ public class CatalogConfig
     public BonusRareConfig BonusRare { get; init; } = new();
 
     /// <summary>
+    /// The longest text engraved on a trophy, in characters: one bought from the trophy page, and
+    /// a mystery trophy engraved in a room.
+    /// </summary>
+    public int TrophyInscriptionMaxLength { get; init; } = 100;
+
+    /// <summary>
     /// Configuration for LTD raffle weighting criteria.
     /// </summary>
     public LtdRaffleWeightConfig LtdRaffle { get; set; } = new();

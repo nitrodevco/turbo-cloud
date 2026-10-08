@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
@@ -10,10 +11,11 @@ using Turbo.Primitives.Messages.Outgoing.Catalog;
 
 namespace Turbo.PacketHandlers.Catalog;
 
-public class GetCatalogPageMessageHandler(ICatalogService catalogService)
+public class GetCatalogPageMessageHandler(ICatalogService catalogService, TimeProvider time)
     : IMessageHandler<GetCatalogPageMessage>
 {
     private readonly ICatalogService _catalogService = catalogService;
+    private readonly TimeProvider _time = time;
 
     public async ValueTask HandleAsync(
         GetCatalogPageMessage message,
@@ -60,7 +62,10 @@ public class GetCatalogPageMessageHandler(ICatalogService catalogService)
                     OfferProducts = offerProducts.ToImmutableDictionary(),
                     OfferId = message.OfferId,
                     AcceptSeasonCurrencyAsCredits = false,
-                    FrontPageItems = [],
+                    FrontPageItems = snapshot.FrontPageItemsFor(
+                        page,
+                        _time.GetUtcNow().UtcDateTime
+                    ),
                 },
                 ct
             )

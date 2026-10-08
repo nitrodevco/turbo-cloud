@@ -148,7 +148,11 @@ public class RoomConfig
     /// </summary>
     public List<YoutubePlaylistConfig> YoutubePlaylists { get; init; } = [];
 
-    public int TrophyInscriptionMaxLength { get; init; } = 100;
+    /// <summary>
+    /// How many song disks a jukebox's playlist takes. The client is told the limit with every
+    /// playlist and alerts when a disk is refused for it.
+    /// </summary>
+    public int JukeboxMaxDisks { get; init; } = 10;
 
     /// <summary>Largest side, in tiles, an area hider may cover.</summary>
     public int AreaHideMaxSize { get; init; } = 20;
@@ -164,9 +168,6 @@ public class RoomConfig
 
     public int RoomFilterMaxWords { get; init; } = 50;
     public int RoomFilterWordMaxLength { get; init; } = 30;
-
-    /// <summary>What a filtered word is replaced with in chat.</summary>
-    public string RoomFilterReplacement { get; init; } = "bobba";
 
     public int BanHourMinutes { get; init; } = 60;
     public int BanDayMinutes { get; init; } = 1440;

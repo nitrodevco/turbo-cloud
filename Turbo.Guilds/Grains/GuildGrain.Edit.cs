@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Turbo.Primitives.Moderation;
 using Turbo.Database.Entities.Guilds;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
@@ -12,7 +13,6 @@ using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Permissions;
-using Turbo.Primitives.Texts;
 
 namespace Turbo.Guilds.Grains;
 
@@ -46,7 +46,7 @@ internal sealed partial class GuildGrain
         if (!CanEdit(actorId))
             return false;
 
-        var clampedName = ClientText.Truncate(name, _guildConfig.NameMaxLength);
+        var clampedName = _wordFilter.FilterAndTruncate(name, _guildConfig.NameMaxLength);
 
         if (string.IsNullOrWhiteSpace(clampedName))
             return false;
@@ -55,7 +55,7 @@ internal sealed partial class GuildGrain
             entity =>
             {
                 entity.Name = clampedName;
-                entity.Description = ClientText.Truncate(
+                entity.Description = _wordFilter.FilterAndTruncate(
                     description,
                     _guildConfig.DescriptionMaxLength
                 );

@@ -23,16 +23,29 @@ public static class GamedataFiles
     /// </summary>
     public const string FIGURE_DATA = "figuredata_json";
 
+    /// <summary>
+    /// The client's configuration, as the JSON object Nitro loads (<c>nitro.config.url</c>): every
+    /// address it loads from, and how it behaves. Habbo serves its own as <c>key=value</c> lines
+    /// under the same name; Nitro's values are typed (booleans, numbers, lists), so this one is JSON.
+    /// </summary>
+    public const string EXTERNAL_VARIABLES = "external_variables";
+
     public static readonly IReadOnlyList<string> ALL =
     [
         FURNITURE_DATA,
         PRODUCT_DATA,
         EXTERNAL_TEXTS,
         FIGURE_DATA,
+        EXTERNAL_VARIABLES,
     ];
 
     public static bool IsKnown(string file) =>
-        file is FURNITURE_DATA or PRODUCT_DATA or EXTERNAL_TEXTS or FIGURE_DATA;
+        file
+            is FURNITURE_DATA
+                or PRODUCT_DATA
+                or EXTERNAL_TEXTS
+                or FIGURE_DATA
+                or EXTERNAL_VARIABLES;
 
     /// <summary>The name Habbo's <c>hashes</c> gives the file.</summary>
     public static string HashesName(string file) =>

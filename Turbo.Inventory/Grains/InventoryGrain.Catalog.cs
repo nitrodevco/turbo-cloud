@@ -12,6 +12,7 @@ using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Inventory.Grains;
 
@@ -58,10 +59,25 @@ internal sealed partial class InventoryGrain
                     // Guild furni is bought for a group: the item carries the group id and looks
                     // the badge and the colours up from it when it attaches, so nothing stale is
                     // written here. The purchase grain has already checked the buyer is in it.
-                    var extraDataJson = GuildFurnitureLogicNames.IsGuildFurniture(
-                        definition.LogicName
-                    )
-                        ? BuildGuildFurnitureExtraData(extraParam)
+                    // A trophy is engraved as it is bought: the buyer, today and the text typed
+                    // on the trophy page, which the purchase grain has already checked and
+                    // filtered.
+                    // A badge display shows the badge the buyer chose, which the purchase grain
+                    // has checked they own. A paper, poster or song disc is what its product
+                    // names, never what the client sent.
+                    var extraDataJson =
+                        GuildFurnitureLogicNames.IsGuildFurniture(definition.LogicName)
+                            ? BuildGuildFurnitureExtraData(extraParam)
+                        : TrophyData.IsTrophy(definition.LogicName)
+                            ? await BuildTrophyExtraDataAsync(extraParam, ct)
+                        : BadgeDisplayData.IsBadgeDisplay(definition.LogicName)
+                            ? BadgeDisplayData.ExtraData(
+                                extraParam.Trim(),
+                                await GetOwnerNameAsync(ct),
+                                ClientDates.Format(DateTime.UtcNow)
+                            )
+                        : ProductStuffData.IsNamedByProduct(definition.FurniCategory)
+                            ? ProductStuffData.ExtraData(product.ExtraParam ?? string.Empty)
                         : null;
 
                     for (var i = 0; i < quantity; i++)
@@ -112,6 +128,23 @@ internal sealed partial class InventoryGrain
                     $"Effect {effectId} could not be given to player {PlayerId}: {result}."
                 );
         }
+    }
+
+    /// <summary>The extra data a newly bought trophy carries: its engraving, as a legacy state.</summary>
+    private async Task<string> BuildTrophyExtraDataAsync(string inscription, CancellationToken ct)
+    {
+        var owner = await GetOwnerNameAsync(ct);
+        var date = DateTime.UtcNow.ToString(TrophyData.DATE_FORMAT, CultureInfo.InvariantCulture);
+
+        return JsonSerializer.Serialize(
+            new Dictionary<string, object>
+            {
+                [ExtraDataSectionType.STUFF] = new
+                {
+                    Data = TrophyData.Compose(owner, date, inscription),
+                },
+            }
+        );
     }
 
     /// <summary>

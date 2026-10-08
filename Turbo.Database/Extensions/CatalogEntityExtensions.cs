@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Globalization;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
@@ -91,6 +92,34 @@ public static class CatalogEntityExtensions
             ClassName = definition?.Name,
             SubscriptionType = entity.SubscriptionType,
             SubscriptionDays = entity.SubscriptionDays,
+        };
+
+    /// <summary>
+    /// A featured item as the front page draws it. Its countdown is left at none: it is worked
+    /// out from <see cref="CatalogFrontPageItemSnapshot.ExpiresAt"/> when a page is sent.
+    /// </summary>
+    public static CatalogFrontPageItemSnapshot ToSnapshot(this CatalogFeaturedItemEntity entity) =>
+        new()
+        {
+            Position = entity.Position,
+            ItemName = entity.Title,
+            ItemPromoImage = entity.Image,
+            Type = entity.Type,
+            CatalogPageLocation =
+                entity.Type == CatalogFrontPageItemType.Page ? entity.Value : null,
+            ProductOfferId =
+                entity.Type == CatalogFrontPageItemType.Offer
+                && int.TryParse(
+                    entity.Value,
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out var offerId
+                )
+                    ? offerId
+                    : null,
+            ProductCode = entity.Type == CatalogFrontPageItemType.Product ? entity.Value : null,
+            ExpiresInSeconds = 0,
+            ExpiresAt = entity.ExpiresAt,
         };
 
     public static LtdSeriesSnapshot ToSnapshot(this LtdSeriesEntity entity) =>

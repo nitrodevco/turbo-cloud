@@ -118,6 +118,30 @@ public sealed partial class RoomGrain
         }
     }
 
+    public async Task<bool> InteractWithMusicPlayerAsync(
+        ActionContext ctx,
+        FurnitureInteraction interaction,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return await ActionModule.InteractWithMusicPlayerAsync(ctx, interaction, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed music interaction {Interaction} in room {RoomId} for player {PlayerId}",
+                interaction,
+                _state.RoomId,
+                ctx.PlayerId
+            );
+
+            return false;
+        }
+    }
+
     public async Task<bool> InteractWithItemAsync(
         ActionContext ctx,
         RoomObjectId itemId,

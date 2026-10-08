@@ -15,7 +15,7 @@ internal class FloorItemSerializer
             .WriteInteger((int)item.Rotation)
             .WriteString(item.Z.ToString())
             .WriteString(item.StackHeight.ToString())
-            .WriteInteger(0); // extra
+            .WriteInteger(item.Extra);
 
         StuffDataSnapshotSerializer.Serialize(packet, item.StuffData);
 

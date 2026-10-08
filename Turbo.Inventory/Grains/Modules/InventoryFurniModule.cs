@@ -172,6 +172,52 @@ internal sealed class InventoryFurniModule(
     }
 
     /// <summary>
+    /// Uses an item up (a room paper applied to a room): its row is deleted, then it leaves the
+    /// list. Only an item held here, in no room and no chest, is deleted; null otherwise.
+    /// </summary>
+    public async Task<FurnitureItemSnapshot?> ConsumeAsync(
+        RoomObjectId itemId,
+        CancellationToken ct
+    )
+    {
+        await EnsureReadyAsync(ct);
+
+        if (!_state.FurnitureById.TryGetValue(itemId, out var item))
+            return null;
+
+        int deleted;
+
+        await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
+        {
+            deleted = await dbCtx
+                .Furnitures.Where(x =>
+                    x.Id == (int)itemId
+                    && x.PlayerEntityId == (int)PlayerId
+                    && x.RoomEntityId == null
+                    && x.ChestItemEntityId == null
+                )
+                .ExecuteDeleteAsync(ct);
+        }
+
+        if (deleted == 0)
+        {
+            _logger.LogWarning(
+                "Furniture {ItemId} is listed in the inventory of player {PlayerId} but has no row there; not used up",
+                itemId,
+                PlayerId
+            );
+
+            return null;
+        }
+
+        _state.FurnitureById.Remove(itemId);
+
+        await SendRemovedAsync([itemId], ct);
+
+        return item.GetSnapshot();
+    }
+
+    /// <summary>
     /// Creates one row per definition and lists the items. One insert and one presence call,
     /// however many items a purchase grants. A section that is not loaded is not loaded for
     /// this: the rows are written, the client is told its list changed, and the next read

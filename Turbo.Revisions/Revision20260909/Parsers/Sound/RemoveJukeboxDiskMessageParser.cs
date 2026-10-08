@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Sound;
 
 internal class RemoveJukeboxDiskMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new RemoveJukeboxDiskMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new RemoveJukeboxDiskMessage { Slot = packet.PopInt() };
 }

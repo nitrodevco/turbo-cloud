@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Sound;
 
 internal class AddJukeboxDiskMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new AddJukeboxDiskMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new AddJukeboxDiskMessage { DiskId = packet.PopInt(), Slot = packet.PopInt() };
 }

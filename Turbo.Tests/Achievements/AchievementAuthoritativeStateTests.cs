@@ -90,13 +90,12 @@ public sealed class AchievementAuthoritativeStateTests : IDisposable
             .Be(0);
 
     [Fact]
-    public async Task OwnedPetStateIncludesInventoryAndRoomPetsOnceAndIgnoresDeletedPets()
+    public async Task OwnedPetStateIncludesInventoryAndRoomPetsOnce()
     {
         _db.Insert(NewRoomModel());
         _db.Insert(NewRoom(88, PLAYER_ID, score: 0));
         _db.Insert(NewPet(301, PLAYER_ID, roomId: null));
         _db.Insert(NewPet(302, PLAYER_ID, roomId: 88));
-        _db.Insert(NewPet(303, PLAYER_ID, roomId: null, deletedAt: DateTime.UtcNow));
 
         var evaluator = new AchievementStateEvaluator(_db, _recorder);
         await evaluator.RecordAsync(PLAYER_ID, Ct);
@@ -137,7 +136,7 @@ public sealed class AchievementAuthoritativeStateTests : IDisposable
     }
 
     [Fact]
-    public async Task RoomRankingExcludesZeroVoteHiddenInvisibleAndDeletedRoomsAndOrdersTiesByDescendingId()
+    public async Task RoomRankingExcludesZeroVoteHiddenAndInvisibleRoomsAndOrdersTiesByDescendingId()
     {
         _db.Insert(NewRoomModel());
         for (var id = 2; id <= 7; id++)
@@ -147,7 +146,6 @@ public sealed class AchievementAuthoritativeStateTests : IDisposable
         _db.Insert(NewRoom(3, 3, score: 10));
         _db.Insert(NewRoom(4, 4, score: 20, hidden: true));
         _db.Insert(NewRoom(5, 5, score: 30, doorMode: RoomDoorModeType.Invisible));
-        _db.Insert(NewRoom(6, 6, score: 40, deletedAt: DateTime.UtcNow));
         _db.Insert(NewRoom(7, 7, score: 5));
 
         await using var db = await _db.CreateDbContextAsync(Ct);
@@ -200,7 +198,7 @@ public sealed class AchievementAuthoritativeStateTests : IDisposable
             CreatedAt = DateTime.UtcNow.AddDays(-30),
         };
 
-    private static PetEntity NewPet(int id, int ownerId, int? roomId, DateTime? deletedAt = null) =>
+    private static PetEntity NewPet(int id, int ownerId, int? roomId) =>
         new()
         {
             Id = id,
@@ -211,7 +209,6 @@ public sealed class AchievementAuthoritativeStateTests : IDisposable
             PaletteId = 1,
             BreedId = 1,
             Color = "ffffff",
-            DeletedAt = deletedAt,
         };
 
     private static RoomModelEntity NewRoomModel() =>
@@ -232,8 +229,7 @@ public sealed class AchievementAuthoritativeStateTests : IDisposable
         int ownerId,
         int score,
         bool hidden = false,
-        RoomDoorModeType doorMode = RoomDoorModeType.Open,
-        DateTime? deletedAt = null
+        RoomDoorModeType doorMode = RoomDoorModeType.Open
     ) =>
         new()
         {
@@ -260,7 +256,6 @@ public sealed class AchievementAuthoritativeStateTests : IDisposable
             RoomModelEntity = null!,
             Score = score,
             HiddenByBc = hidden,
-            DeletedAt = deletedAt,
         };
 
     private sealed record FactRow(int PlayerId, string Source, long Amount);

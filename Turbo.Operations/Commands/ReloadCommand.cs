@@ -7,6 +7,7 @@ using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Players.Permissions;
@@ -28,6 +29,7 @@ public enum ReloadSubject
     PetBreeds,
     Achievements,
     Plugins,
+    Filter,
 }
 
 public sealed record ReloadArguments(ReloadSubject Subject);
@@ -40,7 +42,7 @@ public sealed record ReloadArguments(ReloadSubject Subject);
 /// </summary>
 [Command(
     "reload",
-    Description = "Read the catalog, texts, furniture and the like from the database again",
+    Description = "Read the catalog, texts, furniture, filter words and the like from the database again",
     Category = CommandCategories.ADMINISTRATION
 )]
 [RequiresPermission(PermissionNodes.Command.RELOAD)]
@@ -55,6 +57,7 @@ public sealed class ReloadCommand(
     IRoomModelProvider roomModelProvider,
     IPetBreedProvider petBreedProvider,
     IAchievementCatalog achievements,
+    IWordFilter wordFilter,
     PluginManager pluginManager
 ) : IOperatorCommand<ReloadArguments>
 {
@@ -111,6 +114,10 @@ public sealed class ReloadCommand(
                 break;
             case ReloadSubject.Achievements:
                 await achievements.ReloadAsync(ct);
+                break;
+            case ReloadSubject.Filter:
+                await wordFilter.ReloadAsync(ct);
+
                 break;
         }
 

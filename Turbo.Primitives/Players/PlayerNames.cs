@@ -13,6 +13,9 @@ public static partial class PlayerNames
     public const int MIN_LENGTH = 3;
     public const int MAX_LENGTH = 15;
 
+    /// <summary>Why a name holding a word of the hotel's filter can't be used.</summary>
+    public const string FILTERED = "That name isn't allowed here.";
+
     [GeneratedRegex(@"^[A-Za-z0-9\-=?!@:.,_]+$")]
     private static partial Regex AllowedCharactersRegex();
 

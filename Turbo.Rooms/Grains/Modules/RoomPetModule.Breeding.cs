@@ -158,7 +158,12 @@ public sealed partial class RoomPetModule
             return false;
         }
 
-        var status = PetNames.Validate(name, Config.NameMinLength, Config.NameMaxLength);
+        var status = PetNames.Validate(
+            name,
+            Config.NameMinLength,
+            Config.NameMaxLength,
+            _roomGrain._wordFilter
+        );
 
         if (status != PetNameValidationType.Ok)
         {

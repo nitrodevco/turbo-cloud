@@ -13,6 +13,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Vault;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -426,8 +427,14 @@ public abstract class FurnitureWiredChestLogic(
         await SetMapDataAsync(
             new Dictionary<string, string>
             {
-                [WiredChestData.NAME] = preferences.Name,
-                [WiredChestData.DESCRIPTION] = preferences.Description,
+                [WiredChestData.NAME] = _roomGrain._wordFilter.FilterAndTruncate(
+                    preferences.Name,
+                    config.NameMaxLength
+                ),
+                [WiredChestData.DESCRIPTION] = _roomGrain._wordFilter.FilterAndTruncate(
+                    preferences.Description,
+                    config.DescriptionMaxLength
+                ),
                 [WiredChestData.EVERYONE_CAN_OPEN] = WiredChestData.Flag(
                     preferences.EveryoneCanOpen
                 ),

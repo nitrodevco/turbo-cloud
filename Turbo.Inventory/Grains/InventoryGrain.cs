@@ -8,6 +8,7 @@ using Turbo.Database.Achievements;
 using Turbo.Database.Context;
 using Turbo.Inventory.Configuration;
 using Turbo.Inventory.Grains.Modules;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Inventory.Factories;
@@ -31,6 +32,7 @@ internal sealed partial class InventoryGrain : Grain, IInventoryGrain
 {
     internal readonly InventoryConfig _inventoryConfig;
     internal readonly IGrainFactory _grainFactory;
+    internal readonly IWordFilter _wordFilter;
     private readonly ILogger<IInventoryGrain> _logger;
     internal readonly IAchievementFactRecorder _achievementFacts;
 
@@ -49,12 +51,14 @@ internal sealed partial class InventoryGrain : Grain, IInventoryGrain
         IInventoryFurnitureLoader furnitureItemsLoader,
         ICatalogService catalogService,
         IPetBreedProvider petBreedProvider,
+        IWordFilter wordFilter,
         IAchievementFactRecorder achievementFacts,
         ILogger<IInventoryGrain> logger
     )
     {
         _inventoryConfig = inventoryConfig.Value;
         _grainFactory = grainFactory;
+        _wordFilter = wordFilter;
         _logger = logger;
         _achievementFacts = achievementFacts;
 

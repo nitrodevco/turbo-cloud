@@ -77,6 +77,7 @@ internal sealed class GamedataServer(
             }
         );
         app.UseCors();
+        app.Use(AllowAnyOriginAsync);
         app.Use(HandleFailureAsync);
         app.MapGet(
             "/gamedata/hashes",
@@ -232,6 +233,19 @@ internal sealed class GamedataServer(
     private static bool IsHash(string value) =>
         value.Length == HASH_LENGTH
         && value.All(c => char.IsAsciiHexDigitLower(c) || char.IsAsciiDigit(c));
+
+    /// <summary>
+    /// Every response says any site may read it, asked by a site or not. The CORS middleware
+    /// says so only to a request with an <c>Origin</c>, and a build is cached for good: one first
+    /// loaded without (opened in a tab) would stay in the browser without the header, and the
+    /// client's later fetch of the same address be refused.
+    /// </summary>
+    private static Task AllowAnyOriginAsync(HttpContext http, RequestDelegate next)
+    {
+        http.Response.Headers.AccessControlAllowOrigin = "*";
+
+        return next(http);
+    }
 
     /// <summary>A failure is logged here with the request; the client gets a bare 500.</summary>
     private async Task HandleFailureAsync(HttpContext http, RequestDelegate next)

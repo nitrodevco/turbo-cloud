@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Turbo.Primitives.Moderation;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Security;
 using Turbo.Primitives.Players;
@@ -23,6 +24,7 @@ public sealed class WebAccounts(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IPlayerAccountService accounts,
     IOwnerBootstrap owner,
+    IWordFilter wordFilter,
     ILogger<WebAccounts> logger
 )
 {
@@ -91,7 +93,7 @@ public sealed class WebAccounts(
 
         return NameSuggestion.Suggest(
             new DiscordCandidates(discord.Username, discord.GlobalName),
-            taken.Contains
+            name => taken.Contains(name) || !wordFilter.IsClean(name)
         );
     }
 

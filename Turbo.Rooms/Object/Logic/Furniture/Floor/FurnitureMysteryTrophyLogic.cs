@@ -6,6 +6,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -40,10 +41,13 @@ public class FurnitureMysteryTrophyLogic(
         if (GetLegacyString().Contains(TrophyData.SEPARATOR))
             return Reject(ctx, interaction, "already engraved");
 
+        var maxLength = _roomGrain._catalogConfig.TrophyInscriptionMaxLength;
         var inscription = engrave.Inscription.Trim();
 
-        if (inscription.Length > _roomGrain._roomConfig.TrophyInscriptionMaxLength)
+        if (inscription.Length > maxLength)
             return Reject(ctx, interaction, "inscription length");
+
+        inscription = _roomGrain._wordFilter.FilterAndTruncate(inscription, maxLength);
 
         var owner = await _roomGrain._grainFactory.GetPlayerGrain(ctx.PlayerId).GetSummaryAsync(ct);
         var date = DateTime.UtcNow.ToString(TrophyData.DATE_FORMAT, CultureInfo.InvariantCulture);

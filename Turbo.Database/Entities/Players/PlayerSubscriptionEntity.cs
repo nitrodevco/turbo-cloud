@@ -56,4 +56,9 @@ public class PlayerSubscriptionEntity : TurboEntity
 
     [ForeignKey(nameof(PlayerEntityId))]
     public PlayerEntity? PlayerEntity { get; set; }
+
+    /// <summary>When the row last changed; MySQL sets it on every update.</summary>
+    [Column("updated_at")]
+    [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
+    public DateTime UpdatedAt { get; set; }
 }

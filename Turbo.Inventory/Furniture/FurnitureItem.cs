@@ -6,6 +6,7 @@ using Turbo.Primitives.Inventory.Furniture;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Sound;
 
 namespace Turbo.Inventory.Furniture;
 
@@ -44,6 +45,8 @@ internal sealed class FurnitureItem : IFurnitureItem
             SecondsToExpiration = -1,
             HasRentPeriodStarted = false,
             RoomId = -1,
+            // The client reads a song disk's song from here, never from its stuff data.
+            Extra = SongDisks.IsSongDisk(Definition) ? SongDisks.SongIdOf(StuffData) : 0,
             CreatedAtUtc = CreatedAtUtc,
         };
 }

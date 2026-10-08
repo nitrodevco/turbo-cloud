@@ -10,7 +10,7 @@ using Turbo.Primitives.Moderation;
 namespace Turbo.Operations;
 
 /// <summary>
-/// Running the hotel: sanctions, the maintenance and shutdown countdown, and the operator
+/// Running the hotel: sanctions, the word filter, the maintenance and shutdown countdown, and the operator
 /// commands (<c>docs/commands.md</c> section 4.1) that put them in staff's hands.
 /// </summary>
 public sealed class OperationsModule : IHostPluginModule
@@ -25,6 +25,7 @@ public sealed class OperationsModule : IHostPluginModule
 
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<ISanctionService, SanctionService>();
+        services.AddSingleton<IWordFilter, WordFilter>();
 
         // One instance answers as the availability and runs as the countdown's background loop.
         services.AddSingleton<HotelAvailabilityService>();

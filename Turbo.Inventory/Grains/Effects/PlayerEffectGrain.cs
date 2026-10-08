@@ -390,11 +390,9 @@ internal sealed class PlayerEffectGrain : Grain, IPlayerEffectGrain
     {
         isNew = false;
 
-        if (effectId < 1 || effectId > _config.MaxEffectId)
-            return EffectGrantResult.Invalid;
-
-        // An id the hotel applies itself: taking the player's off would take the hotel's off too.
-        if (_config.ReservedEffectIds.Contains(effectId))
+        // Out of range, or an id the hotel applies itself: taking the player's off would take the
+        // hotel's off too.
+        if (!_config.CanGive(effectId))
             return EffectGrantResult.Invalid;
 
         if (!permanent && copies < 1)

@@ -1,36 +1,34 @@
-using System.Collections.Concurrent;
-using System.Net;
-using System.Net.Http;
 using System.Text;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Assets;
 using Turbo.Admin.Configuration;
+using Turbo.Gamedata;
+using Turbo.Primitives.Gamedata;
+using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Tests.Support;
 using Xunit;
 
 namespace Turbo.Tests.Admin;
 
 /// <summary>
-/// The panel draws catalog icons, page images, furniture icons and badges from the client's own
-/// config, resolved the way the client resolves it, so staff see what players see.
+/// The panel draws catalog icons, page images, furniture icons and badges from the external
+/// variables the hotel serves the client, resolved the way the client resolves them, so staff
+/// see what players see.
 /// </summary>
 public sealed class ClientAssetsTests
 {
-    private const string CONFIG_URL = "https://hotel.example/config/nitro-config.json";
+    private const string CLIENT_PAGE = "https://hotel.example/play/client?sso={ticket}";
 
-    private readonly ConfigHost _host = new();
-    private readonly ManualTimeProvider _clock = new(
-        new DateTime(2026, 10, 5, 12, 0, 0, DateTimeKind.Utc)
-    );
+    private readonly Variables _variables = new();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
     public async Task TheAddresses_AreTheClients_WithItsKeysAndRelativePathsResolved()
     {
-        _host.Json = """
+        _variables.Json = """
             {
                 "image.library.url": "//images.example/c_images/",
                 "catalog.icons.url": "https://cdn.example/catalog-icons/icon_%name%.png",
@@ -51,84 +49,104 @@ public sealed class ClientAssetsTests
                     "https://cdn.example/catalog-icons/icon_%name%.png",
                     "https://images.example/c_images/catalogue/%name%.gif",
                     "https://hotel.example/bundled/furniture/icons/%libname%%param%_icon.png",
-                    "https://hotel.example/config/badges/%badgename%.gif"
+                    "https://hotel.example/play/badges/%badgename%.gif",
+                    "https://images.example/c_images/"
                 )
             );
     }
 
     [Fact]
-    public async Task WithNoClientConfig_ThereAreNoAddresses_AndNothingIsFetched()
+    public async Task WithoutTheClientsPage_OnlyAddressesWithTheirOwnHostAreKept()
     {
-        (await Assets(url: "").GetAsync(Ct)).Should().Be(ClientAssetsResponse.NONE);
+        _variables.Json = """
+            {
+                "catalog.icons.url": "https://cdn.example/icon_%name%.png",
+                "badge.asset.url": "/badges/%badgename%.gif"
+            }
+            """;
 
-        _host.Requests.Should().BeEmpty();
+        var assets = await Assets(clientPage: "").GetAsync(Ct);
+
+        assets.CatalogIcon.Should().Be("https://cdn.example/icon_%name%.png");
+        assets.Badge.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task TheConfigIsReadOnce_ThenAgainWhenItsTimeIsUp()
+    public async Task TheVariablesAreReadAgain_WhenTheyAreBuiltAnew()
     {
-        _host.Json = """{ "badge.asset.url": "https://a.example/%badgename%.gif" }""";
+        _variables.Json = """{ "badge.asset.url": "https://a.example/%badgename%.gif" }""";
         var assets = Assets();
-
-        await assets.GetAsync(Ct);
-        _host.Json = """{ "badge.asset.url": "https://b.example/%badgename%.gif" }""";
 
         (await assets.GetAsync(Ct)).Badge.Should().Be("https://a.example/%badgename%.gif");
 
-        _clock.Advance(TimeSpan.FromMinutes(10));
+        _variables.Json = """{ "badge.asset.url": "https://b.example/%badgename%.gif" }""";
 
         (await assets.GetAsync(Ct)).Badge.Should().Be("https://b.example/%badgename%.gif");
-        _host.Requests.Should().HaveCount(2);
     }
 
     [Fact]
-    public async Task AConfigThatCantBeRead_KeepsTheLastAddresses()
+    public async Task VariablesThatCantBeRead_KeepTheLastAddresses()
     {
-        _host.Json = """{ "badge.asset.url": "https://a.example/%badgename%.gif" }""";
-        var assets = Assets();
+        _variables.Json = """{ "badge.asset.url": "https://a.example/%badgename%.gif" }""";
+        var log = new CapturingLogger<ClientAssets>();
+        var assets = Assets(log: log);
 
         await assets.GetAsync(Ct);
-        _host.Unreachable = true;
-        _clock.Advance(TimeSpan.FromMinutes(10));
+        _variables.Unreadable = true;
 
         (await assets.GetAsync(Ct)).Badge.Should().Be("https://a.example/%badgename%.gif");
+        log.AtLeast(Microsoft.Extensions.Logging.LogLevel.Warning).Should().NotBeEmpty();
     }
 
-    private ClientAssets Assets(string url = CONFIG_URL) =>
+    private ClientAssets Assets(
+        string clientPage = CLIENT_PAGE,
+        CapturingLogger<ClientAssets>? log = null
+    ) =>
         new(
-            Options.Create(new AdminConfig { ClientConfigUrl = url }),
-            _clock,
-            new CapturingLogger<ClientAssets>(),
-            _host
+            _variables,
+            Options.Create(new AdminConfig { ClientLoginUrl = clientPage }),
+            log ?? new CapturingLogger<ClientAssets>()
         );
 
-    /// <summary>Serves <see cref="Json"/> as the client config, and records each request.</summary>
-    private sealed class ConfigHost : HttpMessageHandler
+    /// <summary>Builds <see cref="Json"/> as the external variables, its hash its content's.</summary>
+    private sealed class Variables : IGamedataFileService
     {
-        private readonly ConcurrentQueue<string> _requests = new();
-
         public string Json { get; set; } = "{}";
 
-        public bool Unreachable { get; set; }
+        public bool Unreadable { get; set; }
 
-        public IReadOnlyList<string> Requests => [.. _requests];
-
-        protected override Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request,
-            CancellationToken cancellationToken
-        )
+        public Task<GamedataFileContent> GetCurrentAsync(string file, CancellationToken ct)
         {
-            _requests.Enqueue(request.RequestUri!.ToString());
+            if (Unreadable)
+                throw new InvalidOperationException("The database is unreachable.");
 
-            if (Unreachable)
-                throw new HttpRequestException("No route to host.");
+            file.Should().Be(GamedataFiles.EXTERNAL_VARIABLES);
+
+            var content = Encoding.UTF8.GetBytes(Json);
 
             return Task.FromResult(
-                new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent(Json, Encoding.UTF8, "application/json"),
-                }
+                new GamedataFileContent(
+                    new GamedataFileSnapshot
+                    {
+                        File = file,
+                        Hash = GamedataBytes.Hash(content),
+                        Size = content.Length,
+                        BuiltAt = DateTime.UtcNow,
+                    },
+                    GamedataBytes.Compress(content)
+                )
             );
         }
+
+        public Task<GamedataFileContent?> GetAsync(
+            string file,
+            string hash,
+            CancellationToken ct
+        ) => throw new NotSupportedException();
+
+        public Task<GamedataFileContent> RebuildAsync(string file, CancellationToken ct) =>
+            throw new NotSupportedException();
+
+        public void Invalidate(string file) { }
     }
 }

@@ -105,12 +105,15 @@ internal sealed class AdminApiServer(
         ActivatorUtilities.CreateInstance<HotelEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<DashboardEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<LiveEndpoints>(services).Map(secured);
+        ActivatorUtilities.CreateInstance<SearchEndpoints>(services).Map(secured);
+        ActivatorUtilities.CreateInstance<NotificationEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<CommandEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<CommandLogEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<ChatlogEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<PerformanceEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<CatalogEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<GamedataEndpoints>(services).Map(secured);
+        ActivatorUtilities.CreateInstance<SongEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<ClientAssetEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<PermissionGroupEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<PermissionPlayerEndpoints>(services).Map(secured);

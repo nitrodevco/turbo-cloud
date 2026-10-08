@@ -46,6 +46,9 @@ public sealed class Fakes
         if (Instances.TryGetValue((iface, key), out var existing))
             return existing;
 
+        if (iface == typeof(Turbo.Primitives.Moderation.IWordFilter))
+            return Instances[(iface, key)] = new PassThroughWordFilter();
+
         var proxy = DispatchProxy.Create(iface, typeof(RecordingProxy));
         var rp = (RecordingProxy)proxy;
         rp.Owner = this;

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Net.Http;
+using System.IO;
+using System.IO.Compression;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,110 +9,97 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Configuration;
+using Turbo.Primitives.Gamedata;
 
 namespace Turbo.Admin.Assets;
 
 /// <summary>
-/// The client's image addresses, read from its <c>nitro-config.json</c>
-/// (<see cref="AdminConfig.ClientConfigUrl"/>) so the panel draws the same pictures players see.
-/// They are written as the client resolves them: <c>${key}</c> is another key's value, an address
-/// starting <c>//</c> or <c>/</c> is under the config's own host. Read again after
-/// <see cref="AdminConfig.ClientConfigCacheMinutes"/>; when the config can't be read, the last
-/// addresses read are kept, and it is tried again after <see cref="RETRY"/>.
+/// The client's image addresses, read from the external variables the hotel serves it
+/// (<see cref="GamedataFiles.EXTERNAL_VARIABLES"/>) so the panel draws the same pictures players
+/// see. They are written as the client resolves them: <c>${key}</c> is another key's value, and
+/// an address that names no host is under the client's page (<see cref="AdminConfig.ClientLoginUrl"/>);
+/// without one, such an address is left out. Read again whenever the variables are built anew.
 /// </summary>
-public sealed class ClientAssets
+public sealed class ClientAssets(
+    IGamedataFileService files,
+    IOptions<AdminConfig> config,
+    ILogger<ClientAssets> logger
+)
 {
     public const string CATALOG_ICON = "catalog.icons.url";
     public const string CATALOG_IMAGE = "asset.urls.catalog";
     public const string FURNI_ICON = "asset.urls.icons.furni";
     public const string BADGE = "badge.asset.url";
+    public const string IMAGE_LIBRARY = "image.library.url";
 
-    private const string USER_AGENT = "Turbo";
     private const string KEY_OPEN = "${";
     private const char KEY_CLOSE = '}';
 
     // As many rounds as the client's own `interpolate` makes.
     private const int MAX_KEY_DEPTH = 3;
 
-    private static readonly TimeSpan REQUEST_TIMEOUT = TimeSpan.FromSeconds(10);
-    private static readonly TimeSpan RETRY = TimeSpan.FromMinutes(1);
+    private readonly AdminConfig _config = config.Value;
 
-    private readonly AdminConfig _config;
-    private readonly TimeProvider _time;
-    private readonly ILogger<ClientAssets>? _logger;
-    private readonly HttpClient _http;
-
-    private ClientAssetsResponse _assets = ClientAssetsResponse.NONE;
-    private DateTimeOffset _readAgainAt = DateTimeOffset.MinValue;
-
-    /// <param name="handler">Sends the requests; tests replace it, the server leaves it null.</param>
-    public ClientAssets(
-        IOptions<AdminConfig> config,
-        TimeProvider? time = null,
-        ILogger<ClientAssets>? logger = null,
-        HttpMessageHandler? handler = null
-    )
-    {
-        _config = config.Value;
-        _time = time ?? TimeProvider.System;
-        _logger = logger;
-        // Asset hosts commonly refuse a request that names no agent, and HttpClient sends none.
-        _http = handler is null ? new HttpClient() : new HttpClient(handler);
-        _http.DefaultRequestHeaders.Add("User-Agent", USER_AGENT);
-        _http.Timeout = REQUEST_TIMEOUT;
-    }
+    private (string Hash, ClientAssetsResponse Assets) _read = ("", ClientAssetsResponse.NONE);
 
     public async Task<ClientAssetsResponse> GetAsync(CancellationToken ct)
     {
-        if (
-            !Uri.TryCreate(_config.ClientConfigUrl, UriKind.Absolute, out var source)
-            || (source.Scheme != Uri.UriSchemeHttp && source.Scheme != Uri.UriSchemeHttps)
-        )
-            return ClientAssetsResponse.NONE;
-
-        var now = _time.GetUtcNow();
-
-        if (now < _readAgainAt)
-            return _assets;
-
         try
         {
-            using var response = await _http.GetAsync(source, ct).ConfigureAwait(false);
-
-            response.EnsureSuccessStatusCode();
-
-            using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-            using var document = await JsonDocument
-                .ParseAsync(stream, cancellationToken: ct)
+            var current = await files
+                .GetCurrentAsync(GamedataFiles.EXTERNAL_VARIABLES, ct)
                 .ConfigureAwait(false);
-            var values = new Dictionary<string, string>(StringComparer.Ordinal);
+            var read = _read;
 
-            foreach (var property in document.RootElement.EnumerateObject())
-                if (property.Value.ValueKind == JsonValueKind.String)
-                    values[property.Name] = property.Value.GetString() ?? "";
+            if (current.File.Hash == read.Hash)
+                return read.Assets;
 
-            string Read(string key) =>
-                values.TryGetValue(key, out var value)
-                    ? Absolute(source, Interpolate(values, value))
-                    : "";
-
-            _assets = new ClientAssetsResponse(
-                Read(CATALOG_ICON),
-                Read(CATALOG_IMAGE),
-                Read(FURNI_ICON),
-                Read(BADGE)
+            using var content = new GZipStream(
+                new MemoryStream(current.Gzipped),
+                CompressionMode.Decompress
             );
-            _readAgainAt = now.AddMinutes(_config.ClientConfigCacheMinutes);
+            var assets = Read(content);
+
+            _read = (current.File.Hash, assets);
+
+            return assets;
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)
         {
-            // Pictures are a convenience: the panel works without them, so keep what was read
-            // last and try again shortly.
-            _logger?.LogWarning(ex, "Could not read the client config at {Url}", source);
-            _readAgainAt = now.Add(RETRY);
-        }
+            // Pictures are a convenience: the panel works without them, so keep what was read last.
+            logger.LogWarning(ex, "Could not read the client's external variables");
 
-        return _assets;
+            return _read.Assets;
+        }
+    }
+
+    private ClientAssetsResponse Read(Stream content)
+    {
+        using var document = JsonDocument.Parse(content);
+        var values = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var property in document.RootElement.EnumerateObject())
+            if (property.Value.ValueKind == JsonValueKind.String)
+                values[property.Name] = property.Value.GetString() ?? "";
+
+        var page =
+            Uri.TryCreate(_config.ClientLoginUrl, UriKind.Absolute, out var url)
+            && (url.Scheme == Uri.UriSchemeHttp || url.Scheme == Uri.UriSchemeHttps)
+                ? url
+                : null;
+
+        string Value(string key) =>
+            values.TryGetValue(key, out var value)
+                ? Absolute(page, Interpolate(values, value))
+                : "";
+
+        return new ClientAssetsResponse(
+            Value(CATALOG_ICON),
+            Value(CATALOG_IMAGE),
+            Value(FURNI_ICON),
+            Value(BADGE),
+            Value(IMAGE_LIBRARY)
+        );
     }
 
     /// <summary>Every <c>${key}</c> the config has a value for, replaced, as the client does.</summary>
@@ -152,14 +140,17 @@ public sealed class ClientAssets
 
     /// <summary>
     /// An address the browser would read beside the client, made one the panel can read: under
-    /// the config's scheme when it starts <c>//</c>, its host when it starts <c>/</c>, and its
+    /// the page's scheme when it starts <c>//</c>, its host when it starts <c>/</c>, and its
     /// folder when it names neither. Built by hand, because <see cref="Uri"/> would escape the
-    /// <c>%name%</c> placeholders.
+    /// <c>%name%</c> placeholders. Without the page, only an address with its own host is kept.
     /// </summary>
-    private static string Absolute(Uri source, string address)
+    private static string Absolute(Uri? source, string address)
     {
         if (address.Length == 0 || address.Contains("://", StringComparison.Ordinal))
             return address;
+
+        if (source is null)
+            return "";
 
         if (address.StartsWith("//", StringComparison.Ordinal))
             return $"{source.Scheme}:{address}";

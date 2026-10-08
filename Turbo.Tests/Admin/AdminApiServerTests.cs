@@ -16,10 +16,12 @@ using Turbo.Admin.Commands;
 using Turbo.Admin.Configuration;
 using Turbo.Admin.Links;
 using Turbo.Admin.Live;
+using Turbo.Admin.Notifications;
 using Turbo.Admin.Performance;
 using Turbo.Admin.Permissions;
 using Turbo.Admin.Players;
 using Turbo.Admin.Rooms;
+using Turbo.Admin.Search;
 using Turbo.Database.Context;
 using Turbo.Primitives.Admin.Snapshots;
 using Turbo.Primitives.Authentication;
@@ -28,6 +30,7 @@ using Turbo.Primitives.Catalog.Editing;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Gamedata;
+using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Accounts;
 using Turbo.Primitives.Players.Notifications;
@@ -163,6 +166,7 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(IRoomService),
                 typeof(IFurnitureDefinitionProvider),
                 typeof(ICatalogEditService),
+                typeof(IGivableEffects),
                 typeof(IHabboReleaseService),
                 typeof(IGamedataFurnitureService),
                 typeof(IGamedataFileService),
@@ -172,6 +176,7 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(Turbo.Primitives.Figures.IPlayerClothingService),
                 typeof(IGamedataTextService),
                 typeof(IGamedataProductService),
+                typeof(IGamedataVariableService),
                 typeof(IPlayerAccountService),
                 typeof(ILoginTicketService),
             }
@@ -192,6 +197,9 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<AdminChatlogQueries>();
         services.AddSingleton<AdminPerformanceRecorder>();
         services.AddSingleton<AdminCatalogQueries>();
+        services.AddSingleton<AdminCatalogBuilder>();
+        services.AddSingleton<AdminSearchQueries>();
+        services.AddSingleton<AdminNotificationQueries>();
         services.AddSingleton<ClientAssets>();
         services.AddSingleton<PermissionViews>();
         services.AddSingleton<AdminLiveFeed>();

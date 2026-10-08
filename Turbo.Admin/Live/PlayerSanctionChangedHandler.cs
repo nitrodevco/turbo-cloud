@@ -5,7 +5,10 @@ using Turbo.Primitives.Moderation.Events;
 
 namespace Turbo.Admin.Live;
 
-/// <summary>A player was banned or their ban lifted: their page is out of date.</summary>
+/// <summary>
+/// A player was banned or their ban lifted: their page is out of date, and the panel's bell lists
+/// bans.
+/// </summary>
 public sealed class PlayerSanctionChangedHandler(AdminLiveFeed feed)
     : IEventHandler<PlayerSanctionChangedEvent>
 {
@@ -15,7 +18,7 @@ public sealed class PlayerSanctionChangedHandler(AdminLiveFeed feed)
         CancellationToken ct
     )
     {
-        feed.Note(player: env.PlayerId.Value);
+        feed.Note(player: env.PlayerId.Value, notifications: true);
 
         return ValueTask.CompletedTask;
     }

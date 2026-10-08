@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
@@ -81,7 +82,9 @@ public class FurnitureSpamWallLogic(
 
         var stuffData = _stuffDataFactory.CreateStuffData(StuffDataType.LegacyKey);
 
-        stuffData.SetState(StickieColors.Compose(note.Color.ToUpperInvariant(), note.Text));
+        var text = _roomGrain._wordFilter.FilterAndTruncate(note.Text, config.StickieTextMaxLength);
+
+        stuffData.SetState(StickieColors.Compose(note.Color.ToUpperInvariant(), text));
 
         var extraDataJson = JsonSerializer.Serialize(
             new { stuff = JsonSerializer.SerializeToNode(stuffData, stuffData.GetType()) }

@@ -89,12 +89,30 @@ public sealed class CatalogSnapshotProvider<TTag>(
                             .First()
                 );
 
+            // The front page's featured items belong to the normal catalog, whose front page
+            // draws them.
+            var frontPageItems =
+                catalogType == CatalogType.Normal
+                    ? (
+                        await dbCtx
+                            .CatalogFeaturedItems.AsNoTracking()
+                            .OrderBy(x => x.Position)
+                            .ThenBy(x => x.Id)
+                            .ToListAsync(ct)
+                            .ConfigureAwait(false)
+                    )
+                        .Select(x => x.ToSnapshot())
+                        .ToImmutableArray()
+                    : [];
+
             var pageChildrenIds = tree.ChildIds;
 
             // A hidden offer stays known by id (Builders Club placement and the purchase check
-            // ask), but no page lists it.
+            // ask), but no page lists it. A page lists its offers in the order the editor set.
             var pageOfferIds = offers
                 .Where(o => o.Visible)
+                .OrderBy(o => o.SortOrder)
+                .ThenBy(o => o.Id)
                 .GroupBy(o => o.CatalogPageEntityId)
                 .ToImmutableDictionary(g => g.Key, g => g.Select(x => x.Id).ToImmutableArray());
 
@@ -170,6 +188,7 @@ public sealed class CatalogSnapshotProvider<TTag>(
                     .Values.Where(x => x.LtdSeriesId is not null)
                     .GroupBy(x => x.LtdSeriesId!.Value)
                     .ToImmutableDictionary(g => g.Key, g => g.Min(x => x.Id)),
+                FrontPageItems = frontPageItems,
             };
 
             _logger.LogInformation(

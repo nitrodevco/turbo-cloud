@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Players;
@@ -57,7 +58,29 @@ public interface ICatalogEditService
         CancellationToken ct
     );
 
+    /// <summary>
+    /// Puts an offer on <paramref name="pageId"/> at <paramref name="index"/> among its offers,
+    /// the same page to reorder it; both pages' offers are numbered afresh in their order.
+    /// </summary>
+    Task<CatalogEditResult> MoveOfferAsync(
+        PlayerId editor,
+        int offerId,
+        int pageId,
+        int index,
+        CancellationToken ct
+    );
+
     Task<CatalogEditResult> DeleteOfferAsync(PlayerId editor, int offerId, CancellationToken ct);
+
+    /// <summary>
+    /// Replaces the front page's featured items with these, placed in this order from 1.
+    /// Saved with the id 0, there being no one row that was saved.
+    /// </summary>
+    Task<CatalogEditResult> SaveFeaturedItemsAsync(
+        PlayerId editor,
+        IReadOnlyList<CatalogFeaturedItemDraft> items,
+        CancellationToken ct
+    );
 
     /// <summary>
     /// Makes an offer of one floor or wall item a limited series, or changes its series. A new

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Bots;
 using Turbo.Primitives.Bots.Enums;
@@ -19,7 +20,6 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
-using Turbo.Primitives.Texts;
 using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -365,7 +365,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
             return false;
         }
 
-        text = ClientText.Truncate(text, Config.ChatTextMaxLength);
+        text = _roomGrain._wordFilter.FilterAndTruncate(text, Config.ChatTextMaxLength);
 
         var lines = BotChatLines.Split(text);
 
@@ -405,7 +405,12 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
         CancellationToken ct
     )
     {
-        var status = PetNames.Validate(name, Config.NameMinLength, Config.NameMaxLength);
+        var status = PetNames.Validate(
+            name,
+            Config.NameMinLength,
+            Config.NameMaxLength,
+            _roomGrain._wordFilter
+        );
 
         if (status != PetNameValidationType.Ok)
         {

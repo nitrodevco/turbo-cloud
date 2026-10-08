@@ -52,6 +52,32 @@ public sealed class CoreMigrationsTests
     }
 
     [Fact]
+    public void NoTableHasASoftDeleteColumn_AndOnlyTheReadOnesTrackUpdates()
+    {
+        using var db = OfflineContext();
+
+        var columns = db
+            .Model.GetEntityTypes()
+            .SelectMany(entity =>
+                entity
+                    .GetProperties()
+                    .Select(property =>
+                        (Table: entity.GetTableName(), Column: property.GetColumnName())
+                    )
+            )
+            .ToList();
+
+        // A deleted_at the database stamps on every write made every row look deleted, and the
+        // queries that skipped deleted rows found nothing.
+        columns.Should().NotContain(x => x.Column == "deleted_at");
+        columns
+            .Where(x => x.Column == "updated_at")
+            .Select(x => x.Table)
+            .Should()
+            .BeEquivalentTo(["players", "player_subscriptions"]);
+    }
+
+    [Fact]
     public void TheScriptForAnEmptyDatabaseNeedsNoConnection_AndNamesEveryMigration()
     {
         using var db = OfflineContext();

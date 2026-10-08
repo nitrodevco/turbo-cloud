@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
@@ -17,7 +18,6 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Settings;
-using Turbo.Primitives.Texts;
 
 namespace Turbo.Rooms.Grains;
 
@@ -52,12 +52,12 @@ public sealed partial class RoomGrain
             return RoomSettingsSaveResultSnapshot.Failed(RoomSettingsSaveErrorType.Invalid);
 
         var current = _state.RoomSnapshot;
-        var name = ClientText.Truncate(settings.Name, _roomConfig.RoomNameMaxLength);
+        var name = _wordFilter.FilterAndTruncate(settings.Name, _roomConfig.RoomNameMaxLength);
 
         if (name.Length == 0)
             return RoomSettingsSaveResultSnapshot.Failed(RoomSettingsSaveErrorType.NameRequired);
 
-        var description = ClientText.Truncate(
+        var description = _wordFilter.FilterAndTruncate(
             settings.Description,
             _roomConfig.RoomDescriptionMaxLength
         );
@@ -105,10 +105,8 @@ public sealed partial class RoomGrain
                 overlongTag.Trim().ToLowerInvariant()
             );
 
-        var tags = RoomTags.Normalize(
-            settings.Tags,
-            _roomConfig.RoomTagsMax,
-            _roomConfig.RoomTagMaxLength
+        var tags = _wordFilter.FilterTags(
+            RoomTags.Normalize(settings.Tags, _roomConfig.RoomTagsMax, _roomConfig.RoomTagMaxLength)
         );
         var maximumVisitors = Math.Clamp(
             settings.MaximumVisitors,

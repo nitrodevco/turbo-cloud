@@ -13,6 +13,7 @@ using Turbo.Gamedata.Habbo;
 using Turbo.Gamedata.History;
 using Turbo.Gamedata.Products;
 using Turbo.Gamedata.Texts;
+using Turbo.Gamedata.Variables;
 using Turbo.Primitives.Figures;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Texts;
@@ -23,7 +24,8 @@ namespace Turbo.Gamedata;
 /// The hotel's gamedata, kept in the database and built from it: Habbo's releases checked for
 /// updates, its furniture taken in without losing the hotel's own changes, every change recorded
 /// and rolled back as a set, and the files the client loads (FurnitureData, its offers stamped
-/// from the catalog) served by hash from a small web host of its own. Staff work with it in the
+/// from the catalog; the external variables, its configuration) served by hash from a small web
+/// host of its own. Staff work with it in the
 /// admin panel; the host is off unless <c>Turbo:Gamedata:Enabled</c>.
 /// </summary>
 public sealed class GamedataModule : IHostPluginModule
@@ -58,6 +60,7 @@ public sealed class GamedataModule : IHostPluginModule
         services.AddSingleton<IGamedataHistoryService, GamedataHistoryService>();
         services.AddSingleton<IGamedataTextService, GamedataTextService>();
         services.AddSingleton<IGamedataProductService, GamedataProductService>();
+        services.AddSingleton<IGamedataVariableService, GamedataVariableService>();
         services.AddSingleton<IHotelTextProvider, HotelTextProvider>();
         services.AddSingleton<IGamedataFigureService, GamedataFigureService>();
         services.AddSingleton<IFigureDataProvider, FigureDataProvider>();

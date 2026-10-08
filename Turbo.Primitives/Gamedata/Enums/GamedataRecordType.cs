@@ -29,4 +29,7 @@ public enum GamedataRecordType
 
     /// <summary>A row of <c>habbo_figure_records</c>: Habbo's figure record as last taken in.</summary>
     HabboFigure = 7,
+
+    /// <summary>A row of <c>gamedata_variables</c>: one of the client's external variables.</summary>
+    Variable = 8,
 }

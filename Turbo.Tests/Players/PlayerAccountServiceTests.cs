@@ -38,6 +38,7 @@ public sealed class PlayerAccountServiceTests : IDisposable
         _accounts = new PlayerAccountService(
             _db,
             new NoOwner(),
+            new PassThroughWordFilter(),
             NullLogger<IPlayerAccountService>.Instance
         );
     }

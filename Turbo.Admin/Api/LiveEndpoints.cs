@@ -136,11 +136,13 @@ internal sealed class LiveEndpoints(
                 message.Dashboard,
                 Rooms ? message.Rooms : [],
                 Players ? message.Players : [],
-                Permissions ? message.Permissions : []
+                Permissions ? message.Permissions : [],
+                message.Notifications
             );
 
             return
                 visible.Dashboard
+                || visible.Notifications
                 || visible.Rooms.Length > 0
                 || visible.Players.Length > 0
                 || visible.Permissions.Length > 0

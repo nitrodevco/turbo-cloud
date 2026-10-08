@@ -6,8 +6,8 @@ namespace Turbo.Revisions.Revision20260909.Serializers.Sound;
 internal class OfficialSongIdMessageComposerSerializer(int header)
     : AbstractSerializer<OfficialSongIdMessageComposer>(header)
 {
-    protected override void Serialize(IServerPacket packet, OfficialSongIdMessageComposer message)
-    {
-        //
-    }
+    protected override void Serialize(
+        IServerPacket packet,
+        OfficialSongIdMessageComposer message
+    ) => packet.WriteString(message.Code).WriteInteger(message.SongId);
 }

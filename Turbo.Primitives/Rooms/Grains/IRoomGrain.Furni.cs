@@ -42,6 +42,17 @@ public partial interface IRoomGrain
         CancellationToken ct
     );
 
+    /// <summary>
+    /// A music action (the jukebox playlist, what is playing, adding or taking out a disk). The
+    /// client keeps one music player per room and names no item, so it goes to the room's
+    /// jukebox or sound machine. False when the room has none or it refused.
+    /// </summary>
+    public Task<bool> InteractWithMusicPlayerAsync(
+        ActionContext ctx,
+        FurnitureInteraction interaction,
+        CancellationToken ct
+    );
+
     /// <summary>Sets a post-it's colour and text. Rights or ownership of the note required.</summary>
     public Task<bool> SetItemDataAsync(
         ActionContext ctx,

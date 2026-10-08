@@ -203,7 +203,8 @@ internal sealed class InventoryPetModule(
         var nameStatus = PetNames.Validate(
             purchase.Name,
             config.PetNameMinLength,
-            config.PetNameMaxLength
+            config.PetNameMaxLength,
+            WordFilter
         );
 
         if (nameStatus != PetNameValidationType.Ok)

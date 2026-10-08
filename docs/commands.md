@@ -245,7 +245,7 @@ what suits it; `admin` holds `*`.
 | | `:perm check <who> <node>` | `command.perm` | `ExplainAsync`: what decided, and what it beat. |
 | | `:status`, `:online` | `command.status`, `command.online` (`command.online.list` for names) | Uptime, players, rooms, silos, memory, availability. |
 | | `:maintenance <minutes\|off> [reason]`, `:shutdown [minutes\|cancel] [reason]` | `command.maintenance`, `command.shutdown` | `IHotelAvailability`: reminders as the countdown runs, then maintenance closes login to players without `hotel.maintenance.bypass`, or a shutdown sends everyone home and stops the host. A bare `:shutdown` counts down `DefaultShutdownMinutes`. |
-| | `:reload <subject>` | `command.reload` | Subjects: `catalog`, `texts`, `furni`, `navigator`, `currencies`, `chatstyles`, `roommodels`, `petbreeds`, `plugins`. |
+| | `:reload <subject>` | `command.reload` | Subjects: `catalog`, `texts`, `furni`, `navigator`, `currencies`, `chatstyles`, `roommodels`, `petbreeds`, `achievements`, `plugins`, `filter`. |
 | | `:unloadroom` | `command.unloadroom` | Room command: everyone out, the owner too, and the room unloads. |
 
 **Targets.** `:give`, `:givebadge`, `:takebadge`, `:giveitem`, `:alert` and `:warn` accept `@room`

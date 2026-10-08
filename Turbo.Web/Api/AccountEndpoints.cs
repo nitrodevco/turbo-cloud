@@ -31,6 +31,7 @@ internal sealed class AccountEndpoints(
     PendingSignUps signUps,
     ILoginTicketService tickets,
     ISanctionService sanctions,
+    IWordFilter wordFilter,
     IOptions<WebConfig> config,
     ILogger<AccountEndpoints> logger
 )
@@ -93,6 +94,9 @@ internal sealed class AccountEndpoints(
     {
         if (PlayerNames.Check(name) is { } reason)
             return Results.Ok(new NameCheckResponse(false, reason));
+
+        if (!wordFilter.IsClean(name.Trim()))
+            return Results.Ok(new NameCheckResponse(false, PlayerNames.FILTERED));
 
         return await accounts.IsTakenAsync(name, ct).ConfigureAwait(false)
             ? Results.Ok(new NameCheckResponse(false, $"Someone is already called {name.Trim()}."))

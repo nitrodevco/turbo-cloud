@@ -1,7 +1,7 @@
 namespace Turbo.Operations.Configuration;
 
 /// <summary>
-/// Tunables of the operator commands. Every option carries the hotel default it ships with, so a
+/// Tunables of the operator commands and the word filter. Every option carries the hotel default it ships with, so a
 /// section left out of <c>appsettings.json</c> still starts.
 /// </summary>
 public class OperationsConfig
@@ -34,4 +34,9 @@ public class OperationsConfig
 
     /// <summary>The longest alert or warning, in characters.</summary>
     public int MaxAlertLength { get; init; } = 500;
+
+    /// <summary>
+    /// What a filtered word is replaced with, by the hotel's word filter and by each room's own.
+    /// </summary>
+    public string WordFilterReplacement { get; init; } = "bobba";
 }

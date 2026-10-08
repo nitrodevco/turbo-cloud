@@ -412,6 +412,14 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
 - A video display keeps a clock, not a stream: which video, how far in, paused or not. The
   client plays it and never says when a video ends, so each video's length is config
   (`RoomConfig.YoutubePlaylists`) and the room moves on by timer.
+- A jukebox keeps a clock the same way: the client plays each song and never says when it ends,
+  so the room says which disk plays and how far in (`NowPlaying`) and moves on by timer. Its
+  disks are `IJukeboxGrain`'s, held as their owners' rows through the wired chest's holder column
+  in `held_position` order; songs are `ISongDirectoryGrain`'s. The jukebox packets name no item,
+  so they go to `IRoomGrain.InteractWithMusicPlayerAsync`. A song disk is the trax song category
+  (`SongDisks`), its song id its legacy stuff data, and the client reads that id only from the
+  item's extras. This client has no trax editor, so nothing composes or burns songs
+  ([Songs and jukeboxes](docs/sound.md)).
 - Which client packets the server still lacks is measured, not guessed:
   `python scripts/packetgap.py Room` (nitro-next is found through `NITRO_NEXT`) compares the
   composers nitro-next constructs and the messages it listens to with the handlers that do
