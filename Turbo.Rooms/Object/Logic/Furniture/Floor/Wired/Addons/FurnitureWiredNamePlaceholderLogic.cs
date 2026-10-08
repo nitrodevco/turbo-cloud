@@ -39,6 +39,12 @@ public abstract class FurnitureWiredNamePlaceholderLogic(
         return Task.FromResult(true);
     }
 
+    public string Token =>
+        WiredPlaceholderText.SplitNameAndDelimiter(_wiredData.StringParam).Item1
+            is { Length: > 0 } name
+            ? WiredPlaceholderText.Token(SIGIL, name)
+            : string.Empty;
+
     public Task<string> ApplyAsync(IWiredExecutionContext ctx, string text, CancellationToken ct)
     {
         var (name, delimiter) = WiredPlaceholderText.SplitNameAndDelimiter(_wiredData.StringParam);

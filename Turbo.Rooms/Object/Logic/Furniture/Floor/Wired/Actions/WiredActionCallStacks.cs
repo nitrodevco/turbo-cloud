@@ -66,6 +66,10 @@ public class WiredActionCallStacks(
         if (ctx is WiredContext caller)
             WiredSystem.CarryContextValues(call, caller.ContextValues);
 
+        // And its placeholders, as they read now (variables-info #20).
+        if (ctx is WiredExecutionContext texts)
+            WiredSystem.CarryPlaceholders(call, await texts.ResolvePlaceholdersToCarryAsync(ct));
+
         await _ctx.PublishRoomEventAsync(call, ct);
 
         return true;

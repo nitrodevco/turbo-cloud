@@ -252,6 +252,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             CancellationToken = ct,
             // A signalled stack starts from a copy of what the sender's context held.
             ContextValues = ContextValuesFor(evt),
+            CarriedPlaceholders = PlaceholdersFor(evt),
         };
 
         SeedSelectionFromEvent(ctx, evt);
@@ -513,6 +514,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 Depth = evt.Depth,
                 CancellationToken = ct,
                 ContextValues = ContextValuesFor(evt),
+                CarriedPlaceholders = PlaceholdersFor(evt),
             };
 
             ctx.Selected.SelectedFurniIds.UnionWith(evt.FurniIds);
@@ -550,6 +552,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             SelectorPool = ctx.SelectorPool,
             Signal = ctx.Signal,
             EventTargets = ctx.EventTargets,
+            CarriedPlaceholders = ctx.CarriedPlaceholders,
             Depth = ctx.Depth,
             Version = 1,
             DueAtMs = dueAtMs + (long)ctx.Policy.Delay.TotalMilliseconds,
@@ -657,6 +660,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                     SelectorPool = pending.SelectorPool,
                     Signal = pending.Signal,
                     EventTargets = pending.EventTargets,
+                    CarriedPlaceholders = pending.CarriedPlaceholders,
                     Depth = pending.Depth,
                     CancellationToken = ct,
                     VariableChanges = pending.VariableChanges,
@@ -736,6 +740,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             SelectorPool = pending.SelectorPool,
             Signal = pending.Signal,
             EventTargets = pending.EventTargets,
+            CarriedPlaceholders = pending.CarriedPlaceholders,
             Depth = pending.Depth,
             CancellationToken = ct,
             ContextValues = pending.ContextValues,

@@ -21,6 +21,13 @@ public abstract class WiredContext(RoomGrain roomGrain)
     public IWiredSelectionSet SelectorPool { get; init; } = new WiredSelectionSet();
     public IWiredSelectionSet Signal { get; init; } = new WiredSelectionSet();
     public IWiredSelectionSet EventTargets { get; init; } = new WiredSelectionSet();
+
+    /// <summary>
+    /// The placeholders the stacks that signalled or called this one had, as their texts read
+    /// when the signal went out: "placeholders stay active for the entire signal chain (unless
+    /// they are overwritten)" (sirjonasxx, variables-info #20). This stack's own come first.
+    /// </summary>
+    public Dictionary<string, string> CarriedPlaceholders { get; init; } = [];
     public int Depth { get; init; }
     public Dictionary<string, int> Variables { get; init; } = [];
 

@@ -80,6 +80,13 @@ public class WiredActionSendSignal(
                 if (ctx is WiredContext sender)
                     WiredSystem.CarryContextValues(signal, sender.ContextValues);
 
+                // And its placeholders, as they read now (variables-info #20).
+                if (ctx is WiredExecutionContext texts)
+                    WiredSystem.CarryPlaceholders(
+                        signal,
+                        await texts.ResolvePlaceholdersToCarryAsync(ct)
+                    );
+
                 await _ctx.PublishRoomEventAsync(signal, ct);
             }
         }

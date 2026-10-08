@@ -70,6 +70,20 @@ public sealed partial class RoomWiredSystem
     public void CarryContextValues(RoomEvent evt, KeyValueStore values) =>
         _contextValuesByEvent.AddOrUpdate(evt, values);
 
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<
+        RoomEvent,
+        Dictionary<string, string>
+    > _placeholdersByEvent = [];
+
+    /// <summary>Lets the stacks a signal or a stack call starts use the sender's placeholders.</summary>
+    public void CarryPlaceholders(RoomEvent evt, Dictionary<string, string> placeholders) =>
+        _placeholdersByEvent.AddOrUpdate(evt, placeholders);
+
+    private Dictionary<string, string> PlaceholdersFor(RoomEvent evt) =>
+        _placeholdersByEvent.TryGetValue(evt, out var placeholders)
+            ? new(placeholders, System.StringComparer.Ordinal)
+            : [];
+
     /// <summary>A scope inside what <paramref name="evt"/> carries, or an empty context.</summary>
     private KeyValueStore ContextValuesFor(RoomEvent evt) =>
         _contextValuesByEvent.TryGetValue(evt, out var values)
