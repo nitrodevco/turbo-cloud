@@ -745,10 +745,9 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   layout given in full, and the slots of the variables below are reserved and deliberately
   empty.
 - **A variable with nothing behind it is not declared.** These have no system yet and are
-  reserved rather than written: user `@level`, `@is_group_admin`,
-  `@favorite_group_id`, `@team.type`, the six `@transaction.*` and
-  `@event.transaction_failed.reason`, because nothing yet carries a transaction's figures or
-  an event's values into a variable.
+  reserved rather than written: user `@level`, `@favorite_group_id`, `@team.type`, the six
+  `@transaction.*` and `@event.transaction_failed.reason`, because nothing yet carries a
+  transaction's figures or an event's values into a variable.
 - **What a variable reads is on the avatar before it is asked for.** A variable is
   synchronous and must never await a grain, so anything an account owns is put on the avatar
   when it enters (`RoomAvatarModule.LoadBadgesAsync`, `LoadHabboClubAsync`) and pushed again

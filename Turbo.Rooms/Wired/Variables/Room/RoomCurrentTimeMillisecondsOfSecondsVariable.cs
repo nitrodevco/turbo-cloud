@@ -8,5 +8,7 @@ public sealed class RoomCurrentTimeMillisecondsOfSecondsVariable(RoomGrain roomG
 {
     protected override string Field => "milliseconds_of_seconds";
 
+    protected override ushort Order => 100;
+
     protected override int Read(DateTimeOffset local) => local.Millisecond;
 }

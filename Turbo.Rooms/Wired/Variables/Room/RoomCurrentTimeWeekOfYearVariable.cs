@@ -8,5 +8,7 @@ public sealed class RoomCurrentTimeWeekOfYearVariable(RoomGrain roomGrain)
 {
     protected override string Field => "week_of_year";
 
+    protected override ushort Order => 93;
+
     protected override int Read(DateTimeOffset local) => WeekOfYear(local);
 }

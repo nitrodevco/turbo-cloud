@@ -8,5 +8,7 @@ public sealed class RoomCurrentTimeDayOfMonthVariable(RoomGrain roomGrain)
 {
     protected override string Field => "day_of_month";
 
+    protected override ushort Order => 95;
+
     protected override int Read(DateTimeOffset local) => local.Day;
 }

@@ -8,5 +8,7 @@ public sealed class RoomCurrentTimeDayOfYearVariable(RoomGrain roomGrain)
 {
     protected override string Field => "day_of_year";
 
+    protected override ushort Order => 94;
+
     protected override int Read(DateTimeOffset local) => local.DayOfYear;
 }

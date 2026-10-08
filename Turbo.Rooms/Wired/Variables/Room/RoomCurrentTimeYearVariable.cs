@@ -8,5 +8,7 @@ public sealed class RoomCurrentTimeYearVariable(RoomGrain roomGrain)
 {
     protected override string Field => "year";
 
+    protected override ushort Order => 91;
+
     protected override int Read(DateTimeOffset local) => local.Year;
 }

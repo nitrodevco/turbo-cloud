@@ -19,11 +19,10 @@ public abstract class RoomCurrentTimeFieldVariable(RoomGrain roomGrain) : RoomVa
 
     protected override string VariableName => "@current_time." + Field;
 
+    // Below the base variables, so after @current_time; each field's Order puts them in the
+    // time utilities' order, milliseconds first.
     protected override WiredVariableGroupSubBandType SubBandType =>
-        WiredVariableGroupSubBandType.Base;
-
-    // Right after @current_time (4) and before @wired_timer (6).
-    protected override ushort Order => 5;
+        WiredVariableGroupSubBandType.Meta;
 
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;

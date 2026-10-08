@@ -16,7 +16,9 @@ public sealed class ContextSelectorUserCountVariable(RoomGrain roomGrain)
     protected override string VariableName => "@selector_user_count";
     protected override WiredVariableGroupSubBandType SubBandType =>
         WiredVariableGroupSubBandType.Base;
-    protected override ushort Order => 11;
+
+    // After @selector_furni_count (10), as sirjonasxx's overview (variables-info #9) lists them.
+    protected override ushort Order => 9;
     protected override WiredVariableFlags Flags =>
         WiredVariableFlags.HasValue | WiredVariableFlags.AlwaysAvailable;
 

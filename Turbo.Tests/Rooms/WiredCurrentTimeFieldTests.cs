@@ -70,6 +70,39 @@ public sealed class WiredCurrentTimeFieldTests
             );
     }
 
+    [Fact]
+    public void The_editor_lists_them_after_current_time_milliseconds_first()
+    {
+        // The editor lists variables by id, highest first.
+        var listed = typeof(RoomCurrentTimeFieldVariable)
+            .Assembly.GetTypes()
+            .Where(t => !t.IsAbstract && t.IsSubclassOf(typeof(RoomCurrentTimeFieldVariable)))
+            .Append(typeof(RoomCurrentTimeVariable))
+            .Select(t =>
+                (
+                    (WiredInternalVariable)Activator.CreateInstance(t, _room.Harness.Room)!
+                ).GetVarSnapshot()
+            )
+            .OrderByDescending(x => x.VariableId.Value)
+            .Select(x => x.VariableName);
+
+        listed
+            .Should()
+            .Equal(
+                "@current_time",
+                "@current_time.milliseconds_of_seconds",
+                "@current_time.seconds_of_minute",
+                "@current_time.minute_of_hour",
+                "@current_time.hour_of_day",
+                "@current_time.day_of_week",
+                "@current_time.day_of_month",
+                "@current_time.day_of_year",
+                "@current_time.week_of_year",
+                "@current_time.month_of_year",
+                "@current_time.year"
+            );
+    }
+
     private void SetTimeZone(string id)
     {
         var info = (RoomSnapshot)RuntimeHelpers.GetUninitializedObject(typeof(RoomSnapshot));

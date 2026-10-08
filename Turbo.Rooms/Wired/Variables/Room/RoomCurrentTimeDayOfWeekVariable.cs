@@ -8,5 +8,7 @@ public sealed class RoomCurrentTimeDayOfWeekVariable(RoomGrain roomGrain)
 {
     protected override string Field => "day_of_week";
 
+    protected override ushort Order => 96;
+
     protected override int Read(DateTimeOffset local) => DayOfWeek(local);
 }
