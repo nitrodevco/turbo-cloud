@@ -135,7 +135,7 @@ public sealed class WiredVariableChangedTriggerTests
             .Should()
             .BeTrue();
 
-        return value;
+        return (int)value;
     }
 
     private async Task<WiredVariableRoom> AddGlobalAsync(int id, int x, string name)

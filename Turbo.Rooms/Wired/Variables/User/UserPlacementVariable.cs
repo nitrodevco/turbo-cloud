@@ -45,7 +45,7 @@ public abstract class UserPlacementVariable(RoomGrain roomGrain)
 
         if (IsRotation)
         {
-            if (ApplyRotation(value) is not { } rotation)
+            if (ApplyRotation(value.ClampToInt()) is not { } rotation)
                 return false;
 
             await ctx.ProcessUserDirectionAsync(avatar, rotation, rotation);
@@ -53,7 +53,7 @@ public abstract class UserPlacementVariable(RoomGrain roomGrain)
             return true;
         }
 
-        var (x, y) = ApplyTile(avatar, value);
+        var (x, y) = ApplyTile(avatar, value.ClampToInt());
 
         if (!MapModule.InBounds(x, y))
             return false;

@@ -37,13 +37,20 @@ public sealed class FurnitureWallItemOffsetVariable(RoomGrain roomGrain)
                 item.X,
                 item.Y,
                 item.Z,
-                value,
+                value.ClampToInt(),
                 item.Rotation
             )
         )
             return false;
 
-        await ctx.ProcessWallItemMovementAsync(item, item.X, item.Y, item.Z, item.Rotation, value);
+        await ctx.ProcessWallItemMovementAsync(
+            item,
+            item.X,
+            item.Y,
+            item.Z,
+            item.Rotation,
+            value.ClampToInt()
+        );
 
         return true;
     }

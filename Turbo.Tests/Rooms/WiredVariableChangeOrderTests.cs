@@ -89,7 +89,7 @@ public sealed class WiredVariableChangeOrderTests
             .Should()
             .BeTrue();
 
-        return value;
+        return (int)value;
     }
 
     private async Task BuildAsync(bool executeInOrder, bool onlyFirstBox = false)

@@ -82,7 +82,7 @@ public sealed class WiredChestItemTypeScannerTests
             .Should()
             .BeTrue();
 
-        return value;
+        return (int)value;
     }
 
     private async Task BuildAsync(bool previewedOnly)

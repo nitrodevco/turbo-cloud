@@ -92,7 +92,7 @@ public class WiredAddonVariableCapturer(
 
         var typed = match.Groups[1].Value;
         var snapshot = variable.GetVarSnapshot();
-        int value;
+        long value;
 
         if (GetIntParamOrDefault(0, false))
         {
@@ -106,7 +106,7 @@ public class WiredAddonVariableCapturer(
             value = connector.Key;
         }
         else if (
-            !int.TryParse(typed, NumberStyles.Integer, CultureInfo.InvariantCulture, out value)
+            !long.TryParse(typed, NumberStyles.Integer, CultureInfo.InvariantCulture, out value)
         )
         {
             return;

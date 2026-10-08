@@ -158,7 +158,7 @@ internal class WiredDataSerializer
                 break;
             case WiredVariableInfoAndValueSnapshot infoAndValue:
                 WiredVariableSerializer.Serialize(packet, infoAndValue.Variable);
-                packet.WriteInteger(infoAndValue.Value);
+                packet.WriteInteger(infoAndValue.Value.ToClient());
                 break;
             default:
                 break;

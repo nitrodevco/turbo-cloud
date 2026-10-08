@@ -6,7 +6,7 @@ namespace Turbo.Rooms.Wired;
 /// <summary>What each "Change Variable Value" operation makes of a value and its operand.</summary>
 public static class WiredVariableOperations
 {
-    public static int Apply(WiredVariableOperationType operation, long current, long operand)
+    public static long Apply(WiredVariableOperationType operation, long current, long operand)
     {
         long result = operation switch
         {
@@ -16,7 +16,7 @@ public static class WiredVariableOperations
             WiredVariableOperationType.Multiply => current * operand,
             WiredVariableOperationType.Divide => operand == 0 ? current : current / operand,
             WiredVariableOperationType.Modulo => operand == 0 ? current : current % operand,
-            WiredVariableOperationType.Power => (long)Math.Pow(current, Math.Clamp(operand, 0, 31)),
+            WiredVariableOperationType.Power => Power(current, operand),
             WiredVariableOperationType.Minimum => Math.Min(current, operand),
             WiredVariableOperationType.Maximum => Math.Max(current, operand),
             WiredVariableOperationType.Random => operand <= 0
@@ -27,8 +27,8 @@ public static class WiredVariableOperations
             WiredVariableOperationType.BitwiseOr => current | operand,
             WiredVariableOperationType.BitwiseXor => current ^ operand,
             WiredVariableOperationType.Invert => ~current,
-            WiredVariableOperationType.ShiftLeft => current << (int)Math.Clamp(operand, 0, 31),
-            WiredVariableOperationType.ShiftRight => current >> (int)Math.Clamp(operand, 0, 31),
+            WiredVariableOperationType.ShiftLeft => current << (int)Math.Clamp(operand, 0, 63),
+            WiredVariableOperationType.ShiftRight => current >> (int)Math.Clamp(operand, 0, 63),
             WiredVariableOperationType.BitCount => long.PopCount(current),
             WiredVariableOperationType.NextLowBitInclusive => FindBit(current, operand, false, 1),
             WiredVariableOperationType.NextHighBitInclusive => FindBit(current, operand, true, 1),
@@ -83,7 +83,23 @@ public static class WiredVariableOperations
             _ => current,
         };
 
-        return (int)Math.Clamp(result, int.MinValue, int.MaxValue);
+        return result;
+    }
+
+    /// <summary>A non-negative power, held at the 64-bit limits where it would overflow.</summary>
+    private static long Power(long value, long exponent)
+    {
+        if (exponent <= 0)
+            return 1;
+
+        var result = Math.Pow(value, exponent);
+
+        if (result >= long.MaxValue)
+            return long.MaxValue;
+        if (result <= long.MinValue)
+            return long.MinValue;
+
+        return (long)result;
     }
 
     private static bool IsBitPosition(long position) => position is >= 0 and < 64;

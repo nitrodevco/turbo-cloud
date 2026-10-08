@@ -54,7 +54,7 @@ public sealed class UserHandItemVariable(RoomGrain roomGrain)
         )
             return false;
 
-        await AvatarModule.SetHandItemAsync(avatar, value, CancellationToken.None);
+        await AvatarModule.SetHandItemAsync(avatar, value.ClampToInt(), CancellationToken.None);
 
         return true;
     }

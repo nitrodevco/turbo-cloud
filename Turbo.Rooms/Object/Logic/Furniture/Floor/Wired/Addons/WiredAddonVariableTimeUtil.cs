@@ -173,6 +173,6 @@ public class WiredAddonVariableTimeUtil(
             _ => 0,
         };
 
-        return (int)Math.Clamp(amount, int.MinValue, int.MaxValue);
+        return amount;
     }
 }

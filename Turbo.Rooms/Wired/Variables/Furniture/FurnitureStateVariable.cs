@@ -37,7 +37,7 @@ public sealed class FurnitureStateVariable(RoomGrain roomGrain)
         )
             return false;
 
-        await item.Logic.SetStateAsync(value);
+        await item.Logic.SetStateAsync(value.ClampToInt());
 
         return true;
     }

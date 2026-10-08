@@ -198,7 +198,7 @@ public class WiredActionPlaceFurni(
     /// the variable is not one a furni can be given. The value is a literal or another
     /// variable's, read once for the whole group.
     /// </summary>
-    private (IWiredVariable variable, int value)? GetSpawnVariable(IWiredExecutionContext ctx)
+    private (IWiredVariable variable, long value)? GetSpawnVariable(IWiredExecutionContext ctx)
     {
         if (
             !GetIntParamOrDefault(PARAM_SPAWN_WITH_VARIABLE, false)
@@ -227,7 +227,7 @@ public class WiredActionPlaceFurni(
         )
             value = 0;
 
-        return (variable, (int)Math.Clamp(value, int.MinValue, int.MaxValue));
+        return (variable, value);
     }
 
     private bool TryGetCustomTarget(

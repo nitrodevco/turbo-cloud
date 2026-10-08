@@ -34,7 +34,7 @@ public sealed class UserTeamScoreVariable(RoomGrain roomGrain)
 
         var team = GameSystem.GetTeam(avatar.PlayerId);
 
-        return await GameSystem.SetScoreAsync(team, value, CancellationToken.None);
+        return await GameSystem.SetScoreAsync(team, value.ClampToInt(), CancellationToken.None);
     }
 
     protected override WiredVariableValue GetValueForAvatar(IRoomPlayer avatar) =>

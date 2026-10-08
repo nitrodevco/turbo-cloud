@@ -86,7 +86,7 @@ public sealed class WiredVariableOperationIdsTests
             .Should()
             .BeTrue();
 
-        return value;
+        return (int)value;
     }
 
     private async Task BuildAsync(int operation, int operand)

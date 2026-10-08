@@ -67,7 +67,7 @@ public sealed class WiredContextVariableTests
             .Should()
             .BeTrue();
 
-        return value;
+        return (int)value;
     }
 
     private async Task BuildAsync()

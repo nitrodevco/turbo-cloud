@@ -76,6 +76,6 @@ public class WiredRoomInternalVariableTests
             .Should()
             .BeTrue();
 
-        return value;
+        return (int)value;
     }
 }

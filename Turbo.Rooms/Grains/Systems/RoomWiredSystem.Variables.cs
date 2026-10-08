@@ -143,7 +143,7 @@ public sealed partial class RoomWiredSystem
             var key = new WiredVariableKey(variableId, snapshot.TargetType, targetId);
 
             if (variable.TryGetValue(key, out var value))
-                holders.Add((targetId, value));
+                holders.Add((targetId, value.ToClient()));
         }
 
         return new WiredVariableInfoAndHoldersSnapshot

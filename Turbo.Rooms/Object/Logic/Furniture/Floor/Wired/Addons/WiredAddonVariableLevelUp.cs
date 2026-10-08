@@ -117,7 +117,7 @@ public class WiredAddonVariableLevelUp(
             _ => 0,
         };
 
-        return new WiredVariableValue((int)Math.Clamp(result, int.MinValue, int.MaxValue));
+        return new WiredVariableValue(result);
     }
 
     /// <summary>
