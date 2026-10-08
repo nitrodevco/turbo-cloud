@@ -11,7 +11,9 @@ using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Wired.Rules;
+using Turbo.Rooms.Wired.Variables;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
@@ -65,7 +67,7 @@ public class WiredTriggerVariableChanged(
 
         var variable = GetVariable(0);
 
-        if (variable is null || variable.GetVarSnapshot().VariableId != change.VariableId)
+        if (variable is null || !TryReadChange(variable, change, out var value, out var previous))
             return Task.FromResult(false);
 
         var origins = GetIntParamOrDefault(PARAM_ORIGINS, ALL_ORIGINS);
@@ -79,13 +81,46 @@ public class WiredTriggerVariableChanged(
                 WiredVariableChangeType.Created => GetIntParamOrDefault(PARAM_CREATED, false),
                 WiredVariableChangeType.Removed => GetIntParamOrDefault(PARAM_REMOVED, false),
                 WiredVariableChangeType.Updated => GetIntParamOrDefault(PARAM_UPDATED, false)
-                    && MatchesUpdateKind(change),
+                    && MatchesUpdateKind(value, previous),
                 _ => false,
             }
         );
     }
 
-    private bool MatchesUpdateKind(WiredVariableChangedEvent change)
+    /// <summary>
+    /// The watched variable's value after and before the change: the change's own for the
+    /// variable itself, and for a sub-variable of the one that changed ("xp.current_level" of a
+    /// level-up add-on) what it reads from the parent's new and old values. Official wired fires
+    /// on a level-up that way (Wired Faculty #help, 08/10/2026: "set a variable changed trigger on
+    /// the current_level subvar, make sure to only check increased and decreased").
+    /// </summary>
+    private static bool TryReadChange(
+        IWiredVariable watched,
+        WiredVariableChangedEvent change,
+        out WiredVariableValue value,
+        out WiredVariableValue previous
+    )
+    {
+        value = change.Value;
+        previous = change.PreviousValue;
+
+        var watchedId = watched.GetVarSnapshot().VariableId;
+
+        if (watchedId == change.VariableId)
+            return true;
+
+        if (watched is not WiredSubVariable sub || sub.ParentId != change.VariableId)
+            return false;
+
+        var key = new WiredVariableKey(watchedId, change.TargetType, change.TargetId);
+
+        sub.TryGetValueFor(change.Value, key, out value);
+        sub.TryGetValueFor(change.PreviousValue, key, out previous);
+
+        return true;
+    }
+
+    private bool MatchesUpdateKind(WiredVariableValue value, WiredVariableValue previous)
     {
         var kinds = GetIntParamOrDefault(PARAM_UPDATE_KINDS, 0);
 
@@ -93,8 +128,8 @@ public class WiredTriggerVariableChanged(
             return true;
 
         var kind =
-            change.Value.Value > change.PreviousValue.Value ? UPDATE_INCREASED
-            : change.Value.Value < change.PreviousValue.Value ? UPDATE_DECREASED
+            value.Value > previous.Value ? UPDATE_INCREASED
+            : value.Value < previous.Value ? UPDATE_DECREASED
             : UPDATE_UNCHANGED;
 
         return (kinds & kind) != 0;

@@ -298,6 +298,59 @@ public sealed class WiredVariableChangedTriggerTests
         Hits().Should().Be(expected);
     }
 
+    /// <summary>
+    /// A level-up add-on on "counter" makes it an XP counter (a level every 10); Variable Changed
+    /// on its sub-variable "counter.current_level", increased or decreased only, hears a level-up
+    /// and nothing in between (Wired Faculty #help, 08/10/2026). Each click adds 5: levels at 10
+    /// and 20, so four clicks fire it twice. It never fired: only the parent publishes changes.
+    /// </summary>
+    [Fact]
+    public async Task Variable_changed_on_a_level_sub_variable_fires_on_a_level_up()
+    {
+        await BuildAsync(WiredVariableOperationType.Add, 5, [0, 1, 0, 0, ALL_ORIGINS]);
+
+        var addon =
+            _room.AddBox<Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons.WiredAddonVariableLevelUp>(
+                30,
+                4,
+                6,
+                "wf_xtra_var_lvlup_system"
+            );
+        (await _room.SaveAsync<UpdateAddonMessage>(30, intParams: [255, 1, 10, 5]))
+            .Should()
+            .BeTrue();
+        await addon.LoadWiredAsync(Ct);
+        await Wired.OnRoomEventAsync(
+            new WiredVariableBoxChangedEvent
+            {
+                RoomId = 1,
+                CausedBy = ActionContext.CreateForSystem(1),
+                BoxIds = [COUNTER],
+            },
+            Ct
+        );
+        await TickAsync(1);
+
+        var level = Wired
+            .GetAllVariables()
+            .Single(v => v.GetVarSnapshot().VariableName == "counter.current_level");
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                3,
+                intParams: [0, 1, 0, 0b011, ALL_ORIGINS],
+                variableIds: [level.GetVarSnapshot().VariableId.ToString()]
+            )
+        )
+            .Should()
+            .BeTrue();
+        await StartAsync(0, 4);
+
+        for (var i = 0; i < 4; i++)
+            await FireAsync();
+
+        Hits().Should().Be(2);
+    }
+
     private async Task SaveClickAsync(int boxId, int furniId) => (
             await _room.SaveAsync<UpdateTriggerMessage>(
                 boxId,
