@@ -17,8 +17,8 @@ namespace Turbo.Tests.Rooms;
 
 /// <summary>
 /// A context variable lives in one wired execution (Wired Faculty variables-info #13): a stack gives
-/// it a value its own effects can read, and a stack it signals starts from a copy of it ("Memorization
-/// with Signals", #15). Stack one, on (0,0): a click, "give variable" (context, 7) and "send signal".
+/// it a value its own effects can read, and a stack it signals reads it too ("Memorization with
+/// Signals", #15; sharing between branches: <see cref="WiredContextVariableScopeTests"/>). Stack one, on (0,0): a click, "give variable" (context, 7) and "send signal".
 /// Stack two, on (0,4): "receive signal" and "change variable value" setting a global to the context
 /// variable. The global shows what the second stack read.
 /// </summary>

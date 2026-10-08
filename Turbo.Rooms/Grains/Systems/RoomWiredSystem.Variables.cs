@@ -64,16 +64,17 @@ public sealed partial class RoomWiredSystem
     > _contextValuesByEvent = [];
 
     /// <summary>
-    /// Lets the stacks a signal or a stack call starts begin from <paramref name="values"/>: each
-    /// takes a copy, as Wired Faculty's "Memorization with Signals" describes.
+    /// Lets the stacks a signal or a stack call starts use <paramref name="values"/>: each works in
+    /// a scope inside them, sharing the sender's context variables until it gives its own
+    /// (<see cref="KeyValueStore.Parent"/>).
     /// </summary>
     public void CarryContextValues(RoomEvent evt, KeyValueStore values) =>
         _contextValuesByEvent.AddOrUpdate(evt, values);
 
-    /// <summary>A copy of what <paramref name="evt"/> carries, or an empty context.</summary>
+    /// <summary>A scope inside what <paramref name="evt"/> carries, or an empty context.</summary>
     private KeyValueStore ContextValuesFor(RoomEvent evt) =>
         _contextValuesByEvent.TryGetValue(evt, out var values)
-            ? values.Clone()
+            ? values.CreateChild()
             : new KeyValueStore();
 
     public bool TryGetStoreForKey(WiredVariableKey key, out KeyValueStore? store)

@@ -17,13 +17,40 @@ public sealed class KeyValueStore : IWiredVariableStore
 
     public void SetAction(Func<Task>? onChanged) => _onChanged = onChanged;
 
-    /// <summary>The values and their times as they are now, in a store of their own.</summary>
-    public KeyValueStore Clone() => new() { Store = new(Store), Timestamps = new(Timestamps) };
+    /// <summary>
+    /// The store this one was started from, whose variables it shares: a signalled stack's context
+    /// sees and changes its sender's context variables, and so does every other stack the same
+    /// sender signalled. Only a variable given here (a new one, or "Override existing variable")
+    /// is this store's own and hides the sender's (Wired Faculty variables-info #18, "Context
+    /// Variables - Lifetime": they work "just like variables in coding, with scopes").
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public KeyValueStore? Parent { get; init; }
 
-    public bool ContainsKey(WiredVariableKey key) => Store.ContainsKey(key.ToStorageKey());
+    /// <summary>A scope inside this one, for a stack this execution starts.</summary>
+    public KeyValueStore CreateChild() => new() { Parent = this };
 
-    public bool TryGetValue(in WiredVariableKey key, out WiredVariableValue value) =>
-        Store.TryGetValue(key.ToStorageKey(), out value);
+    /// <summary>The store in this scope chain that holds the variable, nearest first.</summary>
+    private KeyValueStore? Owner(string storageKey)
+    {
+        for (var store = this; store is not null; store = store.Parent)
+        {
+            if (store.Store.ContainsKey(storageKey))
+                return store;
+        }
+
+        return null;
+    }
+
+    public bool ContainsKey(WiredVariableKey key) => Owner(key.ToStorageKey()) is not null;
+
+    public bool TryGetValue(in WiredVariableKey key, out WiredVariableValue value)
+    {
+        value = default;
+
+        return Owner(key.ToStorageKey()) is { } owner
+            && owner.Store.TryGetValue(key.ToStorageKey(), out value);
+    }
 
     public Task<bool> GiveValueAsync(
         WiredVariableKey key,
@@ -31,7 +58,7 @@ public sealed class KeyValueStore : IWiredVariableStore
         bool replace = false
     )
     {
-        var existed = Store.ContainsKey(key.ToStorageKey());
+        var existed = Owner(key.ToStorageKey()) is not null;
 
         if (existed && !replace)
             return Task.FromResult(false);
@@ -52,13 +79,13 @@ public sealed class KeyValueStore : IWiredVariableStore
         WiredVariableValue value
     )
     {
-        if (!Store.ContainsKey(key.ToStorageKey()))
+        if (Owner(key.ToStorageKey()) is not { } owner)
             return Task.FromResult(false);
 
-        Store[key.ToStorageKey()] = value;
-        Stamp(key.ToStorageKey(), false);
+        owner.Store[key.ToStorageKey()] = value;
+        owner.Stamp(key.ToStorageKey(), false);
 
-        MarkDirty();
+        owner.MarkDirty();
 
         return Task.FromResult(true);
     }
@@ -72,8 +99,11 @@ public sealed class KeyValueStore : IWiredVariableStore
         createdAtMs = 0;
         updatedAtMs = 0;
 
-        if (!Timestamps.TryGetValue(key.ToStorageKey(), out var stamps))
-            return Store.ContainsKey(key.ToStorageKey());
+        if (Owner(key.ToStorageKey()) is not { } owner)
+            return false;
+
+        if (!owner.Timestamps.TryGetValue(key.ToStorageKey(), out var stamps))
+            return true;
 
         createdAtMs = stamps.CreatedAtMs;
         updatedAtMs = stamps.UpdatedAtMs;
@@ -83,12 +113,12 @@ public sealed class KeyValueStore : IWiredVariableStore
 
     public bool RemoveValue(WiredVariableKey key)
     {
-        if (!Store.ContainsKey(key.ToStorageKey()) || !Store.Remove(key.ToStorageKey()))
+        if (Owner(key.ToStorageKey()) is not { } owner || !owner.Store.Remove(key.ToStorageKey()))
             return false;
 
-        Timestamps.Remove(key.ToStorageKey());
+        owner.Timestamps.Remove(key.ToStorageKey());
 
-        MarkDirty();
+        owner.MarkDirty();
 
         return true;
     }
