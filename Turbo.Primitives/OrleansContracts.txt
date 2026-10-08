@@ -127,7 +127,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Inventory.Grains.IInventoryGrain
   3F80B430: AddFurnitureFromRoomItemSnapshotsAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot>, System.Threading.CancellationToken) -> Task<int>
   D1230356: ConsumeFurnitureAsync(Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot?>
   90CD3EBF: CreateBotAsync(string, string, string, Turbo.Primitives.Rooms.Enums.AvatarGenderType, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Bots.Snapshots.BotSnapshot?>
-  757733C4: CreatePetAsync(string, int, int, int, string, int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Pets.Snapshots.PetSnapshot?>
+  3DBD8C48: CreatePetAsync(string, int, int, int, string, int, System.Collections.Immutable.ImmutableArray<int>, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Pets.Snapshots.PetSnapshot?>
   51955F89: DeleteBotAsync(int, System.Threading.CancellationToken) -> Task<bool>
   A7BB48BB: DeletePetAsync(int, System.Threading.CancellationToken) -> Task<bool>
   D67BBCE7: GetAllBotSnapshotsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Bots.Snapshots.BotSnapshot>>

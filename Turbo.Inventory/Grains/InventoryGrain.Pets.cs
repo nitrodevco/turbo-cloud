@@ -31,8 +31,19 @@ internal sealed partial class InventoryGrain
         int breedId,
         string color,
         int rarityLevel,
+        ImmutableArray<int> customParts,
         CancellationToken ct
-    ) => PetModule.CreateAsync(name, typeId, paletteId, breedId, color, rarityLevel, ct);
+    ) =>
+        PetModule.CreateAsync(
+            name,
+            typeId,
+            paletteId,
+            breedId,
+            color,
+            rarityLevel,
+            customParts,
+            ct
+        );
 
     public Task<bool> DeletePetAsync(int petId, CancellationToken ct) =>
         PetModule.DeleteAsync(petId, ct);

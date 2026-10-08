@@ -1,13 +1,17 @@
 using System.Collections;
 using System.Collections.Immutable;
 using FluentAssertions;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Snapshots;
+using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Object.Avatars.Pet;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Pets;
 using Turbo.Rooms.Wired.Variables;
 using Turbo.Rooms.Wired.Variables.User.Smart;
 using Turbo.Tests.Support;
@@ -18,7 +22,8 @@ namespace Turbo.Tests.Rooms;
 /// <summary>
 /// The pet, horse and monsterplant smart variables (Wired Faculty, 03/2026): <c>~pet.*</c> on
 /// every pet but a monsterplant, <c>~horse.*</c> on horses, <c>~plant.*</c> on monsterplants,
-/// each listed only while such a pet is in the room.
+/// each listed only while such a pet is in the room. A plant's shape and colour are the body
+/// part and palette the monsterplant asset draws it with (body parts 1 to 12, palettes 0 to 10).
 /// </summary>
 public sealed class WiredPetSmartVariableTests
 {
@@ -143,12 +148,80 @@ public sealed class WiredPetSmartVariableTests
             .BeInRange(3000 - 5, 3000 + 5);
     }
 
+    [Fact]
+    public void Plant_shape_and_colour_are_its_body_part_and_palette()
+    {
+        AddPet(PLANT, PetTypes.MONSTERPLANT, paletteId: 3, customParts: [1, 7, 4]);
+        AddPet(PLANT + 1, PetTypes.MONSTERPLANT, paletteId: 5);
+
+        Read(new PlantShapeVariable(_room.Harness.Room), PLANT).Should().Be(7);
+        Read(new PlantColorVariable(_room.Harness.Room), PLANT).Should().Be(4);
+        // A plant drawn with the default body has no shape; its colour is the figure's palette.
+        Read(new PlantShapeVariable(_room.Harness.Room), PLANT + 1).Should().Be(0);
+        Read(new PlantColorVariable(_room.Harness.Room), PLANT + 1).Should().Be(5);
+    }
+
+    [Fact]
+    public async Task A_planted_seed_grows_into_a_plant_of_one_of_the_twelve_shapes()
+    {
+        var seed = _room.AddFloorItem(
+            60,
+            3,
+            3,
+            "mnstr_seed",
+            createLogic: (factory, ctx) => new FurnitureMonsterplantSeedLogic(factory, ctx)
+        );
+        var shapes = new HashSet<int>();
+        ImmutableArray<PetBreedSnapshot> palettes =
+        [
+            .. Enumerable
+                .Range(1, 10)
+                .Select(id => new PetBreedSnapshot
+                {
+                    TypeId = PetTypes.MONSTERPLANT,
+                    BreedId = id,
+                    PaletteId = id,
+                    RarityLevel = 0,
+                    Sellable = false,
+                    Rare = false,
+                    ColorTag = -1,
+                }),
+        ];
+
+        _room.Harness.Fakes.Handlers["GetPalettes"] = _ => palettes;
+        _room.Harness.Fakes.Handlers["TryGetPalette"] = call =>
+            palettes.FirstOrDefault(x => x.PaletteId == (int)call.Args[1]!);
+
+        _room.Harness.Fakes.Handlers["CreatePetAsync"] = call =>
+        {
+            var parts = (ImmutableArray<int>)call.Args[6]!;
+
+            parts.Length.Should().Be(3);
+            parts[0].Should().Be(MonsterplantFigure.BODY_LAYER);
+            parts[2].Should().Be((int)call.Args[2]!);
+            shapes.Add(parts[1]);
+
+            return Task.FromResult<PetSnapshot?>(null);
+        };
+
+        for (var i = 0; i < 300; i++)
+            await seed.Logic.OnUseAsync(
+                ActionContext.CreateForPlayer((PlayerId)77, (RoomId)1),
+                0,
+                Ct
+            );
+
+        shapes.Should().BeEquivalentTo(Enumerable.Range(1, 12));
+    }
+
     private RoomPetAvatar AddPet(
         int objectId,
         int typeId,
         int? level = null,
         DateTime? created = null,
-        DateTime? watered = null
+        DateTime? watered = null,
+        int paletteId = 0,
+        ImmutableArray<int> customParts = default
     )
     {
         var isPlant = PetTypes.IsMonsterplant(typeId);
@@ -164,10 +237,10 @@ public sealed class WiredPetSmartVariableTests
                 Figure = new PetFigureSnapshot
                 {
                     TypeId = typeId,
-                    PaletteId = 0,
+                    PaletteId = paletteId,
                     Color = "FFFFFF",
                     BreedId = 0,
-                    CustomParts = ImmutableArray<int>.Empty,
+                    CustomParts = customParts.IsDefault ? [] : customParts,
                 },
                 Level = level ?? (isPlant ? 7 : 4),
                 Experience = 450,

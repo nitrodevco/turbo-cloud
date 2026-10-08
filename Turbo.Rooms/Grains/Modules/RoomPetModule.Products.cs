@@ -15,8 +15,9 @@ namespace Turbo.Rooms.Grains.Modules;
 public sealed partial class RoomPetModule
 {
     /// <summary>
-    /// Plants a monsterplant seed: a plant of a breed rolled by rarity is created in the
-    /// owner's inventory and placed where the seed stood, and the seed is consumed.
+    /// Plants a monsterplant seed: a plant of a breed rolled by rarity, in one of the twelve
+    /// shapes, is created in the owner's inventory and placed where the seed stood, and the seed
+    /// is consumed.
     /// </summary>
     internal async Task<bool> PlantSeedAsync(
         ActionContext ctx,
@@ -61,6 +62,10 @@ public sealed partial class RoomPetModule
                 palette.BreedId,
                 PetFigure.DEFAULT_COLOR,
                 palette.RarityLevel,
+                MonsterplantFigure.CustomParts(
+                    NextRandom(MonsterplantFigure.MIN_SHAPE, MonsterplantFigure.MAX_SHAPE + 1),
+                    palette.PaletteId
+                ),
                 ct
             );
 
