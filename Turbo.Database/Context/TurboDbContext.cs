@@ -117,6 +117,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerDiscordLinkEntity> PlayerDiscordLinks { get; init; }
     public DbSet<WebSessionEntity> WebSessions { get; init; }
     public DbSet<HotelSettingEntity> HotelSettings { get; init; }
+
+    public DbSet<PromoArticleEntity> PromoArticles { get; init; }
     public DbSet<AdminPasskeyEntity> AdminPasskeys { get; init; }
 
     public DbSet<NavigatorTopLevelContextEntity> NavigatorTopLevelContexts { get; init; }

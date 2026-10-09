@@ -22,4 +22,7 @@ public class CatalogConfig
 
     /// <summary>What a gift can be wrapped in, and what wrapping costs.</summary>
     public GiftWrappingConfig GiftWrapping { get; init; } = new();
+
+    /// <summary>The reception's promo articles and community goals.</summary>
+    public ReceptionConfig Reception { get; init; } = new();
 }
