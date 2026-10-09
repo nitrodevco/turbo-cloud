@@ -36,7 +36,6 @@ public sealed class RoomPlayerAvatar
     public GuildMembershipStatus GuildStatus { get; private set; } = GuildMembershipStatus.None;
     public string GuildName { get; private set; } = string.Empty;
     public string SwimFigure { get; init; } = string.Empty;
-    public int ActivityPoints { get; init; } = 0;
     public ResolvedPermissionsSnapshot Permissions { get; private set; } =
         ResolvedPermissionsSnapshot.EMPTY;
 
@@ -101,7 +100,8 @@ public sealed class RoomPlayerAvatar
             GroupStatus = GuildStatus,
             GroupName = GuildName,
             SwimFigure = SwimFigure,
-            ActivityPoints = ActivityPoints,
+            // `RoomUserData.activityPoints` is the achievement score: the infostand's score row.
+            ActivityPoints = AchievementScore,
             IsModerator = IsModerator,
             BadgesRank = BadgesRank,
         };
