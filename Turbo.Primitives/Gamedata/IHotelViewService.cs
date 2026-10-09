@@ -16,7 +16,10 @@ namespace Turbo.Primitives.Gamedata;
 /// </summary>
 public interface IHotelViewService
 {
-    /// <summary>Every <c>landing.view.*</c> variable, by key.</summary>
+    /// <summary>
+    /// Every <c>landing.view.*</c> variable, and the few the reception reads by other names
+    /// (<c>next.limited.rare.countdown.widget.disabled</c>), by key.
+    /// </summary>
     public Task<ImmutableArray<VariableEntrySnapshot>> GetVariablesAsync(CancellationToken ct);
 
     /// <summary>The hotel's texts of those keys it has, by key; a key it lacks is left out.</summary>
@@ -28,7 +31,7 @@ public interface IHotelViewService
     /// <summary>
     /// Saves the variables and texts named, added, changed or removed, as one change set; null when
     /// nothing differed. Throws <see cref="System.ArgumentException"/>, saving nothing, for a
-    /// variable outside <c>landing.view.</c>, a value that isn't JSON, or a text the file can't hold.
+    /// variable outside <c>landing.view.</c> and the reception's others, a value that isn't JSON, or a text the file can't hold.
     /// </summary>
     public Task<GamedataChangeSetSnapshot?> SaveAsync(
         HotelViewEdit edit,

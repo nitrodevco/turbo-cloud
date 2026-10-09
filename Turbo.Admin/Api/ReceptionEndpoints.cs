@@ -21,7 +21,8 @@ namespace Turbo.Admin.Api;
 
 /// <summary>
 /// What the reception's widgets show besides its variables (those are under
-/// <see cref="GamedataEndpoints"/>): the promo articles, the community goals and the bonus rare campaigns. For staff with <c>admin.gamedata.view</c>,
+/// <see cref="GamedataEndpoints"/>): the promo articles, the community goals, the bonus rare campaigns and the pages the
+/// expiring page widget counts down to. For staff with <c>admin.gamedata.view</c>,
 /// as the hotel view is; changing them needs <c>gamedata.manage</c>.
 /// </summary>
 internal sealed class ReceptionEndpoints(
@@ -29,6 +30,7 @@ internal sealed class ReceptionEndpoints(
     IPromoArticleService articles,
     ICommunityGoalService goals,
     IBonusRareService bonusRare,
+    IExpiringPageService expiringPages,
     ILogger<ReceptionEndpoints> logger
 )
 {
@@ -91,6 +93,45 @@ internal sealed class ReceptionEndpoints(
         group.MapPut("/bonus-rare/{id:int}", SaveCampaignAsync);
         group.MapDelete("/bonus-rare/{id:int}", DeleteCampaignAsync);
         group.MapPost("/bonus-rare/purchases", RecordPurchaseAsync);
+        group.MapGet(
+            "/expiring-pages",
+            async (CancellationToken ct) =>
+                Results.Ok(new { pages = await expiringPages.ListAsync(ct).ConfigureAwait(false) })
+        );
+        group.MapPut(
+            "/expiring-pages/{pageId:int}",
+            (int pageId, ExpiringPageRequest request, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Results.Ok(
+                            await expiringPages
+                                .SaveAsync(
+                                    pageId,
+                                    Utc(request.ExpiresAt)
+                                        ?? throw new ArgumentException(
+                                            "A page runs out at a time."
+                                        ),
+                                    request.Image ?? string.Empty,
+                                    ct
+                                )
+                                .ConfigureAwait(false)
+                        )
+                )
+        );
+        group.MapDelete(
+            "/expiring-pages/{pageId:int}",
+            (int pageId, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        await expiringPages.DeleteAsync(pageId, ct).ConfigureAwait(false)
+                            ? Results.NoContent()
+                            : Results.NotFound()
+                )
+        );
     }
 
     private Task<IResult> SaveArticleAsync(

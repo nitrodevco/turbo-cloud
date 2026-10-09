@@ -41,6 +41,15 @@ internal sealed class HotelViewService(
     /// <summary>What every key the client reads its reception from starts with.</summary>
     public const string PREFIX = "landing.view.";
 
+    /// <summary>
+    /// The reception's variables outside <see cref="PREFIX"/>: the next limited rare widget's
+    /// switch, which the client reads by this name.
+    /// </summary>
+    public static readonly IReadOnlyList<string> OTHER_KEYS =
+    [
+        "next.limited.rare.countdown.widget.disabled",
+    ];
+
     private readonly GamedataConfig _config = config.Value;
 
     public async Task<ImmutableArray<VariableEntrySnapshot>> GetVariablesAsync(CancellationToken ct)
@@ -50,7 +59,7 @@ internal sealed class HotelViewService(
 
         var rows = await dbCtx
             .GamedataVariables.AsNoTracking()
-            .Where(x => x.Key.StartsWith(PREFIX))
+            .Where(x => x.Key.StartsWith(PREFIX) || OTHER_KEYS.Contains(x.Key))
             .Select(x => new
             {
                 x.Key,
@@ -291,6 +300,9 @@ internal sealed class HotelViewService(
     private static string CheckVariableKey(string key)
     {
         key = GamedataVariableService.CheckKey(key);
+
+        if (OTHER_KEYS.Contains(key, StringComparer.Ordinal))
+            return key;
 
         if (!key.StartsWith(PREFIX, StringComparison.Ordinal) || key.Length == PREFIX.Length)
             throw new ArgumentException(

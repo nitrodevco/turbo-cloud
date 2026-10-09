@@ -137,6 +137,19 @@ public static class CatalogEntityExtensions
             EndsAt = entity.EndsAt,
         };
 
+    public static CatalogPageExpirySnapshot ToSnapshot(
+        this CatalogPageExpiryEntity entity,
+        string pageName
+    ) =>
+        new()
+        {
+            Id = entity.Id,
+            PageId = entity.CatalogPageEntityId,
+            PageName = pageName,
+            ExpiresAt = DateTime.SpecifyKind(entity.ExpiresAt, DateTimeKind.Utc),
+            Image = entity.Image,
+        };
+
     public static BonusRareCampaignSnapshot ToSnapshot(this BonusRareCampaignEntity entity) =>
         new()
         {

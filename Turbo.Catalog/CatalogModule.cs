@@ -34,6 +34,7 @@ public sealed class CatalogModule : IHostPluginModule
         services.AddSingleton<ICatalogService, CatalogService>();
         services.AddSingleton<ICatalogEditService, CatalogEditService>();
         services.AddSingleton<IBonusRareService, BonusRareService>();
+        services.AddSingleton<IExpiringPageService, ExpiringPageService>();
         services.AddSingleton<IPromoArticleService, PromoArticleService>();
         services.AddSingleton<ICommunityGoalService, CommunityGoalService>();
         services.AddSingleton<IGiftWrappingProvider, GiftWrappingProvider>();

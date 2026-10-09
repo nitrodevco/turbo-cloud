@@ -11,6 +11,8 @@ internal class CatalogPageWithEarliestExpiryMessageComposerSerializer(int header
         CatalogPageWithEarliestExpiryMessageComposer message
     )
     {
-        //
+        packet.WriteString(message.PageName);
+        packet.WriteInteger(message.SecondsToExpiry);
+        packet.WriteString(message.Image);
     }
 }

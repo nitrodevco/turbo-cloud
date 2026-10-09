@@ -99,6 +99,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<BonusRareCampaignEntity> BonusRareCampaigns { get; init; }
 
     public DbSet<BonusRareReceiptEntity> BonusRareReceipts { get; init; }
+
+    public DbSet<CatalogPageExpiryEntity> CatalogPageExpiries { get; init; }
     public DbSet<PlayerEntity> Players { get; init; }
 
     public DbSet<RoomBanEntity> RoomBans { get; init; }

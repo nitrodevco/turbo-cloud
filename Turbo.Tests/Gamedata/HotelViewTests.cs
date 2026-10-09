@@ -146,6 +146,32 @@ public sealed class HotelViewTests : IDisposable
         again.Should().BeNull();
     }
 
+    [Fact]
+    public async Task The_next_limited_rare_switch_is_saved_though_it_is_named_otherwise()
+    {
+        var hotel = Hotel();
+
+        await hotel.View.SaveAsync(
+            new HotelViewEdit
+            {
+                Variables = new Dictionary<string, string?>
+                {
+                    ["next.limited.rare.countdown.widget.disabled"] = "true",
+                },
+            },
+            STAFF,
+            Ct
+        );
+
+        (await VariablesAsync(hotel))["next.limited.rare.countdown.widget.disabled"]!
+            .GetValue<bool>()
+            .Should()
+            .BeTrue();
+        (await hotel.View.GetVariablesAsync(Ct))
+            .Should()
+            .ContainSingle(x => x.Key == "next.limited.rare.countdown.widget.disabled");
+    }
+
     [Theory]
     [InlineData("socket.url", "\"wss://elsewhere\"")]
     [InlineData("landing.view.", "\"x\"")]
