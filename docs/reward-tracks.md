@@ -69,4 +69,6 @@ The task images the official client carries name thirty action types
 (`reward_track_tasks_<type>`, `RewardTrackActionTypes`). The server counts those it already
 records an achievement fact for (`RewardTrackFactListener`): `enter_other_users_room` (once
 per room), `switch_item_state`, `change_figure`, `change_motto`, `give_respect`,
-`pet_respect`, `pet_level` and `pet_eat`. The others are not hooked yet.
+`pet_respect`, `pet_level` and `pet_eat`. From room events (`RewardTrackRoomListener`, a
+player's own doing only, not wired's or a bot's) it counts `wave`, `dance` (starting one) and
+`place_item`. The others are not hooked yet.

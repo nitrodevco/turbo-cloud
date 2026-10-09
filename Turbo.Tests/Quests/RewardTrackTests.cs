@@ -379,6 +379,75 @@ public sealed class RewardTrackTests : IDisposable
     }
 
     [Fact]
+    public async Task A_players_wave_in_a_room_counts_and_wired_or_other_expressions_do_not()
+    {
+        var listener = new RewardTrackRoomListener(
+            Options.Create(_config),
+            _fakes.Create<Orleans.IGrainFactory>(),
+            NullLogger<RewardTrackRoomListener>.Instance
+        );
+
+        Turbo.Primitives.Rooms.Events.Avatar.AvatarPerformsActionEvent Act(
+            Turbo.Primitives.Action.ActionContext by,
+            AvatarActionType type,
+            int value
+        ) =>
+            new()
+            {
+                RoomId = 7,
+                CausedBy = by,
+                ObjectId = 1,
+                ActionType = type,
+                Value = value,
+            };
+
+        var player = Turbo.Primitives.Action.ActionContext.CreateForPlayer(1, 7);
+
+        await listener.OnRoomEventAsync(
+            Act(player, AvatarActionType.Expression, (int)AvatarExpressionType.Wave),
+            default
+        );
+        await listener.OnRoomEventAsync(
+            Act(player, AvatarActionType.Expression, (int)AvatarExpressionType.Laugh),
+            default
+        );
+        await listener.OnRoomEventAsync(
+            Act(
+                Turbo.Primitives.Action.ActionContext.CreateForWired(7),
+                AvatarActionType.Expression,
+                (int)AvatarExpressionType.Wave
+            ),
+            default
+        );
+        // A dance counts as "dance", which no task of this track counts.
+        await listener.OnRoomEventAsync(Act(player, AvatarActionType.Dance, 1), default);
+
+        _fakes
+            .Log.Of("RecordActionAsync")
+            .Select(x => x.Args[0])
+            .Should()
+            .Equal(RewardTrackActionTypes.WAVE);
+        RewardTrackRoomListener
+            .ActionTypeOf(Act(player, AvatarActionType.Dance, 1))
+            .Should()
+            .Be(RewardTrackActionTypes.DANCE);
+        RewardTrackRoomListener
+            .ActionTypeOf(Act(player, AvatarActionType.Dance, 0))
+            .Should()
+            .BeNull("stopping a dance is not dancing");
+        RewardTrackRoomListener
+            .ActionTypeOf(
+                new Turbo.Primitives.Rooms.Events.RoomItem.RoomItemPlacedEvent
+                {
+                    RoomId = 7,
+                    ObjectId = 2,
+                }
+            )
+            .Should()
+            .Be(RewardTrackActionTypes.PLACE_ITEM);
+    }
+
+    [Fact]
     public void A_recorded_fact_reaches_the_listeners_even_when_no_achievement_counts_it()
     {
         var heard = new List<string>();
