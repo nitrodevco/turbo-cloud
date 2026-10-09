@@ -426,8 +426,14 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   something and the composers something sends. Its "stub" and "unsent" are heuristics, so read
   the file before acting on a line. Still missing after this pass, each for want of
   a system rather than a handler: purchasable clothing (no clothing inventory), the guild furni
-  menu (no guilds), the room queue and spectators, `ConfigurationItemStates`, `UseObject`,
+  menu (no guilds), the room queue and spectators, `UseObject`,
   `SpecialRoomEffect` and `BotSkillListUpdate` (nothing on the server causes them).
+  `ConfigurationItemStates` carries only the Invisible Furni Controller so far; the handitem
+  blocker, the `:chooser` disabler and free furni movement are sent as off.
+- A Room Area Hider hides furni by not sending them (`RoomFurniModule.AreaHide`): the client
+  only takes the floor out of the area. Anything that sends a floor or wall item to the room
+  asks `IsHiddenByArea` first, as placing and moving do, and a change to a hider is announced
+  through `AnnounceHiddenItemsChangedAsync`.
 
 ### Teleporters
 - A teleporter (`FurnitureTeleportLogic`, logic `teleport`) is half of a pair. The pair is made

@@ -54,7 +54,9 @@ public sealed partial class RoomFurniModule
 
         item.MarkDirty();
 
-        await _roomGrain.SendComposerToRoomAsync(item.GetAddComposer(), ct);
+        // Placed in a hidden area: it is there, and out of sight like the rest of the area.
+        if (!IsHiddenByArea(item))
+            await _roomGrain.SendComposerToRoomAsync(item.GetAddComposer(), ct);
 
         return true;
     }
@@ -103,12 +105,13 @@ public sealed partial class RoomFurniModule
     )
     {
         var prevIdx = MapModule.ToIdx(item.X, item.Y);
+        var wasHidden = announce && IsHiddenByArea(item);
 
         if (!MapModule.MoveFloorItem(item, tileIdx, z, rot))
             return false;
 
-        if (announce)
-            await _roomGrain.SendComposerToRoomAsync(item.GetUpdateComposer(), ct);
+        if (announce && GetMoveComposer(item, wasHidden) is { } moved)
+            await _roomGrain.SendComposerToRoomAsync(moved, ct);
 
         await item.Logic.OnMoveAsync(ctx, prevIdx, ct);
 

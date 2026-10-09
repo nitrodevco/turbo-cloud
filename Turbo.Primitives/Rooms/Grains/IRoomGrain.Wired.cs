@@ -8,14 +8,26 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 
 namespace Turbo.Primitives.Rooms.Grains;
 
 public partial interface IRoomGrain
 {
-    /// <summary>Saves a wired box from its editor. False when refused or invalid.</summary>
-    public Task<bool> ApplyWiredUpdateAsync(
+    /// <summary>
+    /// A click on an avatar reported for the room's "user clicks user" trigger: fires it, turns
+    /// the clicker unless a trigger says not to, and tells the clicker whether the avatar menu may
+    /// open.
+    /// </summary>
+    public Task WiredClickAvatarAsync(
+        ActionContext ctx,
+        RoomObjectId targetObjectId,
+        CancellationToken ct
+    );
+
+    /// <summary>Saves a wired box from its editor; a refusal says why when the box did.</summary>
+    public Task<WiredSaveResult> ApplyWiredUpdateAsync(
         ActionContext ctx,
         RoomObjectId itemId,
         UpdateWiredMessage update,

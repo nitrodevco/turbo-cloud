@@ -17,6 +17,7 @@ using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Avatars.Player;
@@ -232,7 +233,34 @@ public sealed class WiredRoom
     /// What the client's editor sends when "ready" is pressed, run through the room as the
     /// packet handler does. <c>false</c> when the room refuses the save.
     /// </summary>
-    public Task<bool> SaveAsync<TMessage>(
+    public async Task<bool> SaveAsync<TMessage>(
+        int boxId,
+        int[]? intParams = null,
+        int[]? stuffIds = null,
+        int[]? stuffIds2 = null,
+        WiredFurniSourceType[][]? furniSources = null,
+        WiredPlayerSourceType[][]? playerSources = null,
+        object[]? definitionSpecifics = null,
+        string stringParam = "",
+        string[]? variableIds = null
+    )
+        where TMessage : UpdateWiredMessage =>
+        (
+            await SaveWithResultAsync<TMessage>(
+                boxId,
+                intParams,
+                stuffIds,
+                stuffIds2,
+                furniSources,
+                playerSources,
+                definitionSpecifics,
+                stringParam,
+                variableIds
+            )
+        ).IsSaved;
+
+    /// <summary><see cref="SaveAsync"/> with what the editor is told, a refusal's text included.</summary>
+    public Task<WiredSaveResult> SaveWithResultAsync<TMessage>(
         int boxId,
         int[]? intParams = null,
         int[]? stuffIds = null,

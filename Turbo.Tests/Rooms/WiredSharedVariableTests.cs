@@ -195,7 +195,7 @@ public sealed class WiredSharedVariableTests
                 },
                 Ct
             )
-        ).Should().BeFalse();
+        ).IsSaved.Should().BeFalse();
     }
 
     private async Task BuildShopAsync()

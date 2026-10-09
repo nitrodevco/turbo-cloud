@@ -395,7 +395,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   9445BFAA: AnswerDoorbellAsync(Turbo.Primitives.Action.ActionContext, string, bool, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.PlayerId?>
   D6AA9ED0: ApplyDecorationAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<bool>
   75ADD45F: ApplyWiredSnapshotAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<bool>
-  D5632FC2: ApplyWiredUpdateAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, Turbo.Primitives.Messages.Incoming.Userdefinedroomevents.UpdateWiredMessage, System.Threading.CancellationToken) -> Task<bool>
+  D5632FC2: ApplyWiredUpdateAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, Turbo.Primitives.Messages.Incoming.Userdefinedroomevents.UpdateWiredMessage, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Wired.WiredSaveResult>
   206EE1E3: ApplyWiredVariableMenuOperationAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Wired.Variable.WiredVariableBinding, Turbo.Primitives.Rooms.Wired.Variable.WiredVariableId, Turbo.Primitives.Rooms.Enums.Wired.WiredVariableMenuOperationType, Turbo.Primitives.Rooms.Wired.Variable.WiredVariableValue, System.Threading.CancellationToken) -> Task<bool>
   0589D3D4: BanPlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Rooms.Enums.RoomBanDurationType, System.Threading.CancellationToken) -> Task<bool>
   1A97184C: BreedPetsAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Pets.Enums.PetBreedingAction, int, int, System.Threading.CancellationToken) -> Task<bool>
@@ -546,6 +546,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   F14128EE: UseItemByIdAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken, int) -> Task<bool>
   1728DE5E: WalkAvatarToAsync(Turbo.Primitives.Action.ActionContext, int, int, System.Threading.CancellationToken) -> Task<bool>
   647C59A3: WhisperToPlayerAsync(Turbo.Primitives.Players.PlayerId, string, System.Threading.CancellationToken) -> Task<bool>
+  D8D03AB5: WiredClickAvatarAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task
 
 interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomPersistenceGrain")] Turbo.Primitives.Rooms.Grains.IRoomPersistenceGrain [Version(0)]
   F8B51D2C: ApplyPetNutritionOperationAsync(string, int, Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Players.PlayerId, int, int, int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Pets.Snapshots.PetNutritionOperationResult>

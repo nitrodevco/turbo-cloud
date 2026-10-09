@@ -1395,6 +1395,7 @@ public class Revision20260909 : IRevision
             #region Userdefinedroomevents
 
             { MessageEvent.ApplySnapshotMessageEvent, new ApplySnapshotMessageParser() },
+            { MessageEvent.WiredClickUserMessageEvent, new WiredClickUserMessageParser() },
             { MessageEvent.OpenMessageEvent, new OpenMessageParser() },
             { MessageEvent.UpdateActionMessageEvent, new UpdateActionMessageParser() },
             { MessageEvent.UpdateAddonMessageEvent, new UpdateAddonMessageParser() },
@@ -3237,6 +3238,12 @@ public class Revision20260909 : IRevision
                 new CantConnectMessageComposerSerializer(MessageComposer.CantConnectMessageComposer)
             },
             {
+                typeof(ConfigurationItemStatesMessageComposer),
+                new ConfigurationItemStatesMessageComposerSerializer(
+                    MessageComposer.ConfigurationItemStatesMessageComposer
+                )
+            },
+            {
                 typeof(CloseConnectionMessageComposer),
                 new CloseConnectionMessageComposerSerializer(
                     MessageComposer.CloseConnectionMessageComposer
@@ -3380,6 +3387,18 @@ public class Revision20260909 : IRevision
                 typeof(WiredClickSettingsMessageComposer),
                 new WiredClickSettingsMessageComposerSerializer(
                     MessageComposer.WiredClickSettingsMessageComposer
+                )
+            },
+            {
+                typeof(WiredClickUserResponseMessageComposer),
+                new WiredClickUserResponseMessageComposerSerializer(
+                    MessageComposer.WiredClickUserResponseMessageComposer
+                )
+            },
+            {
+                typeof(WiredEnvironmentMessageComposer),
+                new WiredEnvironmentMessageComposerSerializer(
+                    MessageComposer.WiredEnvironmentMessageComposer
                 )
             },
             {
