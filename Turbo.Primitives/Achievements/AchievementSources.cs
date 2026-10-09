@@ -8,6 +8,9 @@ public static class AchievementSources
     public const string ACCOUNT_AGE = "identity.account-age";
     public const string FIGURE = "identity.figure-change";
     public const string MOTTO = "identity.motto-change";
+
+    /// <summary>A badge put on (into a slot), its value the badge code. One fact per badge.</summary>
+    public const string BADGE_WORN = "identity.badge-worn";
     public const string HC = "membership.eligible-seconds";
     public const string PURCHASED_HC = "membership.purchased-days";
     public const string VISIT = "explore.admitted-room";

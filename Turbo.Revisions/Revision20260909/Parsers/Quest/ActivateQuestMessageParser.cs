@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Quest;
 
 internal class ActivateQuestMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new ActivateQuestMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new ActivateQuestMessage { QuestId = packet.PopInt() };
 }

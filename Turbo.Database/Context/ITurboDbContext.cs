@@ -58,6 +58,12 @@ public interface ITurboDbContext : IDisposable
 
     public DbSet<PlayerRewardTrackEntity>? PlayerRewardTracks { get; set; }
 
+    public DbSet<QuestCampaignEntity>? QuestCampaigns { get; set; }
+
+    public DbSet<QuestEntity>? Quests { get; set; }
+
+    public DbSet<PlayerQuestEntity>? PlayerQuests { get; set; }
+
     public DbSet<GuildForumEntity>? GuildForums { get; set; }
 
     public DbSet<GuildForumThreadEntity>? GuildForumThreads { get; set; }

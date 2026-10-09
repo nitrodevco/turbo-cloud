@@ -13,17 +13,61 @@ namespace Turbo.Tests.Protocol;
 public class QuestsPacketTests
 {
     [Fact]
-    public async Task opening_the_quest_window_is_answered_with_the_quests_the_server_has()
+    public async Task opening_the_quest_window_asks_the_players_quests_to_open_it()
     {
         var harness = new PacketHarness();
 
-        var replies = await harness.SendAsync(PacketHarness.Incoming("GetQuestsMessageEvent"), []);
+        var replies = await harness.SendAsync(
+            PacketHarness.Incoming("GetQuestsMessageEvent"),
+            [],
+            playerId: 3
+        );
 
-        var reply = Assert.Single(replies);
-        Assert.Equal(PacketHarness.Outgoing("QuestsMessageComposer"), reply.Header);
-        Assert.Equal(0, reply.PopInt());
-        Assert.True(reply.PopBoolean());
-        Assert.True(reply.End);
+        Assert.Empty(replies);
+        var call = Assert.Single(harness.Fakes.Log.Of("SendQuestsAsync"));
+        Assert.Equal(3L, Convert.ToInt64(call.Key));
+        Assert.Equal(true, call.Args[0]);
+    }
+
+    [Fact]
+    public async Task accepting_activating_and_rejecting_name_the_quest()
+    {
+        var harness = new PacketHarness();
+
+        foreach (var name in new[] { "AcceptQuest", "ActivateQuest", "RejectQuest" })
+            await harness.SendAsync(
+                PacketHarness.Incoming($"{name}MessageEvent"),
+                PacketHarness.Payload(w => w.Int(42)),
+                playerId: 3
+            );
+
+        Assert.Equal(
+            [42, 42],
+            harness.Fakes.Log.Of("AcceptAsync").Select(x => (int)x.Args[0]!).ToArray()
+        );
+        Assert.Equal(42, (int)Assert.Single(harness.Fakes.Log.Of("RejectAsync")).Args[0]!);
+    }
+
+    [Fact]
+    public void cancelled_and_completed_wrap_the_quest_as_their_parsers_read_it()
+    {
+        var cancelled = PacketHarness.Encode(
+            new QuestCancelledMessageComposer { Expired = true, Quest = Quest(isSeasonal: false) }
+        );
+        Assert.True(cancelled.PopBoolean());
+        AssertQuest(cancelled, id: 7, isSeasonal: false);
+        Assert.True(cancelled.End);
+
+        var completed = PacketHarness.Encode(
+            new QuestCompletedMessageComposer { Quest = Quest(isSeasonal: true), ShowDialog = true }
+        );
+        AssertQuest(completed, id: 7, isSeasonal: true);
+        Assert.True(completed.PopBoolean());
+        Assert.True(completed.End);
+
+        var quest = PacketHarness.Encode(new QuestMessageComposer { Quest = Quest(false) });
+        AssertQuest(quest, id: 7, isSeasonal: false);
+        Assert.True(quest.End);
     }
 
     [Fact]

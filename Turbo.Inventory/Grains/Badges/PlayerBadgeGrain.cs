@@ -8,10 +8,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Database.Achievements;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Badges;
 using Turbo.Database.Entities.Players;
 using Turbo.Inventory.Configuration;
+using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Badges;
 using Turbo.Primitives.Badges.Grains;
 using Turbo.Primitives.Badges.Snapshots;
@@ -41,6 +43,7 @@ internal sealed partial class PlayerBadgeGrain : Grain, IPlayerBadgeGrain
 {
     private const int NOT_WORN = 0;
 
+    private readonly IAchievementFactRecorder _achievementFacts;
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly InventoryConfig _inventoryConfig;
     private readonly IGrainFactory _grainFactory;
@@ -56,9 +59,11 @@ internal sealed partial class PlayerBadgeGrain : Grain, IPlayerBadgeGrain
         IDbContextFactory<TurboDbContext> dbCtxFactory,
         IOptions<InventoryConfig> inventoryConfig,
         IGrainFactory grainFactory,
+        IAchievementFactRecorder achievementFacts,
         ILogger<IPlayerBadgeGrain> logger
     )
     {
+        _achievementFacts = achievementFacts;
         _dbCtxFactory = dbCtxFactory;
         _inventoryConfig = inventoryConfig.Value;
         _grainFactory = grainFactory;
@@ -285,9 +290,27 @@ internal sealed partial class PlayerBadgeGrain : Grain, IPlayerBadgeGrain
                 .ToListAsync(ct);
 
             foreach (var entity in entities)
+            {
+                var worn = entity.SlotId is null;
                 entity.SlotId = slotByCode.TryGetValue(entity.BadgeCode, out var slot)
                     ? slot
                     : null;
+
+                // Putting a badge on is a fact (a WEAR_BADGE quest counts it); moving it between
+                // slots or taking it off is not.
+                if (worn && entity.SlotId is not null)
+                    _achievementFacts.Record(
+                        dbCtx,
+                        _state.PlayerId,
+                        new()
+                        {
+                            Source = AchievementSources.BADGE_WORN,
+                            OperationId = Guid.NewGuid().ToString("N"),
+                            OccurredAtUtc = DateTime.UtcNow,
+                            Value = entity.BadgeCode,
+                        }
+                    );
+            }
 
             await dbCtx.SaveChangesAsync(ct);
         }

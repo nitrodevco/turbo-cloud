@@ -3,11 +3,12 @@ using Turbo.Primitives.Packets;
 
 namespace Turbo.Revisions.Revision20260909.Serializers.Quest;
 
+/// <summary>QuestMessageParser: the quest.</summary>
 internal class QuestMessageComposerSerializer(int header)
     : AbstractSerializer<QuestMessageComposer>(header)
 {
     protected override void Serialize(IServerPacket packet, QuestMessageComposer message)
     {
-        //
+        QuestSerializer.Write(packet, message.Quest);
     }
 }

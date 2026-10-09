@@ -125,6 +125,12 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<PlayerRewardTrackEntity> PlayerRewardTracks { get; init; }
 
+    public DbSet<QuestCampaignEntity> QuestCampaigns { get; init; }
+
+    public DbSet<QuestEntity> Quests { get; init; }
+
+    public DbSet<PlayerQuestEntity> PlayerQuests { get; init; }
+
     public DbSet<GuildForumEntity> GuildForums { get; init; }
 
     public DbSet<GuildForumThreadEntity> GuildForumThreads { get; init; }
