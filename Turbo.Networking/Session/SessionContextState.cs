@@ -31,6 +31,7 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
 
     // 1 once the session has started closing; a session is closed once.
     private int _closing;
+    private string? _closeReason;
 
     // Set once a send finds the connection's writer completed. Only read and written under the
     // send semaphore.
@@ -40,6 +41,9 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
     public string RevisionId { get; set; } = "Default";
     public IRc4Engine? CryptoIn { get; private set; }
     public IRc4Engine? CryptoOut { get; private set; }
+
+    /// <summary>Why the server closed the session, or null if it has not.</summary>
+    public string? CloseReason => Volatile.Read(ref _closeReason);
 
     public RoomId ActiveRoomId => Volatile.Read(ref _activeRoomId);
 
@@ -121,7 +125,7 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
     }
 
     /// <summary>
-    /// Closes the connection once: runs <paramref name="close"/> (for a WebSocket, a close frame
+    /// Closes the connection once, for <paramref name="reason"/>: runs <paramref name="close"/> (for a WebSocket, a close frame
     /// the client is meant to answer), and if the connection is still open a few seconds later,
     /// or the close itself failed, drops it with <paramref name="drop"/>. Later calls do nothing.
     /// </summary>
@@ -138,12 +142,15 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
     /// </remarks>
     public async Task CloseAsync(
         ISessionContext session,
+        string reason,
         Func<ValueTask> close,
         Func<ValueTask> drop
     )
     {
         if (Interlocked.Exchange(ref _closing, 1) != 0)
             return;
+
+        Volatile.Write(ref _closeReason, reason);
 
         var grace = CLOSE_ANSWER_GRACE;
 

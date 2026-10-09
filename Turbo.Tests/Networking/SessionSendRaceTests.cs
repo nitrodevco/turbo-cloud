@@ -83,7 +83,7 @@ public class SessionSendRaceTests
         var closing = (Task)
             StateType
                 .GetMethod("CloseAsync", BindingFlags.Public | BindingFlags.Instance)!
-                .Invoke(_state, [_session, close, Drop])!;
+                .Invoke(_state, [_session, "heartbeat timeout", close, Drop])!;
 
         await closing.Invoking(t => t).Should().NotThrowAsync();
         _logger.AtLeast(LogLevel.Warning).Should().BeEmpty();

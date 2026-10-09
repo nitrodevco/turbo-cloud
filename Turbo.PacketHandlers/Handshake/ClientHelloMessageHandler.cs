@@ -15,7 +15,7 @@ public class ClientHelloMessageHandler() : IMessageHandler<ClientHelloMessage>
     {
         if (message.Production is null)
         {
-            await ctx.CloseSessionAsync().ConfigureAwait(false);
+            await ctx.CloseSessionAsync("client hello without a production").ConfigureAwait(false);
 
             return;
         }

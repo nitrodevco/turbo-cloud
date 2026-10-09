@@ -37,7 +37,15 @@ public interface ISessionContext : IAppSession
     /// </summary>
     public void MarkReceived();
 
-    public Task CloseSessionAsync();
+    /// <summary>
+    /// Closes the connection, once; <paramref name="reason"/> is logged with the close so a
+    /// disconnect can be explained afterwards.
+    /// </summary>
+    public Task CloseSessionAsync(string reason = "closed by the server");
+
+    /// <summary>Why the server closed this connection, or null if it has not.</summary>
+    public string? ServerCloseReason { get; }
+
     public void SetRevisionId(string revisionId);
     public void SetupEncryption(byte[] key, bool setCryptoOut = false);
     public Task SendComposerAsync(IComposer composer, CancellationToken ct);

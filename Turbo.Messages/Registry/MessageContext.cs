@@ -26,8 +26,8 @@ public sealed class MessageContext(ISessionContext session, PlayerId playerId, R
             RoomId = RoomId,
         };
 
-    public async Task CloseSessionAsync() =>
-        await _session.CloseSessionAsync().ConfigureAwait(false);
+    public async Task CloseSessionAsync(string reason = "closed by a packet handler") =>
+        await _session.CloseSessionAsync(reason).ConfigureAwait(false);
 
     public async Task SendComposerAsync(IComposer composer, CancellationToken ct) =>
         await _session.SendComposerAsync(composer, ct).ConfigureAwait(false);

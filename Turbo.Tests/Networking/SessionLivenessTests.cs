@@ -4,6 +4,7 @@ using System.Net.WebSockets;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using SuperSocket.Server;
 using SuperSocket.Server.Abstractions;
@@ -37,6 +38,7 @@ public sealed class SessionLivenessTests : IAsyncDisposable
     private readonly TaskCompletionSource _releaseSlowHandler = new(
         TaskCreationOptions.RunContinuationsAsynchronously
     );
+    private readonly CapturingLogger<SessionLivenessTests> _closeLog = new();
     private readonly ClientWebSocket _client = new();
     private readonly IHost _host;
     private readonly int _port = FreePort();
@@ -65,6 +67,9 @@ public sealed class SessionLivenessTests : IAsyncDisposable
                     )
                 );
             }
+        );
+        builder.ConfigureLogging(
+            (_, logging) => logging.AddProvider(new CloseLogProvider(_closeLog))
         );
         builder.UseReceiveMarking();
         // The first message stands for a handler stuck on a slow grain call.
@@ -141,7 +146,7 @@ public sealed class SessionLivenessTests : IAsyncDisposable
 
         // The client never reads, so it never answers the close frame. The heartbeat closes a
         // silent session again on each of its ticks.
-        await session.CloseSessionAsync();
+        await session.CloseSessionAsync("heartbeat timeout");
         var handshakeStarted = ((WebSocketSession)session).CloseHandshakeStartTime;
         for (var i = 0; i < 3; i++)
         {
@@ -159,6 +164,13 @@ public sealed class SessionLivenessTests : IAsyncDisposable
         );
 
         gone.Should().BeTrue("the connection is dropped and the session removed with its player");
+        _closeLog
+            .AtLeast(LogLevel.Information)
+            .Select(e => e.Message)
+            .Should()
+            .Contain(m =>
+                m.Contains("of player 1 closed: LocalClosing, server reason: heartbeat timeout")
+            );
     }
 
     private static async Task<bool> WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
@@ -178,5 +190,14 @@ public sealed class SessionLivenessTests : IAsyncDisposable
         using var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
         return ((IPEndPoint)listener.LocalEndpoint).Port;
+    }
+
+    // The close log is written under one category; everything else is dropped.
+    private sealed class CloseLogProvider(ILogger log) : ILoggerProvider
+    {
+        public ILogger CreateLogger(string categoryName) =>
+            categoryName == "Turbo.Networking.Session" ? log : NullLogger.Instance;
+
+        public void Dispose() { }
     }
 }

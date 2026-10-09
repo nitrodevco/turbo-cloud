@@ -60,7 +60,7 @@ public class SSOTicketMessageHandler(
 
         if (playerId <= 0)
         {
-            await ctx.CloseSessionAsync().ConfigureAwait(false);
+            await ctx.CloseSessionAsync("invalid SSO ticket").ConfigureAwait(false);
 
             return;
         }
@@ -78,7 +78,7 @@ public class SSOTicketMessageHandler(
                     ct
                 )
                 .ConfigureAwait(false);
-            await ctx.CloseSessionAsync().ConfigureAwait(false);
+            await ctx.CloseSessionAsync("banned").ConfigureAwait(false);
 
             return;
         }
@@ -96,7 +96,7 @@ public class SSOTicketMessageHandler(
                     ct
                 )
                 .ConfigureAwait(false);
-            await ctx.CloseSessionAsync().ConfigureAwait(false);
+            await ctx.CloseSessionAsync("hotel closed for maintenance").ConfigureAwait(false);
 
             return;
         }

@@ -164,7 +164,9 @@ public sealed class SessionGateway(
                 // replacement is bound either way and its login must not fail over it.
                 try
                 {
-                    await previousSession.CloseSessionAsync().ConfigureAwait(false);
+                    await previousSession
+                        .CloseSessionAsync("replaced by a new login")
+                        .ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -209,7 +211,7 @@ public sealed class SessionGateway(
             }
         }
 
-        await session.CloseSessionAsync().ConfigureAwait(false);
+        await session.CloseSessionAsync("disconnected by the server").ConfigureAwait(false);
 
         return true;
     }
