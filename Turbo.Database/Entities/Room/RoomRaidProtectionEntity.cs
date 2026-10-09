@@ -8,7 +8,9 @@ namespace Turbo.Database.Entities.Room;
 
 /// <summary>
 /// A room's raid protection settings. A room without a row has the defaults below, which are
-/// what a new row starts from; the row goes with its room.
+/// what a new row starts from; the row goes with its room. They are what Habbo's window shows
+/// for a room never set up (official client, 2026-10-09, evidence raid.png): off, medium
+/// sensitivity, temporary ban for 15 minutes, door guard off for 15 minutes at medium.
 /// </summary>
 [Table("room_raid_protection")]
 [Index(nameof(RoomEntityId), IsUnique = true)]
@@ -26,8 +28,8 @@ public class RoomRaidProtectionEntity : TurboEntity
     public RaidSensitivityType DetectionSensitivity { get; set; } = RaidSensitivityType.Medium;
 
     [Column("action_type")]
-    [DefaultValue(RaidActionType.Kick)]
-    public RaidActionType ActionType { get; set; } = RaidActionType.Kick;
+    [DefaultValue(RaidActionType.TemporaryBan)]
+    public RaidActionType ActionType { get; set; } = RaidActionType.TemporaryBan;
 
     [Column("ban_duration_seconds")]
     [DefaultValue(900)]

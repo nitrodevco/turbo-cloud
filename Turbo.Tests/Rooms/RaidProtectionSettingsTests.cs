@@ -88,8 +88,9 @@ public sealed class RaidProtectionSettingsTests : IDisposable
 
     public void Dispose() => _db.Dispose();
 
+    /// <summary>What Habbo's window shows for a room never set up (evidence raid.png).</summary>
     [Fact]
-    public async Task A_room_never_set_up_shows_the_defaults_with_no_raid()
+    public async Task A_room_never_set_up_shows_habbos_defaults_with_no_raid()
     {
         var settings = await Room().Room.GetRaidProtectionSettingsAsync(Owner, Ct);
 
@@ -101,7 +102,7 @@ public sealed class RaidProtectionSettingsTests : IDisposable
                     RoomId = ROOM,
                     Enabled = false,
                     DetectionSensitivity = RaidSensitivityType.Medium,
-                    ActionType = RaidActionType.Kick,
+                    ActionType = RaidActionType.TemporaryBan,
                     BanDurationSeconds = 900,
                     GuardEnabled = false,
                     GuardDurationSeconds = 900,
