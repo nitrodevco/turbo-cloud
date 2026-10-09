@@ -76,6 +76,13 @@ public class RoomConfig
     public int CrackableOpenMs { get; init; } = 1500;
 
     /// <summary>
+    /// How long a present stands in its opening state before it is gone and the owner is told what
+    /// it held. Measured on Habbo: the "you open the gift" card follows the glow by 1.98 s and
+    /// 2.09 s, while the gift wrapped box bursts into its sparkles and confetti.
+    /// </summary>
+    public int PresentOpenMs { get; init; } = 2000;
+
+    /// <summary>
     /// How long a vending machine shows its dispensing state (state 1, which a fridge's or a drinks
     /// machine's asset animates) after handing an item over.
     /// </summary>
