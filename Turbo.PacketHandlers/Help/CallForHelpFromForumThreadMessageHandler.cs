@@ -2,18 +2,20 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Help;
+using Turbo.Primitives.Moderation;
 
 namespace Turbo.PacketHandlers.Help;
 
-public class CallForHelpFromForumThreadMessageHandler
+public class CallForHelpFromForumThreadMessageHandler(ICallForHelpService callForHelp)
     : IMessageHandler<CallForHelpFromForumThreadMessage>
 {
+    private readonly ICallForHelpService _callForHelp = callForHelp;
+
     public async ValueTask HandleAsync(
         CallForHelpFromForumThreadMessage message,
         MessageContext ctx,
         CancellationToken ct
-    )
-    {
-        await ValueTask.CompletedTask.ConfigureAwait(false);
-    }
+    ) =>
+        await ctx.SubmitCallForHelpAsync(_callForHelp, message.Submission, ct)
+            .ConfigureAwait(false);
 }

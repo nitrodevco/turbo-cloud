@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Turbo.Database.Entities.Guilds;
 using Turbo.Database.Entities.Moderation;
 using Turbo.Database.Entities.Players;
 using Turbo.Operations;
@@ -29,6 +30,8 @@ public sealed class CallForHelpReportTests : IDisposable
     private const int REPORTED = 2;
     private const int ROOM = 9;
     private const int TOPIC = 12;
+    private const int GROUP = 30;
+    private const int THREAD = 40;
 
     private static readonly DateTime NOW = new(2026, 10, 9, 12, 0, 0, DateTimeKind.Utc);
 
@@ -237,6 +240,94 @@ public sealed class CallForHelpReportTests : IDisposable
             .Should()
             .Be(("photo-abc123", 55, ROOM, REPORTED));
         report.Message.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_report_of_a_forum_thread_reports_its_author()
+    {
+        InsertForumPost();
+
+        var reply = Assert.Single(
+            await Harness()
+                .SendAsync(
+                    PacketHarness.Incoming("CallForHelpFromForumThreadMessageEvent"),
+                    PacketHarness.Payload(w =>
+                        w.Int(GROUP)
+                            .Int(THREAD)
+                            .Int(TOPIC)
+                            .String("a rude thread")
+                            .String(string.Empty)
+                            .String(string.Empty)
+                    ),
+                    playerId: REPORTER
+                )
+        );
+
+        Assert.Equal((int)CfhResultType.Sent, reply.PopInt());
+        var report = (await Reports()).Single();
+        report.Source.Should().Be(CfhSourceType.ForumThread);
+        (report.GuildEntityId, report.ForumThreadEntityId, report.ForumMessageId)
+            .Should()
+            .Be((GROUP, THREAD, (int?)null));
+        (report.ReportedEntityId, report.TopicId, report.Message)
+            .Should()
+            .Be((REPORTED, TOPIC, "a rude thread"));
+    }
+
+    [Fact]
+    public async Task A_report_of_a_forum_message_reports_its_author()
+    {
+        InsertForumPost();
+
+        var reply = Assert.Single(
+            await Harness()
+                .SendAsync(
+                    PacketHarness.Incoming("CallForHelpFromForumMessageMessageEvent"),
+                    PacketHarness.Payload(w =>
+                        w.Int(GROUP)
+                            .Int(THREAD)
+                            .Int(1)
+                            .Int(TOPIC)
+                            .String("a rude reply")
+                            .String(string.Empty)
+                            .String(string.Empty)
+                    ),
+                    playerId: REPORTER
+                )
+        );
+
+        Assert.Equal((int)CfhResultType.Sent, reply.PopInt());
+        var report = (await Reports()).Single();
+        report.Source.Should().Be(CfhSourceType.ForumMessage);
+        (report.GuildEntityId, report.ForumThreadEntityId, report.ForumMessageId)
+            .Should()
+            .Be((GROUP, THREAD, 1));
+        (report.ReportedEntityId, report.Message).Should().Be((REPORTED, "a rude reply"));
+    }
+
+    private void InsertForumPost()
+    {
+        _db.Insert(
+            new GuildForumThreadEntity
+            {
+                Id = THREAD,
+                GuildEntityId = GROUP,
+                PlayerEntityId = REPORTED,
+                Subject = "A rude subject",
+            }
+        );
+        _db.Insert(
+            new GuildForumMessageEntity
+            {
+                Id = 1,
+                GuildEntityId = GROUP,
+                ThreadEntityId = THREAD,
+                ForumMessageId = 1,
+                ThreadIndex = 0,
+                PlayerEntityId = REPORTED,
+                Text = "you are stupid",
+            }
+        );
     }
 
     private async Task<List<ClientPacket>> SendReportAsync(int topic) =>

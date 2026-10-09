@@ -11,4 +11,10 @@ public enum CfhSourceType
 
     /// <summary>A wall photo's report button: the photo's extra data id and its item.</summary>
     Photo = 2,
+
+    /// <summary>A forum thread's report button: the group and the thread.</summary>
+    ForumThread = 3,
+
+    /// <summary>A forum message's report button: the group, the thread and the message.</summary>
+    ForumMessage = 4,
 }

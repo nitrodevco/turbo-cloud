@@ -109,6 +109,25 @@ public sealed class CallForHelpService(
                 open.ToString(CultureInfo.InvariantCulture)
             );
 
+        // A forum report names no one: the client sends the post, whose author is reported.
+        var reportedId = submission.Source switch
+        {
+            CfhSourceType.ForumThread => await dbCtx
+                .GuildForumThreads.Where(x =>
+                    x.Id == submission.ThreadId && x.GuildEntityId == submission.GroupId
+                )
+                .Select(x => (int?)x.PlayerEntityId)
+                .FirstOrDefaultAsync(ct),
+            CfhSourceType.ForumMessage => await dbCtx
+                .GuildForumMessages.Where(x =>
+                    x.ForumMessageId == submission.MessageId
+                    && x.GuildEntityId == submission.GroupId
+                )
+                .Select(x => (int?)x.PlayerEntityId)
+                .FirstOrDefaultAsync(ct),
+            _ => submission.ReportedPlayerId > 0 ? submission.ReportedPlayerId : null,
+        };
+
         dbCtx.CfhReports.Add(
             new CfhReportEntity
             {
@@ -119,8 +138,10 @@ public sealed class CallForHelpService(
                     CfhReportEntity.EXTRA_DATA_ID_MAX_LENGTH
                 ),
                 ItemEntityId = submission.ItemId > 0 ? submission.ItemId : null,
-                ReportedEntityId =
-                    submission.ReportedPlayerId > 0 ? submission.ReportedPlayerId : null,
+                ReportedEntityId = reportedId,
+                GuildEntityId = submission.GroupId > 0 ? submission.GroupId : null,
+                ForumThreadEntityId = submission.ThreadId > 0 ? submission.ThreadId : null,
+                ForumMessageId = submission.MessageId > 0 ? submission.MessageId : null,
                 RoomEntityId = submission.RoomId > 0 ? submission.RoomId : null,
                 TopicId = submission.TopicId,
                 Message = ClientText.Truncate(
