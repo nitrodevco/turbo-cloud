@@ -76,6 +76,13 @@ public class RoomConfig
     public int CrackableOpenMs { get; init; } = 1500;
 
     /// <summary>
+    /// How long a present stands in its opening state before it is gone and the owner is told what
+    /// it held. Measured on Habbo: the "you open the gift" card follows the glow by 1.98 s and
+    /// 2.09 s, while the gift wrapped box bursts into its sparkles and confetti.
+    /// </summary>
+    public int PresentOpenMs { get; init; } = 2000;
+
+    /// <summary>
     /// How long a vending machine shows its dispensing state (state 1, which a fridge's or a drinks
     /// machine's asset animates) after handing an item over.
     /// </summary>
@@ -232,4 +239,23 @@ public class RoomConfig
 
     /// <summary>The team effects of a Freeze team, by team (none, red, green, blue, yellow).</summary>
     public int[] FreezeTeamEffectIds { get; init; } = [0, 40, 41, 42, 43];
+
+    /// <summary>
+    /// Whether owners may manage raid protection. Off, nobody is told they can and a save is
+    /// refused with "Raid protection is currently disabled".
+    /// </summary>
+    public bool RaidProtectionEnabled { get; init; } = true;
+
+    /// <summary>
+    /// The temporary ban lengths raid protection accepts: the client's ban length menu
+    /// (<c>RaidProtectionSettingsController.BAN_DURATION_VALUES</c>), 5 minutes to 1 week.
+    /// </summary>
+    public int[] RaidBanDurationsSeconds { get; init; } =
+    [300, 900, 1800, 3600, 10800, 21600, 43200, 86400, 259200, 604800];
+
+    /// <summary>
+    /// How long the door guard may block suspicious visitors: the client's menu
+    /// (<c>GUARD_DURATION_VALUES</c>), 5 minutes to 3 hours.
+    /// </summary>
+    public int[] RaidGuardDurationsSeconds { get; init; } = [300, 900, 1800, 3600, 10800];
 }

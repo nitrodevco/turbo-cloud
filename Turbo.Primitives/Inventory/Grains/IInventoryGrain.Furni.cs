@@ -114,6 +114,15 @@ public partial interface IInventoryGrain
     public Task ReceivePresentAsync(PresentGrantRequest request, CancellationToken ct);
 
     /// <summary>
+    /// Wraps a gift from the hotel and gives it to this player, as <see cref="ReceivePresentAsync"/>
+    /// does a bought one. Returns the present as listed.
+    /// </summary>
+    public Task<FurnitureItemSnapshot> ReceiveStaffPresentAsync(
+        StaffPresentGrantRequest request,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// Takes the item a present holds out of it and lists it here, before the present itself is
     /// deleted. Null when the present holds nothing.
     /// </summary>

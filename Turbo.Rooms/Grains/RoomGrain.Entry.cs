@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -6,6 +7,8 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
+using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains;
 
@@ -91,13 +94,22 @@ public sealed partial class RoomGrain
                 Room = _state.RoomSnapshot,
                 Map = MapModule.GetMapSnapshot(ct),
                 OwnerNames = FurniModule.GetOwnerNames(),
-                FloorItems = FurniModule.GetFloorItemSnapshots(),
-                WallItems = FurniModule.GetWallItemSnapshots(),
+                FloorItems = FurniModule.GetShownFloorItemSnapshots(),
+                WallItems = FurniModule.GetShownWallItemSnapshots(),
                 Avatars = AvatarModule.GetAvatarSnapshots(),
                 Properties = [.. _state.RoomProperties],
                 CanRate = CanRate(playerId),
                 ActiveEvent = GetActiveEvent(),
                 IsMuted = _state.IsRoomMuted,
+                AreaHides =
+                [
+                    .. FurniModule
+                        .Items.Select(x => (x.Logic as FurnitureAreaHideLogic)?.GetActiveArea())
+                        .OfType<AreaHideDataSnapshot>(),
+                ],
+                InvisibleFurni = FurnitureInvisibleFurniControlLogic.IsInvisibleFurniOn(
+                    FurniModule
+                ),
             }
         );
 

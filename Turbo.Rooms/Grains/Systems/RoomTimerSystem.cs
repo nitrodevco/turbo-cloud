@@ -43,11 +43,18 @@ public sealed class RoomTimerSystem(RoomGrain roomGrain) : RoomGrainComponent(ro
 
     public async Task ProcessTimersAsync(long now, CancellationToken ct)
     {
+        // A callback that schedules its own next run (a clock's tick) waits for the next pass,
+        // even when that run is already due; otherwise one pass would run it over and over.
+        var lastVersionBeforePass = _nextVersion;
+
         while (_schedule.TryPeek(out var entry, out var dueAtMs) && dueAtMs <= now)
         {
-            _schedule.Dequeue();
-
             var (objectId, version) = entry;
+
+            if (version > lastVersionBeforePass)
+                break;
+
+            _schedule.Dequeue();
 
             // A replaced or cancelled timer leaves a stale queue entry behind; skip it.
             if (!_timersByObjectId.TryGetValue(objectId, out var timer) || timer.Version != version)

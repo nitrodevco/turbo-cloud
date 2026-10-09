@@ -20,6 +20,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
@@ -331,6 +332,9 @@ public abstract partial class FurnitureWiredLogic(
                 return false;
             }
 
+            RefuseUnpickableFurni(update.StuffIds);
+            RefuseUnpickableFurni(update.StuffIds2);
+
             if (GetValidStuffIds(update.StuffIds, out var validStuffIds))
                 stuffIds = validStuffIds;
 
@@ -445,6 +449,10 @@ public abstract partial class FurnitureWiredLogic(
             await OnWiredStackChangedAsync(ctx, [_ctx.GetTileIdx()], ct);
 
             return true;
+        }
+        catch (WiredSaveRefusedException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -588,6 +596,31 @@ public abstract partial class FurnitureWiredLogic(
         return true;
     }
 
+    /// <summary>
+    /// Whether this box may pick the furni at all. A box that takes only one kind (click tiles,
+    /// chests, contracts) says which here and names the hotel's refusal in
+    /// <see cref="PickRefusedErrorKey"/>; a save picking anything else is refused with it, and a
+    /// stored pick of anything else is dropped.
+    /// </summary>
+    protected virtual bool CanPickFurni(IRoomItem item) => true;
+
+    /// <summary>The <c>wiredfurni.error.require_*</c> text for a pick <see cref="CanPickFurni"/> refuses.</summary>
+    protected virtual string? PickRefusedErrorKey => null;
+
+    private void RefuseUnpickableFurni(List<int> proposed)
+    {
+        foreach (var proposedId in proposed)
+        {
+            if (
+                FurniModule.TryGetItem(
+                    WiredFurniIds.FromClient(FurniModule, proposedId),
+                    out var item
+                ) && !CanPickFurni(item)
+            )
+                throw new WiredSaveRefusedException(PickRefusedErrorKey ?? WiredSaveErrors.GENERIC);
+        }
+    }
+
     protected virtual bool GetValidStuffIds(List<int> proposed, out List<int> stuffIds)
     {
         stuffIds = [];
@@ -602,7 +635,7 @@ public abstract partial class FurnitureWiredLogic(
 
             var id = WiredFurniIds.FromClient(FurniModule, proposedId);
 
-            if (!FurniModule.HasItem(id) || !seen.Add(id))
+            if (!FurniModule.TryGetItem(id, out var item) || !CanPickFurni(item) || !seen.Add(id))
                 continue;
 
             stuffIds.Add(id);

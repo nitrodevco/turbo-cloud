@@ -566,7 +566,7 @@ internal sealed partial class RoomService(
                 FixedWallsHeight =
                     snapshot.WallHeight >= 0 ? snapshot.WallHeight : _roomConfig.DefaultWallHeight,
                 ModelData = mapSnapshot.ModelData,
-                AreaHideData = [],
+                AreaHideData = [.. view.AreaHides],
                 CameraInitX = mapSnapshot.DoorX,
                 CameraInitY = mapSnapshot.DoorY,
                 CameraInitZ = doorAltitude,
@@ -610,6 +610,18 @@ internal sealed partial class RoomService(
         composers.Add(
             new ItemsMessageComposer { OwnerNames = view.OwnerNames, WallItems = view.WallItems }
         );
+
+        // Only when on: the client starts every room with the marks of invisible furni shown.
+        if (view.InvisibleFurni)
+            composers.Add(
+                new ConfigurationItemStatesMessageComposer
+                {
+                    IsHanditemControlBlocked = false,
+                    ChooserDisabled = false,
+                    FreeFurniMovementsEnabled = false,
+                    InvisibleFurni = true,
+                }
+            );
         composers.Add(new UsersMessageComposer { Avatars = view.Avatars });
         composers.Add(new UserUpdateMessageComposer { Avatars = view.Avatars });
 
@@ -669,6 +681,21 @@ internal sealed partial class RoomService(
                 {
                     RoomId = roomId,
                     IsOwner = controllerLevel >= RoomControllerType.Owner,
+                },
+                ct
+            )
+            .ConfigureAwait(false);
+
+        // After the entry info: the client takes this only for the room it has entered, which
+        // that message is what tells it, and shows Room info's raid protection button on it.
+        await _grainFactory
+            .SendComposerToPlayerAsync(
+                ctx.PlayerId,
+                new RaidProtectionCapabilityMessageComposer
+                {
+                    RoomId = roomId,
+                    CanManage = await room.CanManageRaidProtectionAsync(roomCtx, ct)
+                        .ConfigureAwait(false),
                 },
                 ct
             )

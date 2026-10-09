@@ -128,24 +128,26 @@ public class WiredPermanentUserVariableTests
         _room.AddToRoom(item);
 
         Assert.True(
-            await _room.Room.ApplyWiredUpdateAsync(
-                ActionContext.CreateForSystem(1),
-                BoxId,
-                new UpdateWiredMessage
-                {
-                    Id = BoxId,
-                    IntParams = [(int)availability, 1],
-                    StringParam = "score",
-                    StuffIds = [],
-                    StuffIds2 = [],
-                    DefinitionSpecifics = [],
-                    FurniSources = [],
-                    PlayerSources = [],
-                    VariableIds = [],
-                    TypeSpecifics = [],
-                },
-                CancellationToken.None
-            )
+            (
+                await _room.Room.ApplyWiredUpdateAsync(
+                    ActionContext.CreateForSystem(1),
+                    BoxId,
+                    new UpdateWiredMessage
+                    {
+                        Id = BoxId,
+                        IntParams = [(int)availability, 1],
+                        StringParam = "score",
+                        StuffIds = [],
+                        StuffIds2 = [],
+                        DefinitionSpecifics = [],
+                        FurniSources = [],
+                        PlayerSources = [],
+                        VariableIds = [],
+                        TypeSpecifics = [],
+                    },
+                    CancellationToken.None
+                )
+            ).IsSaved
         );
 
         _box = (WiredVariableUser)item.Logic;

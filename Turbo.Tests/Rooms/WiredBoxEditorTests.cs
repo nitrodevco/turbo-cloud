@@ -67,7 +67,7 @@ public class WiredBoxEditorTests
             CancellationToken.None
         );
 
-        Assert.True(saved);
+        Assert.True(saved.IsSaved);
     }
 
     [Fact]
@@ -121,29 +121,31 @@ public class WiredBoxEditorTests
         return snapshot;
     }
 
-    private static Task<bool> SaveAsync(
+    private static async Task<bool> SaveAsync(
         RoomHarness room,
         List<int> intParams,
         List<int> stuffIds
     ) =>
-        room.Room.ApplyWiredUpdateAsync(
-            ActionContext.CreateForSystem(1),
-            BoxId,
-            new UpdateWiredMessage
-            {
-                Id = BoxId,
-                IntParams = intParams,
-                StringParam = "",
-                StuffIds = stuffIds,
-                StuffIds2 = [],
-                DefinitionSpecifics = [],
-                FurniSources = [],
-                PlayerSources = [],
-                VariableIds = [],
-                TypeSpecifics = [],
-            },
-            CancellationToken.None
-        );
+        (
+            await room.Room.ApplyWiredUpdateAsync(
+                ActionContext.CreateForSystem(1),
+                BoxId,
+                new UpdateWiredMessage
+                {
+                    Id = BoxId,
+                    IntParams = intParams,
+                    StringParam = "",
+                    StuffIds = stuffIds,
+                    StuffIds2 = [],
+                    DefinitionSpecifics = [],
+                    FurniSources = [],
+                    PlayerSources = [],
+                    VariableIds = [],
+                    TypeSpecifics = [],
+                },
+                CancellationToken.None
+            )
+        ).IsSaved;
 
     private static RoomHarness CreateRoomWithBox()
     {

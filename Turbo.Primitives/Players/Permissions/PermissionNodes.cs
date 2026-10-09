@@ -158,6 +158,7 @@ public static class PermissionNodes
         public const string GIVEBADGE = "command.givebadge";
         public const string TAKEBADGE = "command.takebadge";
         public const string GIVEITEM = "command.giveitem";
+        public const string GIFT = "command.gift";
 
         /// <summary>Aim a currency, badge or item at <c>@room</c> or <c>@online</c>.</summary>
         public const string GIVE_MASS = "command.give.mass";

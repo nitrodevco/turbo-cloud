@@ -146,6 +146,10 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 break;
             case PlayerControllerLevelChangedEvent levelEvt:
                 return SendPermissionsAsync(levelEvt.PlayerId, levelEvt.ControllerLevel, ct);
+            case PlayerEnterEvent enterEvt:
+                QueueEvent(evt);
+
+                return SendClickUserEnvironmentAsync(enterEvt.PlayerId, ct);
             case PlayerLeftEvent playerLeftEvt:
                 _playerActiveStore.RemoveAvatarStore(playerLeftEvt.ObjectId);
                 QueueEvent(evt);
@@ -440,6 +444,11 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 if (AvatarModule.TryGetAvatar(clickEvt.TargetObjectId, out _))
                     ctx.EventTargets.SelectedAvatarIds.Add(clickEvt.TargetObjectId);
 
+                break;
+            // The click tile clicked is the triggering item, like a clicked furni.
+            case PlayerClickedTileEvent tileEvt:
+                AddPlayerById(ctx, tileEvt.PlayerId);
+                ctx.Selected.SelectedFurniIds.Add(tileEvt.FurniId);
                 break;
             case PlayerEvent playerEvt:
                 AddPlayerById(ctx, playerEvt.PlayerId);
@@ -873,6 +882,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 }
             }
         }
+
+        await RefreshClickUserEnvironmentAsync(ct);
     }
 
     private async Task ProcessWiredStackAsync(int stackId, CancellationToken ct)

@@ -4,7 +4,9 @@ using Turbo.Primitives.Packets;
 
 namespace Turbo.Revisions.Revision20260909.Parsers.Groupforums;
 
+/// <summary>The group id (AS3 GetForumStatsMessageComposer).</summary>
 internal class GetForumStatsMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new GetForumStatsMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new GetForumStatsMessage { GroupId = packet.PopInt() };
 }

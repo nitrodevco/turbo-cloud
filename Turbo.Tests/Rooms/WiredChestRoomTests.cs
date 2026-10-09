@@ -8,6 +8,7 @@ using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
+using Turbo.Primitives.Messages.Outgoing.Vault;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
@@ -45,6 +46,52 @@ public class WiredChestRoomTests
         await chest.OnPlaceAsync(ActionContext.CreateForPlayer(OWNER, 1), default);
 
         chest.IsLocked.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task The_owner_upgrades_a_coin_chest_to_a_wired_chest()
+    {
+        // ChestSettingsUI only fills the preview dropdowns for a furni chest; a coin chest's save
+        // carries them unset, as -1.
+        var (room, chest) = CreateRoomWithChest(coins: true);
+        AddPlayer(room, OWNER);
+        StubSummary(room);
+
+        var done = await room.Room.InteractWithItemAsync(
+            ActionContext.CreateForPlayer(OWNER, 1),
+            CHEST,
+            Preferences(previewMode: (WiredChestPreviewMode)(-1), previewAmount: -1, wired: true),
+            default
+        );
+
+        done.Should().BeTrue();
+        chest.IsWiredEnabled.Should().BeTrue();
+        Sent(room.Fakes)
+            .OfType<ChestPreferencesUpdateSuccessMessageComposer>()
+            .Should()
+            .ContainSingle(x => x.ChestId == CHEST);
+    }
+
+    [Fact]
+    public async Task A_furni_chest_saves_with_its_preview_amount_unpicked()
+    {
+        var (room, chest) = CreateRoomWithChest();
+        AddPlayer(room, OWNER);
+        StubSummary(room);
+
+        var done = await room.Room.InteractWithItemAsync(
+            ActionContext.CreateForPlayer(OWNER, 1),
+            CHEST,
+            Preferences(previewMode: WiredChestPreviewMode.None, previewAmount: 0, wired: false),
+            default
+        );
+
+        done.Should().BeTrue();
+        chest.Settings.PreviewAmount.Should().Be(1);
+        Sent(room.Fakes)
+            .OfType<ChestPreferencesUpdateSuccessMessageComposer>()
+            .Should()
+            .ContainSingle(x => x.ChestId == CHEST);
     }
 
     [Fact]
@@ -278,7 +325,30 @@ public class WiredChestRoomTests
         )[playerId] = player;
     }
 
-    private static (RoomHarness Room, FurnitureWiredChestLogic Chest) CreateRoomWithChest()
+    private static void StubSummary(RoomHarness room) =>
+        room.Fakes.Handlers[nameof(IWiredChestGrain.GetSummaryAsync)] = _ =>
+            Task.FromResult(WiredChestSummarySnapshot.Empty);
+
+    private static SetChestPreferencesInteraction Preferences(
+        WiredChestPreviewMode previewMode,
+        int previewAmount,
+        bool wired
+    ) =>
+        new()
+        {
+            Name = "chest",
+            Description = "",
+            EveryoneCanOpen = false,
+            EveryoneCanDonate = false,
+            StateMode = default,
+            PreviewMode = previewMode,
+            PreviewAmount = previewAmount,
+            WiredEnabled = wired,
+        };
+
+    private static (RoomHarness Room, FurnitureWiredChestLogic Chest) CreateRoomWithChest(
+        bool coins = false
+    )
     {
         var room = new RoomHarness();
 
@@ -289,7 +359,7 @@ public class WiredChestRoomTests
         )!;
         stream.SetValue(room.Room, room.Fakes.Create(stream.FieldType, "room-stream"));
 
-        var item = CreateChest(room, CHEST, 2);
+        var item = coins ? CreateCoinChest(room, CHEST, 2) : CreateChest(room, CHEST, 2);
 
         room.AddToRoom(item);
 
@@ -306,5 +376,17 @@ public class WiredChestRoomTests
             logic: "wired_chest_furni",
             createLogic: (stuffDataFactory, ctx) =>
                 new FurnitureWiredFurniChestLogic(stuffDataFactory, ctx)
+        );
+
+    private static RoomFloorItem CreateCoinChest(RoomHarness room, int id, int x) =>
+        room.CreateFloorItem(
+            id,
+            x,
+            2,
+            Altitude.Zero,
+            name: "wf_storage_coins1",
+            logic: "wired_chest_coins",
+            createLogic: (stuffDataFactory, ctx) =>
+                new FurnitureWiredCoinsChestLogic(stuffDataFactory, ctx)
         );
 }

@@ -299,48 +299,27 @@ public sealed partial class RoomGrain
             () => AvatarModule.DropHandItemAsync(ctx, ct)
         );
 
-    public async Task<bool> ClickAvatarAsync(
+    /// <summary>
+    /// A plain click on an avatar wakes the clicker. The "user clicks user" trigger is fired by
+    /// the client's own report of the click (<c>WiredClickUser</c>, sent while the room has one;
+    /// <see cref="WiredClickAvatarAsync"/>), not by this one.
+    /// </summary>
+    public Task<bool> ClickAvatarAsync(
         ActionContext ctx,
         RoomObjectId targetObjectId,
         CancellationToken ct
     )
     {
-        try
-        {
-            if (
-                ctx.PlayerId <= 0
-                || !AvatarModule.TryGetAvatar(targetObjectId, out _)
-                || !AvatarModule.TryGetPlayer(ctx.PlayerId, out _)
-            )
-                return false;
+        if (
+            ctx.PlayerId <= 0
+            || !AvatarModule.TryGetAvatar(targetObjectId, out _)
+            || !AvatarModule.TryGetPlayer(ctx.PlayerId, out _)
+        )
+            return Task.FromResult(false);
 
-            AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
+        AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
 
-            await PublishRoomEventAsync(
-                new PlayerClickedAvatarEvent
-                {
-                    RoomId = _state.RoomId,
-                    CausedBy = ctx,
-                    PlayerId = ctx.PlayerId,
-                    TargetObjectId = targetObjectId,
-                },
-                ct
-            );
-
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Player {PlayerId} failed to click avatar {ObjectId} in room {RoomId}",
-                ctx.PlayerId,
-                targetObjectId,
-                _state.RoomId
-            );
-
-            return false;
-        }
+        return Task.FromResult(true);
     }
 
     public async Task<bool> RespectPlayerAsync(

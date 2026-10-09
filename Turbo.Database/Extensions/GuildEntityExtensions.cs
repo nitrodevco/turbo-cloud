@@ -1,6 +1,9 @@
+using System;
 using Turbo.Database.Entities.Guilds;
+using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
+using Turbo.Primitives.Guilds.Forums.Snapshots;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
@@ -69,5 +72,91 @@ public static class GuildEntityExtensions
             Slot = entity.Slot,
             ColorId = entity.ColorId,
             Color = entity.Color,
+        };
+
+    /// <summary>Whole seconds from <paramref name="at"/> to <paramref name="now"/>, never below 0.</summary>
+    private static int SecondsAgo(DateTime? at, DateTime now) =>
+        at is { } value ? (int)Math.Max(0, Math.Min(int.MaxValue, (now - value).TotalSeconds)) : 0;
+
+    public static GuildForumSnapshot ToSnapshot(
+        this GuildForumEntity forum,
+        GuildEntity guild,
+        string lastMessageAuthorName,
+        int lastReadMessageId,
+        int recentMessages,
+        DateTime now
+    ) =>
+        new()
+        {
+            GroupId = guild.Id,
+            Name = guild.Name,
+            Description = guild.Description,
+            Icon = guild.BadgeCode,
+            TotalThreads = forum.ThreadCount,
+            LeaderboardScore = recentMessages,
+            TotalMessages = forum.MessageCount,
+            UnreadMessages = Math.Max(0, forum.MessageCount - lastReadMessageId),
+            LastMessageId = forum.MessageCount,
+            LastMessageAuthorId = forum.LastMessagePlayerEntityId ?? 0,
+            LastMessageAuthorName = lastMessageAuthorName,
+            LastMessageSecondsAgo = SecondsAgo(forum.LastMessageAt, now),
+        };
+
+    /// <param name="lastMessage">The thread's last message, null for a thread with none.</param>
+    /// <param name="subject">The subject as this viewer may see it.</param>
+    public static GuildForumThreadSnapshot ToSnapshot(
+        this GuildForumThreadEntity thread,
+        string subject,
+        string authorName,
+        GuildForumMessageEntity? lastMessage,
+        string lastMessageAuthorName,
+        int unreadMessages,
+        string moderatorName,
+        DateTime now
+    ) =>
+        new()
+        {
+            ThreadId = thread.Id,
+            AuthorId = thread.PlayerEntityId,
+            AuthorName = authorName,
+            Subject = subject,
+            IsSticky = thread.IsSticky,
+            IsLocked = thread.IsLocked,
+            CreatedSecondsAgo = SecondsAgo(thread.CreatedAt, now),
+            TotalMessages = thread.MessageCount,
+            UnreadMessages = unreadMessages,
+            LastMessageId = lastMessage?.ForumMessageId ?? 0,
+            LastMessageAuthorId = lastMessage?.PlayerEntityId ?? 0,
+            LastMessageAuthorName = lastMessageAuthorName,
+            LastMessageSecondsAgo = SecondsAgo(lastMessage?.CreatedAt, now),
+            State = thread.State,
+            ModeratorId = thread.ModeratorEntityId ?? 0,
+            ModeratorName = moderatorName,
+            ModeratedSecondsAgo = SecondsAgo(thread.ModeratedAt, now),
+        };
+
+    /// <param name="text">The text as this viewer may see it.</param>
+    public static GuildForumMessageSnapshot ToSnapshot(
+        this GuildForumMessageEntity message,
+        string text,
+        PlayerEntity? author,
+        int authorPostCount,
+        string moderatorName,
+        DateTime now
+    ) =>
+        new()
+        {
+            MessageId = message.ForumMessageId,
+            MessageIndex = message.ThreadIndex,
+            AuthorId = message.PlayerEntityId,
+            AuthorName = author?.Name ?? "",
+            AuthorFigure = author?.Figure ?? "",
+            CreatedSecondsAgo = SecondsAgo(message.CreatedAt, now),
+            Text = text,
+            State = message.State,
+            ModeratorId = message.ModeratorEntityId ?? 0,
+            ModeratorName = moderatorName,
+            ModeratedSecondsAgo = SecondsAgo(message.ModeratedAt, now),
+            AuthorPostCount = authorPostCount,
         };
 }

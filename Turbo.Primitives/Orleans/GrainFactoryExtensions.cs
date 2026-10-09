@@ -25,6 +25,7 @@ using Turbo.Primitives.Players.Grains.Subscriptions;
 using Turbo.Primitives.Players.Grains.Wardrobe;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Wallet;
+using Turbo.Primitives.Quests.Grains;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
@@ -173,6 +174,16 @@ public static class GrainFactoryExtensions
     public static IGuildGrain GetGuildGrain(this IGrainFactory factory, GuildId guildId) =>
         factory.GetGrain<IGuildGrain>((long)guildId.Value);
 
+    public static IGuildForumGrain GetGuildForumGrain(
+        this IGrainFactory factory,
+        GuildId guildId
+    ) => factory.GetGrain<IGuildForumGrain>(guildId.Value);
+
+    public static IPlayerGuildForumGrain GetPlayerGuildForumGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerGuildForumGrain>(playerId.Value);
+
     public static IPlayerGuildGrain GetPlayerGuildGrain(
         this IGrainFactory factory,
         PlayerId playerId
@@ -231,6 +242,16 @@ public static class GrainFactoryExtensions
         this IGrainFactory factory,
         PlayerId playerId
     ) => factory.GetGrain<IPlayerWardrobeGrain>(playerId.Value);
+
+    public static IPlayerDailyTaskGrain GetPlayerDailyTaskGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerDailyTaskGrain>(playerId.Value);
+
+    public static IPlayerRewardTrackGrain GetPlayerRewardTrackGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerRewardTrackGrain>(playerId.Value);
 
     public static IPlayerSettingsGrain GetPlayerSettingsGrain(
         this IGrainFactory factory,

@@ -241,6 +241,7 @@ what suits it; `admin` holds `*`.
 | | `:give <who> <currency> <amount>` | `command.give` | Wallet grain; negative takes, never below nothing; currencies are the hotel's `currency_types` names; capped by `MaxCurrencyAmount`. |
 | | `:givebadge`, `:takebadge <who> <code>` | `command.givebadge`, `command.takebadge` | Badge grain. |
 | | `:giveitem <who> <furni> [count]` | `command.giveitem` | `GrantFurnitureAsync`, furni by definition name; capped by `MaxGiveItemCount`. |
+| | `:gift <who> <furni> "<note>" [badge] [trusted]` | `command.gift` | `ReceiveStaffPresentAsync`: a gift wrapped present with no sender on the tag (the client's "Special Gift"), furni by definition name or id; the badge is given as it is opened; `true` drops the client's untrusted-sender warning, which Habbo's own staff gift keeps. Note capped by `MaxGiftMessageLength`. |
 | Administration | `:group add\|remove <who> <group> [duration]` | `command.group` and `permissions.manage` | The permission grains and audit; needs both nodes, so the command alone cannot hand out a group. |
 | | `:perm check <who> <node>` | `command.perm` | `ExplainAsync`: what decided, and what it beat. |
 | | `:status`, `:online` | `command.status`, `command.online` (`command.online.list` for names) | Uptime, players, rooms, silos, memory, availability. |
@@ -261,6 +262,10 @@ and tells nobody else. A selector use is always logged, whether or not the execu
 **Replies.** Statuses are hotel texts as for room commands. The multi-line reports (`:whois`,
 `:perm`, `:status`, `:online` list) are English notices and are not translatable yet. The ban and
 maintenance messages are hotel texts (`moderation.ban.message`, `hotel.maintenance.started`).
+What the help window's sanction info says about a silence or a trade lock is a hotel text too
+(`moderation.sanction.mute`, `moderation.sanction.trade_lock`, each with a `.permanent` form).
+A refused call for help says why in one too (`moderation.cfh.too_many`, `%0%` the reports
+waiting; `moderation.cfh.unknown_topic`).
 
 **Deliberately not here.**
 - Avatar toys: `:sit`, `:lay`, `:moonwalk`, `:carry`, `:enable`, `:mimic`, `:push`, `:pull`,

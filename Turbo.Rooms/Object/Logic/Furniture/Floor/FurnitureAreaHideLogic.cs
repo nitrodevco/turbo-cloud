@@ -7,7 +7,9 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Wired.Variables.Furniture.Smart;
@@ -15,9 +17,11 @@ using Turbo.Rooms.Wired.Variables.Furniture.Smart;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 /// <summary>
-/// An area hider: int data <c>[state, rootX, rootY, width, length, invisibility, wallItems,
-/// invert]</c> as the client's area-hide logic reads it. The client does the hiding; the server
-/// keeps the settings, toggles them, and announces both.
+/// An area hider (<c>conf_area_hide</c>, "Room Area Hider"): int data <c>[state, rootX, rootY,
+/// width, length, invisibility, wallItems, invert]</c> as the client's area-hide logic reads it.
+/// The client does the hiding (a hole in the floor, Flash <c>RoomEngine.updateAreaHide</c>); the
+/// server keeps the settings, toggles them, announces both, and sends the areas in force to
+/// whoever walks in.
 /// </summary>
 [RoomObjectLogic("area_hide")]
 public class FurnitureAreaHideLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
@@ -35,6 +39,9 @@ public class FurnitureAreaHideLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
     private const int WALL_ITEMS_INDEX = 6;
     private const int INVERT_INDEX = 7;
 
+    // Picked up: it hides nothing any more, though it is still on.
+    private bool _detached;
+
     protected override StuffDataType _stuffDataType => StuffDataType.NumberKey;
 
     /// <summary>One of the int data values (<c>~area_hide.*</c> reads them).</summary>
@@ -51,8 +58,7 @@ public class FurnitureAreaHideLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
 
         values[index] = value;
 
-        await SetNumberDataAsync(values);
-        await AnnounceAsync();
+        await ApplyAsync(values);
     }
 
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Controller;
@@ -64,7 +70,7 @@ public class FurnitureAreaHideLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
 
         var next = numbers.ValueAt(STATE_INDEX) == ON ? OFF : ON;
 
-        await SetNumberDataAsync([
+        await ApplyAsync([
             next,
             numbers.ValueAt(ROOT_X_INDEX),
             numbers.ValueAt(ROOT_Y_INDEX),
@@ -74,7 +80,6 @@ public class FurnitureAreaHideLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
             numbers.ValueAt(WALL_ITEMS_INDEX),
             numbers.ValueAt(INVERT_INDEX),
         ]);
-        await AnnounceAsync();
     }
 
     public override async Task<bool> OnInteractAsync(
@@ -103,7 +108,7 @@ public class FurnitureAreaHideLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
         )
             return Reject(ctx, interaction, "area out of range");
 
-        await SetNumberDataAsync([
+        await ApplyAsync([
             numbers.ValueAt(STATE_INDEX),
             area.RootX,
             area.RootY,
@@ -113,30 +118,89 @@ public class FurnitureAreaHideLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
             area.WallItems ? 1 : 0,
             area.Invert ? 1 : 0,
         ]);
-        await AnnounceAsync();
 
         return true;
     }
 
-    private Task AnnounceAsync()
+    /// <summary>
+    /// The area this hider hides right now, or null while it is off: what a player who walks in
+    /// is sent with the floor map, as Flash's <c>FloorHeightMapMessageParser</c> reads it.
+    /// </summary>
+    public AreaHideDataSnapshot? GetActiveArea()
     {
-        if (StuffData is not INumberStuffData numbers)
-            return Task.CompletedTask;
+        var area = ToSnapshot();
 
-        return _ctx.SendComposerToRoomAsync(
-            new AreaHideMessageComposer
-            {
-                AreaHideData = new AreaHideDataSnapshot
-                {
-                    FurniId = _ctx.ObjectId,
-                    On = numbers.ValueAt(STATE_INDEX) == ON,
-                    RootX = numbers.ValueAt(ROOT_X_INDEX),
-                    RootY = numbers.ValueAt(ROOT_Y_INDEX),
-                    Width = numbers.ValueAt(WIDTH_INDEX),
-                    Length = numbers.ValueAt(LENGTH_INDEX),
-                    Invert = numbers.ValueAt(INVERT_INDEX) == 1,
-                },
-            }
+        return !_detached && area is { On: true } ? area : null;
+    }
+
+    /// <summary>Picked up while on: the clients fill the hole again and see what it hid.</summary>
+    public override async Task OnDetachAsync(CancellationToken ct)
+    {
+        await base.OnDetachAsync(ct);
+
+        if (GetActiveArea() is not { } area)
+            return;
+
+        var hiddenBefore = FurniModule.GetHiddenItemIds();
+
+        _detached = true;
+
+        await _ctx.SendComposerToRoomAsync(
+            new AreaHideMessageComposer { AreaHideData = area with { On = false } }
         );
+        await FurniModule.AnnounceHiddenItemsChangedAsync(hiddenBefore, ct);
+    }
+
+    private AreaHideDataSnapshot? ToSnapshot() =>
+        StuffData is INumberStuffData numbers
+            ? new AreaHideDataSnapshot
+            {
+                FurniId = _ctx.ObjectId,
+                On = numbers.ValueAt(STATE_INDEX) == ON,
+                RootX = numbers.ValueAt(ROOT_X_INDEX),
+                RootY = numbers.ValueAt(ROOT_Y_INDEX),
+                Width = numbers.ValueAt(WIDTH_INDEX),
+                Length = numbers.ValueAt(LENGTH_INDEX),
+                Invert = numbers.ValueAt(INVERT_INDEX) == 1,
+            }
+            : null;
+
+    /// <summary>
+    /// Whether this hider, switched on, hides the item: a floor item standing in its area, a wall
+    /// item there when it hides wall items, or with "invert" whatever stands outside it. The hider
+    /// itself always shows, or nobody could switch it off again. An item's own tile decides, not
+    /// its whole footprint (inference: the client's area is a set of floor tiles).
+    /// </summary>
+    public bool Hides(IRoomItem item)
+    {
+        if (item.ObjectId == _ctx.ObjectId || GetActiveArea() is not { } area)
+            return false;
+
+        if (item is IRoomWallItem && ValueAt(WALL_ITEMS_INDEX) != 1)
+            return false;
+
+        var inside =
+            item.X >= area.RootX
+            && item.X < area.RootX + area.Width
+            && item.Y >= area.RootY
+            && item.Y < area.RootY + area.Length;
+
+        return inside != area.Invert;
+    }
+
+    /// <summary>
+    /// Stores new settings and tells the room: the area itself, then the furni it now hides or
+    /// shows again (Habbo: "Fixed floor furni not appearing after revealed by area hider").
+    /// </summary>
+    private async Task ApplyAsync(int[] values)
+    {
+        var hiddenBefore = FurniModule.GetHiddenItemIds();
+
+        await SetNumberDataAsync(values);
+
+        if (ToSnapshot() is { } area)
+            await _ctx.SendComposerToRoomAsync(new AreaHideMessageComposer { AreaHideData = area });
+
+        await FurniModule.AnnounceHiddenItemsChangedAsync(hiddenBefore, CancellationToken.None);
     }
 }

@@ -2,4 +2,11 @@ using Turbo.Primitives.Networking;
 
 namespace Turbo.Primitives.Messages.Incoming.Groupforums;
 
-public record GetForumsListMessage : IMessageEvent { }
+public record GetForumsListMessage : IMessageEvent
+{
+    public required int ListCode { get; init; }
+
+    public required int StartIndex { get; init; }
+
+    public required int Amount { get; init; }
+}

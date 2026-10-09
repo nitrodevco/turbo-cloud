@@ -421,11 +421,20 @@ public abstract class FurnitureWiredChestLogic(
         )
             return Reject(ctx, preferences, "name or description too long");
 
+        // Flash only fills the preview dropdowns for a furni chest: a coin chest sends them unset
+        // (-1 or 0), and so does a furni chest whose amount was never picked. Keep what is stored.
+        var previewMode =
+            Kind == WiredChestKind.Furni ? preferences.PreviewMode : Settings.PreviewMode;
+        var previewAmount =
+            Kind == WiredChestKind.Furni && preferences.PreviewAmount >= 1
+                ? preferences.PreviewAmount
+                : Settings.PreviewAmount;
+
         if (
             !Enum.IsDefined(preferences.StateMode)
-            || !Enum.IsDefined(preferences.PreviewMode)
-            || preferences.PreviewAmount < 1
-            || preferences.PreviewAmount > config.MaxPreviewItems
+            || !Enum.IsDefined(previewMode)
+            || previewAmount < 1
+            || previewAmount > config.MaxPreviewItems
         )
             return Reject(ctx, preferences, "unknown appearance setting");
 
@@ -451,8 +460,8 @@ public abstract class FurnitureWiredChestLogic(
                     preferences.EveryoneCanDonate
                 ),
                 [WiredChestData.STATE_CONTROL_MODE] = Format((int)preferences.StateMode),
-                [WiredChestData.PREVIEW_MODE] = Format((int)preferences.PreviewMode),
-                [WiredChestData.PREVIEW_AMOUNT] = Format(preferences.PreviewAmount),
+                [WiredChestData.PREVIEW_MODE] = Format((int)previewMode),
+                [WiredChestData.PREVIEW_AMOUNT] = Format(previewAmount),
                 [WiredChestData.IS_WIRED_ENABLED] = WiredChestData.Flag(
                     IsWiredEnabled || preferences.WiredEnabled
                 ),

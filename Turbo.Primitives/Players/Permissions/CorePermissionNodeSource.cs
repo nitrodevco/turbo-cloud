@@ -199,8 +199,12 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Use :giveitem to put furniture in a player's inventory."
         ),
         new(
+            PermissionNodes.Command.GIFT,
+            "Use :gift to send a player a present from the hotel, with a note and a badge."
+        ),
+        new(
             PermissionNodes.Command.GIVE_MASS,
-            "Aim :give, :givebadge, :takebadge and :giveitem at @room or @online. Always logged."
+            "Aim :give, :givebadge, :takebadge, :giveitem and :gift at @room or @online. Always logged."
         ),
         new(
             PermissionNodes.Command.GROUP,

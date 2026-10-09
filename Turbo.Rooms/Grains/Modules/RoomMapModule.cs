@@ -232,25 +232,36 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain) : RoomGrainCompon
         };
     }
 
-    public Task ClickTileAsync(ActionContext ctx, int x, int y, CancellationToken ct)
+    /// <summary>
+    /// A walk click on a tile with invisible click tiles on it is a click on each of them, which
+    /// the "user clicks tile" trigger picks.
+    /// </summary>
+    public async Task ClickTileAsync(ActionContext ctx, int x, int y, CancellationToken ct)
     {
-        var idx = ToIdx(x, y);
-        var tile = _roomGrain._state.TileFlags[idx];
+        if (
+            !InBounds(x, y)
+            || !_roomGrain._state.TileFlags[ToIdx(x, y)].Has(RoomTileFlags.TileClickListener)
+        )
+            return;
 
-        if (!tile.Has(RoomTileFlags.TileClickListener))
-            return Task.CompletedTask;
+        foreach (var item in FurniModule.GetFloorItemsOnTile(ToIdx(x, y)))
+        {
+            if (item.Logic is not FurnitureInvisibleClickTileLogic)
+                continue;
 
-        return _roomGrain.PublishRoomEventAsync(
-            new PlayerClickedTileEvent()
-            {
-                PlayerId = ctx.PlayerId,
-                TileX = x,
-                TileY = y,
-                RoomId = _roomGrain.RoomId,
-                CausedBy = ctx,
-            },
-            ct
-        );
+            await _roomGrain.PublishRoomEventAsync(
+                new PlayerClickedTileEvent()
+                {
+                    PlayerId = ctx.PlayerId,
+                    TileX = x,
+                    TileY = y,
+                    FurniId = item.ObjectId,
+                    RoomId = _roomGrain.RoomId,
+                    CausedBy = ctx,
+                },
+                ct
+            );
+        }
     }
 
     public void ComputeAllTiles()

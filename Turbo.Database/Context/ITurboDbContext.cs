@@ -3,10 +3,12 @@ using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Badges;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
+using Turbo.Database.Entities.Guilds;
 using Turbo.Database.Entities.Hotel;
 using Turbo.Database.Entities.Moderation;
 using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Players;
+using Turbo.Database.Entities.Quests;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Entities.Security;
 using Turbo.Database.Entities.Tracking;
@@ -47,6 +49,28 @@ public interface ITurboDbContext : IDisposable
     public DbSet<RoomModelEntity>? RoomModels { get; set; }
 
     public DbSet<RoomMuteEntity>? RoomMutes { get; set; }
+
+    public DbSet<CfhTopicEntity>? CfhTopics { get; set; }
+
+    public DbSet<DailyTaskDefinitionEntity>? DailyTaskDefinitions { get; set; }
+
+    public DbSet<PlayerDailyTaskEntity>? PlayerDailyTasks { get; set; }
+
+    public DbSet<PlayerRewardTrackEntity>? PlayerRewardTracks { get; set; }
+
+    public DbSet<GuildForumEntity>? GuildForums { get; set; }
+
+    public DbSet<GuildForumThreadEntity>? GuildForumThreads { get; set; }
+
+    public DbSet<GuildForumMessageEntity>? GuildForumMessages { get; set; }
+
+    public DbSet<GuildForumReadMarkerEntity>? GuildForumReadMarkers { get; set; }
+
+    public DbSet<CfhReportEntity>? CfhReports { get; set; }
+
+    public DbSet<CfhReportChatLineEntity>? CfhReportChatLines { get; set; }
+
+    public DbSet<RoomRaidProtectionEntity>? RoomRaidProtections { get; set; }
 
     public DbSet<RoomRightEntity>? RoomRights { get; set; }
 

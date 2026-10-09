@@ -632,6 +632,15 @@ public class Revision20260909 : IRevision
                 new CallForHelpFromSelfieMessageParser()
             },
             { MessageEvent.CallForHelpMessageEvent, new CallForHelpMessageParser() },
+            { MessageEvent.AppealCfhMessageEvent, new AppealCfhMessageParser() },
+            {
+                MessageEvent.GetCfhMyReportStatusMessageEvent,
+                new GetCfhMyReportStatusMessageParser()
+            },
+            {
+                MessageEvent.GetMySanctionStatusMessageEvent,
+                new GetMySanctionStatusMessageParser()
+            },
             {
                 MessageEvent.ChatReviewGuideDecidesOnOfferMessageEvent,
                 new ChatReviewGuideDecidesOnOfferMessageParser()
@@ -1068,6 +1077,15 @@ public class Revision20260909 : IRevision
                 new GetConcurrentUsersRewardMessageParser()
             },
             { MessageEvent.GetDailyTasksMessageEvent, new GetDailyTasksMessageParser() },
+            { MessageEvent.ClaimDailyTaskMessageEvent, new ClaimDailyTaskMessageParser() },
+            {
+                MessageEvent.ClaimRewardTrackPrizeMessageEvent,
+                new ClaimRewardTrackPrizeMessageParser()
+            },
+            {
+                MessageEvent.PurchaseRewardTrackPremiumMessageEvent,
+                new PurchaseRewardTrackPremiumMessageParser()
+            },
             { MessageEvent.GetDailyQuestMessageEvent, new GetDailyQuestMessageParser() },
             { MessageEvent.GetQuestsMessageEvent, new GetQuestsMessageParser() },
             {
@@ -1309,6 +1327,14 @@ public class Revision20260909 : IRevision
             },
             { MessageEvent.GetFlatControllersMessageEvent, new GetFlatControllersMessageParser() },
             { MessageEvent.GetRoomSettingsMessageEvent, new GetRoomSettingsMessageParser() },
+            {
+                MessageEvent.GetRaidProtectionSettingsMessageEvent,
+                new GetRaidProtectionSettingsMessageParser()
+            },
+            {
+                MessageEvent.SaveRaidProtectionSettingsMessageEvent,
+                new SaveRaidProtectionSettingsMessageParser()
+            },
             { MessageEvent.SaveRoomSettingsMessageEvent, new SaveRoomSettingsMessageParser() },
             {
                 MessageEvent.UpdateRoomCategoryAndTradeSettingsMessageEvent,
@@ -1377,6 +1403,7 @@ public class Revision20260909 : IRevision
             #region Userdefinedroomevents
 
             { MessageEvent.ApplySnapshotMessageEvent, new ApplySnapshotMessageParser() },
+            { MessageEvent.WiredClickUserMessageEvent, new WiredClickUserMessageParser() },
             { MessageEvent.OpenMessageEvent, new OpenMessageParser() },
             { MessageEvent.UpdateActionMessageEvent, new UpdateActionMessageParser() },
             { MessageEvent.UpdateAddonMessageEvent, new UpdateAddonMessageParser() },
@@ -1685,6 +1712,12 @@ public class Revision20260909 : IRevision
                 typeof(CfhTopicsInitMessageComposer),
                 new CfhTopicsInitMessageComposerSerializer(
                     MessageComposer.CfhTopicsInitMessageComposer
+                )
+            },
+            {
+                typeof(MyCfhReportStatusMessageComposer),
+                new MyCfhReportStatusMessageComposerSerializer(
+                    MessageComposer.MyCfhReportStatusMessageComposer
                 )
             },
             {
@@ -3213,6 +3246,12 @@ public class Revision20260909 : IRevision
                 new CantConnectMessageComposerSerializer(MessageComposer.CantConnectMessageComposer)
             },
             {
+                typeof(ConfigurationItemStatesMessageComposer),
+                new ConfigurationItemStatesMessageComposerSerializer(
+                    MessageComposer.ConfigurationItemStatesMessageComposer
+                )
+            },
+            {
                 typeof(CloseConnectionMessageComposer),
                 new CloseConnectionMessageComposerSerializer(
                     MessageComposer.CloseConnectionMessageComposer
@@ -3356,6 +3395,18 @@ public class Revision20260909 : IRevision
                 typeof(WiredClickSettingsMessageComposer),
                 new WiredClickSettingsMessageComposerSerializer(
                     MessageComposer.WiredClickSettingsMessageComposer
+                )
+            },
+            {
+                typeof(WiredClickUserResponseMessageComposer),
+                new WiredClickUserResponseMessageComposerSerializer(
+                    MessageComposer.WiredClickUserResponseMessageComposer
+                )
+            },
+            {
+                typeof(WiredEnvironmentMessageComposer),
+                new WiredEnvironmentMessageComposerSerializer(
+                    MessageComposer.WiredEnvironmentMessageComposer
                 )
             },
             {
@@ -4494,6 +4545,48 @@ public class Revision20260909 : IRevision
                 new QuestsMessageComposerSerializer(MessageComposer.QuestsMessageComposer)
             },
             {
+                typeof(DailyTasksActiveListMessageComposer),
+                new DailyTasksActiveListMessageComposerSerializer(
+                    MessageComposer.DailyTasksActiveListMessageComposer
+                )
+            },
+            {
+                typeof(DailyTasksTasksAddedMessageComposer),
+                new DailyTasksTasksAddedMessageComposerSerializer(
+                    MessageComposer.DailyTasksTasksAddedMessageComposer
+                )
+            },
+            {
+                typeof(DailyTasksTaskUpdateMessageComposer),
+                new DailyTasksTaskUpdateMessageComposerSerializer(
+                    MessageComposer.DailyTasksTaskUpdateMessageComposer
+                )
+            },
+            {
+                typeof(RewardTracksMessageComposer),
+                new RewardTracksMessageComposerSerializer(
+                    MessageComposer.RewardTracksMessageComposer
+                )
+            },
+            {
+                typeof(RewardTrackProgressMessageComposer),
+                new RewardTrackProgressMessageComposerSerializer(
+                    MessageComposer.RewardTrackProgressMessageComposer
+                )
+            },
+            {
+                typeof(RewardTrackClaimResultMessageComposer),
+                new RewardTrackClaimResultMessageComposerSerializer(
+                    MessageComposer.RewardTrackClaimResultMessageComposer
+                )
+            },
+            {
+                typeof(RewardTrackPremiumPurchaseResultMessageComposer),
+                new RewardTrackPremiumPurchaseResultMessageComposerSerializer(
+                    MessageComposer.RewardTrackPremiumPurchaseResultMessageComposer
+                )
+            },
+            {
                 typeof(SeasonalQuestsMessageComposer),
                 new SeasonalQuestsMessageComposerSerializer(
                     MessageComposer.SeasonalQuestsMessageComposer
@@ -4536,6 +4629,24 @@ public class Revision20260909 : IRevision
                 typeof(RoomSettingsDataEventMessageComposer),
                 new RoomSettingsDataEventMessageComposerSerializer(
                     MessageComposer.RoomSettingsDataMessageComposer
+                )
+            },
+            {
+                typeof(RaidProtectionCapabilityMessageComposer),
+                new RaidProtectionCapabilityMessageComposerSerializer(
+                    MessageComposer.RaidProtectionCapabilityMessageComposer
+                )
+            },
+            {
+                typeof(RaidProtectionSettingsMessageComposer),
+                new RaidProtectionSettingsMessageComposerSerializer(
+                    MessageComposer.RaidProtectionSettingsMessageComposer
+                )
+            },
+            {
+                typeof(RaidProtectionSettingsResultMessageComposer),
+                new RaidProtectionSettingsResultMessageComposerSerializer(
+                    MessageComposer.RaidProtectionSettingsResultMessageComposer
                 )
             },
             {

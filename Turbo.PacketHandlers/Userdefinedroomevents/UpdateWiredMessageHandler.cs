@@ -5,6 +5,7 @@ using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Rooms.Wired;
 
 namespace Turbo.PacketHandlers.Userdefinedroomevents;
 
@@ -17,8 +18,6 @@ public abstract class UpdateWiredMessageHandler<TMessage>(IGrainFactory grainFac
     : IMessageHandler<TMessage>
     where TMessage : UpdateWiredMessage
 {
-    private const string VALIDATION_ERROR_KEY = "wired.validation.error";
-
     private readonly IGrainFactory _grainFactory = grainFactory;
 
     public async ValueTask HandleAsync(TMessage message, MessageContext ctx, CancellationToken ct)
@@ -26,17 +25,17 @@ public abstract class UpdateWiredMessageHandler<TMessage>(IGrainFactory grainFac
         if (ctx is null || ctx.PlayerId <= 0 || ctx.RoomId <= 0 || message.Id <= 0)
             return;
 
-        var saved = await _grainFactory
+        var result = await _grainFactory
             .GetRoomGrain(ctx.RoomId)
             .ApplyWiredUpdateAsync(ctx.AsActionContext(), message.Id, message, ct)
             .ConfigureAwait(false);
 
-        if (!saved)
+        if (!result.IsSaved)
         {
             await ctx.SendComposerAsync(
                     new WiredValidationErrorEventMessageComposer
                     {
-                        LocalizationKey = VALIDATION_ERROR_KEY,
+                        LocalizationKey = result.ErrorKey ?? WiredSaveErrors.GENERIC,
                         Parameters = [],
                     },
                     ct

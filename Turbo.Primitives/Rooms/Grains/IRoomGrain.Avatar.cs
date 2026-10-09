@@ -81,7 +81,7 @@ public partial interface IRoomGrain
         CancellationToken ct
     );
 
-    /// <summary>A player clicked another avatar; feeds the "user clicks user" wired trigger.</summary>
+    /// <summary>A player clicked an avatar, which wakes them.</summary>
     public Task<bool> ClickAvatarAsync(
         ActionContext ctx,
         RoomObjectId targetObjectId,

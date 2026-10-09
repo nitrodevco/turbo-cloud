@@ -71,6 +71,76 @@ internal sealed class PlayerClothingService(
         return added.Count;
     }
 
+    public async Task<ImmutableArray<string>> GetBoundFurnitureNamesAsync(
+        PlayerId playerId,
+        CancellationToken ct
+    )
+    {
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var names = await dbCtx
+            .PlayerBoundClothing.AsNoTracking()
+            .Where(x => x.PlayerEntityId == playerId.Value)
+            .OrderBy(x => x.Id)
+            .Select(x => x.FurnitureDefinitionEntity!.Name)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        return [.. names];
+    }
+
+    public async Task BindFurnitureAsync(
+        PlayerId playerId,
+        int definitionId,
+        IEnumerable<int> setIds,
+        CancellationToken ct
+    )
+    {
+        var wanted = setIds.Where(x => x >= 0).Distinct().ToList();
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var had = await dbCtx
+            .PlayerFigureSets.Where(x =>
+                x.PlayerEntityId == playerId.Value && wanted.Contains(x.SetId)
+            )
+            .Select(x => x.SetId)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        dbCtx.PlayerFigureSets.AddRange(
+            wanted
+                .Except(had)
+                .Select(x => new PlayerFigureSetEntity
+                {
+                    PlayerEntityId = playerId.Value,
+                    SetId = x,
+                })
+        );
+
+        var bound = await dbCtx
+            .PlayerBoundClothing.AnyAsync(
+                x =>
+                    x.PlayerEntityId == playerId.Value
+                    && x.FurnitureDefinitionEntityId == definitionId,
+                ct
+            )
+            .ConfigureAwait(false);
+
+        if (!bound)
+            dbCtx.PlayerBoundClothing.Add(
+                new PlayerBoundClothingEntity
+                {
+                    PlayerEntityId = playerId.Value,
+                    FurnitureDefinitionEntityId = definitionId,
+                }
+            );
+
+        await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+        await SendOwnedAsync(playerId, ct).ConfigureAwait(false);
+    }
+
     public async Task<int> RevokeAsync(
         PlayerId playerId,
         IEnumerable<int> setIds,
@@ -109,7 +179,8 @@ internal sealed class PlayerClothingService(
                     [
                         .. (await GetOwnedAsync(playerId, ct).ConfigureAwait(false)).Order(),
                     ],
-                    BoundFurnitureNames = [],
+                    BoundFurnitureNames = await GetBoundFurnitureNamesAsync(playerId, ct)
+                        .ConfigureAwait(false),
                 },
                 ct
             )

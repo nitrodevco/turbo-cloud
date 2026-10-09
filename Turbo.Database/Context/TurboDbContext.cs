@@ -14,6 +14,7 @@ using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Permissions;
 using Turbo.Database.Entities.Pets;
 using Turbo.Database.Entities.Players;
+using Turbo.Database.Entities.Quests;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Entities.Security;
 using Turbo.Database.Entities.Settings;
@@ -88,6 +89,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<PlayerOutfitEntity> PlayerOutfits { get; init; }
     public DbSet<PlayerFigureSetEntity> PlayerFigureSets { get; init; }
+    public DbSet<PlayerBoundClothingEntity> PlayerBoundClothing { get; init; }
 
     public DbSet<PlayerSettingsEntity> PlayerSettings { get; init; }
 
@@ -114,6 +116,28 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<RoomModelEntity> RoomModels { get; init; }
 
     public DbSet<RoomMuteEntity> RoomMutes { get; init; }
+
+    public DbSet<CfhTopicEntity> CfhTopics { get; init; }
+
+    public DbSet<DailyTaskDefinitionEntity> DailyTaskDefinitions { get; init; }
+
+    public DbSet<PlayerDailyTaskEntity> PlayerDailyTasks { get; init; }
+
+    public DbSet<PlayerRewardTrackEntity> PlayerRewardTracks { get; init; }
+
+    public DbSet<GuildForumEntity> GuildForums { get; init; }
+
+    public DbSet<GuildForumThreadEntity> GuildForumThreads { get; init; }
+
+    public DbSet<GuildForumMessageEntity> GuildForumMessages { get; init; }
+
+    public DbSet<GuildForumReadMarkerEntity> GuildForumReadMarkers { get; init; }
+
+    public DbSet<CfhReportEntity> CfhReports { get; init; }
+
+    public DbSet<CfhReportChatLineEntity> CfhReportChatLines { get; init; }
+
+    public DbSet<RoomRaidProtectionEntity> RoomRaidProtections { get; init; }
 
     public DbSet<RoomRightEntity> RoomRights { get; init; }
 

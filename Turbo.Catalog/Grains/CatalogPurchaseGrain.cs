@@ -161,6 +161,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         // Last, because extending a membership tells the buyer it happened: a grant that threw
         // above must not leave them holding a notification for a purchase that did not land.
         await GrantSubscriptionsAsync(offer, quantity, ct);
+        await OpenGuildForumAsync(offer, extraParam, ct);
 
         if (catalogType == CatalogType.Normal)
             await RecordReceptionProgressAsync(offer, debitRequests, quantity, ct);
@@ -409,6 +410,49 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
                 is null
         )
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
+    }
+
+    /// <summary>
+    /// A forum terminal opens its group's forum when the group's owner buys it ("In order to start
+    /// a group forum the group owner must first purchase a forum terminal for the group"); a group
+    /// that has one just gets another terminal (catalog.alert.group_has_forum). The purchase is
+    /// made either way, so a failure here is logged rather than refunded.
+    /// </summary>
+    private async Task OpenGuildForumAsync(
+        CatalogOfferSnapshot offer,
+        string extraParam,
+        CancellationToken ct
+    )
+    {
+        if (
+            !offer.Products.Any(product =>
+                _definitionProvider.TryGetDefinition(product.FurniDefinitionId)?.LogicName
+                == GuildFurnitureLogicNames.FORUM
+            )
+            || !int.TryParse(
+                extraParam,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var guildId
+            )
+        )
+            return;
+
+        try
+        {
+            await _grainFactory
+                .GetGuildForumGrain(GuildId.Parse(guildId))
+                .OpenAsync(this.GetPlayerId(), ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to open the forum of group {GuildId} for player {PlayerId}",
+                guildId,
+                this.GetPlayerId()
+            );
+        }
     }
 
     /// <summary>

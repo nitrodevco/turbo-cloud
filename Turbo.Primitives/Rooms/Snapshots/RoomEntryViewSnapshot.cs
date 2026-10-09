@@ -46,4 +46,12 @@ public sealed record RoomEntryViewSnapshot
 
     [Id(9)]
     public required bool IsMuted { get; init; }
+
+    /// <summary>The areas hidden by a switched-on Room Area Hider, sent with the floor map.</summary>
+    [Id(10)]
+    public required ImmutableArray<AreaHideDataSnapshot> AreaHides { get; init; }
+
+    /// <summary>An Invisible Furni Controller is switched on.</summary>
+    [Id(11)]
+    public required bool InvisibleFurni { get; init; }
 }

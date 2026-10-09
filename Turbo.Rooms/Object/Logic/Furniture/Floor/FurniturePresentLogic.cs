@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -20,15 +21,33 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 /// <summary>
 /// A wrapped gift. The map data carries what the client shows (sender, note); the extra data's
 /// <see cref="PresentStorage.SECTION"/> the box and ribbon it is drawn with. The wrapped item is
-/// the furniture row this present holds. Opening releases that row into the opener's inventory,
-/// destroys the wrapping, places a floor item where the present stood (or leaves a wall item in
-/// the inventory), and tells the opener what they got.
+/// the furniture row this present holds. Opening is Habbo's: the present turns to its opening
+/// state (<see cref="PresentStates.OPENING"/>, the gift wrapped box's glow and confetti) for
+/// <c>PresentOpenMs</c>; then that row is released into the opener's inventory, the wrapping is
+/// destroyed, a floor item is placed where the present stood (or a wall item left in the
+/// inventory), and the opener is told what they got.
+/// <para>
+/// Nothing leaves the present until the opening has played, so a present picked up or a room
+/// unloaded meanwhile is still whole; it is drawn wrapped again whenever it is next loaded.
+/// A badge a staff gift gives (<see cref="PresentStorage.BadgeCode"/>) is given as the opening
+/// starts, as Habbo's badge notice comes before its card.
+/// </para>
 /// </summary>
 [RoomObjectLogic(PresentData.LOGIC_NAME)]
-public class FurniturePresentLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
-    : FurnitureFloorLogic(stuffDataFactory, ctx)
+public class FurniturePresentLogic : FurnitureFloorLogic
 {
     protected override StuffDataType _stuffDataType => StuffDataType.MapKey;
+
+    /// <summary>The opening is playing; another open is refused until it is over.</summary>
+    private bool _opening;
+
+    public FurniturePresentLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
+        : base(stuffDataFactory, ctx)
+    {
+        // An opening cut short (a pickup, a room unload) left its state behind.
+        if (StuffData.GetLegacyString() == PresentStates.OPENING.ToString())
+            StuffData.SetState(PresentStates.CLOSED.ToString());
+    }
 
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Nobody;
 
@@ -44,6 +63,64 @@ public class FurniturePresentLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
         if (!IsItemOwner(ctx))
             return Reject(ctx, interaction, "not the owner");
 
+        if (_opening)
+            return Reject(ctx, interaction, "already opening");
+
+        _opening = true;
+
+        await SetStateAsync(PresentStates.OPENING);
+
+        // Habbo's staff gift says "you got a new badge" a moment into the glow, before the card.
+        await GiveBadgeAsync(ctx, ct);
+
+        TimerSystem.Schedule(
+            _ctx.ObjectId,
+            _roomGrain._roomConfig.PresentOpenMs,
+            token => OpenedAsync(ctx, token)
+        );
+
+        return true;
+    }
+
+    public override Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
+    {
+        TimerSystem.Cancel(_ctx.ObjectId);
+        _opening = false;
+
+        return base.OnPickupAsync(ctx, ct);
+    }
+
+    /// <summary>
+    /// The badge a staff gift gives, if it gives one. A failure is logged and the present opens
+    /// anyway: what it holds is worth more than the badge, which staff can give again by hand.
+    /// </summary>
+    private async Task GiveBadgeAsync(ActionContext ctx, CancellationToken ct)
+    {
+        if (ReadStorage()?.BadgeCode is not { Length: > 0 } badgeCode)
+            return;
+
+        try
+        {
+            await _roomGrain
+                ._grainFactory.GetPlayerBadgeGrain(ctx.PlayerId)
+                .GiveBadgeAsync(badgeCode, ct);
+        }
+        catch (Exception ex)
+        {
+            _roomGrain._logger.LogError(
+                ex,
+                "Present {ItemId} in room {RoomId} could not give badge {BadgeCode} to player {PlayerId}",
+                _ctx.ObjectId,
+                _ctx.RoomId,
+                badgeCode,
+                ctx.PlayerId
+            );
+        }
+    }
+
+    /// <summary>The opening has played: what the present holds comes out and the wrapping goes.</summary>
+    private async Task OpenedAsync(ActionContext ctx, CancellationToken ct)
+    {
         // Released before the wrapping goes: deleting a present that still holds its item would
         // drop the item back to whoever it was first given to, behind this inventory's back.
         var wrapped = await _roomGrain
@@ -51,7 +128,20 @@ public class FurniturePresentLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
             .UnwrapPresentAsync(_ctx.ObjectId, ct);
 
         if (wrapped is null)
-            return Reject(ctx, interaction, "present holds nothing");
+        {
+            _roomGrain._logger.LogWarning(
+                "Present {ItemId} in room {RoomId} opened by player {PlayerId} holds nothing; it stays wrapped",
+                _ctx.ObjectId,
+                _ctx.RoomId,
+                ctx.PlayerId
+            );
+
+            _opening = false;
+
+            await SetStateAsync(PresentStates.CLOSED);
+
+            return;
+        }
 
         var (x, y, rotation) = (_ctx.RoomObject.X, _ctx.RoomObject.Y, _ctx.RoomObject.Rotation);
 
@@ -99,18 +189,15 @@ public class FurniturePresentLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
             },
             ct
         );
-
-        return true;
     }
 
     /// <summary>The box and ribbon, which the client reads beside the map data to draw the present.</summary>
-    public override int GetObjectExtra() =>
-        FurnitureExtraDataSections
-            .Read<PresentStorage>(
-                _ctx.RoomObject.ExtraData,
-                PresentStorage.SECTION,
-                _roomGrain._logger
-            )
-            ?.GetObjectExtra()
-        ?? 0;
+    public override int GetObjectExtra() => ReadStorage()?.GetObjectExtra() ?? 0;
+
+    private PresentStorage? ReadStorage() =>
+        FurnitureExtraDataSections.Read<PresentStorage>(
+            _ctx.RoomObject.ExtraData,
+            PresentStorage.SECTION,
+            _roomGrain._logger
+        );
 }

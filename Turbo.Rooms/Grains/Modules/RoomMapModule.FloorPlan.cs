@@ -255,14 +255,15 @@ public sealed partial class RoomMapModule
             if (room is null)
                 return null;
 
+            // The room's own row, whichever model the room is on now: a stock model is shared with
+            // every other room built on it, so the plan never writes through it. A room put back
+            // on a stock model keeps its row, and a second one by that name would be refused.
             var model = await dbCtx.RoomModels.FirstOrDefaultAsync(
-                x => x.Id == room.RoomModelEntityId,
+                x => x.Name == CustomModelName,
                 ct
             );
 
-            // A model the room does not own is shared with every other room built on it, so the
-            // first save copies it rather than writing through.
-            if (model is null || !model.Custom || model.Name != CustomModelName)
+            if (model is null)
             {
                 model = new RoomModelEntity
                 {
@@ -278,8 +279,6 @@ public sealed partial class RoomMapModule
                 dbCtx.RoomModels.Add(model);
 
                 await dbCtx.SaveChangesAsync(ct);
-
-                room.RoomModelEntityId = model.Id;
             }
             else
             {
@@ -287,7 +286,11 @@ public sealed partial class RoomMapModule
                 model.DoorX = doorX;
                 model.DoorY = doorY;
                 model.DoorRotation = doorRotation;
+                model.Enabled = true;
+                model.Custom = true;
             }
+
+            room.RoomModelEntityId = model.Id;
 
             _roomGrain._achievementFacts.Record(
                 dbCtx,

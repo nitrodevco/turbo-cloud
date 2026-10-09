@@ -130,7 +130,11 @@ internal sealed class SessionHeartbeat(
                 session.LastReceivedUtc
             );
 
-            await session.CloseSessionAsync().ConfigureAwait(false);
+            await session
+                .CloseSessionAsync(
+                    $"heartbeat timeout, nothing received since {session.LastReceivedUtc:O}"
+                )
+                .ConfigureAwait(false);
 
             return;
         }

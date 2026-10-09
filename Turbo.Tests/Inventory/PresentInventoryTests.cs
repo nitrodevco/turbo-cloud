@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -10,6 +11,7 @@ using Turbo.Inventory;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Inventory;
@@ -196,6 +198,65 @@ public sealed class PresentInventoryTests : IDisposable
         inside.Should().NotBeNull();
         (await Rows()).Single(x => x.Id == inside!.ItemId).PlayerEntityId.Should().Be(TRADED_TO);
     }
+
+    [Fact]
+    public async Task AStaffGift_HasOnlyItsNoteOnTheTag_AndKeepsItsBadgeOutOfTheClientsSight()
+    {
+        var inventory = NewInventory(RECEIVER);
+
+        await inventory.ReceiveStaffPresentAsync(StaffGift(), Ct);
+
+        var present = (await inventory.GetAllItemSnapshotsAsync(Ct)).Single();
+        var tag = present.StuffData.Should().BeOfType<MapStuffSnapshot>().Subject.Data;
+
+        present.Definition.Id.Should().Be(PRESENT);
+        tag.Should()
+            .Contain(PresentData.MESSAGE, "Thanks for playing Habbo.")
+            .And.Contain(PresentData.PRODUCT_CODE, "chair");
+        tag.Should()
+            .NotContainKeys(
+                PresentData.PURCHASER_NAME,
+                PresentData.PURCHASER_FIGURE,
+                PresentData.TRUSTED_SENDER
+            );
+        tag.Values.Should().NotContain("ADM", "the badge is the server's to give");
+
+        var row = (await Rows()).Single(x => x.Id == present.ItemId);
+        var storage = JsonDocument
+            .Parse(row.ExtraData!)
+            .RootElement.GetProperty(PresentStorage.SECTION)
+            .Deserialize<PresentStorage>();
+
+        storage!.BadgeCode.Should().Be("ADM");
+        (await inventory.UnwrapPresentAsync(present.ItemId, Ct))!.Definition.Id.Should().Be(CHAIR);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AStaffGift_SaysItsSenderIsTrusted_OnlyWhenAsked(bool trusted)
+    {
+        await NewInventory(RECEIVER)
+            .ReceiveStaffPresentAsync(StaffGift() with { TrustedSender = trusted }, Ct);
+
+        var tag = (MapStuffSnapshot)
+            (await NewInventory(RECEIVER).GetAllItemSnapshotsAsync(Ct)).Single().StuffData;
+
+        if (trusted)
+            tag.Data.Should().Contain(PresentData.TRUSTED_SENDER, "true");
+        else
+            tag.Data.Should().NotContainKey(PresentData.TRUSTED_SENDER);
+    }
+
+    private static StaffPresentGrantRequest StaffGift() =>
+        new()
+        {
+            FurniDefinitionId = CHAIR,
+            PresentDefinitionId = PRESENT,
+            Message = "Thanks for playing Habbo.",
+            BadgeCode = "ADM",
+            TrustedSender = false,
+        };
 
     private async Task<List<FurnitureEntity>> Rows()
     {

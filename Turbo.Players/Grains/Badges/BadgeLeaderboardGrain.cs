@@ -227,7 +227,7 @@ internal sealed class BadgeLeaderboardGrain : Grain, IBadgeLeaderboardGrain
             ranked.Sum(x => x.Players),
             []
         );
-        var board = partial with { Top = await ToEntriesAsync(dbCtx, partial, rows, ct) };
+        var board = partial with { Top = await ToEntriesAsync(dbCtx, rows, firstRank: 1, ct) };
 
         _state.Boards[key] = board;
 
@@ -260,17 +260,18 @@ internal sealed class BadgeLeaderboardGrain : Grain, IBadgeLeaderboardGrain
             .Take(chunkSize)
             .ToListAsync(ct);
 
-        return await ToEntriesAsync(dbCtx, board, rows, ct);
+        return await ToEntriesAsync(dbCtx, rows, (int)offset + 1, ct);
     }
 
     /// <summary>
-    /// Score rows as board entries, ranked from the board's histogram so players on the same
-    /// score share a rank.
+    /// Score rows as board entries, ranked by their place on the board: Habbo numbers a tie one
+    /// after the other (107 and 108 both on 2431), in the board's order, which breaks a tie by
+    /// player id. <paramref name="firstRank"/> is the place of the first row.
     /// </summary>
     private static async Task<ImmutableArray<BadgeLeaderboardEntrySnapshot>> ToEntriesAsync(
         TurboDbContext dbCtx,
-        BadgeLeaderboardBoard board,
         List<PlayerScore> rows,
+        int firstRank,
         CancellationToken ct
     )
     {
@@ -287,8 +288,10 @@ internal sealed class BadgeLeaderboardGrain : Grain, IBadgeLeaderboardGrain
             .ToDictionaryAsync(x => x.Id, ct);
         var entries = ImmutableArray.CreateBuilder<BadgeLeaderboardEntrySnapshot>(rows.Count);
 
-        foreach (var row in rows)
+        for (var i = 0; i < rows.Count; i++)
         {
+            var row = rows[i];
+
             if (!players.TryGetValue(row.PlayerId, out var player))
                 continue;
 
@@ -298,7 +301,7 @@ internal sealed class BadgeLeaderboardGrain : Grain, IBadgeLeaderboardGrain
                     PlayerId = row.PlayerId,
                     Name = player.Name,
                     Figure = player.Figure,
-                    Rank = board.RankOf(row.Score),
+                    Rank = firstRank + i,
                     Score = row.Score,
                 }
             );
@@ -309,7 +312,9 @@ internal sealed class BadgeLeaderboardGrain : Grain, IBadgeLeaderboardGrain
 
     /// <summary>
     /// The asking player's own line: from the entries held when they are among them, otherwise
-    /// their score is counted (one indexed count for one player) and ranked from the histogram.
+    /// their score is counted (one indexed count for one player) and placed on the board as the
+    /// entries are. A player with no score is not on the board, and Habbo still shows their line
+    /// with "--" for the rank (<see cref="BadgeRanks.NONE"/>).
     /// </summary>
     private async Task<BadgeLeaderboardEntrySnapshot?> GetOwnEntryAsync(
         PlayerId playerId,
@@ -322,11 +327,58 @@ internal sealed class BadgeLeaderboardGrain : Grain, IBadgeLeaderboardGrain
 
         var held = board.Top.FirstOrDefault(x => x.PlayerId == playerId);
 
-        // Every player with a score is held, so one who is not has none.
-        if (held is not null || board.Top.Length >= board.TotalEntries)
+        if (held is not null)
             return held;
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        var player = await dbCtx
+            .Players.AsNoTracking()
+            .Where(x => x.Id == playerId.Value)
+            .Select(x => new { x.Name, x.Figure })
+            .FirstOrDefaultAsync(ct);
+
+        if (player is null)
+            return null;
+
+        // Every player with a score is held when the board holds them all, so one who is not
+        // has none.
+        var score =
+            board.Top.Length >= board.TotalEntries
+                ? 0
+                : await ScoreOfAsync(dbCtx, playerId, board, ct);
+        var rank =
+            score > 0
+                ? await Scores(dbCtx, board.Codes, board.Type)
+                    .CountAsync(
+                        x => x.Score > score || (x.Score == score && x.PlayerId < playerId.Value),
+                        ct
+                    ) + 1
+                : BadgeRanks.NONE;
+
+        return new BadgeLeaderboardEntrySnapshot
+        {
+            PlayerId = playerId,
+            Name = player.Name,
+            Figure = player.Figure,
+            Rank = rank,
+            Score = score,
+        };
+    }
+
+    /// <summary>One player's score on a board.</summary>
+    private static async Task<int> ScoreOfAsync(
+        TurboDbContext dbCtx,
+        PlayerId playerId,
+        BadgeLeaderboardBoard board,
+        CancellationToken ct
+    )
+    {
+        if (board.Type == BadgeLeaderboardType.AchievementLevel)
+            return await dbCtx
+                .AchievementProjections.Where(x => x.PlayerId == playerId.Value)
+                .Select(x => x.EarnedLevels)
+                .SingleOrDefaultAsync(ct);
 
         var owned = dbCtx
             .PlayerBadges.AsNoTracking()
@@ -339,34 +391,7 @@ internal sealed class BadgeLeaderboardGrain : Grain, IBadgeLeaderboardGrain
             owned = owned.Where(x => codeList.Contains(x.BadgeCode));
         }
 
-        var score =
-            board.Type == BadgeLeaderboardType.AchievementLevel
-                ? await dbCtx
-                    .AchievementProjections.Where(x => x.PlayerId == playerId.Value)
-                    .Select(x => x.EarnedLevels)
-                    .SingleOrDefaultAsync(ct)
-                : await owned.CountAsync(ct);
-
-        if (score == 0)
-            return null;
-
-        var player = await dbCtx
-            .Players.AsNoTracking()
-            .Where(x => x.Id == playerId.Value)
-            .Select(x => new { x.Name, x.Figure })
-            .FirstOrDefaultAsync(ct);
-
-        if (player is null)
-            return null;
-
-        return new BadgeLeaderboardEntrySnapshot
-        {
-            PlayerId = playerId,
-            Name = player.Name,
-            Figure = player.Figure,
-            Rank = board.RankOf(score),
-            Score = score,
-        };
+        return await owned.CountAsync(ct);
     }
 
     /// <summary>

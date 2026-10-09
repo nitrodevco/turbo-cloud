@@ -8,8 +8,10 @@ using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Hotel.Grains;
 using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Messages.Incoming.Handshake;
+using Turbo.Primitives.Messages.Outgoing.Callforhelp;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Moderation.Snapshots;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Snapshots;
@@ -49,6 +51,7 @@ public class WelcomeMessageLoginTests
             Task.FromResult(ImmutableDictionary<UnseenItemCategory, ImmutableArray<int>>.Empty);
         _fakes.Handlers["GetSummaryAsync"] = _ =>
             Task.FromResult(Activator.CreateInstance<PlayerSummarySnapshot>());
+        _fakes.Handlers[nameof(ICallForHelpService.GetTopicsAsync)] = _ => Task.FromResult(TOPICS);
         _fakes.Handlers[nameof(IWelcomeMessageGrain.GetMessageAsync)] = _ =>
             Task.FromResult(_welcome);
 
@@ -61,9 +64,27 @@ public class WelcomeMessageLoginTests
             _fakes.Create<ISanctionService>(),
             _fakes.Create<IHotelAvailability>(),
             _fakes.Create<IHotelTextProvider>(),
-            _fakes.Create<Turbo.Primitives.Figures.IPlayerClothingService>()
+            _fakes.Create<Turbo.Primitives.Figures.IPlayerClothingService>(),
+            _fakes.Create<ICallForHelpService>()
         );
     }
+
+    private static readonly ImmutableArray<CfhCategorySnapshot> TOPICS =
+    [
+        new()
+        {
+            Name = "game_interruption",
+            Topics =
+            [
+                new()
+                {
+                    Id = 22,
+                    Name = "flooding",
+                    Consequence = "mods_till_logout",
+                },
+            ],
+        },
+    ];
 
     private Task LogInAsync() =>
         _handler
@@ -81,6 +102,32 @@ public class WelcomeMessageLoginTests
                 .Where(x => x.Method == "SendComposerAsync")
                 .Select(x => x.Args[0]),
         ];
+
+    [Fact]
+    public async Task TheCallForHelpTopics_AreSentAtLogin()
+    {
+        await LogInAsync();
+
+        SentToSession()
+            .OfType<CfhTopicsInitMessageComposer>()
+            .Should()
+            .ContainSingle()
+            .Which.Categories.Should()
+            .Equal(TOPICS);
+    }
+
+    [Fact]
+    public async Task TheRewardTracks_AreSentAtLogin_Unasked()
+    {
+        await LogInAsync();
+
+        _fakes
+            .Log.Of("SendTracksAsync")
+            .Should()
+            .ContainSingle()
+            .Which.Interface.Should()
+            .Be<Turbo.Primitives.Quests.Grains.IPlayerRewardTrackGrain>();
+    }
 
     [Fact]
     public async Task AWelcomeMessage_IsShownAsTheMessageOfTheDay_LastOfTheLogin()

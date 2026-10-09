@@ -47,6 +47,9 @@ public interface IGuildGrain : IGrainWithIntegerKey
     /// <summary>Members, not counting pending requests or blocked players.</summary>
     public Task<int> GetMemberCountAsync(CancellationToken ct);
 
+    /// <summary>The group's forum was opened: the group now says it has one, to everyone.</summary>
+    public Task OnForumOpenedAsync(CancellationToken ct);
+
     /// <summary>
     /// The group's current badge as the editor reads it, taken back out of the badge code so
     /// there is only ever one copy of it.

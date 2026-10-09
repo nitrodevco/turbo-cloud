@@ -18,9 +18,30 @@ public interface IPlayerClothingService
     /// <summary>Gives the player these sets; the number they didn't have yet.</summary>
     public Task<int> GrantAsync(PlayerId playerId, IEnumerable<int> setIds, CancellationToken ct);
 
+    /// <summary>
+    /// The class names of the clothing furni the player has bound
+    /// (<c>FigureSetIdsMessage.boundFurnitureNames</c>).
+    /// </summary>
+    public Task<ImmutableArray<string>> GetBoundFurnitureNamesAsync(
+        PlayerId playerId,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Binds a clothing furni to the player: its sets are theirs and its definition is among the
+    /// bound ones. The player, if online, is told what they own and have bound either way, as the
+    /// client puts the clothes on when that answer lists the furni.
+    /// </summary>
+    public Task BindFurnitureAsync(
+        PlayerId playerId,
+        int definitionId,
+        IEnumerable<int> setIds,
+        CancellationToken ct
+    );
+
     /// <summary>Takes these sets from the player; the number they had.</summary>
     public Task<int> RevokeAsync(PlayerId playerId, IEnumerable<int> setIds, CancellationToken ct);
 
-    /// <summary>Tells the player, if online, what they own.</summary>
+    /// <summary>Tells the player, if online, what they own and the clothing furni they have bound.</summary>
     public Task SendOwnedAsync(PlayerId playerId, CancellationToken ct);
 }

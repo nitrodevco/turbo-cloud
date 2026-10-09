@@ -104,7 +104,9 @@ public sealed class RoomHarness
         bool canStack = true,
         string name = "test_block",
         string logic = "default_floor",
-        Func<IStuffDataFactory, IRoomFloorItemContext, IRoomObjectLogic>? createLogic = null
+        Func<IStuffDataFactory, IRoomFloorItemContext, IRoomObjectLogic>? createLogic = null,
+        FurnitureCategory category = FurnitureCategory.Default,
+        string? customParams = null
     )
     {
         var item = new RoomFloorItem
@@ -118,7 +120,7 @@ public sealed class RoomHarness
                 SpriteId = 1000 + id,
                 Name = name,
                 ProductType = ProductType.Floor,
-                FurniCategory = FurnitureCategory.Default,
+                FurniCategory = category,
                 LogicName = logic,
                 TotalStates = 2,
                 Width = width,
@@ -134,6 +136,7 @@ public sealed class RoomHarness
                 CanSell = true,
                 UsagePolicy = FurnitureUsageType.Everybody,
                 ExtraData = null,
+                CustomParams = customParams,
             },
         };
         item.SetExtraData(null);

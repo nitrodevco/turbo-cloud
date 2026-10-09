@@ -17,6 +17,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
+using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains.Systems;
 
@@ -24,7 +25,29 @@ namespace Turbo.Rooms.Grains;
 
 public sealed partial class RoomGrain
 {
-    public async Task<bool> ApplyWiredUpdateAsync(
+    public async Task WiredClickAvatarAsync(
+        ActionContext ctx,
+        RoomObjectId targetObjectId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            await WiredSystem.OnAvatarClickedAsync(ctx, targetObjectId, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Player {PlayerId} failed to report a click on avatar {ObjectId} to the wired of room {RoomId}",
+                ctx.PlayerId,
+                targetObjectId,
+                _state.RoomId
+            );
+        }
+    }
+
+    public async Task<WiredSaveResult> ApplyWiredUpdateAsync(
         ActionContext ctx,
         RoomObjectId itemId,
         UpdateWiredMessage update,
@@ -33,10 +56,21 @@ public sealed partial class RoomGrain
     {
         try
         {
-            if (!await WiredSystem.ApplyUpdateAsync(ctx, itemId, update, ct))
-                return false;
+            return await WiredSystem.ApplyUpdateAsync(ctx, itemId, update, ct)
+                ? WiredSaveResult.Saved
+                : WiredSaveResult.Refused;
+        }
+        catch (WiredSaveRefusedException refused)
+        {
+            _logger.LogWarning(
+                "Refused a wired update to item {ItemId} in room {RoomId} for player {PlayerId}: {ErrorKey}",
+                itemId,
+                _state.RoomId,
+                ctx.PlayerId,
+                refused.ErrorKey
+            );
 
-            return true;
+            return WiredSaveResult.RefusedWith(refused.ErrorKey);
         }
         catch (Exception ex)
         {
@@ -48,7 +82,7 @@ public sealed partial class RoomGrain
                 ctx.PlayerId
             );
 
-            return false;
+            return WiredSaveResult.Refused;
         }
     }
 

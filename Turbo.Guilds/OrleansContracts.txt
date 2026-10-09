@@ -12,6 +12,10 @@
 
 class [GrainType("guilddirectory")] Turbo.Guilds.Grains.GuildDirectoryGrain
 
+class [GrainType("guildforum")] Turbo.Guilds.Grains.GuildForumGrain
+
 class [GrainType("guild")] Turbo.Guilds.Grains.GuildGrain
+
+class [GrainType("playerguildforum")] Turbo.Guilds.Grains.PlayerGuildForumGrain
 
 class [GrainType("playerguild")] Turbo.Guilds.Grains.PlayerGuildGrain
