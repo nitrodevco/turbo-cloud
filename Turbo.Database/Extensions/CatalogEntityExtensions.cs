@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using System.Globalization;
 using Turbo.Database.Entities.Catalog;
@@ -134,5 +135,20 @@ public static class CatalogEntityExtensions
             IsRaffleFinished = entity.IsRaffleFinished,
             StartsAt = entity.StartsAt,
             EndsAt = entity.EndsAt,
+        };
+
+    public static BonusRareCampaignSnapshot ToSnapshot(this BonusRareCampaignEntity entity) =>
+        new()
+        {
+            Id = entity.Id,
+            Code = entity.Code,
+            FurnitureName = entity.FurnitureName,
+            ProductCode = entity.ProductCode,
+            CreditsRequired = entity.CreditsRequired,
+            Source = entity.Source,
+            StartsAt = DateTime.SpecifyKind(entity.StartsAt, DateTimeKind.Utc),
+            EndsAt = entity.EndsAt is { } ends
+                ? DateTime.SpecifyKind(ends, DateTimeKind.Utc)
+                : null,
         };
 }

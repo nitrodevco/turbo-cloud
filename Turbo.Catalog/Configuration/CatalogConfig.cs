@@ -4,8 +4,6 @@ public class CatalogConfig
 {
     public const string SECTION_NAME = "Turbo:Catalog";
 
-    public BonusRareConfig BonusRare { get; init; } = new();
-
     /// <summary>
     /// The longest text engraved on a trophy, in characters: one bought from the trophy page, and
     /// a mystery trophy engraved in a room.

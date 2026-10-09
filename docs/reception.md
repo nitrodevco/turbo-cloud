@@ -5,30 +5,29 @@ and echo the original schedule or timestamp so the client can match the response
 
 ## Bonus rare
 
-Configure `Turbo:Catalog:BonusRare` in server configuration:
+The bonus rare widget shows how many credits a player still needs before a furniture is theirs.
+Campaigns are kept in `bonus_rare_campaigns` and edited on the admin panel's **Hotel view >
+Bonus rare** tab; the last one started and not ended runs, and with none the widget is hidden.
 
-```json
-{
-  "Enabled": true,
-  "CampaignId": "bonusbag26_3",
-  "FurnitureName": "bonusbag26_3",
-  "ProductCode": "bonusbag26_3",
-  "CreditsRequired": 120
-}
-```
+| Field | What it is |
+| --- | --- |
+| Code | What progress is kept under (`player_bonus_rare_progress.campaign_id`). A new code starts everyone afresh. |
+| Furniture | The definition given, by name. Its sprite id is sent to the client. |
+| Product code | The product data entry the widget names the reward by; the furniture's name when empty. |
+| Credits | Credits for each reward. |
+| What counts | **Credits bought** or **credits spent in the catalogue**. |
 
-These are the defaults. `FurnitureName` resolves the server furniture definition;
-its sprite ID is sent to the client. `ProductCode` identifies the client product
-data entry. A missing definition or disabled campaign hides the promotion.
-The client controls the promotional artwork through its own configuration.
-
-The migrations are applied when the server starts, or ahead of time with `Turbo.Main migrate` ([database.md](database.md)).
-`player_bonus_rare_progress` stores progress per player and campaign. A missing
-row means zero purchased credits. Use a new campaign ID when starting a new offer
-to avoid reusing progress from an earlier campaign.
-
-The response is informational. Payment processing and reward delivery are not
-implemented by this change. A trusted purchase integration must record paid
-credits and deliver rewards with transaction and duplicate-payment protection
-before this can operate as a live purchase promotion. Wallet balances and
-client requests must never be treated as purchase evidence.
+- **Credits bought** count only when recorded with the purchase's own reference
+  (`IBonusRareService.RecordPurchaseAsync`): by the hotel's shop, or by staff on the panel
+  (**Record bought credits**, `POST /api/hotel-view/bonus-rare/purchases`). Each reference is kept
+  in `bonus_rare_receipts` and counts once. Wallet balances and client requests are never taken as
+  evidence of a purchase.
+- **Credits spent in the catalogue** are what the server debited for an offer in the normal
+  catalogue (not gifts, not the Builders Club).
+- Each time a player's progress reaches the target, the target is taken off in the database
+  (`credits = credits - target where credits >= target`) before the furniture is put in their
+  inventory, so a target reached gives one reward whichever silo counts it. A furniture that
+  can't be given leaves the credits where they were, to be given with the next credits counted.
+  The widget is told where the player stands after every count.
+- `AddBonusRareCampaigns` turned the old `Turbo:Catalog:BonusRare` defaults into a campaign
+  (`bonusbag26_3`, 120 credits, credits bought), so progress already kept carries on.

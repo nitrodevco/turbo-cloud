@@ -95,6 +95,10 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<PlayerClubGiftEntity> PlayerClubGifts { get; init; }
     public DbSet<PlayerBonusRareProgressEntity> PlayerBonusRareProgress { get; init; }
+
+    public DbSet<BonusRareCampaignEntity> BonusRareCampaigns { get; init; }
+
+    public DbSet<BonusRareReceiptEntity> BonusRareReceipts { get; init; }
     public DbSet<PlayerEntity> Players { get; init; }
 
     public DbSet<RoomBanEntity> RoomBans { get; init; }

@@ -33,7 +33,7 @@ public sealed class CatalogModule : IHostPluginModule
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<ICatalogService, CatalogService>();
         services.AddSingleton<ICatalogEditService, CatalogEditService>();
-        services.AddSingleton<IBonusRareProvider, BonusRareProvider>();
+        services.AddSingleton<IBonusRareService, BonusRareService>();
         services.AddSingleton<IPromoArticleService, PromoArticleService>();
         services.AddSingleton<ICommunityGoalService, CommunityGoalService>();
         services.AddSingleton<IGiftWrappingProvider, GiftWrappingProvider>();

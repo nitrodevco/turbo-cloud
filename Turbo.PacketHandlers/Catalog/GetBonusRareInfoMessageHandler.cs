@@ -1,16 +1,16 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
-using Turbo.Primitives.Catalog.Providers;
+using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Messages.Incoming.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
 
 namespace Turbo.PacketHandlers.Catalog;
 
-public class GetBonusRareInfoMessageHandler(IBonusRareProvider bonusRareProvider)
+public class GetBonusRareInfoMessageHandler(IBonusRareService bonusRare)
     : IMessageHandler<GetBonusRareInfoMessage>
 {
-    private readonly IBonusRareProvider _bonusRareProvider = bonusRareProvider;
+    private readonly IBonusRareService _bonusRare = bonusRare;
 
     public async ValueTask HandleAsync(
         GetBonusRareInfoMessage message,
@@ -18,7 +18,7 @@ public class GetBonusRareInfoMessageHandler(IBonusRareProvider bonusRareProvider
         CancellationToken ct
     )
     {
-        var info = await _bonusRareProvider.GetInfoAsync(ctx.PlayerId, ct).ConfigureAwait(false);
+        var info = await _bonusRare.GetInfoAsync(ctx.PlayerId, ct).ConfigureAwait(false);
 
         await ctx.SendComposerAsync(
                 new BonusRareInfoMessageComposer

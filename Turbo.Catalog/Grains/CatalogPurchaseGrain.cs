@@ -52,6 +52,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
     private readonly IFurnitureDefinitionProvider _definitionProvider;
     private readonly IGiftWrappingProvider _giftWrappingProvider;
     private readonly ICommunityGoalService _communityGoals;
+    private readonly IBonusRareService _bonusRare;
     private readonly ILogger<ICatalogPurchaseGrain> _logger;
 
     /// <summary>Days of used-up membership that earn a club gift; never zero, so it can divide.</summary>
@@ -68,6 +69,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         IFurnitureDefinitionProvider definitionProvider,
         IGiftWrappingProvider giftWrappingProvider,
         ICommunityGoalService communityGoals,
+        IBonusRareService bonusRare,
         ILogger<ICatalogPurchaseGrain> logger
     )
     {
@@ -81,6 +83,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         _definitionProvider = definitionProvider;
         _giftWrappingProvider = giftWrappingProvider;
         _communityGoals = communityGoals;
+        _bonusRare = bonusRare;
         _logger = logger;
     }
 
@@ -160,17 +163,19 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         await GrantSubscriptionsAsync(offer, quantity, ct);
 
         if (catalogType == CatalogType.Normal)
-            await ContributeToCommunityGoalAsync(offer, quantity, ct);
+            await RecordReceptionProgressAsync(offer, debitRequests, quantity, ct);
 
         return offer;
     }
 
     /// <summary>
-    /// What was bought from the running community goal's pages counts for it. The purchase is made
-    /// whatever happens here: a goal that couldn't be told is logged, not refunded.
+    /// What a purchase counts for on the reception: the items, for the running community goal when
+    /// bought from its pages, and the credits spent, for the bonus rare. The purchase is made
+    /// whatever happens here: what couldn't be counted is logged, not refunded.
     /// </summary>
-    private async Task ContributeToCommunityGoalAsync(
+    private async Task RecordReceptionProgressAsync(
         CatalogOfferSnapshot offer,
+        List<WalletDebitRequest> debitRequests,
         int quantity,
         CancellationToken ct
     )
@@ -184,6 +189,24 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
             _logger.LogError(
                 ex,
                 "Player {PlayerId}'s purchase of offer {OfferId} did not count for the community goal",
+                this.GetPlayerId(),
+                offer.Id
+            );
+        }
+
+        var credits = debitRequests
+            .Where(x => x.CurrencyKind.CurrencyType == CurrencyType.Credits)
+            .Sum(x => x.Amount);
+
+        try
+        {
+            await _bonusRare.RecordCatalogSpendingAsync(this.GetPlayerId(), credits, ct);
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogError(
+                ex,
+                "Player {PlayerId}'s purchase of offer {OfferId} did not count for the bonus rare",
                 this.GetPlayerId(),
                 offer.Id
             );
