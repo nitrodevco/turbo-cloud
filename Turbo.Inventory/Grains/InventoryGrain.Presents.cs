@@ -25,11 +25,66 @@ internal sealed partial class InventoryGrain
             ct
         );
 
+        var tag = new Dictionary<string, string>
+        {
+            [PresentData.MESSAGE] = request.Message,
+            [PresentData.PRODUCT_CODE] = content.Name,
+            [PresentData.EXTRA_PARAM] = string.Empty,
+        };
+
+        if (request.PurchaserName is { } name)
+            tag[PresentData.PURCHASER_NAME] = name;
+
+        if (request.PurchaserFigure is { } figure)
+            tag[PresentData.PURCHASER_FIGURE] = figure;
+
         await FurniModule.GrantPresentAsync(
             present,
-            BuildPresentExtraData(request, content.Name),
+            BuildPresentExtraData(
+                tag,
+                new PresentStorage { BoxType = request.BoxType, RibbonType = request.RibbonType }
+            ),
             content,
             contentExtraData,
+            ct
+        );
+    }
+
+    /// <summary>
+    /// A gift from the hotel: the tag names no sender, so the client shows its "Special Gift"
+    /// card with no face, and says the sender is trusted only when asked to. A badge it gives is
+    /// kept in the present's own section, out of the client's sight.
+    /// </summary>
+    public Task<FurnitureItemSnapshot> ReceiveStaffPresentAsync(
+        StaffPresentGrantRequest request,
+        CancellationToken ct
+    )
+    {
+        var content = FurniModule.GetDefinitionOrThrow(request.FurniDefinitionId);
+        var present = FurniModule.GetDefinitionOrThrow(request.PresentDefinitionId);
+        var tag = new Dictionary<string, string>
+        {
+            [PresentData.MESSAGE] = request.Message,
+            [PresentData.PRODUCT_CODE] = content.Name,
+            [PresentData.EXTRA_PARAM] = string.Empty,
+        };
+
+        if (request.TrustedSender)
+            tag[PresentData.TRUSTED_SENDER] = PresentData.TRUSTED;
+
+        return FurniModule.GrantPresentAsync(
+            present,
+            BuildPresentExtraData(
+                tag,
+                new PresentStorage
+                {
+                    BoxType = 0,
+                    RibbonType = 0,
+                    BadgeCode = request.BadgeCode,
+                }
+            ),
+            content,
+            null,
             ct
         );
     }
@@ -40,35 +95,18 @@ internal sealed partial class InventoryGrain
     ) => FurniModule.UnwrapPresentAsync(presentId, ct);
 
     /// <summary>
-    /// What the present carries: the tag the client's present logic reads from its map data
-    /// (the note, and the buyer's name and face unless the gift is anonymous), the product code
-    /// it shows once opened, and the box and ribbon in its own section.
+    /// What the present carries: the tag the client's present logic reads from its map data,
+    /// and the box, ribbon and anything else for the server alone in its own section.
     /// </summary>
-    private static string BuildPresentExtraData(PresentGrantRequest request, string productCode)
-    {
-        var tag = new Dictionary<string, string>
-        {
-            [PresentData.MESSAGE] = request.Message,
-            [PresentData.PRODUCT_CODE] = productCode,
-            [PresentData.EXTRA_PARAM] = string.Empty,
-        };
-
-        if (request.PurchaserName is { } name)
-            tag[PresentData.PURCHASER_NAME] = name;
-
-        if (request.PurchaserFigure is { } figure)
-            tag[PresentData.PURCHASER_FIGURE] = figure;
-
-        return JsonSerializer.Serialize(
+    private static string BuildPresentExtraData(
+        Dictionary<string, string> tag,
+        PresentStorage storage
+    ) =>
+        JsonSerializer.Serialize(
             new Dictionary<string, object>
             {
                 [ExtraDataSectionType.STUFF] = new { Data = tag },
-                [PresentStorage.SECTION] = new PresentStorage
-                {
-                    BoxType = request.BoxType,
-                    RibbonType = request.RibbonType,
-                },
+                [PresentStorage.SECTION] = storage,
             }
         );
-    }
 }

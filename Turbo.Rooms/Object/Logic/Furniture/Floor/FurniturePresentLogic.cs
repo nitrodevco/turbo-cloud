@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -28,6 +29,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 /// <para>
 /// Nothing leaves the present until the opening has played, so a present picked up or a room
 /// unloaded meanwhile is still whole; it is drawn wrapped again whenever it is next loaded.
+/// A badge a staff gift gives (<see cref="PresentStorage.BadgeCode"/>) is given as the opening
+/// starts, as Habbo's badge notice comes before its card.
 /// </para>
 /// </summary>
 [RoomObjectLogic(PresentData.LOGIC_NAME)]
@@ -67,6 +70,9 @@ public class FurniturePresentLogic : FurnitureFloorLogic
 
         await SetStateAsync(PresentStates.OPENING);
 
+        // Habbo's staff gift says "you got a new badge" a moment into the glow, before the card.
+        await GiveBadgeAsync(ctx, ct);
+
         TimerSystem.Schedule(
             _ctx.ObjectId,
             _roomGrain._roomConfig.PresentOpenMs,
@@ -82,6 +88,34 @@ public class FurniturePresentLogic : FurnitureFloorLogic
         _opening = false;
 
         return base.OnPickupAsync(ctx, ct);
+    }
+
+    /// <summary>
+    /// The badge a staff gift gives, if it gives one. A failure is logged and the present opens
+    /// anyway: what it holds is worth more than the badge, which staff can give again by hand.
+    /// </summary>
+    private async Task GiveBadgeAsync(ActionContext ctx, CancellationToken ct)
+    {
+        if (ReadStorage()?.BadgeCode is not { Length: > 0 } badgeCode)
+            return;
+
+        try
+        {
+            await _roomGrain
+                ._grainFactory.GetPlayerBadgeGrain(ctx.PlayerId)
+                .GiveBadgeAsync(badgeCode, ct);
+        }
+        catch (Exception ex)
+        {
+            _roomGrain._logger.LogError(
+                ex,
+                "Present {ItemId} in room {RoomId} could not give badge {BadgeCode} to player {PlayerId}",
+                _ctx.ObjectId,
+                _ctx.RoomId,
+                badgeCode,
+                ctx.PlayerId
+            );
+        }
     }
 
     /// <summary>The opening has played: what the present holds comes out and the wrapping goes.</summary>
@@ -158,13 +192,12 @@ public class FurniturePresentLogic : FurnitureFloorLogic
     }
 
     /// <summary>The box and ribbon, which the client reads beside the map data to draw the present.</summary>
-    public override int GetObjectExtra() =>
-        FurnitureExtraDataSections
-            .Read<PresentStorage>(
-                _ctx.RoomObject.ExtraData,
-                PresentStorage.SECTION,
-                _roomGrain._logger
-            )
-            ?.GetObjectExtra()
-        ?? 0;
+    public override int GetObjectExtra() => ReadStorage()?.GetObjectExtra() ?? 0;
+
+    private PresentStorage? ReadStorage() =>
+        FurnitureExtraDataSections.Read<PresentStorage>(
+            _ctx.RoomObject.ExtraData,
+            PresentStorage.SECTION,
+            _roomGrain._logger
+        );
 }

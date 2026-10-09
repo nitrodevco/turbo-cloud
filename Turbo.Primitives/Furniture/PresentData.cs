@@ -21,6 +21,9 @@ public static class PresentData
     public const string PURCHASER_FIGURE = "PURCHASER_FIGURE";
     public const string TRUSTED_SENDER = "TRUSTED_SENDER";
 
+    /// <summary>The <see cref="TRUSTED_SENDER"/> value the client reads as trusted; anything else is not.</summary>
+    public const string TRUSTED = "true";
+
     public static bool IsPresent(string? logicName) =>
         string.Equals(logicName, LOGIC_NAME, StringComparison.Ordinal);
 }

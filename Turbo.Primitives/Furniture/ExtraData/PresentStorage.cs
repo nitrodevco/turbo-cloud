@@ -18,6 +18,12 @@ public sealed record PresentStorage
     public required int RibbonType { get; init; }
 
     /// <summary>
+    /// A badge the present gives as it is opened, as a staff gift does; null for none. Never sent
+    /// to the client: the badge arrives on its own when the opening starts.
+    /// </summary>
+    public string? BadgeCode { get; init; }
+
+    /// <summary>
     /// The item's <c>extra</c> number, which the client's gift visualization reads as
     /// <c>box * 1000 + ribbon</c> to pick the box frame and the ribbon frame.
     /// </summary>

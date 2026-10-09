@@ -147,6 +147,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Inventory.Grains.IInventoryGrain
   C598006F: GrantLtdFurnitureAsync(int, int, int, System.Threading.CancellationToken) -> Task
   3B9E90DC: ReceiveFurnitureAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot>, System.Threading.CancellationToken) -> Task
   9E863E87: ReceivePresentAsync(Turbo.Primitives.Inventory.PresentGrantRequest, System.Threading.CancellationToken) -> Task
+  C1B45225: ReceiveStaffPresentAsync(Turbo.Primitives.Inventory.StaffPresentGrantRequest, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot>
   A1AD01B1: ReleaseFurnitureAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Object.RoomObjectId>, System.Threading.CancellationToken) -> Task
   5E4C6106: RemoveFurnitureAsync(Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<bool>
   2BB8774C: ReturnBotAsync(Turbo.Primitives.Bots.Snapshots.BotSnapshot, System.Threading.CancellationToken) -> Task<bool>

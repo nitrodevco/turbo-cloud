@@ -29,6 +29,12 @@ public class OperationsConfig
     /// <summary>The most items one <c>:giveitem</c> may add to an inventory.</summary>
     public int MaxGiveItemCount { get; init; } = 50;
 
+    /// <summary>
+    /// The longest note on a <c>:gift</c> tag, in characters; the catalog's gift dialog allows
+    /// the same by default.
+    /// </summary>
+    public int MaxGiftMessageLength { get; init; } = 140;
+
     /// <summary>The most names <c>:online</c> lists before it says how many it left out.</summary>
     public int OnlineListMaxNames { get; init; } = 200;
 

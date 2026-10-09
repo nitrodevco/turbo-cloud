@@ -7,6 +7,7 @@ using Turbo.Primitives.Commands;
 using Turbo.Primitives.Commands.Events;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Snapshots;
+using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Grains;
@@ -30,6 +31,7 @@ public class SupportCommandsTests : OperatorCommandsTestBase
     private readonly Dictionary<(int Player, string Currency), int> _wallets = [];
     private readonly HashSet<(int Player, string Badge)> _badges = [];
     private readonly List<(int Player, int Definition)> _granted = [];
+    private readonly List<(int Player, StaffPresentGrantRequest Request)> _presents = [];
     private readonly Turbo.Primitives.Players.Providers.ICurrencyTypeProvider _currencies;
 
     public SupportCommandsTests()
@@ -50,6 +52,12 @@ public class SupportCommandsTests : OperatorCommandsTestBase
             new GiveBadgeCommand(Grains),
             new TakeBadgeCommand(Grains),
             new GiveItemCommand(Grains, definitions, Config),
+            new GiftCommand(
+                Grains,
+                definitions,
+                Hotel.Fakes.Create<Turbo.Primitives.Catalog.Providers.IGiftWrappingProvider>(),
+                Config
+            ),
         ]);
 
         var fakes = Hotel.Fakes;
@@ -179,6 +187,33 @@ public class SupportCommandsTests : OperatorCommandsTestBase
                     ExtraData = null,
                 }
                 : null;
+        fakes.Handlers["GetWrapping"] =
+            _ => new Turbo.Primitives.Catalog.Snapshots.GiftWrappingSnapshot
+            {
+                Enabled = true,
+                Price = 1,
+                StuffTypes = [PRESENT_SPRITE],
+                BoxTypes = [0],
+                RibbonTypes = [0],
+                DefaultStuffTypes = [],
+            };
+        fakes.Handlers["TryGetDefinitionBySprite"] = call =>
+            (int)call.Args[1]! == PRESENT_SPRITE
+                ? Definition(
+                    PRESENT_SPRITE,
+                    "present_wrap*1",
+                    Turbo.Primitives.Furniture.PresentData.LOGIC_NAME
+                )
+                : null;
+        fakes.Handlers["ReceiveStaffPresentAsync"] = call =>
+        {
+            _presents.Add(((int)(long)call.Key!, (StaffPresentGrantRequest)call.Args[0]!));
+
+            return Task.FromResult(
+                (FurnitureItemSnapshot)
+                    RuntimeHelpers.GetUninitializedObject(typeof(FurnitureItemSnapshot))
+            );
+        };
         fakes.Handlers["GrantFurnitureAsync"] = call =>
         {
             _granted.Add(((int)(long)call.Key!, (int)call.Args[0]!));
@@ -189,6 +224,33 @@ public class SupportCommandsTests : OperatorCommandsTestBase
             );
         };
     }
+
+    private const int PRESENT_SPRITE = 500;
+
+    private static FurnitureDefinitionSnapshot Definition(int id, string name, string logic) =>
+        new()
+        {
+            Id = id,
+            SpriteId = id,
+            Name = name,
+            ProductType = ProductType.Floor,
+            FurniCategory = FurnitureCategory.Default,
+            LogicName = logic,
+            TotalStates = 1,
+            Width = 1,
+            Length = 1,
+            StackHeight = Altitude.FromInt(100),
+            CanStack = true,
+            CanWalk = false,
+            CanSit = false,
+            CanLay = false,
+            CanRecycle = true,
+            CanTrade = true,
+            CanGroup = true,
+            CanSell = true,
+            UsagePolicy = FurnitureUsageType.Everybody,
+            ExtraData = null,
+        };
 
     private static string CurrencyName(CurrencyKind kind) =>
         kind.CurrencyType == CurrencyType.Credits ? "credits" : "duckets";
@@ -501,6 +563,59 @@ public class SupportCommandsTests : OperatorCommandsTestBase
                 "There is no furniture called sofa.",
                 "The count must be between 1 and 50.",
                 "The count must be between 1 and 50."
+            );
+    }
+
+    [Fact]
+    public async Task Gift_SendsAPresentFromTheHotel_WithItsNoteAndBadge_AndNoTrustUnlessAsked()
+    {
+        var staff = Staff(PermissionNodes.Command.GIFT);
+
+        await Hotel.RunAsync(
+            "gift",
+            staff,
+            "alice throne \"Thanks for playing Habbo. Enjoy the throne and the badge!\" ADM"
+        );
+        await Hotel.RunAsync("gift", staff, "bob throne \"From the team\" \"\" true");
+
+        _presents.Should().HaveCount(2);
+
+        var (player, request) = _presents[0];
+
+        player.Should().Be(ALICE);
+        request.FurniDefinitionId.Should().Be(77);
+        request.PresentDefinitionId.Should().Be(PRESENT_SPRITE);
+        request.Message.Should().Be("Thanks for playing Habbo. Enjoy the throne and the badge!");
+        request.BadgeCode.Should().Be("ADM");
+        request.TrustedSender.Should().BeFalse("Habbo's own staff gift is not marked trusted");
+
+        _presents[1].Player.Should().Be(BOB);
+        _presents[1].Request.BadgeCode.Should().BeNull();
+        _presents[1].Request.TrustedSender.Should().BeTrue();
+        staff
+            .Replies.Should()
+            .Equal(
+                "Alice was sent a present holding throne.",
+                "Bob was sent a present holding throne."
+            );
+    }
+
+    [Fact]
+    public async Task Gift_RefusesAnUnknownFurniOrAnEmptyNote_AndNeedsItsNode()
+    {
+        var staff = Staff(PermissionNodes.Command.GIFT);
+        var other = Staff(PermissionNodes.Command.GIVEITEM);
+
+        await Hotel.RunAsync("gift", staff, "alice sofa \"Hi\"");
+        await Hotel.RunAsync("gift", staff, "alice throne \" \"");
+        await Hotel.RunAsync("gift", other, "alice throne \"Hi\"");
+
+        _presents.Should().BeEmpty();
+        staff
+            .Replies.Should()
+            .Equal(
+                "There is no furniture called sofa.",
+                "The note must be between 1 and 140 characters."
             );
     }
 
