@@ -40,6 +40,20 @@ public sealed class BootCommand : ICommand<TestArguments>
     }
 }
 
+/// <summary>An optional word before an optional flag, as <c>:gift</c> has.</summary>
+public sealed record TagArguments(string Furni, string? Badge = null, bool Trusted = false);
+
+[Command("tag")]
+[RequiresPermission("command.tag")]
+public sealed class TagCommand : ICommand<TagArguments>
+{
+    public ValueTask<CommandResult> ExecuteAsync(
+        ICommandContext ctx,
+        TagArguments arguments,
+        CancellationToken ct
+    ) => ValueTask.FromResult(CommandResult.Ok);
+}
+
 [Command("hello")]
 [RequiresPermission("command.hello")]
 public sealed class HelloCommand : ICommand<NoArguments>

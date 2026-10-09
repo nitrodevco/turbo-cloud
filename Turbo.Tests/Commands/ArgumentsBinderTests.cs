@@ -92,6 +92,52 @@ public class ArgumentsBinderTests
         hello.Binder.Bind("", _room).Succeeded.Should().BeTrue();
     }
 
+    private static ICommandBinder TagBinder()
+    {
+        var provider = new CommandRegistryProvider(new CapturingLogger<ICommandRegistryProvider>());
+        provider.Register([new TagCommand()]);
+        provider.Current.TryFind("tag", out var tag);
+
+        return tag.Binder;
+    }
+
+    [Theory]
+    [InlineData("throne true", null, true)] // the flag without the badge
+    [InlineData("throne on", null, true)]
+    [InlineData("throne false", null, false)]
+    [InlineData("throne \"\" true", null, true)] // an empty word skips the badge
+    [InlineData("throne - true", null, true)] // so does a dash
+    [InlineData("throne -", null, false)]
+    [InlineData("throne ACH_1 true", "ACH_1", true)]
+    [InlineData("throne ACH_1", "ACH_1", false)]
+    [InlineData("throne true true", "true", true)] // two words: the first is the badge
+    [InlineData("throne \"true\" true", "true", true)] // quoted, it is the badge
+    [InlineData("throne \"true\"", "true", false)]
+    [InlineData("throne \"-\"", "-", false)]
+    public void Bind_AnOptionalWordBeforeAFlag_CanBeSkipped(
+        string line,
+        string? badge,
+        bool trusted
+    )
+    {
+        var result = TagBinder().Bind(line, _room);
+
+        result.Succeeded.Should().BeTrue(result.ErrorKey);
+        var args = (TagArguments)result.Arguments!;
+        args.Badge.Should().Be(badge);
+        args.Trusted.Should().Be(trusted);
+    }
+
+    [Fact]
+    public void Bind_AWordAFlagCannotTake_StillGoesToTheOptionalBeforeIt()
+    {
+        // No later boolean would take it: a required word keeps its own value.
+        _binder.Bind("alice 3 small true", _room).Succeeded.Should().BeTrue();
+        ((TestArguments)_binder.Bind("alice 3 small true", _room).Arguments!)
+            .Loud.Should()
+            .BeTrue();
+    }
+
     [Fact]
     public void Bind_FillsOptionalsWithTheirDefaults()
     {

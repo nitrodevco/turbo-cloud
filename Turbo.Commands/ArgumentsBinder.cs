@@ -314,6 +314,44 @@ internal sealed class ArgumentsBinder : ICommandBinder
                 token = read.Text;
             }
 
+            // An optional the typist skipped: `""` or `-` stands for its default, and a word a
+            // later boolean takes (`:gift bob throne "msg" true`: "true" is not the badge) goes
+            // to that boolean when the words left would otherwise not reach it.
+            if (
+                parameter.Optional
+                && parameter.Kind != Kind.Rest
+                && parameter.Kind != Kind.Boolean
+                && argumentText[start] != '"'
+                && token == "-"
+            )
+            {
+                values[i] = parameter.DefaultValue;
+
+                continue;
+            }
+
+            if (parameter.Optional && parameter.Kind != Kind.Rest && token.Length == 0)
+            {
+                values[i] = parameter.DefaultValue;
+
+                continue;
+            }
+
+            if (
+                parameter.Optional
+                && parameter.Kind != Kind.Rest
+                && parameter.Kind != Kind.Boolean
+                && argumentText[start] != '"'
+                && TryParseBool(token, out _)
+                && FallsToALaterBoolean(i, argumentText, start)
+            )
+            {
+                values[i] = parameter.DefaultValue;
+                position = start;
+
+                continue;
+            }
+
             var failure = TryParse(parameter, token, room, out var value);
 
             if (failure is not null)
@@ -456,6 +494,36 @@ internal sealed class ArgumentsBinder : ICommandBinder
                     Usage
                 );
         }
+    }
+
+    /// <summary>
+    /// Whether the word at <paramref name="start"/> belongs to a boolean parameter after
+    /// <paramref name="index"/>: one exists, and the words left fit the parameters after this one.
+    /// </summary>
+    private bool FallsToALaterBoolean(int index, string argumentText, int start)
+    {
+        var laterBoolean = false;
+
+        for (var j = index + 1; j < _parameters.Length; j++)
+            laterBoolean |= _parameters[j].Kind == Kind.Boolean;
+
+        if (!laterBoolean)
+            return false;
+
+        var words = 0;
+        var cursor = start;
+
+        while (cursor < argumentText.Length)
+        {
+            var next = CommandTextReader.Read(argumentText, ref cursor);
+
+            if (!next.Valid || (next.Text.Length == 0 && next.Start == next.End))
+                break;
+
+            words++;
+        }
+
+        return words <= _parameters.Length - index - 1;
     }
 
     private static bool TryParseBool(string token, out bool value)
