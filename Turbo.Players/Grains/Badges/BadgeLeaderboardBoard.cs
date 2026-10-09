@@ -21,7 +21,10 @@ internal sealed record BadgeLeaderboardBoard(
     ImmutableArray<BadgeLeaderboardEntrySnapshot> Top
 )
 {
-    /// <summary>The rank of a score: one more than the players with a higher one, so ties share it.</summary>
+    /// <summary>
+    /// The rank of a score alone, for an avatar's badge rank: one more than the players with a
+    /// higher one, so ties share it. The board's own lines are numbered by place instead.
+    /// </summary>
     public int RankOf(int score) =>
         Histogram.TakeWhile(x => x.Score > score).Sum(x => x.Players) + 1;
 }
