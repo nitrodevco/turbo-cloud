@@ -351,6 +351,40 @@ public sealed class MySqlMigrationTests : IAsyncLifetime
             .And.Contain((13, "habbo_name", ""))
             .And.Contain((34, "inappropiate_room_group_event", ""))
             .And.Contain((39, "topic_39", ""));
+        // The official report window's tree (2026-10-09), in its order; 14 is the operator's.
+        topics
+            .Where(x => x.Enabled)
+            .OrderBy(x => x.SortOrder)
+            .Select(x => x.Id)
+            .Should()
+            .Equal(
+                1,
+                2,
+                3,
+                30,
+                39,
+                6,
+                8,
+                9,
+                10,
+                11,
+                32,
+                33,
+                12,
+                13,
+                34,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                29,
+                35,
+                40
+            );
         topics
             .Where(x => x.Id != 14)
             .Should()
