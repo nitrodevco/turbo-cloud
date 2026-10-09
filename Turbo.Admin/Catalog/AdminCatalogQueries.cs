@@ -44,6 +44,15 @@ public sealed class AdminCatalogQueries(
     /// <summary>The name the client opens the club gifts by, from the club centre and its notice.</summary>
     public const string CLUB_GIFTS_PAGE_NAME = "club_gifts";
 
+    /// <summary>The layout of the page the catalogue opens on, with the featured items and the voucher box.</summary>
+    public const string FRONT_PAGE_LAYOUT = "frontpage4";
+
+    /// <summary>The client's icon of a star, for the front page's tab.</summary>
+    public const int FRONT_PAGE_ICON = 64;
+
+    /// <summary>The line over a new front page's voucher box.</summary>
+    public const string FRONT_PAGE_VOUCHER_TEXT = "Got a voucher code? Redeem it here.";
+
     public async Task<CatalogTreeResponse> GetTreeAsync(bool canManage, CancellationToken ct)
     {
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
@@ -61,6 +70,7 @@ public sealed class AdminCatalogQueries(
                 x.Localization,
                 x.Name,
                 x.Icon,
+                x.Layout,
                 x.Display,
                 x.SortOrder,
                 Offers = x.Offers!.Count,
@@ -95,6 +105,7 @@ public sealed class AdminCatalogQueries(
                     x.Localization,
                     x.Name,
                     x.Icon,
+                    x.Layout,
                     x.Display.ToName(),
                     x.SortOrder,
                     x.Offers
@@ -314,6 +325,13 @@ public sealed class AdminCatalogQueries(
         static CatalogFurnitureItem Item(FurnitureDefinitionSnapshot x) =>
             new(x.Id, x.Name, x.SpriteId, TypeName(x.ProductType));
     }
+
+    /// <summary>Whether a definition is a floor or a wall item, which an offer of furni gives; null when it is neither.</summary>
+    public ProductType? FurniTypeOf(int definitionId) =>
+        definitions.TryGetDefinition(definitionId)?.ProductType is { } type
+        && type is ProductType.Floor or ProductType.Wall
+            ? type
+            : null;
 
     /// <summary>A product type as the panel names it: <c>floor</c>, <c>wall</c>, <c>badge</c>, ...</summary>
     public static string TypeName(ProductType type) =>

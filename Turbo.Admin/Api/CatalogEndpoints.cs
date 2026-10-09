@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -27,7 +28,8 @@ internal sealed class CatalogEndpoints(
     IGrainFactory grainFactory,
     AdminCatalogQueries catalog,
     ICatalogEditService editor,
-    AdminCatalogBuilder builder
+    AdminCatalogBuilder builder,
+    AdminCatalogAudit audit
 )
 {
     private const string NO_ACCESS = "You can't see the catalog.";
@@ -56,6 +58,31 @@ internal sealed class CatalogEndpoints(
         group.MapGet("/builders/furni-lines", FurniLinesAsync);
         group.MapPost("/pages/{id:int}/build/preview", PreviewBuildAsync);
         group.MapPost("/pages/{id:int}/build", BuildAsync);
+        group.MapPost("/pages/{id:int}/furni", AddFurniAsync);
+        group.MapPost("/offers/delete", DeleteOffersAsync);
+        group.MapPost("/frontpage", CreateFrontPageAsync);
+        group.MapGet("/history", () => Results.Ok(HistoryResponse()));
+        group.MapPost(
+            "/undo",
+            (HttpContext http, CancellationToken ct) => HistoryStepAsync(http, ct, editor.UndoAsync)
+        );
+        group.MapPost(
+            "/redo",
+            (HttpContext http, CancellationToken ct) => HistoryStepAsync(http, ct, editor.RedoAsync)
+        );
+        group.MapPost(
+            "/discard",
+            (HttpContext http, CancellationToken ct) =>
+                HistoryStepAsync(http, ct, editor.DiscardAsync)
+        );
+        group.MapGet("/audit/unoffered", UnofferedAsync);
+        group.MapGet(
+            "/audit/duplicates",
+            async (CancellationToken ct) =>
+                Results.Ok(await audit.GetDuplicatesAsync(ct).ConfigureAwait(false))
+        );
+        group.MapPost("/generate/preview", PreviewGenerateAsync);
+        group.MapPost("/generate", GenerateAsync);
     }
 
     private async Task<IResult> TreeAsync(HttpContext http, CancellationToken ct) =>
@@ -242,6 +269,240 @@ internal sealed class CatalogEndpoints(
         return Built(
             await builder
                 .ApplyAsync(AdminIdentity.Of(http).PlayerId, id, request, ct)
+                .ConfigureAwait(false)
+        );
+    }
+
+    /// <summary>The editor's history: what can be undone and redone, and what waits to go live.</summary>
+    private CatalogHistoryResponse HistoryResponse()
+    {
+        var history = editor.History;
+
+        return new CatalogHistoryResponse(
+            [.. history.Undo.Select(Item)],
+            [.. history.Redo.Select(Item)],
+            history.Truncated,
+            editor.UnpublishedChanges
+        );
+
+        static CatalogHistoryItem Item(CatalogHistoryEntry x) =>
+            new(x.Label, x.Editor.Value, x.AtUtc, x.Edits);
+    }
+
+    /// <summary>An undo, a redo or throwing the unpublished changes away; the history as it is after.</summary>
+    private async Task<IResult> HistoryStepAsync(
+        HttpContext http,
+        CancellationToken ct,
+        Func<PlayerId, CancellationToken, Task<CatalogEditResult>> step
+    )
+    {
+        if (!await CanManageAsync(http, ct).ConfigureAwait(false))
+            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
+
+        var result = await step(AdminIdentity.Of(http).PlayerId, ct).ConfigureAwait(false);
+
+        return result.Saved
+            ? Results.Ok(HistoryResponse())
+            : AdminResults.Error(StatusCodes.Status409Conflict, result.Error ?? "Not done.");
+    }
+
+    private async Task<IResult> UnofferedAsync(
+        string? scope,
+        string? q,
+        string? line,
+        string? category,
+        int? page,
+        int? size,
+        CancellationToken ct
+    ) =>
+        Results.Ok(
+            await audit
+                .GetUnofferedAsync(scope, q, line, category, page ?? 0, size ?? 120, ct)
+                .ConfigureAwait(false)
+        );
+
+    /// <summary>Floor and wall items put on a page, an offer each at one price, as one step.</summary>
+    private async Task<IResult> AddFurniAsync(
+        int id,
+        CatalogAddFurniRequest request,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        if (!await CanManageAsync(http, ct).ConfigureAwait(false))
+            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
+
+        var ids = (request.DefinitionIds ?? []).Distinct().ToList();
+
+        if (ids.Count == 0)
+            return AdminResults.Error(StatusCodes.Status400BadRequest, "Pick the furni to add.");
+
+        var offers = new List<CatalogNewOffer>(ids.Count);
+        var page = CatalogPageRef.Saved(id);
+
+        foreach (var definitionId in ids)
+        {
+            if (catalog.FurniTypeOf(definitionId) is not { } type)
+                return AdminResults.Error(
+                    StatusCodes.Status400BadRequest,
+                    $"There is no floor or wall item {definitionId}."
+                );
+
+            offers.Add(
+                new CatalogNewOffer(
+                    page,
+                    new CatalogOfferDraft(
+                        id,
+                        string.Empty,
+                        request.CostCredits,
+                        request.CostCurrency,
+                        request.CurrencyTypeId,
+                        request.CanGift,
+                        CanBundle: true,
+                        request.ClubLevel,
+                        request.Visible,
+                        Product: null,
+                        Products: [new CatalogProductDraft(type, definitionId, null, 1)]
+                    )
+                )
+            );
+        }
+
+        var result = await editor
+            .BuildTreeAsync(
+                AdminIdentity.Of(http).PlayerId,
+                $"added {ids.Count} furni to page {id}",
+                new CatalogTreeDraft([], offers, [], []),
+                ct
+            )
+            .ConfigureAwait(false);
+
+        return result.Saved
+            ? Results.Ok(
+                new CatalogBulkResponse(result.OffersCreated, editor.UnpublishedChanges, [])
+            )
+            : AdminResults.Error(StatusCodes.Status400BadRequest, result.Error!);
+    }
+
+    /// <summary>Offers deleted at once, as one step; those the service refuses are listed with why.</summary>
+    private async Task<IResult> DeleteOffersAsync(
+        CatalogOffersDeleteRequest request,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        if (!await CanManageAsync(http, ct).ConfigureAwait(false))
+            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
+
+        var ids = (request.OfferIds ?? []).Distinct().ToList();
+        var who = AdminIdentity.Of(http).PlayerId;
+        var failures = new List<CatalogBuildFailure>();
+        var done = await editor
+            .GroupAsync(
+                who,
+                $"deleted {ids.Count} {(ids.Count == 1 ? "offer" : "offers")}",
+                async () =>
+                {
+                    var deleted = 0;
+
+                    foreach (var offerId in ids)
+                    {
+                        var result = await editor
+                            .DeleteOfferAsync(who, offerId, ct)
+                            .ConfigureAwait(false);
+
+                        if (result.Saved)
+                            deleted++;
+                        else
+                            failures.Add(
+                                new CatalogBuildFailure(
+                                    offerId.ToString(CultureInfo.InvariantCulture),
+                                    result.Error ?? "Not deleted."
+                                )
+                            );
+                    }
+
+                    return deleted;
+                }
+            )
+            .ConfigureAwait(false);
+
+        return Results.Ok(new CatalogBulkResponse(done, editor.UnpublishedChanges, [.. failures]));
+    }
+
+    /// <summary>A front page made first among the tabs, with the voucher box's line, where the catalogue opens.</summary>
+    private async Task<IResult> CreateFrontPageAsync(HttpContext http, CancellationToken ct)
+    {
+        if (!await CanManageAsync(http, ct).ConfigureAwait(false))
+            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
+
+        var tree = await catalog.GetTreeAsync(true, ct).ConfigureAwait(false);
+
+        if (tree.RootId == 0)
+            return AdminResults.Error(
+                StatusCodes.Status400BadRequest,
+                "This catalog has no root page."
+            );
+
+        if (
+            tree.Pages.FirstOrDefault(x => x.Layout == AdminCatalogQueries.FRONT_PAGE_LAYOUT) is
+            { } existing
+        )
+            return AdminResults.Error(
+                StatusCodes.Status409Conflict,
+                $"{existing.Localization} is the front page already."
+            );
+
+        var result = await editor
+            .BuildTreeAsync(
+                AdminIdentity.Of(http).PlayerId,
+                "added the front page",
+                new CatalogTreeDraft(
+                    [
+                        new CatalogNewPage(
+                            CatalogPageRef.Saved(tree.RootId),
+                            new CatalogPageDraft(
+                                "Front Page",
+                                null,
+                                AdminCatalogQueries.FRONT_PAGE_ICON,
+                                AdminCatalogQueries.FRONT_PAGE_LAYOUT,
+                                [],
+                                [string.Empty, AdminCatalogQueries.FRONT_PAGE_VOUCHER_TEXT],
+                                CatalogPageDisplay.Regular
+                            ),
+                            Index: 0
+                        ),
+                    ],
+                    [],
+                    [],
+                    []
+                ),
+                ct
+            )
+            .ConfigureAwait(false);
+
+        return result.Saved
+            ? Results.Ok(new CatalogSavedResponse(result.PageIds[0], editor.UnpublishedChanges))
+            : AdminResults.Error(StatusCodes.Status400BadRequest, result.Error!);
+    }
+
+    private async Task<IResult> PreviewGenerateAsync(
+        CatalogGenerateRequest request,
+        CancellationToken ct
+    ) => Built(await builder.PlanCatalogAsync(request, ct).ConfigureAwait(false));
+
+    private async Task<IResult> GenerateAsync(
+        CatalogGenerateRequest request,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        if (!await CanManageAsync(http, ct).ConfigureAwait(false))
+            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_MANAGE);
+
+        return Built(
+            await builder
+                .GenerateCatalogAsync(AdminIdentity.Of(http).PlayerId, request, ct)
                 .ConfigureAwait(false)
         );
     }

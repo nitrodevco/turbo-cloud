@@ -234,6 +234,47 @@ public sealed class AdminCatalogBuilderTests : IDisposable
     }
 
     [Fact]
+    public async Task BuildingOntoANewPage_MakesItUnderThePage_WithTheLayout_AsOneStepToUndo()
+    {
+        SetUpTrophies();
+        var keys = (await PreviewAsync(Request(CatalogPageBuilders.TROPHIES), FURNITURE))
+            .Items.Select(x => x.Key)
+            .ToArray();
+
+        var outcome = await Builder()
+            .ApplyAsync(
+                Editor,
+                FURNITURE,
+                Request(CatalogPageBuilders.TROPHIES, keys: keys, display: "regular") with
+                {
+                    NewPageTitle = "Trophy shop",
+                },
+                Ct
+            );
+
+        outcome.Error.Should().BeNull();
+        var pageId = outcome.Value!.PageId!.Value;
+
+        using (var db = _catalog.Db.CreateDbContext())
+        {
+            var page = db.CatalogPages.AsNoTracking().Single(x => x.Id == pageId);
+
+            page.ParentEntityId.Should().Be(FURNITURE);
+            page.Localization.Should().Be("Trophy shop");
+            page.Layout.Should().Be("trophies");
+            page.Display.Should().Be(CatalogPageDisplay.Regular);
+        }
+
+        OffersOn(pageId).Should().HaveCount(8);
+        _service.History.Undo.Should().ContainSingle();
+
+        (await _service.UndoAsync(Editor, Ct)).Error.Should().BeNull();
+
+        using (var db = _catalog.Db.CreateDbContext())
+            db.CatalogPages.Any(x => x.Id == pageId).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task ApplyingTrophies_CreatesAnOfferEach_InThePlansOrder()
     {
         SetUpTrophies();
@@ -293,7 +334,7 @@ public sealed class AdminCatalogBuilderTests : IDisposable
             Request(CatalogPageBuilders.PETS, keys: ["pet:12"], setLayout: true)
         );
 
-        result.Should().BeEquivalentTo(new CatalogBuildResponse(1, 1, 0, 2, []));
+        result.Should().BeEquivalentTo(new CatalogBuildResponse(1, 1, 0, 2, [], CHILD));
         using var db = _catalog.Db.CreateDbContext();
         var page = db.CatalogPages.Single(x => x.ParentEntityId == CHILD);
         (page.Localization, page.Layout, page.Display)

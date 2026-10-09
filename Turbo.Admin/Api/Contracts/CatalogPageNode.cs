@@ -7,6 +7,7 @@ public sealed record CatalogPageNode(
     string Localization,
     string? Name,
     int Icon,
+    string Layout,
     string Display,
     int SortOrder,
     int OfferCount

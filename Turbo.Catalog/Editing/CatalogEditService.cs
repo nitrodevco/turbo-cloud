@@ -121,9 +121,9 @@ public sealed partial class CatalogEditService(
 
         Apply(page, draft);
         db.CatalogPages.Add(page);
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        var changes = await SaveAsync(db, ct).ConfigureAwait(false);
 
-        return Changed(editor, "created page", page.Id);
+        return Changed(editor, $"added the page {page.Localization}", page.Id, changes);
     }
 
     public async Task<CatalogEditResult> UpdatePageAsync(
@@ -153,9 +153,9 @@ public sealed partial class CatalogEditService(
             return refusedDisplay;
 
         Apply(page, draft);
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        var changes = await SaveAsync(db, ct).ConfigureAwait(false);
 
-        return Changed(editor, "saved page", pageId);
+        return Changed(editor, $"saved the page {page.Localization}", pageId, changes);
     }
 
     public async Task<CatalogEditResult> MovePageAsync(
@@ -213,9 +213,9 @@ public sealed partial class CatalogEditService(
         for (var i = 0; i < siblings.Count; i++)
             siblings[i].SortOrder = i;
 
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        var changes = await SaveAsync(db, ct).ConfigureAwait(false);
 
-        return Changed(editor, "moved page", pageId);
+        return Changed(editor, $"moved the page {moved.Localization}", pageId, changes);
     }
 
     public async Task<CatalogEditResult> DeletePageAsync(
@@ -253,9 +253,9 @@ public sealed partial class CatalogEditService(
             return CatalogEditResult.Refused("Move or delete its offers first.");
 
         db.CatalogPages.Remove(page);
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        var changes = await SaveAsync(db, ct).ConfigureAwait(false);
 
-        return Changed(editor, "deleted page", pageId);
+        return Changed(editor, $"deleted the page {page.Localization}", pageId, changes);
     }
 
     public async Task<CatalogEditResult> CreateOfferAsync(
@@ -293,9 +293,9 @@ public sealed partial class CatalogEditService(
         foreach (var product in gives)
             db.CatalogProducts.Add(NewProduct(offer, product));
 
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        var changes = await SaveAsync(db, ct).ConfigureAwait(false);
 
-        return Changed(editor, "created offer", offer.Id);
+        return Changed(editor, $"added the offer {offer.LocalizationId}", offer.Id, changes);
     }
 
     public async Task<CatalogEditResult> UpdateOfferAsync(
@@ -377,9 +377,9 @@ public sealed partial class CatalogEditService(
             offer.SortOrder = await NextOfferPlaceAsync(db, draft.PageId, ct).ConfigureAwait(false);
 
         Apply(offer, draft, offer);
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        var changes = await SaveAsync(db, ct).ConfigureAwait(false);
 
-        return Changed(editor, "saved offer", offerId);
+        return Changed(editor, $"saved the offer {offer.LocalizationId}", offerId, changes);
     }
 
     public async Task<CatalogEditResult> MoveOfferAsync(
@@ -434,9 +434,9 @@ public sealed partial class CatalogEditService(
         if (from != pageId)
             Renumber(await OffersOnAsync(db, from, offerId, ct).ConfigureAwait(false));
 
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        var changes = await SaveAsync(db, ct).ConfigureAwait(false);
 
-        return Changed(editor, "moved offer", offerId);
+        return Changed(editor, $"moved the offer {offer.LocalizationId}", offerId, changes);
     }
 
     /// <summary>A page's offers in the order it lists them, but for <paramref name="exceptId"/>.</summary>
@@ -526,9 +526,9 @@ public sealed partial class CatalogEditService(
                     }
             )
         );
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        var changes = await SaveAsync(db, ct).ConfigureAwait(false);
 
-        return Changed(editor, "saved the front page's featured items", 0);
+        return Changed(editor, "saved the front page's featured items", 0, changes);
     }
 
     /// <summary>
@@ -633,14 +633,17 @@ public sealed partial class CatalogEditService(
             );
 
         db.CatalogOffers.Remove(offer);
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        var changes = await SaveAsync(db, ct).ConfigureAwait(false);
 
-        return Changed(editor, "deleted offer", offerId);
+        return Changed(editor, $"deleted the offer {offer.LocalizationId}", offerId, changes);
     }
 
     public async Task<CatalogPublishResult> PublishAsync(PlayerId editor, CancellationToken ct)
     {
         var published = Interlocked.Exchange(ref _unpublished, 0);
+
+        ForgetHistory();
+
         var furniDataBefore = await FurniDataHashAsync(ct).ConfigureAwait(false);
 
         await normalCatalog.ReloadAsync(ct).ConfigureAwait(false);
@@ -770,7 +773,7 @@ public sealed partial class CatalogEditService(
             );
             await db.SaveChangesAsync(ct).ConfigureAwait(false);
 
-            return Changed(editor, "made limited offer", offerId);
+            return ChangedOutsideHistory(editor, "made limited offer", offerId);
         }
 
         var total = draft.TotalQuantity;
@@ -813,7 +816,7 @@ public sealed partial class CatalogEditService(
         // off or ended stops selling without waiting for its next draw.
         await grainFactory.GetLtdRaffleGrain(series.Id).ReloadSeriesAsync(ct).ConfigureAwait(false);
 
-        return Changed(editor, "saved the limited series of offer", offerId);
+        return ChangedOutsideHistory(editor, "saved the limited series of offer", offerId);
     }
 
     public async Task<CatalogEditResult> RemoveLimitedAsync(
@@ -855,7 +858,7 @@ public sealed partial class CatalogEditService(
         db.LtdSeries.RemoveRange(series);
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        return Changed(editor, "took the limited series off offer", offerId);
+        return ChangedOutsideHistory(editor, "took the limited series off offer", offerId);
     }
 
     /// <summary>The series a product sells, as the catalog picks it: the active one, else the newest.</summary>
@@ -897,8 +900,11 @@ public sealed partial class CatalogEditService(
             ? gives.Any(x => x.Type == ProductType.HabboClub)
             : existing?.Products?.Any(x => x.SubscriptionType is not null) == true;
 
-    /// <summary>An edit saved: one more change to publish, and a line in the log saying who.</summary>
-    private CatalogEditResult Changed(PlayerId editor, string change, int id)
+    /// <summary>
+    /// An edit saved that is not undone with the rest - a limited series, which the raffle
+    /// sells from at once: one more change to publish, and a line in the log saying who.
+    /// </summary>
+    private CatalogEditResult ChangedOutsideHistory(PlayerId editor, string change, int id)
     {
         Interlocked.Increment(ref _unpublished);
         logger.LogInformation("Player {PlayerId} {Change} {Id} in the catalog", editor, change, id);

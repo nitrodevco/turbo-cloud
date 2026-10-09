@@ -217,6 +217,106 @@ public sealed partial class AdminCatalogBuilder(
         if (wanted.Count == 0 && !request.SetLayout)
             return CatalogBuildOutcome<CatalogBuildResponse>.Refused("Choose the items to build.");
 
+        var newTitle = request.NewPageTitle?.Trim();
+
+        // However many offers and pages it makes, the build is one step to undo, the new page
+        // it builds onto included.
+        if (string.IsNullOrEmpty(newTitle))
+            return await editor
+                .GroupAsync(
+                    editorId,
+                    $"built the page {page.Localization} ({plan.Builder})",
+                    () =>
+                        ApplyPlanAsync(
+                            editorId,
+                            pageId,
+                            request,
+                            plan,
+                            page,
+                            wanted,
+                            childDisplay,
+                            ct
+                        )
+                )
+                .ConfigureAwait(false);
+
+        return await editor
+            .GroupAsync(
+                editorId,
+                $"built a new page {newTitle} ({plan.Builder})",
+                async () =>
+                {
+                    var created = await editor
+                        .CreatePageAsync(
+                            editorId,
+                            pageId,
+                            new CatalogPageDraft(
+                                newTitle,
+                                null,
+                                request.NewPageIcon ?? page.Icon,
+                                // The pet builder's pages carry the pet layout; the page over them tells of pets.
+                                plan.Builder == CatalogPageBuilders.PETS
+                                    ? PETS_INFO_LAYOUT
+                                    : plan.Layout,
+                                [],
+                                [],
+                                childDisplay
+                            ),
+                            ct
+                        )
+                        .ConfigureAwait(false);
+
+                    if (!created.Saved)
+                        return CatalogBuildOutcome<CatalogBuildResponse>.Refused(
+                            created.Error ?? "The new page was not made."
+                        );
+
+                    var target = await PageAsync(created.Id, ct).ConfigureAwait(false);
+
+                    return await ApplyPlanAsync(
+                            editorId,
+                            created.Id,
+                            request with
+                            {
+                                SetLayout = false,
+                            },
+                            plan,
+                            target!,
+                            wanted,
+                            childDisplay,
+                            ct
+                        )
+                        .ConfigureAwait(false);
+                }
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>The layout of the page over the pet builder's pages, which tells of pets.</summary>
+    private const string PETS_INFO_LAYOUT = "pets2";
+
+    private async Task<CatalogPageEntity?> PageAsync(int pageId, CancellationToken ct)
+    {
+        var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
+
+        return await db
+            .CatalogPages.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == pageId, ct)
+            .ConfigureAwait(false);
+    }
+
+    private async Task<CatalogBuildOutcome<CatalogBuildResponse>> ApplyPlanAsync(
+        PlayerId editorId,
+        int pageId,
+        CatalogBuildRequest request,
+        Plan plan,
+        CatalogPageEntity page,
+        HashSet<string> wanted,
+        CatalogPageDisplay childDisplay,
+        CancellationToken ct
+    )
+    {
         var known = plan.Items.Select(x => x.Item.Key).ToHashSet(StringComparer.Ordinal);
         var failures = new List<CatalogBuildFailure>(
             (request.Keys ?? [])
@@ -328,7 +428,8 @@ public sealed partial class AdminCatalogBuilder(
                 pagesCreated,
                 offersMoved,
                 editor.UnpublishedChanges,
-                [.. failures]
+                [.. failures],
+                pageId
             )
         );
     }

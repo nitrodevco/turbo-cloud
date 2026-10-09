@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,6 +19,45 @@ public interface ICatalogEditService
     /// counting; a restart starts at none, the catalogs being loaded fresh.
     /// </summary>
     int UnpublishedChanges { get; }
+
+    /// <summary>
+    /// The steps since the last publish that can be undone, and those undone that can be done
+    /// again. A restart or a publish starts it afresh.
+    /// </summary>
+    CatalogHistory History { get; }
+
+    /// <summary>
+    /// Runs <paramref name="edits"/> as one step of the history, named <paramref name="label"/>:
+    /// a page built or a catalog generated is undone in one go, however many edits it took.
+    /// </summary>
+    Task<T> GroupAsync<T>(PlayerId editor, string label, Func<Task<T>> edits);
+
+    /// <summary>
+    /// Puts the newest step's rows back as they were before it, ids and order included; refused
+    /// when one was changed since, or would take away what something now leans on.
+    /// </summary>
+    Task<CatalogEditResult> UndoAsync(PlayerId editor, CancellationToken ct);
+
+    /// <summary>Does the step undone last again, as it left the rows.</summary>
+    Task<CatalogEditResult> RedoAsync(PlayerId editor, CancellationToken ct);
+
+    /// <summary>
+    /// Undoes every step since the last publish, newest first, so the saved catalog is the one
+    /// players have; stops at the first that can't be. Its id is how many steps were undone.
+    /// They can be redone.
+    /// </summary>
+    Task<CatalogEditResult> DiscardAsync(PlayerId editor, CancellationToken ct);
+
+    /// <summary>
+    /// Makes and moves many pages and offers as one step, named <paramref name="label"/>: checked
+    /// together first, so either all of it is saved or none of it and why.
+    /// </summary>
+    Task<CatalogTreeResult> BuildTreeAsync(
+        PlayerId editor,
+        string label,
+        CatalogTreeDraft draft,
+        CancellationToken ct
+    );
 
     Task<CatalogEditResult> CreatePageAsync(
         PlayerId editor,

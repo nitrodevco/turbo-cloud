@@ -374,19 +374,26 @@ Use the console for them.
 
 ## Catalog
 
-Staff with `admin.catalog.view` get a **Catalog** page, in three columns:
+Staff with `admin.catalog.view` get a **Catalog** page. Its header has four views: **Editor**,
+**Missing furni**, **Duplicates** and **Generate**. The editor is in three columns:
 
-- **The page tree** on the left, as the client's navigator shows it, with hidden pages and pages
-  in the Builders Club catalog marked.
+- **The page tree** on the left, as the client's navigator shows it: tabs as section rows, a guide
+  line per level, the front page, hidden pages and pages in the Builders Club catalog marked, and
+  each page's offer count. **Open every page** and **close every page** sit by the search, which
+  lists every page whose title or link key matches, with where it sits.
 - **The page** in the middle, drawn roughly as the client draws it: the header with its banner,
   icon, title and line, then what its layout shows (the offer grid and the big preview, the
   featured items, or its words and pictures). It follows the fields as they are typed.
 - **The editor** on the right: the page, the offer picked, or the front page's featured items.
 
+With no page open, the middle shows the catalog at a glance: its tabs, whether it has a front page
+(with a button that makes one), how many furni it doesn't sell, how many it sells twice, and a way
+into generating a catalog.
+
 Staff who also hold `catalog.manage` can change it:
 
-- **Drag a page** by its grip to move it: up and down among the others, sideways to put it under
-  the page above or take it back out.
+- **Drag a page** by its row to move it: up and down among the others, sideways to put it under
+  the page above or take it back out. From the keyboard, Space on its grip picks it up.
 - **Drag an offer's tile** to put it elsewhere on its page (the client shows them in that order),
   or onto a page in the tree to move it there.
 - **Click a picture or a text** in the page to jump to its field.
@@ -472,8 +479,66 @@ What other things depend on is protected:
 
 **Publishing.** Edits are saved straight away but players don't see them yet. **Publish** reloads
 both catalogs (the same as `:reload catalog`) and tells every client online the catalog changed:
-it drops what it has and shows "the catalog has been updated". The button shows how many edits
-are waiting. A `:reload catalog` also puts them live, and a restart loads the catalog fresh.
+it drops what it has and shows "the catalog has been updated". The bar along the top of the
+editor shows how many edits are waiting and the last of them. A `:reload catalog` also puts them
+live, and a restart loads the catalog fresh.
+
+**Undo, redo and discard.** Every edit since the last publish can be undone and done again:
+**Undo** and **Redo** in the bar (or Ctrl+Z and Ctrl+Shift+Z outside a text field), or **History**,
+which lists the steps and undoes or redoes back to any of them. An undo puts the rows back exactly,
+ids and order included. A page build, a bulk add or a generated catalog is one step, however many
+edits it made. **Discard** undoes every step since the last publish, so the saved catalog is the
+one players have; the steps can still be redone. An undo is refused, with why, when a row it would
+put back was changed since, or when it would take away an offer that now sells a limited series or
+that Builders Club furni was placed from. Limited series themselves are not undone: the raffle
+sells from them at once. The history is kept in memory: a publish or a restart starts it afresh,
+and the 500 newest steps are kept.
+
+**Missing furni.** The floor and wall items the catalog doesn't sell: in no offer (**Not sold**), or
+only in hidden offers or on pages players can't reach (**Only hidden**). Patterns, posters, songs
+and pets are left out, since their builders sell them. The list narrows by name, furni line and
+furnidata category. Pick tiles, choose a page and a price, and **Add**: one offer each, one step to
+undo. **Add furni** on an open page does the same for that page.
+
+**Duplicates.** Furni sold alone by more than one offer (club gifts and bundles aren't counted),
+each with where its offers are, what they cost, and whether players see them. Open an offer in the
+editor, delete it, **keep only this** one, or **keep one of each**: the first players see.
+
+**Front page.** **Make a front page** adds a `frontpage4` tab, first among the tabs, with the
+voucher box's line, and opens its featured items. **Feature** on an offer puts it among the
+featured items (four at most); give it a promo image there.
+
+**Generate.** A whole catalog from the hotel's own furniture, pets, effects and songs. Its tabs, in
+this order: Front Page; Habbo Club (`hc_membership`) with Club gifts; Furni (spaces, posters,
+trophies and badge displays built by their builders, then the furni lines on shelves by theme:
+Seasonal, Classic lines, Around the world, Fantasy & sci-fi, Rooms & places, Nature & animals,
+Music & parties, Games & sports, Cute & colourful, Collectibles, Hotel specials and More lines,
+with lines of one family, such as every `xmas…`, in one folder, a shelf of more than 24 split by
+letter (*Classic lines A–H*), a line over three pages or more in a folder of its own, and furni in
+no line by category under More furni); Wired (triggers,
+effects, conditions, add-ons, selectors, variables); Pets (a page per pet, accessories, pet care);
+Extras (effects, trax songs, bots); Rares (rare lines, limited and sold-out limited items); Groups;
+and Builders Club (its lines shown only in its catalog). Each page gets the layout and the icon
+that suit it, and a line too long for one page (100 offers, or what you set) is spread over
+numbered pages. **Plan it** shows the tree first: rename a page, give it another icon, or untick
+it to leave it out. Then:
+
+- **Replace this catalog** moves the tabs there now, with everything under them, into one hidden
+  tab, *Old catalog*. Nothing is deleted. Offers already on sale move to their new page with
+  their prices (untick **Move the offers there now** to make every offer new), memberships, club
+  gifts, bots and limited offers move to their pages, and the link keys the new pages take are
+  taken off the old ones.
+- **Build beside it** adds the new tabs hidden after the old ones, every offer made new.
+
+New offers cost what you set. Rares made new start on hidden pages, to be priced first. It is one
+step to undo, and nothing goes live until you publish.
+
+Behind these: `GET /api/catalog/history`, `POST /api/catalog/undo`, `/redo` and `/discard`;
+`GET /api/catalog/audit/unoffered` (`scope` = `missing` or `hidden`, `q`, `line`, `category`,
+`page`, `size`) and `GET /api/catalog/audit/duplicates`; `POST /api/catalog/pages/{id}/furni`
+(definition ids and one price) and `POST /api/catalog/offers/delete`; `POST /api/catalog/frontpage`;
+and `POST /api/catalog/generate/preview` (changes nothing) and `POST /api/catalog/generate`.
+Reading needs `admin.catalog.view`; changing needs `catalog.manage` as well.
 
 **Hidden means hidden.** A hidden offer isn't on its page and can't be bought or raffled, even by
 a client that still knows its id. Before this, it was still sold. A hidden *page* only leaves the
@@ -543,7 +608,12 @@ doesn't describe are listed under "Other", and any code can be typed.
 ### Page builders
 
 A page builder fills a page with the offers a kind of page sells, named the way its layout reads
-them. `POST /api/catalog/pages/{id}/build/preview` (`admin.catalog.view`) returns the plan and
+them. **Build**, beside Publish, opens it: onto the page open in the editor, or onto **a new
+page** - titled, with an icon, under any page and shown where you pick - made with the builder's
+layout (the pet builder's page gets `pets2`, its pets their own pages under it). Page and offers
+are one step to undo. Sending `newPageTitle` (and `newPageIcon`) with the build does the same: the
+page in the address is then the one the new page goes under, and the answer's `pageId` is the new
+page. `POST /api/catalog/pages/{id}/build/preview` (`admin.catalog.view`) returns the plan and
 changes nothing; `POST /api/catalog/pages/{id}/build` (`catalog.manage`) works the plan out again
 on the server and makes only the items whose keys are sent, each through the same checks as an
 edit by hand. An item that is refused is listed with why, and the rest go on. Each new offer gets

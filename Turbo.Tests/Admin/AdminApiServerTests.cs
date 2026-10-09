@@ -199,6 +199,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<AdminPerformanceRecorder>();
         services.AddSingleton<AdminCatalogQueries>();
         services.AddSingleton<AdminCatalogBuilder>();
+        services.AddSingleton<AdminCatalogAudit>();
         services.AddSingleton<AdminSearchQueries>();
         services.AddSingleton<AdminNotificationQueries>();
         services.AddSingleton<ClientAssets>();
