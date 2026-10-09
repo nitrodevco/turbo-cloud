@@ -316,6 +316,52 @@ public sealed class GuildForumTests : IDisposable
     }
 
     [Fact]
+    public async Task A_moderator_cannot_undo_a_staff_hide_by_hiding_it_again_first()
+    {
+        var thread = await PostThreadAsync(MEMBER, "A first subject");
+
+        await (await ForumAsync()).ModerateThreadAsync(STAFF, thread, 20, Ct);
+        await (await ForumAsync()).ModerateMessageAsync(STAFF, thread, 1, 20, Ct);
+        await (await ForumAsync()).ModerateThreadAsync(ADMIN, thread, 10, Ct);
+        await (await ForumAsync()).ModerateThreadAsync(ADMIN, thread, 1, Ct);
+        await (await ForumAsync()).ModerateMessageAsync(ADMIN, thread, 1, 10, Ct);
+        await (await ForumAsync()).ModerateMessageAsync(ADMIN, thread, 1, 1, Ct);
+        await (await ForumAsync()).SendThreadsAsync(STAFF, 0, 20, Ct);
+        await (await ForumAsync()).SendMessagesAsync(STAFF, thread, 0, 20, Ct);
+
+        Notices(ADMIN)
+            .Should()
+            .Equal(Enumerable.Repeat(GuildForumNotificationTypes.ACCESS_DENIED, 4));
+        Sent<ForumThreadsMessageComposer>(STAFF)
+            .Single()
+            .Threads[0]
+            .State.Should()
+            .Be(GuildForumState.HiddenByStaff);
+        Sent<ThreadMessagesMessageComposer>(STAFF)
+            .Single()
+            .Messages[0]
+            .State.Should()
+            .Be(GuildForumState.HiddenByStaff);
+    }
+
+    [Fact]
+    public async Task A_hidden_threads_messages_are_not_sent_to_whoever_may_not_see_it()
+    {
+        var thread = await PostThreadAsync(MEMBER, "A first subject");
+
+        await (await ForumAsync()).ModerateThreadAsync(ADMIN, thread, 10, Ct);
+        await (await ForumAsync()).SendMessagesAsync(MEMBER, thread, 0, 20, Ct);
+        await (await ForumAsync()).SendMessagesAsync(ADMIN, thread, 0, 20, Ct);
+
+        Sent<ThreadMessagesMessageComposer>(MEMBER).Should().BeEmpty();
+        Sent<ThreadMessagesMessageComposer>(ADMIN)
+            .Single()
+            .Messages[0]
+            .Text.Should()
+            .Be("A message long enough");
+    }
+
+    [Fact]
     public async Task A_hidden_message_keeps_its_text_from_members_but_not_from_moderators()
     {
         var thread = await PostThreadAsync(MEMBER, "A first subject");

@@ -214,7 +214,12 @@ internal sealed class GuildForumGrain : Grain, IGuildForumGrain
 
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-        if (await FindThreadAsync(dbCtx, threadId, ct) is null)
+        // A hidden thread's messages keep their own state, so the thread's is what hides them: the
+        // list shows its subject blank to whoever may not see it, and its messages stay closed too.
+        if (
+            await FindThreadAsync(dbCtx, threadId, ct) is not { } thread
+            || !access.MaySee(thread.State, _state.Forum!.ModeratePermission)
+        )
             return;
 
         var messages = await dbCtx
