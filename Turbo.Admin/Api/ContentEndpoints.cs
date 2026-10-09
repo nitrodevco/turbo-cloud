@@ -19,7 +19,7 @@ using Turbo.Primitives.Players.Permissions;
 namespace Turbo.Admin.Api;
 
 /// <summary>
-/// The game's content: achievements and badges. For staff with <c>admin.content.view</c>;
+/// The game's content: achievements, badges and the navigator's categories. For staff with <c>admin.content.view</c>;
 /// changing anything needs <c>content.manage</c> as well.
 /// <para>
 /// An achievement is published through its catalog (<see cref="IAchievementCatalog.ImportAsync"/>):
@@ -31,6 +31,7 @@ internal sealed partial class ContentEndpoints(
     IGrainFactory grainFactory,
     IAchievementCatalog achievements,
     AdminBadgeQueries badges,
+    AdminNavigatorEditor navigator,
     ILogger<ContentEndpoints> logger
 )
 {
@@ -60,6 +61,135 @@ internal sealed partial class ContentEndpoints(
         group.MapPut("/badges/{code}/rarity", SetRarityAsync);
         group.MapPost("/badges/{code}/holders", GiveBadgeAsync);
         group.MapDelete("/badges/{code}/holders/{playerId:int}", TakeBadgeAsync);
+        group.MapGet(
+            "/navigator",
+            async (CancellationToken ct) =>
+                Results.Ok(await navigator.GetAsync(ct).ConfigureAwait(false))
+        );
+        group.MapPost(
+            "/navigator/categories",
+            (NavigatorFlatCategoryRequest request, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Saved(
+                            await navigator
+                                .SaveFlatCategoryAsync(0, request, ct)
+                                .ConfigureAwait(false)
+                        )
+                )
+        );
+        group.MapPut(
+            "/navigator/categories/{id:int}",
+            (
+                int id,
+                NavigatorFlatCategoryRequest request,
+                HttpContext http,
+                CancellationToken ct
+            ) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Saved(
+                            await navigator
+                                .SaveFlatCategoryAsync(id, request, ct)
+                                .ConfigureAwait(false)
+                        )
+                )
+        );
+        group.MapDelete(
+            "/navigator/categories/{id:int}",
+            (int id, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Removed(
+                            await navigator.DeleteFlatCategoryAsync(id, ct).ConfigureAwait(false)
+                        )
+                )
+        );
+        group.MapPost(
+            "/navigator/event-categories",
+            (NavigatorEventCategoryRequest request, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Saved(
+                            await navigator
+                                .SaveEventCategoryAsync(0, request, ct)
+                                .ConfigureAwait(false)
+                        )
+                )
+        );
+        group.MapPut(
+            "/navigator/event-categories/{id:int}",
+            (
+                int id,
+                NavigatorEventCategoryRequest request,
+                HttpContext http,
+                CancellationToken ct
+            ) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Saved(
+                            await navigator
+                                .SaveEventCategoryAsync(id, request, ct)
+                                .ConfigureAwait(false)
+                        )
+                )
+        );
+        group.MapDelete(
+            "/navigator/event-categories/{id:int}",
+            (int id, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Removed(
+                            await navigator.DeleteEventCategoryAsync(id, ct).ConfigureAwait(false)
+                        )
+                )
+        );
+        group.MapPost(
+            "/navigator/tabs",
+            (NavigatorContextRequest request, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Saved(
+                            await navigator.SaveContextAsync(0, request, ct).ConfigureAwait(false)
+                        )
+                )
+        );
+        group.MapPut(
+            "/navigator/tabs/{id:int}",
+            (int id, NavigatorContextRequest request, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Saved(
+                            await navigator.SaveContextAsync(id, request, ct).ConfigureAwait(false)
+                        )
+                )
+        );
+        group.MapDelete(
+            "/navigator/tabs/{id:int}",
+            (int id, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Removed(await navigator.DeleteContextAsync(id, ct).ConfigureAwait(false))
+                )
+        );
     }
 
     private async Task<IResult> ListAchievementsAsync(HttpContext http, CancellationToken ct) =>
@@ -251,6 +381,11 @@ internal sealed partial class ContentEndpoints(
                 return taken ? Results.NoContent() : Results.NotFound();
             }
         );
+
+    private static IResult Saved(int id) => Results.Ok(new { id });
+
+    private static IResult Removed(bool removed) =>
+        removed ? Results.NoContent() : Results.NotFound();
 
     /// <summary>A definition as the catalog reads it; refused when it isn't one.</summary>
     private static AchievementDefinition Read(string? json)

@@ -880,6 +880,11 @@ The **Content** page is the game's content, each change made at once and on reco
   take it from them, or give it to a player. A badge no one holds yet is found by typing its code.
   Staff who may see the gamedata also edit its name and description (`badge_name_<code>`,
   `badge_desc_<code>`), saved to the external texts.
+- **Navigator**: the room categories (name, order, shown, staff only, lowest rank, a permission
+  node they need), the event categories and the tabs along the navigator's top. A change reloads
+  the navigator's categories and drops the listings kept under a renamed or removed category, so
+  players see it the next time they open the navigator. A category rooms are in, or an event
+  category events are in, can't be removed. Staff picks stay on each room's page.
 
 It needs `admin.content.view` to look and `content.manage` to change anything.
 

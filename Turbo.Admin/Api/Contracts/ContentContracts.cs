@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Turbo.Primitives.Achievements.Enums;
 using Turbo.Primitives.Badges.Enums;
 
@@ -37,3 +38,47 @@ public sealed record BadgeRarityRequest(BadgeRarityType? Rarity);
 
 /// <summary>The player a badge is given to.</summary>
 public sealed record BadgeGiveRequest(int? PlayerId);
+
+/// <summary>A room category of the navigator, with how many rooms are in it.</summary>
+public sealed record NavigatorFlatCategoryItem(
+    int Id,
+    string Name,
+    bool Visible,
+    bool StaffOnly,
+    int MinRank,
+    string? RequiredNode,
+    int OrderNum,
+    bool Automatic,
+    string? AutomaticCategory,
+    string? GlobalCategory,
+    int Rooms
+);
+
+/// <summary>An event category of the navigator, with how many events are in it.</summary>
+public sealed record NavigatorEventCategoryItem(int Id, string Name, bool Visible, int Events);
+
+/// <summary>A tab along the navigator's top, by its search code.</summary>
+public sealed record NavigatorContextItem(int Id, string SearchCode, bool Visible, int OrderNum);
+
+public sealed record NavigatorContentResponse(
+    List<NavigatorFlatCategoryItem> FlatCategories,
+    List<NavigatorEventCategoryItem> EventCategories,
+    List<NavigatorContextItem> Contexts
+);
+
+/// <summary>A room category as staff write it; a field left out keeps what it was.</summary>
+public sealed record NavigatorFlatCategoryRequest(
+    string? Name,
+    bool? Visible,
+    bool? StaffOnly,
+    int? MinRank,
+    string? RequiredNode,
+    int? OrderNum,
+    bool? Automatic,
+    string? AutomaticCategory,
+    string? GlobalCategory
+);
+
+public sealed record NavigatorEventCategoryRequest(string? Name, bool? Visible);
+
+public sealed record NavigatorContextRequest(string? SearchCode, bool? Visible, int? OrderNum);

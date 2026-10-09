@@ -182,6 +182,7 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(Turbo.Primitives.Hotel.ICommunityGoalService),
                 typeof(Turbo.Primitives.Catalog.IBonusRareService),
                 typeof(Turbo.Primitives.Achievements.IAchievementCatalog),
+                typeof(Turbo.Primitives.Navigator.INavigatorProvider),
                 typeof(Turbo.Primitives.Settings.IServerSettings),
                 typeof(IPlayerAccountService),
                 typeof(ILoginTicketService),
@@ -206,6 +207,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<AdminCatalogBuilder>();
         services.AddSingleton<AdminCatalogAudit>();
         services.AddSingleton<Turbo.Admin.Content.AdminBadgeQueries>();
+        services.AddSingleton<Turbo.Admin.Content.AdminNavigatorEditor>();
         services.AddSingleton<AdminSearchQueries>();
         services.AddSingleton<AdminNotificationQueries>();
         services.AddSingleton<ClientAssets>();
