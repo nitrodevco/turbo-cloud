@@ -373,6 +373,11 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Wardrobe.IPlayerW
   F24EEFE3: GetOutfitsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<Turbo.Primitives.Players.Snapshots.Wardrobe.OutfitDataSnapshot>>
   F73B3D9D: SaveOutfitAsync(int, string, Turbo.Primitives.Rooms.Enums.AvatarGenderType, System.Threading.CancellationToken) -> Task<bool>
 
+interface [GrainInterfaceType("Turbo.Primitives.Quests.Grains.IPlayerDailyTaskGrain")] Turbo.Primitives.Quests.Grains.IPlayerDailyTaskGrain [Version(0)]
+  24E43A1E: ClaimAsync(long, System.Threading.CancellationToken) -> Task<bool>
+  9A2D11D4: RecordActivityAsync(Turbo.Primitives.Quests.Enums.DailyTaskActivity, string, System.Threading.CancellationToken) -> Task
+  EC2FD848: SendTasksAsync(System.Threading.CancellationToken) -> Task
+
 interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomDirectoryGrain")] Turbo.Primitives.Rooms.Grains.IRoomDirectoryGrain [Version(0)]
   F05B416C: AddPlayerToRoomAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task
   69EF2FC8: GetActiveRoomIdsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.RoomId>>

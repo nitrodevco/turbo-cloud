@@ -15,6 +15,7 @@ using Turbo.Primitives.Messages.Outgoing.Room.Permissions;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Quests.Enums;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -97,6 +98,20 @@ internal sealed partial class PlayerPresenceGrain
                     }
                 );
                 await db.SaveChangesAsync(ct);
+
+                _grainFactory
+                    .GetPlayerDailyTaskGrain(_state.PlayerId)
+                    .RecordActivityAsync(
+                        DailyTaskActivity.RoomVisit,
+                        roomId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        CancellationToken.None
+                    )
+                    .LogAndForget(
+                        _logger,
+                        "count the visit of player {PlayerId} to room {RoomId} for daily tasks",
+                        _state.PlayerId,
+                        roomId
+                    );
             }
         }
         _state.ActiveRoomId = roomId;

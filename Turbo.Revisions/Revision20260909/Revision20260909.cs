@@ -1077,6 +1077,7 @@ public class Revision20260909 : IRevision
                 new GetConcurrentUsersRewardMessageParser()
             },
             { MessageEvent.GetDailyTasksMessageEvent, new GetDailyTasksMessageParser() },
+            { MessageEvent.ClaimDailyTaskMessageEvent, new ClaimDailyTaskMessageParser() },
             { MessageEvent.GetDailyQuestMessageEvent, new GetDailyQuestMessageParser() },
             { MessageEvent.GetQuestsMessageEvent, new GetQuestsMessageParser() },
             {
@@ -4515,6 +4516,24 @@ public class Revision20260909 : IRevision
             {
                 typeof(QuestsMessageComposer),
                 new QuestsMessageComposerSerializer(MessageComposer.QuestsMessageComposer)
+            },
+            {
+                typeof(DailyTasksActiveListMessageComposer),
+                new DailyTasksActiveListMessageComposerSerializer(
+                    MessageComposer.DailyTasksActiveListMessageComposer
+                )
+            },
+            {
+                typeof(DailyTasksTasksAddedMessageComposer),
+                new DailyTasksTasksAddedMessageComposerSerializer(
+                    MessageComposer.DailyTasksTasksAddedMessageComposer
+                )
+            },
+            {
+                typeof(DailyTasksTaskUpdateMessageComposer),
+                new DailyTasksTaskUpdateMessageComposerSerializer(
+                    MessageComposer.DailyTasksTaskUpdateMessageComposer
+                )
             },
             {
                 typeof(SeasonalQuestsMessageComposer),

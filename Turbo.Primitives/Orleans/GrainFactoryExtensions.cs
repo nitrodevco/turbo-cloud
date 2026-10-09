@@ -25,6 +25,7 @@ using Turbo.Primitives.Players.Grains.Subscriptions;
 using Turbo.Primitives.Players.Grains.Wardrobe;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Wallet;
+using Turbo.Primitives.Quests.Grains;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
@@ -231,6 +232,11 @@ public static class GrainFactoryExtensions
         this IGrainFactory factory,
         PlayerId playerId
     ) => factory.GetGrain<IPlayerWardrobeGrain>(playerId.Value);
+
+    public static IPlayerDailyTaskGrain GetPlayerDailyTaskGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerDailyTaskGrain>(playerId.Value);
 
     public static IPlayerSettingsGrain GetPlayerSettingsGrain(
         this IGrainFactory factory,

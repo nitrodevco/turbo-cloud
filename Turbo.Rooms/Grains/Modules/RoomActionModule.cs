@@ -15,6 +15,7 @@ using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Permissions;
+using Turbo.Primitives.Quests.Enums;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object;
@@ -179,6 +180,23 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
     {
         if (!_roomGrain._state.ItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.FloorItemNotFound);
+
+        // A find task completes on the double-click itself ("find the BBQ and double-click on
+        // it", quests.daily.FINDBBQ.hint), whether or not the player may change the furni.
+        if (ctx.Origin == ActionOrigin.Player && ctx.PlayerId > 0)
+            _roomGrain
+                ._grainFactory.GetPlayerDailyTaskGrain(ctx.PlayerId)
+                .RecordActivityAsync(
+                    DailyTaskActivity.FurniUse,
+                    item.Definition.Name,
+                    CancellationToken.None
+                )
+                .LogAndForget(
+                    _roomGrain._logger,
+                    "count the use of item {ItemId} by player {PlayerId} for daily tasks",
+                    itemId,
+                    ctx.PlayerId
+                );
 
         if (!await item.Logic.CanUseAsync(ctx))
             return false;

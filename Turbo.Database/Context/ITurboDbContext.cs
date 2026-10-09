@@ -7,6 +7,7 @@ using Turbo.Database.Entities.Hotel;
 using Turbo.Database.Entities.Moderation;
 using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Players;
+using Turbo.Database.Entities.Quests;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Entities.Security;
 using Turbo.Database.Entities.Tracking;
@@ -49,6 +50,10 @@ public interface ITurboDbContext : IDisposable
     public DbSet<RoomMuteEntity>? RoomMutes { get; set; }
 
     public DbSet<CfhTopicEntity>? CfhTopics { get; set; }
+
+    public DbSet<DailyTaskDefinitionEntity>? DailyTaskDefinitions { get; set; }
+
+    public DbSet<PlayerDailyTaskEntity>? PlayerDailyTasks { get; set; }
 
     public DbSet<CfhReportEntity>? CfhReports { get; set; }
 

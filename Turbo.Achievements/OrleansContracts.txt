@@ -11,3 +11,5 @@
 # Details: https://aka.ms/orleans/OrleansContracts.txt
 
 class [GrainType("playerachievement")] Turbo.Achievements.Grains.PlayerAchievementGrain
+
+class [GrainType("playerdailytask")] Turbo.Achievements.Grains.PlayerDailyTaskGrain

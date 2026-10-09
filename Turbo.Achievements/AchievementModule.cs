@@ -36,6 +36,19 @@ public sealed class AchievementModule : IHostPluginModule
                 $"Turbo:Achievements:BadgeAssetUrl must be an http(s) URL containing {AchievementBadgeAssets.BADGE_NAME_TOKEN}."
             )
             .ValidateOnStart();
+        services
+            .AddOptions<DailyTaskConfig>()
+            .Bind(builder.Configuration.GetSection(DailyTaskConfig.SECTION_NAME))
+            .Validate(
+                x =>
+                    x.TasksPerDay >= 0
+                    && x.HcDucketMultiplier >= 1
+                    && x.UnclaimedKeepDays >= 0
+                    && x.ResetTimeUtc >= TimeSpan.Zero
+                    && x.ResetTimeUtc < TimeSpan.FromDays(1),
+                "Turbo:DailyTasks: counts must not be negative and the reset must be a time of day."
+            )
+            .ValidateOnStart();
         services.TryAddSingleton(TimeProvider.System);
         // Installing the Habbo pack is on unless the hotel turns it off.
         if (
