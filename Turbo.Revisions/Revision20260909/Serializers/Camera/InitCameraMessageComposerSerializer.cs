@@ -8,6 +8,8 @@ internal class InitCameraMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, InitCameraMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.CreditPrice);
+        packet.WriteInteger(message.DucketPrice);
+        packet.WriteInteger(message.PublishDucketPrice);
     }
 }

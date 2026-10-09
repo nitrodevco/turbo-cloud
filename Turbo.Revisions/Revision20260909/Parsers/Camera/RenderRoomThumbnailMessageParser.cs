@@ -4,12 +4,12 @@ using Turbo.Primitives.Packets;
 
 namespace Turbo.Revisions.Revision20260909.Parsers.Camera;
 
-internal class RenderRoomMessageParser : IParser
+internal class RenderRoomThumbnailMessageParser : IParser
 {
     public IMessageEvent Parse(IClientPacket packet)
     {
         var length = packet.PopInt();
 
-        return new RenderRoomMessage { Data = length > 0 ? packet.PopBytes(length) : [] };
+        return new RenderRoomThumbnailMessage { Data = length > 0 ? packet.PopBytes(length) : [] };
     }
 }

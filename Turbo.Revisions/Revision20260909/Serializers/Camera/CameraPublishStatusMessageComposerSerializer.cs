@@ -11,6 +11,10 @@ internal class CameraPublishStatusMessageComposerSerializer(int header)
         CameraPublishStatusMessageComposer message
     )
     {
-        //
+        packet.WriteBoolean(message.IsOk);
+        packet.WriteInteger(message.SecondsToWait);
+
+        if (message.IsOk && message.ExtraDataId is not null)
+            packet.WriteString(message.ExtraDataId);
     }
 }
