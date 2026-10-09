@@ -236,6 +236,28 @@ internal sealed class GuildForumGrain : Grain, IGuildForumGrain
             },
             ct
         );
+
+        if (messages.Count == 0)
+            return;
+
+        // Reading a thread marks its messages read: the AS3 client never sends
+        // UpdateForumReadMarker, and on Habbo opening a thread drops My Forums and the me menu's
+        // forum counter (4 -> 3, forum-messages.png). The marker is the forum's, so it moves to
+        // the last message shown (inference: one marker per forum, as the protocol has).
+        var player = _grainFactory.GetPlayerGuildForumGrain(viewer);
+
+        await player.MarkReadAsync(
+            [
+                new GuildForumReadMarkerSnapshot
+                {
+                    GroupId = _state.GuildId.Value,
+                    LastReadMessageId = messages.Max(x => x.ForumMessageId),
+                    MarkAll = false,
+                },
+            ],
+            ct
+        );
+        await player.SendUnreadForumsCountAsync(ct);
     }
 
     public async Task PostAsync(

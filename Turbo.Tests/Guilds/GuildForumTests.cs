@@ -43,6 +43,9 @@ public sealed class GuildForumTests : IDisposable
     private const int STRANGER = 4;
     private const int STAFF = 5;
 
+    /// <summary>What the compose window sends for a new line.</summary>
+    private const char LINE_BREAK = (char)13;
+
     private readonly SqliteDb _db = new();
     private readonly Fakes _fakes = new();
 
@@ -495,6 +498,41 @@ public sealed class GuildForumTests : IDisposable
         );
 
         _db.CreateDbContext().GuildForumReadMarkers.Single().LastReadMessageId.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Reading_a_thread_marks_its_messages_read_and_updates_the_counter()
+    {
+        var first = await PostThreadAsync(MEMBER, "A first subject");
+        await PostThreadAsync(ADMIN, "A second subject");
+        _fakes.Handlers["MarkReadAsync"] = call =>
+            PlayerForums((int)Convert.ToInt64(call.Key))
+                .MarkReadAsync((ImmutableArray<GuildForumReadMarkerSnapshot>)call.Args[0]!, Ct);
+
+        await (await ForumAsync()).SendMessagesAsync(OWNER, first, 0, 20, Ct);
+
+        _db.CreateDbContext()
+            .GuildForumReadMarkers.Single(x => x.PlayerEntityId == OWNER)
+            .LastReadMessageId.Should()
+            .Be(1);
+        _fakes
+            .Log.Of("SendUnreadForumsCountAsync")
+            .Select(x => Convert.ToInt64(x.Key))
+            .Should()
+            .Equal(OWNER);
+    }
+
+    [Fact]
+    public async Task A_line_break_in_a_post_comes_back_as_it_was_sent()
+    {
+        var text = $"First line{LINE_BREAK}second line";
+        var forum = await ForumAsync();
+        await forum.PostAsync(MEMBER, 0, "A first subject", text, Ct);
+        var thread = Sent<PostThreadMessageComposer>(MEMBER).Single().Thread.ThreadId;
+
+        await (await ForumAsync()).SendMessagesAsync(MEMBER, thread, 0, 20, Ct);
+
+        Sent<ThreadMessagesMessageComposer>(MEMBER).Single().Messages[0].Text.Should().Be(text);
     }
 
     [Fact]
