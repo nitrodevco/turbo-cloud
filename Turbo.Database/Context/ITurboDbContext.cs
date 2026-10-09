@@ -50,6 +50,10 @@ public interface ITurboDbContext : IDisposable
 
     public DbSet<CfhTopicEntity>? CfhTopics { get; set; }
 
+    public DbSet<CfhReportEntity>? CfhReports { get; set; }
+
+    public DbSet<CfhReportChatLineEntity>? CfhReportChatLines { get; set; }
+
     public DbSet<RoomRaidProtectionEntity>? RoomRaidProtections { get; set; }
 
     public DbSet<RoomRightEntity>? RoomRights { get; set; }

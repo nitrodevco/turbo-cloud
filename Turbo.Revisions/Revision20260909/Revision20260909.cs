@@ -632,6 +632,7 @@ public class Revision20260909 : IRevision
                 new CallForHelpFromSelfieMessageParser()
             },
             { MessageEvent.CallForHelpMessageEvent, new CallForHelpMessageParser() },
+            { MessageEvent.AppealCfhMessageEvent, new AppealCfhMessageParser() },
             {
                 MessageEvent.GetCfhMyReportStatusMessageEvent,
                 new GetCfhMyReportStatusMessageParser()

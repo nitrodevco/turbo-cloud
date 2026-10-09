@@ -111,6 +111,10 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<CfhTopicEntity> CfhTopics { get; init; }
 
+    public DbSet<CfhReportEntity> CfhReports { get; init; }
+
+    public DbSet<CfhReportChatLineEntity> CfhReportChatLines { get; init; }
+
     public DbSet<RoomRaidProtectionEntity> RoomRaidProtections { get; init; }
 
     public DbSet<RoomRightEntity> RoomRights { get; init; }

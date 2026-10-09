@@ -264,6 +264,8 @@ and tells nobody else. A selector use is always logged, whether or not the execu
 maintenance messages are hotel texts (`moderation.ban.message`, `hotel.maintenance.started`).
 What the help window's sanction info says about a silence or a trade lock is a hotel text too
 (`moderation.sanction.mute`, `moderation.sanction.trade_lock`, each with a `.permanent` form).
+A refused call for help says why in one too (`moderation.cfh.too_many`, `%0%` the reports
+waiting; `moderation.cfh.unknown_topic`).
 
 **Deliberately not here.**
 - Avatar toys: `:sit`, `:lay`, `:moonwalk`, `:carry`, `:enable`, `:mimic`, `:push`, `:pull`,

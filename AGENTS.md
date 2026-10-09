@@ -1257,6 +1257,7 @@ behaviour goes in one extension class, not in each handler.
   | `Users/GuildMemberMgmtResultExtensions` | `SendGuildMemberMgmtFailureAsync` |
   | `Userdefinedroomevents/Wiredmenu/WiredVariableHoldersExtensions` | `SendWiredVariableHoldersAsync`, which lists who holds a wired variable |
   | `Userdefinedroomevents/Wiredmenu/WiredVariablesForObjectExtensions` | `SendWiredVariablesForObjectAsync`, which lists the variables one target holds |
+  | `Help/CfhReportStatusExtensions` | `SendMyCfhReportStatusAsync`, which lists the player's own calls for help |
 
 - **Where it does not go:**
   - A one-line grain call that encodes a rule belongs in `GrainFactoryExtensions` in

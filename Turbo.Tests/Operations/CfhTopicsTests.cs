@@ -1,7 +1,10 @@
 using FluentAssertions;
+using Microsoft.Extensions.Options;
 using Turbo.Database.Entities.Moderation;
 using Turbo.Operations;
+using Turbo.Operations.Configuration;
 using Turbo.Primitives.Messages.Outgoing.Callforhelp;
+using Turbo.Primitives.Texts;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -30,7 +33,12 @@ public sealed class CfhTopicsTests : IDisposable
         );
         _db.Insert(Topic(2, "sexual_content", "cybersex", "mods", 101, enabled: false));
 
-        var categories = await new CallForHelpService(_db).GetTopicsAsync(Ct);
+        var categories = await new CallForHelpService(
+            _db,
+            Options.Create(new OperationsConfig()),
+            new Fakes().Create<IHotelTextProvider>(),
+            TimeProvider.System
+        ).GetTopicsAsync(Ct);
 
         categories.Select(x => x.Name).Should().Equal("sexual_content", "trolling_bad_behavior");
         categories[0].Topics.Select(x => x.Id).Should().Equal(1);

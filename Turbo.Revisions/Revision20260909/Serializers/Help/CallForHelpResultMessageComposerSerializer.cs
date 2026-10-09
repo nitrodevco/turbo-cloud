@@ -3,6 +3,7 @@ using Turbo.Primitives.Packets;
 
 namespace Turbo.Revisions.Revision20260909.Serializers.Help;
 
+/// <summary><c>CallForHelpResultMessageParser</c>: the result type, then the text shown.</summary>
 internal class CallForHelpResultMessageComposerSerializer(int header)
     : AbstractSerializer<CallForHelpResultMessageComposer>(header)
 {
@@ -11,6 +12,6 @@ internal class CallForHelpResultMessageComposerSerializer(int header)
         CallForHelpResultMessageComposer message
     )
     {
-        //
+        packet.WriteInteger((int)message.Result.Result).WriteString(message.Result.Message);
     }
 }

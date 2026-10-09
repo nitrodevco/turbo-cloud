@@ -45,4 +45,16 @@ public class OperationsConfig
     /// What a filtered word is replaced with, by the hotel's word filter and by each room's own.
     /// </summary>
     public string WordFilterReplacement { get; init; } = "bobba";
+
+    /// <summary>
+    /// How many calls for help a player may have waiting for a moderator; one more is refused
+    /// until staff close one. Keeps one player from filling the queue.
+    /// </summary>
+    public int CfhMaxOpenReports { get; init; } = 3;
+
+    /// <summary>The most chat lines kept with one call for help.</summary>
+    public int CfhMaxChatLines { get; init; } = 50;
+
+    /// <summary>How many of their own reports a player's report status lists, newest first.</summary>
+    public int CfhReportsListed { get; init; } = 50;
 }
