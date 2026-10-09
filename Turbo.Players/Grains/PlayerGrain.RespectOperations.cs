@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Turbo.Database.Entities.Players;
 
 namespace Turbo.Players.Grains;
 
@@ -25,7 +26,7 @@ internal sealed partial class PlayerGrain
         if (operationId.Length > 100)
             throw new ArgumentException("Respect operation id too long.", nameof(operationId));
         await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
-        var kind = pet ? "pet-spend" : "spend";
+        var kind = pet ? RespectReceiptKinds.PET_SPEND : RespectReceiptKinds.SPEND;
         var receipt = await db.HumanRespectParticipantReceipts.FindAsync(
             [PlayerId.Value, operationId, kind],
             ct
@@ -74,7 +75,7 @@ internal sealed partial class PlayerGrain
             throw new ArgumentException("Respect operation id too long.", nameof(operationId));
         await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
         var receipt = await db.HumanRespectParticipantReceipts.FindAsync(
-            [PlayerId.Value, operationId, "receive"],
+            [PlayerId.Value, operationId, RespectReceiptKinds.RECEIVE],
             ct
         );
         if (receipt is not null)
@@ -86,7 +87,7 @@ internal sealed partial class PlayerGrain
             {
                 PlayerId = PlayerId.Value,
                 OperationId = operationId,
-                Kind = "receive",
+                Kind = RespectReceiptKinds.RECEIVE,
                 Accepted = true,
                 ResultTotal = entity.RespectPoints,
             }

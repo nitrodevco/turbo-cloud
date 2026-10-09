@@ -13,7 +13,8 @@ public sealed class HumanRespectParticipantReceiptEntity
     [MaxLength(100)]
     public required string OperationId { get; set; }
 
-    [MaxLength(8)]
+    /// <summary>One of <see cref="RespectReceiptKinds"/>.</summary>
+    [MaxLength(16)]
     public required string Kind { get; set; }
 
     public bool Accepted { get; set; }
