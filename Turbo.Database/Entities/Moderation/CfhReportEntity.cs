@@ -20,8 +20,24 @@ public class CfhReportEntity : TurboEntity
     public const int NAME_MAX_LENGTH = 100;
     public const int EMAIL_MAX_LENGTH = 255;
 
+    public const int EXTRA_DATA_ID_MAX_LENGTH = 64;
+
     [Column("reporter_id")]
     public required int ReporterEntityId { get; set; }
+
+    /// <summary>Where it was sent from, which says what <see cref="ChatLines"/> are and whether the photo columns hold anything.</summary>
+    [Column("source")]
+    [DefaultValue(CfhSourceType.Room)]
+    public CfhSourceType Source { get; set; }
+
+    /// <summary>A photo report's photo: its extra data id; null otherwise.</summary>
+    [Column("extra_data_id")]
+    [StringLength(EXTRA_DATA_ID_MAX_LENGTH)]
+    public string? ExtraDataId { get; set; }
+
+    /// <summary>A photo report's wall item; null otherwise. A plain column: the photo may be gone.</summary>
+    [Column("item_id")]
+    public int? ItemEntityId { get; set; }
 
     /// <summary>The player reported; null for a report about a room or no one.</summary>
     [Column("reported_id")]

@@ -113,6 +113,12 @@ public sealed class CallForHelpService(
             new CfhReportEntity
             {
                 ReporterEntityId = reporter.Value,
+                Source = submission.Source,
+                ExtraDataId = OrNull(
+                    submission.ExtraDataId,
+                    CfhReportEntity.EXTRA_DATA_ID_MAX_LENGTH
+                ),
+                ItemEntityId = submission.ItemId > 0 ? submission.ItemId : null,
                 ReportedEntityId =
                     submission.ReportedPlayerId > 0 ? submission.ReportedPlayerId : null,
                 RoomEntityId = submission.RoomId > 0 ? submission.RoomId : null,

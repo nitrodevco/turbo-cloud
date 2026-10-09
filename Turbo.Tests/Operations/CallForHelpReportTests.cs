@@ -172,6 +172,73 @@ public sealed class CallForHelpReportTests : IDisposable
         (await Service().AppealAsync(REPORTER, id, Ct)).Should().BeFalse();
     }
 
+    [Fact]
+    public async Task A_report_from_the_messenger_is_stored_with_the_conversation_and_no_room()
+    {
+        var reply = Assert.Single(
+            await Harness()
+                .SendAsync(
+                    PacketHarness.Incoming("CallForHelpFromIMMessageEvent"),
+                    PacketHarness.Payload(w =>
+                        w.String("in my messages")
+                            .Int(TOPIC)
+                            .Int(REPORTED)
+                            .Int(1)
+                            .Int(REPORTED)
+                            .String("send me your password")
+                            .String(string.Empty)
+                            .String(string.Empty)
+                    ),
+                    playerId: REPORTER
+                )
+        );
+
+        Assert.Equal((int)CfhResultType.Sent, reply.PopInt());
+
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        var report = await db.CfhReports.Include(x => x.ChatLines).SingleAsync(Ct);
+
+        report.Source.Should().Be(CfhSourceType.InstantMessage);
+        (report.ReportedEntityId, report.RoomEntityId, report.Message)
+            .Should()
+            .Be((REPORTED, null, "in my messages"));
+        report
+            .ChatLines!.Select(x => (x.PlayerEntityId, x.Text))
+            .Should()
+            .Equal((REPORTED, "send me your password"));
+    }
+
+    [Fact]
+    public async Task A_report_of_a_photo_is_stored_with_the_photo()
+    {
+        var reply = Assert.Single(
+            await Harness()
+                .SendAsync(
+                    PacketHarness.Incoming("CallForHelpFromPhotoMessageEvent"),
+                    PacketHarness.Payload(w =>
+                        w.String("photo-abc123")
+                            .Int(ROOM)
+                            .Int(REPORTED)
+                            .Int(TOPIC)
+                            .Int(55)
+                            .String(string.Empty)
+                            .String(string.Empty)
+                    ),
+                    playerId: REPORTER
+                )
+        );
+
+        Assert.Equal((int)CfhResultType.Sent, reply.PopInt());
+
+        var report = (await Reports()).Single();
+
+        report.Source.Should().Be(CfhSourceType.Photo);
+        (report.ExtraDataId, report.ItemEntityId, report.RoomEntityId, report.ReportedEntityId)
+            .Should()
+            .Be(("photo-abc123", 55, ROOM, REPORTED));
+        report.Message.Should().BeEmpty();
+    }
+
     private async Task<List<ClientPacket>> SendReportAsync(int topic) =>
         await Harness()
             .SendAsync(
