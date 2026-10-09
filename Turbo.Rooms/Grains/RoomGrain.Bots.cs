@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Bots.Enums;
+using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 
@@ -66,5 +67,35 @@ public sealed partial class RoomGrain
             "get the configuration of bot",
             botId,
             () => BotModule.RequestConfigurationAsync(ctx, botId, skill, ct)
+        );
+
+    public Task<bool> StaffUpdateBotAsync(
+        int botId,
+        BotStaffEditSnapshot edit,
+        CancellationToken ct
+    ) =>
+        RunLoggedAsync(
+            ActionContext.CreateForSystem(RoomId),
+            "staff update bot",
+            botId,
+            async () =>
+            {
+                await BotModule.EnsureBotsLoadedAsync(ct);
+
+                return await BotModule.StaffUpdateBotAsync(botId, edit, ct);
+            }
+        );
+
+    public Task<bool> StaffPickupBotAsync(int botId, CancellationToken ct) =>
+        RunLoggedAsync(
+            ActionContext.CreateForSystem(RoomId),
+            "staff pick up bot",
+            botId,
+            async () =>
+            {
+                await BotModule.EnsureBotsLoadedAsync(ct);
+
+                return await BotModule.StaffPickupBotAsync(botId, ct);
+            }
         );
 }

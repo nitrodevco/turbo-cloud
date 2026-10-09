@@ -524,6 +524,8 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   CAA22F56: SetTagsAsync(Turbo.Primitives.Action.ActionContext, System.Collections.Immutable.ImmutableArray<string>, System.Threading.CancellationToken) -> Task<bool>
   8146B8DB: SetTradingStatusAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.PlayerId>, bool, System.Threading.CancellationToken) -> Task
   4A1ECFD8: SetWiredRoomSettingsAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Enums.Wired.WiredPermissionFlags, Turbo.Primitives.Rooms.Enums.Wired.WiredPermissionFlags, string, System.Threading.CancellationToken) -> Task<bool>
+  88DA986E: StaffPickupBotAsync(int, System.Threading.CancellationToken) -> Task<bool>
+  31D10C99: StaffUpdateBotAsync(int, Turbo.Primitives.Bots.Snapshots.BotStaffEditSnapshot, System.Threading.CancellationToken) -> Task<bool>
   7D730882: SubscribeSharedWiredVariableAsync(Turbo.Primitives.Rooms.Wired.Variable.WiredVariableId, Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Wired.Variables.SharedWiredVariableStateSnapshot?>
   02CF499A: TogglePetBreedingPermissionAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   4057A1C8: TogglePetRidingPermissionAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>

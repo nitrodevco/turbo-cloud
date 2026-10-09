@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Bots.Enums;
+using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 
@@ -48,4 +49,18 @@ public partial interface IRoomGrain
         BotSkillType skill,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// Staff, from the admin panel: sets a bot standing here as its owner's skills could - name,
+    /// motto, look, chat, roaming and dance - and tells the room. Not word-filtered, but held to the
+    /// hotel's lengths. False when no such bot stands here or the name is too short or long.
+    /// </summary>
+    public Task<bool> StaffUpdateBotAsync(
+        int botId,
+        BotStaffEditSnapshot edit,
+        CancellationToken ct
+    );
+
+    /// <summary>Staff, from the admin panel: takes a bot out of the room, back to its owner's inventory.</summary>
+    public Task<bool> StaffPickupBotAsync(int botId, CancellationToken ct);
 }

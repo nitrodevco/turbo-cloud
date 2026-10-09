@@ -219,6 +219,93 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
         if (!await CanManageAsync(ctx, bot))
             return false;
 
+        return await ReturnBotAsync(ctx, bot, ct);
+    }
+
+    /// <summary>Staff taking a bot out of the room: back to its owner, as its owner picking it up would.</summary>
+    public Task<bool> StaffPickupBotAsync(int botId, CancellationToken ct) =>
+        TryGetBot(botId, out var bot)
+            ? ReturnBotAsync(ActionContext.CreateForSystem(_roomGrain.RoomId), bot, ct)
+            : Task.FromResult(false);
+
+    /// <summary>
+    /// Staff setting a bot from the admin panel: everything its owner's skills could, at once,
+    /// held to the hotel's lengths. The room is told once: a new name re-sends the bot whole, as
+    /// the Users packet is the only carrier of a name; otherwise its look and motto change in place.
+    /// </summary>
+    public async Task<bool> StaffUpdateBotAsync(
+        int botId,
+        BotStaffEditSnapshot edit,
+        CancellationToken ct
+    )
+    {
+        if (!TryGetBot(botId, out var bot))
+            return false;
+
+        var name = edit.Name.Trim();
+
+        if (name.Length < Config.NameMinLength || name.Length > Config.NameMaxLength)
+            return false;
+
+        var renamed = name != bot.Name;
+        var text =
+            edit.ChatText.Length > Config.ChatTextMaxLength
+                ? edit.ChatText[..Config.ChatTextMaxLength]
+                : edit.ChatText;
+        var lines = BotChatLines.Split(text);
+
+        if (lines.Length > Config.MaxChatLines)
+            text = string.Join('\n', lines.Take(Config.MaxChatLines));
+
+        var delay = Math.Clamp(
+            edit.ChatDelaySeconds,
+            Config.ChatDelayMinSeconds,
+            Config.ChatDelayMaxSeconds
+        );
+
+        bot.SetName(name);
+        bot.SetMotto(edit.Motto.Trim());
+        bot.SetChatter(text, edit.AutoChat, delay, edit.MixSentences);
+        bot.NextChatAtMs = _roomGrain.NowMs() + delay * 1000L;
+        bot.SetFreeRoam(edit.FreeRoam);
+
+        if (renamed)
+        {
+            if (!string.IsNullOrWhiteSpace(edit.Figure))
+                bot.SetFigure(edit.Figure.Trim(), edit.Gender);
+
+            await _roomGrain.SendComposerToRoomAsync(
+                new UserRemoveMessageComposer { ObjectId = bot.ObjectId },
+                ct
+            );
+            await _roomGrain.SendComposerToRoomAsync(
+                new UsersMessageComposer { Avatars = [bot.GetSnapshot()] },
+                ct
+            );
+        }
+        else
+        {
+            await SetFigureAsync(
+                bot,
+                string.IsNullOrWhiteSpace(edit.Figure) ? bot.Figure : edit.Figure.Trim(),
+                edit.Gender,
+                ct
+            );
+        }
+
+        if (bot.DanceType != edit.Dance)
+            await AvatarModule.SetAvatarDanceAsync(bot.ObjectId, edit.Dance, ct);
+
+        Persist(bot);
+
+        return true;
+    }
+
+    /// <summary>Takes a bot off its tile and hands it back to its owner's inventory.</summary>
+    private async Task<bool> ReturnBotAsync(ActionContext ctx, IRoomBot bot, CancellationToken ct)
+    {
+        var botId = bot.BotId;
+
         await ObjectModule.RemoveObjectAsync(ctx, bot, ct);
 
         _roomGrain._state.AvatarsByBotId.Remove(botId);

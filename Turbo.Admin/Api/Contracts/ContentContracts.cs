@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Turbo.Primitives.Achievements.Enums;
 using Turbo.Primitives.Badges.Enums;
 using Turbo.Primitives.Guilds.Enums;
+using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Admin.Api.Contracts;
 
@@ -144,3 +145,68 @@ public sealed record GroupBadgePartRequest(
 
 /// <summary>A colour to add (its slot) or change (its hex).</summary>
 public sealed record GroupColorRequest(GuildColorSlotType? Slot, string? Color);
+
+/// <summary>One palette of a pet type: the body it has, how rare it is, whether the catalog sells it.</summary>
+public sealed record PetBreedItem(
+    int Id,
+    int TypeId,
+    int PaletteId,
+    int BreedId,
+    int RarityLevel,
+    bool Sellable,
+    bool Rare,
+    int ColorTag
+);
+
+/// <summary>A line a pet type says; no type for the lines every type without its own says.</summary>
+public sealed record PetSpeechItem(int Id, int? TypeId, string Line);
+
+public sealed record PetContentResponse(List<PetBreedItem> Breeds, List<PetSpeechItem> Speech);
+
+/// <summary>A palette to add (its type and palette id) or change; a field left out keeps what it was.</summary>
+public sealed record PetBreedRequest(
+    int? TypeId,
+    int? PaletteId,
+    int? BreedId,
+    int? RarityLevel,
+    bool? Sellable,
+    bool? Rare,
+    int? ColorTag
+);
+
+public sealed record PetSpeechRequest(int? TypeId, string? Line);
+
+/// <summary>A bot, where it is and how it is set.</summary>
+public sealed record BotItem(
+    int Id,
+    string Name,
+    string Motto,
+    string Figure,
+    AvatarGenderType Gender,
+    int OwnerId,
+    string OwnerName,
+    int? RoomId,
+    string? RoomName,
+    string ChatText,
+    bool AutoChat,
+    int ChatDelaySeconds,
+    bool MixSentences,
+    bool FreeRoam,
+    AvatarDanceType Dance
+);
+
+public sealed record BotSearchResponse(List<BotItem> Bots, int Total, int PageSize);
+
+/// <summary>A placed bot as staff set it.</summary>
+public sealed record BotStaffEditRequest(
+    string? Name,
+    string? Motto,
+    string? Figure,
+    AvatarGenderType? Gender,
+    string? ChatText,
+    bool? AutoChat,
+    int? ChatDelaySeconds,
+    bool? MixSentences,
+    bool? FreeRoam,
+    AvatarDanceType? Dance
+);

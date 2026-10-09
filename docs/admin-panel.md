@@ -892,6 +892,13 @@ The **Content** page is the game's content, each change made at once and on reco
   log. Below, the badge parts and colours group badges are built from: added under the next id of
   their kind (ids are written into badge codes, so they are never reused), their files or hex
   changed, and read again by the group directory at once.
+- **Pets**: each pet type's palettes (the body the info stand names, the rarity breeding weighs,
+  whether the catalogue sells it) and the lines each type says, or every type without lines of its
+  own. A change reloads the pet providers, so pets in rooms use it at once.
+- **Bots**: found by name, owner, bot or room id. A bot standing in a room is set as its owner's
+  skills could (name, motto, look, lines, roaming, dance; held to `Turbo:Bots`' lengths, not
+  word-filtered) through its room grain (`StaffUpdateBotAsync`), so the room sees it, or taken back
+  to its owner's inventory. A bot in an inventory can only be deleted.
 
 It needs `admin.content.view` to look and `content.manage` to change anything.
 
