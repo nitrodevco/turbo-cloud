@@ -21,6 +21,7 @@ using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Guilds;
+using Turbo.Primitives.Hotel;
 using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Orleans;
@@ -50,6 +51,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
     private readonly IPetBreedProvider _petBreedProvider;
     private readonly IFurnitureDefinitionProvider _definitionProvider;
     private readonly IGiftWrappingProvider _giftWrappingProvider;
+    private readonly ICommunityGoalService _communityGoals;
     private readonly ILogger<ICatalogPurchaseGrain> _logger;
 
     /// <summary>Days of used-up membership that earn a club gift; never zero, so it can divide.</summary>
@@ -65,6 +67,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         IPetBreedProvider petBreedProvider,
         IFurnitureDefinitionProvider definitionProvider,
         IGiftWrappingProvider giftWrappingProvider,
+        ICommunityGoalService communityGoals,
         ILogger<ICatalogPurchaseGrain> logger
     )
     {
@@ -77,6 +80,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         _petBreedProvider = petBreedProvider;
         _definitionProvider = definitionProvider;
         _giftWrappingProvider = giftWrappingProvider;
+        _communityGoals = communityGoals;
         _logger = logger;
     }
 
@@ -155,7 +159,35 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         // above must not leave them holding a notification for a purchase that did not land.
         await GrantSubscriptionsAsync(offer, quantity, ct);
 
+        if (catalogType == CatalogType.Normal)
+            await ContributeToCommunityGoalAsync(offer, quantity, ct);
+
         return offer;
+    }
+
+    /// <summary>
+    /// What was bought from the running community goal's pages counts for it. The purchase is made
+    /// whatever happens here: a goal that couldn't be told is logged, not refunded.
+    /// </summary>
+    private async Task ContributeToCommunityGoalAsync(
+        CatalogOfferSnapshot offer,
+        int quantity,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            await _communityGoals.ContributeAsync(this.GetPlayerId(), offer.PageId, quantity, ct);
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogError(
+                ex,
+                "Player {PlayerId}'s purchase of offer {OfferId} did not count for the community goal",
+                this.GetPlayerId(),
+                offer.Id
+            );
+        }
     }
 
     /// <summary>

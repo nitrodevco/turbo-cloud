@@ -16,10 +16,14 @@ namespace Turbo.Admin.Api;
 
 /// <summary>
 /// What the reception's widgets show besides its variables (those are under
-/// <see cref="GamedataEndpoints"/>): the promo articles. For staff with <c>admin.gamedata.view</c>,
+/// <see cref="GamedataEndpoints"/>): the promo articles and the community goals. For staff with <c>admin.gamedata.view</c>,
 /// as the hotel view is; changing them needs <c>gamedata.manage</c>.
 /// </summary>
-internal sealed class ReceptionEndpoints(IGrainFactory grainFactory, IPromoArticleService articles)
+internal sealed class ReceptionEndpoints(
+    IGrainFactory grainFactory,
+    IPromoArticleService articles,
+    ICommunityGoalService goals
+)
 {
     private const string NO_ACCESS = "You can't see the hotel view.";
     private const string NO_MANAGE = "You can't change the hotel view.";
@@ -41,6 +45,25 @@ internal sealed class ReceptionEndpoints(IGrainFactory grainFactory, IPromoArtic
         group.MapPut("/articles/{id:int}", SaveArticleAsync);
         group.MapDelete("/articles/{id:int}", DeleteArticleAsync);
         group.MapPut("/articles/order", ReorderArticlesAsync);
+        group.MapGet(
+            "/goals",
+            async (CancellationToken ct) =>
+                Results.Ok(new { goals = await goals.ListAsync(ct).ConfigureAwait(false) })
+        );
+        group.MapGet(
+            "/goals/{id:int}/standing",
+            async (int id, CancellationToken ct) =>
+                await goals.GetStandingAsync(id, ct).ConfigureAwait(false) is { } standing
+                    ? Results.Ok(standing)
+                    : Results.NotFound()
+        );
+        group.MapPost(
+            "/goals",
+            (CommunityGoalRequest request, HttpContext http, CancellationToken ct) =>
+                SaveGoalAsync(0, request, http, ct)
+        );
+        group.MapPut("/goals/{id:int}", SaveGoalAsync);
+        group.MapDelete("/goals/{id:int}", DeleteGoalAsync);
     }
 
     private Task<IResult> SaveArticleAsync(
@@ -100,6 +123,47 @@ internal sealed class ReceptionEndpoints(IGrainFactory grainFactory, IPromoArtic
 
                 return Results.NoContent();
             }
+        );
+
+    private Task<IResult> SaveGoalAsync(
+        int id,
+        CommunityGoalRequest request,
+        HttpContext http,
+        CancellationToken ct
+    ) =>
+        ManageAsync(
+            http,
+            ct,
+            async () =>
+                Results.Ok(
+                    await goals
+                        .SaveAsync(
+                            new CommunityGoalSnapshot
+                            {
+                                Id = id,
+                                Code = request.Code ?? string.Empty,
+                                Mode = request.Mode ?? CommunityGoalMode.Normal,
+                                StartsAt = Utc(request.StartsAt) ?? DateTime.MinValue,
+                                EndsAt = Utc(request.EndsAt) ?? DateTime.MinValue,
+                                LevelScores = [.. request.LevelScores ?? []],
+                                RewardRanks = [.. request.RewardRanks ?? []],
+                                SideOnePageId = request.SideOnePageId,
+                                SideTwoPageId = request.SideTwoPageId,
+                            },
+                            ct
+                        )
+                        .ConfigureAwait(false)
+                )
+        );
+
+    private Task<IResult> DeleteGoalAsync(int id, HttpContext http, CancellationToken ct) =>
+        ManageAsync(
+            http,
+            ct,
+            async () =>
+                await goals.DeleteAsync(id, ct).ConfigureAwait(false)
+                    ? Results.NoContent()
+                    : Results.NotFound()
         );
 
     /// <summary>A time the panel sent, as UTC: the panel sends UTC, marked or not.</summary>

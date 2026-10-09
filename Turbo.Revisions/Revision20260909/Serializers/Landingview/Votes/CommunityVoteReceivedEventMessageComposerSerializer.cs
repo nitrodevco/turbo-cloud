@@ -11,6 +11,6 @@ internal class CommunityVoteReceivedEventMessageComposerSerializer(int header)
         CommunityVoteReceivedEventMessageComposer message
     )
     {
-        //
+        packet.WriteBoolean(message.Acknowledged);
     }
 }

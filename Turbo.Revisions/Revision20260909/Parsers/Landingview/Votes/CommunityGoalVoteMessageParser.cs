@@ -6,5 +6,6 @@ namespace Turbo.Revisions.Revision20260909.Parsers.Landingview.Votes;
 
 internal class CommunityGoalVoteMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new CommunityGoalVoteMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new CommunityGoalVoteMessage { VoteOption = packet.PopInt() };
 }

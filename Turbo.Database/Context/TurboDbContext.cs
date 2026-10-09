@@ -119,6 +119,10 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<HotelSettingEntity> HotelSettings { get; init; }
 
     public DbSet<PromoArticleEntity> PromoArticles { get; init; }
+
+    public DbSet<CommunityGoalEntity> CommunityGoals { get; init; }
+
+    public DbSet<CommunityGoalContributionEntity> CommunityGoalContributions { get; init; }
     public DbSet<AdminPasskeyEntity> AdminPasskeys { get; init; }
 
     public DbSet<NavigatorTopLevelContextEntity> NavigatorTopLevelContexts { get; init; }

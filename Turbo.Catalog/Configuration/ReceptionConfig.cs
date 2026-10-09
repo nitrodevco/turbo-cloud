@@ -11,4 +11,7 @@ public sealed class ReceptionConfig
     /// in seconds: how soon another silo sees an edit or a contribution.
     /// </summary>
     public int CacheSeconds { get; init; } = 30;
+
+    /// <summary>Contributors a community goal's hall of fame lists, and the panel shows.</summary>
+    public int HallOfFameSize { get; init; } = 10;
 }
