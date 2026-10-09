@@ -149,6 +149,7 @@ public sealed class NetworkManager(
         var builder = WebSocketHostBuilder.Create();
 
         ConfigureCommon(builder, "WebSocketServer");
+        builder.UseReceiveMarking();
         builder.UseWebSocketMessageHandler(
             async (session, package) =>
             {

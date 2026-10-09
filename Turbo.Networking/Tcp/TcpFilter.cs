@@ -22,6 +22,10 @@ internal sealed class TcpFilter(IClientPacketDecoder decoder) : PipelineFilterBa
 
         reader = r;
 
+        // Any packet proves the client is there, a Pong or otherwise; see SessionHeartbeat. Done
+        // here because SuperSocket frames the next packet while the one before is still handled.
+        ctx.MarkReceived();
+
         return packet;
     }
 }

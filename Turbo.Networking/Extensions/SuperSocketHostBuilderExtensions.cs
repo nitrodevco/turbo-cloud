@@ -3,6 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SuperSocket.Server;
 using SuperSocket.Server.Abstractions.Host;
+using SuperSocket.Server.Host;
+using SuperSocket.WebSocket;
+using Turbo.Networking.Package;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Networking.Revisions;
 
@@ -49,4 +52,15 @@ public static class SuperSocketHostBuilderExtensions
 
         return builder;
     }
+
+    /// <summary>
+    /// Wraps the filter WebSocketHostBuilder registers so a message counts as heard from when it
+    /// arrives, not when its handler runs (see <see cref="ReceiveMarkingFilter{TPackage}"/>).
+    /// </summary>
+    public static ISuperSocketHostBuilder<WebSocketPackage> UseReceiveMarking(
+        this ISuperSocketHostBuilder<WebSocketPackage> builder
+    ) =>
+        builder.UsePipelineFilterFactory(() =>
+            new ReceiveMarkingFilter<WebSocketPackage>(new WebSocketPipelineFilter())
+        );
 }

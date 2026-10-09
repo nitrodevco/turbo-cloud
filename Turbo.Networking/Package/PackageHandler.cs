@@ -28,10 +28,9 @@ public sealed class PackageHandler(
     {
         ArgumentNullException.ThrowIfNull(packet);
 
+        // Marking the session as heard from is done as the packet is framed (TcpFilter,
+        // ReceiveMarkingFilter), not here, where it would wait behind every handler before it.
         var ctx = (ISessionContext)session;
-
-        // Any packet proves the client is there, a Pong or otherwise; see SessionHeartbeat.
-        ctx.MarkReceived();
 
         try
         {

@@ -31,7 +31,10 @@ public interface ISessionContext : IAppSession
     /// </summary>
     public DateTime LastReceivedUtc { get; }
 
-    /// <summary>Records that a packet arrived; called for every packet before it is handled.</summary>
+    /// <summary>
+    /// Records that a packet arrived; called as each packet is framed off the wire, before it
+    /// waits behind the packets still being handled.
+    /// </summary>
     public void MarkReceived();
 
     public Task CloseSessionAsync();
