@@ -91,6 +91,14 @@ public class WiredContractTests
     }
 
     [Fact]
+    public void A_new_reward_contract_shows_its_popup_by_default()
+    {
+        // Habbo's editor on a fresh reward contract: "Show pop-up by default" ticked.
+        CreateRoomWithContract(reward: true).Contract.Contract.ShowDialog.Should().BeTrue();
+        CreateRoomWithContract().Contract.Contract.ShowDialog.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task A_contract_with_more_options_than_the_editor_allows_is_not_saved()
     {
         var (room, contract) = CreateRoomWithContract();
@@ -337,7 +345,9 @@ public class WiredContractTests
                 : []
         );
 
-    private static (RoomHarness Room, FurnitureWiredContractLogic Contract) CreateRoomWithContract()
+    private static (RoomHarness Room, FurnitureWiredContractLogic Contract) CreateRoomWithContract(
+        bool reward = false
+    )
     {
         var room = new RoomHarness();
         RoomHarness.SetMember(room.State, "IsRightsLoaded", true);
@@ -360,10 +370,12 @@ public class WiredContractTests
             2,
             2,
             Altitude.Zero,
-            name: "wf_contract_payment",
-            logic: "wired_contract_payment",
+            name: reward ? "wf_contract_reward" : "wf_contract_payment",
+            logic: reward ? "wired_contract_reward" : "wired_contract_payment",
             createLogic: (stuffDataFactory, ctx) =>
-                new FurnitureWiredPaymentContractLogic(stuffDataFactory, ctx)
+                reward
+                    ? new FurnitureWiredRewardContractLogic(stuffDataFactory, ctx)
+                    : new FurnitureWiredPaymentContractLogic(stuffDataFactory, ctx)
         );
 
         room.AddToRoom(item);
