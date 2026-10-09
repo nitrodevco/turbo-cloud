@@ -174,7 +174,8 @@ public class WiredActionInitiateTransaction(
 
     /// <summary>
     /// A custom contract addon on the stack wins, and the transaction is then this box's; a
-    /// picked contract is its own. Null when there is neither.
+    /// picked contract is its own. Null when there is neither, or more than one contract: Habbo
+    /// names that failure "Misconfig Too Many Or No Contracts" (Creator Tools, failure reason 21).
     /// </summary>
     private (WiredContractSnapshot? Contract, RoomObjectId SourceId) ResolveContract(
         IWiredExecutionContext ctx
@@ -183,12 +184,15 @@ public class WiredActionInitiateTransaction(
         if (ctx.Policy.CustomContract is { } custom)
             return (custom.BuildContract(ctx), ObjectId);
 
-        var contract = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, SLOT_CONTRACTS))
+        var contracts = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, SLOT_CONTRACTS))
             .Select(x => x.Logic)
             .OfType<FurnitureWiredContractLogic>()
-            .FirstOrDefault();
+            .Take(2)
+            .ToList();
 
-        return contract is null ? (null, ObjectId) : (contract.Contract, contract.Context.ObjectId);
+        return contracts is [var contract]
+            ? (contract.Contract, contract.Context.ObjectId)
+            : (null, ObjectId);
     }
 
     private int ResolveMultiplier(IWiredExecutionContext ctx)
