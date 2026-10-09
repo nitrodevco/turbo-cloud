@@ -10,6 +10,7 @@ using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains.Modules;
@@ -26,7 +27,7 @@ namespace Turbo.Rooms.Grains.Modules;
 /// </summary>
 public sealed partial class RoomFurniModule
 {
-    private List<FurnitureAreaHideLogic> GetActiveAreaHiders() =>
+    internal List<FurnitureAreaHideLogic> GetActiveAreaHiders() =>
         [
             .. Items
                 .Select(x => x.Logic)
@@ -99,6 +100,47 @@ public sealed partial class RoomFurniModule
         }
 
         return _roomGrain.SendComposersToRoomAsync([.. composers], ct);
+    }
+
+    /// <summary>
+    /// Wired moves follow the same rule as a player's: a furni that stays hidden is left out of
+    /// the action's movement packet, one that moved into a hidden area is taken away and one
+    /// that moved out of one is sent again. Returns what to send after the movements.
+    /// </summary>
+    internal List<IComposer> TakeHiddenWiredMoves(
+        List<WiredFloorItemMovementSnapshot> floorMoves,
+        List<WiredWallItemMovementSnapshot> wallMoves,
+        IReadOnlyDictionary<RoomObjectId, bool> hiddenBefore
+    )
+    {
+        var composers = new List<IComposer>();
+        var hiders = GetActiveAreaHiders();
+
+        if (hiders.Count == 0 && !hiddenBefore.Values.Any(x => x))
+            return composers;
+
+        bool Shown(RoomObjectId id)
+        {
+            if (!TryGetItem(id, out var item))
+                return true;
+
+            var wasHidden = hiddenBefore.TryGetValue(id, out var before) && before;
+            var isHidden = hiders.Any(x => x.Hides(item));
+
+            if (wasHidden == isHidden)
+                return !isHidden;
+
+            composers.Add(
+                isHidden ? item.GetRemoveComposer(PlayerId.Invalid) : item.GetAddComposer()
+            );
+
+            return false;
+        }
+
+        floorMoves.RemoveAll(x => !Shown(x.ObjectId));
+        wallMoves.RemoveAll(x => !Shown(x.ObjectId));
+
+        return composers;
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using System.Collections;
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Interactions;
@@ -5,9 +6,12 @@ using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
+using Turbo.Rooms.Wired.Variables.Furniture;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -114,6 +118,85 @@ public sealed class RoomConfigurationFurniTests
         SentToRoom<AreaHideMessageComposer>().Last().AreaHideData.On.Should().BeFalse();
         (await EntryViewAsync()).AreaHides.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task A_furni_wired_moves_into_a_hidden_area_is_hidden_and_shown_again_when_moved_out()
+    {
+        var hider = _room.AddFloorItem(
+            HIDER,
+            7,
+            7,
+            "area_hide",
+            createLogic: (factory, ctx) => new FurnitureAreaHideLogic(factory, ctx)
+        );
+        _room.AddFloorItem(INSIDE, 2, 2);
+
+        await hider.Logic.OnInteractAsync(
+            Owner,
+            new SetAreaHideInteraction
+            {
+                RootX = 4,
+                RootY = 1,
+                Width = 3,
+                Length = 3,
+                Invisibility = false,
+                WallItems = false,
+                Invert = false,
+            },
+            Ct
+        );
+        await hider.Logic.OnUseAsync(Owner, 0, Ct);
+
+        await WiredMoveXAsync(INSIDE, 5);
+
+        WiredMoves().Should().BeEmpty("the furni went out of sight");
+        SentToRoom<ObjectRemoveMessageComposer>()
+            .Select(x => x.ObjectId)
+            .Should()
+            .Equal((RoomObjectId)INSIDE);
+
+        await WiredMoveXAsync(INSIDE, 6);
+
+        WiredMoves().Should().BeEmpty("it stays out of sight");
+
+        await WiredMoveXAsync(INSIDE, 2);
+
+        WiredMoves().Should().BeEmpty("it is sent again instead");
+        SentToRoom<ObjectAddMessageComposer>()
+            .Select(x => x.FloorItem.ObjectId)
+            .Should()
+            .Equal((RoomObjectId)INSIDE);
+
+        await WiredMoveXAsync(INSIDE, 1);
+
+        WiredMoves().Should().ContainSingle(x => x.ObjectId == INSIDE && x.TargetX == 1);
+    }
+
+    // Moves a furni as wired does (the Creator Tools position write), flushing one action.
+    private async Task WiredMoveXAsync(int id, int x)
+    {
+        var variable = new FurniturePositionXVariable(_room.Harness.Room);
+        var varId = variable.GetVarSnapshot().VariableId;
+
+        ((IDictionary)RoomHarness.GetMember(_room.Harness.Room.WiredSystem, "_variableById")!)[
+            varId
+        ] = variable;
+
+        (
+            await _room.Harness.Room.WiredSystem.ApplyVariableMenuOperationAsync(
+                new WiredVariableBinding(WiredVariableTargetType.Furni, id),
+                varId,
+                WiredVariableMenuOperationType.SetValue,
+                x,
+                Ct
+            )
+        )
+            .Should()
+            .BeTrue();
+    }
+
+    private List<Turbo.Primitives.Rooms.Snapshots.Wired.WiredFloorItemMovementSnapshot> WiredMoves() =>
+        [.. SentToRoom<WiredMovementsMessageComposer>().SelectMany(x => x.FloorItems)];
 
     private Task<RoomEntryViewSnapshot> EntryViewAsync() =>
         _room.Harness.Room.GetEntryViewAsync((PlayerId)105, Ct);
