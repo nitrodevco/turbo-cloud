@@ -633,6 +633,10 @@ public class Revision20260909 : IRevision
             },
             { MessageEvent.CallForHelpMessageEvent, new CallForHelpMessageParser() },
             {
+                MessageEvent.GetCfhMyReportStatusMessageEvent,
+                new GetCfhMyReportStatusMessageParser()
+            },
+            {
                 MessageEvent.GetMySanctionStatusMessageEvent,
                 new GetMySanctionStatusMessageParser()
             },
@@ -1689,6 +1693,12 @@ public class Revision20260909 : IRevision
                 typeof(CfhTopicsInitMessageComposer),
                 new CfhTopicsInitMessageComposerSerializer(
                     MessageComposer.CfhTopicsInitMessageComposer
+                )
+            },
+            {
+                typeof(MyCfhReportStatusMessageComposer),
+                new MyCfhReportStatusMessageComposerSerializer(
+                    MessageComposer.MyCfhReportStatusMessageComposer
                 )
             },
             {
