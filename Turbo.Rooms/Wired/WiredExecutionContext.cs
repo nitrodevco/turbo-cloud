@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -16,6 +17,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Grains;
+using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Wired;
 
@@ -31,6 +33,12 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
     public List<WiredUserMovementSnapshot> UserMoves { get; } = [];
     public List<WiredFloorItemMovementSnapshot> FloorItemMoves { get; } = [];
     public List<WiredWallItemMovementSnapshot> WallItemMoves { get; } = [];
+
+    /// <summary>Whether each furni this action moved stood in a hidden area before its first move.</summary>
+    internal Dictionary<RoomObjectId, bool> HiddenBeforeMove { get; } = [];
+
+    // The area hiders on when this action first moved a furni (null until then).
+    private List<FurnitureAreaHideLogic>? _areaHiders;
     public List<WiredUserDirectionSnapshot> UserDirections { get; } = [];
     public List<(RoomObjectId, StuffDataSnapshot)> FloorItemStateUpdates { get; } = [];
     public List<(RoomObjectId, string)> WallItemStateUpdates { get; } = [];
@@ -64,6 +72,15 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
                 _roomGrain.RoomId
             );
         }
+    }
+
+    private void NoteHiddenBeforeMove(IRoomItem item)
+    {
+        if (HiddenBeforeMove.ContainsKey(item.ObjectId))
+            return;
+
+        _areaHiders ??= FurniModule.GetActiveAreaHiders();
+        HiddenBeforeMove[item.ObjectId] = _areaHiders.Any(x => x.Hides(item));
     }
 
     public async Task<bool> TryMoveFloorItemAsync(
@@ -109,6 +126,8 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
                 && WiredDirections.Resolve(system, flightX, flightY) is { } facing
             )
                 rot = facing.Rotate(projectile.RotationOffset);
+
+            NoteHiddenBeforeMove(floorItem);
 
             // Through the furni module, so the item's logic hears of the move as it would from a
             // player; only the announcing stays here, batched into the action's one packet.
@@ -219,6 +238,8 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
                 wallItem.Z,
                 wallItem.WallOffset
             );
+
+            NoteHiddenBeforeMove(wallItem);
 
             if (
                 await FurniModule.MoveWallItemAsync(

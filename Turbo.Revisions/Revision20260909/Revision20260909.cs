@@ -229,6 +229,10 @@ public class Revision20260909 : IRevision
             { MessageEvent.PurchasePhotoMessageEvent, new PurchasePhotoMessageParser() },
             { MessageEvent.RenderRoomMessageEvent, new RenderRoomMessageParser() },
             {
+                MessageEvent.RenderRoomThumbnailMessageEvent,
+                new RenderRoomThumbnailMessageParser()
+            },
+            {
                 MessageEvent.RequestCameraConfigurationMessageEvent,
                 new RequestCameraConfigurationMessageParser()
             },

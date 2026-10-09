@@ -31,6 +31,7 @@ using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Wallet;
+using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -162,6 +163,21 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         // above must not leave them holding a notification for a purchase that did not land.
         await GrantSubscriptionsAsync(offer, quantity, ct);
         await OpenGuildForumAsync(offer, extraParam, ct);
+
+        // A reward track task of that type counts the purchase (the player's grain ignores it
+        // when no task does); the purchase does not wait on it.
+        _grainFactory
+            .GetPlayerRewardTrackGrain(this.GetPlayerId())
+            .RecordActionAsync(
+                RewardTrackActionTypes.BUY_FROM_CATALOGUE,
+                "",
+                CancellationToken.None
+            )
+            .LogAndForget(
+                _logger,
+                "count a catalogue purchase of player {PlayerId}",
+                this.GetPlayerId()
+            );
 
         if (catalogType == CatalogType.Normal)
             await RecordReceptionProgressAsync(offer, debitRequests, quantity, ct);

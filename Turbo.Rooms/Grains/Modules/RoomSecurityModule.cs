@@ -188,14 +188,16 @@ public sealed class RoomSecurityModule(
 
     public async Task<RoomControllerType> GetControllerLevelAsync(PlayerId playerId)
     {
-        if (IsOwnedBy(playerId))
-            return RoomControllerType.Owner;
-
         // Control of every room is the one hotel-wide permission a room level carries, and the
         // client knows it only as Moderator (and as security level 5, which the same node
-        // projects to): see docs/permissions-client-gates.md.
+        // projects to): see docs/permissions-client-gates.md. It is asked before ownership,
+        // because a staff member is no less in their own room: the boxes only they may save
+        // (Give Reward, Achievement Enabler) would otherwise refuse them there.
         if (await HasPermissionAsync(playerId, PermissionNodes.Room.CONTROL_ANY))
             return RoomControllerType.Moderator;
+
+        if (IsOwnedBy(playerId))
+            return RoomControllerType.Owner;
 
         var guild = await _roomGrain.GetGuildAsync(CancellationToken.None);
 

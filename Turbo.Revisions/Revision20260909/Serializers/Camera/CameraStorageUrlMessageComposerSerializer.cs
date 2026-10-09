@@ -8,6 +8,6 @@ internal class CameraStorageUrlMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, CameraStorageUrlMessageComposer message)
     {
-        //
+        packet.WriteString(message.Url);
     }
 }

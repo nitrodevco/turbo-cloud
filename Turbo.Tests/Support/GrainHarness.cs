@@ -67,6 +67,11 @@ public static class GrainHarness
                 f.SetValue(grain, Activator.CreateInstance(t));
             else if (t == typeof(IGrainFactory))
                 f.SetValue(grain, fakes.Create<IGrainFactory>());
+            else if (t == typeof(Turbo.Database.Achievements.IAchievementFactRecorder))
+                f.SetValue(
+                    grain,
+                    fakes.Create<Turbo.Database.Achievements.IAchievementFactRecorder>()
+                );
             else if (t == typeof(EventSystem))
                 f.SetValue(grain, new TestEventBus().System);
             else if (t == typeof(Turbo.Primitives.Moderation.IWordFilter))

@@ -1,13 +1,17 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Orleans;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Quest;
-using Turbo.Primitives.Messages.Outgoing.Quest;
+using Turbo.Primitives.Orleans;
 
 namespace Turbo.PacketHandlers.Quest;
 
-public class GetQuestsMessageHandler : IMessageHandler<GetQuestsMessage>
+/// <summary>The quest window asks only when the player opens it, so the list opens it.</summary>
+public class GetQuestsMessageHandler(IGrainFactory grainFactory) : IMessageHandler<GetQuestsMessage>
 {
+    private readonly IGrainFactory _grainFactory = grainFactory;
+
     public async ValueTask HandleAsync(
         GetQuestsMessage message,
         MessageContext ctx,
@@ -17,13 +21,9 @@ public class GetQuestsMessageHandler : IMessageHandler<GetQuestsMessage>
         if (ctx.PlayerId <= 0)
             return;
 
-        // The server has no quests yet, so the list is honestly empty. The client asks only when
-        // the player opens the quest window (the toolbar, or "more quests" after one is done),
-        // so the answer is the list to open it on.
-        await ctx.SendComposerAsync(
-                new QuestsMessageComposer { Quests = [], OpenWindow = true },
-                ct
-            )
+        await _grainFactory
+            .GetPlayerQuestGrain(ctx.PlayerId)
+            .SendQuestsAsync(true, ct)
             .ConfigureAwait(false);
     }
 }

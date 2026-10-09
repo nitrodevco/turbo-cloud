@@ -11,6 +11,9 @@ internal class UserNftWardrobeSelectionMessageComposerSerializer(int header)
         UserNftWardrobeSelectionMessageComposer message
     )
     {
-        //
+        packet
+            .WriteString(message.CurrentTokenId)
+            .WriteString(message.FallbackFigure)
+            .WriteString(message.FallbackGender);
     }
 }

@@ -13,6 +13,7 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 
 namespace Turbo.Rooms.Object.Logic.Furniture;
@@ -257,6 +258,10 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
                 CausedBy = ctx,
                 ObjectId = _ctx.ObjectId,
                 PrevIdx = prevIdx,
+                TileChanged =
+                    prevIdx < 0
+                    || _ctx is not IRoomFloorItemContext floorCtx
+                    || floorCtx.GetTileIdx() != prevIdx,
             },
             ct
         );

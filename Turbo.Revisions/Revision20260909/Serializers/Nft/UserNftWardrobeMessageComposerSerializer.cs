@@ -8,6 +8,14 @@ internal class UserNftWardrobeMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, UserNftWardrobeMessageComposer message)
     {
-        //
+        packet.WriteInteger(message.Items.Length);
+
+        foreach (var item in message.Items)
+            packet
+                .WriteString(item.Id)
+                .WriteString(item.Figure)
+                .WriteString(item.Gender)
+                .WriteString(item.TokenId)
+                .WriteString(item.ContractKey);
     }
 }

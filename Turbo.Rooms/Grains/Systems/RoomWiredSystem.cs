@@ -817,6 +817,14 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     private void FlushWiredContext(WiredExecutionContext ctx)
     {
         var composers = ImmutableArray.CreateBuilder<IComposer>(3);
+        var shownOrHidden =
+            ctx.HiddenBeforeMove.Count > 0
+                ? _roomGrain.FurniModule.TakeHiddenWiredMoves(
+                    ctx.FloorItemMoves,
+                    ctx.WallItemMoves,
+                    ctx.HiddenBeforeMove
+                )
+                : [];
 
         if (
             ctx.UserMoves.Count > 0
@@ -833,6 +841,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                     UserDirections = ctx.UserDirections,
                 }
             );
+
+        composers.AddRange(shownOrHidden);
 
         if (ctx.FloorItemStateUpdates.Count > 0)
             composers.Add(

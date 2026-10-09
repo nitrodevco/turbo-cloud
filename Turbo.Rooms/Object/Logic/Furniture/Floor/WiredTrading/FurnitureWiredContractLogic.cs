@@ -213,6 +213,8 @@ public abstract class FurnitureWiredContractLogic(
             },
             LayoutType = GENERIC_LAYOUT,
             RewardCategory = (int)WiredEarningsCategory.Games,
+            // Habbo's editor opens a new reward contract with "Show pop-up by default" ticked.
+            ShowDialog = ContractType == WiredContractType.Reward,
         };
 
     private static string Cut(string? text, int length) =>

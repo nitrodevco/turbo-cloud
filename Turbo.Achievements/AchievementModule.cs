@@ -58,6 +58,7 @@ public sealed class AchievementModule : IHostPluginModule
             )
             .ValidateOnStart();
         services.AddSingleton<IAchievementFactListener, RewardTrackFactListener>();
+        services.AddSingleton<IAchievementFactListener, QuestFactListener>();
         services.TryAddSingleton(TimeProvider.System);
         // Installing the Habbo pack is on unless the hotel turns it off.
         if (

@@ -9,5 +9,9 @@ internal class WiredEnvironmentMessageComposerSerializer(int header)
     protected override void Serialize(IServerPacket packet, WiredEnvironmentMessageComposer message)
     {
         packet.WriteBoolean(message.HasClickUserWired);
+        packet.WriteInteger(message.EnabledAchievements.Length);
+
+        foreach (var name in message.EnabledAchievements)
+            packet.WriteString(name);
     }
 }

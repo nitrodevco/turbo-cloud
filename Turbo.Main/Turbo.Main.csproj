@@ -38,6 +38,9 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <DependentUpon>appsettings.json</DependentUpon>
     </Content>
+    <Content Include="../tools/camera-renderer/render.mjs" Link="tools/camera-renderer/render.mjs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Turbo.Achievements\Turbo.Achievements.csproj" />

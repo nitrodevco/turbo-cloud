@@ -44,4 +44,16 @@ public sealed record CfhSubmissionSnapshot
     /// <summary>A photo report's wall item; 0 otherwise.</summary>
     [Id(9)]
     public int ItemId { get; init; }
+
+    /// <summary>A forum report's group; 0 otherwise.</summary>
+    [Id(10)]
+    public int GroupId { get; init; }
+
+    /// <summary>A forum report's thread; 0 otherwise.</summary>
+    [Id(11)]
+    public int ThreadId { get; init; }
+
+    /// <summary>A forum message report's message, numbered within the forum; 0 otherwise.</summary>
+    [Id(12)]
+    public int MessageId { get; init; }
 }

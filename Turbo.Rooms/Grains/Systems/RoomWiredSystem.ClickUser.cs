@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,6 +9,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
 namespace Turbo.Rooms.Grains.Systems;
@@ -25,6 +28,13 @@ public sealed partial class RoomWiredSystem
 {
     // What the room last told its players, so a rebuild that changes nothing sends nothing.
     private bool _hasClickUserWired;
+    private ImmutableArray<string> _enabledAchievements = [];
+
+    /// <summary>
+    /// The achievements the room's Achievement Enabler add-ons enable, in stack order, as the
+    /// room last sent them in <c>WiredEnvironment</c>.
+    /// </summary>
+    public ImmutableArray<string> EnabledAchievements => _enabledAchievements;
 
     public async Task OnAvatarClickedAsync(
         ActionContext ctx,
@@ -68,31 +78,43 @@ public sealed partial class RoomWiredSystem
         );
     }
 
-    /// <summary>After the stacks were rebuilt: tells the room when the trigger came or went.</summary>
+    /// <summary>After the stacks were rebuilt: tells the room when the trigger or the enabled achievements changed.</summary>
     private Task RefreshClickUserEnvironmentAsync(CancellationToken ct)
     {
         var hasClickUserWired = _stacksById.Values.Any(x =>
             x.Triggers.Any(t => t is WiredTriggerClickUser)
         );
+        ImmutableArray<string> enabledAchievements =
+        [
+            .. _stacksById
+                .OrderBy(x => x.Key)
+                .SelectMany(x => x.Value.Addons.OfType<WiredAddonAchievementEnabler>())
+                .SelectMany(x => x.EnabledAchievements)
+                .Distinct(StringComparer.Ordinal),
+        ];
 
-        if (hasClickUserWired == _hasClickUserWired)
+        if (
+            hasClickUserWired == _hasClickUserWired
+            && enabledAchievements.SequenceEqual(_enabledAchievements)
+        )
             return Task.CompletedTask;
 
         _hasClickUserWired = hasClickUserWired;
+        _enabledAchievements = enabledAchievements;
 
-        return _roomGrain.SendComposerToRoomAsync(
-            new WiredEnvironmentMessageComposer { HasClickUserWired = hasClickUserWired },
-            ct
-        );
+        return _roomGrain.SendComposerToRoomAsync(BuildEnvironment(), ct);
     }
 
     /// <summary>A player who walks in learns what the players already here were told.</summary>
     private Task SendClickUserEnvironmentAsync(PlayerId playerId, CancellationToken ct) =>
-        _hasClickUserWired
-            ? _roomGrain._grainFactory.SendComposerToPlayerAsync(
-                playerId,
-                new WiredEnvironmentMessageComposer { HasClickUserWired = true },
-                ct
-            )
+        _hasClickUserWired || _enabledAchievements.Length > 0
+            ? _roomGrain._grainFactory.SendComposerToPlayerAsync(playerId, BuildEnvironment(), ct)
             : Task.CompletedTask;
+
+    private WiredEnvironmentMessageComposer BuildEnvironment() =>
+        new()
+        {
+            HasClickUserWired = _hasClickUserWired,
+            EnabledAchievements = _enabledAchievements,
+        };
 }

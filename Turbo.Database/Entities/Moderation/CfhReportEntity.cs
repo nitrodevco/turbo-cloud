@@ -40,6 +40,18 @@ public class CfhReportEntity : TurboEntity
     public int? ItemEntityId { get; set; }
 
     /// <summary>The player reported; null for a report about a room or no one.</summary>
+    /// <summary>A forum report's group; null otherwise.</summary>
+    [Column("guild_id")]
+    public int? GuildEntityId { get; set; }
+
+    /// <summary>A forum report's thread; null otherwise.</summary>
+    [Column("forum_thread_id")]
+    public int? ForumThreadEntityId { get; set; }
+
+    /// <summary>A forum message report's message, numbered within the forum; null otherwise.</summary>
+    [Column("forum_message_id")]
+    public int? ForumMessageId { get; set; }
+
     [Column("reported_id")]
     public int? ReportedEntityId { get; set; }
 

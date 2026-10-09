@@ -69,4 +69,13 @@ The task images the official client carries name thirty action types
 (`reward_track_tasks_<type>`, `RewardTrackActionTypes`). The server counts those it already
 records an achievement fact for (`RewardTrackFactListener`): `enter_other_users_room` (once
 per room), `switch_item_state`, `change_figure`, `change_motto`, `give_respect`,
-`pet_respect`, `pet_level` and `pet_eat`. The others are not hooked yet.
+`pet_respect`, `pet_level`, `pet_eat` and `wear_badge` (a badge put on). From room events
+(`RewardTrackRoomListener`, a player's own doing only, not wired's or a bot's) it counts `wave`,
+`dance` (starting one), `place_item`, `move_item` (a furni put on another tile), `rotate_item`
+(a floor furni turned in place; `RoomItemMovedEvent.TileChanged`) and `chat_with_someone` (a chat
+line that was not cancelled). The catalogue purchase grain counts `buy_from_catalogue` once a
+purchase landed and the navigator service `create_room` once a room was created. What each type
+counts is inference from the image's name; the official client only names them. Not hooked:
+`find_hand_item`, `follow_friend`, `friend_furni_locked`, `place_builders_club_furni`,
+`publish_picture`, `replenish_respect`, `request_friend`, `send_messenger_invite`,
+`send_messenger_message`, `set_relationship_status`, `swim`, `teleport` and `use_habbicon`.

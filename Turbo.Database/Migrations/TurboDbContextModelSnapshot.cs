@@ -3277,6 +3277,18 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("varchar(64)")
                         .HasColumnName("extra_data_id");
 
+                    b.Property<int?>("ForumMessageId")
+                        .HasColumnType("int")
+                        .HasColumnName("forum_message_id");
+
+                    b.Property<int?>("ForumThreadEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("forum_thread_id");
+
+                    b.Property<int?>("GuildEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("guild_id");
+
                     b.Property<int?>("ItemEntityId")
                         .HasColumnType("int")
                         .HasColumnName("item_id");
@@ -5471,6 +5483,56 @@ namespace Turbo.Database.Migrations
                     b.ToTable("player_daily_tasks");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Quests.PlayerQuestEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Accepted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("accepted");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<int>("Progress")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("progress");
+
+                    b.Property<int>("QuestEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("quest_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuestEntityId");
+
+                    b.HasIndex("PlayerEntityId", "QuestEntityId")
+                        .IsUnique();
+
+                    b.ToTable("player_quests");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Quests.PlayerRewardTrackEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -5521,6 +5583,146 @@ namespace Turbo.Database.Migrations
                         .IsUnique();
 
                     b.ToTable("player_reward_tracks");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Quests.QuestCampaignEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<bool>("Enabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("enabled");
+
+                    b.Property<DateTime?>("EndsAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("ends_at");
+
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("quest_campaigns");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Quests.QuestEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ActivityPointType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("activity_point_type");
+
+                    b.Property<int>("CampaignEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("campaign_id");
+
+                    b.Property<string>("CatalogPageName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("catalog_page_name");
+
+                    b.Property<string>("ChainCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("chain_code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<bool>("Easy")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("easy");
+
+                    b.Property<string>("ImageVersion")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)")
+                        .HasColumnName("image_version");
+
+                    b.Property<string>("LocalizationCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("localization_code");
+
+                    b.Property<int>("RewardAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("reward_amount");
+
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("Target")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("target");
+
+                    b.Property<int>("TotalSteps")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1)
+                        .HasColumnName("total_steps");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampaignEntityId", "LocalizationCode")
+                        .IsUnique();
+
+                    b.ToTable("quests");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Room.CommandLogEntity", b =>
@@ -7513,6 +7715,17 @@ namespace Turbo.Database.Migrations
                     b.Navigation("PlayerEntity");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Quests.PlayerQuestEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Quests.QuestEntity", "Quest")
+                        .WithMany()
+                        .HasForeignKey("QuestEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Quest");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Quests.PlayerRewardTrackEntity", b =>
                 {
                     b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
@@ -7522,6 +7735,17 @@ namespace Turbo.Database.Migrations
                         .IsRequired();
 
                     b.Navigation("PlayerEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Quests.QuestEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Quests.QuestCampaignEntity", "Campaign")
+                        .WithMany()
+                        .HasForeignKey("CampaignEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Campaign");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Room.RoomBanEntity", b =>
