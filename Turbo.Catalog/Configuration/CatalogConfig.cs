@@ -23,4 +23,7 @@ public class CatalogConfig
 
     /// <summary>The reception's promo articles and community goals.</summary>
     public ReceptionConfig Reception { get; init; } = new();
+
+    /// <summary>How vouchers are redeemed and made.</summary>
+    public VoucherConfig Vouchers { get; init; } = new();
 }

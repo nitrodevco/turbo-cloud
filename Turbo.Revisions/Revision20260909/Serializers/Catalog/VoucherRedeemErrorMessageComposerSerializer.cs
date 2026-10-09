@@ -1,3 +1,4 @@
+using System.Globalization;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Packets;
 
@@ -11,6 +12,7 @@ internal class VoucherRedeemErrorMessageComposerSerializer(int header)
         VoucherRedeemErrorMessageComposer message
     )
     {
-        //
+        // A string: the client puts it at the end of its text key.
+        packet.WriteString(((int)message.Error).ToString(CultureInfo.InvariantCulture));
     }
 }

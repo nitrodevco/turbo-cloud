@@ -1024,6 +1024,43 @@ song"), with the song's id as the product's extra parameter; buying one writes t
 disk. The song disk page layout (`soundmachine`) plays a preview from the same parameter. A code
 in the parameter instead of an id works for that preview only: the disk itself needs the id.
 
+## Vouchers
+
+The **Vouchers** page (`g u`) manages codes players type in the catalogue's voucher box for
+credits, another currency, furniture and a badge, in any mix. A player redeems a voucher once;
+**Uses in all** limits how many players may, and it is never exceeded, even with two silos redeeming
+at the same moment. **Make many** makes a batch that gives the same, each with its own random code
+after a prefix, and lists the codes to copy or download. Opening a voucher shows who redeemed it.
+The API is under `/api/vouchers`. Reading needs `admin.catalog.view`; adding, changing and removing
+need `catalog.manage` as well.
+
+| Request | Answer |
+| --- | --- |
+| `GET /api/vouchers?q=&page=` | `{ "vouchers": [ { "voucher", "furnitureName" } ], "total", "pageSize", "canManage" }`, newest first; `q` matches the code or note |
+| `POST /api/vouchers` | adds a voucher from `{ "code", "credits", "currencyTypeId", "currencyAmount", "furnitureDefinitionId", "furnitureQuantity", "badgeCode", "maxUses", "expiresAt", "enabled", "note" }` |
+| `PUT /api/vouchers/{id}` | replaces a voucher's fields with the same body |
+| `POST /api/vouchers/generate` | `{ "count", "prefix", "voucher" }` makes `count` vouchers; answers `{ "vouchers" }` |
+| `DELETE /api/vouchers/{id}` | 204, and its redemptions go with it; 404 when there is none |
+| `GET /api/vouchers/{id}/redemptions` | `{ "redemptions": [ { "playerId", "playerName", "redeemedAt" } ] }`, newest first |
+
+- Codes are letters, digits, `-` and `_`, kept in capitals. Players can type one in any case and
+  with spaces. Generated codes never hold I, L, O or W (nor 0 and 1), as the client's voucher box
+  tells players.
+- `maxUses` is `null` for any number of players; `expiresAt` is UTC, `null` for never. A voucher
+  that is off, expired or used up is refused just like an unknown code.
+- A refusal is `400` with `{ "message" }`. Reasons: a taken or malformed code, a voucher that gives
+  nothing, a currency or furniture there isn't, more than `MaxFurnitureQuantity` furniture, or uses
+  set below what it has had.
+- In the client, a voucher that gives furniture alerts with the furniture's name and description
+  (its `PublicName`, else its name); otherwise it gives the plain "redeemed" alert. Credits and
+  currencies are credited under `voucher:<id>:credits` and `voucher:<id>:currency`, so a retry never
+  pays twice.
+- A player who gets `Turbo:Catalog:Vouchers:FailuresPerHour` codes wrong in an hour (10) has every
+  code refused until the hour is up. The other settings under `Turbo:Catalog:Vouchers` are
+  `GeneratedCodeLength` (10), `MaxFurnitureQuantity` (50), `GenerateMax` (1000), `PageSize` (50)
+  and `RedemptionsListed` (200).
+- Deleting the furniture definition or currency a voucher gives leaves the voucher. It then gives the rest.
+
 ## Things to know
 
 - **The database is migrated when Turbo starts** (`Turbo:Database:Migrate`, `Auto` by default; see

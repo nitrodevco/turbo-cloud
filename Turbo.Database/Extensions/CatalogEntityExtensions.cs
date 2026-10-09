@@ -137,6 +137,27 @@ public static class CatalogEntityExtensions
             EndsAt = entity.EndsAt,
         };
 
+    public static VoucherSnapshot ToSnapshot(this VoucherEntity entity) =>
+        new()
+        {
+            Id = entity.Id,
+            Code = entity.Code,
+            Credits = entity.Credits,
+            CurrencyTypeId = entity.CurrencyTypeEntityId,
+            CurrencyAmount = entity.CurrencyAmount,
+            FurnitureDefinitionId = entity.FurnitureDefinitionEntityId,
+            FurnitureQuantity = entity.FurnitureQuantity,
+            BadgeCode = entity.BadgeCode,
+            MaxUses = entity.MaxUses,
+            Uses = entity.Uses,
+            ExpiresAt = entity.ExpiresAt is { } expires
+                ? DateTime.SpecifyKind(expires, DateTimeKind.Utc)
+                : null,
+            Enabled = entity.Enabled,
+            Note = entity.Note,
+            CreatedAt = DateTime.SpecifyKind(entity.CreatedAt, DateTimeKind.Utc),
+        };
+
     public static CatalogPageExpirySnapshot ToSnapshot(
         this CatalogPageExpiryEntity entity,
         string pageName

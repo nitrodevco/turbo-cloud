@@ -101,6 +101,10 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<BonusRareReceiptEntity> BonusRareReceipts { get; init; }
 
     public DbSet<CatalogPageExpiryEntity> CatalogPageExpiries { get; init; }
+
+    public DbSet<VoucherEntity> Vouchers { get; init; }
+
+    public DbSet<VoucherRedemptionEntity> VoucherRedemptions { get; init; }
     public DbSet<PlayerEntity> Players { get; init; }
 
     public DbSet<RoomBanEntity> RoomBans { get; init; }
@@ -192,6 +196,18 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     protected override void OnModelCreating(ModelBuilder mb)
     {
         base.OnModelCreating(mb);
+
+        // A voucher outlives the furniture or currency it gave: it gives that no more.
+        mb.Entity<VoucherEntity>()
+            .HasOne(x => x.FurnitureDefinitionEntity)
+            .WithMany()
+            .HasForeignKey(x => x.FurnitureDefinitionEntityId)
+            .OnDelete(DeleteBehavior.SetNull);
+        mb.Entity<VoucherEntity>()
+            .HasOne(x => x.CurrencyTypeEntity)
+            .WithMany()
+            .HasForeignKey(x => x.CurrencyTypeEntityId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         mb.Entity<GamedataTextEntity>()
             .Property(x => x.Key)

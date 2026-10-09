@@ -8,6 +8,8 @@ internal class VoucherRedeemOkMessageComposerSerializer(int header)
 {
     protected override void Serialize(IServerPacket packet, VoucherRedeemOkMessageComposer message)
     {
-        //
+        // The client reads the description first.
+        packet.WriteString(message.ProductDescription);
+        packet.WriteString(message.ProductName);
     }
 }
