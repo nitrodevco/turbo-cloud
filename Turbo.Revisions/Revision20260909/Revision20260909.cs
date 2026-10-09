@@ -1078,6 +1078,14 @@ public class Revision20260909 : IRevision
             },
             { MessageEvent.GetDailyTasksMessageEvent, new GetDailyTasksMessageParser() },
             { MessageEvent.ClaimDailyTaskMessageEvent, new ClaimDailyTaskMessageParser() },
+            {
+                MessageEvent.ClaimRewardTrackPrizeMessageEvent,
+                new ClaimRewardTrackPrizeMessageParser()
+            },
+            {
+                MessageEvent.PurchaseRewardTrackPremiumMessageEvent,
+                new PurchaseRewardTrackPremiumMessageParser()
+            },
             { MessageEvent.GetDailyQuestMessageEvent, new GetDailyQuestMessageParser() },
             { MessageEvent.GetQuestsMessageEvent, new GetQuestsMessageParser() },
             {
@@ -4552,6 +4560,30 @@ public class Revision20260909 : IRevision
                 typeof(DailyTasksTaskUpdateMessageComposer),
                 new DailyTasksTaskUpdateMessageComposerSerializer(
                     MessageComposer.DailyTasksTaskUpdateMessageComposer
+                )
+            },
+            {
+                typeof(RewardTracksMessageComposer),
+                new RewardTracksMessageComposerSerializer(
+                    MessageComposer.RewardTracksMessageComposer
+                )
+            },
+            {
+                typeof(RewardTrackProgressMessageComposer),
+                new RewardTrackProgressMessageComposerSerializer(
+                    MessageComposer.RewardTrackProgressMessageComposer
+                )
+            },
+            {
+                typeof(RewardTrackClaimResultMessageComposer),
+                new RewardTrackClaimResultMessageComposerSerializer(
+                    MessageComposer.RewardTrackClaimResultMessageComposer
+                )
+            },
+            {
+                typeof(RewardTrackPremiumPurchaseResultMessageComposer),
+                new RewardTrackPremiumPurchaseResultMessageComposerSerializer(
+                    MessageComposer.RewardTrackPremiumPurchaseResultMessageComposer
                 )
             },
             {

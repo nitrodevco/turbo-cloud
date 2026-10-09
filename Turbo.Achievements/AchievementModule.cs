@@ -49,6 +49,15 @@ public sealed class AchievementModule : IHostPluginModule
                 "Turbo:DailyTasks: counts must not be negative and the reset must be a time of day."
             )
             .ValidateOnStart();
+        services
+            .AddOptions<RewardTrackConfig>()
+            .Bind(builder.Configuration.GetSection(RewardTrackConfig.SECTION_NAME))
+            .Validate(
+                x => x.Problem() is null,
+                "Turbo:RewardTracks is invalid: unique ids, levels counting up from 1, premium boost of at least 1, no negative points, costs or amounts."
+            )
+            .ValidateOnStart();
+        services.AddSingleton<IAchievementFactListener, RewardTrackFactListener>();
         services.TryAddSingleton(TimeProvider.System);
         // Installing the Habbo pack is on unless the hotel turns it off.
         if (

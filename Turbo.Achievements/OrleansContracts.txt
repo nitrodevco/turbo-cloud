@@ -13,3 +13,5 @@
 class [GrainType("playerachievement")] Turbo.Achievements.Grains.PlayerAchievementGrain
 
 class [GrainType("playerdailytask")] Turbo.Achievements.Grains.PlayerDailyTaskGrain
+
+class [GrainType("playerrewardtrack")] Turbo.Achievements.Grains.PlayerRewardTrackGrain

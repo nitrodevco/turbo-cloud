@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Turbo.Database.Context;
 
@@ -11,9 +12,11 @@ using Turbo.Database.Context;
 namespace Turbo.Database.Migrations
 {
     [DbContext(typeof(TurboDbContext))]
-    partial class TurboDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261009233000_AddRewardTracks")]
+    partial class AddRewardTracks
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -4015,40 +4018,6 @@ namespace Turbo.Database.Migrations
                     b.ToTable("player_bonus_rare_progress");
                 });
 
-            modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerBoundClothingEntity", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
-
-                    b.Property<int>("FurnitureDefinitionEntityId")
-                        .HasColumnType("int")
-                        .HasColumnName("definition_id");
-
-                    b.Property<int>("PlayerEntityId")
-                        .HasColumnType("int")
-                        .HasColumnName("player_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FurnitureDefinitionEntityId");
-
-                    b.HasIndex("PlayerEntityId", "FurnitureDefinitionEntityId")
-                        .IsUnique();
-
-                    b.ToTable("player_bound_clothing");
-                });
-
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerChatStyleEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -6827,25 +6796,6 @@ namespace Turbo.Database.Migrations
                         .HasForeignKey("PlayerEntityId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("PlayerEntity");
-                });
-
-            modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerBoundClothingEntity", b =>
-                {
-                    b.HasOne("Turbo.Database.Entities.Furniture.FurnitureDefinitionEntity", "FurnitureDefinitionEntity")
-                        .WithMany()
-                        .HasForeignKey("FurnitureDefinitionEntityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
-                        .WithMany()
-                        .HasForeignKey("PlayerEntityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("FurnitureDefinitionEntity");
 
                     b.Navigation("PlayerEntity");
                 });

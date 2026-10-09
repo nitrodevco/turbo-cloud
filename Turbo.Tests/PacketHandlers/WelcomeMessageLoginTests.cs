@@ -117,6 +117,19 @@ public class WelcomeMessageLoginTests
     }
 
     [Fact]
+    public async Task TheRewardTracks_AreSentAtLogin_Unasked()
+    {
+        await LogInAsync();
+
+        _fakes
+            .Log.Of("SendTracksAsync")
+            .Should()
+            .ContainSingle()
+            .Which.Interface.Should()
+            .Be<Turbo.Primitives.Quests.Grains.IPlayerRewardTrackGrain>();
+    }
+
+    [Fact]
     public async Task AWelcomeMessage_IsShownAsTheMessageOfTheDay_LastOfTheLogin()
     {
         _welcome = "Welcome to the hotel!\nBe nice.";

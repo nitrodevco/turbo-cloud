@@ -117,6 +117,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<PlayerDailyTaskEntity> PlayerDailyTasks { get; init; }
 
+    public DbSet<PlayerRewardTrackEntity> PlayerRewardTracks { get; init; }
+
     public DbSet<CfhReportEntity> CfhReports { get; init; }
 
     public DbSet<CfhReportChatLineEntity> CfhReportChatLines { get; init; }

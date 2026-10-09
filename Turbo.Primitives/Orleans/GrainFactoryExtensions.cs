@@ -238,6 +238,11 @@ public static class GrainFactoryExtensions
         PlayerId playerId
     ) => factory.GetGrain<IPlayerDailyTaskGrain>(playerId.Value);
 
+    public static IPlayerRewardTrackGrain GetPlayerRewardTrackGrain(
+        this IGrainFactory factory,
+        PlayerId playerId
+    ) => factory.GetGrain<IPlayerRewardTrackGrain>(playerId.Value);
+
     public static IPlayerSettingsGrain GetPlayerSettingsGrain(
         this IGrainFactory factory,
         PlayerId playerId

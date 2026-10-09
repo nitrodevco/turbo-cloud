@@ -253,6 +253,11 @@ public class SSOTicketMessageHandler(
             )
             .ConfigureAwait(false);
 
+        // The reward tracks come unasked: the progression menu counts their claimable prizes.
+        await _grainFactory
+            .GetPlayerRewardTrackGrain(playerId)
+            .SendTracksAsync(ct)
+            .ConfigureAwait(false);
         await _grainFactory
             .GetPlayerWalletGrain(playerId)
             .DeliverPendingRewardsAsync(ct)

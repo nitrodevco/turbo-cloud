@@ -378,6 +378,12 @@ interface [GrainInterfaceType("Turbo.Primitives.Quests.Grains.IPlayerDailyTaskGr
   9A2D11D4: RecordActivityAsync(Turbo.Primitives.Quests.Enums.DailyTaskActivity, string, System.Threading.CancellationToken) -> Task
   EC2FD848: SendTasksAsync(System.Threading.CancellationToken) -> Task
 
+interface [GrainInterfaceType("Turbo.Primitives.Quests.Grains.IPlayerRewardTrackGrain")] Turbo.Primitives.Quests.Grains.IPlayerRewardTrackGrain [Version(0)]
+  E0832860: ClaimPrizeAsync(string, string, System.Threading.CancellationToken) -> Task
+  9F91EF78: PurchasePremiumAsync(string, System.Threading.CancellationToken) -> Task
+  0EE5ECDF: RecordActionAsync(string, string, System.Threading.CancellationToken) -> Task
+  345CDD2A: SendTracksAsync(System.Threading.CancellationToken) -> Task
+
 interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomDirectoryGrain")] Turbo.Primitives.Rooms.Grains.IRoomDirectoryGrain [Version(0)]
   F05B416C: AddPlayerToRoomAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Rooms.RoomId, System.Threading.CancellationToken) -> Task
   69EF2FC8: GetActiveRoomIdsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.RoomId>>

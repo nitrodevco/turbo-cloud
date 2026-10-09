@@ -55,6 +55,8 @@ public interface ITurboDbContext : IDisposable
 
     public DbSet<PlayerDailyTaskEntity>? PlayerDailyTasks { get; set; }
 
+    public DbSet<PlayerRewardTrackEntity>? PlayerRewardTracks { get; set; }
+
     public DbSet<CfhReportEntity>? CfhReports { get; set; }
 
     public DbSet<CfhReportChatLineEntity>? CfhReportChatLines { get; set; }

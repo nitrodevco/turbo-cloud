@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using Turbo.Database.Achievements;
@@ -9,8 +10,14 @@ using Turbo.Primitives.Players;
 
 namespace Turbo.Achievements;
 
-public sealed class AchievementFactRecorder(IAchievementCatalog catalog) : IAchievementFactRecorder
+/// <param name="listeners">Told of every valid fact before the catalog decides whether to keep it.</param>
+public sealed class AchievementFactRecorder(
+    IAchievementCatalog catalog,
+    IEnumerable<IAchievementFactListener>? listeners = null
+) : IAchievementFactRecorder
 {
+    private readonly IAchievementFactListener[] _listeners = listeners?.ToArray() ?? [];
+
     public void Record(TurboDbContext db, PlayerId playerId, AchievementFact fact)
     {
         ArgumentNullException.ThrowIfNull(db);
@@ -26,6 +33,8 @@ public sealed class AchievementFactRecorder(IAchievementCatalog catalog) : IAchi
             || fact.OccurredAtUtc > DateTime.UtcNow.AddMinutes(1)
         )
             throw new ArgumentException("Invalid authoritative achievement fact.", nameof(fact));
+        foreach (var listener in _listeners)
+            listener.OnFactRecorded(playerId, fact);
         var targets = catalog
             .Current.Where(x =>
                 x.Accrues(fact.OccurredAtUtc)
