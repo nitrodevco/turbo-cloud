@@ -262,6 +262,8 @@ and tells nobody else. A selector use is always logged, whether or not the execu
 **Replies.** Statuses are hotel texts as for room commands. The multi-line reports (`:whois`,
 `:perm`, `:status`, `:online` list) are English notices and are not translatable yet. The ban and
 maintenance messages are hotel texts (`moderation.ban.message`, `hotel.maintenance.started`).
+What the help window's sanction info says about a silence or a trade lock is a hotel text too
+(`moderation.sanction.mute`, `moderation.sanction.trade_lock`, each with a `.permanent` form).
 
 **Deliberately not here.**
 - Avatar toys: `:sit`, `:lay`, `:moonwalk`, `:carry`, `:enable`, `:mimic`, `:push`, `:pull`,

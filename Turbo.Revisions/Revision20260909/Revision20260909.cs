@@ -633,6 +633,10 @@ public class Revision20260909 : IRevision
             },
             { MessageEvent.CallForHelpMessageEvent, new CallForHelpMessageParser() },
             {
+                MessageEvent.GetMySanctionStatusMessageEvent,
+                new GetMySanctionStatusMessageParser()
+            },
+            {
                 MessageEvent.ChatReviewGuideDecidesOnOfferMessageEvent,
                 new ChatReviewGuideDecidesOnOfferMessageParser()
             },
