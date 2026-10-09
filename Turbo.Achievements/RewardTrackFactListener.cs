@@ -29,6 +29,7 @@ public sealed class RewardTrackFactListener : IAchievementFactListener
         [AchievementSources.PET_RESPECT_GIVEN] = (RewardTrackActionTypes.PET_RESPECT, false),
         [AchievementSources.PET_LEVEL] = (RewardTrackActionTypes.PET_LEVEL, false),
         [AchievementSources.NUTRITION] = (RewardTrackActionTypes.PET_EAT, false),
+        [AchievementSources.BADGE_WORN] = (RewardTrackActionTypes.WEAR_BADGE, false),
     };
 
     private readonly IGrainFactory _grainFactory;

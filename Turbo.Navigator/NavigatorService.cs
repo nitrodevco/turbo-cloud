@@ -20,6 +20,7 @@ using Turbo.Primitives.Players.Messenger;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Snapshots.Navigator;
+using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -464,6 +465,13 @@ public sealed class NavigatorService(
             .GetRoomDirectoryGrain()
             .PublishListingChangesAsync(changedKeys, ct)
             .ConfigureAwait(false);
+
+        // A reward track task of that type counts the room (the player's grain ignores it when
+        // no task does); the creation does not wait on it.
+        _grainFactory
+            .GetPlayerRewardTrackGrain(playerId)
+            .RecordActionAsync(RewardTrackActionTypes.CREATE_ROOM, "", CancellationToken.None)
+            .LogAndForget(_logger, "count the room created by player {PlayerId}", playerId);
 
         return roomId;
     }

@@ -14,14 +14,17 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Avatar;
+using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 
 namespace Turbo.Achievements;
 
 /// <summary>
 /// Counts the reward track tasks no achievement fact covers from what players do in rooms: a
-/// wave (<c>wave</c>), starting a dance (<c>dance</c>) and putting a furni down (<c>place_item</c>),
-/// the action types of the official client's <c>reward_track_tasks_&lt;type&gt;</c> images. Only a
+/// wave (<c>wave</c>), starting a dance (<c>dance</c>), putting a furni down (<c>place_item</c>),
+/// moving one to another tile (<c>move_item</c>) or turning it in place (<c>rotate_item</c>) and
+/// saying something (<c>chat_with_someone</c>, any chat line that was not cancelled), the action
+/// types of the official client's <c>reward_track_tasks_&lt;type&gt;</c> images. Only a
 /// player's own doing counts, never wired's or a bot's, and only types some configured task counts
 /// reach the player's grain. The room listener processor finds and registers it, as it does a
 /// plugin's.
@@ -60,6 +63,9 @@ public sealed class RewardTrackRoomListener : IRoomEventListener
             AvatarPerformsActionEvent { ActionType: AvatarActionType.Dance, Value: > 0 } =>
                 RewardTrackActionTypes.DANCE,
             RoomItemPlacedEvent => RewardTrackActionTypes.PLACE_ITEM,
+            RoomItemMovedEvent { TileChanged: true } => RewardTrackActionTypes.MOVE_ITEM,
+            RoomItemMovedEvent { TileChanged: false } => RewardTrackActionTypes.ROTATE_ITEM,
+            PlayerChatEvent { IsCancelled: false } => RewardTrackActionTypes.CHAT_WITH_SOMEONE,
             _ => null,
         };
 
