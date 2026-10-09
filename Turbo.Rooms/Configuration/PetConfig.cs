@@ -106,9 +106,6 @@ public class PetConfig
     public int[] BreedingRarityChances { get; init; } = [70, 20, 7, 3];
     public int NestBreedingMinLevel { get; init; } = 1;
 
-    /// <summary>Lines a pet may say when told to speak, or on its own now and then.</summary>
-    public string[] SpeechLines { get; init; } = ["Woof!", "Arf!", "..."];
-
     /// <summary>Level from which each command is understood; unlisted commands are never enabled.</summary>
     public Dictionary<PetCommandType, int> CommandUnlockLevels { get; init; } =
         new()

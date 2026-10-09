@@ -786,11 +786,22 @@ passkey; they add more while signed in instead.
 | `admin.permissions.view` | The Permissions page: seeing groups, any player's permissions, who has a node, and the permission log. |
 | `permissions.manage` | Changing permissions on that page, within the rule in [Permission editor](#permission-editor). The in-game `:group` command needs it too, and follows the same rule. |
 | `permissions.superuser` | With `permissions.manage`: lifts the weight and held-node limits of the permission editor (see [Permission editor](#permission-editor)). No wildcard grants it. |
+| `admin.settings.view` | The Settings page: every server setting, where its value comes from and what waits on a restart. Secrets are never shown. |
+| `settings.manage` | Changing settings on that page: overriding appsettings.json, replacing a secret, putting a setting back (see `docs/settings.md`). |
 
 Everything else in the panel uses each command's own permission. The console runs commands
 **as you**, with exactly your permissions, rate limits and confirmations, and logs them like
 commands typed in the hotel. Room commands (`kick`, `mute`, ...) need a room, so the console
 can't run them.
+
+## Server settings
+
+The **Settings** page lists every option of every config section: its value, where that comes
+from (its default, `appsettings.json`, the panel, or the environment) and whether a restart is
+waiting on it. Staff with `settings.manage` override a value there. It applies after a restart; the
+environment always wins over the panel; secrets can be replaced but are never shown; what the panel
+stands on (its own address, the database) is changed only in the files and the environment.
+`docs/settings.md` has the details.
 
 ## Commands
 

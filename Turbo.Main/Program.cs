@@ -23,6 +23,7 @@ using Turbo.Inventory;
 using Turbo.Logging.Extensions;
 using Turbo.Main.Console;
 using Turbo.Main.Extensions;
+using Turbo.Main.Settings;
 using Turbo.Main.Startup;
 using Turbo.Messages.Extensions;
 using Turbo.Navigator;
@@ -86,6 +87,8 @@ internal class Program
         var builder = Host.CreateApplicationBuilder(migrate?.HostArgs ?? args);
 
         builder.Configuration.AddEnvironmentVariables(prefix: "TURBO__");
+        // Above appsettings.json, below every environment variable and the command line.
+        builder.AddServerSettingsOverrides();
 
         builder.AddTurboTelemetry();
 
@@ -94,7 +97,7 @@ internal class Program
             bootstrapLogger.LogInformation("=== Configuration Providers ===");
             foreach (var p in ((IConfigurationRoot)builder.Configuration).Providers)
             {
-                if (p is JsonConfigurationProvider jp)
+                if (ServerSettingsConfiguration.Unshadowed(p) is JsonConfigurationProvider jp)
                 {
                     var src = (JsonConfigurationSource)jp.Source;
                     var path = src.Path;
@@ -138,6 +141,9 @@ internal class Program
         builder.Services.AddHostPlugin<AdminModule>(builder);
         builder.Services.AddHostPlugin<WebModule>(builder);
         builder.Services.AddHostPlugin<PacketHandlersModule>(builder);
+
+        // After every module: the settings are those of the options they registered.
+        builder.AddServerSettings();
 
         builder.Services.AddSingleton<AssemblyProcessor>();
         builder.Services.AddSingleton<ConsoleCommandService>();

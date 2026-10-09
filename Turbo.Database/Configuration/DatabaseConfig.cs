@@ -1,11 +1,19 @@
 using Turbo.Database.Migrations;
+using Turbo.Primitives.Settings;
 
 namespace Turbo.Database.Configuration;
 
+/// <summary>
+/// The database and how the server migrates it. The admin panel's overrides are read from this
+/// database, so none of it can be one of them.
+/// </summary>
+[StartupSetting]
 public class DatabaseConfig
 {
     public const string SECTION_NAME = "Turbo:Database";
 
+    /// <summary>The MySQL or MariaDB connection string, its password included.</summary>
+    [SecretSetting]
     public string ConnectionString { get; init; } = string.Empty;
     public bool LoggingEnabled { get; init; } = false;
 

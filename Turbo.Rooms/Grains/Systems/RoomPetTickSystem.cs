@@ -249,8 +249,9 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
 
         if (RoomAvatarModule.AreAdjacent(pet, target))
         {
+            // The whole pet turns: a body turned alone would leave the head looking elsewhere.
             if (!pet.IsWalking && !target.IsWalking)
-                pet.SetBodyRotation(target.Rotation);
+                pet.SetRotation(target.Rotation);
 
             return;
         }
@@ -314,7 +315,8 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
             default:
                 pet.Sit(false);
                 pet.Lay(false);
-                pet.SetBodyRotation((Rotation)module.NextRandom(0, 8));
+                // Looking round turns the whole pet, head with body, as an avatar turns.
+                pet.SetRotation((Rotation)module.NextRandom(0, 8));
                 break;
         }
     }

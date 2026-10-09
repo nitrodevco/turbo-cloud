@@ -615,8 +615,8 @@ internal sealed class GamedataHistoryService(
         List<string> skipped
     )
     {
-        var before = TextRecord(change.Before);
-        var after = TextRecord(change.After);
+        var before = VariableRecord(change.Before);
+        var after = VariableRecord(change.After);
         var key = before?.Key ?? after?.Key;
 
         if (key is null)
@@ -624,7 +624,11 @@ internal sealed class GamedataHistoryService(
 
         rows.TryGetValue(key, out var row);
 
-        if (row?.Value != after?.Value)
+        if (
+            row?.Value != after?.Value
+            || row?.SettingPath != after?.Setting
+            || row?.LinkedFile != after?.File
+        )
         {
             skipped.Add($"{key}: the variable has changed again since.");
 
@@ -638,13 +642,21 @@ internal sealed class GamedataHistoryService(
         }
         else if (row is null)
         {
-            row = new GamedataVariableEntity { Key = key, Value = before.Value.Value };
+            row = new GamedataVariableEntity
+            {
+                Key = key,
+                Value = before.Value.Value,
+                SettingPath = before.Value.Setting,
+                LinkedFile = before.Value.File,
+            };
             dbCtx.GamedataVariables.Add(row);
             rows[key] = row;
         }
         else
         {
             row.Value = before.Value.Value;
+            row.SettingPath = before.Value.Setting;
+            row.LinkedFile = before.Value.File;
         }
 
         return new GamedataChangeEntity
@@ -656,6 +668,19 @@ internal sealed class GamedataHistoryService(
             After = change.Before,
         };
     }
+
+    /// <summary>A variable's record: a text's, and the setting or file it follows when it follows one.</summary>
+    private static (string Key, string Value, string? Setting, string? File)? VariableRecord(
+        string? json
+    ) =>
+        TextRecord(json) is { } text && JsonNode.Parse(json!) is { } record
+            ? (
+                text.Key,
+                text.Value,
+                record["setting"]?.GetValue<string>(),
+                record["file"]?.GetValue<string>()
+            )
+            : null;
 
     /// <summary>A text or variable change's key, from whichever of its records it has.</summary>
     private static string? TextKey(GamedataChangeEntity change) =>

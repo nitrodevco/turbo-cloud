@@ -16,6 +16,7 @@ using Turbo.Database.Entities.Pets;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Entities.Security;
+using Turbo.Database.Entities.Settings;
 using Turbo.Database.Entities.Sound;
 using Turbo.Database.Entities.Tracking;
 using Turbo.Database.Entities.WiredTrading;
@@ -61,6 +62,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<HabboFigureEntity> HabboFigures { get; init; }
     public DbSet<GamedataFigureEntity> GamedataFigures { get; init; }
     public DbSet<GamedataVariableEntity> GamedataVariables { get; init; }
+    public DbSet<ServerSettingEntity> ServerSettings { get; init; }
+    public DbSet<ServerSettingChangeEntity> ServerSettingChanges { get; init; }
     public DbSet<GamedataChangeSetEntity> GamedataChangeSets { get; init; }
     public DbSet<GamedataChangeEntity> GamedataChanges { get; init; }
     public DbSet<GamedataBuildEntity> GamedataBuilds { get; init; }
@@ -157,6 +160,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<RoomFilterWordEntity> RoomFilterWords { get; init; }
     public DbSet<PetEntity> Pets { get; init; }
     public DbSet<PetBreedEntity> PetBreeds { get; init; }
+    public DbSet<PetSpeechEntity> PetSpeech { get; init; }
     public DbSet<BotEntity> Bots { get; init; }
 
     public DbSet<GuildEntity> Guilds { get; init; }

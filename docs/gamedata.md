@@ -247,13 +247,25 @@ longer publishes them.
   **Import** a whole config (paste or upload a `nitro-config.json`). An import adds the keys the
   hotel lacks and changes those that differ; the hotel's other variables stay. Every edit and
   import is a change set and rolls back like any other.
-- **The hotel's own addresses** are written into the file by hash, as Habbo's external variables
-  do: `furnituredata.url`, `productdata.url`, `figuredata.url` and `gamedata.urls.externalTexts`
-  are each `<PublicUrl>/gamedata/<file>/<sha1>` of that file's current build. The client then
-  loads exactly those builds, cached for good, with no redirect. When one of them is built anew
-  (a catalog published, a text edited), the variables are too. Staff can't set these four while
-  the hotel writes them; an import skips them. Without `PublicUrl` the hotel writes none, and
-  they are ordinary variables.
+- **A variable can follow something** instead of holding a value of its own. **Link** it on the
+  Variables tab, and the file writes what it follows, built again whenever that changes:
+  - **a server setting** (`Turbo:Web:HotelName`, say): its value configured now, so saving the
+    setting on the Settings page builds the variables again at once. A secret setting can't be
+    followed: the variables are public.
+  - **a gamedata file's address**, as Habbo's external variables give theirs:
+    `<PublicUrl>/gamedata/<file>/<sha1>` of the file's current build (FurnitureData, product data,
+    the external texts or the figure data). The client then loads exactly that build, cached for
+    good, with no redirect. When the file is built anew (a catalog published, a text edited), the
+    variables are too. Without `PublicUrl` the variable's own value is written instead.
+- **The client's four gamedata addresses follow their files** from the start: the migration that
+  brought links in (`AddServerSettings`) links `furnituredata.url`, `productdata.url`,
+  `figuredata.url` and `gamedata.urls.externalTexts` to theirs, keeping any value they had as the
+  one written while there is no `PublicUrl`, and adding them at `/gamedata/<file>/0` when they were
+  missing. To serve one from elsewhere (a CDN), give it a value of its own.
+- **Following stops** when a variable is given a value of its own, or on **Unlink**, which keeps
+  what it was: a setting's value, or a file's `/0` address (it redirects to the current build; an
+  address by hash is pruned in time). An import leaves a variable that follows something alone.
+  Links are change sets and roll back like edits.
 - **Clients online** keep the variables they loaded until they reload. FurnitureData still reaches
   them at once through `CatalogPublished`.
 - **The panel** draws catalog, furniture and badge pictures from the same variables
@@ -292,7 +304,7 @@ site's nginx sends `/gamedata/` to the gamedata host on loopback. The host's pat
    furniture, texts, products and figures. Each file is built only from what the hotel has. Until
    the figure data is taken in, for example, its file has no clothing.
 5. **Take in the client's config.** Under **Gamedata > Variables**, **Import** the client's current
-   `nitro-config.json`. Its gamedata addresses are skipped: the hotel writes those itself.
+   `nitro-config.json`. Its gamedata addresses are skipped: they follow the hotel's files.
 6. **Point the client at the variables** in its page (`index.html`), in place of its
    `nitro-config.json`:
 

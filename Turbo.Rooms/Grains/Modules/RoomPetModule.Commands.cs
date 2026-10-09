@@ -258,10 +258,13 @@ public sealed partial class RoomPetModule
 
     internal async Task SpeakAsync(IRoomPet pet, CancellationToken ct)
     {
-        if (pet.IsSilenced || Config.SpeechLines.Length == 0)
+        // Each type says its own things (a cat does not bark); pet_speech holds them.
+        var lines = _roomGrain._petSpeechProvider.GetLines(pet.TypeId);
+
+        if (pet.IsSilenced || lines.IsDefaultOrEmpty)
             return;
 
-        var line = Config.SpeechLines[NextRandom(0, Config.SpeechLines.Length)];
+        var line = lines[NextRandom(0, lines.Length)];
 
         pet.AddStatus(AvatarStatusType.Gesture, AvatarStatusType.Speak.ToLegacyString());
         pet.ActionExpiresAtMs = _roomGrain.NowMs() + Config.SpeakDurationMs;

@@ -22,13 +22,15 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
+using Turbo.Primitives.Settings;
 
 namespace Turbo.Gamedata.Files;
 
 /// <summary>
 /// The gamedata files built from the database (<see cref="IGamedataFileService"/>): FurnitureData
 /// from the definitions and the catalogs, the external texts from <c>gamedata_texts</c>, the
-/// external variables from <c>gamedata_variables</c> with the other files' addresses by hash.
+/// external variables from <c>gamedata_variables</c>, each that follows a server setting or another
+/// file's address written with it.
 /// Each file's current build is held in memory and built again when what it is made from
 /// changes - a catalog snapshot replaced (a catalog published), another file's hash (for the
 /// variables), or its rows said to have changed (<see cref="Invalidate"/>). Each build is kept in <c>gamedata_builds</c> by its hash, the
@@ -40,6 +42,7 @@ internal sealed class GamedataFileService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IOptions<GamedataConfig> config,
     FurnitureOfferCatalog offers,
+    IServerSettings settings,
     ILogger<GamedataFileService> logger
 ) : IGamedataFileService
 {
@@ -96,16 +99,19 @@ internal sealed class GamedataFileService(
 
     /// <summary>
     /// What a file is made from besides its rows: the catalogs, for FurnitureData; the other
-    /// files' addresses, for the external variables. Worked out outside the build lock, as the
-    /// addresses may build their files.
+    /// files' addresses and the settings' version, for the external variables. Worked out outside
+    /// the build lock, as the addresses may build their files.
     /// </summary>
     private async Task<object?> InputsAsync(string file, CancellationToken ct) =>
         file switch
         {
             GamedataFiles.FURNITURE_DATA => await offers.GetAsync(ct).ConfigureAwait(false),
-            GamedataFiles.EXTERNAL_VARIABLES => await ExternalVariablesFile
-                .StampsAsync(this, _config.PublicUrl, ct)
-                .ConfigureAwait(false),
+            GamedataFiles.EXTERNAL_VARIABLES => new ExternalVariablesFile.Inputs(
+                await ExternalVariablesFile
+                    .AddressesAsync(this, _config.PublicUrl, ct)
+                    .ConfigureAwait(false),
+                settings.Version
+            ),
             _ => null,
         };
 
@@ -143,7 +149,7 @@ internal sealed class GamedataFileService(
                 GamedataFiles.FIGURE_DATA => await FigureDataAsync(dbCtx, ct).ConfigureAwait(false),
                 GamedataFiles.EXTERNAL_VARIABLES => await ExternalVariablesAsync(
                         dbCtx,
-                        (ExternalVariablesFile.Stamps)inputs!,
+                        ((ExternalVariablesFile.Inputs)inputs!).Addresses,
                         ct
                     )
                     .ConfigureAwait(false),
@@ -291,26 +297,44 @@ internal sealed class GamedataFileService(
         return (ExternalTextsFile.Write(texts.Select(x => (x.Key, x.Value))), texts.Count);
     }
 
-    /// <summary>The hotel's variables, with its own addresses written over any of the same key.</summary>
-    private static async Task<(byte[] Content, int Count)> ExternalVariablesAsync(
+    /// <summary>
+    /// The hotel's variables, each that follows a setting or a file written with what it follows
+    /// (<see cref="ExternalVariablesFile.Resolve"/>).
+    /// </summary>
+    private async Task<(byte[] Content, int Count)> ExternalVariablesAsync(
         TurboDbContext dbCtx,
-        ExternalVariablesFile.Stamps stamps,
+        ExternalVariablesFile.Addresses addresses,
         CancellationToken ct
     )
     {
         var rows = await dbCtx
             .GamedataVariables.AsNoTracking()
-            .Select(x => new { x.Key, x.Value })
+            .Select(x => new
+            {
+                x.Key,
+                x.Value,
+                x.SettingPath,
+                x.LinkedFile,
+            })
             .ToListAsync(ct)
             .ConfigureAwait(false);
-        var variables = rows.ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
-
-        foreach (var (key, value) in stamps.Entries)
-            variables[key] = value;
 
         return (
-            ExternalVariablesFile.Write(variables.Select(x => (x.Key, x.Value))),
-            variables.Count
+            ExternalVariablesFile.Write(
+                rows.Select(x =>
+                    (
+                        x.Key,
+                        ExternalVariablesFile.Resolve(
+                            x.Value,
+                            x.SettingPath,
+                            x.LinkedFile,
+                            addresses,
+                            settings
+                        )
+                    )
+                )
+            ),
+            rows.Count
         );
     }
 

@@ -69,7 +69,7 @@
 - DB batch operations use single `WHERE ... IN (...)` queries, not per-entity `ExecuteDeleteAsync` loops.
 - Housekeeping writes (e.g. delivered flags) follow the timer-flush pattern: queue dirty state, flush with `RegisterGrainTimer`, flush on `OnDeactivateAsync`. See `RoomPersistenceGrain` for reference.
 - Do not hardcode limits (`Take(N)`, capacity constants) in grains. They are options on the module's config class, read by the grain through `IOptions<TConfig>`; handlers do not pass them in. Numbers a client chose are clamped to those limits in the grain.
-- A config option carries the hotel default it ships with and a summary; `required` is only for an option with no sensible default (`CryptoConfig`'s key pair). Nothing reads an option by key name from `IConfiguration`.
+- A config option carries the hotel default it ships with and a summary; `required` is only for an option with no sensible default (`CryptoConfig`'s key pair). Nothing reads an option by key name from `IConfiguration`, except the settings layer (`Turbo.Main/Settings`, `IServerSettings`), which lists and overrides every option by path for the admin panel. Mark an option `[SecretSetting]` when its value must never be shown, and `[StartupSetting]` when the panel itself stands on it (`docs/settings.md`).
 - When a delete + insert must be atomic, use EF tracked operations (`Remove` + `SaveChangesAsync`), not `ExecuteDeleteAsync`.
 - Replace `.Ignore()` on grain tasks with a `LogAndForget` helper that logs faulted continuations.
 - In-memory collections that grow per-event (message history, queues) must have a configurable cap.

@@ -54,6 +54,17 @@ public static class PermissionNodes
         public const string MANAGE = "gamedata.manage";
     }
 
+    public static class Settings
+    {
+        /// <summary>
+        /// Change the server's settings in the admin panel: override what <c>appsettings.json</c>
+        /// says, replace a secret, and put a setting back. Seeing them there needs
+        /// <see cref="Admin.SETTINGS_VIEW"/> as well. A setting is the whole server's, so this is
+        /// for those who run it.
+        /// </summary>
+        public const string MANAGE = "settings.manage";
+    }
+
     /// <summary>
     /// Memberships held by permission rather than bought: the player counts as a member for as
     /// long as they hold the node, whatever their subscription rows say. Nothing is written, so
@@ -256,6 +267,13 @@ public static class PermissionNodes
         /// panel's hotel controls.
         /// </summary>
         public const string WELCOME_MESSAGE_MANAGE = "admin.welcome.manage";
+
+        /// <summary>
+        /// See the server's settings in the panel: each value, where it comes from and whether a
+        /// restart is waiting on it. Secrets are never shown. Changing them needs
+        /// <see cref="Settings.MANAGE"/> as well.
+        /// </summary>
+        public const string SETTINGS_VIEW = "admin.settings.view";
     }
 
     /// <summary>

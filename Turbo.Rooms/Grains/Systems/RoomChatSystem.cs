@@ -371,11 +371,11 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
             );
 
             // AS3 AvatarVisualization.updateObject and AvatarImage.setDirection trust the
-            // server's head direction. Automatic human chat reactions may look ahead or
-            // one octant either side of the body; explicit directions and pets are separate.
+            // server's head direction. An automatic chat reaction, a person's or a pet's, may
+            // look ahead or one octant either side of the body, never over the shoulder;
+            // explicit directions are separate.
             if (
-                avatar.AvatarType != RoomObjectType.Pet
-                && targetRotation != avatar.Rotation
+                targetRotation != avatar.Rotation
                 && targetRotation != avatar.Rotation.Rotate(-1)
                 && targetRotation != avatar.Rotation.Rotate(1)
             )

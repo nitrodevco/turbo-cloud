@@ -8,6 +8,7 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Gamedata;
+using Turbo.Primitives.Settings;
 
 namespace Turbo.Gamedata.Variables;
 
@@ -15,24 +16,22 @@ namespace Turbo.Gamedata.Variables;
 /// The client's external variables as the file Nitro loads: one JSON object, a key for each
 /// variable, in ordinal order. A value is kept as JSON text, written back as it is.
 /// <para>
-/// The hotel writes the address of each of its own gamedata files itself, by hash, as Habbo's
-/// external variables do (<see cref="STAMPED"/>): the client then loads exactly the build the
+/// A variable may follow something instead of holding a value of its own (<see cref="Resolve"/>):
+/// a server setting, or the address of one of the hotel's gamedata files by hash, as Habbo's
+/// external variables give theirs. Following a file, the client loads exactly the build the
 /// variables were built with, cached for good, with no redirect on the way.
 /// </para>
 /// </summary>
 internal static class ExternalVariablesFile
 {
-    /// <summary>The variable each of the hotel's gamedata files is named by, as Nitro reads it.</summary>
-    public static readonly IReadOnlyDictionary<string, string> STAMPED = new Dictionary<
-        string,
-        string
-    >(StringComparer.Ordinal)
-    {
-        [GamedataFiles.FURNITURE_DATA] = "furnituredata.url",
-        [GamedataFiles.PRODUCT_DATA] = "productdata.url",
-        [GamedataFiles.EXTERNAL_TEXTS] = "gamedata.urls.externalTexts",
-        [GamedataFiles.FIGURE_DATA] = "figuredata.url",
-    };
+    /// <summary>The files a variable may follow the address of: every one the hotel builds but this.</summary>
+    public static readonly IReadOnlyList<string> LINKABLE =
+    [
+        GamedataFiles.FURNITURE_DATA,
+        GamedataFiles.PRODUCT_DATA,
+        GamedataFiles.EXTERNAL_TEXTS,
+        GamedataFiles.FIGURE_DATA,
+    ];
 
     // The file is served as JSON, never into a page, so text is written as it is: an apostrophe
     // stays an apostrophe for staff reading the panel.
@@ -47,8 +46,30 @@ internal static class ExternalVariablesFile
         Indented = true,
     };
 
-    public static bool IsStamped(string key) =>
-        STAMPED.Values.Contains(key, StringComparer.Ordinal);
+    public static bool IsLinkable(string file) => LINKABLE.Contains(file, StringComparer.Ordinal);
+
+    /// <summary>
+    /// The value the file writes for a variable: its setting's value, or its file's address by
+    /// hash, when it follows one that can be written; otherwise its own.
+    /// </summary>
+    public static string Resolve(
+        string value,
+        string? setting,
+        string? file,
+        Addresses addresses,
+        IServerSettings settings
+    ) =>
+        setting is not null ? settings.GetValue(setting) ?? value
+        : file is not null ? addresses.Of(file) ?? value
+        : value;
+
+    /// <summary>
+    /// A file's address that never changes, <c>/gamedata/&lt;file&gt;/0</c> (it redirects to the
+    /// current build), under the public address when there is one: what a variable that stops
+    /// following the file keeps.
+    /// </summary>
+    public static string StableAddress(string publicUrl, string file) =>
+        Text($"{Root(publicUrl)}/gamedata/{file}/0");
 
     /// <summary>
     /// A value as it is kept: JSON, written compactly. Throws <see cref="ArgumentException"/>
@@ -130,49 +151,60 @@ internal static class ExternalVariablesFile
     }
 
     /// <summary>
-    /// The variables the hotel writes itself, each its file's address by the current hash, as a
-    /// JSON string. Empty without <paramref name="publicUrl"/>: a build is the same on every
-    /// silo, so the address can't come from a request.
+    /// The addresses of the files a variable may follow, by their current hash. None without
+    /// <paramref name="publicUrl"/>: a build is the same on every silo, so the address can't come
+    /// from a request, and a variable following a file then writes its own value.
     /// </summary>
-    public static async Task<Stamps> StampsAsync(
+    public static async Task<Addresses> AddressesAsync(
         IGamedataFileService files,
         string publicUrl,
         CancellationToken ct
     )
     {
-        var stamps = new List<(string Key, string Value)>();
-
         if (string.IsNullOrWhiteSpace(publicUrl))
-            return new Stamps(stamps);
+            return Addresses.NONE;
 
-        var root = publicUrl.Trim().TrimEnd('/');
+        var hashes = new List<(string File, string Hash)>();
 
-        foreach (var (file, key) in STAMPED)
+        foreach (var file in LINKABLE)
         {
             var current = await files.GetCurrentAsync(file, ct).ConfigureAwait(false);
 
-            stamps.Add(
-                (
-                    key,
-                    JsonValue
-                        .Create($"{root}/gamedata/{file}/{current.File.Hash}")
-                        .ToJsonString(TEXT)
-                )
-            );
+            hashes.Add((file, current.File.Hash));
         }
 
-        return new Stamps(stamps);
+        return new Addresses(Root(publicUrl), hashes);
     }
 
-    /// <summary>
-    /// The variables the hotel writes itself; two are equal when they write the same, so the file
-    /// is built again only when one of the addresses has moved.
-    /// </summary>
-    public sealed record Stamps(IReadOnlyList<(string Key, string Value)> Entries)
-    {
-        public bool Equals(Stamps? other) =>
-            other is not null && Entries.SequenceEqual(other.Entries);
+    private static string Root(string publicUrl) => publicUrl.Trim().TrimEnd('/');
 
-        public override int GetHashCode() => Entries.Count;
+    private static string Text(string text) => JsonValue.Create(text).ToJsonString(TEXT);
+
+    /// <summary>
+    /// What the file is made from besides its rows: the files' addresses, and the version of the
+    /// server's settings the linked variables were read at. Two are equal when they write the
+    /// same, so the file is built again only when an address has moved or a setting changed.
+    /// </summary>
+    public sealed record Inputs(Addresses Addresses, int SettingsVersion);
+
+    /// <summary>
+    /// The files' addresses by hash under <see cref="Root"/>; two are equal when they give the same
+    /// addresses.
+    /// </summary>
+    public sealed record Addresses(string? Root, IReadOnlyList<(string File, string Hash)> Hashes)
+    {
+        public static readonly Addresses NONE = new(null, []);
+
+        /// <summary>The file's address by its current hash, as JSON; null without a public address.</summary>
+        public string? Of(string file) =>
+            Root is null ? null
+            : Hashes.FirstOrDefault(x => x.File == file) is { File: not null } at
+                ? Text($"{Root}/gamedata/{file}/{at.Hash}")
+            : null;
+
+        public bool Equals(Addresses? other) =>
+            other is not null && Root == other.Root && Hashes.SequenceEqual(other.Hashes);
+
+        public override int GetHashCode() => HashCode.Combine(Root, Hashes.Count);
     }
 }

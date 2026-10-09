@@ -74,6 +74,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
     internal readonly IRoomAvatarProvider _avatarProvider;
     internal readonly IRoomWiredVariablesProvider _wiredVariablesProvider;
     internal readonly IPetBreedProvider _petBreedProvider;
+    internal readonly IPetSpeechProvider _petSpeechProvider;
     internal readonly IFurnitureDefinitionProvider _definitionProvider;
     internal readonly IHotelTextProvider _hotelTextProvider;
     internal readonly IChatStyleProvider _chatStyleProvider;
@@ -139,6 +140,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         IRoomAvatarProvider avatarProvider,
         IRoomWiredVariablesProvider wiredVariablesProvider,
         IPetBreedProvider petBreedProvider,
+        IPetSpeechProvider petSpeechProvider,
         IFurnitureDefinitionProvider definitionProvider,
         IHotelTextProvider hotelTextProvider,
         IChatStyleProvider chatStyleProvider,
@@ -169,6 +171,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain
         _avatarProvider = avatarProvider;
         _wiredVariablesProvider = wiredVariablesProvider;
         _petBreedProvider = petBreedProvider;
+        _petSpeechProvider = petSpeechProvider;
         _definitionProvider = definitionProvider;
         _hotelTextProvider = hotelTextProvider;
         _chatStyleProvider = chatStyleProvider;

@@ -1,3 +1,5 @@
+using Turbo.Primitives.Settings;
+
 namespace Turbo.Web.Configuration;
 
 /// <summary>
@@ -9,6 +11,7 @@ public sealed class DiscordConfig
 {
     public string ClientId { get; init; } = "";
 
+    [SecretSetting]
     public string ClientSecret { get; init; } = "";
 
     /// <summary>Discord's API, overridable for tests.</summary>

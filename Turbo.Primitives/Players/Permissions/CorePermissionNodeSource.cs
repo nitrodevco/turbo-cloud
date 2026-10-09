@@ -293,6 +293,14 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Change the hotel's gamedata in the admin panel: import Habbo's updates, edit furniture, rebuild the client's files and roll back."
         ),
         new(
+            PermissionNodes.Admin.SETTINGS_VIEW,
+            "See the server's settings in the admin panel: each value, where it comes from and what waits on a restart. Secrets are never shown."
+        ),
+        new(
+            PermissionNodes.Settings.MANAGE,
+            "Change the server's settings in the admin panel: override appsettings.json, replace a secret, and put a setting back."
+        ),
+        new(
             PermissionNodes.Figure.ANY,
             "Wear any clothing and colour, whatever the figure data says of club, sale or selection."
         ),

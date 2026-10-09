@@ -57,6 +57,19 @@ public sealed class RoomPetAvatar : RoomAvatar<IRoomPet, IRoomPetLogic, IRoomPet
     public DateTime? NutritionDecayDueUtc { get; set; }
 
     public int TypeId => PetFigure.TypeId;
+
+    /// <summary>
+    /// A pet sits on whatever it stands on. The client draws an avatar at its tile height plus
+    /// the posture's height, and the base's default of 0.5 is a person's seat on the floor; a pet
+    /// given it hovered half a tile up. A seat or a nest still passes its own height.
+    /// </summary>
+    public override void Sit(bool flag = true, Altitude? height = null, Rotation? rot = null) =>
+        base.Sit(flag, height ?? Altitude.Zero, rot);
+
+    /// <summary>Lies on whatever it stands on, as <see cref="Sit"/>.</summary>
+    public override void Lay(bool flag = true, Altitude? height = null, Rotation? rot = null) =>
+        base.Lay(flag, height ?? Altitude.Zero, rot);
+
     public bool IsMonsterplant => PetTypes.IsMonsterplant(PetFigure.TypeId);
     public bool IsRiding => RiderObjectId > 0;
 

@@ -14,6 +14,10 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <EnableOrleansContractsAnalyzer>true</EnableOrleansContractsAnalyzer>
+    <!-- The XML docs ship beside each assembly: the admin panel's settings page reads a setting's
+         summary from them. Missing docs are not an error; only what is written is checked. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <!-- Orleans 10.3 no longer supplies code generation through Core.Abstractions.

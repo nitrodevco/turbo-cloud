@@ -142,11 +142,6 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     }
 
     /// <summary>
-    /// Adds points to a team. <paramref name="timesPerGame"/> caps how often one source (the
-    /// furni handing out the points) may score for one player during a game; zero means
-    /// unlimited.
-    /// </summary>
-    /// <summary>
     /// Puts a team's score at a number, rather than adding to it: what writing the
     /// <c>@team.score</c> variable does. It is not a grant, so the per-game limits a scoring
     /// box obeys do not apply.
@@ -179,6 +174,11 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
         return true;
     }
 
+    /// <summary>
+    /// Adds points to a team. <paramref name="timesPerGame"/> caps how often one source (the
+    /// furni handing out the points) may score for one player during a game; zero means
+    /// unlimited.
+    /// </summary>
     public async Task<bool> GiveScoreAsync(
         GameTeamType team,
         int points,

@@ -15,26 +15,31 @@ using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Settings;
 
 namespace Turbo.Gamedata.Variables;
 
 /// <summary>
 /// The client's external variables (<see cref="IGamedataVariableService"/>), kept in
 /// <c>gamedata_variables</c> and built into the file by <see cref="Files.GamedataFileService"/>.
-/// The variables the hotel writes itself (<see cref="ExternalVariablesFile.STAMPED"/>) can't be
-/// set while it writes them. A change records <c>{ key, value }</c> before and after, the value
-/// as JSON text.
+/// A variable may follow a server setting (<see cref="IServerSettings.GetValue"/>) or the address
+/// of one of the hotel's gamedata files by hash (<see cref="ExternalVariablesFile.LINKABLE"/>);
+/// setting a value of its own stops it. A change records <c>{ key, value, setting, file }</c>
+/// before and after, the value as JSON text.
 /// </summary>
 internal sealed class GamedataVariableService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IOptions<GamedataConfig> config,
     IGamedataFileService files,
     GamedataWriteLock writes,
+    IServerSettings settings,
     ILogger<GamedataVariableService> logger
 ) : IGamedataVariableService
 {
     private const string KEY = "key";
     private const string VALUE = "value";
+    private const string SETTING = "setting";
+    private const string FILE = "file";
 
     private readonly GamedataConfig _config = config.Value;
 
@@ -59,29 +64,29 @@ internal sealed class GamedataVariableService(
             .OrderBy(x => x.Key)
             .Skip(Math.Max(0, page) * size)
             .Take(size)
-            .Select(x => new { x.Key, x.Value })
+            .Select(x => new
+            {
+                x.Key,
+                x.Value,
+                x.SettingPath,
+                x.LinkedFile,
+            })
             .ToListAsync(ct)
             .ConfigureAwait(false);
-        var stamps = await ExternalVariablesFile
-            .StampsAsync(files, _config.PublicUrl, ct)
+        var addresses = await ExternalVariablesFile
+            .AddressesAsync(files, _config.PublicUrl, ct)
             .ConfigureAwait(false);
 
         return new VariableSearchResult
         {
             Items =
             [
-                .. rows.Select(x => new VariableEntrySnapshot { Key = x.Key, Value = x.Value }),
+                .. rows.Select(x => Entry(x.Key, x.Value, x.SettingPath, x.LinkedFile, addresses)),
             ],
             Total = total,
             PageSize = size,
-            Stamped =
-            [
-                .. stamps.Entries.Select(x => new VariableEntrySnapshot
-                {
-                    Key = x.Key,
-                    Value = x.Value,
-                }),
-            ],
+            LinkableFiles = [.. ExternalVariablesFile.LINKABLE],
+            WritesAddresses = addresses.Root is not null,
         };
     }
 
@@ -108,9 +113,9 @@ internal sealed class GamedataVariableService(
         var row = await dbCtx
             .GamedataVariables.FirstOrDefaultAsync(x => x.Key == key, ct)
             .ConfigureAwait(false);
-        var before = row?.Value;
+        var before = row is null ? null : State(row);
 
-        if (before == value)
+        if (before == new VariableState(value, null, null))
             return new VariableEntrySnapshot { Key = key, Value = value };
 
         if (row is null)
@@ -120,7 +125,10 @@ internal sealed class GamedataVariableService(
         }
         else
         {
+            // A value of its own: it follows nothing now.
             row.Value = value;
+            row.SettingPath = null;
+            row.LinkedFile = null;
         }
 
         await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
@@ -134,7 +142,7 @@ internal sealed class GamedataVariableService(
                     GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
                 ),
                 PlayerEntityId = player.Value,
-                Changes = [Change(key, before, value, row.Id)],
+                Changes = [Change(key, before, State(row), row.Id)],
             }
         );
 
@@ -143,6 +151,114 @@ internal sealed class GamedataVariableService(
         files.Invalidate(GamedataFiles.EXTERNAL_VARIABLES);
 
         return new VariableEntrySnapshot { Key = key, Value = value };
+    }
+
+    public Task<VariableEntrySnapshot> LinkAsync(
+        string key,
+        string? settingPath,
+        string? file,
+        PlayerId player,
+        CancellationToken ct
+    ) => writes.RunAsync(() => LinkLockedAsync(key, settingPath, file, player, ct), ct);
+
+    private async Task<VariableEntrySnapshot> LinkLockedAsync(
+        string key,
+        string? settingPath,
+        string? file,
+        PlayerId player,
+        CancellationToken ct
+    )
+    {
+        key = CheckKey(key);
+
+        var path = string.IsNullOrWhiteSpace(settingPath) ? null : CheckSetting(settingPath);
+        var linked = string.IsNullOrWhiteSpace(file) ? null : CheckFile(file);
+
+        if (path is not null && linked is not null)
+            throw new ArgumentException(
+                "A variable follows a setting or a file, not both.",
+                nameof(file)
+            );
+
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var row = await dbCtx
+            .GamedataVariables.FirstOrDefaultAsync(x => x.Key == key, ct)
+            .ConfigureAwait(false);
+        var before = row is null ? null : State(row);
+
+        if (path is null && linked is null && row is null)
+            throw new ArgumentException($"There is no variable {key}.", nameof(key));
+
+        if (row is null)
+        {
+            row = new GamedataVariableEntity { Key = key, Value = "null" };
+            dbCtx.GamedataVariables.Add(row);
+        }
+
+        if (path is not null)
+        {
+            // The setting's value now, kept should the setting ever go.
+            row.Value = settings.GetValue(path) ?? row.Value;
+            row.SettingPath = path;
+            row.LinkedFile = null;
+        }
+        else if (linked is not null)
+        {
+            // Its own value stays, written while there is no public address; a new one starts at
+            // the file's address that never changes.
+            if (before is null || before.Setting is not null)
+                row.Value = ExternalVariablesFile.StableAddress(_config.PublicUrl, linked);
+
+            row.SettingPath = null;
+            row.LinkedFile = linked;
+        }
+        else
+        {
+            // Unlinked, it keeps what it was: the setting's value, or the file's address that never
+            // changes rather than one by hash that is pruned in time.
+            row.Value =
+                row.SettingPath is { } was ? settings.GetValue(was) ?? row.Value
+                : row.LinkedFile is { } wasFile && !string.IsNullOrWhiteSpace(_config.PublicUrl)
+                    ? ExternalVariablesFile.StableAddress(_config.PublicUrl, wasFile)
+                : row.Value;
+            row.SettingPath = null;
+            row.LinkedFile = null;
+        }
+
+        var after = State(row);
+
+        if (before != after)
+        {
+            await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+
+            dbCtx.GamedataChangeSets.Add(
+                new GamedataChangeSetEntity
+                {
+                    Kind = GamedataChangeKind.Edit,
+                    Summary = Truncate(
+                        path is not null ? $"Linked the variable {key} to the setting {path}"
+                            : linked is not null
+                                ? $"Linked the variable {key} to the address of {linked}"
+                            : $"Unlinked the variable {key}",
+                        GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
+                    ),
+                    PlayerEntityId = player.Value,
+                    Changes = [Change(key, before, after, row.Id)],
+                }
+            );
+
+            await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+
+            files.Invalidate(GamedataFiles.EXTERNAL_VARIABLES);
+        }
+
+        var addresses = await ExternalVariablesFile
+            .AddressesAsync(files, _config.PublicUrl, ct)
+            .ConfigureAwait(false);
+
+        return Entry(row.Key, row.Value, row.SettingPath, row.LinkedFile, addresses);
     }
 
     public Task<bool> DeleteAsync(string key, PlayerId player, CancellationToken ct) =>
@@ -170,7 +286,7 @@ internal sealed class GamedataVariableService(
                     GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
                 ),
                 PlayerEntityId = player.Value,
-                Changes = [Change(key, row.Value, null, row.Id)],
+                Changes = [Change(key, State(row), null, row.Id)],
             }
         );
 
@@ -237,7 +353,7 @@ internal sealed class GamedataVariableService(
 
         await using var txScope = tx.ConfigureAwait(false);
 
-        var changes = new List<(GamedataVariableEntity Row, string? Before)>();
+        var changes = new List<(GamedataVariableEntity Row, VariableState? Before)>();
 
         foreach (var item in plan.Items)
         {
@@ -251,7 +367,7 @@ internal sealed class GamedataVariableService(
             }
             else
             {
-                changes.Add((row, row.Value));
+                changes.Add((row, State(row)));
                 row.Value = item.Value;
             }
         }
@@ -267,7 +383,7 @@ internal sealed class GamedataVariableService(
                 GamedataChangeSetEntity.SUMMARY_MAX_LENGTH
             ),
             PlayerEntityId = player.Value,
-            Changes = [.. changes.Select(x => Change(x.Row.Key, x.Before, x.Row.Value, x.Row.Id))],
+            Changes = [.. changes.Select(x => Change(x.Row.Key, x.Before, State(x.Row), x.Row.Id))],
         };
 
         dbCtx.GamedataChangeSets.Add(changeSet);
@@ -286,11 +402,8 @@ internal sealed class GamedataVariableService(
         return changeSet.ToSnapshot(changeSet.Changes!.Count);
     }
 
-    /// <summary>
-    /// A key the hotel can keep and staff may set: not empty, not too long, not one of the
-    /// addresses the hotel writes itself while it writes them.
-    /// </summary>
-    private string CheckKey(string key)
+    /// <summary>A key the hotel can keep: not empty, not too long.</summary>
+    private static string CheckKey(string key)
     {
         key = key.Trim();
 
@@ -303,17 +416,60 @@ internal sealed class GamedataVariableService(
                 nameof(key)
             );
 
-        if (IsWrittenByHotel(key))
-            throw new ArgumentException(
-                $"{key} is the address of one of the hotel's gamedata files; the hotel writes it itself.",
-                nameof(key)
-            );
-
         return key;
     }
 
-    private bool IsWrittenByHotel(string key) =>
-        !string.IsNullOrWhiteSpace(_config.PublicUrl) && ExternalVariablesFile.IsStamped(key);
+    /// <summary>
+    /// A setting a variable may follow: one the server has, and not a secret, which the public
+    /// variables would give away. Throws <see cref="ArgumentException"/> otherwise.
+    /// </summary>
+    private string CheckSetting(string path)
+    {
+        var setting =
+            settings.Get(path)
+            ?? throw new ArgumentException($"There is no setting {path.Trim()}.", nameof(path));
+
+        if (setting.Secret)
+            throw new ArgumentException(
+                $"{setting.Path} is a secret: the external variables are public.",
+                nameof(path)
+            );
+
+        return setting.Path;
+    }
+
+    /// <summary>A file a variable may follow the address of. Throws <see cref="ArgumentException"/> otherwise.</summary>
+    private static string CheckFile(string file)
+    {
+        file = file.Trim();
+
+        if (!ExternalVariablesFile.IsLinkable(file))
+            throw new ArgumentException(
+                $"A variable can follow the address of {string.Join(", ", ExternalVariablesFile.LINKABLE)}; not {file}.",
+                nameof(file)
+            );
+
+        return file;
+    }
+
+    /// <summary>A variable as the panel shows it: its value what the file writes for it now.</summary>
+    private VariableEntrySnapshot Entry(
+        string key,
+        string value,
+        string? setting,
+        string? file,
+        ExternalVariablesFile.Addresses addresses
+    ) =>
+        new()
+        {
+            Key = key,
+            Value = ExternalVariablesFile.Resolve(value, setting, file, addresses, settings),
+            Setting = setting,
+            File = file,
+        };
+
+    private static VariableState State(GamedataVariableEntity row) =>
+        new(row.Value, row.SettingPath, row.LinkedFile);
 
     private async Task<VariablePlan> PlanAsync(
         TurboDbContext dbCtx,
@@ -347,14 +503,15 @@ internal sealed class GamedataVariableService(
                 continue;
             }
 
-            if (IsWrittenByHotel(key))
+            ours.TryGetValue(key, out var current);
+
+            // A variable that follows a setting or a file: the config can't set it.
+            if (current?.SettingPath is not null || current?.LinkedFile is not null)
             {
                 plan.Skipped.Add(key);
 
                 continue;
             }
-
-            ours.TryGetValue(key, out var current);
 
             if (current?.Value == value)
                 plan.Unchanged++;
@@ -368,7 +525,12 @@ internal sealed class GamedataVariableService(
         return plan;
     }
 
-    private static GamedataChangeEntity Change(string key, string? before, string? after, int id) =>
+    private static GamedataChangeEntity Change(
+        string key,
+        VariableState? before,
+        VariableState? after,
+        int id
+    ) =>
         new()
         {
             RecordType = GamedataRecordType.Variable,
@@ -378,8 +540,21 @@ internal sealed class GamedataVariableService(
             After = after is null ? null : Record(key, after),
         };
 
-    private static string Record(string key, string value) =>
-        new JsonObject { [KEY] = key, [VALUE] = value }.ToJsonString();
+    private static string Record(string key, VariableState state)
+    {
+        var record = new JsonObject { [KEY] = key, [VALUE] = state.Value };
+
+        if (state.Setting is not null)
+            record[SETTING] = state.Setting;
+
+        if (state.File is not null)
+            record[FILE] = state.File;
+
+        return record.ToJsonString();
+    }
+
+    /// <summary>What a variable holds: its value, and the setting or file it follows, if any.</summary>
+    private sealed record VariableState(string Value, string? Setting, string? File);
 
     private static string Truncate(string text, int max) => text.Length <= max ? text : text[..max];
 

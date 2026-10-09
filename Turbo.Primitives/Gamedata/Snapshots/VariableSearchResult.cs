@@ -18,11 +18,14 @@ public sealed record VariableSearchResult
     [Id(2)]
     public required int PageSize { get; init; }
 
-    /// <summary>
-    /// The variables the hotel writes itself, each the address of one of its gamedata files by
-    /// hash, as the file has them now. Staff can't set these. Empty when the gamedata host has no
-    /// public address to write them on.
-    /// </summary>
+    /// <summary>The files a variable may follow the address of (<see cref="GamedataFiles"/>).</summary>
     [Id(3)]
-    public required ImmutableArray<VariableEntrySnapshot> Stamped { get; init; }
+    public required ImmutableArray<string> LinkableFiles { get; init; }
+
+    /// <summary>
+    /// Whether a variable following a file is written with its address by hash: false while the
+    /// gamedata host has no public address, when it is written with its own value.
+    /// </summary>
+    [Id(4)]
+    public required bool WritesAddresses { get; init; }
 }

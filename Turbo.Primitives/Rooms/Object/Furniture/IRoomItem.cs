@@ -38,7 +38,7 @@ public interface IRoomItem : IRoomObject
     /// <summary>
     /// A furni the Builders Club lends: it has a row and outlives the room, but nobody owns it,
     /// it can never reach an inventory, and picking it up destroys it. Its id is in the band the
-    /// client reads that out of (<see cref="Furniture.FurniIdBands"/>).
+    /// client reads that out of (<see cref="Turbo.Primitives.Furniture.FurniIdBands"/>).
     /// </summary>
     public bool IsBuildersClub { get; }
 

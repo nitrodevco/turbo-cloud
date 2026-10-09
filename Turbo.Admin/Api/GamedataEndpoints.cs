@@ -77,6 +77,7 @@ internal sealed class GamedataEndpoints(
             (string? q, int? page, CancellationToken ct) => VariableSearchAsync(q, page, ct)
         );
         group.MapPut("/variables", SaveVariableAsync);
+        group.MapPut("/variables/link", LinkVariableAsync);
         group.MapDelete("/variables", DeleteVariableAsync);
         group.MapPost("/variables/import/preview", VariablePreviewAsync);
         group.MapPost("/variables/import", VariableImportAsync);
@@ -719,6 +720,37 @@ internal sealed class GamedataEndpoints(
                             .SaveAsync(
                                 request.Key ?? string.Empty,
                                 request.Value ?? string.Empty,
+                                AdminIdentity.Of(http).PlayerId,
+                                ct
+                            )
+                            .ConfigureAwait(false)
+                    );
+                }
+                catch (ArgumentException ex)
+                {
+                    return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+                }
+            }
+        );
+
+    private Task<IResult> LinkVariableAsync(
+        VariableLinkRequest request,
+        HttpContext http,
+        CancellationToken ct
+    ) =>
+        ManageAsync(
+            http,
+            ct,
+            async () =>
+            {
+                try
+                {
+                    return Results.Ok(
+                        await variables
+                            .LinkAsync(
+                                request.Key ?? string.Empty,
+                                request.Setting,
+                                request.File,
                                 AdminIdentity.Of(http).PlayerId,
                                 ct
                             )

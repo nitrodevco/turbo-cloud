@@ -40,6 +40,9 @@ Read a `Turbo.Tests/Support` file only when you need a member not listed here.
 - `PacketHarness`: client bytes -> revision parser -> handler -> serializer; `Incoming(name)` /
   `Outgoing(name)` header ids, `Payload(w => ...)`, `await SendAsync(header, payload)` returns the
   replies as readable packets.
+- `SettingsHarness(db, appSettingsJson, (services, config) => services.Configure<T>(...))`: the real
+  server settings (an appsettings.json, the panel's overrides, the environment under `.EnvironmentPrefix`);
+  `.Settings`, `.Running<T>()` (what the server took at start), `.Restart()`. `TestHotelConfig` has every kind.
 - `InMemoryDb(throwOnUnorderedTake)` and `SqliteDb` (relational; `.Insert(entity)`) are database
   factories. `CapturingLogger<T>.AtLeast(level)` asserts on log output.
 - `Fakes`: an unconfigured call returns a completed task, `default`, or another fake for an

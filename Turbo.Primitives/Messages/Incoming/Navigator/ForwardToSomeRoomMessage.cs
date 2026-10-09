@@ -9,7 +9,7 @@ public record ForwardToSomeRoomMessage : IMessageEvent
     ///     <para>navigator/goto/home (handled clientside)</para>
     ///     <para>navigator/goto/{ID} (handled clientside)</para>
     ///     <para>navigator/goto/{string} (handled serverside)</para>
-    ///     Known {string} values can be found in <see cref="Core.Game.Navigator.Constants.NavigatorRoomForwardType" />
+    ///     Known {string} values can be found in <c>NavigatorRoomForwardType</c>
     ///     ForwardData only contains the string data
     /// </summary>
     public required string ForwardData { get; init; }

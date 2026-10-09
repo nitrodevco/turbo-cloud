@@ -1533,6 +1533,16 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("variable_key")
                         .UseCollation("utf8mb4_bin");
 
+                    b.Property<string>("LinkedFile")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("linked_file");
+
+                    b.Property<string>("SettingPath")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("setting_path");
+
                     b.Property<string>("Value")
                         .IsRequired()
                         .HasMaxLength(512)
@@ -3355,6 +3365,39 @@ namespace Turbo.Database.Migrations
                     b.HasKey("OperationId");
 
                     b.ToTable("pet_respect_operations");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Pets.PetSpeechEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<string>("Line")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("line");
+
+                    b.Property<int?>("TypeId")
+                        .HasColumnType("int")
+                        .HasColumnName("type_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TypeId");
+
+                    b.ToTable("pet_speech");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.HumanRespectOperationEntity", b =>
@@ -5186,6 +5229,89 @@ namespace Turbo.Database.Migrations
                         .IsUnique();
 
                     b.ToTable("web_sessions");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Settings.ServerSettingChangeEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("After")
+                        .HasMaxLength(512)
+                        .HasColumnType("longtext")
+                        .HasColumnName("after");
+
+                    b.Property<string>("Before")
+                        .HasMaxLength(512)
+                        .HasColumnType("longtext")
+                        .HasColumnName("before");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("setting_path");
+
+                    b.Property<int?>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<bool>("Secret")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("secret");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Path");
+
+                    b.ToTable("server_setting_changes");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Settings.ServerSettingEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("setting_path");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("longtext")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Path")
+                        .IsUnique();
+
+                    b.ToTable("server_settings");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Sound.SongEntity", b =>

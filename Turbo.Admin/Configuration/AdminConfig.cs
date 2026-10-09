@@ -1,3 +1,5 @@
+using Turbo.Primitives.Settings;
+
 namespace Turbo.Admin.Configuration;
 
 /// <summary>
@@ -9,15 +11,18 @@ public sealed class AdminConfig
 {
     public const string SECTION_NAME = "Turbo:Admin";
 
+    [StartupSetting]
     public bool Enabled { get; init; }
 
     /// <summary>Where the API listens. Loopback by default, for a reverse proxy in front.</summary>
+    [StartupSetting]
     public string Url { get; init; } = "http://127.0.0.1:8090";
 
     /// <summary>
     /// Where the panel is served. Setup links point here, passkeys are bound to its domain, and
     /// it is the one origin the API accepts browser requests from.
     /// </summary>
+    [StartupSetting]
     public string PanelUrl { get; init; } = "http://localhost:5173";
 
     /// <summary>How long a setup link (<c>adminsetup</c>) works. It also works only once.</summary>
@@ -40,6 +45,7 @@ public sealed class AdminConfig
     /// <see cref="PanelUrl"/>). A parent domain (<c>example.com</c>) lets them work on every
     /// subdomain, but then any of those sites can ask for them.
     /// </summary>
+    [StartupSetting]
     public string PasskeyRpId { get; init; } = "";
 
     /// <summary>The longest command line the console accepts.</summary>

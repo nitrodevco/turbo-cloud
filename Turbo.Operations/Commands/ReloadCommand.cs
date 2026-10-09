@@ -30,6 +30,7 @@ public enum ReloadSubject
     Achievements,
     Plugins,
     Filter,
+    PetSpeech,
 }
 
 public sealed record ReloadArguments(ReloadSubject Subject);
@@ -56,6 +57,7 @@ public sealed class ReloadCommand(
     IChatStyleProvider chatStyleProvider,
     IRoomModelProvider roomModelProvider,
     IPetBreedProvider petBreedProvider,
+    IPetSpeechProvider petSpeechProvider,
     IAchievementCatalog achievements,
     IWordFilter wordFilter,
     PluginManager pluginManager
@@ -106,6 +108,10 @@ public sealed class ReloadCommand(
                 break;
             case ReloadSubject.PetBreeds:
                 await petBreedProvider.ReloadAsync(ct);
+
+                break;
+            case ReloadSubject.PetSpeech:
+                await petSpeechProvider.ReloadAsync(ct);
 
                 break;
             case ReloadSubject.Plugins:

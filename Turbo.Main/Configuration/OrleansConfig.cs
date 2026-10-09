@@ -1,5 +1,9 @@
+using Turbo.Primitives.Settings;
+
 namespace Turbo.Main.Configuration;
 
+/// <summary>The silo and its streams: what the whole server runs on.</summary>
+[StartupSetting]
 public class OrleansConfig
 {
     public const string SECTION_NAME = "Turbo:Orleans";

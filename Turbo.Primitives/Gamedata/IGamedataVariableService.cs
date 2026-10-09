@@ -17,13 +17,29 @@ public interface IGamedataVariableService
     public Task<VariableSearchResult> SearchAsync(string? query, int page, CancellationToken ct);
 
     /// <summary>
-    /// Sets a variable to a JSON value, adding it when there is none. Throws
-    /// <see cref="System.ArgumentException"/> for an empty or overlong key, a value that isn't
-    /// JSON, or a key the hotel writes itself.
+    /// Sets a variable to a JSON value, adding it when there is none; one that followed a setting or
+    /// a file stops. Throws <see cref="System.ArgumentException"/> for an empty or overlong key, or a
+    /// value that isn't JSON.
     /// </summary>
     public Task<VariableEntrySnapshot> SaveAsync(
         string key,
         string value,
+        PlayerId player,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Links a variable to a server setting or to the address of one of the hotel's gamedata files,
+    /// adding it when there is none: the file then writes the setting's value, or the file's address
+    /// by hash, and is built again whenever it changes. Neither unlinks it, keeping the value it had
+    /// (a file's, its address that never changes). Throws <see cref="System.ArgumentException"/> for
+    /// both at once, an unknown or secret setting, a file no variable can follow, or unlinking a
+    /// variable there isn't.
+    /// </summary>
+    public Task<VariableEntrySnapshot> LinkAsync(
+        string key,
+        string? settingPath,
+        string? file,
         PlayerId player,
         CancellationToken ct
     );
@@ -38,7 +54,8 @@ public interface IGamedataVariableService
     public Task<VariableImportPreview> PreviewImportAsync(string json, CancellationToken ct);
 
     /// <summary>
-    /// Takes in every key of the config, added or changed; the hotel's other variables stay. Null
+    /// Takes in every key of the config, added or changed; the hotel's other variables stay, and so
+    /// does a variable that follows a setting or a file. Null
     /// when the hotel already had everything; otherwise the change set made.
     /// </summary>
     public Task<GamedataChangeSetSnapshot?> ImportAsync(

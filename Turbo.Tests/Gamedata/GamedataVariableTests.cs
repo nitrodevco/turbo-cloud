@@ -20,6 +20,7 @@ using Turbo.Primitives.Figures;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Players;
 using Turbo.Tests.Catalog;
+using Turbo.Tests.Support;
 using Xunit;
 
 namespace Turbo.Tests.Gamedata;
@@ -27,7 +28,8 @@ namespace Turbo.Tests.Gamedata;
 /// <summary>
 /// The client's configuration kept by the hotel as its external variables: edited and imported by
 /// staff, rolled back as a set, and served from the gamedata host by hash like every other
-/// gamedata file - with the hotel's own gamedata addresses written into it by hash.
+/// gamedata file - with the hotel's own gamedata addresses written into it by hash, and a
+/// variable linked to a server setting following the setting.
 /// </summary>
 public sealed class GamedataVariableTests : IAsyncDisposable
 {
@@ -37,6 +39,19 @@ public sealed class GamedataVariableTests : IAsyncDisposable
 
     private readonly CatalogFixture _catalog = new();
     private readonly List<GamedataServer> _servers = [];
+    private readonly SettingsHarness _settings;
+
+    private int _seeded;
+
+    public GamedataVariableTests() =>
+        _settings = new SettingsHarness(
+            _catalog.Db,
+            """{ "Test": { "Hotel": { "Name": "Turbo Hotel", "ApiKey": "secret" } } }""",
+            (services, configuration) =>
+                services.Configure<TestHotelConfig>(
+                    configuration.GetSection(TestHotelConfig.SECTION_NAME)
+                )
+        );
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -48,6 +63,7 @@ public sealed class GamedataVariableTests : IAsyncDisposable
             await server.DisposeAsync();
         }
 
+        _settings.Dispose();
         _catalog.Dispose();
     }
 
@@ -100,18 +116,12 @@ public sealed class GamedataVariableTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task the_hotels_gamedata_addresses_are_written_by_hash_and_follow_a_rebuild()
+    public async Task a_variable_following_a_file_is_its_address_by_hash_and_follows_a_rebuild()
     {
         var hotel = Hotel(PUBLIC_URL);
 
-        // Kept from before the hotel had a public address; the hotel's own address wins.
-        _catalog.Db.Insert(
-            new GamedataVariableEntity
-            {
-                Key = "gamedata.urls.externalTexts",
-                Value = "\"https://old\"",
-            }
-        );
+        // As the migration leaves them: one kept from before, the others new.
+        SeedAddresses(("gamedata.urls.externalTexts", "\"https://old\""));
         await hotel.Texts.SaveAsync("hello", "Hello", STAFF, Ct);
 
         var before = await VariablesAsync(hotel);
@@ -139,16 +149,96 @@ public sealed class GamedataVariableTests : IAsyncDisposable
             .GetValue<string>()
             .Should()
             .Be($"{PUBLIC_URL}/gamedata/external_flash_texts/{newTexts.File.Hash}");
+
+        var listed = await hotel.Variables.SearchAsync("furnituredata", 0, Ct);
+
+        listed.WritesAddresses.Should().BeTrue();
+        listed.Items.Should().ContainSingle().Which.File.Should().Be(GamedataFiles.FURNITURE_DATA);
     }
 
     [Fact]
-    public async Task an_address_the_hotel_writes_cant_be_set_by_staff_or_an_import()
+    public async Task any_variable_can_follow_a_file_and_one_that_does_can_be_given_a_value_of_its_own()
+    {
+        var hotel = Hotel(PUBLIC_URL);
+        var furniture = await hotel.Files.GetCurrentAsync(GamedataFiles.FURNITURE_DATA, Ct);
+
+        var linked = await hotel.Variables.LinkAsync(
+            "furni.mirror",
+            null,
+            "furnidata_json",
+            STAFF,
+            Ct
+        );
+
+        linked.File.Should().Be(GamedataFiles.FURNITURE_DATA);
+        linked.Value.Should().Be($"\"{PUBLIC_URL}/gamedata/furnidata_json/{furniture.File.Hash}\"");
+
+        // Served from a CDN instead: a value of its own, and the hotel's address no longer.
+        await hotel.Variables.SaveAsync(
+            "furni.mirror",
+            "\"https://cdn.example/furni.json\"",
+            STAFF,
+            Ct
+        );
+
+        (await VariablesAsync(hotel)).Variables["furni.mirror"]!
+            .GetValue<string>()
+            .Should()
+            .Be("https://cdn.example/furni.json");
+    }
+
+    [Fact]
+    public async Task unlinking_a_file_keeps_its_address_that_never_changes_not_one_that_is_pruned()
     {
         var hotel = Hotel(PUBLIC_URL);
 
-        var save = () => hotel.Variables.SaveAsync("furnituredata.url", "\"https://x\"", STAFF, Ct);
+        await hotel.Variables.LinkAsync("furnituredata.url", null, "furnidata_json", STAFF, Ct);
 
-        await save.Should().ThrowAsync<ArgumentException>();
+        var unlinked = await hotel.Variables.LinkAsync("furnituredata.url", null, null, STAFF, Ct);
+
+        unlinked.File.Should().BeNull();
+        unlinked.Value.Should().Be($"\"{PUBLIC_URL}/gamedata/furnidata_json/0\"");
+    }
+
+    [Fact]
+    public async Task without_a_public_address_a_variable_following_a_file_writes_its_own_value()
+    {
+        var hotel = Hotel();
+
+        SeedAddresses(("furnituredata.url", "\"https://nitrodev.co/gamedata/furnidata_json/0\""));
+
+        var file = (await VariablesAsync(hotel)).Variables;
+
+        file["furnituredata.url"]!
+            .GetValue<string>()
+            .Should()
+            .Be("https://nitrodev.co/gamedata/furnidata_json/0");
+        file["productdata.url"]!.GetValue<string>().Should().Be("/gamedata/productdata_json/0");
+        (await hotel.Variables.SearchAsync(null, 0, Ct)).WritesAddresses.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(null, "external_variables")]
+    [InlineData(null, "nothing_json")]
+    [InlineData("Test:Hotel:Name", "furnidata_json")]
+    public async Task a_file_no_variable_can_follow_or_a_setting_and_a_file_at_once_is_refused(
+        string? setting,
+        string file
+    )
+    {
+        var hotel = Hotel(PUBLIC_URL);
+
+        var link = () => hotel.Variables.LinkAsync("some.url", setting, file, STAFF, Ct);
+
+        await link.Should().ThrowAsync<ArgumentException>();
+    }
+
+    [Fact]
+    public async Task an_import_leaves_a_variable_following_a_file_to_it()
+    {
+        var hotel = Hotel(PUBLIC_URL);
+
+        SeedAddresses();
 
         var preview = await hotel.Variables.PreviewImportAsync(
             """{ "furnituredata.url": "https://x", "socket.url": "wss://y" }""",
@@ -157,29 +247,6 @@ public sealed class GamedataVariableTests : IAsyncDisposable
 
         preview.Skipped.Should().Equal("furnituredata.url");
         preview.Added.Should().Be(1);
-        (await hotel.Variables.SearchAsync(null, 0, Ct))
-            .Stamped.Select(x => x.Key)
-            .Should()
-            .BeEquivalentTo(
-                "furnituredata.url",
-                "productdata.url",
-                "gamedata.urls.externalTexts",
-                "figuredata.url"
-            );
-    }
-
-    [Fact]
-    public async Task without_a_public_address_the_hotel_writes_no_addresses()
-    {
-        var hotel = Hotel();
-
-        await hotel.Variables.SaveAsync("furnituredata.url", "\"https://cdn/furni\"", STAFF, Ct);
-
-        (await VariablesAsync(hotel)).Variables["furnituredata.url"]!
-            .GetValue<string>()
-            .Should()
-            .Be("https://cdn/furni");
-        (await hotel.Variables.SearchAsync(null, 0, Ct)).Stamped.Should().BeEmpty();
     }
 
     [Theory]
@@ -282,6 +349,134 @@ public sealed class GamedataVariableTests : IAsyncDisposable
         await notObject.Should().ThrowAsync<ArgumentException>();
     }
 
+    [Fact]
+    public async Task a_variable_linked_to_a_setting_follows_it_and_the_file_is_built_again()
+    {
+        var hotel = Hotel();
+
+        var linked = await hotel.Variables.LinkAsync(
+            "hotel.name",
+            "test:hotel:name",
+            null,
+            STAFF,
+            Ct
+        );
+
+        linked.Setting.Should().Be("Test:Hotel:Name");
+        linked.Value.Should().Be("\"Turbo Hotel\"");
+
+        var before = await VariablesAsync(hotel);
+
+        before.Variables["hotel.name"]!.GetValue<string>().Should().Be("Turbo Hotel");
+
+        // Saving the setting is all: nothing tells the variables to build again.
+        await _settings.Settings.SaveAsync("Test:Hotel:Name", "\"Habbo Hotel\"", STAFF, Ct);
+
+        var after = await VariablesAsync(hotel);
+
+        after.Hash.Should().NotBe(before.Hash);
+        after.Variables["hotel.name"]!.GetValue<string>().Should().Be("Habbo Hotel");
+        (await hotel.Variables.SearchAsync("hotel", 0, Ct))
+            .Items.Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeEquivalentTo(
+                new
+                {
+                    Key = "hotel.name",
+                    Value = "\"Habbo Hotel\"",
+                    Setting = "Test:Hotel:Name",
+                }
+            );
+    }
+
+    [Fact]
+    public async Task a_setting_that_isnt_linked_leaves_the_file_as_it_was()
+    {
+        var hotel = Hotel();
+
+        await hotel.Variables.SaveAsync("socket.url", "\"wss://x\"", STAFF, Ct);
+
+        var before = await VariablesAsync(hotel);
+
+        await _settings.Settings.SaveAsync("Test:Hotel:MaxUsers", "80", STAFF, Ct);
+
+        (await VariablesAsync(hotel)).Hash.Should().Be(before.Hash);
+    }
+
+    [Theory]
+    [InlineData("Test:Hotel:ApiKey")]
+    [InlineData("Test:Hotel:Nothing")]
+    public async Task a_secret_or_unknown_setting_cant_be_linked(string setting)
+    {
+        var hotel = Hotel();
+
+        var link = () => hotel.Variables.LinkAsync("hotel.key", setting, null, STAFF, Ct);
+
+        await link.Should().ThrowAsync<ArgumentException>();
+        (await VariablesAsync(hotel)).Variables.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task unlinking_or_setting_a_value_keeps_the_variable_but_stops_it_following()
+    {
+        var hotel = Hotel();
+
+        await hotel.Variables.LinkAsync("hotel.name", "Test:Hotel:Name", null, STAFF, Ct);
+        await hotel.Variables.LinkAsync("hotel.users", "Test:Hotel:MaxUsers", null, STAFF, Ct);
+
+        (await hotel.Variables.LinkAsync("hotel.name", null, null, STAFF, Ct))
+            .Setting.Should()
+            .BeNull();
+        await hotel.Variables.SaveAsync("hotel.users", "10", STAFF, Ct);
+        await _settings.Settings.SaveAsync("Test:Hotel:Name", "\"Other\"", STAFF, Ct);
+        await _settings.Settings.SaveAsync("Test:Hotel:MaxUsers", "99", STAFF, Ct);
+
+        var file = (await VariablesAsync(hotel)).Variables;
+
+        file["hotel.name"]!.GetValue<string>().Should().Be("Turbo Hotel");
+        file["hotel.users"]!.GetValue<int>().Should().Be(10);
+    }
+
+    [Fact]
+    public async Task an_import_leaves_a_linked_variable_to_its_setting()
+    {
+        var hotel = Hotel();
+
+        await hotel.Variables.LinkAsync("hotel.name", "Test:Hotel:Name", null, STAFF, Ct);
+
+        var preview = await hotel.Variables.PreviewImportAsync(
+            """{ "hotel.name": "Imported" }""",
+            Ct
+        );
+
+        preview.Skipped.Should().Equal("hotel.name");
+        (await hotel.Variables.ImportAsync("""{ "hotel.name": "Imported" }""", STAFF, Ct))
+            .Should()
+            .BeNull();
+    }
+
+    [Fact]
+    public async Task rolling_back_a_link_puts_the_variable_back_as_it_was()
+    {
+        var hotel = Hotel();
+
+        await hotel.Variables.SaveAsync("hotel.name", "\"Own name\"", STAFF, Ct);
+        await hotel.Variables.LinkAsync("hotel.name", "Test:Hotel:Name", null, STAFF, Ct);
+
+        var link = (await hotel.History.ListAsync(0, Ct))[0];
+
+        await hotel.History.RollbackAsync(link.Id, STAFF, Ct);
+
+        var search = await hotel.Variables.SearchAsync("hotel", 0, Ct);
+
+        search.Items.Should().ContainSingle().Which.Setting.Should().BeNull();
+        (await VariablesAsync(hotel)).Variables["hotel.name"]!
+            .GetValue<string>()
+            .Should()
+            .Be("Own name");
+    }
+
     private HotelGamedata Hotel(string publicUrl = "")
     {
         var config = Options.Create(new GamedataConfig { PublicUrl = publicUrl });
@@ -290,6 +485,7 @@ public sealed class GamedataVariableTests : IAsyncDisposable
             _catalog.Db,
             config,
             new FurnitureOfferCatalog(_catalog.NormalProvider(), _catalog.BuildersClubProvider()),
+            _settings.Settings,
             NullLogger<GamedataFileService>.Instance
         );
         var hotelTexts = new HotelTextProvider(_catalog.Db, config, TimeProvider.System);
@@ -301,6 +497,7 @@ public sealed class GamedataVariableTests : IAsyncDisposable
                 config,
                 files,
                 writes,
+                _settings.Settings,
                 NullLogger<GamedataVariableService>.Instance
             ),
             new GamedataTextService(
@@ -323,6 +520,33 @@ public sealed class GamedataVariableTests : IAsyncDisposable
                 NullLogger<GamedataHistoryService>.Instance
             )
         );
+    }
+
+    /// <summary>
+    /// The four addresses of the hotel's gamedata files, each following its file as the migration
+    /// leaves them: a variable given keeps its value, the others start at the file's <c>/0</c>.
+    /// </summary>
+    private void SeedAddresses(params (string Key, string Value)[] kept)
+    {
+        foreach (
+            var (key, file) in new[]
+            {
+                ("furnituredata.url", GamedataFiles.FURNITURE_DATA),
+                ("productdata.url", GamedataFiles.PRODUCT_DATA),
+                ("gamedata.urls.externalTexts", GamedataFiles.EXTERNAL_TEXTS),
+                ("figuredata.url", GamedataFiles.FIGURE_DATA),
+            }
+        )
+            _catalog.Db.Insert(
+                new GamedataVariableEntity
+                {
+                    Id = ++_seeded,
+                    Key = key,
+                    Value =
+                        kept.FirstOrDefault(x => x.Key == key).Value ?? $"\"/gamedata/{file}/0\"",
+                    LinkedFile = file,
+                }
+            );
     }
 
     /// <summary>The variables file the client would load now, read as it reads it.</summary>
