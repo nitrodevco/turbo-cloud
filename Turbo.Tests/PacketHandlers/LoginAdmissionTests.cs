@@ -59,7 +59,8 @@ public class LoginAdmissionTests
             _fakes.Create<ISanctionService>(),
             _fakes.Create<IHotelAvailability>(),
             _fakes.Create<IHotelTextProvider>(),
-            _fakes.Create<Turbo.Primitives.Figures.IPlayerClothingService>()
+            _fakes.Create<Turbo.Primitives.Figures.IPlayerClothingService>(),
+            _fakes.Create<ICallForHelpService>()
         );
     }
 

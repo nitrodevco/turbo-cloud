@@ -3,7 +3,7 @@ using Turbo.Primitives.Moderation.Snapshots;
 
 namespace Turbo.Database.Extensions;
 
-/// <summary>Hotel sanctions.</summary>
+/// <summary>Hotel sanctions and calls for help.</summary>
 public static class ModerationEntityExtensions
 {
     public static PlayerSanctionSnapshot ToSnapshot(this PlayerSanctionEntity entity) =>
@@ -16,5 +16,13 @@ public static class ModerationEntityExtensions
             IssuerId = entity.IssuerEntityId is { } issuer ? issuer : null,
             IssuedAtUtc = entity.CreatedAt,
             ExpiresAtUtc = entity.ExpiresAt,
+        };
+
+    public static CfhTopicSnapshot ToSnapshot(this CfhTopicEntity entity) =>
+        new()
+        {
+            Id = entity.Id,
+            Name = entity.Name,
+            Consequence = entity.Consequence,
         };
 }

@@ -8,6 +8,7 @@ using Turbo.Primitives.Availability;
 using Turbo.Primitives.Figures;
 using Turbo.Primitives.Messages.Incoming.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Availability;
+using Turbo.Primitives.Messages.Outgoing.Callforhelp;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Achievements;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Avatareffect;
@@ -34,7 +35,8 @@ public class SSOTicketMessageHandler(
     ISanctionService sanctionService,
     IHotelAvailability hotelAvailability,
     IHotelTextProvider textProvider,
-    IPlayerClothingService clothing
+    IPlayerClothingService clothing,
+    ICallForHelpService callForHelp
 ) : IMessageHandler<SSOTicketMessage>
 {
     private readonly IAuthenticationService _authService = authService;
@@ -237,6 +239,15 @@ public class SSOTicketMessageHandler(
             )
             .ConfigureAwait(false);
         await ctx.SendComposerAsync(new InfoFeedEnableMessageComposer { Enabled = true }, ct)
+            .ConfigureAwait(false);
+        // What a call for help can be about: the help window builds its report flow from these.
+        await ctx.SendComposerAsync(
+                new CfhTopicsInitMessageComposer
+                {
+                    Categories = await callForHelp.GetTopicsAsync(ct).ConfigureAwait(false),
+                },
+                ct
+            )
             .ConfigureAwait(false);
 
         await _grainFactory
