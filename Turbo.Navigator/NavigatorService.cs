@@ -233,7 +233,7 @@ public sealed class NavigatorService(
                 )
                 .ConfigureAwait(false),
             NavigatorSearchType.MyGuildBases => await GetLegacySectionAsync(
-                    NavigatorSearchCodes.GROUPS
+                    NavigatorSearchCodes.MY_GROUPS
                 )
                 .ConfigureAwait(false),
             NavigatorSearchType.GuildBases => await GetGuildBaseRoomsAsync(query, limit, ct)
@@ -741,12 +741,14 @@ public sealed class NavigatorService(
 
                 return [.. MergeLive(cached, query, include: null).Take(limit)];
             }
-            case NavigatorSearchCodes.GROUPS:
+            case NavigatorSearchCodes.MY_GROUPS:
             {
                 var roomIds = await GetMyGuildBaseRoomIdsAsync(playerId, ct).ConfigureAwait(false);
 
                 return await GetRoomsInOrderAsync(query, roomIds, limit, ct).ConfigureAwait(false);
             }
+            case NavigatorSearchCodes.GROUPS:
+                return await GetGuildBaseRoomsAsync(query, limit, ct).ConfigureAwait(false);
             case NavigatorSearchCodes.TOP_PROMOTIONS:
             {
                 var rooms = await GetEventRoomsAsync(query, null, _config.SearchResultLimit, ct)

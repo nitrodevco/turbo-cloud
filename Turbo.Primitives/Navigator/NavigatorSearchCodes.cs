@@ -23,7 +23,16 @@ public static class NavigatorSearchCodes
     public const string FRIENDS_ROOMS = "friends_rooms";
     public const string WITH_FRIENDS = "with_friends";
     public const string WITH_RIGHTS = "with_rights";
+
+    /// <summary>The homerooms of the player's own groups (legacy search type 19).</summary>
+    public const string MY_GROUPS = "my_groups";
+
+    /// <summary>
+    /// The hotel's biggest groups' homerooms, as the group window's "show groups" link
+    /// (<c>performGuildBaseSearch</c>) and legacy search type 14 ask for them.
+    /// </summary>
     public const string GROUPS = "groups";
+
     public const string TOP_PROMOTIONS = "top_promotions";
     public const string NEW_ADS = "new_ads";
 
@@ -33,17 +42,17 @@ public static class NavigatorSearchCodes
     /// <summary>Event category blocks are <c>eventcategory__&lt;category name&gt;</c>.</summary>
     public const string EVENT_CATEGORY_PREFIX = "eventcategory__";
 
-    /// <summary>The blocks of the player's own world, in the order the client shows them.</summary>
+    /// <summary>The blocks of the player's own world, in the order Habbo shows them.</summary>
     public static readonly string[] MyWorldSections =
     [
         MY_ROOMS,
         FAVOURITES,
-        GROUPS,
+        MY_GROUPS,
         HISTORY,
-        FREQUENT_HISTORY,
-        FRIENDS_ROOMS,
         WITH_FRIENDS,
+        FRIENDS_ROOMS,
         WITH_RIGHTS,
+        FREQUENT_HISTORY,
     ];
 
     public static string Category(string categoryName) => CATEGORY_PREFIX + categoryName;
