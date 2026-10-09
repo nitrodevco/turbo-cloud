@@ -301,6 +301,14 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Change the server's settings in the admin panel: override appsettings.json, replace a secret, and put a setting back."
         ),
         new(
+            PermissionNodes.Admin.CONTENT_VIEW,
+            "See the game's content in the admin panel: achievements, badges, navigator categories, groups, pets and bots."
+        ),
+        new(
+            PermissionNodes.Content.MANAGE,
+            "Change the game's content in the admin panel: publish achievements, give and take badges, edit navigator categories, fix and remove groups, edit pet breeds, pet speech and bots."
+        ),
+        new(
             PermissionNodes.Figure.ANY,
             "Wear any clothing and colour, whatever the figure data says of club, sale or selection."
         ),

@@ -7,6 +7,7 @@ using Turbo.Admin.Assets;
 using Turbo.Admin.Catalog;
 using Turbo.Admin.Commands;
 using Turbo.Admin.Configuration;
+using Turbo.Admin.Content;
 using Turbo.Admin.Links;
 using Turbo.Admin.Live;
 using Turbo.Admin.Notifications;
@@ -46,6 +47,7 @@ public sealed class AdminModule : IHostPluginModule
         services.AddSingleton<AdminCatalogQueries>();
         services.AddSingleton<AdminCatalogBuilder>();
         services.AddSingleton<AdminCatalogAudit>();
+        services.AddSingleton<AdminBadgeQueries>();
         services.AddSingleton<AdminSearchQueries>();
         services.AddSingleton<AdminNotificationQueries>();
         services.AddSingleton<ClientAssets>();

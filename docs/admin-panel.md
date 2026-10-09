@@ -858,11 +858,30 @@ passkey; they add more while signed in instead.
 | `permissions.superuser` | With `permissions.manage`: lifts the weight and held-node limits of the permission editor (see [Permission editor](#permission-editor)). No wildcard grants it. |
 | `admin.settings.view` | The Settings page: every server setting, where its value comes from and what waits on a restart. Secrets are never shown. |
 | `settings.manage` | Changing settings on that page: overriding appsettings.json, replacing a secret, putting a setting back (see `docs/settings.md`). |
+| `admin.content.view` | The Content page: achievements, badges, the navigator's categories, groups, pets and bots. |
+| `content.manage` | Changing the content on that page: publishing achievements, pinning badges' rarity and giving or taking them, and the rest of its tabs. |
 
 Everything else in the panel uses each command's own permission. The console runs commands
 **as you**, with exactly your permissions, rate limits and confirmations, and logs them like
 commands typed in the hotel. Room commands (`kick`, `mute`, ...) need a room, so the console
 can't run them.
+
+## Content
+
+The **Content** page is the game's content, each change made at once and on record:
+
+- **Achievements**, from the achievement catalog, by category. An edit (a level's requirement,
+  badge, score or reward, the state, the dates, or the whole definition as JSON) is **checked** as
+  the catalog checks every definition, then **published** as the achievement's next revision with
+  a reason, kept in `achievement_audit`, and live at once. **Copy as a new achievement** starts one
+  from another. Retiring keeps what players earned and gives nothing more.
+- **Badges**: every code players hold or that has a pinned rarity, most held first. Pin a rarity
+  (it reaches the hotel within the badge directory's `OwnerCountRefreshMs`), see who holds a badge,
+  take it from them, or give it to a player. A badge no one holds yet is found by typing its code.
+  Staff who may see the gamedata also edit its name and description (`badge_name_<code>`,
+  `badge_desc_<code>`), saved to the external texts.
+
+It needs `admin.content.view` to look and `content.manage` to change anything.
 
 ## Hotel view
 

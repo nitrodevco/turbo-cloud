@@ -75,6 +75,9 @@ internal sealed class AuthEndpoints(IGrainFactory grainFactory)
                     .ConfigureAwait(false),
                 await grainFactory
                     .HasPermissionAsync(identity.PlayerId, PermissionNodes.Admin.SETTINGS_VIEW, ct)
+                    .ConfigureAwait(false),
+                await grainFactory
+                    .HasPermissionAsync(identity.PlayerId, PermissionNodes.Admin.CONTENT_VIEW, ct)
                     .ConfigureAwait(false)
             )
         );

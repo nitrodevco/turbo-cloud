@@ -54,6 +54,16 @@ public static class PermissionNodes
         public const string MANAGE = "gamedata.manage";
     }
 
+    public static class Content
+    {
+        /// <summary>
+        /// Change the game's content in the panel: publish achievements, pin badges' rarity and
+        /// give or take them, edit the navigator's categories, fix and remove groups, and edit pet
+        /// breeds, pet speech and bots. Seeing it there needs <see cref="Admin.CONTENT_VIEW"/>.
+        /// </summary>
+        public const string MANAGE = "content.manage";
+    }
+
     public static class Settings
     {
         /// <summary>
@@ -274,6 +284,12 @@ public static class PermissionNodes
         /// <see cref="Settings.MANAGE"/> as well.
         /// </summary>
         public const string SETTINGS_VIEW = "admin.settings.view";
+
+        /// <summary>
+        /// See the game's content in the panel: achievements, badges, the navigator's categories,
+        /// groups, pets and bots. Changing it needs <see cref="Content.MANAGE"/> as well.
+        /// </summary>
+        public const string CONTENT_VIEW = "admin.content.view";
     }
 
     /// <summary>
