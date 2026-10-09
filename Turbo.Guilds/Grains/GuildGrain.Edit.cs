@@ -179,10 +179,19 @@ internal sealed partial class GuildGrain
         if (!_guildConfig.DeletionEnabled)
             return false;
 
-        var memberIds = _state.RankByPlayerId.Keys.Select(PlayerId.Parse).ToList();
-
         if (CountOfMembers() > _guildConfig.DeletionMaxMembers)
             return false;
+
+        return await DeleteAsync(guild, ct);
+    }
+
+    /// <summary>
+    /// Deletes the group in one transaction with its roster, then tells the directory, the
+    /// homeroom, every member and the group's furni wherever it stands.
+    /// </summary>
+    private async Task<bool> DeleteAsync(GuildSnapshot guild, CancellationToken ct)
+    {
+        var memberIds = _state.RankByPlayerId.Keys.Select(PlayerId.Parse).ToList();
 
         await using (var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct))
         {

@@ -93,6 +93,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Guilds.Grains.IGuildDirectoryGra
   9B3B748A: GetSummaryAsync(Turbo.Primitives.Guilds.GuildId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildSummarySnapshot?>
   3268182C: OnGuildChangedAsync(Turbo.Primitives.Guilds.Snapshots.GuildSummarySnapshot, System.Threading.CancellationToken) -> Task
   143CCD59: OnGuildRemovedAsync(Turbo.Primitives.Guilds.GuildId, System.Threading.CancellationToken) -> Task
+  FD93DFF5: ReloadAsync(System.Threading.CancellationToken) -> Task
   DF1ACF34: SearchByNameAsync(string, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Guilds.Snapshots.GuildSummarySnapshot>>
 
 interface [GrainInterfaceType("Turbo.Primitives.Guilds.Grains.IGuildGrain")] Turbo.Primitives.Guilds.Grains.IGuildGrain [Version(0)]
@@ -112,6 +113,10 @@ interface [GrainInterfaceType("Turbo.Primitives.Guilds.Grains.IGuildGrain")] Tur
   F4566792: RejectRequestAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildMemberMgmtResultSnapshot>
   D734CC0F: SendChatMessageAsync(Turbo.Primitives.Players.PlayerId, string, string, string, string, System.Threading.CancellationToken) -> Task<bool>
   0C08C9E1: SetAdminAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Players.PlayerId, bool, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildMemberMgmtResultSnapshot>
+  3141B21B: StaffDeleteAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
+  A729F74B: StaffRemoveMemberAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
+  9352ED47: StaffRenameAsync(Turbo.Primitives.Players.PlayerId, string, string, System.Threading.CancellationToken) -> Task<bool>
+  753908E6: StaffResetBadgeAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
   DDCDF45D: UnblockAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildMemberMgmtResultSnapshot>
   F8AE35B3: UpdateBadgeAsync(Turbo.Primitives.Players.PlayerId, System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Guilds.Snapshots.GuildBadgePartSnapshot>, System.Threading.CancellationToken) -> Task<bool>
   3E1CB06F: UpdateColorsAsync(Turbo.Primitives.Players.PlayerId, int, int, System.Threading.CancellationToken) -> Task<bool>

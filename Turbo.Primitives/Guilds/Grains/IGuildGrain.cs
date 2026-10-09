@@ -160,6 +160,39 @@ public interface IGuildGrain : IGrainWithIntegerKey
     /// </summary>
     public Task<bool> DeactivateAsync(PlayerId actorId, CancellationToken ct);
 
+    // Staff, from the admin panel: what the owner could do, done by someone who isn't in the group.
+    // The owner's open window is nudged as if they had done it, and the staff member is logged.
+
+    /// <summary>
+    /// Renames the group and replaces its description, as staff typed them (clamped to the
+    /// hotel's lengths, not word-filtered). False for an empty name or a group there isn't.
+    /// </summary>
+    public Task<bool> StaffRenameAsync(
+        PlayerId staffId,
+        string name,
+        string description,
+        CancellationToken ct
+    );
+
+    /// <summary>Puts the group's badge back to the editor's default one. False for a group there isn't.</summary>
+    public Task<bool> StaffResetBadgeAsync(PlayerId staffId, CancellationToken ct);
+
+    /// <summary>
+    /// Takes a member, admin, request or block out of the group. The owner can't be removed: the
+    /// group is deleted instead. False when the player isn't in it.
+    /// </summary>
+    public Task<bool> StaffRemoveMemberAsync(
+        PlayerId staffId,
+        PlayerId targetId,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Deletes the group as its owner deleting it would, whatever its size or the hotel's deletion
+    /// setting. False for a group there isn't.
+    /// </summary>
+    public Task<bool> StaffDeleteAsync(PlayerId staffId, CancellationToken ct);
+
     // The group chat (the messenger's conversation with id minus the group id). Who is listening
     // is held in memory only: a member's messenger joins when its owner comes online or joins the
     // group and leaves when they go offline or leave it. The messenger awaits these, so the two

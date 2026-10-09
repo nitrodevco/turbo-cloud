@@ -885,6 +885,13 @@ The **Content** page is the game's content, each change made at once and on reco
   the navigator's categories and drops the listings kept under a renamed or removed category, so
   players see it the next time they open the navigator. A category rooms are in, or an event
   category events are in, can't be removed. Staff picks stay on each room's page.
+- **Groups**: found by name, owner, group or room id. Staff rename a group (as typed, not
+  word-filtered), put its badge back to the default, take any member, admin, request or block out,
+  or delete it, whatever its size or `Turbo:Guilds:DeletionEnabled`. Each goes through the group's
+  grain (`StaffRenameAsync`, ...) as the owner's own change would, the staff member named in the
+  log. Below, the badge parts and colours group badges are built from: added under the next id of
+  their kind (ids are written into badge codes, so they are never reused), their files or hex
+  changed, and read again by the group directory at once.
 
 It needs `admin.content.view` to look and `content.manage` to change anything.
 

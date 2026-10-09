@@ -214,6 +214,8 @@ internal sealed class GuildDirectoryGrain : Grain, IGuildDirectoryGrain
         _state.MemberCountByGuildId.Remove(guildId.Value);
     }
 
+    public Task ReloadAsync(CancellationToken ct) => HydrateAsync(ct);
+
     public Task<int> GetOwnedCountAsync(PlayerId playerId, CancellationToken ct) =>
         Task.FromResult(_state.OwnedCountByPlayerId.GetValueOrDefault(playerId.Value));
 

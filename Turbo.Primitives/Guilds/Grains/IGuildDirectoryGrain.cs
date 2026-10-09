@@ -56,6 +56,12 @@ public interface IGuildDirectoryGrain : IGrainWithStringKey
         CancellationToken ct
     );
 
+    /// <summary>
+    /// Reads every group and the badge editor's parts and colours again at once, rather than at the
+    /// next refresh: after staff change the parts or colours.
+    /// </summary>
+    public Task ReloadAsync(CancellationToken ct);
+
     /// <summary>Groups whose name contains this text, for the navigator's group search.</summary>
     public Task<ImmutableArray<GuildSummarySnapshot>> SearchByNameAsync(
         string query,

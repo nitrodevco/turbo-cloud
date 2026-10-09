@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using Turbo.Primitives.Achievements.Enums;
 using Turbo.Primitives.Badges.Enums;
+using Turbo.Primitives.Guilds.Enums;
 
 namespace Turbo.Admin.Api.Contracts;
 
@@ -82,3 +84,63 @@ public sealed record NavigatorFlatCategoryRequest(
 public sealed record NavigatorEventCategoryRequest(string? Name, bool? Visible);
 
 public sealed record NavigatorContextRequest(string? SearchCode, bool? Visible, int? OrderNum);
+
+/// <summary>A group as staff find it: its owner, homeroom and how many members it has.</summary>
+public sealed record GroupItem(
+    int Id,
+    string Name,
+    string BadgeCode,
+    int OwnerId,
+    string OwnerName,
+    int RoomId,
+    int Members,
+    DateTime CreatedAt
+);
+
+public sealed record GroupSearchResponse(List<GroupItem> Groups, int Total, int PageSize);
+
+/// <summary>A member, admin, request or block of a group, by its rank.</summary>
+public sealed record GroupMemberItem(int PlayerId, string Name, GuildMemberRank Rank);
+
+public sealed record GroupDetailResponse(
+    int Id,
+    string Name,
+    string Description,
+    string BadgeCode,
+    GuildType Type,
+    int OwnerId,
+    string OwnerName,
+    int RoomId,
+    string RoomName,
+    DateTime CreatedAt,
+    List<GroupMemberItem> Members
+);
+
+/// <summary>A group's new name and description, as staff typed them.</summary>
+public sealed record GroupRenameRequest(string? Name, string? Description);
+
+/// <summary>A badge part group badges are built from: its kind, the id badge codes carry, and its files.</summary>
+public sealed record GroupBadgePartItem(
+    int Id,
+    GuildBadgePartType PartType,
+    int PartId,
+    string FileName,
+    string MaskFileName
+);
+
+public sealed record GroupColorItem(int Id, GuildColorSlotType Slot, int ColorId, string Color);
+
+public sealed record GroupEditorResponse(
+    List<GroupBadgePartItem> Parts,
+    List<GroupColorItem> Colors
+);
+
+/// <summary>A badge part to add (its kind) or change (its files).</summary>
+public sealed record GroupBadgePartRequest(
+    GuildBadgePartType? PartType,
+    string? FileName,
+    string? MaskFileName
+);
+
+/// <summary>A colour to add (its slot) or change (its hex).</summary>
+public sealed record GroupColorRequest(GuildColorSlotType? Slot, string? Color);

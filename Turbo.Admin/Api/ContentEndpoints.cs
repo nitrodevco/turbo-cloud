@@ -12,6 +12,8 @@ using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Content;
 using Turbo.Primitives.Achievements;
+using Turbo.Primitives.Guilds;
+using Turbo.Primitives.Guilds.Grains;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Permissions;
@@ -19,7 +21,7 @@ using Turbo.Primitives.Players.Permissions;
 namespace Turbo.Admin.Api;
 
 /// <summary>
-/// The game's content: achievements, badges and the navigator's categories. For staff with <c>admin.content.view</c>;
+/// The game's content: achievements, badges, the navigator's categories and groups. For staff with <c>admin.content.view</c>;
 /// changing anything needs <c>content.manage</c> as well.
 /// <para>
 /// An achievement is published through its catalog (<see cref="IAchievementCatalog.ImportAsync"/>):
@@ -32,6 +34,7 @@ internal sealed partial class ContentEndpoints(
     IAchievementCatalog achievements,
     AdminBadgeQueries badges,
     AdminNavigatorEditor navigator,
+    AdminGroupQueries groups,
     ILogger<ContentEndpoints> logger
 )
 {
@@ -61,6 +64,114 @@ internal sealed partial class ContentEndpoints(
         group.MapPut("/badges/{code}/rarity", SetRarityAsync);
         group.MapPost("/badges/{code}/holders", GiveBadgeAsync);
         group.MapDelete("/badges/{code}/holders/{playerId:int}", TakeBadgeAsync);
+        group.MapGet(
+            "/groups",
+            async (string? q, int? page, CancellationToken ct) =>
+                Results.Ok(await groups.SearchAsync(q, page ?? 0, ct).ConfigureAwait(false))
+        );
+        group.MapGet(
+            "/groups/editor",
+            async (CancellationToken ct) =>
+                Results.Ok(await groups.GetEditorAsync(ct).ConfigureAwait(false))
+        );
+        group.MapGet(
+            "/groups/{id:int}",
+            async (int id, CancellationToken ct) =>
+                await groups.GetAsync(id, ct).ConfigureAwait(false) is { } detail
+                    ? Results.Ok(detail)
+                    : Results.NotFound()
+        );
+        group.MapPut(
+            "/groups/{id:int}",
+            (int id, GroupRenameRequest request, HttpContext http, CancellationToken ct) =>
+                GroupAsync(
+                    id,
+                    http,
+                    ct,
+                    (grain, staff) =>
+                        grain.StaffRenameAsync(
+                            staff,
+                            request.Name ?? string.Empty,
+                            request.Description ?? string.Empty,
+                            ct
+                        ),
+                    "Not renamed: a group needs a name."
+                )
+        );
+        group.MapPost(
+            "/groups/{id:int}/reset-badge",
+            (int id, HttpContext http, CancellationToken ct) =>
+                GroupAsync(
+                    id,
+                    http,
+                    ct,
+                    (grain, staff) => grain.StaffResetBadgeAsync(staff, ct),
+                    "The badge could not be reset."
+                )
+        );
+        group.MapDelete(
+            "/groups/{id:int}/members/{playerId:int}",
+            (int id, int playerId, HttpContext http, CancellationToken ct) =>
+                GroupAsync(
+                    id,
+                    http,
+                    ct,
+                    (grain, staff) =>
+                        grain.StaffRemoveMemberAsync(staff, new PlayerId(playerId), ct),
+                    "Not removed: they must be in the group, and the owner stays until it is deleted."
+                )
+        );
+        group.MapDelete(
+            "/groups/{id:int}",
+            (int id, HttpContext http, CancellationToken ct) =>
+                GroupAsync(
+                    id,
+                    http,
+                    ct,
+                    (grain, staff) => grain.StaffDeleteAsync(staff, ct),
+                    "There is no such group."
+                )
+        );
+        group.MapPost(
+            "/groups/parts",
+            (GroupBadgePartRequest request, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Saved(await groups.SavePartAsync(0, request, ct).ConfigureAwait(false))
+                )
+        );
+        group.MapPut(
+            "/groups/parts/{id:int}",
+            (int id, GroupBadgePartRequest request, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Saved(await groups.SavePartAsync(id, request, ct).ConfigureAwait(false))
+                )
+        );
+        group.MapPost(
+            "/groups/colors",
+            (GroupColorRequest request, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Saved(await groups.SaveColorAsync(0, request, ct).ConfigureAwait(false))
+                )
+        );
+        group.MapPut(
+            "/groups/colors/{id:int}",
+            (int id, GroupColorRequest request, HttpContext http, CancellationToken ct) =>
+                ManageAsync(
+                    http,
+                    ct,
+                    async () =>
+                        Saved(await groups.SaveColorAsync(id, request, ct).ConfigureAwait(false))
+                )
+        );
         group.MapGet(
             "/navigator",
             async (CancellationToken ct) =>
@@ -380,6 +491,27 @@ internal sealed partial class ContentEndpoints(
 
                 return taken ? Results.NoContent() : Results.NotFound();
             }
+        );
+
+    /// <summary>A staff change to a group through its grain: no content, or 400 with why not.</summary>
+    private Task<IResult> GroupAsync(
+        int id,
+        HttpContext http,
+        CancellationToken ct,
+        Func<IGuildGrain, PlayerId, Task<bool>> change,
+        string refusal
+    ) =>
+        ManageAsync(
+            http,
+            ct,
+            async () =>
+                await change(
+                        grainFactory.GetGuildGrain(new GuildId(id)),
+                        AdminIdentity.Of(http).PlayerId
+                    )
+                    .ConfigureAwait(false)
+                    ? Results.NoContent()
+                    : AdminResults.Error(StatusCodes.Status400BadRequest, refusal)
         );
 
     private static IResult Saved(int id) => Results.Ok(new { id });
