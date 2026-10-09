@@ -68,6 +68,8 @@ public class SessionSendRaceTests
         dropped.Message.Should().Contain(nameof(PingMessage));
     }
 
+    private static readonly Func<ValueTask> Drop = () => ValueTask.CompletedTask;
+
     // The heartbeat closing a silent client as it drops: the WebSocket close frame meets the
     // completed writer.
     [Fact]
@@ -81,7 +83,7 @@ public class SessionSendRaceTests
         var closing = (Task)
             StateType
                 .GetMethod("CloseAsync", BindingFlags.Public | BindingFlags.Instance)!
-                .Invoke(_state, [_session, close])!;
+                .Invoke(_state, [_session, close, Drop])!;
 
         await closing.Invoking(t => t).Should().NotThrowAsync();
         _logger.AtLeast(LogLevel.Warning).Should().BeEmpty();

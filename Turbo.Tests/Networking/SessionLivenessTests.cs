@@ -131,6 +131,36 @@ public sealed class SessionLivenessTests : IAsyncDisposable
         _releaseSlowHandler.SetResult();
     }
 
+    [Fact]
+    public async Task AClientThatNeverAnswersTheClose_IsDropped_AndItsPlayerLeaves()
+    {
+        var session = await ConnectAsync();
+        _releaseSlowHandler.SetResult();
+        await _hotel.Gateway.AddSessionToPlayerAsync(session.SessionKey, SessionHarness.PlayerId);
+        _hotel.Gateway.GetOnlinePlayerIds().Should().NotBeEmpty();
+
+        // The client never reads, so it never answers the close frame. The heartbeat closes a
+        // silent session again on each of its ticks.
+        await session.CloseSessionAsync();
+        var handshakeStarted = ((WebSocketSession)session).CloseHandshakeStartTime;
+        for (var i = 0; i < 3; i++)
+        {
+            await Task.Delay(200);
+            await session.CloseSessionAsync();
+        }
+
+        ((WebSocketSession)session)
+            .CloseHandshakeStartTime.Should()
+            .Be(handshakeStarted, "one close frame is sent, not one per heartbeat tick");
+
+        var gone = await WaitUntilAsync(
+            () => session.Connection.IsClosed && !_hotel.Gateway.GetOnlinePlayerIds().Any(),
+            TimeSpan.FromSeconds(10)
+        );
+
+        gone.Should().BeTrue("the connection is dropped and the session removed with its player");
+    }
+
     private static async Task<bool> WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
     {
         var until = DateTime.UtcNow + timeout;

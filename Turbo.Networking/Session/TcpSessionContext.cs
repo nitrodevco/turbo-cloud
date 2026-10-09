@@ -36,7 +36,12 @@ public class TcpSessionContext(PackageEncoder packageEncoder, ILogger<ISessionCo
 
     public ArrayBufferWriter<byte>? WsBuffer { get; } = null;
 
-    public Task CloseSessionAsync() => _state.CloseAsync(this, CloseAsync);
+    public Task CloseSessionAsync() =>
+        _state.CloseAsync(
+            this,
+            CloseAsync,
+            () => Connection.CloseAsync(SuperSocket.Connection.CloseReason.LocalClosing)
+        );
 
     public void SetRevisionId(string revisionId) => _state.RevisionId = revisionId;
 
